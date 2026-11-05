@@ -6,7 +6,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Loading;
-using DemoViewer.NET.ViewModels;
 using ThirdPartyFake;
 using ThirdPartyFake.ViewModels;
 using ThirdPartyFake.Views;
@@ -50,8 +49,8 @@ public class ThirdPartyViewResolutionTests
         Type[] ownTypes =
         [
             .. fake.GetExportedTypes().Where(t => typeof(IExtension).IsAssignableFrom(t)
-                                                  || typeof(IExtensionViewModel).IsAssignableFrom(t)
-                                                  || typeof(Control).IsAssignableFrom(t))
+                || typeof(IExtensionViewModel).IsAssignableFrom(t)
+                || typeof(Control).IsAssignableFrom(t))
         ];
 
         using (Assert.Multiple())
@@ -59,7 +58,8 @@ public class ThirdPartyViewResolutionTests
             await Assert.That(ours.Except(allowed)).IsEmpty();
             await Assert.That(ours).Contains("DemoViewer.NET.Extensions.Sdk.Ui");
             await Assert.That(ownTypes.Length).IsEqualTo(5);
-            await Assert.That(ownTypes.All(t => t.Namespace!.StartsWith("ThirdPartyFake", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(ownTypes.All(t => t.Namespace!.StartsWith("ThirdPartyFake", StringComparison.Ordinal)))
+                .IsTrue();
             await Assert.That(FeaturePacks.Compatible.Any(p => p.GetType().Assembly == fake)).IsFalse()
                 .Because("the view must be found through the view model's own assembly, not a pack search");
         }
@@ -101,8 +101,10 @@ public class ThirdPartyViewResolutionTests
                 await Assert.That(visuals.OfType<FakeDetailView>().Count()).IsEqualTo(1);
                 await Assert.That(visuals.OfType<StatusChip>().Count()).IsEqualTo(1);
                 await Assert.That(visuals.OfType<TextBlock>().Any(t => t.Text == "Fake · ready")).IsTrue();
-                await Assert.That(visuals.OfType<TextBlock>().Any(t => t.Text?.StartsWith("Not Found", StringComparison.Ordinal) == true)).IsFalse();
-                await Assert.That(tab!.Background).IsNotNull().Because("PanelBg resolves through a published token constant");
+                await Assert.That(visuals.OfType<TextBlock>()
+                    .Any(t => t.Text?.StartsWith("Not Found", StringComparison.Ordinal) == true)).IsFalse();
+                await Assert.That(tab!.Background).IsNotNull()
+                    .Because("PanelBg resolves through a published token constant");
             }
 
             window.Close();
@@ -115,7 +117,8 @@ public class ThirdPartyViewResolutionTests
         string root = Path.Combine(Path.GetTempPath(), "dv-ext-" + Guid.NewGuid().ToString("N"));
         try
         {
-            string target = Path.Combine(root, ExtensionLoader.ExtensionsDirectoryName, FakeExtension.ExtensionId, "1.0.0");
+            string target = Path.Combine(root, ExtensionLoader.ExtensionsDirectoryName, FakeExtension.ExtensionId,
+                "1.0.0");
             Directory.CreateDirectory(target);
             foreach (string file in Directory.EnumerateFiles(FakeOutput()))
             {
@@ -125,9 +128,11 @@ public class ThirdPartyViewResolutionTests
             ExternalResolution result = ExternalExtensions.Resolve(root, [], ExtensionHost.Current,
                 new ExternalTrust(PublisherKeys.Current, true));
             Assembly loaded = result.Loaded.Single().Pack.GetType().Assembly;
-            object detail = Activator.CreateInstance(loaded.GetType(typeof(FakeDetailViewModel).FullName!, throwOnError: true)!)!;
+            object detail =
+                Activator.CreateInstance(loaded.GetType(typeof(FakeDetailViewModel).FullName!, throwOnError: true)!)!;
 
-            await Assert.That(loaded).IsNotEqualTo(typeof(FakeExtension).Assembly).Because("the external copy loads in its own context");
+            await Assert.That(loaded).IsNotEqualTo(typeof(FakeExtension).Assembly)
+                .Because("the external copy loads in its own context");
             await HeadlessSession.RunOnUi(async () =>
             {
                 ViewLocator locator = new();

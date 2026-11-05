@@ -3,8 +3,8 @@
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Input;
-using DemoViewer.NET.Playback2D.Pipeline.Input;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Input;
 using DemoViewer.NET.Playback2D.Tools;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
@@ -521,7 +521,8 @@ public class InputToolRouterTests
 
         SKPoint start = new(200, 100);
         LevelPane pane = services.PaneAt(start)!;
-        bool taken = router.OnPressed(Sample(pane, start, ToolPointerButton.Left, ToolModifiers.Shift | ToolModifiers.Alt));
+        bool taken =
+            router.OnPressed(Sample(pane, start, ToolPointerButton.Left, ToolModifiers.Shift | ToolModifiers.Alt));
         router.OnMoved(Sample(pane, new SKPoint(210, 110)));
         router.OnReleased(Sample(pane, new SKPoint(220, 120)));
 
@@ -646,7 +647,8 @@ public class InputToolRouterTests
         router.SetActive(ToolKind.Draw);
         IPointerTool pen = router.Active;
 
-        ArgumentException refused = Assert.Throws<ArgumentException>(() => router.Register(new InertTool(ToolKind.Draw)));
+        ArgumentException refused =
+            Assert.Throws<ArgumentException>(() => router.Register(new InertTool(ToolKind.Draw)));
         router.Register(pen);
 
         SKPoint at = new(200, 100);

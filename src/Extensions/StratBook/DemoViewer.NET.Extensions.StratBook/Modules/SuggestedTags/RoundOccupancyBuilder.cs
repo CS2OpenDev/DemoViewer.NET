@@ -228,7 +228,8 @@ public static class RoundOccupancyBuilder
     /// <param name="index">The demo's index document.</param>
     /// <param name="facts">The same Round Facts rows the index was built over, for seats and the bomb.</param>
     /// <param name="tickRate">The demo's tick rate; the document's clock header when zero.</param>
-    public static IReadOnlyList<RoundOccupancy> FromIndex(RoundIndexDocument index, RoundFactsRows facts, int tickRate = 0)
+    public static IReadOnlyList<RoundOccupancy> FromIndex(RoundIndexDocument index, RoundFactsRows facts,
+        int tickRate = 0)
     {
         ArgumentNullException.ThrowIfNull(index);
         ArgumentNullException.ThrowIfNull(facts);
@@ -247,7 +248,8 @@ public static class RoundOccupancyBuilder
         foreach (RoundIndexRound round in index.Rounds.OrderBy(r => r.Number))
         {
             rows.TryGetValue(round.Number, out RoundFacts? row);
-            Dictionary<int, (IReadOnlyList<(string Place, int Count)> Ct, IReadOnlyList<(string Place, int Count)> T)> bySecond = [];
+            Dictionary<int, (IReadOnlyList<(string Place, int Count)> Ct, IReadOnlyList<(string Place, int Count)> T)>
+                bySecond = [];
             foreach (RoundIndexRow step in index.ExpandRows(round))
             {
                 int second = (step.Tick - round.FreezeEndTick) / tickRate;
@@ -277,7 +279,7 @@ public static class RoundOccupancyBuilder
             }
 
             int end = round.EndTick
-                      ?? (i + 1 < rounds.Count ? rounds[i + 1].FreezeEndTick : lastFrameTick + 1);
+                ?? (i + 1 < rounds.Count ? rounds[i + 1].FreezeEndTick : lastFrameTick + 1);
             if (end <= round.FreezeEndTick)
             {
                 continue;

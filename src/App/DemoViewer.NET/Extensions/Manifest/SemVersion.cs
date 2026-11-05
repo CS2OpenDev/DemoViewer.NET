@@ -18,7 +18,8 @@ namespace DemoViewer.NET.Extensions.Manifest;
 /// <param name="Minor">The minor component.</param>
 /// <param name="Patch">The patch component.</param>
 /// <param name="Prerelease">The dot-separated prerelease identifiers after the hyphen, or null for a release.</param>
-public sealed partial record SemVersion(int Major, int Minor, int Patch, string? Prerelease = null) : IComparable<SemVersion>
+public sealed partial record SemVersion(int Major, int Minor, int Patch, string? Prerelease = null)
+    : IComparable<SemVersion>
 {
     /// <summary>Whether the version carries a prerelease tag.</summary>
     public bool IsPrerelease => Prerelease is not null;
@@ -51,7 +52,7 @@ public sealed partial record SemVersion(int Major, int Minor, int Patch, string?
     }
 
     /// <summary>Compares only the numeric core, ignoring any prerelease tag.</summary>
-    public int CompareCore(SemVersion other)
+    private int CompareCore(SemVersion other)
     {
         ArgumentNullException.ThrowIfNull(other);
         int c = Major.CompareTo(other.Major);
@@ -70,7 +71,9 @@ public sealed partial record SemVersion(int Major, int Minor, int Patch, string?
     /// <summary>Parses a strict SemVer 2.0 string (three components, optional prerelease, optional build metadata).</summary>
     /// <exception cref="FormatException">Not a semantic version.</exception>
     public static SemVersion Parse(string text) =>
-        TryParse(text, out SemVersion? version) ? version : throw new FormatException($"'{text}' is not a semantic version.");
+        TryParse(text, out SemVersion? version)
+            ? version
+            : throw new FormatException($"'{text}' is not a semantic version.");
 
     /// <summary>Parses a strict SemVer 2.0 string; false when it is not one.</summary>
     public static bool TryParse(string? text, [NotNullWhen(true)] out SemVersion? version)
@@ -134,7 +137,7 @@ public sealed partial record SemVersion(int Major, int Minor, int Patch, string?
     public static bool operator >=(SemVersion left, SemVersion right) => Compare(left, right) >= 0;
 
     private static int Compare(SemVersion? left, SemVersion? right) =>
-        left is null ? (right is null ? 0 : -1) : left.CompareTo(right);
+        left?.CompareTo(right) ?? (right is null ? 0 : -1);
 
     private static int ComparePrerelease(string left, string right)
     {
@@ -162,9 +165,11 @@ public sealed partial record SemVersion(int Major, int Minor, int Patch, string?
     }
 
     // Dot-separated identifiers; a purely numeric one has no leading zero (SemVer 2.0 item 9).
-    internal const string PrereleasePattern = @"(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*";
+    internal const string PrereleasePattern =
+        @"(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*";
 
-    [GeneratedRegex(@"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(" + PrereleasePattern + @"))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$")]
+    [GeneratedRegex(@"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(" + PrereleasePattern
+        + @"))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$")]
     private static partial Regex Strict();
 
     [GeneratedRegex(@"^(\d+)\.(\d+)\.(\d+)(?:\.\d+)?(?:-(" + PrereleasePattern + @"))?(?:\+.*)?$")]

@@ -2,15 +2,17 @@
 
 using Avalonia;
 using Avalonia.Browser;
-using DemoViewer.NET;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
 
 #endregion
 
-internal sealed class Program
+namespace DemoViewer.NET.Browser;
+
+internal static class Program
 {
     /// <summary>Build avalonia app.</summary>
+    [UsedImplicitly]
     public static AppBuilder BuildAvaloniaApp()
     {
         // The XAML previewer calls this without Main, so it declares the same packs; a no-op after Main.
@@ -18,7 +20,7 @@ internal sealed class Program
         return AppBuilder.Configure<App>();
     }
 
-    private static Task Main(string[] args)
+    private static Task Main()
     {
         // Same list as the Desktop head: the browser compile-links the extension it was built with.
         FeaturePacks.Configure([new StratBookPack()]);

@@ -88,6 +88,7 @@ internal static class RenderBackendResolver
 }
 
 /// <summary>Raised when a strictly-requested backend cannot be provided.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class BackendUnavailableException : Exception
 {
     /// <summary>Creates the exception.</summary>

@@ -25,16 +25,16 @@ public sealed record MiningGrenade(IndexedGrenade Grenade, Guid? LineupId);
 public sealed class RoundSignatureBuilder
 {
     /// <summary>Ts in the site's place that start a take.</summary>
-    public const int TakeCount = 2;
+    private const int TakeCount = 2;
 
     /// <summary>Ts in one site at once that make a take on a round without a plant.</summary>
-    public const int UnplantedTakeCount = 3;
+    private const int UnplantedTakeCount = 3;
 
     /// <summary>Seconds after freeze end before which an execute anchor says nothing.</summary>
-    public const int SpawnSeconds = 4;
+    private const int SpawnSeconds = 4;
 
     /// <summary>Part of every cache key: bump it when the anchors, the windows or the take rule change.</summary>
-    public const int SignatureVersion = 1;
+    private const int SignatureVersion = 1;
 
     private const string SiteAPlace = "BombsiteA";
     private const string SiteBPlace = "BombsiteB";
@@ -55,7 +55,8 @@ public sealed class RoundSignatureBuilder
     /// <param name="grenades">A map's indexed grenades with their lineups; null when nothing is indexed.</param>
     /// <param name="teams">Team Identity, for the team on each side; null leaves every round unowned.</param>
     /// <param name="cache">Signatures from earlier builds; null reads every demo's files on every build.</param>
-    public RoundSignatureBuilder(IExtensionLibrary library, IRoundFacts roundFacts, RoundIndexStore positions, Func<string?, string> fingerprintFor,
+    public RoundSignatureBuilder(IExtensionLibrary library, IRoundFacts roundFacts, RoundIndexStore positions,
+        Func<string?, string> fingerprintFor,
         Func<string, IReadOnlyList<MiningGrenade>>? grenades, TeamIdentityService? teams, SignatureCache? cache = null)
     {
         ArgumentNullException.ThrowIfNull(library);
@@ -129,7 +130,8 @@ public sealed class RoundSignatureBuilder
             {
                 if (seen.Add(entry.Sha256 ?? entry.FilePath))
                 {
-                    session.Items.Add((entry, map.Key, grenades.Contains(entry.FilePath) ? [.. grenades[entry.FilePath]] : null));
+                    session.Items.Add((entry, map.Key,
+                        grenades.Contains(entry.FilePath) ? [.. grenades[entry.FilePath]] : null));
                 }
             }
         }
@@ -228,7 +230,8 @@ public sealed class RoundSignatureBuilder
     private DemoSignatures? Read(string path, string map)
     {
         if (_library.Find(path) is not { } record || _roundFacts.TryGet(path) is not { } rows
-            || _positions.TryReadPositions(path, _fingerprintFor(map), record.Sha256) is not { } positions)
+            || _positions.TryReadPositions(path, _fingerprintFor(map),
+                record.Sha256) is not { } positions)
         {
             return null;
         }
@@ -237,7 +240,7 @@ public sealed class RoundSignatureBuilder
         List<(Team Team, int EndSide)> teams = [];
         if (_teams is not null)
         {
-            foreach (int side in (int[]) [2, 3])
+            foreach (int side in (int[])[2, 3])
             {
                 if (_teams.TeamOnSide(path, side) is { } team)
                 {
@@ -254,9 +257,10 @@ public sealed class RoundSignatureBuilder
                 continue;
             }
 
-            foreach (int side in (int[]) [2, 3])
+            foreach (int side in (int[])[2, 3])
             {
-                Guid? team = teams.FirstOrDefault(t => _teams!.SideAtRound(path, t.Team.Id, round.Number) == side).Team?.Id;
+                Guid? team = teams.FirstOrDefault(t => _teams!.SideAtRound(path, t.Team.Id, round.Number) == side).Team
+                    ?.Id;
                 Context context = new(round, side, rate, positions, stored, team);
                 if (Setup(context) is { } setup)
                 {
@@ -298,11 +302,13 @@ public sealed class RoundSignatureBuilder
     [
         .. grenades
             .Where(g => g.Grenade.Row.RoundNumber == s.Round && g.Grenade.Row.ThrowerTeam == s.Side
-                                                          && g.Grenade.Row.ReleaseTick >= s.ThrowFrom && g.Grenade.Row.ReleaseTick <= s.ThrowTo)
+                && g.Grenade.Row.ReleaseTick >= s.ThrowFrom
+                && g.Grenade.Row.ReleaseTick <= s.ThrowTo)
             .OrderBy(g => g.Grenade.Row.ReleaseTick)
             .ThenBy(g => g.Grenade.Row.Id, StringComparer.Ordinal)
-            .Select(g => new MinedThrow(g.Grenade.Kind, (g.Grenade.Row.ReleaseTick - s.AnchorTick) / (double)s.TickRate, g.Grenade.Landing,
-                g.Grenade.LandingPlace, g.Grenade.Origin, g.Grenade.Row.ThrowerSteamId ?? 0, g.Grenade.Row.ThrowerName, g.LineupId))
+            .Select(g => new MinedThrow(g.Grenade.Kind, (g.Grenade.Row.ReleaseTick - s.AnchorTick) / (double)s.TickRate,
+                g.Grenade.Landing,
+                g.Grenade.LandingPlace, g.LineupId))
     ];
 
     private static CachedSignature? Setup(Context c)
@@ -338,7 +344,7 @@ public sealed class RoundSignatureBuilder
         List<IReadOnlyList<MinedPawn>> anchors =
         [
             .. StratMiner.ExecuteAnchors.Select(o => anchor + o * c.Rate)
-                .Select(tick => tick < earliest ? new List<MinedPawn>() : c.PawnsAt(tick))
+                .Select(tick => tick < earliest ? [] : c.PawnsAt(tick))
         ];
         if (anchors.All(a => a.Count == 0))
         {
@@ -428,14 +434,17 @@ public sealed class RoundSignatureBuilder
         }
 
         public int CountIn(int step, string place) =>
-            Stored.At(step).Count(p => OnSide(p.Slot) && string.Equals(Positions.PlaceOf(p.PlaceId), place, StringComparison.Ordinal));
+            Stored.At(step).Count(p =>
+                OnSide(p.Slot) && string.Equals(Positions.PlaceOf(p.PlaceId), place, StringComparison.Ordinal));
 
-        public CachedSignature Signature(PatternKind kind, string? site, int anchor, List<IReadOnlyList<MinedPawn>> anchors,
+        public CachedSignature Signature(PatternKind kind, string? site, int anchor,
+            List<IReadOnlyList<MinedPawn>> anchors,
             int throwFrom, int throwTo)
         {
             SideFacts facts = Side == 3 ? Round.Ct : Round.T;
             return new CachedSignature(Round.Number, Side, kind, site, facts.BuyType,
-                Round.WinnerSide is 2 or 3 ? Round.WinnerSide == Side : null, Team, Rate, Round.FreezeEndTick, anchor, anchors,
+                Round.WinnerSide is 2 or 3 ? Round.WinnerSide == Side : null, Team, Rate, Round.FreezeEndTick, anchor,
+                anchors,
                 throwFrom, throwTo);
         }
     }

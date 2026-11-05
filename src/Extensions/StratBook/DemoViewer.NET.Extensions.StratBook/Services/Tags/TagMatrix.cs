@@ -43,7 +43,7 @@ public sealed class TagMatrixTable
     }
 
     /// <summary>The pivot the table reads.</summary>
-    public TagPivot Pivot { get; }
+    private TagPivot Pivot { get; }
 
     public IReadOnlyList<string> RowKeys => Pivot.RowKeys;
 
@@ -62,14 +62,15 @@ public sealed class TagMatrixTable
     /// <param name="row">A row key.</param>
     /// <param name="column">A column key.</param>
     public IReadOnlyList<TagInstanceRef> Refs(string row, string column) =>
-        Pivot.Cells.TryGetValue((row, column), out IReadOnlyList<TagInstanceRef>? refs) ? refs : _none;
+        Pivot.Cells.GetValueOrDefault((row, column), _none);
 
     /// <summary>The count a cell shows.</summary>
     /// <param name="row">A row key.</param>
     /// <param name="column">A column key.</param>
     public int Count(string row, string column) => Refs(row, column).Count;
 
-    private static int Distinct(IEnumerable<TagInstanceRef> refs) => refs.Select(r => (r.Sha256, r.Id)).Distinct().Count();
+    private static int Distinct(IEnumerable<TagInstanceRef> refs) =>
+        refs.Select(r => (r.Sha256, r.Id)).Distinct().Count();
 }
 
 /// <summary>
@@ -191,7 +192,8 @@ public static class TagMatrix
 
             int to = from;
             // A match has tens of rounds; a four-digit bound is a typo, not a range to enumerate.
-            if (ends.Length == 2 && (!int.TryParse(ends[1], NumberStyles.None, CultureInfo.InvariantCulture, out to) || to < from || to > 999))
+            if (ends.Length == 2 && (!int.TryParse(ends[1], NumberStyles.None, CultureInfo.InvariantCulture, out to)
+                    || to < from || to > 999))
             {
                 return false;
             }

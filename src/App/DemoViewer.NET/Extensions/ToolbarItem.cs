@@ -42,7 +42,7 @@ public sealed class ToolbarItem : ObservableObject
         ArgumentNullException.ThrowIfNull(run);
         Id = id;
         _label = label;
-        _tooltip = tooltip ?? "";
+        _tooltip = tooltip;
         _menuHeader = menuHeader;
         Run = run;
         ActionId = actionId;

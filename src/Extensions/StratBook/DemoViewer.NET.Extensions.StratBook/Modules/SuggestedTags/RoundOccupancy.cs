@@ -33,7 +33,8 @@ public sealed class RoundOccupancy
     /// <summary>The entry for an alive player with no place: the Round Index token's null place.</summary>
     public const string Unplaced = PlaceCountToken.NullPlace;
 
-    private static readonly IReadOnlyDictionary<string, int> _empty = new Dictionary<string, int>(StringComparer.Ordinal);
+    private static readonly IReadOnlyDictionary<string, int> _empty =
+        new Dictionary<string, int>(StringComparer.Ordinal);
 
     private readonly Dictionary<int, int[]> _alive;
     private readonly Dictionary<int, Dictionary<string, int>[]> _counts;
@@ -130,7 +131,8 @@ public sealed class RoundOccupancy
     /// <param name="slot">The player slot.</param>
     /// <param name="second">Seconds since freeze end.</param>
     public string? PlaceOf(int slot, int second) =>
-        _places is not null && _places.TryGetValue(slot, out string?[]? bySecond) && second >= 0 && second < bySecond.Length
+        _places is not null && _places.TryGetValue(slot, out string?[]? bySecond) && second >= 0
+        && second < bySecond.Length
             ? bySecond[second]
             : null;
 
@@ -138,12 +140,14 @@ public sealed class RoundOccupancy
     /// <param name="slot">The player slot.</param>
     /// <param name="second">Seconds since freeze end.</param>
     public bool IsAlive(int slot, int second) =>
-        _slotAlive is not null && _slotAlive.TryGetValue(slot, out bool[]? bySecond) && second >= 0 && second < bySecond.Length
+        _slotAlive is not null && _slotAlive.TryGetValue(slot, out bool[]? bySecond) && second >= 0
+        && second < bySecond.Length
         && bySecond[second];
 
     /// <summary>The slots seated on one side for this round, ascending.</summary>
     /// <param name="side">2 = T, 3 = CT.</param>
-    public IReadOnlyList<int> Slots(int side) => [.. _sideBySlot.Where(s => s.Value == side).Select(s => s.Key).Order()];
+    public IReadOnlyList<int> Slots(int side) =>
+        [.. _sideBySlot.Where(s => s.Value == side).Select(s => s.Key).Order()];
 
     /// <summary>The side a slot was seated on this round, or 0 when it was not seated.</summary>
     /// <param name="slot">The player slot.</param>
@@ -177,11 +181,7 @@ public sealed class RoundOccupancy
         Dictionary<int, string?[]> places = [];
         Dictionary<int, bool[]> slotAlive = [];
         Dictionary<int, Dictionary<string, int>[]> counts = NewCounts(seconds);
-        Dictionary<int, int[]> alive = new()
-        {
-            [2] = new int[seconds],
-            [3] = new int[seconds]
-        };
+        Dictionary<int, int[]> alive = new() { [2] = new int[seconds], [3] = new int[seconds] };
 
         foreach ((int slot, int side) in sideBySlot)
         {
@@ -237,7 +237,8 @@ public sealed class RoundOccupancy
         int endTick,
         int tickRate,
         IReadOnlyDictionary<int, int> sideBySlot,
-        IReadOnlyDictionary<int, (IReadOnlyList<(string Place, int Count)> Ct, IReadOnlyList<(string Place, int Count)> T)> bySecond,
+        IReadOnlyDictionary<int, (IReadOnlyList<(string Place, int Count)> Ct, IReadOnlyList<(string Place, int Count)>
+            T)> bySecond,
         RoundBomb? bomb = null)
     {
         ArgumentNullException.ThrowIfNull(sideBySlot);
@@ -245,13 +246,11 @@ public sealed class RoundOccupancy
         int seconds = SecondsIn(startTick, endTick, tickRate);
 
         Dictionary<int, Dictionary<string, int>[]> counts = NewCounts(seconds);
-        Dictionary<int, int[]> alive = new()
-        {
-            [2] = new int[seconds],
-            [3] = new int[seconds]
-        };
+        Dictionary<int, int[]> alive = new() { [2] = new int[seconds], [3] = new int[seconds] };
 
-        foreach ((int second, (IReadOnlyList<(string Place, int Count)> ct, IReadOnlyList<(string Place, int Count)> t)) in bySecond)
+        foreach ((int second,
+                     (IReadOnlyList<(string Place, int Count)> ct,
+                         IReadOnlyList<(string Place, int Count)> t)) in bySecond)
         {
             if (second < 0 || second >= seconds)
             {

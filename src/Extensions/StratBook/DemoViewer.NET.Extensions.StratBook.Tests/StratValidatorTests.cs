@@ -16,20 +16,22 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class StratValidatorTests
 {
-    private static readonly CalloutResolver Mirage = new(CanonicalPlaces.Embedded("de_mirage"));
+    private static readonly CalloutResolver _mirage = new(CanonicalPlaces.Embedded("de_mirage"));
 
-    private static async Task Expect(StratDocument document, StratIssueSeverity severity, string field, CalloutResolver? places = null,
+    private static async Task Expect(StratDocument document, StratIssueSeverity severity, string field,
+        CalloutResolver? places = null,
         IReadOnlyList<StratIndexEntry>? index = null)
     {
         IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, places, index);
         await Assert.That(issues.Any(i => i.Severity == severity && i.Field == field)).IsTrue()
-            .Because($"expected a {severity} at '{field}', got: {string.Join("; ", issues.Select(i => $"{i.Severity} {i.Field} {i.Message}"))}");
+            .Because(
+                $"expected a {severity} at '{field}', got: {string.Join("; ", issues.Select(i => $"{i.Severity} {i.Field} {i.Message}"))}");
     }
 
     [Test]
     public async Task AValidStrat_RaisesNothing()
     {
-        await Assert.That(StratValidator.Validate(Minimal(), Mirage, []).Count).IsEqualTo(0);
+        await Assert.That(StratValidator.Validate(Minimal(), _mirage, []).Count).IsEqualTo(0);
     }
 
     [Test]
@@ -100,20 +102,29 @@ public class StratValidatorTests
     public async Task BranchRefusals()
     {
         StratDocument after = Minimal();
-        after.Branches.Add(new StratBranch { Id = Guid.NewGuid(), AfterStepId = Guid.NewGuid(), Target = new BranchTarget { StratId = Guid.NewGuid() } });
+        after.Branches.Add(new StratBranch
+        {
+            Id = Guid.NewGuid(),
+            AfterStepId = Guid.NewGuid(),
+            Target = new BranchTarget { StratId = Guid.NewGuid() }
+        });
         await Expect(after, StratIssueSeverity.Refusal, "/branches/0/afterStepId");
 
         StratDocument missingStep = Minimal();
         missingStep.Branches.Add(new StratBranch
         {
-            Id = Guid.NewGuid(), AfterStepId = StepId(1), Target = new BranchTarget { StratId = missingStep.Id, StepId = Guid.NewGuid() }
+            Id = Guid.NewGuid(),
+            AfterStepId = StepId(1),
+            Target = new BranchTarget { StratId = missingStep.Id, StepId = Guid.NewGuid() }
         });
         await Expect(missingStep, StratIssueSeverity.Refusal, "/branches/0/target/stepId");
 
         StratDocument backwards = Minimal();
         backwards.Branches.Add(new StratBranch
         {
-            Id = Guid.NewGuid(), AfterStepId = StepId(2), Target = new BranchTarget { StratId = backwards.Id, StepId = StepId(1) }
+            Id = Guid.NewGuid(),
+            AfterStepId = StepId(2),
+            Target = new BranchTarget { StratId = backwards.Id, StepId = StepId(1) }
         });
         await Expect(backwards, StratIssueSeverity.Refusal, "/branches/0/target/stepId");
     }
@@ -132,12 +143,14 @@ public class StratValidatorTests
             ]
         };
 
-        IReadOnlyList<StratIssue> issues = StratValidator.ValidateCallouts(table, Mirage);
+        IReadOnlyList<StratIssue> issues = StratValidator.ValidateCallouts(table, _mirage);
         using (Assert.Multiple())
         {
-            await Assert.That(issues.Any(i => i is { Severity: StratIssueSeverity.Refusal, Field: "/aliases/1/alias" })).IsTrue()
+            await Assert.That(issues.Any(i => i is { Severity: StratIssueSeverity.Refusal, Field: "/aliases/1/alias" }))
+                .IsTrue()
                 .Because("aliases fold before comparing, so 'a-ramp' is 'A ramp'");
-            await Assert.That(issues.Any(i => i is { Severity: StratIssueSeverity.Refusal, Field: "/aliases/2/place" })).IsTrue();
+            await Assert.That(issues.Any(i => i is { Severity: StratIssueSeverity.Refusal, Field: "/aliases/2/place" }))
+                .IsTrue();
         }
     }
 
@@ -151,11 +164,13 @@ public class StratValidatorTests
             Aliases = [new CalloutAlias { Alias = "kitchen", Place = "Kitchen" }]
         };
 
-        IReadOnlyList<StratIssue> issues = StratValidator.ValidateCallouts(table, Mirage);
+        IReadOnlyList<StratIssue> issues = StratValidator.ValidateCallouts(table, _mirage);
         using (Assert.Multiple())
         {
-            await Assert.That(issues.Any(i => i is { Severity: StratIssueSeverity.Warning, Field: "/aliases/0/place" })).IsTrue();
-            await Assert.That(issues.Any(i => i is { Severity: StratIssueSeverity.Warning, Field: "/canonical/names" })).IsTrue();
+            await Assert.That(issues.Any(i => i is { Severity: StratIssueSeverity.Warning, Field: "/aliases/0/place" }))
+                .IsTrue();
+            await Assert.That(issues.Any(i => i is { Severity: StratIssueSeverity.Warning, Field: "/canonical/names" }))
+                .IsTrue();
             await Assert.That(issues.Any(i => i.Severity == StratIssueSeverity.Refusal)).IsFalse();
         }
     }
@@ -190,7 +205,8 @@ public class StratValidatorTests
 
         foreach (StratDocument document in new[] { unknownType, ctExecute, noSite, defaultWithSite, siteC })
         {
-            await Assert.That(StratValidator.Validate(document).Any(i => i.Severity == StratIssueSeverity.Refusal)).IsFalse();
+            await Assert.That(StratValidator.Validate(document).Any(i => i.Severity == StratIssueSeverity.Refusal))
+                .IsFalse();
         }
     }
 
@@ -199,7 +215,8 @@ public class StratValidatorTests
     {
         StratDocument semi = Minimal();
         semi.Economy = "semi";
-        await Assert.That(StratValidator.Validate(semi).Count).IsEqualTo(0).Because("the vocabulary adopts Round Facts' five plus any");
+        await Assert.That(StratValidator.Validate(semi).Count).IsEqualTo(0)
+            .Because("the vocabulary adopts Round Facts' five plus any");
 
         StratDocument bad = Minimal();
         bad.Economy = "half";
@@ -211,15 +228,16 @@ public class StratValidatorTests
     {
         StratDocument from = Minimal();
         from.Steps[0].From = new PlaceRef { Place = "Kitchen" };
-        await Expect(from, StratIssueSeverity.Warning, "/steps/0/from/place", Mirage);
+        await Expect(from, StratIssueSeverity.Warning, "/steps/0/from/place", _mirage);
 
         StratDocument to = Minimal();
         to.Steps[0].To = new PlaceRef { Place = "Kitchen" };
-        await Expect(to, StratIssueSeverity.Warning, "/steps/0/to/place", Mirage);
+        await Expect(to, StratIssueSeverity.Warning, "/steps/0/to/place", _mirage);
 
         StratDocument landing = Minimal();
-        landing.Steps[0].Utility = new UtilityRef { Kind = "smoke", Landing = new UtilityLanding { Place = "Kitchen" } };
-        await Expect(landing, StratIssueSeverity.Warning, "/steps/0/utility/landing/place", Mirage);
+        landing.Steps[0].Utility =
+            new UtilityRef { Kind = "smoke", Landing = new UtilityLanding { Place = "Kitchen" } };
+        await Expect(landing, StratIssueSeverity.Warning, "/steps/0/utility/landing/place", _mirage);
     }
 
     [Test]
@@ -240,7 +258,10 @@ public class StratValidatorTests
     {
         StratDocument document = Minimal();
         Guid elsewhere = Guid.NewGuid();
-        document.Branches.Add(new StratBranch { Id = Guid.NewGuid(), AfterStepId = StepId(1), Target = new BranchTarget { StratId = elsewhere } });
+        document.Branches.Add(new StratBranch
+        {
+            Id = Guid.NewGuid(), AfterStepId = StepId(1), Target = new BranchTarget { StratId = elsewhere }
+        });
 
         StratIndexEntry otherMap = new() { Id = elsewhere, Owner = Team, Map = "de_nuke" };
         await Expect(document, StratIssueSeverity.Warning, "/branches/0/target/stratId", index: [otherMap]);
@@ -267,15 +288,22 @@ public class StratValidatorTests
     {
         StratDocument document = Minimal();
         document.Steps[0].Utility = new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid() };
-        document.Extra = new Dictionary<string, JsonElement> { ["zeta"] = JsonDocument.Parse("1").RootElement.Clone(), ["alpha"] = JsonDocument.Parse("2").RootElement.Clone() };
-        document.Steps[1].Extra = new Dictionary<string, JsonElement> { ["speed"] = JsonDocument.Parse("3").RootElement.Clone() };
+        document.Extra = new Dictionary<string, JsonElement>
+        {
+            ["zeta"] = JsonDocument.Parse("1").RootElement.Clone(),
+            ["alpha"] = JsonDocument.Parse("2").RootElement.Clone()
+        };
+        document.Steps[1].Extra =
+            new Dictionary<string, JsonElement> { ["speed"] = JsonDocument.Parse("3").RootElement.Clone() };
 
         IReadOnlyList<StratIssue> issues = StratValidator.Validate(document);
         using (Assert.Multiple())
         {
-            await Assert.That(issues.Any(i => i is { Severity: StratIssueSeverity.Info, Field: "/steps/0/utility/lineupId" })).IsTrue();
+            await Assert.That(issues.Any(i => i is
+                { Severity: StratIssueSeverity.Info, Field: "/steps/0/utility/lineupId" })).IsTrue();
             await Assert.That(issues.Single(i => i.Field == "").Message).IsEqualTo("unknown fields kept: alpha, zeta");
-            await Assert.That(issues.Single(i => i.Field == "/steps/1").Message).IsEqualTo("unknown fields kept: speed");
+            await Assert.That(issues.Single(i => i.Field == "/steps/1").Message)
+                .IsEqualTo("unknown fields kept: speed");
             await Assert.That(issues.All(i => i.Severity == StratIssueSeverity.Info)).IsTrue();
         }
     }
@@ -309,17 +337,28 @@ public class StratValidatorTests
     // The zip check reads the leg from the projection, on the synthetic map's places with straight runs.
     private static IReadOnlyList<StratIssue> Zips(params StratStep[] steps)
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_synthetic", "T", "execute", "zip", Created);
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, "de_synthetic", "T", "execute", "zip", Created);
         document.Steps = [.. steps];
         IZonePlaceResolver zones = StratMapFirstTests.SyntheticZones();
-        return StratDepartureCheck.Check(document, d => StratSceneProjection.Build(d, StratPath.MainLine(d), null, zones.PlaceCentre,
+        return StratDepartureCheck.Check(document, d => StratSceneProjection.Build(d, StratPath.MainLine(d), null,
+            zones.PlaceCentre,
             zones.PlaceArrival));
     }
 
     private static StepPosition ZipAt(string slot, double x) => new() { Slot = slot, X = x, Y = 0, LevelMinZ = -512 };
 
-    private static StratStep ZipStep(double at, string actor, string verb, PlaceRef? to = null, params StepPosition[] positions) =>
-        new() { Id = Guid.NewGuid(), AtSeconds = at, Actor = actor, Verb = verb, To = to, Positions = [.. positions] };
+    private static StratStep ZipStep(double at, string actor, string verb, PlaceRef? to = null,
+        params StepPosition[] positions) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            AtSeconds = at,
+            Actor = actor,
+            Verb = verb,
+            To = to,
+            Positions = [.. positions]
+        };
 
     [Test]
     public async Task TheZipCheck_LeavesFromATravelsDestination_NotItsDeparture()

@@ -3,7 +3,6 @@
 using System.Globalization;
 using DemoViewer.NET.Controls;
 using DemoViewer.NET.GameIcons;
-using DemoViewer.NET.Extensions.StratBook.Controls;
 
 #endregion
 

@@ -4,7 +4,6 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Services.DemoProcessing;
-using DemoViewer.NET.ViewModels;
 using DemoViewer.NET.ViewModels.DemoProcessing;
 using TUnit.Assertions.Enums;
 
@@ -77,6 +76,7 @@ public class ProcessingQueueStatusViewModelTests
         await Assert.That(vm.Rows[0].IsStateWorking).IsTrue();
         await Assert.That(vm.Rows[0].IsPulsing).IsTrue();
         await Assert.That(vm.Rows[0].StateLabel).IsEqualTo("Running");
+
         // Completed → Good; Failed → Error; Rejected → Degraded; Cancelled → Off. Recent is newest first.
         DemoQueueRowViewModel Recent(string name) => vm.RecentRows.Single(r => r.DisplayText == name);
         await Assert.That(vm.RecentRows.Count).IsEqualTo(4);
@@ -104,8 +104,10 @@ public class ProcessingQueueStatusViewModelTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(vm.Rows.Select(r => r.DisplayText)).IsEquivalentTo(["b.dem"], CollectionOrdering.Matching);
-            await Assert.That(vm.RecentRows.Select(r => r.DisplayText).ToList()).IsEquivalentTo(["a.dem", "old.dem"], CollectionOrdering.Matching);
+            await Assert.That(vm.Rows.Select(r => r.DisplayText))
+                .IsEquivalentTo(["b.dem"], CollectionOrdering.Matching);
+            await Assert.That(vm.RecentRows.Select(r => r.DisplayText).ToList())
+                .IsEquivalentTo(["a.dem", "old.dem"], CollectionOrdering.Matching);
             await Assert.That(vm.RecentRows[0].DisplayText).IsEqualTo("a.dem");
             await Assert.That(vm.RecentRows[0].HasError).IsTrue();
             await Assert.That(vm.RecentRows[0].Error).IsEqualTo("Unexpected end of stream");
@@ -116,7 +118,8 @@ public class ProcessingQueueStatusViewModelTests
 
         // The queue later prunes its history; Recent keeps the session's.
         q.Drop(a);
-        await Assert.That(vm.RecentRows.Select(r => r.DisplayText).ToList()).IsEquivalentTo(["a.dem", "old.dem"], CollectionOrdering.Matching);
+        await Assert.That(vm.RecentRows.Select(r => r.DisplayText).ToList())
+            .IsEquivalentTo(["a.dem", "old.dem"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -312,10 +315,7 @@ public class ProcessingQueueStatusViewModelTests
     [Test]
     public async Task BackgroundDisabled_AnnotatesStatusLineAndFlag()
     {
-        FakeQueue q = new()
-        {
-            BackgroundEnabled = false
-        };
+        FakeQueue q = new() { BackgroundEnabled = false };
         ProcessingQueueStatusViewModel vm = new(q);
 
         await Assert.That(vm.IsBackgroundDisabled).IsTrue();
@@ -328,10 +328,12 @@ public class ProcessingQueueStatusViewModelTests
     public async Task LightWork_IsALine_NotARowOrACount_AndTheChipIgnoresIt()
     {
         FakeQueue q = new();
-        DemoQueueItem plan = q.Add("Checking demos for work", "scheduler", DemoJobPriority.Background, DemoQueueItemState.Running);
+        DemoQueueItem plan = q.Add("Checking demos for work", "scheduler", DemoJobPriority.Background,
+            DemoQueueItemState.Running);
         plan.Kind = QueueJobKind.Scheduling;
         plan.Light = true;
-        DemoQueueItem save = q.Add("Library: save the scan", "library", DemoJobPriority.Background, DemoQueueItemState.Running);
+        DemoQueueItem save = q.Add("Library: save the scan", "library", DemoJobPriority.Background,
+            DemoQueueItemState.Running);
         save.Light = true;
         q.RaiseChanged();
         ProcessingQueueStatusViewModel vm = new(q);
@@ -341,7 +343,8 @@ public class ProcessingQueueStatusViewModelTests
             await Assert.That(vm.Rows).IsEmpty();
             await Assert.That(vm.RunningCount).IsEqualTo(0);
             await Assert.That(vm.IsActive).IsFalse().Because("bookkeeping alone does not show the chip");
-            await Assert.That(vm.AlsoLine).IsEqualTo("Also: Library: save the scan").Because("planning has its own line");
+            await Assert.That(vm.AlsoLine).IsEqualTo("Also: Library: save the scan")
+                .Because("planning has its own line");
         }
 
         q.Add("a.dem", "library", DemoJobPriority.Background, DemoQueueItemState.Running);
@@ -352,7 +355,8 @@ public class ProcessingQueueStatusViewModelTests
     public async Task AFailedLightItem_StaysInRecent_AndASupersededReadDoesNot()
     {
         FakeQueue q = new();
-        DemoQueueItem failed = q.Add("Save: grenade lineups", "stratbook", DemoJobPriority.Background, DemoQueueItemState.Failed);
+        DemoQueueItem failed = q.Add("Save: grenade lineups", "stratbook", DemoJobPriority.Background,
+            DemoQueueItemState.Failed);
         failed.Light = true;
         failed.EndedSeq = 1;
         DemoQueueItem handed = q.Add("b.dem", "library", DemoJobPriority.Background, DemoQueueItemState.Cancelled);
@@ -361,7 +365,8 @@ public class ProcessingQueueStatusViewModelTests
         q.RaiseChanged();
         ProcessingQueueStatusViewModel vm = new(q);
 
-        await Assert.That(vm.RecentRows.Select(r => r.DisplayText)).IsEquivalentTo(["Save: grenade lineups"], CollectionOrdering.Matching);
+        await Assert.That(vm.RecentRows.Select(r => r.DisplayText))
+            .IsEquivalentTo(["Save: grenade lineups"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -370,7 +375,8 @@ public class ProcessingQueueStatusViewModelTests
         FakeQueue q = new();
         DemoQueueItem open = q.Add("match.dem", "shell", DemoJobPriority.Foreground, DemoQueueItemState.Running);
         open.Kind = QueueJobKind.DemoOpen;
-        DemoQueueItem riding = q.Add("match.dem ", "library", DemoJobPriority.UserRequested, DemoQueueItemState.Running);
+        DemoQueueItem riding = q.Add("match.dem ", "library", DemoJobPriority.UserRequested,
+            DemoQueueItemState.Running);
         riding.RidesRead = true;
         q.RaiseChanged();
         ProcessingQueueStatusViewModel vm = new(q);
@@ -397,7 +403,8 @@ public class ProcessingQueueStatusViewModelTests
         DateTimeOffset at = new(2026, 10, 17, 21, 5, 0, TimeSpan.Zero);
         checks.Set(new WorkCheck(false, 0, at));
         await Assert.That(vm.CheckLine)
-            .IsEqualTo("Library last checked for work at " + at.ToLocalTime().ToString("g", CultureInfo.CurrentCulture));
+            .IsEqualTo("Library last checked for work at "
+                + at.ToLocalTime().ToString("g", CultureInfo.CurrentCulture));
     }
 
     private sealed class FakeChecks : IWorkCheckStatus
@@ -439,12 +446,10 @@ public class ProcessingQueueStatusViewModelTests
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; }
         public event Action? Changed;
         public event Action? CapacityAvailable;
-        public int MaxConcurrency { get; set; } = 1;
-        public int MaxQueueSize { get; set; } = 200;
-        public bool BackgroundEnabled { get; set; } = true;
+        public bool BackgroundEnabled { get; init; } = true;
         public bool IsPaused { get; private set; }
-        public int QueuedCount { get; set; }
-        public int RunningCount { get; set; }
+        public int QueuedCount => 0;
+        public int RunningCount => 0;
 
         public void Pause()
         {
@@ -476,20 +481,11 @@ public class ProcessingQueueStatusViewModelTests
             string? path, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request) =>
-            throw new NotSupportedException();
-
         public IDemoQueueHandle SubmitVisit(DemoVisitRequest request) => throw new NotSupportedException();
 
         public IDemoQueueHandle SubmitJob(QueueJobRequest request) => throw new NotSupportedException();
 
-        public int ActiveCount(QueueJobKind kind) => 0;
-
         public IReadOnlyList<DemoQueueItemSnapshot> Snapshot() => [];
-
-        public void CancelOwned(string ownerTag, string path)
-        {
-        }
 
         public void CancelOwned(string ownerTag)
         {

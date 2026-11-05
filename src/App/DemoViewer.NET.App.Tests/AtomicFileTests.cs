@@ -1,6 +1,5 @@
 #region
 
-using System.Text;
 using DemoViewer.NET.Services;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
@@ -28,7 +27,8 @@ public class AtomicFileTests
             using (Assert.Multiple())
             {
                 await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("two");
-                await Assert.That(Directory.GetFiles(Path.GetDirectoryName(path)!)).IsEquivalentTo([path], CollectionOrdering.Matching);
+                await Assert.That(Directory.GetFiles(Path.GetDirectoryName(path)!))
+                    .IsEquivalentTo([path], CollectionOrdering.Matching);
             }
         }
         finally
@@ -50,7 +50,7 @@ public class AtomicFileTests
             {
                 AtomicFile.Write(path, stream =>
                 {
-                    stream.Write(Encoding.UTF8.GetBytes("half"));
+                    stream.Write("half"u8);
                     throw new IOException("disk gone");
                 });
                 return Task.CompletedTask;
@@ -58,7 +58,8 @@ public class AtomicFileTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(await File.ReadAllBytesAsync(path)).IsEquivalentTo(new byte[] { 1, 2, 3 }, CollectionOrdering.Matching);
+                await Assert.That(await File.ReadAllBytesAsync(path))
+                    .IsEquivalentTo(new byte[] { 1, 2, 3 }, CollectionOrdering.Matching);
                 await Assert.That(Directory.GetFiles(root)).IsEquivalentTo([path], CollectionOrdering.Matching);
             }
         }
@@ -131,7 +132,7 @@ public class AtomicFileTests
             string path = Path.Combine(root, "file.json");
             AtomicFile.WriteAllText(path, "one");
 
-            using (HoldWithoutShareDelete(path))
+            await using (HoldWithoutShareDelete(path))
             {
                 await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
                 {

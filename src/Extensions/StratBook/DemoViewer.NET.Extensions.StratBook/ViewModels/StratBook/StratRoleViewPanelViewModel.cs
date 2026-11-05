@@ -72,7 +72,7 @@ public sealed partial class StratRoleViewPanelViewModel : ObservableObject
     }
 
     /// <summary>The slots the picker offers, always the five in order.</summary>
-    public static IReadOnlyList<string> Slots { get; } = StratVocabulary.Slots;
+    public static IReadOnlyList<string> Slots => StratVocabulary.Slots;
 
     public bool IsBrowser { get; }
 
@@ -137,7 +137,8 @@ public sealed partial class StratRoleViewPanelViewModel : ObservableObject
 
         List<RoleSheet> sheets =
         [
-            .. StratVocabulary.Slots.Select(slot => RoleSheet.Derive(document, slot, _callouts, _roster, _lookup, _lineupTitle))
+            .. StratVocabulary.Slots.Select(slot =>
+                RoleSheet.Derive(document, slot, _callouts, _roster, _lookup, _lineupTitle))
         ];
         string html = RoleSheetHtmlWriter.Html(document, sheets);
         string? path = _print(html, StratBookTabViewModel.ExportFileStem(document.Name) + "-roles");
@@ -183,8 +184,8 @@ public sealed partial class StratRoleViewPanelViewModel : ObservableObject
     {
         Header = header;
         SlotLine = "Slot " + header.Slot
-                   + (header.SlotName is { Length: > 0 } name ? ": " + name : "")
-                   + (header.Role is { Length: > 0 } role ? " (" + role + ")" : "");
+            + (header.SlotName is { Length: > 0 } name ? ": " + name : "")
+            + (header.Role is { Length: > 0 } role ? " (" + role + ")" : "");
 
         List<string> meta =
         [
@@ -202,12 +203,14 @@ public sealed partial class StratRoleViewPanelViewModel : ObservableObject
         }
 
         MetaLine = string.Join(" · ", meta);
-        TriggerLine = string.Join(" · ", new[]
-        {
-            header.TriggerText is { Length: > 0 } trigger ? "Trigger: " + trigger : null,
-            header.StartText is { Length: > 0 } start ? "Start: " + start : null
-        }.OfType<string>());
-        StatusFooter = "Status: " + header.Status + " · revision " + header.Revision.ToString(CultureInfo.InvariantCulture);
+        TriggerLine = string.Join(" · ",
+            new[]
+            {
+                header.TriggerText is { Length: > 0 } trigger ? "Trigger: " + trigger : null,
+                header.StartText is { Length: > 0 } start ? "Start: " + start : null
+            }.OfType<string>());
+        StatusFooter = "Status: " + header.Status + " · revision "
+            + header.Revision.ToString(CultureInfo.InvariantCulture);
     }
 
     private void RaiseComputed()

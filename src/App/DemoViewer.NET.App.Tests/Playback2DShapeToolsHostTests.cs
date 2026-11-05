@@ -169,9 +169,9 @@ public class Playback2DShapeToolsHostTests
 
         public Window Window { get; }
 
-        public Playback2DView View { get; }
+        private Playback2DView View { get; }
 
-        public Scene2DHost Host { get; }
+        private Scene2DHost Host { get; }
 
         public TextBox Editor { get; }
 

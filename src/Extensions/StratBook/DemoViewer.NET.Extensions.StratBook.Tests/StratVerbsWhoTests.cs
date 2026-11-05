@@ -3,15 +3,15 @@
 using System.Text.Json;
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Zones;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.TestSupport;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.StratTestData;
@@ -29,9 +29,9 @@ public class StratVerbsWhoTests
 {
     private const string LurkFixture = "schema-v1.lurk.dvstrat.json";
 
-    private static readonly Guid LurkId = Guid.Parse("7e1f2a3b-4c5d-4e6f-8a9b-0c1d2e3f4a5b");
+    private static readonly Guid _lurkId = Guid.Parse("7e1f2a3b-4c5d-4e6f-8a9b-0c1d2e3f4a5b");
 
-    private static readonly CalloutResolver Mirage = new(CanonicalPlaces.Embedded("de_mirage"));
+    private static readonly CalloutResolver _mirage = new(CanonicalPlaces.Embedded("de_mirage"));
 
     private static bool Updating => Environment.GetEnvironmentVariable("PB2D_GOLDEN_UPDATE") == "1";
 
@@ -39,7 +39,11 @@ public class StratVerbsWhoTests
 
     private static StratStep Plain(double at, string actor, string verb, string? to = null) => new()
     {
-        Id = Guid.NewGuid(), AtSeconds = at, Actor = actor, Verb = verb, To = to is null ? null : new PlaceRef { Place = to }
+        Id = Guid.NewGuid(),
+        AtSeconds = at,
+        Actor = actor,
+        Verb = verb,
+        To = to is null ? null : new PlaceRef { Place = to }
     };
 
     private static (StratBookTabViewModel Vm, StratStepRow Row, int Index) Open(StratStep step)
@@ -81,7 +85,8 @@ public class StratVerbsWhoTests
             StratStep step = vm.Session.Document!.Steps[index];
             using (Assert.Multiple())
             {
-                await Assert.That(step.Assignments!.Single().Watch!.Places).IsEquivalentTo(["Stairs", "Connector"], CollectionOrdering.Matching);
+                await Assert.That(step.Assignments!.Single().Watch!.Places)
+                    .IsEquivalentTo(["Stairs", "Connector"], CollectionOrdering.Matching);
                 await Assert.That(StratLocations.LurkAreas(step.Lurk)).IsEmpty().Because("watching writes no area");
             }
 
@@ -90,7 +95,9 @@ public class StratVerbsWhoTests
             using (Assert.Multiple())
             {
                 await Assert.That(step.Lurk!.Areas).IsEquivalentTo(["PalaceInterior"], CollectionOrdering.Matching);
-                await Assert.That(step.Assignments!.Single().Watch!.Places).IsEquivalentTo(["Stairs", "Connector"], CollectionOrdering.Matching).Because("an area writes no watch");
+                await Assert.That(step.Assignments!.Single().Watch!.Places)
+                    .IsEquivalentTo(["Stairs", "Connector"], CollectionOrdering.Matching)
+                    .Because("an area writes no watch");
             }
         });
     }
@@ -103,7 +110,15 @@ public class StratVerbsWhoTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratStep hold = Plain(100, "B", "hold");
-            hold.Assignments = [new StepAssignment { Slot = "B", To = new PlaceRef { Place = "BombsiteA" }, Watch = new StepWatch { Places = ["Stairs"] } }];
+            hold.Assignments =
+            [
+                new StepAssignment
+                {
+                    Slot = "B",
+                    To = new PlaceRef { Place = "BombsiteA" },
+                    Watch = new StepWatch { Places = ["Stairs"] }
+                }
+            ];
             (StratBookTabViewModel vm, StratStepRow row, int index) = Open(hold);
             using StratBookTabViewModel scope = vm;
             string before = Bytes(vm);
@@ -192,7 +207,8 @@ public class StratVerbsWhoTests
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
                 await Assert.That(step.Actor).IsEqualTo(StratVocabulary.ActorAll);
                 await Assert.That(step.To).IsNull();
-                await Assert.That(step.Assignments!.Select(l => l.Slot + ">" + l.To?.Place)).IsEquivalentTo(["B>BombsiteA", "C>BombsiteA"], CollectionOrdering.Matching);
+                await Assert.That(step.Assignments!.Select(l => l.Slot + ">" + l.To?.Place))
+                    .IsEquivalentTo(["B>BombsiteA", "C>BombsiteA"], CollectionOrdering.Matching);
                 await Assert.That(row.ShowCompact).IsTrue();
                 await Assert.That(row.WhoText).IsEqualTo("B, C");
                 await Assert.That(row.CanSplit).IsTrue();
@@ -203,8 +219,10 @@ public class StratVerbsWhoTests
             step = vm.Session.Document!.Steps[index];
             using (Assert.Multiple())
             {
-                await Assert.That(step.Assignments!.Select(l => l.To?.Place ?? "")).IsEquivalentTo(["BombsiteB", "BombsiteB"], CollectionOrdering.Matching);
-                await Assert.That(step.Assignments!.All(l => l.Watch!.Places.SequenceEqual(["Stairs", "Connector"]))).IsTrue();
+                await Assert.That(step.Assignments!.Select(l => l.To?.Place ?? ""))
+                    .IsEquivalentTo(["BombsiteB", "BombsiteB"], CollectionOrdering.Matching);
+                await Assert.That(step.Assignments!.All(l => l.Watch!.Places.SequenceEqual(["Stairs", "Connector"])))
+                    .IsTrue();
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 3);
                 await Assert.That(row.ShowCompact).IsTrue();
             }
@@ -219,7 +237,11 @@ public class StratVerbsWhoTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratStep step = Plain(100, StratVocabulary.ActorAll, "hold");
-            step.Assignments = [new StepAssignment { Slot = "B", To = new PlaceRef { Place = "BombsiteA" } }, new StepAssignment { Slot = "C", To = new PlaceRef { Place = "BombsiteA" } }];
+            step.Assignments =
+            [
+                new StepAssignment { Slot = "B", To = new PlaceRef { Place = "BombsiteA" } },
+                new StepAssignment { Slot = "C", To = new PlaceRef { Place = "BombsiteA" } }
+            ];
             (StratBookTabViewModel vm, StratStepRow row, int index) = Open(step);
             using StratBookTabViewModel scope = vm;
             int depth = vm.Session.UndoDepth;
@@ -254,7 +276,8 @@ public class StratVerbsWhoTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (StratBookTabViewModel vm, StratStepRow row, int index) = Open(Plain(100, StratVocabulary.ActorAll, "hold", "BombsiteA"));
+            (StratBookTabViewModel vm, StratStepRow row, int index) =
+                Open(Plain(100, StratVocabulary.ActorAll, "hold", "BombsiteA"));
             using StratBookTabViewModel scope = vm;
             string before = Bytes(vm);
             int depth = vm.Session.UndoDepth;
@@ -263,7 +286,8 @@ public class StratVerbsWhoTests
             using (Assert.Multiple())
             {
                 await Assert.That(row.ShowApart).IsTrue();
-                await Assert.That(row.Lines.Select(l => l.Slot ?? "")).IsEquivalentTo(StratVocabulary.Slots, CollectionOrdering.Matching);
+                await Assert.That(row.Lines.Select(l => l.Slot ?? ""))
+                    .IsEquivalentTo(StratVocabulary.Slots, CollectionOrdering.Matching);
                 await Assert.That(row.Lines.All(l => l.IsExplicit)).IsTrue();
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth).Because("split writes nothing");
             }
@@ -274,7 +298,8 @@ public class StratVerbsWhoTests
             using (Assert.Multiple())
             {
                 await Assert.That(step.Assignments!.Select(l => l.Slot + ">" + l.To?.Place))
-                    .IsEquivalentTo(["A>BombsiteA", "B>BombsiteA", "C>Connector", "D>BombsiteA", "E>BombsiteA"], CollectionOrdering.Matching);
+                    .IsEquivalentTo(["A>BombsiteA", "B>BombsiteA", "C>Connector", "D>BombsiteA", "E>BombsiteA"],
+                        CollectionOrdering.Matching);
                 await Assert.That(step.Actor).IsEqualTo(StratVocabulary.ActorAll);
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
                 await Assert.That(row.Lines[0]).IsSameReferenceAs(first).Because("the rows stay, so focus is kept");
@@ -307,7 +332,11 @@ public class StratVerbsWhoTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratStep step = Plain(100, StratVocabulary.ActorAll, "hold");
-            step.Assignments = [new StepAssignment { Slot = "B", To = new PlaceRef { Place = "BombsiteA" } }, new StepAssignment { Slot = "C" }];
+            step.Assignments =
+            [
+                new StepAssignment { Slot = "B", To = new PlaceRef { Place = "BombsiteA" } },
+                new StepAssignment { Slot = "C" }
+            ];
             (StratBookTabViewModel vm, StratStepRow row, _) = Open(step);
             using StratBookTabViewModel scope = vm;
             using (Assert.Multiple())
@@ -370,13 +399,15 @@ public class StratVerbsWhoTests
             // An unrelated edit, and a reprojection like the one the zones landing runs.
             vm.Editor.Name = "renamed while picking";
             vm.Editor.Project();
-            await Assert.That(row.WhoOptions.Single(o => o.Slot == "C").IsChecked).IsTrue().Because("the staged pick survives");
+            await Assert.That(row.WhoOptions.Single(o => o.Slot == "C").IsChecked).IsTrue()
+                .Because("the staged pick survives");
 
             int depth = vm.Session.UndoDepth;
             row.CommitWho();
             using (Assert.Multiple())
             {
-                await Assert.That(vm.Session.Document!.Steps[index].Assignments!.Select(l => l.Slot)).IsEquivalentTo(["B", "C"], CollectionOrdering.Matching);
+                await Assert.That(vm.Session.Document!.Steps[index].Assignments!.Select(l => l.Slot))
+                    .IsEquivalentTo(["B", "C"], CollectionOrdering.Matching);
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
                 await Assert.That(vm.Session.Document!.Name).IsEqualTo("renamed while picking");
             }
@@ -416,7 +447,8 @@ public class StratVerbsWhoTests
             otherRow.CommitWho();
             using (Assert.Multiple())
             {
-                await Assert.That(vm.Session.UndoDepth).IsEqualTo(switched).Because("the flyout opened on another strat");
+                await Assert.That(vm.Session.UndoDepth).IsEqualTo(switched)
+                    .Because("the flyout opened on another strat");
                 await Assert.That(vm.Session.Document!.Steps.Single(s => s.Id == other.Id).Assignments).IsNull();
             }
         });
@@ -429,7 +461,8 @@ public class StratVerbsWhoTests
         {
             StratDocument document = StratCanvasTestData.FiveSteps();
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped, post: a => a());
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped, post: a => a());
 
             // Step 2 is A's move: no watching, so a runner faces its run.
             canvas.SelectStep(document.Steps[1].Id);
@@ -450,7 +483,8 @@ public class StratVerbsWhoTests
             canvas.BeginDrag("B", TokenGrip.Heading);
             canvas.MoveTo("B", new SkiaSharp.SKPoint(100, 1000), 0);
             canvas.EndDrag();
-            await Assert.That(session.Document!.Steps[2].Assignments!.Single().Watch!.YawDegrees ?? double.NaN).IsEqualTo(90).Within(0.01);
+            await Assert.That(session.Document!.Steps[2].Assignments!.Single().Watch!.YawDegrees ?? double.NaN)
+                .IsEqualTo(90).Within(0.01);
         });
     }
 
@@ -464,8 +498,10 @@ public class StratVerbsWhoTests
             document.Steps[1].Verb = "hold";
             document.Steps[1].To = new PlaceRef { Place = "Hut" };
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped,
-                placesFor: _ => Task.FromResult<IZonePlaceResolver?>(StratMapFirstTests.SyntheticZones()), post: a => a());
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped,
+                placesFor: _ => Task.FromResult<IZonePlaceResolver?>(StratMapFirstTests.SyntheticZones()),
+                post: a => a());
             canvas.LinesShownApart = id => id == document.Steps[1].Id;
             canvas.SelectStep(document.Steps[1].Id);
             canvas.SelectLine("C");
@@ -489,7 +525,8 @@ public class StratVerbsWhoTests
             using (Assert.Multiple())
             {
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth);
-                await Assert.That(row.WhoOptions.Single(o => o.IsChecked).Slot).IsEqualTo("B").Because("the flyout shows the step again");
+                await Assert.That(row.WhoOptions.Single(o => o.IsChecked).Slot).IsEqualTo("B")
+                    .Because("the flyout shows the step again");
             }
         });
     }
@@ -507,16 +544,20 @@ public class StratVerbsWhoTests
             document.Steps[3].Verb = "lurk";
             document.Steps[3].To = null;
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped,
-                placesFor: _ => Task.FromResult<IZonePlaceResolver?>(StratMapFirstTests.SyntheticZones()), post: a => a());
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped,
+                placesFor: _ => Task.FromResult<IZonePlaceResolver?>(StratMapFirstTests.SyntheticZones()),
+                post: a => a());
 
             canvas.SelectStep(document.Steps[1].Id);
-            await Assert.That(canvas.SetPlaceText).IsEqualTo("Set “at” on map").Because("the lines agree, so the row shows one place");
+            await Assert.That(canvas.SetPlaceText).IsEqualTo("Set “at” on map")
+                .Because("the lines agree, so the row shows one place");
             await Assert.That(canvas.BeginSetPlace()).IsTrue();
             canvas.TryTagPositionAt(StratMapFirstTests.Upper, 150, 50);
             using (Assert.Multiple())
             {
-                await Assert.That(session.Document!.Steps[1].Assignments!.Select(l => l.Slot + ">" + l.To?.Place)).IsEquivalentTo(["A>Ramp", "C>Ramp"], CollectionOrdering.Matching);
+                await Assert.That(session.Document!.Steps[1].Assignments!.Select(l => l.Slot + ">" + l.To?.Place))
+                    .IsEquivalentTo(["A>Ramp", "C>Ramp"], CollectionOrdering.Matching);
                 await Assert.That(session.UndoDepth).IsEqualTo(1);
             }
 
@@ -527,7 +568,8 @@ public class StratVerbsWhoTests
             canvas.TryTagPositionAt(StratMapFirstTests.Upper, 50, 50);
             using (Assert.Multiple())
             {
-                await Assert.That(session.Document!.Steps[3].Lurk!.Areas).IsEquivalentTo(["Hut"], CollectionOrdering.Matching);
+                await Assert.That(session.Document!.Steps[3].Lurk!.Areas)
+                    .IsEquivalentTo(["Hut"], CollectionOrdering.Matching);
                 await Assert.That(session.UndoDepth).IsEqualTo(2);
             }
         });
@@ -535,17 +577,22 @@ public class StratVerbsWhoTests
 
     // ── Lurk: model, checks, projection, words ────────────────────────────────────────────────────
 
-    internal static StratDocument WithLurk()
+    private static StratDocument WithLurk()
     {
-        StratDocument document = Minimal(LurkId);
+        StratDocument document = Minimal(_lurkId);
         StratStep lurk = Step(3, 70, "E", "lurk");
         lurk.Lurk = new StepLurk
         {
             Areas = ["PalaceInterior", "Connector"],
             Rotate = new LurkRotate
             {
-                AtSeconds = 40, When = "on the call", To = new PlaceRef { Place = "BombsiteB" },
-                Extra = new Dictionary<string, JsonElement> { ["futureRotate"] = JsonDocument.Parse("true").RootElement.Clone() }
+                AtSeconds = 40,
+                When = "on the call",
+                To = new PlaceRef { Place = "BombsiteB" },
+                Extra = new Dictionary<string, JsonElement>
+                {
+                    ["futureRotate"] = JsonDocument.Parse("true").RootElement.Clone()
+                }
             }
         };
         document.Steps.Add(lurk);
@@ -569,17 +616,20 @@ public class StratVerbsWhoTests
             string path = Path.Combine(repo, "tests", "fixtures", "strats", LurkFixture);
             if (Updating)
             {
-                File.WriteAllText(path, StratStore.Serialize(WithLurk()) + "\n");
+                await File.WriteAllTextAsync(path, StratStore.Serialize(WithLurk()) + "\n");
             }
 
-            string original = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+            string original = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
             StratDocument loaded = JsonSerializer.Deserialize(original, StratJsonContext.Default.StratDocument)!;
             using (Assert.Multiple())
             {
-                await Assert.That(StratStore.Serialize(WithLurk()) + "\n").IsEqualTo(original).Because("this build writes the committed shape");
-                await Assert.That(StratStore.Serialize(loaded) + "\n").IsEqualTo(original).Because("load and save is field-identical");
+                await Assert.That(StratStore.Serialize(WithLurk()) + "\n").IsEqualTo(original)
+                    .Because("this build writes the committed shape");
+                await Assert.That(StratStore.Serialize(loaded) + "\n").IsEqualTo(original)
+                    .Because("load and save is field-identical");
                 await Assert.That(loaded.Steps[2].Lurk!.Rotate!.Extra!.ContainsKey("futureRotate")).IsTrue();
-                await Assert.That(StratValidator.Validate(loaded, Mirage).Where(i => i.Severity != StratIssueSeverity.Info)).IsEmpty();
+                await Assert.That(StratValidator.Validate(loaded, _mirage)
+                    .Where(i => i.Severity != StratIssueSeverity.Info)).IsEmpty();
             }
         });
     }
@@ -595,14 +645,16 @@ public class StratVerbsWhoTests
 
             step.Lurk = new StepLurk { Areas = ["Connector"], Rotate = new LurkRotate { AtSeconds = 40 } };
             List<PatchOp> clear = StratLurkPatches.Edit(step, "/steps/0", l => l.Rotate!.AtSeconds = null);
-            await Assert.That(clear.Select(o => o.Op + " " + o.Path)).IsEquivalentTo(["remove /steps/0/lurk/rotate"], CollectionOrdering.Matching);
+            await Assert.That(clear.Select(o => o.Op + " " + o.Path))
+                .IsEquivalentTo(["remove /steps/0/lurk/rotate"], CollectionOrdering.Matching);
 
             List<PatchOp> gone = StratLurkPatches.Edit(step, "/steps/0", l =>
             {
                 l.Areas.Clear();
                 l.Rotate = null;
             });
-            await Assert.That(gone.Select(o => o.Op + " " + o.Path)).IsEquivalentTo(["remove /steps/0/lurk"], CollectionOrdering.Matching);
+            await Assert.That(gone.Select(o => o.Op + " " + o.Path))
+                .IsEquivalentTo(["remove /steps/0/lurk"], CollectionOrdering.Matching);
         });
     }
 
@@ -616,15 +668,21 @@ public class StratVerbsWhoTests
             lurk.Lurk!.Areas.Add("Nowhere");
             lurk.Lurk.Rotate!.To = new PlaceRef { Place = "Elsewhere" };
             lurk.Lurk.Rotate.AtSeconds = 70;
-            IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, Mirage);
-            string Warned(string field) => string.Join("; ", issues.Where(i => i.Field == field).Select(i => i.Severity + " " + i.Message));
+            IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, _mirage);
+
+            string Warned(string field) => string.Join("; ",
+                issues.Where(i => i.Field == field).Select(i => i.Severity + " " + i.Message));
+
             using (Assert.Multiple())
             {
                 await Assert.That(Warned("/steps/2/lurk/areas/2")).StartsWith("Warning 'Nowhere'");
                 await Assert.That(Warned("/steps/2/lurk/rotate/to/place")).StartsWith("Warning 'Elsewhere'");
-                await Assert.That(Warned("/steps/2/lurk/rotate/atSeconds")).StartsWith("Warning the rotate at 1:10 is not later");
+                await Assert.That(Warned("/steps/2/lurk/rotate/atSeconds"))
+                    .StartsWith("Warning the rotate at 1:10 is not later");
                 await Assert.That(issues.Any(i => i.Severity == StratIssueSeverity.Refusal)).IsFalse();
-                await Assert.That(StratValidator.Validate(document).Any(i => i.Field.Contains("/lurk/areas", StringComparison.Ordinal))).IsFalse()
+                await Assert
+                    .That(StratValidator.Validate(document)
+                        .Any(i => i.Field.Contains("/lurk/areas", StringComparison.Ordinal))).IsFalse()
                     .Because("no places are checked while the zones load");
             }
         });
@@ -648,21 +706,26 @@ public class StratVerbsWhoTests
             }
 
             row.RotateAtText = "0:40";
-            await Assert.That(vm.Session.Document!.Steps.Single(s => s.Id == lurk.Id).Lurk!.Rotate!.AtSeconds).IsEqualTo(40);
+            await Assert.That(vm.Session.Document!.Steps.Single(s => s.Id == lurk.Id).Lurk!.Rotate!.AtSeconds)
+                .IsEqualTo(40);
             await Assert.That(row.RotateAtIssue).IsNull();
         });
     }
 
     // E stands at the origin from 1:50; a lurk at 1:40 rotates at 1:30 to Ramp, 430 units east.
-    private static readonly PlaceCentreResolver Centres = (place, _) => place == "Ramp" ? (430, 0) : null;
+    private static readonly PlaceCentreResolver _centres = (place, _) => place == "Ramp" ? (430, 0) : null;
 
     private static StratDocument Rotating(double rotateAt = 90, StepPosition? later = null, double laterAt = 60)
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "default", "lurk", Created);
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "default", "lurk", Created);
         StratStep one = Step(1, 110, StratVocabulary.ActorAll, "hold");
         one.Positions = [StratCanvasTestData.Position("E", 0, 0, 90), StratCanvasTestData.Position("A", 500, 500)];
         StratStep two = Step(2, 100, "E", "lurk");
-        two.Lurk = new StepLurk { Rotate = new LurkRotate { AtSeconds = rotateAt, To = new PlaceRef { Place = "Ramp" } } };
+        two.Lurk = new StepLurk
+        {
+            Rotate = new LurkRotate { AtSeconds = rotateAt, To = new PlaceRef { Place = "Ramp" } }
+        };
         StratStep three = Step(3, laterAt, "A", "hold");
         if (later is not null)
         {
@@ -674,7 +737,8 @@ public class StratVerbsWhoTests
     }
 
     private static TokenTrack Track(StratDocument document, string slot, PlaceCentreResolver? centres = null) =>
-        StratSceneProjection.Build(document, StratPath.MainLine(document), null, centres ?? Centres).Tracks.Single(t => t.Slot == slot);
+        StratSceneProjection.Build(document, StratPath.MainLine(document), null, centres ?? _centres).Tracks
+            .Single(t => t.Slot == slot);
 
     private static (float X, float Y, float Yaw) At(TokenTrack track, int tick) =>
         track.TrySample(tick, out TokenKeyframe k) ? (k.X, k.Y, k.YawDegrees) : (float.NaN, float.NaN, float.NaN);
@@ -699,7 +763,8 @@ public class StratVerbsWhoTests
                 await Assert.That(Track(document, "A").Keyframes.Count).IsEqualTo(1).Because("only the lurker rotates");
             }
 
-            StratSceneProjection projection = StratSceneProjection.Build(document, StratPath.MainLine(document), null, Centres);
+            StratSceneProjection projection =
+                StratSceneProjection.Build(document, StratPath.MainLine(document), null, _centres);
             TokenTrack dragged = projection.TrackWith("E", 0, new TokenPlacement(0, 0, 0, 90));
             await Assert.That(At(dragged, arrive).X).IsEqualTo(430f).Because("a drag preview draws the same rotate");
 
@@ -739,11 +804,17 @@ public class StratVerbsWhoTests
             // after the last step at 1:00.
             StratDocument document = Rotating(30);
             document.Map = "de_synthetic";
-            document.Steps[0].Positions = [new StepPosition { Slot = "E", X = 50, Y = 50, LevelMinZ = -512 }, StratCanvasTestData.Position("A", 150, 50)];
+            document.Steps[0].Positions =
+            [
+                new StepPosition { Slot = "E", X = 50, Y = 50, LevelMinZ = -512 },
+                StratCanvasTestData.Position("A", 150, 50)
+            ];
             document.Steps[0].Positions[1].LevelMinZ = -512;
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped,
-                placesFor: _ => Task.FromResult<IZonePlaceResolver?>(StratMapFirstTests.SyntheticZones()), post: a => a());
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped,
+                placesFor: _ => Task.FromResult<IZonePlaceResolver?>(StratMapFirstTests.SyntheticZones()),
+                post: a => a());
             canvas.Transport.Seek(0);
 
             StratSceneProjection projection = canvas.Projection!;
@@ -753,7 +824,8 @@ public class StratVerbsWhoTests
             {
                 await Assert.That(projection.LastTick).IsEqualTo(StepSchedule.TickFor(60, 115));
                 await Assert.That(projection.ContentEndTick).IsEqualTo(arrive);
-                await Assert.That(canvas.Transport.EndTick).IsEqualTo(arrive).Because("the playhead reaches the arrival");
+                await Assert.That(canvas.Transport.EndTick).IsEqualTo(arrive)
+                    .Because("the playhead reaches the arrival");
             }
 
             canvas.Transport.Seek(arrive);
@@ -767,7 +839,8 @@ public class StratVerbsWhoTests
             using (Assert.Multiple())
             {
                 await Assert.That(range.End).IsEqualTo(arrive + StratExportJob.TailTicks);
-                await Assert.That(e.WorldX).IsEqualTo(150f).Within(0.01f).Because("the export shows the lurker at Ramp");
+                await Assert.That(e.WorldX).IsEqualTo(150f).Within(0.01f)
+                    .Because("the export shows the lurker at Ramp");
             }
         });
     }
@@ -794,7 +867,7 @@ public class StratVerbsWhoTests
             StratDocument document = Rotating();
             document.Steps[0].Positions[0].LevelMinZ = -512;
             StratSceneProjection projection = StratSceneProjection.Build(document, StratPath.MainLine(document), null,
-                (place, level) => centres.Centre(place, level), (place, level) => centres.Arrival(place, level));
+                centres.Centre, centres.Arrival);
             TokenTrack track = projection.Tracks.Single(t => t.Slot == "E");
             using (Assert.Multiple())
             {
@@ -811,19 +884,22 @@ public class StratVerbsWhoTests
         {
             // The rotate is at 1:30; a new step after the lurk at 1:35 comes before it, one at 1:25 after it.
             StratDocument document = Rotating();
-            List<StepPosition> before = StratStepCarry.PositionsAt(document, 1, null, Centres, 95);
-            List<StepPosition> after = StratStepCarry.PositionsAt(document, 1, null, Centres, 85);
+            List<StepPosition> before = StratStepCarry.PositionsAt(document, 1, null, _centres, 95);
+            List<StepPosition> after = StratStepCarry.PositionsAt(document, 1, null, _centres, 85);
             List<StepPosition> nowhere = StratStepCarry.PositionsAt(document, 1, null, (_, _) => null, 85);
             using (Assert.Multiple())
             {
-                await Assert.That(before.Single(p => p.Slot == "E").X).IsEqualTo(0).Because("the lurker has not rotated yet");
+                await Assert.That(before.Single(p => p.Slot == "E").X).IsEqualTo(0)
+                    .Because("the lurker has not rotated yet");
                 await Assert.That(after.Any(p => p.Slot == "E")).IsFalse().Because("the rotate has moved it");
                 await Assert.That(after.Any(p => p.Slot == "A")).IsTrue();
-                await Assert.That(nowhere.Single(p => p.Slot == "E").X).IsEqualTo(0).Because("a place that does not resolve moves nothing");
+                await Assert.That(nowhere.Single(p => p.Slot == "E").X).IsEqualTo(0)
+                    .Because("a place that does not resolve moves nothing");
             }
 
-            PatchOp added = StepAuthoringPatches.AddCarriedStep(document, 1, 85, Guid.NewGuid(), null, Centres);
-            await Assert.That(added.Value!["positions"]!.AsArray().Any(p => p!["slot"]!.GetValue<string>() == "E")).IsFalse();
+            PatchOp added = StepAuthoringPatches.AddCarriedStep(document, 1, 85, Guid.NewGuid(), null, _centres);
+            await Assert.That(added.Value!["positions"]!.AsArray().Any(p => p!["slot"]!.GetValue<string>() == "E"))
+                .IsFalse();
         });
     }
 
@@ -836,30 +912,42 @@ public class StratVerbsWhoTests
             string line = StratStepPhrasing.Phrase(document.Steps[2], null);
             using (Assert.Multiple())
             {
-                await Assert.That(line).IsEqualTo("E lurks Palace Interior, Connector; rotate to Bombsite B at 0:40 or on the call");
-                await Assert.That(StratTextExporter.CallSheet(document)).Contains("- **1:10** E lurks Palace Interior, Connector; rotate to Bombsite B at 0:40 or on the call");
+                await Assert.That(line)
+                    .IsEqualTo("E lurks Palace Interior, Connector; rotate to Bombsite B at 0:40 or on the call");
+                await Assert.That(StratTextExporter.CallSheet(document)).Contains(
+                    "- **1:10** E lurks Palace Interior, Connector; rotate to Bombsite B at 0:40 or on the call");
                 await Assert.That(RoleSheet.Derive(document, "E").Lines.Single().Text)
                     .IsEqualTo("E lurks Palace Interior, Connector; rotate to Bombsite B at 0:40 or on the call");
-                await Assert.That(StratStepPhrasing.LurkText(new StepLurk { Rotate = new LurkRotate { When = "bomb planted" } }, null))
+                await Assert
+                    .That(StratStepPhrasing.LurkText(new StepLurk { Rotate = new LurkRotate { When = "bomb planted" } },
+                        null))
                     .IsEqualTo("rotate bomb planted");
             }
 
             System.Text.Json.Nodes.JsonNode before = StratHistory.ToNode(document);
             StratStep step = document.Steps[2];
-            string Say(Action<StepLurk> edit) => StratDiffPhrasing.Summary(before, StratLurkPatches.Edit(step, "/steps/2", edit));
+
+            string Say(Action<StepLurk> edit) =>
+                StratDiffPhrasing.Summary(before, StratLurkPatches.Edit(step, "/steps/2", edit));
+
             using (Assert.Multiple())
             {
                 await Assert.That(Say(l => l.Rotate!.AtSeconds = 35)).IsEqualTo("E's lurk: rotate time 0:40 → 0:35");
-                await Assert.That(Say(l => l.Rotate!.When = "on contact")).IsEqualTo("E's lurk: rotate condition set to on contact");
-                await Assert.That(Say(l => l.Rotate!.To!.Place = "BombsiteA")).IsEqualTo("E's lurk: rotate to Bombsite B → Bombsite A");
+                await Assert.That(Say(l => l.Rotate!.When = "on contact"))
+                    .IsEqualTo("E's lurk: rotate condition set to on contact");
+                await Assert.That(Say(l => l.Rotate!.To!.Place = "BombsiteA"))
+                    .IsEqualTo("E's lurk: rotate to Bombsite B → Bombsite A");
                 await Assert.That(Say(l => l.Areas = ["Connector"])).IsEqualTo("E's lurk: lurk areas set to Connector");
                 await Assert.That(Say(l =>
                 {
                     l.Areas.Clear();
                     l.Rotate = null;
                 })).IsEqualTo("E's lurk: lurk removed");
-                await Assert.That(StratDiffPhrasing.Summary(StratHistory.ToNode(Minimal(LurkId)),
-                        [PatchOp.AddOp("/steps/2", JsonSerializer.SerializeToNode(step, StratJsonContext.Default.StratStep))]))
+                await Assert.That(StratDiffPhrasing.Summary(StratHistory.ToNode(Minimal(_lurkId)),
+                    [
+                        PatchOp.AddOp("/steps/2",
+                            JsonSerializer.SerializeToNode(step, StratJsonContext.Default.StratStep))
+                    ]))
                     .IsEqualTo("step added: E lurks Palace Interior, Connector at 1:10");
             }
         });

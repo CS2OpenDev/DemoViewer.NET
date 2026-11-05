@@ -1,7 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="using:DemoViewer.NET.Extensions.Sdk.Ui.Controls"
-        xmlns:controls="using:DemoViewer.NET.Controls"
         xmlns:update="using:DemoViewer.NET.ViewModels.Update"
         x:Class="DemoViewer.NET.Views.Update.WhatsNewWindow"
         x:DataType="update:WhatsNewViewModel"

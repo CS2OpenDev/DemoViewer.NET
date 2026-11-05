@@ -3,8 +3,8 @@
 using System.Globalization;
 using System.Text;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Playback2D.Timeline;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Timeline;
 
 #endregion
 
@@ -63,7 +63,8 @@ public sealed class StepTrack : ITimelineTrack
                 List<StratBranch> forks = document?.Branches.Where(b => b.AfterStepId == step.Id).ToList() ?? [];
 
                 string number = (i + 1).ToString(CultureInfo.InvariantCulture);
-                StringBuilder tooltip = new(StratClock.Format(projection.ClockInfo, step.AtSeconds) + "  " + StratStepPhrasing.PhraseWithLines(step, callouts));
+                StringBuilder tooltip = new(StratClock.Format(projection.ClockInfo, step.AtSeconds) + "  "
+                    + StratStepPhrasing.PhraseWithLines(step, callouts));
                 foreach (StratBranch fork in forks)
                 {
                     tooltip.Append('\n').Append(ForkGlyph + " if " + fork.Condition.Text);

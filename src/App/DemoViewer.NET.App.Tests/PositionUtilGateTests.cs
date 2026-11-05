@@ -42,8 +42,8 @@ public class PositionUtilGateTests
 
         int offCenter = 0;
         float maxAbsXy = 0;
-        List<Vector3> positions = new();
-        List<string> samples = new();
+        List<Vector3> positions = [];
+        List<string> samples = [];
 
         PawnLookup.ForEachLivePawn(tracker, (slot, pawn) =>
         {
@@ -73,7 +73,7 @@ public class PositionUtilGateTests
         }
 
         Console.WriteLine($"reconstructed={positions.Count}  off-center={offCenter}  maxAbsXY={maxAbsXy:F0}  " +
-                          $"CellWidth={PositionUtil.CellWidth}  WorldHalfExtent={PositionUtil.WorldHalfExtent}");
+            $"CellWidth={PositionUtil.CellWidth}  WorldHalfExtent={PositionUtil.WorldHalfExtent}");
 
         // The gate is only meaningful if it discriminated: at least one off-center pawn must have been
         // reconstructed (otherwise 512 vs 1024 would be indistinguishable near the origin).

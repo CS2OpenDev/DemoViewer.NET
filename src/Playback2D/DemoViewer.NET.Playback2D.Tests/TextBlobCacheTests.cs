@@ -127,9 +127,9 @@ public class TextBlobCacheTests
         ShapedText wide = cache.Get("WW", 10f)!.Value;
 
         Console.WriteLine($"[text] \"7\"  ink={narrow.Bounds} advance={narrow.Advance:F3} " +
-                          $"blob={narrow.Blob.Bounds}");
+            $"blob={narrow.Blob.Bounds}");
         Console.WriteLine($"[text] \"WW\" ink={wide.Bounds} advance={wide.Advance:F3} " +
-                          $"blob={wide.Blob.Bounds}");
+            $"blob={wide.Blob.Bounds}");
 
         // The blob's own box is the same for both strings on the left and top edges: that is the
         // tell that it never looked at the glyphs. The tight ink is not.
@@ -155,15 +155,15 @@ public class TextBlobCacheTests
     public async Task Get_StringPastTheStackBuffer_MeasuresTheSameWay()
     {
         using TextBlobCache cache = new();
-        const string longRow =
+        const string LongRow =
             "a_very_long_player_name +another_long_assister  awp HS WB NS  →  yet_another_victim";
-        await Assert.That(longRow.Length).IsGreaterThan(64);
+        await Assert.That(LongRow.Length).IsGreaterThan(64);
 
-        ShapedText shaped = cache.Get(longRow, 14f)!.Value;
-        ShapedText half = cache.Get(longRow[..40], 14f)!.Value;
+        ShapedText shaped = cache.Get(LongRow, 14f)!.Value;
+        ShapedText half = cache.Get(LongRow[..40], 14f)!.Value;
 
-        Console.WriteLine($"[text] {longRow.Length} chars: advance={shaped.Advance:F3} " +
-                          $"ink width={shaped.Bounds.Width:F3}");
+        Console.WriteLine($"[text] {LongRow.Length} chars: advance={shaped.Advance:F3} " +
+            $"ink width={shaped.Bounds.Width:F3}");
 
         await Assert.That(shaped.Advance).IsGreaterThan(half.Advance);
         await Assert.That(shaped.Bounds.Width).IsLessThan(shaped.Advance + 4f);
@@ -187,7 +187,7 @@ public class TextBlobCacheTests
 
         // A descender changes the ink and must not change the line height a row layout is built on.
         Console.WriteLine($"[text] line box plain={plain.Height:F3} descender={descender.Height:F3} " +
-                          $"ink height plain={plain.Bounds.Height:F3} descender={descender.Bounds.Height:F3}");
+            $"ink height plain={plain.Bounds.Height:F3} descender={descender.Bounds.Height:F3}");
         await Assert.That(descender.Height).IsEqualTo(plain.Height).Within(0.001f);
         await Assert.That(descender.Bounds.Height).IsGreaterThan(plain.Bounds.Height);
     }
@@ -244,7 +244,7 @@ public class TextBlobCacheTests
         float inkCentreX = x + shaped.Bounds.MidX;
         float inkCentreY = y + shaped.Bounds.MidY;
         Console.WriteLine($"[text] \"{label}\" centred on (100,100): ink centre " +
-                          $"({inkCentreX:F3},{inkCentreY:F3})");
+            $"({inkCentreX:F3},{inkCentreY:F3})");
 
         // Well inside a pixel on both axes, against a 9 px marker disc. The old blob-bounds maths put
         // this 4.2-6.2 px to the left depending on the string.

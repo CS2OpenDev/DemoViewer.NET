@@ -34,20 +34,8 @@ public class DemoCacheStoreTests
         [
             // A hostile RAW name: the cache stores names verbatim (the CSVG spec_player currency) and
             // sanitizes only at the render boundary.
-            new CachedPlayerInfo
-            {
-                Slot = 1,
-                Name = "s1mple‮",
-                SteamId64 = "7656119",
-                Team = 3
-            },
-            new CachedPlayerInfo
-            {
-                Slot = 2,
-                Name = "ZywOo",
-                SteamId64 = "7656120",
-                Team = 2
-            },
+            new CachedPlayerInfo { Slot = 1, Name = "s1mple‮", SteamId64 = "7656119", Team = 3 },
+            new CachedPlayerInfo { Slot = 2, Name = "ZywOo", SteamId64 = "7656120", Team = 2 },
             new CachedPlayerInfo
             {
                 Slot = 3,
@@ -56,21 +44,11 @@ public class DemoCacheStoreTests
                 Team = 3,
                 IsBot = true
             },
-            new CachedPlayerInfo
-            {
-                Slot = 9,
-                Name = "an observer",
-                SteamId64 = "7656199",
-                Team = 0
-            }
+            new CachedPlayerInfo { Slot = 9, Name = "an observer", SteamId64 = "7656199", Team = 0 }
         ],
         Rounds =
         [
-            new CachedRound
-            {
-                Number = 1,
-                StartTickFrameClock = 5000
-            }
+            new CachedRound { Number = 1, StartTickFrameClock = 5000 }
         ],
         CtScore = 13,
         TScore = 9,
@@ -236,7 +214,7 @@ public class DemoCacheStoreTests
             // Sidecars are written eagerly by Upsert; the index is deferred (that is the whole point of the
             // split), so a pass must close with SaveIndex or its rows are not on disk to reload.
             store.SaveIndex();
-            File.WriteAllText(store.SidecarPathFor("/demos/d.dem")!, "{ this is not json");
+            await File.WriteAllTextAsync(store.SidecarPathFor("/demos/d.dem")!, "{ this is not json");
 
             DemoCacheStore reopened = new(root);
             using (Assert.Multiple())
@@ -261,7 +239,7 @@ public class DemoCacheStoreTests
             DemoCacheStore store = new(root);
             store.Upsert(Record("/demos/e.dem"));
             store.SaveIndex();
-            File.WriteAllText(Path.Combine(root, "index.json"), "]]not json[[");
+            await File.WriteAllTextAsync(Path.Combine(root, "index.json"), "]]not json[[");
 
             DemoCacheStore reopened = new(root);
             await Assert.That(reopened.Count).IsEqualTo(1);
@@ -332,7 +310,7 @@ public class DemoCacheStoreTests
         {
             DemoCacheStore store = new(root);
             List<string?> paths = [];
-            store.Changed += p => paths.Add(p);
+            store.Changed += paths.Add;
 
             store.Upsert(Record("/demos/one.dem"));
             store.Upsert(Record("/demos/two.dem"));
@@ -378,7 +356,7 @@ public class DemoCacheStoreTests
             }
 
             // Mutating what a reader was given must not reach the store or any later reader.
-            first!.Players.Clear();
+            first.Players.Clear();
             first.CtScore = 999;
 
             DemoCacheRecord? third = store.TryLoadRecord("/demos/iso.dem");

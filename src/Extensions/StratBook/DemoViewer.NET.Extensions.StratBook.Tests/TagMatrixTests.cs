@@ -2,13 +2,13 @@
 
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.Review;
-using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Playback2D.Pipeline.Review;
-using DemoViewer.NET.Services.Review;
-using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.RoundTagger;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
+using DemoViewer.NET.Services.Review;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.TagTestData;
 
@@ -32,9 +32,9 @@ public class TagMatrixTests
     };
 
     // The mock, cell for cell: code, then the five routes in the mock's order.
-    private static readonly string[] MockRoutes = ["ramp", "lower", "outside", "yard", "hut"];
+    private static readonly string[] _mockRoutes = ["ramp", "lower", "outside", "yard", "hut"];
 
-    private static readonly (string Code, int[] Counts)[] Mock =
+    private static readonly (string Code, int[] Counts)[] _mock =
     [
         ("execute", [7, 11, 4, 2, 1]),
         ("fake → rotate", [3, 1, 6, 0, 0]),
@@ -42,9 +42,9 @@ public class TagMatrixTests
         ("fast / rush", [1, 4, 0, 0, 2])
     ];
 
-    private static readonly string[] OrderedRoutes = ["hut", "lower", "outside", "ramp", "yard"];
-    private static readonly string[] OrderedCodes = ["default", "execute", "fake → rotate", "fast / rush"];
-    private static readonly int[] OneToTwelve = [.. Enumerable.Range(1, 12)];
+    private static readonly string[] _orderedRoutes = ["hut", "lower", "outside", "ramp", "yard"];
+    private static readonly string[] _orderedCodes = ["default", "execute", "fake → rotate", "fast / rush"];
+    private static readonly int[] _oneToTwelve = [.. Enumerable.Range(1, 12)];
 
     // ── The table ──────────────────────────────────────────────────────────────────────────────────
 
@@ -81,7 +81,8 @@ public class TagMatrixTests
 
         IReadOnlyList<TagMatrixAxis> axes = TagMatrix.AxesOf([Document(ShaOf(1), instance)]);
 
-        await Assert.That(axes.Select(a => a.Display).SequenceEqual(["Code", "Round", "Demo", "Label · outcome", "Label · route", "Fact · buy.t"]))
+        await Assert.That(axes.Select(a => a.Display)
+                .SequenceEqual(["Code", "Round", "Demo", "Label · outcome", "Label · route", "Fact · buy.t"]))
             .IsTrue();
     }
 
@@ -133,21 +134,22 @@ public class TagMatrixTests
                 await Assert.That(matrix.RowAxis).IsEqualTo(TagMatrixAxis.Code);
                 await Assert.That(matrix.ColumnAxis).IsEqualTo(TagMatrixAxis.Label(LabelNamespace.Human, "route"))
                     .Because("the first build puts the human label group across the top, the mock's shape");
-                await Assert.That(matrix.Table!.RowKeys.SequenceEqual(OrderedCodes)).IsTrue();
-                await Assert.That(matrix.Table.ColumnKeys.SequenceEqual(OrderedRoutes)).IsTrue();
-                foreach ((string code, int[] counts) in Mock)
+                await Assert.That(matrix.Table!.RowKeys.SequenceEqual(_orderedCodes)).IsTrue();
+                await Assert.That(matrix.Table.ColumnKeys.SequenceEqual(_orderedRoutes)).IsTrue();
+                foreach ((string code, int[] counts) in _mock)
                 {
-                    for (int c = 0; c < MockRoutes.Length; c++)
+                    for (int c = 0; c < _mockRoutes.Length; c++)
                     {
-                        await Assert.That(matrix.Table.Count(code, MockRoutes[c])).IsEqualTo(counts[c])
-                            .Because($"{code} × {MockRoutes[c]}");
+                        await Assert.That(matrix.Table.Count(code, _mockRoutes[c])).IsEqualTo(counts[c])
+                            .Because($"{code} × {_mockRoutes[c]}");
                     }
                 }
 
-                await Assert.That(matrix.Table.Total).IsEqualTo(Mock.Sum(m => m.Counts.Sum()));
+                await Assert.That(matrix.Table.Total).IsEqualTo(_mock.Sum(m => m.Counts.Sum()));
                 await Assert.That(matrix.SummaryLine).IsEqualTo("79 instances in 6 demos");
                 await Assert.That(matrix.Rows.Count).IsEqualTo(4);
-                await Assert.That(matrix.Rows.Single(r => r.Display == "fake → rotate").Cells.Count(c => c.IsEmpty)).IsEqualTo(2)
+                await Assert.That(matrix.Rows.Single(r => r.Display == "fake → rotate").Cells.Count(c => c.IsEmpty))
+                    .IsEqualTo(2)
                     .Because("the mock's zeros are drawn as zeros, not left out");
             }
         });
@@ -175,9 +177,12 @@ public class TagMatrixTests
                 await Assert.That(entries[0].Note).IsEqualTo("Falcons, last 6 demos, de_nuke, T side");
                 await Assert.That(entries.Skip(1).All(e => e.Source == ReviewSources.Tag)).IsTrue();
                 await Assert.That(entries.Skip(1).Select(e => (e.DemoPath, e.FromTick, e.ToTick)))
-                    .IsEquivalentTo(cell.Refs.Select(r => (corpus.PathOf(r.Sha256), r.FromTick, r.ToTick)), CollectionOrdering.Matching);
-                await Assert.That(entries.Skip(1).All(e => e.TickRate == 64)).IsTrue().Because("the document's clock names the rate");
-                await Assert.That(corpus.SelectedTabs).IsEquivalentTo([ReviewQueueModule.TabId], CollectionOrdering.Matching);
+                    .IsEquivalentTo(cell.Refs.Select(r => (corpus.PathOf(r.Sha256), r.FromTick, r.ToTick)),
+                        CollectionOrdering.Matching);
+                await Assert.That(entries.Skip(1).All(e => e.TickRate == 64)).IsTrue()
+                    .Because("the document's clock names the rate");
+                await Assert.That(corpus.SelectedTabs)
+                    .IsEquivalentTo([ReviewQueueModule.TabId], CollectionOrdering.Matching);
                 await Assert.That(corpus.Matrix.StatusLine).IsEqualTo("7 clips sent to Review");
             }
 
@@ -206,12 +211,12 @@ public class TagMatrixTests
             {
                 await Assert.That(corpus.Matrix.RowAxis).IsEqualTo(TagMatrixAxis.Label(LabelNamespace.Human, "route"));
                 await Assert.That(corpus.Matrix.ColumnAxis).IsEqualTo(TagMatrixAxis.Code);
-                await Assert.That(table.RowKeys.SequenceEqual(OrderedRoutes)).IsTrue();
-                foreach ((string code, int[] counts) in Mock)
+                await Assert.That(table.RowKeys.SequenceEqual(_orderedRoutes)).IsTrue();
+                foreach ((string code, int[] counts) in _mock)
                 {
-                    for (int c = 0; c < MockRoutes.Length; c++)
+                    for (int c = 0; c < _mockRoutes.Length; c++)
                     {
-                        await Assert.That(table.Count(MockRoutes[c], code)).IsEqualTo(counts[c]);
+                        await Assert.That(table.Count(_mockRoutes[c], code)).IsEqualTo(counts[c]);
                     }
                 }
             }
@@ -234,7 +239,8 @@ public class TagMatrixTests
             {
                 await Assert.That(matrix.Table!.Total).IsEqualTo(firstHalf);
                 await Assert.That(matrix.Table.Count("execute", "ramp")).IsEqualTo(executeRampFirstHalf);
-                await Assert.That(firstHalf).IsGreaterThan(0).And.IsLessThan(79).Because("the fixture must make the slice bite");
+                await Assert.That(firstHalf).IsGreaterThan(0).And.IsLessThan(79)
+                    .Because("the fixture must make the slice bite");
             }
 
             await corpus.Pick(() => matrix.RoundsText = "1-");
@@ -246,11 +252,13 @@ public class TagMatrixTests
                 matrix.RoundsText = "";
                 matrix.Filter.Selected = matrix.Filter.Options.Single(o => o.Display == "Fact · buy.t");
             });
-            await corpus.Pick(() => matrix.FilterValue.Selected = matrix.FilterValue.Options.Single(o => o.Value == "eco"));
+            await corpus.Pick(() =>
+                matrix.FilterValue.Selected = matrix.FilterValue.Options.Single(o => o.Value == "eco"));
             int eco = corpus.Mocked.Count(m => m.Buy == "eco");
             using (Assert.Multiple())
             {
-                await Assert.That(matrix.FilterValue.Options.Select(o => o.Value)).IsEquivalentTo([null, "eco", "full"], CollectionOrdering.Matching);
+                await Assert.That(matrix.FilterValue.Options.Select(o => o.Value))
+                    .IsEquivalentTo([null, "eco", "full"], CollectionOrdering.Matching);
                 await Assert.That(matrix.Table!.Total).IsEqualTo(eco);
                 await Assert.That(eco).IsGreaterThan(0).And.IsLessThan(79);
             }
@@ -259,7 +267,8 @@ public class TagMatrixTests
             await matrix.Pending;
             using (Assert.Multiple())
             {
-                await Assert.That(matrix.Title).IsEqualTo("Falcons, 8 demos").Because("clear keeps the team and drops map, last and side");
+                await Assert.That(matrix.Title).IsEqualTo("Falcons, 8 demos")
+                    .Because("clear keeps the team and drops map, last and side");
                 await Assert.That(matrix.Filter.IsAny).IsTrue();
             }
         });
@@ -278,7 +287,8 @@ public class TagMatrixTests
             {
                 await Assert.That(matrix.Title).IsEqualTo("All tagged demos");
                 await Assert.That(matrix.SummaryLine).IsEqualTo($"{corpus.AllInstances} instances in 10 demos");
-                await Assert.That(matrix.Map.Options.Select(o => o.Value)).IsEquivalentTo([null, "de_mirage", "de_nuke"], CollectionOrdering.Matching);
+                await Assert.That(matrix.Map.Options.Select(o => o.Value))
+                    .IsEquivalentTo([null, "de_mirage", "de_nuke"], CollectionOrdering.Matching);
                 await Assert.That(matrix.HasTeam).IsFalse();
             }
         });
@@ -342,7 +352,7 @@ public class TagMatrixTests
     {
         public const string OrphanFileName = "x10.dem";
 
-        private static readonly string[] Falcons = Ids(11, 12, 13, 14, 15);
+        private static readonly string[] _falcons = Ids(11, 12, 13, 14, 15);
 
         private readonly FakeFacts _facts = new();
 
@@ -352,7 +362,8 @@ public class TagMatrixTests
             Teams = new TeamIdentityService(null, Cache.Library(), _facts, run: _inline);
             Store = new TagStore(null);
             Queue = new ReviewQueue(null);
-            Matrix = new TagMatrixTabViewModel(Store, new ExtensionReviewQueue(Queue), Cache.Library().FindBySha256, Teams,
+            Matrix = new TagMatrixTabViewModel(Store, new ExtensionReviewQueue(Queue), Cache.Library().FindBySha256,
+                Teams,
                 tab =>
                 {
                     SelectedTabs.Add(tab);
@@ -361,8 +372,8 @@ public class TagMatrixTests
                 debounce: TimeSpan.Zero, isBrowser: false);
         }
 
-        public DemoCacheStore Cache { get; }
-        public TeamIdentityService Teams { get; }
+        private DemoCacheStore Cache { get; }
+        private TeamIdentityService Teams { get; }
         public TagStore Store { get; }
         public ReviewQueue Queue { get; }
         public TagMatrixTabViewModel Matrix { get; }
@@ -380,7 +391,8 @@ public class TagMatrixTests
             {
                 for (int n = 1; n <= 8; n++)
                 {
-                    c.Cache.Upsert(Record(n, n == 8 ? "de_mirage" : "de_nuke", Falcons, Ids(100 + n * 5, 101 + n * 5, 102 + n * 5, 103 + n * 5, 104 + n * 5)));
+                    c.Cache.Upsert(Record(n, n == 8 ? "de_mirage" : "de_nuke", _falcons,
+                        Ids(100 + n * 5, 101 + n * 5, 102 + n * 5, 103 + n * 5, 104 + n * 5)));
                 }
 
                 c.Cache.Upsert(Record(9, "de_nuke", Ids(60, 61, 62, 63, 64), Ids(70, 71, 72, 73, 74)));
@@ -406,7 +418,7 @@ public class TagMatrixTests
             return c;
         }
 
-        public static string PathOf(int n) => $"/d/f{n}.dem";
+        private static string PathOf(int n) => $"/d/f{n}.dem";
 
         public string PathOf(string sha) => Cache.TryGetByContentId(sha)!.Path;
 
@@ -449,12 +461,18 @@ public class TagMatrixTests
             int slot = 0;
             foreach (string id in t)
             {
-                record.Players.Add(new CachedPlayerInfo { Slot = slot++, Name = $"p{id[^4..]}", SteamId64 = id, Team = 2 });
+                record.Players.Add(new CachedPlayerInfo
+                {
+                    Slot = slot++, Name = $"p{id[^4..]}", SteamId64 = id, Team = 2
+                });
             }
 
             foreach (string id in ct)
             {
-                record.Players.Add(new CachedPlayerInfo { Slot = slot++, Name = $"p{id[^4..]}", SteamId64 = id, Team = 3 });
+                record.Players.Add(new CachedPlayerInfo
+                {
+                    Slot = slot++, Name = $"p{id[^4..]}", SteamId64 = id, Team = 3
+                });
             }
 
             DemoCacheStore.StampParse(record);
@@ -468,7 +486,8 @@ public class TagMatrixTests
 
             void Add(int demo, string code, string route, int round, string buy)
             {
-                TagInstance instance = Instance(code, round * 1000 + 100 + placed, round * 1000 + 400 + placed, ("route", route));
+                TagInstance instance = Instance(code, round * 1000 + 100 + placed, round * 1000 + 400 + placed,
+                    ("route", route));
                 instance.Round = round;
                 instance.Facts = [new TagLabel("buy.t", buy)];
                 (byDemo.TryGetValue(demo, out List<TagInstance>? list) ? list : byDemo[demo] = []).Add(instance);
@@ -477,16 +496,16 @@ public class TagMatrixTests
 
             // The mock, dealt round-robin over f2 to f7 and the T rounds, a quarter of them on an eco.
             int deal = 0;
-            foreach ((string code, int[] counts) in Mock)
+            foreach ((string code, int[] counts) in _mock)
             {
-                for (int c = 0; c < MockRoutes.Length; c++)
+                for (int c = 0; c < _mockRoutes.Length; c++)
                 {
                     for (int k = 0; k < counts[c]; k++, deal++)
                     {
-                        int round = OneToTwelve[deal % 12];
+                        int round = _oneToTwelve[deal % 12];
                         string buy = deal % 4 == 0 ? "eco" : "full";
-                        Add(2 + deal % 6, code, MockRoutes[c], round, buy);
-                        Mocked.Add((code, MockRoutes[c], round, buy));
+                        Add(2 + deal % 6, code, _mockRoutes[c], round, buy);
+                        Mocked.Add((code, _mockRoutes[c], round, buy));
                     }
                 }
             }

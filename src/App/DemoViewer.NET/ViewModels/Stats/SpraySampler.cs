@@ -6,7 +6,6 @@ using CS2DemoKit.Analysis.Visibility;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using CS2DemoKit.Parser.GameEvents;
-using CS2OpenSchema.Events;
 
 #endregion
 
@@ -97,7 +96,7 @@ public static class SpraySampler
     ///     engine's own spray definition closely enough for a plot: recoil decays once firing stops,
     ///     so a non-dropping index plus a bounded gap is one continuous burst.
     /// </summary>
-    public const int MaxRunGapTicks = 24;
+    private const int MaxRunGapTicks = 24;
 
     /// <summary>Runs shorter than this are noise on a plot rather than a spray.</summary>
     public const int MinRunShots = 3;
@@ -121,7 +120,7 @@ public static class SpraySampler
         {
             switch (evt.Payload)
             {
-                case PlayerHurtEvent hurt when hurt.Weapon is { Length: > 0 }:
+                case PlayerHurtEvent { Weapon.Length: > 0 } hurt:
                     weapons[(hurt.Attacker, hurt.UserId, evt.GameTick)] = hurt.Weapon;
                     break;
                 case BulletDamageEvent shot:
@@ -157,8 +156,8 @@ public static class SpraySampler
             }
 
             bool continues = run.Count > 0
-                             && s.Tick - run[^1].Tick <= MaxRunGapTicks
-                             && s.RecoilIndex >= run[^1].RecoilIndex;
+                && s.Tick - run[^1].Tick <= MaxRunGapTicks
+                && s.RecoilIndex >= run[^1].RecoilIndex;
 
             if (!continues && run.Count > 0)
             {
@@ -174,10 +173,13 @@ public static class SpraySampler
             Flush(run, weapons, byPlayerWeapon, origin);
         }
 
-        return [.. byPlayerWeapon
-            .Select(kv => new PlayerSprays(kv.Key.Slot, kv.Key.Weapon, kv.Value))
-            .OrderBy(p => p.Slot)
-            .ThenBy(p => p.Weapon, StringComparer.Ordinal)];
+        return
+        [
+            .. byPlayerWeapon
+                .Select(kv => new PlayerSprays(kv.Key.Slot, kv.Key.Weapon, kv.Value))
+                .OrderBy(p => p.Slot)
+                .ThenBy(p => p.Weapon, StringComparer.Ordinal)
+        ];
     }
 
     private static void Flush(
@@ -370,9 +372,13 @@ public static class SpraySampler
     }
 
     private readonly record struct Shot(
-        int Attacker, int Victim, int Tick,
-        float ShootPitch, float ShootYaw,
-        float PunchPitch, float PunchYaw,
+        int Attacker,
+        int Victim,
+        int Tick,
+        float ShootPitch,
+        float ShootYaw,
+        float PunchPitch,
+        float PunchYaw,
         int RecoilIndex)
     {
         /// <summary>Whether the victim's chest direction resolved for this shot.</summary>

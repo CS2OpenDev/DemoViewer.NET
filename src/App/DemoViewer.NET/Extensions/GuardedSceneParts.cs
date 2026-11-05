@@ -31,7 +31,8 @@ public static partial class ExtensionLayerIds
         ArgumentException.ThrowIfNullOrEmpty(id);
         if (!LocalId().IsMatch(id))
         {
-            throw new ArgumentException($"'{id}' is not a local id: use letters, digits, '.', '-' and '_'.", nameof(id));
+            throw new ArgumentException($"'{id}' is not a local id: use letters, digits, '.', '-' and '_'.",
+                nameof(id));
         }
 
         return Root + extensionId + "." + id;
@@ -65,9 +66,6 @@ internal sealed class GuardedSceneLayer : ISceneLayer
         Cache = guard.Run("scene layer", () => inner.Cache, LayerCacheHint.Dynamic);
     }
 
-    /// <summary>True once the layer threw; it draws nothing more.</summary>
-    public bool IsFaulted => _faulted;
-
     public string Id { get; }
 
     public LayerSlot Slot { get; }
@@ -99,7 +97,8 @@ internal sealed class GuardedSceneLayer : ISceneLayer
         set => _guard.Run("scene layer", () => _inner.IsEnabled = value);
     }
 
-    public int ContentVersion => _faulted ? -1 : _guard.Run("scene layer", () => _inner.ContentVersion, 0, FaultKind.Recurring);
+    public int ContentVersion =>
+        _faulted ? -1 : _guard.Run("scene layer", () => _inner.ContentVersion, 0, FaultKind.Recurring);
 
     public bool Advance(in SceneTime time, Scene2DFrame frame)
     {
@@ -214,7 +213,8 @@ internal sealed class GuardedMapTool(IMapTool inner, ExtensionGuard guard) : IMa
         guard.Run("map tool", () => Inner.OnReleased(in sample, context), FaultKind.Recurring);
     }
 
-    public void OnCancelled(IMapToolContext context) => guard.Run("map tool", () => Inner.OnCancelled(context), FaultKind.Recurring);
+    public void OnCancelled(IMapToolContext context) =>
+        guard.Run("map tool", () => Inner.OnCancelled(context), FaultKind.Recurring);
 }
 
 /// <summary>A layer that draws nothing: what a layer factory that threw builds instead.</summary>
@@ -273,7 +273,7 @@ internal sealed class GuardedPointerTool : IPointerTool
         Kind = guard.Run("pointer tool", () => inner.Kind, ToolKind.Map);
     }
 
-    public IPointerTool Inner { get; }
+    private IPointerTool Inner { get; }
 
     public string Id { get; }
 
@@ -316,5 +316,6 @@ internal sealed class GuardedPointerTool : IPointerTool
         }
     }
 
-    public void OnCancelled(IToolServices s) => _guard.Run("pointer tool", () => Inner.OnCancelled(s), FaultKind.Recurring);
+    public void OnCancelled(IToolServices s) =>
+        _guard.Run("pointer tool", () => Inner.OnCancelled(s), FaultKind.Recurring);
 }

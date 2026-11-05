@@ -1,4 +1,8 @@
+#region
+
 using System.Security;
+
+#endregion
 
 namespace DemoViewer.NET.Playback2D.Pipeline.Rendering;
 

@@ -3,12 +3,12 @@
 using System.Numerics;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Input;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using SkiaSharp;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
 using static DemoViewer.NET.AppTests.StratTestData;
@@ -29,9 +29,9 @@ public class StratThrowOriginTests
     // Step 3 of FiveSteps is at 1:30 on a 115 s clock.
     private const int StepThreeTick = 1600;
 
-    private static readonly Vector3 StandOrigin = new(-300, 500, -160);
-    private static readonly Vector3 JumpOrigin = new(-296, 504, -150);
-    private static readonly Vector3 Landing = new(-1400, -1400, -170);
+    private static readonly Vector3 _standOrigin = new(-300, 500, -160);
+    private static readonly Vector3 _jumpOrigin = new(-296, 504, -150);
+    private static readonly Vector3 _landing = new(-1400, -1400, -170);
 
     [Test]
     public async Task TheExportFrameSource_FindsTheThrower_AtTheLineupOrigin_AtTheStepTime()
@@ -48,11 +48,13 @@ public class StratThrowOriginTests
             three.Actor = "B";
             three.Utility = new UtilityRef { Kind = "smoke", LineupId = lineup.Id };
             (StratStore store, StratSession session) = Opened(document);
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), id => store.Load(id).Document, StratTestKeymap.Shipped,
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(),
+                id => store.Load(id).Document, StratTestKeymap.Shipped,
                 lineupOrigins: origins);
 
             StratExportCapture capture = canvas.CaptureForExport()!;
-            StratFrameSource source = new(StratExportJob.BuildSpec(capture, null, 0, capture.Projection.LastTick, 64, 1.0));
+            StratFrameSource source =
+                new(StratExportJob.BuildSpec(capture, null, 0, capture.Projection.LastTick, 64, 1.0));
             int frame = Enumerable.Range(0, source.FrameCount).First(i => source.TickAt(i) == StepThreeTick);
             PlayerMarker b = source.FrameAt(frame).Markers.Single(m => m.Slot == TokenSlots.OrderOf("B"));
 
@@ -61,7 +63,8 @@ public class StratThrowOriginTests
             {
                 await Assert.That(b.WorldX).IsEqualTo(expected.X).Within(0.01f);
                 await Assert.That(b.WorldY).IsEqualTo(expected.Y).Within(0.01f);
-                await Assert.That(document.Steps[2].Positions.Any(p => p.X == expected.X && p.Y == expected.Y)).IsFalse()
+                await Assert.That(document.Steps[2].Positions.Any(p => p.X == expected.X && p.Y == expected.Y))
+                    .IsFalse()
                     .Because("the origin is projected, not written");
                 await Assert.That(session.Document!.Steps[2].Positions.Single(p => p.Slot == "B").X).IsEqualTo(100)
                     .Because("the authored position stays in the file");
@@ -92,7 +95,8 @@ public class StratThrowOriginTests
             document.Steps[2].Actor = "B";
             document.Steps[2].Utility = new UtilityRef { Kind = "smoke", LineupId = lineup.Id };
             (StratStore store, StratSession session) = Opened(document);
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), id => store.Load(id).Document, StratTestKeymap.Shipped,
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(),
+                id => store.Load(id).Document, StratTestKeymap.Shipped,
                 lineupOrigins: origins);
 
             TokenKeyframe before = BAt(canvas);
@@ -119,7 +123,8 @@ public class StratThrowOriginTests
             using LineupOriginSource origins = new(index, a => a());
             origins.Load(Map);
             (StratStore store, StratSession session) = Opened(ThrowByB(lineup.Id));
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), id => store.Load(id).Document, StratTestKeymap.Shipped,
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(),
+                id => store.Load(id).Document, StratTestKeymap.Shipped,
                 lineupOrigins: origins);
             canvas.Timeline.RequestSeek(StepThreeTick + 10);
             List<IReadOnlyList<PatchOp>> applied = [];
@@ -150,7 +155,8 @@ public class StratThrowOriginTests
             PostedActions posted = new();
             using LineupOriginSource origins = new(index, posted.Enqueue);
             (StratStore store, StratSession session) = Opened(ThrowByB(lineup.Id));
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), id => store.Load(id).Document, StratTestKeymap.Shipped,
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(),
+                id => store.Load(id).Document, StratTestKeymap.Shipped,
                 lineupOrigins: origins);
             canvas.Timeline.RequestSeek(330);
 
@@ -197,7 +203,7 @@ public class StratThrowOriginTests
 
             three.Utility.Technique = "run-throw-both";
             TokenPlacement fallback = StratSceneProjection.Build(document, StratPath.MainLine(document),
-                (m, u) => origins.Resolve(m, u, StratFromRound.QuantizedLevel))
+                    (m, u) => origins.Resolve(m, u, StratFromRound.QuantizedLevel))
                 .ThrowOriginAt(2, "B")!.Value;
 
             using (Assert.Multiple())
@@ -205,7 +211,8 @@ public class StratThrowOriginTests
                 await Assert.That(lineup.Techniques[0].Key).IsEqualTo("stand-throw-left");
                 await Assert.That(jump.X).IsEqualTo(jumpOrigin.X);
                 await Assert.That(jump.Y).IsEqualTo(jumpOrigin.Y);
-                await Assert.That(fallback.X).IsEqualTo(lineup.Techniques[0].Origin.X).Because("a key the lineup lacks means the most thrown");
+                await Assert.That(fallback.X).IsEqualTo(lineup.Techniques[0].Origin.X)
+                    .Because("a key the lineup lacks means the most thrown");
                 await Assert.That(projection.ThrowOriginAt(2, "A")).IsNull();
                 await Assert.That(projection.ThrowOriginAt(1, "B")).IsNull();
             }
@@ -222,7 +229,8 @@ public class StratThrowOriginTests
             document.Steps[2].Actor = "B";
             document.Steps[2].Utility = new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid() };
             TokenPlacement origin = new(-300, 500, -192, 45);
-            StratSceneProjection projection = StratSceneProjection.Build(document, StratPath.MainLine(document), (_, _) => origin);
+            StratSceneProjection projection =
+                StratSceneProjection.Build(document, StratPath.MainLine(document), (_, _) => origin);
 
             TokenTrack dragging = projection.TrackWith("B", 0, new TokenPlacement(50, 50, 0, null));
             TokenTrack built = projection.Tracks.Single(t => t.Slot == "B");
@@ -244,14 +252,16 @@ public class StratThrowOriginTests
             document.Steps[1].Utility = new UtilityRef { Kind = "smoke" }; // no lineup
             document.Steps[3].Utility = new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid() }; // verb move
             int asked = 0;
-            StratSceneProjection projection = StratSceneProjection.Build(document, StratPath.MainLine(document), (_, _) =>
-            {
-                asked++;
-                return new TokenPlacement(1, 1, 0, null);
-            });
+            StratSceneProjection projection = StratSceneProjection.Build(document, StratPath.MainLine(document),
+                (_, _) =>
+                {
+                    asked++;
+                    return new TokenPlacement(1, 1, 0, null);
+                });
 
             await Assert.That(asked).IsEqualTo(0);
-            await Assert.That(Enumerable.Range(0, 5).All(i => StratVocabulary.Slots.All(s => projection.ThrowOriginAt(i, s) is null))).IsTrue();
+            await Assert.That(Enumerable.Range(0, 5)
+                .All(i => StratVocabulary.Slots.All(s => projection.ThrowOriginAt(i, s) is null))).IsTrue();
         });
     }
 
@@ -263,7 +273,8 @@ public class StratThrowOriginTests
             Guid old = Guid.NewGuid();
             GrenadeLineup absorbing = Lineup(Guid.NewGuid(), [old]);
             GrenadeLineup other = Lineup(Guid.NewGuid(), []);
-            GrenadeCluster cluster = new(GrenadeKind.Smoke, (0, 0, 0), new WorldPoint(0, 0, 0), null, [absorbing, other]);
+            GrenadeCluster cluster = new(GrenadeKind.Smoke, (0, 0, 0), new WorldPoint(0, 0, 0), null,
+                [absorbing, other]);
 
             Dictionary<Guid, GrenadeLineup> byId = LineupOriginSource.ByAnyId([cluster]);
 
@@ -294,18 +305,23 @@ public class StratThrowOriginTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratDocument document = Minimal();
-            document.Steps[0].Utility = new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid(), Technique = "sideways" };
+            document.Steps[0].Utility =
+                new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid(), Technique = "sideways" };
             document.Steps[1].Actor = StratVocabulary.ActorAll;
-            document.Steps[1].Utility = new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid(), Technique = "run-jump-both" };
+            document.Steps[1].Utility =
+                new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid(), Technique = "run-jump-both" };
 
             IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, lineupExists: (_, _) => true);
 
             using (Assert.Multiple())
             {
                 await Assert.That(issues.Any(i => i.Severity == StratIssueSeverity.Refusal)).IsFalse();
-                await Assert.That(issues.Count(i => i.Field == "/steps/0/utility/technique" && i.Severity == StratIssueSeverity.Warning)).IsEqualTo(1);
+                await Assert.That(issues.Count(i =>
+                    i is { Field: "/steps/0/utility/technique", Severity: StratIssueSeverity.Warning })).IsEqualTo(1);
                 await Assert.That(issues.Any(i => i.Field == "/steps/1/utility/technique")).IsFalse();
-                await Assert.That(issues.Count(i => i.Field == "/steps/1/actor" && i.Severity == StratIssueSeverity.Warning)).IsEqualTo(1);
+                await Assert
+                    .That(issues.Count(i => i is { Field: "/steps/1/actor", Severity: StratIssueSeverity.Warning }))
+                    .IsEqualTo(1);
                 await Assert.That(StratVocabulary.Techniques.Count).IsEqualTo(12);
             }
         });
@@ -317,7 +333,8 @@ public class StratThrowOriginTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratDocument document = Minimal();
-            document.Steps[0].Utility = new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid(), Technique = "stand-jump-left" };
+            document.Steps[0].Utility =
+                new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid(), Technique = "stand-jump-left" };
             document.Steps[1].Utility = new UtilityRef { Kind = "smoke" };
 
             StratDocument copy = document.Clone();
@@ -342,10 +359,10 @@ public class StratThrowOriginTests
                 Kind = GrenadeKind.Smoke,
                 ThrowerTeam = 2,
                 ReleaseTick = 1000,
-                ReleasePosition = WorldPoint.From((jump ? JumpOrigin : StandOrigin) + new Vector3(n, 0, 0)),
+                ReleasePosition = WorldPoint.From((jump ? _jumpOrigin : _standOrigin) + new Vector3(n, 0, 0)),
                 ReleaseEyeYaw = 30,
                 JumpThrow = jump,
-                DetonationPosition = WorldPoint.From(Landing),
+                DetonationPosition = WorldPoint.From(_landing),
                 EndKind = GrenadeEndKind.Detonated
             };
             shape?.Invoke(row);
@@ -368,7 +385,8 @@ public class StratThrowOriginTests
     private static GrenadeLineup Lineup(Guid id, IReadOnlyList<Guid> aliases)
     {
         GrenadeRow row = new() { Id = id.ToString(), Kind = GrenadeKind.Smoke };
-        IndexedGrenade throwOf = new(new global::DemoViewer.NET.Extensions.StratBook.DemoRef("/d/x.dem", "x", null), Map, row, new WorldPoint(1, 2, 3), new WorldPoint(4, 5, 6), null, null);
+        IndexedGrenade throwOf = new(new global::DemoViewer.NET.Extensions.StratBook.DemoRef("/d/x.dem", "x", null),
+            Map, row, new WorldPoint(1, 2, 3), new WorldPoint(4, 5, 6), null, null);
         return new GrenadeLineup(new WorldPoint(1, 2, 3), false, [throwOf], id) { AliasIds = [id, .. aliases] };
     }
 }

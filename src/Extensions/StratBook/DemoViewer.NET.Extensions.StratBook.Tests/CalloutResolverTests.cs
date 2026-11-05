@@ -1,8 +1,8 @@
 #region
 
-using DemoViewer.NET.Playback2D.Zones;
-using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Assets;
+using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
@@ -17,17 +17,23 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class CalloutResolverTests
 {
-    private static readonly string[] ShippedMaps =
-        ["de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass", "de_train", "de_vertigo"];
+    private static readonly string[] _shippedMaps =
+    [
+        "de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass",
+        "de_train", "de_vertigo"
+    ];
 
-    private static CalloutTable Aliases(params CalloutAlias[] aliases) => new() { Map = "de_mirage", Aliases = [.. aliases] };
+    private static CalloutTable Aliases(params CalloutAlias[] aliases) =>
+        new() { Map = "de_mirage", Aliases = [.. aliases] };
 
-    private static CalloutResolver Mirage(CalloutTable? table = null) => new(CanonicalPlaces.Embedded("de_mirage"), table);
+    private static CalloutResolver Mirage(CalloutTable? table = null) =>
+        new(CanonicalPlaces.Embedded("de_mirage"), table);
 
     [Test]
     public async Task ACanonicalName_WinsOverAnAliasWithTheSameSpelling()
     {
-        CalloutResolver resolver = Mirage(Aliases(new CalloutAlias { Alias = "connector", Place = "Jungle" }, new CalloutAlias { Alias = "con", Place = "Connector" }));
+        CalloutResolver resolver = Mirage(Aliases(new CalloutAlias { Alias = "connector", Place = "Jungle" },
+            new CalloutAlias { Alias = "con", Place = "Connector" }));
 
         using (Assert.Multiple())
         {
@@ -57,7 +63,8 @@ public class CalloutResolverTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(resolver.Resolve("")).IsNull().Because("the pawn reports an empty string before its place is networked");
+            await Assert.That(resolver.Resolve("")).IsNull()
+                .Because("the pawn reports an empty string before its place is networked");
             await Assert.That(resolver.Resolve("   ")).IsNull();
             await Assert.That(resolver.Resolve(null)).IsNull();
             await Assert.That(resolver.Resolve("kitchen")).IsNull();
@@ -67,9 +74,11 @@ public class CalloutResolverTests
     [Test]
     public async Task ADuplicateAlias_IsRefusedByTheValidator_AndTheFirstWinsMeanwhile()
     {
-        CalloutTable table = Aliases(new CalloutAlias { Alias = "ramp", Place = "TRamp" }, new CalloutAlias { Alias = "Ramp", Place = "PalaceAlley" });
+        CalloutTable table = Aliases(new CalloutAlias { Alias = "ramp", Place = "TRamp" },
+            new CalloutAlias { Alias = "Ramp", Place = "PalaceAlley" });
 
-        await Assert.That(StratValidator.ValidateCallouts(table).Any(i => i.Severity == StratIssueSeverity.Refusal)).IsTrue();
+        await Assert.That(StratValidator.ValidateCallouts(table).Any(i => i.Severity == StratIssueSeverity.Refusal))
+            .IsTrue();
         await Assert.That(Mirage(table).Resolve("ramp")).IsEqualTo("TRamp");
     }
 
@@ -113,24 +122,29 @@ public class CalloutResolverTests
             throw new SkipTestException("repo root not found from the test output directory");
         }
 
-        await Assert.That(CanonicalPlaces.Maps).IsEquivalentTo(ShippedMaps, CollectionOrdering.Matching);
-        await Assert.That(CanonicalPlaces.Embedded("de_mirage").Count).IsEqualTo(23).Because("the 23 pawn places measured on de_mirage");
-        await Assert.That(CanonicalPlaces.Embedded("de_nuke").Count).IsEqualTo(29).Because("the 29 pawn places measured on de_nuke");
+        await Assert.That(CanonicalPlaces.Maps).IsEquivalentTo(_shippedMaps, CollectionOrdering.Matching);
+        await Assert.That(CanonicalPlaces.Embedded("de_mirage").Count).IsEqualTo(23)
+            .Because("the 23 pawn places measured on de_mirage");
+        await Assert.That(CanonicalPlaces.Embedded("de_nuke").Count).IsEqualTo(29)
+            .Because("the 29 pawn places measured on de_nuke");
         await Assert.That(CanonicalPlaces.Embedded("de_nowhere").Count).IsEqualTo(0);
 
-        foreach (string map in ShippedMaps)
+        foreach (string map in _shippedMaps)
         {
             ZoneSet baked = ZoneAssetPipeline.TryReadBaked(Path.Combine(repo, "assets", map))!;
             await Assert.That(CanonicalPlaces.Embedded(map))
-                .IsEquivalentTo(baked.Places.Select(p => p.Name).Distinct().Order(StringComparer.Ordinal), CollectionOrdering.Matching)
-                .Because($"the embedded list for {map} is generated from its baked env_cs_place names and must not drift");
+                .IsEquivalentTo(baked.Places.Select(p => p.Name).Distinct().Order(StringComparer.Ordinal),
+                    CollectionOrdering.Matching)
+                .Because(
+                    $"the embedded list for {map} is generated from its baked env_cs_place names and must not drift");
         }
     }
 
     [Test]
     public async Task For_PrefersTheMapsZones_ElseTheEmbeddedList()
     {
-        ZoneSet zones = new("de_mirage", "1c2b3a49", "075a27b3", null, 64, [], [new ZonePlace(0, "BombsiteA", PlaceOrigin.Baked), new ZonePlace(1, "Short", PlaceOrigin.Custom)],
+        ZoneSet zones = new("de_mirage", "1c2b3a49", "075a27b3", null, 64, [],
+            [new ZonePlace(0, "BombsiteA", PlaceOrigin.Baked), new ZonePlace(1, "Short", PlaceOrigin.Custom)],
             [], [], [], [], null);
 
         CalloutResolver fromZones = CalloutResolver.For("de_mirage", zones, null);
@@ -139,7 +153,8 @@ public class CalloutResolverTests
         using (Assert.Multiple())
         {
             await Assert.That(fromZones.Source).IsEqualTo("zones:1c2b3a49");
-            await Assert.That(fromZones.Resolve("short")).IsEqualTo("Short").Because("custom zones supply place names of their own");
+            await Assert.That(fromZones.Resolve("short")).IsEqualTo("Short")
+                .Because("custom zones supply place names of their own");
             await Assert.That(fromZones.IsCanonical("TRamp")).IsFalse();
             await Assert.That(embedded.Source).IsEqualTo(CanonicalPlaces.EmbeddedSource);
             await Assert.That(embedded.IsCanonical("TRamp")).IsTrue();

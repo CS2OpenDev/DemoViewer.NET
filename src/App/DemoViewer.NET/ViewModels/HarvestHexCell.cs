@@ -8,7 +8,11 @@ namespace DemoViewer.NET.ViewModels;
 
 /// <summary>One byte cell within a <see cref="HarvestHexRow" />.</summary>
 /// <remarks>Initializes a new <see cref="HarvestHexCell" /> instance.</remarks>
-public sealed class HarvestHexCell(string hexText, char asciiChar, IBrush? highlightBrush, bool isValid, int absoluteOffset)
+public sealed class HarvestHexCell(
+    string hexText,
+    IBrush? highlightBrush,
+    bool isValid,
+    int absoluteOffset)
 {
     /// <summary>
     ///     Absolute byte offset of this cell within the hex view's buffer (-1 for padding cells
@@ -16,9 +20,6 @@ public sealed class HarvestHexCell(string hexText, char asciiChar, IBrush? highl
     ///     the Frame Details view resolves the encompassing payload tree node.
     /// </summary>
     public int AbsoluteOffset { get; } = absoluteOffset;
-
-    /// <summary>Ascii char.</summary>
-    public char AsciiChar { get; } = asciiChar;
 
     /// <summary>Hex text.</summary>
     public string HexText { get; } = hexText;

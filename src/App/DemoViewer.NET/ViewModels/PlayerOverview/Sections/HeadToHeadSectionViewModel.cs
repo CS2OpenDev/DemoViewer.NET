@@ -20,14 +20,19 @@ namespace DemoViewer.NET.ViewModels.PlayerOverview.Sections;
 public sealed partial class HeadToHeadSectionViewModel : PlayerOverviewSection
 {
     private const string None = "–";
-    private static readonly string EventStamp = StampedFacts.StampId(PlayerEventFacet.RulesetId);
+    private static readonly string _eventStamp = StampedFacts.StampId(PlayerEventFacet.RulesetId);
 
     private readonly PlayerOverviewServices _services;
     private PlayerOverviewContext? _context;
+
     private int _load;
+
     // The kills last read and the pair they were read for: a re-read for the same pair shows them meanwhile.
     private (ulong Subject, ulong Opponent)? _pair;
-    private IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>> _kills = new Dictionary<string, IReadOnlyList<PlayerKill>>();
+
+    private IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>> _kills =
+        new Dictionary<string, IReadOnlyList<PlayerKill>>();
+
     // The facet stamp of each demo the last whole read covered, by content id: a refresh within them reads nothing.
     private Dictionary<string, PackStamp?> _readStamps = new(StringComparer.Ordinal);
     private bool _updating;
@@ -91,7 +96,9 @@ public sealed partial class HeadToHeadSectionViewModel : PlayerOverviewSection
         ArgumentNullException.ThrowIfNull(context);
         _context = context;
         _window = [.. context.Window.Select(d => d.Match)];
-        IReadOnlyList<PlayerOpponent> met = context.Player is { } player ? HeadToHead.Opponents(player.SteamId64, _window) : [];
+        IReadOnlyList<PlayerOpponent> met = context.Player is { } player
+            ? HeadToHead.Opponents(player.SteamId64, _window)
+            : [];
         if (met.Count == 0)
         {
             _load++;
@@ -131,12 +138,13 @@ public sealed partial class HeadToHeadSectionViewModel : PlayerOverviewSection
     private void Refresh()
     {
         int load = ++_load;
-        if (_context is not { Player: { } player } context || SelectedOpponent is not { } opponent)
+        if (_context is not { Player: { } player } || SelectedOpponent is not { } opponent)
         {
             return;
         }
 
-        IReadOnlyList<PlayerMatch> against = HeadToHead.Against(_window, _services.Directory.Matches(opponent.SteamId64));
+        IReadOnlyList<PlayerMatch> against =
+            HeadToHead.Against(_window, _services.Directory.Matches(opponent.SteamId64));
         PlayerRows? stats = _services.Rows?.TryGet(player.SteamId64);
         if (_pair != (player.SteamId64, opponent.SteamId64))
         {
@@ -156,15 +164,17 @@ public sealed partial class HeadToHeadSectionViewModel : PlayerOverviewSection
     }
 
     private bool IsRead(PlayerMatch match) =>
-        _readStamps.TryGetValue(match.Row.ContentId(), out PackStamp? stamp) && stamp == match.Row.Stamp(EventStamp);
+        _readStamps.TryGetValue(match.Row.ContentId(), out PackStamp? stamp) && stamp == match.Row.Stamp(_eventStamp);
 
-    private async Task LoadAsync(ulong subject, ulong opponent, IReadOnlyList<PlayerMatch> against, PlayerRows? stats, int load)
+    private async Task LoadAsync(ulong subject, ulong opponent, IReadOnlyList<PlayerMatch> against, PlayerRows? stats,
+        int load)
     {
-        IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>> kills = new Dictionary<string, IReadOnlyList<PlayerKill>>();
+        IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>> kills =
+            new Dictionary<string, IReadOnlyList<PlayerKill>>();
         Dictionary<string, PackStamp?> stamps = new(StringComparer.Ordinal);
         foreach (PlayerMatch match in against)
         {
-            stamps.TryAdd(match.Row.ContentId(), match.Row.Stamp(EventStamp));
+            stamps.TryAdd(match.Row.ContentId(), match.Row.Stamp(_eventStamp));
         }
 
         try
@@ -204,8 +214,11 @@ public sealed partial class HeadToHeadSectionViewModel : PlayerOverviewSection
             outcomes.TryAdd(demo.Match.Row.ContentId(), demo.Outcome);
         }
 
-        HeadToHead result = HeadToHead.Of(subject, opponent, against, m => outcomes.GetValueOrDefault(m.Row.ContentId()), kills);
-        CountText = against.Count == 1 ? "1 match against" : string.Create(CultureInfo.InvariantCulture, $"{against.Count} matches against");
+        HeadToHead result = HeadToHead.Of(subject, opponent, against,
+            m => outcomes.GetValueOrDefault(m.Row.ContentId()), kills);
+        CountText = against.Count == 1
+            ? "1 match against"
+            : string.Create(CultureInfo.InvariantCulture, $"{against.Count} matches against");
         RecordText = result.WithOutcome == 0
             ? None
             : result.Ties > 0
@@ -214,8 +227,12 @@ public sealed partial class HeadToHeadSectionViewModel : PlayerOverviewSection
         bool counted = result.WithKills > 0;
         KillsText = counted ? result.Kills.ToString(CultureInfo.InvariantCulture) : None;
         DeathsText = counted ? result.Deaths.ToString(CultureInfo.InvariantCulture) : None;
-        KdText = counted && result.Deaths > 0 ? ((double) result.Kills / result.Deaths).ToString("0.00", CultureInfo.InvariantCulture) : None;
-        HsText = counted && result.Kills > 0 ? (100.0 * result.HeadshotKills / result.Kills).ToString("0'%'", CultureInfo.InvariantCulture) : None;
+        KdText = counted && result.Deaths > 0
+            ? ((double)result.Kills / result.Deaths).ToString("0.00", CultureInfo.InvariantCulture)
+            : None;
+        HsText = counted && result.Kills > 0
+            ? (100.0 * result.HeadshotKills / result.Kills).ToString("0'%'", CultureInfo.InvariantCulture)
+            : None;
         int unwritten = against.Count(m => !PlayerEventCache.IsWritten(m.Row));
         NoteText = reading
             ? "Reading kills"
@@ -224,7 +241,8 @@ public sealed partial class HeadToHeadSectionViewModel : PlayerOverviewSection
                 : unwritten > 0
                     ? string.Create(CultureInfo.InvariantCulture,
                         $"Kills from {result.WithKills} of {against.Count} matches; the library is computing the rest")
-                    : string.Create(CultureInfo.InvariantCulture, $"Kills from {result.WithKills} of {against.Count} matches");
+                    : string.Create(CultureInfo.InvariantCulture,
+                        $"Kills from {result.WithKills} of {against.Count} matches");
         Rows = [.. result.Matches.Select(m => new HeadToHeadRowItem(m, reading))];
     }
 }
@@ -235,8 +253,12 @@ public sealed class OpponentItem
     internal OpponentItem(PlayerOpponent opponent)
     {
         SteamId64 = opponent.SteamId64;
-        string name = opponent.Name.Length > 0 ? DisplayText.Sanitize(opponent.Name) : opponent.SteamId64.ToString(CultureInfo.InvariantCulture);
-        Title = opponent.Matches == 1 ? name + " (1 match)" : string.Create(CultureInfo.InvariantCulture, $"{name} ({opponent.Matches} matches)");
+        string name = opponent.Name.Length > 0
+            ? DisplayText.Sanitize(opponent.Name)
+            : opponent.SteamId64.ToString(CultureInfo.InvariantCulture);
+        Title = opponent.Matches == 1
+            ? name + " (1 match)"
+            : string.Create(CultureInfo.InvariantCulture, $"{name} ({opponent.Matches} matches)");
     }
 
     /// <summary>The opponent.</summary>
@@ -263,7 +285,10 @@ public sealed class HeadToHeadRowItem
         MapText = DemoEntry.PrettifyMap(match.Match.Row.Map);
         IsWin = match.Outcome == MatchOutcome.Win;
         IsLoss = match.Outcome == MatchOutcome.Loss;
-        ResultText = match.Outcome switch { MatchOutcome.Win => "W", MatchOutcome.Loss => "L", MatchOutcome.Tie => "T", _ => None };
+        ResultText = match.Outcome switch
+        {
+            MatchOutcome.Win => "W", MatchOutcome.Loss => "L", MatchOutcome.Tie => "T", _ => None
+        };
         HasKills = match.HasKills;
         KillsText = string.Create(CultureInfo.InvariantCulture, $"{match.Kills}-{match.Deaths}");
         KillsNote = reading ? "reading" : PlayerEventCache.IsWritten(match.Match.Row) ? "not read" : "pending";

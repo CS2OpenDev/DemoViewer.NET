@@ -10,6 +10,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Export;
 ///         away and asked for again whenever the queue or the chosen output moves.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class ReviewPackPlan
 {
     internal ReviewPackPlan()
@@ -48,6 +49,7 @@ public sealed class ReviewPackPlan
 /// <param name="Segment">The segment being written, one-based; 0 before the first.</param>
 /// <param name="SegmentCount">Segments in the pack.</param>
 /// <param name="Label">What is being written: a section's title, or a clip's number and note.</param>
+[PublicAPI]
 public readonly record struct ReviewPackProgress(int Segment, int SegmentCount, string Label);
 
 /// <summary>What one pack export wrote.</summary>
@@ -67,6 +69,7 @@ public sealed record ReviewPackResult(int ClipsRendered, IReadOnlyList<string> F
 ///         than a priority, so a background caller cannot be demoted into it.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IExtensionReviewPackExport
 {
     /// <summary>The format ids a pack can be written as, in the order to offer them; the default first.</summary>

@@ -43,7 +43,6 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
 
     private readonly Func<bool> _isCs2Busy;
     private readonly ILiveSyncService _liveSync;
-    private ILogger? _diagLog;
     private bool _disposed;
 
     [ObservableProperty]
@@ -79,7 +78,7 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
         _liveSync.StateChanged += OnLiveSyncStateChanged;
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.LiveSync");
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.LiveSync");
 
     /// <summary>True while the banner shows: leftovers to restore, or the outcome of a restore.</summary>
     public bool IsVisible => NeedsRestore || Notice is not null;
@@ -233,7 +232,7 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
 
     // The fallback names Steam's own repair rather than the csvg CLI: it is the one every profile has, and
     // it puts back an unpatched gameinfo.gi, which is what stops the plugin loading.
-    internal static string Describe(Exception ex)
+    private static string Describe(Exception ex)
     {
         string reason = ex switch
         {
@@ -244,6 +243,6 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
         };
 
         return $"Couldn't restore your CS2 install: {reason}. Close CS2 and try again. If it still fails, "
-               + "use Verify integrity of game files on Counter-Strike 2 in Steam.";
+            + "use Verify integrity of game files on Counter-Strike 2 in Steam.";
     }
 }

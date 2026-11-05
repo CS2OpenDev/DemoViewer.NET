@@ -38,11 +38,11 @@ public sealed class StratStore
 
     public const string StratExtension = ".dvstrat.json";
     public const string HistoryExtension = ".history.jsonl";
-    public const string BookFileName = "book.json";
-    public const string CalloutsFileName = "callouts.json";
+    private const string BookFileName = "book.json";
+    private const string CalloutsFileName = "callouts.json";
 
     /// <summary>Where <see cref="Delete" /> moves a strat's files, inside its map folder.</summary>
-    public const string TrashFolderName = ".trash";
+    private const string TrashFolderName = ".trash";
 
     /// <summary>
     ///     The extension-bag field an autosaved working copy carries: the file holds edits not yet
@@ -56,7 +56,7 @@ public sealed class StratStore
     private readonly Lock _gate = new();
     private readonly Dictionary<Guid, StratIndexEntry> _index = [];
 
-    private static readonly TimeSpan RowSlack = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _rowSlack = TimeSpan.FromSeconds(5);
 
     // What a reconcile did to a strat, held until a session opens it (TakeNote). Under _gate.
     private readonly Dictionary<Guid, string> _notes = [];
@@ -157,14 +157,14 @@ public sealed class StratStore
             if (json is null)
             {
                 return ioFailed
-                    ? StratLoadResult.Unreadable(id, Absolute(path))
-                    : new StratLoadResult(null, Absolute(path), false, []);
+                    ? StratLoadResult.Unreadable(id)
+                    : new StratLoadResult(null, false, []);
             }
 
             StratDocument? document = Parse(json);
             if (document is null || document.Id != id)
             {
-                return StratLoadResult.Unreadable(id, Absolute(path));
+                return StratLoadResult.Unreadable(id);
             }
 
             document = Reconcile(document, path);
@@ -175,8 +175,10 @@ public sealed class StratStore
                 note = _notes.GetValueOrDefault(id);
             }
 
-            return new StratLoadResult(document, Absolute(path), false, StratValidator.Validate(document, index: Index))
-                { Note = note };
+            return new StratLoadResult(document, false, StratValidator.Validate(document, index: Index))
+            {
+                Note = note
+            };
         }
     }
 
@@ -277,11 +279,13 @@ public sealed class StratStore
                 Revision = committed.Revision,
                 AtUtc = now,
                 Summary = summary,
-                Ops = known is null ? [PatchOp.AddOp("", StratHistory.ToNode(committed))] : [.. ops.Select(o => o.Clone())]
+                Ops = known is null
+                    ? [PatchOp.AddOp("", StratHistory.ToNode(committed))]
+                    : [.. ops.Select(o => o.Clone())]
             };
 
             string? newPath = _folder is null ? null : StratPath(committed);
-            string? moveFailure = MoveIfRelocated(document.Id, oldPath, newPath);
+            string? moveFailure = MoveIfRelocated(oldPath, newPath);
             if (moveFailure is not null)
             {
                 return StratSaveResult.Failed(moveFailure, issues);
@@ -305,7 +309,8 @@ public sealed class StratStore
             string? warning = null;
             if (!WriteStrat(committed, newPath))
             {
-                warning = "the strat file could not be written; the commit is in the history and the next load rebuilds the file";
+                warning =
+                    "the strat file could not be written; the commit is in the history and the next load rebuilds the file";
                 lock (_gate)
                 {
                     _index[document.Id] = StratIndexEntry.From(committed);
@@ -330,7 +335,8 @@ public sealed class StratStore
     {
         try
         {
-            CalloutResolver callouts = CalloutResolver.For(committed.Map, null, LoadCallouts(committed.Owner, committed.Map));
+            CalloutResolver callouts =
+                CalloutResolver.For(committed.Map, null, LoadCallouts(committed.Owner, committed.Map));
             return StratDiffPhrasing.SummaryAfter(committed, ops, callouts);
         }
         catch (Exception e) when (e is InvalidOperationException or ArgumentException or JsonException)
@@ -400,7 +406,8 @@ public sealed class StratStore
             {
                 string folder = Path.GetDirectoryName(path)!;
                 string trash = Path.Combine(folder, TrashFolderName);
-                string stamp = _utcNow().ToString("yyyyMMddTHHmmssZ", System.Globalization.CultureInfo.InvariantCulture);
+                string stamp =
+                    _utcNow().ToString("yyyyMMddTHHmmssZ", System.Globalization.CultureInfo.InvariantCulture);
                 try
                 {
                     foreach (string file in new[] { path, HistoryPathBeside(path) }.Where(_folder!.FileExists)
@@ -536,7 +543,8 @@ public sealed class StratStore
     public static bool IsPending(StratDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
-        return document.Extra?.TryGetValue(PendingField, out JsonElement value) == true && value.ValueKind == JsonValueKind.True;
+        return document.Extra?.TryGetValue(PendingField, out JsonElement value) == true
+            && value.ValueKind == JsonValueKind.True;
     }
 
     /// <summary>
@@ -679,7 +687,7 @@ public sealed class StratStore
         ArgumentNullException.ThrowIfNull(owner);
         string? json = ReadSmallFile(owner.FolderName,
             _folder is null ? null : Path.Combine(owner.FolderName, BookFileName), _memoryBooks);
-        StratBook? book = null;
+        StratBook? book;
         try
         {
             book = json is null ? null : JsonSerializer.Deserialize(json, StratJsonContext.Default.StratBook);
@@ -717,7 +725,7 @@ public sealed class StratStore
         string key = owner.FolderName + "/" + map.ToLowerInvariant();
         string? json = ReadSmallFile(key, _folder is null ? null : Path.Combine(FolderIn(owner, map), CalloutsFileName),
             _memoryCallouts);
-        CalloutTable? table = null;
+        CalloutTable? table;
         try
         {
             table = json is null ? null : JsonSerializer.Deserialize(json, StratJsonContext.Default.CalloutTable);
@@ -742,7 +750,8 @@ public sealed class StratStore
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(table);
         if (OwnerProblem(owner) is not null || MapProblem(table.Map) is not null
-            || StratValidator.ValidateCallouts(table).Any(i => i.Severity == StratIssueSeverity.Refusal))
+            || StratValidator.ValidateCallouts(table).Any(i =>
+                i.Severity == StratIssueSeverity.Refusal))
         {
             return false;
         }
@@ -750,7 +759,8 @@ public sealed class StratStore
         table.Map = table.Map.ToLowerInvariant();
         string key = owner.FolderName + "/" + table.Map;
         string json = JsonSerializer.Serialize(table, StratJsonContext.Default.CalloutTable);
-        return WriteSmallFile(key, _folder is null ? null : Path.Combine(FolderIn(owner, table.Map), CalloutsFileName), json,
+        return WriteSmallFile(key, _folder is null ? null : Path.Combine(FolderIn(owner, table.Map), CalloutsFileName),
+            json,
             _memoryCallouts);
     }
 
@@ -758,9 +768,10 @@ public sealed class StratStore
     public IReadOnlyList<StratIndexEntry> Query(StratOwner? owner, string? map, string? side, StratStatus? status) =>
     [
         .. Index.Where(e => (owner is null || e.Owner.Equals(owner))
-                            && (map is null || string.Equals(e.Map, map, StringComparison.OrdinalIgnoreCase))
-                            && (side is null || string.Equals(e.Side, side, StringComparison.Ordinal))
-                            && (status is null || string.Equals(e.Status, status.Value.ToString(), StringComparison.Ordinal)))
+                && (map is null || string.Equals(e.Map, map, StringComparison.OrdinalIgnoreCase))
+                && (side is null || string.Equals(e.Side, side, StringComparison.Ordinal))
+                && (status is null || string.Equals(e.Status, status.Value.ToString(),
+                    StringComparison.Ordinal)))
             .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Id)
     ];
 
@@ -775,7 +786,8 @@ public sealed class StratStore
         StratIndexFile file = new() { Entries = [.. Index] };
         try
         {
-            FolderText.Write(_folder, IndexFileName, JsonSerializer.Serialize(file, StratJsonContext.Default.StratIndexFile));
+            FolderText.Write(_folder, IndexFileName,
+                JsonSerializer.Serialize(file, StratJsonContext.Default.StratIndexFile));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException)
         {
@@ -866,7 +878,8 @@ public sealed class StratStore
 
         if (anchor is null)
         {
-            Note(document.Id, $"the strat file at revision {document.Revision} matches no line of its history and was left as it is");
+            Note(document.Id,
+                $"the strat file at revision {document.Revision} matches no line of its history and was left as it is");
             return document;
         }
 
@@ -885,14 +898,16 @@ public sealed class StratStore
 
             if (root?.Deserialize(StratJsonContext.Default.StratDocument) is not { } recovered)
             {
-                Note(document.Id, "the strat file is behind its history, which could not be applied; it was left as it is");
+                Note(document.Id,
+                    "the strat file is behind its history, which could not be applied; it was left as it is");
                 return document;
             }
 
             recovered.Revision = log[^1].Revision;
             recovered.ModifiedUtc = log[^1].AtUtc;
             WriteStrat(recovered, path);
-            Note(document.Id, $"the strat file was behind its history; {log.Count - 1 - anchor.Value} committed change(s) were re-applied");
+            Note(document.Id,
+                $"the strat file was behind its history; {log.Count - 1 - anchor.Value} committed change(s) were re-applied");
             return recovered;
         }
         catch (Exception e) when (e is InvalidOperationException or JsonException)
@@ -934,7 +949,8 @@ public sealed class StratStore
         {
             root = StratHistory.ApplyAll(root, log[i].Ops);
             if (log[i].Revision == document.Revision && root is JsonObject
-                && root.Deserialize(StratJsonContext.Default.StratDocument) is { } state
+                && root.Deserialize(StratJsonContext.Default.StratDocument) is
+                    { } state
                 && JsonNode.DeepEquals(Comparable(state), target))
             {
                 found = i;
@@ -956,7 +972,8 @@ public sealed class StratStore
     // A working copy stamped behind its log. Its edits go onto the head, the whole log replayed, only where the
     // head still holds what each edit replaced. Anything else, a base the log holds twice or not at all
     // included, is a conflict: the copy is set aside and replaced only once that copy is written.
-    private StratDocument RebaseWorkingCopy(StratDocument document, string? path, IReadOnlyList<HistoryEntry> log, int[] at)
+    private StratDocument RebaseWorkingCopy(StratDocument document, string? path, IReadOnlyList<HistoryEntry> log,
+        int[] at)
     {
         int stamped = document.Revision;
         StratDocument working = WithPending(document, false);
@@ -977,27 +994,32 @@ public sealed class StratStore
 
         if (head is null)
         {
-            Note(document.Id, $"recovered edits from revision {stamped} could not be checked: the history does not replay; the file opens as it is");
+            Note(document.Id,
+                $"recovered edits from revision {stamped} could not be checked: the history does not replay; the file opens as it is");
             return document;
         }
 
         if (based is null)
         {
-            string why = at.Length == 0 ? "a revision the history does not hold" : "a revision the history holds more than once";
+            string why = at.Length == 0
+                ? "a revision the history does not hold"
+                : "a revision the history holds more than once";
             return SetAsideConflict(document, path, head, $"recovered edits are based on {why} ({stamped})");
         }
 
         List<PatchOp>? onHead = EditsOntoHead(based, working, head);
         if (onHead is null)
         {
-            return SetAsideConflict(document, path, head, $"recovered edits from revision {stamped} conflict with revision {head.Revision}");
+            return SetAsideConflict(document, path, head,
+                $"recovered edits from revision {stamped} conflict with revision {head.Revision}");
         }
 
         try
         {
             JsonNode headNode = StratHistory.ToNode(head);
             headNode["modifiedUtc"] = JsonValue.Create(working.ModifiedUtc);
-            if (StratHistory.ApplyAll(headNode, onHead)?.Deserialize(StratJsonContext.Default.StratDocument) is { } rebased)
+            if (StratHistory.ApplyAll(headNode, onHead)?.Deserialize(StratJsonContext.Default.StratDocument) is
+                { } rebased)
             {
                 rebased.Revision = head.Revision;
                 StratDocument copy = onHead.Count == 0 ? head : WithPending(rebased, true);
@@ -1018,7 +1040,8 @@ public sealed class StratStore
             // A conflict after all.
         }
 
-        return SetAsideConflict(document, path, head, $"recovered edits from revision {stamped} do not apply to revision {head.Revision}");
+        return SetAsideConflict(document, path, head,
+            $"recovered edits from revision {stamped} do not apply to revision {head.Revision}");
     }
 
     private StratDocument SetAsideConflict(StratDocument document, string? path, StratDocument head, string conflict)
@@ -1030,7 +1053,8 @@ public sealed class StratStore
                 _unresolved.Add(document.Id);
             }
 
-            Note(document.Id, conflict + "; the working copy could not be set aside, so it opens read-only until it can be");
+            Note(document.Id,
+                conflict + "; the working copy could not be set aside, so it opens read-only until it can be");
             return document;
         }
 
@@ -1085,7 +1109,7 @@ public sealed class StratStore
         }
 
         string stem = SetAsidePrefix(path) + revision.ToString(System.Globalization.CultureInfo.InvariantCulture) + "-"
-                      + _utcNow().ToString("yyyyMMddTHHmmssZ", System.Globalization.CultureInfo.InvariantCulture);
+            + _utcNow().ToString("yyyyMMddTHHmmssZ", System.Globalization.CultureInfo.InvariantCulture);
         try
         {
             string target = stem + ".json";
@@ -1234,7 +1258,7 @@ public sealed class StratStore
         }
     }
 
-    private string? MoveIfRelocated(Guid id, string? oldPath, string? newPath)
+    private string? MoveIfRelocated(string? oldPath, string? newPath)
     {
         if (oldPath is null || newPath is null || string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -1417,11 +1441,8 @@ public sealed class StratStore
 
     // The same folder as FolderFor, relative to the store: the owner and the map have both been through
     // FolderProblem, so neither can leave it.
-    private static string FolderIn(StratOwner owner, string map) => Path.Combine(owner.FolderName, map.ToLowerInvariant());
-
-    // A path inside the store as the world outside it sees the file; null in memory.
-    private string? Absolute(string? relativePath) =>
-        relativePath is null || _folder is null ? null : Path.Combine(_folder.Path, relativePath);
+    private static string FolderIn(StratOwner owner, string map) =>
+        Path.Combine(owner.FolderName, map.ToLowerInvariant());
 
     private static string HistoryPathBeside(string stratPath) =>
         stratPath[..^StratExtension.Length] + HistoryExtension;
@@ -1439,7 +1460,7 @@ public sealed class StratStore
 
     private static string? MapProblem(string map) =>
         string.IsNullOrWhiteSpace(map) || map.StartsWith('.') || map.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
-            || map.Contains('/') || map.Contains('\\')
+        || map.Contains('/') || map.Contains('\\')
             ? "the map is not a folder name"
             : null;
 
@@ -1602,7 +1623,8 @@ public sealed class StratStore
                 _paths[id] = path;
             }
 
-            if (rows.Remove(id, out StratIndexEntry? row) && !LogIsAhead(path, row.Revision) && !WrittenAfter(path, row))
+            if (rows.Remove(id, out StratIndexEntry? row) && !LogIsAhead(path, row.Revision)
+                && !WrittenAfter(path, row))
             {
                 lock (_gate)
                 {
@@ -1633,7 +1655,8 @@ public sealed class StratStore
         try
         {
             // A file that is not there answers no time at all, which is never after the row.
-            return (_folder!.LastWriteTimeUtc(stratPath) ?? DateTime.MinValue) > row.ModifiedUtc.ToUniversalTime() + RowSlack;
+            return (_folder!.LastWriteTimeUtc(stratPath) ?? DateTime.MinValue)
+                > row.ModifiedUtc.ToUniversalTime() + _rowSlack;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -1696,20 +1719,23 @@ public sealed class StratStore
 
 /// <summary>The outcome of a load: the strat after reconciliation, or why there is none.</summary>
 /// <param name="Document">The strat, or null when absent or unreadable.</param>
-/// <param name="Path">The file that was read, or null in memory or when the strat is unknown.</param>
 /// <param name="IsUnreadable">A file exists and could not be read or parsed. Never overwritten.</param>
 /// <param name="Issues">The validator's findings on load; the strat opens whatever they say.</param>
-public sealed record StratLoadResult(StratDocument? Document, string? Path, bool IsUnreadable, IReadOnlyList<StratIssue> Issues)
+public sealed record StratLoadResult(
+    StratDocument? Document,
+    bool IsUnreadable,
+    IReadOnlyList<StratIssue> Issues)
 {
     /// <summary>What the load did to a recovered working copy (rebased or set aside), for the status line; null for nothing.</summary>
     public string? Note { get; init; }
 
-    public static StratLoadResult Unreadable(Guid id, string? path) =>
-        new(null, path, true, [new StratIssue(StratIssueSeverity.Refusal, "", $"strat {id} could not be read")]);
+    public static StratLoadResult Unreadable(Guid id) =>
+        new(null, true, [new StratIssue(StratIssueSeverity.Refusal, "", $"strat {id} could not be read")]);
 }
 
 /// <summary>The outcome of a commit. <see cref="Reason" /> is what the tab's status line says when it failed.</summary>
 public sealed record StratSaveResult(bool Saved, string? Reason, int Revision, IReadOnlyList<StratIssue> Issues)
 {
-    public static StratSaveResult Failed(string reason, IReadOnlyList<StratIssue> issues) => new(false, reason, 0, issues);
+    public static StratSaveResult Failed(string reason, IReadOnlyList<StratIssue> issues) =>
+        new(false, reason, 0, issues);
 }

@@ -19,7 +19,7 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class GrenadeIndexEvaluatorTests
 {
-    private const string Demo = "/d/match.dem";
+    private const string MatchDemo = "/d/match.dem";
 
     private static ParsedDemo Parse() => RoundIndexTestData.Demo(lastTick: 5000);
 
@@ -48,8 +48,9 @@ public class GrenadeIndexEvaluatorTests
         string? root = null, Func<bool>? enabled = null)
     {
         DemoCacheStore cache = new(root);
-        cache.Upsert(RoundIndexTestData.ParsedRecord(Demo, sha: sha));
-        GrenadeIndexEvaluator evaluator = new(cache.Library(), new GrenadeStore(root is null ? cache.Data() : cache.DiskData(root)), () => background,
+        cache.Upsert(RoundIndexTestData.ParsedRecord(MatchDemo, sha: sha));
+        GrenadeIndexEvaluator evaluator = new(cache.Library(),
+            new GrenadeStore(root is null ? cache.Data() : cache.DiskData(root)), () => background,
             () => open, walk: walk ?? OneSmoke, enabled: enabled);
         return (cache, evaluator);
     }
@@ -62,15 +63,16 @@ public class GrenadeIndexEvaluatorTests
         using LineupClipPass pass = new(evaluator, clips);
         ParsedDemo parsed = Parse();
 
-        DemoInterest beforeWalk = pass.Interest(Demo);
-        evaluator.Evaluate(Demo, parsed);
-        DemoInterest afterWalk = pass.Interest(Demo);
-        pass.Run(new Context(Demo, parsed));
-        DemoInterest afterRun = pass.Interest(Demo);
+        DemoInterest beforeWalk = pass.Interest(MatchDemo);
+        evaluator.Evaluate(MatchDemo, parsed);
+        DemoInterest afterWalk = pass.Interest(MatchDemo);
+        pass.Run(new Context(MatchDemo, parsed));
+        DemoInterest afterRun = pass.Interest(MatchDemo);
 
         using (Assert.Multiple())
         {
-            await Assert.That(beforeWalk).IsEqualTo(DemoInterest.AfterUpstream).Because("it joins the visit the walk is on");
+            await Assert.That(beforeWalk).IsEqualTo(DemoInterest.AfterUpstream)
+                .Because("it joins the visit the walk is on");
             await Assert.That(afterWalk).IsEqualTo(DemoInterest.Yes);
             await Assert.That(afterRun).IsEqualTo(DemoInterest.No)
                 .Because("a re-check after the visit must not read the demo again for its clips");
@@ -84,9 +86,9 @@ public class GrenadeIndexEvaluatorTests
         using LineupClipService clips = new(() => [], PackStores.At("/clips"), () => false, new NoRender());
         using LineupClipPass pass = new(evaluator, clips);
 
-        evaluator.Evaluate(Demo, Parse());
+        evaluator.Evaluate(MatchDemo, Parse());
 
-        await Assert.That(pass.Interest(Demo)).IsEqualTo(DemoInterest.No);
+        await Assert.That(pass.Interest(MatchDemo)).IsEqualTo(DemoInterest.No);
     }
 
     private sealed class NoRender : ILineupClipRenderer
@@ -115,7 +117,7 @@ public class GrenadeIndexEvaluatorTests
 
         public CancellationToken CancellationToken => CancellationToken.None;
 
-        public T? Collected<T>(string collectorId) where T : class => throw new NotSupportedException();
+        public T Collected<T>(string collectorId) where T : class => throw new NotSupportedException();
 
         public IReadOnlyList<FactRow> Table(string table) => throw new NotSupportedException();
     }
@@ -129,15 +131,16 @@ public class GrenadeIndexEvaluatorTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(off.Wants(Demo)).IsFalse().Because("background indexing is off by default");
+            await Assert.That(off.Wants(MatchDemo)).IsFalse().Because("background indexing is off by default");
             await Assert.That(off.PendingPaths()).IsEmpty();
-            await Assert.That(on.Wants(Demo)).IsTrue();
+            await Assert.That(on.Wants(MatchDemo)).IsTrue();
             await Assert.That(on.Wants("/d/unparsed.dem")).IsFalse();
-            await Assert.That(on.WantsAfterUpstream("/d/unparsed.dem")).IsTrue().Because("the walk follows the Library's parse on the same visit");
-            await Assert.That(on.WantsAfterUpstream(Demo)).IsFalse().Because("a parsed demo is Wants' call");
+            await Assert.That(on.WantsAfterUpstream("/d/unparsed.dem")).IsTrue()
+                .Because("the walk follows the Library's parse on the same visit");
+            await Assert.That(on.WantsAfterUpstream(MatchDemo)).IsFalse().Because("a parsed demo is Wants' call");
             await Assert.That(off.WantsAfterUpstream("/d/unparsed.dem")).IsFalse();
-            await Assert.That(on.PendingPaths()).IsEquivalentTo(new[] { Demo }, CollectionOrdering.Matching);
-            await Assert.That(on.PriorityFor(Demo)).IsEqualTo(JobPriority.Background);
+            await Assert.That(on.PendingPaths()).IsEquivalentTo([MatchDemo], CollectionOrdering.Matching);
+            await Assert.That(on.PriorityFor(MatchDemo)).IsEqualTo(JobPriority.Background);
         }
     }
 
@@ -145,16 +148,17 @@ public class GrenadeIndexEvaluatorTests
     public async Task WithThePackOff_NothingIsWanted_AndTheOpenDemoIsNotWalkedEither()
     {
         DemoCacheStore cache = new(null);
-        cache.Upsert(RoundIndexTestData.ParsedRecord(Demo, sha: "abc"));
-        GrenadeIndexEvaluator evaluator = new(cache.Library(), cache.Grenades(), () => true, () => Demo, walk: OneSmoke, enabled: () => false);
+        cache.Upsert(RoundIndexTestData.ParsedRecord(MatchDemo, sha: "abc"));
+        GrenadeIndexEvaluator evaluator = new(cache.Library(), cache.Grenades(), () => true, () => MatchDemo,
+            walk: OneSmoke, enabled: () => false);
 
         using (Assert.Multiple())
         {
-            await Assert.That(evaluator.Wants(Demo)).IsFalse()
+            await Assert.That(evaluator.Wants(MatchDemo)).IsFalse()
                 .Because("the open demo's walk rides its Wants, which the pack gate forces off");
-            await Assert.That(evaluator.WantsAfterUpstream(Demo)).IsFalse();
+            await Assert.That(evaluator.WantsAfterUpstream(MatchDemo)).IsFalse();
             await Assert.That(evaluator.PendingPaths()).IsEmpty();
-            await Assert.That(evaluator.Store.TryReadRows(Demo, "abc")).IsNull();
+            await Assert.That(evaluator.Store.TryReadRows(MatchDemo, "abc")).IsNull();
         }
     }
 
@@ -166,13 +170,13 @@ public class GrenadeIndexEvaluatorTests
     {
         (_, GrenadeIndexEvaluator evaluator) = Wire(enabled: () => false);
 
-        evaluator.Request(Demo);
+        evaluator.Request(MatchDemo);
 
         using (Assert.Multiple())
         {
-            await Assert.That(evaluator.Wants(Demo)).IsFalse();
+            await Assert.That(evaluator.Wants(MatchDemo)).IsFalse();
             await Assert.That(evaluator.PendingPaths()).IsEmpty();
-            await Assert.That(evaluator.PriorityFor(Demo)).IsEqualTo(JobPriority.Background)
+            await Assert.That(evaluator.PriorityFor(MatchDemo)).IsEqualTo(JobPriority.Background)
                 .Because("Request must not have added a forced path");
         }
     }
@@ -181,11 +185,11 @@ public class GrenadeIndexEvaluatorTests
     public async Task WithThePackOff_Request_DoesNotLiftAFailedRowBackToPending()
     {
         (DemoCacheStore cache, GrenadeIndexEvaluator evaluator) = Wire(enabled: () => false);
-        evaluator.Store.MarkFailed(Demo);
+        evaluator.Store.MarkFailed(MatchDemo);
 
-        evaluator.Request(Demo);
+        evaluator.Request(MatchDemo);
 
-        await Assert.That(cache.GrenadeState(Demo)).IsEqualTo(DemoDataState.Failed)
+        await Assert.That(cache.GrenadeState(MatchDemo)).IsEqualTo(DemoDataState.Failed)
             .Because("a no-op Request clears nothing, not even a stamp a retry would normally lift");
     }
 
@@ -198,12 +202,12 @@ public class GrenadeIndexEvaluatorTests
         bool on = false;
         (_, GrenadeIndexEvaluator evaluator) = Wire(enabled: () => on);
 
-        evaluator.Request(Demo);
+        evaluator.Request(MatchDemo);
         on = true;
 
         using (Assert.Multiple())
         {
-            await Assert.That(evaluator.Wants(Demo)).IsFalse()
+            await Assert.That(evaluator.Wants(MatchDemo)).IsFalse()
                 .Because("the demo must not be walked unasked now that the pack is back on");
             await Assert.That(evaluator.PendingPaths()).IsEmpty();
         }
@@ -214,41 +218,41 @@ public class GrenadeIndexEvaluatorTests
     {
         (_, GrenadeIndexEvaluator evaluator) = Wire();
 
-        evaluator.Request(Demo);
+        evaluator.Request(MatchDemo);
 
         using (Assert.Multiple())
         {
-            await Assert.That(evaluator.Wants(Demo)).IsTrue();
-            await Assert.That(evaluator.PriorityFor(Demo)).IsEqualTo(JobPriority.UserRequested);
-            await Assert.That(evaluator.PendingPaths()).IsEquivalentTo(new[] { Demo }, CollectionOrdering.Matching);
+            await Assert.That(evaluator.Wants(MatchDemo)).IsTrue();
+            await Assert.That(evaluator.PriorityFor(MatchDemo)).IsEqualTo(JobPriority.UserRequested);
+            await Assert.That(evaluator.PendingPaths()).IsEquivalentTo([MatchDemo], CollectionOrdering.Matching);
         }
     }
 
     [Test]
     public async Task Evaluate_WritesTheRowsThenTheStamp_NoPaths_AndTheIndexMirrorsIt()
     {
-        (DemoCacheStore cache, GrenadeIndexEvaluator evaluator) = Wire(background: true);
+        (_, GrenadeIndexEvaluator evaluator) = Wire(background: true);
         List<string> indexed = [];
         evaluator.Indexed += indexed.Add;
 
-        evaluator.Evaluate(Demo, Parse());
+        evaluator.Evaluate(MatchDemo, Parse());
 
-        DemoDataStamp stamp = evaluator.Store.Stamp(Demo)!;
-        GrenadeDocument rows = evaluator.Store.TryReadRows(Demo, "abc")!;
+        DemoDataStamp stamp = evaluator.Store.Stamp(MatchDemo)!;
+        GrenadeDocument rows = evaluator.Store.TryReadRows(MatchDemo, "abc")!;
         using (Assert.Multiple())
         {
-            await Assert.That(indexed).IsEquivalentTo(new[] { Demo }, CollectionOrdering.Matching);
+            await Assert.That(indexed).IsEquivalentTo([MatchDemo], CollectionOrdering.Matching);
             await Assert.That(stamp.Schema).IsEqualTo(GrenadeStore.Schema);
             await Assert.That(stamp.State).IsEqualTo(DemoDataState.Written);
             await Assert.That(stamp.Count).IsEqualTo(1);
             await Assert.That(stamp.Fingerprint).IsEqualTo(GrenadeWalker.Version);
             await Assert.That(stamp.WrittenAtTicks).IsGreaterThan(0);
             await Assert.That(rows.Source.InputCoverage).IsEqualTo(0.998);
-            await Assert.That(evaluator.Wants(Demo)).IsFalse().Because("current under this walker");
-            await Assert.That(evaluator.IsCurrent(Demo)).IsTrue();
+            await Assert.That(evaluator.Wants(MatchDemo)).IsFalse().Because("current under this walker");
+            await Assert.That(evaluator.IsCurrent(MatchDemo)).IsTrue();
 
             await Assert.That(rows.Demo.Sha256).IsEqualTo("abc");
-            await Assert.That(rows.Demo.StableKey).IsEqualTo(DemoCacheStore.StableKey(Demo));
+            await Assert.That(rows.Demo.StableKey).IsEqualTo(DemoCacheStore.StableKey(MatchDemo));
             await Assert.That(rows.Walker.Version).IsEqualTo(GrenadeWalker.Version);
             await Assert.That(rows.Walker.Engine).StartsWith("CS2DemoKit.Parser ");
             await Assert.That(rows.Walker.InputDecoder).IsEqualTo(GrenadeWalker.InputDecoderName);
@@ -268,16 +272,17 @@ public class GrenadeIndexEvaluatorTests
             walks++;
             return OneSmoke(d);
         });
-        ParsedDemo narrowed = SyntheticParsedDemo.Create(tickCount: 5000, plan: DemoProcessingQueue.WithoutUserCommands);
+        ParsedDemo narrowed =
+            SyntheticParsedDemo.Create(tickCount: 5000, plan: DemoProcessingQueue.WithoutUserCommands);
 
-        evaluator.Evaluate(Demo, narrowed);
+        evaluator.Evaluate(MatchDemo, narrowed);
 
         using (Assert.Multiple())
         {
             await Assert.That(walks).IsEqualTo(0);
-            await Assert.That(evaluator.Store.TryReadRows(Demo, "abc")).IsNull();
-            await Assert.That(cache.GrenadeState(Demo)).IsNotEqualTo(DemoDataState.Failed);
-            await Assert.That(evaluator.Wants(Demo)).IsTrue();
+            await Assert.That(evaluator.Store.TryReadRows(MatchDemo, "abc")).IsNull();
+            await Assert.That(cache.GrenadeState(MatchDemo)).IsNotEqualTo(DemoDataState.Failed);
+            await Assert.That(evaluator.Wants(MatchDemo)).IsTrue();
             await Assert.That(((IExtensionPass)evaluator).ReadsUserCommands).IsTrue();
         }
     }
@@ -286,26 +291,27 @@ public class GrenadeIndexEvaluatorTests
     public async Task AForcedRequest_OnAParseWithoutUserCommands_StaysForcedAndWanted()
     {
         int walks = 0;
-        (DemoCacheStore cache, GrenadeIndexEvaluator evaluator) = Wire(walk: d =>
+        (_, GrenadeIndexEvaluator evaluator) = Wire(walk: d =>
         {
             walks++;
             return OneSmoke(d);
         });
-        evaluator.Request(Demo);
+        evaluator.Request(MatchDemo);
 
-        evaluator.Evaluate(Demo, SyntheticParsedDemo.Create(tickCount: 5000, plan: DemoProcessingQueue.WithoutUserCommands));
+        evaluator.Evaluate(MatchDemo,
+            SyntheticParsedDemo.Create(tickCount: 5000, plan: DemoProcessingQueue.WithoutUserCommands));
 
         using (Assert.Multiple())
         {
             await Assert.That(walks).IsEqualTo(0);
-            await Assert.That(evaluator.Store.TryReadRows(Demo, "abc")).IsNull();
-            await Assert.That(evaluator.Wants(Demo)).IsTrue();
-            await Assert.That(evaluator.PriorityFor(Demo)).IsEqualTo(JobPriority.UserRequested);
+            await Assert.That(evaluator.Store.TryReadRows(MatchDemo, "abc")).IsNull();
+            await Assert.That(evaluator.Wants(MatchDemo)).IsTrue();
+            await Assert.That(evaluator.PriorityFor(MatchDemo)).IsEqualTo(JobPriority.UserRequested);
         }
 
-        evaluator.Evaluate(Demo, Parse());
+        evaluator.Evaluate(MatchDemo, Parse());
         await Assert.That(walks).IsEqualTo(1);
-        await Assert.That(evaluator.PriorityFor(Demo)).IsEqualTo(JobPriority.Background);
+        await Assert.That(evaluator.PriorityFor(MatchDemo)).IsEqualTo(JobPriority.Background);
     }
 
     [Test]
@@ -316,12 +322,13 @@ public class GrenadeIndexEvaluatorTests
 
         await Assert.That(evaluator.Wants("/d/other.dem")).IsFalse()
             .Because("another demo's visit does not turn the sweep the user left off back on");
-        await Assert.That(evaluator.Wants(Demo)).IsTrue().Because("the open demo is walked on the parse its open paid for");
-        evaluator.Evaluate(Demo, Parse());
+        await Assert.That(evaluator.Wants(MatchDemo)).IsTrue()
+            .Because("the open demo is walked on the parse its open paid for");
+        evaluator.Evaluate(MatchDemo, Parse());
 
         using (Assert.Multiple())
         {
-            await Assert.That(cache.GrenadeState(Demo)).IsEqualTo(DemoDataState.Written);
+            await Assert.That(cache.GrenadeState(MatchDemo)).IsEqualTo(DemoDataState.Written);
             await Assert.That(cache.GrenadeState("/d/other.dem")).IsEqualTo(DemoDataState.Pending);
         }
     }
@@ -332,22 +339,22 @@ public class GrenadeIndexEvaluatorTests
         (DemoCacheStore cache, GrenadeIndexEvaluator evaluator) = Wire(background: true,
             walk: _ => throw new InvalidOperationException("boom"));
 
-        evaluator.Evaluate(Demo, Parse());
+        evaluator.Evaluate(MatchDemo, Parse());
 
         using (Assert.Multiple())
         {
-            await Assert.That(cache.GrenadeState(Demo)).IsEqualTo(DemoDataState.Failed);
-            await Assert.That(evaluator.Wants(Demo)).IsFalse();
+            await Assert.That(cache.GrenadeState(MatchDemo)).IsEqualTo(DemoDataState.Failed);
+            await Assert.That(evaluator.Wants(MatchDemo)).IsFalse();
             await Assert.That(evaluator.PendingPaths()).IsEmpty();
-            await Assert.That(evaluator.Store.TryReadRows(Demo, "abc")).IsNull();
+            await Assert.That(evaluator.Store.TryReadRows(MatchDemo, "abc")).IsNull();
         }
 
-        evaluator.Request(Demo);
+        evaluator.Request(MatchDemo);
 
         using (Assert.Multiple())
         {
-            await Assert.That(cache.GrenadeState(Demo)).IsEqualTo(DemoDataState.Pending);
-            await Assert.That(evaluator.Wants(Demo)).IsTrue();
+            await Assert.That(cache.GrenadeState(MatchDemo)).IsEqualTo(DemoDataState.Pending);
+            await Assert.That(evaluator.Wants(MatchDemo)).IsTrue();
         }
     }
 
@@ -355,29 +362,30 @@ public class GrenadeIndexEvaluatorTests
     public async Task AnotherWalkerVersion_IsStale_AndItsRowsAreNotRead()
     {
         (DemoCacheStore cache, GrenadeIndexEvaluator evaluator) = Wire(background: true);
-        evaluator.Evaluate(Demo, Parse());
+        evaluator.Evaluate(MatchDemo, Parse());
 
-        cache.Data().Invalidate(GrenadeStore.Facet, Demo);
+        cache.Data().Invalidate(GrenadeStore.Facet, MatchDemo);
 
         using (Assert.Multiple())
         {
-            await Assert.That(evaluator.Wants(Demo)).IsTrue();
-            await Assert.That(evaluator.Store.TryReadRows(Demo, "abc")).IsNull();
+            await Assert.That(evaluator.Wants(MatchDemo)).IsTrue();
+            await Assert.That(evaluator.Store.TryReadRows(MatchDemo, "abc")).IsNull();
         }
     }
 
     [Test]
     public async Task AFileNamingAnotherDemosHash_IsIgnored()
     {
-        (DemoCacheStore cache, GrenadeIndexEvaluator evaluator) = Wire(background: true);
-        evaluator.Evaluate(Demo, Parse());
-        await Assert.That(evaluator.Store.TryReadRows(Demo, "abc")).IsNotNull();
+        (_, GrenadeIndexEvaluator evaluator) = Wire(background: true);
+        evaluator.Evaluate(MatchDemo, Parse());
+        await Assert.That(evaluator.Store.TryReadRows(MatchDemo, "abc")).IsNotNull();
 
 
         using (Assert.Multiple())
         {
-            await Assert.That(evaluator.Store.TryReadRows(Demo, "def")).IsNull();
-            await Assert.That(GrenadeSidecar.SameDemo(null, "abc")).IsTrue().Because("a path-keyed row accepts any file");
+            await Assert.That(evaluator.Store.TryReadRows(MatchDemo, "def")).IsNull();
+            await Assert.That(GrenadeSidecar.SameDemo(null, "abc")).IsTrue()
+                .Because("a path-keyed row accepts any file");
             await Assert.That(GrenadeSidecar.SameDemo("abc", null)).IsTrue();
             await Assert.That(GrenadeSidecar.SameDemo("ABC", "abc")).IsTrue();
         }
@@ -387,7 +395,8 @@ public class GrenadeIndexEvaluatorTests
     public async Task TheRowsFile_RoundTrips()
     {
         ParsedDemo parsed = Parse();
-        (GrenadeDocument rows, GrenadePathsDocument paths) = GrenadeSidecar.Build(Demo, null, parsed, OneSmoke(parsed));
+        (GrenadeDocument rows, GrenadePathsDocument paths) =
+            GrenadeSidecar.Build(MatchDemo, null, parsed, OneSmoke(parsed));
         string json = GrenadeSidecar.Serialize(rows);
         string pathsJson = GrenadeSidecar.Serialize(paths);
 
@@ -400,7 +409,8 @@ public class GrenadeIndexEvaluatorTests
             await Assert.That(GrenadeSidecar.Serialize(pathsBack)).IsEqualTo(pathsJson);
             await Assert.That(json).Contains("\"kind\":\"Smoke\"").Because("enums are written by name");
             await Assert.That(json).Contains("\"releasePosition\":[-2260,-1036,-414]");
-            await Assert.That(json).Contains("\"sha256\":null").Because("the hash is visibly null until Content Identity fills it");
+            await Assert.That(json).Contains("\"sha256\":null")
+                .Because("the hash is visibly null until Content Identity fills it");
             await Assert.That(GrenadeSidecar.TryDeserializeRows("{\"schemaVersion\":99}")).IsNull();
             await Assert.That(GrenadeSidecar.TryDeserializeRows("not json")).IsNull();
         }
@@ -414,22 +424,22 @@ public class GrenadeIndexEvaluatorTests
         {
             (DemoCacheStore disk, GrenadeIndexEvaluator onDisk) = Wire(background: true, root: root);
             (DemoCacheStore memory, GrenadeIndexEvaluator inMemory) = Wire(background: true);
-            onDisk.Evaluate(Demo, Parse());
-            inMemory.Evaluate(Demo, Parse());
+            onDisk.Evaluate(MatchDemo, Parse());
+            inMemory.Evaluate(MatchDemo, Parse());
             string rowsFile = Directory.GetFiles(root, "abc.json.gz", SearchOption.AllDirectories).Single();
 
             // Another demo's rows must survive.
             disk.Upsert(RoundIndexTestData.ParsedRecord("/d/other.dem", sha: "fff"));
             onDisk.Evaluate("/d/other.dem", Parse());
 
-            disk.Remove(Demo);
-            memory.Remove(Demo);
+            disk.Remove(MatchDemo);
+            memory.Remove(MatchDemo);
 
             using (Assert.Multiple())
             {
                 await Assert.That(File.Exists(rowsFile)).IsFalse();
                 await Assert.That(onDisk.Store.Stamp("/d/other.dem")).IsNotNull();
-                await Assert.That(inMemory.Store.Stamp(Demo)).IsNull();
+                await Assert.That(inMemory.Store.Stamp(MatchDemo)).IsNull();
             }
         }
         finally
@@ -446,8 +456,8 @@ public class GrenadeIndexEvaluatorTests
     {
         DemoCacheStore cache = new(null);
 
-        Assert.Throws<ArgumentException>(() => cache.WriteSibling(Demo, ".json", "{}"));
-        Assert.Throws<ArgumentException>(() => cache.WriteSibling(Demo, "grenades.json", "{}"));
-        await Assert.That(cache.TryReadSibling(Demo, ".grenades.json")).IsNull();
+        Assert.Throws<ArgumentException>(() => cache.WriteSibling(MatchDemo, ".json", "{}"));
+        Assert.Throws<ArgumentException>(() => cache.WriteSibling(MatchDemo, "grenades.json", "{}"));
+        await Assert.That(cache.TryReadSibling(MatchDemo, ".grenades.json")).IsNull();
     }
 }

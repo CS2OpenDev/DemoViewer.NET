@@ -37,7 +37,7 @@ public sealed partial class ThemeEditorListItem(Theme theme, int missingCount) :
 
     public bool IsBuiltIn => Theme.IsBuiltIn;
 
-    public int MissingCount { get; } = missingCount;
+    private int MissingCount { get; } = missingCount;
 
     public bool HasMissing => MissingCount > 0;
 
@@ -51,7 +51,8 @@ public sealed partial class ThemeEditorListItem(Theme theme, int missingCount) :
 }
 
 /// <summary>One section of tokens, with the rows the search and filter leave showing.</summary>
-public sealed partial class ThemeEditorSection(string title, IReadOnlyList<ThemeTokenRowViewModel> rows) : ObservableObject
+public sealed partial class ThemeEditorSection(string title, IReadOnlyList<ThemeTokenRowViewModel> rows)
+    : ObservableObject
 {
     public string Title { get; } = title;
 
@@ -99,7 +100,8 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     private ThemeVariant _savedBase = ThemeVariant.Dark;
     private bool _restoring;
 
-    public ThemeEditorViewModel(UserThemeStore store, ThemeEditorHost host, string? themeId = null, bool missingOnly = false)
+    public ThemeEditorViewModel(UserThemeStore store, ThemeEditorHost host, string? themeId = null,
+        bool missingOnly = false)
     {
         _store = store;
         _registry = store.Registry;
@@ -107,9 +109,10 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
         _missingOnly = missingOnly;
         RebuildList();
         string? id = themeId ?? host.ActiveThemeId();
-        ThemeEditorListItem? start = Themes.FirstOrDefault(t => string.Equals(t.Theme.Id, id, StringComparison.OrdinalIgnoreCase))
-                                     ?? Themes.FirstOrDefault(t => t.Theme.Id == ThemeBaseIdForSystem())
-                                     ?? Themes[0];
+        ThemeEditorListItem start =
+            Themes.FirstOrDefault(t => string.Equals(t.Theme.Id, id, StringComparison.OrdinalIgnoreCase))
+            ?? Themes.FirstOrDefault(t => t.Theme.Id == ThemeBaseIdForSystem())
+            ?? Themes[0];
         Load(start.Theme);
     }
 
@@ -126,7 +129,8 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
 
     /// <summary>The theme being shown.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsReadOnly), nameof(CanEdit), nameof(IsActive), nameof(CanUseTheme), nameof(CopyButtonText))]
+    [NotifyPropertyChangedFor(nameof(IsReadOnly), nameof(CanEdit), nameof(IsActive), nameof(CanUseTheme),
+        nameof(CopyButtonText))]
     private Theme _theme = null!;
 
     /// <summary>True for a built-in: shown, copied, never changed.</summary>
@@ -251,9 +255,10 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     /// <summary>Raised when the window should close.</summary>
     public event EventHandler? CloseRequested;
 
-    private static string ThemeBaseIdForSystem() => ThemeJson.BaseName(Avalonia.Application.Current?.ActualThemeVariant == ThemeVariant.Light
-        ? ThemeVariant.Light
-        : ThemeVariant.Dark);
+    private static string ThemeBaseIdForSystem() => ThemeJson.BaseName(
+        Avalonia.Application.Current?.ActualThemeVariant == ThemeVariant.Light
+            ? ThemeVariant.Light
+            : ThemeVariant.Dark);
 
     private void RebuildList()
     {
@@ -306,7 +311,8 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
             List<ThemeTokenRowViewModel> rows = [];
             foreach (string token in section.Tokens)
             {
-                ThemeTokenRowViewModel row = new(token, ThemeTokenValue.From(palette, token), theme.IsBuiltIn || !palette.Inherited.Contains(token),
+                ThemeTokenRowViewModel row = new(token, ThemeTokenValue.From(palette, token),
+                    theme.IsBuiltIn || !palette.Inherited.Contains(token),
                     ThemeTokenValue.From(basePalette, token), OnRowChanged);
                 rows.Add(row);
                 _rows.Add(row);
@@ -384,7 +390,8 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
         if (!_restoring)
         {
             // A drag through the picker sends many values; one undo step per token per second is enough.
-            if (_undo.TryPeek(out var last) && last.Row == row && DateTime.UtcNow - last.At < TimeSpan.FromSeconds(1))
+            if (_undo.TryPeek(out (ThemeTokenRowViewModel Row, ThemeTokenValue Old, DateTime At) last)
+                && last.Row == row && DateTime.UtcNow - last.At < TimeSpan.FromSeconds(1))
             {
                 _undo.Pop();
                 _undo.Push((row, last.Old, DateTime.UtcNow));
@@ -446,8 +453,8 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     // undo step, and a colour edited back by hand is no change at all. A token the file does not set follows
     // its base, which the base comparison in IsDirty covers.
     private void CountEdits() =>
-        EditCount = _rows.Count(r => _savedRows.TryGetValue(r, out var saved)
-                                     && (r.IsSet != saved.IsSet || (r.IsSet && !r.Value.Equals(saved.Value))));
+        EditCount = _rows.Count(r => _savedRows.TryGetValue(r, out (ThemeTokenValue Value, bool IsSet) saved)
+            && (r.IsSet != saved.IsSet || (r.IsSet && !r.Value.Equals(saved.Value))));
 
     private void UpdateMissing() => MissingCount = CanEdit ? _rows.Count(r => r.IsMissing) : 0;
 
@@ -499,11 +506,11 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
             foreach (ThemeTokenRowViewModel row in section.Rows)
             {
                 bool matches = search.Length == 0
-                               || row.Key.Contains(search, StringComparison.OrdinalIgnoreCase)
-                               || (row.Family?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
-                               || (row.Description?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
-                               || section.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
-                               || row.Hex.Contains(search, StringComparison.OrdinalIgnoreCase);
+                    || row.Key.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || (row.Family?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (row.Description?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || section.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || row.Hex.Contains(search, StringComparison.OrdinalIgnoreCase);
                 if (matches && (!MissingOnly || row.IsMissing))
                 {
                     section.VisibleRows.Add(row);
@@ -569,7 +576,7 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanUndo))]
     private void Undo()
     {
-        if (!_undo.TryPop(out var step))
+        if (!_undo.TryPop(out (ThemeTokenRowViewModel Row, ThemeTokenValue Old, DateTime At) step))
         {
             return;
         }
@@ -593,7 +600,8 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
 
     /// <summary>Opens the name prompt for a copy of the theme as saved.</summary>
     [RelayCommand]
-    private void Copy() => Guard(() => AskCopyName(false, Theme.IsBuiltIn ? $"Customize {Theme.DisplayName}" : $"Duplicate {Theme.DisplayName}"));
+    private void Copy() => Guard(() =>
+        AskCopyName(false, Theme.IsBuiltIn ? $"Customize {Theme.DisplayName}" : $"Duplicate {Theme.DisplayName}"));
 
     /// <summary>Opens the name prompt for a copy of the current edits.</summary>
     [RelayCommand]

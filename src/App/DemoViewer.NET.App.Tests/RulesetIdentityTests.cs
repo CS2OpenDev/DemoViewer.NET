@@ -23,7 +23,7 @@ public class RulesetIdentityTests
     private const string PlayerStats = "player_stats";
     private const string Kast = "kast";
 
-    private static readonly string Shipped = RuleSetLocator.ResolveShippedRulesDirectory();
+    private static readonly string _shipped = RuleSetLocator.ResolveShippedRulesDirectory();
 
     [Test]
     public async Task ClosureMovesWithADependency()
@@ -31,12 +31,12 @@ public class RulesetIdentityTests
         DirectoryInfo user = Directory.CreateTempSubdirectory("dv-ri-closure-");
         try
         {
-            MergedRulesBuild before = new(() => YamlConfigLoader.LoadWithOverlay(Shipped, user.FullName));
+            MergedRulesBuild before = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, user.FullName));
             string playerStats = before.RulesetIdentity(PlayerStats, 64);
             string kast = before.RulesetIdentity(Kast, 64);
             string roundFacts = before.RulesetIdentity(RoundFactsFingerprint.RulesetId, 64);
 
-            string yaml = await File.ReadAllTextAsync(Path.Combine(Shipped, "kast.rules.yaml"));
+            string yaml = await File.ReadAllTextAsync(Path.Combine(_shipped, "kast.rules.yaml"));
             await File.WriteAllTextAsync(Path.Combine(user.FullName, "kast.rules.yaml"), yaml + "\n# edited\n");
             before.Invalidate();
 
@@ -61,8 +61,9 @@ public class RulesetIdentityTests
         DirectoryInfo user = Directory.CreateTempSubdirectory("dv-ri-disabled-");
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(user.FullName, "kast.rules.yaml"), "ruleset: kast\nenabled: false\n");
-            MergedRulesBuild build = new(() => YamlConfigLoader.LoadWithOverlay(Shipped, user.FullName));
+            await File.WriteAllTextAsync(Path.Combine(user.FullName, "kast.rules.yaml"),
+                "ruleset: kast\nenabled: false\n");
+            MergedRulesBuild build = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, user.FullName));
             await Assert.That(build.EnabledDoc(Kast)).IsNull();
 
             Assert.Throws<InvalidOperationException>(() => build.RulesetIdentity(PlayerStats, 64));
@@ -76,7 +77,7 @@ public class RulesetIdentityTests
     [Test]
     public async Task NoUseKeepsIdentity()
     {
-        MergedRulesBuild build = new(() => YamlConfigLoader.LoadWithOverlay(Shipped, null));
+        MergedRulesBuild build = new(() => YamlConfigLoader.LoadWithOverlay(_shipped, null));
         RulesetDoc doc = build.EnabledDoc(RoundFactsFingerprint.RulesetId)!;
         await Assert.That(doc.Use).IsEmpty();
 
@@ -90,7 +91,8 @@ public class RulesetIdentityTests
     // The identity of a ruleset without use:, the doc composed alone, its file's hash, the engine version.
     private static string Alone(RulesetDoc doc, int tickRate)
     {
-        string composed = HighlightConfigFingerprint.Compute([doc], tickRate, RulesHighlightHarvester.GotvProfileId).Fingerprint;
+        string composed = HighlightConfigFingerprint.Compute([doc], tickRate, RulesHighlightHarvester.GotvProfileId)
+            .Fingerprint;
         string source = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(doc.Position.File!)));
         string engine = typeof(DemoAnalysis).Assembly.GetName().Version?.ToString() ?? "";
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"{composed}\n{source}\n{engine}")));

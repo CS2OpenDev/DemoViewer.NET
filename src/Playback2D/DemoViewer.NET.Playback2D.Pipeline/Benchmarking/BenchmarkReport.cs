@@ -52,9 +52,9 @@ public readonly record struct FrameTimeStats(
         }
 
         double total = 0;
-        for (int i = 0; i < samplesMs.Length; i++)
+        foreach (double sample in samplesMs)
         {
-            total += samplesMs[i];
+            total += sample;
         }
 
         samplesMs.Sort();
@@ -104,12 +104,11 @@ public sealed record BenchmarkReport(
 {
     private static readonly JsonSerializerOptions _json = new()
     {
-        WriteIndented = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.Never
+        WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.Never
     };
 
     /// <summary>Serializes the report.</summary>
-    public string ToJson() => JsonSerializer.Serialize(new Dto(this), _json);
+    private string ToJson() => JsonSerializer.Serialize(new Dto(this), _json);
 
     /// <summary>
     ///     Writes the report to <c>&lt;directory&gt;/dv2d-&lt;Id&gt;-&lt;yyyyMMdd-HHmmss&gt;.json</c>,
@@ -130,6 +129,7 @@ public sealed record BenchmarkReport(
 
     // A flat DTO rather than serializing the record directly: SKSizeI has no parameterless constructor
     // and would round-trip as an empty object.
+    [UsedImplicitly(ImplicitUseKindFlags.Access, ImplicitUseTargetFlags.WithMembers)]
     private sealed record Dto
     {
         public Dto(BenchmarkReport r)
@@ -177,7 +177,7 @@ public sealed record BenchmarkReport(
 public sealed record BudgetPolicy(double AdvanceP99Ms, double RenderP99Ms, long AllocatedBytesPerFrame)
 {
     /// <summary>Environment variable scaling the time budgets. Default 2.0 in CI.</summary>
-    public const string ScaleEnvironmentVariable = "DV2D_BUDGET_SCALE";
+    private const string ScaleEnvironmentVariable = "DV2D_BUDGET_SCALE";
 
     /// <summary>The baseline budget numbers, which a local run reports against.</summary>
     public static readonly BudgetPolicy Baseline = new(2.0, 8.0, 0);

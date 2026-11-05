@@ -19,6 +19,4 @@ public sealed partial class EvaluableFile : ObservableObject
 
     /// <summary>Display label, e.g. <c>kast.rules.yaml (shipped)</c> or <c>draft.rules.yaml</c>.</summary>
     public required string Display { get; init; }
-
-    public bool IsShipped { get; init; }
 }

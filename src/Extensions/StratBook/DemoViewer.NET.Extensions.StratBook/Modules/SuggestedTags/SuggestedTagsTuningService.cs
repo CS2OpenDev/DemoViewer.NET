@@ -32,7 +32,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 public sealed class SuggestedTagsTuningService
 {
     /// <summary>How many demos' detection inputs the preview keeps, least recently used out first.</summary>
-    internal const int CacheCapacity = 8;
+    private const int CacheCapacity = 8;
 
     // One queued preview at a time: a newer one replaces a sweep still waiting for its turn.
     private const string PreviewJobKey = "stratbook:suggested-tags-preview";
@@ -134,8 +134,9 @@ public sealed class SuggestedTagsTuningService
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(baseline);
         ArgumentNullException.ThrowIfNull(demoPaths);
-        Dictionary<string, IReadOnlyList<TagProposal>?> fired = await ReadUncachedAsync(candidate, demoPaths, cancellationToken)
-            .ConfigureAwait(false);
+        Dictionary<string, IReadOnlyList<TagProposal>?> fired =
+            await ReadUncachedAsync(candidate, demoPaths, cancellationToken)
+                .ConfigureAwait(false);
         TuningReport? report = null;
         ExceptionDispatchInfo? failure = null;
         await _jobs.RunAsync("Suggested Tags: preview tuning", job =>
@@ -156,7 +157,8 @@ public sealed class SuggestedTagsTuningService
         }, new JobOptions(BuiltInJobKinds.Compute, JobPriority.UserRequested, PreviewJobKey)).ConfigureAwait(false);
         failure?.Throw();
         cancellationToken.ThrowIfCancellationRequested();
-        return report ?? throw new OperationCanceledException("The preview was removed from the queue before it finished.");
+        return report
+            ?? throw new OperationCanceledException("The preview was removed from the queue before it finished.");
     }
 
     // Every demo the cache does not hold is read as a job on its own visit, all queued at once so the queue can
@@ -185,7 +187,8 @@ public sealed class SuggestedTagsTuningService
 
             reads.Add(_jobs.Enqueue(JobRequest.OnDemo("Suggested Tags: preview " + Path.GetFileName(path), path, job =>
             {
-                IReadOnlyList<TagProposal>? proposals = Build(path, job.Parsed) is { } built ? Detect(built, candidate) : null;
+                IReadOnlyList<TagProposal>? proposals =
+                    Build(path, job.Parsed) is { } built ? Detect(built, candidate) : null;
                 lock (fired)
                 {
                     fired[path] = proposals;
@@ -295,7 +298,8 @@ public sealed class SuggestedTagsTuningService
         }
 
         string map = string.IsNullOrEmpty(parsed.MapName) ? record.MapName ?? "" : parsed.MapName;
-        SuggestedTagsService.DetectionInputs inputs = _suggestedTags.BuildDetectionInputs(path, map, parsed, facts, record);
+        SuggestedTagsService.DetectionInputs inputs =
+            _suggestedTags.BuildDetectionInputs(path, map, parsed, facts, record);
         SiteRegionTable? table;
         try
         {
@@ -321,17 +325,6 @@ public sealed class SuggestedTagsTuningService
         return built;
     }
 
-    /// <summary>The cached demos, most recently used first. For a test.</summary>
-    internal IReadOnlyList<string> CachedPaths
-    {
-        get
-        {
-            lock (_gate)
-            {
-                return [.. _cacheOrder];
-            }
-        }
-    }
 
     // Under _gate.
     private void Touch(string path)
@@ -396,7 +389,8 @@ public sealed class SuggestedTagsTuningService
             }
         }
 
-        return (byCode.ToDictionary(kv => kv.Key, IReadOnlyList<HandTagWindow> (kv) => kv.Value, StringComparer.Ordinal),
+        return (
+            byCode.ToDictionary(kv => kv.Key, IReadOnlyList<HandTagWindow> (kv) => kv.Value, StringComparer.Ordinal),
             demosWithHandTags);
     }
 

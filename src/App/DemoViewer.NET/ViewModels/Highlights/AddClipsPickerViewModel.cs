@@ -56,12 +56,13 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
 
     /// <summary>A transient note shown in the footer (e.g. after <c>Rescan all</c> re-queues the library).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStatusNote))]
     private string _statusNote = "";
 
     // Filter re-application is O(rows); the constructor builds three filter lists and each one raises
     // PropertyChanged per item, so a naive hook would run the whole filter pass a few hundred times before
-    // the picker is even visible.
-    private bool _suppressApply = true;
+    // the picker is even visible. The constructor holds it on until the lists are built.
+    private bool _suppressApply;
 
     /// <summary>
     ///     Builds the picker over a snapshot of the highlights cache.
@@ -96,6 +97,7 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(records);
         ArgumentNullException.ThrowIfNull(isStaged);
+        _suppressApply = true;
         _stage = stage;
         _unstage = unstage;
         _close = close;
@@ -176,7 +178,7 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
     public int LibraryRowCount { get; }
 
     /// <summary>Demos without current highlights when the picker opened.</summary>
-    public int ScanQueueDepth { get; }
+    private int ScanQueueDepth { get; }
 
     /// <summary>Filter-button caption, e.g. "Players (2)".</summary>
     public string PlayerFilterSummary => Summary("Players", PlayerFilters.Count(p => p.IsSelected));
@@ -193,9 +195,9 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
     /// <summary>True when any filter is narrowing the list, drives the Clear affordance.</summary>
     public bool HasActiveFilters =>
         !string.IsNullOrWhiteSpace(SearchText) || PlayerFilters.Any(p => p.IsSelected)
-                                               || TypeFilters.Any(t => t.IsSelected)
-                                               || MapFilters.Any(m => m.IsSelected)
-                                               || KindFilters.Any(k => k.IsSelected);
+        || TypeFilters.Any(t => t.IsSelected)
+        || MapFilters.Any(m => m.IsSelected)
+        || KindFilters.Any(k => k.IsSelected);
 
     /// <summary>The filtered-out empty state: rows exist, but the filters exclude every one of them.</summary>
     public bool ShowNoFilterMatch => _allRows.Count > 0 && Rows.Count == 0;
@@ -228,7 +230,7 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
         get
         {
             string corpus = $"{TotalHighlights} highlight{S(TotalHighlights)} across " +
-                            $"{DemosWithHighlights} demo{S(DemosWithHighlights)}";
+                $"{DemosWithHighlights} demo{S(DemosWithHighlights)}";
             return HasActiveFilters ? $"Showing {Rows.Count} of {corpus}" : corpus;
         }
     }
@@ -283,8 +285,6 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
-    partial void OnStatusNoteChanged(string value) => OnPropertyChanged(nameof(HasStatusNote));
-
     /// <summary>Stages every ticked row in ONE tray push, then clears the ticks.</summary>
     [RelayCommand(CanExecute = nameof(CanAddSelected))]
     private void AddSelected()
@@ -292,7 +292,7 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
         // Picks are deliberately NOT scoped to the current filter: a user who ticked three rows, changed the
         // player filter and pressed Add meant all three. Clearing on every filter change would silently drop
         // work the footer count says is still there.
-        List<AddClipsRowViewModel> picked = [.. _allRows.Where(r => r.IsPicked && !r.IsStaged)];
+        List<AddClipsRowViewModel> picked = [.. _allRows.Where(r => r is { IsPicked: true, IsStaged: false })];
         if (picked.Count > 0)
         {
             _stage([.. picked.Select(r => r.Selection)]);

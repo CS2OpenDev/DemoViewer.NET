@@ -1,13 +1,13 @@
 #region
 
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Hud;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Services.Dependencies;
 
 #endregion
@@ -153,7 +153,7 @@ public sealed class SceneExportRunner : IExportRunner
         try
         {
             int last = Math.Max(0, source.FrameCount - 1);
-            if (maxFrames is int cap)
+            if (maxFrames is { } cap)
             {
                 last = Math.Min(last, Math.Max(0, cap - 1));
             }
@@ -162,8 +162,7 @@ public sealed class SceneExportRunner : IExportRunner
             {
                 // Re-stamped from the source itself: the dialog sized the range with the source's own
                 // OutputFrameCount, and this is the assertion that the two agree.
-                StartFrame = 0,
-                EndFrame = last
+                StartFrame = 0, EndFrame = last
             };
 
             using SceneCompositor compositor = BuildCompositor(core, setup, hud);
@@ -196,11 +195,7 @@ public sealed class SceneExportRunner : IExportRunner
             request.DemoEndFrame,
             request.Core.Fps,
             request.Core.Speed,
-            setup.TickRate)
-        {
-            MapName = setup.MapName,
-            Radars = setup.MapAssets?.DescribeRadars()
-        };
+            setup.TickRate) { MapName = setup.MapName, Radars = setup.MapAssets?.DescribeRadars() };
 
         return source;
     }

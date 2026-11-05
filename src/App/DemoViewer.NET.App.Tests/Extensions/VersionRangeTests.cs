@@ -25,10 +25,12 @@ public class VersionRangeTests
             await Assert.That(SemVersion.Parse("1.0.0-rc.1").Prerelease).IsEqualTo("rc.1");
             await Assert.That(SemVersion.TryParse("1.2", out _)).IsFalse().Because("a version needs three components");
             await Assert.That(SemVersion.TryParse("01.2.3", out _)).IsFalse().Because("no leading zeros");
-            await Assert.That(SemVersion.TryParse("1.0.0-0100", out _)).IsFalse().Because("nor in a numeric prerelease identifier");
+            await Assert.That(SemVersion.TryParse("1.0.0-0100", out _)).IsFalse()
+                .Because("nor in a numeric prerelease identifier");
             await Assert.That(SemVersion.TryParse("1.0.0-rc.0100", out _)).IsFalse();
             await Assert.That(SemVersion.TryParse("1.0.0-0", out _)).IsTrue();
-            await Assert.That(SemVersion.TryParse("1.0.0-beta0001", out _)).IsTrue().Because("alphanumeric identifiers may start with 0");
+            await Assert.That(SemVersion.TryParse("1.0.0-beta0001", out _)).IsTrue()
+                .Because("alphanumeric identifiers may start with 0");
             await Assert.That(SemVersion.TryParseInformational("1.0.0.0-0100+abc", out _)).IsFalse();
             await Assert.That(SemVersion.TryParse("1.2.3.4", out _)).IsFalse().Because("four components is not SemVer");
             await Assert.That(SemVersion.TryParse("", out _)).IsFalse();
@@ -43,7 +45,8 @@ public class VersionRangeTests
         using (Assert.Multiple())
         {
             // What NBGV stamps on CS2DemoKit.Analysis: four numbers, a prerelease, build metadata.
-            await Assert.That(SemVersion.TryParseInformational("0.13.0.1-beta0001+9f1e3e3b4a", out SemVersion? v)).IsTrue();
+            await Assert.That(SemVersion.TryParseInformational("0.13.0.1-beta0001+9f1e3e3b4a", out SemVersion? v))
+                .IsTrue();
             await Assert.That(v!.ToString()).IsEqualTo("0.13.0-beta0001");
             await Assert.That(SemVersion.TryParseInformational("1.2.3", out SemVersion? plain)).IsTrue();
             await Assert.That(plain!.ToString()).IsEqualTo("1.2.3");
@@ -72,8 +75,10 @@ public class VersionRangeTests
 
             await Assert.That(SemVersion.Parse("1.0.0-beta0001")).IsEqualTo(SemVersion.Parse("1.0.0-beta0001+other"))
                 .Because("records compare by value and metadata is not a value");
-            await Assert.That(SemVersion.Parse("1.0.0") >= SemVersion.Parse("1.0.0")).IsTrue();
-            await Assert.That(SemVersion.Parse("1.0.0") <= SemVersion.Parse("1.0.0")).IsTrue();
+            SemVersion one = SemVersion.Parse("1.0.0");
+            SemVersion same = SemVersion.Parse("1.0.0");
+            await Assert.That(one >= same).IsTrue();
+            await Assert.That(one <= same).IsTrue();
         }
     }
 
@@ -140,7 +145,8 @@ public class VersionRangeTests
             await Assert.That(exact.Satisfies(SemVersion.Parse("1.2.3"))).IsTrue();
             await Assert.That(exact.Satisfies(SemVersion.Parse("1.2.4"))).IsFalse();
             await Assert.That(VersionRange.Exactly(SemVersion.Parse("1.2.3")).ToString()).IsEqualTo("1.2.3");
-            await Assert.That(VersionRange.Parse("^1.0")).IsEqualTo(VersionRange.Parse("^1.0")).Because("equal when written the same");
+            await Assert.That(VersionRange.Parse("^1.0")).IsEqualTo(VersionRange.Parse("^1.0"))
+                .Because("equal when written the same");
             await Assert.That(VersionRange.Parse("^1.0")).IsNotEqualTo(VersionRange.Parse(">=1.0.0 <2.0.0"));
 
             VersionRange either = VersionRange.Parse("1.0.0 || >=2.0.0 <3.0.0");
@@ -173,7 +179,8 @@ public class VersionRangeTests
             await Assert.That(betas.Satisfies(SemVersion.Parse("0.13.0-beta0002"))).IsTrue();
             await Assert.That(betas.Satisfies(SemVersion.Parse("0.13.0"))).IsTrue();
             await Assert.That(betas.Satisfies(SemVersion.Parse("0.13.1-beta0001"))).IsFalse();
-            await Assert.That(betas.Satisfies(SemVersion.Parse("0.13.0-alpha"))).IsFalse().Because("alpha sorts below beta0001");
+            await Assert.That(betas.Satisfies(SemVersion.Parse("0.13.0-alpha"))).IsFalse()
+                .Because("alpha sorts below beta0001");
         }
     }
 
@@ -184,7 +191,8 @@ public class VersionRangeTests
         {
             await Assert.That(VersionRange.TryParse("latest", out _)).IsFalse();
             await Assert.That(VersionRange.TryParse(">=", out _)).IsFalse();
-            await Assert.That(VersionRange.TryParse("1.2-beta", out _)).IsFalse().Because("a prerelease needs a full core");
+            await Assert.That(VersionRange.TryParse("1.2-beta", out _)).IsFalse()
+                .Because("a prerelease needs a full core");
             await Assert.That(VersionRange.TryParse(null, out _)).IsFalse();
             Assert.Throws<FormatException>(() => VersionRange.Parse("~>1.0"));
 
@@ -204,7 +212,8 @@ public class VersionRangeTests
 
             // Numeric prerelease identifiers have no leading zero (SemVer 2.0).
             await Assert.That(VersionRange.TryParse("1.0.0-0100", out _)).IsFalse();
-            await Assert.That(VersionRange.TryParse("1.0.0-beta0001", out _)).IsTrue().Because("alphanumeric identifiers may");
+            await Assert.That(VersionRange.TryParse("1.0.0-beta0001", out _)).IsTrue()
+                .Because("alphanumeric identifiers may");
         }
     }
 }

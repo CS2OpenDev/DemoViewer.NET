@@ -4,11 +4,10 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Overlay;
-using DemoViewer.NET.Playback2D.Query;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Query;
 
 #endregion
 
@@ -95,11 +94,7 @@ internal static class RenderCommand
                 ["backend_requested"] = plan.Backend.Requested,
                 ["assets_root"] = plan.Assets.Path,
                 ["assets_source"] = plan.Assets.SourceToken,
-                ["source"] = new JsonObject
-                {
-                    ["kind"] = source.Kind,
-                    ["name"] = source.Name
-                },
+                ["source"] = new JsonObject { ["kind"] = source.Kind, ["name"] = source.Name },
                 ["map"] = source.MapName,
                 ["map_version"] = plan.MapAssets?.Bundle.MapVersion ?? source.MapVersion,
                 ["zones_version"] = plan.Zones.Resolver?.Zones.EffectiveVersion,
@@ -142,7 +137,7 @@ internal static class RenderCommand
     ///     Documented rather than hidden, because it is also the first thing to ask for in support
     ///     triage.
     /// </summary>
-    public static void DumpLoadedAssemblies()
+    private static void DumpLoadedAssemblies()
     {
         JsonArray names = [];
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
@@ -152,9 +147,7 @@ internal static class RenderCommand
 
         ConsoleOut.JsonEvent(new JsonObject
         {
-            ["schema_version"] = 1,
-            ["event"] = "loaded_assemblies",
-            ["assemblies"] = names
+            ["schema_version"] = 1, ["event"] = "loaded_assemblies", ["assemblies"] = names
         });
     }
 
@@ -164,7 +157,7 @@ internal static class RenderCommand
 
     /// <summary>Lower-case hex SHA-256. The determinism assertions compare these.</summary>
     /// <param name="bytes">The payload to hash.</param>
-    public static string Sha256(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
+    private static string Sha256(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
 
     /// <summary>Copies a string list into a JSON array.</summary>
     /// <param name="values">The values.</param>

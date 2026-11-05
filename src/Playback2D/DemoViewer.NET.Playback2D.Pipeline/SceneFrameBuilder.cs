@@ -5,7 +5,6 @@ using System.Numerics;
 using CS2DemoKit.Analysis.PlayerStats;
 using CS2DemoKit.Parser.EntityTracking;
 using DemoViewer.NET.Modules.Abstractions;
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Hud;
 
 #endregion
@@ -56,9 +55,10 @@ public sealed class SceneFrameBuilder
     // The grenade-projectile classes whose flight paths get a trail (all derive from CBaseCSGrenadeProjectile,
     // all carry CBodyComponent cell coords). Built once (static) so the per-frame scan allocates no strings.
     private static readonly string[] _grenadeProjectileClasses =
-    {
-        "CHEGrenadeProjectile", "CFlashbangProjectile", "CSmokeGrenadeProjectile", "CMolotovProjectile", "CDecoyProjectile"
-    };
+    [
+        "CHEGrenadeProjectile", "CFlashbangProjectile", "CSmokeGrenadeProjectile", "CMolotovProjectile",
+        "CDecoyProjectile"
+    ];
 
     // Last-known world position per slot. When a pawn orphans on death (no live position) a gray marker
     // is held here until respawn. Cleared with the ring cache on backward seek / reset.
@@ -269,9 +269,9 @@ public sealed class SceneFrameBuilder
                 // The empty string is what the pawn carries before it has stood in a named area; the
                 // round index treats that as no place, so the marker does too.
                 string? place = pawn is not null && pawn.TryGet("m_szLastPlaceName", out string? name)
-                                                 && !string.IsNullOrEmpty(name)
-                    ? name
-                    : null;
+                    && !string.IsNullOrEmpty(name)
+                        ? name
+                        : null;
 
                 (RingState ring, double ringAlpha) =
                     _ringTracker.Evaluate(p.Slot, input.FrameIndex, alive, flash, health, shotsFired);
@@ -404,10 +404,10 @@ public sealed class SceneFrameBuilder
         IReadOnlyList<MapRadarImage> radars = input.Radars ?? [];
 
         bool unchanged = string.Equals(_map.MapName, mapName, StringComparison.Ordinal)
-                         && ReferenceEquals(_radars, radars)
-                         && _map.NetworkedBounds.Equals(_networkedBounds)
-                         && ReferenceEquals(_map.SectionHeights, _sectionHeights)
-                         && _map.ObservedBounds.Equals(_observed);
+            && ReferenceEquals(_radars, radars)
+            && _map.NetworkedBounds.Equals(_networkedBounds)
+            && ReferenceEquals(_map.SectionHeights, _sectionHeights)
+            && _map.ObservedBounds.Equals(_observed);
         if (unchanged)
         {
             return _map;
@@ -559,7 +559,7 @@ public sealed class SceneFrameBuilder
         }
 
         // Two or more boundaries describe a real multi-floor map; fewer ⇒ leave null.
-        _sectionHeights = kept.Count >= 2 ? kept.ToArray() : null;
+        _sectionHeights = kept.Count >= 2 ? [.. kept] : null;
 
         // Only latch "read" once the field actually resolved (≥1 value seen); otherwise the array has not
         // been networked yet this frame and we retry next frame.
@@ -648,7 +648,7 @@ public sealed class SceneFrameBuilder
             _hudDefuseSeconds = defuseRemain;
             _hudDefuseTime = defuseRemain > 0 ? FormatClock(defuseRemain) : "0:00";
             // m_flDefuseLength is 5 with a kit, 10 without. Surface that as a label.
-            _hudDefuseKitNote = defuseLen > 0 && defuseLen <= 6 ? "with kit" : "no kit";
+            _hudDefuseKitNote = defuseLen is > 0 and <= 6 ? "with kit" : "no kit";
 
             beingDefused = true;
             defuseFraction = defuseLen > 0 ? Math.Clamp(defuseRemain / defuseLen, 0, 1) : 0;
@@ -747,10 +747,7 @@ public sealed class SceneFrameBuilder
 
                 if (!_trails.TryGetValue(proj.Serial, out GrenadeTrail? trail))
                 {
-                    trail = new GrenadeTrail
-                    {
-                        Kind = KindForClass(cls)
-                    };
+                    trail = new GrenadeTrail { Kind = KindForClass(cls) };
                     _trails[proj.Serial] = trail;
                 }
 
@@ -962,12 +959,7 @@ public sealed class SceneFrameBuilder
     private sealed class FrameSlot
     {
         public FrameSlot() =>
-            Frame = new Scene2DFrame
-            {
-                Markers = Markers,
-                AreaEffects = AreaEffects,
-                Trails = Trails
-            };
+            Frame = new Scene2DFrame { Markers = Markers, AreaEffects = AreaEffects, Trails = Trails };
 
         public Scene2DFrame Frame { get; }
         public List<PlayerMarker> Markers { get; } = new(16);

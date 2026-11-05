@@ -4,7 +4,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CS2DemoKit.Analysis.Diagnostics;
-using DemoViewer.NET.Playback2D;
 using Microsoft.Extensions.Logging;
 
 #endregion
@@ -47,7 +46,6 @@ public sealed class DemoCacheStore
 
     private const string ProvisionalPrefix = "p-";
 
-    private readonly string? _cacheRoot;
     private readonly object _gate = new();
 
     // The stored rows: one per content id, or per path while a file has no hash yet ("p-" + StableKey).
@@ -64,7 +62,7 @@ public sealed class DemoCacheStore
 
     // Rows whose files moved key in this session; their old names go after the next index save. Under _gate.
     private readonly HashSet<string> _settleAfterSave = new(StringComparer.Ordinal);
-    private readonly object _indexWriteGate = new();
+    private readonly Lock _indexWriteGate = new();
 
     // Hashes of whole files read by a parse or an open, so a write after the read can settle its path without
     // reading the file again. Under _gate.
@@ -72,7 +70,12 @@ public sealed class DemoCacheStore
     private readonly Dictionary<string, RecentRead> _recentReads = new(StringComparer.OrdinalIgnoreCase);
     private long _readClock; // under _gate
 
-    private readonly record struct RecentRead(long Size, long LocalTicks, string Sha256, DemoContentFingerprint? Fingerprint, long At);
+    private readonly record struct RecentRead(
+        long Size,
+        long LocalTicks,
+        string Sha256,
+        DemoContentFingerprint? Fingerprint,
+        long At);
 
     /// <summary>
     ///     Record store used when there is no cache root: the browser host, and tests. Keyed by file key.
@@ -136,7 +139,7 @@ public sealed class DemoCacheStore
     /// <param name="post">Marshals <see cref="Changed" /> onto the UI thread; defaults to synchronous.</param>
     public DemoCacheStore(string? cacheRoot, Action<Action>? post = null)
     {
-        _cacheRoot = cacheRoot;
+        CacheRoot = cacheRoot;
         _post = post ?? (action => action());
         LoadIndex();
     }
@@ -180,7 +183,11 @@ public sealed class DemoCacheStore
         {
             lock (_gate)
             {
-                return [.. _rows.Values.Where(r => !r.IsOrphaned).Select(r => _index.GetValueOrDefault(r.Path)).OfType<DemoCacheIndexEntry>()];
+                return
+                [
+                    .. _rows.Values.Where(r => !r.IsOrphaned).Select(r => _index.GetValueOrDefault(r.Path))
+                        .OfType<DemoCacheIndexEntry>()
+                ];
             }
         }
     }
@@ -216,9 +223,9 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             return _keyByPath.TryGetValue(path, out string? key) && !IsProvisional(_rows[key])
-                                                                 && LocationIn(_rows[key], path)?.Confirmed == true
-                ? key
-                : path;
+                && LocationIn(_rows[key], path)?.Confirmed == true
+                    ? key
+                    : path;
         }
     }
 
@@ -289,14 +296,14 @@ public sealed class DemoCacheStore
         }
     }
 
-    private string? IndexPath => _cacheRoot is null ? null : Path.Combine(_cacheRoot, "index.json");
+    private string? IndexPath => CacheRoot is null ? null : Path.Combine(CacheRoot, "index.json");
 
     /// <summary>The cache directory, or null for an in-memory store.</summary>
-    internal string? CacheRoot => _cacheRoot;
+    internal string? CacheRoot { get; }
 
     private static ILogger Log => _diagLog ??= DiagnosticsLog.CreateLogger(SidecarFormatLog.Category);
 
-    private string? SidecarDir => _cacheRoot is null ? null : Path.Combine(_cacheRoot, "demos");
+    private string? SidecarDir => CacheRoot is null ? null : Path.Combine(CacheRoot, "demos");
 
     /// <summary>
     ///     Raised (via the post delegate) after any mutation, or, inside a <see cref="BeginBatch" /> scope,
@@ -359,9 +366,9 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             return _rows.TryGetValue(contentId, out DemoCacheIndexEntry? row) && !IsProvisional(row)
-                                                                              && row.Locations.Any(l => l.Confirmed)
-                ? _index.GetValueOrDefault(row.Path)
-                : null;
+                && row.Locations.Any(l => l.Confirmed)
+                    ? _index.GetValueOrDefault(row.Path)
+                    : null;
         }
     }
 
@@ -397,7 +404,11 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             return _rows.TryGetValue(contentId, out DemoCacheIndexEntry? row) && !IsProvisional(row) && !row.IsOrphaned
-                ? [.. row.Locations.OrderBy(l => !l.Confirmed).ThenBy(l => l.Path, StringComparer.Ordinal).Select(l => l.Path)]
+                ?
+                [
+                    .. row.Locations.OrderBy(l => !l.Confirmed).ThenBy(l => l.Path, StringComparer.Ordinal)
+                        .Select(l => l.Path)
+                ]
                 : [];
         }
     }
@@ -481,7 +492,7 @@ public sealed class DemoCacheStore
             lock (_gate)
             {
                 if (_keyByPath.ContainsKey(path) || !_rows.TryGetValue(contentId, out DemoCacheIndexEntry? row)
-                                                 || IsProvisional(row))
+                    || IsProvisional(row))
                 {
                     return false;
                 }
@@ -489,7 +500,7 @@ public sealed class DemoCacheStore
                 List<DemoLocation> locations =
                 [
                     .. row.Locations,
-                    new DemoLocation(path, false, size, modifiedTicks, DateTime.UtcNow.Ticks)
+                    new(path, false, size, modifiedTicks, DateTime.UtcNow.Ticks)
                 ];
                 Link(contentId, Shape(row.Copy(), locations, row.SidecarKeys));
             }
@@ -509,7 +520,8 @@ public sealed class DemoCacheStore
     /// <param name="contentId">The hash of the bytes read.</param>
     /// <param name="size">The number of bytes read.</param>
     /// <returns>False when the path left its row.</returns>
-    public bool ConfirmLocation(string path, string contentId, long size) => ConfirmLocation(path, contentId, size, null);
+    public bool ConfirmLocation(string path, string contentId, long size) =>
+        ConfirmLocation(path, contentId, size, null);
 
     /// <summary>
     ///     <see cref="ConfirmLocation(string, string, long)" />, knowing the file's write time. A path that leaves
@@ -708,14 +720,15 @@ public sealed class DemoCacheStore
     /// <param name="path">A demo path.</param>
     /// <param name="size">The file's size now.</param>
     /// <param name="modifiedTicks">The file's write time now, local or UTC ticks.</param>
-    internal (string Sha256, DemoContentFingerprint? Fingerprint)? RecentContentRead(string path, long size, long modifiedTicks)
+    internal (string Sha256, DemoContentFingerprint? Fingerprint)? RecentContentRead(string path, long size,
+        long modifiedTicks)
     {
         lock (_gate)
         {
             return _recentReads.TryGetValue(path, out RecentRead read) && read.Size == size
-                                                                       && SameTicks(read.LocalTicks, modifiedTicks)
-                ? (read.Sha256, read.Fingerprint)
-                : null;
+                && SameTicks(read.LocalTicks, modifiedTicks)
+                    ? (read.Sha256, read.Fingerprint)
+                    : null;
         }
     }
 
@@ -735,8 +748,11 @@ public sealed class DemoCacheStore
             lock (_gate)
             {
                 if (!_keyByPath.TryGetValue(path, out string? k) || IsProvisional(_rows[k])
-                    || _rows[k].ContentFingerprint?.WindowBytes == fingerprint.WindowBytes
-                    || LocationIn(_rows[k], path) is not { Confirmed: true } here || here.Size != fingerprint.Size)
+                    || _rows[k].ContentFingerprint?.WindowBytes
+                    == fingerprint.WindowBytes
+                    || LocationIn(_rows[k], path) is not
+                        { Confirmed: true } here
+                    || here.Size != fingerprint.Size)
                 {
                     return;
                 }
@@ -759,9 +775,9 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             return _keyByPath.TryGetValue(path, out string? key) && !IsProvisional(_rows[key])
-                                                                 && LocationIn(_rows[key], path) is { } here
-                ? (key, here)
-                : null;
+                && LocationIn(_rows[key], path) is { } here
+                    ? (key, here)
+                    : null;
         }
     }
 
@@ -769,14 +785,18 @@ public sealed class DemoCacheStore
     ///     Every hashed row: its content id, its fingerprint when it has one, every path it lists, and for an
     ///     orphaned row the paths it last had.
     /// </summary>
-    internal IReadOnlyList<(string ContentId, DemoContentFingerprint? Fingerprint, IReadOnlyList<DemoLocation> Locations,
+    internal IReadOnlyList<(string ContentId, DemoContentFingerprint? Fingerprint, IReadOnlyList<DemoLocation> Locations
+        ,
         IReadOnlyList<DemoLocation> Detached)> KnownContents()
     {
         lock (_gate)
         {
-            return [.. _rows.Where(r => !IsProvisional(r.Value))
-                .Select(r => (r.Key, r.Value.ContentFingerprint, r.Value.Locations,
-                    (IReadOnlyList<DemoLocation>)(r.Value.DetachedLocations ?? [])))];
+            return
+            [
+                .. _rows.Where(r => !IsProvisional(r.Value))
+                    .Select(r => (r.Key, r.Value.ContentFingerprint, r.Value.Locations,
+                        (IReadOnlyList<DemoLocation>)(r.Value.DetachedLocations ?? [])))
+            ];
         }
     }
 
@@ -888,7 +908,7 @@ public sealed class DemoCacheStore
 
     private byte[]? ReadRecordBytes(string key)
     {
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             lock (_gate)
             {
@@ -909,7 +929,7 @@ public sealed class DemoCacheStore
 
     private DemoCacheRecord? TryReadLegacyRecord(string key)
     {
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             return null;
         }
@@ -968,7 +988,8 @@ public sealed class DemoCacheStore
     {
         try
         {
-            return SidecarJson.ReadFile<DemoCacheRecord>(file, _jsonOptions) is { } record && IsRecordOf(record, demoPath, row);
+            return SidecarJson.ReadFile<DemoCacheRecord>(file, _jsonOptions) is { } record
+                && IsRecordOf(record, demoPath, row);
         }
         catch (Exception)
         {
@@ -984,7 +1005,8 @@ public sealed class DemoCacheStore
             return string.Equals(record.Sha256, row.Sha256, StringComparison.Ordinal);
         }
 
-        return SamePath(record.Path, demoPath) || (row is not null && row.Locations.Any(l => SamePath(l.Path, record.Path)));
+        return SamePath(record.Path, demoPath)
+            || (row is not null && row.Locations.Any(l => SamePath(l.Path, record.Path)));
     }
 
     /// <summary>
@@ -994,7 +1016,7 @@ public sealed class DemoCacheStore
     /// <param name="demoPath">An indexed demo.</param>
     internal SidecarConversion ConvertLegacyRecord(string demoPath)
     {
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             return SidecarConversion.None;
         }
@@ -1076,19 +1098,14 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             sha = _keyByPath.TryGetValue(path, out string? key) && !IsProvisional(_rows[key])
-                                                                && LocationIn(_rows[key], path) is { Confirmed: true } at
-                                                                && at.Size == size && at.ModifiedTicks == modifiedTicks
-                ? key
-                : null;
+                && LocationIn(_rows[key], path) is
+                    { Confirmed: true } at
+                && at.Size == size && at.ModifiedTicks == modifiedTicks
+                    ? key
+                    : null;
         }
 
-        return new DemoCacheRecord
-        {
-            Path = path,
-            Size = size,
-            ModifiedTicks = modifiedTicks,
-            Sha256 = sha
-        };
+        return new DemoCacheRecord { Path = path, Size = size, ModifiedTicks = modifiedTicks, Sha256 = sha };
     }
 
     /// <summary>
@@ -1164,7 +1181,9 @@ public sealed class DemoCacheStore
             if (record is null)
             {
                 // The stamps the row has for the path when it lists it: a stat of a network path can stall.
-                (long size, long ticks) = TryGetIndex(path) is { } listed ? (listed.Size, listed.ModifiedTicks) : StatStamps(path);
+                (long size, long ticks) = TryGetIndex(path) is { } listed
+                    ? (listed.Size, listed.ModifiedTicks)
+                    : StatStamps(path);
                 record = FreshRecord(path, size, ticks);
             }
 
@@ -1221,11 +1240,15 @@ public sealed class DemoCacheStore
             {
                 bool leaving = oldKey is not null && oldKey != newKey
                     && _rows.TryGetValue(oldKey, out DemoCacheIndexEntry? leavingRow)
-                    && (leavingRow.Locations.Any(l => !SamePath(l.Path, path)) || !IsProvisional(leavingRow));
-                claimants = [.. _rows
-                    .Where(r => r.Key != newKey && (r.Key != oldKey || leaving)
-                                && r.Value.SidecarKeys?.Contains(pathKey) == true)
-                    .Select(r => r.Key)];
+                    && (leavingRow.Locations.Any(l => !SamePath(l.Path, path))
+                        || !IsProvisional(leavingRow));
+                claimants =
+                [
+                    .. _rows
+                        .Where(r => r.Key != newKey && (r.Key != oldKey || leaving)
+                            && r.Value.SidecarKeys?.Contains(pathKey) == true)
+                        .Select(r => r.Key)
+                ];
             }
 
             foreach (string claimant in claimants)
@@ -1245,7 +1268,8 @@ public sealed class DemoCacheStore
                 List<DemoLocation> locations = [.. (target?.Locations ?? []).Where(l => !SamePath(l.Path, path))];
                 // Only ConfirmLocation confirms a path a fingerprint attached: a write is no full read.
                 bool confirmed = target is null || LocationIn(target, path)?.Confirmed != false;
-                locations.Add(new DemoLocation(path, confirmed, record.Size, record.ModifiedTicks, DateTime.UtcNow.Ticks));
+                locations.Add(new DemoLocation(path, confirmed, record.Size, record.ModifiedTicks,
+                    DateTime.UtcNow.Ticks));
                 // A new row writes under the path's key until a saved index names the content id: without
                 // the index only that name leads back to the file.
                 List<string> keys = target is null ? [StableKey(path)] : [.. WriteKeys(target)];
@@ -1290,7 +1314,7 @@ public sealed class DemoCacheStore
 
             WriteSidecar(path, bytes);
 
-            if (_cacheRoot is null)
+            if (CacheRoot is null)
             {
                 // Nothing persists, so nothing has to land before the old names go.
                 SettleRow(newKey);
@@ -1411,9 +1435,9 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             owner = _keyByPath.TryGetValue(path, out string? k) && _rows[k].Locations.Count > 1
-                                                                 && _rows[k].SidecarKeys?.Contains(pathKey) == true
-                ? k
-                : null;
+                && _rows[k].SidecarKeys?.Contains(pathKey) == true
+                    ? k
+                    : null;
         }
 
         if (owner is not null)
@@ -1545,7 +1569,8 @@ public sealed class DemoCacheStore
             {
                 lock (_gate)
                 {
-                    foreach (string key in _rows.Where(r => r.Value.OrphanedSinceUtcTicks <= cutoff).Select(r => r.Key).ToList())
+                    foreach (string key in _rows.Where(r => r.Value.OrphanedSinceUtcTicks <= cutoff).Select(r => r.Key)
+                                 .ToList())
                     {
                         gone.Add(_rows[key]);
                         Unlink(key);
@@ -1603,10 +1628,13 @@ public sealed class DemoCacheStore
 
         try
         {
-            List<string> stray = [.. Directory.EnumerateFiles(dir)
-                .Select(f => Path.GetFileName(f).Split('.')[0])
-                .Where(k => k.Length == 64 && k.All(char.IsAsciiHexDigitLower) && !named.Contains(k))
-                .Distinct(StringComparer.Ordinal)];
+            List<string> stray =
+            [
+                .. Directory.EnumerateFiles(dir)
+                    .Select(f => Path.GetFileName(f).Split('.')[0])
+                    .Where(k => k.Length == 64 && k.All(char.IsAsciiHexDigitLower) && !named.Contains(k))
+                    .Distinct(StringComparer.Ordinal)
+            ];
             DeleteFiles(stray);
         }
         catch (Exception)
@@ -1658,7 +1686,7 @@ public sealed class DemoCacheStore
                 string fileKey = WriteKeys(row)[0];
                 lock (_fileStripes[StripeIndex(fileKey)])
                 {
-                    if (_cacheRoot is null)
+                    if (CacheRoot is null)
                     {
                         lock (_gate)
                         {
@@ -1827,7 +1855,8 @@ public sealed class DemoCacheStore
             target = FileKeyOf(row);
         }
 
-        object[] stripes = [.. sources.Append(target).Select(StripeIndex).Distinct().Order().Select(i => _fileStripes[i])];
+        object[] stripes =
+            [.. sources.Append(target).Select(StripeIndex).Distinct().Order().Select(i => _fileStripes[i])];
         bool ok = true;
         DemoCacheRecord? merged = null;
         EnterAll(stripes);
@@ -1909,7 +1938,8 @@ public sealed class DemoCacheStore
                 return false;
             }
 
-            object[] stripes = [.. new[] { key, target }.Select(StripeIndex).Distinct().Order().Select(i => _fileStripes[i])];
+            object[] stripes =
+                [.. new[] { key, target }.Select(StripeIndex).Distinct().Order().Select(i => _fileStripes[i])];
             bool released = true;
             DemoCacheRecord? merged = null;
             EnterAll(stripes);
@@ -1948,6 +1978,7 @@ public sealed class DemoCacheStore
                         _lastRecordKey = null;
                         _lastRecordBytes = null;
                     }
+
                     if (shaped.SidecarKeys is null)
                     {
                         _settleAfterSave.Remove(rowKey);
@@ -1985,14 +2016,14 @@ public sealed class DemoCacheStore
     private bool MergeRecord(string source, string target, string contentId, ref DemoCacheRecord? merged)
     {
         if (RecordAt(source) is not { } from || !string.Equals(from.Sha256, contentId, StringComparison.Ordinal)
-                                              || RecordAt(target) is not { } into)
+            || RecordAt(target) is not { } into)
         {
             return true;
         }
 
         into.FillMissingFrom(from);
         byte[] bytes = SidecarJson.SerializeGzip(into, _jsonOptions);
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             lock (_gate)
             {
@@ -2017,16 +2048,19 @@ public sealed class DemoCacheStore
     }
 
     private DemoCacheRecord? RecordAt(string key) =>
-        ReadRecordBytes(key) is { } bytes && TryDeserializeRecord(bytes) is { } record ? record : TryReadLegacyRecord(key);
+        ReadRecordBytes(key) is { } bytes && TryDeserializeRecord(bytes) is { } record
+            ? record
+            : TryReadLegacyRecord(key);
 
     private bool MoveKey(string source, string target, bool replace)
     {
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             lock (_gate)
             {
                 MoveMemory(_memoryRecords, source, target, replace);
-                foreach (string name in _memorySiblings.Keys.Where(k => k.StartsWith(source + ".", StringComparison.Ordinal)).ToList())
+                foreach (string name in _memorySiblings.Keys
+                             .Where(k => k.StartsWith(source + ".", StringComparison.Ordinal)).ToList())
                 {
                     MoveMemory(_memorySiblings, name, target + name[source.Length..], replace);
                 }
@@ -2089,7 +2123,7 @@ public sealed class DemoCacheStore
     /// </summary>
     public string? SidecarPathFor(string demoPath)
     {
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             return null;
         }
@@ -2103,7 +2137,7 @@ public sealed class DemoCacheStore
     /// <summary>Where the record sidecar lived before it was gzipped. Read when the new file is absent.</summary>
     internal string? LegacySidecarPathFor(string demoPath)
     {
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             return null;
         }
@@ -2161,7 +2195,7 @@ public sealed class DemoCacheStore
         ValidateSuffix(suffix);
         WithWriteKey(demoPath, (key, _) =>
         {
-            if (_cacheRoot is null)
+            if (CacheRoot is null)
             {
                 lock (_gate)
                 {
@@ -2190,7 +2224,7 @@ public sealed class DemoCacheStore
         ValidateSuffix(suffix);
         try
         {
-            if (_cacheRoot is null)
+            if (CacheRoot is null)
             {
                 if (TryReadSiblingBytes(demoPath, suffix) is not { } held)
                 {
@@ -2221,7 +2255,7 @@ public sealed class DemoCacheStore
     public byte[]? TryReadSiblingBytes(string demoPath, string suffix)
     {
         ValidateSuffix(suffix);
-        if (_cacheRoot is null)
+        if (CacheRoot is null)
         {
             lock (_gate)
             {
@@ -2263,7 +2297,7 @@ public sealed class DemoCacheStore
 
             foreach (string key in keys)
             {
-                if (_cacheRoot is null)
+                if (CacheRoot is null)
                 {
                     lock (_gate)
                     {
@@ -2313,7 +2347,7 @@ public sealed class DemoCacheStore
     private void WriteSidecar(string demoPath, byte[] bytes) =>
         WithWriteKey(demoPath, (key, row) =>
         {
-            if (_cacheRoot is null)
+            if (CacheRoot is null)
             {
                 lock (_gate)
                 {
@@ -2384,12 +2418,13 @@ public sealed class DemoCacheStore
     {
         foreach (string key in keys)
         {
-            if (_cacheRoot is null)
+            if (CacheRoot is null)
             {
                 lock (_gate)
                 {
                     _memoryRecords.Remove(key);
-                    foreach (string sibling in _memorySiblings.Keys.Where(k => k.StartsWith(key + ".", StringComparison.Ordinal)).ToList())
+                    foreach (string sibling in _memorySiblings.Keys
+                                 .Where(k => k.StartsWith(key + ".", StringComparison.Ordinal)).ToList())
                     {
                         _memorySiblings.Remove(sibling);
                     }
@@ -2448,8 +2483,8 @@ public sealed class DemoCacheStore
     {
         ArgumentException.ThrowIfNullOrEmpty(suffix);
         if (suffix[0] != '.' || string.Equals(suffix, LegacyRecordSuffix, StringComparison.OrdinalIgnoreCase)
-                             || string.Equals(suffix, RecordSuffix, StringComparison.OrdinalIgnoreCase)
-                             || suffix.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            || string.Equals(suffix, RecordSuffix, StringComparison.OrdinalIgnoreCase)
+            || suffix.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
             throw new ArgumentException($"'{suffix}' is not a sibling suffix", nameof(suffix));
         }
@@ -2498,8 +2533,11 @@ public sealed class DemoCacheStore
         }
 
         List<string> keys = WriteKeys(row);
-        return [.. keys.Take(1).Append(FileKeyOf(row)).Concat(keys.Skip(1))
-            .Concat(row.Locations.Select(l => StableKey(l.Path))).Distinct(StringComparer.Ordinal)];
+        return
+        [
+            .. keys.Take(1).Append(FileKeyOf(row)).Concat(keys.Skip(1))
+                .Concat(row.Locations.Select(l => StableKey(l.Path))).Distinct(StringComparer.Ordinal)
+        ];
     }
 
     private static DemoLocation? LocationIn(DemoCacheIndexEntry row, string path) =>
@@ -2515,8 +2553,10 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             if (!_keyByPath.TryGetValue(path, out string? key) || IsProvisional(_rows[key])
-                || LocationIn(_rows[key], path) is not { Confirmed: false } at
-                || !_recentReads.TryGetValue(path, out read) || read.Size != at.Size
+                || LocationIn(_rows[key], path) is not
+                    { Confirmed: false } at
+                || !_recentReads.TryGetValue(path, out read)
+                || read.Size != at.Size
                 || !SameTicks(at.ModifiedTicks, read.LocalTicks))
             {
                 return;
@@ -2538,7 +2578,8 @@ public sealed class DemoCacheStore
 
     // Fills a row's location fields: ordinal path order, the primary the smallest confirmed path, and the
     // file keys dropped once they say nothing beyond the row's own.
-    private static DemoCacheIndexEntry Shape(DemoCacheIndexEntry entry, List<DemoLocation> locations, List<string>? keys)
+    private static DemoCacheIndexEntry Shape(DemoCacheIndexEntry entry, List<DemoLocation> locations,
+        List<string>? keys)
     {
         List<DemoLocation> sorted = [];
         foreach (DemoLocation location in locations.OrderBy(l => l.Path, StringComparer.Ordinal))
@@ -2664,7 +2705,8 @@ public sealed class DemoCacheStore
         bool exists = File.Exists(indexPath);
         try
         {
-            if (exists && SidecarJson.ReadFile<DemoCacheIndexFile>(indexPath, _jsonOptions) is { Entries: not null } file)
+            if (exists && SidecarJson.ReadFile<DemoCacheIndexFile>(indexPath, _jsonOptions) is
+                    { Entries: not null } file)
             {
                 LoadFrom(file);
                 return;
@@ -2797,7 +2839,8 @@ public sealed class DemoCacheStore
                 string key = name.EndsWith(RecordSuffix, StringComparison.Ordinal)
                     ? name[..^RecordSuffix.Length]
                     : name[..^LegacyRecordSuffix.Length];
-                if (key.Length > 0 && !key.Contains('.') && seen.Add(key) && RecordAt(key) is { Path.Length: > 0 } record)
+                if (key.Length > 0 && !key.Contains('.') && seen.Add(key)
+                    && RecordAt(key) is { Path.Length: > 0 } record)
                 {
                     found.Add((key, record));
                 }
@@ -2845,7 +2888,8 @@ public sealed class DemoCacheStore
         {
             foreach (DemoLocation location in locations)
             {
-                if (!owner.TryGetValue(location.Path, out (string RowKey, long Seen) held) || location.LastSeenUtcTicks > held.Seen)
+                if (!owner.TryGetValue(location.Path, out (string RowKey, long Seen) held)
+                    || location.LastSeenUtcTicks > held.Seen)
                 {
                     owner[location.Path] = (rowKey, location.LastSeenUtcTicks);
                 }
@@ -2856,7 +2900,8 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             _legacyMigrationVersion = LegacyCacheMigration.CurrentVersion;
-            foreach ((string rowKey, List<(string Key, DemoCacheRecord Record)> files, List<DemoLocation> seen) in groups)
+            foreach ((string rowKey, List<(string Key, DemoCacheRecord Record)> files,
+                         List<DemoLocation> seen) in groups)
             {
                 DemoCacheIndexEntry entry = files[0].Record.ToIndexEntry();
                 List<string> keys = [.. files.Select(f => f.Key)];
@@ -2874,7 +2919,9 @@ public sealed class DemoCacheStore
                 }
             }
 
-            _contentKeyMigrationVersion = _rows.Values.Any(r => r.SidecarKeys is not null) ? 0 : ContentKeyMigration.CurrentVersion;
+            _contentKeyMigrationVersion = _rows.Values.Any(r => r.SidecarKeys is not null)
+                ? 0
+                : ContentKeyMigration.CurrentVersion;
         }
 
         return true;

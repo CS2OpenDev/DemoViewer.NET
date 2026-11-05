@@ -111,7 +111,7 @@ static int Keygen(string[] args)
     Console.WriteLine($"Key id: {keyId}");
     Console.WriteLine();
     Console.WriteLine("Paste into PublisherKeys.cs:");
-    Console.WriteLine($"    public const string Primary = \"{publicBase64}\";");
+    Console.WriteLine($"    private const string Primary = \"{publicBase64}\";");
     return 0;
 }
 

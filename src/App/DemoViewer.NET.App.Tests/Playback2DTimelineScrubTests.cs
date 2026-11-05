@@ -66,7 +66,7 @@ public class Playback2DTimelineScrubTests
 
             int expected = vm.Timeline.FrameIndexAt(width / 4);
             TextBlock readout = timeline.FindControl<TextBlock>("HoverReadout")
-                                ?? throw new InvalidOperationException("hover readout not found");
+                ?? throw new InvalidOperationException("hover readout not found");
 
             Console.WriteLine($"[hover] text=\"{readout.Text}\" expected={expected}");
 
@@ -135,7 +135,7 @@ public class Playback2DTimelineScrubTests
             Playback2DTimelineHarness.Pump();
 
             Console.WriteLine($"[band-click] band=[{band.StartFrameIndex}..{band.EndFrameIndex}] "
-                              + $"x={band.X:F0} w={band.Width:F0} seeks={string.Join(",", ctx.SeekFrames)}");
+                + $"x={band.X:F0} w={band.Width:F0} seeks={string.Join(",", ctx.SeekFrames)}");
 
             await Assert.That(ctx.SeekFrames).Contains(band.StartFrameIndex);
         });

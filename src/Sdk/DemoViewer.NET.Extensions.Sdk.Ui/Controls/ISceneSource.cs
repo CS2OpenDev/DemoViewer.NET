@@ -20,10 +20,11 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///         thread replays the frame it was handed, so publish a new frame rather than changing one in place.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface ISceneSource
 {
-    /// <summary>The frame to show.</summary>
-    Scene2DFrame Frame { get; }
+    /// <summary>The frame to show, or null to draw an empty scene.</summary>
+    Scene2DFrame? Frame { get; }
 
     /// <summary>The map's bundle, from <see cref="MapAssets.Acquire" />, for its floors and radar art. Null draws the grid.</summary>
     IMapAsset? MapAsset { get; }
@@ -63,4 +64,5 @@ public interface ISceneSource
 /// <param name="WorldY">World Y under the pointer.</param>
 /// <param name="Screen">The pointer, in the view's coordinates.</param>
 /// <param name="Modifiers">Keys held.</param>
+[PublicAPI]
 public sealed record ScenePress(MapLevel Level, double WorldX, double WorldY, Point Screen, KeyModifiers Modifiers);

@@ -60,6 +60,7 @@ public class Sparkline : TemplatedControl
         AvaloniaProperty.Register<Sparkline, double?>(nameof(Maximum));
 
     /// <summary>Draws a hairline at this value, for a zero line or an average. Null draws none.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<double?> BaselineProperty =
         AvaloniaProperty.Register<Sparkline, double?>(nameof(Baseline));
 
@@ -68,6 +69,7 @@ public class Sparkline : TemplatedControl
         AvaloniaProperty.Register<Sparkline, IBrush?>(nameof(Stroke));
 
     /// <summary>Optional area fill under a <see cref="SparklineMode.Line" />.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<IBrush?> FillProperty =
         AvaloniaProperty.Register<Sparkline, IBrush?>(nameof(Fill));
 
@@ -84,6 +86,7 @@ public class Sparkline : TemplatedControl
         AvaloniaProperty.Register<Sparkline, IBrush?>(nameof(BaselineBrush));
 
     /// <summary>Stroke width for <see cref="SparklineMode.Line" />.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<double> StrokeThicknessProperty =
         AvaloniaProperty.Register<Sparkline, double>(nameof(StrokeThickness), 1.5);
 
@@ -302,7 +305,7 @@ public class Sparkline : TemplatedControl
         if (Baseline is { } baseValue && BaselineBrush is { } baseBrush && hi > lo)
         {
             double y = YFor(baseValue, content, lo, hi);
-            context.DrawLine(new Pen(baseBrush, 1), new Point(content.X, y), new Point(content.Right, y));
+            context.DrawLine(new Pen(baseBrush), new Point(content.X, y), new Point(content.Right, y));
         }
 
         switch (Mode)
@@ -409,7 +412,7 @@ public class Sparkline : TemplatedControl
             }
             else
             {
-                context.DrawEllipse(null, new Pen(brush, 1), centre, r, r);
+                context.DrawEllipse(null, new Pen(brush), centre, r, r);
             }
         }
     }
@@ -453,7 +456,7 @@ public class Sparkline : TemplatedControl
             StreamGeometry area = new();
             using (StreamGeometryContext g = area.Open())
             {
-                g.BeginFigure(new Point(points[0].X, content.Bottom), true);
+                g.BeginFigure(new Point(points[0].X, content.Bottom));
                 foreach (Point p in points)
                 {
                     g.LineTo(p);

@@ -4,7 +4,6 @@ using DemoViewer.NET.Features;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Timeline;
 using DemoViewer.NET.TestSupport;
-using TUnit.Core.Exceptions;
 
 #endregion
 
@@ -32,17 +31,20 @@ public class Playback2DFeatureWiringTests
         // features it contributes. Their test and capture projects are not production and do not count.
         string extensionsRoot = Path.Combine(DemoTestHelper.RequireRepoRoot(), "src", "Extensions");
 
-        string[] sources = Directory
-            .EnumerateFiles(appRoot, "*.*", SearchOption.AllDirectories)
-            .Concat(Directory.Exists(extensionsRoot)
-                ? Directory.EnumerateFiles(extensionsRoot, "*.*", SearchOption.AllDirectories).Where(IsExtensionProductionSource)
-                : [])
-            .Where(p => p.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
-                        || p.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase))
-            .Where(p => !string.Equals(p, catalogPath, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
+        string[] sources =
+        [
+            .. Directory
+                .EnumerateFiles(appRoot, "*.*", SearchOption.AllDirectories)
+                .Concat(Directory.Exists(extensionsRoot)
+                    ? Directory.EnumerateFiles(extensionsRoot, "*.*", SearchOption.AllDirectories)
+                        .Where(IsExtensionProductionSource)
+                    : [])
+                .Where(p => p.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
+                    || p.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase))
+                .Where(p => !string.Equals(p, catalogPath, StringComparison.OrdinalIgnoreCase))
+        ];
 
-        List<string> unconsumed = new();
+        List<string> unconsumed = [];
         foreach (string id in Playback2DFeatureCatalogTests.Ids)
         {
             bool found = sources.Any(p =>
@@ -55,7 +57,7 @@ public class Playback2DFeatureWiringTests
 
         await Assert.That(string.Join(", ", unconsumed)).IsEqualTo("")
             .Because("a catalog row nothing reads is a switch wired to nothing — the user flips it and "
-                     + "the app does not change");
+                + "the app does not change");
     }
 
     // No build output, and no segment that names a test, test-support or capture project.
@@ -109,7 +111,7 @@ public class Playback2DFeatureWiringTests
             "playback2d.timeline", "playback2d.levels.auto", "playback2d.follow", "playback2d.export"
         ];
 
-        List<string> hits = new();
+        List<string> hits = [];
         foreach (string root in roots)
         {
             await Assert.That(Directory.Exists(root)).IsTrue().Because($"{root} should exist");
@@ -125,7 +127,7 @@ public class Playback2DFeatureWiringTests
                     continue;
                 }
 
-                string text = File.ReadAllText(file);
+                string text = await File.ReadAllTextAsync(file);
                 foreach (string token in banned.Where(t => text.Contains(t, StringComparison.Ordinal)))
                 {
                     hits.Add($"{Path.GetFileName(file)} → {token}");
@@ -153,6 +155,6 @@ public class Playback2DFeatureWiringTests
         await Assert.That(Playback2DFeatureCatalogTests.Ids.Contains(AnnotationTrack.TrackId,
                 StringComparer.Ordinal)).IsFalse()
             .Because("the timeline track id is the bare word 'annotation' — three registries must not "
-                     + "share one key");
+                + "share one key");
     }
 }

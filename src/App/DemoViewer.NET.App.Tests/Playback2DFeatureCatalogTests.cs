@@ -41,9 +41,9 @@ public class Playback2DFeatureCatalogTests
     [Test]
     public async Task AllFiveIds_Present_AsSubFeaturesOfPlayback2dTab()
     {
-        FeatureDescriptor[] children = FeatureCatalog.Children("tab.playback2d").ToArray();
+        FeatureDescriptor[] children = [.. FeatureCatalog.Children("tab.playback2d")];
 
-        await Assert.That(children.Select(c => c.Id).ToArray()).IsEquivalentTo(Ids, CollectionOrdering.Matching)
+        await Assert.That([.. children.Select(c => c.Id)]).IsEquivalentTo(Ids, CollectionOrdering.Matching)
             .Because("both the set and its order are pinned");
 
         foreach (FeatureDescriptor child in children)
@@ -152,7 +152,7 @@ public class Playback2DFeatureCatalogTests
             SettingsService svc = new(dir);
             ServiceCollection services = new();
             services.Configure<AppSettings>(svc.Configuration);
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
             IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
 
             using FeatureGate gate = new(monitor, false);

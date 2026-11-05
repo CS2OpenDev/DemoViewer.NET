@@ -22,10 +22,7 @@ public sealed partial class ParseChainEntry
     public Thickness Indent => new(IndentLevel * 14.0, 1, 4, 1);
 
     /// <summary>Nesting depth, each level adds left margin.</summary>
-    public int IndentLevel { get; init; }
-
-    /// <summary>Is clickable.</summary>
-    public bool IsClickable => OpenCommand != null;
+    private int IndentLevel { get; init; }
 
     /// <summary>Primary label shown in the monospace column.</summary>
     public string Label { get; init; } = "";
@@ -41,12 +38,7 @@ public sealed partial class ParseChainEntry
 
     /// <summary>Creates a non-clickable informational row.</summary>
     public static ParseChainEntry Info(string label, string? detail = null, int indent = 0) =>
-        new()
-        {
-            Label = label,
-            Detail = detail,
-            IndentLevel = indent
-        };
+        new() { Label = label, Detail = detail, IndentLevel = indent };
 
     /// <summary>Creates a row linked to a local file (opens in VS Code) with a web URL fallback.</summary>
     public static ParseChainEntry Linked(
@@ -92,14 +84,12 @@ public sealed partial class ParseChainEntry
             // Fallback: open the file with the OS default handler
             try
             {
-                Process.Start(new ProcessStartInfo(localPath)
-                {
-                    UseShellExecute = true
-                });
+                Process.Start(new ProcessStartInfo(localPath) { UseShellExecute = true });
                 return;
             }
             catch
             {
+                // No handler for the file either: fall through to the web link.
             }
         }
 
@@ -107,13 +97,11 @@ public sealed partial class ParseChainEntry
         {
             try
             {
-                Process.Start(new ProcessStartInfo(webUrl)
-                {
-                    UseShellExecute = true
-                });
+                Process.Start(new ProcessStartInfo(webUrl) { UseShellExecute = true });
             }
             catch
             {
+                // No browser to hand the link to; the click does nothing.
             }
         }
     }

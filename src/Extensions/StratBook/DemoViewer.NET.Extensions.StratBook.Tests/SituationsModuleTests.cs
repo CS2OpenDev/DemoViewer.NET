@@ -1,14 +1,14 @@
 #region
 
+using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Features;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
+using DemoViewer.NET.Features;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Services.DemoCache;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 
 #endregion
@@ -34,7 +34,8 @@ public class SituationsModuleTests
             await Assert.That(tab.Header).IsEqualTo("Situations");
             await Assert.That(tab.HostId).IsEqualTo(HostIds.StratBookHub);
             await Assert.That(tab.Order).IsEqualTo(1).Because("after Strats on the rail");
-            await Assert.That(tab.ViewModelFactory is not null).IsTrue().Because("lazy and retained, never DataContext");
+            await Assert.That(tab.ViewModelFactory is not null).IsTrue()
+                .Because("lazy and retained, never DataContext");
             await Assert.That(tab.DataContext).IsNull();
         }
     }
@@ -48,7 +49,8 @@ public class SituationsModuleTests
         {
             await Assert.That(feature).IsNotNull();
             await Assert.That(feature!.Scope).IsEqualTo(FeatureScope.Tab);
-            await Assert.That(feature.ParentId).IsEqualTo("pack.stratbook").Because("the tab cascades off with the Strat Book extension");
+            await Assert.That(feature.ParentId).IsEqualTo("pack.stratbook")
+                .Because("the tab cascades off with the Strat Book extension");
             await Assert.That(feature.GroupId).IsNull().Because("it must not disturb the leader-lock ordering");
             foreach (UserCategory category in Enum.GetValues<UserCategory>())
             {
@@ -65,7 +67,8 @@ public class SituationsModuleTests
     {
         ExtensionSettingsStore store = new(StratBookPack.PackId, null, a => a());
         StratBookSettings settings = new(store);
-        await Assert.That(settings.SituationsBackgroundIndex).IsTrue().Because("on by default: the flagship needs coverage");
+        await Assert.That(settings.SituationsBackgroundIndex).IsTrue()
+            .Because("on by default: the flagship needs coverage");
         await Assert.That(settings.TokenSource).IsEqualTo(RoundIndexTokenSource.Pawn);
 
         store.Set(StratBookSettings.SituationsBackgroundIndexKey, false);
@@ -73,7 +76,8 @@ public class SituationsModuleTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(settings.SituationsBackgroundIndex).IsFalse().Because("the browser keeps the extension's settings for the session");
+            await Assert.That(settings.SituationsBackgroundIndex).IsFalse()
+                .Because("the browser keeps the extension's settings for the session");
             await Assert.That(settings.TokenSource).IsEqualTo(RoundIndexTokenSource.Zones);
         }
     }
@@ -84,14 +88,16 @@ public class SituationsModuleTests
         DemoCacheStore cache = new(null);
         RoundIndexStore sidecars = new(cache.Data());
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
-        RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), sidecars, sources, () => true, walk: _ => []);
+        RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), sidecars, sources, () => true,
+            walk: _ => []);
         using SituationIndex index = new(cache.Library(), sidecars, sources, evaluator: evaluator);
         Indexed(cache, sidecars, "/d/a.dem", Document("de_nuke", sources.FingerprintFor("de_nuke")));
         cache.Upsert(ParsedRecord("/d/b.dem", facts: Facts(Round(1, 1000, 2000))));
         cache.Upsert(ParsedRecord("/d/c.dem"));
         index.Load();
 
-        using SituationsTabViewModel vm = new(index, evaluator, cache.Library(), sources, () => RoundIndexTokenSource.Pawn, isBrowser: false);
+        using SituationsTabViewModel vm = new(index, evaluator, cache.Library(), sources,
+            () => RoundIndexTokenSource.Pawn, isBrowser: false);
 
         using (Assert.Multiple())
         {
@@ -130,7 +136,8 @@ public class SituationsModuleTests
         using SituationIndex index = new(cache.Library(), sidecars, sources);
         index.Load();
 
-        using SituationsTabViewModel vm = new(index, null, cache.Library(), sources, () => RoundIndexTokenSource.Zones, isBrowser: true);
+        using SituationsTabViewModel vm = new(index, null, cache.Library(), sources, () => RoundIndexTokenSource.Zones,
+            isBrowser: true);
 
         using (Assert.Multiple())
         {
@@ -153,7 +160,8 @@ public class SituationsModuleTests
         using SituationIndex index = new(cache.Library(), sidecars, sources);
         index.Load();
 
-        using SituationsTabViewModel vm = new(index, null, cache.Library(), sources, () => RoundIndexTokenSource.Zones, isBrowser: false);
+        using SituationsTabViewModel vm = new(index, null, cache.Library(), sources, () => RoundIndexTokenSource.Zones,
+            isBrowser: false);
 
         await Assert.That(vm.TokenSourceLine).Contains("no zones for de_dust2");
         await Assert.That(vm.TokenSourceLine).DoesNotContain("de_nuke");

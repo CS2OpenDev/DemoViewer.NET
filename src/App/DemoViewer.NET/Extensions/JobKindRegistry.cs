@@ -100,7 +100,7 @@ public sealed class JobKindRegistry
             {
                 if (BuiltInExtensionKinds.ContainsKey(declared.Id)
                     || !byExtensionKind.TryAdd(declared.Id,
-                        new JobKindDescriptor(QueueJobKind.Extension, declared.Label, declared.Rank, declared.IsLight, declared.Id)))
+                        new JobKindDescriptor(QueueJobKind.Extension, declared.Label, declared.Rank, declared.IsLight)))
                 {
                     throw new InvalidOperationException(
                         $"Extension '{pack.Id}' job kind '{declared.Id}' is already declared by the host or another extension.");
@@ -119,7 +119,7 @@ public sealed class JobKindRegistry
     /// </summary>
     public JobKindDescriptor Descriptor(QueueJobKind kind, string? extensionKind = null) =>
         kind == QueueJobKind.Extension && extensionKind is not null
-                                       && _byExtensionKind.TryGetValue(extensionKind, out JobKindDescriptor? declared)
+        && _byExtensionKind.TryGetValue(extensionKind, out JobKindDescriptor? declared)
             ? declared
             : _byKind[kind];
 
@@ -128,7 +128,8 @@ public sealed class JobKindRegistry
 
     /// <summary>True when the extension <paramref name="extensionId" /> declared <paramref name="extensionKind" />.</summary>
     public bool IsDeclaredBy(string extensionKind, string extensionId) =>
-        _ownerOf.TryGetValue(extensionKind, out string? owner) && string.Equals(owner, extensionId, StringComparison.Ordinal);
+        _ownerOf.TryGetValue(extensionKind, out string? owner)
+        && string.Equals(owner, extensionId, StringComparison.Ordinal);
 
     /// <summary>The queue row's chip text.</summary>
     public string Label(QueueJobKind kind, string? extensionKind = null) => Descriptor(kind, extensionKind).Label;

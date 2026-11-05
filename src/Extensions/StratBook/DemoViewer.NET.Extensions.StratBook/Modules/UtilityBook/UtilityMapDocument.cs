@@ -1,4 +1,8 @@
+#region
+
 using DemoViewer.NET.Playback2D;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 
@@ -11,7 +15,15 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 /// <param name="Letter">Drawn when no icon source is wired or the key has no art.</param>
 /// <param name="Throws">Throws the group holds after the caller's filters; the icon grows a little with it.</param>
 /// <param name="Focused">The group whose throw positions are shown.</param>
-public readonly record struct UtilityMapLanding(string Id, float X, float Y, float Z, string IconKey, char Letter, int Throws, bool Focused);
+public readonly record struct UtilityMapLanding(
+    string Id,
+    float X,
+    float Y,
+    float Z,
+    string IconKey,
+    char Letter,
+    int Throws,
+    bool Focused);
 
 /// <summary>One throw position of the focused group, with the flight of a throw from it.</summary>
 /// <param name="Id">The caller's key for the position, handed back by a hit test.</param>
@@ -22,7 +34,14 @@ public readonly record struct UtilityMapLanding(string Id, float X, float Y, flo
 /// <param name="JumpThrow">Drawn with an outer ring when the position is a jump-throw.</param>
 /// <param name="Selected">The position whose details are open.</param>
 /// <param name="Trajectory">A representative throw's flight, origin first, landing last.</param>
-public sealed record UtilityMapThrow(string Id, float X, float Y, float Z, int Team, bool JumpThrow, bool Selected,
+public sealed record UtilityMapThrow(
+    string Id,
+    float X,
+    float Y,
+    float Z,
+    int Team,
+    bool JumpThrow,
+    bool Selected,
     IReadOnlyList<GrenadeTrailPoint> Trajectory);
 
 /// <summary>

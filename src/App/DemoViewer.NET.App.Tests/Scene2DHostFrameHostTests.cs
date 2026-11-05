@@ -15,13 +15,11 @@ using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Tools;
 using DemoViewer.NET.Playback2D.Zones;
-using DemoViewer.NET.Playback2D.Assets;
-using DemoViewer.NET.Playback2D.Pipeline.Assets;
-using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -49,7 +47,7 @@ public class Scene2DHostFrameHostTests
 {
     private const byte BgR = 0x15, BgG = 0x18, BgB = 0x1C;
 
-    private static readonly WorldBounds Mirage = new(-3230, -3410, 1860, 1680);
+    private static readonly WorldBounds _mirage = new(-3230, -3410, 1860, 1680);
 
     [Test]
     public async Task FakeHost_MountsAndRendersMarkers_WithoutATabViewModel()
@@ -72,7 +70,7 @@ public class Scene2DHostFrameHostTests
             await Assert.That(captured).IsNotNull();
             (int nonBg, bool team) = ScanPixels(captured!);
             Console.WriteLine($"[frame-host] nonBg={nonBg} team={team} " +
-                              $"panes={host.Compositor.Stats.PanesRendered}");
+                $"panes={host.Compositor.Stats.PanesRendered}");
 
             await Assert.That(nonBg).IsGreaterThan(100);
             await Assert.That(team).IsTrue();
@@ -127,12 +125,13 @@ public class Scene2DHostFrameHostTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ViewportTransform both = FirstFit(Mirage, Mirage);
-            ViewportTransform observedOnly = FirstFit(Mirage, null);
-            ViewportTransform networkedOnly = FirstFit(WorldBounds.Default, Mirage);
+            ViewportTransform both = FirstFit(_mirage, _mirage);
+            ViewportTransform observedOnly = FirstFit(_mirage, null);
+            ViewportTransform networkedOnly = FirstFit(WorldBounds.Default, _mirage);
 
-            Console.WriteLine($"[fit] scale both={both.EffectiveScale:F6} observedOnly={observedOnly.EffectiveScale:F6} " +
-                              $"networkedOnly={networkedOnly.EffectiveScale:F6}");
+            Console.WriteLine(
+                $"[fit] scale both={both.EffectiveScale:F6} observedOnly={observedOnly.EffectiveScale:F6} " +
+                $"networkedOnly={networkedOnly.EffectiveScale:F6}");
 
             // Zoom and pan are identity straight after a fit; the fitted rectangle lives in the base
             // scale and the centre, so those are what is compared, through a world point's screen spot.
@@ -317,8 +316,8 @@ public class Scene2DHostFrameHostTests
             ISceneLayer? contributed = host.Compositor.Find("ext.pack.heat");
             await Assert.That(contributed).IsTypeOf<StubLayer>();
 
-            ArgumentException refused = Assert.Throws<ArgumentException>(
-                () => host.AddLayer("ext.pack.heat", () => new StubLayer("mine")))!;
+            ArgumentException refused =
+                Assert.Throws<ArgumentException>(() => host.AddLayer("ext.pack.heat", () => new StubLayer("mine")));
 
             using (Assert.Multiple())
             {
@@ -476,8 +475,8 @@ public class Scene2DHostFrameHostTests
 
             double after = host.Levels.Levels[1].ZMin;
             Console.WriteLine($"[levels] upper ZMin {before} -> {after} rebuilds=" +
-                              string.Join(" | ", fake.Rebuilds.Select(m =>
-                                  string.Join(", ", m.Select(p => $"{p.Key}->{p.Value}")))));
+                string.Join(" | ", fake.Rebuilds.Select(m =>
+                    string.Join(", ", m.Select(p => $"{p.Key}->{p.Value}")))));
 
             await Assert.That(fake.Rebuilds.Count).IsGreaterThanOrEqualTo(1);
             IReadOnlyDictionary<double, double> moved = fake.Rebuilds[0];
@@ -498,10 +497,7 @@ public class Scene2DHostFrameHostTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            FakeSceneFrameHost fake = new()
-            {
-                AnnotationSession = new AnnotationSession(new AnnotationDocument())
-            };
+            FakeSceneFrameHost fake = new() { AnnotationSession = new AnnotationSession(new AnnotationDocument()) };
             fake.Publish(Frame(1, true, TenTokens()));
 
             (Window window, Scene2DHost host) = Mount(fake);
@@ -515,7 +511,7 @@ public class Scene2DHostFrameHostTests
                 .. SceneLayerCatalog.SceneStackIds.Where(id => !SceneLayerIds.OptIn.Contains(id)),
                 SceneLayerIds.Annotations
             ];
-            await Assert.That(mounted).IsEquivalentTo(expected.Order().ToArray(), CollectionOrdering.Matching);
+            await Assert.That(mounted).IsEquivalentTo([.. expected.Order()], CollectionOrdering.Matching);
             await Assert.That(LayerEnabled(host, SceneLayerIds.Annotations)).IsTrue();
 
             window.Close();
@@ -529,12 +525,7 @@ public class Scene2DHostFrameHostTests
         {
             Time = new SceneTime(1, 1, 1 / 64.0, 1 / 64.0, true),
             Markers = TenTokens(),
-            Map = new SceneMapInfo
-            {
-                MapName = "de_mirage",
-                ObservedBounds = observed,
-                NetworkedBounds = networked
-            }
+            Map = new SceneMapInfo { MapName = "de_mirage", ObservedBounds = observed, NetworkedBounds = networked }
         });
 
         (Window window, Scene2DHost host) = Mount(fake);
@@ -549,12 +540,7 @@ public class Scene2DHostFrameHostTests
     private static (Window Window, Scene2DHost Host) Mount(object frameHost)
     {
         Scene2DHost host = new() { DataContext = frameHost };
-        Window window = new()
-        {
-            Width = 1000,
-            Height = 700,
-            Content = host
-        };
+        Window window = new() { Width = 1000, Height = 700, Content = host };
         window.Show();
         Playback2DTimelineHarness.Pump();
         return (window, host);
@@ -567,12 +553,7 @@ public class Scene2DHostFrameHostTests
     {
         Time = new SceneTime(tick, tick, tick / 64.0, 1 / 64.0, discontinuity),
         Markers = markers,
-        Map = new SceneMapInfo
-        {
-            MapName = "de_mirage",
-            ObservedBounds = Mirage,
-            NetworkedBounds = Mirage
-        }
+        Map = new SceneMapInfo { MapName = "de_mirage", ObservedBounds = _mirage, NetworkedBounds = _mirage }
     };
 
     private static PlayerMarker[] OneToken(int slot, int team, float x, float y) => [Token(slot, team, x, y, 64f)];
@@ -715,11 +696,11 @@ public class Scene2DHostFrameHostTests
         public VisibilityEngine? VisionEngine => null;
         public AnnotationSession? AnnotationSession { get; init; }
         public bool IsAnnotationsEnabled => AnnotationSession is not null;
-        public bool ShowRadar { get; set; } = true;
+        public bool ShowRadar => true;
         public bool ShowTrails { get; set; } = true;
-        public bool ShowAreaEffects { get; set; } = true;
+        public bool ShowAreaEffects => true;
         public bool ShowVision => false;
-        public bool ShowBombRing { get; set; } = true;
+        public bool ShowBombRing => true;
         public bool ShowZones => false;
         public PlaceResolver? Zones => null;
 

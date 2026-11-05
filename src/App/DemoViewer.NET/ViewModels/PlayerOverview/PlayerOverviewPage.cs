@@ -21,15 +21,14 @@ public sealed partial class PlayerOverviewPage : ObservableObject
     private const double ListChrome = 120;
     private const double MinListHeight = 320;
 
-    private readonly string _title;
-
     /// <summary>True while the page is on show.</summary>
     [ObservableProperty]
     private bool _isActive;
 
     /// <summary>True below <see cref="RailBreakpoint" />, or with nothing in the rail: one column.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PrimarySpan), nameof(RailColumn), nameof(RailRow), nameof(RailSpan), nameof(BottomColumns))]
+    [NotifyPropertyChangedFor(nameof(PrimarySpan), nameof(RailColumn), nameof(RailRow), nameof(RailSpan),
+        nameof(BottomColumns))]
     private bool _isStacked = true;
 
     /// <summary>
@@ -53,7 +52,6 @@ public sealed partial class PlayerOverviewPage : ObservableObject
         double primaryWeight = 2, double railWeight = 1, double railBreakpoint = 1100)
     {
         Kind = kind;
-        _title = kind.ToString();
         PrimaryWeight = primaryWeight;
         RailWeight = railWeight;
         RailBreakpoint = railBreakpoint;
@@ -72,8 +70,8 @@ public sealed partial class PlayerOverviewPage : ObservableObject
 
     /// <summary>The strip caption, with the count when there is one.</summary>
     public string Header => Count is { } count
-        ? string.Create(CultureInfo.InvariantCulture, $"{_title} · {count}")
-        : _title;
+        ? string.Create(CultureInfo.InvariantCulture, $"{Kind} · {count}")
+        : Kind.ToString();
 
     /// <summary>The sections across the page, in page order.</summary>
     public IReadOnlyList<PlayerOverviewSection> Top { get; }
@@ -97,7 +95,7 @@ public sealed partial class PlayerOverviewPage : ObservableObject
     public double RailWeight { get; }
 
     /// <summary>The page width from which the rail sits beside the primary column.</summary>
-    public double RailBreakpoint { get; }
+    private double RailBreakpoint { get; }
 
     /// <summary>The primary column's span: the whole grid when stacked.</summary>
     public int PrimarySpan => IsStacked ? 3 : 1;

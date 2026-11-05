@@ -40,7 +40,8 @@ public sealed class StratPlaceCentres
             }
 
             double w = Math.Max(area.Area, 1);
-            floorSums[(area.PlaceId, area.FloorKey)] = Add(floorSums.GetValueOrDefault((area.PlaceId, area.FloorKey)), area, w);
+            floorSums[(area.PlaceId, area.FloorKey)] =
+                Add(floorSums.GetValueOrDefault((area.PlaceId, area.FloorKey)), area, w);
             sums[area.PlaceId] = Add(sums.GetValueOrDefault(area.PlaceId), area, w);
         }
 
@@ -60,7 +61,8 @@ public sealed class StratPlaceCentres
             }
 
             floors[floor] = (x / w, y / w);
-            if (!largest.TryGetValue(name, out (double Floor, double W) best) || w > best.W || (w == best.W && floor < best.Floor))
+            if (!largest.TryGetValue(name, out (double Floor, double W) best) || w > best.W
+                || (w.Equals(best.W) && floor < best.Floor))
             {
                 largest[name] = (floor, w);
             }
@@ -83,7 +85,8 @@ public sealed class StratPlaceCentres
             }
         }
 
-        return new StratPlaceCentres(byFloor, overall, largest.ToDictionary(p => p.Key, p => p.Value.Floor, StringComparer.Ordinal));
+        return new StratPlaceCentres(byFloor, overall,
+            largest.ToDictionary(p => p.Key, p => p.Value.Floor, StringComparer.Ordinal));
     }
 
     /// <summary>

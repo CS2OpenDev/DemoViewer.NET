@@ -4,15 +4,15 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Modules.Playback2D;
-using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
-using SkiaSharp;
+using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Views.Shell;
+using SkiaSharp;
 
 #endregion
 
@@ -48,7 +48,8 @@ public static partial class Variants
                 (double X, double Y) start = Centre(zones, "TSpawn");
                 SKPoint drop = new((float)doors.X + 40, (float)doors.Y - 30);
                 strats.Canvas.BeginDrag("E", TokenGrip.Body);
-                strats.Canvas.MoveTo("E", new SKPoint((float)(start.X + doors.X) / 2, (float)(start.Y + doors.Y) / 2), Dust2Floor);
+                strats.Canvas.MoveTo("E", new SKPoint((float)(start.X + doors.X) / 2, (float)(start.Y + doors.Y) / 2),
+                    Dust2Floor);
                 strats.Canvas.MoveTo("E", drop, Dust2Floor);
                 if (release)
                 {
@@ -97,7 +98,8 @@ public static partial class Variants
     // The label sits where the pointer let go: the scene's world point on the canvas host.
     private static void PlaceLabel(Control view, object canvasVm, SKPoint world)
     {
-        if (view.GetVisualDescendants().OfType<StratCanvasView>().FirstOrDefault(c => ReferenceEquals(c.DataContext, canvasVm)) is not { } canvas
+        if (view.GetVisualDescendants().OfType<StratCanvasView>()
+                .FirstOrDefault(c => ReferenceEquals(c.DataContext, canvasVm)) is not { } canvas
             || canvas.GetVisualDescendants().OfType<Scene2DHost>().FirstOrDefault() is not { } host)
         {
             return;

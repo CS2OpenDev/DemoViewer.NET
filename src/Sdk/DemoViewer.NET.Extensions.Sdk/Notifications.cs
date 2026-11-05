@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Extensions.Sdk;
 
 /// <summary>How much a notification matters. The host maps each value to a theme colour and an icon.</summary>
+[PublicAPI]
 public enum NotificationSeverity
 {
     /// <summary>Something happened that the user may want to know.</summary>
@@ -27,6 +28,7 @@ public enum NotificationSeverity
 /// <param name="Severity">How much it matters.</param>
 /// <param name="Title">One line. A notification without a title is dropped.</param>
 /// <param name="Body">More detail under the title, or null.</param>
+[PublicAPI]
 public sealed record Notification(string Id, NotificationSeverity Severity, string Title, string? Body = null)
 {
     /// <summary>A button on the notification, or null for none. The notification closes after it runs.</summary>
@@ -42,6 +44,7 @@ public sealed record Notification(string Id, NotificationSeverity Severity, stri
 /// <summary>A button on a notification.</summary>
 /// <param name="Label">The button text.</param>
 /// <param name="Run">What a click runs, on the UI thread. A throw counts as the extension's fault.</param>
+[PublicAPI]
 public sealed record NotificationAction(string Label, Action Run);
 
 /// <summary>
@@ -50,13 +53,14 @@ public sealed record NotificationAction(string Label, Action Run);
 ///     a flood from one extension never pushes out another's. Notifications show only while the extension is
 ///     on, and closing the extension closes them.
 /// </summary>
+[PublicAPI]
 public interface IExtensionNotifications
 {
     /// <summary>
     ///     Shows <paramref name="notification" />, or replaces the one shown under its id. A null notification,
     ///     or one without an id or a title, is logged against the extension and dropped.
     /// </summary>
-    void Post(Notification notification);
+    void Post(Notification? notification);
 
     /// <summary>Closes the extension's notification shown under <paramref name="id" />, if any.</summary>
     void Dismiss(string id);

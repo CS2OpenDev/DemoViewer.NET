@@ -124,7 +124,8 @@ public class HostTabContributionTests
                         .Because("the hub tab comes from the declaration, not from the shell");
                     await Assert.That(vm.Tabs.Select(t => t.TabId)).DoesNotContain("fake.alpha");
                     await Assert.That(vm.Tabs.Select(t => t.TabId)).DoesNotContain("fake.beta");
-                    await Assert.That(host.Sections.Sections.Select(s => s.TabId)).IsEquivalentTo(_bothSections, CollectionOrdering.Matching);
+                    await Assert.That(host.Sections.Sections.Select(s => s.TabId))
+                        .IsEquivalentTo(_bothSections, CollectionOrdering.Matching);
                     await Assert.That(vm.Tabs.Single(t => t.TabId == HostId).ActiveContent).IsTypeOf<HubTabView>()
                         .Because("the host draws the hub; the extension hands over no view of its own");
                     await Assert.That(texts).Contains("FAKE RAIL").Because("the band binds the declaration's label");
@@ -167,7 +168,8 @@ public class HostTabContributionTests
                 using (Assert.Multiple())
                 {
                     await Assert.That(vm.Tabs.Select(t => t.TabId)).Contains(HostId);
-                    await Assert.That(vm.HostViewModel(HostId)!.Sections.Sections.Select(s => s.TabId)).IsEquivalentTo(_bothSections, CollectionOrdering.Matching)
+                    await Assert.That(vm.HostViewModel(HostId)!.Sections.Sections.Select(s => s.TabId))
+                        .IsEquivalentTo(_bothSections, CollectionOrdering.Matching)
                         .Because("the same descriptors come back; nothing re-ran CreateTabs");
                 }
             }
@@ -213,7 +215,8 @@ public class HostTabContributionTests
                     await Assert.That(vm.Tabs.Select(t => t.TabId)).DoesNotContain(HostId);
                     await Assert.That(vm.TrySelectTab("fake.alpha")).IsFalse();
                     await Assert.That(vm.HostViewModel(HostId)).IsNotNull()
-                        .Because("the hub VM exists from the strip build so a gate flip has somewhere to reconcile into");
+                        .Because(
+                            "the hub VM exists from the strip build so a gate flip has somewhere to reconcile into");
                 }
             }
             finally
@@ -227,7 +230,8 @@ public class HostTabContributionTests
         await HeadlessSession.RunOnUi(async () =>
         {
             ModuleRegistry registry = new();
-            registry.Register(new SectionsModule("net.demoviewer.test.orphan", Section("orphan.section", "Orphan", 0, "nobody.hosts.this")));
+            registry.Register(new SectionsModule("net.demoviewer.test.orphan",
+                Section("orphan.section", "Orphan", 0, "nobody.hosts.this")));
             MainViewModel vm = new(null, registry, TestLibraries.Empty());
             try
             {
@@ -235,7 +239,9 @@ public class HostTabContributionTests
                 {
                     await Assert.That(vm.Tabs.Select(t => t.TabId)).DoesNotContain("orphan.section")
                         .Because("a section never falls back to the strip");
-                    await Assert.That(vm.Output.DecodeErrors.Rows.Any(r => r.Message.Contains("orphan.section", StringComparison.Ordinal))).IsTrue()
+                    await Assert
+                        .That(vm.Output.DecodeErrors.Rows.Any(r =>
+                            r.Message.Contains("orphan.section", StringComparison.Ordinal))).IsTrue()
                         .Because("the drop is logged where module failures go");
                 }
             }
@@ -257,8 +263,10 @@ public class HostTabContributionTests
                 {
                     await Assert.That(vm.Tabs.Select(t => t.TabId)).Contains(HostId);
                     await Assert.That(vm.Tabs.Select(t => t.TabId)).Contains(OtherHostId);
-                    await Assert.That(vm.HostViewModel(HostId)!.Sections.Sections.Select(s => s.TabId)).IsEquivalentTo(_bothSections, CollectionOrdering.Matching);
-                    await Assert.That(vm.HostViewModel(OtherHostId)!.Sections.Sections.Select(s => s.TabId)).IsEquivalentTo(_otherSections, CollectionOrdering.Matching);
+                    await Assert.That(vm.HostViewModel(HostId)!.Sections.Sections.Select(s => s.TabId))
+                        .IsEquivalentTo(_bothSections, CollectionOrdering.Matching);
+                    await Assert.That(vm.HostViewModel(OtherHostId)!.Sections.Sections.Select(s => s.TabId))
+                        .IsEquivalentTo(_otherSections, CollectionOrdering.Matching);
                     await Assert.That(texts).Contains("OTHER RAIL");
                     await Assert.That(texts).Contains("One section view");
                     await Assert.That(texts).DoesNotContain("FAKE RAIL").Because("only the selected hub is realized");
@@ -273,7 +281,8 @@ public class HostTabContributionTests
                     await Assert.That(vm.Tabs.Select(t => t.TabId)).Contains(OtherHostId)
                         .Because("each hub follows its own pack's switch");
                     await Assert.That(vm.SelectedTab!.TabId).IsEqualTo(OtherHostId);
-                    await Assert.That(vm.HostViewModel(OtherHostId)!.Sections.SelectedSection!.TabId).IsEqualTo("other.two");
+                    await Assert.That(vm.HostViewModel(OtherHostId)!.Sections.SelectedSection!.TabId)
+                        .IsEqualTo("other.two");
                 }
             }
             finally
@@ -288,7 +297,8 @@ public class HostTabContributionTests
         {
             FakeHubPack libraryThief = new("net.demoviewer.test.thief", "pack.thief",
                 new HubTabContribution(HostIds.LibraryTab, "Thief", 9, "THIEF"));
-            FakeHubPack twin = new("net.demoviewer.test.twin", "pack.twin", new HubTabContribution(HostId, "Twin", 9, "TWIN"));
+            FakeHubPack twin = new("net.demoviewer.test.twin", "pack.twin",
+                new HubTabContribution(HostId, "Twin", 9, "TWIN"));
             (MainViewModel vm, _) = NewShell([FakePack(), libraryThief, twin]);
             try
             {
@@ -298,7 +308,9 @@ public class HostTabContributionTests
                     await Assert.That(vm.Tabs.Count(t => t.TabId == HostId)).IsEqualTo(1);
                     await Assert.That(vm.HostViewModel(HostId)!.RailLabel).IsEqualTo("FAKE RAIL")
                         .Because("the first declaration keeps the id; the second is left out");
-                    await Assert.That(vm.Output.DecodeErrors.Rows.Count(r => r.Message.Contains("already taken", StringComparison.Ordinal)))
+                    await Assert
+                        .That(vm.Output.DecodeErrors.Rows.Count(r =>
+                            r.Message.Contains("already taken", StringComparison.Ordinal)))
                         .IsEqualTo(2);
                 }
             }
@@ -373,7 +385,11 @@ public class HostTabContributionTests
 
     // The sample extension installed and resolved as a third party, then registered on a container of its
     // own, the way the composition root registers an external extension.
-    private sealed record ExternalHello(MainViewModel Shell, PackContributionSet Set, IServiceProvider Services, string Root)
+    private sealed record ExternalHello(
+        MainViewModel Shell,
+        PackContributionSet Set,
+        IServiceProvider Services,
+        string Root)
         : IDisposable
     {
         public void Dispose()
@@ -398,7 +414,8 @@ public class HostTabContributionTests
     {
         string root = Path.Combine(Path.GetTempPath(), "dv-hub-" + Guid.NewGuid().ToString("N"));
         string configuration = new DirectoryInfo(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory)).Name;
-        string sample = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "HelloExtension", configuration));
+        string sample =
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "HelloExtension", configuration));
         string target = Path.Combine(root, ExtensionLoader.ExtensionsDirectoryName, HelloId, "1.0.0");
         Directory.CreateDirectory(target);
         foreach (string file in Directory.EnumerateFiles(sample))
@@ -442,7 +459,7 @@ public class HostTabContributionTests
                     .IsTypeOf<ExternalLoadContext>();
                 await Assert.That(vm.Tabs.Select(t => t.TabId)).Contains("dev.example.hello.hub");
                 await Assert.That(hub.Sections.Sections.Select(s => s.Header)).IsEquivalentTo(_helloSections,
-                    TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                    CollectionOrdering.Matching);
                 await Assert.That(hub.Sections.Sections.All(s => ExtensionGuards.For(s) is not null)).IsTrue()
                     .Because("each section is the guarded copy, run as the extension's");
                 await Assert.That(texts).Contains("HELLO");
@@ -483,7 +500,11 @@ public class HostTabContributionTests
     };
 
     // A pack with at most one hub and one module of sections; nothing else.
-    private sealed class FakeHubPack(string id, string featureId, HubTabContribution? hub, params WorkspaceTabDescriptor[] sections)
+    private sealed class FakeHubPack(
+        string id,
+        string featureId,
+        HubTabContribution? hub,
+        params WorkspaceTabDescriptor[] sections)
         : IExtension, IManifestSource
     {
         public string Id => id;

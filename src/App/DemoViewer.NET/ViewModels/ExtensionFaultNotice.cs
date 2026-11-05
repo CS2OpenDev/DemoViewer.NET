@@ -34,7 +34,8 @@ public sealed partial class ExtensionFaultNotice : ObservableObject
     /// <param name="turnOnAgain">Lifts the suspension.</param>
     /// <param name="keepOff">Turns the master switch off in settings.</param>
     /// <param name="openLog">Opens the diagnostics log, or null where there is none.</param>
-    public ExtensionFaultNotice(string featureId, string name, Action<string> turnOnAgain, Action<string> keepOff, Action? openLog)
+    public ExtensionFaultNotice(string featureId, string name, Action<string> turnOnAgain, Action<string> keepOff,
+        Action? openLog)
     {
         ArgumentException.ThrowIfNullOrEmpty(featureId);
         ArgumentNullException.ThrowIfNull(turnOnAgain);
@@ -50,7 +51,7 @@ public sealed partial class ExtensionFaultNotice : ObservableObject
     public string FeatureId { get; }
 
     /// <summary>The extension's display name.</summary>
-    public string Name { get; }
+    private string Name { get; }
 
     /// <summary>The line with the extension's name in front, for the banner.</summary>
     public string Sentence => Name + ": " + Text;
@@ -63,7 +64,7 @@ public sealed partial class ExtensionFaultNotice : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(state);
         IsShown = state.Suspended;
-        CanTurnOnAgain = state.Suspended && !state.StartupFailed;
+        CanTurnOnAgain = state is { Suspended: true, StartupFailed: false };
         Text = !state.Suspended
             ? ""
             : state.StartupFailed

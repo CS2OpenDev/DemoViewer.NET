@@ -19,25 +19,25 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel(nameof(StratRevisionTests))]
 public class StratRevisionTests
 {
-    private static readonly int[] ThreeRevisions = [1, 2, 3];
-    private static readonly int[] FourRevisions = [1, 2, 3, 4];
-    private static readonly string[] NameOnly = ["/name"];
-    private static readonly double[] BothCopies = [65.0, 70.0];
+    private static readonly int[] _threeRevisions = [1, 2, 3];
+    private static readonly int[] _fourRevisions = [1, 2, 3, 4];
+    private static readonly string[] _nameOnly = ["/name"];
+    private static readonly double[] _bothCopies = [65.0, 70.0];
 
-    private static readonly DateTime Past = DateTime.UtcNow.AddHours(-2);
+    private static readonly DateTime _past = DateTime.UtcNow.AddHours(-2);
 
     private static StratSession Session(StratStore store) =>
         new(store, null, () => false, () => Created)
         {
-            AutoSaveDelay = TimeSpan.FromHours(1),
-            IdleCommitDelay = TimeSpan.FromHours(1)
+            AutoSaveDelay = TimeSpan.FromHours(1), IdleCommitDelay = TimeSpan.FromHours(1)
         };
 
     private static string StratFile(string root, StratDocument document) =>
         Path.Combine(StratStore.FolderFor(root, document.Owner, document.Map), document.Id + StratStore.StratExtension);
 
     private static string LogFile(string root, StratDocument document) =>
-        Path.Combine(StratStore.FolderFor(root, document.Owner, document.Map), document.Id + StratStore.HistoryExtension);
+        Path.Combine(StratStore.FolderFor(root, document.Owner, document.Map),
+            document.Id + StratStore.HistoryExtension);
 
     private static PatchOp MoveTime(int step, double to) =>
         PatchOp.ReplaceOp($"/steps/{step}/atSeconds", null, JsonValue.Create(to));
@@ -57,7 +57,7 @@ public class StratRevisionTests
     // stamped no newer than the row, so no startup check sees the difference.
     private static StratDocument KilledAfterTwoCommits(string root)
     {
-        StratStore store = new(PackStores.At(root), utcNow: SteppingClock(Past));
+        StratStore store = new(PackStores.At(root), utcNow: SteppingClock(_past));
         StratDocument document = Minimal();
         store.Save(document, [], "created");
         store.SaveIndex();
@@ -80,8 +80,9 @@ public class StratRevisionTests
         try
         {
             StratDocument document = KilledAfterTwoCommits(root);
-            StratStore restarted = new(PackStores.At(root), utcNow: SteppingClock(Past.AddHours(1)));
-            await Assert.That(restarted.Index.Single().Revision).IsEqualTo(1).Because("the stale row is trusted at start");
+            StratStore restarted = new(PackStores.At(root), utcNow: SteppingClock(_past.AddHours(1)));
+            await Assert.That(restarted.Index.Single().Revision).IsEqualTo(1)
+                .Because("the stale row is trusted at start");
 
             using StratSession session = Session(restarted);
             session.Open(document.Id);
@@ -93,8 +94,10 @@ public class StratRevisionTests
             {
                 await Assert.That(result.Revision).IsEqualTo(4);
                 await Assert.That(session.Document.Revision).IsEqualTo(4);
-                await Assert.That(Revisions(restarted, document.Id)).IsEquivalentTo(FourRevisions, CollectionOrdering.Matching);
-                await Assert.That(Revisions(restarted, document.Id).Zip(Revisions(restarted, document.Id).Skip(1)).All(p => p.First < p.Second))
+                await Assert.That(Revisions(restarted, document.Id))
+                    .IsEquivalentTo(_fourRevisions, CollectionOrdering.Matching);
+                await Assert.That(Revisions(restarted, document.Id).Zip(Revisions(restarted, document.Id).Skip(1))
+                        .All(p => p.First < p.Second))
                     .IsTrue();
                 await Assert.That(restarted.Index.Single().Revision).IsEqualTo(4);
             }
@@ -112,7 +115,7 @@ public class StratRevisionTests
         try
         {
             StratDocument document = KilledAfterTwoCommits(root);
-            StratStore restarted = new(PackStores.At(root), utcNow: SteppingClock(Past.AddHours(1)));
+            StratStore restarted = new(PackStores.At(root), utcNow: SteppingClock(_past.AddHours(1)));
 
             // No Load: the row and the document both say revision 1, only the log knows better.
             StratDocument stale = restarted.Materialize(document.Id, 3)!;
@@ -123,7 +126,8 @@ public class StratRevisionTests
             using (Assert.Multiple())
             {
                 await Assert.That(result.Revision).IsEqualTo(4);
-                await Assert.That(Revisions(restarted, document.Id)).IsEquivalentTo(FourRevisions, CollectionOrdering.Matching);
+                await Assert.That(Revisions(restarted, document.Id))
+                    .IsEquivalentTo(_fourRevisions, CollectionOrdering.Matching);
             }
         }
         finally
@@ -138,7 +142,7 @@ public class StratRevisionTests
         string root = TempRoot();
         try
         {
-            StratStore store = new(PackStores.At(root), utcNow: SteppingClock(Past));
+            StratStore store = new(PackStores.At(root), utcNow: SteppingClock(_past));
             StratDocument document = Minimal();
             store.Save(document, [], "created");
             store.SaveIndex();
@@ -146,8 +150,8 @@ public class StratRevisionTests
             Commit(store, document.Id, MoveTime(1, 80));
 
             // The commits land minutes after the row's stamp, and index.json is never written again.
-            File.SetLastWriteTimeUtc(StratFile(root, document), Past.AddMinutes(30));
-            File.SetLastWriteTimeUtc(LogFile(root, document), Past.AddMinutes(30));
+            File.SetLastWriteTimeUtc(StratFile(root, document), _past.AddMinutes(30));
+            File.SetLastWriteTimeUtc(LogFile(root, document), _past.AddMinutes(30));
 
             await Assert.That(new StratStore(PackStores.At(root)).Index.Single().Revision).IsEqualTo(3);
         }
@@ -167,13 +171,14 @@ public class StratRevisionTests
 
             // Revision 3's content plus one edit, stamped with the stale row's revision 1, then a crash. Its
             // diff from revision 1 carries revisions 2 and 3, whose targets the head no longer holds.
-            StratStore probe = new(PackStores.At(root), utcNow: SteppingClock(Past.AddHours(1)));
+            StratStore probe = new(PackStores.At(root), utcNow: SteppingClock(_past.AddHours(1)));
             StratDocument working = probe.Materialize(document.Id, 3)!;
             working.Name = "edited before the crash";
             working.Revision = 1;
-            File.WriteAllText(StratFile(root, document), StratStore.Serialize(StratStore.WithPending(working, true)));
+            await File.WriteAllTextAsync(StratFile(root, document),
+                StratStore.Serialize(StratStore.WithPending(working, true)));
 
-            StratStore restarted = new(PackStores.At(root), utcNow: SteppingClock(Past.AddHours(1)));
+            StratStore restarted = new(PackStores.At(root), utcNow: SteppingClock(_past.AddHours(1)));
             using StratSession session = Session(restarted);
             session.Open(document.Id);
 
@@ -185,8 +190,10 @@ public class StratRevisionTests
                 await Assert.That(session.HasPending).IsFalse();
                 await Assert.That(session.StatusText).Contains("conflict with revision 3");
                 await Assert.That(kept.Length).IsEqualTo(1);
-                await Assert.That(JsonNode.Parse(File.ReadAllText(kept[0]))!["name"]!.GetValue<string>()).IsEqualTo("edited before the crash");
-                await Assert.That(Revisions(restarted, document.Id)).IsEquivalentTo(ThreeRevisions, CollectionOrdering.Matching);
+                await Assert.That(JsonNode.Parse(await File.ReadAllTextAsync(kept[0]))!["name"]!.GetValue<string>())
+                    .IsEqualTo("edited before the crash");
+                await Assert.That(Revisions(restarted, document.Id))
+                    .IsEquivalentTo(_threeRevisions, CollectionOrdering.Matching);
             }
         }
         finally
@@ -206,9 +213,10 @@ public class StratRevisionTests
             // Revision 1 plus a rename; revisions 2 and 3 only moved steps.
             StratDocument working = new StratStore(PackStores.At(root)).Materialize(document.Id, 1)!;
             working.Name = "renamed at revision 1";
-            File.WriteAllText(StratFile(root, document), StratStore.Serialize(StratStore.WithPending(working, true)));
+            await File.WriteAllTextAsync(StratFile(root, document),
+                StratStore.Serialize(StratStore.WithPending(working, true)));
 
-            StratStore restarted = new(PackStores.At(root), utcNow: SteppingClock(Past.AddHours(1)));
+            StratStore restarted = new(PackStores.At(root), utcNow: SteppingClock(_past.AddHours(1)));
             using StratSession session = Session(restarted);
             session.Open(document.Id);
 
@@ -218,12 +226,15 @@ public class StratRevisionTests
                 await Assert.That(session.Document.Name).IsEqualTo("renamed at revision 1");
                 await Assert.That(session.Document.Steps[0].AtSeconds).IsEqualTo(88);
                 await Assert.That(session.Document.Steps[1].AtSeconds).IsEqualTo(80);
-                await Assert.That(session.PendingOps.Select(o => o.Path)).IsEquivalentTo(NameOnly, CollectionOrdering.Matching);
-                await Assert.That(session.StatusText).Contains("recovered edits from revision 1 were moved onto revision 3");
+                await Assert.That(session.PendingOps.Select(o => o.Path))
+                    .IsEquivalentTo(_nameOnly, CollectionOrdering.Matching);
+                await Assert.That(session.StatusText)
+                    .Contains("recovered edits from revision 1 were moved onto revision 3");
             }
 
             await Assert.That(session.Commit()!.Revision).IsEqualTo(4);
-            await Assert.That(restarted.History(document.Id)[^1].Ops.Select(o => o.Path)).IsEquivalentTo(NameOnly, CollectionOrdering.Matching);
+            await Assert.That(restarted.History(document.Id)[^1].Ops.Select(o => o.Path))
+                .IsEquivalentTo(_nameOnly, CollectionOrdering.Matching);
         }
         finally
         {
@@ -241,10 +252,12 @@ public class StratRevisionTests
 
     private static string[] SetAsideFiles(string root, StratDocument document) =>
     [
-        .. Directory.GetFiles(Path.GetDirectoryName(StratFile(root, document))!, document.Id + ".working-r1*.json").Order(StringComparer.Ordinal)
+        .. Directory.GetFiles(Path.GetDirectoryName(StratFile(root, document))!, document.Id + ".working-r1*.json")
+            .Order(StringComparer.Ordinal)
     ];
 
-    private static double StepZero(string file) => JsonNode.Parse(File.ReadAllText(file))!["steps"]![0]!["atSeconds"]!.GetValue<double>();
+    private static double StepZero(string file) =>
+        JsonNode.Parse(File.ReadAllText(file))!["steps"]![0]!["atSeconds"]!.GetValue<double>();
 
     [Test]
     public async Task AWorkingCopyThatConflictsWithTheHead_IsSetAside_WithANote()
@@ -255,7 +268,7 @@ public class StratRevisionTests
             StratDocument document = KilledAfterTwoCommits(root);
             WriteConflictingWorkingCopy(root, document, 70);
 
-            StratStore restarted = new(PackStores.At(root), utcNow: SteppingClock(Past.AddHours(1)));
+            StratStore restarted = new(PackStores.At(root), utcNow: SteppingClock(_past.AddHours(1)));
             using StratSession session = Session(restarted);
             session.Open(document.Id);
 
@@ -269,7 +282,8 @@ public class StratRevisionTests
                 await Assert.That(kept.Length).IsEqualTo(1);
                 await Assert.That(session.StatusText).Contains(Path.GetFileName(kept[0]));
                 await Assert.That(StepZero(kept[0])).IsEqualTo(70);
-                await Assert.That(Revisions(restarted, document.Id)).IsEquivalentTo(ThreeRevisions, CollectionOrdering.Matching);
+                await Assert.That(Revisions(restarted, document.Id))
+                    .IsEquivalentTo(_threeRevisions, CollectionOrdering.Matching);
                 await Assert.That(restarted.Index.Single().Revision).IsEqualTo(3);
             }
         }
@@ -287,12 +301,12 @@ public class StratRevisionTests
         {
             StratDocument document = KilledAfterTwoCommits(root);
             WriteConflictingWorkingCopy(root, document, 70);
-            new StratStore(PackStores.At(root), utcNow: () => Past).TryLoad(document.Id);
+            new StratStore(PackStores.At(root), utcNow: () => _past).TryLoad(document.Id);
             WriteConflictingWorkingCopy(root, document, 65);
-            new StratStore(PackStores.At(root), utcNow: () => Past).TryLoad(document.Id);
+            new StratStore(PackStores.At(root), utcNow: () => _past).TryLoad(document.Id);
 
             string[] kept = SetAsideFiles(root, document);
-            await Assert.That(kept.Select(StepZero).Order()).IsEquivalentTo(BothCopies, CollectionOrdering.Matching);
+            await Assert.That(kept.Select(StepZero).Order()).IsEquivalentTo(_bothCopies, CollectionOrdering.Matching);
         }
         finally
         {
@@ -338,7 +352,7 @@ public class StratRevisionTests
             ReadOnly(folder);
 
             // The log file itself stays writable, so only the store's refusal keeps the stale edits out of it.
-            StratStore store = new(PackStores.At(root), utcNow: SteppingClock(Past.AddHours(1)));
+            StratStore store = new(PackStores.At(root), utcNow: SteppingClock(_past.AddHours(1)));
             StratLoadResult loaded = store.Load(document.Id);
             using (Assert.Multiple())
             {
@@ -368,10 +382,13 @@ public class StratRevisionTests
             {
                 await Assert.That(refused.Saved).IsFalse();
                 await Assert.That(refused.Reason).IsEqualTo(StratStore.UnresolvedReason);
-                await Assert.That(Revisions(store, document.Id)).IsEquivalentTo(ThreeRevisions, CollectionOrdering.Matching);
-                await Assert.That(StepZero(StratFile(root, document))).IsEqualTo(70).Because("the working copy is still on disk");
+                await Assert.That(Revisions(store, document.Id))
+                    .IsEquivalentTo(_threeRevisions, CollectionOrdering.Matching);
+                await Assert.That(StepZero(StratFile(root, document))).IsEqualTo(70)
+                    .Because("the working copy is still on disk");
                 await Assert.That(StratStore.IsPending(store.Materialize(document.Id, 3)!)).IsFalse();
-                await Assert.That(store.Materialize(document.Id, 3)!.Steps[0].AtSeconds).IsEqualTo(88).Because("the head survives in the log");
+                await Assert.That(store.Materialize(document.Id, 3)!.Steps[0].AtSeconds).IsEqualTo(88)
+                    .Because("the head survives in the log");
             }
 
             // Writable again: the next open sets the copy aside, and a commit lands on the head.
@@ -412,7 +429,7 @@ public class StratRevisionTests
             WriteConflictingWorkingCopy(root, document, 70);
             folder = Path.GetDirectoryName(StratFile(root, document))!;
             ReadOnly(folder);
-            StratStore store = new(PackStores.At(root), utcNow: SteppingClock(Past.AddHours(1)));
+            StratStore store = new(PackStores.At(root), utcNow: SteppingClock(_past.AddHours(1)));
             await Assert.That(store.IsUnresolved(document.Id)).IsTrue();
             Writable(folder);
 
@@ -451,7 +468,7 @@ public class StratRevisionTests
         string folder = "";
         try
         {
-            StratStore store = new(PackStores.At(root), utcNow: SteppingClock(Past));
+            StratStore store = new(PackStores.At(root), utcNow: SteppingClock(_past));
             StratDocument document = Minimal();
             store.Save(document, [], "created");
             folder = Path.GetDirectoryName(StratFile(root, document))!;
@@ -459,7 +476,8 @@ public class StratRevisionTests
             using StratSession session = Session(store);
             session.Open(document.Id);
             ReadOnly(folder);
-            JsonNode step = JsonSerializer.SerializeToNode(Step(3, 70, "A", "peek"), StratJsonContext.Default.StratStep)!;
+            JsonNode step =
+                JsonSerializer.SerializeToNode(Step(3, 70, "A", "peek"), StratJsonContext.Default.StratStep)!;
             session.Apply(PatchOp.AddOp("/steps/-", step));
             StratSaveResult result = session.Commit()!;
 
@@ -478,7 +496,7 @@ public class StratRevisionTests
             StratDocument reloaded = new StratStore(PackStores.At(root)).TryLoad(document.Id)!;
             using (Assert.Multiple())
             {
-                await Assert.That(File.ReadAllLines(LogFile(root, document)).Length).IsEqualTo(2);
+                await Assert.That((await File.ReadAllLinesAsync(LogFile(root, document))).Length).IsEqualTo(2);
                 await Assert.That(reloaded.Revision).IsEqualTo(2);
                 await Assert.That(reloaded.Steps.Count).IsEqualTo(3);
                 await Assert.That(reloaded.Steps.Select(s => s.Id).Distinct().Count()).IsEqualTo(3);

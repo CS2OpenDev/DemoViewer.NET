@@ -28,7 +28,7 @@ internal static class ZoneOverlayReader
     public static ZoneOverlayDocument Read(ReadOnlySpan<byte> json)
     {
         OverlayDto dto = JsonSerializer.Deserialize<OverlayDto>(json, _options)
-                         ?? throw new JsonException("the overlay is empty.");
+            ?? throw new JsonException("the overlay is empty.");
 
         if (dto.SchemaVersion < 1)
         {
@@ -54,14 +54,15 @@ internal static class ZoneOverlayReader
 
     private sealed class OverlayDto
     {
-        public int SchemaVersion { get; set; }
-        public string? MapName { get; set; }
-        public string? BasedOn { get; set; }
-        public List<ZoneDto>? Zones { get; set; }
-        public List<MergeDto>? Merges { get; set; }
-        public List<string>? Hidden { get; set; }
+        public int SchemaVersion { get; init; }
+        public string? MapName { get; init; }
+        public string? BasedOn { get; init; }
+        public List<ZoneDto>? Zones { get; init; }
+        public List<MergeDto>? Merges { get; init; }
+        public List<string>? Hidden { get; init; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class ZoneDto
     {
         public string? Name { get; set; }
@@ -72,6 +73,7 @@ internal static class ZoneOverlayReader
         public bool Replaces { get; set; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class MergeDto
     {
         public string? Into { get; set; }

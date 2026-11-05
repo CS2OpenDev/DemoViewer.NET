@@ -8,7 +8,6 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
 using DemoViewer.NET.Modules.RuleWorkbench;
-using DemoViewer.NET.Theming;
 
 #endregion
 
@@ -20,46 +19,34 @@ namespace DemoViewer.NET.Views.RuleWorkbench;
 ///     with a dim, colour-coded <em>type</em> badge on the right so the kind of each
 ///     suggestion (event, facet, context, kind, …) reads at a glance, matching the editor's role colours.
 /// </summary>
-public sealed class WorkbenchCompletionData : ICompletionData
+public sealed class WorkbenchCompletionData(WorkbenchCompletion completion) : ICompletionData
 {
-    private readonly WorkbenchCompletion _completion;
-
-    public WorkbenchCompletionData(WorkbenchCompletion completion) => _completion = completion;
-
     public IImage? Image => null;
-    public string Text => _completion.Text;
+    public string Text => completion.Text;
 
     /// <summary>The row: the term on the left, a dim colour-coded category badge on the right.</summary>
     public object Content => BuildRow();
 
-    public object Description => $"{_completion.Category} — {_completion.Detail}";
-    public double Priority => _completion.Priority;
+    public object Description => $"{completion.Category} — {completion.Detail}";
+    public double Priority => completion.Priority;
 
     public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs) =>
         textArea.Document.Replace(completionSegment, Text);
 
     private Grid BuildRow()
     {
-        Grid grid = new()
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            MinWidth = 220
-        };
+        Grid grid = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto"), MinWidth = 220 };
 
-        TextBlock term = new()
-        {
-            Text = _completion.Text,
-            VerticalAlignment = VerticalAlignment.Center
-        };
+        TextBlock term = new() { Text = completion.Text, VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(term, 0);
 
         TextBlock badge = new()
         {
-            Text = _completion.Category,
+            Text = completion.Category,
             FontSize = 10,
             Margin = new Thickness(12, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = new SolidColorBrush(CategoryColour(_completion.Category)),
+            Foreground = new SolidColorBrush(CategoryColour(completion.Category)),
             Opacity = 0.85
         };
         Grid.SetColumn(badge, 1);

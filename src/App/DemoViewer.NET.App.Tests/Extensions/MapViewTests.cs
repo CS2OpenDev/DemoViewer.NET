@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
@@ -122,7 +121,8 @@ public class MapViewTests
                 using (Assert.Multiple())
                 {
                     await Assert.That(layer.LayerId).IsEqualTo("ext.pack.a.heat");
-                    await Assert.That(built!.Renders).IsGreaterThan(0).Because("the filed layer is the one in the stack");
+                    await Assert.That(built!.Renders).IsGreaterThan(0)
+                        .Because("the filed layer is the one in the stack");
                 }
 
                 layer.Dispose();
@@ -156,13 +156,15 @@ public class MapViewTests
             Playback2DTimelineHarness.Pump();
             window.CaptureRenderedFrame();
 
-            Assert.Throws<ArgumentException>(() => view.AddLayer("sample.dots", () => new CountingLayer("sample.dots")));
+            Assert.Throws<ArgumentException>(() =>
+                view.AddLayer("sample.dots", () => new CountingLayer("sample.dots")));
 
             int before = first!.Renders;
             view.Invalidate();
             Playback2DTimelineHarness.Pump();
             window.CaptureRenderedFrame();
-            await Assert.That(first.Renders).IsGreaterThan(before).Because("the refused add left the first layer drawing");
+            await Assert.That(first.Renders).IsGreaterThan(before)
+                .Because("the refused add left the first layer drawing");
 
             // The refused add must leave the first handle in charge of the id: a factory it had recorded
             // over the first one would make this dispose a no-op and the layer would never leave.
@@ -198,8 +200,8 @@ public class MapViewTests
         {
             SdkSceneHosts.Install();
             MapView view = new();
-            ArgumentException refused = Assert.Throws<ArgumentException>(
-                () => view.AddLayer(id, () => new CountingLayer(id)))!;
+            ArgumentException refused =
+                Assert.Throws<ArgumentException>(() => view.AddLayer(id, () => new CountingLayer(id)));
             await Assert.That(refused.ParamName).IsEqualTo("id");
         });
     }
@@ -277,7 +279,10 @@ public class MapViewTests
             int before = MapBundleLeases.HoldersOf(Map);
             MapView first = new() { MapName = Map };
             MapView second = new() { MapName = Map };
-            Window window = new() { Width = 800, Height = 600, Content = new StackPanel { Children = { first, second } } };
+            Window window = new()
+            {
+                Width = 800, Height = 600, Content = new StackPanel { Children = { first, second } }
+            };
             window.Show();
             Playback2DTimelineHarness.Pump();
 
@@ -304,11 +309,7 @@ public class MapViewTests
             int decodes = MapBundleLeases.Decodes;
             int radarDecodes = MapAssetPipeline.RadarDecodes;
 
-            Playback2DFakeContext ctx = new()
-            {
-                MapName = Shared,
-                Gate = new FakeModuleFeatureGate()
-            };
+            Playback2DFakeContext ctx = new() { MapName = Shared, Gate = new FakeModuleFeatureGate() };
             ctx.AddPlayer(0, "Alpha", 2);
             Playback2DTabViewModel tab = new();
             tab.OnActivated(ctx);
@@ -336,7 +337,7 @@ public class MapViewTests
                     .Because("the tab and the extension read the same decode");
             }
 
-            offThread!.Dispose();
+            offThread.Dispose();
             window.Content = null;
             Playback2DTimelineHarness.Pump();
             tab.Dispose();

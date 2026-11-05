@@ -52,12 +52,7 @@ public class Playback2DTrajectoryRealDemoTests
         Playback2DFakeContext ctx = Playback2DFakeContext.Bare();
         ctx.Entities = view;
         ctx.Roster.AddRange(demo.Players.Values.Select(p =>
-            new PlayerRosterEntry
-            {
-                Slot = p.Slot,
-                SteamId = p.SteamId64,
-                Name = p.Name
-            }));
+            new PlayerRosterEntry { Slot = p.Slot, SteamId = p.SteamId64, Name = p.Name }));
 
         Playback2DTabViewModel vm = new();
         vm.OnActivated(ctx);
@@ -83,7 +78,7 @@ public class Playback2DTrajectoryRealDemoTests
         }
 
         Console.WriteLine($"[trail] smokegrenade_detonate @frame {detonate}; best smoke trail = " +
-                          $"{bestSmoke?.Points.Count ?? 0} pts");
+            $"{bestSmoke?.Points.Count ?? 0} pts");
 
         await Assert.That(bestSmoke).IsNotNull();
         await Assert.That(bestSmoke!.Points.Count).IsGreaterThanOrEqualTo(2); // a real multi-point flight path
@@ -158,7 +153,7 @@ public class Playback2DTrajectoryRealDemoTests
         }
 
         // Persistent smokes = present across (almost) the whole window, the landed cloud(s).
-        List<int> persistent = seen.Where(kv => kv.Value >= steps - 2).Select(kv => kv.Key).ToList();
+        List<int> persistent = [.. seen.Where(kv => kv.Value >= steps - 2).Select(kv => kv.Key)];
         if (persistent.Count == 0)
         {
             throw new SkipTestException("no smoke persisted the full post-detonation window");
@@ -166,7 +161,7 @@ public class Playback2DTrajectoryRealDemoTests
 
         float mostStationary = persistent.Select(s => maxPerAxisMove.GetValueOrDefault(s, 0f)).Min();
         Console.WriteLine($"[landed-smoke] persistent={persistent.Count} " +
-                          $"mostStationary maxPerAxisMove={mostStationary:F4}u over {steps} frames");
+            $"mostStationary maxPerAxisMove={mostStationary:F4}u over {steps} frames");
 
         await Assert.That(mostStationary).IsLessThan(0.5f); // < the SamePoint threshold ⇒ no re-append ⇒ fades
     }
@@ -176,7 +171,8 @@ public class Playback2DTrajectoryRealDemoTests
         for (int i = 0; i < frames.Count; i++)
         {
             if (frames[i].InnerMessages.Any(m => m is GameEventMessage gem &&
-                                                 gem.DecodedEvent.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    gem.DecodedEvent.Name.Equals(name,
+                        StringComparison.OrdinalIgnoreCase)))
             {
                 return i;
             }
@@ -187,18 +183,11 @@ public class Playback2DTrajectoryRealDemoTests
 
     // ── Minimal harness: a context whose Entities/snapshot are backed by the REAL entity view. ──
 
-    private sealed class Snap : IPlaybackSnapshot
+    private sealed class Snap(int frameIndex, int tick, IReadOnlyEntityView entities) : IPlaybackSnapshot
     {
-        public Snap(int frameIndex, int tick, IReadOnlyEntityView entities)
-        {
-            FrameIndex = frameIndex;
-            Tick = tick;
-            Entities = entities;
-        }
-
-        public int FrameIndex { get; }
-        public int Tick { get; }
-        public IReadOnlyEntityView Entities { get; }
+        public int FrameIndex { get; } = frameIndex;
+        public int Tick { get; } = tick;
+        public IReadOnlyEntityView Entities { get; } = entities;
         public IReadOnlyList<IPlayerState> Players { get; } = new List<IPlayerState>();
     }
 }

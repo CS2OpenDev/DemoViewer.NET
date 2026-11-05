@@ -20,10 +20,7 @@ public class PaneSetLevelRetentionTests
     public async Task Arrange_ReturnsExactlyOnePane_CoveringHost()
     {
         MapSpace space = Three();
-        SingleLayout layout = new()
-        {
-            ActiveLevelId = space.Levels[1].Id
-        };
+        SingleLayout layout = new() { ActiveLevelId = space.Levels[1].Id };
 
         IReadOnlyList<LevelPane> panes = layout.Arrange(space, LevelDisplayMode.Single, new SKSize(800, 600));
 
@@ -37,10 +34,7 @@ public class PaneSetLevelRetentionTests
     public async Task UnknownActiveId_FallsBackToTopMost()
     {
         MapSpace space = Three();
-        SingleLayout layout = new()
-        {
-            ActiveLevelId = new MapLevelId(31337)
-        };
+        SingleLayout layout = new() { ActiveLevelId = new MapLevelId(31337) };
 
         IReadOnlyList<LevelPane> panes = layout.Arrange(space, LevelDisplayMode.Single, new SKSize(800, 600));
 
@@ -135,10 +129,7 @@ public class PaneSetLevelRetentionTests
         panes.FindById(doomed)!.Camera.ManualOverride = true;
 
         // Off screen under a single pane: retained, not dropped.
-        SingleLayout single = new()
-        {
-            ActiveLevelId = space.Levels[^1].Id
-        };
+        SingleLayout single = new() { ActiveLevelId = space.Levels[^1].Id };
         panes.Policy = single;
         panes.Reconcile(space, LevelDisplayMode.Single, new SKSize(800, 600), _extent);
         await Assert.That(panes.RetainedCount).IsEqualTo(2);
@@ -163,10 +154,7 @@ public class PaneSetLevelRetentionTests
     public async Task PolicyRevision_ForcesReArrange_WhenTheActiveLevelChanges()
     {
         MapSpace space = Three();
-        SingleLayout single = new()
-        {
-            ActiveLevelId = space.Levels[2].Id
-        };
+        SingleLayout single = new() { ActiveLevelId = space.Levels[2].Id };
         PaneSet panes = new(single);
         panes.Reconcile(space, LevelDisplayMode.Single, new SKSize(800, 600), _extent);
         await Assert.That(panes.Panes[0].LevelId).IsEqualTo(space.Levels[2].Id);
@@ -183,10 +171,7 @@ public class PaneSetLevelRetentionTests
     public async Task SingleMode_SteadyStateReconcile_IsAllocationFree()
     {
         MapSpace space = Three();
-        SingleLayout single = new()
-        {
-            ActiveLevelId = space.Levels[1].Id
-        };
+        SingleLayout single = new() { ActiveLevelId = space.Levels[1].Id };
         PaneSet panes = new(single);
         for (int i = 0; i < 16; i++)
         {
@@ -217,10 +202,7 @@ public class PaneSetLevelRetentionTests
         MapLevelId hidden = space.Levels[0].Id;
         panes.FindById(hidden)!.Camera.ManualOverride = true;
 
-        SingleLayout single = new()
-        {
-            ActiveLevelId = space.Levels[^1].Id
-        };
+        SingleLayout single = new() { ActiveLevelId = space.Levels[^1].Id };
         panes.Policy = single;
         panes.Reconcile(space, LevelDisplayMode.Single, new SKSize(800, 600), _extent);
 

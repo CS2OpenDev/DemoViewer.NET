@@ -49,18 +49,12 @@ public class MatchOverviewLandingTests
         vm.DurationDisplay = "42:18";
         vm.TickRateDisplay = "64";
         vm.PlayerCountDisplay = "10";
-        foreach (string n in new[]
-                 {
-                     "s1mple", "b1t", "electroNic", "Perfecto", "BOT Rock"
-                 })
+        foreach (string n in new[] { "s1mple", "b1t", "electroNic", "Perfecto", "BOT Rock" })
         {
             vm.CounterTerrorists.Add(new OverviewPlayer(n, n.StartsWith("BOT", StringComparison.Ordinal)));
         }
 
-        foreach (string n in new[]
-                 {
-                     "ZywOo", "apEX", "flameZ", "mezii", "BOT Wolf"
-                 })
+        foreach (string n in new[] { "ZywOo", "apEX", "flameZ", "mezii", "BOT Wolf" })
         {
             vm.Terrorists.Add(new OverviewPlayer(n, n.StartsWith("BOT", StringComparison.Ordinal)));
         }
@@ -82,31 +76,18 @@ public class MatchOverviewLandingTests
         bool teamSplit = true,
         string path = "/demos/cached_de_dust2.dem")
     {
-        DemoCacheRecord r = new()
-        {
-            Path = path,
-            Size = 123456,
-            ModifiedTicks = 638000000000000000
-        };
+        DemoCacheRecord r = new() { Path = path, Size = 123456, ModifiedTicks = 638000000000000000 };
 
         if (tier >= DemoCacheTier.Header)
         {
-            r.Header = new TierStamp
-            {
-                Schema = DemoCacheRecord.HeaderSchema,
-                ComputedAtTicks = 1
-            };
+            r.Header = new TierStamp { Schema = DemoCacheRecord.HeaderSchema, ComputedAtTicks = 1 };
             r.Map = "de_dust2";
             r.Server = "FACEIT Server EU #4021";
         }
 
         if (tier >= DemoCacheTier.Parse)
         {
-            r.Parse = new TierStamp
-            {
-                Schema = DemoCacheRecord.ParseSchema,
-                ComputedAtTicks = 1
-            };
+            r.Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 };
             r.DurationSeconds = 2292;
             r.TickRate = 64;
             r.TickCount = 146688;
@@ -116,11 +97,7 @@ public class MatchOverviewLandingTests
             r.TClan = "FaZe";
             for (int i = 0; i < 24; i++)
             {
-                r.Rounds.Add(new CachedRound
-                {
-                    Number = i + 1,
-                    StartTickFrameClock = 1000 + i * 5000
-                });
+                r.Rounds.Add(new CachedRound { Number = i + 1, StartTickFrameClock = 1000 + i * 5000 });
             }
 
             string[] ct = ["s1mple", "b1t", "electroNic", "Perfecto", "BOT Rock"];
@@ -156,11 +133,7 @@ public class MatchOverviewLandingTests
         r.AnalysisState = analysisState;
         if (tier >= DemoCacheTier.Analysis)
         {
-            r.Analysis = new TierStamp
-            {
-                Schema = DemoCacheRecord.AnalysisSchema,
-                ComputedAtTicks = 1
-            };
+            r.Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 };
             r.AnalysisRoundCount = 22;
             r.CtSideWins = 12;
             r.TSideWins = 10;
@@ -232,12 +205,9 @@ public class MatchOverviewLandingTests
             "player_game",
             ["player_name", "team"],
             ["TotalK", "TotalD", "TotalA", "ADR", "HLTV", "CTW", "TW"],
-            rows.Select(r => new MetricRow(
-                    new Dictionary<string, object?>
-                    {
-                        ["player_name"] = r.Name,
-                        ["team"] = r.Team
-                    },
+            [
+                .. rows.Select(r => new MetricRow(
+                    new Dictionary<string, object?> { ["player_name"] = r.Name, ["team"] = r.Team },
                     new Dictionary<string, object?>
                     {
                         ["TotalK"] = r.K,
@@ -248,10 +218,10 @@ public class MatchOverviewLandingTests
                         // Per-team round wins by side. The CT-ending team took 6 as CT + 7 as T = 13; the
                         // T-ending team 6 + 3 = 9. So the SIDE split (CT 12 / T 10) differs from the TEAM
                         // totals (13 / 9), exactly the half-swap case the page must not conflate.
-                        ["CTW"] = r.Team == 3 ? 6 : 6,
+                        ["CTW"] = 6,
                         ["TW"] = r.Team == 3 ? 7 : 3
                     }))
-                .ToList());
+            ]);
     }
 
     /// <summary>
@@ -272,31 +242,22 @@ public class MatchOverviewLandingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            MatchOverviewTabViewModel vm = new();
             // Wired, so the hero's report button is actually REALIZED in every state this measures. The gate
             // needs an opener AND a path, and a bare `new()` would hide the button and measure a page
             // without it.
-            vm.ErrorReportOpener = _ => { };
-            vm.FilePath = "/demos/height.dem";
-            MatchOverviewTabView view = new()
-            {
-                DataContext = vm
-            };
+            MatchOverviewTabViewModel vm = new() { ErrorReportOpener = _ => { }, FilePath = "/demos/height.dem" };
+            MatchOverviewTabView view = new() { DataContext = vm };
             // Short window ON PURPOSE, and the measurement is the content panel's DESIRED height, not the
             // ScrollViewer's Extent. Extent is clamped up to the viewport by the content presenter, so in a
             // window taller than the page every state reports the same clamped number and the whole test
             // passes vacuously (measured: viewport 1600 → extent 1544 in all three states, including the
             // empty skeleton). DesiredSize comes from a measure pass with infinite height, so it is the real
             // content height; the overflow assert below proves we are on the unclamped side.
-            Window window = new()
-            {
-                Width = windowWidth,
-                Height = 700,
-                Content = view
-            };
+            Window window = new() { Width = windowWidth, Height = 700, Content = view };
             window.Show();
 
-            vm.BeginOpening("match730_pug_de_mirage_2024.dem", "Mirage", "Valve Counter-Strike 2 Server", "match730_pug_de_mirage_2024.dem");
+            vm.BeginOpening("match730_pug_de_mirage_2024.dem", "Mirage", "Valve Counter-Strike 2 Server",
+                "match730_pug_de_mirage_2024.dem");
             vm.SetStage(vm.SubjectKey, "Parsing demo…", 0.15);
             Pump();
 
@@ -304,18 +265,15 @@ public class MatchOverviewLandingTests
             Control content = (Control)scroller.Content!;
             double opening = content.DesiredSize.Height;
             await Assert.That(opening).IsGreaterThan(scroller.Viewport.Height)
-                .Because("the content must overflow the viewport, or the height would be clamped and equal by construction");
+                .Because(
+                    "the content must overflow the viewport, or the height would be clamped and equal by construction");
 
             ApplyParsedStage(vm);
             Pump();
             double parsed = content.DesiredSize.Height;
 
             vm.BeginAnalysis(vm.SubjectKey);
-            vm.SetAnalysis(vm.SubjectKey, GameTable(), new Dictionary<int, int?>
-            {
-                [0] = 13,
-                [1] = 9
-            }, 22);
+            vm.SetAnalysis(vm.SubjectKey, GameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
             vm.SetTeamScores(vm.SubjectKey, 13, 9);
             Pump();
             double ready = content.DesiredSize.Height;
@@ -346,20 +304,10 @@ public class MatchOverviewLandingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            MatchOverviewTabViewModel vm = new();
             // Opener and path both, or the gate hides the button and this measures a page without it.
-            vm.ErrorReportOpener = _ => { };
-            vm.FilePath = "/demos/height.dem";
-            MatchOverviewTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = windowWidth,
-                Height = 700,
-                Content = view
-            };
+            MatchOverviewTabViewModel vm = new() { ErrorReportOpener = _ => { }, FilePath = "/demos/height.dem" };
+            MatchOverviewTabView view = new() { DataContext = vm };
+            Window window = new() { Width = windowWidth, Height = 700, Content = view };
             window.Show();
 
             vm.BeginOpening("live.dem", "Mirage", "Server", "/demos/live.dem");
@@ -370,10 +318,7 @@ public class MatchOverviewLandingTests
 
             // Every cached tier, including the richest one: an analysis-tier record fills the scoreboard AND
             // the highlight section, which is the state most likely to overflow a reserved slot.
-            foreach (DemoCacheTier tier in new[]
-                     {
-                         DemoCacheTier.Header, DemoCacheTier.Parse, DemoCacheTier.Analysis
-                     })
+            foreach (DemoCacheTier tier in new[] { DemoCacheTier.Header, DemoCacheTier.Parse, DemoCacheTier.Analysis })
             {
                 vm.SetCachedRecord(Record(tier,
                     tier == DemoCacheTier.Analysis ? DemoAnalysisState.Indexed : DemoAnalysisState.Pending));
@@ -429,16 +374,8 @@ public class MatchOverviewLandingTests
         await HeadlessSession.RunOnUi(async () =>
         {
             MatchOverviewTabViewModel vm = new();
-            MatchOverviewTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1400,
-                Height = 700,
-                Content = view
-            };
+            MatchOverviewTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 1400, Height = 700, Content = view };
             window.Show();
 
             Button Copy() => view.GetVisualDescendants().OfType<Button>()
@@ -489,16 +426,8 @@ public class MatchOverviewLandingTests
         await HeadlessSession.RunOnUi(async () =>
         {
             MatchOverviewTabViewModel vm = new();
-            MatchOverviewTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = windowWidth,
-                Height = 700,
-                Content = view
-            };
+            MatchOverviewTabView view = new() { DataContext = vm };
+            Window window = new() { Width = windowWidth, Height = 700, Content = view };
             window.Show();
 
             Border Band() => view.GetVisualDescendants().OfType<Border>().First(b => b.MinHeight == 168);
@@ -515,13 +444,9 @@ public class MatchOverviewLandingTests
             Pump();
             double openingWith = Band().Bounds.Height;
 
-            List<(string State, double Without, double With)> rows = [];
-            rows.Add(("opening", openingWithout, openingWith));
+            List<(string State, double Without, double With)> rows = [("opening", openingWithout, openingWith)];
 
-            foreach (DemoCacheTier tier in new[]
-                     {
-                         DemoCacheTier.Header, DemoCacheTier.Parse, DemoCacheTier.Analysis
-                     })
+            foreach (DemoCacheTier tier in new[] { DemoCacheTier.Header, DemoCacheTier.Parse, DemoCacheTier.Analysis })
             {
                 vm.ErrorReportOpener = null;
                 vm.SetCachedRecord(Record(tier,
@@ -546,8 +471,8 @@ public class MatchOverviewLandingTests
 
                 await Assert.That(slackWhenHidden).IsEqualTo(0).Within(0.5)
                     .Because("a hidden button must take no WIDTH either: the button's column carries its "
-                             + "gap as a Margin, because a Grid's ColumnSpacing applies to a zero-width "
-                             + "column too and would leave the plate 20px short of flush right");
+                        + "gap as a Margin, because a Grid's ColumnSpacing applies to a zero-width "
+                        + "column too and would leave the plate 20px short of flush right");
             }
         });
     }
@@ -574,16 +499,8 @@ public class MatchOverviewLandingTests
         await HeadlessSession.RunOnUi(async () =>
         {
             MatchOverviewTabViewModel vm = new();
-            MatchOverviewTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1400,
-                Height = 700,
-                Content = view
-            };
+            MatchOverviewTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 1400, Height = 700, Content = view };
             window.Show();
 
             Button Report() => view.GetVisualDescendants().OfType<Button>()
@@ -772,11 +689,7 @@ public class MatchOverviewLandingTests
             MatchOverviewTabViewModel vm = new();
 
             // Demo A: a complete run, with its authoritative score.
-            Dictionary<int, int?> scores = new()
-            {
-                [0] = 13,
-                [1] = 9
-            };
+            Dictionary<int, int?> scores = new() { [0] = 13, [1] = 9 };
             vm.BeginOpening("first.dem", "Mirage", "Server", "first.dem");
             ApplyParsedStage(vm);
             vm.BeginAnalysis(vm.SubjectKey);
@@ -837,11 +750,7 @@ public class MatchOverviewLandingTests
             vm.SetStage("/demos/alpha.dem", "Parsing demo…", 0.9);
             vm.SetTeamNames("/demos/alpha.dem", "NAVI", "FaZe");
             vm.SetTeamScores("/demos/alpha.dem", 13, 9);
-            vm.SetAnalysis("/demos/alpha.dem", GameTable(), new Dictionary<int, int?>
-            {
-                [0] = 13,
-                [1] = 9
-            }, 22);
+            vm.SetAnalysis("/demos/alpha.dem", GameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
             vm.Fail("/demos/alpha.dem", "alpha exploded");
 
             using (Assert.Multiple())
@@ -972,7 +881,7 @@ public class MatchOverviewLandingTests
                         .Because("every round was also won from one of the two sides");
                     await Assert.That(ctTeam).IsNotEqualTo(ctSide)
                         .Because("this demo has a half swap — if these matched, the test could not tell a "
-                                 + "team total from a side total and the original defect would slip back in");
+                            + "team total from a side total and the original defect would slip back in");
                 }
 
                 // The team totals come from CCSTeam.m_iScore, the same source the Library card badge reads.
@@ -1021,11 +930,7 @@ public class MatchOverviewLandingTests
             // Finishing the load stops the creep and pins the bar at full.
             ApplyParsedStage(vm);
             vm.BeginAnalysis(vm.SubjectKey);
-            vm.SetAnalysis(vm.SubjectKey, GameTable(), new Dictionary<int, int?>
-            {
-                [0] = 13,
-                [1] = 9
-            }, 22);
+            vm.SetAnalysis(vm.SubjectKey, GameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
             vm.SetTeamScores(vm.SubjectKey, 13, 9);
             await Assert.That(vm.Progress).IsEqualTo(1.0);
 
@@ -1102,7 +1007,7 @@ public class MatchOverviewLandingTests
         // Derived, not pinned: the bundled sample's source match can change (it has: a matchmaking
         // demo with one 'DemoRecorder' became a tournament demo with two 'CSTV' proxies), and a
         // hardcoded total turns that into a failure that looks like a regression but is not one.
-        List<PlayerInfo> proxies = parsed.Players.Values.Where(p => p.IsHltv).ToList();
+        List<PlayerInfo> proxies = [.. parsed.Players.Values.Where(p => p.IsHltv)];
         await Assert.That(proxies).IsNotEmpty()
             .Because("the sample is a GOTV recording, so at least one proxy holds a userinfo slot");
         await Assert.That(parsed.Players.Count).IsEqualTo(10 + proxies.Count)
@@ -1114,7 +1019,7 @@ public class MatchOverviewLandingTests
             await Assert.That(vm.CounterTerrorists.Count).IsEqualTo(5);
             await Assert.That(vm.Terrorists.Count).IsEqualTo(5);
             // No proxy, whatever it is named, reaches a roster.
-            IReadOnlyList<string> rostered = vm.CounterTerrorists.Concat(vm.Terrorists).Select(p => p.Name).ToList();
+            IReadOnlyList<string> rostered = [.. vm.CounterTerrorists.Concat(vm.Terrorists).Select(p => p.Name)];
             foreach (PlayerInfo proxy in proxies)
             {
                 await Assert.That(rostered).DoesNotContain(proxy.Name);
@@ -1138,16 +1043,8 @@ public class MatchOverviewLandingTests
         await HeadlessSession.RunOnUi(async () =>
         {
             MatchOverviewTabViewModel vm = new();
-            MatchOverviewTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1400,
-                Height = 700,
-                Content = view
-            };
+            MatchOverviewTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 1400, Height = 700, Content = view };
             window.Show();
 
             static Border Card(MatchOverviewTabView v)
@@ -1211,7 +1108,7 @@ public class MatchOverviewLandingTests
 
                 await Assert.That(claimsComplete && aSlotSaysMissing).IsFalse()
                     .Because($"[{state}] the chip reads '{vm.CompletenessLabel}' while a slot says analysis is "
-                             + $"missing (stats: '{vm.PlayerStatsMessage}' / highlights: '{vm.HighlightsMessage}')");
+                        + $"missing (stats: '{vm.PlayerStatsMessage}' / highlights: '{vm.HighlightsMessage}')");
 
                 // And the converse: any slot that says something is missing must offer a way to fix it.
                 if (vm.HighlightsMessage.Length > 0 && !vm.HasHighlights)
@@ -1228,11 +1125,7 @@ public class MatchOverviewLandingTests
             ApplyParsedStage(live);
             await Check(live, "live/parsed");
             live.BeginAnalysis(live.SubjectKey);
-            live.SetAnalysis(live.SubjectKey, GameTable(), new Dictionary<int, int?>
-            {
-                [0] = 13,
-                [1] = 9
-            }, 22);
+            live.SetAnalysis(live.SubjectKey, GameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
             live.SetTeamScores(live.SubjectKey, 13, 9);
             await Check(live, "live/ready");
             await Assert.That(live.Completeness).IsNotEqualTo(OverviewCompleteness.Full)
@@ -1249,14 +1142,17 @@ public class MatchOverviewLandingTests
             // a gate that allows one heavy job machine-wide.
             await Assert.That(live.HasHighlightsAction).IsFalse()
                 .Because("the open is already harvesting — offering to start it again is both a "
-                         + "contradiction and a wasted heavy pass");
+                    + "contradiction and a wasted heavy pass");
             await Assert.That(live.HighlightsMessage).IsEqualTo("Harvesting highlights…")
                 .Because("which is only defensible while that sentence is actually true");
 
             // Every cached tier, including the failed one.
             foreach ((DemoCacheTier tier, DemoAnalysisState st) in new[]
                      {
-                         (DemoCacheTier.Header, DemoAnalysisState.Pending), (DemoCacheTier.Parse, DemoAnalysisState.Pending), (DemoCacheTier.Analysis, DemoAnalysisState.Failed), (DemoCacheTier.Analysis, DemoAnalysisState.Indexed)
+                         (DemoCacheTier.Header, DemoAnalysisState.Pending),
+                         (DemoCacheTier.Parse, DemoAnalysisState.Pending),
+                         (DemoCacheTier.Analysis, DemoAnalysisState.Failed),
+                         (DemoCacheTier.Analysis, DemoAnalysisState.Indexed)
                      })
             {
                 MatchOverviewTabViewModel c = new(computeFullStats: _ => { });
@@ -1347,10 +1243,8 @@ public class MatchOverviewLandingTests
             // intents, and conflating them would make a glance at the cache cost a full load.
             vm.SetCachedRecord(Record(DemoCacheTier.Parse));
             vm.ComputeFullStatsCommand.Execute(null);
-            await Assert.That(computed).IsEquivalentTo(new List<string>
-            {
-                "/demos/cached_de_dust2.dem"
-            }, CollectionOrdering.Matching);
+            await Assert.That(computed).IsEquivalentTo(new List<string> { "/demos/cached_de_dust2.dem" },
+                CollectionOrdering.Matching);
         });
     }
 
@@ -1473,11 +1367,7 @@ public class MatchOverviewLandingTests
 
             vm.SetStage(key, "Parsing demo…", 0.5);
             vm.BeginAnalysis(key);
-            vm.SetAnalysis(key, GameTable(), new Dictionary<int, int?>
-            {
-                [0] = 13,
-                [1] = 9
-            }, 22);
+            vm.SetAnalysis(key, GameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
             vm.Fail(key, "boom");
 
             using (Assert.Multiple())
@@ -1523,20 +1413,14 @@ public class MatchOverviewLandingTests
             }
 
             vm.OpenDemoCommand.Execute(null);
-            await Assert.That(opened).IsEquivalentTo(new List<string>
-            {
-                "/demos/cached_de_dust2.dem"
-            }, CollectionOrdering.Matching);
+            await Assert.That(opened).IsEquivalentTo(new List<string> { "/demos/cached_de_dust2.dem" },
+                CollectionOrdering.Matching);
 
             // A real open re-enables them through the normal fill path.
             vm.BeginOpening("x.dem", "Nuke", "Server", "/demos/x.dem");
             ApplyParsedStage(vm);
             vm.BeginAnalysis(vm.SubjectKey);
-            vm.SetAnalysis(vm.SubjectKey, GameTable(), new Dictionary<int, int?>
-            {
-                [0] = 13,
-                [1] = 9
-            }, 22);
+            vm.SetAnalysis(vm.SubjectKey, GameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
             using (Assert.Multiple())
             {
                 await Assert.That(vm.CanExploreStats).IsTrue();

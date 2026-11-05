@@ -6,7 +6,6 @@ using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Playback2D.Timeline;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -22,22 +21,23 @@ public class RoundTrackRoundFactsTests
 {
     private static RoundFacts Round(int number, int winner) => new()
     {
-        Number = number,
-        IsLive = true,
-        WinnerSide = winner
+        Number = number, IsLive = true, WinnerSide = winner
     };
 
     [Test]
     public async Task WithRows_BandsTintByRoundNumber_AndRoundEndIsNotConsulted()
     {
-        FakeTimelineData data = new(300);
-        data.EventFrames["round_freeze_end"] = [50, 100, 200];
-        // A round_end that would paint round 1 for T; the facts say CT, and the facts win.
-        data.Events["round_end"] = [new TimelineEventRecord(90, 90, new Dictionary<string, string> { ["winner"] = "2" })];
-        RoundTrack track = new()
+        FakeTimelineData data = new(300)
         {
-            Facts = [Round(1, 3), Round(2, 0), Round(3, 2)]
+            EventFrames = { ["round_freeze_end"] = [50, 100, 200] },
+            // A round_end that would paint round 1 for T; the facts say CT, and the facts win.
+            Events =
+            {
+                ["round_end"] =
+                    [new TimelineEventRecord(90, 90, new Dictionary<string, string> { ["winner"] = "2" })]
+            }
         };
+        RoundTrack track = new() { Facts = [Round(1, 3), Round(2, 0), Round(3, 2)] };
 
         IReadOnlyList<TimelineBand> bands = track.BuildBands(data);
 
@@ -56,13 +56,16 @@ public class RoundTrackRoundFactsTests
     [Test]
     public async Task WithoutRows_TheRoundEndTintIsUnchanged()
     {
-        FakeTimelineData data = new(300);
-        data.EventFrames["round_freeze_end"] = [0, 100];
-        data.Events["round_end"] = [new TimelineEventRecord(90, 90, new Dictionary<string, string> { ["winner"] = "2" })];
-        RoundTrack track = new()
+        FakeTimelineData data = new(300)
         {
-            Facts = []
+            EventFrames = { ["round_freeze_end"] = [0, 100] },
+            Events =
+            {
+                ["round_end"] =
+                    [new TimelineEventRecord(90, 90, new Dictionary<string, string> { ["winner"] = "2" })]
+            }
         };
+        RoundTrack track = new() { Facts = [] };
 
         IReadOnlyList<TimelineBand> bands = track.BuildBands(data);
 
@@ -79,8 +82,7 @@ public class RoundTrackRoundFactsTests
     [Test]
     public async Task WithoutASource_AndNoRoundEnd_EveryBandIsNeutral()
     {
-        FakeTimelineData data = new(300);
-        data.EventFrames["round_freeze_end"] = [50, 100, 200];
+        FakeTimelineData data = new(300) { EventFrames = { ["round_freeze_end"] = [50, 100, 200] } };
         RoundTrack track = new();
 
         IReadOnlyList<TimelineBand> bands = track.BuildBands(data);
@@ -110,12 +112,8 @@ public class RoundTrackRoundFactsTests
     [Test]
     public async Task ARoundBeyondTheBands_IsIgnored()
     {
-        FakeTimelineData data = new(300);
-        data.EventFrames["round_freeze_end"] = [0, 100];
-        RoundTrack track = new()
-        {
-            Facts = [Round(1, 2), Round(7, 3)]
-        };
+        FakeTimelineData data = new(300) { EventFrames = { ["round_freeze_end"] = [0, 100] } };
+        RoundTrack track = new() { Facts = [Round(1, 2), Round(7, 3)] };
 
         IReadOnlyList<TimelineBand> bands = track.BuildBands(data);
 
@@ -134,7 +132,8 @@ public class RoundTrackRoundFactsTests
     {
         DemoCacheStore store = new(null);
         DemoCacheRecord record = new() { Path = "/d/a.dem", Size = 1, ModifiedTicks = 1 };
-        record.WriteRoundFacts(new RoundFactsRows { Schema = RoundFactsRecords.Schema, Rounds = [Round(1, 3)] }, "rf-A");
+        record.WriteRoundFacts(new RoundFactsRows { Schema = RoundFactsRecords.Schema, Rounds = [Round(1, 3)] },
+            "rf-A");
         store.Upsert(record);
         RoundFactsSource source = new(store);
         IRoundFactsSource? handed = null;

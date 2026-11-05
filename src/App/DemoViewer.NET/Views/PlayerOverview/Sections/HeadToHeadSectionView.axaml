@@ -87,7 +87,8 @@
                 <TextBlock Grid.Column="0" Classes="col-label" Text="DATE" />
                 <TextBlock Grid.Column="1" Classes="col-label" Text="MAP" />
                 <TextBlock Grid.Column="2" Classes="col-label" Text="W/L" />
-                <TextBlock Grid.Column="3" Classes="col-label num" Text="K-D" ToolTip.Tip="Kills on them and deaths to them" />
+                <TextBlock Grid.Column="3" Classes="col-label num" Text="K-D"
+                           ToolTip.Tip="Kills on them and deaths to them" />
             </Grid>
 
             <ListBox x:Name="HeadToHeadList" Classes="data-list" MaxHeight="260" ItemsSource="{Binding Rows}"
@@ -104,7 +105,8 @@
                             <TextBlock Grid.Column="1" Text="{Binding MapText}" />
                             <TextBlock Grid.Column="2" Text="{Binding ResultText}" FontWeight="SemiBold"
                                        Classes.win="{Binding IsWin}" Classes.loss="{Binding IsLoss}" />
-                            <TextBlock Grid.Column="3" Classes="num" Text="{Binding KillsText}" IsVisible="{Binding HasKills}" />
+                            <TextBlock Grid.Column="3" Classes="num" Text="{Binding KillsText}"
+                                       IsVisible="{Binding HasKills}" />
                             <TextBlock Grid.Column="3" Classes="note" TextAlignment="Right" Margin="0 0 8 0"
                                        Text="{Binding KillsNote}" IsVisible="{Binding !HasKills}" />
                         </Grid>

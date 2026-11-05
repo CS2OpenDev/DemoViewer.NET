@@ -34,7 +34,8 @@ public static class StratStepCarry
     ///     The new step's time. A lurker whose rotate is at or before it, to a place that resolves, is not carried: the
     ///     rotate has moved it. Null, or a time before the rotate, carries the lurker where it stood.
     /// </param>
-    public static List<StepPosition> PositionsAt(StratDocument document, int stepIndex, ThrowOriginResolver? throwOrigins,
+    public static List<StepPosition> PositionsAt(StratDocument document, int stepIndex,
+        ThrowOriginResolver? throwOrigins,
         PlaceCentreResolver? placeCentres = null, double? atSeconds = null)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -55,7 +56,8 @@ public static class StratStepCarry
         foreach (string slot in StratVocabulary.Slots.Concat(StratVocabulary.OpponentSlots))
         {
             StratSceneProjection.SlotPlan plan = StratSceneProjection.PlanOf(path, ticks, origins, slot, places);
-            if (plan.Moved || (atSeconds is { } at && placeCentres is not null && HasRotated(document, last, slot, at, placeCentres)))
+            if (plan.Moved || (atSeconds is { } at && placeCentres is not null
+                    && HasRotated(document, last, slot, at, placeCentres)))
             {
                 continue;
             }
@@ -70,13 +72,17 @@ public static class StratStepCarry
                 }
 
                 // An authored entry the projection did not turn is carried as stored, unknown fields included.
-                StepPosition? stored = document.Steps[k].Positions.LastOrDefault(p => string.Equals(p.Slot, slot, StringComparison.Ordinal)
-                                                                                     && double.IsFinite(p.X) && double.IsFinite(p.Y));
+                StepPosition? stored = document.Steps[k].Positions.LastOrDefault(p =>
+                    string.Equals(p.Slot, slot, StringComparison.Ordinal)
+                    && double.IsFinite(p.X) && double.IsFinite(p.Y));
                 StepPosition copy = stored is not null && Same(stored, placement)
                     ? Clone(stored)
                     : new StepPosition
                     {
-                        Slot = slot, X = Round(placement.X), Y = Round(placement.Y), LevelMinZ = placement.LevelMinZ,
+                        Slot = slot,
+                        X = Round(placement.X),
+                        Y = Round(placement.Y),
+                        LevelMinZ = placement.LevelMinZ,
                         YawDegrees = placement.YawDegrees is { } yaw ? Round(yaw) : null
                     };
                 copy.Carried = true;
@@ -90,7 +96,8 @@ public static class StratStepCarry
     }
 
     // Whether a rotate of a step up to `last` that names the slot fires by `atSeconds` and has a place to go to.
-    private static bool HasRotated(StratDocument document, int last, string slot, double atSeconds, PlaceCentreResolver centres)
+    private static bool HasRotated(StratDocument document, int last, string slot, double atSeconds,
+        PlaceCentreResolver centres)
     {
         if (!StratVocabulary.Slots.Contains(slot))
         {
@@ -103,8 +110,10 @@ public static class StratStepCarry
         {
             StratStep step = document.Steps[k];
             if (StratStepLines.Involves(step, slot)
-                && StratSceneProjection.RotateTickOf(step, StratClock.StratTickOf(clock, step.AtSeconds), clock) is { } tick
-                && tick <= at && (StratLocations.HasPoint(step.Lurk!.Rotate!.To) || centres(step.Lurk.Rotate.To!.Place!, 0) is not null))
+                && StratSceneProjection.RotateTickOf(step, StratClock.StratTickOf(clock, step.AtSeconds), clock) is
+                    { } tick
+                && tick <= at && (StratLocations.HasPoint(step.Lurk!.Rotate!.To)
+                    || centres(step.Lurk.Rotate.To!.Place!, 0) is not null))
             {
                 return true;
             }
@@ -114,8 +123,9 @@ public static class StratStepCarry
     }
 
     private static bool Same(StepPosition stored, TokenPlacement placement) =>
-        (float)stored.X == placement.X && (float)stored.Y == placement.Y
-                                       && (stored.YawDegrees is { } yaw ? (float?)yaw : null) == placement.YawDegrees;
+        ((float)stored.X).Equals(placement.X) && ((float)stored.Y).Equals(placement.Y)
+        && Nullable.Equals(stored.YawDegrees is { } yaw ? (float?)yaw : null,
+            placement.YawDegrees);
 
     private static StepPosition Clone(StepPosition position) =>
         JsonSerializer.Deserialize(JsonSerializer.Serialize(position, StratJsonContext.Default.StepPosition),

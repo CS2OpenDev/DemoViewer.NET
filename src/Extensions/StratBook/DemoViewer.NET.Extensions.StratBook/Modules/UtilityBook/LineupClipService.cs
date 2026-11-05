@@ -68,7 +68,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     ///     How long a pair must go unplanned before the sweep deletes it. A re-index drops a demo's rows for
     ///     a moment, and its lineups with them.
     /// </summary>
-    public static readonly TimeSpan DefaultOrphanGrace = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan DefaultOrphanGrace = TimeSpan.FromMinutes(10);
 
     private readonly Func<IReadOnlyList<GrenadeCluster>> _clusters;
     private readonly Func<bool> _complete;
@@ -83,7 +83,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     private readonly string? _directory;
     private readonly Func<bool> _enabled;
     private readonly Func<string, bool>? _fileExists;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Action<string>? _log;
     private readonly Func<long> _maxBytes;
     private readonly TimeSpan _orphanGrace;
@@ -97,18 +97,18 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     private readonly Dictionary<string, int> _ranks = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _requested = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILineupClipRenderer _renderer;
-    private readonly object _sweepGate = new();
+    private readonly Lock _sweepGate = new();
 
     // One plan at a time: Plan and Request share _planned, _ranks and the directory listing.
-    private readonly object _planLock = new();
-    private readonly object _soonGate = new();
+    private readonly Lock _planLock = new();
+    private readonly Lock _soonGate = new();
     private readonly TimeSpan _planDebounce;
     private bool _soonScheduled;
     private Task _soon = Task.CompletedTask;
 
     // Held by EnforceCap from its listing to its last delete, and by Request while it saves a pair, so a
     // pair asked for mid-pass is either seen as just used or evicted and then un-evicted.
-    private readonly object _capGate = new();
+    private readonly Lock _capGate = new();
     private readonly Action<string, string> _writeText;
     private bool _disposed;
     private bool _released;
@@ -192,14 +192,29 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        if (_disposed)
+        lock (_gate)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
         }
 
-        _disposed = true;
         _cts.Cancel();
         _cts.Dispose();
+    }
+
+    private bool IsDisposed
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _disposed;
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -294,8 +309,9 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
             }
 
             _soonScheduled = true;
-            // The debounce is only a timer; the planning itself is a queue item.
-            _soon = Task.Delay(_planDebounce).ContinueWith(_ =>
+            // The debounce is only a timer and is never cut short: Plan itself answers a stopped service. The
+            // planning is a queue item.
+            _soon = Task.Delay(_planDebounce, CancellationToken.None).ContinueWith(_ =>
             {
                 lock (_soonGate)
                 {
@@ -308,7 +324,8 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
                     {
                         Plan();
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                                   or InvalidOperationException)
                     {
                         _log?.Invoke($"lineup clips: plan: {ex.Message}");
                     }
@@ -320,13 +337,13 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
     private int PlanLocked()
     {
-        bool released;
+        bool stopped;
         lock (_gate)
         {
-            released = _released;
+            stopped = _released || _disposed;
         }
 
-        if (released || _disposed || _directory is null || !_enabled())
+        if (stopped || _directory is null || !_enabled())
         {
             return 0;
         }
@@ -397,7 +414,8 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
             bool gif = exists(job.GifPath);
             bool setpos = exists(job.SetposPath);
             if ((gif && setpos) || IsEvicted(job, evicted) || Adopt(job)
-                || (_planned.TryGetValue(job.Stem, out string? key) && string.Equals(key, job.Key, StringComparison.Ordinal)
+                || (_planned.TryGetValue(job.Stem, out string? key)
+                    && string.Equals(key, job.Key, StringComparison.Ordinal)
                     && !waiting.Contains(job.Stem)))
             {
                 continue;
@@ -549,7 +567,8 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
         if (LineupClipPlanner.PlanEvery(_clusters(), _directory)
                 .FirstOrDefault(j => (j.LineupId == lineupId || j.AliasIds.Contains(lineupId))
-                                     && (techniqueKey is null || string.Equals(j.TechniqueKey, techniqueKey, StringComparison.Ordinal)))
+                    && (techniqueKey is null || string.Equals(j.TechniqueKey, techniqueKey,
+                        StringComparison.Ordinal)))
             is not { } job)
         {
             return 0;
@@ -593,7 +612,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     }
 
     /// <summary>What a pair is guessed to take before any is on disk.</summary>
-    internal const long DefaultPairBytes = 2L * 1024 * 1024;
+    private const long DefaultPairBytes = 2L * 1024 * 1024;
 
     // The candidates, best first, that the cap has room for. Room is guessed at the mean pair size; past it, a
     // lineup goes in only by displacing a lower-ranked pair, never an equal one, so a full cap stops the renders.
@@ -974,6 +993,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
             _idle = idle;
             WorkerTask = idle.Task;
         }
+
         if (_jobs is null)
         {
             _ = Task.Run(() => DrainAsync(_ct), CancellationToken.None);
@@ -987,7 +1007,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     // A queue job, or the pool where there is no queue.
     private Task RunJob(string title, Action work, JobOptions options) =>
         _jobs is null
-            ? Task.Run(work)
+            ? Task.Run(work, CancellationToken.None)
             : _jobs.RunAsync(title, _ =>
             {
                 work();
@@ -1008,9 +1028,10 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     // One queue item at a time: the next demo is chosen when the last one ends, so a replan re-ranks it.
     private void SubmitNext(IExtensionJobs jobs)
     {
-        if (_disposed || NextDemo() is not { } demo)
+        bool disposed = IsDisposed;
+        if (disposed || NextDemo() is not { } demo)
         {
-            Stop(!_disposed);
+            Stop(!disposed);
             return;
         }
 
@@ -1019,7 +1040,8 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
         CancellationToken ct = _ct;
         IJobHandle handle = jobs.Enqueue(JobRequest.OnDemo(title, demo.Path,
             job => RenderBatchAsync(demo.Path, job.Parsed, job, ct),
-            new JobOptions(StratBookJobKinds.LineupClips, demo.Requested ? JobPriority.UserRequested : JobPriority.Background)));
+            new JobOptions(StratBookJobKinds.LineupClips,
+                demo.Requested ? JobPriority.UserRequested : JobPriority.Background)));
         if (handle.Status == JobStatus.Rejected)
         {
             Stop(false);
@@ -1055,7 +1077,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
         }
 
         idle?.TrySetResult();
-        if (restart && !_disposed)
+        if (restart && !IsDisposed)
         {
             StartWorker();
         }
@@ -1075,8 +1097,11 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
             LineupClipJob best = _pending
                 .OrderByDescending(j => _requested.Contains(j.Stem)).ThenByDescending(j => j.Throws).First();
-            List<LineupClipJob> batch = [.. _pending
-                .Where(j => string.Equals(j.DemoPath, best.DemoPath, StringComparison.OrdinalIgnoreCase))];
+            List<LineupClipJob> batch =
+            [
+                .. _pending
+                    .Where(j => string.Equals(j.DemoPath, best.DemoPath, StringComparison.OrdinalIgnoreCase))
+            ];
             return new NextBatch(best.DemoPath, best.Map, batch.Count, batch.Any(j => _requested.Contains(j.Stem)));
         }
     }
@@ -1085,13 +1110,15 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     private async Task RenderBatchAsync(string demoPath, ParsedDemo? parsed, IJobContext? job, CancellationToken ct)
     {
         List<LineupClipJob> batch;
+        bool disposed;
         lock (_gate)
         {
+            disposed = _disposed;
             batch = [.. _pending.Where(p => string.Equals(p.DemoPath, demoPath, StringComparison.OrdinalIgnoreCase))];
             _pending.RemoveAll(p => string.Equals(p.DemoPath, demoPath, StringComparison.OrdinalIgnoreCase));
         }
 
-        if (batch.Count == 0 || _disposed)
+        if (batch.Count == 0 || disposed)
         {
             return;
         }
@@ -1170,13 +1197,13 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 public sealed class LineupClipRenderer : ILineupClipRenderer
 {
     /// <summary>The refusal when the host exports nothing: the browser head, which plans no clips either.</summary>
-    public const string NoExportRefusal = "This host does not export.";
+    private const string NoExportRefusal = "This host does not export.";
 
     private readonly Action<string>? _log;
     private readonly Func<SceneExportClip, CancellationToken, Task<SceneExportOutcome>> _render;
 
     /// <summary>Where a GIF is written until it is finished; the directory listing never sees it.</summary>
-    public const string PartialDirectoryName = ".rendering";
+    private const string PartialDirectoryName = ".rendering";
 
     /// <param name="export">The host's scene export; null renders nothing.</param>
     /// <param name="log">Line sink for the encoder choice, its own output and a failed clip.</param>
@@ -1214,10 +1241,7 @@ public sealed class LineupClipRenderer : ILineupClipRenderer
         // the same one per clip without a second read.
         SceneExportScene scene = new()
         {
-            Frames = demo.Frames,
-            TickRate = demo.TickRate,
-            MapName = jobs[0].Map,
-            Palette = ScenePalette.Dark
+            Frames = demo.Frames, TickRate = demo.TickRate, MapName = jobs[0].Map, Palette = ScenePalette.Dark
         };
 
         List<LineupClipJob> rendered = [];
@@ -1232,8 +1256,7 @@ public sealed class LineupClipRenderer : ILineupClipRenderer
                 Directory.CreateDirectory(Path.GetDirectoryName(partial)!);
                 SceneExportClip clip = LineupClipPlanner.BuildClip(job, scene) with
                 {
-                    OutputPath = partial,
-                    Log = _log
+                    OutputPath = partial, Log = _log
                 };
 
                 if (await _render(clip, ct).ConfigureAwait(false) is { Completed: false } refused)
@@ -1269,5 +1292,4 @@ public sealed class LineupClipRenderer : ILineupClipRenderer
             _log?.Invoke($"lineup clips: {partial}: {ex.Message}");
         }
     }
-
 }

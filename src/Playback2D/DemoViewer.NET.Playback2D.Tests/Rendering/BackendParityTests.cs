@@ -1,9 +1,9 @@
 #region
 
 using System.Globalization;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Goldens;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
 #endregion
@@ -56,11 +56,7 @@ public class BackendParityTests
     ///     </para>
     /// </summary>
     private static readonly GoldenTolerance _provisionalCrossBackend =
-        GoldenTolerance.CrossBackend with
-        {
-            OutlierChannelDelta = 48,
-            MinWindowSsim = 0.85
-        };
+        GoldenTolerance.CrossBackend with { OutlierChannelDelta = 48, MinWindowSsim = 0.85 };
 
     [Test]
     [Arguments("synthetic-empty")]

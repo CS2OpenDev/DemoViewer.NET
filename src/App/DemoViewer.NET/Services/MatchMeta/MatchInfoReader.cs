@@ -12,7 +12,11 @@ namespace DemoViewer.NET.Services.MatchMeta;
 /// <param name="ReservationId">The matchmaking reservation, the file name's first number, or null.</param>
 /// <param name="TeamScores">The final score, in the file's team order, or empty.</param>
 /// <param name="MatchResult">Valve's match result code from the last round, or null.</param>
-public sealed record MatchInfo(DateTime? MatchTimeUtc, ulong? ReservationId, IReadOnlyList<int> TeamScores, int? MatchResult);
+public sealed record MatchInfo(
+    DateTime? MatchTimeUtc,
+    ulong? ReservationId,
+    IReadOnlyList<int> TeamScores,
+    int? MatchResult);
 
 /// <summary>
 ///     A protobuf wire walk over <c>CDataGCCStrike15_v2_MatchInfo</c>: <c>matchtime</c> (2) at the top, and
@@ -159,22 +163,22 @@ public static class MatchInfoReader
                 Varint(bytes, ref at);
                 break;
             case 1:
-                Advance(bytes, ref at, 8);
+                Advance(bytes.Length, ref at, 8);
                 break;
             case 2:
                 Length(bytes, ref at);
                 break;
             case 5:
-                Advance(bytes, ref at, 4);
+                Advance(bytes.Length, ref at, 4);
                 break;
             default:
                 throw new InvalidDataException("unsupported wire type " + wire);
         }
     }
 
-    private static void Advance(ReadOnlySpan<byte> bytes, ref int at, int count)
+    private static void Advance(int length, ref int at, int count)
     {
-        if (count > bytes.Length - at)
+        if (count > length - at)
         {
             throw new InvalidDataException("fixed-width field runs past the end");
         }

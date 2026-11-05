@@ -5,12 +5,12 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Overlay;
 using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 
 #endregion
 
@@ -53,7 +53,6 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
 public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposable
 {
     private readonly Func<string, CalloutResolver>? _calloutResolverFor;
-    private readonly SituationLiveCount _counter;
     private readonly IExtensionLibrary _library;
     private readonly ISituationIndex _index;
     private readonly Func<string, IMapAssetLease?> _loadMapAsset;
@@ -67,7 +66,8 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
         SituationTolerance.Exact, SituationTolerance.Adjacent, SituationTolerance.TwoHops, SituationTolerance.AnyPlace
     ];
 
-    private static readonly SituationTolerance[] _degradedStops = [SituationTolerance.Exact, SituationTolerance.AnyPlace];
+    private static readonly SituationTolerance[] _degradedStops =
+        [SituationTolerance.Exact, SituationTolerance.AnyPlace];
 
     private IPlaceAdjacency? _adjacency;
     private bool _disposed;
@@ -78,10 +78,13 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
 
     /// <summary>True while a count is pending or running; the button reads plain "Search" meanwhile.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CoverageLine))]
     private bool _isCounting;
 
     /// <summary>The count of the draft as it stands, or null while none is known (no map, index loading, a count in flight).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SearchLabel))]
+    [NotifyPropertyChangedFor(nameof(CoverageLine))]
     private int? _liveCount;
 
     /// <summary>The map the canvas shows and the query runs over; null before one is picked.</summary>
@@ -132,8 +135,8 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
         _library = library;
         _loadMapAsset = loadMapAsset ?? MapAssets.Acquire;
         _calloutResolverFor = calloutResolverFor;
-        _counter = new SituationLiveCount(index, post ?? (action => Dispatcher.UIThread.Post(action)), countDelay);
-        _counter.Counted += OnCounted;
+        Counter = new SituationLiveCount(index, post ?? (action => Dispatcher.UIThread.Post(action)), countDelay);
+        Counter.Counted += OnCounted;
 
         Document = new QueryCanvasDocument();
         Draft = new SituationQueryDraft(Document);
@@ -179,15 +182,17 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
     public SearchFiltersViewModel Filters { get; }
 
     /// <summary>The live counter, for a test to await its pending run.</summary>
-    internal SituationLiveCount Counter => _counter;
+    internal SituationLiveCount Counter { get; }
 
     /// <summary>"Search, 12 rounds" once the count is known; "Search" while it is not.</summary>
-    public string SearchLabel => LiveCount is int count ? $"Search, {Rounds(count)}" : "Search";
+    public string SearchLabel => LiveCount is { } count ? $"Search, {Rounds(count)}" : "Search";
 
     /// <summary>"over 240 of 277 demos" beside the count, "counting" while one is in flight, empty with no map.</summary>
     public string CoverageLine => LiveCount is not null
         ? $"over {_index.IndexedDemoCount} of {_library.Demos.Count} demos"
-        : IsCounting ? "counting" : "";
+        : IsCounting
+            ? "counting"
+            : "";
 
     /// <summary>
     ///     How loosely the pairs match: the draft's tolerance, which the slider drives. Setting it re-asks
@@ -256,9 +261,9 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
     /// <summary>The slider's tooltip: the stops' semantics and the graph's full source.</summary>
     public string ToleranceTip => _adjacency is null
         ? "Exact matches exactly N in each place; any place matches when the side has at least that many alive. "
-          + "The middle stops need an adjacency graph, and this map has none yet."
+        + "The middle stops need an adjacency graph, and this map has none yet."
         : "Exact matches exactly N in each place; the wider stops match at least N over the place and its "
-          + $"neighbours, then their neighbours, then anywhere. Adjacency: {AdjacencySource} ({_adjacency.Source}).";
+        + $"neighbours, then their neighbours, then anywhere. Adjacency: {AdjacencySource} ({_adjacency.Source}).";
 
     // The tolerance the index actually runs: the middle stops collapse to Exact without a graph.
     private SituationTolerance EffectiveTolerance =>
@@ -315,8 +320,8 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
         }
 
         _disposed = true;
-        _counter.Counted -= OnCounted;
-        _counter.Dispose();
+        Counter.Counted -= OnCounted;
+        Counter.Dispose();
         Filters.Changed -= OnFiltersChanged;
         Filters.Dispose();
         Document.Changed -= OnDocumentChanged;
@@ -427,7 +432,7 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
 
         string overflow = dropped > 0 ? $"; {dropped} more than the rail holds, left off" : "";
         HintLine = $"tick {snapshot.Time.Tick} from 2D playback: {snapshot.Ct.Count} CT, {snapshot.T.Count} T, "
-                   + $"{placed} placed{overflow}";
+            + $"{placed} placed{overflow}";
     }
 
     /// <summary>
@@ -531,7 +536,9 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
     // the cheaper change, then a token.
     private string LoosenHint() => Filters.IsActive
         ? Draft.IsEmpty ? "clear a filter" : "clear a filter or lift a token"
-        : Draft.IsEmpty ? "the map has no indexed rounds under this query" : "lift a token";
+        : Draft.IsEmpty
+            ? "the map has no indexed rounds under this query"
+            : "lift a token";
 
     /// <summary>
     ///     Asks for a fresh count of the draft, or drops the pending one when there is nothing to count.
@@ -542,13 +549,13 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
         LiveCount = null;
         if (Map is null || !_index.IsReady)
         {
-            _counter.Cancel();
+            Counter.Cancel();
             IsCounting = false;
             return;
         }
 
         IsCounting = true;
-        _counter.Request(Draft.ToQuery());
+        Counter.Request(Draft.ToQuery());
     }
 
     // The newest request's answer, on the post thread; older ones never reach here.
@@ -562,14 +569,6 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
         IsCounting = false;
         LiveCount = count;
     }
-
-    partial void OnLiveCountChanged(int? value)
-    {
-        OnPropertyChanged(nameof(SearchLabel));
-        OnPropertyChanged(nameof(CoverageLine));
-    }
-
-    partial void OnIsCountingChanged(bool value) => OnPropertyChanged(nameof(CoverageLine));
 
     // The rail's outputs live on the draft, the one object the search and the count both read.
     private void OnFiltersChanged()
@@ -642,12 +641,12 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
         ? $"resolved to {DisplayPlace(hit.Place)} ({hit.Source})"
         : "no place near that drop; the token is on the map but not in the query";
 
-    private void OnLibraryChanged(LibraryChange change) => OnCacheChanged(change.Path);
+    private void OnLibraryChanged(LibraryChange change) => OnCacheChanged();
 
 
     // A row that arrived or left moves the coverage and, with a demo-level filter set, the demo set;
     // the count is re-asked either way, debounced, so a library scan does not run one per row.
-    private void OnCacheChanged(string? changedPath)
+    private void OnCacheChanged()
     {
         RefreshMaps();
         if (Filters.HasDemoFilter)
@@ -771,7 +770,9 @@ public sealed partial class QueryRailSlotViewModel : ObservableObject
     public string Label => $"{(Side == QuerySide.Ct ? "CT" : "T")} {Slot + 1}";
 
     /// <summary>The place, in the default owner's word for it, or what the slot is doing instead.</summary>
-    public string Status => Place is { } place ? _owner.DisplayPlace(place) : IsPlaced ? "no place" : IsArmed ? "click the map" : "";
+    public string Status => Place is { } place ? _owner.DisplayPlace(place) :
+        IsPlaced ? "no place" :
+        IsArmed ? "click the map" : "";
 
     /// <summary>Arms or disarms this slot.</summary>
     [RelayCommand]

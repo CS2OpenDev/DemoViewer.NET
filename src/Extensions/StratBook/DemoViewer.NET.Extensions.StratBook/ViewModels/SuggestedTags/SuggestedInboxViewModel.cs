@@ -3,10 +3,10 @@
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Services.Generated;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 
@@ -24,26 +24,32 @@ public sealed class SuggestedInboxRow(SuggestedInboxItem item)
 
     /// <summary>"de_mirage · spirit-vs-furia-m1.dem · r13 · T".</summary>
     public string WhereText => string.Join(" · ",
-        new[] { Item.Map ?? "no map", Item.FileName, string.Create(CultureInfo.InvariantCulture, $"r{Proposal.Round}"), ProposalIds.SideName(Proposal.Side) });
+        new[]
+        {
+            Item.Map ?? "no map", Item.FileName, string.Create(CultureInfo.InvariantCulture, $"r{Proposal.Round}"),
+            ProposalIds.SideName(Proposal.Side)
+        });
 
     public string DetectorText => Proposal.Detector;
 
-    public string ConfidenceText => Proposal.Confidence.ToString("0.00", CultureInfo.InvariantCulture);
+    private string ConfidenceText => Proposal.Confidence.ToString("0.00", CultureInfo.InvariantCulture);
 
     /// <summary>"0.60 · default", then " · dismissed" on a settled row.</summary>
     public string MetaText => $"{ConfidenceText} · {DetectorText}" + (StateText.Length > 0 ? $" · {StateText}" : "");
 
     /// <summary>Why it fired, the first two evidence lines.</summary>
-    public string ReasonText => Proposal.Evidence.Count == 0 ? "" : string.Join("; ", Proposal.Evidence.Take(2).Select(e => e.Text));
+    public string ReasonText => Proposal.Evidence.Count == 0
+        ? ""
+        : string.Join("; ", Proposal.Evidence.Take(2).Select(e => e.Text));
 
-    public GeneratedState State => Item.Entry.State;
+    private GeneratedState State => Item.Entry.State;
 
     public bool IsNew => State == GeneratedState.New;
 
     public bool IsDismissed => State == GeneratedState.Dismissed;
 
     /// <summary>"accepted" or "dismissed" on a settled row.</summary>
-    public string StateText => State switch
+    private string StateText => State switch
     {
         GeneratedState.Accepted => "accepted",
         GeneratedState.Dismissed => "dismissed",
@@ -58,8 +64,8 @@ public sealed class SuggestedInboxRow(SuggestedInboxItem item)
 /// </summary>
 public sealed partial class SuggestedInboxViewModel : ObservableObject, IWorkspaceTabViewModel, IDisposable
 {
-    public const string AllMaps = "all maps";
-    public const string BothSides = "both sides";
+    private const string AllMaps = "all maps";
+    private const string BothSides = "both sides";
     public const string AllDetectors = "all detectors";
 
     private readonly SuggestedInboxService? _inbox;
@@ -143,13 +149,16 @@ public sealed partial class SuggestedInboxViewModel : ObservableObject, IWorkspa
     partial void OnShowSettledChanged(bool value) => Refresh();
 
     [RelayCommand]
-    private Task Accept(SuggestedInboxRow? row) => Verdict(row, i => _inbox!.AcceptAsync(i), "The tag could not be written.");
+    private Task Accept(SuggestedInboxRow? row) =>
+        Verdict(row, i => _inbox!.AcceptAsync(i), "The tag could not be written.");
 
     [RelayCommand]
-    private Task Dismiss(SuggestedInboxRow? row) => Verdict(row, i => _inbox!.DismissAsync(i), "The dismissal could not be written.");
+    private Task Dismiss(SuggestedInboxRow? row) =>
+        Verdict(row, i => _inbox!.DismissAsync(i), "The dismissal could not be written.");
 
     [RelayCommand]
-    private Task Restore(SuggestedInboxRow? row) => Verdict(row, i => _inbox!.RestoreAsync(i), "The restore could not be written.");
+    private Task Restore(SuggestedInboxRow? row) =>
+        Verdict(row, i => _inbox!.RestoreAsync(i), "The restore could not be written.");
 
     [RelayCommand]
     private async Task Open(SuggestedInboxRow? row)
@@ -216,22 +225,26 @@ public sealed partial class SuggestedInboxViewModel : ObservableObject, IWorkspa
         StatusLine = _inbox.IsLoaded
             ? string.Create(CultureInfo.InvariantCulture,
                 $"{pending} new {(pending == 1 ? "suggestion" : "suggestions")} across {demos} {(demos == 1 ? "demo" : "demos")}.")
-            : _inbox.IsLoading ? "Reading suggestions across the library…" : "Not read yet.";
+            : _inbox.IsLoading
+                ? "Reading suggestions across the library…"
+                : "Not read yet.";
     }
 
     private bool Matches(SuggestedInboxItem item)
     {
         TagProposal p = item.Entry.Proposal;
-        return (MapFilter == AllMaps || string.Equals(item.Map ?? "no map", MapFilter, StringComparison.OrdinalIgnoreCase))
-               && (SideFilter == BothSides || ProposalIds.SideName(p.Side) == SideFilter)
-               && (DetectorFilter == AllDetectors || p.Detector == DetectorFilter)
-               && p.Confidence >= MinConfidence;
+        return (MapFilter == AllMaps
+                || string.Equals(item.Map ?? "no map", MapFilter, StringComparison.OrdinalIgnoreCase))
+            && (SideFilter == BothSides || ProposalIds.SideName(p.Side) == SideFilter)
+            && (DetectorFilter == AllDetectors || p.Detector == DetectorFilter)
+            && p.Confidence >= MinConfidence;
     }
 
     // Keeps the "all" entry first and the rest sorted; leaves the collection alone when nothing changed.
     private static void Sync(BulkObservableCollection<string> target, string all, IEnumerable<string> values)
     {
-        List<string> next = [all, .. values.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)];
+        List<string> next =
+            [all, .. values.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)];
         if (!target.SequenceEqual(next, StringComparer.Ordinal))
         {
             target.ReplaceAll(next);

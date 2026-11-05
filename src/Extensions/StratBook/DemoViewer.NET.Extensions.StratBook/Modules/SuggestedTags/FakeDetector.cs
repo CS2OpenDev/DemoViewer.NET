@@ -49,7 +49,8 @@ public sealed class FakeDetector : IProposalDetector
         ArgumentNullException.ThrowIfNull(round);
         ArgumentNullException.ThrowIfNull(profile);
 
-        TagProposal? execute = ctx.EarlierProposalsThisRound.FirstOrDefault(p => p.Detector == ExecuteDetector.DetectorId);
+        TagProposal? execute =
+            ctx.EarlierProposalsThisRound.FirstOrDefault(earlier => earlier.Detector == ExecuteDetector.DetectorId);
         if (execute is null || !execute.Labels.TryGetValue("site", out string? real))
         {
             yield break;
@@ -87,7 +88,8 @@ public sealed class FakeDetector : IProposalDetector
             }
         }
 
-        List<PlacedEvent> utility = DetectorMath.DetonationsInto(ctx.Events, 2, places, round.TickAt(from), round.TickAt(to + 1));
+        List<PlacedEvent> utility =
+            DetectorMath.DetonationsInto(ctx.Events, 2, places, round.TickAt(from), round.TickAt(to + 1));
         bool byPresence = presence >= fakePresence;
         bool byUtility = utility.Count >= fakeUtility;
         if (!byPresence && !byUtility)
@@ -118,7 +120,8 @@ public sealed class FakeDetector : IProposalDetector
         if (presenceSecond is { } at)
         {
             evidence.Add(new ProposalEvidence("occupancy", round.TickAt(at),
-                string.Create(CultureInfo.InvariantCulture, $"{presence} T in {DetectorMath.RegionText(fake, places)}")));
+                string.Create(CultureInfo.InvariantCulture,
+                    $"{presence} T in {DetectorMath.RegionText(fake, places)}")));
         }
 
         evidence.AddRange(utility.Select(DetectorMath.Evidence));
@@ -138,8 +141,7 @@ public sealed class FakeDetector : IProposalDetector
             DetectorMath.Confidence(confidence),
             new Dictionary<string, double>(StringComparer.Ordinal)
             {
-                ["execute"] = execute.Confidence,
-                ["fake"] = DetectorMath.Round(factor)
+                ["execute"] = execute.Confidence, ["fake"] = DetectorMath.Round(factor)
             },
             new Dictionary<string, string>(StringComparer.Ordinal)
             {

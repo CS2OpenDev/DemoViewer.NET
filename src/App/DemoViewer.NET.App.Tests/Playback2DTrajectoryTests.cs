@@ -175,10 +175,11 @@ public class Playback2DTrajectoryTests
         vm.OnActivated(ctx);
 
         View view = new();
-        Ent[] nades = new[]
-        {
-            new Ent("CHEGrenadeProjectile", 1), new Ent("CFlashbangProjectile", 2), new Ent("CSmokeGrenadeProjectile", 3), new Ent("CMolotovProjectile", 4), new Ent("CDecoyProjectile", 5)
-        };
+        Ent[] nades =
+        [
+            new("CHEGrenadeProjectile", 1), new("CFlashbangProjectile", 2),
+            new("CSmokeGrenadeProjectile", 3), new("CMolotovProjectile", 4), new("CDecoyProjectile", 5)
+        ];
         for (int i = 0; i < nades.Length; i++)
         {
             SetPos(nades[i], 100 * (i + 1), 0, 0);
@@ -194,11 +195,11 @@ public class Playback2DTrajectoryTests
         ctx.Push(new Snap(2, view));
 
         await Assert.That(vm.GrenadeTrails.Count).IsEqualTo(5);
-        GrenadeKind[] kinds = vm.GrenadeTrails.Select(t => t.Kind).OrderBy(k => k).ToArray();
-        await Assert.That(kinds).IsEquivalentTo(new[]
-        {
-            GrenadeKind.He, GrenadeKind.Flash, GrenadeKind.Smoke, GrenadeKind.Molotov, GrenadeKind.Decoy
-        }, CollectionOrdering.Matching);
+        GrenadeKind[] kinds = [.. vm.GrenadeTrails.Select(t => t.Kind).OrderBy(k => k)];
+        await Assert.That(kinds)
+            .IsEquivalentTo(
+                [GrenadeKind.He, GrenadeKind.Flash, GrenadeKind.Smoke, GrenadeKind.Molotov, GrenadeKind.Decoy],
+                CollectionOrdering.Matching);
     }
 
     // ── Builders ──
@@ -206,12 +207,7 @@ public class Playback2DTrajectoryTests
     private static Playback2DFakeContext NewCtx()
     {
         Playback2DFakeContext ctx = Playback2DFakeContext.Bare();
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
         return ctx;
     }
 
@@ -228,31 +224,19 @@ public class Playback2DTrajectoryTests
 
     // ── Doubles ──
 
-    private sealed class Snap : IPlaybackSnapshot
+    private sealed class Snap(int frameIndex, IReadOnlyEntityView entities) : IPlaybackSnapshot
     {
-        public Snap(int frameIndex, IReadOnlyEntityView entities)
-        {
-            FrameIndex = frameIndex;
-            Entities = entities;
-        }
-
-        public int FrameIndex { get; }
+        public int FrameIndex { get; } = frameIndex;
         public int Tick => FrameIndex * 64;
-        public IReadOnlyEntityView Entities { get; }
+        public IReadOnlyEntityView Entities { get; } = entities;
         public IReadOnlyList<IPlayerState> Players { get; } = new List<IPlayerState>();
     }
 
-    private sealed class Ent : IReadOnlyEntity
+    private sealed class Ent(string className, int serial) : IReadOnlyEntity
     {
-        public Ent(string className, int serial)
-        {
-            ClassName = className;
-            Serial = serial;
-        }
-
         public Dictionary<string, object?> F { get; } = new();
-        public string ClassName { get; }
-        public int Serial { get; }
+        public string ClassName { get; } = className;
+        public int Serial { get; } = serial;
         public bool IsInPvs => true;
         public object? this[string fieldPath] => F.GetValueOrDefault(fieldPath);
 
@@ -271,7 +255,7 @@ public class Playback2DTrajectoryTests
 
     private sealed class View : IReadOnlyEntityView
     {
-        private readonly List<IReadOnlyEntity> _ents = new();
+        private readonly List<IReadOnlyEntity> _ents = [];
         public IEnumerable<IReadOnlyEntity> All() => _ents;
         public IEnumerable<IReadOnlyEntity> OfClass(string className) => _ents.Where(e => e.ClassName == className);
         public IReadOnlyEntity? BySerial(int serial) => null;

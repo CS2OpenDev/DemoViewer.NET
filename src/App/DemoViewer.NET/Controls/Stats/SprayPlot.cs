@@ -53,6 +53,7 @@ public class SprayPlot : TemplatedControl
         AvaloniaProperty.Register<SprayPlot, IBrush?>(nameof(AxisBrush));
 
     /// <summary>Radius of a plotted bullet, in pixels.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<double> DotRadiusProperty =
         AvaloniaProperty.Register<SprayPlot, double>(nameof(DotRadius), 2.5);
 
@@ -169,7 +170,7 @@ public class SprayPlot : TemplatedControl
             new(centre.X + (yawDeg * scale), centre.Y + (pitchDeg * scale));
 
         IBrush axis = AxisBrush ?? Brushes.Gray;
-        Pen axisPen = new(axis, 1);
+        Pen axisPen = new(axis);
         context.DrawLine(axisPen, new Point(box.Left, centre.Y), new Point(box.Right, centre.Y));
         context.DrawLine(axisPen, new Point(centre.X, box.Top), new Point(centre.X, box.Bottom));
 

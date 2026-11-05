@@ -20,7 +20,7 @@ public sealed class GraphEdgeViewModel(
     public GraphNodeViewModel Destination { get; } = destination;
 
     /// <summary>Effect.</summary>
-    public EdgeEffect Effect { get; } = effect;
+    private EdgeEffect Effect { get; } = effect;
 
     /// <summary>Source.</summary>
     public GraphNodeViewModel Source { get; } = source;

@@ -2,15 +2,12 @@
 
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using CS2DemoKit.Parser.Models;
-using DemoViewer.NET.Controls;
 using DemoViewer.NET.Models;
 using DemoViewer.NET.Services.Diagnostics;
-using DemoViewer.NET.ViewModels.Common;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using DemoViewer.NET.ViewModels.Shell;
 using Microsoft.Extensions.Logging;
@@ -25,11 +22,10 @@ namespace DemoViewer.NET.ViewModels.EntityTracking;
 ///     prev-tick snapshot used for delta display.
 ///     <para>
 ///         Stable-ref collections, lifecycle fields,
-///         scalar state, the three async seek pipelines, all rebuild helpers and the
-///         <c>WatchField</c> command target now live here. Shell-side concerns (the
-///         <see cref="EntityTracker" /> factory, the post-seek card refresh, parse-chain
+///         scalar state, the three async seek pipelines and all rebuild helpers
+///         now live here. Shell-side concerns (the post-seek card refresh, parse-chain
 ///         updates on entity selection) reach in via callback hooks
-///         (<see cref="CreateTracker" />, <see cref="OnSeekCompleted" />,
+///         (<see cref="OnSeekCompleted" />,
 ///         <see cref="OnEntitySelectionChanged" />) that <c>MainViewModel</c> wires in
 ///         its constructor -- same pattern as <c>Analysis.OnFrameSeeked</c>.
 ///     </para>
@@ -41,10 +37,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
     /// <summary>Active class filter from the browser (null = all classes).</summary>
     private string? _classFilter;
-
-    // Diagnostics-pillar logger (v0.6.0, the seek-error surfaces show clean text, this carries
-    // the real exception). Lazy: the ambient factory is wired after construction.
-    private ILogger? _diagLog;
 
     [ObservableProperty]
     private int _entityDeltaFieldCount;
@@ -74,12 +66,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
     // _hasTickGroups moved to ReplayTabViewModel (3.5b).
     [ObservableProperty]
-    private bool _hasWatched;
-
-    [ObservableProperty]
     private bool _isSeekingEntities;
-
-    private EntityTracker? _localTracker;
 
     [ObservableProperty]
     private object? _selectedEntityItem; // EntityState
@@ -101,15 +88,8 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     private bool _showRelationshipTree;
 
     /// <summary>Initializes a new <see cref="EntityTrackingTabViewModel" /> instance.</summary>
-    public EntityTrackingTabViewModel(FrameNavigationViewModel navigation)
+    public EntityTrackingTabViewModel()
     {
-        Navigation = navigation;
-
-        // 3.4b: WatchedValues -> HasWatched subscription used to live in
-        // MainViewModel's constructor. Both ends are now EntityTab-owned, so
-        // the wire moved here.
-        WatchedValues.CollectionChanged += (_, _) => HasWatched = WatchedValues.Count > 0;
-
         // The entity list is a TreeDataGrid, fronted by a
         // class-browser filter, a per-entity delta log and a serializer-schema strip.
         // Row selection in the grid funnels the backing EntityState into SelectedEntityItem
@@ -118,22 +98,17 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         ClassBrowser.ClassFilterChanged += OnClassFilterChanged;
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.EntityTracking");
+    // Diagnostics-pillar logger (v0.6.0, the seek-error surfaces show clean text, this carries
+    // the real exception). Lazy: the ambient factory is wired after construction.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.EntityTracking");
 
     /// <summary>Full unfiltered field list for the currently selected entity (for delta filter toggle).</summary>
-    internal List<PayloadNode>? AllEntityFieldNodes { get; set; }
+    private List<PayloadNode>? AllEntityFieldNodes { get; set; }
 
     /// <summary>Left-rail class browser; selection filters the entity list.</summary>
     public ClassBrowserViewModel ClassBrowser { get; } = new();
 
     // ── Callback hooks (wired by MainViewModel) ───────────────────────────────
-    /// <summary>
-    ///     Factory that yields a fresh <see cref="EntityTracker" /> instance hooked to the
-    ///     shell's <c>Debugger</c>. Required for all three seek variants. MainViewModel
-    ///     sets this in its constructor.
-    /// </summary>
-    public Func<EntityTracker>? CreateTracker { get; set; }
-
     /// <summary>
     ///     Shared checkpoint-replay seek core. Wired by MainViewModel. The three seek
     ///     pipelines delegate the tracker-build + replay to this service; only the per-pipeline
@@ -159,10 +134,10 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     /// </summary>
     internal EntityTracker? CurrentTrackerInternal
     {
-        get => TrackerSource is not null ? TrackerSource() : _localTracker;
-        set
+        get => TrackerSource is not null ? TrackerSource() : field;
+        private set
         {
-            _localTracker = value;
+            field = value;
             if (value is not null)
             {
                 PublishTracker?.Invoke(value);
@@ -192,10 +167,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     /// <summary>Entity field nodes.</summary>
     public ObservableCollection<PayloadNode> EntityFieldNodes { get; } = [];
 
-    // ── Stable-reference collections ──────────────────────────────────────────
-    /// <summary>Entity groups.</summary>
-    public ObservableCollection<EntityGroup> EntityGroups { get; } = [];
-
     // ── Sub-view-models ────────────────────────────────────────────────────────
     /// <summary>Virtualized entity TreeDataGrid.</summary>
     public EntityListViewModel EntityList { get; } = new();
@@ -204,7 +175,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     public ObservableCollection<EntityListItem> EntityListItems { get; } = [];
 
     /// <summary>First entity with changed fields after the last delta rebuild, used for auto-select.</summary>
-    internal EntityState? FirstChangedEntity { get; set; }
+    private EntityState? FirstChangedEntity { get; set; }
 
     /// <summary>
     ///     Source of the parsed frame list. MainViewModel sets this so the seek
@@ -212,9 +183,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     ///     to the shell. Returning <c>null</c> aborts the seek.
     /// </summary>
     public Func<List<DemoFrame>?>? FrameSource { get; set; }
-
-    /// <summary>Navigation.</summary>
-    public FrameNavigationViewModel Navigation { get; }
 
     /// <summary>
     ///     Fires whenever <see cref="SelectedEntityItem" /> effectively changes (including
@@ -239,7 +207,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     public Action? OnSeekFinally { get; set; }
 
     /// <summary>Snapshot of entity state just before the current frame/tick. Used for delta display.</summary>
-    internal Dictionary<int, Dictionary<string, object?>>? PrevTickSnapshot { get; set; }
+    private Dictionary<int, Dictionary<string, object?>>? PrevTickSnapshot { get; set; }
 
     /// <summary>
     ///     Optional shell-side hook to push tracker counters onto the DebuggerPanel
@@ -252,9 +220,6 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
     /// <summary>Bottom serializer/ServerClass schema strip for the active class.</summary>
     public SerializerSchemaViewModel SerializerSchema { get; } = new();
-
-    /// <summary>Watched values.</summary>
-    public ObservableCollection<WatchedValue> WatchedValues { get; } = [];
 
     /// <summary>
     ///     Demo-unload reset: cancels any in-flight seek and drops every entity-scale reference this tab
@@ -271,9 +236,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         FirstChangedEntity = null;
         _allEntityNodes = [];
         EntityFieldNodes.Clear();
-        EntityGroups.Clear();
         EntityListItems.Clear();
-        WatchedValues.Clear();
         EntityList.Clear();
         DeltaLog.Clear();
         EntityInspector.Clear();
@@ -293,21 +256,20 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
         if (prevSnapshot is not null)
         {
-            RebuildEntityGroupsWithDelta(tracker, prevSnapshot);
+            RebuildEntitiesWithDelta(tracker, prevSnapshot);
         }
         else
         {
-            RebuildEntityGroups(tracker);
+            RebuildEntities(tracker);
         }
 
         AutoSelectFirstChangedEntity();
-        UpdateWatchedValues(tracker);
 
         OnSeekCompleted?.Invoke();
 
         EntityStatusText = tracker.LastEntityError is { } err
             ? $"⚠ {err}"
-            : $"Tick {tracker.CurrentTick}  •  {EntityGroups.Sum(g => g.Entities.Count)} entities";
+            : $"Tick {tracker.CurrentTick}  •  {LiveEntityCount} entities";
     }
 
     // ── Events ────────────────────────────────────────────────────────────────
@@ -379,21 +341,20 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
             if (snapshot is not null)
             {
-                RebuildEntityGroupsWithDelta(tracker, snapshot);
+                RebuildEntitiesWithDelta(tracker, snapshot);
             }
             else
             {
-                RebuildEntityGroups(tracker);
+                RebuildEntities(tracker);
             }
 
             AutoSelectFirstChangedEntity();
-            UpdateWatchedValues(tracker);
 
             OnSeekCompleted?.Invoke();
 
             EntityStatusText = tracker.LastEntityError is { } err
                 ? $"⚠ {err}"
-                : $"Tick {tracker.CurrentTick}  •  {EntityGroups.Sum(g => g.Entities.Count)} entities";
+                : $"Tick {tracker.CurrentTick}  •  {LiveEntityCount} entities";
         }
         catch (OperationCanceledException)
         {
@@ -471,21 +432,20 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
             if (PrevTickSnapshot is not null)
             {
-                RebuildEntityGroupsWithDelta(tracker, PrevTickSnapshot);
+                RebuildEntitiesWithDelta(tracker, PrevTickSnapshot);
             }
             else
             {
-                RebuildEntityGroups(tracker);
+                RebuildEntities(tracker);
             }
 
             AutoSelectFirstChangedEntity();
-            UpdateWatchedValues(tracker);
 
             OnSeekCompleted?.Invoke();
 
             EntityStatusText = tracker.LastEntityError is { } err
                 ? $"⚠ {err}"
-                : $"Tick {tracker.CurrentTick}  •  {EntityGroups.Sum(g => g.Entities.Count)} entities";
+                : $"Tick {tracker.CurrentTick}  •  {LiveEntityCount} entities";
         }
         catch (OperationCanceledException)
         {
@@ -569,19 +529,18 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
             if (snapshot is not null)
             {
-                RebuildEntityGroupsWithDelta(tracker, snapshot);
+                RebuildEntitiesWithDelta(tracker, snapshot);
             }
             else
             {
-                RebuildEntityGroups(tracker);
+                RebuildEntities(tracker);
             }
 
             AutoSelectFirstChangedEntity();
-            UpdateWatchedValues(tracker);
 
             EntityStatusText = tracker.LastEntityError is { } err
                 ? $"⚠ {err}"
-                : $"Tick {tracker.CurrentTick}  •  {EntityGroups.Sum(g => g.Entities.Count)} entities";
+                : $"Tick {tracker.CurrentTick}  •  {LiveEntityCount} entities";
         }
         catch (OperationCanceledException)
         {
@@ -617,7 +576,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
         ClassBrowser.Filter is { Length: > 0 } f ? f : null,
         false);
 
-    internal void AutoSelectFirstChangedEntity()
+    private void AutoSelectFirstChangedEntity()
     {
         if (FirstChangedEntity is null)
         {
@@ -635,7 +594,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     ///     Repopulates <see cref="EntityFieldNodes" /> from <see cref="AllEntityFieldNodes" />,
     ///     applying the delta-only filter when <see cref="ShowDeltaFieldsOnly" /> is set.
     /// </summary>
-    internal void FilterAndSetEntityFieldNodes()
+    private void FilterAndSetEntityFieldNodes()
     {
         EntityFieldNodes.Clear();
         if (AllEntityFieldNodes is null)
@@ -653,36 +612,20 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     }
 
     /// <summary>Internal helper used by MainViewModel to raise <see cref="EntitiesRefreshed" />.</summary>
-    internal void RaiseEntitiesRefreshed() => EntitiesRefreshed?.Invoke();
+    private void RaiseEntitiesRefreshed() => EntitiesRefreshed?.Invoke();
 
-    internal void RebuildEntityGroups(EntityTracker tracker)
+    private void RebuildEntities(EntityTracker tracker)
     {
-        List<EntityGroup> grouped = LiveEntities(tracker)
-            .GroupBy(e => Categorise(e.ClassName))
-            .OrderBy(g => g.Key)
-            .Select(g => new EntityGroup
-            {
-                Name = g.Key,
-                Entities = g.OrderBy(e => e.ClassName).ToList()
-            })
-            .ToList();
-
-        EntityGroups.Clear();
-        foreach (EntityGroup group in grouped)
-        {
-            EntityGroups.Add(group);
-        }
-
-        HasEntities = EntityGroups.Count > 0;
+        HasEntities = LiveEntities(tracker).Any();
         RebuildEntityListItems(tracker, null);
     }
 
-    internal void RebuildEntityGroupsWithDelta(
+    private void RebuildEntitiesWithDelta(
         EntityTracker tracker,
         Dictionary<int, Dictionary<string, object?>> prevSnapshot)
     {
-        HashSet<int> changedSlots = new();
-        HashSet<int> displayChangedSlots = new();
+        HashSet<int> changedSlots = [];
+        HashSet<int> displayChangedSlots = [];
         foreach ((int idx, EntityState entity) in LiveEntitiesIndexed(tracker))
         {
             if (!prevSnapshot.TryGetValue(idx, out Dictionary<string, object?>? prevFields))
@@ -710,65 +653,51 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
             }
         }
 
+        // Auto-select walks the entities by category, then class name, and takes the first changed one in
+        // the first category that has any, preferring an entity whose displayed value changed.
         FirstChangedEntity = null;
-        List<EntityGroup> grouped = LiveEntitiesIndexed(tracker)
-            .GroupBy(t => Categorise(t.Entity.ClassName))
-            .OrderBy(g => g.Key)
-            .Select(g =>
+        foreach (IGrouping<string, (int Index, EntityState Entity)> g in LiveEntitiesIndexed(tracker)
+                     .GroupBy(t => Categorise(t.Entity.ClassName))
+                     .OrderBy(grp => grp.Key))
+        {
+            List<(int Index, EntityState Entity)> entities = [.. g.OrderBy(t => t.Entity.ClassName)];
+            foreach ((int Index, EntityState Entity) t in entities)
             {
-                List<(int Index, EntityState Entity)> entities = g.OrderBy(t => t.Entity.ClassName).ToList();
-                int deltaCount = g.Count(t => changedSlots.Contains(t.Index));
-
-                if (FirstChangedEntity is null && deltaCount > 0)
+                if (displayChangedSlots.Contains(t.Index))
                 {
-                    foreach ((int Index, EntityState Entity) t in entities)
-                    {
-                        if (displayChangedSlots.Contains(t.Index))
-                        {
-                            FirstChangedEntity = t.Entity;
-                            break;
-                        }
-                    }
+                    FirstChangedEntity = t.Entity;
+                    break;
+                }
+            }
 
-                    if (FirstChangedEntity is null)
+            if (FirstChangedEntity is null)
+            {
+                foreach ((int Index, EntityState Entity) t in entities)
+                {
+                    if (changedSlots.Contains(t.Index))
                     {
-                        foreach ((int Index, EntityState Entity) t in entities)
-                        {
-                            if (changedSlots.Contains(t.Index))
-                            {
-                                FirstChangedEntity = t.Entity;
-                                break;
-                            }
-                        }
+                        FirstChangedEntity = t.Entity;
+                        break;
                     }
                 }
+            }
 
-                return new EntityGroup
-                {
-                    Name = g.Key,
-                    Entities = entities.Select(t => t.Entity).ToList(),
-                    DeltaCount = deltaCount,
-                    IsExpanded = deltaCount > 0
-                };
-            })
-            .ToList();
-
-        EntityGroups.Clear();
-        foreach (EntityGroup group in grouped)
-        {
-            EntityGroups.Add(group);
+            if (FirstChangedEntity is not null)
+            {
+                break;
+            }
         }
 
-        HasEntities = EntityGroups.Count > 0;
+        HasEntities = LiveEntitiesIndexed(tracker).Any();
         RebuildEntityListItems(tracker, prevSnapshot);
     }
 
-    internal void RebuildEntityListItems(
+    private void RebuildEntityListItems(
         EntityTracker tracker,
         Dictionary<int, Dictionary<string, object?>>? prevSnapshot)
     {
-        List<EntityListItem> changed = new();
-        List<EntityListItem> unchanged = new();
+        List<EntityListItem> changed = [];
+        List<EntityListItem> unchanged = [];
 
         foreach ((int idx, EntityState entity) in LiveEntitiesIndexed(tracker)
                      .OrderBy(t => t.Entity.ClassName))
@@ -786,12 +715,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                 }
             }
 
-            EntityListItem item = new()
-            {
-                Entity = entity,
-                DeltaCount = delta,
-                SlotIndex = idx
-            };
+            EntityListItem item = new() { Entity = entity, DeltaCount = delta, SlotIndex = idx };
             if (delta > 0)
             {
                 changed.Add(item);
@@ -815,10 +739,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
         if (changed.Count > 0 && unchanged.Count > 0)
         {
-            EntityListItems.Add(new EntityListItem
-            {
-                IsHeader = true
-            });
+            EntityListItems.Add(new EntityListItem { IsHeader = true });
         }
 
         foreach (EntityListItem item in unchanged)
@@ -859,7 +780,7 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     ///     <see cref="ShowDormantEntities" /> filter. Used as the partial handler for
     ///     <c>OnShowDormantEntitiesChanged</c>; safe to call any time.
     /// </summary>
-    internal void RefreshEntityView()
+    private void RefreshEntityView()
     {
         if (CurrentTrackerInternal is not { } tracker)
         {
@@ -868,49 +789,12 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
         if (PrevTickSnapshot is not null)
         {
-            RebuildEntityGroupsWithDelta(tracker, PrevTickSnapshot);
+            RebuildEntitiesWithDelta(tracker, PrevTickSnapshot);
         }
         else
         {
-            RebuildEntityGroups(tracker);
+            RebuildEntities(tracker);
         }
-    }
-
-    internal void UpdateWatchedValues(EntityTracker tracker)
-    {
-        foreach (WatchedValue w in WatchedValues)
-        {
-            EntityState? entity = tracker.CurrentEntities.All()
-                .FirstOrDefault(e => e.ClassName == w.EntityClassName && e.Serial == w.EntitySerial);
-            w.CurrentValue = entity is not null && entity.Fields.TryGetValue(w.FieldKey, out object? v)
-                ? MainViewModel.FormatValue(v)
-                : "<not found>";
-        }
-    }
-
-    // ── Watched-field commands ────────────────────────────────────────────────
-    internal void WatchField(EntityState entity, string fieldKey)
-    {
-        if (WatchedValues.Any(w => w.EntityClassName == entity.ClassName
-                                   && w.EntitySerial == entity.Serial
-                                   && w.FieldKey == fieldKey))
-        {
-            return;
-        }
-
-        WatchedValue wv = null!;
-        wv = new WatchedValue
-        {
-            Label = $"{entity.ClassName}.{fieldKey}",
-            EntityClassName = entity.ClassName,
-            EntitySerial = entity.Serial,
-            FieldKey = fieldKey,
-            CurrentValue = entity.Fields.TryGetValue(fieldKey, out object? v)
-                ? MainViewModel.FormatValue(v)
-                : "",
-            RemoveCommand = new RelayCommand(() => WatchedValues.Remove(wv))
-        };
-        WatchedValues.Add(wv);
     }
 
     private void ApplyClassFilterToNodes()
@@ -923,35 +807,51 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
     private static string Categorise(string name) => name switch
     {
-        _ when name.Contains("Player", StringComparison.Ordinal) || name.Contains("Controller", StringComparison.Ordinal)
+        _ when name.Contains("Player", StringComparison.Ordinal)
+            || name.Contains("Controller", StringComparison.Ordinal)
             => "Players",
         _ when name.Contains("Weapon", StringComparison.Ordinal) || name.Contains("Knife", StringComparison.Ordinal)
-                                                                 || name.Contains("Pistol", StringComparison.Ordinal) || name.Contains("Rifle", StringComparison.Ordinal)
-                                                                 || name.Contains("Machine", StringComparison.Ordinal) || name.Contains("Shotgun", StringComparison.Ordinal)
-                                                                 || name.Contains("Sniper", StringComparison.Ordinal)
+            || name.Contains("Pistol", StringComparison.Ordinal)
+            || name.Contains("Rifle", StringComparison.Ordinal)
+            || name.Contains("Machine", StringComparison.Ordinal)
+            || name.Contains("Shotgun", StringComparison.Ordinal)
+            || name.Contains("Sniper", StringComparison.Ordinal)
             => "Weapons",
         _ when name.Contains("Grenade", StringComparison.Ordinal) || name.Contains("Molotov", StringComparison.Ordinal)
-                                                                  || name.Contains("Smoke", StringComparison.Ordinal) || name.Contains("Inferno", StringComparison.Ordinal)
-                                                                  || name.Contains("Flash", StringComparison.Ordinal) || name.Contains("Decoy", StringComparison.Ordinal)
-                                                                  || name.Contains("Bomb", StringComparison.Ordinal)
+            || name.Contains("Smoke", StringComparison.Ordinal)
+            || name.Contains("Inferno", StringComparison.Ordinal)
+            || name.Contains("Flash", StringComparison.Ordinal)
+            || name.Contains("Decoy", StringComparison.Ordinal)
+            || name.Contains("Bomb", StringComparison.Ordinal)
             => "Grenades / Projectiles",
-        _ when name.StartsWith("CCSGame", StringComparison.Ordinal) || name.StartsWith("CCSTeam", StringComparison.Ordinal)
-                                                                    || name.StartsWith("CCSMatch", StringComparison.Ordinal) || name.StartsWith("CCSScore", StringComparison.Ordinal)
+        _ when name.StartsWith("CCSGame", StringComparison.Ordinal)
+            || name.StartsWith("CCSTeam", StringComparison.Ordinal)
+            || name.StartsWith("CCSMatch", StringComparison.Ordinal)
+            || name.StartsWith("CCSScore", StringComparison.Ordinal)
             => "Game",
-        _ when name.StartsWith("CDynamic", StringComparison.Ordinal) || name.StartsWith("CPhys", StringComparison.Ordinal)
-                                                                     || name.StartsWith("CBaseProp", StringComparison.Ordinal) || name.StartsWith("CProp", StringComparison.Ordinal)
+        _ when name.StartsWith("CDynamic", StringComparison.Ordinal)
+            || name.StartsWith("CPhys", StringComparison.Ordinal)
+            || name.StartsWith("CBaseProp", StringComparison.Ordinal)
+            || name.StartsWith("CProp", StringComparison.Ordinal)
             => "Props",
         _ when name.StartsWith("CEnv", StringComparison.Ordinal) || name.StartsWith("CWorld", StringComparison.Ordinal)
-                                                                 || name.StartsWith("CLightEntity", StringComparison.Ordinal) || name.StartsWith("CSky", StringComparison.Ordinal)
-                                                                 || name.StartsWith("CFog", StringComparison.Ordinal) || name.StartsWith("CColor", StringComparison.Ordinal)
+            || name.StartsWith("CLightEntity",
+                StringComparison.Ordinal)
+            || name.StartsWith("CSky", StringComparison.Ordinal)
+            || name.StartsWith("CFog", StringComparison.Ordinal)
+            || name.StartsWith("CColor", StringComparison.Ordinal)
             => "World / Environment",
-        _ when name.StartsWith("CParticle", StringComparison.Ordinal) || name.StartsWith("CEffect", StringComparison.Ordinal)
-                                                                      || name.StartsWith("CSVC", StringComparison.Ordinal)
+        _ when name.StartsWith("CParticle", StringComparison.Ordinal)
+            || name.StartsWith("CEffect", StringComparison.Ordinal)
+            || name.StartsWith("CSVC", StringComparison.Ordinal)
             => "Effects",
         _ => "Other"
     };
 
     // ── Entity grouping helpers ───────────────────────────────────────────────
+    /// <summary>Entities in the last rebuilt list, not counting the changed/unchanged divider row.</summary>
+    private int LiveEntityCount => EntityListItems.Count(i => !i.IsHeader);
+
     private IEnumerable<EntityState> LiveEntities(EntityTracker t)
         => ShowDormantEntities ? t.CurrentEntities.All() : t.CurrentEntities.AllInPvs();
 
@@ -1038,19 +938,15 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
                     }
                 }
 
-                return new PayloadNode
-                {
-                    Name = kv.Key,
-                    Value = currVal,
-                    PreviousValue = prevVal,
-                    WatchCommand = new RelayCommand(() => WatchField(entity, kv.Key))
-                };
+                return new PayloadNode { Name = kv.Key, Value = currVal, PreviousValue = prevVal };
             })
         ];
 
-        EntityFieldRows = AllEntityFieldNodes
-            .Select(n => new KvpRow(n.Name, n.Value, n.IsDelta, n.PreviousValue))
-            .ToList();
+        EntityFieldRows =
+        [
+            .. AllEntityFieldNodes
+                .Select(n => new KvpRow(n.Name, n.Value, n.IsDelta, n.PreviousValue))
+        ];
 
         EntityDeltaFieldCount = AllEntityFieldNodes.Count(n => n.IsDelta);
         EntityHeaderText = EntityDeltaFieldCount > 0
@@ -1060,10 +956,12 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
 
         // Feed the delta log (changed fields prev → curr) and surface the
         // selected entity's serializer schema in the bottom strip.
-        List<(string Field, string Prev, string Curr)> changes = AllEntityFieldNodes
-            .Where(n => n.IsDelta)
-            .Select(n => (n.Name, n.PreviousValue ?? "", n.Value ?? ""))
-            .ToList();
+        List<(string Field, string Prev, string Curr)> changes =
+        [
+            .. AllEntityFieldNodes
+                .Where(n => n.IsDelta)
+                .Select(n => (n.Name, n.PreviousValue ?? "", n.Value))
+        ];
         DeltaLog.Show(CurrentTrackerInternal?.CurrentTick ?? 0,
             $"{entity.ClassName} (serial {entity.Serial})", changes);
         SerializerSchema.Show(CurrentTrackerInternal, entity.ClassName);

@@ -34,7 +34,7 @@ internal static class PerfOutput
     ///     resolved by <see cref="Profiling.Enabled" />; honouring both means neither spelling silently
     ///     does nothing.
     /// </summary>
-    public const string LegacyEnvironmentVariable = "DEMOVIEWER_PROFILE";
+    private const string LegacyEnvironmentVariable = "DEMOVIEWER_PROFILE";
 
     /// <summary>How many rows the "slowest operations" ranking prints.</summary>
     private const int RankedRows = 6;
@@ -189,6 +189,6 @@ internal static class PerfOutput
     private static bool IsTruthy(string? raw) =>
         raw is not null &&
         (string.Equals(raw, "1", StringComparison.Ordinal) ||
-         string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase) ||
-         string.Equals(raw, "yes", StringComparison.OrdinalIgnoreCase));
+            string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(raw, "yes", StringComparison.OrdinalIgnoreCase));
 }

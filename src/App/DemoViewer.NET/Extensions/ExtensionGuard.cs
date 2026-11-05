@@ -23,10 +23,12 @@ public sealed class ExtensionGuard(ExtensionFaults faults, ExtensionScope scope)
     public ExtensionScope Scope { get; } = scope ?? throw new ArgumentNullException(nameof(scope));
 
     /// <summary>A guard for a pack in a host with no process-wide fault tracker (designer, tests).</summary>
-    public static ExtensionGuard Standalone(IExtension pack) => ExtensionFaults.For([pack], static a => a()).GuardFor(pack);
+    public static ExtensionGuard Standalone(IExtension pack) =>
+        ExtensionFaults.For([pack], static a => a()).GuardFor(pack);
 
     /// <inheritdoc cref="ExtensionFaults.Run" />
-    public void Run(string site, Action body, FaultKind kind = FaultKind.Counted) => Faults.Run(Scope, site, body, kind);
+    public void Run(string site, Action body, FaultKind kind = FaultKind.Counted) =>
+        Faults.Run(Scope, site, body, kind);
 
     /// <inheritdoc cref="ExtensionFaults.Run{T}" />
     public T Run<T>(string site, Func<T> body, T fallback, FaultKind kind = FaultKind.Counted) =>
@@ -50,7 +52,8 @@ public sealed class ExtensionGuard(ExtensionFaults faults, ExtensionScope scope)
         string own = Scope.OwnFeature(requested);
         if (requested is not null && !string.Equals(own, requested, StringComparison.Ordinal))
         {
-            Report(site, new ArgumentException($"'{requested}' is not one of {Scope.Id}'s features; gated on {own} instead."));
+            Report(site,
+                new ArgumentException($"'{requested}' is not one of {Scope.Id}'s features; gated on {own} instead."));
         }
 
         return own;
@@ -97,7 +100,8 @@ public sealed class ExtensionGuard(ExtensionFaults faults, ExtensionScope scope)
     }
 
     /// <summary>A guarded copy of <paramref name="body" />, answering <paramref name="fallback" /> on a throw.</summary>
-    public Func<TResult> Wrap<TResult>(string site, Func<TResult> body, TResult fallback, FaultKind kind = FaultKind.Counted)
+    public Func<TResult> Wrap<TResult>(string site, Func<TResult> body, TResult fallback,
+        FaultKind kind = FaultKind.Counted)
     {
         ArgumentNullException.ThrowIfNull(body);
         return () =>
@@ -169,7 +173,8 @@ public sealed class MulticastGuard<THandler>(string site, FaultKind kind = Fault
     private volatile Snapshot? _cache;
 
     /// <summary>Invokes every handler in <paramref name="multicast" /> with <paramref name="state" />.</summary>
-    public void Invoke<TState>(ExtensionFaults faults, THandler? multicast, TState state, Action<THandler, TState> invoke)
+    public void Invoke<TState>(ExtensionFaults faults, THandler? multicast, TState state,
+        Action<THandler, TState> invoke)
     {
         ArgumentNullException.ThrowIfNull(faults);
         ArgumentNullException.ThrowIfNull(invoke);

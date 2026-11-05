@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Analysis.Diagnostics;
-using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -48,8 +47,10 @@ public sealed class PackDataRemover
     /// <param name="configRoot">The config root the descriptors' config paths resolve under.</param>
     /// <param name="cacheRoot">The cache root the descriptors' cache paths resolve under.</param>
     /// <param name="queue">The processing queue the work runs on; the pool when null.</param>
-    public PackDataRemover(DemoCacheStore store, string? configRoot, string? cacheRoot, IDemoProcessingQueue? queue = null)
-        : this(store, configRoot, cacheRoot, (title, serial, work) => QueueWork.Run(queue, QueueJobKind.SectionCompute, title,
+    public PackDataRemover(DemoCacheStore store, string? configRoot, string? cacheRoot,
+        IDemoProcessingQueue? queue = null)
+        : this(store, configRoot, cacheRoot, (title, serial, work) => QueueWork.Run(queue, QueueJobKind.SectionCompute,
+            title,
             serial, _ => work(), DemoJobPriority.UserRequested, serial: serial))
     {
     }
@@ -68,7 +69,8 @@ public sealed class PackDataRemover
         ArgumentNullException.ThrowIfNull(jobs);
     }
 
-    private PackDataRemover(DemoCacheStore store, string? configRoot, string? cacheRoot, Func<string, string, Action, Task> run)
+    private PackDataRemover(DemoCacheStore store, string? configRoot, string? cacheRoot,
+        Func<string, string, Action, Task> run)
     {
         this.store = store;
         this.configRoot = configRoot;
@@ -86,7 +88,8 @@ public sealed class PackDataRemover
     /// <param name="descriptors">The pack's declared stores.</param>
     /// <param name="ownerTag">The queue item's owner and serial (cancelled together with the pack's other work).</param>
     /// <param name="title">The queue list's line for this item.</param>
-    public Task<ExtensionDataInventory> InventoryAsync(IReadOnlyList<StoreDescriptor> descriptors, string ownerTag, string title) =>
+    public Task<ExtensionDataInventory> InventoryAsync(IReadOnlyList<StoreDescriptor> descriptors, string ownerTag,
+        string title) =>
         RunSerial(title, ownerTag, () => Inventory(descriptors), ExtensionDataInventory.Empty);
 
     /// <summary>
@@ -114,7 +117,8 @@ public sealed class PackDataRemover
         ArgumentException.ThrowIfNullOrWhiteSpace(packId);
         ArgumentNullException.ThrowIfNull(descriptors);
         ArgumentNullException.ThrowIfNull(facetIds);
-        return RunSerial(title, ownerTag, () => Delete(packId, descriptors, facetIds, stillOff), ExtensionDataRemovalResult.NotRun);
+        return RunSerial(title, ownerTag, () => Delete(packId, descriptors, facetIds, stillOff),
+            ExtensionDataRemovalResult.NotRun);
     }
 
     // QueueWork.RunAsync has no serial parameter; this is QueueWork.Run plus a captured result, with "ran"
@@ -153,7 +157,8 @@ public sealed class PackDataRemover
         return new ExtensionDataInventory(items);
     }
 
-    private ExtensionDataRemovalResult Delete(string packId, IReadOnlyList<StoreDescriptor> descriptors, IReadOnlyList<string> facetIds,
+    private ExtensionDataRemovalResult Delete(string packId, IReadOnlyList<StoreDescriptor> descriptors,
+        IReadOnlyList<string> facetIds,
         Func<bool>? stillOff)
     {
         if (stillOff?.Invoke() == false)
@@ -173,7 +178,8 @@ public sealed class PackDataRemover
         }
 
         int recordsUpdated = StripRecords(packId, facetIds);
-        return new ExtensionDataRemovalResult(true, new ExtensionDataInventory(items), recordsUpdated, totals.Skipped, totals.FirstSkippedPath);
+        return new ExtensionDataRemovalResult(true, new ExtensionDataInventory(items), recordsUpdated, totals.Skipped,
+            totals.FirstSkippedPath);
     }
 
     private void Measure(StoreDescriptor descriptor, bool actuallyDelete, Tally tally)
@@ -193,7 +199,8 @@ public sealed class PackDataRemover
             }
             else
             {
-                MeasureAndDeleteSuffixMatches(ResolveSafe(root, entry[..star]), entry[(star + 1)..], actuallyDelete, tally);
+                MeasureAndDeleteSuffixMatches(ResolveSafe(root, entry[..star]), entry[(star + 1)..], actuallyDelete,
+                    tally);
             }
         }
     }
@@ -257,7 +264,8 @@ public sealed class PackDataRemover
         foreach (string file in Directory.EnumerateFiles(dir))
         {
             string name = Path.GetFileName(file);
-            if (!name.EndsWith(suffix, StringComparison.Ordinal) || name.EndsWith(".dem", StringComparison.OrdinalIgnoreCase))
+            if (!name.EndsWith(suffix, StringComparison.Ordinal)
+                || name.EndsWith(".dem", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -353,7 +361,9 @@ public sealed class PackDataRemover
 
         string rootFull = Path.GetFullPath(root);
         string candidate = Path.GetFullPath(Path.Combine(root, relative));
-        string rootWithSeparator = rootFull.EndsWith(Path.DirectorySeparatorChar) ? rootFull : rootFull + Path.DirectorySeparatorChar;
+        string rootWithSeparator = rootFull.EndsWith(Path.DirectorySeparatorChar)
+            ? rootFull
+            : rootFull + Path.DirectorySeparatorChar;
         return candidate.StartsWith(rootWithSeparator, StringComparison.Ordinal) ? candidate : null;
     }
 

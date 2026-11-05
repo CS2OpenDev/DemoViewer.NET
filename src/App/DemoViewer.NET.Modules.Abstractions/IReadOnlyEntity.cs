@@ -6,6 +6,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     <c>EntityState["path"]</c> accessor — NEVER <c>EntityState.Fields</c> (which rebuilds a full
 ///     dict per entity; profiling showed it as the dominant entity-tracking alloc).
 /// </summary>
+[PublicAPI]
 public interface IReadOnlyEntity
 {
     /// <summary>Serializer / server-class name, e.g. <c>"CCSPlayerPawn"</c>.</summary>

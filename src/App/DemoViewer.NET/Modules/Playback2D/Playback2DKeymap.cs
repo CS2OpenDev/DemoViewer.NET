@@ -151,8 +151,8 @@ public static class Playback2DKeymap
     static Playback2DKeymap()
     {
         Default = BuildDefault();
-        Active = Default.Where(b => !b.IsReserved).ToArray();
-        Reserved = Default.Where(b => b.IsReserved).ToArray();
+        Active = [.. Default.Where(b => !b.IsReserved)];
+        Reserved = [.. Default.Where(b => b.IsReserved)];
         ShellReservedGestures = BuildShellReserved();
         BrowserReservedGestures = BuildBrowserReserved();
 
@@ -257,18 +257,6 @@ public static class Playback2DKeymap
         return false;
     }
 
-    /// <summary>Convenience overload for the view's KeyDown handler.</summary>
-    public static bool TryResolve(KeyEventArgs e, bool toolActive, out Playback2DAction action)
-    {
-        if (e is null)
-        {
-            action = Playback2DAction.None;
-            return false;
-        }
-
-        return TryResolve(e.Key, e.KeyModifiers, toolActive, out action);
-    }
-
     /// <summary>
     ///     Human-readable conflict list: duplicate gestures within a scope, and collisions with
     ///     <paramref name="shellReserved" />. Empty = clean. The static ctor throws on non-empty.
@@ -280,9 +268,9 @@ public static class Playback2DKeymap
         ArgumentNullException.ThrowIfNull(bindings);
         ArgumentNullException.ThrowIfNull(shellReserved);
 
-        List<string> conflicts = new();
+        List<string> conflicts = [];
         Dictionary<(Playback2DBindingScope, Key, KeyModifiers), string> seen = new();
-        HashSet<(Key, KeyModifiers)> shell = new(shellReserved);
+        HashSet<(Key, KeyModifiers)> shell = [.. shellReserved];
 
         foreach (Playback2DBinding binding in bindings)
         {

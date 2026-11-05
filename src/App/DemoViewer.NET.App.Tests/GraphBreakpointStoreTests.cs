@@ -1,6 +1,5 @@
 #region
 
-using System.Text.Json;
 using DemoViewer.NET.Debugging;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.ViewModels;
@@ -27,10 +26,10 @@ public sealed class GraphBreakpointStoreTests
     {
         using ConfigDir dir = new();
         WriteLegacy(dir, "demo-a",
-            $$"""
-              {"TargetKind":"Node","NodeName":"Alive","EdgeSource":null,"EdgeDest":null,
-               "EdgeLabel":null,"EdgeConditionLabel":null,"Condition":"value > 2","Enabled":true}
-              """);
+            """
+            {"TargetKind":"Node","NodeName":"Alive","EdgeSource":null,"EdgeDest":null,
+             "EdgeLabel":null,"EdgeConditionLabel":null,"Condition":"value > 2","Enabled":true}
+            """);
 
         GraphBreakpointStore.MigrateLegacyFile();
 
@@ -47,10 +46,10 @@ public sealed class GraphBreakpointStoreTests
     {
         using ConfigDir dir = new();
         WriteLegacy(dir, "demo-b",
-            $$"""
-              {"TargetKind":"Edge","NodeName":null,"EdgeSource":"Root","EdgeDest":"kills",
-               "EdgeLabel":"player_death","EdgeConditionLabel":"foe","Condition":null,"Enabled":false}
-              """);
+            """
+            {"TargetKind":"Edge","NodeName":null,"EdgeSource":"Root","EdgeDest":"kills",
+             "EdgeLabel":"player_death","EdgeConditionLabel":"foe","Condition":null,"Enabled":false}
+            """);
 
         GraphBreakpointStore.MigrateLegacyFile();
 
@@ -105,11 +104,13 @@ public sealed class GraphBreakpointStoreTests
     {
         using ConfigDir dir = new();
         GraphBreakpointStore store = new();
-        store.Save("demo-e", [new GraphBreakpoint
-        {
-            TargetKind = GraphBreakpointTarget.Node,
-            NodeKey = GraphNodeKey.ForGameScope("NewerNode").ToString()
-        }]);
+        store.Save("demo-e",
+        [
+            new GraphBreakpoint
+            {
+                TargetKind = GraphBreakpointTarget.Node, NodeKey = GraphNodeKey.ForGameScope("NewerNode").ToString()
+            }
+        ]);
         WriteLegacy(dir, "demo-e",
             """
             {"TargetKind":"Node","NodeName":"OlderNode","EdgeSource":null,"EdgeDest":null,
@@ -127,7 +128,7 @@ public sealed class GraphBreakpointStoreTests
     public async Task AnUnreadableLegacyFile_IsDiscardedRatherThanRetriedForever()
     {
         using ConfigDir dir = new();
-        File.WriteAllText(AppPaths.LegacyGraphBreakpointsFile!, "{ this is not json");
+        await File.WriteAllTextAsync(AppPaths.LegacyGraphBreakpointsFile!, "{ this is not json");
 
         GraphBreakpointStore.MigrateLegacyFile();
 
@@ -143,7 +144,7 @@ public sealed class GraphBreakpointStoreTests
         // occurrence is omitted at zero, so what earlier builds wrote IS the first copy's form. The
         // carry is therefore the absence of a rewrite, and this is what says so.
         using ConfigDir dir = new();
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             AppPaths.GraphBreakpointsFile!,
             """
             {"demo-f":[{"TargetKind":"Node","NodeKey":"p0:7:wallbang_kills","EdgeSourceKey":null,
@@ -158,7 +159,7 @@ public sealed class GraphBreakpointStoreTests
         await Assert.That(GraphNodeKey.TryParse(bp.NodeKey, out GraphNodeKey parsed)).IsTrue();
         await Assert.That(parsed).IsEqualTo(GraphNodeKey.ForPlayer(0, 7, 0, "wallbang_kills"))
             .Because("an un-suffixed per-player key is the first copy, which is one of the two the "
-                     + "same string used to match at once");
+                + "same string used to match at once");
     }
 
     [Test]
@@ -166,8 +167,7 @@ public sealed class GraphBreakpointStoreTests
     {
         Dictionary<string, List<PersistedGraphBreakpoint>> existing = new(StringComparer.Ordinal)
         {
-            ["keep"] = [Record("a")],
-            ["replace"] = [Record("b")]
+            ["keep"] = [Record("a")], ["replace"] = [Record("b")]
         };
 
         Dictionary<string, List<PersistedGraphBreakpoint>> merged =

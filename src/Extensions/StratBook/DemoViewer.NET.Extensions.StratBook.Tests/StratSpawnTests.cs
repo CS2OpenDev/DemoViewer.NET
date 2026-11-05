@@ -2,11 +2,11 @@
 
 using CS2DemoKit.Analysis.Visibility;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
-using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Zones;
-using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Playback2D.Assets;
+using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Zones;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.StratTestData;
@@ -21,10 +21,13 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class StratSpawnTests
 {
-    private static readonly string[] ShippedMaps =
-        ["de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass", "de_train", "de_vertigo"];
+    private static readonly string[] _shippedMaps =
+    [
+        "de_ancient", "de_anubis", "de_cache", "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass",
+        "de_train", "de_vertigo"
+    ];
 
-    private static readonly StratSpawns Fixed = new(
+    private static readonly StratSpawns _fixed = new(
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(1000 + 100 * i, 0, 64))],
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(-1000 - 100 * i, 0, -128))]);
 
@@ -57,8 +60,10 @@ public class StratSpawnTests
                     {
                         for (int j = i + 1; j < spots.Count; j++)
                         {
-                            double d = Math.Sqrt(Math.Pow(spots[i].X - spots[j].X, 2) + Math.Pow(spots[i].Y - spots[j].Y, 2));
-                            await Assert.That(d).IsGreaterThanOrEqualTo(StratSpawns.Spacing / 2).Because($"{map} {team}: tokens do not stack");
+                            double d = Math.Sqrt(Math.Pow(spots[i].X - spots[j].X, 2)
+                                + Math.Pow(spots[i].Y - spots[j].Y, 2));
+                            await Assert.That(d).IsGreaterThanOrEqualTo(StratSpawns.Spacing / 2)
+                                .Because($"{map} {team}: tokens do not stack");
                         }
                     }
                 }
@@ -71,17 +76,23 @@ public class StratSpawnTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratSpawns vertigo = StratSpawns.From(RequireZones("de_vertigo"), StratFromRound.FloorLevelKeys(Floors("de_vertigo")))!;
-            StratSpawns nuke = StratSpawns.From(RequireZones("de_nuke"), StratFromRound.FloorLevelKeys(Floors("de_nuke")))!;
+            StratSpawns vertigo = StratSpawns.From(RequireZones("de_vertigo"),
+                StratFromRound.FloorLevelKeys(Floors("de_vertigo")))!;
+            StratSpawns nuke =
+                StratSpawns.From(RequireZones("de_nuke"), StratFromRound.FloorLevelKeys(Floors("de_nuke")))!;
 
             // Bundle floors: vertigo splits at Z 11728 (T spawn below, CT spawn above); nuke at -528, both spawns above.
             double below = MapSpace.QuantizeZ(-100000);
             using (Assert.Multiple())
             {
-                await Assert.That(vertigo.T.Select(s => s.LevelMinZ).Distinct()).IsEquivalentTo(new[] { below }, CollectionOrdering.Matching);
-                await Assert.That(vertigo.Ct.Select(s => s.LevelMinZ).Distinct()).IsEquivalentTo(new[] { MapSpace.QuantizeZ(11728) }, CollectionOrdering.Matching);
-                await Assert.That(nuke.T.Select(s => s.LevelMinZ).Distinct()).IsEquivalentTo(new[] { MapSpace.QuantizeZ(-528) }, CollectionOrdering.Matching);
-                await Assert.That(nuke.Ct.Select(s => s.LevelMinZ).Distinct()).IsEquivalentTo(new[] { MapSpace.QuantizeZ(-528) }, CollectionOrdering.Matching);
+                await Assert.That(vertigo.T.Select(s => s.LevelMinZ).Distinct())
+                    .IsEquivalentTo([below], CollectionOrdering.Matching);
+                await Assert.That(vertigo.Ct.Select(s => s.LevelMinZ).Distinct())
+                    .IsEquivalentTo([MapSpace.QuantizeZ(11728)], CollectionOrdering.Matching);
+                await Assert.That(nuke.T.Select(s => s.LevelMinZ).Distinct())
+                    .IsEquivalentTo([MapSpace.QuantizeZ(-528)], CollectionOrdering.Matching);
+                await Assert.That(nuke.Ct.Select(s => s.LevelMinZ).Distinct())
+                    .IsEquivalentTo([MapSpace.QuantizeZ(-528)], CollectionOrdering.Matching);
             }
         });
     }
@@ -89,7 +100,7 @@ public class StratSpawnTests
     private static List<FloorSlice> Floors(string map)
     {
         string dir = MapAssetBundleReader.FindBundleDirectory(map)!;
-        return MapAssetBundleReader.TryRead(dir)!.Floors!.Select(f => new FloorSlice(f.MinZ, f.MaxZ)).ToList();
+        return [.. MapAssetBundleReader.TryRead(dir)!.Floors.Select(f => new FloorSlice(f.MinZ, f.MaxZ))];
     }
 
     [Test]
@@ -99,21 +110,23 @@ public class StratSpawnTests
         {
             StratDocument t = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "default", "t", Created);
             StratDocument ct = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "CT", "setup", "ct", Created);
-            Fixed.PlaceStart(t);
-            Fixed.PlaceStart(ct);
+            _fixed.PlaceStart(t);
+            _fixed.PlaceStart(ct);
 
             StratStart start = t.Start!;
             using (Assert.Multiple())
             {
                 await Assert.That(t.Steps).IsEmpty().Because("the start is not a step");
                 await Assert.That(start.Kind).IsEqualTo(StratStart.SpawnKind);
-                await Assert.That(start.Positions.Select(p => p.Slot)).IsEquivalentTo(StratVocabulary.Slots.Concat(StratVocabulary.OpponentSlots), CollectionOrdering.Matching);
+                await Assert.That(start.Positions.Select(p => p.Slot)).IsEquivalentTo(
+                    StratVocabulary.Slots.Concat(StratVocabulary.OpponentSlots), CollectionOrdering.Matching);
                 await Assert.That(start.Positions.Single(p => p.Slot == "A").X).IsEqualTo(1000);
                 await Assert.That(start.Positions.Single(p => p.Slot == "O1").X).IsEqualTo(-1000);
                 await Assert.That(start.Positions.Single(p => p.Slot == "O1").LevelMinZ).IsEqualTo(-128);
                 await Assert.That(ct.Start!.Positions.Single(p => p.Slot == "A").X).IsEqualTo(-1000);
                 await Assert.That(ct.Start.Positions.Single(p => p.Slot == "O1").X).IsEqualTo(1000);
-                await Assert.That(StratValidator.Validate(t).Any(i => i.Severity == StratIssueSeverity.Refusal)).IsFalse();
+                await Assert.That(StratValidator.Validate(t).Any(i => i.Severity == StratIssueSeverity.Refusal))
+                    .IsFalse();
             }
 
             StratSceneProjection projection = StratSceneProjection.Build(t, StratPath.MainLine(t));
@@ -126,10 +139,14 @@ public class StratSpawnTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "default", "d", Created);
-            document.Start = new StratStart { Kind = StratStart.CustomKind, Positions = [new StartPosition { Slot = "A", X = 5, Y = 6 }] };
+            StratDocument document =
+                StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "default", "d", Created);
+            document.Start = new StratStart
+            {
+                Kind = StratStart.CustomKind, Positions = [new StartPosition { Slot = "A", X = 5, Y = 6 }]
+            };
 
-            Fixed.PlaceStart(document);
+            _fixed.PlaceStart(document);
 
             using (Assert.Multiple())
             {
@@ -146,7 +163,8 @@ public class StratSpawnTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratSpawns spawns = StratSpawns.From(RequireZones(map))!;
-            await Assert.That(spawns.T.Concat(spawns.Ct).All(s => !string.IsNullOrEmpty(s.Place))).IsTrue().Because(map);
+            await Assert.That(spawns.T.Concat(spawns.Ct).All(s => !string.IsNullOrEmpty(s.Place))).IsTrue()
+                .Because(map);
         });
     }
 
@@ -156,7 +174,7 @@ public class StratSpawnTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratStore store = new(null);
-            StratSpawnSource spawns = new(_ => Fixed);
+            StratSpawnSource spawns = new(_ => _fixed);
             await spawns.ForAsync("de_mirage");
             using StratBookTabViewModel vm = new(store, null, null, false, spawns: spawns);
             vm.SelectedMap = "de_mirage";
@@ -166,7 +184,8 @@ public class StratSpawnTests
             StratDocument document = vm.Session.Document!;
             using (Assert.Multiple())
             {
-                await Assert.That(document.Revision).IsEqualTo(1).Because("the spawns are in the created revision, not an edit after it");
+                await Assert.That(document.Revision).IsEqualTo(1)
+                    .Because("the spawns are in the created revision, not an edit after it");
                 await Assert.That(document.Start!.Positions.Count).IsEqualTo(10);
                 await Assert.That(document.Steps).IsEmpty();
                 await Assert.That(store.Load(document.Id).Document!.Start!.Positions.Count).IsEqualTo(10);
@@ -184,7 +203,7 @@ public class StratSpawnTests
             StratSpawnSource spawns = new(_ =>
             {
                 gate.Task.Wait();
-                return Fixed;
+                return _fixed;
             });
             PostedActions posted = new();
             using StratBookTabViewModel vm = new(store, null, posted.Enqueue, false, spawns: spawns);
@@ -199,7 +218,8 @@ public class StratSpawnTests
             await spawns.ForAsync("de_mirage");
             await posted.DrainUntilAsync(() => store.Index.Count > 0);
 
-            await Assert.That(store.Index.Count).IsEqualTo(1).Because("a second click while waiting makes no second strat");
+            await Assert.That(store.Index.Count).IsEqualTo(1)
+                .Because("a second click while waiting makes no second strat");
             await Assert.That(vm.Session.Document!.Start!.Positions.Count).IsEqualTo(10);
         });
     }
@@ -218,7 +238,7 @@ public class StratSpawnTests
                     gate.Task.Wait();
                 }
 
-                return Fixed;
+                return _fixed;
             });
             await spawns.ForAsync("de_dust2");
             PostedActions posted = new();
@@ -247,15 +267,17 @@ public class StratSpawnTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(store.Index.Count(e => e.Map == "de_mirage")).IsEqualTo(1).Because("the late create still lands");
-                await Assert.That(vm.Session.Document?.Id).IsEqualTo(dust.Id).Because("it does not close the strat opened meanwhile");
+                await Assert.That(store.Index.Count(e => e.Map == "de_mirage")).IsEqualTo(1)
+                    .Because("the late create still lands");
+                await Assert.That(vm.Session.Document?.Id).IsEqualTo(dust.Id)
+                    .Because("it does not close the strat opened meanwhile");
                 await Assert.That(vm.SelectedStrat?.Id).IsEqualTo(dust.Id);
                 await Assert.That(vm.NewStratCommand.CanExecute(null)).IsTrue();
             }
         });
     }
 
-    public static IEnumerable<Func<string>> Maps() => ShippedMaps.Select(m => (Func<string>)(() => m));
+    public static IEnumerable<Func<string>> Maps() => _shippedMaps.Select(m => (Func<string>)(() => m));
 
     private static ZoneSet RequireZones(string map)
     {

@@ -3,9 +3,9 @@
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 
@@ -27,7 +27,8 @@ public class StratBookLibraryTests
         return Task.CompletedTask;
     };
 
-    private static DemoCacheRecord Record(string path, long ticks, string[] t, string[] ct, string? tClan = null, string? ctClan = null)
+    private static DemoCacheRecord Record(string path, long ticks, string[] t, string[] ct, string? tClan = null,
+        string? ctClan = null)
     {
         DemoCacheRecord record = new()
         {
@@ -48,11 +49,28 @@ public class StratBookLibraryTests
 
         foreach (string id in ct)
         {
-            record.Players.Add(new CachedPlayerInfo { Slot = slot++, Name = "ct" + id[^2..], SteamId64 = id, Team = 3 });
+            record.Players.Add(new CachedPlayerInfo
+            {
+                Slot = slot++, Name = "ct" + id[^2..], SteamId64 = id, Team = 3
+            });
         }
 
-        record.Players.Add(new CachedPlayerInfo { Slot = slot++, Name = "coach", SteamId64 = "76561198000000099", Team = 3, IsCoach = true });
-        record.Players.Add(new CachedPlayerInfo { Slot = slot++, Name = "BOT Rock", SteamId64 = "0", Team = 2, IsBot = true });
+        record.Players.Add(new CachedPlayerInfo
+        {
+            Slot = slot++,
+            Name = "coach",
+            SteamId64 = "76561198000000099",
+            Team = 3,
+            IsCoach = true
+        });
+        record.Players.Add(new CachedPlayerInfo
+        {
+            Slot = slot++,
+            Name = "BOT Rock",
+            SteamId64 = "0",
+            Team = 2,
+            IsBot = true
+        });
         record.Players.Add(new CachedPlayerInfo { Slot = slot, Name = "again", SteamId64 = t[0], Team = 2 });
         DemoCacheStore.StampHeader(record);
         DemoCacheStore.StampParse(record);
@@ -81,7 +99,8 @@ public class StratBookLibraryTests
         {
             await Assert.That(fromRow.SameSides(fromRecord)).IsTrue();
             await Assert.That(fromRow.T.Key).IsEquivalentTo(Ids(10), CollectionOrdering.Matching);
-            await Assert.That(fromRow.Ct.Key).IsEquivalentTo(Ids(20), CollectionOrdering.Matching).Because("the coach is no member of the key");
+            await Assert.That(fromRow.Ct.Key).IsEquivalentTo(Ids(20), CollectionOrdering.Matching)
+                .Because("the coach is no member of the key");
             await Assert.That(fromRow.T.Names).IsEquivalentTo(fromRecord.T.Names, CollectionOrdering.Matching);
             await Assert.That(fromRow.Ct.Clan).IsEqualTo("Blue");
             await Assert.That(fromRow.StableKey).IsEqualTo(DemoCacheStore.StableKey("/d/a.dem"));
@@ -126,7 +145,8 @@ public class StratBookLibraryTests
             using TeamIdentityService teams = new(TestFiles.Teams(root), library, run: _inline);
             await teams.StartAsync();
             TeamAssignment? before = teams.GetAssignment("/d/a.dem");
-            await Assert.That(teams.DemoCount).IsEqualTo(2).Because("a row without sides keeps what the team index holds");
+            await Assert.That(teams.DemoCount).IsEqualTo(2)
+                .Because("a row without sides keeps what the team index holds");
             await Assert.That(before?.T.TeamId).IsNotNull();
 
             // A change to a side-less row lifts nothing either.
@@ -198,8 +218,10 @@ public class StratBookLibraryTests
         foreach (string file in Directory.EnumerateFiles(pack, "*.*", SearchOption.AllDirectories))
         {
             string relative = Path.GetRelativePath(pack, file).Replace('\\', '/');
-            if (relative.StartsWith("bin/", StringComparison.Ordinal) || relative.StartsWith("obj/", StringComparison.Ordinal)
-                || !(file.EndsWith(".cs", StringComparison.Ordinal) || file.EndsWith(".axaml", StringComparison.Ordinal)))
+            if (relative.StartsWith("bin/", StringComparison.Ordinal)
+                || relative.StartsWith("obj/", StringComparison.Ordinal)
+                || !(file.EndsWith(".cs", StringComparison.Ordinal)
+                    || file.EndsWith(".axaml", StringComparison.Ordinal)))
             {
                 continue;
             }
@@ -216,8 +238,9 @@ public class StratBookLibraryTests
     private static string WithoutComments(string source)
     {
         string stripped = Regex.Replace(source, @"/\*.*?\*/|<!--.*?-->", "", RegexOptions.Singleline);
-        return string.Join('\n', stripped.Split('\n').Select(line => line.IndexOf("//", StringComparison.Ordinal) is var at and >= 0
-            ? line[..at]
-            : line));
+        return string.Join('\n', stripped.Split('\n').Select(line =>
+            line.IndexOf("//", StringComparison.Ordinal) is var at and >= 0
+                ? line[..at]
+                : line));
     }
 }

@@ -70,10 +70,10 @@ public sealed partial class TagRowViewModel : ObservableObject
 public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
 {
     /// <summary>The Suggested tab's index.</summary>
-    public const int SuggestedTab = 0;
+    private const int SuggestedTab = 0;
 
     /// <summary>The Labels tab's index.</summary>
-    public const int LabelsTab = 1;
+    private const int LabelsTab = 1;
 
     private readonly TagPaletteViewModel _palette;
     private readonly Func<int> _playhead;
@@ -84,6 +84,7 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
     private TagEditorViewModel? _editor;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSuggestedTab), nameof(IsLabelsTab), nameof(IsLabelsListShown))]
     private int _selectedTab;
 
     private TagRowViewModel? _selectedLabel;
@@ -132,7 +133,8 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
 
     public string HandHeader => string.Create(CultureInfo.InvariantCulture, $"Yours ({HandLabels.Count})");
 
-    public string MachineHeader => string.Create(CultureInfo.InvariantCulture, $"From suggestions ({MachineLabels.Count})");
+    public string MachineHeader =>
+        string.Create(CultureInfo.InvariantCulture, $"From suggestions ({MachineLabels.Count})");
 
     /// <summary>The label list's heading, with the count.</summary>
     public string LabelsHeader => string.Create(CultureInfo.InvariantCulture, $"Labels: {Labels.Count}");
@@ -200,13 +202,13 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
         return true;
     }
 
-    /// <summary>Opens the editor on a written tag, found by id; false when this demo has no such tag.</summary>
+    /// <summary>Opens the editor on a written tag, found by id; does nothing when this demo has no such tag.</summary>
     /// <param name="id">The tag's id.</param>
-    public bool EditTag(Guid id)
+    public void EditTag(Guid id)
     {
         if (_session.Document?.Instances.FirstOrDefault(i => i.Id == id) is not { } instance)
         {
-            return false;
+            return;
         }
 
         SelectedTab = LabelsTab;
@@ -215,19 +217,17 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
         {
             OpenEditor(instance);
         }
-
-        return true;
     }
 
     /// <summary>Opens the editor on a new tag over a span: no code yet, the user picks one.</summary>
     /// <param name="fromTick">Start tick.</param>
     /// <param name="toTick">End tick.</param>
     /// <param name="title">The editor's title.</param>
-    public bool NewTag(int fromTick, int toTick, string title)
+    public void NewTag(int fromTick, int toTick, string title)
     {
         if (_session.Document is null)
         {
-            return false;
+            return;
         }
 
         TagEditorDraft draft = new() { FromTick = fromTick, ToTick = Math.Max(fromTick, toTick) };
@@ -235,7 +235,6 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
         SetEditor(new TagEditorViewModel(title, draft, Vocabulary(), _tickRate(), origin, _playhead, Bounds,
             Add, null, CloseEditor));
         SelectedTab = LabelsTab;
-        return true;
     }
 
     /// <summary>A label over the whole round under the playhead: its start to the tick before the next round.</summary>
@@ -294,12 +293,6 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void SelectLabel(TagRowViewModel? row) => SelectedLabel = row;
 
-    partial void OnSelectedTabChanged(int value)
-    {
-        OnPropertyChanged(nameof(IsSuggestedTab));
-        OnPropertyChanged(nameof(IsLabelsTab));
-        OnPropertyChanged(nameof(IsLabelsListShown));
-    }
 
     /// <summary>The Suggested tab's gate (<c>playback2d.suggestedtags</c>) is on; the toggle shows only then.</summary>
     [ObservableProperty]
@@ -307,12 +300,11 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
 
     /// <summary>The Labels tab's gate (<c>playback2d.tagger</c>) is on; the toggle and the list show only then.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLabelsListShown))]
     private bool _isLabelsAvailable = true;
 
     /// <summary>The Labels list is on screen: its tab is selected and its gate is on.</summary>
     public bool IsLabelsListShown => IsLabelsTab && IsLabelsAvailable;
-
-    partial void OnIsLabelsAvailableChanged(bool value) => OnPropertyChanged(nameof(IsLabelsListShown));
 
     private void OpenEditor(TagInstance instance)
     {
@@ -437,7 +429,8 @@ public sealed partial class ReviewPanelViewModel : ObservableObject, IDisposable
         HandLabels.Clear();
         MachineLabels.Clear();
         int rate = _tickRate();
-        foreach (TagInstance instance in (_session.Document?.Instances ?? []).OrderBy(i => i.FromTick).ThenBy(i => i.Code, StringComparer.Ordinal))
+        foreach (TagInstance instance in (_session.Document?.Instances ?? []).OrderBy(i => i.FromTick)
+                 .ThenBy(i => i.Code, StringComparer.Ordinal))
         {
             int roundStart = TagEditorViewModel.RoundBounds(_session.Rounds, instance.FromTick)?.Start ?? 0;
             TagRowViewModel row = new(instance, roundStart, rate);

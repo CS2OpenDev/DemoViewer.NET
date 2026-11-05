@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using CS2DemoKit.Analysis;
@@ -11,15 +10,13 @@ using CS2DemoKit.Analysis.RulesetsV2.Compile;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.Yaml;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Modules;
+using DemoViewer.NET.AppTests.Extensions;
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
-using DemoViewer.NET.Extensions;
-using DemoViewer.NET.AppTests.Extensions;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -35,7 +32,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("RealDemo")]
 public class ForwardPassRealDemoTests
 {
-    private static readonly JsonSerializerOptions Json = new() { WriteIndented = false, IncludeFields = true };
+    private static readonly JsonSerializerOptions _json = new() { WriteIndented = false, IncludeFields = true };
 
     private static RuleConfigLoadResult ShippedRules() =>
         YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null);
@@ -84,12 +81,15 @@ public class ForwardPassRealDemoTests
             await Assert.That(forward.Keys).IsEquivalentTo(retained.Keys, CollectionOrdering.Matching);
             foreach ((string key, string value) in retained)
             {
-                await Assert.That(forward[key]).IsEqualTo(value).Because($"{key}, forward vs retained, {Path.GetFileName(path)}");
+                await Assert.That(forward[key]).IsEqualTo(value)
+                    .Because($"{key}, forward vs retained, {Path.GetFileName(path)}");
             }
 
-            await Assert.That(rulesOnly).IsEqualTo(forward["round facts"]).Because("a Round Facts backlog visit reads rules only");
+            await Assert.That(rulesOnly).IsEqualTo(forward["round facts"])
+                .Because("a Round Facts backlog visit reads rules only");
             await Assert.That(forward["firings"]).IsEqualTo(old["firings"]).Because("merged build vs highlights alone");
-            await Assert.That(forward["round facts"]).IsEqualTo(old["round facts"]).Because("merged build vs round_facts alone");
+            await Assert.That(forward["round facts"]).IsEqualTo(old["round facts"])
+                .Because("merged build vs round_facts alone");
             // The engine's fingerprint hashes highlight definitions only, so adding round_facts leaves it as it was.
             await Assert.That(forward["highlight fingerprint"]).IsEqualTo(old["highlight fingerprint"]);
             if (forward["round facts"] != None)
@@ -97,14 +97,17 @@ public class ForwardPassRealDemoTests
                 await Assert.That(forward["round facts fingerprint"]).IsNotEqualTo(old["round facts fingerprint"]);
             }
 
-            foreach (string key in requireRows ? new[] { "firings", "round facts", "record", "library", "extension pass" } : ["firings", "record", "library"])
+            foreach (string key in requireRows
+                         ? new[] { "firings", "round facts", "record", "library", "extension pass" }
+                         : ["firings", "record", "library"])
             {
                 await Assert.That(forward[key].Length).IsGreaterThan(200).Because($"{key}: {forward[key]}");
             }
         }
 
-        Console.WriteLine($"{Path.GetFileName(path)}: " + string.Join(", ", forward.Select(kv => $"{kv.Key} {kv.Value.Length}"))
-                          + $", rows {(forward["round facts"] == None ? "none" : "yes")}");
+        Console.WriteLine($"{Path.GetFileName(path)}: "
+            + string.Join(", ", forward.Select(kv => $"{kv.Key} {kv.Value.Length}"))
+            + $", rows {(forward["round facts"] == None ? "none" : "yes")}");
     }
 
     [Test]
@@ -116,7 +119,8 @@ public class ForwardPassRealDemoTests
         double seen = 0;
         using DemoReader reader = DemoReader.OpenFile(path, ForwardDemoPass.ReaderOptions(cancel.Token));
 
-        Assert.Throws<OperationCanceledException>(() => ForwardDemoPass.Run(reader, ForwardNeeds.FinalState | ForwardNeeds.Rules, merged.Docs,
+        Assert.Throws<OperationCanceledException>(() => ForwardDemoPass.Run(reader,
+            ForwardNeeds.FinalState | ForwardNeeds.Rules, merged.Docs,
             p =>
             {
                 seen = p;
@@ -130,7 +134,8 @@ public class ForwardPassRealDemoTests
 
     // The retained parse the queue runs, through the evaluators' retained entry points, plus the two
     // separate builds that ran before the merge.
-    private static (Dictionary<string, string> Written, Dictionary<string, string> Old) Retained(string path, MergedRulesBuild merged)
+    private static (Dictionary<string, string> Written, Dictionary<string, string> Old) Retained(string path,
+        MergedRulesBuild merged)
     {
         ParsedDemo parsed = BackgroundPlanRealDemoTests.ParseMapped(path, DemoProcessingQueue.WithoutUserCommands);
         Dictionary<string, string> written = Write(path, merged, (library, entry, highlights, facts) =>
@@ -139,30 +144,34 @@ public class ForwardPassRealDemoTests
             highlights.Evaluate(path, parsed);
             facts.Evaluate(path, parsed);
         });
-        written["firings"] = JsonSerializer.Serialize(merged.BareRun(parsed).Highlights, Json);
+        written["firings"] = JsonSerializer.Serialize(merged.BareRun(parsed).Highlights, _json);
         written["extension pass"] = ExtensionPassSees(path, parsed, null);
 
         IReadOnlyList<RulesetDoc> rules = ShippedRules().Rulesets;
         BuildResult highlightsOnly = DemoAnalysis.Build(parsed, HighlightsOnly(rules));
         RulesetDoc doc = merged.EnabledDoc(RoundFactsFingerprint.RulesetId)!;
         BuildResult factsOnly = DemoAnalysis.Build(parsed, [doc]);
-        AnalysisRun factsRun = DemoAnalysis.Evaluate(parsed, factsOnly, new AnalysisOptions { CaptureSnapshots = false });
+        AnalysisRun factsRun =
+            DemoAnalysis.Evaluate(parsed, factsOnly, new AnalysisOptions { CaptureSnapshots = false });
         MetricTable? table = factsRun.ProjectConfiguredOutputs(parsed)
             .FirstOrDefault(t => t.Name == EngineRoundFactsRowSource.TableName);
         RoundFactsTable factsTable =
-            EngineRoundFactsRowSource.FromTable(table, EngineRoundFactsRowSource.ParametersOf(doc), ClipRounds.Derive(parsed));
+            EngineRoundFactsRowSource.FromTable(table, EngineRoundFactsRowSource.ParametersOf(doc),
+                ClipRounds.Derive(parsed));
         RoundFactsRows rows = RoundFactsProjection.Project(ClipRounds.Derive(parsed), factsTable);
         rows.Clock = RoundFactsClock.For(parsed);
 
         Dictionary<string, string> old = new()
         {
             ["firings"] = JsonSerializer.Serialize(
-                DemoAnalysis.Evaluate(parsed, highlightsOnly, new AnalysisOptions { CaptureSnapshots = false }).Highlights, Json),
+                DemoAnalysis.Evaluate(parsed, highlightsOnly, new AnalysisOptions { CaptureSnapshots = false })
+                    .Highlights, _json),
             ["round facts"] = factsTable.Rows.Count == 0 ? None : WithoutSha(rows),
             ["highlight fingerprint"] = HighlightConfigFingerprint.Compute(
                 HighlightsOnly(rules), parsed.TickRate, RulesHighlightHarvester.GotvProfileId).Fingerprint,
             ["round facts fingerprint"] = RoundFactsFingerprint.Combine(RoundFactsRecords.Schema,
-                HighlightConfigFingerprint.Compute([doc], parsed.TickRate, RulesHighlightHarvester.GotvProfileId).Fingerprint)
+                HighlightConfigFingerprint.Compute([doc], parsed.TickRate, RulesHighlightHarvester.GotvProfileId)
+                    .Fingerprint)
         };
         return (written, old);
     }
@@ -174,7 +183,14 @@ public class ForwardPassRealDemoTests
         new ExtensionPassHost(pass, [], ExtensionPassHostTests.StandaloneGuard(), static () => false)
             .Run(new PassInput(new VisitedDemo(path), PassLevel.Background, parsed, read, CancellationToken.None));
         ExtensionPassHostTests.SeenContext seen = pass.Seen!;
-        return JsonSerializer.Serialize(new { seen.FrameCount, seen.FirstServerTick, seen.LastServerTick, seen.Map, seen.Rounds }, Json);
+        return JsonSerializer.Serialize(new
+        {
+            seen.FrameCount,
+            seen.FirstServerTick,
+            seen.LastServerTick,
+            seen.Map,
+            seen.Rounds
+        }, _json);
     }
 
     private static Dictionary<string, string> Forward(string path, MergedRulesBuild merged)
@@ -187,7 +203,7 @@ public class ForwardPassRealDemoTests
             highlights.EvaluateForward(path, pass);
             facts.EvaluateForward(path, pass);
         });
-        written["firings"] = JsonSerializer.Serialize(pass.Run!.Highlights, Json);
+        written["firings"] = JsonSerializer.Serialize(pass.Run!.Highlights, _json);
         written["extension pass"] = ExtensionPassSees(path, null, pass);
         return written;
     }
@@ -226,13 +242,15 @@ public class ForwardPassRealDemoTests
         RulesRoundFactsRulesetIdentity identity = new(merged);
         try
         {
-            using DemoLibraryService library = new(a => a(), libraryJson, demoCache: cache) { TeamRun = merged.BareRun };
-            using HighlightScanService highlights = new(cache, new RulesHighlightHarvester(merged), () => [path], () => true);
+            using DemoLibraryService
+                library = new(a => a(), libraryJson, demoCache: cache) { TeamRun = merged.BareRun };
+            using HighlightScanService highlights = new(cache, new RulesHighlightHarvester(merged), () => [path],
+                () => true);
             RoundFactsEvaluator facts = new(cache, new EngineRoundFactsRowSource(identity), identity);
             run(library, entry, highlights, facts);
 
             DemoCacheRecord record = cache.TryLoadRecord(path)!;
-            JsonObject recordJson = JsonSerializer.SerializeToNode(record, Json)!.AsObject();
+            JsonObject recordJson = JsonSerializer.SerializeToNode(record, _json)!.AsObject();
             StripStamps(recordJson);
             return new Dictionary<string, string>
             {
@@ -240,19 +258,20 @@ public class ForwardPassRealDemoTests
                 ["round facts"] = WithoutSha(record.RoundFacts),
                 ["highlight fingerprint"] = record.ConfigFingerprint ?? "",
                 ["round facts fingerprint"] = record.RoundFactsFingerprint() ?? "",
-                ["library"] = JsonSerializer.Serialize(new
-                {
-                    entry.State,
-                    entry.Players,
-                    entry.DurationSeconds,
-                    entry.MapName,
-                    entry.CtScore,
-                    entry.TScore,
-                    entry.CtClan,
-                    entry.TClan,
-                    Rounds = record.Rounds.Count,
-                    Roster = record.Players
-                }, Json)
+                ["library"] = JsonSerializer.Serialize(
+                    new
+                    {
+                        entry.State,
+                        entry.Players,
+                        entry.DurationSeconds,
+                        entry.MapName,
+                        entry.CtScore,
+                        entry.TScore,
+                        entry.CtClan,
+                        entry.TClan,
+                        Rounds = record.Rounds.Count,
+                        Roster = record.Players
+                    }, _json)
             };
         }
         finally
@@ -270,7 +289,7 @@ public class ForwardPassRealDemoTests
             return None;
         }
 
-        JsonObject json = JsonSerializer.SerializeToNode(rows, Json)!.AsObject();
+        JsonObject json = JsonSerializer.SerializeToNode(rows, _json)!.AsObject();
         json.Remove("DemoSha256");
         return json.ToJsonString();
     }

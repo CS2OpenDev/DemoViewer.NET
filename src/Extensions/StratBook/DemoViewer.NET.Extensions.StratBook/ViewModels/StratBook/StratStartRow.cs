@@ -18,6 +18,7 @@ public sealed partial class StratStartRow : ObservableObject
     private readonly StratEditorViewModel _owner;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExpandGlyph))]
     private bool _isExpanded;
 
     [ObservableProperty]
@@ -57,8 +58,6 @@ public sealed partial class StratStartRow : ObservableObject
     /// <summary>Whether the strat's spawns are known, so the row can put the tokens back in them.</summary>
     public bool CanUseSpawns => _owner.Spawns?.Invoke() is not null;
 
-    partial void OnIsExpandedChanged(bool value) => OnPropertyChanged(nameof(ExpandGlyph));
-
     [RelayCommand]
     private void ToggleExpanded() => IsExpanded = !IsExpanded;
 
@@ -75,17 +74,19 @@ public sealed partial class StratStartRow : ObservableObject
             Note = "";
         }
 
-        KindText = start is null ? "" : document.Start is null && start.Kind == StratStart.CustomKind ? "from step 1" : start.Kind switch
-        {
-            StratStart.SpawnKind => "spawn",
-            StratStart.CapturedKind => "captured",
-            _ => "custom"
-        };
-        Summary = StratStartPhrasing.Text(document, places, spawns) ?? "no one placed: tokens appear at their first step";
+        KindText = start is null ? "" :
+            document.Start is null && start.Kind == StratStart.CustomKind ? "from step 1" : start.Kind switch
+            {
+                StratStart.SpawnKind => "spawn",
+                StratStart.CapturedKind => "captured",
+                _ => "custom"
+            };
+        Summary = StratStartPhrasing.Text(document, places, spawns)
+            ?? "no one placed: tokens appear at their first step";
         Line = document.Trigger?.Text is { Length: > 0 } trigger ? Summary + " · " + trigger : Summary;
         foreach (StratStartSlotRow row in Own.Concat(Opponents))
         {
-            row.Load(start, places);
+            row.Load(start);
         }
 
         OnPropertyChanged(nameof(Summary));
@@ -122,7 +123,7 @@ public sealed partial class StratStartSlotRow : ObservableObject
     /// <summary>The level a typed coordinate takes when the field holds no point.</summary>
     public double? CurrentLevelMinZ => _owner.DefaultLevelMinZ;
 
-    internal void Load(StratStart? start, CalloutResolver places)
+    internal void Load(StratStart? start)
     {
         _loading = true;
         try

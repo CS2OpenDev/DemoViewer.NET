@@ -1,13 +1,11 @@
 #region
 
 using System.Globalization;
-using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -268,9 +266,11 @@ public class StatsBoardScaleTests
     {
         // Sorted on both sides, so an ordered comparison holds, and a partition has no order of
         // its own to assert.
-        await Assert.That(_accuracyColumns.Concat(_aimQualityColumns).Concat(_denominatorColumns)
-                .OrderBy(c => c, StringComparer.Ordinal).ToArray())
-            .IsEquivalentTo(_aimColumns.OrderBy(c => c, StringComparer.Ordinal).ToArray(), CollectionOrdering.Matching)
+        await Assert.That([
+                .. _accuracyColumns.Concat(_aimQualityColumns).Concat(_denominatorColumns)
+                    .OrderBy(c => c, StringComparer.Ordinal)
+            ])
+            .IsEquivalentTo([.. _aimColumns.OrderBy(c => c, StringComparer.Ordinal)], CollectionOrdering.Matching)
             .Because("the two chips and the denominators must partition the ruleset");
 
         foreach (string column in _accuracyColumns)
@@ -330,7 +330,7 @@ public class StatsBoardScaleTests
     public async Task CategoryRail_CarriesBothAimChips_BetweenCombatAndDamage()
     {
         StatsTabViewModel vm = BuildVm();
-        List<CategoryChip> chips = vm.Categories.ToList();
+        List<CategoryChip> chips = [.. vm.Categories];
 
         await Assert.That(chips.Single(c => c.Group == StatGroup.Accuracy).Label).IsEqualTo("Accuracy");
         await Assert.That(chips.Single(c => c.Group == StatGroup.AimQuality).Label).IsEqualTo("Aim Quality");
@@ -440,10 +440,7 @@ public class StatsBoardScaleTests
         vm.SelectedCategory = StatGroup.Accuracy;
         await Assert.That(Cell(vm, "Alice", "Acc%").Tooltip).IsNull();
 
-        StatCell one = new(300.0, ColumnCatalogue.Resolve("TTS"))
-        {
-            Denominator = 1
-        };
+        StatCell one = new(300.0, ColumnCatalogue.Resolve("TTS")) { Denominator = 1 };
         await Assert.That(one.Tooltip).IsEqualTo("300 ms over 1 engagement");
     }
 
@@ -512,7 +509,8 @@ public class StatsBoardScaleTests
             seen++;
             ColumnMeta count = ColumnCatalogue.Resolve(over.Key);
             await Assert.That(count.Hidden).IsTrue()
-                .Because($"{meta.Key} reads {over.Key}, which must be a catalogued hidden column and not a stray label");
+                .Because(
+                    $"{meta.Key} reads {over.Key}, which must be a catalogued hidden column and not a stray label");
         }
 
         await Assert.That(seen).IsEqualTo(12).Because("twelve aim columns read a count in their tooltip");
@@ -547,7 +545,7 @@ public class StatsBoardScaleTests
         vm.SelectedCategory = ColumnCatalogue.Resolve(column).Group;
 
         StatScaleSpec spec = ColumnCatalogue.Resolve(column).Scale!;
-        await Assert.That(spec.ColourGateColumns).IsEquivalentTo(new[] { gate }, CollectionOrdering.Matching);
+        await Assert.That(spec.ColourGateColumns).IsEquivalentTo([gate], CollectionOrdering.Matching);
 
         StatCell thin = Cell(vm, starved, column);
         await Assert.That(thin.Scale).IsNotNull().Because("the bar survives the gate");
@@ -965,7 +963,7 @@ public class StatsBoardScaleTests
     [Test]
     public async Task Outcome_IsDerivedFromTheScoreline()
     {
-        StatsTabViewModel vm = BuildVm(13, 9);
+        StatsTabViewModel vm = BuildVm();
 
         TeamSection ct = vm.TeamSections.Single(t => t.IsCt);
         TeamSection t = vm.TeamSections.Single(x => !x.IsCt);
@@ -1080,7 +1078,7 @@ public class StatsBoardScaleTests
     public async Task Podium_DoesNotFollowTheTableSort()
     {
         StatsTabViewModel vm = BuildVm();
-        string[] before = vm.Podium.Select(e => e.Name).ToArray();
+        string[] before = [.. vm.Podium.Select(e => e.Name)];
 
         vm.SortByColumnCommand.Execute(vm.Columns.Single(c => c.Label == "TotalD"));
 
@@ -1168,6 +1166,7 @@ public class StatsBoardScaleTests
         Action act)
     {
         List<bool> seen = [];
+
         void OnChanged(object? _, System.ComponentModel.PropertyChangedEventArgs e)
         {
             if (string.Equals(e.PropertyName, property, StringComparison.Ordinal))
@@ -1278,8 +1277,11 @@ public class StatsBoardScaleTests
         await Assert.That(vm.IsBoardLayout).IsTrue();
         await Assert.That(vm.IsCompositionBoard).IsTrue();
 
-        CompositionRow[] rows = vm.BoardSections
-            .SelectMany(s => s.Rows).Cast<CompositionRow>().ToArray();
+        CompositionRow[] rows =
+        [
+            .. vm.BoardSections
+                .SelectMany(s => s.Rows).Cast<CompositionRow>()
+        ];
         await Assert.That(rows.Length).IsEqualTo(10);
 
         double max = rows.Max(r => r.Total);
@@ -1319,7 +1321,7 @@ public class StatsBoardScaleTests
             }
 
             // Distinct slots within a row, or two categories would share a colour on one bar.
-            int[] slots = row.Segments.Select(seg => seg.Slot).ToArray();
+            int[] slots = [.. row.Segments.Select(seg => seg.Slot)];
             await Assert.That(slots.Distinct().Count()).IsEqualTo(slots.Length);
         }
     }
@@ -1337,7 +1339,7 @@ public class StatsBoardScaleTests
 
         await Assert.That(vm.IsDuelBoard).IsTrue();
 
-        DuelRow[] rows = vm.BoardSections.SelectMany(s => s.Rows).Cast<DuelRow>().ToArray();
+        DuelRow[] rows = [.. vm.BoardSections.SelectMany(s => s.Rows).Cast<DuelRow>()];
         await Assert.That(rows.Length).IsEqualTo(10);
 
         double extent = rows[0].Extent;
@@ -1360,7 +1362,7 @@ public class StatsBoardScaleTests
 
         await Assert.That(vm.IsPipBoard).IsTrue();
 
-        PipsRow[] rows = vm.BoardSections.SelectMany(s => s.Rows).Cast<PipsRow>().ToArray();
+        PipsRow[] rows = [.. vm.BoardSections.SelectMany(s => s.Rows).Cast<PipsRow>()];
         await Assert.That(rows[0].PlayerName).IsEqualTo("Alice");
         await Assert.That(rows[0].Groups.Single(g => g.Label == "ACE").Count).IsEqualTo(1);
         await Assert.That(rows[0].Groups.Single(g => g.Label == "ACE").IsRare).IsTrue();
@@ -1464,14 +1466,8 @@ public class StatsBoardScaleTests
             StatsTabViewModel vm = BuildVm();
             vm.SelectedCategory = StatGroup.Other;
 
-            StatsTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1280, Height = 620, Content = view
-            };
+            StatsTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 1280, Height = 620, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -1519,14 +1515,10 @@ public class StatsBoardScaleTests
                     app.RequestedThemeVariant = ThemeVariant.Dark;
                 }
 
-                StatsTabView view = new()
-                {
-                    DataContext = BuildVm()
-                };
+                StatsTabView view = new() { DataContext = BuildVm() };
                 Window window = new()
                 {
-                    Width = 1280, Height = 560, Content = view,
-                    RequestedThemeVariant = ThemeVariant.Dark
+                    Width = 1280, Height = 560, Content = view, RequestedThemeVariant = ThemeVariant.Dark
                 };
                 window.Show();
                 Dispatcher.UIThread.RunJobs();
@@ -1578,7 +1570,8 @@ public class StatsBoardScaleTests
 
                 Window window = new()
                 {
-                    Width = 1280, Height = 620,
+                    Width = 1280,
+                    Height = 620,
                     Content = new StatsTabView { DataContext = vm },
                     RequestedThemeVariant = ThemeVariant.Dark
                 };
@@ -1638,7 +1631,8 @@ public class StatsBoardScaleTests
 
                     Window window = new()
                     {
-                        Width = 1280, Height = 620,
+                        Width = 1280,
+                        Height = 620,
                         Content = new StatsTabView { DataContext = vm },
                         RequestedThemeVariant = variant
                     };
@@ -1849,23 +1843,19 @@ public class StatsBoardScaleTests
             StatsTabViewModel vm = BuildVm(sightless: true);
             vm.SelectedCategory = StatGroup.AimQuality;
 
-            StatsTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1280, Height = 620, Content = view
-            };
+            StatsTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 1280, Height = 620, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             Dispatcher.UIThread.RunJobs();
 
-            TextBlock[] shown = view.GetVisualDescendants().OfType<TextBlock>()
-                .Where(t => t.IsVisible && t.Text is { } text && text.Contains("Time to Shoot",
-                    StringComparison.Ordinal))
-                .ToArray();
+            TextBlock[] shown =
+            [
+                .. view.GetVisualDescendants().OfType<TextBlock>()
+                    .Where(t => t is { IsVisible: true, Text: { } text } && text.Contains("Time to Shoot",
+                        StringComparison.Ordinal))
+            ];
             await Assert.That(shown).IsNotEmpty()
                 .Because("the board notice explaining the blank columns has to be on screen");
             await Assert.That(shown[0].Text).Contains("de_test");
@@ -1874,7 +1864,7 @@ public class StatsBoardScaleTests
             if (window.CaptureRenderedFrame() is { } frame)
             {
                 string outPath = Path.Combine(HeadlessSession.ArtifactDir, "stats-no-sight-data.png");
-                using FileStream file = File.Create(outPath);
+                await using FileStream file = File.Create(outPath);
                 frame.Save(file, new PngBitmapEncoderOptions());
                 Console.WriteLine($"[stats-no-sight-data] {outPath}");
             }
@@ -1980,7 +1970,6 @@ public class StatsBoardScaleTests
 
     private static NodeSnapshot Snap(double value) =>
         new(true, value.ToString("0.##", CultureInfo.InvariantCulture), (float)value);
-
 
 
     private sealed class StubNode(string name) : StateNode

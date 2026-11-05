@@ -1,13 +1,13 @@
 #region
 
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     The pack's two Library contributions: <see cref="TeamLibraryContribution" /> (the Team
@@ -30,7 +30,8 @@ public class LibraryContributionsTests
     // sourceKind defaults to null, matching TeamsModuleTests.Record: a matchmaking source kind makes
     // TeamIdentityService treat the opposing roster as non-recurring by design, which would leave the
     // Team filter test with no team to list.
-    private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string map = "de_nuke", string? sourceKind = null)
+    private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string map = "de_nuke",
+        string? sourceKind = null)
     {
         DemoCacheRecord record = new()
         {
@@ -59,7 +60,8 @@ public class LibraryContributionsTests
         new(path, Path.GetFileName(path), map, new DateTime(2026, 3, 1), 1000);
 
     // Two rosters that met twice (clusters into one team each), and a demo nobody recurs on.
-    private static async Task<(DemoCacheStore Cache, TeamIdentityService Teams)> Library(FakeExtensionIdentity? identity = null)
+    private static async Task<(DemoCacheStore Cache, TeamIdentityService Teams)> Library(
+        FakeExtensionIdentity? identity = null)
     {
         DemoCacheStore cache = new(null);
         TeamIdentityService teams = new(null, cache.Library(), run: _inline, identity: identity);
@@ -88,9 +90,10 @@ public class LibraryContributionsTests
                 return teams;
             });
 
-            await Assert.That(resolveCalls).IsEqualTo(0).Because("constructing the contribution must not resolve TeamIdentityService");
+            await Assert.That(resolveCalls).IsEqualTo(0)
+                .Because("constructing the contribution must not resolve TeamIdentityService");
 
-            LibraryFilter? filter = contribution.Filter;
+            LibraryFilter filter = contribution.Filter;
 
             using (Assert.Multiple())
             {
@@ -99,7 +102,7 @@ public class LibraryContributionsTests
             }
 
             // Resolved once and cached: a second read does not resolve again.
-            LibraryFilter? second = contribution.Filter;
+            LibraryFilter second = contribution.Filter;
             await Assert.That(resolveCalls).IsEqualTo(1);
             await Assert.That(second).IsNotNull();
         }
@@ -108,21 +111,22 @@ public class LibraryContributionsTests
     [Test]
     public async Task TeamContribution_Filter_ListsAllUsAndEveryTeam_AndMatchesByKey()
     {
-        (DemoCacheStore cache, TeamIdentityService teams) = await Library();
+        (_, TeamIdentityService teams) = await Library();
         using (teams)
         {
             TeamLibraryContribution contribution = new(() => teams);
-            LibraryFilter? filter = contribution.Filter;
+            LibraryFilter filter = contribution.Filter;
 
             await Assert.That(filter).IsNotNull();
             using (Assert.Multiple())
             {
-                await Assert.That(filter!.Items.Count).IsEqualTo(4).Because("All, Us, and two teams");
+                await Assert.That(filter.Items.Count).IsEqualTo(4).Because("All, Us, and two teams");
                 await Assert.That(filter.Items[0]).IsEqualTo(new LibraryFilterItem("", "All teams"));
                 await Assert.That(filter.Items[1]).IsEqualTo(new LibraryFilterItem("us", "Us"));
                 await Assert.That(filter.Tooltip).IsEqualTo("Filter by team");
                 await Assert.That(contribution.HasBadge).IsFalse();
-                await Assert.That(contribution.BadgeFor(Entry("/d/a.dem"))).IsNull().Because("the Team filter offers no badge");
+                await Assert.That(contribution.BadgeFor(Entry("/d/a.dem"))).IsNull()
+                    .Because("the Team filter offers no badge");
                 await Assert.That(contribution.BadgeLabels).IsEmpty();
             }
 
@@ -139,7 +143,7 @@ public class LibraryContributionsTests
             }
 
             teams.SetUs(teamId);
-            await Assert.That(contribution.Filter!.Matches(a, "us")).IsTrue()
+            await Assert.That(contribution.Filter.Matches(a, "us")).IsTrue()
                 .Because("a's side is now the us team, so \"us\" matches it");
         }
     }
@@ -165,10 +169,12 @@ public class LibraryContributionsTests
                     return teams;
                 });
 
-            await Assert.That(provenanceResolves).IsEqualTo(0).Because("constructing the contribution must not resolve either service");
+            await Assert.That(provenanceResolves).IsEqualTo(0)
+                .Because("constructing the contribution must not resolve either service");
             await Assert.That(teamsResolves).IsEqualTo(0);
             await Assert.That(contribution.Filter).IsNull().Because("the provenance chip offers no filter");
-            await Assert.That(provenanceResolves).IsEqualTo(0).Because("reading Filter must not resolve anything either");
+            await Assert.That(provenanceResolves).IsEqualTo(0)
+                .Because("reading Filter must not resolve anything either");
 
             LibraryDemo a = Entry("/d/a.dem");
             contribution.BadgeFor(a);
@@ -196,14 +202,17 @@ public class LibraryContributionsTests
         using (teams)
         {
             DemoCacheStore cache = new(null);
-            ProvenanceLibraryContribution contribution = new(() => new DemoProvenanceSource(cache.Library(), teams), () => teams);
+            ProvenanceLibraryContribution contribution =
+                new(() => new DemoProvenanceSource(cache.Library(), teams), () => teams);
 
             using (Assert.Multiple())
             {
                 await Assert.That(contribution.HasBadge).IsTrue();
-                await Assert.That(contribution.BadgeLabels).IsEquivalentTo(["official", "scrim", "our scrim", "matchmaking"], CollectionOrdering.Matching);
+                await Assert.That(contribution.BadgeLabels)
+                    .IsEquivalentTo(["official", "scrim", "our scrim", "matchmaking"], CollectionOrdering.Matching);
                 await Assert.That(contribution.BadgeResetLabel).IsEqualTo("Automatic");
-                await Assert.That(contribution.BadgeResetTooltip).IsEqualTo("Let the clan tags, the header and Team Identity decide");
+                await Assert.That(contribution.BadgeResetTooltip)
+                    .IsEqualTo("Let the clan tags, the header and Team Identity decide");
             }
         }
     }
@@ -231,7 +240,7 @@ public class LibraryContributionsTests
 
             // A single-entry update still goes through Resolve, not ResolveAll.
             counting.ResolveAllCalls = 0;
-            LibraryBadge? single = contribution.BadgeFor(entries[0]);
+            LibraryBadge single = contribution.BadgeFor(entries[0]);
             using (Assert.Multiple())
             {
                 await Assert.That(single).IsNotNull();
@@ -250,7 +259,7 @@ public class LibraryContributionsTests
         public int ResolveAllCalls { get; set; }
 
         public string? LabelFor(string sha256) => inner.LabelFor(sha256);
-        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256s) => inner.LabelsFor(sha256s);
+        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> hashes) => inner.LabelsFor(hashes);
 
         public DemoProvenance? Resolve(string demoPath)
         {
@@ -282,7 +291,8 @@ public class LibraryContributionsTests
             // it unset so the Team contribution's own test keeps its recurring roster clustered.
             using (cache.BeginBatch())
             {
-                cache.Upsert(Record("/d/a.dem", 1, Ids(1, 2, 3, 4, 5), Ids(11, 12, 13, 14, 15), sourceKind: "GotvMatchmaking"));
+                cache.Upsert(Record("/d/a.dem", 1, Ids(1, 2, 3, 4, 5), Ids(11, 12, 13, 14, 15),
+                    sourceKind: "GotvMatchmaking"));
             }
 
             await teams.Idle;
@@ -291,26 +301,26 @@ public class LibraryContributionsTests
             ProvenanceLibraryContribution contribution = new(() => source, () => teams);
             LibraryDemo a = Entry("/d/a.dem");
 
-            LibraryBadge? before = contribution.BadgeFor(a);
+            LibraryBadge before = contribution.BadgeFor(a);
             using (Assert.Multiple())
             {
                 await Assert.That(before).IsNotNull();
-                await Assert.That(before!.IsPinned).IsFalse();
+                await Assert.That(before.IsPinned).IsFalse();
                 await Assert.That(before.Tooltip).Contains("automatic");
             }
 
             contribution.SetLabel(a, "our scrim");
-            LibraryBadge? pinned = contribution.BadgeFor(a);
+            LibraryBadge pinned = contribution.BadgeFor(a);
             using (Assert.Multiple())
             {
-                await Assert.That(pinned!.Label).IsEqualTo("our scrim");
+                await Assert.That(pinned.Label).IsEqualTo("our scrim");
                 await Assert.That(pinned.IsPinned).IsTrue();
                 await Assert.That(pinned.Tooltip).Contains("set by you");
             }
 
             contribution.SetLabel(a, null);
-            LibraryBadge? automaticAgain = contribution.BadgeFor(a);
-            await Assert.That(automaticAgain!.IsPinned).IsFalse().Because("null goes back to the heuristic");
+            LibraryBadge automaticAgain = contribution.BadgeFor(a);
+            await Assert.That(automaticAgain.IsPinned).IsFalse().Because("null goes back to the heuristic");
 
             source.Dispose();
         }

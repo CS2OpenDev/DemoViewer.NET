@@ -55,12 +55,15 @@ public static class TextEditor
         // in, and nothing else can tell them apart. List<T>.Sort is introsort and is NOT stable
         // above sixteen elements, so a batch adding many entries at the same point would come back
         // shuffled, which is a different document every run.
-        List<TextEdit> ordered = [.. edits
-            .Select(static (edit, index) => (edit, index))
-            .OrderBy(static pair => pair.edit.Start)
-            .ThenBy(static pair => pair.edit.Length)
-            .ThenBy(static pair => pair.index)
-            .Select(static pair => pair.edit)];
+        List<TextEdit> ordered =
+        [
+            .. edits
+                .Select(static (edit, index) => (edit, index))
+                .OrderBy(static pair => pair.edit.Start)
+                .ThenBy(static pair => pair.edit.Length)
+                .ThenBy(static pair => pair.index)
+                .Select(static pair => pair.edit)
+        ];
 
         for (int i = 0; i < ordered.Count; i++)
         {

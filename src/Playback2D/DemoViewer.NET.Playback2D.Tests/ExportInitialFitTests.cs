@@ -2,11 +2,11 @@
 
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
 #endregion
@@ -52,9 +52,9 @@ public class ExportInitialFitTests
             map.MinX, map.MinY, map.MaxX, map.MaxY);
 
         Console.WriteLine($"[fit] pane 0 scale {placeholder.BaseScale:F5} → {fitted.BaseScale:F5} " +
-                          $"(expected {expected.BaseScale:F5}), centre " +
-                          $"({placeholder.CenterX:F0},{placeholder.CenterY:F0}) → " +
-                          $"({fitted.CenterX:F0},{fitted.CenterY:F0})");
+            $"(expected {expected.BaseScale:F5}), centre " +
+            $"({placeholder.CenterX:F0},{placeholder.CenterY:F0}) → " +
+            $"({fitted.CenterX:F0},{fitted.CenterY:F0})");
 
         // Born on the ±3000 placeholder…
         await Assert.That(placeholder.BaseScale)
@@ -150,10 +150,8 @@ public class ExportInitialFitTests
         compositor.Add(probe);
 
         using CpuSurfaceProvider surfaces = new();
-        using HeadlessSceneRenderer renderer = new(surfaces, compositor)
-        {
-            Size = new SKSizeI(320, 180)
-        };
+        using HeadlessSceneRenderer renderer = new(surfaces, compositor);
+        renderer.Size = new SKSizeI(320, 180);
         renderer.Levels.SetAuthoritativeFloors(SyntheticScenes.BudgetFloors);
 
         await Assert.That(renderer.AutoFitOnFirstMapBounds).IsFalse().Because("off is the default");
@@ -189,10 +187,8 @@ public class ExportInitialFitTests
         compositor.Add(probe);
 
         using CpuSurfaceProvider surfaces = new();
-        using HeadlessSceneRenderer renderer = new(surfaces, compositor)
-        {
-            Size = new SKSizeI(320, 180)
-        };
+        using HeadlessSceneRenderer renderer = new(surfaces, compositor);
+        renderer.Size = new SKSizeI(320, 180);
         renderer.Levels.SetAuthoritativeFloors(SyntheticScenes.BudgetFloors);
 
         Advance(renderer, real);
@@ -222,12 +218,10 @@ public class ExportInitialFitTests
         compositor.Add(probe);
 
         using CpuSurfaceProvider surfaces = new();
-        using HeadlessSceneRenderer renderer = new(surfaces, compositor)
-        {
-            Size = new SKSizeI(320, 180),
-            AutoFitOnFirstMapBounds = true,
-            Camera = pinned
-        };
+        using HeadlessSceneRenderer renderer = new(surfaces, compositor);
+        renderer.Size = new SKSizeI(320, 180);
+        renderer.AutoFitOnFirstMapBounds = true;
+        renderer.Camera = pinned;
         renderer.Levels.SetAuthoritativeFloors(SyntheticScenes.BudgetFloors);
 
         Advance(renderer, real);
@@ -254,10 +248,7 @@ public class ExportInitialFitTests
 
         // The floors a real export always supplies from the map bundle, so the pane set is two stable
         // bands rather than a Z histogram warming up under the assertions.
-        SceneExportSession session = new(compositor)
-        {
-            AuthoritativeFloors = SyntheticScenes.BudgetFloors
-        };
+        SceneExportSession session = new(compositor) { AuthoritativeFloors = SyntheticScenes.BudgetFloors };
 
         await session.RunAsync(
             ExportFixtures.Request(fixtures.Length, size: new SKSizeI(320, 180)),
@@ -277,10 +268,7 @@ public class ExportInitialFitTests
             {
                 Time = like.Frame.Time,
                 Markers = [],
-                Map = new SceneMapInfo
-                {
-                    MapName = like.Frame.Map.MapName
-                }
+                Map = new SceneMapInfo { MapName = like.Frame.Map.MapName }
             }
         };
 

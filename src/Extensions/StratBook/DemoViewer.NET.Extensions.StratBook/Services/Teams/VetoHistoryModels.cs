@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
 /// <summary>Whether a veto step took a map out of the pool, or left it as the pick.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public enum VetoAction
 {
     Ban,
@@ -19,20 +20,21 @@ public enum VetoAction
 ///     no scraping: the veto model needs match-series metadata no demo carries).
 ///     <see cref="Order" /> is the pick order the user typed the step in, one-based.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class VetoEntry
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    public Guid OpponentTeamId { get; set; }
+    public Guid OpponentTeamId { get; init; }
 
-    public int Order { get; set; }
+    public int Order { get; init; }
 
-    public string Map { get; set; } = "";
+    public string Map { get; init; } = "";
 
-    public VetoAction Action { get; set; } = VetoAction.Ban;
+    public VetoAction Action { get; init; } = VetoAction.Ban;
 
     /// <summary>True when the opponent this history is filed under made the step; false for us.</summary>
-    public bool ByOpponent { get; set; }
+    public bool ByOpponent { get; init; }
 
     public string Note { get; set; } = "";
 }
@@ -46,9 +48,9 @@ public sealed class VetoHistoryFile
 {
     public const int CurrentSchema = 1;
 
-    public int SchemaVersion { get; set; } = CurrentSchema;
+    public int SchemaVersion { get; init; } = CurrentSchema;
 
-    public List<VetoEntry> Entries { get; set; } = [];
+    public List<VetoEntry> Entries { get; init; } = [];
 
     /// <summary>Same shape as <c>TeamsFile.JsonOptions</c>: camel case, enums by name, indented.</summary>
     public static JsonSerializerOptions JsonOptions { get; } = new()

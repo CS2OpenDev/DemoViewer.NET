@@ -194,8 +194,8 @@ public class AimStatParityTests
     private static string FixtureDirectory(string demoId)
     {
         string root = DemoTestHelper.FindRepoRoot()
-                      ?? throw new SkipTestException(
-                          "Repo root not located from the test assembly (looked for the solution file).");
+            ?? throw new SkipTestException(
+                "Repo root not located from the test assembly (looked for the solution file).");
 
         return Path.Combine(root, "tests", "fixtures", demoId);
     }

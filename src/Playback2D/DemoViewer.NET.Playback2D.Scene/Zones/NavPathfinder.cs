@@ -4,6 +4,7 @@ namespace DemoViewer.NET.Playback2D.Zones;
 /// <param name="X">World X.</param>
 /// <param name="Y">World Y.</param>
 /// <param name="FloorKey">The floor key of the area the route is in after this point.</param>
+[PublicAPI]
 public readonly record struct NavWaypoint(double X, double Y, double FloorKey);
 
 /// <summary>
@@ -17,6 +18,7 @@ public readonly record struct NavWaypoint(double X, double Y, double FloorKey);
 ///         far area's mean Z is at most <c>maxClimb</c> higher.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class NavPathfinder
 {
     /// <summary>The climb a gap link allows, in world units: a player's jump onto a crate.</summary>
@@ -35,7 +37,8 @@ public sealed class NavPathfinder
 
     private const int MemoCapacity = 1024;
 
-    [ThreadStatic] private static Scratch? _scratch;
+    [ThreadStatic]
+    private static Scratch? _scratch;
 
     private readonly ZoneArea[] _areas;
     private readonly Dictionary<long, int[]> _grid;
@@ -173,7 +176,7 @@ public sealed class NavPathfinder
                 foreach (int i in list)
                 {
                     ZoneArea a = _areas[i];
-                    if ((floorKey is { } f && a.FloorKey != f) || (placeId is { } p && a.PlaceId != p))
+                    if ((floorKey is { } f && !a.FloorKey.Equals(f)) || (placeId is { } p && a.PlaceId != p))
                     {
                         continue;
                     }
@@ -205,7 +208,8 @@ public sealed class NavPathfinder
     /// <param name="floorKey">Only areas on this floor.</param>
     /// <param name="placeId">Only areas of this place.</param>
     /// <param name="snap">How far off the mesh a point may be.</param>
-    public NavWaypoint? Snap(double x, double y, double? floorKey = null, int? placeId = null, double snap = DefaultSnap)
+    public NavWaypoint? Snap(double x, double y, double? floorKey = null, int? placeId = null,
+        double snap = DefaultSnap)
     {
         int area = Locate(x, y, floorKey, placeId, snap);
         if (area < 0)
@@ -222,7 +226,9 @@ public sealed class NavPathfinder
         // Nudged a unit inside along the way from the edge to the centroid, so the snapped point locates in its area.
         (double nx, double ny) = NearestOnPolygon(a, x, y);
         double dx = a.CentroidX - nx, dy = a.CentroidY - ny, len = Math.Sqrt(dx * dx + dy * dy);
-        return len > 1 ? new NavWaypoint(nx + dx / len, ny + dy / len, a.FloorKey) : new NavWaypoint(nx, ny, a.FloorKey);
+        return len > 1
+            ? new NavWaypoint(nx + dx / len, ny + dy / len, a.FloorKey)
+            : new NavWaypoint(nx, ny, a.FloorKey);
     }
 
     /// <summary>
@@ -366,7 +372,8 @@ public sealed class NavPathfinder
             if (len > 2 * q.Clearance + 1)
             {
                 double ux = (bx - ax) / len, uy = (by - ay) / len;
-                (ax, ay, bx, by) = (ax + ux * q.Clearance, ay + uy * q.Clearance, bx - ux * q.Clearance, by - uy * q.Clearance);
+                (ax, ay, bx, by) = (ax + ux * q.Clearance, ay + uy * q.Clearance, bx - ux * q.Clearance,
+                    by - uy * q.Clearance);
             }
             else
             {
@@ -444,7 +451,7 @@ public sealed class NavPathfinder
             }
         }
 
-        if (corners[^1].X != q.Ex || corners[^1].Y != q.Ey)
+        if (!corners[^1].X.Equals(q.Ex) || !corners[^1].Y.Equals(q.Ey))
         {
             corners.Add((q.Ex, q.Ey, count - 1));
         }
@@ -460,7 +467,7 @@ public sealed class NavPathfinder
             for (int portal = pa + 1; portal < pb && portal < corridor.Count; portal++)
             {
                 double before = portal == 0 ? startFloor : floorAfter[portal - 1];
-                if (floorAfter[portal] == before)
+                if (floorAfter[portal].Equals(before))
                 {
                     continue;
                 }
@@ -627,7 +634,14 @@ public sealed class NavPathfinder
     private readonly record struct Link(int To, Portal Portal);
 
     // Exact doubles: a rounded key would hand one caller another's endpoints, and the projection must be pure.
-    private readonly record struct Query(double Sx, double Sy, int StartArea, double Ex, double Ey, int EndArea, double Clearance);
+    private readonly record struct Query(
+        double Sx,
+        double Sy,
+        int StartArea,
+        double Ex,
+        double Ey,
+        int EndArea,
+        double Clearance);
 
     // One thread's search state, reused across queries and graphs. A generation stamp stands in for clearing g.
     private sealed class Scratch

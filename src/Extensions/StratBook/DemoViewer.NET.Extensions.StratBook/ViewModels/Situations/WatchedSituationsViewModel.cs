@@ -34,7 +34,8 @@ public sealed partial class WatchedSituationsViewModel : ExtensionViewModel, IDi
     /// <param name="service">The watches and their badges.</param>
     /// <param name="canvas">The canvas a watch is saved from and re-run onto.</param>
     /// <param name="teams">Team Identity, so a row can name the opponent; null shows the id-free line.</param>
-    public WatchedSituationsViewModel(WatchedSituationsService service, QueryCanvasViewModel canvas, TeamIdentityService? teams = null)
+    public WatchedSituationsViewModel(WatchedSituationsService service, QueryCanvasViewModel canvas,
+        TeamIdentityService? teams = null)
     {
         ArgumentNullException.ThrowIfNull(service);
         ArgumentNullException.ThrowIfNull(canvas);
@@ -127,7 +128,7 @@ public sealed partial class WatchedSituationsViewModel : ExtensionViewModel, IDi
     internal string QueryLineFor(WatchedSituation watch)
     {
         string line = WatchedSituationsService.QueryLine(watch);
-        if (watch.Filters.Opponent is Guid opponent && _teams?.Teams.FirstOrDefault(t => t.Id == opponent) is { } team)
+        if (watch.Filters.Opponent is { } opponent && _teams?.Teams.FirstOrDefault(t => t.Id == opponent) is { } team)
         {
             line = line.Replace("vs opponent", $"vs {DisplayText.Sanitize(team.Name)}", StringComparison.Ordinal);
         }
@@ -163,7 +164,7 @@ public sealed partial class WatchedSituationsViewModel : ExtensionViewModel, IDi
     }
 
     /// <summary>Rebuilds the rows from the service.</summary>
-    public void Refresh()
+    private void Refresh()
     {
         Rows.Clear();
         foreach (WatchedSituation watch in _service.Watches)
@@ -204,9 +205,7 @@ public sealed partial class WatchedSituationRowViewModel : ObservableObject
     }
 
     /// <summary>The saved query.</summary>
-    public WatchedSituation Watch { get; }
-
-    public Guid Id => Watch.Id;
+    private WatchedSituation Watch { get; }
 
     /// <summary>The display name, sanitized at the render boundary like a team's.</summary>
     public string Name => DisplayText.Sanitize(Watch.Name);
@@ -217,10 +216,10 @@ public sealed partial class WatchedSituationRowViewModel : ObservableObject
     public string QueryLine { get; }
 
     /// <summary>New hits in demos indexed since the watch was last seen.</summary>
-    public int NewCount { get; }
+    private int NewCount { get; }
 
     /// <summary>How many demos those hits fall in.</summary>
-    public int NewDemoCount { get; }
+    private int NewDemoCount { get; }
 
     public bool HasNew => NewCount > 0;
 

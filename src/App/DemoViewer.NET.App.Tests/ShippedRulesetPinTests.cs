@@ -2,7 +2,6 @@
 
 using CS2DemoKit.Analysis.Yaml;
 using DemoViewer.NET.TestSupport;
-using TUnit.Core.Exceptions;
 
 #endregion
 

@@ -128,7 +128,7 @@ public class DesktopWindowServiceOwnerTests
             {
                 await Assert.That(_errorReports).Count().IsEqualTo(1)
                     .Because("one window, re-used, not a second report on screen with nothing to tell them "
-                             + "apart");
+                        + "apart");
                 await Assert.That(afterSame).IsSameReferenceAs(first);
                 await Assert.That(afterSame.Notes).IsEqualTo("half-written, never saved");
                 await Assert.That(afterOther.DemoPath).IsEqualTo("/demos/another.dem");

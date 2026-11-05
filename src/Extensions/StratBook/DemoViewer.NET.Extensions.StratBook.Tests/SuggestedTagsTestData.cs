@@ -16,22 +16,19 @@ namespace DemoViewer.NET.AppTests;
 internal static class SuggestedTagsTestData
 {
     internal const string Map = "de_test";
-    internal const int Rate = 64;
+    private const int Rate = 64;
     internal const int Start = 6400;
 
-    internal static readonly int[] CtSlots = [1, 2, 3, 4, 5];
-    internal static readonly int[] TSlots = [6, 7, 8, 9, 10];
+    private static readonly int[] CtSlots = [1, 2, 3, 4, 5];
+    private static readonly int[] TSlots = [6, 7, 8, 9, 10];
 
     internal static SiteRegionTable Table { get; } = new()
     {
         Map = Map,
         DemoCount = 1,
         RoundCount = 10,
-        Plants = new Dictionary<string, int>(StringComparer.Ordinal)
-        {
-            [SiteRegions.SiteA] = 5,
-            [SiteRegions.SiteB] = 5
-        },
+        Plants =
+            new Dictionary<string, int>(StringComparer.Ordinal) { [SiteRegions.SiteA] = 5, [SiteRegions.SiteB] = 5 },
         Regions = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
         {
             [SiteRegions.SiteA] = [SiteRegions.SiteA, "ALong", "ASmall"],
@@ -40,7 +37,7 @@ internal static class SuggestedTagsTestData
         SpawnAdjacent = ["TSpawn", "TRamp"]
     };
 
-    internal static SiteRegions Regions { get; } = SiteRegions.Compose(Map, null, Table, DetectorProfile.Default);
+    private static SiteRegions Regions { get; } = SiteRegions.Compose(Map, null, Table, DetectorProfile.Default);
 
     /// <summary>One slot's seconds: every second in its spawn, then each stay from its first to its last second inclusive.</summary>
     internal static string?[] Path(int seconds, string spawn, params (int From, int To, string? Place)[] stays)
@@ -59,7 +56,7 @@ internal static class SuggestedTagsTestData
     }
 
     /// <summary>Dead from <paramref name="second" /> on.</summary>
-    internal static string?[] DiesAt(string?[] places, int second)
+    private static string?[] DiesAt(string?[] places, int second)
     {
         for (int s = second; s < places.Length; s++)
         {
@@ -88,7 +85,9 @@ internal static class SuggestedTagsTestData
         foreach (int slot in CtSlots)
         {
             sides[slot] = 3;
-            places[slot] = ct is not null && ct.TryGetValue(slot, out string?[]? given) ? given : Path(seconds, "CTSpawn");
+            places[slot] = ct is not null && ct.TryGetValue(slot, out string?[]? given)
+                ? given
+                : Path(seconds, "CTSpawn");
         }
 
         foreach (int slot in tSlots)
@@ -120,8 +119,11 @@ internal static class SuggestedTagsTestData
 
     /// <summary>A proposal as comparable text: every field, labels and factors in key order.</summary>
     internal static string Describe(TagProposal p) =>
-        FormattableString.Invariant($"{p.Id} {p.Round} {p.Side} {p.FromTick}-{p.ToTick}@{p.TriggerTick} c={p.Confidence} ") +
-        string.Join(',', p.Factors.OrderBy(f => f.Key, StringComparer.Ordinal).Select(f => FormattableString.Invariant($"{f.Key}={f.Value}"))) + " " +
+        FormattableString.Invariant(
+            $"{p.Id} {p.Round} {p.Side} {p.FromTick}-{p.ToTick}@{p.TriggerTick} c={p.Confidence} ") +
+        string.Join(',',
+            p.Factors.OrderBy(f => f.Key, StringComparer.Ordinal)
+                .Select(f => FormattableString.Invariant($"{f.Key}={f.Value}"))) + " " +
         string.Join(',', p.Labels.OrderBy(l => l.Key, StringComparer.Ordinal).Select(l => $"{l.Key}={l.Value}"));
 
     // ── The scenarios the parameter table moves one number in ─────────────────────────────────────
@@ -133,15 +135,15 @@ internal static class SuggestedTagsTestData
     /// </summary>
     internal static (RoundOccupancy Round, List<PlacedEvent> Events) LateTouchExecute()
     {
-        const int seconds = 90;
+        const int Seconds = 90;
         Dictionary<int, string?[]> t = new()
         {
-            [6] = Path(seconds, "TSpawn", (12, 17, "ALong"), (18, 30, SiteRegions.SiteA)),
-            [7] = Path(seconds, "TSpawn", (12, 30, "ALong")),
-            [8] = Path(seconds, "TSpawn", (12, 30, "ALong")),
-            [9] = Path(seconds, "TSpawn", (12, 30, "ALong"))
+            [6] = Path(Seconds, "TSpawn", (12, 17, "ALong"), (18, 30, SiteRegions.SiteA)),
+            [7] = Path(Seconds, "TSpawn", (12, 30, "ALong")),
+            [8] = Path(Seconds, "TSpawn", (12, 30, "ALong")),
+            [9] = Path(Seconds, "TSpawn", (12, 30, "ALong"))
         };
-        return (Round(seconds, t, bomb: Plant(25, SiteRegions.SiteA)), [Det(10, DetonationEvents.Smoke, 6, "ASmall")]);
+        return (Round(Seconds, t, bomb: Plant(25, SiteRegions.SiteA)), [Det(10, DetonationEvents.Smoke, 6, "ASmall")]);
     }
 
     /// <summary>
@@ -151,15 +153,15 @@ internal static class SuggestedTagsTestData
     /// </summary>
     internal static RoundOccupancy StaggeredArrivals()
     {
-        const int seconds = 90;
+        const int Seconds = 90;
         Dictionary<int, string?[]> t = new()
         {
-            [6] = Path(seconds, "TSpawn", (10, 11, "ALong"), (12, 89, "TRamp")),
-            [7] = Path(seconds, "TSpawn", (11, 12, "ALong"), (13, 89, "TRamp")),
-            [8] = Path(seconds, "TSpawn", (12, 13, "ALong"), (14, 89, "TRamp")),
-            [9] = Path(seconds, "TSpawn", (13, 14, "ALong"), (15, 89, SiteRegions.SiteA))
+            [6] = Path(Seconds, "TSpawn", (10, 11, "ALong"), (12, 89, "TRamp")),
+            [7] = Path(Seconds, "TSpawn", (11, 12, "ALong"), (13, 89, "TRamp")),
+            [8] = Path(Seconds, "TSpawn", (12, 13, "ALong"), (14, 89, "TRamp")),
+            [9] = Path(Seconds, "TSpawn", (13, 14, "ALong"), (15, 89, SiteRegions.SiteA))
         };
-        return Round(seconds, t);
+        return Round(Seconds, t);
     }
 
     /// <summary>
@@ -168,25 +170,25 @@ internal static class SuggestedTagsTestData
     /// </summary>
     internal static (RoundOccupancy Round, List<PlacedEvent> Events) SpreadDefault(int? executeAt = null)
     {
-        const int seconds = 90;
+        const int Seconds = 90;
         Dictionary<int, string?[]> t = new()
         {
-            [6] = Path(seconds, "TSpawn", (20, 89, "ALong")),
-            [7] = Path(seconds, "TSpawn", (20, 89, "Middle")),
-            [8] = Path(seconds, "TSpawn", (20, 89, "BTunnel")),
-            [9] = Path(seconds, "TSpawn", (20, 89, "Connector"))
+            [6] = Path(Seconds, "TSpawn", (20, 89, "ALong")),
+            [7] = Path(Seconds, "TSpawn", (20, 89, "Middle")),
+            [8] = Path(Seconds, "TSpawn", (20, 89, "BTunnel")),
+            [9] = Path(Seconds, "TSpawn", (20, 89, "Connector"))
         };
         if (executeAt is { } s)
         {
             foreach (int slot in (int[])[7, 8, 9])
             {
-                t[slot] = Path(seconds, "TSpawn", (20, s - 1, slot == 8 ? "BTunnel" : "Middle"), (s, 89, "ALong"));
+                t[slot] = Path(Seconds, "TSpawn", (20, s - 1, slot == 8 ? "BTunnel" : "Middle"), (s, 89, "ALong"));
             }
 
-            t[6] = Path(seconds, "TSpawn", (20, s + 1, "ALong"), (s + 2, 89, SiteRegions.SiteA));
+            t[6] = Path(Seconds, "TSpawn", (20, s + 1, "ALong"), (s + 2, 89, SiteRegions.SiteA));
         }
 
-        return (Round(seconds, t),
+        return (Round(Seconds, t),
         [
             Det(22, DetonationEvents.Smoke, 6, "ASmall"),
             Det(25, DetonationEvents.Smoke, 8, "BTunnel")
@@ -199,18 +201,19 @@ internal static class SuggestedTagsTestData
     /// </summary>
     internal static RoundOccupancy FakeThenA(int fakers = 2)
     {
-        const int seconds = 90;
+        const int Seconds = 90;
         Dictionary<int, string?[]> t = [];
         int[] slots = [6, 7, 8, 9];
         for (int i = 0; i < slots.Length; i++)
         {
             string early = i < fakers ? "BTunnel" : "Middle";
             t[slots[i]] = i == 0
-                ? Path(seconds, "TSpawn", (20, 30, early), (31, 39, "Middle"), (40, 41, "ALong"), (42, 89, SiteRegions.SiteA))
-                : Path(seconds, "TSpawn", (20, 30, early), (31, 39, "Middle"), (40, 89, "ALong"));
+                ? Path(Seconds, "TSpawn", (20, 30, early), (31, 39, "Middle"), (40, 41, "ALong"),
+                    (42, 89, SiteRegions.SiteA))
+                : Path(Seconds, "TSpawn", (20, 30, early), (31, 39, "Middle"), (40, 89, "ALong"));
         }
 
-        return Round(seconds, t);
+        return Round(Seconds, t);
     }
 
     /// <summary>Three T flashes into A's region at 10.0, 10.5 and 11.5 seconds.</summary>
@@ -227,24 +230,21 @@ internal static class SuggestedTagsTestData
     /// </summary>
     internal static RoundOccupancy Retake(int aliveCts = 3, bool defused = true)
     {
-        const int seconds = 90;
+        const int Seconds = 90;
         Dictionary<int, string?[]> ct = new()
         {
-            [1] = Path(seconds, "CTSpawn", (55, 89, "ASmall")),
-            [2] = Path(seconds, "CTSpawn", (58, 89, SiteRegions.SiteA)),
-            [3] = Path(seconds, "CTSpawn", (61, 89, "ALong")),
-            [4] = DiesAt(Path(seconds, "CTSpawn"), 45),
-            [5] = DiesAt(Path(seconds, "CTSpawn"), 45)
+            [1] = Path(Seconds, "CTSpawn", (55, 89, "ASmall")),
+            [2] = Path(Seconds, "CTSpawn", (58, 89, SiteRegions.SiteA)),
+            [3] = Path(Seconds, "CTSpawn", (61, 89, "ALong")),
+            [4] = DiesAt(Path(Seconds, "CTSpawn"), 45),
+            [5] = DiesAt(Path(Seconds, "CTSpawn"), 45)
         };
         for (int slot = aliveCts + 1; slot <= 3; slot++)
         {
             ct[slot] = DiesAt(ct[slot], 45);
         }
 
-        Dictionary<int, string?[]> t = new()
-        {
-            [6] = Path(seconds, "TSpawn", (40, 89, SiteRegions.SiteA))
-        };
-        return Round(seconds, t, ct, Plant(50, SiteRegions.SiteA, defused ? 70 : null, defused ? null : 90));
+        Dictionary<int, string?[]> t = new() { [6] = Path(Seconds, "TSpawn", (40, 89, SiteRegions.SiteA)) };
+        return Round(Seconds, t, ct, Plant(50, SiteRegions.SiteA, defused ? 70 : null, defused ? null : 90));
     }
 }

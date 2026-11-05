@@ -150,7 +150,7 @@ public class Playback2DAnnotationPersistenceTests
 
         await Assert.That(File.Exists(demo.SidecarPath)).IsTrue()
             .Because("a debounced autosave that had not fired yet is the difference between a stroke " +
-                     "surviving a tab switch and vanishing");
+                "surviving a tab switch and vanishing");
     }
 
     [Test]
@@ -281,14 +281,14 @@ public class Playback2DAnnotationPersistenceTests
         await Assert.That(File.Exists(demo.SidecarPath)).IsFalse()
             .Because("the debounce must not arm at all");
 
-        controller.Flush();
+        await controller.FlushAsync();
 
         Console.WriteLine($"[autosave-off] saves={controller.SaveCount} "
-                          + $"sidecar={File.Exists(demo.SidecarPath)} status='{controller.StatusText}'");
+            + $"sidecar={File.Exists(demo.SidecarPath)} status='{controller.StatusText}'");
 
         await Assert.That(File.Exists(demo.SidecarPath)).IsFalse()
             .Because("the flush path — demo swap, deactivate, shutdown — has to honour it too, or the "
-                     + "setting only delays the write it was asked to prevent");
+                + "setting only delays the write it was asked to prevent");
         await Assert.That(controller.SaveCount).IsEqualTo(0);
 
         // And the status line stops promising a destination nothing is going to.
@@ -316,7 +316,7 @@ public class Playback2DAnnotationPersistenceTests
         controller.PersistSettings();
 
         Console.WriteLine("[autosave-write] persisted="
-                          + settings.Current.Playback2D.AnnotationAutoSave);
+            + settings.Current.Playback2D.AnnotationAutoSave);
 
         await Assert.That(settings.Current.Playback2D.AnnotationAutoSave).IsFalse()
             .Because("the key shipped with a reader, a WriteInMemory row, and no writer anywhere");
@@ -362,7 +362,8 @@ public class Playback2DAnnotationPersistenceTests
             [new InkPoint(0, 0, 0.5f), new InkPoint(40, 10, 0.5f), new InkPoint(80, 0, 0.5f)], null);
 
     private static async Task WaitFor(Func<bool> condition, TimeSpan timeout,
-        [CallerArgumentExpression(nameof(condition))] string? expression = null)
+        [CallerArgumentExpression(nameof(condition))]
+        string? expression = null)
     {
         DateTime deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline)
@@ -392,7 +393,7 @@ public class Playback2DAnnotationPersistenceTests
             Directory.CreateDirectory(SettingsDir);
 
             DemoPath = Path.Combine(_root, "demos", "match.dem");
-            File.WriteAllBytes(DemoPath, [0x50, 0x42, 0x44, 0x45, 0x4D, 0x53, 0x32, 0x00]);
+            File.WriteAllBytes(DemoPath, "PBDEMS2\0"u8);
             SidecarPath = DemoPath + AnnotationStore.SidecarExtension;
             Clock = new ClockIdentity(ClockIdentity.DvFrameClock, 64, 1000, 0, 0);
         }

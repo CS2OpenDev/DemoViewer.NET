@@ -1,5 +1,6 @@
 #region
 
+using System.Collections.Frozen;
 using CS2DemoKit.Parser;
 
 #endregion
@@ -46,7 +47,6 @@ internal static class PacketRewriter
     /// <summary><c>svc_UserCmds</c>: the per-tick recorded player-input stream (netmessages.proto).</summary>
     public const int SvcUserCmdsTypeId = 76;
 
-    private static readonly HashSet<int> EmptyDropSet = [];
 
     /// <summary>
     ///     Re-encodes <paramref name="data" />, dropping every message whose type id is in
@@ -61,7 +61,7 @@ internal static class PacketRewriter
     ///     <paramref name="bitLength" /> written. The byte array is zero-padded past that point, so only
     ///     the first <paramref name="bitLength" /> bits are meaningful.
     /// </summary>
-    public static byte[] Rewrite(
+    private static byte[] Rewrite(
         ReadOnlySpan<byte> data, IReadOnlySet<int> dropTypeIds, out StripStats stats, out int bitLength)
     {
         BitBuffer reader = new(data);
@@ -113,7 +113,7 @@ internal static class PacketRewriter
     public static IdentityOutcome CheckEncoderIdentity(ReadOnlySpan<byte> original, out int firstDivergentByte)
     {
         firstDivergentByte = -1;
-        byte[] reencoded = Rewrite(original, EmptyDropSet, out _, out int bitLength);
+        byte[] reencoded = Rewrite(original, FrozenSet<int>.Empty, out _, out int bitLength);
 
         int fullBytes = bitLength >> 3;
         int remainderBits = bitLength & 7;

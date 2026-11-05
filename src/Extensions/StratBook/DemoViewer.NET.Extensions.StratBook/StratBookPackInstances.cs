@@ -1,11 +1,10 @@
 #region
 
+using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
-using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
@@ -27,16 +26,15 @@ namespace DemoViewer.NET.Extensions.StratBook;
 /// </summary>
 internal sealed class StratBookPackInstances
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly List<IExtensionResident> _residents = [];
 
-    public SituationIndex? Situations { get; set; }
+    public SituationIndex? Situations { get; private set; }
     public GrenadeIndex? Grenades { get; set; }
-    public TeamIdentityService? Teams { get; set; }
-    public LineupClipService? Lineups { get; set; }
-    public TagFactsRefresher? TagFacts { get; set; }
-    public WatchedSituationsService? Watched { get; set; }
-    public StratMiningService? Mining { get; set; }
+    public TeamIdentityService? Teams { get; private set; }
+    public LineupClipService? Lineups { get; private set; }
+    public TagFactsRefresher? TagFacts { get; private set; }
+    public WatchedSituationsService? Watched { get; private set; }
 
     // The three evaluator-registry contributions, set inline by their own factories, not
     // through Record: they are plain fan-out evaluators, not IExtensionResident, so Clear/Restore leave
@@ -97,7 +95,6 @@ internal sealed class StratBookPackInstances
         Lineups = null;
         TagFacts = null;
         Watched = null;
-        Mining = null;
     }
 
     private void Assign(IExtensionResident resident)
@@ -121,9 +118,6 @@ internal sealed class StratBookPackInstances
                 break;
             case WatchedSituationsService watched:
                 Watched = watched;
-                break;
-            case StratMiningService mining:
-                Mining = mining;
                 break;
         }
     }

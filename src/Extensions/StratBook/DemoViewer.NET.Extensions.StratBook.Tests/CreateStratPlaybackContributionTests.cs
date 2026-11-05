@@ -1,19 +1,19 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook.Modules;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Modules;
+using DemoViewer.NET.Extensions.StratBook.Modules.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Playback2D.Timeline;
-using DemoViewer.NET.Extensions.StratBook.Modules.StratBook;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using TUnit.Assertions.Enums;
 using ILaneBehaviour = DemoViewer.NET.Extensions.Sdk.Playback.ILaneBehaviour;
 using ILaneHandle = DemoViewer.NET.Extensions.Sdk.Playback.ILaneHandle;
@@ -22,7 +22,7 @@ using SdkMenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     Create Strat From Round as the pack's playback contribution: with the pack on, a round band
@@ -39,7 +39,8 @@ public class CreateStratPlaybackContributionTests
         Playback2DFakeContext ctx = new();
         CreateStratPlaybackContribution contribution = new();
         StratBookPack pack = new();
-        PlaybackContributionHost host = new([(pack, [new SdkPlaybackContribution(contribution, ExtensionGuard.Standalone(pack))])], gate);
+        PlaybackContributionHost host =
+            new([(pack, [new SdkPlaybackContribution(contribution, ExtensionGuard.Standalone(pack))])], gate);
         Playback2DTabViewModel vm = new() { Contributions = host };
         vm.OnActivated(ctx);
         return (vm, ctx, contribution);
@@ -48,7 +49,8 @@ public class CreateStratPlaybackContributionTests
     // The entry only checks the parse reference is there; it never reads the demo, so an uninitialized
     // instance (no constructor run) stands in for a real one.
     private static StratCaptureHost HostWithADemo(StratStore? store = null, Action<Guid>? open = null) =>
-        new(() => (ParsedDemo)RuntimeHelpers.GetUninitializedObject(typeof(ParsedDemo)), store ?? new StratStore(null), null, open);
+        new(() => (ParsedDemo)RuntimeHelpers.GetUninitializedObject(typeof(ParsedDemo)), store ?? new StratStore(null),
+            null, open);
 
     [Test]
     public async Task TheRoundBand_OffersTheEntry_OnlyForARound_AndOnlyWithACaptureThatHasADemo()
@@ -92,7 +94,14 @@ public class CreateStratPlaybackContributionTests
         {
             StratBookPack pack = new();
             PlaybackContributionHost host =
-                new([(pack, [new SdkPlaybackContribution(new CreateStratPlaybackContribution(), ExtensionGuard.Standalone(pack))])], null);
+                new(
+                [
+                    (pack,
+                    [
+                        new SdkPlaybackContribution(new CreateStratPlaybackContribution(),
+                            ExtensionGuard.Standalone(pack))
+                    ])
+                ], null);
             (Playback2DTabViewModel vm, _) = Playback2DTimelineHarness.Tab(1000, host,
                 c => c.SetService<IStratCapture>(HostWithADemo()));
 
@@ -116,7 +125,8 @@ public class CreateStratPlaybackContributionTests
             using (Assert.Multiple())
             {
                 await Assert.That(lane.TrackId).IsEqualTo("ext.net.demoviewer.pack.foreign.round");
-                await Assert.That(band).IsNotNull().Because("filed, the lane's track registers rather than being dropped as a duplicate");
+                await Assert.That(band).IsNotNull()
+                    .Because("filed, the lane's track registers rather than being dropped as a duplicate");
                 await Assert.That(band!.Label).IsEqualTo("7").Because("the band the track built is the one on screen");
                 await Assert.That(SdkPlaybackSurface.Band(band).IsRound).IsFalse();
                 await Assert.That(Playback2DTimelineViewModel.IsRoundBand(band)).IsFalse();
@@ -126,7 +136,8 @@ public class CreateStratPlaybackContributionTests
             }
 
             lane.Dispose();
-            await Assert.That(vm.Timeline.Lanes).IsEmpty().Because("a filed lane's track is registered, so unregistering it takes the lane");
+            await Assert.That(vm.Timeline.Lanes).IsEmpty()
+                .Because("a filed lane's track is registered, so unregistering it takes the lane");
 
             vm.Dispose();
         });
@@ -237,7 +248,8 @@ public class CreateStratPlaybackContributionTests
 
         public bool IsAvailable(ITimelineData data) => true;
 
-        public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) => [new TimelineBand("round", 10, 20, "7", "", 0)];
+        public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) =>
+            [new("round", 10, 20, "7", "", 0)];
 
         public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
     }
@@ -247,7 +259,7 @@ public class CreateStratPlaybackContributionTests
     {
         public const string Entry = "Foreign lane entry";
 
-        public IEnumerable<SdkMenuEntry> MenuFor(PlaybackBand band) => [new SdkMenuEntry(Entry, () => { })];
+        public IEnumerable<SdkMenuEntry> MenuFor(PlaybackBand band) => [new(Entry, () => { })];
     }
 
     // A second pack, so the lane is filed under an owner that is not the Strat Book's.

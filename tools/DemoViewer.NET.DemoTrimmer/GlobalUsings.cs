@@ -4,6 +4,8 @@
 // Importing them globally keeps every unqualified reference (and every <see cref="..."/> naming
 // one) working without touching call sites.
 
+#region
+
 global using CS2OpenSchema.Protos;
 
 // Typed game-event payload records (PlayerDeathEvent, PlayerTeamEvent, ...) from
@@ -11,3 +13,5 @@ global using CS2OpenSchema.Protos;
 // records our own generator used to emit; importing them globally keeps unqualified references
 // reading the way the generated ones did.
 global using CS2OpenSchema.Events;
+
+#endregion

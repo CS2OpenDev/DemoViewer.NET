@@ -5,6 +5,7 @@ namespace DemoViewer.NET.Playback2D.Timeline;
 ///     the demo-domain translation (payload property names, slot→display-name resolution, the per-tick team
 ///     lookup); a track only ever sees these eight keys, so it stays free of parser and host vocabulary.
 /// </summary>
+[PublicAPI]
 public static class TimelineEventKeys
 {
     /// <summary>Resolved display name of the attacker (kills).</summary>
@@ -55,6 +56,7 @@ public static class TimelineEventKeys
 }
 
 /// <summary>One decoded demo event, already resolved onto the frame axis and flattened to strings.</summary>
+[PublicAPI]
 public readonly record struct TimelineEventRecord(
     int Tick,
     int FrameIndex,
@@ -64,6 +66,7 @@ public readonly record struct TimelineEventRecord(
 ///     The demo-shaped facts a track needs, in primitives only: no parser, host or UI types, so the
 ///     contract moves to Core unchanged. Implementations cache; a track may call any member freely.
 /// </summary>
+[PublicAPI]
 public interface ITimelineData
 {
     /// <summary>Total frames in the demo; the timeline's x-axis domain. 0 when nothing is loaded.</summary>

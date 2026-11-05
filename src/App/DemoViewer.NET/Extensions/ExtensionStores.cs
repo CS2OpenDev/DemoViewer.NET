@@ -26,7 +26,8 @@ internal sealed class ExtensionStores : IExtensionStores
     /// <param name="configRoot">The config root, or null for a build with no filesystem.</param>
     /// <param name="cacheRoot">The cache root, or null for a build with no filesystem.</param>
     /// <param name="declared">The extension's stores, every refused one already dropped.</param>
-    public ExtensionStores(string extensionId, string? configRoot, string? cacheRoot, IReadOnlyList<StoreDescriptor> declared)
+    public ExtensionStores(string extensionId, string? configRoot, string? cacheRoot,
+        IReadOnlyList<StoreDescriptor> declared)
     {
         _extensionId = extensionId;
         _configRoot = configRoot;
@@ -46,7 +47,8 @@ internal sealed class ExtensionStores : IExtensionStores
         }
 
         return File.Exists(full)
-            ? throw new InvalidOperationException($"Store '{storeId}' of '{_extensionId}' is a file; OpenFile opens it.")
+            ? throw new InvalidOperationException(
+                $"Store '{storeId}' of '{_extensionId}' is a file; OpenFile opens it.")
             : new ExtensionFolder(full);
     }
 
@@ -83,13 +85,13 @@ internal sealed class ExtensionStores : IExtensionStores
         }
 
         string own = OwnFolder(cache);
-        string files = System.IO.Path.Combine(own, ExtensionFolders.OwnCacheDirectoryName);
+        string files = Path.Combine(own, ExtensionFolders.OwnCacheDirectoryName);
         MoveIntoFilesFolder(own, files);
         return new ExtensionFolder(files);
     }
 
     private string OwnFolder(string root) =>
-        System.IO.Path.Combine(root, ExtensionFolders.DataDirectoryName, ExtensionFolders.SafeName(_extensionId));
+        Path.Combine(root, ExtensionFolders.DataDirectoryName, ExtensionFolders.SafeName(_extensionId));
 
     // Builds through v0.9.0 handed the extension its cache folder itself, so what they wrote sits beside the
     // per-demo data the host keeps there. Every such entry moves down into the folder handed out now, except
@@ -120,14 +122,14 @@ internal sealed class ExtensionStores : IExtensionStores
 
         foreach (string entry in entries)
         {
-            string name = System.IO.Path.GetFileName(entry);
+            string name = Path.GetFileName(entry);
             if (string.Equals(name, ExtensionDemoDataStore.DirectoryName, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(name, ExtensionFolders.OwnCacheDirectoryName, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            string target = System.IO.Path.Combine(files, name);
+            string target = Path.Combine(files, name);
             if (File.Exists(target) || Directory.Exists(target))
             {
                 continue;
@@ -153,7 +155,8 @@ internal sealed class ExtensionStores : IExtensionStores
     }
 
     private void NotMoved(string entry, Exception e) =>
-        AppLog.ExtensionCacheEntryNotMoved(DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory), _extensionId, entry, e.Message);
+        AppLog.ExtensionCacheEntryNotMoved(DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory), _extensionId, entry,
+            e.Message);
 
     // The one path a store declares, under its root; null when the build has no roots.
     private string? Resolve(string storeId)
@@ -165,10 +168,13 @@ internal sealed class ExtensionStores : IExtensionStores
         }
 
         StoreDescriptor store = Declared.FirstOrDefault(s => string.Equals(s.Id, storeId, StringComparison.Ordinal))
-                                ?? throw new ArgumentException($"'{_extensionId}' declares no store '{storeId}'.", nameof(storeId));
+            ?? throw new ArgumentException($"'{_extensionId}' declares no store '{storeId}'.",
+                nameof(storeId));
         if (store.Paths.Count != 1 || store.Paths[0].Contains('*', StringComparison.Ordinal))
         {
-            throw new ArgumentException($"Store '{storeId}' declares {store.Paths.Count} paths or a pattern; only a store of one file or folder opens.", nameof(storeId));
+            throw new ArgumentException(
+                $"Store '{storeId}' declares {store.Paths.Count} paths or a pattern; only a store of one file or folder opens.",
+                nameof(storeId));
         }
 
         if ((store.Root == StoreRoot.Config ? _configRoot : _cacheRoot) is not { } root)
@@ -177,7 +183,8 @@ internal sealed class ExtensionStores : IExtensionStores
         }
 
         return PackDataRemover.ResolveSafe(root, store.Paths[0])
-               ?? throw new InvalidOperationException($"Store '{storeId}' of '{_extensionId}' names a path outside its root.");
+            ?? throw new InvalidOperationException(
+                $"Store '{storeId}' of '{_extensionId}' names a path outside its root.");
     }
 }
 
@@ -187,18 +194,17 @@ internal sealed class ExtensionStores : IExtensionStores
 /// </summary>
 internal sealed class ExtensionFolder : IExtensionFolder
 {
-    private static readonly UTF8Encoding Utf8 = new(false);
-    private readonly string _root;
+    private static readonly UTF8Encoding _utf8 = new(false);
 
     /// <param name="root">The folder, absolute.</param>
     public ExtensionFolder(string root)
     {
-        _root = System.IO.Path.GetFullPath(root);
+        Path = System.IO.Path.GetFullPath(root);
     }
 
-    public string Path => _root;
+    public string Path { get; }
 
-    public void Create() => Directory.CreateDirectory(_root);
+    public void Create() => Directory.CreateDirectory(Path);
 
     public bool FileExists(string relativePath) => File.Exists(ResolveFile(relativePath));
 
@@ -224,7 +230,7 @@ internal sealed class ExtensionFolder : IExtensionFolder
         ArgumentNullException.ThrowIfNull(searchPattern);
         string folder = ResolveFolder(relativePath);
         return Directory.Exists(folder)
-            ? Directory.EnumerateFiles(folder, searchPattern).Select(f => System.IO.Path.GetRelativePath(_root, f))
+            ? Directory.EnumerateFiles(folder, searchPattern).Select(f => System.IO.Path.GetRelativePath(Path, f))
             : [];
     }
 
@@ -232,7 +238,7 @@ internal sealed class ExtensionFolder : IExtensionFolder
     {
         string folder = ResolveFolder(relativePath);
         return Directory.Exists(folder)
-            ? Directory.EnumerateDirectories(folder).Select(d => System.IO.Path.GetRelativePath(_root, d))
+            ? Directory.EnumerateDirectories(folder).Select(d => System.IO.Path.GetRelativePath(Path, d))
             : [];
     }
 
@@ -248,7 +254,8 @@ internal sealed class ExtensionFolder : IExtensionFolder
         return File.Exists(path) ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read) : null;
     }
 
-    public void WriteAtomic(string relativePath, ReadOnlySpan<byte> content) => AtomicFile.WriteAllBytes(ResolveFile(relativePath), content.ToArray());
+    public void WriteAtomic(string relativePath, ReadOnlySpan<byte> content) =>
+        AtomicFile.WriteAllBytes(ResolveFile(relativePath), [.. content]);
 
     public void WriteAtomic(string relativePath, Action<Stream> write)
     {
@@ -265,7 +272,7 @@ internal sealed class ExtensionFolder : IExtensionFolder
         // Opened for append and never rewritten. A log whose last line was torn by a crash gets a
         // newline first, so the torn line stays alone and is skipped rather than swallowing this one.
         using FileStream stream = new(path, FileMode.Append, FileAccess.Write, FileShare.Read);
-        byte[] bytes = Utf8.GetBytes((EndsTorn(path, stream.Position) ? "\n" : "") + line + "\n");
+        byte[] bytes = _utf8.GetBytes((EndsTorn(path, stream.Position) ? "\n" : "") + line + "\n");
         stream.Write(bytes);
         stream.Flush(true);
     }
@@ -304,8 +311,9 @@ internal sealed class ExtensionFolder : IExtensionFolder
     private string ResolveFile(string relativePath)
     {
         ArgumentNullException.ThrowIfNull(relativePath);
-        return PackDataRemover.ResolveSafe(_root, relativePath)
-               ?? throw new ArgumentException($"'{relativePath}' is not a file inside the store.", nameof(relativePath));
+        return PackDataRemover.ResolveSafe(Path, relativePath)
+            ?? throw new ArgumentException($"'{relativePath}' is not a file inside the store.",
+                nameof(relativePath));
     }
 
     // A folder's path: the folder itself for an empty path, otherwise one inside it.
@@ -314,11 +322,12 @@ internal sealed class ExtensionFolder : IExtensionFolder
         ArgumentNullException.ThrowIfNull(relativePath);
         if (relativePath.Length == 0 || relativePath == ".")
         {
-            return _root;
+            return Path;
         }
 
-        return PackDataRemover.ResolveSafe(_root, relativePath)
-               ?? throw new ArgumentException($"'{relativePath}' is not a folder inside the store.", nameof(relativePath));
+        return PackDataRemover.ResolveSafe(Path, relativePath)
+            ?? throw new ArgumentException($"'{relativePath}' is not a folder inside the store.",
+                nameof(relativePath));
     }
 }
 
@@ -339,9 +348,10 @@ internal sealed class ExtensionFile : IExtensionFile
 
     public byte[]? Read() => File.Exists(Path) ? File.ReadAllBytes(Path) : null;
 
-    public Stream? OpenRead() => File.Exists(Path) ? new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read) : null;
+    public Stream? OpenRead() =>
+        File.Exists(Path) ? new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read) : null;
 
-    public void WriteAtomic(ReadOnlySpan<byte> content) => AtomicFile.WriteAllBytes(Path, content.ToArray());
+    public void WriteAtomic(ReadOnlySpan<byte> content) => AtomicFile.WriteAllBytes(Path, [.. content]);
 
     public void WriteAtomic(Action<Stream> write)
     {

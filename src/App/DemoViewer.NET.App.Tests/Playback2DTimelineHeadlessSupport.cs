@@ -29,11 +29,7 @@ internal static class Playback2DTimelineHarness
         PlaybackContributionHost? contributions = null, Action<Playback2DFakeContext>? configure = null,
         Action<ulong, string?>? playerOverview = null)
     {
-        Playback2DFakeContext ctx = new()
-        {
-            TotalFrames = totalFrames,
-            Gate = new FakeModuleFeatureGate()
-        };
+        Playback2DFakeContext ctx = new() { TotalFrames = totalFrames, Gate = new FakeModuleFeatureGate() };
         ctx.AddPlayer(0, "Alpha", 2);
         ctx.AddPlayer(1, "Bravo", 2);
         ctx.AddPlayer(2, "Charlie", 3);
@@ -58,16 +54,8 @@ internal static class Playback2DTimelineHarness
     public static (Window Window, Playback2DView View) Show(Playback2DTabViewModel vm,
         int width = 1000, int height = 700)
     {
-        Playback2DView view = new()
-        {
-            DataContext = vm
-        };
-        Window window = new()
-        {
-            Width = width,
-            Height = height,
-            Content = view
-        };
+        Playback2DView view = new() { DataContext = vm };
+        Window window = new() { Width = width, Height = height, Content = view };
         window.Show();
         Pump();
         return (window, view);
@@ -118,10 +106,7 @@ internal static class Playback2DTimelineHarness
         Tick = tick,
         Fields = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Attacker"] = 0,
-            ["UserId"] = 2,
-            ["Weapon"] = "ak47",
-            ["Headshot"] = true
+            ["Attacker"] = 0, ["UserId"] = 2, ["Weapon"] = "ak47", ["Headshot"] = true
         }
     };
 
@@ -129,9 +114,6 @@ internal static class Playback2DTimelineHarness
     {
         Name = name,
         Tick = tick,
-        Fields = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Site"] = "A"
-        }
+        Fields = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase) { ["Site"] = "A" }
     };
 }

@@ -63,7 +63,9 @@ public sealed class StoredFile
     /// </summary>
     /// <param name="store">The declared store, as <see cref="IExtensionStores.OpenFile" /> returned it.</param>
     public static StoredFile? In(IExtensionFile? store) =>
-        store is null ? null : new StoredFile(Path.GetFileName(store.Path), store.Read, bytes => store.WriteAtomic(bytes));
+        store is null
+            ? null
+            : new StoredFile(Path.GetFileName(store.Path), store.Read, bytes => store.WriteAtomic(bytes));
 
     /// <summary>The file's contents, or null when it does not exist.</summary>
     /// <exception cref="IOException">The file exists and could not be read.</exception>
@@ -74,7 +76,7 @@ public sealed class StoredFile
         // Strip a UTF-8 BOM. These files are user-editable and several editors write one, and the
         // JSON readers downstream take bytes: Utf8JsonReader treats a BOM as content and throws,
         // where the File.ReadAllText these paths used before silently removed it.
-        if (bytes is { Length: >= 3 } && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+        if (bytes is [0xEF, 0xBB, 0xBF, ..])
         {
             return bytes[3..];
         }

@@ -52,12 +52,12 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
 
     private readonly IExtensionLibrary _library;
     private readonly IExtensionIdentity? _identity;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly StoredFile? _indexFile;
 
     // Keyed on the library row INSTANCE: the library hands out a new row whenever the demo's record is
     // written, so a cached join never outlives the record it was built from. Under _joinGate.
-    private readonly object _joinGate = new();
+    private readonly Lock _joinGate = new();
     private readonly List<JoinSlot> _joins = [];
     private readonly Dictionary<string, DemoSideInput> _inputs = new(StringComparer.Ordinal);
     private readonly Action<Action> _post;
@@ -71,9 +71,8 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     private TeamIndexFile _index = new();
     private TeamsFile _teams = new();
     private bool _teamsRefused;
-    private readonly object _referencesGate = new();
+    private readonly Lock _referencesGate = new();
     private HashSet<Guid> _referenced = [];
-    private Task _work = Task.CompletedTask;
 
     // The full sync queued and not yet started, so a burst of batch changes queues one.
     private object? _fullSyncWaiting;
@@ -114,7 +113,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _identity = identity;
         _roundFacts = roundFacts;
         _post = post ?? (action => action());
-        _run = run ?? (action => Task.Run(action));
+        _run = run ?? Task.Run;
         _teamsFile = files?.Teams;
         _indexFile = _teamsFile is null ? null : files?.Index;
 
@@ -228,7 +227,11 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     {
         _load.Ensure();
         ArgumentNullException.ThrowIfNull(steamIds);
-        List<string> squad = [.. steamIds.Select(s => s.Trim()).Where(s => s.Length > 0).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
+        List<string> squad =
+        [
+            .. steamIds.Select(s => s.Trim()).Where(s => s.Length > 0).Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+        ];
         if (squad.Count is < 2 or > 5)
         {
             throw new ArgumentException("a squad is two to five players", nameof(steamIds));
@@ -258,10 +261,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             {
                 us.Rosters.Add(new Roster
                 {
-                    Id = UniqueRosterId(us, "squad"),
-                    Since = DateOnly.MinValue,
-                    Squad = squad,
-                    Label = "squad"
+                    Id = UniqueRosterId(us, "squad"), Since = DateOnly.MinValue, Squad = squad, Label = "squad"
                 });
             }
 
@@ -322,7 +322,8 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         lock (_gate)
         {
-            if (DismissedSuggestions.FirstOrDefault(s => string.Equals(s.Id, id, StringComparison.Ordinal)) is not { } suggestion)
+            if (DismissedSuggestions.FirstOrDefault(s => string.Equals(s.Id, id, StringComparison.Ordinal)) is not
+                { } suggestion)
             {
                 return;
             }
@@ -408,7 +409,8 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         {
             lock (_gate)
             {
-                return _index.Demos.Values.Count(d => !(d.Side(2)?.IsClusterable ?? false) && !(d.Side(3)?.IsClusterable ?? false));
+                return _index.Demos.Values.Count(d =>
+                    !(d.Side(2)?.IsClusterable ?? false) && !(d.Side(3)?.IsClusterable ?? false));
             }
         }
     }
@@ -426,7 +428,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     }
 
     /// <summary>The replay in flight, for callers that must observe its result.</summary>
-    public Task Idle => _work;
+    public Task Idle { get; private set; } = Task.CompletedTask;
 
     /// <summary>Raised (through the post delegate) after any change to either file.</summary>
     public event Action? Changed;
@@ -617,7 +619,8 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
                 {
                     Interlocked.CompareExchange(ref _fullSyncWaiting, null, ticket);
                     SyncWithIndex();
-                }).ContinueWith(_ => Interlocked.CompareExchange(ref _fullSyncWaiting, null, ticket), TaskScheduler.Default);
+                }).ContinueWith(_ => Interlocked.CompareExchange(ref _fullSyncWaiting, null, ticket),
+                    TaskScheduler.Default);
             }
 
             return;
@@ -754,9 +757,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     ///     The record pass that lifts the sides of a parsed demo whose library row does not carry them: a row
     ///     written before the library kept sides. Reading the record also gives the library the row's sides.
     /// </summary>
-    public IExtensionRecordPass SidesPass => _sidesPass ??= new SidesRecordPass(this);
-
-    private IExtensionRecordPass? _sidesPass;
+    public IExtensionRecordPass SidesPass => field ??= new SidesRecordPass(this);
 
     private sealed class SidesRecordPass(TeamIdentityService owner) : IExtensionRecordPass
     {
@@ -789,7 +790,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             // One replay at a time, in the order the changes arrived; a failure never stops the chain.
             // An idle chain starts the work through the runner directly, so an inline runner (tests)
             // finishes before the caller continues.
-            Task previous = _work;
+            Task previous = Idle;
             // A replay queued before a release is dropped after it: the load it would run reads the index back in.
             LoadOnce mine = _load;
             Action loaded = () =>
@@ -802,10 +803,10 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
                 mine.Ensure();
                 work();
             };
-            _work = previous.IsCompleted
+            Idle = previous.IsCompleted
                 ? _run(loaded)
                 : previous.ContinueWith(_ => _run(loaded), TaskScheduler.Default).Unwrap();
-            return _work;
+            return Idle;
         }
     }
 
@@ -841,7 +842,8 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         {
             return
             [
-                .. Ordered(_index.Demos.Where(d => d.Value.OurSide is not null && d.Value.OpponentTeamId == opponentTeamId))
+                .. Ordered(_index.Demos.Where(d =>
+                        d.Value.OurSide is not null && d.Value.OpponentTeamId == opponentTeamId))
                     .Select(ToRef)
             ];
         }
@@ -864,9 +866,9 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         lock (_gate)
         {
             return _index.Demos.TryGetValue(DemoKeys.StableKey(demoPath), out TeamIndexDemo? row)
-                   && row.Side(endSide)?.TeamId is { } id
-                ? _teams.Find(id)
-                : null;
+                && row.Side(endSide)?.TeamId is { } id
+                    ? _teams.Find(id)
+                    : null;
         }
     }
 
@@ -931,7 +933,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         lock (_joinGate)
         {
             JoinSlot? slot = _joins.Find(j => ReferenceEquals(j.Entry, entry)
-                                              && string.Equals(j.Path, demoPath, StringComparison.OrdinalIgnoreCase));
+                && string.Equals(j.Path, demoPath, StringComparison.OrdinalIgnoreCase));
             if (slot is null)
             {
                 if (_joins.Count >= SideJoinCapacity)
@@ -989,10 +991,11 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     {
         lock (_gate)
         {
-            return _index.Members.TryGetValue(teamId.ToString(), out Dictionary<string, Dictionary<string, TeamIndexMember>>? perRoster)
-                   && perRoster.TryGetValue(rosterId, out Dictionary<string, TeamIndexMember>? members)
-                ? new Dictionary<string, TeamIndexMember>(members, StringComparer.Ordinal)
-                : new Dictionary<string, TeamIndexMember>(StringComparer.Ordinal);
+            return _index.Members.TryGetValue(teamId.ToString(),
+                    out Dictionary<string, Dictionary<string, TeamIndexMember>>? perRoster)
+                && perRoster.TryGetValue(rosterId, out Dictionary<string, TeamIndexMember>? members)
+                    ? new Dictionary<string, TeamIndexMember>(members, StringComparer.Ordinal)
+                    : new Dictionary<string, TeamIndexMember>(StringComparer.Ordinal);
         }
     }
 
@@ -1005,7 +1008,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             List<(DemoRef, int, TeamAssignment)> sides = [];
             foreach ((string key, TeamIndexDemo row) in Ordered(_index.Demos))
             {
-                foreach (int side in (int[]) [2, 3])
+                foreach (int side in (int[])[2, 3])
                 {
                     if (row.Side(side)?.TeamId == teamId)
                     {
@@ -1024,7 +1027,8 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     {
         lock (_gate)
         {
-            return _index.Demos.Values.Where(d => OnEitherSide(d, teamId)).Select(d => d.OrderTicks).DefaultIfEmpty(0).Max();
+            return _index.Demos.Values.Where(d => OnEitherSide(d, teamId)).Select(d => d.OrderTicks).DefaultIfEmpty(0)
+                .Max();
         }
     }
 
@@ -1190,11 +1194,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
                 Name = name?.Trim() ?? "",
                 NameSource = string.IsNullOrWhiteSpace(name) ? TeamNameSource.Auto : TeamNameSource.User
             };
-            Roster roster = new()
-            {
-                Id = "r1",
-                Since = TeamClusterer.DateOf(picked.Min(p => p.Row.OrderTicks))
-            };
+            Roster roster = new() { Id = "r1", Since = TeamClusterer.DateOf(picked.Min(p => p.Row.OrderTicks)) };
             List<string>? five = picked.Select(p => p.Side.Key).Where(k => k.Count == 5)
                 .GroupBy(k => string.Join(",", k), StringComparer.Ordinal)
                 .Where(g => g.Count() >= 2)
@@ -1346,9 +1346,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             {
                 _teams.Provenance.Overrides.Add(new ProvenanceOverride
                 {
-                    DemoSha256 = sha,
-                    DemoStableKey = sha is null ? key : null,
-                    Label = label
+                    DemoSha256 = sha, DemoStableKey = sha is null ? key : null, Label = label
                 });
             }
 
@@ -1384,10 +1382,13 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     {
         TeamsFile teams = Clone(_teams);
         TeamClusterer clusterer = new(teams);
-        foreach (DemoSideInput input in _inputs.Values.OrderBy(i => i.OrderTicks).ThenBy(i => i.Path, StringComparer.Ordinal))
+        foreach (DemoSideInput input in _inputs.Values.OrderBy(i => i.OrderTicks)
+                     .ThenBy(i => i.Path, StringComparer.Ordinal))
         {
-            string? pin = teams.Provenance.Overrides.FirstOrDefault(o => Matches(o, input.StableKey, input.Sha256))?.Label;
-            clusterer.Assign(input, OverridesFor(teams, input), TeamSourcePolicy.AutoTracks(input.SourceKind, input.BothClanTags, pin));
+            string? pin = teams.Provenance.Overrides.FirstOrDefault(o => Matches(o, input.StableKey, input.Sha256))
+                ?.Label;
+            clusterer.Assign(input, OverridesFor(teams, input),
+                TeamSourcePolicy.AutoTracks(input.SourceKind, input.BothClanTags, pin));
         }
 
         HashSet<Guid> keep;
@@ -1437,10 +1438,12 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     // moved file keeps it. Both override lists, one rule.
     private void UpgradeOverrides()
     {
-        foreach (IDemoKeyedOverride o in _teams.Overrides.Cast<IDemoKeyedOverride>().Concat(_teams.Provenance.Overrides))
+        foreach (IDemoKeyedOverride o in
+                 _teams.Overrides.Cast<IDemoKeyedOverride>().Concat(_teams.Provenance.Overrides))
         {
             if (o.DemoSha256 is null && o.DemoStableKey is not null
-                && _index.Demos.TryGetValue(o.DemoStableKey, out TeamIndexDemo? row) && row.Sha256 is not null)
+                && _index.Demos.TryGetValue(o.DemoStableKey, out TeamIndexDemo? row)
+                && row.Sha256 is not null)
             {
                 o.DemoSha256 = row.Sha256;
                 o.DemoStableKey = null;
@@ -1454,10 +1457,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         _teams.Overrides.RemoveAll(o => o.Side == side && Matches(o, key, row.Sha256));
         _teams.Overrides.Add(new TeamOverride
         {
-            DemoSha256 = row.Sha256,
-            DemoStableKey = row.Sha256 is null ? key : null,
-            Side = side,
-            TeamId = teamId
+            DemoSha256 = row.Sha256, DemoStableKey = row.Sha256 is null ? key : null, Side = side, TeamId = teamId
         });
     }
 
@@ -1474,7 +1474,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             OurSideSource source = OurSideSource.None;
             if (us is not null)
             {
-                foreach (int side in (int[]) [2, 3])
+                foreach (int side in (int[])[2, 3])
                 {
                     if (row.Side(side) is { Override: true } s && s.TeamId == us.Id)
                     {
@@ -1485,7 +1485,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
 
                 if (ourSide is null)
                 {
-                    foreach (int side in (int[]) [2, 3])
+                    foreach (int side in (int[])[2, 3])
                     {
                         if (row.Side(side)?.TeamId == us.Id)
                         {
@@ -1539,7 +1539,8 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
                 TeamsFile? teams = JsonSerializer.Deserialize<TeamsFile>(teamsBytes, TeamsFile.JsonOptions);
                 if (teams is null || teams.SchemaVersion > TeamsFile.CurrentSchema)
                 {
-                    Refuse($"{TeamsFileName} is at schema {teams?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
+                    Refuse(
+                        $"{TeamsFileName} is at schema {teams?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
                 }
                 else
                 {
@@ -1624,7 +1625,8 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     }
 
     private static TeamsFile Clone(TeamsFile teams) =>
-        JsonSerializer.Deserialize<TeamsFile>(JsonSerializer.Serialize(teams, TeamsFile.JsonOptions), TeamsFile.JsonOptions)
+        JsonSerializer.Deserialize<TeamsFile>(JsonSerializer.Serialize(teams, TeamsFile.JsonOptions),
+            TeamsFile.JsonOptions)
         ?? new TeamsFile();
 
     private static string UniqueRosterId(Team team, string wanted)
@@ -1644,14 +1646,15 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     private static bool OnEitherSide(TeamIndexDemo row, Guid teamId) =>
         row.Side(2)?.TeamId == teamId || row.Side(3)?.TeamId == teamId;
 
-    private static IEnumerable<KeyValuePair<string, TeamIndexDemo>> Ordered(IEnumerable<KeyValuePair<string, TeamIndexDemo>> rows) =>
+    private static IEnumerable<KeyValuePair<string, TeamIndexDemo>> Ordered(
+        IEnumerable<KeyValuePair<string, TeamIndexDemo>> rows) =>
         rows.OrderByDescending(d => d.Value.OrderTicks).ThenBy(d => d.Value.Path, StringComparer.Ordinal);
 
     private static DemoRef ToRef(KeyValuePair<string, TeamIndexDemo> row) =>
         new(row.Value.Path, row.Key, row.Value.Sha256);
 
     private static TeamAssignment ToAssignment(TeamIndexDemo row) =>
-        new(row.Path, row.Sha256, ToSide(row.Side(2)), ToSide(row.Side(3)), row.OurSide, row.OurSideSource, row.OpponentTeamId);
+        new(ToSide(row.Side(2)), ToSide(row.Side(3)), row.OurSide, row.OurSideSource, row.OpponentTeamId);
 
     private static SideAssignment ToSide(TeamIndexSide? side) =>
         side is null

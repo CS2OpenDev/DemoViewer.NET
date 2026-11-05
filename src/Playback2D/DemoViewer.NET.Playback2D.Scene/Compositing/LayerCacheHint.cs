@@ -4,6 +4,7 @@ namespace DemoViewer.NET.Playback2D.Compositing;
 ///     How cacheable a layer's drawing is. Declared rather than inferred so caching is
 ///     auditable: a layer that lies about this is a rendering bug with a name.
 /// </summary>
+[PublicAPI]
 public enum LayerCacheHint
 {
     /// <summary>Output changes only when <c>ContentVersion</c> does, recordable into one SKPicture.</summary>

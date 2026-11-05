@@ -24,20 +24,14 @@ public class Playback2DAreaEffectsTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = Playback2DFakeContext.Bare();
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
         vm.OnActivated(ctx);
 
         View view = new();
         view.Add(Smoke(100, 370, -1058, -389)); // detonated → an area effect
         view.Add(Smoke(0, 999, 999, 0)); // still flying → ignored
 
-        Ent inferno = new("CInferno");
-        inferno.F["m_fireCount"] = 3;
+        Ent inferno = new("CInferno") { F = { ["m_fireCount"] = 3 } };
         AddCell(inferno, 0, true, 36f, -2212f, -413f);
         AddCell(inferno, 1, false, 5f, 5f, 0f); // not burning → excluded
         AddCell(inferno, 2, true, -46f, -2226f, -416f);
@@ -54,9 +48,9 @@ public class Playback2DAreaEffectsTests
         await Assert.That(smoke.WorldRadius).IsGreaterThan(100f); // ~144 standard smoke radius
 
         // Only the burning cells (0 and 2), not the unburning middle one.
-        await Assert.That(vm.AreaEffects.Any(a => a.Kind == AreaEffectKind.Fire && a.WorldX == 36f)).IsTrue();
-        await Assert.That(vm.AreaEffects.Any(a => a.Kind == AreaEffectKind.Fire && a.WorldX == -46f)).IsTrue();
-        await Assert.That(vm.AreaEffects.Any(a => a.Kind == AreaEffectKind.Fire && a.WorldX == 5f)).IsFalse();
+        await Assert.That(vm.AreaEffects.Any(a => a is { Kind: AreaEffectKind.Fire, WorldX: 36f })).IsTrue();
+        await Assert.That(vm.AreaEffects.Any(a => a is { Kind: AreaEffectKind.Fire, WorldX: -46f })).IsTrue();
+        await Assert.That(vm.AreaEffects.Any(a => a is { Kind: AreaEffectKind.Fire, WorldX: 5f })).IsFalse();
     }
 
     [Test]
@@ -64,12 +58,7 @@ public class Playback2DAreaEffectsTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = Playback2DFakeContext.Bare();
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
         vm.OnActivated(ctx);
 
         ctx.Push(new FakeSnap(1, new View()));
@@ -80,9 +69,10 @@ public class Playback2DAreaEffectsTests
 
     private static Ent Smoke(int tickBegin, float x, float y, float z)
     {
-        Ent e = new("CSmokeGrenadeProjectile");
-        e.F["m_nSmokeEffectTickBegin"] = tickBegin;
-        e.F["m_vSmokeDetonationPos"] = new Vector3(x, y, z);
+        Ent e = new("CSmokeGrenadeProjectile")
+        {
+            F = { ["m_nSmokeEffectTickBegin"] = tickBegin, ["m_vSmokeDetonationPos"] = new Vector3(x, y, z) }
+        };
         return e;
     }
 
@@ -94,25 +84,18 @@ public class Playback2DAreaEffectsTests
 
     // ── Doubles ──
 
-    private sealed class FakeSnap : IPlaybackSnapshot
+    private sealed class FakeSnap(int frameIndex, IReadOnlyEntityView entities) : IPlaybackSnapshot
     {
-        public FakeSnap(int frameIndex, IReadOnlyEntityView entities)
-        {
-            FrameIndex = frameIndex;
-            Entities = entities;
-        }
-
-        public int FrameIndex { get; }
+        public int FrameIndex { get; } = frameIndex;
         public int Tick => FrameIndex * 64;
-        public IReadOnlyEntityView Entities { get; }
+        public IReadOnlyEntityView Entities { get; } = entities;
         public IReadOnlyList<IPlayerState> Players { get; } = new List<IPlayerState>();
     }
 
-    private sealed class Ent : IReadOnlyEntity
+    private sealed class Ent(string className) : IReadOnlyEntity
     {
-        public Ent(string className) => ClassName = className;
         public Dictionary<string, object?> F { get; } = new();
-        public string ClassName { get; }
+        public string ClassName { get; } = className;
         public int Serial => 1;
         public bool IsInPvs => true;
         public object? this[string fieldPath] => F.GetValueOrDefault(fieldPath);
@@ -132,7 +115,7 @@ public class Playback2DAreaEffectsTests
 
     private sealed class View : IReadOnlyEntityView
     {
-        private readonly List<IReadOnlyEntity> _ents = new();
+        private readonly List<IReadOnlyEntity> _ents = [];
         public IEnumerable<IReadOnlyEntity> All() => _ents;
         public IEnumerable<IReadOnlyEntity> OfClass(string className) => _ents.Where(e => e.ClassName == className);
         public IReadOnlyEntity? BySerial(int serial) => null;

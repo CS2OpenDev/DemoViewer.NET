@@ -3,20 +3,17 @@
 using System.Text.Json;
 using CS2DemoKit.Analysis;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Features;
-using DemoViewer.NET.Modules.Abstractions;
-using DemoViewer.NET.Modules.Highlights;
-using DemoViewer.NET.Extensions.StratBook.Modules.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
-using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Playback2D.Pipeline.Review;
-using DemoViewer.NET.Services.Review;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
-using DemoViewer.NET.ViewModels.Highlights;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Review;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
+using DemoViewer.NET.Modules.Highlights;
+using DemoViewer.NET.Playback2D.Annotations;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Review;
+using DemoViewer.NET.ViewModels.Highlights;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 using SdkReview = DemoViewer.NET.Extensions.Sdk.Review;
@@ -37,7 +34,8 @@ public class ReviewQueueTests
 {
     private static string TempRoot() => Path.Combine(Path.GetTempPath(), $"dv-review-{Guid.NewGuid():N}");
 
-    private static ReviewEntry Clip(string path, int from, int to, string note = "", string source = ReviewSources.Manual) =>
+    private static ReviewEntry Clip(string path, int from, int to, string note = "",
+        string source = ReviewSources.Manual) =>
         ReviewEntry.Clip(path, from, to, note, source, 64);
 
     // ── The queue ─────────────────────────────────────────────────────────────
@@ -49,7 +47,8 @@ public class ReviewQueueTests
         int changes = 0;
         queue.Changed += () => changes++;
 
-        int added = queue.Add([Clip("/d/a.dem", 100, 200, "one"), Clip("/d/b.dem", 300, 400, "two")], "Mirage A", "2 rounds");
+        int added = queue.Add([Clip("/d/a.dem", 100, 200, "one"), Clip("/d/b.dem", 300, 400, "two")], "Mirage A",
+            "2 rounds");
         int again = queue.Add([Clip("/D/A.dem", 100, 200, "one, again")], "Mirage A");
         int partly = queue.Add([Clip("/d/a.dem", 100, 200), Clip("/d/c.dem", 50, 10)]);
 
@@ -57,10 +56,12 @@ public class ReviewQueueTests
         using (Assert.Multiple())
         {
             await Assert.That(added).IsEqualTo(2);
-            await Assert.That(again).IsEqualTo(0).Because("the same demo and range is the same clip, whatever the path casing");
+            await Assert.That(again).IsEqualTo(0)
+                .Because("the same demo and range is the same clip, whatever the path casing");
             await Assert.That(partly).IsEqualTo(1);
             await Assert.That(changes).IsEqualTo(2).Because("a send that adds nothing changes nothing");
-            await Assert.That(entries.Count).IsEqualTo(4).Because("no title card is left behind by a send that added no clip");
+            await Assert.That(entries.Count).IsEqualTo(4)
+                .Because("no title card is left behind by a send that added no clip");
             await Assert.That(entries[0].Kind).IsEqualTo(ReviewEntryKind.Section);
             await Assert.That(entries[0].Title).IsEqualTo("Mirage A");
             await Assert.That(entries[0].Note).IsEqualTo("2 rounds");
@@ -76,17 +77,23 @@ public class ReviewQueueTests
     public async Task Moves_Edits_AndSubsetReorders_TouchOnlyWhatTheyName()
     {
         ReviewQueue queue = new(null);
-        queue.Add([Clip("/d/a.dem", 1, 2, "a"), Clip("/d/b.dem", 1, 2, "b"), Clip("/d/c.dem", 1, 2, "c"), Clip("/d/d.dem", 1, 2, "d")]);
+        queue.Add([
+            Clip("/d/a.dem", 1, 2, "a"), Clip("/d/b.dem", 1, 2, "b"), Clip("/d/c.dem", 1, 2, "c"),
+            Clip("/d/d.dem", 1, 2, "d")
+        ]);
         Guid[] ids = [.. queue.Entries.Select(e => e.Id)];
 
         queue.Move(ids[0], +1);
-        await Assert.That(queue.Entries.Select(e => e.Note)).IsEquivalentTo(["b", "a", "c", "d"], CollectionOrdering.Matching);
+        await Assert.That(queue.Entries.Select(e => e.Note))
+            .IsEquivalentTo(["b", "a", "c", "d"], CollectionOrdering.Matching);
         queue.MoveTo(ids[3], -5);
-        await Assert.That(queue.Entries.Select(e => e.Note)).IsEquivalentTo(["d", "b", "a", "c"], CollectionOrdering.Matching).Because("clamped to the top");
+        await Assert.That(queue.Entries.Select(e => e.Note))
+            .IsEquivalentTo(["d", "b", "a", "c"], CollectionOrdering.Matching).Because("clamped to the top");
 
         // The subset a and c swap between the two slots they hold; b and d stay put.
         queue.ReorderSubset([ids[2], ids[0]]);
-        await Assert.That(queue.Entries.Select(e => e.Note)).IsEquivalentTo(["d", "b", "c", "a"], CollectionOrdering.Matching);
+        await Assert.That(queue.Entries.Select(e => e.Note))
+            .IsEquivalentTo(["d", "b", "c", "a"], CollectionOrdering.Matching);
 
         ReviewEntry card = queue.AddSection("Retakes", 2);
         queue.SetQuestion(ids[1], "  why did\nB fall?  ");
@@ -108,8 +115,10 @@ public class ReviewQueueTests
         try
         {
             ReviewQueue queue = new(root);
-            queue.Add([ReviewEntry.Clip("/d/a.dem", 640, 1280, "a", ReviewSources.Highlight, 64, "abc",
-                new ReviewHighlightRef("r", "ace", 1000, 3))], "Aces");
+            queue.Add([
+                ReviewEntry.Clip("/d/a.dem", 640, 1280, "a", ReviewSources.Highlight, 64, "abc",
+                    new ReviewHighlightRef("r", "ace", 1000, 3))
+            ], "Aces");
             queue.SetQuestion(queue.Clips[0].Id, "what did he see first?");
             queue.Flush();
 
@@ -118,7 +127,8 @@ public class ReviewQueueTests
             {
                 await Assert.That(json.RootElement.GetProperty("clock").GetProperty("kind").GetString())
                     .IsEqualTo(ClockIdentity.DvFrameClock).Because("every tick in the file is on the frame clock");
-                await Assert.That(json.RootElement.GetProperty("entries")[1].GetProperty("kind").GetString()).IsEqualTo("clip");
+                await Assert.That(json.RootElement.GetProperty("entries")[1].GetProperty("kind").GetString())
+                    .IsEqualTo("clip");
             }
 
             ReviewQueue reread = new(root);
@@ -140,7 +150,8 @@ public class ReviewQueueTests
             using (Assert.Multiple())
             {
                 await Assert.That(refused.FileProblem).Contains("newer than this build reads");
-                await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(newer).Because("a refused file is never overwritten");
+                await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(newer)
+                    .Because("a refused file is never overwritten");
                 await Assert.That(refused.ClipCount).IsEqualTo(1).Because("the session still works");
             }
         }
@@ -158,7 +169,8 @@ public class ReviewQueueTests
     {
         TagInstanceRef instance = new("abc", Guid.NewGuid(), "exec-a", 2000, 2640, 7);
         SdkReview.ReviewClip? clip = TagClips.FromTag(instance, sha => sha == "abc" ? "/d/a.dem" : null, 64);
-        SdkReview.ReviewClip? missing = TagClips.FromTag(instance with { Sha256 = "zzz" }, sha => sha == "abc" ? "/d/a.dem" : null);
+        SdkReview.ReviewClip? missing =
+            TagClips.FromTag(instance with { Sha256 = "zzz" }, sha => sha == "abc" ? "/d/a.dem" : null);
 
         using (Assert.Multiple())
         {
@@ -175,34 +187,36 @@ public class ReviewQueueTests
 
     // ── The Reels tray as a client ────────────────────────────────────────────
 
-    private static DemoCacheRecord HighlightRow(string path, string steam, params (string Id, int Tick)[] highlights) => new()
-    {
-        Path = path,
-        Map = "de_nuke",
-        TickRate = 64,
-        TickCount = 120_000,
-        ModifiedTicks = 1,
-        Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
-        AnalysisState = DemoAnalysisState.Indexed,
-        ConfigFingerprint = "fp@64",
-        Sha256 = "sha-" + Path.GetFileName(path),
-        Players = [new CachedPlayerInfo { Name = "p" + steam, SteamId64 = steam, Team = 2, Slot = 0 }],
-        Rounds = [new CachedRound { Number = 1, StartTickFrameClock = 1000 }],
-        Highlights =
-        [
-            .. highlights.Select(h => new CachedHighlightEvent
-            {
-                RulesetId = "r",
-                HighlightId = h.Id,
-                PlayerSlot = 0,
-                RoundNumber = 1,
-                Tick = h.Tick,
-                RenderedTitle = $"{h.Id} at {h.Tick}"
-            })
-        ]
-    };
+    private static DemoCacheRecord HighlightRow(string path, string steam, params (string Id, int Tick)[] highlights) =>
+        new()
+        {
+            Path = path,
+            Map = "de_nuke",
+            TickRate = 64,
+            TickCount = 120_000,
+            ModifiedTicks = 1,
+            Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
+            AnalysisState = DemoAnalysisState.Indexed,
+            ConfigFingerprint = "fp@64",
+            Sha256 = "sha-" + Path.GetFileName(path),
+            Players = [new CachedPlayerInfo { Name = "p" + steam, SteamId64 = steam, Team = 2, Slot = 0 }],
+            Rounds = [new CachedRound { Number = 1, StartTickFrameClock = 1000 }],
+            Highlights =
+            [
+                .. highlights.Select(h => new CachedHighlightEvent
+                {
+                    RulesetId = "r",
+                    HighlightId = h.Id,
+                    PlayerSlot = 0,
+                    RoundNumber = 1,
+                    Tick = h.Tick,
+                    RenderedTitle = $"{h.Id} at {h.Tick}"
+                })
+            ]
+        };
 
-    private static (DemoCacheStore Store, HighlightsTabViewModel Vm) Tray(ReviewQueue queue, params DemoCacheRecord[] rows)
+    private static (DemoCacheStore Store, HighlightsTabViewModel Vm) Tray(ReviewQueue queue,
+        params DemoCacheRecord[] rows)
     {
         DemoCacheStore store = new(null);
         foreach (DemoCacheRecord row in rows)
@@ -212,8 +226,7 @@ public class ReviewQueueTests
 
         HighlightScanService scanner = new(store, new NoHarvester(), () => [.. rows.Select(r => r.Path)], () => false);
         HighlightsTabViewModel vm = new(store, scanner, isLiveSyncSessionActive: () => false, fileExists: _ => true,
-            reviewQueue: queue);
-        vm.ReelConfig.OutputFolder = "/out";
+            reviewQueue: queue) { ReelConfig = { OutputFolder = "/out" } };
         return (store, vm);
     }
 
@@ -257,19 +270,23 @@ public class ReviewQueueTests
         vm.Stage(a, a.Highlights[0]);
         queue.Add([Clip("/d/x.dem", 1, 2, "from a search", ReviewSources.Situation)]);
         vm.Stage(b, b.Highlights[0]);
-        await Assert.That(queue.Clips.Select(c => c.Note)).IsEquivalentTo(["ace at 5000", "from a search", "clutch at 9000"], CollectionOrdering.Matching);
+        await Assert.That(queue.Clips.Select(c => c.Note))
+            .IsEquivalentTo(["ace at 5000", "from a search", "clutch at 9000"], CollectionOrdering.Matching);
 
         // The tray moves b's group to the top: the search clip keeps its slot between them.
         vm.MoveGroup(ClipTrayKeys.Group("/d/b.dem", "2"), -1);
         using (Assert.Multiple())
         {
-            await Assert.That(vm.StagedSelections.Select(s => s.Record.Path)).IsEquivalentTo(["/d/b.dem", "/d/a.dem"], CollectionOrdering.Matching);
-            await Assert.That(queue.Clips.Select(c => c.Note)).IsEquivalentTo(["clutch at 9000", "from a search", "ace at 5000"], CollectionOrdering.Matching);
+            await Assert.That(vm.StagedSelections.Select(s => s.Record.Path))
+                .IsEquivalentTo(["/d/b.dem", "/d/a.dem"], CollectionOrdering.Matching);
+            await Assert.That(queue.Clips.Select(c => c.Note))
+                .IsEquivalentTo(["clutch at 9000", "from a search", "ace at 5000"], CollectionOrdering.Matching);
         }
 
         // A move in the Review tab is a tray reorder too.
         queue.MoveTo(queue.Clips[2].Id, 0);
-        await Assert.That(vm.StagedSelections.Select(s => s.Record.Path)).IsEquivalentTo(["/d/a.dem", "/d/b.dem"], CollectionOrdering.Matching);
+        await Assert.That(vm.StagedSelections.Select(s => s.Record.Path))
+            .IsEquivalentTo(["/d/a.dem", "/d/b.dem"], CollectionOrdering.Matching);
 
         // Clear tray empties the tray and nothing else.
         vm.ClearTrayCommand.Execute(null);
@@ -277,7 +294,8 @@ public class ReviewQueueTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.StagedCount).IsEqualTo(0);
-            await Assert.That(queue.Clips.Select(c => c.Note)).IsEquivalentTo(["from a search"], CollectionOrdering.Matching);
+            await Assert.That(queue.Clips.Select(c => c.Note))
+                .IsEquivalentTo(["from a search"], CollectionOrdering.Matching);
         }
     }
 
@@ -293,18 +311,20 @@ public class ReviewQueueTests
             (_, HighlightsTabViewModel before) = Tray(first, a, b);
             before.Stage(b, b.Highlights[0]);
             before.Stage(a, a.Highlights[0]);
-            object? session = before.SnapshotState();
+            object session = before.SnapshotState();
             first.Flush();
 
             // The restart: a fresh queue over the same file, a fresh tray over it.
             ReviewQueue second = new(root);
             (_, HighlightsTabViewModel after) = Tray(second, a, b);
-            await Assert.That(after.StagedSelections.Select(s => s.Record.Path)).IsEquivalentTo(["/d/b.dem", "/d/a.dem"], CollectionOrdering.Matching);
+            await Assert.That(after.StagedSelections.Select(s => s.Record.Path))
+                .IsEquivalentTo(["/d/b.dem", "/d/a.dem"], CollectionOrdering.Matching);
 
             // The session's list is older than the queue: with the tray's clips already queued it is not replayed.
             second.MoveTo(second.Clips[1].Id, 0);
             after.RestoreState(session);
-            await Assert.That(after.StagedSelections.Select(s => s.Record.Path)).IsEquivalentTo(["/d/a.dem", "/d/b.dem"], CollectionOrdering.Matching);
+            await Assert.That(after.StagedSelections.Select(s => s.Record.Path))
+                .IsEquivalentTo(["/d/a.dem", "/d/b.dem"], CollectionOrdering.Matching);
             await Assert.That(second.ClipCount).IsEqualTo(2);
         }
         finally
@@ -333,7 +353,8 @@ public class ReviewQueueTests
         {
             await Assert.That(vm.StagedCount).IsEqualTo(1);
             await Assert.That(vm.StatusMessage).Contains("no longer in the highlights cache");
-            await Assert.That(queue.Clips.Select(c => c.Note)).IsEquivalentTo(["ace at 5000", "a manual pick in the same demo"], CollectionOrdering.Matching)
+            await Assert.That(queue.Clips.Select(c => c.Note))
+                .IsEquivalentTo(["ace at 5000", "a manual pick in the same demo"], CollectionOrdering.Matching)
                 .Because("only the tray's own clip rests on the cache");
         }
     }
@@ -348,15 +369,18 @@ public class ReviewQueueTests
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
         ReviewQueue queue = new(null);
         ResultCardsViewModel cards = new(cache.Library(), sidecars, sources, () => null, new SituationThumbnailCache(),
-            () => new SituationThumbnailRenderer(_ => null), action => action(), _ => null, review: new PublishedQueue(queue));
+            () => new SituationThumbnailRenderer(_ => null), action => action(), _ => null,
+            review: new PublishedQueue(queue));
         cache.Upsert(ParsedRecord("/d/a.dem"));
         Guid opponent = Guid.NewGuid();
         cards.SearchTeam = () => opponent;
 
         cards.Load(
         [
-            new SituationHit("/d/a.dem", DemoCacheStore.StableKey("/d/a.dem"), "sha-a", "de_nuke", 4, 1000, 4008, 4200, 3),
-            new SituationHit("/d/b.dem", DemoCacheStore.StableKey("/d/b.dem"), null, "de_nuke", 9, 20000, 20640, 20640, 1)
+            new SituationHit("/d/a.dem", DemoCacheStore.StableKey("/d/a.dem"), "sha-a", "de_nuke", 4, 1000, 4008, 4200,
+                3),
+            new SituationHit("/d/b.dem", DemoCacheStore.StableKey("/d/b.dem"), null, "de_nuke", 9, 20000, 20640, 20640,
+                1)
         ]);
         await cards.BatchTask;
 
@@ -371,12 +395,14 @@ public class ReviewQueueTests
             await Assert.That(entries[0].Title).IsEqualTo("Situations · de_nuke");
             await Assert.That(entries[0].Note).IsEqualTo("2 rounds");
             await Assert.That(entries[1].DemoPath).IsEqualTo("/d/a.dem");
-            await Assert.That(entries[1].FromTick).IsEqualTo(cards.Cards[0].SeekTick).Because("the queue opens where the card does");
+            await Assert.That(entries[1].FromTick).IsEqualTo(cards.Cards[0].SeekTick)
+                .Because("the queue opens where the card does");
             await Assert.That(entries[1].ToTick).IsEqualTo(4200 + ResultCardsViewModel.ReviewTailSeconds * 64);
             await Assert.That(entries[1].Sha256).IsEqualTo("sha-a");
             await Assert.That(entries[1].Note).IsEqualTo("a · Round 4");
             await Assert.That(entries[2].Source).IsEqualTo(ReviewSources.Situation);
-            await Assert.That(entries.Skip(1).All(e => e.TeamId == opponent)).IsTrue().Because("the search's opponent at load");
+            await Assert.That(entries.Skip(1).All(e => e.TeamId == opponent)).IsTrue()
+                .Because("the search's opponent at load");
             await Assert.That(cards.ReviewLine).IsEqualTo("2 rounds sent to Review");
         }
 
@@ -410,13 +436,15 @@ public class ReviewQueueTests
             using (Assert.Multiple())
             {
                 await Assert.That(changes).IsEqualTo(1).Because("a deferred batch is one change");
-                await Assert.That(File.Exists(path)).IsFalse().Because("the write waits out its delay off the UI thread");
+                await Assert.That(File.Exists(path)).IsFalse()
+                    .Because("the write waits out its delay off the UI thread");
             }
 
             queue.Flush();
             ReviewQueue reread = new(root);
             await reread.Loaded;
-            await Assert.That(reread.Clips.Select(c => c.DemoPath)).IsEquivalentTo(["/d/a.dem", "/d/b.dem"], CollectionOrdering.Matching);
+            await Assert.That(reread.Clips.Select(c => c.DemoPath))
+                .IsEquivalentTo(["/d/a.dem", "/d/b.dem"], CollectionOrdering.Matching);
         }
         finally
         {
@@ -438,10 +466,10 @@ public class ReviewQueueTests
         queue.SetQuestion(id, "why here?");
 
         int count = queue.MergeByKey(
-            [
-                Clip("/d/a.dem", 5, 9, "moved", ReviewSources.Lineup) with { LineupId = lineup },
-                Clip("/d/c.dem", 1, 2, source: ReviewSources.Lineup) with { LineupId = Guid.NewGuid() }
-            ], "Lineups", static e => e.LineupId);
+        [
+            Clip("/d/a.dem", 5, 9, "moved", ReviewSources.Lineup) with { LineupId = lineup },
+            Clip("/d/c.dem", 1, 2, source: ReviewSources.Lineup) with { LineupId = Guid.NewGuid() }
+        ], "Lineups", static e => e.LineupId);
 
         using (Assert.Multiple())
         {
@@ -470,21 +498,24 @@ public class ReviewQueueTests
             await Assert.That(card.IsCollapsed).IsTrue();
             await Assert.That(tab.Rows[2].Position).IsEqualTo(ReviewQueueTabViewModel.CollapseAbove + 2)
                 .Because("positions count every clip, shown or not");
-            await Assert.That(tab.SourceFilters).IsEquivalentTo([ReviewQueueTabViewModel.AllSources, "dossier", "lineup"], CollectionOrdering.Matching);
+            await Assert.That(tab.SourceFilters)
+                .IsEquivalentTo([ReviewQueueTabViewModel.AllSources, "dossier", "lineup"], CollectionOrdering.Matching);
         }
 
         card.ToggleCommand.Execute(null);
         await Assert.That(tab.Rows.Count).IsEqualTo(ReviewQueueTabViewModel.CollapseAbove + 4);
 
         tab.SelectedSource = ReviewSources.Dossier;
-        await Assert.That(tab.Rows.Select(r => r.IsSection ? r.Entry.Title : r.Entry.Note)).IsEquivalentTo(["Dossier", "a plant"], CollectionOrdering.Matching);
+        await Assert.That(tab.Rows.Select(r => r.IsSection ? r.Entry.Title : r.Entry.Note))
+            .IsEquivalentTo(["Dossier", "a plant"], CollectionOrdering.Matching);
 
         tab.SelectedSource = ReviewQueueTabViewModel.AllSources;
         card.ToggleCommand.Execute(null);
         tab.SearchText = "smoke 7";
         using (Assert.Multiple())
         {
-            await Assert.That(tab.Rows.Where(r => r.IsClip).Select(r => r.Entry.Note)).IsEquivalentTo(["smoke 7"], CollectionOrdering.Matching)
+            await Assert.That(tab.Rows.Where(r => r.IsClip).Select(r => r.Entry.Note))
+                .IsEquivalentTo(["smoke 7"], CollectionOrdering.Matching)
                 .Because("a search opens the collapsed section it finds a clip in");
             await Assert.That(tab.Rows[0].ClipCountText).IsEqualTo("1 of 51 clips match");
         }
@@ -516,9 +547,5 @@ public class ReviewQueueTests
             ($"fp@{tickRate}", new Dictionary<string, string>());
 
         public AnalysisRun RunBareAnalysis(ParsedDemo demo) => throw new NotSupportedException();
-
-        public void InvalidateRules()
-        {
-        }
     }
 }

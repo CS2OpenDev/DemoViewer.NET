@@ -1,8 +1,12 @@
+#region
+
 using Avalonia.Controls;
 using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using ThirdPartyFake.ViewModels;
+
+#endregion
 
 namespace ThirdPartyFake;
 
@@ -19,8 +23,10 @@ public sealed class FakeExtension : IExtension
 
     public IEnumerable<ExtensionFeature> Features =>
     [
-        new(MasterSwitch, ExtensionFeatureKind.Extension, "Third Party Fake", "A test extension.", null, AudienceDefaults.Everyone),
-        new(TabFeature, ExtensionFeatureKind.Tab, "Fake tab", "Shows the UI kit.", MasterSwitch, AudienceDefaults.Everyone)
+        new(MasterSwitch, ExtensionFeatureKind.Extension, "Third Party Fake", "A test extension.", null,
+            AudienceDefaults.Everyone),
+        new(TabFeature, ExtensionFeatureKind.Tab, "Fake tab", "Shows the UI kit.", MasterSwitch,
+            AudienceDefaults.Everyone)
     ];
 
     public void Register(IServiceCollection services) => services.AddSingleton<FakeTabViewModel>();

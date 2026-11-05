@@ -1,14 +1,14 @@
 #region
 
 using Avalonia.Threading;
-using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.TestSupport;
 using DemoViewer.NET.ViewModels.Shell;
 using Microsoft.Extensions.DependencyInjection;
@@ -124,11 +124,10 @@ public class ParseOncePerDemoTests
     public async Task AnImportWithLineupClipsOn_RendersTheClipsOnTheImportsReads()
     {
         string folder = Corpus("benchmarks");
-        string? clips = null;
         await WithApp(folder, async provider =>
         {
             DemoProcessingQueue queue = provider.GetRequiredService<DemoProcessingQueue>();
-            clips = Path.Combine(AppPaths.ConfigRoot!, LineupClipService.DirectoryName);
+            string clips = Path.Combine(AppPaths.ConfigRoot!, LineupClipService.DirectoryName);
             await provider.GetRequiredService<DemoLibraryService>().RescanAsync();
             await SettleAsync(queue);
             provider.GetRequiredService<DemoScheduler>().RecheckAll();
@@ -175,8 +174,9 @@ public class ParseOncePerDemoTests
             queue.BackgroundEnabled = false;
             await provider.GetRequiredService<DemoLibraryService>().RescanAsync();
             await WaitAsync(() => queue.Snapshot().Any(s => s.Kind == QueueJobKind.DemoProcessing && s.Path == opened
-                                                            && s.State == DemoQueueItemState.Queued),
-                () => "the import's visit: " + string.Join("; ", queue.Snapshot().Select(s => $"{s.Kind} {s.State} {s.Path} {s.DisplayName}")));
+                    && s.State == DemoQueueItemState.Queued),
+                () => "the import's visit: " + string.Join("; ",
+                    queue.Snapshot().Select(s => $"{s.Kind} {s.State} {s.Path} {s.DisplayName}")));
 
             await shell.LoadDemoFromPathAsync(opened);
             queue.BackgroundEnabled = true;
@@ -207,7 +207,8 @@ public class ParseOncePerDemoTests
             await SettleAsync(queue);
 
             await Assert.That(shell.LoadedDemoPath).IsEqualTo(opened);
-            await Assert.That(queue.ParseCount(opened)).IsEqualTo(2).Because("the open's own parse is the only other read");
+            await Assert.That(queue.ParseCount(opened)).IsEqualTo(2)
+                .Because("the open's own parse is the only other read");
             await AssertEachReadOnce(provider, queue, folder, except: opened);
         });
     }
@@ -221,12 +222,14 @@ public class ParseOncePerDemoTests
             foreach (string demo in Demos(folder))
             {
                 DemoCacheIndexEntry? entry = cache.TryGetIndex(demo);
-                Console.WriteLine($"{Path.GetFileName(demo)}: reads {queue.ParseCount(demo)}, parsed {entry?.ParseSchema}, "
-                                  + $"round facts {entry?.HasRoundFacts()}, round index {provider.GetRequiredService<RoundIndexStore>().Stamp(demo)?.State}, "
-                                  + $"grenades {provider.GetRequiredService<GrenadeStore>().Stamp(demo)?.State}, "
-                                  + $"suggestions {provider.GetRequiredService<ProposalStore>().Stamp(demo)?.State}");
+                Console.WriteLine(
+                    $"{Path.GetFileName(demo)}: reads {queue.ParseCount(demo)}, parsed {entry?.ParseSchema}, "
+                    + $"round facts {entry?.HasRoundFacts()}, round index {provider.GetRequiredService<RoundIndexStore>().Stamp(demo)?.State}, "
+                    + $"grenades {provider.GetRequiredService<GrenadeStore>().Stamp(demo)?.State}, "
+                    + $"suggestions {provider.GetRequiredService<ProposalStore>().Stamp(demo)?.State}");
                 await Assert.That(entry?.ParseSchema ?? 0).IsGreaterThan(0).Because($"the library indexed {demo}");
-                await Assert.That(provider.GetRequiredService<GrenadeStore>().Stamp(demo)).IsNotNull().Because($"the grenade sweep walked {demo}");
+                await Assert.That(provider.GetRequiredService<GrenadeStore>().Stamp(demo)).IsNotNull()
+                    .Because($"the grenade sweep walked {demo}");
                 if (!string.Equals(demo, except, StringComparison.Ordinal))
                 {
                     await Assert.That(queue.ParseCount(demo)).IsEqualTo(1).Because($"{demo} is read once this session");
@@ -244,12 +247,15 @@ public class ParseOncePerDemoTests
         {
             foreach (string demo in Demos(folder))
             {
-                await Assert.That(outcomes.Of(demo, "library")).IsEquivalentTo([PassOutcome.Ran], CollectionOrdering.Matching).Because($"{demo}: library");
-                await Assert.That(outcomes.Of(demo, RoundFactsEvaluator.EvaluatorId)).IsEquivalentTo([PassOutcome.Ran], CollectionOrdering.Matching)
+                await Assert.That(outcomes.Of(demo, "library"))
+                    .IsEquivalentTo([PassOutcome.Ran], CollectionOrdering.Matching).Because($"{demo}: library");
+                await Assert.That(outcomes.Of(demo, RoundFactsEvaluator.EvaluatorId))
+                    .IsEquivalentTo([PassOutcome.Ran], CollectionOrdering.Matching)
                     .Because($"{demo}: round facts ran on the Library's read instead of sitting it out");
                 if (roundIndex && cache.TryGetIndex(demo)?.HasRoundFacts() == true)
                 {
-                    await Assert.That(outcomes.Of(demo, RoundIndexEvaluator.EvaluatorId)).IsEquivalentTo([PassOutcome.Ran], CollectionOrdering.Matching)
+                    await Assert.That(outcomes.Of(demo, RoundIndexEvaluator.EvaluatorId))
+                        .IsEquivalentTo([PassOutcome.Ran], CollectionOrdering.Matching)
                         .Because($"{demo}: the round index ran on the same read as the rows it indexes");
                 }
             }
@@ -259,9 +265,11 @@ public class ParseOncePerDemoTests
     // Every pass outcome per demo, in the order the visits ended them.
     private sealed class PassOutcomes
     {
-        private readonly System.Collections.Concurrent.ConcurrentQueue<(string Demo, string Pass, PassOutcome Outcome)> _seen = new();
+        private readonly System.Collections.Concurrent.ConcurrentQueue<(string Demo, string Pass, PassOutcome Outcome)>
+            _seen = new();
 
-        public PassOutcomes(DemoScheduler scheduler) => scheduler.PassFinished += (demo, pass, outcome) => _seen.Enqueue((demo, pass, outcome));
+        public PassOutcomes(DemoScheduler scheduler) =>
+            scheduler.PassFinished += (demo, pass, outcome) => _seen.Enqueue((demo, pass, outcome));
 
         public PassOutcome[] Of(string demo, string pass) =>
             [.. _seen.Where(s => s.Demo == demo && s.Pass == pass).Select(s => s.Outcome)];
@@ -334,7 +342,7 @@ public class ParseOncePerDemoTests
     {
         string dir = configDir ?? Path.Combine(Path.GetTempPath(), "dvparseonce_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "settings.json"), Settings(folder, renderClips));
+        await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), Settings(folder, renderClips));
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
         Environment.SetEnvironmentVariable(AppPaths.ConfigDirEnvVar, dir);
         try
@@ -348,7 +356,7 @@ public class ParseOncePerDemoTests
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             }, TimeSpan.FromMinutes(20));
         }

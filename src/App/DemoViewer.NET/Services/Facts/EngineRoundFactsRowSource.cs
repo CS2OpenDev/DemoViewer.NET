@@ -7,7 +7,6 @@ using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Services.DemoProcessing;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 
@@ -34,15 +33,20 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
 
     // A tick column of a thing that did not happen that round reads 0 on the engine's side. Tick 0 is
     // before any freeze end, so it can never be a real one; the record says "did not happen" with null.
-    private static readonly HashSet<string> TickColumns = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _tickColumns = new(StringComparer.Ordinal)
     {
-        RoundFactsColumns.FreezeEndTick, RoundFactsColumns.EndTick, RoundFactsColumns.OfficiallyEndedTick,
-        RoundFactsColumns.PlantTick, RoundFactsColumns.DefuseTick, RoundFactsColumns.ExplodeTick,
-        RoundFactsColumns.FirstContactTick, RoundFactsColumns.OpeningKillTick
+        RoundFactsColumns.FreezeEndTick,
+        RoundFactsColumns.EndTick,
+        RoundFactsColumns.OfficiallyEndedTick,
+        RoundFactsColumns.PlantTick,
+        RoundFactsColumns.DefuseTick,
+        RoundFactsColumns.ExplodeTick,
+        RoundFactsColumns.FirstContactTick,
+        RoundFactsColumns.OpeningKillTick
     };
 
     // Dimensions every configured table carries that say nothing about the round; kept out of Extra.
-    private static readonly HashSet<string> DemoDimensions = new(StringComparer.Ordinal) { "match_id", "map" };
+    private static readonly HashSet<string> _demoDimensions = new(StringComparer.Ordinal) { "match_id", "map" };
 
     private readonly RulesRoundFactsRulesetIdentity _rules;
 
@@ -64,7 +68,8 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
     public RoundFactsTable Rows(ParsedDemo parsed) => FromRun(_rules.Rules.BareRun(parsed), ClipRounds.Derive(parsed));
 
     /// <inheritdoc />
-    public RoundFactsTable Rows(ParsedDemo parsed, string path) => FromRun(_rules.Rules.BareRun(parsed, path), ClipRounds.Derive(parsed));
+    public RoundFactsTable Rows(ParsedDemo parsed, string path) =>
+        FromRun(_rules.Rules.BareRun(parsed, path), ClipRounds.Derive(parsed));
 
     /// <inheritdoc />
     public RoundFactsTable Rows(ForwardDemoResult pass) =>
@@ -86,7 +91,8 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
         if (excluded is not null)
         {
             return RoundFactsTable.Unavailable(
-                "round_facts: the ruleset did not compose: " + string.Join("; ", excluded.Diagnostics.Take(5).Select(d => $"[{d.Code}] {d.Message}")));
+                "round_facts: the ruleset did not compose: " + string.Join("; ",
+                    excluded.Diagnostics.Take(5).Select(d => $"[{d.Code}] {d.Message}")));
         }
 
         MetricTable? table = run.ProjectConfiguredOutputs()
@@ -152,7 +158,7 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
             Dictionary<string, object?> cell = new(StringComparer.Ordinal);
             foreach ((string key, object? value) in row.Dimensions)
             {
-                if (!DemoDimensions.Contains(key))
+                if (!_demoDimensions.Contains(key))
                 {
                     cell[key] = value;
                 }
@@ -171,7 +177,8 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
         List<List<Dictionary<string, object?>>> byRound =
         [
             .. cells
-                .GroupBy(c => RoundFactsValues.ToInt(c.GetValueOrDefault(RoundFactsColumns.RoundNumber)) ?? int.MinValue)
+                .GroupBy(c =>
+                    RoundFactsValues.ToInt(c.GetValueOrDefault(RoundFactsColumns.RoundNumber)) ?? int.MinValue)
                 .OrderBy(g => g.Key)
                 .Select(g => g.ToList())
         ];
@@ -205,12 +212,13 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
             int? freezeEnd = pair
                 .Select(c => RoundFactsValues.ToInt(c.GetValueOrDefault(RoundFactsColumns.FreezeEndTick)))
                 .FirstOrDefault(t => t is not null);
-            if (freezeEnd is int tick)
+            if (freezeEnd is { } tick)
             {
                 if (!clipByFreezeEnd.TryGetValue(tick, out int number))
                 {
                     diagnostics.Add(
-                        $"round {RoundFactsValues.ToText(pair[0].GetValueOrDefault(RoundFactsColumns.RoundNumber))} opens at tick {tick} " +
+                        $"round {RoundFactsValues.ToText(pair[0].GetValueOrDefault(RoundFactsColumns.RoundNumber))} opens at tick {tick} "
+                        +
                         "with no round_freeze_end on the wire (decided in freeze time); its rows were dropped");
                     continue;
                 }
@@ -232,7 +240,7 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
 
     private static void NullWhatDidNotHappen(Dictionary<string, object?> cell)
     {
-        foreach (string column in TickColumns)
+        foreach (string column in _tickColumns)
         {
             if (cell.TryGetValue(column, out object? value) && RoundFactsValues.ToInt(value) is 0)
             {
@@ -240,12 +248,14 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
             }
         }
 
-        if (cell.TryGetValue(RoundFactsColumns.PlantSiteEntity, out object? site) && RoundFactsValues.ToInt(site) is <= 0)
+        if (cell.TryGetValue(RoundFactsColumns.PlantSiteEntity, out object? site)
+            && RoundFactsValues.ToInt(site) is <= 0)
         {
             cell[RoundFactsColumns.PlantSiteEntity] = null;
         }
 
-        if (cell.ContainsKey(RoundFactsColumns.PlanterSlot) && cell.GetValueOrDefault(RoundFactsColumns.PlantTick) is null)
+        if (cell.ContainsKey(RoundFactsColumns.PlanterSlot)
+            && cell.GetValueOrDefault(RoundFactsColumns.PlantTick) is null)
         {
             cell[RoundFactsColumns.PlanterSlot] = null;
         }
@@ -315,7 +325,7 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
             int? winner = pair
                 .Select(c => RoundFactsValues.ToInt(c.GetValueOrDefault(RoundFactsColumns.WinnerSide)))
                 .FirstOrDefault(w => w is SideT or SideCt);
-            if (winner is int side)
+            if (winner is { } side)
             {
                 if ((side == SideCt) == aOnCt)
                 {

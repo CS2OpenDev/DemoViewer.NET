@@ -16,8 +16,6 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 /// </summary>
 /// <param name="Map">The map, the parser's spelling.</param>
 /// <param name="Round"><c>ClipRound.Number</c>.</param>
-/// <param name="FreezeEndTick">The round's freeze-end, frame clock.</param>
-/// <param name="WindowEndTick">The next round's freeze-end, or null for the last round.</param>
 /// <param name="DemoSha256">The demo's content hash, for <c>origin</c>; null when not computed.</param>
 /// <param name="FileName">The demo's file name, for <c>origin</c>.</param>
 /// <param name="Facts">The round's Round Facts row, or null when the demo has none yet; nothing here needs it.</param>
@@ -29,8 +27,6 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 public sealed record StratCaptureRequest(
     string Map,
     int Round,
-    int FreezeEndTick,
-    int? WindowEndTick,
     string? DemoSha256,
     string? FileName,
     RoundFacts? Facts,
@@ -64,6 +60,8 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
     private bool _drawThrowArrows = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCreate))]
+    [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
     private string _name;
 
     [ObservableProperty]
@@ -81,7 +79,8 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
     /// <param name="post">Marshals the walk's result onto the UI thread; synchronous when omitted.</param>
     /// <param name="utcNow">The creation time's clock.</param>
     /// <param name="jobs">The queue the walk runs on; the pool when null.</param>
-    public CreateStratDialogViewModel(StratCaptureRequest request, Func<IProgress<double>, CancellationToken, RoundCapture> walk,
+    public CreateStratDialogViewModel(StratCaptureRequest request,
+        Func<IProgress<double>, CancellationToken, RoundCapture> walk,
         StratStore store, Action<Action>? post = null, Func<DateTime>? utcNow = null, IExtensionJobs? jobs = null)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -98,7 +97,7 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
         CancellationToken ct = _cancel.Token;
         Progress = new WalkProgress(this);
         // A queue item at the front: the user asked for it.
-        Walking = StratBookJobs.RunAsync<RoundCapture?>(jobs, "Strats: read the round", () => walk(Progress, ct), null,
+        Walking = StratBookJobs.RunAsync(jobs, "Strats: read the round", () => walk(Progress, ct), null,
                 new JobOptions(Priority: JobPriority.UserRequested))
             .ContinueWith(t => t.Result ?? throw new OperationCanceledException(ct), ct,
                 TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default)
@@ -130,10 +129,7 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
     /// <summary>The walk, for tests to await; completes after its result was posted.</summary>
     internal Task Walking { get; }
 
-    internal IProgress<double> Progress { get; }
-
-    /// <summary>The strat the review saved, after <see cref="CreateCommand" />.</summary>
-    public StratDocument? Created { get; private set; }
+    private IProgress<double> Progress { get; }
 
     /// <summary>The user closed the review, or a strat was created; the host drops the pane.</summary>
     public event Action? Closed;
@@ -168,7 +164,7 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
     }
 
     /// <summary>The reviewed options: the chosen side, the slot rows as the token map, the round length, the arrows.</summary>
-    public StratCaptureOptions? Options()
+    private StratCaptureOptions? Options()
     {
         if (Capture is not { } capture || SideOf(SelectedSide) is not { } side)
         {
@@ -209,10 +205,15 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
             return;
         }
 
-        StratOrigin origin = new() { DemoSha256 = _request.DemoSha256 ?? "", Round = _request.Round, FileName = _request.FileName };
-        StratDocument document = StratFromRound.Document(capture, options, _request.Owner, _request.Map, Name.Trim(), origin,
+        StratOrigin origin = new()
+        {
+            DemoSha256 = _request.DemoSha256 ?? "", Round = _request.Round, FileName = _request.FileName
+        };
+        StratDocument document = StratFromRound.Document(capture, options, _request.Owner, _request.Map, Name.Trim(),
+            origin,
             _request.Facts, _utcNow());
-        StratSaveResult saved = _store.Save(document, [], string.Create(CultureInfo.InvariantCulture, $"created from round {_request.Round}"));
+        StratSaveResult saved = _store.Save(document, [],
+            string.Create(CultureInfo.InvariantCulture, $"created from round {_request.Round}"));
         if (!saved.Saved)
         {
             StatusLine = "strat could not be saved: " + saved.Reason;
@@ -220,7 +221,6 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
         }
 
         SeedBookDefault(options);
-        Created = document;
         StratCreated?.Invoke(document.Id);
         Close();
     }
@@ -242,12 +242,6 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
 
     partial void OnDrawThrowArrowsChanged(bool value) => RebuildSteps();
 
-    partial void OnNameChanged(string value)
-    {
-        CreateCommand.NotifyCanExecuteChanged();
-        OnPropertyChanged(nameof(CanCreate));
-    }
-
     private void OnWalked(Task<RoundCapture> walked)
     {
         if (walked.IsCanceled || _cancel.IsCancellationRequested)
@@ -264,7 +258,9 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
 
         Capture = walked.Result;
         int? ours = OurSideAt(Capture.FreezeEnd.Pawns, _request.OurKey);
-        SideNote = ours is null ? "pick the side you played; Team Identity has no team for this demo" : "side from Team Identity";
+        SideNote = ours is null
+            ? "pick the side you played; Team Identity has no team for this demo"
+            : "side from Team Identity";
         StatusLine = "";
         OnPropertyChanged(nameof(IsWalking));
         OnPropertyChanged(nameof(Capture));
@@ -301,7 +297,8 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
                 return;
             }
 
-            List<CapturedPawn> ours = [.. capture.FreezeEnd.Pawns.Where(p => p.Team == side).OrderBy(p => p.PlayerSlot)];
+            List<CapturedPawn> ours =
+                [.. capture.FreezeEnd.Pawns.Where(p => p.Team == side).OrderBy(p => p.PlayerSlot)];
             List<PlayerOption> options = [.. ours.Select(p => new PlayerOption(p.PlayerSlot, p.SteamId, Label(p)))];
             IReadOnlyDictionary<char, ulong> map = StratFromRound.SlotMap(ours, null, BookDefaults());
             Dictionary<int, string> tokens = StratFromRound.Tokens(capture.FreezeEnd.Pawns, side, map);
@@ -336,7 +333,8 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
         {
             foreach (SlotChoiceViewModel other in Slots)
             {
-                if (!ReferenceEquals(other, row) && row.Selected is { } player && other.Selected?.PlayerSlot == player.PlayerSlot)
+                if (!ReferenceEquals(other, row) && row.Selected is { } player
+                    && other.Selected?.PlayerSlot == player.PlayerSlot)
                 {
                     other.Selected = previous;
                 }
@@ -396,7 +394,8 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
     }
 
     private Dictionary<string, string>? BookDefaults() =>
-        _request.Epoch is { } epoch && _store.LoadBook(_request.Owner).SlotDefaults.TryGetValue(epoch, out Dictionary<string, string>? slots)
+        _request.Epoch is { } epoch && _store.LoadBook(_request.Owner).SlotDefaults
+            .TryGetValue(epoch, out Dictionary<string, string>? slots)
             ? slots
             : null;
 
@@ -411,7 +410,10 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
     private static string Describe(StratStep step)
     {
         List<string> parts =
-            [StratClock.Format(step.AtSeconds), StratStepLines.ActorOf(step) + " " + step.Verb + (step.Utility is { } utility ? " " + utility.Kind : "")];
+        [
+            StratClock.Format(step.AtSeconds),
+            StratStepLines.ActorOf(step) + " " + step.Verb + (step.Utility is { } utility ? " " + utility.Kind : "")
+        ];
         if (step.From?.Place is { } from)
         {
             parts.Add("from " + from);
@@ -422,7 +424,9 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
             parts.Add("to " + to);
         }
 
-        parts.Add(step.Positions.Count == 1 ? "1 token" : string.Create(CultureInfo.InvariantCulture, $"{step.Positions.Count} tokens"));
+        parts.Add(step.Positions.Count == 1
+            ? "1 token"
+            : string.Create(CultureInfo.InvariantCulture, $"{step.Positions.Count} tokens"));
         return string.Join("  ", parts);
     }
 
@@ -452,7 +456,8 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
             {
                 if (owner.Capture is null && !owner._cancel.IsCancellationRequested)
                 {
-                    owner.StatusLine = string.Create(CultureInfo.InvariantCulture, $"reading round {owner._request.Round}… {percent}%");
+                    owner.StatusLine = string.Create(CultureInfo.InvariantCulture,
+                        $"reading round {owner._request.Round}… {percent}%");
                 }
             });
         }
@@ -491,5 +496,6 @@ public sealed partial class SlotChoiceViewModel : ObservableObject
     /// <summary>The row and the player it held before.</summary>
     public event Action<SlotChoiceViewModel, PlayerOption?>? SelectionChanged;
 
-    partial void OnSelectedChanged(PlayerOption? oldValue, PlayerOption? newValue) => SelectionChanged?.Invoke(this, oldValue);
+    partial void OnSelectedChanged(PlayerOption? oldValue, PlayerOption? newValue) =>
+        SelectionChanged?.Invoke(this, oldValue);
 }

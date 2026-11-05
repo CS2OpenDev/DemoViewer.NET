@@ -22,7 +22,8 @@ namespace DemoViewer.NET.AppTests.Extensions;
 public class ExtensionReviewQueueTests
 {
     private static PipelineReview.ReviewEntry Entry(string path, int from, string note = "") =>
-        PipelineReview.ReviewEntry.Clip(path, from, from + 640, note, PipelineReview.ReviewSources.Situation, 64, "sha-" + note);
+        PipelineReview.ReviewEntry.Clip(path, from, from + 640, note, PipelineReview.ReviewSources.Situation, 64,
+            "sha-" + note);
 
     [Test]
     public async Task TwoReads_HandBackTheSameClipInstances_SoARealizedRowIsKept()
@@ -167,7 +168,8 @@ public class ExtensionReviewQueueTests
     public async Task AThrowingChangeHandler_DoesNotReachWhateverMadeTheChange()
     {
         ReviewQueue queue = new(null);
-        ExtensionReviewQueue published = new(queue, ExtensionGuard.Standalone(new HostLibraryTests.LibraryTestExtension()));
+        ExtensionReviewQueue published =
+            new(queue, ExtensionGuard.Standalone(new HostLibraryTests.LibraryTestExtension()));
         int seen = 0;
         published.Changed += () => throw new InvalidOperationException("the extension's own bug");
         published.Changed += () => seen++;
@@ -197,7 +199,7 @@ public class ExtensionReviewQueueTests
             await Assert.That(() => published.AddSection("x")).Throws<InvalidOperationException>();
             await Assert.That(() => published.Remove([])).Throws<InvalidOperationException>();
             await Assert.That(() => published.MoveBy(Guid.Empty, -1)).Throws<InvalidOperationException>();
-            await Assert.That(() => published.Clear()).Throws<InvalidOperationException>();
+            await Assert.That(published.Clear).Throws<InvalidOperationException>();
             await Assert.That(() => published.SetReviewed([], true)).Throws<InvalidOperationException>();
             await Assert.That(() => published.ClipsUnder(Guid.Empty)).Throws<InvalidOperationException>();
             await Assert.That(() => published.SetTitle(Guid.Empty, "x")).Throws<InvalidOperationException>();
@@ -214,11 +216,16 @@ public class ExtensionReviewQueueTests
             "Situations");
         PackPlan? ran = null;
         ExtensionReviewPackExport export = new(
-            (plan, _, _) => { ran = plan; return Task.FromResult(new PackResult([], 2, [])); },
+            (plan, _, _) =>
+            {
+                ran = plan;
+                return Task.FromResult(new PackResult([], 2, []));
+            },
             queue, "/videos", path => !path.EndsWith("gone.dem", StringComparison.Ordinal));
 
         ReviewPackPlan planned = export.Plan("/videos/pack.mp4", ExportFormats.Mp4);
-        ReviewPackResult result = await export.RunAsync(planned, new Progress<ReviewPackProgress>(), default);
+        ReviewPackResult result =
+            await export.RunAsync(planned, new Progress<ReviewPackProgress>(), CancellationToken.None);
 
         using (Assert.Multiple())
         {
@@ -231,7 +238,8 @@ public class ExtensionReviewQueueTests
             await Assert.That(planned.SkipReasons).IsEquivalentTo(["demo not found"], CollectionOrdering.Matching);
             await Assert.That(planned.OutputDescription).IsEqualTo("/videos/pack.mp4");
             await Assert.That(planned.Seconds).IsGreaterThan(0);
-            await Assert.That(ran).IsSameReferenceAs(planned.Native).Because("the opaque token carried the host's own plan");
+            await Assert.That(ran).IsSameReferenceAs(planned.Native)
+                .Because("the opaque token carried the host's own plan");
             await Assert.That(result.ClipsRendered).IsEqualTo(2);
         }
     }
@@ -246,10 +254,15 @@ public class ExtensionReviewQueueTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(() => onWorker.Plan("/videos/pack.mp4", ExportFormats.Mp4)).Throws<InvalidOperationException>();
-            await Assert.That(async () => await onWorker.RunAsync(new ReviewPackPlan(), new Progress<ReviewPackProgress>(), default))
+            await Assert.That(() => onWorker.Plan("/videos/pack.mp4", ExportFormats.Mp4))
                 .Throws<InvalidOperationException>();
-            await Assert.That(async () => await onUi.RunAsync(new ReviewPackPlan(), new Progress<ReviewPackProgress>(), default))
+            await Assert.That(async () =>
+                    await onWorker.RunAsync(new ReviewPackPlan(), new Progress<ReviewPackProgress>(),
+                        CancellationToken.None))
+                .Throws<InvalidOperationException>();
+            await Assert.That(async () =>
+                    await onUi.RunAsync(new ReviewPackPlan(), new Progress<ReviewPackProgress>(),
+                        CancellationToken.None))
                 .Throws<ArgumentException>().Because("the plan carries no host plan to render");
             await Assert.That(onUi.Validate("", ExportFormats.Mp4)).IsNotNull();
             await Assert.That(onUi.Validate("/videos/pack.mp4", ExportFormats.Mp4)).IsNull();

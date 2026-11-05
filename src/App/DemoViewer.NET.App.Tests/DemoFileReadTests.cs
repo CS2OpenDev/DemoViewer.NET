@@ -58,13 +58,14 @@ public class DemoFileReadTests
         try
         {
             Stopwatch clock = Stopwatch.StartNew();
-            Assert.Throws<IOException>(() => DemoFileRead.ReadAll(fifo, TimeSpan.FromMilliseconds(300), CancellationToken.None));
+            Assert.Throws<IOException>(() =>
+                DemoFileRead.ReadAll(fifo, TimeSpan.FromMilliseconds(300), CancellationToken.None));
             await Assert.That(clock.Elapsed).IsLessThan(TimeSpan.FromSeconds(10));
         }
         finally
         {
             // Lets the abandoned open return.
-            using (new FileStream(fifo, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+            await using (new FileStream(fifo, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
             {
             }
 
@@ -80,8 +81,10 @@ public class DemoFileReadTests
         try
         {
             List<DemoContentRead> reads = [];
-            byte[]? wanted = new DemoFileRead(TimeProvider.System, _ => true, reads.Add).Prepare(path, CancellationToken.None);
-            byte[]? unwanted = new DemoFileRead(TimeProvider.System, _ => false, reads.Add).Prepare(path, CancellationToken.None);
+            byte[]? wanted =
+                new DemoFileRead(TimeProvider.System, _ => true, reads.Add).Prepare(path, CancellationToken.None);
+            byte[]? unwanted =
+                new DemoFileRead(TimeProvider.System, _ => false, reads.Add).Prepare(path, CancellationToken.None);
 
             using (Assert.Multiple())
             {
@@ -107,7 +110,8 @@ public class DemoFileReadTests
         try
         {
             List<DemoContentRead> reads = [];
-            byte[]? read = new DemoFileRead(TimeProvider.System, _ => true, reads.Add).Prepare(path, CancellationToken.None);
+            byte[]? read =
+                new DemoFileRead(TimeProvider.System, _ => true, reads.Add).Prepare(path, CancellationToken.None);
 
             using (Assert.Multiple())
             {

@@ -2,7 +2,6 @@
 
 using System.ComponentModel;
 using System.Globalization;
-using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CS2DemoKit.Analysis.Output;
@@ -29,7 +28,6 @@ public enum DetailSection
 /// </summary>
 public sealed partial class PlayerDetailsViewModel : ObservableObject
 {
-
     /// <summary>Core-strip tile keys in display order; HLTV is the hero tile.</summary>
     private static readonly (string Key, bool Hero)[] _coreTileKeys =
     [
@@ -51,6 +49,7 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
 
     /// <summary>The active sub-section; persists across player switches.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOverview), nameof(IsRounds), nameof(IsVision))]
     private DetailSection _section = DetailSection.Overview;
 
     /// <summary>The highlighted round (form-card deep-link target); 0 = none.</summary>
@@ -200,13 +199,6 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
         }
     }
 
-    partial void OnSectionChanged(DetailSection value)
-    {
-        OnPropertyChanged(nameof(IsOverview));
-        OnPropertyChanged(nameof(IsRounds));
-        OnPropertyChanged(nameof(IsVision));
-    }
-
     /// <summary>Activates the Overview sub-section.</summary>
     [RelayCommand]
     private void ShowOverview() => Section = DetailSection.Overview;
@@ -264,7 +256,7 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
     ///     Re-targets every panel to <paramref name="slot" />, keeping section / selected round /
     ///     weapon-metric toggle (state retention).
     /// </summary>
-    public void SetSlot(int slot)
+    private void SetSlot(int slot)
     {
         PlayerSlot = slot;
         _syncingPlayer = true;
@@ -309,7 +301,7 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
     {
         HasGameRow = gameRow is not null;
         PlayerName = gameRow?.Dimensions.GetValueOrDefault("player_name")?.ToString()
-                     ?? SelectedPlayer?.Name ?? $"slot {PlayerSlot}";
+            ?? SelectedPlayer?.Name ?? $"slot {PlayerSlot}";
         int team = gameRow?.Dimensions.GetValueOrDefault("team") is { } t
             ? Convert.ToInt32(t, CultureInfo.InvariantCulture)
             : SelectedPlayer?.Team ?? 0;
@@ -374,10 +366,11 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
     }
 
     private List<MetricRow> RoundRowsForSlot(MetricTable roundTable) =>
-        roundTable.Rows
+    [
+        .. roundTable.Rows
             .Where(r => StatsTabViewModel.RowSlot(r) == PlayerSlot)
             .OrderBy(RoundOf)
-            .ToList();
+    ];
 
     private void RebuildAchievements()
     {
@@ -465,10 +458,12 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
         }
 
         int max = Math.Max(1, present.Count == 0 ? 0 : present.Max(b => b.Count));
-        MultiKillBars = present
-            .Select(b => new HistBarItem(b.Label, b.Count,
-                Math.Max(1, (double)b.Count / max * MaxBarHeight), b.Positive))
-            .ToList();
+        MultiKillBars =
+        [
+            .. present
+                .Select(b => new HistBarItem(b.Label, b.Count,
+                    Math.Max(1, (double)b.Count / max * MaxBarHeight), b.Positive))
+        ];
         OnPropertyChanged(nameof(ClutchItems));
         OnPropertyChanged(nameof(MultiKillBars));
     }
@@ -509,9 +504,11 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
         }
 
         bool hasOpn = roundTable.ValueColumns.Contains("FK") || roundTable.ValueColumns.Contains("FD");
-        List<string> keys = _roundDetailKeys
-            .Where(k => k == "__opn__" ? hasOpn : roundTable.ValueColumns.Contains(k))
-            .ToList();
+        List<string> keys =
+        [
+            .. _roundDetailKeys
+                .Where(k => k == "__opn__" ? hasOpn : roundTable.ValueColumns.Contains(k))
+        ];
 
         List<DetailRoundColumn> columns = new(keys.Count);
         foreach (string key in keys)
@@ -636,7 +633,7 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
 public sealed class FormTimelineViewModel
 {
     /// <summary>Horizontal pixels per round: shared by all four strips so columns align.</summary>
-    public const double SlotWidth = 14;
+    private const double SlotWidth = 14;
 
     /// <summary>Builds geometry from this player's round rows (already round-ordered).</summary>
     public FormTimelineViewModel(IReadOnlyList<MetricRow> roundRows, IReadOnlyList<string> valueColumns)
@@ -680,20 +677,19 @@ public sealed class FormTimelineViewModel
         List<int> roundNumbers = new(rounds.Count);
         List<string> tooltips = new(rounds.Count);
         List<FormTick> ticks = new(rounds.Count);
-        for (int i = 0; i < rounds.Count; i++)
+        foreach ((int round, double kills, double deaths, double assists, double damage, bool kast,
+                     bool fk, bool fd) in rounds)
         {
-            (int round, double kills, double deaths, double assists, double damage, bool kast,
-                bool fk, bool fd) = rounds[i];
             string tooltip = string.Create(CultureInfo.InvariantCulture,
-                                 $"r{round}: {kills:0.##}K {assists:0.##}A {deaths:0.##}D · {damage:0.##} dmg")
-                             + (HasKast ? $" · KAST {(kast ? "✓" : "✗")}" : "");
+                    $"r{round}: {kills:0.##}K {assists:0.##}A {deaths:0.##}D · {damage:0.##} dmg")
+                + (HasKast ? $" · KAST {(kast ? "✓" : "✗")}" : "");
 
             killValues.Add(kills);
             damageValues.Add(damage);
             kastValues.Add(kast ? 1 : 0);
             roundNumbers.Add(round);
             tooltips.Add(tooltip);
-            ticks.Add(new FormTick(round, fk ? "▲" : fd ? "▼" : "·", fk, !fk && fd, tooltip));
+            ticks.Add(new FormTick(fk ? "▲" : fd ? "▼" : "·", fk, !fk && fd, tooltip));
         }
 
         KillValues = killValues;
@@ -813,21 +809,25 @@ public sealed partial class WeaponBreakdownViewModel : ObservableObject
         }
 
         string valueColumn = active.ValueColumns[0];
-        List<(string Weapon, double Value)> rows = active.Rows
-            .Where(r => StatsTabViewModel.RowSlot(r) == _slot)
-            .Select(r => (
-                Weapon: r.Dimensions.GetValueOrDefault("key")?.ToString() ?? "?",
-                Value: PlayerDetailsViewModel.AsDouble(r.Values.GetValueOrDefault(valueColumn))))
-            .OrderByDescending(x => x.Value)
-            .ThenBy(x => x.Weapon, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        List<(string Weapon, double Value)> rows =
+        [
+            .. active.Rows
+                .Where(r => StatsTabViewModel.RowSlot(r) == _slot)
+                .Select(r => (
+                    Weapon: r.Dimensions.GetValueOrDefault("key")?.ToString() ?? "?",
+                    Value: PlayerDetailsViewModel.AsDouble(r.Values.GetValueOrDefault(valueColumn))))
+                .OrderByDescending(x => x.Value)
+                .ThenBy(x => x.Weapon, StringComparer.OrdinalIgnoreCase)
+        ];
 
         double max = Math.Max(1, rows.Count == 0 ? 0 : rows.Max(x => x.Value));
-        Bars = rows
-            .Select(x => new BarRowItem(x.Weapon, x.Value, max,
-                x.Value.ToString("0.##", CultureInfo.InvariantCulture),
-                $"{x.Weapon}: {x.Value.ToString("0.##", CultureInfo.InvariantCulture)} {(ShowDamage ? "damage" : "kills")}"))
-            .ToList();
+        Bars =
+        [
+            .. rows
+                .Select(x => new BarRowItem(x.Weapon, x.Value, max,
+                    x.Value.ToString("0.##", CultureInfo.InvariantCulture),
+                    $"{x.Weapon}: {x.Value.ToString("0.##", CultureInfo.InvariantCulture)} {(ShowDamage ? "damage" : "kills")}"))
+        ];
         EmptyMessage = Bars.Count == 0
             ? $"No weapon {(ShowDamage ? "damage" : "kills")} recorded."
             : "";
@@ -853,7 +853,6 @@ public sealed partial class WeaponBreakdownViewModel : ObservableObject
 /// </summary>
 public sealed class VisionViewModel : ObservableObject
 {
-
     private readonly StatsTabViewModel _parent;
 
     internal VisionViewModel(StatsTabViewModel parent) => _parent = parent;
@@ -887,7 +886,7 @@ public sealed class VisionViewModel : ObservableObject
         MetricRow? row = _parent.VisibilityPlayersTable?.Rows
             .FirstOrDefault(r => StatsTabViewModel.RowSlot(r) == slot);
         HasData = _parent.HasVisibilityStats && row is not null;
-        ShowCta = !_parent.HasVisibilityStats && _parent.CanComputeVisibility;
+        ShowCta = _parent is { HasVisibilityStats: false, CanComputeVisibility: true };
         ShowUnavailable = !HasData && !ShowCta;
         UnavailableMessage = _parent.HasVisibilityStats
             ? "Visibility replay sampled no data for this player."
@@ -958,11 +957,13 @@ public sealed class VisionViewModel : ObservableObject
             }
         }
 
-        return byOpponent.Values
-            .OrderByDescending(o => o.Saw)
-            .ThenBy(o => o.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(o => new OpponentVisionRow(o.Name, FormatSeconds(o.Saw), FormatSeconds(o.Exposed)))
-            .ToList();
+        return
+        [
+            .. byOpponent.Values
+                .OrderByDescending(o => o.Saw)
+                .ThenBy(o => o.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(o => new OpponentVisionRow(o.Name, FormatSeconds(o.Saw), FormatSeconds(o.Exposed)))
+        ];
     }
 
     private static int DimInt(MetricRow row, string key) =>
@@ -1011,7 +1012,7 @@ public sealed record HistBarItem(string Label, int Count, double Height, bool Po
 }
 
 /// <summary>One opening-duel tick in the form strip (▲ up / ▼ down / · neither).</summary>
-public sealed record FormTick(int Round, string Glyph, bool Up, bool Down, string Tooltip);
+public sealed record FormTick(string Glyph, bool Up, bool Down, string Tooltip);
 
 /// <summary>One rounds-table column header (engine key + display metadata).</summary>
 public sealed record DetailRoundColumn(string Key, string Display, double Width, string Tooltip);
@@ -1043,17 +1044,17 @@ public sealed record AchievementItem(
             : "warmup";
         string c = chain.ToUpperInvariant();
         bool multi = c.Contains("ACE", StringComparison.Ordinal)
-                     || c.Contains("MULTI", StringComparison.Ordinal)
-                     || c.Contains("RAPID", StringComparison.Ordinal)
-                     || c.Contains("2K", StringComparison.Ordinal)
-                     || c.Contains("3K", StringComparison.Ordinal)
-                     || c.Contains("4K", StringComparison.Ordinal)
-                     || c.Contains("5K", StringComparison.Ordinal);
+            || c.Contains("MULTI", StringComparison.Ordinal)
+            || c.Contains("RAPID", StringComparison.Ordinal)
+            || c.Contains("2K", StringComparison.Ordinal)
+            || c.Contains("3K", StringComparison.Ordinal)
+            || c.Contains("4K", StringComparison.Ordinal)
+            || c.Contains("5K", StringComparison.Ordinal);
         bool clutch = c.Contains("CLUTCH", StringComparison.Ordinal);
         bool opening = !multi && !clutch
-                              && (c.Contains("OPENING", StringComparison.Ordinal)
-                                  || c.Contains("FIRST", StringComparison.Ordinal)
-                                  || c.Contains("ENTRY", StringComparison.Ordinal));
+            && (c.Contains("OPENING", StringComparison.Ordinal)
+                || c.Contains("FIRST", StringComparison.Ordinal)
+                || c.Contains("ENTRY", StringComparison.Ordinal));
         return new AchievementItem(chain, label, tick, multi && !clutch, clutch, opening);
     }
 }

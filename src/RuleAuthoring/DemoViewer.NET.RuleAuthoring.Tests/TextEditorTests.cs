@@ -1,9 +1,3 @@
-#region
-
-using DemoViewer.NET.RuleAuthoring;
-
-#endregion
-
 namespace DemoViewer.NET.RuleAuthoring.Tests;
 
 /// <summary>
@@ -53,12 +47,11 @@ public class TextEditorTests
     [Test]
     public async Task OverlappingEditsAreRejected()
     {
-        InvalidOperationException thrown = Assert.Throws<InvalidOperationException>(
-            () => TextEditor.Apply("abcdef",
-            [
-                new TextEdit(0, 4, "x", "first"),
-                new TextEdit(2, 2, "y", "second")
-            ]));
+        InvalidOperationException thrown = Assert.Throws<InvalidOperationException>(() => TextEditor.Apply("abcdef",
+        [
+            new TextEdit(0, 4, "x", "first"),
+            new TextEdit(2, 2, "y", "second")
+        ]));
 
         await Assert.That(thrown.Message).Contains("overlapping edits");
     }
@@ -78,8 +71,8 @@ public class TextEditorTests
     [Test]
     public async Task AnEditPastTheEndIsRejected()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(
-            () => TextEditor.Apply("abc", [new TextEdit(2, 5, "x", "too long")]));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            TextEditor.Apply("abc", [new TextEdit(2, 5, "x", "too long")]));
         await Task.CompletedTask;
     }
 

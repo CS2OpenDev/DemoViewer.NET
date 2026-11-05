@@ -117,10 +117,7 @@ public sealed partial class GitHubReleaseNotesService : IReleaseNotesService
 
     private static HttpClient CreateClient()
     {
-        HttpClient client = new()
-        {
-            Timeout = TimeSpan.FromSeconds(15)
-        };
+        HttpClient client = new() { Timeout = TimeSpan.FromSeconds(15) };
         // GitHub's API rejects requests without a User-Agent.
         client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DemoViewer.NET", "1.0"));
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));

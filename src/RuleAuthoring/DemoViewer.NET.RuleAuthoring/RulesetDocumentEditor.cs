@@ -25,7 +25,6 @@ namespace DemoViewer.NET.RuleAuthoring;
 public sealed class RulesetDocumentEditor
 {
     private static readonly YamlPath _stats = YamlPath.Root.Key("stats");
-    private static readonly YamlPath _highlights = YamlPath.Root.Key("highlights");
 
     private RulesetDocumentEditor(YamlDocumentText document) => Document = document;
 
@@ -35,23 +34,14 @@ public sealed class RulesetDocumentEditor
     /// <summary>The ruleset text as it stands. What a save writes.</summary>
     public string Text => Document.Text;
 
-    /// <summary>The <c>ruleset:</c> id, or <c>null</c> when the document has none.</summary>
-    public string? Id => Scalar(YamlPath.Root.Key("ruleset"));
-
     /// <summary>The stat ids, in source order.</summary>
     public IReadOnlyList<string> StatIds => KeysUnder(_stats);
-
-    /// <summary>The highlight ids, in source order.</summary>
-    public IReadOnlyList<string> HighlightIds => KeysUnder(_highlights);
 
     /// <summary>Opens <paramref name="text" /> for editing. Throws <c>YamlException</c> if it does not parse.</summary>
     public static RulesetDocumentEditor Open(string text) => new(YamlDocumentText.Parse(text));
 
     /// <summary>The path of one stat's block, for a caller that needs to address inside it.</summary>
     public static YamlPath StatPath(string id) => _stats.Key(id);
-
-    /// <summary>The path of one highlight's block.</summary>
-    public static YamlPath HighlightPath(string id) => _highlights.Key(id);
 
     /// <summary>Applies <paramref name="edits" /> and returns the result. An empty batch returns this instance.</summary>
     public RulesetDocumentEditor Apply(IReadOnlyList<TextEdit> edits)
@@ -72,10 +62,6 @@ public sealed class RulesetDocumentEditor
     public RulesetDocumentEditor RemoveStatField(string statId, string key) =>
         Apply([YamlEdits.RemoveKey(Document, StatPath(statId), key)]);
 
-    /// <summary>Sets one field of one highlight, adding the key when absent.</summary>
-    public RulesetDocumentEditor SetHighlightField(string highlightId, string key, string value) =>
-        Apply([YamlEdits.SetKey(Document, HighlightPath(highlightId), key, value)]);
-
     /// <summary>
     ///     Adds a stat. <paramref name="block" /> is the whole entry at zero indentation, starting
     ///     with <c>id:</c>, and is re-indented to sit under <c>stats:</c>.
@@ -86,14 +72,6 @@ public sealed class RulesetDocumentEditor
     /// <summary>Removes a stat, its body, and the comment lines directly above it.</summary>
     public RulesetDocumentEditor RemoveStat(string statId) =>
         Apply([YamlEdits.RemoveKey(Document, _stats, statId)]);
-
-    /// <summary>Adds a highlight, as <see cref="AddStat" /> does for stats.</summary>
-    public RulesetDocumentEditor AddHighlight(string block) =>
-        Apply([YamlEdits.AddEntry(Document, _highlights, block)]);
-
-    /// <summary>Removes a highlight, its body, and the comment lines directly above it.</summary>
-    public RulesetDocumentEditor RemoveHighlight(string highlightId) =>
-        Apply([YamlEdits.RemoveKey(Document, _highlights, highlightId)]);
 
     /// <summary>
     ///     The value of a scalar at <paramref name="path" />, or <c>null</c> when it is absent or

@@ -20,21 +20,36 @@ namespace DemoViewer.NET.Extensions.Sdk;
 /// <param name="Label">Human description, shown in the keybind settings list.</param>
 /// <param name="Scope">
 ///     <c>"playback2d"</c> (always), <c>"playback2d.tool"</c> (while a drawing tool is active), or the id of
-///     a <see cref="CommandScope" /> the same extension declares.
+///     a <see cref="CommandScope" /> the same extension declares. Null counts as an empty scope, which no extension
+///     declares, so the command is reported and left out.
 /// </param>
 /// <param name="DefaultChord">The shipped gesture, or null for a command with no default binding.</param>
 /// <param name="Run">Runs the command. True when it acted; false leaves the key unhandled.</param>
 /// <param name="CanRun">Optional: whether the command can act right now.</param>
+[PublicAPI]
 public sealed record CommandDescriptor(
     string Id,
     string Label,
     string Scope,
     KeyGesture? DefaultChord,
     Func<CommandContext, bool> Run,
-    Func<CommandContext, bool>? CanRun = null);
+    Func<CommandContext, bool>? CanRun = null)
+{
+    /// <summary>The scope the command resolves in.</summary>
+    public string Scope
+    {
+        get;
+        init => field = Normalized(value);
+    } = Normalized(Scope);
+
+    // Extension code may hand over null whatever the annotation says. An empty scope is refused for this one
+    // command, where a throw here would cost the extension every command it lists.
+    private static string Normalized(string? scope) => scope ?? "";
+}
 
 /// <summary>What a command's <see cref="CommandDescriptor.Run" /> or <see cref="CommandDescriptor.CanRun" /> receives.</summary>
 /// <param name="Target">The view model the key resolved against .</param>
+[PublicAPI]
 public sealed record CommandContext(object Target);
 
 /// <summary>
@@ -44,4 +59,5 @@ public sealed record CommandContext(object Target);
 /// </summary>
 /// <param name="Id">Stable id, prefixed with the extension's id and a dot, e.g. <c>"dev.example.hello.panel"</c>.</param>
 /// <param name="Label">How the keybind settings list names it, e.g. <c>"while tagging"</c>.</param>
+[PublicAPI]
 public sealed record CommandScope(string Id, string Label);

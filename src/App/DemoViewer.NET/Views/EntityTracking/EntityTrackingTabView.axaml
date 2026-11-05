@@ -5,7 +5,6 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:shell="using:DemoViewer.NET.ViewModels.Shell"
              xmlns:ent="using:DemoViewer.NET.Views.EntityTracking"
-             xmlns:controls="using:DemoViewer.NET.Controls"
              xmlns:entvm="using:DemoViewer.NET.ViewModels.EntityTracking"
              mc:Ignorable="d" d:DesignWidth="1600" d:DesignHeight="900"
              x:Class="DemoViewer.NET.Views.EntityTracking.EntityTrackingTabView"
@@ -112,8 +111,8 @@
                 <Panel Grid.Row="1" IsVisible="{Binding EntityTab.HasEntitySelection}">
 
                     <ui:KeyValueTable Rows="{Binding EntityTab.EntityFieldRows}"
-                                            ShowDeltaOnly="{Binding EntityTab.ShowDeltaFieldsOnly}"
-                                            IsVisible="{Binding !EntityTab.ShowRelationshipTree}" />
+                                      ShowDeltaOnly="{Binding EntityTab.ShowDeltaFieldsOnly}"
+                                      IsVisible="{Binding !EntityTab.ShowRelationshipTree}" />
 
                     <Grid RowDefinitions="*,Auto"
                           IsVisible="{Binding EntityTab.ShowRelationshipTree}">

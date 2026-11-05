@@ -44,14 +44,14 @@ namespace DemoViewer.NET.AssetBaker;
 /// </summary>
 public static class Zones
 {
-    public const int SchemaVersion = 1;
+    private const int SchemaVersion = 1;
 
     /// <summary>
     ///     <c>MapSpace.LevelQuantum</c>, restated so a reader without Core can key floors. An area's
     ///     <c>floor</c> is the quantized lower Z of the bundle band that contains it, the same value a
     ///     <c>SpaceRef.World</c> annotation anchor carries, never a floor index.
     /// </summary>
-    public const double FloorQuantum = 64.0;
+    private const double FloorQuantum = 64.0;
 
     // A point on a hull face counts as inside; the nav centroid of an area whose edge is a volume wall
     // sits exactly on that wall more often than chance suggests.
@@ -59,9 +59,9 @@ public static class Zones
 
     // An area is seeded when its centroid, or the centroid lifted by one of these, is inside a place
     // volume. The lifts catch volumes whose floor sits a little above the nav surface (stairs, ramps).
-    private static readonly float[] ProbeLifts = [0f, 8f, 32f];
+    private static readonly float[] _probeLifts = [0f, 8f, 32f];
 
-    private static readonly string[] VolumeClasses =
+    private static readonly string[] _volumeClasses =
         ["env_cs_place", "func_bomb_target", "func_buyzone", "func_hostage_rescue"];
 
     /// <summary>
@@ -94,8 +94,8 @@ public static class Zones
         string vpkPath, string mapName, IReadOnlyList<FloorBand> floors, string bundleMapVersion,
         string bakerVersion, string outPath)
     {
-        List<string> notes = new();
-        List<string> failures = new();
+        List<string> notes = [];
+        List<string> failures = [];
         Crc32 crc = new();
 
         using Package package = new();
@@ -105,7 +105,7 @@ public static class Zones
 
         string navPath = $"maps/{mapName}.nav";
         PackageEntry navEntry = package.FindEntry(navPath)
-                                ?? throw new FileNotFoundException($"{navPath} not found in {vpkPath}");
+            ?? throw new FileNotFoundException($"{navPath} not found in {vpkPath}");
         package.ReadEntry(navEntry, out byte[] navBytes);
         crc.Append(navBytes);
         string zonesVersion = Convert.ToHexString(crc.GetCurrentHash()).ToLowerInvariant();
@@ -118,12 +118,14 @@ public static class Zones
 
         // Sorted by name so the id a place gets is stable across re-bakes; consumers store the name,
         // never the id, but a stable id keeps the diff of a re-bake readable.
-        List<string> places = volumes
-            .Where(v => v.Kind == "place" && v.PlaceName is not null)
-            .Select(v => v.PlaceName!)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(p => p, StringComparer.Ordinal)
-            .ToList();
+        List<string> places =
+        [
+            .. volumes
+                .Where(v => v is { Kind: "place", PlaceName: not null })
+                .Select(v => v.PlaceName!)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(p => p, StringComparer.Ordinal)
+        ];
         Dictionary<string, int> placeIds = new(StringComparer.Ordinal);
         for (int i = 0; i < places.Count; i++)
         {
@@ -171,12 +173,13 @@ public static class Zones
         string adjacencyText = FormatAdjacency(places, adjacency);
         string diagnostic =
             $"  zones: places={coverage.DistinctPlaces} volumes={volumes.Count} " +
-            $"(place {coverage.PlaceVolumes}, bombsite {bombsites}, buyzone {volumes.Count(v => v.Kind == "buyzone")}) " +
+            $"(place {coverage.PlaceVolumes}, bombsite {bombsites}, buyzone {volumes.Count(v => v.Kind == "buyzone")}) "
+            +
             $"areas={coverage.NavAreas} seeded={coverage.Seeded} flooded={coverage.Flooded} " +
             $"unreachable={coverage.Unreachable} multi={coverage.Multi} links={areaLinks.Count} " +
             $"adjacency={adjacency.Count}  version {zonesVersion}  {json.Length / 1024.0:F0} KiB";
 
-        return new Result(coverage, zonesVersion, notes, failures, adjacencyText, diagnostic);
+        return new Result(coverage, notes, failures, adjacencyText, diagnostic);
     }
 
     /// <summary>
@@ -189,8 +192,8 @@ public static class Zones
         using JsonDocument doc = JsonDocument.Parse(File.ReadAllBytes(bundlePath));
         JsonElement root = doc.RootElement;
         string mapVersion = root.GetProperty("mapVersion").GetString()
-                            ?? throw new InvalidDataException($"{bundlePath}: mapVersion is null");
-        List<FloorBand> floors = new();
+            ?? throw new InvalidDataException($"{bundlePath}: mapVersion is null");
+        List<FloorBand> floors = [];
         foreach (JsonElement band in root.GetProperty("floors").EnumerateArray())
         {
             floors.Add(new FloorBand(band.GetProperty("minZ").GetDouble(), band.GetProperty("maxZ").GetDouble()));
@@ -211,13 +214,14 @@ public static class Zones
     /// </summary>
     public static IReadOnlyList<string> CheckAgainstBaseline(Coverage actual)
     {
-        List<string> failures = new();
+        List<string> failures = [];
         if (!ExpectedCoverage.TryGetValue(actual.Map, out Coverage? expected))
         {
             return failures;
         }
 
         const int AreaTolerance = 16;
+
         void Exact(string column, int a, int e)
         {
             if (a != e)
@@ -265,7 +269,7 @@ public static class Zones
         Package package, string mapName, Crc32 crc, List<string> notes, List<string> failures,
         out double? bombRadius)
     {
-        List<Volume> volumes = new();
+        List<Volume> volumes = [];
         bombRadius = null;
         int hullsChecked = 0, unexpectedSign = 0;
 
@@ -306,7 +310,7 @@ public static class Zones
                     continue;
                 }
 
-                if (classname is null || Array.IndexOf(VolumeClasses, classname) < 0)
+                if (classname is null || Array.IndexOf(_volumeClasses, classname) < 0)
                 {
                     continue;
                 }
@@ -337,9 +341,10 @@ public static class Zones
                     continue;
                 }
 
-                if (volume.Kind == "bombsite" && volume.Site is null)
+                if (volume is { Kind: "bombsite", Site: null })
                 {
-                    notes.Add($"  ! {label}: bomb_site_designation is {Str(entity, "bomb_site_designation") ?? "absent"}");
+                    notes.Add(
+                        $"  ! {label}: bomb_site_designation is {Str(entity, "bomb_site_designation") ?? "absent"}");
                 }
 
                 string? model = Str(entity, "model");
@@ -390,7 +395,7 @@ public static class Zones
                 foreach (Part part in phys.Parts)
                 {
                     meshes += part.Shape.Meshes?.Length ?? 0;
-                    foreach (HullDescriptor hd in part.Shape.Hulls ?? Array.Empty<HullDescriptor>())
+                    foreach (HullDescriptor hd in part.Shape.Hulls ?? [])
                     {
                         hullsChecked++;
                         HullPlanes? hull = ToWorldHull(hd.Shape, origin, angles, out bool signAsExpected);
@@ -508,7 +513,9 @@ public static class Zones
     }
 
     private static string? Str(EntityLump.Entity entity, string key) =>
-        entity.TryGetValue(key, out KVObject? value) && !value.IsNull ? value.ToString(CultureInfo.InvariantCulture) : null;
+        entity.TryGetValue(key, out KVObject? value) && !value.IsNull
+            ? value.ToString(CultureInfo.InvariantCulture)
+            : null;
 
     // ── 2. areas ──────────────────────────────────────────────────────────────────────────────────
 
@@ -518,26 +525,26 @@ public static class Zones
     // flood never reaches are isolated islands and get no place.
     private static Assignment AssignAreas(NavMeshFile nav, List<Volume> volumes, Dictionary<string, int> placeIds)
     {
-        List<Volume> places = volumes.Where(v => v.Kind == "place" && v.PlaceName is not null).ToList();
+        List<Volume> places = [.. volumes.Where(v => v is { Kind: "place", PlaceName: not null })];
         Dictionary<uint, int> place = new();
-        HashSet<uint> seeds = new();
+        HashSet<uint> seeds = [];
         int multi = 0;
 
         foreach (uint id in nav.Areas.Keys.OrderBy(k => k))
         {
             NavMeshArea area = nav.Areas[id];
-            if (area.Corners is null || area.Corners.Length == 0)
+            if (area.Corners.Length == 0)
             {
                 continue;
             }
 
             Vector3 centroid = Centroid(area.Corners);
             int first = -1;
-            HashSet<int> hits = new();
+            HashSet<int> hits = [];
             foreach (Volume v in places)
             {
                 bool hit = false;
-                foreach (float lift in ProbeLifts)
+                foreach (float lift in _probeLifts)
                 {
                     if (v.Contains(centroid + new Vector3(0, 0, lift)))
                     {
@@ -580,9 +587,9 @@ public static class Zones
         {
             uint id = queue.Dequeue();
             int pid = place[id];
-            foreach (NavMeshConnection[] side in nav.Areas[id].Connections ?? Array.Empty<NavMeshConnection[]>())
+            foreach (NavMeshConnection[] side in nav.Areas[id].Connections)
             {
-                foreach (NavMeshConnection conn in side ?? Array.Empty<NavMeshConnection>())
+                foreach (NavMeshConnection conn in side)
                 {
                     if (place.ContainsKey(conn.AreaId) || !nav.Areas.ContainsKey(conn.AreaId))
                     {
@@ -601,7 +608,7 @@ public static class Zones
     // Every connection between two areas of different places adds one undirected pair.
     private static List<(int A, int B)> BuildAdjacency(NavMeshFile nav, Assignment assignment)
     {
-        HashSet<(int, int)> pairs = new();
+        HashSet<(int, int)> pairs = [];
         foreach ((uint id, NavMeshArea area) in nav.Areas)
         {
             if (!assignment.Place.TryGetValue(id, out int a))
@@ -609,9 +616,9 @@ public static class Zones
                 continue;
             }
 
-            foreach (NavMeshConnection[] side in area.Connections ?? Array.Empty<NavMeshConnection[]>())
+            foreach (NavMeshConnection[] side in area.Connections)
             {
-                foreach (NavMeshConnection conn in side ?? Array.Empty<NavMeshConnection>())
+                foreach (NavMeshConnection conn in side)
                 {
                     if (assignment.Place.TryGetValue(conn.AreaId, out int b) && a != b)
                     {
@@ -621,19 +628,19 @@ public static class Zones
             }
         }
 
-        return pairs.OrderBy(p => p.Item1).ThenBy(p => p.Item2).ToList();
+        return [.. pairs.OrderBy(p => p.Item1).ThenBy(p => p.Item2)];
     }
 
     // Undirected nav connections, deduplicated: the outline layer needs them to find the edges with no
     // same-place partner, and a finer tolerance can walk them instead of the place graph.
     private static List<(uint A, uint B)> BuildAreaLinks(NavMeshFile nav)
     {
-        HashSet<(uint, uint)> links = new();
+        HashSet<(uint, uint)> links = [];
         foreach ((uint id, NavMeshArea area) in nav.Areas)
         {
-            foreach (NavMeshConnection[] side in area.Connections ?? Array.Empty<NavMeshConnection[]>())
+            foreach (NavMeshConnection[] side in area.Connections)
             {
-                foreach (NavMeshConnection conn in side ?? Array.Empty<NavMeshConnection>())
+                foreach (NavMeshConnection conn in side)
                 {
                     if (conn.AreaId != id && nav.Areas.ContainsKey(conn.AreaId))
                     {
@@ -643,7 +650,7 @@ public static class Zones
             }
         }
 
-        return links.OrderBy(l => l.Item1).ThenBy(l => l.Item2).ToList();
+        return [.. links.OrderBy(l => l.Item1).ThenBy(l => l.Item2)];
     }
 
     private static Vector3 Centroid(Vector3[] corners)
@@ -696,9 +703,9 @@ public static class Zones
         foreach (uint id in nav.Areas.Keys.OrderBy(k => k))
         {
             NavMeshArea area = nav.Areas[id];
-            Vector3[] corners = area.Corners ?? Array.Empty<Vector3>();
+            Vector3[] corners = area.Corners;
             double z = corners.Length == 0 ? 0 : Centroid(corners).Z;
-            int pid = assignment.Place.TryGetValue(id, out int p) ? p : -1;
+            int pid = assignment.Place.GetValueOrDefault(id, -1);
             bool seed = assignment.Seeds.Contains(id);
             string xy = string.Join(", ", corners.Select(c => $"{Num(c.X, 1)}, {Num(c.Y, 1)}"));
             areaLines.Add(
@@ -770,7 +777,7 @@ public static class Zones
     private static string PairLines(IEnumerable<string> pairs)
     {
         const int PerLine = 16;
-        List<string> lines = new();
+        List<string> lines = [];
         foreach (string[] chunk in pairs.Chunk(PerLine))
         {
             lines.Add("    " + string.Join(", ", chunk));
@@ -818,16 +825,16 @@ public static class Zones
                      .OrderBy(g => places[g.Key], StringComparer.Ordinal))
         {
             sb.AppendLine($"    {places[g.Key]}: " +
-                          string.Join(", ", g.Select(i => places[i]).OrderBy(n => n, StringComparer.Ordinal)));
+                string.Join(", ", g.Select(i => places[i]).OrderBy(n => n, StringComparer.Ordinal)));
         }
 
         return sb.ToString();
     }
 
     /// <summary>One bake's outcome: the coverage row, the stamp written, and what the diag mode prints.</summary>
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     public sealed record Result(
         Coverage Coverage,
-        string ZonesVersion,
         IReadOnlyList<string> Notes,
         IReadOnlyList<string> Failures,
         string AdjacencyText,
@@ -859,7 +866,7 @@ public static class Zones
         public bool Rotated { get; set; }
         public Vector3 Min = new(float.MaxValue);
         public Vector3 Max = new(float.MinValue);
-        public List<HullPlanes> Hulls { get; } = new();
+        public List<HullPlanes> Hulls { get; } = [];
 
         public bool Contains(Vector3 p)
         {

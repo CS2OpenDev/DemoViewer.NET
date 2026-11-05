@@ -1,7 +1,6 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using static DemoViewer.NET.AppTests.SuggestedTagsReviewHarness;
 
@@ -24,14 +23,14 @@ public class SuggestedTagsReviewTests
         h.Build();
 
         ProposalDocument? document = h.Proposals.TryRead(DemoPath);
-        DemoCacheIndexEntry? row = h.Cache.TryGetIndex(DemoPath);
         await Assert.That(document).IsNotNull();
         using (Assert.Multiple())
         {
             await Assert.That(document!.OccupancySource).IsEqualTo(ProposalDocument.FromWalk);
             await Assert.That(document.Demo.Sha256).IsEqualTo(Sha);
             await Assert.That(document.Clock.FrameCount).IsEqualTo(2);
-            await Assert.That(document.DetectorSet.Fingerprint).IsEqualTo(h.Service.FingerprintFor(SuggestedTagsTestData.Map));
+            await Assert.That(document.DetectorSet.Fingerprint)
+                .IsEqualTo(h.Service.FingerprintFor(SuggestedTagsTestData.Map));
             await Assert.That(document.DetectorSet.Regions).IsEqualTo("learned:1");
             await Assert.That(document.Proposals.Select(p => p.Id)).Contains(ExecuteId);
             await Assert.That(document.Proposals.Single(p => p.Id == ExecuteId).RoundStartTick).IsEqualTo(FreezeEnd);
@@ -61,14 +60,18 @@ public class SuggestedTagsReviewTests
         h.Enabled = true;
         h.Background = true;
         h.Cache.Upsert(RoundIndexTestData.ParsedRecord(DemoPath, SuggestedTagsTestData.Map, Sha));
-        await Assert.That(h.Service.Wants(DemoPath)).IsFalse().Because("without Round Facts rows nothing can be detected");
-        await Assert.That(h.Service.WantsAfterUpstream(DemoPath)).IsTrue().Because("the proposals follow Round Facts on the same visit");
+        await Assert.That(h.Service.Wants(DemoPath)).IsFalse()
+            .Because("without Round Facts rows nothing can be detected");
+        await Assert.That(h.Service.WantsAfterUpstream(DemoPath)).IsTrue()
+            .Because("the proposals follow Round Facts on the same visit");
         await Assert.That(h.Service.CanDetect(DemoPath)).IsFalse();
 
         h.Background = false;
-        await Assert.That(h.Service.WantsAfterUpstream(DemoPath)).IsTrue().Because("the forced request above still stands with the sweep off");
+        await Assert.That(h.Service.WantsAfterUpstream(DemoPath)).IsTrue()
+            .Because("the forced request above still stands with the sweep off");
         h.Seed();
-        await Assert.That(h.Service.WantsAfterUpstream(DemoPath)).IsFalse().Because("Wants answers once the rows are there");
+        await Assert.That(h.Service.WantsAfterUpstream(DemoPath)).IsFalse()
+            .Because("Wants answers once the rows are there");
     }
 
     [Test]
@@ -76,14 +79,17 @@ public class SuggestedTagsReviewTests
     {
         using SuggestedTagsReviewHarness h = new();
         string? open = null;
-        SuggestedTagsService service = new(h.Cache.Library(), h.Cache.RoundFacts(), h.Proposals, h.Tags, h.Regions, () => DetectorProfile.Default,
+        SuggestedTagsService service = new(h.Cache.Library(), h.Cache.RoundFacts(), h.Proposals, h.Tags, h.Regions,
+            () => DetectorProfile.Default,
             () => true, () => false, openDemo: () => open, walk: _ => Walk(), utcNow: () => Now);
         h.Seed();
 
-        await Assert.That(service.Wants(DemoPath)).IsFalse().Because("with the sweep off a demo that is not open joins no visit");
+        await Assert.That(service.Wants(DemoPath)).IsFalse()
+            .Because("with the sweep off a demo that is not open joins no visit");
 
         open = DemoPath;
-        await Assert.That(service.Wants(DemoPath)).IsTrue().Because("the open demo is built on the parse its open paid for");
+        await Assert.That(service.Wants(DemoPath)).IsTrue()
+            .Because("the open demo is built on the parse its open paid for");
         service.Evaluate(DemoPath, Parse());
         await Assert.That(h.Proposals.TryRead(DemoPath)).IsNotNull();
     }
@@ -119,8 +125,8 @@ public class SuggestedTagsReviewTests
             await Assert.That(instance.Code).IsEqualTo("execute");
             await Assert.That(instance.Source).IsEqualTo(TagSources.Suggested);
             await Assert.That(instance.Round).IsEqualTo(1);
-            await Assert.That(instance.Labels.Any(l => l.Group == "side" && l.Value == "T")).IsTrue();
-            await Assert.That(instance.Labels.Any(l => l.Group == "site" && l.Value == "BombsiteA")).IsTrue();
+            await Assert.That(instance.Labels.Any(l => l is { Group: "side", Value: "T" })).IsTrue();
+            await Assert.That(instance.Labels.Any(l => l is { Group: "site", Value: "BombsiteA" })).IsTrue();
             await Assert.That((string?)instance.Provenance!["source"]).IsEqualTo(SuggestedTagsService.ProvenanceSource);
             await Assert.That((string?)instance.Provenance["detector"]).IsEqualTo("execute");
             await Assert.That((string?)instance.Provenance["proposalId"]).IsEqualTo(ExecuteId);
@@ -144,7 +150,8 @@ public class SuggestedTagsReviewTests
         h.Build();
         List<TagLabel> labels = [new("site", "BombsiteA"), new("tempo", "slow")];
 
-        await Assert.That(h.Service.Accept(DemoPath, ExecuteId, new TagInstanceEdit(1500, 2500, labels, "late"))).IsTrue();
+        await Assert.That(h.Service.Accept(DemoPath, ExecuteId, new TagInstanceEdit(1500, 2500, labels, "late")))
+            .IsTrue();
 
         TagInstance instance = h.Tags.TryLoad(Sha)!.Instances.Single();
         using (Assert.Multiple())
@@ -152,10 +159,12 @@ public class SuggestedTagsReviewTests
             await Assert.That(instance.FromTick).IsEqualTo(1500);
             await Assert.That(instance.ToTick).IsEqualTo(2500);
             await Assert.That(instance.Note).IsEqualTo("late");
-            await Assert.That(instance.Labels.Any(l => l.Group == "tempo" && l.Value == "slow")).IsTrue();
-            await Assert.That(instance.Labels.Any(l => l.Group == "count")).IsFalse().Because("the edit's labels replace the proposal's");
+            await Assert.That(instance.Labels.Any(l => l is { Group: "tempo", Value: "slow" })).IsTrue();
+            await Assert.That(instance.Labels.Any(l => l.Group == "count")).IsFalse()
+                .Because("the edit's labels replace the proposal's");
             await Assert.That((bool?)instance.Provenance!["edited"]).IsTrue();
-            await Assert.That(h.Tags.LoadVerdicts(Sha)!.Verdicts[ExecuteId].Verdict).IsEqualTo(SuggestionVerdicts.Edited);
+            await Assert.That(h.Tags.LoadVerdicts(Sha)!.Verdicts[ExecuteId].Verdict)
+                .IsEqualTo(SuggestionVerdicts.Edited);
         }
     }
 
@@ -164,9 +173,9 @@ public class SuggestedTagsReviewTests
     {
         using SuggestedTagsReviewHarness h = new();
         h.Build();
-        const string other = DefaultId;
+        const string Other = DefaultId;
         await Assert.That(h.Service.Reject(DemoPath, ExecuteId)).IsTrue();
-        await Assert.That(h.Service.Accept(DemoPath, other)).IsTrue();
+        await Assert.That(h.Service.Accept(DemoPath, Other)).IsTrue();
         TagInstance accepted = h.Tags.TryLoad(Sha)!.Instances.Single();
 
         h.Profile = DetectorProfile.Default.With("execute", "lag", 9);
@@ -176,9 +185,11 @@ public class SuggestedTagsReviewTests
         ProposalSet set = h.Service.Load(DemoPath);
         using (Assert.Multiple())
         {
-            await Assert.That(set.Entries.Any(e => e.Proposal.Id == ExecuteId)).IsTrue().Because("the detector still finds it");
-            await Assert.That(set.Pending.Any(e => e.Proposal.Id == ExecuteId)).IsFalse().Because("the rejection stands");
-            await Assert.That(set.Pending.Any(e => e.Proposal.Id == other)).IsFalse();
+            await Assert.That(set.Entries.Any(e => e.Proposal.Id == ExecuteId)).IsTrue()
+                .Because("the detector still finds it");
+            await Assert.That(set.Pending.Any(e => e.Proposal.Id == ExecuteId)).IsFalse()
+                .Because("the rejection stands");
+            await Assert.That(set.Pending.Any(e => e.Proposal.Id == Other)).IsFalse();
             await Assert.That(h.Tags.TryLoad(Sha)!.Instances.Single().Id).IsEqualTo(accepted.Id);
             await Assert.That(h.Tags.TryLoad(Sha)!.Instances.Single().ToTick).IsEqualTo(accepted.ToTick);
         }
@@ -213,14 +224,21 @@ public class SuggestedTagsReviewTests
         TagProposal far = Proposal("exec|r3|T|BombsiteA|s=10", "execute", 3, 0, 100, 5000, 0.8);
         Dictionary<string, SuggestionVerdict> verdicts = new(StringComparer.Ordinal)
         {
-            ["exec|r1|T|BombsiteA|s=10"] = new()
+            ["exec|r1|T|BombsiteA|s=10"] =
+                new SuggestionVerdict
+                {
+                    Verdict = SuggestionVerdicts.Rejected,
+                    Detector = "execute",
+                    Side = 2,
+                    TriggerTick = 1000 + 3 * 64,
+                    FrameCount = 2
+                },
+            ["exec|r3|T|BombsiteA|s=10"] = new SuggestionVerdict
             {
-                Verdict = SuggestionVerdicts.Rejected, Detector = "execute", Side = 2, TriggerTick = 1000 + 3 * 64,
-                FrameCount = 2
-            },
-            ["exec|r3|T|BombsiteA|s=10"] = new()
-            {
-                Verdict = SuggestionVerdicts.Rejected, Detector = "execute", Side = 2, TriggerTick = 5000 + 6 * 64,
+                Verdict = SuggestionVerdicts.Rejected,
+                Detector = "execute",
+                Side = 2,
+                TriggerTick = 5000 + 6 * 64,
                 FrameCount = 2
             }
         };
@@ -242,11 +260,11 @@ public class SuggestedTagsReviewTests
     {
         using SuggestedTagsReviewHarness h = new();
         h.Build();
-        const string other = DefaultId;
+        const string Other = DefaultId;
 
         await Assert.That(h.Service.IsPersistent).IsFalse();
         await Assert.That(h.Service.Accept(DemoPath, ExecuteId)).IsTrue();
-        await Assert.That(h.Service.Reject(DemoPath, other)).IsTrue();
+        await Assert.That(h.Service.Reject(DemoPath, Other)).IsTrue();
 
         ProposalSet set = h.Service.Load(DemoPath);
         using (Assert.Multiple())
@@ -254,7 +272,7 @@ public class SuggestedTagsReviewTests
             await Assert.That(set.IsPersistent).IsFalse();
             await Assert.That(set.Entries.Single(e => e.Proposal.Id == ExecuteId).Verdict!.Verdict)
                 .IsEqualTo(SuggestionVerdicts.Accepted);
-            await Assert.That(set.Entries.Single(e => e.Proposal.Id == other).Verdict!.Verdict)
+            await Assert.That(set.Entries.Single(e => e.Proposal.Id == Other).Verdict!.Verdict)
                 .IsEqualTo(SuggestionVerdicts.Rejected);
             await Assert.That(h.Proposals.IsPersistent).IsFalse();
             await Assert.That(h.Tags.VerdictsPathFor(Sha)).IsNull();
@@ -271,15 +289,18 @@ public class SuggestedTagsReviewTests
             h.Build();
             await Assert.That(h.Service.Reject(DemoPath, ExecuteId)).IsTrue();
 
-            string proposals = Directory.GetFiles(Path.Combine(root, "cache"), Sha + ".json.gz", SearchOption.AllDirectories).Single();
+            string proposals = Directory
+                .GetFiles(Path.Combine(root, "cache"), Sha + ".json.gz", SearchOption.AllDirectories).Single();
             string verdicts = Path.Combine(root, "tags", "verdicts", Sha + ".verdicts.json");
             await Assert.That(Path.GetFileName(Path.GetDirectoryName(proposals))).IsEqualTo(ProposalStore.Facet)
                 .Because("the proposals are the extension's per-demo data, keyed by the demo's content");
             await Assert.That(File.Exists(verdicts)).IsTrue();
-            await Assert.That(h.Proposals.TryRead(DemoPath)!.Proposals.Count).IsEqualTo(h.Service.Load(DemoPath).Entries.Count);
+            await Assert.That(h.Proposals.TryRead(DemoPath)!.Proposals.Count)
+                .IsEqualTo(h.Service.Load(DemoPath).Entries.Count);
 
             h.Cache.Remove(DemoPath);
-            await Assert.That(File.Exists(proposals)).IsFalse().Because("a derived file follows its demo out of the index");
+            await Assert.That(File.Exists(proposals)).IsFalse()
+                .Because("a derived file follows its demo out of the index");
             await Assert.That(File.Exists(verdicts)).IsTrue().Because("verdicts are user truth");
         }
         finally
@@ -375,7 +396,8 @@ public class SuggestedTagsReviewTests
             await Assert.That(h.Tags.TryLoad(Sha)!.Instances.Count).IsEqualTo(1).Because("the rollback failed");
 
             Directory.Delete(verdicts);
-            await Assert.That(h.Service.Accept(DemoPath, ExecuteId)).IsFalse().Because("the proposal is held for the session");
+            await Assert.That(h.Service.Accept(DemoPath, ExecuteId)).IsFalse()
+                .Because("the proposal is held for the session");
             await Assert.That(h.Tags.TryLoad(Sha)!.Instances.Count).IsEqualTo(1);
         }
         finally
@@ -396,8 +418,12 @@ public class SuggestedTagsReviewTests
     {
         TagStore tags = new(null);
 
-        await Assert.That(tags.RecordVerdict(Sha, ExecuteId, new SuggestionVerdict { Verdict = SuggestionVerdicts.Rejected })).IsTrue();
-        await Assert.That(tags.RecordVerdict(Sha, ExecuteId, new SuggestionVerdict { Verdict = SuggestionVerdicts.Accepted })).IsFalse();
+        await Assert
+            .That(tags.RecordVerdict(Sha, ExecuteId, new SuggestionVerdict { Verdict = SuggestionVerdicts.Rejected }))
+            .IsTrue();
+        await Assert
+            .That(tags.RecordVerdict(Sha, ExecuteId, new SuggestionVerdict { Verdict = SuggestionVerdicts.Accepted }))
+            .IsFalse();
         await Assert.That(tags.LoadVerdicts(Sha)!.Verdicts[ExecuteId].Verdict).IsEqualTo(SuggestionVerdicts.Rejected);
     }
 

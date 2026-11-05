@@ -145,60 +145,56 @@ public readonly record struct TrajectoryPoint(int Tick, float X, float Y, float 
 /// </summary>
 public sealed class GrenadeRow
 {
-    // Rows read from the rows file carry no path, so the list is created on first touch.
-    private List<TrajectoryPoint>? _trajectory;
-    private ulong? _throwerSteamId;
-    private string? _throwerSteamIdText;
-
     /// <summary><c>g{index}-{serial}</c>: unique within a demo; the cross-demo key is the demo's hash plus this.</summary>
-    public string Id { get; set; } = "";
+    public string Id { get; init; } = "";
 
-    public GrenadeKind Kind { get; set; }
+    public GrenadeKind Kind { get; init; }
 
     /// <summary>The thrower's player slot, or -1 when <see cref="ThrowerSource" /> is None.</summary>
-    public int ThrowerSlot { get; set; } = -1;
+    public int ThrowerSlot { get; init; } = -1;
 
     public string? ThrowerSteamId64
     {
-        get => _throwerSteamIdText ?? (_throwerSteamId is { } id ? id.ToString(CultureInfo.InvariantCulture) : null);
-        set
+        get => field ?? (ThrowerSteamId is { } id ? id.ToString(CultureInfo.InvariantCulture) : null);
+        init
         {
             // Held as a number; text that would not print back identically is kept verbatim.
-            if (value is not null && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
-                                  && string.Equals(id.ToString(CultureInfo.InvariantCulture), value, StringComparison.Ordinal))
+            if (value is not null
+                && ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
+                && string.Equals(id.ToString(CultureInfo.InvariantCulture), value, StringComparison.Ordinal))
             {
-                _throwerSteamId = id;
-                _throwerSteamIdText = null;
+                ThrowerSteamId = id;
+                field = null;
             }
             else
             {
-                _throwerSteamId = null;
-                _throwerSteamIdText = value;
+                ThrowerSteamId = null;
+                field = value;
             }
         }
     }
 
     /// <summary><see cref="ThrowerSteamId64" /> as a number, without allocating; null when absent or not numeric.</summary>
     [JsonIgnore]
-    public ulong? ThrowerSteamId => _throwerSteamId;
+    public ulong? ThrowerSteamId { get; private init; }
 
     /// <summary>The thrower's name at the time of the throw, from the demo's player list; null when unknown.</summary>
     public string? ThrowerName { get; set; }
 
     /// <summary>2 = T, 3 = CT, 0 when the thrower's pawn was not read.</summary>
-    public int ThrowerTeam { get; set; }
+    public int ThrowerTeam { get; init; }
 
-    public ThrowerSource ThrowerSource { get; set; }
+    public ThrowerSource ThrowerSource { get; init; }
 
     /// <summary>The <c>ClipRound</c> the throw fell in; 0 before the first freeze end.</summary>
-    public int RoundNumber { get; set; }
+    public int RoundNumber { get; init; }
 
-    public int ReleaseTick { get; set; }
+    public int ReleaseTick { get; init; }
 
-    public ReleaseSource ReleaseSource { get; set; }
+    public ReleaseSource ReleaseSource { get; init; }
 
     /// <summary>The thrower's pawn origin at the release: the <c>setpos</c>.</summary>
-    public WorldPoint? ReleasePosition { get; set; }
+    public WorldPoint? ReleasePosition { get; init; }
 
     /// <summary><c>m_angEyeAngles</c> pitch at the release: the <c>setang</c> pitch.</summary>
     public float? ReleaseEyePitch { get; set; }
@@ -206,73 +202,74 @@ public sealed class GrenadeRow
     /// <summary><c>m_angEyeAngles</c> yaw at the release: the <c>setang</c> yaw.</summary>
     public float? ReleaseEyeYaw { get; set; }
 
-    public bool? ReleaseOnGround { get; set; }
+    public bool? ReleaseOnGround { get; init; }
 
-    public bool? ReleaseCrouched { get; set; }
+    public bool? ReleaseCrouched { get; init; }
 
     /// <summary>The held grenade's <c>m_flThrowStrength</c> at the release.</summary>
-    public float? ThrowStrength { get; set; }
+    public float? ThrowStrength { get; init; }
 
-    public ThrowStrengthClass ThrowStrengthClass { get; set; } = ThrowStrengthClass.Unknown;
+    public ThrowStrengthClass ThrowStrengthClass { get; init; } = ThrowStrengthClass.Unknown;
 
     public MovementClass Movement { get; set; } = MovementClass.Unknown;
 
     /// <summary>Horizontal speed over the ticks before the release, units per second; kept so the thresholds can move without a re-walk.</summary>
-    public float? SpeedAtRelease { get; set; }
+    public float? SpeedAtRelease { get; init; }
 
     /// <summary>The frame the projectile appeared on.</summary>
     public int SpawnTick { get; set; }
 
     /// <summary><c>m_vInitialPosition</c>.</summary>
-    public WorldPoint? SpawnPosition { get; set; }
+    public WorldPoint? SpawnPosition { get; init; }
 
     /// <summary><c>m_vInitialVelocity</c>.</summary>
-    public WorldPoint? SpawnVelocity { get; set; }
+    public WorldPoint? SpawnVelocity { get; init; }
 
-    public WorldPoint? ThrowerPositionAtSpawn { get; set; }
+    public WorldPoint? ThrowerPositionAtSpawn { get; init; }
 
     /// <summary>The ground-flag fallback's input: the flag on the spawn frame, not the release one.</summary>
-    public bool? ThrowerOnGroundAtSpawn { get; set; }
+    public bool? ThrowerOnGroundAtSpawn { get; init; }
 
-    public bool JumpThrow { get; set; }
+    public bool JumpThrow { get; init; }
 
-    public JumpThrowSource JumpThrowSource { get; set; } = JumpThrowSource.None;
+    public JumpThrowSource JumpThrowSource { get; init; } = JumpThrowSource.None;
 
     /// <summary>The tick the jump rose, when <see cref="JumpThrowSource" /> is Inputs and one did.</summary>
-    public int? JumpPressTick { get; set; }
+    public int? JumpPressTick { get; init; }
 
     /// <summary>
     ///     The flight at the configured stride with every bounce vertex kept; first the spawn point, last
     ///     where it came to rest or went off. Written to the paths sibling, never to the rows file.
     /// </summary>
+    // Rows read from the rows file carry no path, so the list is created on first touch.
     [JsonIgnore]
     public List<TrajectoryPoint> Trajectory
     {
-        get => _trajectory ??= [];
-        set => _trajectory = value;
+        get => field ??= [];
+        set;
     }
 
-    public int BounceCount { get; set; }
+    public int BounceCount { get; init; }
 
     /// <summary>Spawn to the last tick the projectile moved, or to the detonation if that came first.</summary>
     public int AirTimeTicks { get; set; }
 
     public int? DetonationTick { get; set; }
 
-    public WorldPoint? DetonationPosition { get; set; }
+    public WorldPoint? DetonationPosition { get; init; }
 
-    public DetonationSource DetonationSource { get; set; } = DetonationSource.None;
+    public DetonationSource DetonationSource { get; init; } = DetonationSource.None;
 
     /// <summary>The last tick the projectile was seen, or the removal frame's tick.</summary>
     public int EndTick { get; set; }
 
-    public GrenadeEndKind EndKind { get; set; }
+    public GrenadeEndKind EndKind { get; init; }
 
     /// <summary>A molotov's <c>inferno_startburn</c> entity index, for a later fire-area join.</summary>
-    public int? InfernoEntityIndex { get; set; }
+    public int? InfernoEntityIndex { get; init; }
 
     /// <summary>Reserved for Zone Baking's resolver at Grenade Index time; the walk leaves it null.</summary>
-    public string? LandingPlace { get; set; }
+    public string? LandingPlace { get; init; }
 }
 
 /// <summary>Writes a <see cref="WorldPoint" /> as <c>[x, y, z]</c> at two decimals.</summary>
@@ -318,7 +315,7 @@ public sealed class TrajectoryPointConverter : JsonConverter<TrajectoryPoint>
 internal static class JsonNumbers
 {
     public static void Write(Utf8JsonWriter writer, float value, int decimals) =>
-        writer.WriteRawValue(Math.Round((double)value, decimals, MidpointRounding.AwayFromZero)
+        writer.WriteRawValue(Math.Round(value, decimals, MidpointRounding.AwayFromZero)
             .ToString("0.##", CultureInfo.InvariantCulture));
 
     public static float[] ReadArray(ref Utf8JsonReader reader, int count)

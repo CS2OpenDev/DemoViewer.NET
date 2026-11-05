@@ -55,9 +55,11 @@ internal static class WindowSelector
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(rounds, 1);
 
-        List<GameEvent> boundaries = demo.AllGameEvents
-            .Where(e => string.Equals(e.Name, boundaryEvent, StringComparison.Ordinal))
-            .ToList();
+        List<GameEvent> boundaries =
+        [
+            .. demo.AllGameEvents
+                .Where(e => string.Equals(e.Name, boundaryEvent, StringComparison.Ordinal))
+        ];
 
         int firstIdx = skipBoundaries;
         int cutIdx = skipBoundaries + rounds;
@@ -99,7 +101,7 @@ internal static class WindowSelector
     ///     Entity state is delta-encoded, so this checkpoint (a complete state snapshot) is the only
     ///     legal mid-stream entry point.
     /// </summary>
-    public static int LastFullPacketAtOrBefore(IReadOnlyList<DemoFrame> frames, int frameIndex)
+    private static int LastFullPacketAtOrBefore(IReadOnlyList<DemoFrame> frames, int frameIndex)
     {
         for (int i = Math.Min(frameIndex, frames.Count - 1); i >= 0; i--)
         {

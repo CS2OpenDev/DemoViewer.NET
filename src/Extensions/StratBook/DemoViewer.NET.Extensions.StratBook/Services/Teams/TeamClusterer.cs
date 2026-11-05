@@ -65,8 +65,6 @@ public sealed class TeamClusterer
         Seed();
     }
 
-    /// <summary>The rows assigned so far, keyed by stable key.</summary>
-    public IReadOnlyDictionary<string, TeamIndexDemo> Rows => _rows;
 
     /// <summary>
     ///     Assigns both sides of one demo. Sides are assigned before either is applied, so a side never
@@ -79,7 +77,8 @@ public sealed class TeamClusterer
     ///     the user owns through its squad or an established five, founds nothing, is never stamped a
     ///     stand-in and never fixes a five.
     /// </param>
-    public TeamIndexDemo Assign(DemoSideInput demo, IReadOnlyDictionary<int, Guid?>? overrides = null, bool tracked = true)
+    public void Assign(DemoSideInput demo, IReadOnlyDictionary<int, Guid?>? overrides = null,
+        bool tracked = true)
     {
         ArgumentNullException.ThrowIfNull(demo);
         DateOnly date = DateOf(demo.OrderTicks);
@@ -112,7 +111,6 @@ public sealed class TeamClusterer
 
         Apply(demo, t, tracked);
         Apply(demo, ct, tracked);
-        return row;
     }
 
     /// <summary>
@@ -129,8 +127,7 @@ public sealed class TeamClusterer
     {
         TeamIndexFile index = new()
         {
-            BuiltAtTicks = nowTicks,
-            Demos = new Dictionary<string, TeamIndexDemo>(_rows, StringComparer.Ordinal)
+            BuiltAtTicks = nowTicks, Demos = new Dictionary<string, TeamIndexDemo>(_rows, StringComparer.Ordinal)
         };
 
         foreach (RosterState state in _rosters)
@@ -141,8 +138,7 @@ public sealed class TeamClusterer
                 {
                     index.Unaffiliated.Add(new TeamIndexUnaffiliated
                     {
-                        Demo = state.Sides[0].Demo.StableKey,
-                        Side = state.Sides[0].Side
+                        Demo = state.Sides[0].Demo.StableKey, Side = state.Sides[0].Side
                     });
                 }
 
@@ -176,7 +172,8 @@ public sealed class TeamClusterer
                 }
 
                 string teamKey = state.Team.Id.ToString();
-                if (!index.Members.TryGetValue(teamKey, out Dictionary<string, Dictionary<string, TeamIndexMember>>? perRoster))
+                if (!index.Members.TryGetValue(teamKey,
+                        out Dictionary<string, Dictionary<string, TeamIndexMember>>? perRoster))
                 {
                     perRoster = new Dictionary<string, Dictionary<string, TeamIndexMember>>(StringComparer.Ordinal);
                     index.Members[teamKey] = perRoster;
@@ -188,7 +185,8 @@ public sealed class TeamClusterer
 
         // Auto teams that received no side this pass are clustering's own leftovers and go; anything
         // the user touched stays.
-        HashSet<Guid> withSides = [.. _rosters.Where(r => r.Team is not null && r.Sides.Count > 0).Select(r => r.Team!.Id)];
+        HashSet<Guid> withSides =
+            [.. _rosters.Where(r => r.Team is not null && r.Sides.Count > 0).Select(r => r.Team!.Id)];
         _teams.Teams.RemoveAll(team => team.IsAuto && !withSides.Contains(team.Id) && keep?.Contains(team.Id) != true);
 
         foreach (Team team in _teams.Teams)
@@ -260,12 +258,7 @@ public sealed class TeamClusterer
         TeamIndexDemo row, bool tracked)
     {
         SideInput input = demo.Side(side);
-        TeamIndexSide rowSide = new()
-        {
-            Key = [.. input.Key],
-            Names = [.. input.Names],
-            Clan = input.Clan
-        };
+        TeamIndexSide rowSide = new() { Key = [.. input.Key], Names = [.. input.Names], Clan = input.Clan };
         row.Sides[side.ToString(CultureInfo.InvariantCulture)] = rowSide;
 
         if (!input.IsClusterable)
@@ -327,7 +320,8 @@ public sealed class TeamClusterer
             if (best is null
                 || overlap > best.Overlap
                 || (overlap == best.Overlap && (tier < best.Tier
-                                                || (tier == best.Tier && state.FoundedOrder < best.Roster.FoundedOrder))))
+                    || (tier == best.Tier
+                        && state.FoundedOrder < best.Roster.FoundedOrder))))
             {
                 best = new Match(state, overlap, tier);
             }
@@ -430,7 +424,8 @@ public sealed class TeamClusterer
         {
             if (pending.PinnedTeam is { } teamId && _teams.Find(teamId) is { } team)
             {
-                Join(PinnedRoster(team, pending.Input, DateOf(demo.OrderTicks)), demo, pending, 0, 0, overridden: true, tracked);
+                Join(PinnedRoster(team, pending.Input, DateOf(demo.OrderTicks)), demo, pending, 0, 0, overridden: true,
+                    tracked);
             }
 
             return;
@@ -475,24 +470,15 @@ public sealed class TeamClusterer
             return best;
         }
 
-        Roster roster = new()
-        {
-            Id = NextRosterId(team),
-            Since = date
-        };
+        Roster roster = new() { Id = NextRosterId(team), Since = date };
         team.Rosters.Add(roster);
-        RosterState fresh = new()
-        {
-            Team = team,
-            Roster = roster,
-            Since = date,
-            FoundedOrder = _rosters.Count
-        };
+        RosterState fresh = new() { Team = team, Roster = roster, Since = date, FoundedOrder = _rosters.Count };
         _rosters.Add(fresh);
         return fresh;
     }
 
-    private void Join(RosterState state, DemoSideInput demo, Pending pending, int overlap, int tier, bool overridden, bool tracked)
+    private void Join(RosterState state, DemoSideInput demo, Pending pending, int overlap, int tier, bool overridden,
+        bool tracked)
     {
         HashSet<string> anchorBefore = Anchor(state);
         HashSet<string> key = new(pending.Input.Key, StringComparer.Ordinal);
@@ -554,9 +540,7 @@ public sealed class TeamClusterer
     {
         RosterState state = new()
         {
-            Since = DateOf(demo.OrderTicks),
-            FoundedOrder = _rosters.Count,
-            Founder = (demo.StableKey, pending.Side)
+            Since = DateOf(demo.OrderTicks), FoundedOrder = _rosters.Count, Founder = (demo.StableKey, pending.Side)
         };
         _rosters.Add(state);
         HashSet<string> key = new(pending.Input.Key, StringComparer.Ordinal);
@@ -590,16 +574,8 @@ public sealed class TeamClusterer
             id = Guid.NewGuid();
         } while (_tombstones.Contains(id));
 
-        Team team = new()
-        {
-            Id = id,
-            NameSource = TeamNameSource.Auto
-        };
-        Roster roster = new()
-        {
-            Id = "r1",
-            Since = state.Since
-        };
+        Team team = new() { Id = id, NameSource = TeamNameSource.Auto };
+        Roster roster = new() { Id = "r1", Since = state.Since };
         team.Rosters.Add(roster);
         _teams.Teams.Add(team);
         state.Team = team;
@@ -648,7 +624,8 @@ public sealed class TeamClusterer
 
         if (tags.Count > 0)
         {
-            string tag = tags.OrderByDescending(t => t.Value).ThenBy(t => t.Key, StringComparer.OrdinalIgnoreCase).First().Key;
+            string tag = tags.OrderByDescending(t => t.Value).ThenBy(t => t.Key, StringComparer.OrdinalIgnoreCase)
+                .First().Key;
             team.Name = spelling[tag];
             team.NameSource = TeamNameSource.ClanTag;
             return;
@@ -695,11 +672,19 @@ public sealed class TeamClusterer
     /// <summary>The calendar date of an order stamp (UTC ticks), the unit rosters are dated in.</summary>
     /// <param name="ticks">The order stamp.</param>
     public static DateOnly DateOf(long ticks) =>
-        ticks <= 0 ? DateOnly.MinValue : DateOnly.FromDateTime(new DateTime(Math.Min(ticks, DateTime.MaxValue.Ticks), DateTimeKind.Utc));
+        ticks <= 0
+            ? DateOnly.MinValue
+            : DateOnly.FromDateTime(new DateTime(Math.Min(ticks, DateTime.MaxValue.Ticks), DateTimeKind.Utc));
 
     private sealed record Match(RosterState Roster, int Overlap, int Tier);
 
-    private sealed record Pending(int Side, SideInput Input, TeamIndexSide Row, Match? Match, Guid? PinnedTeam, bool IsOverride);
+    private sealed record Pending(
+        int Side,
+        SideInput Input,
+        TeamIndexSide Row,
+        Match? Match,
+        Guid? PinnedTeam,
+        bool IsOverride);
 
     private sealed class MemberState
     {

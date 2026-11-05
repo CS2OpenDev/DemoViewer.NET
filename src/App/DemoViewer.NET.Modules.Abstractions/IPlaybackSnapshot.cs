@@ -5,6 +5,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     frame. Valid ONLY for the duration of the callback — copy what you need,
 ///     do not retain it.
 /// </summary>
+[PublicAPI]
 public interface IPlaybackSnapshot
 {
     /// <summary>0-based frame index at this push.</summary>

@@ -28,8 +28,9 @@ namespace DemoViewer.NET.Playback2D.Annotations;
 /// </summary>
 [SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable",
     Justification = "The gesture handle is owned by the CALLER that opened it (the pointer tool); the " +
-                    "document only tracks which one is currently open, and disposing it from here " +
-                    "would commit an undo entry the caller never asked to commit.")]
+        "document only tracks which one is currently open, and disposing it from here " +
+        "would commit an undo entry the caller never asked to commit.")]
+[PublicAPI]
 public sealed class AnnotationDocument
 {
     /// <summary>
@@ -217,9 +218,9 @@ public sealed class AnnotationDocument
         List<GestureStep> entry = _redo[^1];
         _redo.RemoveAt(_redo.Count - 1);
 
-        for (int i = 0; i < entry.Count; i++)
+        foreach (GestureStep step in entry)
         {
-            TryApply(entry[i].Applied, out DocDelta? _);
+            TryApply(step.Applied, out DocDelta? _);
         }
 
         _undo.Add(entry);
@@ -244,7 +245,7 @@ public sealed class AnnotationDocument
 
     /// <summary>The element's position in <see cref="Elements" />, or -1.</summary>
     /// <param name="id">The element's identity.</param>
-    public int IndexOf(Guid id) => _index.TryGetValue(id, out int at) ? at : -1;
+    public int IndexOf(Guid id) => _index.GetValueOrDefault(id, -1);
 
     /// <summary>
     ///     Rewrites every <see cref="SpaceRef.World" /> anchor whose <c>LevelMinZ</c> appears in
@@ -293,8 +294,8 @@ public sealed class AnnotationDocument
     ///     load is not an action the user can undo into the previous demo's ink, and raises exactly one
     ///     <see cref="Changed" />.
     /// </summary>
-    /// <param name="elements">The elements to hold, oldest first.</param>
-    public void Reset(IEnumerable<AnnotationElement> elements)
+    /// <param name="elements">The elements to hold, oldest first. A null entry, or a repeated id, is skipped.</param>
+    public void Reset(IEnumerable<AnnotationElement?> elements)
     {
         ArgumentNullException.ThrowIfNull(elements);
 
@@ -305,7 +306,7 @@ public sealed class AnnotationDocument
         _elements.Clear();
         _index.Clear();
 
-        foreach (AnnotationElement element in elements)
+        foreach (AnnotationElement? element in elements)
         {
             if (element is null || _index.ContainsKey(element.Id))
             {
@@ -342,7 +343,7 @@ public sealed class AnnotationDocument
     private bool ApplyAdd(DocDelta.Add add, out DocDelta? inverse)
     {
         inverse = null;
-        if (add.Element is null || _index.ContainsKey(add.Element.Id))
+        if (_index.ContainsKey(add.Element.Id))
         {
             return false;
         }
@@ -373,7 +374,7 @@ public sealed class AnnotationDocument
     private bool ApplyReplace(DocDelta.Replace replace, out DocDelta? inverse)
     {
         inverse = null;
-        if (replace.Element is null || !_index.TryGetValue(replace.Id, out int at))
+        if (!_index.TryGetValue(replace.Id, out int at))
         {
             return false;
         }
@@ -395,7 +396,7 @@ public sealed class AnnotationDocument
     private bool ApplyBatch(DocDelta.Batch batch, out DocDelta? inverse)
     {
         inverse = null;
-        if (batch.Items is null || batch.Items.Count == 0)
+        if (batch.Items.Count == 0)
         {
             return false;
         }
@@ -484,9 +485,9 @@ public sealed class AnnotationDocument
         IReadOnlyDictionary<double, double> zMinMap)
     {
         bool changed = false;
-        for (int i = 0; i < stacks.Count; i++)
+        foreach (List<GestureStep> stack in stacks)
         {
-            changed |= RemapSteps(stacks[i], zMinMap);
+            changed |= RemapSteps(stack, zMinMap);
         }
 
         return changed;
@@ -537,7 +538,7 @@ public sealed class AnnotationDocument
                     DocDelta item = RemapDelta(batch.Items[i], zMinMap);
                     if (!ReferenceEquals(item, batch.Items[i]) && rebuilt is null)
                     {
-                        rebuilt = new List<DocDelta>(batch.Items);
+                        rebuilt = [.. batch.Items];
                     }
 
                     if (rebuilt is not null)
@@ -557,17 +558,14 @@ public sealed class AnnotationDocument
     private static AnnotationElement RemapElement(AnnotationElement element,
         IReadOnlyDictionary<double, double> zMinMap)
     {
-        if (element?.Space is not SpaceRef.World world
+        if (element.Space is not SpaceRef.World world
             || !zMinMap.TryGetValue(world.LevelMinZ, out double target)
             || target.Equals(world.LevelMinZ))
         {
-            return element!;
+            return element;
         }
 
-        return element with
-        {
-            Space = new SpaceRef.World(target)
-        };
+        return element with { Space = new SpaceRef.World(target) };
     }
 
     private readonly record struct GestureStep(DocDelta Applied, DocDelta Inverse);

@@ -41,7 +41,7 @@ public sealed class ExportJobService : IExportJobService, IDisposable
     private readonly HeavyJobGate? _gate;
     private readonly Func<bool>? _isLiveSyncBusy;
     private readonly Func<bool>? _isReelRunning;
-    private readonly object _lifecycle = new();
+    private readonly Lock _lifecycle = new();
     private readonly Action<string>? _log;
     private readonly IExportRunner _runner;
 
@@ -189,29 +189,16 @@ public sealed class ExportJobService : IExportJobService, IDisposable
 
             await _runner.RunAsync(request, new DirectProgress(OnProgress), ct).ConfigureAwait(false);
 
-            terminal = Status with
-            {
-                Phase = ExportPhase.Completed,
-                FramesDone = Status.FramesTotal,
-                Error = null
-            };
+            terminal = Status with { Phase = ExportPhase.Completed, FramesDone = Status.FramesTotal, Error = null };
         }
         catch (OperationCanceledException)
         {
-            terminal = Status with
-            {
-                Phase = ExportPhase.Cancelled,
-                Error = null
-            };
+            terminal = Status with { Phase = ExportPhase.Cancelled, Error = null };
         }
         catch (Exception ex)
         {
             _log?.Invoke($"export failed: {ex}");
-            terminal = Status with
-            {
-                Phase = ExportPhase.Failed,
-                Error = ex.Message
-            };
+            terminal = Status with { Phase = ExportPhase.Failed, Error = ex.Message };
         }
         finally
         {

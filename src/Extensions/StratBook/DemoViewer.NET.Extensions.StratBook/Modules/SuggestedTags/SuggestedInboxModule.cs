@@ -1,9 +1,9 @@
 #region
 
 using System.Globalization;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Views.SuggestedTags;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 
@@ -17,7 +17,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 public sealed class SuggestedInboxModule : IWorkspaceModule
 {
     /// <summary>The section's tab id. A persisted key; never renamed.</summary>
-    public const string TabId = "suggested.inbox";
+    private const string TabId = "suggested.inbox";
 
     /// <summary>The section's feature id. A persisted key; never renamed.</summary>
     public const string TabFeatureId = "tab.suggested";
@@ -38,7 +38,8 @@ public sealed class SuggestedInboxModule : IWorkspaceModule
     ///     value stale until the next unrelated <c>proposals.Changed</c>. Null skips that push and keeps the
     ///     poll-on-read behaviour.
     /// </param>
-    public SuggestedInboxModule(Func<SuggestedInboxViewModel> viewModelFactory, Func<bool> enabled, ProposalStore? proposals = null,
+    public SuggestedInboxModule(Func<SuggestedInboxViewModel> viewModelFactory, Func<bool> enabled,
+        ProposalStore? proposals = null,
         IExtensionFeatures? gate = null)
     {
         ArgumentNullException.ThrowIfNull(viewModelFactory);
@@ -54,7 +55,7 @@ public sealed class SuggestedInboxModule : IWorkspaceModule
     public Version ContractVersion => new(1, 0, 0);
 
     /// <summary>"12", or null with nothing new.</summary>
-    public static string? BadgeFor(int pending) => pending > 0 ? pending.ToString(CultureInfo.InvariantCulture) : null;
+    private static string? BadgeFor(int pending) => pending > 0 ? pending.ToString(CultureInfo.InvariantCulture) : null;
 
     public IEnumerable<WorkspaceTabDescriptor> CreateTabs(IModuleHost host)
     {

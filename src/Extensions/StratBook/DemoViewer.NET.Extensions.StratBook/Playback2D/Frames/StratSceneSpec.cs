@@ -1,8 +1,8 @@
 #region
 
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 
 #endregion
 
@@ -14,7 +14,6 @@ namespace DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 ///     strat JSON reader stays in the App, so nothing here knows the <c>.dvstrat.json</c> shape.
 /// </summary>
 /// <param name="Tracks">The path's token tracks. The source samples them and never edits them.</param>
-/// <param name="Schedule">The path's step windows.</param>
 /// <param name="Ink">
 ///     A private session over a <c>Reset</c> copy of the projected document, <b>never the live one</b>
 ///     (<c>SceneLayerCatalog.CreateSceneStack</c>'s rule for an export). The source does not draw it; the
@@ -33,7 +32,6 @@ namespace DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 /// <param name="Speed">Playback-rate multiplier; 1 is realtime.</param>
 public sealed record StratSceneSpec(
     TokenTrackSet Tracks,
-    StepSchedule Schedule,
     AnnotationSession Ink,
     IReadOnlyList<TokenLabel> Labels,
     string MapName,

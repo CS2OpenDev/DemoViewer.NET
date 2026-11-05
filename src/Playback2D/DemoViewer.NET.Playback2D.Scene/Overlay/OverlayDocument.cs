@@ -13,6 +13,7 @@ namespace DemoViewer.NET.Playback2D.Overlay;
 ///         Host-independent on purpose: no Skia type, no App type and no positions-file type live here.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class OverlayDocument
 {
     private OverlayPoint[] _points = [];

@@ -5,6 +5,7 @@ namespace DemoViewer.NET.Playback2D.Compositing;
 ///     <c>(Slot, Order)</c> list, so annotations sit above actors and below the HUD regardless of who
 ///     registered them or when.
 /// </summary>
+[PublicAPI]
 public enum LayerSlot
 {
     /// <summary>Behind the world: radar, grid.</summary>

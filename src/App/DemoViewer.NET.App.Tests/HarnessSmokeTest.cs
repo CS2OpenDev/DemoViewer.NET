@@ -24,9 +24,7 @@ public class HarnessSmokeTest
                 Height = 120,
                 Content = new TextBlock
                 {
-                    Text = "headless render OK",
-                    Foreground = Brushes.White,
-                    Background = Brushes.Black
+                    Text = "headless render OK", Foreground = Brushes.White, Background = Brushes.Black
                 }
             };
             window.Show();

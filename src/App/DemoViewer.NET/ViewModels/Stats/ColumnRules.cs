@@ -29,8 +29,9 @@ public abstract record ColumnRule
     /// <param name="rows">Facet rows, by column label.</param>
     public abstract double? Pool(IReadOnlyList<IReadOnlyDictionary<string, double>> rows);
 
-    private static double Total(IReadOnlyList<IReadOnlyDictionary<string, double>> rows, IReadOnlyList<string> columns) =>
-        rows.Sum(r => columns.Sum(c => r.GetValueOrDefault(c)));
+    private static double Total(IReadOnlyList<IReadOnlyDictionary<string, double>> rows,
+        IReadOnlyList<string> columns) =>
+        rows.Sum(r => columns.Sum(r.GetValueOrDefault));
 
     /// <summary>A count or a sum: the pool is the total.</summary>
     public sealed record Sum(string Column) : ColumnRule
@@ -56,9 +57,13 @@ public abstract record ColumnRule
     /// <param name="Numerator">Columns summed into the numerator.</param>
     /// <param name="Denominator">Columns summed into the denominator.</param>
     /// <param name="Scale">100 for a percentage.</param>
-    public sealed record RatioOfSums(IReadOnlyList<string> Numerator, IReadOnlyList<string> Denominator, double Scale = 1) : ColumnRule
+    public sealed record RatioOfSums(
+        IReadOnlyList<string> Numerator,
+        IReadOnlyList<string> Denominator,
+        double Scale = 1) : ColumnRule
     {
-        public override IReadOnlyList<string> Inputs => [.. Numerator, .. Denominator.Except(Numerator, StringComparer.Ordinal)];
+        public override IReadOnlyList<string> Inputs =>
+            [.. Numerator, .. Denominator.Except(Numerator, StringComparer.Ordinal)];
 
         public override double? Pool(IReadOnlyList<IReadOnlyDictionary<string, double>> rows)
         {
@@ -83,6 +88,7 @@ public abstract record ColumnRule
     }
 
     /// <summary>A column with no cross-demo value, and why.</summary>
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     public sealed record NotAggregable(string Reason) : ColumnRule
     {
         public override IReadOnlyList<string> Inputs => [];
@@ -111,7 +117,8 @@ public static class ColumnRules
     public static IReadOnlyDictionary<string, ColumnRule> All => _byKey;
 
     /// <summary>The facet columns the rules read, the round count among them, in first-use order.</summary>
-    public static IReadOnlyList<string> FacetColumns { get; } = [.. _byKey.Values.SelectMany(r => r.Inputs).Distinct(StringComparer.Ordinal)];
+    public static IReadOnlyList<string> FacetColumns { get; } =
+        [.. _byKey.Values.SelectMany(r => r.Inputs).Distinct(StringComparer.Ordinal)];
 
     /// <summary>The rule for a catalogue key, or null for a column the catalogue does not know.</summary>
     public static ColumnRule? For(string key) => _byKey.GetValueOrDefault(key);
@@ -179,7 +186,11 @@ public static class ColumnRules
             rules.Add(key, new Sum(key));
         }
 
-        foreach (string key in (string[]) ["Kills", "Deaths", "Assists", "Damage", "UtilDmg", "Traded", "HasKAST", "HSKills", "EKills", "Flashed", "FK", "FD", "DeagleHS", "Spot"])
+        foreach (string key in (string[])
+                 [
+                     "Kills", "Deaths", "Assists", "Damage", "UtilDmg", "Traded", "HasKAST", "HSKills", "EKills",
+                     "Flashed", "FK", "FD", "DeagleHS", "Spot"
+                 ])
         {
             rules.Add(key, new NotAggregable(RoundBoard));
         }

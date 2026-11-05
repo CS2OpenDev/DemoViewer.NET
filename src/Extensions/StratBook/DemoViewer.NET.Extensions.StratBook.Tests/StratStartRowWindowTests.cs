@@ -24,7 +24,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("Integration")]
 public class StratStartRowWindowTests
 {
-    private static readonly StratSpawns Spawns = new(
+    private static readonly StratSpawns _spawns = new(
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(-700 - 40 * i, -800, 0, "TSpawn"))],
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(200 + 40 * i, 2200, 0, "CTSpawn"))]);
 
@@ -32,16 +32,25 @@ public class StratStartRowWindowTests
     public async Task TheStartRow_OpensToAFieldPerToken_SelectsTheStart_AndTheSwitchMovesTheClock() =>
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratSpawnSource spawns = new(_ => Spawns);
+            StratSpawnSource spawns = new(_ => _spawns);
             await spawns.ForAsync("de_dust2");
-            using StratBookTabViewModel vm = new(new StratStore(null), null, a => Dispatcher.UIThread.Post(a), false, spawns: spawns);
+            using StratBookTabViewModel vm = new(new StratStore(null), null, a => Dispatcher.UIThread.Post(a), false,
+                spawns: spawns);
             vm.Session.AutoSaveDelay = TimeSpan.FromHours(1);
             vm.Session.IdleCommitDelay = TimeSpan.FromHours(1);
             vm.SelectedMap = "de_dust2";
             vm.NewStratCommand.Execute(null);
             vm.Editor.TriggerText = "on the call";
-            StratStep move = new() { Id = Guid.NewGuid(), AtSeconds = 115, Actor = StratVocabulary.ActorAll, Verb = "move", To = new PlaceRef { Place = "LongDoors" } };
-            vm.Session.Apply(PatchOp.AddOp("/steps/-", JsonSerializer.SerializeToNode(move, StratJsonContext.Default.StratStep)));
+            StratStep move = new()
+            {
+                Id = Guid.NewGuid(),
+                AtSeconds = 115,
+                Actor = StratVocabulary.ActorAll,
+                Verb = "move",
+                To = new PlaceRef { Place = "LongDoors" }
+            };
+            vm.Session.Apply(PatchOp.AddOp("/steps/-",
+                JsonSerializer.SerializeToNode(move, StratJsonContext.Default.StratStep)));
 
             StratBookTabView view = new() { DataContext = vm };
             Window window = new() { Width = 1280, Height = 800, Content = view };
@@ -50,7 +59,10 @@ public class StratStartRowWindowTests
 
             Border row = view.FindControl<Border>("StartRow")!;
             TextBlock summary = view.FindControl<TextBlock>("StartSummary")!;
-            int Fields() => row.GetVisualDescendants().OfType<DemoViewer.NET.Extensions.StratBook.Controls.PlaceField>().Count(f => f.IsEffectivelyVisible);
+
+            int Fields() => row.GetVisualDescendants().OfType<DemoViewer.NET.Extensions.StratBook.Controls.PlaceField>()
+                .Count(f => f.IsEffectivelyVisible);
+
             using (Assert.Multiple())
             {
                 await Assert.That(row.IsEffectivelyVisible).IsTrue();
@@ -62,11 +74,14 @@ public class StratStartRowWindowTests
             Dispatcher.UIThread.RunJobs();
             ScrollViewer scroll = view.FindControl<ScrollViewer>("EditorScroll")!;
             List<string> overflow = [];
-            foreach (Control control in row.GetVisualDescendants().OfType<Control>().Where(c => c is TextBox or Button or TextBlock && c.IsEffectivelyVisible))
+            foreach (Control control in row.GetVisualDescendants().OfType<Control>()
+                         .Where(c => c is TextBox or Button or TextBlock && c.IsEffectivelyVisible))
             {
-                if (control.TranslatePoint(new Point(control.Bounds.Width, 0), scroll) is { } right && right.X > scroll.Viewport.Width + 0.5)
+                if (control.TranslatePoint(new Point(control.Bounds.Width, 0), scroll) is { } right
+                    && right.X > scroll.Viewport.Width + 0.5)
                 {
-                    overflow.Add($"{control.GetType().Name} '{(control as TextBlock)?.Text ?? control.Name}' ends at {right.X:F0}");
+                    overflow.Add(
+                        $"{control.GetType().Name} '{(control as TextBlock)?.Text ?? control.Name}' ends at {right.X:F0}");
                 }
             }
 
@@ -99,7 +114,8 @@ public class StratStartRowWindowTests
                 await Assert.That(vm.Canvas.ClockText).StartsWith("+0:00");
             }
 
-            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "strat-start-row-window.png"), new PngBitmapEncoderOptions());
+            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "strat-start-row-window.png"),
+                new PngBitmapEncoderOptions());
             window.Close();
         });
 
@@ -107,13 +123,26 @@ public class StratStartRowWindowTests
     private static IEnumerable<StratDocument> Opened()
     {
         yield return StratStartBlockTests.Legacy();
+
         StratDocument captured = StratStartBlockTests.Legacy();
         captured.Id = Guid.NewGuid();
         captured.Origin = new StratOrigin { DemoSha256 = "ab", Round = 4 };
         captured.Start = new StratStart
         {
             Kind = StratStart.CapturedKind,
-            Positions = [.. StratVocabulary.Slots.Select((s, i) => new StartPosition { Slot = s, Place = "TSpawn", X = -750 + i, Y = -791, LevelMinZ = -99968, YawDegrees = 45, Observed = true })]
+            Positions =
+            [
+                .. StratVocabulary.Slots.Select((s, i) => new StartPosition
+                {
+                    Slot = s,
+                    Place = "TSpawn",
+                    X = -750 + i,
+                    Y = -791,
+                    LevelMinZ = -99968,
+                    YawDegrees = 45,
+                    Observed = true
+                })
+            ]
         };
         yield return captured;
     }
@@ -141,7 +170,8 @@ public class StratStartRowWindowTests
                 view.FindControl<Button>("StartExpand")!.Command!.Execute(null);
                 Dispatcher.UIThread.RunJobs();
 
-                foreach (TextBox box in view.FindControl<Border>("StartRow")!.GetVisualDescendants().OfType<TextBox>().Where(t => t.IsEffectivelyVisible).ToList())
+                foreach (TextBox box in view.FindControl<Border>("StartRow")!.GetVisualDescendants().OfType<TextBox>()
+                             .Where(t => t.IsEffectivelyVisible).ToList())
                 {
                     box.Focus();
                     Dispatcher.UIThread.RunJobs();
@@ -152,7 +182,8 @@ public class StratStartRowWindowTests
                 using (Assert.Multiple())
                 {
                     await Assert.That(vm.Session.UndoDepth).IsEqualTo(0).Because(document.Name);
-                    await Assert.That(StratStore.Serialize(vm.Session.Document!)).IsEqualTo(before).Because(document.Name);
+                    await Assert.That(StratStore.Serialize(vm.Session.Document!)).IsEqualTo(before)
+                        .Because(document.Name);
                 }
 
                 window.Close();

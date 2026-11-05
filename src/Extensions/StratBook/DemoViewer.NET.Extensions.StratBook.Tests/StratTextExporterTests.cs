@@ -42,13 +42,14 @@ public class StratTextExporterTests
     [Test]
     public async Task TheSampleStratsCallSheet_MatchesTheCommittedGolden()
     {
-        string? repo = DemoTestHelper.FindRepoRoot() ?? throw new SkipTestException("repo root not found from the test output directory");
+        string repo = DemoTestHelper.FindRepoRoot()
+            ?? throw new SkipTestException("repo root not found from the test output directory");
         string path = Path.Combine(repo, "tests", "fixtures", "strats", "schema-v1.sample.callsheet.md");
         string rendered = StratTextExporter.CallSheet(SchemaSample(), Callouts());
 
         if (Updating)
         {
-            File.WriteAllText(path, rendered);
+            await File.WriteAllTextAsync(path, rendered);
         }
 
         if (!File.Exists(path))
@@ -56,7 +57,7 @@ public class StratTextExporterTests
             throw new SkipTestException($"missing {path}; regenerate with PB2D_GOLDEN_UPDATE=1");
         }
 
-        string golden = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        string golden = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
         await Assert.That(rendered).IsEqualTo(golden);
     }
 
@@ -198,8 +199,8 @@ public class StratTextExporterTests
             {
                 await Assert.That(first).IsNotEqualTo(second);
                 await Assert.That(first).EndsWith(".html");
-                await Assert.That(File.ReadAllText(first)).IsEqualTo(html);
-                await Assert.That(File.ReadAllText(second)).IsEqualTo(html);
+                await Assert.That(await File.ReadAllTextAsync(first)).IsEqualTo(html);
+                await Assert.That(await File.ReadAllTextAsync(second)).IsEqualTo(html);
             }
         }
         finally

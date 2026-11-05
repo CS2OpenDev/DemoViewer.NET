@@ -1,8 +1,12 @@
+#region
+
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.Sdk.Review;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk;
 
@@ -11,6 +15,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 ///     <see cref="ExtensionServiceProviderExtensions.GetExtensionContext{TPack}" />; every member is safe to call from
 ///     a factory registered in <see cref="IExtension.Register" />.
 /// </summary>
+[PublicAPI]
 public interface IExtensionContext
 {
     /// <summary>The extension this context belongs to.</summary>
@@ -84,6 +89,7 @@ public interface IExtensionContext
 /// <param name="SdkVersion">The contract version the host implements.</param>
 /// <param name="AppVersion">The app's release version, or null for a developer build.</param>
 /// <param name="IsBrowser">True in the browser build: no filesystem, no processing queue, no ffmpeg.</param>
+[PublicAPI]
 public sealed record HostInfo(Version SdkVersion, string? AppVersion, bool IsBrowser);
 
 /// <summary>The feature switches: the extension's own and the host's.</summary>
@@ -100,6 +106,7 @@ public interface IExtensionFeatures
 }
 
 /// <summary>The open demo and the shell's navigation. Call from the UI thread.</summary>
+[PublicAPI]
 public interface IExtensionShell
 {
     /// <summary>
@@ -157,6 +164,7 @@ public interface IExtensionShell
 }
 
 /// <summary>Resolves an extension's <see cref="IExtensionContext" />.</summary>
+[PublicAPI]
 public static class ExtensionServiceProviderExtensions
 {
     /// <summary>
@@ -172,9 +180,9 @@ public static class ExtensionServiceProviderExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         return services.GetKeyedService<IExtensionContext>(typeof(TPack))
-               ?? throw new InvalidOperationException(
-                   $"This host has no extension of type '{typeof(TPack).FullName}' loaded, so it has no "
-                   + "context. Name your own entry type here, from a factory the host resolves.");
+            ?? throw new InvalidOperationException(
+                $"This host has no extension of type '{typeof(TPack).FullName}' loaded, so it has no "
+                + "context. Name your own entry type here, from a factory the host resolves.");
     }
 }
 
@@ -184,4 +192,5 @@ public static class ExtensionServiceProviderExtensions
 ///     with one context per extension.
 /// </summary>
 /// <param name="ExtensionId">The extension's id.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed record ExtensionContextKey(string ExtensionId);

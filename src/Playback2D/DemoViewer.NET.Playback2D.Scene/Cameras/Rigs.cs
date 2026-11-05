@@ -15,6 +15,7 @@ namespace DemoViewer.NET.Playback2D.Cameras;
 ///         <see cref="FitMapRig" /> because it fits <i>continuously</i>. The behaviours are what matter.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class ManualRig : ICameraRig
 {
     /// <summary>The shared instance. Stateless, so one is enough.</summary>
@@ -69,7 +70,7 @@ internal sealed class FitAliveRig : ICameraRig
     /// <summary>Creates a rig.</summary>
     /// <param name="padding">Fractional margin around the alive bounds (pre-v2 <c>AlivePadding</c>).</param>
     /// <param name="minHalfWorld">Floor on that margin (pre-v2 <c>FollowHalfWorld</c>).</param>
-    public FitAliveRig(double padding = 0.18, double minHalfWorld = 900)
+    private FitAliveRig(double padding = 0.18, double minHalfWorld = 900)
     {
         _padding = padding;
         _minHalfWorld = minHalfWorld;
@@ -98,7 +99,7 @@ internal sealed class FitAliveRig : ICameraRig
             }
 
             // Single-band renders frame every player regardless of Z (pre-v2 `_cameras.Length > 1`).
-            if (pane.PaneCount > 1 && pane.Space is { } space &&
+            if (pane is { PaneCount: > 1, Space: { } space } &&
                 space.LevelIndexFor(m.WorldZ) != pane.LevelIndex)
             {
                 continue;
@@ -156,7 +157,7 @@ internal sealed class FollowPlayerRig : ICameraRig
     public int Slot { get; set; }
 
     /// <summary>Half-extent of the axis-aligned box the marker may move in before the camera recentres.</summary>
-    public double DeadzoneHalfWorld { get; set; }
+    private double DeadzoneHalfWorld { get; }
 
     /// <inheritdoc />
     public string Id => "follow-player";
@@ -184,7 +185,7 @@ internal sealed class FollowPlayerRig : ICameraRig
             // Only the level the followed player is on tracks them; the others hold. Note this RETURNS
             // rather than continuing: the pre-v2 code does the same, and a roster with a duplicate slot
             // must not make a second marker win.
-            if (pane.PaneCount > 1 && pane.Space is { } space &&
+            if (pane is { PaneCount: > 1, Space: { } space } &&
                 space.LevelIndexFor(m.WorldZ) != pane.LevelIndex)
             {
                 return null;

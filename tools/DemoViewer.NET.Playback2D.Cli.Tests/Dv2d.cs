@@ -34,7 +34,7 @@ internal static class Dv2d
     private static readonly Lock _consoleLock = new();
 
     /// <summary>The repo root, located by walking up for the slnx.</summary>
-    public static string RepoRoot { get; } =
+    private static string RepoRoot { get; } =
         DemoTestHelper.FindRepoRoot()
         ?? throw new InvalidOperationException("could not locate the repository root.");
 
@@ -49,7 +49,7 @@ internal static class Dv2d
     ///     The trimmed three-round de_nuke GOTV demo committed at <c>assets/tour/</c>, or whatever
     ///     <c>DemoTestHelper</c> finds. Null when neither is present.
     /// </summary>
-    public static string? DemoPath { get; } = ResolveDemo();
+    private static string? DemoPath { get; } = ResolveDemo();
 
     /// <summary>The directory the CLI project builds into, e.g. <c>artifacts/bin/…/release</c>.</summary>
     public static string CliOutputDirectory { get; } = ResolveCliOutputDirectory();
@@ -151,7 +151,7 @@ internal static class Dv2d
         }
 
         using Process process = Process.Start(info)
-                                ?? throw new InvalidOperationException($"could not start {fileName}.");
+            ?? throw new InvalidOperationException($"could not start {fileName}.");
 
         // Read both streams before waiting: a full pipe buffer on either one deadlocks the child.
         Task<string> stdout = process.StandardOutput.ReadToEndAsync();
@@ -173,10 +173,7 @@ internal static class Dv2d
 
         string managed = Path.Combine(CliOutputDirectory, "dv2d.dll");
         return File.Exists(managed)
-            ? ("dotnet", new[]
-            {
-                managed
-            })
+            ? ("dotnet", new[] { managed })
             : throw new FileNotFoundException($"no dv2d host in {CliOutputDirectory}.", native);
     }
 

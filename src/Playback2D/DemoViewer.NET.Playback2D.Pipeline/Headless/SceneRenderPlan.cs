@@ -1,10 +1,9 @@
 #region
 
-using DemoViewer.NET.Playback2D;
+using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Playback2D.Pipeline.Assets;
 using SkiaSharp;
 
@@ -144,9 +143,7 @@ internal sealed class SceneRenderPlan : IDisposable
 
         HeadlessSceneRenderer renderer = new(backend.Provider, compositor)
         {
-            Palette = ScenePalette.Dark,
-            Size = options.Size,
-            Purpose = RenderPurpose.Export
+            Palette = ScenePalette.Dark, Size = options.Size, Purpose = RenderPurpose.Export
         };
 
         // Bound exactly as SceneStage and Scene2DHost bind it: authoritative nav floors override the Z

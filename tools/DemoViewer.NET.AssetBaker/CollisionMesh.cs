@@ -44,7 +44,7 @@ public static class CollisionMesh
         package.Read(vpkPath);
         string entryPath = $"maps/{mapName}/world_physics.vmdl_c";
         PackageEntry entry = package.FindEntry(entryPath)
-                             ?? throw new FileNotFoundException($"{entryPath} not found in {vpkPath}");
+            ?? throw new FileNotFoundException($"{entryPath} not found in {vpkPath}");
         package.ReadEntry(entry, out byte[] bytes);
 
         using Resource res = new();
@@ -53,7 +53,7 @@ public static class CollisionMesh
         PhysAggregateData phys = res.DataBlock switch
         {
             Model model => model.GetEmbeddedPhys()
-                           ?? throw new InvalidDataException($"{entryPath}: model has no embedded phys"),
+                ?? throw new InvalidDataException($"{entryPath}: model has no embedded phys"),
             PhysAggregateData p => p,
             _ => throw new InvalidDataException($"{entryPath}: unexpected data block {res.DataBlock?.GetType().Name}")
         };
@@ -66,7 +66,7 @@ public static class CollisionMesh
                 "is invalid for this map; per-part transform must be applied before shipping.");
         }
 
-        List<(Vector3 A, Vector3 B, Vector3 C)> tris = new();
+        List<(Vector3 A, Vector3 B, Vector3 C)> tris = [];
         Vector3 min = new(float.MaxValue);
         Vector3 max = new(float.MinValue);
         int hullCount = 0, meshCount = 0;
@@ -82,7 +82,7 @@ public static class CollisionMesh
         {
             Shape shape = part.Shape;
 
-            foreach (MeshDescriptor md in shape.Meshes ?? Array.Empty<MeshDescriptor>())
+            foreach (MeshDescriptor md in shape.Meshes ?? [])
             {
                 meshCount++;
                 ReadOnlySpan<Vector3> verts = md.Shape.GetVertices();
@@ -93,7 +93,7 @@ public static class CollisionMesh
                 }
             }
 
-            foreach (HullDescriptor hd in shape.Hulls ?? Array.Empty<HullDescriptor>())
+            foreach (HullDescriptor hd in shape.Hulls ?? [])
             {
                 hullCount++;
                 ReadOnlySpan<Vector3> vp = hd.Shape.GetVertexPositions();
@@ -122,8 +122,8 @@ public static class CollisionMesh
         WriteTris(outPath, tris);
         long len = new FileInfo(outPath).Length;
         string diag = $"  collision: parts={phys.Parts.Length} hulls={hullCount} meshes={meshCount} " +
-                      $"tris={tris.Count:N0}  Z[{min.Z:F0}..{max.Z:F0}]  {len / 1024.0 / 1024.0:F1} MiB";
-        return new Result(tris.Count, min, max, len, diag);
+            $"tris={tris.Count:N0}  Z[{min.Z:F0}..{max.Z:F0}]  {len / 1024.0 / 1024.0:F1} MiB";
+        return new Result(tris.Count, min, max, diag);
     }
 
     private static void WriteTris(string path, List<(Vector3 A, Vector3 B, Vector3 C)> tris)
@@ -167,5 +167,6 @@ public static class CollisionMesh
         return new FileInfo(gzPath).Length;
     }
 
-    public sealed record Result(int TriangleCount, Vector3 Min, Vector3 Max, long ByteLength, string Diagnostic);
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
+    public sealed record Result(int TriangleCount, Vector3 Min, Vector3 Max, string Diagnostic);
 }

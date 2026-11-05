@@ -17,7 +17,8 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="ext:NotificationCardViewModel">
-                <Border Classes="card-flyout" Padding="10 8" BorderBrush="{DynamicResource BorderStrong}" BorderThickness="1">
+                <Border Classes="card-flyout" Padding="10 8" BorderBrush="{DynamicResource BorderStrong}"
+                        BorderThickness="1">
                     <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto">
                         <Ellipse Grid.Column="0" Grid.Row="0" Classes="dot" Width="9" Height="9" Margin="0 0 8 0"
                                  Classes.stateWorking="{Binding IsInfo}"

@@ -21,22 +21,15 @@ public class LegacyCacheMigrationTests
     private static string WriteLibrary(string dir, params DemoLibraryCacheEntry[] entries)
     {
         string path = Path.Combine(dir, "library.json");
-        File.WriteAllText(path, JsonSerializer.Serialize(new DemoLibraryData
-        {
-            Folders = ["/demos"],
-            Cache = [.. entries]
-        }));
+        File.WriteAllText(path,
+            JsonSerializer.Serialize(new DemoLibraryData { Folders = ["/demos"], Cache = [.. entries] }));
         return path;
     }
 
     private static string WriteHighlights(string dir, params LegacyHighlightsRow[] rows)
     {
         string path = Path.Combine(dir, "highlights.json");
-        File.WriteAllText(path, JsonSerializer.Serialize(new
-        {
-            Version = 1,
-            Rows = rows
-        }));
+        File.WriteAllText(path, JsonSerializer.Serialize(new { Version = 1, Rows = rows }));
         return path;
     }
 
@@ -112,7 +105,7 @@ public class LegacyCacheMigrationTests
 
             // Simulate the dual-write having already run for a DIFFERENT demo.
             DemoCacheStore seeded = new(cacheDir);
-            seeded.Update("/demos/fresh.dem", 10, 20, r => DemoCacheStore.StampParse(r));
+            seeded.Update("/demos/fresh.dem", 10, 20, DemoCacheStore.StampParse);
             seeded.SaveIndex();
             await Assert.That(File.Exists(Path.Combine(cacheDir, "index.json"))).IsTrue();
 
@@ -184,21 +177,11 @@ public class LegacyCacheMigrationTests
             {
                 r.Players =
                 [
-                    new CachedPlayerInfo
-                    {
-                        Slot = 1,
-                        Name = "s1mple",
-                        Team = 3,
-                        SteamId64 = "765"
-                    }
+                    new CachedPlayerInfo { Slot = 1, Name = "s1mple", Team = 3, SteamId64 = "765" }
                 ];
                 r.Rounds =
                 [
-                    new CachedRound
-                    {
-                        Number = 1,
-                        StartTickFrameClock = 500
-                    }
+                    new CachedRound { Number = 1, StartTickFrameClock = 500 }
                 ];
                 r.TickRate = 64;
                 DemoCacheStore.StampParse(r);
@@ -252,13 +235,7 @@ public class LegacyCacheMigrationTests
                     ConfigFingerprint = "fp-legacy",
                     Players =
                     [
-                        new LegacyCachedPlayer
-                        {
-                            Slot = 1,
-                            Name = "s1mple",
-                            SteamId64 = "765",
-                            Team = 3
-                        }
+                        new LegacyCachedPlayer { Slot = 1, Name = "s1mple", SteamId64 = "765", Team = 3 }
                     ],
                     Events =
                     [
@@ -310,7 +287,7 @@ public class LegacyCacheMigrationTests
         try
         {
             string bad = Path.Combine(dir, "library.json");
-            File.WriteAllText(bad, "{{{ not json");
+            await File.WriteAllTextAsync(bad, "{{{ not json");
 
             DemoCacheStore store = new(Path.Combine(dir, "cache"));
             LegacyCacheMigration.MigrationResult result =

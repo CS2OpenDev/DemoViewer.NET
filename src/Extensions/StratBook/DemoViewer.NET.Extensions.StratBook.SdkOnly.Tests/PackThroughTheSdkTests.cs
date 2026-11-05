@@ -119,7 +119,7 @@ public class PackThroughTheSdkTests
         // The other DI-free lists a host reads at the same moment, each keyed by an id it stores.
         string[] commands = [.. pack.Commands.Select(c => c.Id)];
         string[] jobKinds = [.. pack.JobKinds.Select(k => k.Id)];
-        string[] stores = [.. pack.Stores.Select(s => s.Id)];
+        string?[] stores = [.. pack.Stores.Select(s => s?.Id)];
         await Assert.That(commands.Distinct(StringComparer.Ordinal).Count()).IsEqualTo(commands.Length);
         await Assert.That(jobKinds.Distinct(StringComparer.Ordinal).Count()).IsEqualTo(jobKinds.Length);
         await Assert.That(stores.Distinct(StringComparer.Ordinal).Count()).IsEqualTo(stores.Length);
@@ -133,8 +133,7 @@ public class PackThroughTheSdkTests
 
         HashSet<string> scopes = new(pack.CommandScopes.Select(s => s.Id), StringComparer.Ordinal)
         {
-            "playback2d",
-            "playback2d.tool"
+            "playback2d", "playback2d.tool"
         };
         await Assert.That(pack.Commands.Where(c => !scopes.Contains(c.Scope))
             .Select(c => $"{c.Id} in scope {c.Scope}").ToList()).IsEmpty();
@@ -161,7 +160,7 @@ public class PackThroughTheSdkTests
             .. services.Select(d => d.ServiceType)
                 .Select(t => (Type: t, Assembly: t.Assembly.GetName().Name ?? ""))
                 .Where(x => x.Assembly.StartsWith("DemoViewer.NET", StringComparison.Ordinal)
-                            && !_packAndPublishedLibraries.Contains(x.Assembly, StringComparer.Ordinal))
+                    && !_packAndPublishedLibraries.Contains(x.Assembly, StringComparer.Ordinal))
                 .Select(x => $"{x.Type.FullName} from {x.Assembly}")
                 .Distinct(StringComparer.Ordinal)
         ];
@@ -280,19 +279,21 @@ public class PackThroughTheSdkTests
         HashSet<string> known = new(pack.Features.Select(f => f.Id), StringComparer.Ordinal);
         known.UnionWith(HostPublishedIds());
 
-        List<(string Where, string? FeatureId)> gates = [];
-        gates.AddRange(recorded.HubTabs.Select(h => ($"hub {h.Id}", h.FeatureId)));
-        gates.AddRange(recorded.SettingsPages.Select(p => ($"settings page {p.Id}", p.FeatureId)));
-        gates.AddRange(recorded.SettingsSchemas.Select(s => ($"settings schema {s.Id}", s.FeatureId)));
-        gates.AddRange(recorded.Rulesets.Select(r => ($"ruleset {r.Id}", r.FeatureId)));
-        gates.AddRange(recorded.DemoActions.Select(a => ($"demo action {a.Id}", a.FeatureId)));
-        gates.AddRange(recorded.StatusChips.Select(c => ($"status chip {c.Id}", c.FeatureId)));
-        gates.AddRange(recorded.LibraryContributions
-            .Select(c => ($"library {c.GetType().Name}", c.FeatureId)));
-        gates.AddRange(recorded.ReindexEstimates
-            .Select(e => ($"reindex estimate {e.GetType().Name}", (string?)e.FeatureId)));
-        gates.AddRange(recorded.DataRemovals
-            .Select(r => ($"data removal {r.GetType().Name}", (string?)r.FeatureId)));
+        List<(string Where, string? FeatureId)> gates =
+        [
+            .. recorded.HubTabs.Select(h => ($"hub {h.Id}", h.FeatureId)),
+            .. recorded.SettingsPages.Select(p => ($"settings page {p.Id}", p.FeatureId)),
+            .. recorded.SettingsSchemas.Select(s => ($"settings schema {s.Id}", s.FeatureId)),
+            .. recorded.Rulesets.Select(r => ($"ruleset {r.Id}", r.FeatureId)),
+            .. recorded.DemoActions.Select(a => ($"demo action {a.Id}", a.FeatureId)),
+            .. recorded.StatusChips.Select(c => ($"status chip {c.Id}", c.FeatureId)),
+            .. recorded.LibraryContributions
+                .Select(c => ($"library {c.GetType().Name}", c.FeatureId)),
+            .. recorded.ReindexEstimates
+                .Select(e => ($"reindex estimate {e.GetType().Name}", (string?)e.FeatureId)),
+            .. recorded.DataRemovals
+                .Select(r => ($"data removal {r.GetType().Name}", (string?)r.FeatureId))
+        ];
 
         string[] undeclared =
         [

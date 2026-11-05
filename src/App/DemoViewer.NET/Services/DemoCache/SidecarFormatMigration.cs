@@ -53,7 +53,8 @@ public static class SidecarFormatMigration
             return null;
         }
 
-        return queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration, "Sidecar format: compress cached files",
+        return queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration,
+            "Sidecar format: compress cached files",
             "demo-cache", DemoJobPriority.Background,
             async job =>
             {
@@ -120,7 +121,8 @@ public static class SidecarFormatMigration
 
             if (failed == 0)
             {
-                File.WriteAllText(Path.Combine(root, MarkerFileName), DateTime.UtcNow.ToString("O"));
+                await File.WriteAllTextAsync(Path.Combine(root, MarkerFileName), DateTime.UtcNow.ToString("O"),
+                    cancellationToken).ConfigureAwait(false);
             }
 
             SidecarFormatLog.PassFinished(Log, demos, converted, failed);

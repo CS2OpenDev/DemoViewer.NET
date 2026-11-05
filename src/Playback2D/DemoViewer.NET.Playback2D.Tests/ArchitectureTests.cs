@@ -7,9 +7,9 @@ using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Pipeline;
-using SysAssembly = System.Reflection.Assembly;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
+using SysAssembly = System.Reflection.Assembly;
 
 #endregion
 
@@ -299,7 +299,8 @@ public class ArchitectureTests
         [
             .. typeof(Scene2DFrame).GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .Where(p => p.SetMethod is { IsPublic: true } set
-                            && !set.ReturnParameter.GetRequiredCustomModifiers().Contains(typeof(System.Runtime.CompilerServices.IsExternalInit)))
+                    && !set.ReturnParameter.GetRequiredCustomModifiers()
+                        .Contains(typeof(System.Runtime.CompilerServices.IsExternalInit)))
                 .Select(p => p.Name)
         ];
 
@@ -352,9 +353,11 @@ public class ArchitectureTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(fields.Length).IsGreaterThan(0).Because("reflection found no ids, so the check below is vacuous");
+            await Assert.That(fields.Length).IsGreaterThan(0)
+                .Because("reflection found no ids, so the check below is vacuous");
             await Assert.That(literals).IsEmpty()
-                .Because("a const id is inlined into every consumer, so an extension keeps the old string after a rename");
+                .Because(
+                    "a const id is inlined into every consumer, so an extension keeps the old string after a rename");
         }
     }
 
@@ -367,15 +370,17 @@ public class ArchitectureTests
     public async Task ExCoreNamespaces_AllStillExist()
     {
         Type[] all = Pipeline.GetTypes();
-        List<string> empty = [.. _exCoreNamespaces.Where(ns => !all.Any(t => t.Namespace == ns))];
-        List<string> gone = [.. _mergedNamespaceOwnTypes.Where(n => !all.Any(t => t.FullName == n))];
+        List<string> empty = [.. _exCoreNamespaces.Where(ns => all.All(t => t.Namespace != ns))];
+        List<string> gone = [.. _mergedNamespaceOwnTypes.Where(n => all.All(t => t.FullName != n))];
 
         using (Assert.Multiple())
         {
             await Assert.That(empty).IsEmpty()
-                .Because("an ex-Core namespace was renamed or emptied; re-key the arch guards on its new name in the same commit");
+                .Because(
+                    "an ex-Core namespace was renamed or emptied; re-key the arch guards on its new name in the same commit");
             await Assert.That(gone).IsEmpty()
-                .Because("a type excluded from the ex-Core guards was renamed or moved; re-key the entry in the same commit");
+                .Because(
+                    "a type excluded from the ex-Core guards was renamed or moved; re-key the entry in the same commit");
         }
     }
 
@@ -426,7 +431,8 @@ public class ArchitectureTests
     public async Task ExCoreSources_NameNoneOfTheForbiddenRoots()
     {
         string repoRoot = TestTiers.FindRepoRoot()
-            ?? throw new SkipTestException("repo root not found (no DemoViewer.NET.slnx above the test binary)");
+            ?? throw new SkipTestException(
+                "repo root not found (no DemoViewer.NET.slnx above the test binary)");
         string pipelineRoot = Path.Combine(repoRoot, "src", "Playback2D", "DemoViewer.NET.Playback2D.Pipeline");
 
         // Derived, not hand-listed: a Pipeline type added outside the ex-Core namespaces is covered the
@@ -444,13 +450,15 @@ public class ArchitectureTests
         List<string> offenders = [];
         foreach (string file in Directory.EnumerateFiles(pipelineRoot, "*.cs", SearchOption.AllDirectories))
         {
-            if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                || file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",
+                    StringComparison.Ordinal)
+                || file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
+                    StringComparison.Ordinal))
             {
                 continue;
             }
 
-            string text = File.ReadAllText(file);
+            string text = await File.ReadAllTextAsync(file);
             Match declared = Regex.Match(text, @"^namespace\s+([\w.]+)\s*;", RegexOptions.Multiline);
             if (!declared.Success || !_exCoreNamespaces.Contains(declared.Groups[1].Value, StringComparer.Ordinal))
             {
@@ -460,7 +468,7 @@ public class ArchitectureTests
             // Comments are stripped first. VisionLayer's own summary explains that VisibilityEngine is a
             // CS2DemoKit type and that IVisionSolver exists to keep it out, which is the opposite of a
             // violation and would otherwise be read as one.
-            string code = Regex.Replace(text, @"//.*?$", "", RegexOptions.Multiline);
+            string code = Regex.Replace(text, "//.*?$", "", RegexOptions.Multiline);
             code = Regex.Replace(code, @"/\*.*?\*/", "", RegexOptions.Singleline);
 
             // A file in one of the two merged namespaces that declares one of Pipeline's own types is not
@@ -484,7 +492,8 @@ public class ArchitectureTests
         }
 
         await Assert.That(offenders.Order(StringComparer.Ordinal).ToList()).IsEmpty()
-            .Because("an ex-Core source names the parser, the encoder, Avalonia, the module abstractions or a Pipeline type outside the ex-Core namespaces");
+            .Because(
+                "an ex-Core source names the parser, the encoder, Avalonia, the module abstractions or a Pipeline type outside the ex-Core namespaces");
     }
 
     [Test]
@@ -513,7 +522,7 @@ public class ArchitectureTests
         }
 
         return _exCoreNamespaces.Contains(outer.Namespace, StringComparer.Ordinal)
-               && !_mergedNamespaceOwnTypes.Contains(outer.FullName, StringComparer.Ordinal);
+            && !_mergedNamespaceOwnTypes.Contains(outer.FullName, StringComparer.Ordinal);
     }
 
     // A type's simple name without generic arity: List`1 reads as List.
@@ -530,6 +539,7 @@ public class ArchitectureTests
     private static List<Type> SurfaceTypes(Type type)
     {
         List<Type> found = [];
+
         void Add(Type? t)
         {
             if (t is null)
@@ -556,7 +566,8 @@ public class ArchitectureTests
             Add(i);
         }
 
-        const BindingFlags All = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+        const BindingFlags All = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
+            | BindingFlags.Static;
         foreach (FieldInfo f in type.GetFields(All))
         {
             Add(f.FieldType);

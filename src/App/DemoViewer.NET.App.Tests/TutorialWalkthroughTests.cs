@@ -19,7 +19,6 @@ using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.ViewModels.Tutorial;
 using DemoViewer.NET.Views;
 using Path = System.IO.Path;
-using DemoViewer.NET.Extensions.StratBook.Controls;
 
 #endregion
 
@@ -170,16 +169,8 @@ public class TutorialWalkthroughTests
             MainViewModel vm = NewShell();
             try
             {
-                MainView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 1280,
-                    Height = 800,
-                    Content = view
-                };
+                MainView view = new() { DataContext = vm };
+                Window window = new() { Width = 1280, Height = 800, Content = view };
                 window.Show();
 
                 vm.StartWalkthrough();
@@ -256,16 +247,8 @@ public class TutorialWalkthroughTests
             MainViewModel vm = NewShell();
             try
             {
-                MainView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 1280,
-                    Height = 800,
-                    Content = view
-                };
+                MainView view = new() { DataContext = vm };
+                Window window = new() { Width = 1280, Height = 800, Content = view };
                 window.Show();
 
                 vm.StartWalkthrough();
@@ -288,9 +271,9 @@ public class TutorialWalkthroughTests
                 // The real Open-Demo button lives under the hole and must be reachable there…
                 Control? hit = window.InputHitTest(hole.Center) as Control;
                 bool overButton = hit is not null
-                                  && TutorialAnchor.TryResolve(TutorialTarget.OpenDemo, out Control btn)
-                                  && (ReferenceEquals(hit, btn) || btn.GetVisualDescendants().Contains(hit)
-                                                                || hit.GetVisualAncestors().Contains(btn));
+                    && TutorialAnchor.TryResolve(TutorialTarget.OpenDemo, out Control btn)
+                    && (ReferenceEquals(hit, btn) || btn.GetVisualDescendants().Contains(hit)
+                        || hit.GetVisualAncestors().Contains(btn));
                 await Assert.That(overButton).IsTrue()
                     .Because("a click in the spotlight hole passes through the scrim to the real Open-Demo button");
 
@@ -324,16 +307,8 @@ public class TutorialWalkthroughTests
             MainViewModel vm = new(null, registry, TestLibraries.WithEntry(tempDemo));
             try
             {
-                MainView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 1280,
-                    Height = 800,
-                    Content = view
-                };
+                MainView view = new() { DataContext = vm };
+                Window window = new() { Width = 1280, Height = 800, Content = view };
                 window.Show();
 
                 vm.StartWalkthrough();
@@ -394,16 +369,8 @@ public class TutorialWalkthroughTests
                 tourSampleLocator: () => tempSample);
             try
             {
-                MainView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 1280,
-                    Height = 800,
-                    Content = view
-                };
+                MainView view = new() { DataContext = vm };
+                Window window = new() { Width = 1280, Height = 800, Content = view };
                 window.Show();
 
                 vm.StartWalkthrough();
@@ -489,7 +456,7 @@ public class TutorialWalkthroughTests
 
                 await Assert.That(vm.SelectedTab!.TabId).IsEqualTo("builtin.library")
                     .Because("mid-tour the card open must not yank the shell off the spotlighted "
-                             + "Library — the tour navigates tabs itself once the demo run begins");
+                        + "Library — the tour navigates tabs itself once the demo run begins");
             }
             finally
             {
@@ -515,16 +482,8 @@ public class TutorialWalkthroughTests
             MainViewModel vm = NewShell();
             try
             {
-                MainView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 1280,
-                    Height = 800,
-                    Content = view
-                };
+                MainView view = new() { DataContext = vm };
+                Window window = new() { Width = 1280, Height = 800, Content = view };
                 window.Show();
 
                 vm.StartWalkthrough(); // welcome (1/13), a centred card, no spotlight
@@ -553,8 +512,8 @@ public class TutorialWalkthroughTests
 
                 // Sample both animations across the same span of render ticks. Several samples so we don't alias
                 // the sine's turning points.
-                List<double> pulse = new();
-                List<double> dotOpacity = new();
+                List<double> pulse = [];
+                List<double> dotOpacity = [];
                 for (int i = 0; i < 200; i++)
                 {
                     AvaloniaHeadlessPlatform.ForceRenderTimerTick();

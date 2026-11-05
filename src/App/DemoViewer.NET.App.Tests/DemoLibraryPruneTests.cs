@@ -104,7 +104,7 @@ public sealed class DemoLibraryPruneTests : IDisposable
             // Distinct bytes: identical files collapse into one card by content hash.
             for (int i = 0; i < files.Length; i++)
             {
-                File.WriteAllBytes(files[i], Enumerable.Repeat((byte)(i + 1), 16).ToArray());
+                await File.WriteAllBytesAsync(files[i], [.. Enumerable.Repeat((byte)(i + 1), 16)]);
             }
 
             using DemoLibraryService svc = Library(SeedCache(dir, [demos]));
@@ -120,9 +120,12 @@ public sealed class DemoLibraryPruneTests : IDisposable
             using (Assert.Multiple())
             {
                 await Assert.That(before.Count).IsEqualTo(5);
-                await Assert.That(changes).IsEquivalentTo([System.Collections.Specialized.NotifyCollectionChangedAction.Reset], CollectionOrdering.Matching);
+                await Assert.That(changes)
+                    .IsEquivalentTo([System.Collections.Specialized.NotifyCollectionChangedAction.Reset],
+                        CollectionOrdering.Matching);
                 await Assert.That(svc.Entries.Select(e => e.FilePath))
-                    .IsEquivalentTo(before.Where(p => p != files[1] && p != files[2] && p != files[4]), CollectionOrdering.Matching);
+                    .IsEquivalentTo(before.Where(p => p != files[1] && p != files[2] && p != files[4]),
+                        CollectionOrdering.Matching);
             }
         }
         finally
@@ -147,7 +150,7 @@ public sealed class DemoLibraryPruneTests : IDisposable
             string[] files = [.. Enumerable.Range(1, 5).Select(i => Path.Combine(demos, $"d{i}.dem"))];
             for (int i = 0; i < files.Length; i++)
             {
-                File.WriteAllBytes(files[i], Enumerable.Repeat((byte)(i + 1), 16).ToArray());
+                await File.WriteAllBytesAsync(files[i], [.. Enumerable.Repeat((byte)(i + 1), 16)]);
             }
 
             using DemoLibraryService svc = Library(SeedCache(dir, [demos]));
@@ -180,7 +183,8 @@ public sealed class DemoLibraryPruneTests : IDisposable
             using (Assert.Multiple())
             {
                 await Assert.That(placements).IsEqualTo(2);
-                await Assert.That(svc.Entries.Select(e => Path.GetFileName(e.FilePath)).Order()).IsEquivalentTo(["d1.dem", "d4.dem"], CollectionOrdering.Matching);
+                await Assert.That(svc.Entries.Select(e => Path.GetFileName(e.FilePath)).Order())
+                    .IsEquivalentTo(["d1.dem", "d4.dem"], CollectionOrdering.Matching);
             }
         }
         finally
@@ -199,7 +203,7 @@ public sealed class DemoLibraryPruneTests : IDisposable
         try
         {
             string live = Path.Combine(demos, "live.dem");
-            File.WriteAllBytes(live, new byte[16]);
+            await File.WriteAllBytesAsync(live, new byte[16]);
             string deleted = Path.Combine(demos, "deleted.dem"); // never created
 
             string dataPath = SeedCache(dir, [demos], live, deleted);
@@ -240,11 +244,11 @@ public sealed class DemoLibraryPruneTests : IDisposable
         try
         {
             string live = Path.Combine(demos, "live.dem");
-            File.WriteAllBytes(live, new byte[16]);
+            await File.WriteAllBytesAsync(live, new byte[16]);
 
             // The file still EXISTS, but its folder is no longer registered, out of scope either way.
             string orphan = Path.Combine(retired, "orphan.dem");
-            File.WriteAllBytes(orphan, new byte[16]);
+            await File.WriteAllBytesAsync(orphan, new byte[16]);
 
             string dataPath = SeedCache(dir, [demos], live, orphan);
 
@@ -284,9 +288,9 @@ public sealed class DemoLibraryPruneTests : IDisposable
         try
         {
             string live = Path.Combine(demos, "live.dem");
-            File.WriteAllBytes(live, new byte[16]);
+            await File.WriteAllBytesAsync(live, new byte[16]);
             string onDetached = Path.Combine(detached, "away.dem");
-            File.WriteAllBytes(onDetached, new byte[16]);
+            await File.WriteAllBytesAsync(onDetached, new byte[16]);
 
             // BOTH folders are registered; then the second one goes away, exactly as a volume unmounting.
             string dataPath = SeedCache(dir, [demos, detached], live, onDetached);
@@ -326,8 +330,8 @@ public sealed class DemoLibraryPruneTests : IDisposable
         {
             string a = Path.Combine(detached, "a.dem");
             string b = Path.Combine(detached, "b.dem");
-            File.WriteAllBytes(a, new byte[16]);
-            File.WriteAllBytes(b, new byte[16]);
+            await File.WriteAllBytesAsync(a, new byte[16]);
+            await File.WriteAllBytesAsync(b, new byte[16]);
 
             string dataPath = SeedCache(dir, [detached], a, b);
             Directory.Delete(detached, true);
@@ -360,7 +364,7 @@ public sealed class DemoLibraryPruneTests : IDisposable
         try
         {
             string live = Path.Combine(demos, "live.dem");
-            File.WriteAllBytes(live, new byte[16]);
+            await File.WriteAllBytesAsync(live, new byte[16]);
             string deleted = Path.Combine(demos, "deleted.dem");
 
             string dataPath = SeedCache(dir, [demos], live, deleted);
@@ -378,7 +382,8 @@ public sealed class DemoLibraryPruneTests : IDisposable
             {
                 await Assert.That(cache.TryGetIndex(deleted)).IsNull();
                 await Assert.That(cache.TryGetOrphan("sha-deleted")).IsNotNull();
-                await Assert.That(File.Exists(Path.Combine(dir, "cache", "demos", "sha-deleted" + DemoCacheStore.RecordSuffix)))
+                await Assert
+                    .That(File.Exists(Path.Combine(dir, "cache", "demos", "sha-deleted" + DemoCacheStore.RecordSuffix)))
                     .IsTrue().Because("the orphan's record moves off the path's key and stays");
             }
 
@@ -404,13 +409,13 @@ public sealed class DemoLibraryPruneTests : IDisposable
         try
         {
             string live = Path.Combine(demos, "live.dem");
-            File.WriteAllBytes(live, new byte[16]);
+            await File.WriteAllBytesAsync(live, new byte[16]);
             string deleted = Path.Combine(demos, "deleted.dem");
 
             string dataPath = SeedCache(dir, [demos], live, deleted);
 
             DemoCacheStore cache = new(Path.Combine(dir, "cache"));
-            cache.Update(deleted, 10, 20, r => DemoCacheStore.StampParse(r));
+            cache.Update(deleted, 10, 20, DemoCacheStore.StampParse);
             string sidecar = cache.SidecarPathFor(deleted)!;
             await Assert.That(File.Exists(sidecar)).IsTrue();
 

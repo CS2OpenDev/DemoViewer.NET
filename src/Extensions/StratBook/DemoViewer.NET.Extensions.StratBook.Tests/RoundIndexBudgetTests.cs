@@ -1,8 +1,8 @@
 #region
 
 using System.Diagnostics;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Services.DemoCache;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 
 #endregion
@@ -68,8 +68,8 @@ public class RoundIndexBudgetTests
             lookup.Stop();
 
             Console.WriteLine($"corpus: {index.IndexedDemoCount} demos loaded in {load.ElapsedMilliseconds} ms " +
-                              $"({load.Elapsed.TotalMilliseconds / Demos:F2} ms per demo); " +
-                              $"tolerant query {count} hits in {lookup.Elapsed.TotalMilliseconds:F3} ms");
+                $"({load.Elapsed.TotalMilliseconds / Demos:F2} ms per demo); " +
+                $"tolerant query {count} hits in {lookup.Elapsed.TotalMilliseconds:F3} ms");
 
             using (Assert.Multiple())
             {

@@ -57,15 +57,15 @@ public class MemoryReleaseTests
             await Assert.That(refs.Parsed.IsAlive)
                 .IsFalse()
                 .Because("the closed demo's ParsedDemo must be collectable — a live one means some shell "
-                         + "or tab field still references it (see MainViewModel.UnloadDemoState)");
+                    + "or tab field still references it (see MainViewModel.UnloadDemoState)");
             await Assert.That(refs.FirstFrame.IsAlive)
                 .IsFalse()
                 .Because("frames slice zero-copy into the demo byte buffer, so ONE surviving frame pins "
-                         + "the whole file — this is the assertion that actually guards the RAM promise");
+                    + "the whole file — this is the assertion that actually guards the RAM promise");
             await Assert.That(refs.Schema.IsAlive)
                 .IsFalse()
                 .Because("the runtime schema (flattened serializers) is demo-scale and reached through "
-                         + "both ParsedDemo and any surviving EntityTracker");
+                    + "both ParsedDemo and any surviving EntityTracker");
         }
     }
 
@@ -89,11 +89,11 @@ public class MemoryReleaseTests
             await vm.AutoLoadDemoAsync(demo);
             await Assert.That(vm.Frames.Count).IsGreaterThan(60);
 
-            // Seek: builds the authoritative tracker (checkpoint replay), the entity node/group trees,
+            // Seek: builds the authoritative tracker (checkpoint replay), the entity node trees,
             // the prev-tick delta snapshot, and the parser card build for the landed frame.
-            const int target = 40;
-            vm.Navigation.SeekToFrame(target);
-            EntityTracker? tracker = await WaitForTrackerAt(vm, target);
+            const int Target = 40;
+            vm.Navigation.SeekToFrame(Target);
+            await WaitForTrackerAt(vm, Target);
             await Assert.That(vm.EntityTab.EntityListItems.Count).IsGreaterThan(0);
 
             // Inspect: fills EntityInspector (relationship tree) + DeltaLog for the selected entity.
@@ -102,9 +102,8 @@ public class MemoryReleaseTests
             vm.EntityTab.SelectedEntityItem = entity;
 
             refs = CaptureInteractedRefs(vm);
-            // Drop the locals: both are (or may be) hoisted into the async state machine, whose box
-            // outlives this body, leaving either set would make the weak-ref assertions vacuous.
-            tracker = null;
+            // Drop the local: it is (or may be) hoisted into the async state machine, whose box
+            // outlives this body, so leaving it set would make the weak-ref assertions vacuous.
             entity = null;
 
             await vm.CloseDemoCommand.ExecuteAsync(null);
@@ -118,7 +117,7 @@ public class MemoryReleaseTests
             await Assert.That(refs.Tracker.IsAlive)
                 .IsFalse()
                 .Because("the EntityTracker holds per-class instance baselines, class shapes and entity "
-                         + "snapshots — it exists ONLY after a seek, so no other test would catch it");
+                    + "snapshots — it exists ONLY after a seek, so no other test would catch it");
             await Assert.That(refs.Parsed.IsAlive)
                 .IsFalse()
                 .Because("an interacted-with demo must release exactly like a freshly-loaded one");
@@ -128,7 +127,7 @@ public class MemoryReleaseTests
             await Assert.That(refs.SeekedEntity.IsAlive)
                 .IsFalse()
                 .Because("the inspected entity is reachable from the inspector tree, the delta log and "
-                         + "the entity list — every one of those roots has to let go");
+                    + "the entity list — every one of those roots has to let go");
         }
     }
 
@@ -201,12 +200,9 @@ public class MemoryReleaseTests
             new WeakReference(vm.EntityTab.SelectedEntityItem!));
     }
 
-    /// <summary>Waits for the async seek's tracker push, then hands back the tracker it published.</summary>
-    private static async Task<EntityTracker> WaitForTrackerAt(MainViewModel vm, int frameIndex)
-    {
+    /// <summary>Waits for the async seek's tracker push.</summary>
+    private static async Task WaitForTrackerAt(MainViewModel vm, int frameIndex) =>
         await vm.Playback.TrackerAtFrameAsync(frameIndex);
-        return vm.Playback.AuthoritativeTracker!;
-    }
 
     /// <summary>Full blocking compacting collection, repeated so finalizer-queue resurrections go too.</summary>
     private static void Collect()

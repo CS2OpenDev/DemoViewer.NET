@@ -35,12 +35,7 @@ public class PlayerOverviewEntryPointRenderTests
 
     private static Window Show(Control view, double width = 1200, double height = 900)
     {
-        Window window = new()
-        {
-            Width = width,
-            Height = height,
-            Content = view
-        };
+        Window window = new() { Width = width, Height = height, Content = view };
         window.Show();
         Pump();
         return window;
@@ -78,26 +73,31 @@ public class PlayerOverviewEntryPointRenderTests
         {
             List<(ulong, string?)> opened = [];
             MatchOverviewTabViewModel vm = PlayerOverviewEntryPointTests.Overview(opened);
-            Window window = Show(new MatchOverviewTabView
-            {
-                DataContext = vm
-            });
+            Window window = Show(new MatchOverviewTabView { DataContext = vm });
             try
             {
-                Control[] rows = [.. window.GetVisualDescendants().OfType<Control>()
-                    .Where(c => c.ContextMenu is not null && c.DataContext is OverviewPlayer or OverviewStatRow)];
+                Control[] rows =
+                [
+                    .. window.GetVisualDescendants().OfType<Control>()
+                        .Where(c => c.ContextMenu is not null && c.DataContext is OverviewPlayer or OverviewStatRow)
+                ];
+
                 Control Row(string name) => rows.First(c => c.DataContext switch
                 {
                     OverviewPlayer p => p.Name == name,
                     OverviewStatRow r => r.Name == name,
                     _ => false
                 });
-                Control[] Both(string name) => [.. rows.Where(c => c.DataContext switch
-                {
-                    OverviewPlayer p => p.Name == name,
-                    OverviewStatRow r => r.Name == name,
-                    _ => false
-                })];
+
+                Control[] Both(string name) =>
+                [
+                    .. rows.Where(c => c.DataContext switch
+                    {
+                        OverviewPlayer p => p.Name == name,
+                        OverviewStatRow r => r.Name == name,
+                        _ => false
+                    })
+                ];
 
                 await Assert.That(Both("Trin").Length).IsEqualTo(2).Because("a roster row and a scoreboard row");
                 foreach (Control row in Both("Bob"))
@@ -112,7 +112,9 @@ public class PlayerOverviewEntryPointRenderTests
 
                 MenuItem trin = Opened(Row("Trin"));
                 trin.Command!.Execute(null);
-                await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (PlayerOverviewEntryPointTests.Trin, "Trin") }, CollectionOrdering.Matching);
+                await Assert.That(opened)
+                    .IsEquivalentTo(new (ulong, string?)[] { (PlayerOverviewEntryPointTests.Trin, "Trin") },
+                        CollectionOrdering.Matching);
             }
             finally
             {
@@ -128,20 +130,20 @@ public class PlayerOverviewEntryPointRenderTests
         {
             List<(ulong, string?)> opened = [];
             AddClipsPickerViewModel picker = PlayerOverviewEntryPointTests.Picker(opened);
-            Window window = Show(new AddClipsPickerView
-            {
-                DataContext = picker
-            });
+            Window window = Show(new AddClipsPickerView { DataContext = picker });
             try
             {
                 Border Row(string player) => window.GetVisualDescendants().OfType<Border>()
-                    .First(b => b.Classes.Contains("pickRow") && b.DataContext is AddClipsRowViewModel r && r.PlayerName == player);
+                    .First(b => b.Classes.Contains("pickRow") && b.DataContext is AddClipsRowViewModel r
+                        && r.PlayerName == player);
 
                 await AssertEntry(Opened(Row("BOT Kirk")), false);
                 MenuItem neo = Opened(Row("Neo"));
                 await AssertEntry(neo, true);
                 neo.Command!.Execute(null);
-                await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (PlayerOverviewEntryPointTests.Neo, "Neo") }, CollectionOrdering.Matching);
+                await Assert.That(opened)
+                    .IsEquivalentTo(new (ulong, string?)[] { (PlayerOverviewEntryPointTests.Neo, "Neo") },
+                        CollectionOrdering.Matching);
             }
             finally
             {
@@ -158,10 +160,7 @@ public class PlayerOverviewEntryPointRenderTests
             using DemoLibraryService svc = PlayerOverviewEntryPointTests.NewService();
             List<(ulong, string?)> opened = [];
             LibraryTabViewModel vm = PlayerOverviewEntryPointTests.Library(svc, opened);
-            Window window = Show(new LibraryTabView
-            {
-                DataContext = vm
-            });
+            Window window = Show(new LibraryTabView { DataContext = vm });
             try
             {
                 Button? Find() => window.GetVisualDescendants().OfType<Button>()
@@ -174,14 +173,17 @@ public class PlayerOverviewEntryPointRenderTests
                 Button ambiguous = Find()!;
                 await Assert.That(ambiguous.IsVisible).IsTrue();
                 await Assert.That(ambiguous.IsEnabled).IsFalse();
-                await Assert.That(ToolTip.GetTip(ambiguous)).IsEqualTo("2 accounts played under this name; open one from a demo");
+                await Assert.That(ToolTip.GetTip(ambiguous))
+                    .IsEqualTo("2 accounts played under this name; open one from a demo");
 
                 vm.SelectedPlayer = "Neo";
                 Pump();
                 Button neo = Find()!;
                 await Assert.That(neo.IsEnabled).IsTrue();
                 neo.Command!.Execute(null);
-                await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (PlayerOverviewEntryPointTests.Neo, "Neo") }, CollectionOrdering.Matching);
+                await Assert.That(opened)
+                    .IsEquivalentTo(new (ulong, string?)[] { (PlayerOverviewEntryPointTests.Neo, "Neo") },
+                        CollectionOrdering.Matching);
             }
             finally
             {
@@ -216,10 +218,12 @@ public class PlayerOverviewEntryPointRenderTests
                 MenuItem submenu = view.FindControl<MenuItem>("PlayerOverviewMenuItem")!;
                 MenuItem[] items = [.. ((IEnumerable<MenuItem>)submenu.ItemsSource!)];
                 await Assert.That(submenu.IsVisible).IsTrue();
-                await Assert.That(items.Select(i => i.IsEnabled)).IsEquivalentTo((bool[])[true, false, true], CollectionOrdering.Matching);
+                await Assert.That(items.Select(i => i.IsEnabled))
+                    .IsEquivalentTo((bool[])[true, false, true], CollectionOrdering.Matching);
                 await Assert.That(ToolTip.GetTip(items[1])).IsEqualTo(PlayerOverviewLink.NoSteamIdTip);
                 items[2].RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent));
-                await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (1UL, "Alpha"), (3UL, "Charlie") }, CollectionOrdering.Matching);
+                await Assert.That(opened).IsEquivalentTo(((ulong, string?)[])[(1UL, "Alpha"), (3UL, "Charlie")],
+                    CollectionOrdering.Matching);
             }
             finally
             {

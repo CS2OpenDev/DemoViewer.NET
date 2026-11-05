@@ -2,7 +2,6 @@
 
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media.Imaging;
@@ -56,8 +55,10 @@ public class ProcessingQueueViewTests
             using HeavyJobGate gate = new();
             // Two declared extension kinds, labelled as the Strat Book labels its own, so the flyout shows the chips a
             // real library shows.
-            DemoViewer.NET.Extensions.JobKindRegistry kinds = DemoViewer.NET.Extensions.JobKindRegistry.Build([new KindsExtension()]);
-            using DemoProcessingQueue queue = new(gate, parseFile: _ => SyntheticDemo(), compactHeap: () => Task.CompletedTask,
+            DemoViewer.NET.Extensions.JobKindRegistry kinds =
+                DemoViewer.NET.Extensions.JobKindRegistry.Build([new KindsExtension()]);
+            using DemoProcessingQueue queue = new(gate, parseFile: _ => SyntheticDemo(),
+                compactHeap: () => Task.CompletedTask,
                 jobKinds: kinds);
             TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
             TaskCompletionSource reported = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -69,9 +70,11 @@ public class ProcessingQueueViewTests
                 _ => Task.FromException(new InvalidOperationException("no map bundle for de_nuke")),
                 ExtensionKind: KindsExtension.Clips));
             await PumpUntilAsync(() => done.Completion.IsCompleted && failed.Completion.IsCompleted
-                                         && queue.QueuedCount + queue.RunningCount == 0, "the finished items and the drain compaction");
+                    && queue.QueuedCount + queue.RunningCount == 0,
+                "the finished items and the drain compaction");
 
-            IDemoQueueHandle mining = queue.SubmitJob(new QueueJobRequest(QueueJobKind.Extension, "Strat mining: library",
+            IDemoQueueHandle mining = queue.SubmitJob(new QueueJobRequest(QueueJobKind.Extension,
+                "Strat mining: library",
                 "strat-mining", DemoJobPriority.UserRequested, async job =>
                 {
                     job.Report(48, 366, "48 of 366 demos");
@@ -82,8 +85,10 @@ public class ProcessingQueueViewTests
 
             queue.Pause();
             queue.SubmitJob(new QueueJobRequest(QueueJobKind.Extension,
-                "Lineup clips: de_mirage, 6 clips from faze-vs-spirit-m1.dem", "lineup-clips", DemoJobPriority.Background,
-                _ => Task.CompletedTask, "lineup-clips", "/demos/faze-vs-spirit-m1.dem", ExtensionKind: KindsExtension.Clips));
+                "Lineup clips: de_mirage, 6 clips from faze-vs-spirit-m1.dem", "lineup-clips",
+                DemoJobPriority.Background,
+                _ => Task.CompletedTask, "lineup-clips", "/demos/faze-vs-spirit-m1.dem",
+                ExtensionKind: KindsExtension.Clips));
             queue.SubmitJob(new QueueJobRequest(QueueJobKind.PackExport, "Pack export: 12 segments to review.mp4",
                 "review", DemoJobPriority.UserRequested, _ => Task.CompletedTask, Target: "/exports/review.mp4"));
             queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration, "Sidecar format: compress cached files",
@@ -98,8 +103,7 @@ public class ProcessingQueueViewTests
                 Padding = new Thickness(20),
                 Child = new Border
                 {
-                    Classes = { "card-flyout" },
-                    Child = new ProcessingQueueStatusView { DataContext = vm }
+                    Classes = { "card-flyout" }, Child = new ProcessingQueueStatusView { DataContext = vm }
                 }
             };
             host.Bind(Border.BackgroundProperty, host.GetResourceObservable("ShellBg"));
@@ -112,8 +116,11 @@ public class ProcessingQueueViewTests
                 new PngBitmapEncoderOptions());
 
             // Running first, then queued in the order the queue reports it will start them.
-            List<string> ranked = queue.Snapshot().Where(s => s.State == DemoQueueItemState.Queued)
-                .OrderBy(s => s.Light).ThenBy(s => s.StartRank).Select(s => s.DisplayName!).ToList();
+            List<string> ranked =
+            [
+                .. queue.Snapshot().Where(s => s.State == DemoQueueItemState.Queued)
+                    .OrderBy(s => s.Light).ThenBy(s => s.StartRank).Select(s => s.DisplayName!)
+            ];
             DemoQueueRowViewModel mine = vm.Rows.Single(r => r.KindLabel == "mining");
             using (Assert.Multiple())
             {
@@ -121,12 +128,14 @@ public class ProcessingQueueViewTests
                 await Assert.That(vm.Rows.Select(r => r.KindLabel).Where(k => k.Length > 0).Distinct().Order())
                     .IsEquivalentTo(["clips", "migration", "mining", "pack export"], CollectionOrdering.Matching);
                 await Assert.That(vm.Rows[0]).IsSameReferenceAs(mine);
-                await Assert.That(string.Join("|", vm.Rows.Skip(1).Select(r => r.DisplayText))).IsEqualTo(string.Join("|", ranked));
+                await Assert.That(string.Join("|", vm.Rows.Skip(1).Select(r => r.DisplayText)))
+                    .IsEqualTo(string.Join("|", ranked));
                 await Assert.That(mine.HasProgress).IsTrue();
                 await Assert.That(mine.ProgressValue).IsEqualTo(48.0 / 366);
                 await Assert.That(mine.Detail).IsEqualTo("48 of 366 demos");
                 await Assert.That(vm.RecentRows.Count).IsEqualTo(2);
-                await Assert.That(vm.RecentRows.Single(r => r.StateLabel == "Failed").Error).IsEqualTo("no map bundle for de_nuke");
+                await Assert.That(vm.RecentRows.Single(r => r.StateLabel == "Failed").Error)
+                    .IsEqualTo("no map bundle for de_nuke");
                 await Assert.That(vm.StatusLine).IsEqualTo("1 running · 4 queued · paused: background work held");
             }
 
@@ -140,7 +149,7 @@ public class ProcessingQueueViewTests
             Playback2DTimelineHarness.Pump();
             window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "queue-flyout-menu.png"),
                 new PngBitmapEncoderOptions());
-            MenuItem[] entries = menu.Items.OfType<MenuItem>().ToArray();
+            MenuItem[] entries = [.. menu.Items.OfType<MenuItem>()];
             using (Assert.Multiple())
             {
                 await Assert.That(entries.Select(m => (string)m.Header!)).IsEquivalentTo(
@@ -162,7 +171,8 @@ public class ProcessingQueueViewTests
 
             vm.IsRecentView = true;
             Playback2DTimelineHarness.Pump();
-            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "queue-flyout-mixed-recent.png"),
+            window.CaptureRenderedFrame()?.Save(
+                Path.Combine(HeadlessSession.ArtifactDir, "queue-flyout-mixed-recent.png"),
                 new PngBitmapEncoderOptions());
             vm.IsQueueView = true;
 
@@ -195,22 +205,22 @@ public class ProcessingQueueViewTests
             {
                 queue.SubmitBackground(new DemoProcessingRequest("/demos/navi-vs-vitality-m2.dem", "library",
                     DemoJobPriority.Background, 2, _ => { }, null, "navi-vs-vitality-m2.dem"));
-                queue.SubmitBackground(new DemoProcessingRequest("/demos/spirit-vs-mongolz-m3.dem", "library, highlights",
+                queue.SubmitBackground(new DemoProcessingRequest("/demos/spirit-vs-mongolz-m3.dem",
+                    "library, highlights",
                     DemoJobPriority.Background, 1, _ => { }, null, "spirit-vs-mongolz-m3.dem"));
                 await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
                 using IDemoOpenTicket open = queue.BeginOpen("/demos/faze-vs-g2-m1.dem", "faze-vs-g2-m1.dem");
                 Task<ParsedDemo> parse = open.ParseAsync(new byte[] { 1 });
                 using ProcessingQueueStatusViewModel vm = new(queue, () => { });
-                await PumpUntilAsync(() => vm.Rows.Count == 3 && vm.Rows[1].HasDetail, "the waiting open");
+                await PumpUntilAsync(() => vm.Rows is [_, { HasDetail: true }, _], "the waiting open");
 
                 Border host = new()
                 {
                     Padding = new Thickness(20),
                     Child = new Border
                     {
-                        Classes = { "card-flyout" },
-                        Child = new ProcessingQueueStatusView { DataContext = vm }
+                        Classes = { "card-flyout" }, Child = new ProcessingQueueStatusView { DataContext = vm }
                     }
                 };
                 host.Bind(Border.BackgroundProperty, host.GetResourceObservable("ShellBg"));
@@ -218,7 +228,8 @@ public class ProcessingQueueViewTests
                 window.Show();
                 Playback2DTimelineHarness.Pump();
                 window.CaptureRenderedFrame()?.Save(
-                    Path.Combine(HeadlessSession.ArtifactDir, "queue-flyout-open-waiting.png"), new PngBitmapEncoderOptions());
+                    Path.Combine(HeadlessSession.ArtifactDir, "queue-flyout-open-waiting.png"),
+                    new PngBitmapEncoderOptions());
 
                 await Assert.That(vm.Rows[0].StateLabel).IsEqualTo("Running");
                 DemoQueueRowViewModel first = vm.Rows[1];
@@ -252,37 +263,51 @@ public class ProcessingQueueViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             using HeavyJobGate gate = new();
-            using DemoProcessingQueue queue = new(gate, parseFile: _ => SyntheticDemo(), compactHeap: () => Task.CompletedTask);
+            using DemoProcessingQueue queue = new(gate, parseFile: _ => SyntheticDemo(),
+                compactHeap: () => Task.CompletedTask);
             TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
             TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
             try
             {
-                queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration, "Sidecar format: compress cached files",
+                queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration,
+                    "Sidecar format: compress cached files",
                     "demo-cache", DemoJobPriority.UserRequested, async job =>
                     {
                         started.TrySetResult();
                         await release.Task.WaitAsync(job.CancellationToken);
                     }));
                 await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
-                queue.SubmitBackground(new DemoProcessingRequest("/demos/a.dem", "library", DemoJobPriority.Background, 2,
+                queue.SubmitBackground(new DemoProcessingRequest("/demos/a.dem", "library", DemoJobPriority.Background,
+                    2,
                     _ => { }, null, "a.dem"));
-                queue.SubmitBackground(new DemoProcessingRequest("/demos/b.dem", "library", DemoJobPriority.Background, 1,
+                queue.SubmitBackground(new DemoProcessingRequest("/demos/b.dem", "library", DemoJobPriority.Background,
+                    1,
                     _ => { }, null, "b.dem"));
 
                 using ProcessingQueueStatusViewModel vm = new(queue, () => { });
                 await PumpUntilAsync(() => vm.Rows.Count == 3, "the rows");
                 ProcessingQueueStatusView view = new() { DataContext = vm };
                 Button chip = new() { Content = "Processing 1" };
-                Flyout flyout = new() { Placement = PlacementMode.Top, Content = new Border { Classes = { "card-flyout" }, Child = view } };
+                Flyout flyout = new()
+                {
+                    Placement = PlacementMode.Top,
+                    Content = new Border { Classes = { "card-flyout" }, Child = view }
+                };
                 chip.Flyout = flyout;
-                Window window = new() { Width = 500, Height = 700, Content = new Border { Padding = new Thickness(20, 600, 20, 20), Child = chip } };
+                Window window = new()
+                {
+                    Width = 500,
+                    Height = 700,
+                    Content = new Border { Padding = new Thickness(20, 600, 20, 20), Child = chip }
+                };
                 window.Show();
                 flyout.ShowAt(chip);
                 Playback2DTimelineHarness.Pump();
 
                 DemoQueueRowViewModel b = vm.Rows.Single(r => r.DisplayText == "b.dem");
                 await Assert.That(vm.Rows[^1]).IsSameReferenceAs(b);
-                Grid row = view.GetVisualDescendants().OfType<Grid>().First(g => g.ContextMenu is not null && ReferenceEquals(g.DataContext, b));
+                Grid row = view.GetVisualDescendants().OfType<Grid>()
+                    .First(g => g.ContextMenu is not null && ReferenceEquals(g.DataContext, b));
                 Point rowAt = row.TranslatePoint(new Point(40, 8), window)!.Value;
                 window.MouseDown(rowAt, MouseButton.Right);
                 window.MouseUp(rowAt, MouseButton.Right);
@@ -294,7 +319,8 @@ public class ProcessingQueueViewTests
                 window.MouseDown(itemAt, MouseButton.Left);
                 window.MouseUp(itemAt, MouseButton.Left);
                 await PumpUntilAsync(() => b.IsPromoted && vm.Rows[1] == b, "b.dem to move up");
-                await Assert.That(flyout.IsOpen).IsTrue().Because("picking from the row menu must not dismiss the chip's flyout");
+                await Assert.That(flyout.IsOpen).IsTrue()
+                    .Because("picking from the row menu must not dismiss the chip's flyout");
                 window.Close();
             }
             finally
@@ -311,7 +337,9 @@ public class ProcessingQueueViewTests
         public string Id => "net.test.kinds";
         public string FeatureId => "pack.kinds";
         public IEnumerable<ExtensionFeature> Features => [];
-        public IEnumerable<ExtensionJobKind> JobKinds => [new(Clips, "clips", false, 3), new(Mining, "mining", false, 2)];
+
+        public IEnumerable<ExtensionJobKind> JobKinds =>
+            [new(Clips, "clips", false, 3), new(Mining, "mining", false, 2)];
 
         public void Register(Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {

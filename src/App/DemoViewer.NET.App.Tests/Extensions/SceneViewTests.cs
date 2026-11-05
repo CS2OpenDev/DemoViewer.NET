@@ -6,17 +6,16 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Input;
-using DemoViewer.NET.Playback2D.Tools;
-using DemoViewer.NET.Playback2D.Pipeline.Input;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Input;
 using DemoViewer.NET.Playback2D.Timeline;
+using DemoViewer.NET.Playback2D.Tools;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 
@@ -33,7 +32,7 @@ namespace DemoViewer.NET.AppTests.Extensions;
 [Category("Render")]
 public class SceneViewTests
 {
-    private static readonly WorldBounds Mirage = new(-3230, -3410, 1860, 1680);
+    private static readonly WorldBounds _mirage = new(-3230, -3410, 1860, 1680);
 
     [Test]
     public async Task ASourcesFrame_IsDrawn_AndANewOneReplacesIt_WithTheTogglesTheViewFixes()
@@ -41,12 +40,12 @@ public class SceneViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             FakeSource source = new();
-            source.Publish(Frame(1));
+            source.Publish(FrameAt(1));
             (Window window, SceneView view) = Mount(source);
             Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
 
             await Assert.That(host.CurrentSceneFrame).IsSameReferenceAs(source.Frame);
-            Scene2DFrame next = Frame(2);
+            Scene2DFrame next = FrameAt(2);
             source.Publish(next);
             Playback2DTimelineHarness.Pump();
 
@@ -75,7 +74,7 @@ public class SceneViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             FakeSource source = new();
-            source.Publish(Frame(1));
+            source.Publish(FrameAt(1));
             (Window window, SceneView view) = Mount(source);
             Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
 
@@ -108,7 +107,7 @@ public class SceneViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             FakeSource source = new();
-            source.Publish(Frame(1));
+            source.Publish(FrameAt(1));
             (Window window, SceneView view) = Mount(source);
             Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
 
@@ -122,7 +121,8 @@ public class SceneViewTests
             }
 
             tool.Dispose();
-            await Assert.That(view.ActiveTool).IsEqualTo(ToolIds.Of(ToolKind.PanZoom)).Because("removing the active tool pans");
+            await Assert.That(view.ActiveTool).IsEqualTo(ToolIds.Of(ToolKind.PanZoom))
+                .Because("removing the active tool pans");
 
             IDisposable layer = view.AddLayer("sample.guides", () => new InertLayer("sample.guides"));
             await Assert.That(host.Compositor.Layers.Any(l => l.Id == "sample.guides")).IsTrue();
@@ -150,7 +150,7 @@ public class SceneViewTests
                 // this assembly being what the rig's scope owns.
                 SceneViewHost.Factory = () => new HostedSceneView(rig.Faults);
                 FakeSource source = new();
-                source.Publish(Frame(1));
+                source.Publish(FrameAt(1));
                 (Window window, SceneView view) = Mount(source);
                 Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
 
@@ -181,13 +181,14 @@ public class SceneViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             FakeSource source = new();
-            source.Publish(Frame(1));
+            source.Publish(FrameAt(1));
             (Window window, SceneView view) = Mount(source);
             Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
 
             InertLayer? first = null;
             IDisposable layer = view.AddLayer("sample.guides", () => first = new InertLayer("sample.guides"));
-            Assert.Throws<ArgumentException>(() => view.AddLayer("sample.guides", () => new InertLayer("sample.guides")));
+            Assert.Throws<ArgumentException>(() =>
+                view.AddLayer("sample.guides", () => new InertLayer("sample.guides")));
 
             // By reference, not by count: two layers of one id read alike, and the refused add must leave
             // the host holding the FIRST one. Holding the second is the corruption a replacement caused,
@@ -213,7 +214,7 @@ public class SceneViewTests
         {
             SdkSceneHosts.Install();
             FakeSource source = new();
-            source.Publish(Frame(1));
+            source.Publish(FrameAt(1));
             SceneView view = new() { Source = source };
             int arranged = 0;
             view.PanesArranged += (_, _) => arranged++;
@@ -241,7 +242,7 @@ public class SceneViewTests
         {
             SdkSceneHosts.Install();
             FakeSource source = new();
-            source.Publish(Frame(1));
+            source.Publish(FrameAt(1));
             (Window window, SceneView view) = Mount(source);
 
             RecordingMapTool tool = new();
@@ -301,8 +302,8 @@ public class SceneViewTests
         {
             SdkSceneHosts.Install();
             SceneView view = new() { Source = new FakeSource() };
-            ArgumentException refused = Assert.Throws<ArgumentException>(
-                () => view.AddLayer(id, () => new InertLayer(id)))!;
+            ArgumentException refused =
+                Assert.Throws<ArgumentException>(() => view.AddLayer(id, () => new InertLayer(id)));
             await Assert.That(refused.ParamName).IsEqualTo("id");
         });
     }
@@ -339,7 +340,8 @@ public class SceneViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             HostLibraryTests.LibraryTestExtension extension = new();
-            GuardedPointerTool impostor = new(new InertTool(ToolKind.Draw, "draw"), ExtensionGuard.Standalone(extension));
+            GuardedPointerTool impostor = new(new InertTool(ToolKind.Draw, "draw"),
+                ExtensionGuard.Standalone(extension));
             using Scene2DHost host = new();
 
             host.AddTool(impostor);
@@ -348,14 +350,16 @@ public class SceneViewTests
             using (Assert.Multiple())
             {
                 await Assert.That(impostor.Id).IsEqualTo("ext.test.library.draw");
-                await Assert.That(host.Router.Active).IsTypeOf<DrawTool>().Because("the scene's pen still holds 'draw'");
+                await Assert.That(host.Router.Active).IsTypeOf<DrawTool>()
+                    .Because("the scene's pen still holds 'draw'");
                 await Assert.That(host.Router.ActiveToolId).IsEqualTo(ToolIds.Of(ToolKind.Draw));
             }
 
             host.SetActiveTool(impostor.Id);
             using (Assert.Multiple())
             {
-                await Assert.That(host.Router.Active).IsSameReferenceAs(impostor).Because("its own filed id reaches it");
+                await Assert.That(host.Router.Active).IsSameReferenceAs(impostor)
+                    .Because("its own filed id reaches it");
                 await Assert.That(host.Router.ActiveKind).IsEqualTo(ToolKind.Draw)
                     .Because("the category it claimed, which selects nothing");
             }
@@ -383,12 +387,14 @@ public class SceneViewTests
             {
                 await Assert.That(a.Id).IsEqualTo("ext.pack.a.pin");
                 await Assert.That(b.Id).IsEqualTo("ext.pack.b.pin");
-                await Assert.That(host.Router.Active).IsSameReferenceAs(b).Because("one owner's id reaches its own tool only");
+                await Assert.That(host.Router.Active).IsSameReferenceAs(b)
+                    .Because("one owner's id reaches its own tool only");
             }
 
             host.RemoveTool(b);
             host.SetActiveTool(a.Id);
-            await Assert.That(host.Router.Active).IsSameReferenceAs(a).Because("dropping one leaves the other registered");
+            await Assert.That(host.Router.Active).IsSameReferenceAs(a)
+                .Because("dropping one leaves the other registered");
         });
     }
 
@@ -399,7 +405,8 @@ public class SceneViewTests
         HostLibraryTests.LibraryTestExtension extension = new();
         ExtensionGuard guard = ExtensionGuard.Standalone(extension);
 
-        Assert.Throws<ArgumentException>(() => _ = new GuardedPointerTool(new InertTool(ToolKind.Map, "my pin"), guard).Id);
+        Assert.Throws<ArgumentException>(() =>
+            _ = new GuardedPointerTool(new InertTool(ToolKind.Map, "my pin"), guard).Id);
         await Assert.That(ExtensionLayerIds.Compose(extension.Id, "pin")).StartsWith(ExtensionLayerIds.Root);
     }
 
@@ -459,7 +466,8 @@ public class SceneViewTests
         using (Assert.Multiple())
         {
             await Assert.That(timeline.TotalFrames).IsEqualTo(100);
-            await Assert.That(timeline.Markers.Select(m => m.FrameIndex)).IsEquivalentTo([10, 40], CollectionOrdering.Matching);
+            await Assert.That(timeline.Markers.Select(m => m.FrameIndex))
+                .IsEquivalentTo([10, 40], CollectionOrdering.Matching);
             await Assert.That(seeks).IsEquivalentTo([99, 0], CollectionOrdering.Matching);
         }
 
@@ -479,7 +487,7 @@ public class SceneViewTests
         return (window, view);
     }
 
-    private static Scene2DFrame Frame(int tick) => new()
+    private static Scene2DFrame FrameAt(int tick) => new()
     {
         Time = new SceneTime(tick, tick, tick / 64.0, 1 / 64.0, true),
         Markers =
@@ -487,7 +495,7 @@ public class SceneViewTests
             new PlayerMarker(0, 2, -800f, 600f, 64f, 0f, RingState.Team, 1, "T1", true, SteamId: 1),
             new PlayerMarker(5, 3, 900f, -500f, 64f, 0f, RingState.Team, 1, "CT1", true, SteamId: 6)
         ],
-        Map = new SceneMapInfo { MapName = "de_mirage", ObservedBounds = Mirage, NetworkedBounds = Mirage }
+        Map = new SceneMapInfo { MapName = "de_mirage", ObservedBounds = _mirage, NetworkedBounds = _mirage }
     };
 
     private sealed class FakeSource : ISceneSource
@@ -550,7 +558,8 @@ public class SceneViewTests
 
         public void OnMoved(in ToolPointerEvent e, IToolServices s) => throw new InvalidOperationException("move");
 
-        public void OnReleased(in ToolPointerEvent e, IToolServices s) => throw new InvalidOperationException("release");
+        public void OnReleased(in ToolPointerEvent e, IToolServices s) =>
+            throw new InvalidOperationException("release");
 
         public void OnCancelled(IToolServices s) => throw new InvalidOperationException("cancel");
     }
@@ -584,13 +593,13 @@ public class SceneViewTests
     {
         public Scene2DFrame Frame => throw new InvalidOperationException("frame");
 
-        public IMapAsset? MapAsset => throw new InvalidOperationException("map");
+        public IMapAsset MapAsset => throw new InvalidOperationException("map");
 
-        public AnnotationSession? Ink => throw new InvalidOperationException("ink");
+        public AnnotationSession Ink => throw new InvalidOperationException("ink");
 
         public bool ShowViewCones => throw new InvalidOperationException("cones");
 
-        public ITokenEditor? TokenEditor => throw new InvalidOperationException("tokens");
+        public ITokenEditor TokenEditor => throw new InvalidOperationException("tokens");
 
         public event Action? FrameUpdated
         {
@@ -607,9 +616,11 @@ public class SceneViewTests
 
         public bool IsAvailable(ITimelineData data) => throw new InvalidOperationException("available");
 
-        public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => throw new InvalidOperationException("markers");
+        public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) =>
+            throw new InvalidOperationException("markers");
 
-        public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) => throw new InvalidOperationException("bands");
+        public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data) =>
+            throw new InvalidOperationException("bands");
 
         public event Action? Changed
         {

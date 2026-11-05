@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Analysis.Clips;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 
@@ -35,15 +34,12 @@ public static class RoundFactsProjection
         ArgumentNullException.ThrowIfNull(table);
 
         thresholds ??= ThresholdsFrom(table.Parameters);
-        RoundFactsRows result = new()
-        {
-            Schema = RoundFactsRecords.Schema
-        };
+        RoundFactsRows result = new() { Schema = RoundFactsRecords.Schema };
 
         Dictionary<int, List<IReadOnlyDictionary<string, object?>>> byRound = new();
         foreach (IReadOnlyDictionary<string, object?> row in table.Rows)
         {
-            if (RoundFactsValues.ToInt(row.GetValueOrDefault(RoundFactsColumns.RoundNumber)) is not int number)
+            if (RoundFactsValues.ToInt(row.GetValueOrDefault(RoundFactsColumns.RoundNumber)) is not { } number)
             {
                 result.Warnings.Add("a row carries no round_number and was dropped");
                 continue;
@@ -110,11 +106,7 @@ public static class RoundFactsProjection
         BuyThresholds thresholds,
         RoundFacts? previous)
     {
-        RoundFacts round = new()
-        {
-            Number = clip.Number,
-            FreezeEndTick = clip.StartTickFrameClock
-        };
+        RoundFacts round = new() { Number = clip.Number, FreezeEndTick = clip.StartTickFrameClock };
 
         foreach (string column in RoundFactsColumns.Known)
         {
@@ -140,7 +132,8 @@ public static class RoundFactsProjection
                     round.ProjectionWarnings.Add($"a second row for side {side} was ignored");
                     break;
                 default:
-                    round.ProjectionWarnings.Add($"a row with side '{RoundFactsValues.ToText(row.GetValueOrDefault(RoundFactsColumns.Side)) ?? "null"}' was ignored");
+                    round.ProjectionWarnings.Add(
+                        $"a row with side '{RoundFactsValues.ToText(row.GetValueOrDefault(RoundFactsColumns.Side)) ?? "null"}' was ignored");
                     break;
             }
         }
@@ -173,28 +166,28 @@ public static class RoundFactsProjection
 
         int? Int(string column) => RoundFactsValues.ToInt(Cell(column));
 
-        if (Int(RoundFactsColumns.FreezeEndTick) is int freezeEnd && freezeEnd != clip.StartTickFrameClock)
+        if (Int(RoundFactsColumns.FreezeEndTick) is { } freezeEnd && freezeEnd != clip.StartTickFrameClock)
         {
             round.ProjectionWarnings.Add(
                 $"freeze_end_tick {freezeEnd} disagrees with the derived round start {clip.StartTickFrameClock}");
         }
 
-        if (Int(RoundFactsColumns.EndTick) is int endTick)
+        if (Int(RoundFactsColumns.EndTick) is { } endTick)
         {
             round.EndTick = endTick;
             round.EndSource = RoundEndSource.WinStatus;
         }
-        else if (Int(RoundFactsColumns.OfficiallyEndedTick) is int officiallyEnded)
+        else if (Int(RoundFactsColumns.OfficiallyEndedTick) is { } officiallyEnded)
         {
             round.EndTick = officiallyEnded;
             round.EndSource = RoundEndSource.OfficiallyEndedEvent;
         }
 
-        round.EndReason = Int(RoundFactsColumns.EndReason) is int reason && Enum.IsDefined((RoundEndReason)reason)
+        round.EndReason = Int(RoundFactsColumns.EndReason) is { } reason && Enum.IsDefined((RoundEndReason)reason)
             ? (RoundEndReason)reason
             : RoundEndReason.Unknown;
-        round.WinnerSide = Int(RoundFactsColumns.WinnerSide) is (SideT or SideCt) and int winner ? winner : 0;
-        round.MatchRoundNumber = Int(RoundFactsColumns.MatchRound) is int played ? played + 1 : null;
+        round.WinnerSide = Int(RoundFactsColumns.WinnerSide) switch { SideT => SideT, SideCt => SideCt, _ => 0 };
+        round.MatchRoundNumber = Int(RoundFactsColumns.MatchRound) is { } played ? played + 1 : null;
         round.GamePhase = Int(RoundFactsColumns.GamePhase);
         round.Half = BuyTypeClassifier.HalfOf(round.MatchRoundNumber, thresholds.RegulationRounds);
         round.RoundTimeSeconds = Int(RoundFactsColumns.RoundTime);
@@ -206,7 +199,7 @@ public static class RoundFactsProjection
         round.ExplodeTick = Int(RoundFactsColumns.ExplodeTick);
         round.OpeningKillTick = Int(RoundFactsColumns.OpeningKillTick);
         int? firstContact = Int(RoundFactsColumns.FirstContactTick);
-        round.FirstContactTick = firstContact is int contact && round.OpeningKillTick is int opening
+        round.FirstContactTick = firstContact is { } contact && round.OpeningKillTick is { } opening
             ? Math.Min(contact, opening)
             : firstContact ?? round.OpeningKillTick;
         round.IsLive = round.EndTick is not null || hasNext;
@@ -278,8 +271,7 @@ public static class RoundFactsProjection
         int count = ticks.Length;
         foreach ((string name, int[]? list) in new[]
                  {
-                     (RoundFactsColumns.KillVictimSide, victimSides),
-                     (RoundFactsColumns.KillTeamAlive, ctAlive),
+                     (RoundFactsColumns.KillVictimSide, victimSides), (RoundFactsColumns.KillTeamAlive, ctAlive),
                      (RoundFactsColumns.KillEnemyAlive, tAlive)
                  })
         {
@@ -314,11 +306,7 @@ public static class RoundFactsProjection
         BuyThresholds thresholds,
         RoundFacts? previous)
     {
-        SideFacts facts = new()
-        {
-            Side = side,
-            Thresholds = thresholds
-        };
+        SideFacts facts = new() { Side = side, Thresholds = thresholds };
 
         if (row is null)
         {
@@ -336,7 +324,8 @@ public static class RoundFactsProjection
         // only be checked against the ceiling scaled by the head count.
         int? money = RoundFactsValues.ToInt(row.GetValueOrDefault(RoundFactsColumns.Money));
         bool reliable = RoundFactsValues.ToBool(row.GetValueOrDefault(RoundFactsColumns.MoneyReliable))
-                        ?? (money is int m && m >= 0 && m <= thresholds.MoneySaneMax * Math.Max(facts.PlayersAtFreezeEnd, 1));
+            ?? (money is { } m and >= 0
+                && m <= thresholds.MoneySaneMax * Math.Max(facts.PlayersAtFreezeEnd, 1));
         facts.MoneyReliable = money is not null && reliable;
         facts.MoneyAtFreezeEnd = facts.MoneyReliable ? money : null;
 

@@ -114,7 +114,7 @@ public class LevelGoldenTests
 
         GoldenComparison result = GoldenImageComparer.Compare(before, after, GoldenTolerance.ByteExact);
         Console.WriteLine($"[levels] stacked round trip: match={result.Match} " +
-                          $"maxDelta={result.MaxChannelDelta}");
+            $"maxDelta={result.MaxChannelDelta}");
         await Assert.That(result.Match).IsTrue();
     }
 
@@ -251,7 +251,7 @@ public class LevelGoldenTests
         GoldenTolerance tolerance = GoldenTolerance.ForLabelledFrame(size.Width, size.Height, labels);
         GoldenComparison result = GoldenImageComparer.Compare(expected, actual, tolerance);
         Console.WriteLine($"[golden] {name} labels={labels} " +
-                          $"glyphBudget={tolerance.MaxGlyphOutlierFraction:P4} {result.Summary}");
+            $"glyphBudget={tolerance.MaxGlyphOutlierFraction:P4} {result.Summary}");
 
         if (!result.Match)
         {

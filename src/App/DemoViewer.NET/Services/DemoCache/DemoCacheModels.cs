@@ -5,9 +5,7 @@ using System.Text.Json.Serialization;
 using CS2DemoKit.Analysis.Abstractions;
 using CS2DemoKit.Analysis.Clips;
 using DemoViewer.NET.Services.ErrorReports;
-using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.MatchMeta;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 
@@ -57,6 +55,7 @@ public enum DemoAnalysisState
 ///     own tier: the single whole-record <c>CurrentSchema</c> the library cache uses today is exactly why
 ///     that cache has been conservative about growing new fields.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class TierStamp
 {
     /// <summary>Schema version of the tier's payload. 0 = the tier has never been written.</summary>
@@ -72,17 +71,17 @@ public sealed class TierStamp
 /// <summary>A player as the parse saw them. Widens the library cache's names-only list.</summary>
 public sealed class CachedPlayerInfo
 {
-    public int Slot { get; set; }
+    public int Slot { get; init; }
 
     /// <summary>RAW name: the CSVG <c>spec_player</c> currency. Sanitize at the render boundary, never here.</summary>
-    public string Name { get; set; } = "";
+    public string Name { get; init; } = "";
 
     public string SteamId64 { get; set; } = "";
 
     /// <summary>2 = T, 3 = CT (parser convention); anything else is a spectator/observer.</summary>
-    public int Team { get; set; }
+    public int Team { get; init; }
 
-    public bool IsBot { get; set; }
+    public bool IsBot { get; init; }
 
     /// <summary>
     ///     <c>CCSPlayerController.m_iCoachingTeam != 0</c> at the last frame: a registered coach, who sits on
@@ -90,19 +89,19 @@ public sealed class CachedPlayerInfo
     ///     record written before the field reads false, which is what every matchmaking replay measures
     ///     anyway. Team Identity keeps coaches out of side keys.
     /// </summary>
-    public bool IsCoach { get; set; }
+    public bool IsCoach { get; init; }
 }
 
 /// <summary>One player of one side on an index row: a human who is not a coach and carries a SteamID.</summary>
 public sealed class IndexSidePlayer
 {
-    public string SteamId64 { get; set; } = "";
+    public string SteamId64 { get; init; } = "";
 
     /// <summary>RAW name, as <see cref="CachedPlayerInfo.Name" />.</summary>
-    public string Name { get; set; } = "";
+    public string Name { get; init; } = "";
 
     /// <summary>Every slot the account held: one, or more after a reconnect.</summary>
-    public List<int> Slots { get; set; } = [];
+    public List<int> Slots { get; init; } = [];
 }
 
 /// <summary>
@@ -112,21 +111,21 @@ public sealed class IndexSidePlayer
 /// </summary>
 public sealed class FacetPlayer
 {
-    public string SteamId64 { get; set; } = "";
+    public string SteamId64 { get; init; } = "";
 
     /// <summary>RAW names, as <see cref="CachedPlayerInfo.Name" />, distinct, in slot order.</summary>
-    public List<string> Names { get; set; } = [];
+    public List<string> Names { get; init; } = [];
 
     /// <summary>Every slot with a facet row for the account, ascending.</summary>
-    public List<int> Slots { get; set; } = [];
+    public List<int> Slots { get; init; } = [];
 }
 
 /// <summary>A round boundary. Needed by clip lead-in flooring and by the round count.</summary>
 public sealed class CachedRound
 {
-    public int Number { get; set; }
+    public int Number { get; init; }
 
-    public int StartTickFrameClock { get; set; }
+    public int StartTickFrameClock { get; init; }
 }
 
 /// <summary>
@@ -151,11 +150,7 @@ public static class CachedRoundExtensions
         ArgumentNullException.ThrowIfNull(rounds);
         return
         [
-            .. rounds.Select(r => new CachedRound
-            {
-                Number = r.Number,
-                StartTickFrameClock = r.StartTickFrameClock
-            })
+            .. rounds.Select(r => new CachedRound { Number = r.Number, StartTickFrameClock = r.StartTickFrameClock })
         ];
     }
 }
@@ -163,22 +158,22 @@ public static class CachedRoundExtensions
 /// <summary>One scoreboard row: Match Overview's projection of a <c>player_match</c> row.</summary>
 public sealed class CachedStatRow
 {
-    public int Slot { get; set; }
+    public int Slot { get; init; }
 
     /// <summary>2 = T, 3 = CT: the side the player FINISHED on.</summary>
-    public int Team { get; set; }
+    public int Team { get; init; }
 
-    public int Kills { get; set; }
-    public int Deaths { get; set; }
-    public int Assists { get; set; }
-    public double Adr { get; set; }
-    public double Rating { get; set; }
+    public int Kills { get; init; }
+    public int Deaths { get; init; }
+    public int Assists { get; init; }
+    public double Adr { get; init; }
+    public double Rating { get; init; }
 
     /// <summary>Rounds won while on the CT side. Unreliable on HLTV demos: see the side-split reconcile.</summary>
-    public int CtWins { get; set; }
+    public int CtWins { get; init; }
 
     /// <summary>Rounds won while on the T side.</summary>
-    public int TWins { get; set; }
+    public int TWins { get; init; }
 }
 
 /// <summary>
@@ -186,16 +181,17 @@ public sealed class CachedStatRow
 ///     <see cref="DemoCacheRecord.Players" /> rather than re-stored per event: the highlights cache repeats
 ///     name + steamId on every row today, which is pure redundancy and makes renames incoherent.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class CachedHighlightEvent
 {
-    public string RulesetId { get; set; } = "";
+    public string RulesetId { get; init; } = "";
 
-    public string HighlightId { get; set; } = "";
+    public string HighlightId { get; init; } = "";
 
     public int FrameIndex { get; set; }
 
     /// <summary>Frame clock: NOT server-tick space. Never subtract ServerStartTick from this.</summary>
-    public int Tick { get; set; }
+    public int Tick { get; init; }
 
     /// <summary>
     ///     Frame-clock tick of the FIRST contributing event of the round for a count-based highlight
@@ -204,30 +200,30 @@ public sealed class CachedHighlightEvent
     ///     round start). Old sidecars written before this field deserialize to <c>null</c> = the
     ///     pre-existing lead-in-only behavior.
     /// </summary>
-    public int? ClipStartTick { get; set; }
+    public int? ClipStartTick { get; init; }
 
-    public int PlayerSlot { get; set; }
+    public int PlayerSlot { get; init; }
 
-    public int RoundNumber { get; set; }
+    public int RoundNumber { get; init; }
 
     /// <summary>
     ///     The title as rendered at emission. Embeds the player's name as it was then, deliberately. It is a
     ///     rendering artifact captured at a point in time, not a live projection.
     /// </summary>
-    public string RenderedTitle { get; set; } = "";
+    public string RenderedTitle { get; init; } = "";
 
     /// <summary>
     ///     Authored ranking weight (0–100) folding rarity × coolness: the reel orders firings by this
     ///     (higher first). Old sidecars written before this field deserialize to 0; harmless until re-scan.
     /// </summary>
-    public int Score { get; set; }
+    public int Score { get; init; }
 
     /// <summary>
     ///     The editorial track (skill <see cref="HighlightKind.Highlight" />, <see cref="HighlightKind.Funny" />,
     ///     or <see cref="HighlightKind.Lowlight" />) this firing belongs to. It routes it into the right reel.
     ///     Old sidecars deserialize to the default (<c>Highlight</c>).
     /// </summary>
-    public HighlightKind Kind { get; set; }
+    public HighlightKind Kind { get; init; }
 
     [JsonIgnore]
     public string TypeKey => $"{RulesetId}.{HighlightId}";
@@ -318,6 +314,7 @@ public sealed class DemoCacheRecord : IJsonOnDeserialized
     ///     has none. Nothing writes it.
     /// </summary>
     public List<CachedStatRow> Scoreboard { get; set; } = [];
+
     public List<CachedHighlightEvent> Highlights { get; set; } = [];
 
     /// <summary>
@@ -399,10 +396,10 @@ public sealed class DemoCacheRecord : IJsonOnDeserialized
     public DemoErrorReport? ErrorReport { get; set; }
 
     /// <summary>Per-pack payloads keyed by pack id. Opaque here; typed through <see cref="IPackPayloads" />.</summary>
-    public Dictionary<string, JsonElement> Packs { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, JsonElement> Packs { get; init; } = new(StringComparer.Ordinal);
 
     /// <summary>One stamp per pack facet written for this demo. See <see cref="PackStamp" />.</summary>
-    public List<PackStamp> PackStamps { get; set; } = [];
+    public List<PackStamp> PackStamps { get; init; } = [];
 
     /// <summary>
     ///     Members no property claims, held only between the read and <c>OnDeserialized</c>: a sidecar written
@@ -485,7 +482,8 @@ public sealed class DemoCacheRecord : IJsonOnDeserialized
 
         RoundFacts ??= other.RoundFacts;
         ErrorReport ??= other.ErrorReport;
-        if (other.MatchMeta is { MatchTimeSource: MatchTimeSource.UserOverride } chosen && MatchMeta?.MatchTimeSource != MatchTimeSource.UserOverride)
+        if (other.MatchMeta is { MatchTimeSource: MatchTimeSource.UserOverride } chosen
+            && MatchMeta?.MatchTimeSource != MatchTimeSource.UserOverride)
         {
             MatchMeta ??= chosen;
             MatchMeta.MatchTimeUtcTicks = chosen.MatchTimeUtcTicks;
@@ -695,9 +693,7 @@ public sealed class DemoCacheRecord : IJsonOnDeserialized
     ///     The team clustering keys sides on exactly this set.
     /// </summary>
     public static bool IsSidePlayer(CachedPlayerInfo player) =>
-        !player.IsBot
-        && !player.IsCoach
-        && player.Team is 2 or 3
+        player is { IsBot: false, IsCoach: false, Team: 2 or 3 }
         && !string.IsNullOrEmpty(player.SteamId64)
         && !string.Equals(player.SteamId64, "0", StringComparison.Ordinal);
 
@@ -718,7 +714,10 @@ public sealed class DemoCacheRecord : IJsonOnDeserialized
                 continue;
             }
 
-            players.Add(new IndexSidePlayer { SteamId64 = player.SteamId64, Name = player.Name, Slots = [player.Slot] });
+            players.Add(new IndexSidePlayer
+            {
+                SteamId64 = player.SteamId64, Name = player.Name, Slots = [player.Slot]
+            });
         }
 
         return players;
@@ -773,94 +772,94 @@ public sealed class DemoCacheIndexEntry : IJsonOnDeserialized
     [JsonIgnore]
     public bool IsOrphaned => OrphanedSinceUtcTicks is not null;
 
-    public string? Map { get; set; }
-    public string? Server { get; set; }
-    public string? DemoVersion { get; set; }
+    public string? Map { get; init; }
+    public string? Server { get; init; }
+    public string? DemoVersion { get; init; }
 
     /// <summary>The classifier's <c>DemoSourceKind</c> by name; see <see cref="DemoCacheRecord.SourceKind" />. Mirrored so a label needs no sidecar.</summary>
-    public string? SourceKind { get; set; }
+    public string? SourceKind { get; init; }
 
-    public double DurationSeconds { get; set; }
+    public double DurationSeconds { get; init; }
 
     /// <summary>Roster names only: what the Library card renders.</summary>
-    public List<string> PlayerNames { get; set; } = [];
+    public List<string> PlayerNames { get; init; } = [];
 
-    public int RoundCount { get; set; }
+    public int RoundCount { get; init; }
 
-    public int? CtScore { get; set; }
-    public int? TScore { get; set; }
-    public string? CtClan { get; set; }
-    public string? TClan { get; set; }
+    public int? CtScore { get; init; }
+    public int? TScore { get; init; }
+    public string? CtClan { get; init; }
+    public string? TClan { get; init; }
 
     // Tier presence, mirrored from the record so the grid can show fill state without touching a sidecar.
-    public int HeaderSchema { get; set; }
-    public int ParseSchema { get; set; }
-    public int AnalysisSchema { get; set; }
+    public int HeaderSchema { get; init; }
+    public int ParseSchema { get; init; }
+    public int AnalysisSchema { get; init; }
 
-    public DemoAnalysisState AnalysisState { get; set; } = DemoAnalysisState.Pending;
+    public DemoAnalysisState AnalysisState { get; init; } = DemoAnalysisState.Pending;
 
     /// <summary>
     ///     Rules fingerprint the tier-3 payload was produced under. Mirrored onto the index row, ~64 bytes on
     ///     a ~780-byte row, because the scan BACKLOG is derived from it: without it, deciding which demos want
     ///     a scan would mean opening every sidecar on every staleness pass instead of reading a dictionary.
     /// </summary>
-    public string? ConfigFingerprint { get; set; }
+    public string? ConfigFingerprint { get; init; }
 
     /// <summary>
     ///     How many highlights the sidecar holds. Carried here so the cross-demo clip picker can decide which
     ///     sidecars are worth loading instead of reading all 719.
     /// </summary>
-    public int HighlightCount { get; set; }
+    public int HighlightCount { get; init; }
 
     /// <summary>
     ///     The record's <see cref="DemoCacheRecord.PackStamps" />, mirrored for the same reason
     ///     <see cref="ConfigFingerprint" /> is: a pack's backlog and the strip's counts derive from the
     ///     index without opening a sidecar. A stamp with every optional member costs about 100 bytes.
     /// </summary>
-    public List<PackStamp> PackStamps { get; set; } = [];
+    public List<PackStamp> PackStamps { get; init; } = [];
 
     /// <summary>
     ///     The players who ended the demo as CT (<see cref="DemoCacheRecord.SidePlayers" />). Null when the
     ///     demo is not parsed, or the row was written by an index older than version 3.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<IndexSidePlayer>? CtPlayers { get; set; }
+    public List<IndexSidePlayer>? CtPlayers { get; init; }
 
     /// <summary>The players who ended the demo as T, by the rule of <see cref="CtPlayers" />.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<IndexSidePlayer>? TPlayers { get; set; }
+    public List<IndexSidePlayer>? TPlayers { get; init; }
 
     /// <summary>The record's <see cref="DemoCacheRecord.CtSideWins" />, so a per-team record needs no sidecar read.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? CtSideWins { get; set; }
+    public int? CtSideWins { get; init; }
 
     /// <summary>The record's <see cref="DemoCacheRecord.TSideWins" />.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? TSideWins { get; set; }
+    public int? TSideWins { get; init; }
 
     /// <summary>The record's <see cref="DemoMatchMeta.MatchTimeUtcTicks" />, so history sorts without a sidecar. See <see cref="NewestMatchFirst" />.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public long? MatchTimeUtcTicks { get; set; }
+    public long? MatchTimeUtcTicks { get; init; }
 
     /// <summary>The record's <see cref="DemoMatchMeta.MatchTimeSource" />: whether <see cref="MatchTimeUtcTicks" /> is exact.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public MatchTimeSource? MatchTimeSource { get; set; }
+    public MatchTimeSource? MatchTimeSource { get; init; }
 
     /// <summary>The record's <see cref="DemoMatchMeta.ReservationId" />: the tie-break between matches with one time.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ReservationId { get; set; }
+    public string? ReservationId { get; init; }
 
     /// <summary>The record's <see cref="DemoMatchMeta.GameMode" />.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? GameMode { get; set; }
+    public string? GameMode { get; init; }
 
     /// <summary>The record's <see cref="DemoMatchMeta.MatchSource" />.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? MatchSource { get; set; }
+    public string? MatchSource { get; init; }
 
     /// <summary>The record's <see cref="DemoCacheRecord.FacetPlayers" />, so the player directory reads no sidecar.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<FacetPlayer>? FacetPlayers { get; set; }
+    public List<FacetPlayer>? FacetPlayers { get; init; }
 
     /// <summary>See <see cref="DemoCacheRecord.UnknownMembers" />: a row written before <see cref="PackStamps" /> carries the flat fields.</summary>
     [JsonExtensionData]
@@ -902,7 +901,7 @@ public sealed class DemoCacheIndexEntry : IJsonOnDeserialized
         : DemoCacheTier.Identity;
 
     [JsonIgnore]
-    public bool HasScore => CtScore is int c && TScore is int t && c + t > 0;
+    public bool HasScore => CtScore is { } c && TScore is { } t && c + t > 0;
 
     /// <summary>
     ///     Index-level twin of <see cref="DemoCacheRecord.NeedsAnalysis" />: same rule, no sidecar read.
@@ -911,9 +910,9 @@ public sealed class DemoCacheIndexEntry : IJsonOnDeserialized
     public bool NeedsAnalysis(string? currentFingerprint) =>
         AnalysisState != DemoAnalysisState.Failed
         && !(AnalysisSchema > 0
-             && AnalysisState == DemoAnalysisState.Indexed
-             && (currentFingerprint is null
-                 || string.Equals(ConfigFingerprint, currentFingerprint, StringComparison.Ordinal)));
+            && AnalysisState == DemoAnalysisState.Indexed
+            && (currentFingerprint is null
+                || string.Equals(ConfigFingerprint, currentFingerprint, StringComparison.Ordinal)));
 
     public bool MatchesFile(long size, long modifiedTicks) =>
         Size == size && ModifiedTicks == modifiedTicks;
@@ -955,6 +954,7 @@ public sealed class DemoCacheIndexEntry : IJsonOnDeserialized
 public sealed record DemoLocation(string Path, bool Confirmed, long Size, long ModifiedTicks, long LastSeenUtcTicks);
 
 /// <summary>The on-disk shape of <c>index.json</c>: a versioned wrapper so migrations have a hook.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class DemoCacheIndexFile
 {
     /// <summary>
@@ -971,7 +971,7 @@ public sealed class DemoCacheIndexFile
     ///     6: a hashed row whose last path went away is kept with no locations, marked
     ///     <see cref="DemoCacheIndexEntry.OrphanedSinceUtcTicks" />. An older index has no such row.
     /// </summary>
-    public const int CurrentVersion = 6;
+    private const int CurrentVersion = 6;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -983,13 +983,13 @@ public sealed class DemoCacheIndexFile
     ///         its existence would skip the migration forever and silently drop the legacy data.
     ///     </para>
     /// </summary>
-    public int LegacyMigrationVersion { get; set; }
+    public int LegacyMigrationVersion { get; init; }
 
     /// <summary>
     ///     Which revision of the content-key rename pass has finished against this cache. 0 = never. Set only
     ///     when a pass left no file under an older key, so an interrupted pass runs again.
     /// </summary>
-    public int ContentKeyMigrationVersion { get; set; }
+    public int ContentKeyMigrationVersion { get; init; }
 
-    public List<DemoCacheIndexEntry> Entries { get; set; } = [];
+    public List<DemoCacheIndexEntry> Entries { get; init; } = [];
 }

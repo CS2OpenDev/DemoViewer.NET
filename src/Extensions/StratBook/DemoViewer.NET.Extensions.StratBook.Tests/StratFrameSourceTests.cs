@@ -2,15 +2,15 @@
 
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Hud;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 
@@ -109,7 +109,8 @@ public class StratFrameSourceTests
 
         // A before its first keyframe is not drawn; B is, and so is the opponent.
         Scene2DFrame first = source.FrameAt(0);
-        await Assert.That(first.Markers.Select(m => m.Label).ToArray()).IsEquivalentTo(["BB", "O1"], CollectionOrdering.Matching);
+        await Assert.That([.. first.Markers.Select(m => m.Label)])
+            .IsEquivalentTo(["BB", "O1"], CollectionOrdering.Matching);
         await Assert.That(first.Markers.Single(m => m.Label == "BB").Team).IsEqualTo(2);
         await Assert.That(first.Markers.Single(m => m.Label == "O1").Team).IsEqualTo(3);
     }
@@ -129,7 +130,8 @@ public class StratFrameSourceTests
         await Assert.That(smoke.WorldX).IsEqualTo(-300f);
         await Assert.That(smoke.WorldY).IsEqualTo(200f);
         await Assert.That(smoke.WorldRadius).IsLessThan(144f).Because("it blooms over the first second");
-        await Assert.That(source.FrameAt(SmokeTick + 32).AreaEffects.Single().WorldRadius).IsGreaterThan(smoke.WorldRadius);
+        await Assert.That(source.FrameAt(SmokeTick + 32).AreaEffects.Single().WorldRadius)
+            .IsGreaterThan(smoke.WorldRadius);
         await Assert.That(source.FrameAt(SmokeTick + 64).AreaEffects.Single().WorldRadius).IsEqualTo(144f);
     }
 
@@ -176,7 +178,8 @@ public class StratFrameSourceTests
         {
             await Assert.That(StratFrameSource.EffectTicks(kind)).IsEqualTo(ticks);
             await Assert.That(source.FrameAt(99).AreaEffects.Count).IsEqualTo(0);
-            await Assert.That(source.FrameAt(100).AreaEffects.Select(e => e.Kind).Distinct()).IsEquivalentTo([effect], CollectionOrdering.Matching);
+            await Assert.That(source.FrameAt(100).AreaEffects.Select(e => e.Kind).Distinct())
+                .IsEquivalentTo([effect], CollectionOrdering.Matching);
             await Assert.That(source.FrameAt(100 + ticks - 1).AreaEffects.Count).IsGreaterThan(0);
             await Assert.That(source.FrameAt(100 + ticks).AreaEffects.Count).IsEqualTo(0);
             await Assert.That(StratFrameSource.EndTickOf(spec.Utility[0])).IsEqualTo(100 + ticks);
@@ -236,7 +239,7 @@ public class StratFrameSourceTests
         await Assert.That(start.GameInfo.RoundSeconds).IsEqualTo(115.0);
         await Assert.That(start.GameInfo.TScore).IsEqualTo(0);
         await Assert.That(start.Map.MapName).IsEqualTo("de_mirage");
-        await Assert.That(start.Map.NetworkedBounds).IsEqualTo(Bounds);
+        await Assert.That(start.Map.NetworkedBounds).IsEqualTo(_bounds);
         await Assert.That(start.Bomb).IsNull();
         await Assert.That(start.Trails.Count).IsEqualTo(0);
         await Assert.That(start.KillFeed.Count).IsEqualTo(0);
@@ -324,7 +327,11 @@ public class StratFrameSourceTests
         // A walks a bend: (0,0) at 0, a corner at (300,0) on 64, the end at (300,300) on 128, then stands.
         TokenTrackSet tracks = new(
         [
-            new TokenTrack("A", [new TokenKeyframe(0, 0, 0, 0, 0), new TokenKeyframe(64, 300, 0, 0, 0), new TokenKeyframe(128, 300, 300, 0, 90)]),
+            new TokenTrack("A",
+            [
+                new TokenKeyframe(0, 0, 0, 0, 0), new TokenKeyframe(64, 300, 0, 0, 0),
+                new TokenKeyframe(128, 300, 300, 0, 90)
+            ]),
             new TokenTrack("O1", [new TokenKeyframe(0, -1500, 900, 0, 45)])
         ]);
         StratSceneSpec spec = Spec(0, 256, 64, 1.0) with { Tracks = tracks, Utility = [], Routes = true };
@@ -333,8 +340,10 @@ public class StratFrameSourceTests
         Scene2DFrame moving = source.FrameAt(32);
         TokenRouteLine line = moving.Routes.Single();
         await Assert.That(line.Team).IsEqualTo(2);
-        await Assert.That(line.Points.Select(p => (p.X, p.Y))).IsEquivalentTo(new[] { (150f, 0f), (300f, 0f), (300f, 300f) }, CollectionOrdering.Matching);
-        await Assert.That(source.FrameAt(96).Routes.Single().Points.Count).IsEqualTo(2).Because("the corner is behind it");
+        await Assert.That(line.Points.Select(p => (p.X, p.Y)))
+            .IsEquivalentTo([(150f, 0f), (300f, 0f), (300f, 300f)], CollectionOrdering.Matching);
+        await Assert.That(source.FrameAt(96).Routes.Single().Points.Count).IsEqualTo(2)
+            .Because("the corner is behind it");
         await Assert.That(source.FrameAt(128).Routes.Count).IsEqualTo(0).Because("gone on arrival");
         await Assert.That(new StratFrameSource(spec with { Routes = false }).FrameAt(32).Routes.Count).IsEqualTo(0);
         await Assert.That(new StratFrameSource(Spec(0, 960, 64, 1.0)).FrameAt(500).Routes.Count).IsEqualTo(0)
@@ -369,7 +378,7 @@ public class StratFrameSourceTests
         return sink.FrameHashes;
     }
 
-    private static readonly WorldBounds Bounds = new(-3000, -3000, 1500, 1500);
+    private static readonly WorldBounds _bounds = new(-3000, -3000, 1500, 1500);
 
     private static StratSceneSpec Spec(int start, int end, int fps, double speed)
     {
@@ -384,18 +393,19 @@ public class StratFrameSourceTests
             new TokenTrack("O1", [new TokenKeyframe(0, -1500, 900, 0, 45)])
         ]);
 
-        StepSchedule schedule = new([(Guid.NewGuid(), 0), (Guid.NewGuid(), 320), (Guid.NewGuid(), 960)]);
-
         return new StratSceneSpec(
-            tracks, schedule, new AnnotationSession(new AnnotationDocument()),
+            tracks, new AnnotationSession(new AnnotationDocument()),
             [new TokenLabel("A", null, 2), new TokenLabel("B", "BB", 2), new TokenLabel("O1", "", 3)],
-            "de_mirage", [], Bounds, null,
+            "de_mirage", [], _bounds, null,
             [
                 new UtilityCue(100, GrenadeKind.Flash, 0, 0, 0),
                 new UtilityCue(SmokeTick, GrenadeKind.Smoke, -300, 200, 0)
                 {
                     Team = 2,
-                    Flight = [new FlightPoint(SmokeTick - 128, 0, -800, 0), new FlightPoint(SmokeTick, -300, 200, 0)]
+                    Flight =
+                    [
+                        new FlightPoint(SmokeTick - 128, 0, -800, 0), new FlightPoint(SmokeTick, -300, 200, 0)
+                    ]
                 },
                 new UtilityCue(MolotovTick, GrenadeKind.Molotov, 400, -100, 0)
             ],
@@ -409,8 +419,10 @@ public class StratFrameSourceTests
     // The frame's world state as text, so two frames compare by value; the time is left out because two
     // sources at different rates number their frames differently.
     private static string Describe(Scene2DFrame frame) =>
-        string.Join(";", frame.Markers.Select(m => $"{m.Slot}:{m.WorldX}:{m.WorldY}:{m.WorldZ}:{m.YawDegrees}:{m.Label}")) +
-        "|" + string.Join(";", frame.AreaEffects.Select(e => $"{e.Kind}:{e.WorldX}:{e.WorldY}:{e.WorldRadius}:{e.Alpha}")) +
+        string.Join(";",
+            frame.Markers.Select(m => $"{m.Slot}:{m.WorldX}:{m.WorldY}:{m.WorldZ}:{m.YawDegrees}:{m.Label}")) +
+        "|" + string.Join(";",
+            frame.AreaEffects.Select(e => $"{e.Kind}:{e.WorldX}:{e.WorldY}:{e.WorldRadius}:{e.Alpha}")) +
         "|" + string.Join(";", frame.Trails.Select(t => $"{t.Kind}:{t.Team}:{t.Alpha}:" + string.Join(",", t.Points))) +
         "|" + frame.GameInfo.RoundTime + "|" + frame.GameInfo.RoundSeconds;
 }

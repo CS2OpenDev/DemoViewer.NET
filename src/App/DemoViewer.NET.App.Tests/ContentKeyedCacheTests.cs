@@ -1,7 +1,6 @@
 #region
 
 using System.Text.Json;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using TUnit.Assertions.Enums;
@@ -23,7 +22,8 @@ public class ContentKeyedCacheTests
 
     private static string Demos(string root) => Path.Combine(root, "demos");
 
-    private static DemoCacheRecord Record(string path, string? sha, string map = "de_nuke", long size = 1000, long mtime = 2000) => new()
+    private static DemoCacheRecord Record(string path, string? sha, string map = "de_nuke", long size = 1000,
+        long mtime = 2000) => new()
     {
         Path = path,
         Size = size,
@@ -49,19 +49,21 @@ public class ContentKeyedCacheTests
         foreach ((DemoCacheRecord record, string? sibling) in demos)
         {
             string key = DemoCacheStore.StableKey(record.Path);
-            File.WriteAllBytes(Path.Combine(Demos(root), key + DemoCacheStore.RecordSuffix), SidecarJson.SerializeGzip(record, null));
+            File.WriteAllBytes(Path.Combine(Demos(root), key + DemoCacheStore.RecordSuffix),
+                SidecarJson.SerializeGzip(record, null));
             if (sibling is not null)
             {
                 File.WriteAllText(Path.Combine(Demos(root), key + Suffix), sibling);
             }
         }
 
-        File.WriteAllText(Path.Combine(root, "index.json"), JsonSerializer.Serialize(new
-        {
-            Version = 4,
-            LegacyMigrationVersion = 1,
-            Entries = demos.Select(d => d.Record.ToIndexEntry()).ToList()
-        }));
+        File.WriteAllText(Path.Combine(root, "index.json"),
+            JsonSerializer.Serialize(new
+            {
+                Version = 4,
+                LegacyMigrationVersion = 1,
+                Entries = demos.Select(d => d.Record.ToIndexEntry()).ToList()
+            }));
     }
 
     private static string[] Files(string root) =>
@@ -105,8 +107,11 @@ public class ContentKeyedCacheTests
                 await Assert.That(result.Completed).IsTrue();
                 await Assert.That(result.Failed).IsEqualTo(0);
                 await Assert.That(Files(root)).IsEquivalentTo(
-                    [d + DemoCacheStore.RecordSuffix, d + Suffix, "sha-c.json.gz", "sha-x.json.gz", "sha-x" + Suffix],
-                    CollectionOrdering.Matching)
+                        [
+                            d + DemoCacheStore.RecordSuffix, d + Suffix, "sha-c.json.gz", "sha-x.json.gz",
+                            "sha-x" + Suffix
+                        ],
+                        CollectionOrdering.Matching)
                     .Because("hashed rows move to the hash, the duplicate copy goes, the unhashed row stays put");
                 await Assert.That(store.ContentKeyMigrationVersion).IsEqualTo(ContentKeyMigration.CurrentVersion);
             }
@@ -148,7 +153,8 @@ public class ContentKeyedCacheTests
                 await Assert.That(result.Settled).IsEqualTo(0);
                 await Assert.That(Files(root)).IsEquivalentTo(before, CollectionOrdering.Matching);
                 await Assert.That(new DemoCacheStore(root).TryLoadRecord("/m/a.dem")).IsNotNull();
-                await Assert.That(new DemoCacheStore(root).ContentKeyMigrationVersion).IsEqualTo(ContentKeyMigration.CurrentVersion);
+                await Assert.That(new DemoCacheStore(root).ContentKeyMigrationVersion)
+                    .IsEqualTo(ContentKeyMigration.CurrentVersion);
             }
         }
         finally
@@ -193,7 +199,8 @@ public class ContentKeyedCacheTests
                 await Assert.That(result.Completed).IsTrue();
                 await Assert.That(reopened.TryLoadRecord("/m/b.dem")!.Scoreboard).Count().IsEqualTo(1);
                 await Assert.That(reopened.TryReadSibling("/m/b.dem", Suffix)).IsEqualTo("note a");
-                await Assert.That(Files(root)).IsEquivalentTo(["sha-x.json.gz", "sha-x" + Suffix], CollectionOrdering.Matching);
+                await Assert.That(Files(root))
+                    .IsEquivalentTo(["sha-x.json.gz", "sha-x" + Suffix], CollectionOrdering.Matching);
             }
         }
         finally
@@ -288,7 +295,8 @@ public class ContentKeyedCacheTests
                 await Assert.That(reopened.TryLoadRecord("/m/a.dem")!.Map).IsEqualTo("de_ancient");
                 await Assert.That(reopened.TryLoadRecord("/m/a.dem")!.Scoreboard).Count().IsEqualTo(1);
                 await Assert.That(reopened.TryReadSibling("/m/a.dem", Suffix)).IsEqualTo("note a");
-                await Assert.That(Files(root).Any(f => f.StartsWith(DemoCacheStore.StableKey("/m/a.dem"), StringComparison.Ordinal)))
+                await Assert.That(Files(root).Any(f =>
+                        f.StartsWith(DemoCacheStore.StableKey("/m/a.dem"), StringComparison.Ordinal)))
                     .IsFalse();
             }
         }
@@ -402,7 +410,8 @@ public class ContentKeyedCacheTests
                 await Assert.That(reopened.TryLoadRecord("/m/a.dem")!.Analysis.IsPresent).IsFalse()
                     .Because("the old bytes' analysis never describes the new ones");
                 await Assert.That(reopened.TryGetIndex("/m/a.dem")!.Size).IsEqualTo(5000);
-                await Assert.That(reopened.RowsForContentId("sha-old").Select(r => r.Path)).IsEquivalentTo(["/m/copy.dem"], CollectionOrdering.Matching);
+                await Assert.That(reopened.RowsForContentId("sha-old").Select(r => r.Path))
+                    .IsEquivalentTo(["/m/copy.dem"], CollectionOrdering.Matching);
                 await Assert.That(reopened.TryLoadRecord("/m/copy.dem")!.Scoreboard.Single().Kills).IsEqualTo(21)
                     .Because("the copy still holds the old bytes and keeps everything");
                 await Assert.That(reopened.TryGetByContentId("sha-solo")).IsNull();
@@ -627,9 +636,9 @@ public class ContentKeyedCacheTests
         {
             await Assert.That(store.Index).Count().IsEqualTo(3).Because("the index still holds a view per path");
             await Assert.That(store.Contents.Select(e => e.Path))
-                .IsEquivalentTo(["/m/x.dem", "/m/y.dem"], CollectionOrdering.Any);
+                .IsEquivalentTo(["/m/x.dem", "/m/y.dem"]);
             await Assert.That(store.LoadRecords().Select(r => r.Path))
-                .IsEquivalentTo(["/m/x.dem", "/m/y.dem"], CollectionOrdering.Any);
+                .IsEquivalentTo(["/m/x.dem", "/m/y.dem"]);
             await Assert.That(store.TryGetPrimary("/n/x.dem")!.Path).IsEqualTo("/m/x.dem");
             await Assert.That(store.TryGetPrimary("/n/X.DEM")).IsSameReferenceAs(store.TryGetPrimary("/m/x.dem"));
             await Assert.That(store.TryGetPrimary("/m/z.dem")).IsNull();
@@ -656,6 +665,7 @@ public class ContentKeyedCacheTests
         }
 
         store.Remove("/n/x.dem");
-        await Assert.That(store.SameDemo("/n/x.dem", "/m/x.dem")).IsFalse().Because("a path no row lists is only itself");
+        await Assert.That(store.SameDemo("/n/x.dem", "/m/x.dem")).IsFalse()
+            .Because("a path no row lists is only itself");
     }
 }

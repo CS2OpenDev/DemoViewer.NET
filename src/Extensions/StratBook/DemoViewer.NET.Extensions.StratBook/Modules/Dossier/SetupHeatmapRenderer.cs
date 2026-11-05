@@ -78,7 +78,7 @@ public sealed class SetupHeatmapRenderer : IDisposable
     /// </summary>
     /// <param name="overlay">The points.</param>
     /// <param name="asset">The map's bundle, or null.</param>
-    public static Scene2DFrame BuildFrame(OverlayDocument overlay, IMapAsset? asset)
+    private static Scene2DFrame BuildFrame(OverlayDocument overlay, IMapAsset? asset)
     {
         ArgumentNullException.ThrowIfNull(overlay);
 
@@ -107,12 +107,7 @@ public sealed class SetupHeatmapRenderer : IDisposable
             };
         }
 
-        return new Scene2DFrame
-        {
-            Time = new SceneTime(0, 0, 0, 1.0 / 64, true),
-            Markers = [],
-            Map = map
-        };
+        return new Scene2DFrame { Time = new SceneTime(0, 0, 0, 1.0 / 64, true), Markers = [], Map = map };
     }
 
     private IMapAssetLease? AssetFor(string map)

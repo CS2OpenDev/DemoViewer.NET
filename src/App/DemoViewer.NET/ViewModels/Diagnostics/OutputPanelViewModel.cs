@@ -141,7 +141,8 @@ public enum OutputSeverity
 }
 
 /// <summary>One output channel (tab + its row buffer).</summary>
-public sealed partial class OutputChannelViewModel(string title, FrameNavigationViewModel nav, OutputSeverity severity) : ObservableObject
+public sealed partial class OutputChannelViewModel(string title, FrameNavigationViewModel nav, OutputSeverity severity)
+    : ObservableObject
 {
     // Ring-buffer cap: generous enough that ordinary diagnostic channels never reach it, but a
     // runaway producer (e.g. the app-lifetime CSVG "Live Sync" log bridge) stays bounded instead
@@ -248,5 +249,5 @@ public sealed class OutputRow(int seekFrameIndex, string tickLabel, string level
     public string Tick => TickLabel;
 
     /// <summary>Tick label.</summary>
-    public string TickLabel { get; } = tickLabel;
+    private string TickLabel { get; } = tickLabel;
 }

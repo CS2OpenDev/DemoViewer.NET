@@ -10,6 +10,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 /// <param name="Round">The Round Facts round number.</param>
 /// <param name="Tick">The matched tick, frame clock.</param>
 /// <param name="Fingerprint">The index fingerprint in force for the demo's map.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public readonly record struct SituationThumbnailKey(string StableKey, int Round, int Tick, string Fingerprint);
 
 /// <summary>
@@ -22,12 +23,15 @@ public readonly record struct SituationThumbnailKey(string StableKey, int Round,
 public sealed class SituationThumbnailCache
 {
     /// <summary>The default bound: a few result sets' worth, about ten megabytes of PNG at most.</summary>
-    public const int DefaultCapacity = 256;
+    private const int DefaultCapacity = 256;
 
     private readonly int _capacity;
-    private readonly Dictionary<SituationThumbnailKey, LinkedListNode<(SituationThumbnailKey Key, byte[] Png)>> _map = [];
+
+    private readonly Dictionary<SituationThumbnailKey, LinkedListNode<(SituationThumbnailKey Key, byte[] Png)>> _map =
+        [];
+
     private readonly LinkedList<(SituationThumbnailKey Key, byte[] Png)> _order = [];
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
 
     /// <param name="capacity">How many thumbnails to hold before the least recently used goes.</param>
     public SituationThumbnailCache(int capacity = DefaultCapacity)

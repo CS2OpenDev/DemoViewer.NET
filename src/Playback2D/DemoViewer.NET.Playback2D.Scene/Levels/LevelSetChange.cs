@@ -9,6 +9,7 @@ namespace DemoViewer.NET.Playback2D.Levels;
 /// <param name="Added">Ids present after the rebuild but not before.</param>
 /// <param name="Removed">Ids present before but not after.</param>
 /// <param name="Retained">Ids present in both; their panes keep their camera.</param>
+[PublicAPI]
 public sealed record LevelSetChange(
     bool Changed,
     IReadOnlyList<MapLevelId> Added,

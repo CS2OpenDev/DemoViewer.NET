@@ -1,10 +1,10 @@
 #region
 
 using System.Globalization;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.Sdk.Review;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Review;
 using DemoViewer.NET.Extensions.StratBook.Views.Review;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 
@@ -54,7 +54,8 @@ public sealed class ReviewQueueModule : IWorkspaceModule
     ///     a live toggle clears the badge going off and recomputes it going on, instead of leaving the last
     ///     value stale until the next unrelated <c>queue.Changed</c>. Null skips that push.
     /// </param>
-    public ReviewQueueModule(Func<ReviewQueueTabViewModel> viewModelFactory, Func<bool> enabled, IExtensionReviewQueue? queue = null,
+    public ReviewQueueModule(Func<ReviewQueueTabViewModel> viewModelFactory, Func<bool> enabled,
+        IExtensionReviewQueue? queue = null,
         IExtensionFeatures? gate = null)
     {
         ArgumentNullException.ThrowIfNull(viewModelFactory);
@@ -67,7 +68,8 @@ public sealed class ReviewQueueModule : IWorkspaceModule
 
     /// <summary>"12", or null with nothing to review.</summary>
     /// <param name="clipCount">Unreviewed clips in the queue.</param>
-    public static string? BadgeFor(int clipCount) => clipCount > 0 ? clipCount.ToString(CultureInfo.InvariantCulture) : null;
+    private static string? BadgeFor(int clipCount) =>
+        clipCount > 0 ? clipCount.ToString(CultureInfo.InvariantCulture) : null;
 
     public string Id => "net.demoviewer.review";
     public string DisplayName => "Review";

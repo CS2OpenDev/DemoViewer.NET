@@ -45,11 +45,7 @@ public sealed class SettingsService
     // Reused per CA1869: constructing JsonSerializerOptions per call is expensive.
     private static readonly JsonSerializerOptions _serializerOptions = new()
     {
-        WriteIndented = true,
-        Converters =
-        {
-            new JsonStringEnumConverter()
-        }
+        WriteIndented = true, Converters = { new JsonStringEnumConverter() }
     };
 
     // In-memory provider backing the WASM / no-filesystem path; null on desktop. A resettable variant
@@ -200,7 +196,7 @@ public sealed class SettingsService
         // Section absent → import a legacy session.json (once), persisting it into the merged file and
         // renaming the old file to .bak. Guarded so a re-import can't happen (after import the section is
         // non-null; the .bak rename also removes the source).
-        return MigrateLegacySection<SessionPayload>("session.json", imported => SaveSession(imported));
+        return MigrateLegacySection<SessionPayload>("session.json", SaveSession);
     }
 
     /// <summary>
@@ -233,18 +229,22 @@ public sealed class SettingsService
     /// <summary>
     ///     Loads the persisted recents list (the <c>Recents</c> section), most-recent-first, or an
     ///     empty list when none. One-time-imports a legacy <c>recent-files.json</c> when the section is absent.
-    ///     WASM/fileless → empty.
+    ///     WASM/fileless → empty. A null row, which a hand-edited file can hold, is left out.
     /// </summary>
     public IReadOnlyList<RecentFile> LoadRecents()
     {
-        List<RecentFile>? current = ReadSection<List<RecentFile>>("Recents");
+        List<RecentFile?>? current = ReadSection<List<RecentFile?>>("Recents");
         if (current is not null || _settingsPath is null)
         {
-            return current ?? [];
+            return WithoutNullRows(current);
         }
 
-        return MigrateLegacySection<List<RecentFile>>("recent-files.json", imported => SaveRecents(imported)) ?? [];
+        return WithoutNullRows(MigrateLegacySection<List<RecentFile?>>("recent-files.json",
+            legacy => SaveRecents(WithoutNullRows(legacy))));
     }
+
+    private static List<RecentFile> WithoutNullRows(List<RecentFile?>? rows) =>
+        rows?.OfType<RecentFile>().ToList() ?? [];
 
     /// <summary>
     ///     Persists the recents list into the single config file's <c>Recents</c> section, preserving every
@@ -286,9 +286,9 @@ public sealed class SettingsService
         try
         {
             return file.TryGetPropertyValue(RecentsVersionKey, out JsonNode? node) && node is JsonValue value
-                                                                                && value.TryGetValue(out int version)
-                ? version
-                : 0;
+                && value.TryGetValue(out int version)
+                    ? version
+                    : 0;
         }
         catch
         {
@@ -448,18 +448,19 @@ public sealed class SettingsService
     // service's invariants hold over the in-memory store as they do over the file.
     private void WriteInMemory(AppSettings settings)
     {
-        List<KeyValuePair<string, string?>> data = new()
-        {
-            new KeyValuePair<string, string?>("Theme", settings.Theme),
-            new KeyValuePair<string, string?>("UserCategory", settings.UserCategory.ToString()),
-            new KeyValuePair<string, string?>("FirstRunCompleted", settings.FirstRunCompleted ? "true" : "false"),
-            new KeyValuePair<string, string?>("LastSeenVersion", settings.LastSeenVersion),
-            new KeyValuePair<string, string?>("Features:DeveloperMode", settings.Features.DeveloperMode ? "true" : "false"),
-            new KeyValuePair<string, string?>("ProcessingQueue:BackgroundProcessingEnabled",
+        List<KeyValuePair<string, string?>> data =
+        [
+            new("Theme", settings.Theme),
+            new("UserCategory", settings.UserCategory.ToString()),
+            new("FirstRunCompleted", settings.FirstRunCompleted ? "true" : "false"),
+            new("LastSeenVersion", settings.LastSeenVersion),
+            new("Features:DeveloperMode",
+                settings.Features.DeveloperMode ? "true" : "false"),
+            new("ProcessingQueue:BackgroundProcessingEnabled",
                 settings.ProcessingQueue.BackgroundProcessingEnabled ? "true" : "false"),
-            new KeyValuePair<string, string?>("ProcessingQueue:MaxQueueSize",
+            new("ProcessingQueue:MaxQueueSize",
                 settings.ProcessingQueue.MaxQueueSize.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("ProcessingQueue:MaxConcurrency",
+            new("ProcessingQueue:MaxConcurrency",
                 settings.ProcessingQueue.MaxConcurrency.ToString(CultureInfo.InvariantCulture)),
             // Playback2D: every property of the section is flattened here. On WASM there is no file,
             // so a key missing from this list is a setting that silently forgets itself on reload.
@@ -467,73 +468,73 @@ public sealed class SettingsService
             // browser (a later pass overrode the original "exclude them" call): a desktop user's default
             // format and output folder are written through the same code path, and an exclusion list
             // that has to be kept in step with a feature gate is a bug waiting for the gate to move.
-            new KeyValuePair<string, string?>("Playback2D:LastTool", settings.Playback2D.LastTool),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationColorArgb",
+            new("Playback2D:LastTool", settings.Playback2D.LastTool),
+            new("Playback2D:AnnotationColorArgb",
                 settings.Playback2D.AnnotationColorArgb.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationWidth",
+            new("Playback2D:AnnotationWidth",
                 settings.Playback2D.AnnotationWidth.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationOpacity",
+            new("Playback2D:AnnotationOpacity",
                 settings.Playback2D.AnnotationOpacity.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationDefaultVisibility",
+            new("Playback2D:AnnotationDefaultVisibility",
                 settings.Playback2D.AnnotationDefaultVisibility),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationFadeInTicks",
+            new("Playback2D:AnnotationFadeInTicks",
                 settings.Playback2D.AnnotationFadeInTicks.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationFadeOutTicks",
+            new("Playback2D:AnnotationFadeOutTicks",
                 settings.Playback2D.AnnotationFadeOutTicks.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationHoldTicks",
+            new("Playback2D:AnnotationHoldTicks",
                 settings.Playback2D.AnnotationHoldTicks.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationAnchorToEntities",
+            new("Playback2D:AnnotationAnchorToEntities",
                 settings.Playback2D.AnnotationAnchorToEntities ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationAutoSave",
+            new("Playback2D:AnnotationAutoSave",
                 settings.Playback2D.AnnotationAutoSave ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationSecondaryColorArgb",
+            new("Playback2D:AnnotationSecondaryColorArgb",
                 settings.Playback2D.AnnotationSecondaryColorArgb.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationSecondaryTool",
+            new("Playback2D:AnnotationSecondaryTool",
                 settings.Playback2D.AnnotationSecondaryTool),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationCustomFromTick",
+            new("Playback2D:AnnotationCustomFromTick",
                 settings.Playback2D.AnnotationCustomFromTick.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("Playback2D:AnnotationCustomUntilTick",
+            new("Playback2D:AnnotationCustomUntilTick",
                 settings.Playback2D.AnnotationCustomUntilTick.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("Playback2D:LevelDisplayMode",
+            new("Playback2D:LevelDisplayMode",
                 settings.Playback2D.LevelDisplayMode),
-            new KeyValuePair<string, string?>("Playback2D:AutoLevelFollow",
+            new("Playback2D:AutoLevelFollow",
                 settings.Playback2D.AutoLevelFollow ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:TimelineShowKills",
+            new("Playback2D:TimelineShowKills",
                 settings.Playback2D.TimelineShowKills ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:TimelineShowBomb",
+            new("Playback2D:TimelineShowBomb",
                 settings.Playback2D.TimelineShowBomb ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:TimelineShowAnnotations",
+            new("Playback2D:TimelineShowAnnotations",
                 settings.Playback2D.TimelineShowAnnotations ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:ViewportToolbarOpen",
+            new("Playback2D:ViewportToolbarOpen",
                 settings.Playback2D.ViewportToolbarOpen ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:ViewportOverlayBarOpen",
+            new("Playback2D:ViewportOverlayBarOpen",
                 settings.Playback2D.ViewportOverlayBarOpen ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:ExportFormatId", settings.Playback2D.ExportFormatId),
-            new KeyValuePair<string, string?>("Playback2D:ExportFps",
+            new("Playback2D:ExportFormatId", settings.Playback2D.ExportFormatId),
+            new("Playback2D:ExportFps",
                 settings.Playback2D.ExportFps.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("Playback2D:ExportWidth",
+            new("Playback2D:ExportWidth",
                 settings.Playback2D.ExportWidth.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("Playback2D:ExportHeight",
+            new("Playback2D:ExportHeight",
                 settings.Playback2D.ExportHeight.ToString(CultureInfo.InvariantCulture)),
-            new KeyValuePair<string, string?>("Playback2D:ExportOutputDirectory",
+            new("Playback2D:ExportOutputDirectory",
                 settings.Playback2D.ExportOutputDirectory),
-            new KeyValuePair<string, string?>("Playback2D:ExportIncludeHud",
+            new("Playback2D:ExportIncludeHud",
                 settings.Playback2D.ExportIncludeHud ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:ExportIncludeHudClock",
+            new("Playback2D:ExportIncludeHudClock",
                 settings.Playback2D.ExportIncludeHudClock ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:ExportIncludeHudKillFeed",
+            new("Playback2D:ExportIncludeHudKillFeed",
                 settings.Playback2D.ExportIncludeHudKillFeed ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:ExportIncludeHudRoster",
+            new("Playback2D:ExportIncludeHudRoster",
                 settings.Playback2D.ExportIncludeHudRoster ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:ExportIncludeAnnotations",
+            new("Playback2D:ExportIncludeAnnotations",
                 settings.Playback2D.ExportIncludeAnnotations ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:ExportIncludeVision",
+            new("Playback2D:ExportIncludeVision",
                 settings.Playback2D.ExportIncludeVision ? "true" : "false"),
-            new KeyValuePair<string, string?>("Playback2D:ExportEncoder",
+            new("Playback2D:ExportEncoder",
                 settings.Playback2D.ExportEncoder),
-            new KeyValuePair<string, string?>("Playback2D:ExportQuality",
+            new("Playback2D:ExportQuality",
                 settings.Playback2D.ExportQuality)
-        };
+        ];
 
         for (int i = 0; i < settings.Playback2D.AnnotationRecentColors.Length; i++)
         {
@@ -573,7 +574,8 @@ public sealed class SettingsService
 
         for (int i = 0; i < identity.DismissedSuggestions.Length; i++)
         {
-            data.Add(new KeyValuePair<string, string?>($"Identity:DismissedSuggestions:{i}", identity.DismissedSuggestions[i]));
+            data.Add(new KeyValuePair<string, string?>($"Identity:DismissedSuggestions:{i}",
+                identity.DismissedSuggestions[i]));
         }
 
         _mem!.ReplaceAll(data);
@@ -637,6 +639,6 @@ public sealed class SettingsService
         }
 
         // A copy of the current data: the basis for a memory-only (env-excluding) AppSettings bind.
-        public KeyValuePair<string, string?>[] Snapshot() => Data.ToArray();
+        public KeyValuePair<string, string?>[] Snapshot() => [.. Data];
     }
 }

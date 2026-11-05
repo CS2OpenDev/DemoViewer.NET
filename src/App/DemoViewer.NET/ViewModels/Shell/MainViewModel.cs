@@ -13,9 +13,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Diagnostics;
-using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Analysis.PlayerStats;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
@@ -24,7 +22,6 @@ using CS2DemoKit.Parser.Models;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Debugging;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Models;
 using DemoViewer.NET.Modules;
@@ -33,7 +30,6 @@ using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Services;
-using DemoViewer.NET.Services.Startup;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Diagnostics;
@@ -43,6 +39,7 @@ using DemoViewer.NET.Services.Idle;
 using DemoViewer.NET.Services.LiveSync;
 using DemoViewer.NET.Services.MatchMeta;
 using DemoViewer.NET.Services.Players;
+using DemoViewer.NET.Services.Startup;
 using DemoViewer.NET.Services.Tutorial;
 using DemoViewer.NET.Services.Update;
 using DemoViewer.NET.ViewModels.Analysis;
@@ -58,8 +55,8 @@ using DemoViewer.NET.ViewModels.Library;
 using DemoViewer.NET.ViewModels.LiveSync;
 using DemoViewer.NET.ViewModels.MatchOverview;
 using DemoViewer.NET.ViewModels.Parser;
-using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.ViewModels.Playback2D;
+using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.ViewModels.PlayerOverview;
 using DemoViewer.NET.ViewModels.Replay;
 using DemoViewer.NET.ViewModels.Settings;
@@ -120,7 +117,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // One host tab and what it carries. The hub VM exists from BuildWorkspaceTabs: the shell reconciles
     // sections and restores the session through it before the tab is ever selected.
     private sealed class SectionHostEntry(
-        string hostId, WorkspaceTabDescriptor tab, TabSectionHost sections, HubTabViewModel? viewModel, ContributedHub? hub)
+        string hostId,
+        WorkspaceTabDescriptor tab,
+        TabSectionHost sections,
+        HubTabViewModel? viewModel,
+        ContributedHub? hub)
     {
         public string HostId { get; } = hostId;
         public WorkspaceTabDescriptor Tab { get; } = tab;
@@ -223,19 +224,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // AND the queue has activity (running/queued) or is paused. Null on the designer / tests (no queue).
     private readonly ProcessingQueueStatusViewModel? _processingQueueStatus;
 
-    // Proto source index (built once, immutable) and repo-root path. Created here
-    // for now (still used by file-load + handed to ParserTab via callbacks); both
-    // move to Shell/MainViewModel in 3.5c.
-    private readonly ProtoIndex _protoIndex;
-
     /// <summary>
     ///     Recently-opened-demos store. Every successful open through the shared load core
     ///     records here; the Library landing tab binds its recents to it. Null on the designer / older
     ///     test path, recording then no-ops (fail-safe, like the other optional deps).
     /// </summary>
     private readonly RecentFilesStore? _recentFiles;
-
-    private readonly string? _repoRoot; // absolute path to repo root (for local source links)
 
     // Stateless checkpoint-replay seek core, shared by EntityTab's three seek pipelines.
     private readonly EntitySeekService? _seekService;
@@ -277,7 +271,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     ///     Drained once after parse into the grouped Output rows + the per-frame census, far
     ///     cheaper than the old per-occurrence UI dispatch (tens of thousands of posts per demo).
     /// </summary>
-    private readonly ConcurrentBag<UnknownMessageInfo> _unknownAccumulator = new();
+    private readonly ConcurrentBag<UnknownMessageInfo> _unknownAccumulator = [];
 
     /// <summary>
     ///     Window-spawning abstraction. Desktop opens a real
@@ -291,10 +285,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private byte[]? _demoBytes;
 
-    // Coarse app-orchestration logging (unified diagnostics pillar). Resolved LAZILY, not in a field
-    // initializer: the shell is constructed during DI composition, BEFORE App wires the real ambient
-    // factory, so a field initializer would cache a NullLogger. First use is a demo load, after wiring.
-    private ILogger? _diagLog;
     private bool _exportChipDismissed;
 
     /// <summary>
@@ -334,7 +324,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     [ObservableProperty]
     private bool _isIdle;
-    // _hasSubTickEvents / _hasFrameGameEvents moved to ReplayTabViewModel (3.5b).
 
     [ObservableProperty]
     private bool _isLoading;
@@ -354,7 +343,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     // Full path of the loaded demo, retained for the Diagnostics tab's Session card.
     // Set on load (both paths); read via the Func<string?> handed to the Diagnostics VM.
-    private string? _loadedDemoPath;
     private ModuleContext? _moduleContext;
 
     // The module-facing feature projection handed to _moduleContext. Held so its gate subscription is
@@ -614,10 +602,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             }
         };
         Navigation = new FrameNavigationViewModel();
-        ParserTab = new ParserTabViewModel(Navigation);
-        EntityTab = new EntityTrackingTabViewModel(Navigation);
-        AnalysisTab = new AnalysisTabViewModel(Navigation);
-        ReplayTab = new ReplayTabViewModel(Navigation);
+        ParserTab = new ParserTabViewModel();
+        EntityTab = new EntityTrackingTabViewModel();
+        AnalysisTab = new AnalysisTabViewModel();
+        ReplayTab = new ReplayTabViewModel();
 
         // Unified diagnostics telemetry hub: the single log sink for both the internal ILogger pillar
         // and the CSVG host logs. Ring cap read live from Diagnostics.MaxLogRows so a settings change
@@ -626,11 +614,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         // Diagnostics tab: reads (never owns) the analysis state, the loaded demo path,
         // and the frame list. Refreshes lazily on tab activation and after each evaluation.
-        Diagnostics = new DiagnosticsTabViewModel(AnalysisTab, () => _loadedDemoPath, () => _allFrames, Telemetry);
+        Diagnostics = new DiagnosticsTabViewModel(AnalysisTab, () => LoadedDemoPath, () => _allFrames, Telemetry);
 
         // Stats tab: the user-facing scoreboard. Subscribes to the engine's
         // EvaluationCompleted and projects the MetricTables itself; reads (never owns) analysis state.
-        StatsTab = new StatsTabViewModel(Analysis, () => _loadedDemoPath);
+        StatsTab = new StatsTabViewModel(Analysis, () => LoadedDemoPath);
 
         // Match Overview: the demo landing page shown the instant a demo is opened (before the parse), so a
         // double-click has an immediate visible effect. The shell drives it through the load pipeline; its CTAs
@@ -671,7 +659,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                     identity,
                     playerRows,
                     path => _ = LoadDemoFromPathAsync(path),
-                    SelectTabById,
                     (path, steamId64) => _ = FocusPlayerInStatsAsync(path, steamId64),
                     OpenSettingsCore,
                     facts,
@@ -683,10 +670,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                             _ = reels.AddClipsForAsync(steamId64.ToString(CultureInfo.InvariantCulture));
                         }
                     },
-                    playerRanks)
-                {
-                    Events = facts is null ? null : new PlayerEventCache(facts.TryGet)
-                },
+                    playerRanks) { Events = facts is null ? null : new PlayerEventCache(facts.TryGet) },
                 processingQueue,
                 action => Dispatcher.UIThread.Post(action));
             StatsTab.PlayerOverviewOpener = (steamId64, name) => OpenPlayerOverview(steamId64, name);
@@ -734,7 +718,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 or nameof(EntityStatusText)
                 or nameof(EntityDeltaFieldCount)
                 or nameof(IsSeekingEntities)
-                or nameof(HasWatched)
                 or nameof(ShowDeltaFieldsOnly)
                 or nameof(ShowDormantEntities)
                 or nameof(SelectedEntityItem)
@@ -749,8 +732,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         ReplayTab.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(HasTickGroups)
-                or nameof(HasSubTickEvents)
-                or nameof(HasFrameGameEvents)
                 or nameof(IsTickView)
                 or nameof(SelectedTickGroup)
                 or nameof(SelectedTickFrame)
@@ -781,29 +762,25 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // Reflect breakpoint adds/removes onto the frame-row gutter markers.
         Debugger.Breakpoints.CollectionChanged += (_, _) => RefreshFrameBreakpointMarkers();
 
-        // 3.4b: WatchedValues -> HasWatched subscription moved into EntityTab's
-        // constructor (both ends are now EntityTab-owned). No subscription here.
-
         if (_process is not null)
         {
             _lastCpuUse = _process.TotalProcessorTime;
-            _perfTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(1)
-            };
+            _perfTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _perfTimer.Tick += (_, _) => UpdatePerfStats();
             _perfTimer.Start();
         }
 
-        _repoRoot = FindRepoRoot();
-        _protoIndex = ProtoIndex.Build();
+        // Proto source index (built once, immutable) and the repo root (for local source links); the
+        // palette and ParserTab read both through callbacks.
+        string? repoRoot = FindRepoRoot();
+        ProtoIndex protoIndex = ProtoIndex.Build();
 
         // Command palette. Sources read live so the palette always reflects
         // the loaded demo: tracker from EntityTab, the startup ProtoIndex, current frame count.
         Palette = new CommandPaletteViewModel(
             Navigation,
             () => EntityTab.CurrentTrackerInternal,
-            () => _protoIndex,
+            () => protoIndex,
             () => Frames.Count);
 
         // The per-tab SeekControls (control + VM) is fully retired: the nav strip
@@ -838,7 +815,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // below let EntityTab drive its async seeks without holding a reference
         // to MainViewModel itself -- same dependency direction as the
         // Analysis.OnFrameSeeked wiring above.
-        EntityTab.CreateTracker = CreateTracker;
         // The shared checkpoint-replay seek core. EntityTab's three pipelines delegate the
         // tracker-build + replay to this; the per-pipeline snapshot policy stays in EntityTab.
         _seekService = new EntitySeekService(CreateTracker);
@@ -905,12 +881,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // without holding a reference to MainViewModel.
         ParserTab.FrameListSource = () => _allFrames;
         ParserTab.DemoBytesSource = () => _demoBytes;
-        ParserTab.ProtoIndexSource = () => _protoIndex;
-        ParserTab.RepoRootSource = () => _repoRoot;
+        ParserTab.ProtoIndexSource = () => protoIndex;
+        ParserTab.RepoRootSource = () => repoRoot;
         ParserTab.EntityTrackerSource = () => EntityTab.CurrentTrackerInternal;
         ParserTab.EntityFieldNodesSource = () => EntityTab.EntityFieldNodes;
         ParserTab.EnrichmentResolver = ResolveEnrichmentHint;
-        ParserTab.PopulateFrameGameEvents = PopulateFrameGameEventsFromFrame;
         // The master frame-selection setter now routes through the controller, the single
         // position fan-out point. The controller runs HandleFrameSelectedFromParserTab (via ApplySeek)
         // under its re-entrancy guard, then updates its observable position state.
@@ -927,7 +902,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         ReplayTab.ParserHasMessageCardsSink = has => ParserTab.HasMessageCards = has;
         ReplayTab.ParserCardFactory = (msg, msgBytes, normOffset) =>
             ParserTab.BuildHarvestCardExternal(msg, msgBytes, normOffset);
-        ReplayTab.SlotNameResolver = SlotToName;
         // ReplayTab.GameEventFilterProvider removed with the orphaned
         // NextGameEventTick; the single demo-derived filter (GameEventFilters) now drives the NavStrip.
         ReplayTab.OnTickGroupSelected = group => _ = EntityTab.SeekEntitiesWithDeltaAsync(group);
@@ -1004,7 +978,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             }
 
             Analysis.EvaluationCompleted += (run, demo) =>
-                scanner.OnOpenDemoEvaluated(_loadedDemoPath, run, demo);
+                scanner.OnOpenDemoEvaluated(LoadedDemoPath, run, demo);
             scanner.RefreshStaleness();
 
             // Enabling the background-scan opt-in in Settings must actually start the scan:
@@ -1038,7 +1012,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // thread, so the reconcile handler runs there; a gate flip reconciles via ApplyGateChange.
         if (_processingQueue is not null)
         {
-            _processingQueueStatus = new ProcessingQueueStatusViewModel(_processingQueue, OpenSettings, checks: _scheduler);
+            _processingQueueStatus =
+                new ProcessingQueueStatusViewModel(_processingQueue, OpenSettings, checks: _scheduler);
             _processingQueue.Changed += OnProcessingQueueChanged;
             ReconcileQueueChip();
         }
@@ -1064,7 +1039,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             TutorialSteps.Default, SelectTabById, () => HasFile, () => { }, () => _library.Entries.Count > 0,
             // The sample CTA is only spotlightable while it is ON SCREEN: a sample resolved AND the hero
             // (empty-library) state showing, with folders configured the hero (and the CTA) is hidden.
-            () => LibraryTab.HasSampleDemo && LibraryTab.HasNoFolders,
+            () => LibraryTab is { HasSampleDemo: true, HasNoFolders: true },
             // The same gate that filters the tab strip, so no step points at a tab this profile hides.
             new TutorialAudienceFilter(_gate, OperatingSystem.IsBrowser()));
 
@@ -1084,7 +1059,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public static int ProcessId => Environment.ProcessId;
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger(AppLog.ShellCategory);
+    // Coarse app-orchestration logging (unified diagnostics pillar). Resolved LAZILY, not in a field
+    // initializer: the shell is constructed during DI composition, BEFORE App wires the real ambient
+    // factory, so a field initializer would cache a NullLogger. First use is a demo load, after wiring.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger(AppLog.ShellCategory);
 
     /// <summary>
     ///     The shared playback clock. Read-only access for tabs / modules / tests; the only
@@ -1337,9 +1315,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Entity field nodes.</summary>
     public ObservableCollection<PayloadNode> EntityFieldNodes => EntityTab.EntityFieldNodes;
 
-    /// <summary>Entity groups.</summary>
-    public ObservableCollection<EntityGroup> EntityGroups => EntityTab.EntityGroups;
-
     /// <summary>Entity header text.</summary>
 
     public string EntityHeaderText
@@ -1367,9 +1342,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     // PayloadNodes / SelectedFrameMessages moved to ParserTab (3.5a). Compat shims
     // exposed above route the legacy paths to the ParserTab collections.
-    // FrameGameEvents moved to ReplayTab (3.5b). See shim below.
-    /// <summary>Frame game events.</summary>
-    public ObservableCollection<FrameGameEventViewModel> FrameGameEvents => ReplayTab.FrameGameEvents;
 
     // ── Parser-tab state (now owned by ParserTab; exposed here as compat shims
     //    so existing in-class call sites and current XAML bindings keep working
@@ -1443,14 +1415,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         set => EntityTab.HasEntitySelection = value;
     }
 
-    /// <summary>Has frame game events.</summary>
-
-    public bool HasFrameGameEvents
-    {
-        get => ReplayTab.HasFrameGameEvents;
-        set => ReplayTab.HasFrameGameEvents = value;
-    }
-
     /// <summary>Has inner messages.</summary>
 
     public bool HasInnerMessages
@@ -1475,14 +1439,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         set => ParserTab.HasParseChain = value;
     }
 
-    /// <summary>Has sub tick events.</summary>
-
-    public bool HasSubTickEvents
-    {
-        get => ReplayTab.HasSubTickEvents;
-        set => ReplayTab.HasSubTickEvents = value;
-    }
-
     // ── Replay-tab scalar / command pass-through shims (3.5b) ─────────────────
     // The ReplayTab forwarder above re-raises PropertyChanged for these names
     // when ReplayTab raises its own, keeping legacy {Binding HasTickGroups} etc.
@@ -1495,13 +1451,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     }
 
     // HasTickGroups moved to ReplayTab in 3.5b. See shim block below.
-    /// <summary>Has watched.</summary>
-    public bool HasWatched
-    {
-        get => EntityTab.HasWatched;
-        set => EntityTab.HasWatched = value;
-    }
-
     /// <summary>Hex view decompressed.</summary>
     public HarvestHexViewModel HexViewDecompressed => ParserTab.HexViewDecompressed;
 
@@ -1680,14 +1629,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         set => ParserTab.ShowRawHex = value;
     }
 
-    // SubTickEvents / TickGroups / TickViewFrames / TickViewFrameRows moved to
-    // ReplayTab (3.5b). TickGroups had a brief stop on EntityTab (3.4a), the
-    // collection never had logic-coupling there; the placement is reassessed in
-    // 3.5b and the cluster is unified under ReplayTab. WatchedValues is still
-    // owned by EntityTab.
-    /// <summary>Sub tick events.</summary>
-    public ObservableCollection<SubTickEventViewModel> SubTickEvents => ReplayTab.SubTickEvents;
-
+    // TickGroups / TickViewFrames / TickViewFrameRows moved to ReplayTab (3.5b).
+    // TickGroups had a brief stop on EntityTab (3.4a), the collection never had
+    // logic-coupling there; the placement is reassessed in 3.5b and the cluster
+    // is unified under ReplayTab.
     /// <summary>Tick groups.</summary>
     public ObservableCollection<TickGroup> TickGroups => ReplayTab.TickGroups;
 
@@ -1699,9 +1644,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     /// <summary>Toggle tick view command.</summary>
     public ICommand ToggleTickViewCommand => ReplayTab.ToggleTickViewCommand;
-
-    /// <summary>Watched values.</summary>
-    public ObservableCollection<WatchedValue> WatchedValues => EntityTab.WatchedValues;
 
     /// <summary>
     ///     Called once by the App bootstrap after <see cref="AttachLiveSync" /> (desktop lifetime only). Builds
@@ -1742,7 +1684,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public WindowBoundsState? RestoredWindowBounds { get; private set; }
 
-    // UpdateWatchedValues / WatchField moved to EntityTab in 3.4c.
     // WriteUInt32LE moved to ParserTab in 3.5a.
 
     /// <summary>Dispose.</summary>
@@ -2034,7 +1975,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             demoPath,
             _demoCache,
             App.Services?.GetService<MergedRulesBuild>(),
-            () => (((ModuleContext as ICurrentDemoSource)?.CurrentDemo, _loadedDemoPath)));
+            () => (((ModuleContext as ICurrentDemoSource)?.CurrentDemo, LoadedDemoPath)));
         _windowService.ShowErrorReport(vm);
     }
 
@@ -2051,7 +1992,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // the accelerator doing nothing.
         string? target = SelectedTab?.TabId == "builtin.matchoverview"
             ? MatchOverviewTab.HasFilePath ? MatchOverviewTab.FilePath : null
-            : _loadedDemoPath;
+            : LoadedDemoPath;
         if (target is { Length: > 0 } path)
         {
             OpenErrorReportFor(path);
@@ -2130,7 +2071,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // Never replace the page for the demo that is actually open, opened through this path or another
         // holding the same bytes: the live render is strictly richer than its own cached record, and a
         // selection is not a request to leave it.
-        if (_loadedDemoPath is { Length: > 0 } open && _demoCache.SameDemo(open, entry.FilePath))
+        if (LoadedDemoPath is { Length: > 0 } open && _demoCache.SameDemo(open, entry.FilePath))
         {
             return;
         }
@@ -2146,23 +2087,20 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         // The facet is read only beside a record that describes this file: a replaced demo's is the old match's.
         FactTable? facet = record is null ? null : Facet(entry.FilePath);
-        if (record is null)
+        // Known to the library but never indexed (or its sidecar is gone). Still worth rendering: the
+        // page's NOT INDEXED state carries the action that fixes it.
+        record ??= new DemoCacheRecord
         {
-            // Known to the library but never indexed (or its sidecar is gone). Still worth rendering: the
-            // page's NOT INDEXED state carries the action that fixes it.
-            record = new DemoCacheRecord
-            {
-                Path = entry.FilePath,
-                Size = entry.FileSizeBytes,
-                ModifiedTicks = entry.Modified.Ticks,
-                Map = entry.MapName
-            };
-        }
+            Path = entry.FilePath,
+            Size = entry.FileSizeBytes,
+            ModifiedTicks = entry.Modified.Ticks,
+            Map = entry.MapName
+        };
 
         MatchOverviewTab.SetCachedRecord(record, facet);
 
         // Offer the way back only while a different demo is genuinely open.
-        MatchOverviewTab.LiveDemoName = _loadedDemoPath is { Length: > 0 } live
+        MatchOverviewTab.LiveDemoName = LoadedDemoPath is { Length: > 0 } live
             ? Path.GetFileName(live)
             : null;
     }
@@ -2174,7 +2112,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void RestoreLiveMatchOverview()
     {
-        if (_loadedDemoPath is not { Length: > 0 } path)
+        if (LoadedDemoPath is not { Length: > 0 } path)
         {
             MatchOverviewTab.Clear();
             return;
@@ -2370,11 +2308,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             string target = File.Exists(path)
                 ? Path.GetDirectoryName(path) ?? path
                 : path;
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = target,
-                UseShellExecute = true
-            });
+            Process.Start(new ProcessStartInfo { FileName = target, UseShellExecute = true });
         }
         catch
         {
@@ -2501,7 +2435,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // A contributed chip holds the id: the export has no chip this session, and says so once.
             if (_refusedExportChips.Add(chipId))
             {
-                RouteModuleLog(ModuleLogLevel.Error, $"Status chip '{taken.Id}' is already on the strip; the export chip is left out.");
+                RouteModuleLog(ModuleLogLevel.Error,
+                    $"Status chip '{taken.Id}' is already on the strip; the export chip is left out.");
             }
 
             return;
@@ -2522,7 +2457,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         if (_shellChips.Any(c => c.Id == chip.Id))
         {
-            RouteModuleLog(ModuleLogLevel.Error, $"Status chip '{chip.Id}' is already on the strip; the second one is left out.");
+            RouteModuleLog(ModuleLogLevel.Error,
+                $"Status chip '{chip.Id}' is already on the strip; the second one is left out.");
             return;
         }
 
@@ -2583,7 +2519,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         // the current frame's GameEventMessages (best-effort; the 2D pilot uses entity deltas).
         _moduleContext = new ModuleContext(
             Playback,
-            () => _loadedDemoPath,
+            () => LoadedDemoPath,
             Navigator); // modules drive "jump to next event of its own type" through the shared navigator
 
         // The 2D tab's ↑/↓ speed keys must honour the same Live Sync speed lock the NavStrip speed
@@ -2598,12 +2534,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         // Ensure the built-in tabs are registered (idempotent by Id) even if the composition root
         // passed a registry without them, so the shell always has its four tabs.
-        _moduleRegistry.Register(new BuiltInTabsModule(this, Diagnostics, LibraryTab, StatsTab, MatchOverviewTab, PlayerOverviewTab));
+        _moduleRegistry.Register(new BuiltInTabsModule(this, Diagnostics, LibraryTab, StatsTab, MatchOverviewTab,
+            PlayerOverviewTab));
 
-        List<WorkspaceTabDescriptor> descriptors = new();
+        List<WorkspaceTabDescriptor> descriptors = [];
         foreach (IWorkspaceModule module in _moduleRegistry.Modules)
         {
-            IEnumerable<string> caps = HostCapabilitiesFor(module);
+            IEnumerable<string> caps = HostCapabilities();
             ModuleHost host = new(_moduleContext, caps, RouteModuleLog);
 
             try
@@ -2625,18 +2562,20 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _hosts.Clear();
         LibraryTab.Sections.PropertyChanged -= OnLibrarySectionChanged;
         LibraryTab.Sections.PropertyChanged += OnLibrarySectionChanged;
-        _hosts.Add(new SectionHostEntry(LibraryTabViewModel.HostId, descriptors.First(d => d.TabId == LibraryTabViewModel.HostId),
+        _hosts.Add(new SectionHostEntry(LibraryTabViewModel.HostId,
+            descriptors.First(d => d.TabId == LibraryTabViewModel.HostId),
             LibraryTab.Sections, null, null));
         foreach (ContributedHub hub in _hubTabs)
         {
             // A hub id is a tab id and a host id at once: one already taken would hijack another's sections.
             if (descriptors.Any(d => d.TabId == hub.Id) || _hosts.Any(h => h.HostId == hub.Id))
             {
-                RouteModuleLog(ModuleLogLevel.Error, $"Hub tab '{hub.Id}' from '{hub.PackId}' uses an id already taken; left out.");
+                RouteModuleLog(ModuleLogLevel.Error,
+                    $"Hub tab '{hub.Id}' from '{hub.PackId}' uses an id already taken; left out.");
                 continue;
             }
 
-            HubTabViewModel viewModel = new(hub.Id, hub.Header, hub.RailLabel);
+            HubTabViewModel viewModel = new(hub.Header, hub.RailLabel);
             WorkspaceTabDescriptor tab = new()
             {
                 TabId = hub.Id,
@@ -2708,7 +2647,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (HostFor(descriptor) is { Contributed: true } host)
         {
             return (host.Tab.FeatureId is null || _gate is null || _gate.IsEnabled(host.Tab.FeatureId))
-                   && host.AllSections.Any(IsTabEnabled);
+                && host.AllSections.Any(IsTabEnabled);
         }
 
         if (_gate is null)
@@ -2809,11 +2748,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         ReconcileSections();
 
         // Desired = every cached descriptor the gate now enables, in the strip's sort order.
-        List<WorkspaceTabDescriptor> desired = _allTabDescriptors
-            .Where(IsTabEnabled)
-            .OrderBy(d => d.Placement)
-            .ThenBy(d => d.Order)
-            .ToList();
+        List<WorkspaceTabDescriptor> desired =
+        [
+            .. _allTabDescriptors
+                .Where(IsTabEnabled)
+                .OrderBy(d => d.Placement)
+                .ThenBy(d => d.Order)
+        ];
         HashSet<string> desiredIds = new(desired.Select(d => d.TabId), StringComparer.Ordinal);
 
         // (1) Remove tabs that are now disabled. Snapshot first (mutating Tabs during the walk).
@@ -2826,7 +2767,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 // host is special-cased: its order-neighbor can be any tab to its left, but a disabled pack
                 // must land on Library specifically, not whatever happens to sort just before it.
                 SelectedTab = HostFor(removed) is { Contributed: true }
-                    ? Tabs.FirstOrDefault(t => t.TabId == LibraryTabViewModel.HostId) ?? ChooseNeighbor(removed, desired)
+                    ? Tabs.FirstOrDefault(t => t.TabId == LibraryTabViewModel.HostId)
+                    ?? ChooseNeighbor(removed, desired)
                     : ChooseNeighbor(removed, desired);
             }
 
@@ -2861,7 +2803,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         foreach (SectionHostEntry host in _hosts)
         {
-            host.Sections.Reconcile(host.AllSections.Where(IsTabEnabled).OrderBy(d => d.Order).ToList());
+            host.Sections.Reconcile([.. host.AllSections.Where(IsTabEnabled).OrderBy(d => d.Order)]);
         }
     }
 
@@ -2937,7 +2879,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     // First-party modules get all capabilities; (future) third-party defaults are read-only +
     // Playback.Observe + UI.Contribute.
-    private static IEnumerable<string> HostCapabilitiesFor(IWorkspaceModule module) =>
+    private static IEnumerable<string> HostCapabilities() =>
         ModuleHost.FirstPartyCapabilities;
 
     // Routes a module log message to the Output panel's decode-errors channel (best-effort).
@@ -3005,7 +2947,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         try
         {
             _demoBytes = rawBytes;
-            _loadedDemoPath = path; // Diagnostics Session card
+            LoadedDemoPath = path; // Diagnostics Session card
             // The content key (SHA-256 of the bytes in hand) runs beside the parse rather than after it:
             // it keys the graph breakpoints and is published to modules, and computing it here costs no
             // wall time on the load. See LoadDemoFromBytesAsync for the same shape.
@@ -3036,16 +2978,14 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             }
 
             HasFile = Frames.Count > 0;
-            _allFrames = Frames.ToList();
+            _allFrames = [.. Frames];
             // Register the demo with the controller (frame list + tick rate for the play loop).
             Playback.LoadDemo(_allFrames, parsed.TickRate);
             // Hand the module context the stable identity roster (slot / steamID / name; no
             // team: team is per-tick via the host player-join).
             _moduleContext?.SetRoster(parsed.Players.Values.Select(p => new PlayerRosterEntry
             {
-                Slot = p.Slot,
-                SteamId = p.SteamId64,
-                Name = p.Name
+                Slot = p.Slot, SteamId = p.SteamId64, Name = p.Name
             }));
             _moduleContext?.SetGameEvents(parsed.AllGameEvents); // pre-decoded timeline for event-driven modules
             _moduleContext?.SetMapName(parsed.MapName); // data-driven map identity for asset selection
@@ -3075,7 +3015,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             open.Report(0.6, "Analysing");
             await Analysis.RunOpenAsync(parsed, demoKey, path, clock);
             ThrowIfSuperseded(open);
-            MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable, StatsTab.TeamScoresBySort, StatsTab.Rounds.Count, StatsTab.AccountsBySlot);
+            MatchOverviewTab.SetAnalysis(path, StatsTab.GameTable, StatsTab.TeamScoresBySort, StatsTab.Rounds.Count,
+                StatsTab.AccountsBySlot);
             // Per-team round wins from the same evaluation: each team's total across BOTH halves.
             MatchOverviewTab.SetTeamScores(
                 path,
@@ -3091,7 +3032,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             Analysis.SeedOpenVisit(parsed, path);
             _openPassesTask = RunOpenVisitAsync(open, path, parsed);
         }
-        catch (Exception ex) when (open.IsSuperseded || (ex is OperationCanceledException && open.CancellationToken.IsCancellationRequested))
+        catch (Exception ex) when (open.IsSuperseded
+                                   || (ex is OperationCanceledException
+                                       && open.CancellationToken.IsCancellationRequested))
         {
             superseded = open.IsSuperseded;
             open.Dispose();
@@ -3139,7 +3082,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             if (!census.TryGetValue(info.FrameNumber, out List<UnknownMessageInfo>? list))
             {
-                census[info.FrameNumber] = list = new List<UnknownMessageInfo>();
+                census[info.FrameNumber] = list = [];
             }
 
             list.Add(info);
@@ -3194,8 +3137,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // ── Value formatting ──────────────────────────────────────────────────────
 
     // 3.4c: promoted to `internal` so EntityTrackingTabViewModel can call it from
-    // moved methods (WatchField, UpdateWatchedValues, RebuildEntityGroupsWithDelta,
-    // RebuildEntityListItems, OnSelectedEntityItemChanged). Still stateless.
+    // moved methods (RebuildEntitiesWithDelta, RebuildEntityListItems,
+    // OnSelectedEntityItemChanged). Still stateless.
     internal static string FormatValue(object? v) => v switch
     {
         null => "<null>",
@@ -3511,22 +3454,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
-    // ── Semantic-nav delegating wrappers ───────────────────────────────────────
-    // The six *Frame* methods below delegate to the shell-owned SemanticNavigator, which
-    // binary-searches the precomputed boundary indices from PlaybackController.CurrentFrameIndex and
-    // drives PlaybackController.SeekToFrame. SeekControls still calls these wrappers (behavior-identical
-    // to the legacy per-press scans); the strip calls the navigator directly.
-
-    private void NextFrameByRound() => Navigator.NextRound();
-
-    // ── Frame-list seek helpers (used by SeekControls on Parser Details tab) ──
-
-    private void NextFrameByTick() => Navigator.NextTick();
-
-    // ── Special seek: parser tab (frame-level, reads SeekControls filters) ──────
-
-    private void NextSpecialFrame() => Navigator.NextEvent(SelectedSpecialFilter());
-
     /// <summary>
     ///     Re-evaluate the debugger commands' enabled state. The CommunityToolkit MVVM
     ///     generator doesn't auto-observe HasFile/IsLoading on our behalf, so we trigger
@@ -3595,8 +3522,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         NotifyNavCommandsCanExecute();
     }
 
-    // Categorise moved to EntityTab in 3.4c (helper for RebuildEntityGroups).
-
     /// <summary>Opens the command palette (Ctrl+P). Delegates to the palette VM's open action.</summary>
     [RelayCommand]
     private void OpenCommandPalette() => Palette.OpenCommand.Execute(null);
@@ -3619,9 +3544,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // OnSelectedFrameChanged, OnSelectedFrameRowChanged, OnSelectedMessageChanged,
     // OnSelectedPayloadNodeChanged all moved to ParserTab in 3.5a. Shell-side
     // fallouts (selected-frame index, command CanExecute refresh, Analysis seek,
-    // entity-seek kickoff, FrameGameEvents population) flow back via the
-    // ParserTab.OnFrameSelected + PopulateFrameGameEvents callbacks wired in the
-    // constructor. See HandleFrameSelectedFromParserTab + PopulateFrameGameEventsFromFrame.
+    // entity-seek kickoff) flow back via the ParserTab.OnFrameSelected callback
+    // wired in the constructor. See HandleFrameSelectedFromParserTab.
 
     // OnShowDeltaFieldsOnlyChanged moved to EntityTab in 3.4b (paired with
     // FilterAndSetEntityFieldNodes which it called).
@@ -3643,14 +3567,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType("CS2 Demo")
-                {
-                    Patterns = ["*.dem"]
-                },
-                new FilePickerFileType("All Files")
-                {
-                    Patterns = ["*.*"]
-                }
+                new FilePickerFileType("CS2 Demo") { Patterns = ["*.dem"] },
+                new FilePickerFileType("All Files") { Patterns = ["*.*"] }
             ]
         });
 
@@ -3709,7 +3627,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (_ownedQueue is null)
         {
             _ownedGate = _heavyJobGate is null ? new HeavyJobGate() : null;
-            _ownedQueue = new DemoProcessingQueue(_heavyJobGate ?? _ownedGate!) { ShellDemo = new ShellDemoLease(this) };
+            _ownedQueue =
+                new DemoProcessingQueue(_heavyJobGate ?? _ownedGate!) { ShellDemo = new ShellDemoLease(this) };
         }
 
         return _ownedQueue;
@@ -3770,7 +3689,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     ///     tab's seek seam reads it to skip the re-open when a Result Card names the demo already on
     ///     the clock; the Diagnostics card and the idle resume read the same field.
     /// </summary>
-    internal string? LoadedDemoPath => _loadedDemoPath;
+    internal string? LoadedDemoPath { get; private set; }
 
     // ── Safe mode ──
 
@@ -3914,7 +3833,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _heldDemo = null;
         _teamNamesTask = null;
         _allFrames = null;
-        _loadedDemoPath = null;
+        LoadedDemoPath = null;
         StatsTab.NotifyDemoChanged();
         _players = null;
         _playersByUserId = null;
@@ -4142,7 +4061,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             TimeSpan wait = _settings?.CurrentValue.Idle.IdleTimeoutWait ?? TimeSpan.FromMinutes(15);
             IdleView.MessageText = IdleViewModel.BuildMessage(wait);
 
-            if (HasFile && _loadedDemoPath is { Length: > 0 } path && File.Exists(path))
+            if (HasFile && LoadedDemoPath is { Length: > 0 } path && File.Exists(path))
             {
                 _idleResume = new IdleResumeState(path, Playback.CurrentFrameIndex, PersistedActiveTabId);
                 IdleView.SessionStateText = Playback.CurrentFrameIndex >= 0
@@ -4298,7 +4217,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async Task LoadDemoFromBytesCoreAsync(byte[] rawBytes, string? localPath, string fileName, IDemoOpenTicket open)
+    private async Task LoadDemoFromBytesCoreAsync(byte[] rawBytes, string? localPath, string fileName,
+        IDemoOpenTicket open)
     {
         // A read that finished after a newer open started must not reset the shell under it.
         if (IsStale(open))
@@ -4319,7 +4239,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         string? quickMap = null;
         string? quickServer = null;
         int headSpan = Math.Min(rawBytes.Length, 262144);
-        if (headSpan > 0 && DownstreamUtilities.TryReadQuickInfo(rawBytes.AsSpan(0, headSpan), out DownstreamUtilities.DemoQuickInfo qi))
+        if (headSpan > 0
+            && DownstreamUtilities.TryReadQuickInfo(rawBytes.AsSpan(0, headSpan),
+                out DownstreamUtilities.DemoQuickInfo qi))
         {
             quickMap = string.IsNullOrEmpty(qi.MapName) ? null : DemoEntry.PrettifyMap(qi.MapName);
             quickServer = qi.ServerName;
@@ -4346,7 +4268,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             SelectTabById("builtin.matchoverview");
         }
 
-        List<DemoFrame> allFrames = new();
+        List<DemoFrame> allFrames = [];
         bool superseded = false;
 
         try
@@ -4355,7 +4277,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // (the picker copies from the storage file, the library reads the local path).
             _demoBytes = rawBytes;
             // Retain the full path for the Diagnostics Session card; null on browser hosts.
-            _loadedDemoPath = localPath ?? fileName;
+            LoadedDemoPath = localPath ?? fileName;
             StatsTab.NotifyDemoChanged();
 
             // Zero-copy parse of rawBytes through the open item: frames slice into the buffer, so it must stay
@@ -4413,9 +4335,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // team: team is per-tick via the host player-join).
             _moduleContext?.SetRoster(parsed.Players.Values.Select(p => new PlayerRosterEntry
             {
-                Slot = p.Slot,
-                SteamId = p.SteamId64,
-                Name = p.Name
+                Slot = p.Slot, SteamId = p.SteamId64, Name = p.Name
             }));
             _moduleContext?.SetGameEvents(parsed.AllGameEvents); // pre-decoded timeline for event-driven modules
             _moduleContext?.SetMapName(parsed.MapName); // data-driven map identity for asset selection
@@ -4456,7 +4376,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // RunAsync (AnalysisViewModel.cs), so its tables are already built by the time this await
             // returns. Reading them here rather than subscribing keeps the Match Overview's score and
             // scoreboard byte-identical to the Stats tab's with no handler-order dependency.
-            MatchOverviewTab.SetAnalysis(subjectKey, StatsTab.GameTable, StatsTab.TeamScoresBySort, StatsTab.Rounds.Count, StatsTab.AccountsBySlot);
+            MatchOverviewTab.SetAnalysis(subjectKey, StatsTab.GameTable, StatsTab.TeamScoresBySort,
+                StatsTab.Rounds.Count, StatsTab.AccountsBySlot);
             // Per-team round wins from the same evaluation: each team's total across BOTH halves.
             MatchOverviewTab.SetTeamScores(
                 subjectKey,
@@ -4510,7 +4431,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // want of an open demo. No-op unless the tour is awaiting a load, so it is safe on every open.
             _tutorial.NotifyDemoLoaded();
         }
-        catch (Exception ex) when (open.IsSuperseded || (ex is OperationCanceledException && open.CancellationToken.IsCancellationRequested))
+        catch (Exception ex) when (open.IsSuperseded
+                                   || (ex is OperationCanceledException
+                                       && open.CancellationToken.IsCancellationRequested))
         {
             superseded = open.IsSuperseded;
             open.Dispose();
@@ -4571,17 +4494,15 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         IReadOnlyList<IStorageFolder> folders = await _storageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Add demo folder",
-                AllowMultiple = true
-            });
+            new FolderPickerOpenOptions { Title = "Add demo folder", AllowMultiple = true });
 
-        return folders
-            .Select(f => f.TryGetLocalPath())
-            .Where(p => !string.IsNullOrEmpty(p))
-            .Cast<string>()
-            .ToList();
+        return
+        [
+            .. folders
+                .Select(f => f.TryGetLocalPath())
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Cast<string>()
+        ];
     }
 
     /// <summary>
@@ -4641,10 +4562,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // until they are. A load that did not land (a missing file, a superseded open) focuses nobody.
     private async Task FocusPlayerInStatsAsync(string path, ulong steamId64)
     {
-        if (!string.Equals(_loadedDemoPath, path, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(LoadedDemoPath, path, StringComparison.OrdinalIgnoreCase))
         {
             await LoadDemoFromPathAsync(path);
-            if (!string.Equals(_loadedDemoPath, path, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(LoadedDemoPath, path, StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
@@ -4730,34 +4651,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         FirstRunOverlay = null;
     }
 
-    /// <summary>
-    ///     Populates the shell-owned <see cref="FrameGameEvents" /> collection from the
-    ///     inner messages of <paramref name="frame" />, or clears it when invoked with
-    ///     <c>null</c>. Kept on shell because the tick-view code path
-    ///     (<c>OnSelectedTickFrameChanged</c>, 3.5b) populates the same collection
-    ///     from a different angle.
-    /// </summary>
-    private void PopulateFrameGameEventsFromFrame(DemoFrame? frame)
-    {
-        FrameGameEvents.Clear();
-        if (frame is null)
-        {
-            HasFrameGameEvents = false;
-            return;
-        }
-
-        Func<int, string> playerName = SlotToName;
-        foreach (NetMessage msg in frame.InnerMessages)
-        {
-            if (msg is GameEventMessage gem)
-            {
-                FrameGameEvents.Add(new FrameGameEventViewModel(gem.DecodedEvent, playerName));
-            }
-        }
-
-        HasFrameGameEvents = FrameGameEvents.Count > 0;
-    }
-
     // PopulateFrameHeaderFields moved to ParserTab in 3.5a.
 
     [RelayCommand(CanExecute = nameof(CanGoPrev))]
@@ -4769,12 +4662,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void PreviousFrameByRound() => Navigator.PrevRound();
-
-    private void PreviousFrameByTick() => Navigator.PrevTick();
-
-    private void PreviousSpecialFrame() => Navigator.PrevEvent(SelectedSpecialFilter());
-
     /// <summary>
     ///     The currently-selected special-seek event names. The single
     ///     filter is now the demo-derived <c>GameEventFilters</c> (the hardcoded 7-event
@@ -4784,8 +4671,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     private List<string>? SelectedSpecialFilter()
     {
-        List<string> enabled = GameEventFilters
-            .Where(f => f.IsEnabled).Select(f => f.EventName).ToList();
+        List<string> enabled =
+        [
+            .. GameEventFilters
+                .Where(f => f.IsEnabled).Select(f => f.EventName)
+        ];
         return enabled.Count > 0 ? enabled : null;
     }
 
@@ -4887,7 +4777,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private void RefreshFrameBreakpointMarkers()
     {
         // Snapshot the set of frame numbers with FrameNumber breakpoints active.
-        HashSet<int> setFrames = new();
+        HashSet<int> setFrames = [];
         foreach (Breakpoint bp in Debugger.Breakpoints)
         {
             if (bp.Kind == BreakpointKind.FrameNumber)
@@ -4982,8 +4872,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (!TrySelectTab(p.ActiveTabId))
         {
             SelectedTab = Tabs.FirstOrDefault(t => t.TabId == HostIds.PlayerOverviewTab)
-                          ?? Tabs.FirstOrDefault(t => t.TabId == LibraryTabViewModel.HostId)
-                          ?? Tabs[0];
+                ?? Tabs.FirstOrDefault(t => t.TabId == LibraryTabViewModel.HostId)
+                ?? Tabs[0];
         }
     }
 
@@ -5099,7 +4989,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return n2;
         }
 
-        if (_playersByUserId is not null && _playersByUserId.TryGetValue(userId, out PlayerInfo? byId) && byId.Name.Length > 0)
+        if (_playersByUserId is not null && _playersByUserId.TryGetValue(userId, out PlayerInfo? byId)
+            && byId.Name.Length > 0)
         {
             return byId.Name;
         }
@@ -5312,7 +5203,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             frameNumber = i;
         }
-        else if (!int.TryParse(frameNumberObj.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out frameNumber))
+        else if (!int.TryParse(frameNumberObj.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture,
+                     out frameNumber))
         {
             return;
         }
@@ -5389,7 +5281,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         DemoScheduler? scheduler = _scheduler;
         try
         {
-            await open.RunPassesAsync(parsed, scheduler is null ? null : () => scheduler.PlanOpenDemo(path)).ConfigureAwait(false);
+            await open.RunPassesAsync(parsed, scheduler is null ? null : () => scheduler.PlanOpenDemo(path))
+                .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -5420,7 +5313,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     // Counts the queue's holds on the loaded parse; a close awaits the count reaching zero.
     private sealed class ShellDemoHolds
     {
-        private readonly object _gate = new();
+        private readonly Lock _gate = new();
         private int _count;
         private TaskCompletionSource _drained = Completed();
 

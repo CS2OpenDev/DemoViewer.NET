@@ -12,8 +12,6 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 /// </summary>
 public sealed class SetupHeatmapSet
 {
-    public Guid TeamId { get; init; }
-
     public IReadOnlyList<SetupHeatmap> Heatmaps { get; init; } = [];
 
     /// <summary>Demos of the team that had a current positions file to read.</summary>

@@ -88,12 +88,7 @@ internal static class SyntheticScenes
         List<GrenadeTrail> trails = new(4);
         for (int t = 0; t < 4; t++)
         {
-            GrenadeTrail trail = new()
-            {
-                Kind = (GrenadeKind)(t % 5),
-                Alpha = 1.0 - t * 0.2,
-                LastTick = 1000
-            };
+            GrenadeTrail trail = new() { Kind = (GrenadeKind)(t % 5), Alpha = 1.0 - t * 0.2, LastTick = 1000 };
 
             // 64 points each, arcing ACROSS the Z boundary so the run splitter does real work on both
             // panes rather than emitting one run and stopping.
@@ -160,12 +155,7 @@ internal static class SyntheticScenes
                 ObservedBounds = new WorldBounds(-2000, -1200, 2000, 1200),
                 SectionHeights = [-450, -100, 400]
             },
-            Vision = new SceneVision
-            {
-                IsAvailable = true,
-                Cones = cones,
-                Sightlines = sightlines
-            },
+            Vision = new SceneVision { IsAvailable = true, Cones = cones, Sightlines = sightlines },
             FollowSlot = 3
         };
 
@@ -178,9 +168,9 @@ internal static class SyntheticScenes
             MapName = "synthetic_budget",
             SourceDemoId = null,
             Notes = "Hand-authored worst-case load for the frame-time and allocation budgets: 10 markers, " +
-                    "4 trails of 64 points crossing both Z bands, 12 area effects, 5 solved vision cones " +
-                    "and 5 sightlines, a defusing bomb, over 2 levels at 1080p. Not a picture of any real " +
-                    "round — a fixture that happens to be quiet would let a regression through."
+                "4 trails of 64 points crossing both Z bands, 12 area effects, 5 solved vision cones " +
+                "and 5 sightlines, a defusing bomb, over 2 levels at 1080p. Not a picture of any real " +
+                "round — a fixture that happens to be quiet would let a regression through."
         };
     }
 

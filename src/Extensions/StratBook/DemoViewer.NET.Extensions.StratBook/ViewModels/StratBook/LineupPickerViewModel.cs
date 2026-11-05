@@ -48,7 +48,8 @@ public sealed partial class LineupPickerViewModel : ObservableObject, IDisposabl
     /// <param name="current">The step's lineup, resolved, or null.</param>
     /// <param name="technique">The step's technique, or null for the most thrown.</param>
     /// <param name="close">Called once with the pick, or null on cancel.</param>
-    public LineupPickerViewModel(UtilityBookTabViewModel map, string utilityKind, StratLineupChoice? current, string? technique,
+    public LineupPickerViewModel(UtilityBookTabViewModel map, string utilityKind, StratLineupChoice? current,
+        string? technique,
         Action<LineupPick?> close)
     {
         ArgumentNullException.ThrowIfNull(map);
@@ -56,7 +57,7 @@ public sealed partial class LineupPickerViewModel : ObservableObject, IDisposabl
         Map = map;
         _close = close;
         _kind = current?.UtilityKind
-                ?? (StratVocabulary.UtilityKinds.Contains(utilityKind) ? utilityKind : StratVocabulary.UtilityKinds[0]);
+            ?? (StratVocabulary.UtilityKinds.Contains(utilityKind) ? utilityKind : StratVocabulary.UtilityKinds[0]);
         Map.PropertyChanged += OnMapPropertyChanged;
         Map.QueryKinds = StratLineupCatalog.GrenadeKindsFor(_kind);
         if (current is not null)
@@ -70,7 +71,7 @@ public sealed partial class LineupPickerViewModel : ObservableObject, IDisposabl
     /// <summary>The Utility Book view model the map host draws.</summary>
     public UtilityBookTabViewModel Map { get; }
 
-    public static IReadOnlyList<string> Kinds { get; } = StratVocabulary.UtilityKinds;
+    public static IReadOnlyList<string> Kinds => StratVocabulary.UtilityKinds;
 
     public string Title => "Pick a lineup on " + Map.MapName;
 
@@ -157,7 +158,9 @@ public sealed partial class LineupPickerViewModel : ObservableObject, IDisposabl
                     .. UtilityBookTabViewModel.Positions(group).OrderByDescending(p => p.Throws.Count)
                         .Select(p => new LineupPickerPosition(p.Key,
                             p.Technique?.Label ?? (p.JumpThrow ? "jump-throw" : "standard throw"),
-                            CountText(p.Throws.Count, p.Throws.Select(t => t.Demo.Sha256 ?? t.Demo.StableKey).Distinct(StringComparer.Ordinal).Count())))
+                            CountText(p.Throws.Count,
+                                p.Throws.Select(t => t.Demo.Sha256 ?? t.Demo.StableKey).Distinct(StringComparer.Ordinal)
+                                    .Count())))
                 ]
                 : [];
             if (!Positions.SequenceEqual(positions))

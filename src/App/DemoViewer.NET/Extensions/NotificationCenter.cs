@@ -85,7 +85,7 @@ internal sealed class NotificationCenter
     }
 
     /// <summary>Applies every pending post and dismiss. UI thread.</summary>
-    internal void Drain()
+    private void Drain()
     {
         List<(Source Source, List<Pending> Ops)> work = [];
         lock (_gate)
@@ -124,7 +124,8 @@ internal sealed class NotificationCenter
 
     private void Show(Source source, Notification notification)
     {
-        DateTimeOffset? expires = notification.TimeToLive is { } ttl && ttl > TimeSpan.Zero ? _time.GetUtcNow() + ttl : null;
+        DateTimeOffset? expires =
+            notification.TimeToLive is { } ttl && ttl > TimeSpan.Zero ? _time.GetUtcNow() + ttl : null;
         if (Cards.FirstOrDefault(c => c.Owner == source && c.Id == notification.Id) is { } shown)
         {
             shown.Apply(notification, expires);
@@ -151,7 +152,7 @@ internal sealed class NotificationCenter
     internal void Close(NotificationCardViewModel card) => Cards.Remove(card);
 
     /// <summary>Closes every card whose extension's feature is off. UI thread.</summary>
-    internal void Recheck()
+    private void Recheck()
     {
         foreach (NotificationCardViewModel card in Cards.ToArray())
         {
@@ -207,10 +208,10 @@ internal sealed class NotificationCenter
     internal readonly record struct Pending(string Id, Notification? Notification);
 
     /// <summary>One extension's notifications. Every member is safe from any thread and never throws.</summary>
-    internal sealed class Source(NotificationCenter center, ExtensionGuard guard, ILogger? log) : IExtensionNotifications
+    internal sealed class Source(NotificationCenter center, ExtensionGuard guard, ILogger? log)
+        : IExtensionNotifications
     {
         private readonly List<Pending> _pending = [];
-        private int _dropped;
         private bool _droppedLogged;
 
         public ExtensionGuard Guard { get; } = guard;
@@ -219,9 +220,10 @@ internal sealed class NotificationCenter
 
         public string Name => Guard.Scope.Name;
 
-        public void Post(Notification notification)
+        public void Post(Notification? notification)
         {
-            if (notification is null || string.IsNullOrWhiteSpace(notification.Id) || string.IsNullOrWhiteSpace(notification.Title))
+            if (notification is null || string.IsNullOrWhiteSpace(notification.Id)
+                || string.IsNullOrWhiteSpace(notification.Title))
             {
                 Log(() => NotificationLog.Malformed(log));
                 return;
@@ -257,11 +259,6 @@ internal sealed class NotificationCenter
                 {
                     dropped |= _pending[0].Notification is not null;
                     _pending.RemoveAt(0);
-                }
-
-                if (dropped)
-                {
-                    _dropped++;
                 }
             }
 
@@ -313,9 +310,6 @@ internal sealed class NotificationCenter
                 // A logger that throws must not reach the extension's post.
             }
         }
-
-        /// <summary>How many posts dropped something to the cap before it was shown.</summary>
-        internal int Dropped => _dropped;
     }
 }
 
@@ -340,7 +334,8 @@ internal static partial class NotificationLog
     [LoggerMessage(Level = LogLevel.Warning, Message = "A notification without an id or a title was dropped.")]
     private static partial void MalformedCore(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Notifications are posted faster than they are shown; past {Cap} the oldest are dropped.")]
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Notifications are posted faster than they are shown; past {Cap} the oldest are dropped.")]
     private static partial void CappedCore(ILogger logger, int cap);
 }
 
@@ -350,7 +345,8 @@ public sealed partial class NotificationCardViewModel : ObservableObject
     private readonly NotificationCenter _center;
     private NotificationAction? _action;
 
-    internal NotificationCardViewModel(NotificationCenter center, NotificationCenter.Source owner, Notification notification,
+    internal NotificationCardViewModel(NotificationCenter center, NotificationCenter.Source owner,
+        Notification notification,
         DateTimeOffset? expiresAt)
     {
         _center = center;
@@ -369,17 +365,25 @@ public sealed partial class NotificationCardViewModel : ObservableObject
     public string SourceName { get; }
 
     /// <summary>How the card is tinted: info, success, warning or error.</summary>
-    [ObservableProperty] private NotificationSeverity _severity;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsInfo))]
+    [NotifyPropertyChangedFor(nameof(IsSuccess))]
+    [NotifyPropertyChangedFor(nameof(IsWarning))]
+    [NotifyPropertyChangedFor(nameof(IsError))]
+    private NotificationSeverity _severity;
 
     /// <summary>The card's one-line headline.</summary>
-    [ObservableProperty] private string _title = "";
+    [ObservableProperty]
+    private string _title = "";
 
     /// <summary>The detail under the title, or null for a title-only card.</summary>
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasBody))]
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBody))]
     private string? _body;
 
     /// <summary>The action button's label, or null when the card has no action.</summary>
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasAction))]
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAction))]
     private string? _actionLabel;
 
     /// <summary>When the host closes it, or null to keep it.</summary>
@@ -403,21 +407,15 @@ public sealed partial class NotificationCardViewModel : ObservableObject
     /// <summary>True for an <see cref="NotificationSeverity.Error" /> card.</summary>
     public bool IsError => Severity == NotificationSeverity.Error;
 
-    partial void OnSeverityChanged(NotificationSeverity value)
-    {
-        OnPropertyChanged(nameof(IsInfo));
-        OnPropertyChanged(nameof(IsSuccess));
-        OnPropertyChanged(nameof(IsWarning));
-        OnPropertyChanged(nameof(IsError));
-    }
-
     internal void Apply(Notification notification, DateTimeOffset? expiresAt)
     {
         Severity = notification.Severity;
         Title = notification.Title;
         Body = notification.Body;
         _action = notification.Action;
-        ActionLabel = notification.Action is { } action ? string.IsNullOrWhiteSpace(action.Label) ? "Open" : action.Label : null;
+        ActionLabel = notification.Action is { } action
+            ? string.IsNullOrWhiteSpace(action.Label) ? "Open" : action.Label
+            : null;
         ExpiresAt = expiresAt;
     }
 

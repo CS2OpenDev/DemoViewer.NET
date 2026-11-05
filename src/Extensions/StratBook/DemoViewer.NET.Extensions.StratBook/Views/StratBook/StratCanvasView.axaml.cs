@@ -7,9 +7,9 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Input;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Layers;
-using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Layers;
@@ -240,11 +240,11 @@ public partial class StratCanvasView : UserControl
     }
 
     private bool IsTextInputFocused() =>
-        TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox or AutoCompleteBox;
+        TopLevel.GetTopLevel(this)?.FocusManager.GetFocusedElement() is TextBox or AutoCompleteBox;
 
     private bool IsInsideTextEditor(object? source) =>
         _textEditor is not null && source is Visual visual
-                                && (ReferenceEquals(visual, _textEditor) || _textEditor.IsVisualAncestorOf(visual));
+        && (ReferenceEquals(visual, _textEditor) || _textEditor.IsVisualAncestorOf(visual));
 
     // The text tool placed a label: the editor goes over it at the label's size, focus posted because the
     // press that placed it is still being routed and would take focus straight back.

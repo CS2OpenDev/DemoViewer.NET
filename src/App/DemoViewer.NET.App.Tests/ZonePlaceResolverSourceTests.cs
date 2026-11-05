@@ -2,15 +2,13 @@
 
 using System.Numerics;
 using CS2DemoKit.Analysis.Visibility;
-using DemoViewer.NET.Playback2D.Zones;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Playback2D.Pipeline.Assets;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
-using DemoViewer.NET.Services.Zones;
+using DemoViewer.NET.Playback2D.Zones;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
-using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 
 #endregion
 
@@ -32,7 +30,8 @@ public class ZonePlaceResolverSourceTests
     {
         string bundleDir = RequireBundle();
         using TempDir overlays = new();
-        using AssetZonePlaceResolverSource source = new(Leases(MapAssetBundleReader.FindBundleDirectory, overlays.Path));
+        using AssetZonePlaceResolverSource
+            source = new(Leases(MapAssetBundleReader.FindBundleDirectory, overlays.Path));
         PlaceResolver direct = ZoneAssetPipeline.TryLoad(bundleDir, null)!;
 
         IZonePlaceResolver? zones = source.TryGet(Map);
@@ -56,7 +55,7 @@ public class ZonePlaceResolverSourceTests
         // The graph comes over by name, and an unknown place has no neighbours.
         ZonePlace linked = direct.Zones.Places.First(p => direct.Adjacent(p.Id).Count > 0);
         string[] expected = [.. direct.Adjacent(linked.Id).Select(id => direct.Zones.Places[id].Name)];
-        await Assert.That(zones.Adjacent(linked.Name).ToArray()).IsEquivalentTo(expected, CollectionOrdering.Matching);
+        await Assert.That([.. zones.Adjacent(linked.Name)]).IsEquivalentTo(expected, CollectionOrdering.Matching);
         await Assert.That(zones.Adjacent("NoSuchPlace").Count).IsEqualTo(0);
 
         using ToleranceSliderHarness slider = new(source);
@@ -74,7 +73,7 @@ public class ZonePlaceResolverSourceTests
     {
         RequireBundle();
         using TempDir noZones = new();
-        File.WriteAllText(Path.Combine(noZones.Path, "bundle.json"), "{}");
+        await File.WriteAllTextAsync(Path.Combine(noZones.Path, "bundle.json"), "{}");
         using AssetZonePlaceResolverSource source = new(Leases(
             map => string.Equals(map, Map, StringComparison.OrdinalIgnoreCase)
                 ? MapAssetBundleReader.FindBundleDirectory(map)
@@ -107,7 +106,8 @@ public class ZonePlaceResolverSourceTests
     {
         string bundleDir = RequireBundle();
         using TempDir overlays = new();
-        using AssetZonePlaceResolverSource source = new(Leases(MapAssetBundleReader.FindBundleDirectory, overlays.Path));
+        using AssetZonePlaceResolverSource
+            source = new(Leases(MapAssetBundleReader.FindBundleDirectory, overlays.Path));
         string baked = ZoneAssetPipeline.TryReadBaked(bundleDir)!.ZonesVersion;
 
         IZonePlaceResolver? before = source.TryGet(Map);
@@ -115,20 +115,21 @@ public class ZonePlaceResolverSourceTests
         await Assert.That(before!.ZonesVersion).IsEqualTo(baked);
 
         string file = Path.Combine(overlays.Path, Map + ZoneAssetPipeline.OverlaySuffix);
-        File.WriteAllText(file, """
-                                {
-                                  "schemaVersion": 1,
-                                  "mapName": "de_nuke",
-                                  "zones": [
-                                    { "name": "Sandwich", "floor": -512,
-                                      "polygon": [ -1600, -1900, -1200, -1900, -1200, -1500, -1600, -1500 ] }
-                                  ]
-                                }
-                                """);
+        await File.WriteAllTextAsync(file, """
+                                           {
+                                             "schemaVersion": 1,
+                                             "mapName": "de_nuke",
+                                             "zones": [
+                                               { "name": "Sandwich", "floor": -512,
+                                                 "polygon": [ -1600, -1900, -1200, -1900, -1200, -1500, -1600, -1500 ] }
+                                             ]
+                                           }
+                                           """);
 
         IZonePlaceResolver? after = source.TryGet(Map);
         await Assert.That(after).IsNotNull();
-        await Assert.That(ReferenceEquals(after, before)).IsFalse().Because("the overlay was saved after the first load");
+        await Assert.That(ReferenceEquals(after, before)).IsFalse()
+            .Because("the overlay was saved after the first load");
         ZonePlaceResolverAdapter adapter = (ZonePlaceResolverAdapter)after!;
         using (Assert.Multiple())
         {
@@ -139,7 +140,8 @@ public class ZonePlaceResolverSourceTests
             await Assert.That(after.ResolveOnFloor(-1400, -1700, -512)).IsEqualTo("Sandwich");
         }
 
-        await Assert.That(ReferenceEquals(source.TryGet(Map), after)).IsTrue().Because("an unchanged overlay is not re-read");
+        await Assert.That(ReferenceEquals(source.TryGet(Map), after)).IsTrue()
+            .Because("an unchanged overlay is not re-read");
 
         using ToleranceSliderHarness slider = new(source);
         await Assert.That(slider.Vm.ToleranceTip).Contains($"zones:{after.ZonesVersion}");
@@ -170,7 +172,8 @@ public class ZonePlaceResolverSourceTests
     {
         public TempDir()
         {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dv-zone-source-" + Guid.NewGuid().ToString("N"));
+            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                "dv-zone-source-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path);
         }
 

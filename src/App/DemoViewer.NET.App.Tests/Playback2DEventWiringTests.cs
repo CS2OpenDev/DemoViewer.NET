@@ -1,8 +1,8 @@
 #region
 
 using System.Reflection;
-using SysAssembly = System.Reflection.Assembly;
 using TUnit.Assertions.Enums;
+using SysAssembly = System.Reflection.Assembly;
 
 #endregion
 
@@ -13,6 +13,7 @@ namespace DemoViewer.NET.AppTests;
 /// <param name="Implementers">Every concrete declaring type in the group.</param>
 /// <param name="Raisers">Production methods that load the backing field, i.e. that can raise it.</param>
 /// <param name="Subscribers">Production methods that call an <c>add_</c> accessor for it.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed record EventContract(
     string Key,
     IReadOnlyList<string> Implementers,
@@ -66,18 +67,20 @@ public class Playback2DEventWiringTests
         // raise. None exists today; if one is added, the guard must grow rather than silently stop asking.
         await Assert.That(string.Join(", ", unanalysable)).IsEqualTo("")
             .Because("an event with custom add/remove accessors is invisible to this scan — extend the "
-                     + "guard in the same commit that adds one");
+                + "guard in the same commit that adds one");
 
-        List<string> dead = contracts
-            .Where(c => !c.IsWired)
-            .Select(c => c.Describe())
-            .OrderBy(s => s, StringComparer.Ordinal)
-            .ToList();
+        List<string> dead =
+        [
+            .. contracts
+                .Where(c => !c.IsWired)
+                .Select(c => c.Describe())
+                .OrderBy(s => s, StringComparer.Ordinal)
+        ];
 
         await Assert.That(string.Join("; ", dead)).IsEqualTo("")
             .Because("an event with no production subscriber is a feature that computes its answer and "
-                     + "throws it away — and one with no production raiser is a subscriber that will "
-                     + "never run");
+                + "throws it away — and one with no production raiser is a subscriber that will "
+                + "never run");
     }
 
     /// <summary>
@@ -104,7 +107,8 @@ public class Playback2DEventWiringTests
 
         await Assert.That(byName.Count).IsEqualTo(3)
             .Because("a forwarder is no contract of its own and an opaque accessor is reported, not counted");
-        await Assert.That(unanalysable).IsEquivalentTo([typeof(EventGuardCanaryOpaque).FullName + ".OpaqueCanary"], CollectionOrdering.Matching)
+        await Assert.That(unanalysable).IsEquivalentTo([typeof(EventGuardCanaryOpaque).FullName + ".OpaqueCanary"],
+                CollectionOrdering.Matching)
             .Because("the forwarder is seen through to its inner event; the opaque accessor is not");
         await Assert.That(byName["WiredCanary"].IsWired).IsTrue()
             .Because("raised in Raise() and subscribed from a different type — the shape a real event has");
@@ -126,7 +130,7 @@ public class Playback2DEventWiringTests
             Analyse(Playback2DWholeGraph.EventContractTypes, Playback2DWholeGraph.ProductionAssemblies);
 
         Console.WriteLine($"[event-wiring] module types={Playback2DWholeGraph.EventContractTypes.Count()} "
-                          + $"event contracts={contracts.Count}");
+            + $"event contracts={contracts.Count}");
 
         await Assert.That(Playback2DWholeGraph.EventContractTypes.Count()).IsGreaterThan(100);
         await Assert.That(contracts.Count).IsGreaterThanOrEqualTo(12);
@@ -147,7 +151,7 @@ public class Playback2DEventWiringTests
     ///     every raise and subscribe found in <paramref name="scope" /> to one.
     /// </summary>
     private static (List<EventContract> Contracts, List<string> Unanalysable) Analyse(
-        IEnumerable<Type> types, IEnumerable<SysAssembly> scope)
+        IEnumerable<Type> types, IReadOnlyList<SysAssembly> scope)
     {
         List<string> unanalysable = [];
 
@@ -200,10 +204,7 @@ public class Playback2DEventWiringTests
                 if (!groups.TryGetValue(key, out (HashSet<string>, HashSet<string>, string) group))
                 {
                     group = (new HashSet<string>(StringComparer.Ordinal),
-                        new HashSet<string>(StringComparer.Ordinal)
-                        {
-                            contract.FullName!
-                        },
+                        new HashSet<string>(StringComparer.Ordinal) { contract.FullName! },
                         evt.Name);
                     groups[key] = group;
                 }
@@ -237,16 +238,16 @@ public class Playback2DEventWiringTests
             foreach (IlSite site in sites)
             {
                 bool isSubscribe = site.Access == IlAccess.Call
-                                   && string.Equals(site.TargetMember, "add_" + name, StringComparison.Ordinal)
-                                   && owners.Contains(site.TargetType);
+                    && string.Equals(site.TargetMember, "add_" + name, StringComparison.Ordinal)
+                    && owners.Contains(site.TargetType);
 
                 // The compiler's own accessors load the backing field too; they are the plumbing, not a
                 // raise. Everything else that loads it is about to Invoke it.
                 bool isRaise = site.Access == IlAccess.LoadField
-                               && string.Equals(site.TargetMember, name, StringComparison.Ordinal)
-                               && implementers.Contains(site.TargetType)
-                               && site.Method != "add_" + name
-                               && site.Method != "remove_" + name;
+                    && string.Equals(site.TargetMember, name, StringComparison.Ordinal)
+                    && implementers.Contains(site.TargetType)
+                    && site.Method != "add_" + name
+                    && site.Method != "remove_" + name;
 
                 if (isSubscribe)
                 {
@@ -269,14 +270,14 @@ public class Playback2DEventWiringTests
 
     // True when the type's own add_<name> calls add_<name> on another type: the event forwards, and the
     // inner type is where a raise and a backing field live.
-    private static bool Forwards(Type type, string name, IEnumerable<SysAssembly> scope)
+    private static bool Forwards(Type type, string name, IReadOnlyList<SysAssembly> scope)
     {
         string add = "add_" + name;
         return Playback2DWholeGraph.Scan(scope, (_, member) => string.Equals(member, add, StringComparison.Ordinal))
             .Any(site => site.Access == IlAccess.Call
-                         && string.Equals(site.Type, type.FullName, StringComparison.Ordinal)
-                         && string.Equals(site.Method, add, StringComparison.Ordinal)
-                         && !string.Equals(site.TargetType, type.FullName, StringComparison.Ordinal));
+                && string.Equals(site.Type, type.FullName, StringComparison.Ordinal)
+                && string.Equals(site.Method, add, StringComparison.Ordinal)
+                && !string.Equals(site.TargetType, type.FullName, StringComparison.Ordinal));
     }
 
     // The interface whose event THIS event implements, or null. Resolved through the interface map rather
@@ -317,6 +318,7 @@ public class Playback2DEventWiringTests
 ///     Three events with three different wirings, so the scan is shown to separate them rather than to
 ///     report nothing.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class EventGuardCanary
 {
     /// <summary>Raised below, subscribed from <see cref="EventGuardCanaryHost" />. Must come back clean.</summary>
@@ -344,6 +346,7 @@ internal sealed class EventGuardCanary
 ///     accessors that forward to another type's event of the same name, so no backing field and no raise of
 ///     its own. The scan must see through it rather than report it.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class EventGuardCanaryForwarder(EventGuardCanary inner)
 {
     public event Action? WiredCanary
@@ -354,17 +357,16 @@ internal sealed class EventGuardCanaryForwarder(EventGuardCanary inner)
 }
 
 /// <summary>Hand-written accessors that forward nowhere: the one shape the scan cannot see, and must say so.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class EventGuardCanaryOpaque
 {
-    private int _subscribers;
-
     public event Action? OpaqueCanary
     {
-        add => _subscribers++;
-        remove => _subscribers--;
+        add => Subscribers++;
+        remove => Subscribers--;
     }
 
-    public int Subscribers => _subscribers;
+    public int Subscribers { get; private set; }
 }
 
 /// <summary>
@@ -372,6 +374,7 @@ internal sealed class EventGuardCanaryOpaque
 ///     direct <c>Delegate.Combine</c> on the backing field and never calls <c>add_</c>, so a self-wired
 ///     canary would prove nothing about how a real subscriber is detected.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class EventGuardCanaryHost
 {
     public static void Wire(EventGuardCanary canary)

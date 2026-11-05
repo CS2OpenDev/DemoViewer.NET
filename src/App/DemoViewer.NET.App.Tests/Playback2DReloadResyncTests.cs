@@ -30,22 +30,11 @@ public class Playback2DReloadResyncTests
             TotalFrames = 0,
             MapTicksToFrames = false,
             MapName = "de_dust2",
-            Roster =
-            {
-                new PlayerRosterEntry
-                {
-                    Slot = 0,
-                    Name = "Alice",
-                    SteamId = 1
-                }
-            }
+            Roster = { new PlayerRosterEntry { Slot = 0, Name = "Alice", SteamId = 1 } }
         };
 
         vm.OnActivated(ctx);
-        ctx.Push(new FakeSnap(1, new[]
-        {
-            Alive(0, 2, 100, 200)
-        }));
+        ctx.Push(new FakeSnap(1, [Alive(0, 2, 100, 200)]));
 
         // Baseline: seeded to demo A (its map + its roster).
         await Assert.That(vm.LoadedMapNameForTest).IsEqualTo("de_dust2");
@@ -57,16 +46,8 @@ public class Playback2DReloadResyncTests
         // The shell raises DemoReset instead, and there is no authoritative tracker until the first seek
         // (CurrentPlayers empty), exactly as after a real reload.
         ctx.MapName = "de_mirage";
-        ctx.Roster = new List<PlayerRosterEntry>
-        {
-            new()
-            {
-                Slot = 0,
-                Name = "Bob",
-                SteamId = 2
-            }
-        };
-        ctx.SetCurrentPlayers(Array.Empty<IPlayerState>());
+        ctx.Roster = [new() { Slot = 0, Name = "Bob", SteamId = 2 }];
+        ctx.SetCurrentPlayers([]);
         ctx.RaiseDemoReset();
 
         // The map image + roster labels now reflect demo B: full restoration, no manual seek required...
@@ -85,15 +66,7 @@ public class Playback2DReloadResyncTests
             TotalFrames = 0,
             MapTicksToFrames = false,
             MapName = "de_dust2",
-            Roster =
-            {
-                new PlayerRosterEntry
-                {
-                    Slot = 0,
-                    Name = "Alice",
-                    SteamId = 1
-                }
-            }
+            Roster = { new PlayerRosterEntry { Slot = 0, Name = "Alice", SteamId = 1 } }
         };
 
         vm.OnActivated(ctx);
@@ -111,9 +84,7 @@ public class Playback2DReloadResyncTests
 
     private static ResyncPlayer Alive(int slot, int team, float x, float y)
     {
-        Ent pawn = new("CCSPlayerPawn");
-        pawn.F["m_iHealth"] = 100;
-        pawn.F["m_lifeState"] = 0;
+        Ent pawn = new("CCSPlayerPawn") { F = { ["m_iHealth"] = 100, ["m_lifeState"] = 0 } };
         return new ResyncPlayer(slot, team, pawn, new Ent("CCSPlayerController"), (x, y, 64f));
     }
 
@@ -163,8 +134,8 @@ public class Playback2DReloadResyncTests
 
     private sealed class View : IReadOnlyEntityView
     {
-        public IEnumerable<IReadOnlyEntity> All() => Array.Empty<IReadOnlyEntity>();
-        public IEnumerable<IReadOnlyEntity> OfClass(string className) => Array.Empty<IReadOnlyEntity>();
+        public IEnumerable<IReadOnlyEntity> All() => [];
+        public IEnumerable<IReadOnlyEntity> OfClass(string className) => [];
         public IReadOnlyEntity? BySerial(int serial) => null;
         public IReadOnlyEntity? ByIndex(int entityIndex) => null;
         public IReadOnlyEntity? ResolveHandle(ulong handle) => null;

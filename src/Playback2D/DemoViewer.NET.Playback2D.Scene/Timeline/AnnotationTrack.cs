@@ -17,6 +17,7 @@ namespace DemoViewer.NET.Playback2D.Timeline;
 ///         stroke anchored past the end of this parse, is DROPPED rather than silently drawn at frame 0.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class AnnotationTrack : ITimelineTrack, IDisposable
 {
     /// <summary>

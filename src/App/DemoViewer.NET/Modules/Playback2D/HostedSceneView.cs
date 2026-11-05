@@ -5,7 +5,6 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using CS2DemoKit.Analysis.Visibility;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
@@ -29,9 +28,7 @@ namespace DemoViewer.NET.Modules.Playback2D;
 /// </summary>
 internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
 {
-    private readonly Scene2DHost _host = new();
     private readonly Dictionary<IPointerTool, IPointerTool> _tools = new(ReferenceEqualityComparer.Instance);
-    private readonly ExtensionFaults? _faults;
     private SourceFrameHost? _bound;
 
     /// <summary>Creates the view over a fresh scene host.</summary>
@@ -41,23 +38,23 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
     /// </param>
     public HostedSceneView(ExtensionFaults? faults = null)
     {
-        _faults = faults;
+        Faults = faults;
         ClipToBounds = true;
-        _host.TextEditRequested += (at, emPixels) => TextEditRequested?.Invoke(at, emPixels);
+        Host.TextEditRequested += (at, emPixels) => TextEditRequested?.Invoke(at, emPixels);
 
         // The host's level-state signal IS "the panes were arranged": it fires on the first layout and on
         // every change to it, which is exactly when a fit has something to fit to.
-        _host.LevelStateChanged += () => PanesArranged?.Invoke();
-        LogicalChildren.Add(_host);
-        VisualChildren.Add(_host);
+        Host.LevelStateChanged += () => PanesArranged?.Invoke();
+        LogicalChildren.Add(Host);
+        VisualChildren.Add(Host);
     }
 
     /// <summary>The scene host drawing the view.</summary>
-    internal Scene2DHost Host => _host;
+    private Scene2DHost Host { get; } = new();
 
     // Read per add, not cached: the desktop head installs the process's tracker before the first view is
     // built, but a host built in a test or a designer may outlive one being installed.
-    private ExtensionFaults? Faults => _faults ?? ExtensionFaults.Current;
+    private ExtensionFaults? Faults => field ?? ExtensionFaults.Current;
 
     /// <inheritdoc />
     public Control View => this;
@@ -65,7 +62,6 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
     /// <inheritdoc />
     public ISceneSource? Source
     {
-        get => _bound?.Source;
         set
         {
             if (ReferenceEquals(_bound?.Source, value))
@@ -75,7 +71,7 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
 
             _bound?.Detach();
             _bound = value is null ? null : new SourceFrameHost(value);
-            _host.DataContext = _bound;
+            Host.DataContext = _bound;
         }
     }
 
@@ -83,10 +79,10 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
     public event Action? PanesArranged;
 
     /// <inheritdoc />
-    public IReadOnlyList<LevelPane> Panes => _host.Panes;
+    public IReadOnlyList<LevelPane> Panes => Host.Panes;
 
     /// <inheritdoc />
-    public string ActiveTool => _host.Router.ActiveToolId;
+    public string ActiveTool => Host.Router.ActiveToolId;
 
     /// <inheritdoc />
     public event Action<Point, double>? TextEditRequested;
@@ -95,7 +91,7 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
     public void Dispose()
     {
         Source = null;
-        _host.Dispose();
+        Host.Dispose();
     }
 
     /// <inheritdoc />
@@ -103,15 +99,16 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
     {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(layer);
-        (string filed, Func<ISceneLayer> build) = ContributedSceneLayer.File(id, layer, "scene view layer factory", Faults);
+        (string filed, Func<ISceneLayer> build) =
+            ContributedSceneLayer.File(id, layer, "scene view layer factory", Faults);
 
         // The host holds the registry and refuses a duplicate, so nothing is recorded before it has taken it.
-        _host.AddLayer(filed, build);
+        Host.AddLayer(filed, build);
         return filed;
     }
 
     /// <inheritdoc />
-    public void RemoveLayer(string id) => _host.RemoveLayer(id);
+    public void RemoveLayer(string id) => Host.RemoveLayer(id);
 
     /// <inheritdoc />
     public string AddTool(IPointerTool tool)
@@ -126,7 +123,7 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
         IPointerTool filed = Guard(tool);
 
         // Register first. A refused id must leave nothing recorded here either.
-        _host.AddTool(filed);
+        Host.AddTool(filed);
         _tools[tool] = filed;
         return filed.Id;
     }
@@ -136,42 +133,42 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
     {
         if (_tools.Remove(tool, out IPointerTool? guarded))
         {
-            _host.RemoveTool(guarded);
+            Host.RemoveTool(guarded);
         }
     }
 
     /// <inheritdoc />
-    public void SetActiveTool(string toolId) => _host.SetActiveTool(toolId);
+    public void SetActiveTool(string toolId) => Host.SetActiveTool(toolId);
 
     /// <inheritdoc />
-    public void SetHoldPan(bool held) => _host.SetSpacePanHeld(held);
+    public void SetHoldPan(bool held) => Host.SetSpacePanHeld(held);
 
     /// <inheritdoc />
-    public void CancelGesture() => _host.CancelActiveGesture();
+    public void CancelGesture() => Host.CancelActiveGesture();
 
     /// <inheritdoc />
-    public void CompleteTextEdit(string? text) => _host.CompleteTextEdit(text);
+    public void CompleteTextEdit(string? text) => Host.CompleteTextEdit(text);
 
     /// <inheritdoc />
-    public void Fit() => _host.FitToExtent();
+    public void Fit() => Host.FitToExtent();
 
     /// <inheritdoc />
-    public LevelPane? PaneAt(double x, double y) => _host.PaneAtHostPoint((float)x, (float)y);
+    public LevelPane? PaneAt(double x, double y) => Host.PaneAtHostPoint((float)x, (float)y);
 
     /// <inheritdoc />
-    public void Invalidate() => _host.InvalidateVisual();
+    public void Invalidate() => Host.InvalidateVisual();
 
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
     {
-        _host.Measure(availableSize);
+        Host.Measure(availableSize);
         return default;
     }
 
     /// <inheritdoc />
     protected override Size ArrangeOverride(Size finalSize)
     {
-        _host.Arrange(new Rect(finalSize));
+        Host.Arrange(new Rect(finalSize));
         return finalSize;
     }
 
@@ -256,9 +253,8 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
         {
             ScenePress converted = new(press.Level, press.WorldX, press.WorldY,
                 new Point(press.Screen.X, press.Screen.Y), Convert(press.Modifiers));
-            return _guard is null
-                ? Source.OnPress(converted)
-                : _guard.Run("scene source", () => Source.OnPress(converted), false, FaultKind.Recurring);
+            return _guard?.Run("scene source", () => Source.OnPress(converted), false, FaultKind.Recurring)
+                ?? Source.OnPress(converted);
         }
 
         // The host's handlers touch the visual tree, so a raise from a worker is posted to the UI thread.
@@ -296,26 +292,25 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
 /// </summary>
 internal sealed class HostedTimeline : ITimelineBackend
 {
-    private readonly Playback2DTimelineViewModel _timeline = new() { IsVisible = true };
     private readonly Dictionary<ITimelineTrack, ITimelineTrack> _tracks = new(ReferenceEqualityComparer.Instance);
 
     /// <summary>Creates the timeline and forwards its seeks.</summary>
     public HostedTimeline()
     {
-        _timeline.SeekRequested += frameIndex => SeekRequested?.Invoke(frameIndex);
+        ViewModel.SeekRequested += frameIndex => SeekRequested?.Invoke(frameIndex);
     }
 
     /// <summary>The view model the control binds.</summary>
-    internal Playback2DTimelineViewModel ViewModel => _timeline;
+    private Playback2DTimelineViewModel ViewModel { get; } = new() { IsVisible = true };
 
     /// <inheritdoc />
-    public int TotalFrames => _timeline.TotalFrames;
+    public int TotalFrames => ViewModel.TotalFrames;
 
     /// <inheritdoc />
-    public IReadOnlyList<TimelineMarker> Markers => _timeline.BuiltMarkers;
+    public IReadOnlyList<TimelineMarker> Markers => ViewModel.BuiltMarkers;
 
     /// <inheritdoc />
-    public IReadOnlyList<TimelineBand> Bands => _timeline.BuiltBands;
+    public IReadOnlyList<TimelineBand> Bands => ViewModel.BuiltBands;
 
     /// <inheritdoc />
     public event Action<int>? SeekRequested;
@@ -328,11 +323,12 @@ internal sealed class HostedTimeline : ITimelineBackend
             return;
         }
 
-        ITimelineTrack registered = ExtensionFaults.Current is { } faults && faults.Owner(track.GetType().Assembly) is { } owner
-            ? new GuardedTimelineTrack(track, faults.GuardFor(owner))
-            : track;
+        ITimelineTrack registered =
+            ExtensionFaults.Current is { } faults && faults.Owner(track.GetType().Assembly) is { } owner
+                ? new GuardedTimelineTrack(track, faults.GuardFor(owner))
+                : track;
         _tracks[track] = registered;
-        _timeline.RegisterTrack(registered);
+        ViewModel.RegisterTrack(registered);
     }
 
     /// <inheritdoc />
@@ -343,24 +339,24 @@ internal sealed class HostedTimeline : ITimelineBackend
             return;
         }
 
-        _timeline.UnregisterTrack(registered);
+        ViewModel.UnregisterTrack(registered);
         (registered as GuardedTimelineTrack)?.Detach();
     }
 
     /// <inheritdoc />
-    public void Rebuild(ITimelineData? data) => _timeline.Rebuild(data);
+    public void Rebuild(ITimelineData? data) => ViewModel.Rebuild(data);
 
     /// <inheritdoc />
-    public void UpdatePlayhead(int frameIndex, int tick) => _timeline.UpdatePlayhead(frameIndex, tick);
+    public void UpdatePlayhead(int frameIndex, int tick) => ViewModel.UpdatePlayhead(frameIndex, tick);
 
     /// <inheritdoc />
-    public void RequestSeek(int frameIndex) => _timeline.RequestSeekToFrame(frameIndex);
+    public void RequestSeek(int frameIndex) => ViewModel.RequestSeekToFrame(frameIndex);
 
     /// <inheritdoc />
-    public Control CreateView() => new TimelineControl { DataContext = _timeline };
+    public Control CreateView() => new TimelineControl { DataContext = ViewModel };
 
     /// <inheritdoc />
-    public void Dispose() => _timeline.Dispose();
+    public void Dispose() => ViewModel.Dispose();
 }
 
 /// <summary>

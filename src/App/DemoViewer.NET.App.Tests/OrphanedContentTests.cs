@@ -40,7 +40,11 @@ public class OrphanedContentTests
 
     private static string[] Files(string root) =>
         Directory.Exists(Path.Combine(root, "demos"))
-            ? [.. Directory.EnumerateFiles(Path.Combine(root, "demos")).Select(Path.GetFileName).Order(StringComparer.Ordinal)!]
+            ?
+            [
+                .. Directory.EnumerateFiles(Path.Combine(root, "demos")).Select(Path.GetFileName)
+                    .Order(StringComparer.Ordinal)!
+            ]
             : [];
 
     private static void Cleanup(string root)
@@ -79,7 +83,8 @@ public class OrphanedContentTests
                 await Assert.That(store.OrphanAt("/m/a.dem")).IsEqualTo("sha-a");
                 await Assert.That(store.TryGetOrphan("sha-a")!.OrphanedSinceUtcTicks).IsNotNull();
                 await Assert.That(store.TryGetOrphan("sha-a")!.Path).IsEqualTo("/m/a.dem");
-                await Assert.That(Files(root)).IsEquivalentTo(before, CollectionOrdering.Matching).Because("nothing is deleted on a detach");
+                await Assert.That(Files(root)).IsEquivalentTo(before, CollectionOrdering.Matching)
+                    .Because("nothing is deleted on a detach");
                 await Assert.That(changes.Single()).IsEqualTo("/m/a.dem");
             }
 
@@ -87,7 +92,8 @@ public class OrphanedContentTests
             DemoCacheStore reopened = new(root);
             using (Assert.Multiple())
             {
-                await Assert.That(reopened.TryGetIndex("/m/a.dem")).IsNull().Because("an orphan stays orphaned across a reload");
+                await Assert.That(reopened.TryGetIndex("/m/a.dem")).IsNull()
+                    .Because("an orphan stays orphaned across a reload");
                 await Assert.That(reopened.TryGetOrphan("sha-a")).IsNotNull();
                 await Assert.That(reopened.Contents).IsEmpty();
             }
@@ -148,7 +154,8 @@ public class OrphanedContentTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(store.Reattach("/m/a.dem", 1000, 9999)).IsFalse().Because("another write time is another file");
+            await Assert.That(store.Reattach("/m/a.dem", 1000, 9999)).IsFalse()
+                .Because("another write time is another file");
             await Assert.That(store.Reattach("/m/a.dem", 1000, 2000)).IsTrue();
             await Assert.That(store.TryGetOrphan("sha-a")).IsNull();
             await Assert.That(store.LocationOf("/m/a.dem")!.Value.Location.Confirmed).IsTrue();
@@ -195,7 +202,14 @@ public class OrphanedContentTests
             store.Upsert(Analysed("/m/a.dem", "sha-a"));
             store.Detach("/m/a.dem");
 
-            DemoCacheRecord parsed = new() { Path = "/k/a.dem", Size = 1000, ModifiedTicks = 5000, Sha256 = "sha-a", Map = "de_nuke" };
+            DemoCacheRecord parsed = new()
+            {
+                Path = "/k/a.dem",
+                Size = 1000,
+                ModifiedTicks = 5000,
+                Sha256 = "sha-a",
+                Map = "de_nuke"
+            };
             DemoCacheStore.StampParse(parsed);
             store.Upsert(parsed);
 
@@ -225,7 +239,8 @@ public class OrphanedContentTests
         {
             await Assert.That(store.TryGetOrphan("sha-a")).IsNotNull();
             await Assert.That(store.TryGetIndex("/m/a.dem")!.Sha256).IsEqualTo("sha-b");
-            await Assert.That(store.TryReadSibling("/m/a.dem", Suffix)).IsNull().Because("the old demo's sibling is not the new one's");
+            await Assert.That(store.TryReadSibling("/m/a.dem", Suffix)).IsNull()
+                .Because("the old demo's sibling is not the new one's");
         }
 
         store.AttachUnconfirmed("sha-a", "/n/a.dem", 1000, 2000);
@@ -269,7 +284,7 @@ public class OrphanedContentTests
     public async Task TwoOrphansThatHadOnePath_AreToldApartByTheFilesStamps()
     {
         DemoCacheStore store = new(null);
-        store.Upsert(Analysed("/m/a.dem", "sha-old", 1000, 2000));
+        store.Upsert(Analysed("/m/a.dem", "sha-old"));
         store.Detach("/m/a.dem");
         store.Upsert(Analysed("/m/a.dem", "sha-new", 1500, 3000));
         store.Detach("/m/a.dem");
@@ -285,7 +300,8 @@ public class OrphanedContentTests
         store.Remove("/m/a.dem");
         using (Assert.Multiple())
         {
-            await Assert.That(store.HoldsContent("sha-old")).IsFalse().Because("an explicit remove takes every orphan that had the path");
+            await Assert.That(store.HoldsContent("sha-old")).IsFalse()
+                .Because("an explicit remove takes every orphan that had the path");
             await Assert.That(store.HoldsContent("sha-new")).IsFalse();
         }
     }
@@ -379,16 +395,19 @@ public class OrphanedContentTests
             Dictionary<string, byte[]> kept = Directory.EnumerateFiles(demos).ToDictionary(f => f, File.ReadAllBytes);
             await Assert.That(kept).IsNotEmpty();
 
-            await Assert.That(new DemoCacheStore(root).ExpireOrphans(DateTime.UtcNow.AddDays(30), TimeSpan.FromDays(14))).IsEqualTo(1);
+            await Assert
+                .That(new DemoCacheStore(root).ExpireOrphans(DateTime.UtcNow.AddDays(30), TimeSpan.FromDays(14)))
+                .IsEqualTo(1);
             foreach ((string file, byte[] bytes) in kept)
             {
-                File.WriteAllBytes(file, bytes);
+                await File.WriteAllBytesAsync(file, bytes);
             }
 
             DemoCacheStore reopened = new(root);
             using (Assert.Multiple())
             {
-                await Assert.That(reopened.HoldsContent(sha)).IsFalse().Because("the index was saved before the files went");
+                await Assert.That(reopened.HoldsContent(sha)).IsFalse()
+                    .Because("the index was saved before the files went");
                 await Assert.That(reopened.Reattach("/m/a.dem", 1000, 2000)).IsFalse();
             }
 
@@ -419,14 +438,14 @@ public class OrphanedContentTests
             store.Update("/m/c.dem", 5, 6, DemoCacheStore.StampHeader);
             store.WriteSibling("/m/a.dem", Suffix, "facts");
             store.SaveIndex();
-            store.Upsert(Analysed("/m/d.dem", "sha-a", 1000, 2000));
+            store.Upsert(Analysed("/m/d.dem", "sha-a"));
             store.Detach("/m/b.dem");
             store.SaveIndex();
 
             string index = Path.Combine(root, "index.json");
             if (corrupt)
             {
-                File.WriteAllText(index, "{ \"Version\": 6, \"Entr");
+                await File.WriteAllTextAsync(index, "{ \"Version\": 6, \"Entr");
             }
             else
             {
@@ -442,7 +461,8 @@ public class OrphanedContentTests
                 await Assert.That(rebuilt.HoldsContent("sha-b")).IsTrue();
                 await Assert.That(rebuilt.TryLoadRecord("/m/b.dem")!.Scoreboard).Count().IsEqualTo(1);
                 await Assert.That(rebuilt.TryGetIndex("/m/c.dem")).IsNotNull();
-                await Assert.That(Directory.EnumerateFiles(root, "index.json.unreadable-*").Count()).IsEqualTo(corrupt ? 1 : 0);
+                await Assert.That(Directory.EnumerateFiles(root, "index.json.unreadable-*").Count())
+                    .IsEqualTo(corrupt ? 1 : 0);
                 await Assert.That(new DemoCacheStore(root).TryGetIndex("/m/a.dem")).IsNotNull()
                     .Because("the rebuilt index is written at once");
             }
@@ -490,15 +510,16 @@ public class OrphanedContentTests
             first.Upsert(Analysed("/m/a.dem", "sha-a"));
             first.SaveIndex();
             string index = Path.Combine(root, "index.json");
-            string v5 = File.ReadAllText(index).Replace("\"Version\":6", "\"Version\":5", StringComparison.Ordinal);
-            File.WriteAllText(index, v5);
+            string v5 = (await File.ReadAllTextAsync(index)).Replace("\"Version\":6", "\"Version\":5",
+                StringComparison.Ordinal);
+            await File.WriteAllTextAsync(index, v5);
 
             DemoCacheStore store = new(root);
             await Assert.That(store.TryGetByContentId("sha-a")).IsNotNull();
             store.Detach("/m/a.dem");
             store.SaveIndex();
 
-            using JsonDocument saved = JsonDocument.Parse(File.ReadAllText(index));
+            using JsonDocument saved = JsonDocument.Parse(await File.ReadAllTextAsync(index));
             using (Assert.Multiple())
             {
                 await Assert.That(saved.RootElement.GetProperty("Version").GetInt32()).IsEqualTo(6);

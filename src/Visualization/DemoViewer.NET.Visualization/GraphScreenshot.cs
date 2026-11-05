@@ -26,10 +26,7 @@ public static class GraphScreenshot
             return;
         }
 
-        GraphView ctrl = new()
-        {
-            ViewModel = viewModel
-        };
+        GraphView ctrl = new() { ViewModel = viewModel };
         Size size = new(width, height);
         ctrl.Measure(size);
         ctrl.Arrange(new Rect(size));

@@ -14,7 +14,7 @@ namespace DemoViewer.NET.Extensions.StratBook;
 /// </summary>
 internal static class FolderText
 {
-    private static readonly UTF8Encoding Utf8 = new(false);
+    private static readonly UTF8Encoding _utf8 = new(false);
 
     /// <summary>The whole file as text, or null when there is none.</summary>
     /// <exception cref="IOException">The file exists and could not be read.</exception>
@@ -51,11 +51,11 @@ internal static class FolderText
     {
         ArgumentNullException.ThrowIfNull(folder);
         ArgumentNullException.ThrowIfNull(text);
-        folder.WriteAtomic(relativePath, Utf8.GetBytes(text));
+        folder.WriteAtomic(relativePath, _utf8.GetBytes(text));
     }
 
     private static string Decode(byte[] bytes) =>
-        bytes is { Length: >= 3 } && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF
+        bytes is [0xEF, 0xBB, 0xBF, ..]
             ? Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3)
             : Encoding.UTF8.GetString(bytes);
 }

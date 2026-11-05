@@ -5,7 +5,6 @@ using System.Globalization;
 using System.IO.Compression;
 using System.Text.Json;
 using CS2DemoKit.Analysis.Output;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 
@@ -39,8 +38,9 @@ internal static class FactsCodec
         FactValue fact => fact,
         bool flag => FactValue.Of(flag),
         string text => FactValue.Of(text),
-        sbyte or byte or short or ushort or int or uint or long => FactValue.Of(Convert.ToInt64(value, CultureInfo.InvariantCulture)),
-        ulong big => big <= long.MaxValue ? FactValue.Of((long)big) : FactValue.Of((double)big),
+        sbyte or byte or short or ushort or int or uint or long => FactValue.Of(Convert.ToInt64(value,
+            CultureInfo.InvariantCulture)),
+        ulong big => big <= long.MaxValue ? FactValue.Of((long)big) : FactValue.Of(big),
         float or double or decimal => FactValue.Of(Convert.ToDouble(value, CultureInfo.InvariantCulture)),
         JsonElement element => FromJson(element),
         IEnumerable items => FactValue.Of(items.Cast<object?>().Select(FromEngine)),
@@ -108,14 +108,16 @@ internal static class FactsCodec
                 root.GetProperty("grain").GetString() ?? "",
                 [.. root.GetProperty("dimensions").EnumerateArray().Select(e => e.GetString()!)],
                 [.. root.GetProperty("values").EnumerateArray().Select(e => e.GetString()!)],
-                root.GetProperty("clocks").EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString()!, StringComparer.Ordinal),
+                root.GetProperty("clocks").EnumerateObject()
+                    .ToDictionary(p => p.Name, p => p.Value.GetString()!, StringComparer.Ordinal),
                 [
                     .. root.GetProperty("rows").EnumerateArray().Select(r => new FactRow(
                         ReadCells(r.GetProperty("d")),
                         ReadCells(r.GetProperty("v"))))
                 ]);
         }
-        catch (Exception ex) when (ex is JsonException or InvalidDataException or KeyNotFoundException or InvalidOperationException
+        catch (Exception ex) when (ex is JsonException or InvalidDataException or KeyNotFoundException
+                                       or InvalidOperationException
                                        or FormatException or IOException)
         {
             return null;

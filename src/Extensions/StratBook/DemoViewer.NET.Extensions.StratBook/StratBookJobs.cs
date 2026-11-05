@@ -8,7 +8,8 @@ internal static class StratBookJobs
     ///     job was removed before it ran. A throw from the work faults the task. Without a queue (null jobs,
     ///     tests) it runs on the pool.
     /// </summary>
-    public static async Task<T> RunAsync<T>(IExtensionJobs? jobs, string title, Func<T> work, T fallback, JobOptions options)
+    public static async Task<T> RunAsync<T>(IExtensionJobs? jobs, string title, Func<T> work, T fallback,
+        JobOptions options)
     {
         ArgumentNullException.ThrowIfNull(work);
         if (jobs is null)

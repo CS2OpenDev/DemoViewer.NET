@@ -1,1 +1,5 @@
 #nullable enable
+*REMOVED*DemoViewer.NET.Modules.Abstractions.IModuleContext.EventFrames(string! eventName) -> System.Collections.Generic.IReadOnlyList<int>!
+DemoViewer.NET.Modules.Abstractions.IModuleContext.EventFrames(string? eventName) -> System.Collections.Generic.IReadOnlyList<int>!
+*REMOVED*DemoViewer.NET.Modules.Abstractions.IModuleFeatureGate.IsEnabled(string! featureId) -> bool
+DemoViewer.NET.Modules.Abstractions.IModuleFeatureGate.IsEnabled(string? featureId) -> bool

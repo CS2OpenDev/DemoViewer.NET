@@ -3,12 +3,12 @@
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Playback2D;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Playback2D;
+using DemoViewer.NET.Playback2D.Levels;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
 using GrenadeKind = DemoViewer.NET.Playback2D.GrenadeKind;
@@ -29,7 +29,7 @@ public class StratThrowsTests
     private const int Release = 1600;
     private const int Landed = Release + 128;
     private const int Pops = Release + 160;
-    private static readonly int SmokeEnds = Pops + (int)(StratFrameSource.SmokeSeconds * StepSchedule.TicksPerSecond);
+    private static readonly int _smokeEnds = Pops + (int)(StratFrameSource.SmokeSeconds * StepSchedule.TicksPerSecond);
 
     [Test]
     public async Task ALineupSmoke_FliesFromTheOrigin_ToTheLanding_ThenSmokesThere_For18Seconds()
@@ -40,21 +40,25 @@ public class StratThrowsTests
             using LineupOriginSource origins = new(index, a => a());
             origins.Load(Map);
             (StratStore store, StratSession session) = Opened(ThrowByB(lineup.Id));
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), id => store.Load(id).Document, StratTestKeymap.Shipped,
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(),
+                id => store.Load(id).Document, StratTestKeymap.Shipped,
                 lineupOrigins: origins);
 
             StratExportCapture capture = canvas.CaptureForExport()!;
             UtilityCue cue = capture.Projection.Utility.Single();
             WorldPoint origin = GrenadeLineups.TechniqueFor(lineup, null)!.Origin;
-            StratFrameSource source = new(StratExportJob.BuildSpec(capture, null, 0, capture.Projection.ContentEndTick, 64, 1.0));
+            StratFrameSource source =
+                new(StratExportJob.BuildSpec(capture, null, 0, capture.Projection.ContentEndTick, 64, 1.0));
 
             GrenadeTrail midFlight = source.FrameAt(Release + 64).Trails.Single();
             GrenadeTrailPoint head = midFlight.Points[^1];
             using (Assert.Multiple())
             {
                 await Assert.That(cue.ThrowTick).IsEqualTo(Release);
-                await Assert.That(cue.Flight![^1].Tick).IsEqualTo(Landed).Because("the median air time, 128 ticks at 64");
-                await Assert.That(cue.Tick).IsEqualTo(Pops).Because("the smoke goes off at the detonation, after it stops");
+                await Assert.That(cue.Flight![^1].Tick).IsEqualTo(Landed)
+                    .Because("the median air time, 128 ticks at 64");
+                await Assert.That(cue.Tick).IsEqualTo(Pops)
+                    .Because("the smoke goes off at the detonation, after it stops");
                 await Assert.That(cue.Flight[0].X).IsEqualTo(origin.X);
                 await Assert.That(cue.X).IsEqualTo(-1400f).Because("the landing group's detonation point");
                 await Assert.That(cue.Team).IsEqualTo(2);
@@ -71,9 +75,10 @@ public class StratThrowsTests
                 await Assert.That(popped.WorldX).IsEqualTo(-1400f);
                 await Assert.That(popped.WorldRadius).IsLessThan(144f).Because("it blooms");
                 await Assert.That(source.FrameAt(Pops + 64).AreaEffects.Single().WorldRadius).IsEqualTo(144f);
-                await Assert.That(Smokes(source.FrameAt(SmokeEnds - 1))).IsEqualTo(1);
-                await Assert.That(Smokes(source.FrameAt(SmokeEnds))).IsEqualTo(0);
-                await Assert.That(source.FrameAt(Landed + 2 * 64).Trails).IsEmpty().Because("the line fades over 2 s after it stops");
+                await Assert.That(Smokes(source.FrameAt(_smokeEnds - 1))).IsEqualTo(1);
+                await Assert.That(Smokes(source.FrameAt(_smokeEnds))).IsEqualTo(0);
+                await Assert.That(source.FrameAt(Landed + 2 * 64).Trails).IsEmpty()
+                    .Because("the line fades over 2 s after it stops");
             }
         });
     }
@@ -87,14 +92,14 @@ public class StratThrowsTests
             using LineupOriginSource origins = new(index, a => a());
             origins.Load(Map);
             (StratStore store, StratSession session) = Opened(ThrowByB(lineup.Id));
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), id => store.Load(id).Document, StratTestKeymap.Shipped,
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(),
+                id => store.Load(id).Document, StratTestKeymap.Shipped,
                 lineupOrigins: origins);
 
             StratExportCapture capture = canvas.CaptureForExport()!;
             StratSceneProjection projection = capture.Projection;
             SceneExportRange range = StratExportJob.Ranges(projection)[0];
             StratFrameSource source = new(StratExportJob.BuildSpec(capture, null, range.Start, range.End, 30, 1.0));
-            List<Scene2DFrame> frames = [];
             int smokes = 0, trails = 0;
             for (int i = 0; i < source.FrameCount; i++)
             {
@@ -105,12 +110,13 @@ public class StratThrowsTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(projection.LastTick).IsLessThan(SmokeEnds).Because("the last step is before the smoke clears");
-                await Assert.That(projection.ContentEndTick).IsEqualTo(SmokeEnds - 1);
-                await Assert.That(range.End).IsGreaterThanOrEqualTo(SmokeEnds - 1);
+                await Assert.That(projection.LastTick).IsLessThan(_smokeEnds)
+                    .Because("the last step is before the smoke clears");
+                await Assert.That(projection.ContentEndTick).IsEqualTo(_smokeEnds - 1);
+                await Assert.That(range.End).IsGreaterThanOrEqualTo(_smokeEnds - 1);
                 await Assert.That(smokes).IsGreaterThanOrEqualTo(18 * 30 - 1).Because("the whole smoke is in the file");
                 await Assert.That(trails).IsGreaterThan(0);
-                await Assert.That(canvas.Transport.EndTick).IsEqualTo(SmokeEnds - 1);
+                await Assert.That(canvas.Transport.EndTick).IsEqualTo(_smokeEnds - 1);
             }
         });
     }
@@ -129,8 +135,10 @@ public class StratThrowsTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(points.Select(p => p.Tick)).IsEquivalentTo([Release, Release + 64, Release + 128], CollectionOrdering.Matching);
-                await Assert.That(points[0]).IsEqualTo(new FlightPoint(Release, 0, 0, (float)(MapSpace.LevelQuantum / 2)));
+                await Assert.That(points.Select(p => p.Tick)).IsEquivalentTo([Release, Release + 64, Release + 128],
+                    CollectionOrdering.Matching);
+                await Assert.That(points[0])
+                    .IsEqualTo(new FlightPoint(Release, 0, 0, (float)(MapSpace.LevelQuantum / 2)));
                 await Assert.That(points[1].X).IsEqualTo(500f).Because("half way, half of each end's correction");
                 await Assert.That(points[1].Y).IsEqualTo(290f);
                 await Assert.That(points[^1].X).IsEqualTo(1000f);
@@ -146,7 +154,10 @@ public class StratThrowsTests
         {
             StratDocument document = FiveSteps();
             document.Steps[2].Verb = "throw";
-            document.Steps[2].Utility = new UtilityRef { Kind = "flash", Landing = new UtilityLanding { X = 100, Y = 1700, LevelMinZ = 0 } };
+            document.Steps[2].Utility = new UtilityRef
+            {
+                Kind = "flash", Landing = new UtilityLanding { X = 100, Y = 1700, LevelMinZ = 0 }
+            };
 
             StratSceneProjection projection = Build(document);
             UtilityCue cue = projection.Utility.Single();
@@ -171,7 +182,8 @@ public class StratThrowsTests
         {
             StratDocument document = FiveSteps();
             document.Steps[2].Verb = "throw";
-            document.Steps[2].Utility = new UtilityRef { Kind = "molotov", Landing = new UtilityLanding { Place = "Jungle" } };
+            document.Steps[2].Utility =
+                new UtilityRef { Kind = "molotov", Landing = new UtilityLanding { Place = "Jungle" } };
 
             UtilityCue cue = Build(document, (place, _) => place == "Jungle" ? (-1200d, -400d) : null).Utility.Single();
 
@@ -193,7 +205,8 @@ public class StratThrowsTests
             document.Steps[2].Verb = "throw";
             document.Steps[2].Utility = new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid() };
             document.Steps[3].Verb = "throw";
-            document.Steps[3].Utility = new UtilityRef { Kind = "he", Landing = new UtilityLanding { Place = "Nowhere" } };
+            document.Steps[3].Utility =
+                new UtilityRef { Kind = "he", Landing = new UtilityLanding { Place = "Nowhere" } };
 
             StratSceneProjection projection = Build(document, (_, _) => null, (_, _) => null);
 
@@ -212,12 +225,16 @@ public class StratThrowsTests
             document.Steps[2].Verb = "throw";
             document.Steps[2].Actor = "all";
             document.Steps[2].Assignments = [new StepAssignment { Slot = "A" }, new StepAssignment { Slot = "B" }];
-            document.Steps[2].Utility = new UtilityRef { Kind = "decoy", Landing = new UtilityLanding { X = 0, Y = 0, LevelMinZ = 0 } };
+            document.Steps[2].Utility = new UtilityRef
+            {
+                Kind = "decoy", Landing = new UtilityLanding { X = 0, Y = 0, LevelMinZ = 0 }
+            };
 
             IReadOnlyList<UtilityCue> cues = Build(document).Utility;
 
             await Assert.That(cues.Select(c => c.Team)).IsEquivalentTo([3, 3], CollectionOrdering.Matching);
-            await Assert.That(cues.Select(c => c.Flight![0].X).Distinct().Count()).IsEqualTo(2).Because("each from its own token");
+            await Assert.That(cues.Select(c => c.Flight![0].X).Distinct().Count()).IsEqualTo(2)
+                .Because("each from its own token");
         });
     }
 
@@ -229,7 +246,8 @@ public class StratThrowsTests
             (GrenadeIndex index, GrenadeLineup lineup) = TimedIndex();
             using LineupOriginSource origins = new(index, a => a());
             origins.Load(Map);
-            using StratPreviewViewModel preview = new(StratMiningServiceTests.Pattern("k", 1), "Execute", _ => null, a => a(), origins);
+            using StratPreviewViewModel preview = new(StratMiningServiceTests.Pattern("k", 1), "Execute", _ => null,
+                a => a(), origins);
 
             preview.Show(ThrowByB(lineup.Id));
             StratCanvasViewModel canvas = preview.Canvas!;

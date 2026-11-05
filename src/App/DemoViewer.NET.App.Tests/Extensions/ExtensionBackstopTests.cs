@@ -129,7 +129,8 @@ public class ExtensionBackstopTests
                 using (Assert.Multiple())
                 {
                     await Assert.That(rig.Faults.StateOf("pack.fake").Count).IsEqualTo(0);
-                    await Assert.That(logs.WithEvent(22).Any(m => m.Contains("Extension Fake failed in binding", StringComparison.Ordinal)))
+                    await Assert.That(logs.WithEvent(22).Any(m =>
+                            m.Contains("Extension Fake failed in binding", StringComparison.Ordinal)))
                         .IsTrue();
                 }
             }
@@ -147,7 +148,8 @@ public class ExtensionBackstopTests
             ContentControl host = new()
             {
                 Content = new object(),
-                ContentTemplate = new FuncDataTemplate<object>((_, _) => ViewLocator.Create(typeof(ThrowingView), rig.Faults))
+                ContentTemplate =
+                    new FuncDataTemplate<object>((_, _) => ViewLocator.Create(typeof(ThrowingView), rig.Faults))
             };
             Window window = new() { Content = host };
             window.Show();
@@ -170,9 +172,10 @@ public class ExtensionBackstopTests
 
     private sealed class ThrowingGetter
     {
-        private readonly string _message = "getter";
-
-        public string Value => throw new InvalidOperationException(_message);
+        public string Value
+        {
+            get => throw new InvalidOperationException(field);
+        } = "getter";
     }
 
     private sealed class ThrowingView : UserControl

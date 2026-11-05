@@ -49,10 +49,7 @@ internal static class AssetsRootResolver
         }
 
         List<string> probed = [];
-        foreach (string start in new[]
-                 {
-                     AppContext.BaseDirectory, Directory.GetCurrentDirectory()
-                 })
+        foreach (string start in new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() })
         {
             DirectoryInfo? dir = new(start);
             for (int depth = 0; depth < 10 && dir is not null; depth++, dir = dir.Parent)

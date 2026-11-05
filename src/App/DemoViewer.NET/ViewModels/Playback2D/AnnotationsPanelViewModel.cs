@@ -48,8 +48,9 @@ public sealed class AnnotationSwatch
     {
         swatch = null;
         if (hex is not { Length: 9 } || hex[0] != '#'
-                                     || !uint.TryParse(hex.AsSpan(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture,
-                                         out uint argb))
+            || !uint.TryParse(hex.AsSpan(1), NumberStyles.HexNumber,
+                CultureInfo.InvariantCulture,
+                out uint argb))
         {
             return false;
         }
@@ -168,6 +169,7 @@ public sealed partial class AnnotationsPanelViewModel : ObservableObject, IDispo
 
     /// <summary>How many redo entries are available.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRedo))]
     private int _redoDepth;
 
     /// <summary>
@@ -188,6 +190,7 @@ public sealed partial class AnnotationsPanelViewModel : ObservableObject, IDispo
 
     /// <summary>How many undo entries are available. Drives the button's enabled state.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanUndo))]
     private int _undoDepth;
 
     /// <summary>Envelope authoring mode for new elements.</summary>
@@ -737,10 +740,6 @@ public sealed partial class AnnotationsPanelViewModel : ObservableObject, IDispo
     partial void OnCustomFromTickChanged(int value) => PushCustomWindow();
 
     partial void OnCustomUntilTickChanged(int value) => PushCustomWindow();
-
-    partial void OnUndoDepthChanged(int value) => OnPropertyChanged(nameof(CanUndo));
-
-    partial void OnRedoDepthChanged(int value) => OnPropertyChanged(nameof(CanRedo));
 
     private void PushStyle()
     {

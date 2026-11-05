@@ -14,6 +14,7 @@ namespace DemoViewer.NET.Views.Playback2D;
 ///         and the export's progress lives on the shell's status chip rather than in this pane.
 ///     </para>
 /// </summary>
+[UsedImplicitly]
 public partial class Playback2DExportDialogView : UserControl
 {
     /// <summary>Initializes a new <see cref="Playback2DExportDialogView" /> instance.</summary>

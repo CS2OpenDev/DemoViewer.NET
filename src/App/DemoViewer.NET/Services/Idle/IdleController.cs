@@ -33,7 +33,7 @@ public sealed class IdleController : IDisposable
 {
     // Coarse: idle timeouts are minutes, so a few seconds' granularity is imperceptible and the tick body is
     // near-free (one subtraction + two bool reads). Kept well below any realistic timeout.
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(2);
 
     private readonly Func<bool> _isBlocked;
     private readonly Action _onIdle;
@@ -96,10 +96,7 @@ public sealed class IdleController : IDisposable
 
         _started = true;
         _lastActivityUtc = DateTime.UtcNow;
-        _timer = new DispatcherTimer
-        {
-            Interval = PollInterval
-        };
+        _timer = new DispatcherTimer { Interval = _pollInterval };
         _timer.Tick += OnTick;
         _timer.Start();
     }

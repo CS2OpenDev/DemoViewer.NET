@@ -30,7 +30,7 @@ public interface IStratTicker
 public sealed class StratTransport : IDisposable
 {
     /// <summary>The speeds Up and Down step through.</summary>
-    public static readonly IReadOnlyList<double> Speeds = [0.25, 0.5, 1, 2, 4];
+    private static readonly IReadOnlyList<double> Speeds = [0.25, 0.5, 1, 2, 4];
 
     private readonly IStratTicker _ticker;
     private double _position;
@@ -105,7 +105,7 @@ public sealed class StratTransport : IDisposable
         return true;
     }
 
-    public void Play()
+    private void Play()
     {
         if (IsPlaying)
         {
@@ -163,7 +163,7 @@ public sealed class StratTransport : IDisposable
 
     /// <summary>Moves the clock on by wall seconds at the current speed; stops at the end. The ticker calls this.</summary>
     /// <param name="seconds">Elapsed wall time.</param>
-    public void Advance(double seconds)
+    private void Advance(double seconds)
     {
         if (!double.IsFinite(seconds) || seconds <= 0)
         {

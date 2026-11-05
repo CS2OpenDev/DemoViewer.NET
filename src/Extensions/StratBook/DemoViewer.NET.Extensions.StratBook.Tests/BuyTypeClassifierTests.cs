@@ -26,7 +26,8 @@ public class BuyTypeClassifierTests
     [Arguments(Ct, 5, 19999, null, false, false, 2, BuyType.Semi, "one dollar under the full floor is semi")]
     [Arguments(T, 5, 20000, null, false, false, 2, BuyType.Full, "the T floor defaults to the CT floor")]
     [Arguments(T, 5, 13550, null, false, false, 2, BuyType.Semi, "Dust2 round 2 T: 13,550 is semi")]
-    [Arguments(Ct, 5, 4700, null, false, true, 2, BuyType.Eco, "Dust2 round 2 CT: 4,700 after a loss is eco, never force")]
+    [Arguments(Ct, 5, 4700, null, false, true, 2, BuyType.Eco,
+        "Dust2 round 2 CT: 4,700 after a loss is eco, never force")]
     [Arguments(T, 5, 21350, null, false, false, 3, BuyType.Full, "Dust2 round 3 T: 21,350 is full")]
     [Arguments(T, 5, 5000, null, false, false, 5, BuyType.Eco, "Dust2 round 5 T: exactly the eco ceiling")]
     [Arguments(T, 5, 22550, null, false, false, 8, BuyType.Full, "Nuke round 8 T: 22,550 is full")]
@@ -68,10 +69,7 @@ public class BuyTypeClassifierTests
     [Test]
     public async Task TheCtTSplit_IsTwoParametersThatDefaultToOneValue()
     {
-        BuyThresholds csDemoManager = BuyThresholds.Default with
-        {
-            FullMinPerPlayerCt = 4500
-        };
+        BuyThresholds csDemoManager = BuyThresholds.Default with { FullMinPerPlayerCt = 4500 };
 
         using (Assert.Multiple())
         {

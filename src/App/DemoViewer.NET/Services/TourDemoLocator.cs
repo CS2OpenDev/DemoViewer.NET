@@ -69,7 +69,8 @@ public static class TourDemoLocator
                 dir = dir.Parent;
             }
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or SecurityException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is ArgumentException or IOException or SecurityException
+                                       or UnauthorizedAccessException)
         {
             // An unreadable directory / hostile override is a "no sample", not a crash.
         }

@@ -24,7 +24,8 @@ public static class StratTextExporter
     /// <param name="callouts">The owner's callouts for the map; null prints canonical names split into words.</param>
     /// <param name="lookup">Resolves a branch's target strat when it is not <paramref name="doc" /> itself; null leaves it as a raw id.</param>
     /// <param name="lineupTitle">Resolves a step's lineup reference to its card title; null leaves it as a raw id.</param>
-    public static string CallSheet(StratDocument doc, CalloutResolver? callouts = null, Func<Guid, StratDocument?>? lookup = null,
+    public static string CallSheet(StratDocument doc, CalloutResolver? callouts = null,
+        Func<Guid, StratDocument?>? lookup = null,
         Func<Guid, string?>? lineupTitle = null)
     {
         ArgumentNullException.ThrowIfNull(doc);
@@ -120,7 +121,8 @@ public static class RoleSheetHtmlWriter
         ArgumentNullException.ThrowIfNull(sheets);
         StringBuilder html = new();
         html.Append("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>")
-            .Append(Escape(doc.Name)).Append(" role sheets</title>\n<style>\n").Append(Css).Append("</style>\n</head>\n<body>\n");
+            .Append(Escape(doc.Name)).Append(" role sheets</title>\n<style>\n").Append(Css)
+            .Append("</style>\n</head>\n<body>\n");
         foreach (RoleSheet sheet in sheets)
         {
             html.Append(SheetHtml(sheet));
@@ -131,22 +133,22 @@ public static class RoleSheetHtmlWriter
     }
 
     private const string Css = """
-                                * { box-sizing: border-box; }
-                                body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; margin: 0; }
-                                .sheet { padding: 24px 32px; page-break-after: always; }
-                                .sheet:last-of-type { page-break-after: auto; }
-                                .sheet h1 { margin: 0 0 4px; font-size: 22px; }
-                                .sheet h2 { margin: 0 0 12px; font-size: 16px; color: #333; font-weight: normal; }
-                                .meta, .trigger { font-size: 13px; color: #444; margin: 0 0 4px; }
-                                ol.lines { padding-left: 20px; margin: 12px 0; }
-                                ol.lines li { margin: 4px 0; }
-                                ol.lines li.context { color: #888; font-style: italic; }
-                                ul.branches { padding-left: 20px; margin: 8px 0; font-size: 13px; color: #333; }
-                                .minimap { margin: 12px 0; }
-                                .status { font-size: 12px; color: #777; margin-top: 16px; }
-                                @media print { body { margin: 0; } }
-                                """
-                                + "\n";
+                               * { box-sizing: border-box; }
+                               body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; margin: 0; }
+                               .sheet { padding: 24px 32px; page-break-after: always; }
+                               .sheet:last-of-type { page-break-after: auto; }
+                               .sheet h1 { margin: 0 0 4px; font-size: 22px; }
+                               .sheet h2 { margin: 0 0 12px; font-size: 16px; color: #333; font-weight: normal; }
+                               .meta, .trigger { font-size: 13px; color: #444; margin: 0 0 4px; }
+                               ol.lines { padding-left: 20px; margin: 12px 0; }
+                               ol.lines li { margin: 4px 0; }
+                               ol.lines li.context { color: #888; font-style: italic; }
+                               ul.branches { padding-left: 20px; margin: 8px 0; font-size: 13px; color: #333; }
+                               .minimap { margin: 12px 0; }
+                               .status { font-size: 12px; color: #777; margin-top: 16px; }
+                               @media print { body { margin: 0; } }
+                               """
+        + "\n";
 
     private static string SheetHtml(RoleSheet sheet)
     {
@@ -167,7 +169,11 @@ public static class RoleSheetHtmlWriter
 
         section.Append("</h2>\n");
 
-        List<string> meta = [Escape(header.Map), Escape(header.Side + " " + header.Type + (header.TargetSite is { Length: > 0 } s ? $" (site {s})" : ""))];
+        List<string> meta =
+        [
+            Escape(header.Map),
+            Escape(header.Side + " " + header.Type + (header.TargetSite is { Length: > 0 } s ? $" (site {s})" : ""))
+        ];
         if (header.Economy is { Length: > 0 } economy)
         {
             meta.Add(Escape(economy) + " economy");
@@ -193,7 +199,8 @@ public static class RoleSheetHtmlWriter
         foreach (RoleSheetLine line in sheet.Lines)
         {
             section.Append("<li").Append(line.IsContext ? " class=\"context\"" : "").Append('>')
-                .Append(StratClock.Format(header.Clock, line.AtSeconds)).Append(" · ").Append(Escape(line.Text)).Append("</li>\n");
+                .Append(StratClock.Format(header.Clock, line.AtSeconds)).Append(" · ").Append(Escape(line.Text))
+                .Append("</li>\n");
         }
 
         section.Append("</ol>\n");
@@ -251,7 +258,9 @@ public static class RoleSheetHtmlWriter
             svg.Append(string.Join(" ", points.Select(p =>
             {
                 (double x, double y) = Project(p);
-                return x.ToString("0.#", CultureInfo.InvariantCulture) + "," + y.ToString("0.#", CultureInfo.InvariantCulture);
+                return x.ToString("0.#", CultureInfo.InvariantCulture) + ","
+                    + y.ToString("0.#",
+                        CultureInfo.InvariantCulture);
             })));
             svg.Append("\"/>\n");
         }

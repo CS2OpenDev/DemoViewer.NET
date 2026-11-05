@@ -30,7 +30,8 @@ public class AimStatCatalogueTests
         }
 
         string path = Path.Combine(root, LiveAimStats.RulesetRelativePath);
-        RuleConfigLoadResult loaded = YamlConfigLoader.LoadDocuments([(LiveAimStats.RulesetRelativePath, File.ReadAllText(path))]);
+        RuleConfigLoadResult loaded =
+            YamlConfigLoader.LoadDocuments([(LiveAimStats.RulesetRelativePath, await File.ReadAllTextAsync(path))]);
         await Assert.That(loaded.Success).IsTrue()
             .Because(string.Join("\n", loaded.Errors.Select(e => e.ToString())));
 
@@ -41,13 +42,15 @@ public class AimStatCatalogueTests
             .Select(stat => doc.Id + "." + stat.Id)
             .ToHashSet(StringComparer.Ordinal);
 
-        string[] missing = AimStatCatalogue.Stats
-            .Where(stat => !declared.Contains(stat.RuleId))
-            .Select(stat => $"{stat.Canonical} -> {stat.RuleId}")
-            .ToArray();
+        string[] missing =
+        [
+            .. AimStatCatalogue.Stats
+                .Where(stat => !declared.Contains(stat.RuleId))
+                .Select(stat => $"{stat.Canonical} -> {stat.RuleId}")
+        ];
 
         await Assert.That(missing).IsEmpty()
             .Because("LiveAimStats reads each of these as null and every consumer folds that to 0:\n"
-                     + string.Join("\n", missing));
+                + string.Join("\n", missing));
     }
 }

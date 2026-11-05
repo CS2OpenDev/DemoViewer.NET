@@ -26,6 +26,7 @@ namespace DemoViewer.NET.Playback2D;
 ///         mutation happens.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class TextBlobCache : IDisposable
 {
     /// <summary>The manifest name of the embedded face. Public so a test can assert it is present.</summary>
@@ -261,9 +262,7 @@ public sealed class TextBlobCache : IDisposable
         {
             // Subpixel + hinting are pinned rather than left at whatever the host default is: they
             // change rasterisation, and a golden that depends on an unstated default is not a golden.
-            Subpixel = true,
-            Hinting = SKFontHinting.None,
-            Edging = SKFontEdging.Antialias
+            Subpixel = true, Hinting = SKFontHinting.None, Edging = SKFontEdging.Antialias
         };
         _fonts[sizePx] = font;
         return font;
@@ -353,6 +352,7 @@ public sealed class TextBlobCache : IDisposable
 /// <param name="Advance">The run's advance width: where the next glyph would start.</param>
 /// <param name="Ascent">The font's ascent, negative (above the baseline).</param>
 /// <param name="Descent">The font's descent, positive (below the baseline).</param>
+[PublicAPI]
 public readonly record struct ShapedText(
     SKTextBlob Blob,
     SKRect Bounds,

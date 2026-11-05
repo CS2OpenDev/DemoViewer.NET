@@ -119,9 +119,7 @@ public static class RoundIndexBuilder
         };
         RoundPositionsDocument positions = new()
         {
-            Fingerprint = fingerprint,
-            CadenceTicks = cadenceTicks,
-            Rounds = [.. windows.Select(w => w.Positions)]
+            Fingerprint = fingerprint, CadenceTicks = cadenceTicks, Rounds = [.. windows.Select(w => w.Positions)]
         };
 
         Dictionary<string, PlaceSampleSummary> places = new(StringComparer.Ordinal);
@@ -165,8 +163,10 @@ public static class RoundIndexBuilder
             {
                 CloseRow(ref row, window, source, places, transitions, previousPlaces, table, tally);
                 int step = (sample.Tick - window.FreezeEndTick) / cadenceTicks;
-                row = new OpenRow(step, sample.Tick, window.FreezeEndTick + (step + 1) * cadenceTicks);
-                row.Samples[sample.PlayerSlot] = sample;
+                row = new OpenRow(step, sample.Tick, window.FreezeEndTick + (step + 1) * cadenceTicks)
+                {
+                    Samples = { [sample.PlayerSlot] = sample }
+                };
             }
         }
 
@@ -210,7 +210,7 @@ public static class RoundIndexBuilder
             }
 
             int end = round.EndTick
-                      ?? (i + 1 < rounds.Count ? rounds[i + 1].FreezeEndTick : lastFrameTick + 1);
+                ?? (i + 1 < rounds.Count ? rounds[i + 1].FreezeEndTick : lastFrameTick + 1);
             if (end <= round.FreezeEndTick)
             {
                 continue;
@@ -239,17 +239,8 @@ public static class RoundIndexBuilder
             }
 
             windows.Add(new RoundWindow(
-                new RoundIndexRound
-                {
-                    Number = round.Number,
-                    FreezeEndTick = round.FreezeEndTick,
-                    EndTick = end
-                },
-                new RoundPositionsRound
-                {
-                    Number = round.Number,
-                    FreezeEndTick = round.FreezeEndTick
-                },
+                new RoundIndexRound { Number = round.Number, FreezeEndTick = round.FreezeEndTick, EndTick = end },
+                new RoundPositionsRound { Number = round.Number, FreezeEndTick = round.FreezeEndTick },
                 sideBySlot,
                 deathTickBySlot));
         }
@@ -375,10 +366,7 @@ public static class RoundIndexBuilder
                 && string.Equals(last.Ct, ctToken, StringComparison.Ordinal)
                 && string.Equals(last.T, tToken, StringComparison.Ordinal))
             {
-                runs[^1] = last with
-                {
-                    ToStep = open.Step
-                };
+                runs[^1] = last with { ToStep = open.Step };
                 return;
             }
         }
@@ -388,10 +376,12 @@ public static class RoundIndexBuilder
 
     // Every slot a tuple names, by the roster's player, else by the slot's last connect or disconnect (a player
     // who left mid-match is gone from the final roster); a slot neither names is 0 and "".
-    private static List<RoundPositionsPlayer> PlayersOf(RoundPositionsDocument positions, IReadOnlyDictionary<int, PlayerInfo> roster,
+    private static List<RoundPositionsPlayer> PlayersOf(RoundPositionsDocument positions,
+        IReadOnlyDictionary<int, PlayerInfo> roster,
         IReadOnlyDictionary<int, RosterEntry> departed)
     {
-        SortedSet<int> slots = [.. positions.Rounds.SelectMany(r => r.Pos).SelectMany(step => step).Select(t => t.Slot)];
+        SortedSet<int> slots =
+            [.. positions.Rounds.SelectMany(r => r.Pos).SelectMany(step => step).Select(t => t.Slot)];
         return
         [
             .. slots.Select(slot => roster.TryGetValue(slot, out PlayerInfo? player)
@@ -498,8 +488,7 @@ public sealed record RoundIndexDemoValues(int TickRate, int LastFrameTick, Round
         int last = demo.Frames.Count > 0 ? demo.Frames[^1].GameTick ?? demo.Frames[^1].ServerTick : 0;
         return new RoundIndexDemoValues(demo.TickRate, last, RoundFactsClock.For(demo), demo.MapName)
         {
-            Players = demo.Players,
-            Departed = RoundIndexRoster.Of(demo.AllGameEvents)
+            Players = demo.Players, Departed = RoundIndexRoster.Of(demo.AllGameEvents)
         };
     }
 
@@ -519,8 +508,9 @@ public sealed record RoundIndexDemoValues(int TickRate, int LastFrameTick, Round
         return new RoundIndexDemoValues(demo.TickRate, context.LastFrameTick, clock, demo.MapName)
         {
             Players = demo.Players,
-            Departed = context.Collected<RoundIndexRosterCollector.Collected>(RoundIndexRosterCollector.CollectorId)?.Slots
-                       ?? new Dictionary<int, RosterEntry>()
+            Departed = context.Collected<RoundIndexRosterCollector.Collected>(RoundIndexRosterCollector.CollectorId)
+                    ?.Slots
+                ?? new Dictionary<int, RosterEntry>()
         };
     }
 }

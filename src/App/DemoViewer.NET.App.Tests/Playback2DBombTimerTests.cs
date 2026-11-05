@@ -50,8 +50,8 @@ public class Playback2DBombTimerTests
         GameInfo later = ReadGameInfoAt(demo, frames, path, clockBase, tickRate, laterFrame);
 
         Console.WriteLine($"[bomb-timer] {Path.GetFileName(path)} clockBase={clockBase:F3} " +
-                          $"plantFrame={plantFrame} gateFrame={gateFrame} ticking={at.BombTicking} " +
-                          $"detonation={at.RoundSeconds:F2}s later={later.RoundSeconds:F2}s");
+            $"plantFrame={plantFrame} gateFrame={gateFrame} ticking={at.BombTicking} " +
+            $"detonation={at.RoundSeconds:F2}s later={later.RoundSeconds:F2}s");
 
         await Assert.That(at.BombTicking).IsTrue();
         // C4 timer is 40s (m_flTimerLength = mp_c4timer). ~40 at plant, allowing the few-frames-after slack.
@@ -89,8 +89,8 @@ public class Playback2DBombTimerTests
         GameInfo mid = ReadGameInfoAt(demo, frames, path, clockBase, tickRate, midFrame);
 
         Console.WriteLine($"[defuse-timer] {Path.GetFileName(path)} run=[{runStart}..{runEnd}] " +
-                          $"defuseFrame={defuseFrame} midFrame={midFrame} inProgress={mid.DefuseInProgress} " +
-                          $"defuse={mid.DefuseSeconds:F2}s kit='{mid.DefuseKitNote}' detonation={mid.RoundSeconds:F2}s");
+            $"defuseFrame={defuseFrame} midFrame={midFrame} inProgress={mid.DefuseInProgress} " +
+            $"defuse={mid.DefuseSeconds:F2}s kit='{mid.DefuseKitNote}' detonation={mid.RoundSeconds:F2}s");
 
         await Assert.That(mid.DefuseInProgress).IsTrue();
         // 0 < defuse remaining ≤ m_flDefuseLength (10 no-kit / 5 with-kit) + slack. The C4 is also ticking,
@@ -140,12 +140,7 @@ public class Playback2DBombTimerTests
 
         ModuleContext context = new(controller, () => path);
         context.SetRoster(demo.Players.Values.Select(p =>
-            new PlayerRosterEntry
-            {
-                Slot = p.Slot,
-                SteamId = p.SteamId64,
-                Name = p.Name
-            }));
+            new PlayerRosterEntry { Slot = p.Slot, SteamId = p.SteamId64, Name = p.Name }));
         context.SetGameClock(clockBase);
 
         Playback2DTabViewModel vm = new();
@@ -158,7 +153,8 @@ public class Playback2DBombTimerTests
         for (int i = 0; i < frames.Count; i++)
         {
             if (frames[i].InnerMessages.Any(m => m is GameEventMessage gem &&
-                                                 gem.DecodedEvent.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    gem.DecodedEvent.Name.Equals(name,
+                        StringComparison.OrdinalIgnoreCase)))
             {
                 return i;
             }

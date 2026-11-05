@@ -1,8 +1,8 @@
 #region
 
 using System.Text.Json.Nodes;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 
 #endregion
 
@@ -38,8 +38,8 @@ internal static class ProbeCommand
         // there is a GPU here, reported as `forced_cpu`.
         RenderSurfaceProbe probe = RenderSurfaceProviderFactory.Probe();
         bool forcedCpu = !probe.GpuAvailable &&
-                         RenderBackendPreferenceParser.FromEnvironment() ==
-                         RenderBackendPreference.ForceCpu;
+            RenderBackendPreferenceParser.FromEnvironment() ==
+            RenderBackendPreference.ForceCpu;
 
         if (ConsoleOut.IsJson)
         {

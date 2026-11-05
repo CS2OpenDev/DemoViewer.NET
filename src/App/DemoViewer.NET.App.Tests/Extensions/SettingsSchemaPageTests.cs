@@ -20,11 +20,12 @@ namespace DemoViewer.NET.AppTests.Extensions;
 [Category("Render")]
 public class SettingsSchemaPageTests
 {
-    private static readonly SettingsSchema Schema = new("dev.example.page", "EXAMPLE",
+    private static readonly SettingsSchema _schema = new("dev.example.page", "EXAMPLE",
     [
         SettingDescriptor.Toggle("walk", "Walk in the background", false, "About two seconds per demo."),
         SettingDescriptor.Number("stride", "Stride", 4, 1, 16),
-        SettingDescriptor.Choice("source", "Names from", "pawn", [new SettingChoice("pawn", "Pawn"), new SettingChoice("zones", "Zones")]),
+        SettingDescriptor.Choice("source", "Names from", "pawn",
+            [new SettingChoice("pawn", "Pawn"), new SettingChoice("zones", "Zones")]),
         SettingDescriptor.Text("note", "Note"),
         SettingDescriptor.Folder("out", "Output folder")
     ]);
@@ -33,7 +34,7 @@ public class SettingsSchemaPageTests
     public async Task Rows_ShowTheDefaults_WriteThroughOnAChange_AndFollowAChangeMadeElsewhere()
     {
         ExtensionSettingsStore settings = new("dev.example.page", null, a => a());
-        using SchemaSettingsPageViewModel page = new(Schema, settings);
+        using SchemaSettingsPageViewModel page = new(_schema, settings);
         ToggleSettingRow walk = (ToggleSettingRow)page.Rows[0];
         NumberSettingRow stride = (NumberSettingRow)page.Rows[1];
         ChoiceSettingRow source = (ChoiceSettingRow)page.Rows[2];
@@ -62,7 +63,8 @@ public class SettingsSchemaPageTests
         }
 
         stride.Value = 40.4m;
-        await Assert.That(settings.Get("stride", 0)).IsEqualTo(16).Because("a whole step stores the clamped whole number");
+        await Assert.That(settings.Get("stride", 0)).IsEqualTo(16)
+            .Because("a whole step stores the clamped whole number");
 
         folder.ClearCommand.Execute(null);
         await Assert.That(settings.Get<string?>("out", "none")).IsEqualTo("none").Because("clearing forgets the key");
@@ -76,10 +78,10 @@ public class SettingsSchemaPageTests
             Pack pack = new("dev.example.page." + Guid.NewGuid().ToString("N")[..8]);
             ServiceCollection services = new();
             services.AddSingleton<ExtensionShellHub>();
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
             ExtensionContext context = new(pack, sp);
             PackContributions contributions = new(pack, () => context);
-            contributions.SettingsSchema(Schema);
+            contributions.SettingsSchema(_schema);
 
             SettingsPageContribution page = contributions.SettingsPages.Single();
             object viewModel = page.ViewModelFactory();

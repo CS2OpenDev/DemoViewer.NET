@@ -1,10 +1,10 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D;
+using DemoViewer.NET.Playback2D.Levels;
 
 #endregion
 
@@ -33,13 +33,13 @@ public static class StratThrows
     ///     How fast a throw without a recorded air time crosses the map. A full throw covers about 2000 units in
     ///     2.5 s, so this gives a long smoke and a short pop-flash plausible times.
     /// </summary>
-    public const double UnitsPerSecond = 800;
+    private const double UnitsPerSecond = 800;
 
     /// <summary>The shortest flight a throw without a recorded air time gets.</summary>
-    public const double MinFlightSeconds = 0.5;
+    private const double MinFlightSeconds = 0.5;
 
     /// <summary>The longest flight a throw without a recorded air time gets.</summary>
-    public const double MaxFlightSeconds = 3.5;
+    private const double MaxFlightSeconds = 3.5;
 
     /// <summary>Every path step's throws, in path order.</summary>
     /// <param name="map">The strat's map.</param>
@@ -100,7 +100,7 @@ public static class StratThrows
 
     /// <summary>The grenade a strat kind names, or null for one the preview does not know.</summary>
     /// <param name="kind">The step's <c>utility.kind</c>.</param>
-    public static GrenadeKind? GrenadeOf(string? kind) => kind switch
+    private static GrenadeKind? GrenadeOf(string? kind) => kind switch
     {
         "smoke" => GrenadeKind.Smoke,
         "molotov" => GrenadeKind.Molotov,
@@ -112,20 +112,21 @@ public static class StratThrows
 
     /// <summary>A flight without a recorded air time: its distance at <see cref="UnitsPerSecond" />, clamped.</summary>
     /// <param name="distance">World units from release to landing.</param>
-    public static double FlightSecondsFor(double distance) =>
+    private static double FlightSecondsFor(double distance) =>
         Math.Clamp(distance / UnitsPerSecond, MinFlightSeconds, MaxFlightSeconds);
 
     private static UtilityCue LineupCue(int tick, GrenadeKind kind, int team, LineupFlight lineup)
     {
         double airSeconds = lineup.AirSeconds > 0
             ? lineup.AirSeconds
-            : FlightSecondsFor(Distance(lineup.Origin.X, lineup.Origin.Y, (float)lineup.LandingX, (float)lineup.LandingY));
+            : FlightSecondsFor(Distance(lineup.Origin.X, lineup.Origin.Y, (float)lineup.LandingX,
+                (float)lineup.LandingY));
         int air = Math.Max(1, (int)Math.Round(airSeconds * StepSchedule.TicksPerSecond));
         int pop = Math.Max(air, (int)Math.Round(lineup.PopSeconds * StepSchedule.TicksPerSecond));
         float originZ = MarkerZ(lineup.Origin.LevelMinZ);
         float landingZ = MarkerZ(lineup.LandingLevelMinZ);
         List<FlightPoint> flight = [];
-        if (lineup.Path is { Count: >= 2 } recorded && recorded[^1].Seconds > 0)
+        if (lineup.Path is [_, .., { Seconds: > 0 }] recorded)
         {
             // The recorded shape, bent so it leaves the technique's origin and ends on the group's landing.
             (double _, float firstX, float firstY, double _) = recorded[0];
@@ -148,7 +149,7 @@ public static class StratThrows
             }
 
             flight[0] = flight[0] with { X = lineup.Origin.X, Y = lineup.Origin.Y, Z = originZ };
-            flight[^1] = flight[^1] with { Tick = tick + air, X = (float)lineup.LandingX, Y = (float)lineup.LandingY, Z = landingZ };
+            flight[^1] = new FlightPoint(tick + air, (float)lineup.LandingX, (float)lineup.LandingY, landingZ);
         }
 
         if (flight.Count < 2)
@@ -162,15 +163,16 @@ public static class StratThrows
 
         return new UtilityCue(tick + pop, kind, (float)lineup.LandingX, (float)lineup.LandingY, landingZ)
         {
-            Team = team,
-            Flight = flight
+            Team = team, Flight = flight
         };
     }
 
-    private static UtilityCue StraightCue(int tick, GrenadeKind kind, int team, (float X, float Y, double LevelMinZ) from,
+    private static UtilityCue StraightCue(int tick, GrenadeKind kind, int team,
+        (float X, float Y, double LevelMinZ) from,
         (float X, float Y, double LevelMinZ) to)
     {
-        int air = Math.Max(1, (int)Math.Round(FlightSecondsFor(Distance(from.X, from.Y, to.X, to.Y)) * StepSchedule.TicksPerSecond));
+        int air = Math.Max(1,
+            (int)Math.Round(FlightSecondsFor(Distance(from.X, from.Y, to.X, to.Y)) * StepSchedule.TicksPerSecond));
         float landingZ = MarkerZ(to.LevelMinZ);
         return new UtilityCue(tick + air, kind, to.X, to.Y, landingZ)
         {
@@ -183,7 +185,8 @@ public static class StratThrows
         };
     }
 
-    private static (float X, float Y, double LevelMinZ)? LandingOf(UtilityLanding? landing, PlaceArrivalResolver? arrivals,
+    private static (float X, float Y, double LevelMinZ)? LandingOf(UtilityLanding? landing,
+        PlaceArrivalResolver? arrivals,
         double defaultLevelMinZ)
     {
         if (landing is null)
@@ -207,7 +210,10 @@ public static class StratThrows
 
     // Each line's slot, or the single actor; none for "all" without lines.
     private static List<string> ThrowersOf(StratStep step) =>
-        [.. StratStepLines.Of(step).Select(l => l.Slot).Where(StratVocabulary.Slots.Contains).Distinct(StringComparer.Ordinal)];
+    [
+        .. StratStepLines.Of(step).Select(l => l.Slot).Where(StratVocabulary.Slots.Contains)
+            .Distinct(StringComparer.Ordinal)
+    ];
 
     private static int TeamOf(string? slot, IReadOnlyList<TokenLabel> labels) =>
         labels.FirstOrDefault(l => string.Equals(l.Slot, slot ?? TokenSlots.Own[0], StringComparison.Ordinal)).Team;

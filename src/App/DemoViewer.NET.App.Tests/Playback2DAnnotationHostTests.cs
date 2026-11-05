@@ -20,8 +20,8 @@ using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Views.Playback2D;
-using Pointer = Avalonia.Input.Pointer;
 using TUnit.Assertions.Enums;
+using Pointer = Avalonia.Input.Pointer;
 
 #endregion
 
@@ -123,7 +123,7 @@ public class Playback2DAnnotationHostTests
             await Assert.That(f.Document.Elements[0].Points).IsEquivalentTo(element.Points, CollectionOrdering.Matching)
                 .Because("ink is stored in WORLD units; a camera move must not touch a single sample");
             await Assert.That(Math.Abs(screenAfter.X - screenBefore.X)
-                              + Math.Abs(screenAfter.Y - screenBefore.Y)).IsGreaterThan(1)
+                    + Math.Abs(screenAfter.Y - screenBefore.Y)).IsGreaterThan(1)
                 .Because("...but it must land somewhere else on screen, or the camera did nothing");
         });
     }
@@ -143,10 +143,7 @@ public class Playback2DAnnotationHostTests
             double before = ((SpaceRef.World)f.Document.Elements[0].Space).LevelMinZ;
             int undoBefore = f.Document.UndoDepth;
 
-            f.Vm.ApplyAnnotationLevelRebuild(new Dictionary<double, double>
-            {
-                [before] = before + 64
-            });
+            f.Vm.ApplyAnnotationLevelRebuild(new Dictionary<double, double> { [before] = before + 64 });
 
             await Assert.That(((SpaceRef.World)f.Document.Elements[0].Space).LevelMinZ)
                 .IsEqualTo(before + 64);
@@ -429,13 +426,14 @@ public class Playback2DAnnotationHostTests
 
         Type readOnlyList = typeof(IReadOnlyList<>).MakeGenericType(rawPoint);
         Type lazyType = typeof(Lazy<>).MakeGenericType(readOnlyList);
-        object lazy = Activator.CreateInstance(lazyType, Delegate.CreateDelegate(typeof(Func<>).MakeGenericType(readOnlyList), history,
+        object lazy = Activator.CreateInstance(lazyType, Delegate.CreateDelegate(
+            typeof(Func<>).MakeGenericType(readOnlyList), history,
             listType.GetMethod("AsReadOnly")!))!;
 
         ConstructorInfo ctor = typeof(PointerEventArgs)
             .GetConstructors(BindingFlags.Public
-                             | BindingFlags.NonPublic
-                             | BindingFlags.Instance)
+                | BindingFlags.NonPublic
+                | BindingFlags.Instance)
             .Single(c => c.GetParameters().Any(p => p.Name == "previousPoints"));
 
         // Positional up to previousPoints, then defaults for whatever the version appends after it.
@@ -723,7 +721,7 @@ public class Playback2DAnnotationHostTests
             using Fixture f = Fixture.Create();
             AnnotationToolbar toolbar = f.View.GetVisualDescendants().OfType<AnnotationToolbar>().Single();
             ItemsControl strip = toolbar.FindControl<ItemsControl>("RecentColorsStrip")
-                                 ?? throw new InvalidOperationException("RecentColorsStrip not found");
+                ?? throw new InvalidOperationException("RecentColorsStrip not found");
 
             await Assert.That(f.Vm.Annotations.HasRecentColors).IsFalse();
             await Assert.That(strip.IsEffectivelyVisible).IsFalse()

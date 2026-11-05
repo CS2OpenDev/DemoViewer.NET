@@ -45,7 +45,7 @@ internal static class InstallRecovery
     ///     Serializes every restore. The banner's unattended restore and the pre-launch guard run on different
     ///     threads and would otherwise both rewrite gameinfo.gi and delete the plugin directory at once.
     /// </summary>
-    private static readonly object RestoreGate = new();
+    private static readonly Lock _restoreGate = new();
 
     /// <summary>How long a launch waits for the CS2 it just stopped to exit before the guard runs.</summary>
     internal static readonly TimeSpan Cs2ExitTimeout = TimeSpan.FromSeconds(15);
@@ -111,7 +111,7 @@ internal static class InstallRecovery
             throw new InvalidOperationException("CS2 is running. Close it, then try again.");
         }
 
-        lock (RestoreGate)
+        lock (_restoreGate)
         {
             RestoreCore(settings, log);
         }
@@ -155,7 +155,7 @@ internal static class InstallRecovery
     public static void EnsureRestoredBeforeLaunch(LiveSyncSettings settings, Action<string>? log = null,
         Func<bool>? isCs2Running = null)
     {
-        lock (RestoreGate)
+        lock (_restoreGate)
         {
             LeftoverState? state = Detect(settings, isCs2Running);
             if (state?.Any != true)
@@ -171,8 +171,8 @@ internal static class InstallRecovery
                     + (state.Cs2Running
                         ? "CS2 is running. Close it, then try again."
                         : "Its backup of gameinfo.gi no longer matches your install, so DemoViewer won't restore it "
-                          + "on its own. Use Restore my CS2 install on the banner, or Verify integrity of game "
-                          + "files on Counter-Strike 2 in Steam."));
+                        + "on its own. Use Restore my CS2 install on the banner, or Verify integrity of game "
+                        + "files on Counter-Strike 2 in Steam."));
             }
 
             log?.Invoke("An earlier session left CSVG changes in the CS2 install; restoring them before launch.");
@@ -218,7 +218,7 @@ internal static class InstallRecovery
     ///     then changes nothing but CSVG's own line, which is what makes an unattended restore safe: a
     ///     game update since the backup, or a doubled marker, fails the comparison.
     /// </summary>
-    internal static bool BackupUndoesOnlyThePatch(string gameInfoPath, string current)
+    private static bool BackupUndoesOnlyThePatch(string gameInfoPath, string current)
     {
         string backupPath = Cs2DirectoryUtil.GetBackupFilePath(gameInfoPath);
         return File.Exists(backupPath) && IsExactlyThePatch(current, File.ReadAllText(backupPath));
@@ -235,8 +235,8 @@ internal static class InstallRecovery
         int lineStart = patched.LastIndexOf('\n', at) + 1;
         int lineEnd = patched.IndexOf('\n', at);
         return lineEnd >= 0
-               && string.Equals(patched.Remove(lineStart, lineEnd + 1 - lineStart), original,
-                   StringComparison.Ordinal);
+            && string.Equals(patched.Remove(lineStart, lineEnd + 1 - lineStart), original,
+                StringComparison.Ordinal);
     }
 
     private static bool IsCs2Running()
@@ -268,7 +268,10 @@ internal static class InstallRecovery
     ///     <see cref="SafeToAutoRestore" /> lets the app undo it unattended.
     /// </summary>
     internal sealed record LeftoverState(
-        bool GameInfoPatched, bool PluginFilesPresent, bool Cs2Running, bool SafeToAutoRestore)
+        bool GameInfoPatched,
+        bool PluginFilesPresent,
+        bool Cs2Running,
+        bool SafeToAutoRestore)
     {
         public bool Any => GameInfoPatched || PluginFilesPresent;
 

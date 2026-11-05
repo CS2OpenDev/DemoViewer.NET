@@ -13,6 +13,8 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 ///     A null member means: routing off, the baked-in place resolver, no keys and no gestures in the hints,
 ///     place reads on the pool.
 /// </summary>
-public sealed record StratCanvasServices(IExtensionFeatures? Gate, IZonePlaceResolverSource? Places,
+public sealed record StratCanvasServices(
+    IExtensionFeatures? Gate,
+    IZonePlaceResolverSource? Places,
     IExtensionKeymap? Keymap,
     IExtensionJobs? Jobs = null);

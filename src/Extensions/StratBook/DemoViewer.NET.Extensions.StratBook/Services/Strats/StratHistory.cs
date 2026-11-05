@@ -71,7 +71,7 @@ public static class StratHistory
         ArgumentNullException.ThrowIfNull(ops);
         JsonNode? root = ApplyAll(ToNode(document), ops);
         return root?.Deserialize(StratJsonContext.Default.StratDocument)
-               ?? throw new InvalidOperationException("the ops removed the document");
+            ?? throw new InvalidOperationException("the ops removed the document");
     }
 
     /// <summary>The document as a JSON tree, through the file's own serializer.</summary>
@@ -161,7 +161,9 @@ public static class StratHistory
             node = node switch
             {
                 JsonObject obj => obj[tokens[i]],
-                JsonArray array => ParseIndex(tokens[i], path) is int index && index < array.Count ? array[index] : null,
+                JsonArray array => ParseIndex(tokens[i], path) is var index && index < array.Count
+                    ? array[index]
+                    : null,
                 _ => null
             };
         }
@@ -182,7 +184,11 @@ public static class StratHistory
             throw new InvalidOperationException($"'{pointer}' is not a JSON pointer");
         }
 
-        return [.. pointer[1..].Split('/').Select(t => t.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal))];
+        return
+        [
+            .. pointer[1..].Split('/').Select(t =>
+                t.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal))
+        ];
     }
 
     /// <summary>A pointer token for a member name, escaped per RFC 6901.</summary>
@@ -209,9 +215,10 @@ public static class StratHistory
             node = node switch
             {
                 JsonObject obj => obj[token],
-                JsonArray array => int.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out int index) && index < array.Count
-                    ? array[index]
-                    : null,
+                JsonArray array => int.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out int index)
+                    && index < array.Count
+                        ? array[index]
+                        : null,
                 _ => null
             };
 
@@ -299,7 +306,7 @@ public sealed class StratCommitBuffer
     public bool HasPending => _ops.Count > 0;
 
     /// <summary>When the last op was recorded; null when nothing is pending.</summary>
-    public DateTime? LastEditUtc { get; private set; }
+    private DateTime? LastEditUtc { get; set; }
 
     /// <summary>A snapshot of the pending ops, merged.</summary>
     public IReadOnlyList<PatchOp> Pending => [.. _ops.Select(o => o.Clone())];
@@ -377,21 +384,22 @@ public sealed class StratCommitBuffer
 public static class StratDiffPhrasing
 {
     // Fields whose value is prose: printing it in a one-line summary says nothing the pane's diff does not.
-    private static readonly HashSet<string> TextFields = new(StringComparer.Ordinal) { "notes", "note", "text" };
+    private static readonly HashSet<string> _textFields = new(StringComparer.Ordinal) { "notes", "note", "text" };
 
     /// <summary>One line per op, a repeated line said once, in op order.</summary>
     /// <param name="before">The document before the first op; null before revision 1.</param>
     /// <param name="ops">The entry's ops.</param>
     /// <param name="callouts">The owner's callouts for the map, for place names; null prints canonical names split into words.</param>
-    public static IReadOnlyList<string> Describe(JsonNode? before, IEnumerable<PatchOp> ops, CalloutResolver? callouts = null)
+    public static IReadOnlyList<string> Describe(JsonNode? before, IEnumerable<PatchOp> ops,
+        CalloutResolver? callouts = null)
     {
         ArgumentNullException.ThrowIfNull(ops);
         JsonNode? tree = before?.DeepClone();
         List<PatchOp> all = [.. ops];
 
         // A clock switch rewrites every time and a first start write moves the seed's entries: each reads as one line.
-        bool clockSwitch = all.Exists(o => o.Op == PatchOp.Replace && o.Path == "/clock/kind");
-        bool startWritten = all.Exists(o => o.Op == PatchOp.Add && o.Path == "/start");
+        bool clockSwitch = all.Exists(o => o is { Op: PatchOp.Replace, Path: "/clock/kind" });
+        bool startWritten = all.Exists(o => o is { Op: PatchOp.Add, Path: "/start" });
         List<string> lines = [];
         foreach (PatchOp op in all)
         {
@@ -431,7 +439,8 @@ public static class StratDiffPhrasing
 
     private static bool IsTime(string path) =>
         path.StartsWith("/steps/", StringComparison.Ordinal)
-        && (path.EndsWith("/atSeconds", StringComparison.Ordinal) || path.EndsWith("/rotate/atSeconds", StringComparison.Ordinal));
+        && (path.EndsWith("/atSeconds", StringComparison.Ordinal)
+            || path.EndsWith("/rotate/atSeconds", StringComparison.Ordinal));
 
     private static bool IsPositionEntry(string path) =>
         path.StartsWith("/steps/", StringComparison.Ordinal) && path.Contains("/positions/", StringComparison.Ordinal);
@@ -439,10 +448,15 @@ public static class StratDiffPhrasing
     // The clock the tree's times are on; null reads as the round clock.
     private static StratClockInfo? ClockIn(JsonNode? tree) =>
         StratHistory.ValueAt(tree, "/clock") is JsonObject clock
-            ? new StratClockInfo { Kind = Text(clock["kind"]) ?? StratClock.RoundKind, RoundSeconds = Number(clock["roundSeconds"]) ?? StratClock.DefaultRoundSeconds }
+            ? new StratClockInfo
+            {
+                Kind = Text(clock["kind"]) ?? StratClock.RoundKind,
+                RoundSeconds = Number(clock["roundSeconds"]) ?? StratClock.DefaultRoundSeconds
+            }
             : null;
 
-    private static string ClockName(string? kind) => kind == StratClock.TriggerKind ? "from the trigger" : "round clock";
+    private static string ClockName(string? kind) =>
+        kind == StratClock.TriggerKind ? "from the trigger" : "round clock";
 
     /// <summary>The lines joined as a history summary: <c>branch added; status Theory → Active</c>.</summary>
     /// <param name="before">The document before the first op; null before revision 1.</param>
@@ -485,20 +499,26 @@ public static class StratDiffPhrasing
         string[] tokens =
         [
             .. op.Path[1..].Split('/')
-                .Select(t => t.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal))
+                .Select(t =>
+                    t.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal))
         ];
 
         StratClockInfo? clock = ClockIn(tree);
         switch (tokens)
         {
             case ["clock", "kind"] when op.Op == PatchOp.Replace:
-                return $"clock: {ClockName(Text(op.From) ?? Text(StratHistory.ValueAt(tree, op.Path)))} → {ClockName(Text(op.Value))}";
+                return
+                    $"clock: {ClockName(Text(op.From) ?? Text(StratHistory.ValueAt(tree, op.Path)))} → {ClockName(Text(op.Value))}";
             case ["start"]:
                 return op.Op == PatchOp.Remove
                     ? "start removed"
                     : "start set: " + (StratStartPhrasing.Text(StartOf(op.Value), callouts) ?? "no one placed");
             case ["start", "positions"] when op.Op == PatchOp.Replace:
-                return "start: " + StartChange(StartOf(new JsonObject { ["positions"] = (op.From ?? StratHistory.ValueAt(tree, op.Path))?.DeepClone() }),
+                return "start: " + StartChange(
+                    StartOf(new JsonObject
+                    {
+                        ["positions"] = (op.From ?? StratHistory.ValueAt(tree, op.Path))?.DeepClone()
+                    }),
                     StartOf(new JsonObject { ["positions"] = op.Value?.DeepClone() }), callouts);
             case ["steps", _]:
                 JsonNode? step = op.Op == PatchOp.Add ? op.Value : StratHistory.ValueAt(tree, op.Path) ?? op.From;
@@ -508,8 +528,10 @@ public static class StratDiffPhrasing
                     PatchOp.Remove => "step removed: ",
                     _ => "step replaced: "
                 } + StepSentence(op.Op == PatchOp.Replace ? op.Value : step, callouts, clock);
-            case ["steps", var index, "atSeconds"] when op.Op == PatchOp.Replace && Number(op.From) is { } from && Number(op.Value) is { } to:
-                return $"{StepName(StratHistory.ValueAt(tree, "/steps/" + index))} moved from {StratClock.Format(clock, from)} to {StratClock.Format(clock, to)}";
+            case ["steps", var index, "atSeconds"] when op.Op == PatchOp.Replace && Number(op.From) is { } from
+                && Number(op.Value) is { } to:
+                return
+                    $"{StepName(StratHistory.ValueAt(tree, "/steps/" + index))} moved from {StratClock.Format(clock, from)} to {StratClock.Format(clock, to)}";
             case ["steps", var index, "assignments"]:
                 return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": " + op.Op switch
                 {
@@ -532,21 +554,32 @@ public static class StratDiffPhrasing
                     _ => slot + "'s line replaced"
                 };
             case ["steps", var index, "assignments", var lineIndex, .. var rest]:
-                string who = Text(StratHistory.ValueAt(tree, $"/steps/{index}/assignments/{lineIndex}/slot")) ?? "a player";
-                return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": " + who + " " + LineChange(tree, rest, op, callouts);
+                string who = Text(StratHistory.ValueAt(tree, $"/steps/{index}/assignments/{lineIndex}/slot"))
+                    ?? "a player";
+                return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": " + who + " "
+                    + LineChange(tree, rest, op, callouts);
             case ["steps", var index, "positions", _] when op.Op == PatchOp.Remove
-                                                          && (StratHistory.ValueAt(tree, op.Path) ?? op.From) is JsonObject removed
-                                                          && removed["carried"] is JsonValue mark && mark.GetValueKind() == JsonValueKind.True:
-                return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": " + (Text(removed["slot"]) ?? "a token")
-                       + "'s carried position dropped";
+                && (StratHistory.ValueAt(tree, op.Path) ?? op.From) is
+                JsonObject removed
+                && removed["carried"] is JsonValue mark
+                && mark.GetValueKind() == JsonValueKind.True:
+                return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": "
+                    + (Text(removed["slot"]) ?? "a token")
+                    + "'s carried position dropped";
             case ["steps", var index, "positions", _, "slot"] when op.Op == PatchOp.Replace
-                                                                && (Text(StratHistory.ValueAt(tree, op.Path)) ?? Text(op.From)) is { } fromSlot
-                                                                && Text(op.Value) is { } toSlot:
-                return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": " + fromSlot + "'s position moved to " + toSlot;
+                && (Text(StratHistory.ValueAt(tree, op.Path))
+                    ?? Text(op.From)) is { } fromSlot
+                && Text(op.Value) is { } toSlot:
+                return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": " + fromSlot
+                    + "'s position moved to " + toSlot;
             case ["steps", var index, "lurk", .. var rest]:
-                return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": " + LurkChange(tree, rest, op, callouts, clock);
+                return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": "
+                    + LurkChange(tree, rest, op, callouts,
+                        clock);
             case ["steps", var index, "via" or "viaPoints", ..]:
-                return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": " + ViaChange(tree, tokens[2..], op, callouts);
+                return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": "
+                    + ViaChange(tree, tokens[2..], op,
+                        callouts);
             case ["steps", var index, .. var rest]:
                 return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": " + FieldChange(rest, op, callouts);
             case ["branches", _]:
@@ -562,7 +595,9 @@ public static class StratDiffPhrasing
                 string letter = Text(StratHistory.ValueAt(tree, "/slots/" + index + "/slot")) ?? index;
                 if (rest is ["steamId"])
                 {
-                    return op.Op == PatchOp.Remove || op.Value is null ? $"slot {letter} unpinned" : $"slot {letter} pinned";
+                    return op.Op == PatchOp.Remove || op.Value is null
+                        ? $"slot {letter} unpinned"
+                        : $"slot {letter} pinned";
                 }
 
                 return $"slot {letter} " + FieldChange(rest, op, callouts);
@@ -580,7 +615,8 @@ public static class StratDiffPhrasing
     private static string FieldChange(IReadOnlyList<string> tokens, PatchOp op, CalloutResolver? callouts)
     {
         // A place is an object with one field that matters; "to" reads better than "to place".
-        List<string> named = [.. tokens.Where(t => !int.TryParse(t, NumberStyles.None, CultureInfo.InvariantCulture, out _))];
+        List<string> named =
+            [.. tokens.Where(t => !int.TryParse(t, NumberStyles.None, CultureInfo.InvariantCulture, out _))];
         bool isPlace = named.Count > 1 && named[^1] == "place";
         if (isPlace)
         {
@@ -588,9 +624,11 @@ public static class StratDiffPhrasing
         }
 
         string field = named.Count == 0 ? "value" : string.Join(' ', named.Select(Words));
-        bool prose = named.Count > 0 && TextFields.Contains(named[^1]);
-        string? from = prose ? null : isPlace && Text(op.From) is { } fromPlace ? Place(fromPlace, callouts) : ValueText(op.From, callouts);
-        string? to = prose ? null : isPlace && Text(op.Value) is { } toPlace ? Place(toPlace, callouts) : ValueText(op.Value, callouts);
+        bool prose = named.Count > 0 && _textFields.Contains(named[^1]);
+        string? from = prose ? null :
+            isPlace && Text(op.From) is { } fromPlace ? Place(fromPlace, callouts) : ValueText(op.From, callouts);
+        string? to = prose ? null :
+            isPlace && Text(op.Value) is { } toPlace ? Place(toPlace, callouts) : ValueText(op.Value, callouts);
 
         return op.Op switch
         {
@@ -611,20 +649,24 @@ public static class StratDiffPhrasing
         switch (rest)
         {
             case ["watch", "places", _]:
-                string? place = Text(op.Op == PatchOp.Remove ? StratHistory.ValueAt(tree, op.Path) ?? op.From : op.Value);
+                string? place =
+                    Text(op.Op == PatchOp.Remove ? StratHistory.ValueAt(tree, op.Path) ?? op.From : op.Value);
                 string shown = place is null ? "a place" : Place(place, callouts);
                 return op.Op switch
                 {
                     PatchOp.Add => "watching added: " + shown,
                     PatchOp.Remove => "watching removed: " + shown,
-                    _ => Text(op.From) is { } before ? $"watching {Place(before, callouts)} → {shown}" : "watching set to " + shown
+                    _ => Text(op.From) is { } before
+                        ? $"watching {Place(before, callouts)} → {shown}"
+                        : "watching set to " + shown
                 };
             case ["watch", "yawDegrees"]:
                 return op.Op == PatchOp.Remove || Number(op.Value) is not { } yaw
                     ? "view angle cleared"
                     : "view angle set to " + yaw.ToString("0.#", CultureInfo.InvariantCulture) + "°";
             case ["watch", "points", _]:
-                string? point = StratLocations.NodeText(op.Op == PatchOp.Remove ? StratHistory.ValueAt(tree, op.Path) ?? op.From : op.Value, callouts);
+                string? point = StratLocations.NodeText(
+                    op.Op == PatchOp.Remove ? StratHistory.ValueAt(tree, op.Path) ?? op.From : op.Value, callouts);
                 return (op.Op == PatchOp.Remove ? "watching removed: " : "watching added: ") + (point ?? "a point");
             case ["via" or "viaPoints", ..]:
                 return ViaChange(tree, rest, op, callouts);
@@ -633,10 +675,16 @@ public static class StratDiffPhrasing
                 JsonNode? points = rest.Length == 1 ? op.Value?["points"] : rest[1] == "points" ? op.Value : null;
                 string[] names =
                 [
-                    .. watched is JsonArray list ? list.Select(Text).OfType<string>().Select(p => Place(p, callouts)) : [],
-                    .. points is JsonArray pointList ? pointList.Select(p => StratLocations.NodeText(p, callouts)).OfType<string>() : []
+                    .. watched is JsonArray list
+                        ? list.Select(Text).OfType<string>().Select(p => Place(p, callouts))
+                        : [],
+                    .. points is JsonArray pointList
+                        ? pointList.Select(p => StratLocations.NodeText(p, callouts)).OfType<string>()
+                        : []
                 ];
-                return op.Op == PatchOp.Remove || names.Length == 0 ? "watching cleared" : "watching set to " + string.Join(", ", names);
+                return op.Op == PatchOp.Remove || names.Length == 0
+                    ? "watching cleared"
+                    : "watching set to " + string.Join(", ", names);
             default:
                 return FieldChange(rest, op, callouts);
         }
@@ -651,7 +699,9 @@ public static class StratDiffPhrasing
             JsonNode? entry = op.Op == PatchOp.Remove ? StratHistory.ValueAt(tree, op.Path) ?? op.From : op.Value;
             string shown = points
                 ? StratLocations.NodeText(entry, callouts) ?? "a point"
-                : Text(entry) is { } place ? Place(place, callouts) : "a place";
+                : Text(entry) is { } place
+                    ? Place(place, callouts)
+                    : "a place";
             return op.Op switch
             {
                 PatchOp.Add => "via added: " + shown,
@@ -671,7 +721,8 @@ public static class StratDiffPhrasing
     }
 
     // "lurk set: Palace; rotate on the call", "lurk area added: Connector", "rotate time 0:45 → 0:40", "rotate to set to B site".
-    private static string LurkChange(JsonNode? tree, string[] rest, PatchOp op, CalloutResolver? callouts, StratClockInfo? clock)
+    private static string LurkChange(JsonNode? tree, string[] rest, PatchOp op, CalloutResolver? callouts,
+        StratClockInfo? clock)
     {
         switch (rest)
         {
@@ -680,28 +731,42 @@ public static class StratDiffPhrasing
                     ? "lurk removed"
                     : "lurk set: " + (StratStepPhrasing.LurkText(lurk, callouts, clock) ?? "empty");
             case ["areas"]:
-                string[] areas = op.Value is JsonArray list ? [.. list.Select(Text).OfType<string>().Select(p => Place(p, callouts))] : [];
-                return op.Op == PatchOp.Remove || areas.Length == 0 ? "lurk areas cleared" : "lurk areas set to " + string.Join(", ", areas);
+                string[] areas = op.Value is JsonArray list
+                    ? [.. list.Select(Text).OfType<string>().Select(p => Place(p, callouts))]
+                    : [];
+                return op.Op == PatchOp.Remove || areas.Length == 0
+                    ? "lurk areas cleared"
+                    : "lurk areas set to " + string.Join(", ", areas);
             case ["areas", _]:
-                string? area = Text(op.Op == PatchOp.Remove ? StratHistory.ValueAt(tree, op.Path) ?? op.From : op.Value);
+                string? area = Text(op.Op == PatchOp.Remove
+                    ? StratHistory.ValueAt(tree, op.Path) ?? op.From
+                    : op.Value);
                 string shown = area is null ? "a place" : Place(area, callouts);
                 return op.Op switch
                 {
                     PatchOp.Add => "lurk area added: " + shown,
                     PatchOp.Remove => "lurk area removed: " + shown,
-                    _ => Text(op.From) is { } before ? $"lurk area {Place(before, callouts)} → {shown}" : "lurk area set to " + shown
+                    _ => Text(op.From) is { } before
+                        ? $"lurk area {Place(before, callouts)} → {shown}"
+                        : "lurk area set to " + shown
                 };
             case ["areaPoints", _]:
-                string? point = StratLocations.NodeText(op.Op == PatchOp.Remove ? StratHistory.ValueAt(tree, op.Path) ?? op.From : op.Value, callouts);
+                string? point = StratLocations.NodeText(
+                    op.Op == PatchOp.Remove ? StratHistory.ValueAt(tree, op.Path) ?? op.From : op.Value, callouts);
                 return (op.Op == PatchOp.Remove ? "lurk area removed: " : "lurk area added: ") + (point ?? "a point");
             case ["areaPoints"]:
-                string[] points = op.Value is JsonArray pointList ? [.. pointList.Select(p => StratLocations.NodeText(p, callouts)).OfType<string>()] : [];
-                return op.Op == PatchOp.Remove || points.Length == 0 ? "lurk area points cleared" : "lurk area points set to " + string.Join(", ", points);
+                string[] points = op.Value is JsonArray pointList
+                    ? [.. pointList.Select(p => StratLocations.NodeText(p, callouts)).OfType<string>()]
+                    : [];
+                return op.Op == PatchOp.Remove || points.Length == 0
+                    ? "lurk area points cleared"
+                    : "lurk area points set to " + string.Join(", ", points);
             case ["rotate"]:
-                return op.Op == PatchOp.Remove || LurkOf(new JsonObject { ["rotate"] = op.Value?.DeepClone() })?.Rotate is not { } parsed
-                                               || StratStepPhrasing.RotateText(parsed, callouts, clock) is not { } text
-                    ? "rotate removed"
-                    : text;
+                return op.Op == PatchOp.Remove
+                    || LurkOf(new JsonObject { ["rotate"] = op.Value?.DeepClone() })?.Rotate is not { } parsed
+                    || StratStepPhrasing.RotateText(parsed, callouts, clock) is not { } text
+                        ? "rotate removed"
+                        : text;
             case ["rotate", "atSeconds"]:
                 return op.Op == PatchOp.Remove || Number(op.Value) is not { } at
                     ? "rotate time cleared"
@@ -853,13 +918,18 @@ public static class StratDiffPhrasing
         }
         else if (obj["lurk"]?["areas"] is JsonArray { Count: > 0 } areas)
         {
-            sentence.Append(' ').Append(string.Join(", ", areas.Select(Text).OfType<string>().Select(p => Place(p, callouts))));
+            sentence.Append(' ')
+                .Append(string.Join(", ", areas.Select(Text).OfType<string>().Select(p => Place(p, callouts))));
         }
 
         string[] through =
         [
-            .. via?["via"] is JsonArray viaPlaces ? viaPlaces.Select(Text).OfType<string>().Select(p => Place(p, callouts)) : [],
-            .. via?["viaPoints"] is JsonArray viaPoints ? viaPoints.Select(p => StratLocations.NodeText(p, callouts)).OfType<string>() : []
+            .. via?["via"] is JsonArray viaPlaces
+                ? viaPlaces.Select(Text).OfType<string>().Select(p => Place(p, callouts))
+                : [],
+            .. via?["viaPoints"] is JsonArray viaPoints
+                ? viaPoints.Select(p => StratLocations.NodeText(p, callouts)).OfType<string>()
+                : []
         ];
         if (through.Length > 0)
         {
@@ -884,7 +954,7 @@ public static class StratDiffPhrasing
     {
         "other" => "acts",
         _ when verb.EndsWith('s') || verb.EndsWith('x') || verb.EndsWith("sh", StringComparison.Ordinal)
-               || verb.EndsWith("ch", StringComparison.Ordinal) => verb + "es",
+            || verb.EndsWith("ch", StringComparison.Ordinal) => verb + "es",
         _ => verb + "s"
     };
 

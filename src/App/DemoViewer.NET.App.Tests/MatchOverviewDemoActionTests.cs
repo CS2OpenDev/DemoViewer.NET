@@ -26,15 +26,12 @@ public class MatchOverviewDemoActionTests
         Size = 10,
         ModifiedTicks = 20,
         Map = "de_mirage",
-        Parse = new TierStamp
-        {
-            Schema = DemoCacheRecord.ParseSchema,
-            ComputedAtTicks = 1
-        },
+        Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 },
         TickRate = 64
     };
 
-    private static (MatchOverviewTabViewModel Vm, DemoActionRow Row) Page(DemoAction action, Func<bool>? featureOn = null)
+    private static (MatchOverviewTabViewModel Vm, DemoActionRow Row) Page(DemoAction action,
+        Func<bool>? featureOn = null)
     {
         MatchOverviewTabViewModel vm = new();
         vm.AttachDemoActions([new GatedDemoAction(action, Feature)], _ => featureOn?.Invoke() ?? true);
@@ -54,7 +51,7 @@ public class MatchOverviewDemoActionTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(requested).IsEquivalentTo(new[] { Demo }, CollectionOrdering.Matching);
+            await Assert.That(requested).IsEquivalentTo([Demo], CollectionOrdering.Matching);
             await Assert.That(row.IsVisible).IsFalse().Because("pressed once, it steps aside");
         }
     }
@@ -136,7 +133,7 @@ public class MatchOverviewDemoActionTests
         DemoAction action = new("pack.fake.index", "Index", "tip",
             _ => throwOnAsk ? throw new InvalidOperationException("ask") : true,
             _ => throw new InvalidOperationException("run"));
-        PackContributions contributions = new(new StubExtension(Feature), () => null!, null, rig.Guard);
+        PackContributions contributions = new(new StubExtension(), () => null!, null, rig.Guard);
         contributions.DemoAction(action);
 
         MatchOverviewTabViewModel vm = new();

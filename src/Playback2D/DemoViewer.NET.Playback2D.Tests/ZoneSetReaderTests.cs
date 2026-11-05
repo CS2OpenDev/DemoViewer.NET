@@ -3,10 +3,10 @@
 using System.IO.Compression;
 using System.Numerics;
 using System.Text;
-using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Playback2D.Assets;
+using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Pipeline.Assets;
+using DemoViewer.NET.Playback2D.Zones;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
 
@@ -33,7 +33,8 @@ public class ZoneSetReaderTests
         await Assert.That(actual.BakerVersion).IsEqualTo("0.4+test");
         await Assert.That(actual.HasOverlay).IsFalse();
         await Assert.That(actual.Floors.Count).IsEqualTo(2);
-        await Assert.That(actual.Places.Select(p => p.Name).ToArray()).IsEquivalentTo(ZoneFixtures.PlaceNames, CollectionOrdering.Matching);
+        await Assert.That([.. actual.Places.Select(p => p.Name)])
+            .IsEquivalentTo(ZoneFixtures.PlaceNames, CollectionOrdering.Matching);
         await Assert.That(actual.Places.All(p => p.Origin == PlaceOrigin.Baked)).IsTrue();
         await Assert.That(actual.Volumes.Count).IsEqualTo(expected.Volumes.Count);
         await Assert.That(actual.Areas.Count).IsEqualTo(expected.Areas.Count);
@@ -83,8 +84,8 @@ public class ZoneSetReaderTests
         await Assert.That(ZoneAssetPipeline.TryLoad(dir.Path, null)).IsNull();
 
         await File.WriteAllTextAsync(plain, "{ \"schemaVersion\": 1, \"mapName\": \"x\", \"zonesVersion\": \"1\", " +
-                                            "\"places\": [ { \"id\": 0, \"name\": \"A\" } ], " +
-                                            "\"areas\": [ { \"id\": 1, \"place\": 7, \"floor\": 0, \"z\": 0, \"xy\": [] } ] }");
+            "\"places\": [ { \"id\": 0, \"name\": \"A\" } ], " +
+            "\"areas\": [ { \"id\": 1, \"place\": 7, \"floor\": 0, \"z\": 0, \"xy\": [] } ] }");
         await Assert.That(ZoneAssetPipeline.TryLoad(dir.Path, null)).IsNull();
 
         await File.WriteAllTextAsync(plain, ZoneFixtures.Json());
@@ -124,7 +125,7 @@ public class ZoneSetReaderTests
             }
 
             Console.WriteLine($"[zones] {map}: {baked.Places.Count} places, {baked.Areas.Count} areas, " +
-                              $"{baked.Floors.Count} floors, version {baked.ZonesVersion}");
+                $"{baked.Floors.Count} floors, version {baked.ZonesVersion}");
         }
 
         Console.WriteLine($"[zones] committed bakes checked: {checkedMaps}");
@@ -144,7 +145,7 @@ public class ZoneSetReaderTests
             throw new SkipTestException("no de_nuke bundle with zones.json in this checkout");
         }
 
-        ZoneVolume site = resolver.Zones.Volumes.First(v => v.Kind == ZoneVolumeKind.Bombsite && v.Site == Bombsite.A);
+        ZoneVolume site = resolver.Zones.Volumes.First(v => v is { Kind: ZoneVolumeKind.Bombsite, Site: Bombsite.A });
         Vector3 centre = (site.Min + site.Max) / 2;
 
         PlaceHit hit = resolver.Resolve(centre);
@@ -157,7 +158,7 @@ public class ZoneSetReaderTests
         await Assert.That(resolver.Adjacent(hit.PlaceId).Count).IsGreaterThan(0);
     }
 
-    internal sealed class TempDir : IDisposable
+    private sealed class TempDir : IDisposable
     {
         public TempDir()
         {

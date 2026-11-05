@@ -29,7 +29,8 @@ public sealed record LibraryTeamState(int? Ct, int? T, string? CtClan, string? T
     ///     A demo with no score marks no coach: the table samples coaches at round close, which a warmup-only
     ///     demo never reaches, and the replay must read the same.
     /// </summary>
-    public static LibraryTeamState Of(int? ct, int? t, string? ctClan, string? tClan, HashSet<int> coachSlots, bool matchEnded,
+    public static LibraryTeamState Of(int? ct, int? t, string? ctClan, string? tClan, HashSet<int> coachSlots,
+        bool matchEnded,
         LibraryOvertime overtime, bool surrendered = false)
     {
         ArgumentNullException.ThrowIfNull(coachSlots);
@@ -68,7 +69,8 @@ public static class LibraryFinalScore
     ///     when <paramref name="overtime" /> rules out a tie ending the match there. A surrender also closes
     ///     the match with the panel, on a score no round finished, so it is never completed.
     /// </remarks>
-    public static (int Ct, int T) Complete(int ct, int t, bool matchEnded, LibraryOvertime overtime, bool surrendered = false)
+    public static (int Ct, int T) Complete(int ct, int t, bool matchEnded, LibraryOvertime overtime,
+        bool surrendered = false)
     {
         int hi = Math.Max(ct, t), lo = Math.Min(ct, t);
         if (!matchEnded || surrendered || ct == t || IsResult(hi, lo) || !IsResult(hi + 1, lo)
@@ -127,7 +129,8 @@ public readonly record struct LibraryOvertime(bool Enabled, int Limit)
                 case "mp_overtime_enable":
                     next = next with { Enabled = cvar.Value is "true" or "1" };
                     break;
-                case "mp_overtime_limit" when int.TryParse(cvar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int limit):
+                case "mp_overtime_limit" when int.TryParse(cvar.Value, NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out int limit):
                     next = next with { Limit = limit };
                     break;
             }
@@ -171,7 +174,8 @@ public static class LibraryTeamTables
     public static IReadOnlyList<string> RulesetIds { get; } = [TeamsRulesetId, CoachesRulesetId];
 
     /// <summary>The two table names.</summary>
-    public static IReadOnlySet<string> Tables { get; } = new HashSet<string>(StringComparer.Ordinal) { TeamsTable, CoachesTable };
+    public static IReadOnlySet<string> Tables { get; } =
+        new HashSet<string>(StringComparer.Ordinal) { TeamsTable, CoachesTable };
 
     /// <summary>True when <paramref name="build" /> outputs the teams table, so a run of it carries the score.</summary>
     public static bool Carries(BuildResult build) =>
@@ -182,7 +186,8 @@ public static class LibraryTeamTables
 
     /// <summary>True for either library ruleset.</summary>
     public static bool IsLibraryRuleset(string rulesetId) =>
-        string.Equals(rulesetId, TeamsRulesetId, StringComparison.Ordinal) || string.Equals(rulesetId, CoachesRulesetId, StringComparison.Ordinal);
+        string.Equals(rulesetId, TeamsRulesetId, StringComparison.Ordinal)
+        || string.Equals(rulesetId, CoachesRulesetId, StringComparison.Ordinal);
 
     /// <summary>
     ///     The state out of <paramref name="run" />'s two tables, through <see cref="LibraryTeamState.Of" />; a
@@ -205,9 +210,11 @@ public static class LibraryTeamTables
             return LibraryTeamState.Empty();
         }
 
-        IReadOnlyList<MetricTable> tables = (run with { Build = run.Build with { Outputs = mine } }).ProjectConfiguredOutputs();
+        IReadOnlyList<MetricTable> tables =
+            (run with { Build = run.Build with { Outputs = mine } }).ProjectConfiguredOutputs();
         MetricTable? teams = tables.FirstOrDefault(t => string.Equals(t.Name, TeamsTable, StringComparison.Ordinal));
-        MetricTable? coaches = tables.FirstOrDefault(t => string.Equals(t.Name, CoachesTable, StringComparison.Ordinal));
+        MetricTable? coaches =
+            tables.FirstOrDefault(t => string.Equals(t.Name, CoachesTable, StringComparison.Ordinal));
 
         int? ct = null, t = null;
         string? ctClan = null, tClan = null;
@@ -231,7 +238,8 @@ public static class LibraryTeamTables
             }
         }
 
-        return LibraryTeamState.Of(ct, t, ctClan, tClan, CoachSlots(coaches, players), matchEnded, overtime, surrendered);
+        return LibraryTeamState.Of(ct, t, ctClan, tClan, CoachSlots(coaches, players), matchEnded, overtime,
+            surrendered);
     }
 
     /// <summary>
@@ -249,7 +257,8 @@ public static class LibraryTeamTables
         }
 
         BuildResult build = DemoAnalysis.Build(parsed, mine);
-        return Read(DemoAnalysis.Evaluate(parsed, build, new AnalysisOptions { CaptureSnapshots = false }), parsed.Players.Values,
+        return Read(DemoAnalysis.Evaluate(parsed, build, new AnalysisOptions { CaptureSnapshots = false }),
+            parsed.Players.Values,
             LibraryOvertime.Of(parsed.Frames));
     }
 
@@ -276,8 +285,9 @@ public static class LibraryTeamTables
             foreach (PlayerInfo p in roster)
             {
                 bool same = steamId is { Length: > 0 }
-                    ? string.Equals(p.SteamId64.ToString(CultureInfo.InvariantCulture), steamId, StringComparison.Ordinal)
-                      && string.Equals(p.Name, name, StringComparison.Ordinal)
+                    ? string.Equals(p.SteamId64.ToString(CultureInfo.InvariantCulture), steamId,
+                        StringComparison.Ordinal)
+                    && string.Equals(p.Name, name, StringComparison.Ordinal)
                     : p.Slot == slot;
                 if (same)
                 {

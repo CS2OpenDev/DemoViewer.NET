@@ -5,7 +5,6 @@ using System.Text.Json;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Styling;
-using DemoViewer.NET.Extensions.Sdk.Ui.Theming;
 
 #endregion
 
@@ -27,7 +26,8 @@ public sealed record ThemeDefinition(
     IReadOnlyDictionary<string, Color> Tokens)
 {
     /// <summary>The gradient tokens this theme sets.</summary>
-    public IReadOnlyDictionary<string, ThemeGradient> Gradients { get; init; } = new Dictionary<string, ThemeGradient>();
+    public IReadOnlyDictionary<string, ThemeGradient> Gradients { get; init; } =
+        new Dictionary<string, ThemeGradient>();
 
     /// <summary>
     ///     Keys this version of the app does not know, with their raw JSON. Kept so a save writes them back
@@ -60,20 +60,19 @@ public static class ThemeJson
 {
     private static readonly JsonDocumentOptions _options = new()
     {
-        CommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true
+        CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true
     };
 
     private static readonly HashSet<string> _known = new(ThemeTokens.All, StringComparer.Ordinal);
 
     /// <summary>
     ///     Parses <paramref name="json" /> into a <see cref="ThemeDefinition" />, or returns <c>null</c> if it is
-    ///     not a usable theme. <paramref name="sourceLabel" /> names the source in a diagnostic.
+    ///     not a usable theme.
     /// </summary>
-    public static ThemeDefinition? TryParse(string json, string sourceLabel) => Parse(json, sourceLabel).Definition;
+    public static ThemeDefinition? TryParse(string json) => Parse(json).Definition;
 
     /// <summary>Parses <paramref name="json" />, saying why when it is not a usable theme.</summary>
-    public static ThemeParseResult Parse(string json, string sourceLabel)
+    public static ThemeParseResult Parse(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
@@ -127,11 +126,13 @@ public static class ThemeJson
                         continue;
                     }
 
-                    if (entry.Value.ValueKind == JsonValueKind.String && TryParseColor(entry.Value.GetString()!, out Color color))
+                    if (entry.Value.ValueKind == JsonValueKind.String
+                        && TryParseColor(entry.Value.GetString()!, out Color color))
                     {
                         tokens[key] = color;
                     }
-                    else if (entry.Value.ValueKind == JsonValueKind.Object && TryParseGradient(entry.Value, out ThemeGradient? gradient))
+                    else if (entry.Value.ValueKind == JsonValueKind.Object
+                             && TryParseGradient(entry.Value, out ThemeGradient? gradient))
                     {
                         gradients[key] = gradient;
                     }
@@ -144,8 +145,7 @@ public static class ThemeJson
 
             ThemeDefinition def = new(id, string.IsNullOrEmpty(name) ? id : name, baseVariant, tokens)
             {
-                Gradients = gradients,
-                UnknownTokens = unknown
+                Gradients = gradients, UnknownTokens = unknown
             };
             return new ThemeParseResult(def, null, bad);
         }
@@ -200,7 +200,9 @@ public static class ThemeJson
     public static string FormatColor(Color c) =>
         c.A == 255 ? $"#{c.R:X2}{c.G:X2}{c.B:X2}" : $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
 
-    private static bool TryParseGradient(JsonElement obj, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ThemeGradient? gradient)
+    private static bool TryParseGradient(JsonElement obj,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]
+        out ThemeGradient? gradient)
     {
         gradient = null;
         try

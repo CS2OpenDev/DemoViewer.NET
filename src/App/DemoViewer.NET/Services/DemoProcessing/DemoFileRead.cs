@@ -1,7 +1,5 @@
 #region
 
-using DemoViewer.NET.Playback2D;
-using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Services.DemoCache;
 
 #endregion
@@ -34,7 +32,7 @@ public sealed class DemoFileRead(TimeProvider time, Func<string, bool>? wantsHas
 
     /// <summary>True when the read reports hashes and the hash of this path is wanted.</summary>
     /// <param name="path">A demo path.</param>
-    public bool WantsHash(string path) => contentRead is not null && wantsHash?.Invoke(path) == true;
+    private bool WantsHash(string path) => contentRead is not null && wantsHash?.Invoke(path) == true;
 
     /// <summary>
     ///     The bytes to parse <paramref name="path" /> from, or null when the file is to be mapped. Reports the
@@ -54,14 +52,16 @@ public sealed class DemoFileRead(TimeProvider time, Func<string, bool>? wantsHas
 
         bool network = NetworkMounts.IsNetwork(path);
         // On a network mount a stat can stall like a read, so it is bounded the same way.
-        Func<string, FileStat> stat = network ? p => Bounded(() => MappedParsePolicy.StatFile(p), p) : MappedParsePolicy.StatFile;
+        Func<string, FileStat> stat =
+            network ? p => Bounded(() => MappedParsePolicy.StatFile(p), p) : MappedParsePolicy.StatFile;
         bool settled = MappedParsePolicy.IsSettled(path, time, stat);
         if (settled && !network)
         {
             if (want)
             {
                 FileStat now = stat(path);
-                (string? sha, DemoContentFingerprint? fingerprint) = DemoContentFingerprint.TryComputeWithContentHash(path, time);
+                (string? sha, DemoContentFingerprint? fingerprint) =
+                    DemoContentFingerprint.TryComputeWithContentHash(path, time);
                 if (sha is not null)
                 {
                     contentRead!(new DemoContentRead(path, sha, fingerprint, now));
@@ -87,7 +87,7 @@ public sealed class DemoFileRead(TimeProvider time, Func<string, bool>? wantsHas
     private static T Bounded<T>(Func<T> call, string path)
     {
         Task<T> answer = Task.Run(call);
-        if (Task.WaitAny(new Task[] { answer }, NoProgress) < 0)
+        if (Task.WaitAny([answer], NoProgress) < 0)
         {
             _ = answer.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
             throw new IOException($"{path} gave no answer in {NoProgress.TotalSeconds:0.#} s");
@@ -163,7 +163,8 @@ public sealed class DemoFileRead(TimeProvider time, Func<string, bool>? wantsHas
     }
 
     // Runs body over the open file on a thread of its own and waits while it keeps reading.
-    private static T Watched<T>(string path, TimeSpan noProgress, Func<Stream, T> body, CancellationToken cancellationToken)
+    private static T Watched<T>(string path, TimeSpan noProgress, Func<Stream, T> body,
+        CancellationToken cancellationToken)
     {
         ProgressStream? watched = null;
         Task<T> read = Task.Factory.StartNew(() =>
@@ -180,7 +181,7 @@ public sealed class DemoFileRead(TimeProvider time, Func<string, bool>? wantsHas
         TimeSpan poll = noProgress < TimeSpan.FromSeconds(1) ? noProgress : TimeSpan.FromSeconds(1);
         try
         {
-            while (Task.WaitAny(new Task[] { read }, (int)poll.TotalMilliseconds, cancellationToken) < 0)
+            while (Task.WaitAny([read], (int)poll.TotalMilliseconds, cancellationToken) < 0)
             {
                 long now = Volatile.Read(ref watched)?.Done ?? 0;
                 if (now != seen)
@@ -259,9 +260,11 @@ public sealed class DemoFileRead(TimeProvider time, Func<string, bool>? wantsHas
 /// <summary>Whether a path is on a network mount, asked of the mount table and remembered per folder.</summary>
 internal static class NetworkMounts
 {
-    private static readonly TimeSpan Remember = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan Answer = TimeSpan.FromSeconds(5);
-    private static readonly Dictionary<string, (bool Network, DateTime At)> _byFolder = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly TimeSpan _remember = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan _answer = TimeSpan.FromSeconds(5);
+
+    private static readonly Dictionary<string, (bool Network, DateTime At)> _byFolder =
+        new(StringComparer.OrdinalIgnoreCase);
 
     // DriveInfo.GetDrives is not safe to call concurrently on macOS: overlapping calls read freed mount
     // strings and crash the process with an access violation.
@@ -282,7 +285,8 @@ internal static class NetworkMounts
         string folder = Path.GetDirectoryName(Path.GetFullPath(path)) ?? path;
         lock (_byFolder)
         {
-            if (_byFolder.TryGetValue(folder, out (bool Network, DateTime At) known) && DateTime.UtcNow - known.At < Remember)
+            if (_byFolder.TryGetValue(folder, out (bool Network, DateTime At) known)
+                && DateTime.UtcNow - known.At < _remember)
             {
                 return known.Network;
             }
@@ -292,7 +296,7 @@ internal static class NetworkMounts
         // queued behind a busy pool, a local path would time out and be taken for network.
         Task<bool> ask = Task.Factory.StartNew(() => Lookup(folder), CancellationToken.None,
             TaskCreationOptions.LongRunning, TaskScheduler.Default);
-        bool network = !ask.Wait(Answer) || ask.Result;
+        bool network = !ask.Wait(_answer) || ask.Result;
         lock (_byFolder)
         {
             _byFolder[folder] = (network, DateTime.UtcNow);
@@ -326,9 +330,10 @@ internal static class NetworkMounts
 
     private static bool Under(string folder, string root)
     {
-        StringComparison comparison = OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        StringComparison comparison =
+            OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         string withSeparator = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
         return string.Equals(folder, root.TrimEnd(Path.DirectorySeparatorChar), comparison)
-               || folder.StartsWith(withSeparator, comparison);
+            || folder.StartsWith(withSeparator, comparison);
     }
 }

@@ -1,9 +1,9 @@
 #region
 
 using CS2DemoKit.Parser;
+using DemoViewer.NET.Playback2D.Pipeline.Export.Pack;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoProcessing;
-using DemoViewer.NET.Playback2D.Pipeline.Export.Pack;
 using DemoViewer.NET.Services.Export.Pack;
 using TUnit.Assertions.Enums;
 
@@ -28,17 +28,21 @@ public class QueueJobTests
     private const string MiningKind = "test.mining";
     private const string ClipsKind = "test.clips";
 
-    private static readonly DemoViewer.NET.Extensions.JobKindRegistry Kinds = DemoViewer.NET.Extensions.JobKindRegistry.Build([new KindsExtension()]);
+    private static readonly DemoViewer.NET.Extensions.JobKindRegistry _kinds =
+        DemoViewer.NET.Extensions.JobKindRegistry.Build([new KindsExtension()]);
 
     private static DemoProcessingQueue NewQueue(HeavyJobGate gate, Func<string, ParsedDemo>? parse = null) =>
-        new(gate, a => a(), parse ?? (_ => SyntheticDemo()), _ => SyntheticDemo(), () => Task.CompletedTask, jobKinds: Kinds);
+        new(gate, a => a(), parse ?? (_ => SyntheticDemo()), _ => SyntheticDemo(), () => Task.CompletedTask,
+            jobKinds: _kinds);
 
     private sealed class KindsExtension : IExtension
     {
         public string Id => "net.test.kinds";
         public string FeatureId => "pack.kinds";
         public IEnumerable<ExtensionFeature> Features => [];
-        public IEnumerable<ExtensionJobKind> JobKinds => [new(MiningKind, "mining", false, 2), new(ClipsKind, "clips", false, 3)];
+
+        public IEnumerable<ExtensionJobKind> JobKinds =>
+            [new(MiningKind, "mining", false, 2), new(ClipsKind, "clips", false, 3)];
 
         public void Register(Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {
@@ -166,7 +170,8 @@ public class QueueJobTests
     }
 
     [Test]
-    public async Task CancelOwned_ByOwnerAlone_DropsEveryQueuedJobOfThatOwner_StopsItsRunningOne_AndLeavesCoOwnedParsesAlive()
+    public async Task
+        CancelOwned_ByOwnerAlone_DropsEveryQueuedJobOfThatOwner_StopsItsRunningOne_AndLeavesCoOwnedParsesAlive()
     {
         using HeavyJobGate gate = new();
         using DemoProcessingQueue queue = NewQueue(gate);
@@ -175,7 +180,8 @@ public class QueueJobTests
         bool packQueuedRan = false;
 
         // The running job belongs to the pack and parks on its token until cancelled.
-        IDemoQueueHandle running = queue.SubmitJob(new QueueJobRequest(QueueJobKind.Extension, "mine", "pack", DemoJobPriority.Background,
+        IDemoQueueHandle running = queue.SubmitJob(new QueueJobRequest(QueueJobKind.Extension, "mine", "pack",
+            DemoJobPriority.Background,
             async ctx =>
             {
                 started.SetResult();
@@ -183,23 +189,29 @@ public class QueueJobTests
             }));
         await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        IDemoQueueHandle packQueued = queue.SubmitJob(new QueueJobRequest(QueueJobKind.Extension, "clips", "pack", DemoJobPriority.Background,
+        IDemoQueueHandle packQueued = queue.SubmitJob(new QueueJobRequest(QueueJobKind.Extension, "clips", "pack",
+            DemoJobPriority.Background,
             _ =>
             {
                 packQueuedRan = true;
                 return Task.CompletedTask;
             }));
-        IDemoQueueHandle other = queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration, "migrate", "core", DemoJobPriority.Background,
+        IDemoQueueHandle other = queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration, "migrate", "core",
+            DemoJobPriority.Background,
             _ =>
             {
                 otherOwnersJobRan = true;
                 return Task.CompletedTask;
             }));
         // One parse, two owners: the pack's attachment leaves, the library keeps the parse.
-        IDemoQueueHandle shared = queue.SubmitBackground(new DemoProcessingRequest("/d/a.dem", "library", DemoJobPriority.Background, 1, _ => { }));
+        IDemoQueueHandle shared =
+            queue.SubmitBackground(new DemoProcessingRequest("/d/a.dem", "library", DemoJobPriority.Background, 1,
+                _ => { }));
         queue.SubmitBackground(new DemoProcessingRequest("/d/a.dem", "pack", DemoJobPriority.Background, 1, _ => { }));
         // A parse only the pack wanted goes with it.
-        IDemoQueueHandle packOnly = queue.SubmitBackground(new DemoProcessingRequest("/d/b.dem", "pack", DemoJobPriority.Background, 2, _ => { }));
+        IDemoQueueHandle packOnly =
+            queue.SubmitBackground(new DemoProcessingRequest("/d/b.dem", "pack", DemoJobPriority.Background, 2,
+                _ => { }));
 
         queue.CancelOwned("pack");
 
@@ -210,12 +222,16 @@ public class QueueJobTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(running.State).IsEqualTo(DemoQueueItemState.Cancelled).Because("the running pack job was told through its token");
+            await Assert.That(running.State).IsEqualTo(DemoQueueItemState.Cancelled)
+                .Because("the running pack job was told through its token");
             await Assert.That(packQueued.State).IsEqualTo(DemoQueueItemState.Cancelled);
             await Assert.That(packQueuedRan).IsFalse();
-            await Assert.That(packOnly.State).IsEqualTo(DemoQueueItemState.Cancelled).Because("no co-owner wanted that parse");
-            await Assert.That(shared.State).IsEqualTo(DemoQueueItemState.Completed).Because("the library still owned the shared parse");
-            await Assert.That(queue.Snapshot().Single(s => s.Path == "/d/a.dem").Owners).IsEquivalentTo(["library"], CollectionOrdering.Matching);
+            await Assert.That(packOnly.State).IsEqualTo(DemoQueueItemState.Cancelled)
+                .Because("no co-owner wanted that parse");
+            await Assert.That(shared.State).IsEqualTo(DemoQueueItemState.Completed)
+                .Because("the library still owned the shared parse");
+            await Assert.That(queue.Snapshot().Single(s => s.Path == "/d/a.dem").Owners)
+                .IsEquivalentTo(["library"], CollectionOrdering.Matching);
             await Assert.That(other.State).IsEqualTo(DemoQueueItemState.Completed);
             await Assert.That(otherOwnersJobRan).IsTrue();
         }
@@ -250,7 +266,7 @@ public class QueueJobTests
         {
             handles.Add(queue.SubmitBackground(new DemoProcessingRequest($"/d/{i}.dem", "library",
                 DemoJobPriority.Background, i, _ => { })));
-            handles.Add(queue.SubmitJob(Job(i % 2 == 0 ? QueueJobKind.Extension : QueueJobKind.Extension, $"job {i}",
+            handles.Add(queue.SubmitJob(Job(QueueJobKind.Extension, $"job {i}",
                 async ctx =>
                 {
                     Enter();
@@ -407,7 +423,8 @@ public class QueueJobTests
             }, Target: "/d/a.dem"));
 
         await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        ParsedDemo opened = await queue.RequestForegroundAsync("/d/a.dem", new byte[] { 1 }).WaitAsync(TimeSpan.FromSeconds(5));
+        ParsedDemo opened = await queue.RequestForegroundAsync("/d/a.dem", new byte[] { 1 })
+            .WaitAsync(TimeSpan.FromSeconds(5));
         release.SetResult();
 
         await Assert.That(opened).IsNotNull();
@@ -428,18 +445,12 @@ public class QueueJobTests
     }
 
     [Test]
-    public async Task APackExport_IsAUserRequestedItem_ThatTakesItsOwnInteractiveSlot_AndCancelsFromEitherSide()
+    public async Task APackExport_IsAUserRequestedItem_ThatTakesItsOwnInteractiveSlot_AndCancelsFromEitherSide(
+        CancellationToken cancellationToken)
     {
         using HeavyJobGate gate = new();
         using DemoProcessingQueue queue = NewQueue(gate);
-        List<PackProgress> seen = [];
-        Progress<PackProgress> sink = new(p =>
-        {
-            lock (seen)
-            {
-                seen.Add(p);
-            }
-        });
+        Progress<PackProgress> sink = new(_ => { });
 
         int result = await PackExportQueue.RunAsync(queue, "Pack export: 2 segments to pack.mp4", "/out/pack.mp4",
             async (progress, ct) =>
@@ -450,7 +461,7 @@ public class QueueJobTests
                 }
 
                 return 7;
-            }, sink, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
+            }, sink, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
 
         await Assert.That(result).IsEqualTo(7);
         DemoQueueItemSnapshot item = queue.Snapshot().Single(s => s.Kind == QueueJobKind.PackExport);
@@ -468,7 +479,7 @@ public class QueueJobTests
             started = true;
             return Task.FromResult(1);
         }, null, cts.Token);
-        cts.Cancel();
+        await cts.CancelAsync();
         await Assert.That(await EndsCancelledAsync(queued)).IsTrue();
         hold.SetResult();
 
@@ -480,7 +491,7 @@ public class QueueJobTests
             await Task.Delay(Timeout.Infinite, ct);
             return 0;
         }, null, CancellationToken.None);
-        await running.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await running.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
         queue.RemoveByUser(queue.Snapshot().Single(s => s.State == DemoQueueItemState.Running).Id);
         await Assert.That(await EndsCancelledAsync(removed)).IsTrue();
         await Assert.That(started).IsFalse();
@@ -508,7 +519,8 @@ public class QueueJobTests
             }
 
             int seen;
-            while (now > (seen = Volatile.Read(ref demoPeak)) && Interlocked.CompareExchange(ref demoPeak, now, seen) != seen)
+            while (now > (seen = Volatile.Read(ref demoPeak))
+                   && Interlocked.CompareExchange(ref demoPeak, now, seen) != seen)
             {
             }
 
@@ -523,6 +535,7 @@ public class QueueJobTests
             {
                 overlapped.Set(); // no overlap came: fail on demoPeak, not on the run timeout
             }
+
             Thread.Sleep(60);
             Interlocked.Decrement(ref demos);
             return SyntheticDemo();
@@ -546,8 +559,10 @@ public class QueueJobTests
         };
 
         queue.Pause();
-        List<IDemoQueueHandle> handles = [];
-        handles.Add(queue.SubmitJob(Job(QueueJobKind.PackExport, "pack", Exclusive(true), DemoJobPriority.UserRequested)));
+        List<IDemoQueueHandle> handles =
+        [
+            queue.SubmitJob(Job(QueueJobKind.PackExport, "pack", Exclusive(true), DemoJobPriority.UserRequested))
+        ];
         for (int i = 0; i < 6; i++)
         {
             handles.Add(queue.SubmitBackground(new DemoProcessingRequest($"/d/{i}.dem", "library",
@@ -631,14 +646,16 @@ public class QueueJobTests
             Interlocked.Increment(ref runs);
             return Task.CompletedTask;
         }, key: "mine"));
-        IDemoQueueHandle joined = queue.SubmitJob(Job(QueueJobKind.Extension, "mine", _ => Task.CompletedTask, key: "mine"));
+        IDemoQueueHandle joined =
+            queue.SubmitJob(Job(QueueJobKind.Extension, "mine", _ => Task.CompletedTask, key: "mine"));
         await Task.Delay(200);
 
         using (Assert.Multiple())
         {
             await Assert.That(joined.Id).IsEqualTo(rerun.Id);
             await Assert.That(rerun.Id).IsNotEqualTo(first.Id);
-            await Assert.That(rerun.State).IsEqualTo(DemoQueueItemState.Queued).Because("it waits for the running pass");
+            await Assert.That(rerun.State).IsEqualTo(DemoQueueItemState.Queued)
+                .Because("it waits for the running pass");
             await Assert.That(queue.ActiveCount(QueueJobKind.Extension)).IsEqualTo(2);
         }
 

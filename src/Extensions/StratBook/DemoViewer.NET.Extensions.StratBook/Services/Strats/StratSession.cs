@@ -53,7 +53,7 @@ public sealed class StratSession : IDisposable
     private string? _commitFailure;
     private bool _disposed;
     private CancellationTokenSource? _idle;
-    private IReadOnlyList<StratIssue> _issues = [];
+
     private int _issuesVersion = -1;
     private int _lastSavedVersion;
     private bool _writeFailed;
@@ -95,23 +95,24 @@ public sealed class StratSession : IDisposable
         {
             if (Document is { } document && _issuesVersion != Version)
             {
-                _issues = StratValidator.Validate(document, PlaceLookup?.Invoke(document.Map), _store.Index,
+                field = StratValidator.Validate(document, PlaceLookup?.Invoke(document.Map), _store.Index,
                     LineupLookup?.Invoke(document.Map));
                 if (GeometryChecks?.Invoke(document) is { } more)
                 {
-                    _issues = [.. _issues, .. more];
+                    field = [.. field, .. more];
                 }
+
                 _issuesVersion = Version;
             }
 
-            return _issues;
+            return field;
         }
         private set
         {
-            _issues = value;
+            field = value;
             _issuesVersion = Version;
         }
-    }
+    } = [];
 
     /// <summary>
     ///     Per map, whether a lineup id resolves there, or null while that map's lineups are not known yet (the
@@ -163,7 +164,7 @@ public sealed class StratSession : IDisposable
     public string? RecoveryNote { get; private set; }
 
     /// <summary>Working-copy writes completed, successful or not. Tests wait on it.</summary>
-    public int SaveCount { get; private set; }
+    private int SaveCount { get; set; }
 
     /// <summary>Commits that reached the log.</summary>
     public int CommitCount { get; private set; }
@@ -210,7 +211,9 @@ public sealed class StratSession : IDisposable
         if (result.Document is not { } loaded)
         {
             Issues = result.Issues;
-            StatusText = result.IsUnreadable ? "the strat file could not be read: it will not be overwritten" : Describe();
+            StatusText = result.IsUnreadable
+                ? "the strat file could not be read: it will not be overwritten"
+                : Describe();
             Changed?.Invoke();
             return result;
         }
@@ -467,7 +470,7 @@ public sealed class StratSession : IDisposable
     ///     Blocking flush for the moments with no later: close and shutdown. Every await inside is
     ///     <c>ConfigureAwait(false)</c>, so there is no context to deadlock on, and the payload is small.
     /// </summary>
-    public void Flush() => FlushAsync().GetAwaiter().GetResult();
+    private void Flush() => FlushAsync().GetAwaiter().GetResult();
 
     // Applies ops to a copy of the document, filling each op's `from` and resolving `-`, and swaps the copy in
     // only when every op applied. Returns the ops as applied.
@@ -485,7 +488,7 @@ public sealed class StratSession : IDisposable
         }
 
         StratDocument next = root?.Deserialize(StratJsonContext.Default.StratDocument)
-                             ?? throw new InvalidOperationException("the ops removed the strat");
+            ?? throw new InvalidOperationException("the ops removed the strat");
 
         Document = next;
         return applied;
@@ -495,7 +498,8 @@ public sealed class StratSession : IDisposable
     {
         if (op.Path.Length == 0 || op.Path is "/id" or "/revision" or "/modifiedUtc")
         {
-            throw new InvalidOperationException($"'{op.Path}' is not an edit: the whole strat, its id and its revision stamps are the store's");
+            throw new InvalidOperationException(
+                $"'{op.Path}' is not an edit: the whole strat, its id and its revision stamps are the store's");
         }
 
         int slash = op.Path.LastIndexOf('/');
@@ -507,7 +511,8 @@ public sealed class StratSession : IDisposable
         {
             case PatchOp.Add when parent is JsonArray array && token == "-":
                 // The log names the concrete index: the inverse of an append has to say which element it removes.
-                return PatchOp.AddOp(parentPath + "/" + array.Count.ToString(CultureInfo.InvariantCulture), op.Value?.DeepClone());
+                return PatchOp.AddOp(parentPath + "/" + array.Count.ToString(CultureInfo.InvariantCulture),
+                    op.Value?.DeepClone());
             case PatchOp.Add when parent is JsonObject obj && obj.ContainsKey(Unescape(token)):
                 // An add over a member is a replace; as an add its inverse would remove the member outright.
                 return PatchOp.ReplaceOp(op.Path, obj[Unescape(token)]?.DeepClone(), op.Value?.DeepClone());
@@ -516,7 +521,8 @@ public sealed class StratSession : IDisposable
             case PatchOp.Remove:
                 return PatchOp.RemoveOp(op.Path, StratHistory.ValueAt(root, op.Path)?.DeepClone());
             case PatchOp.Replace:
-                return PatchOp.ReplaceOp(op.Path, StratHistory.ValueAt(root, op.Path)?.DeepClone(), op.Value?.DeepClone());
+                return PatchOp.ReplaceOp(op.Path, StratHistory.ValueAt(root, op.Path)?.DeepClone(),
+                    op.Value?.DeepClone());
             default:
                 throw new InvalidOperationException($"unsupported op '{op.Op}'");
         }
@@ -687,7 +693,8 @@ public sealed class StratSession : IDisposable
         }
 
         string revision = (RecoveryNote is null ? "" : RecoveryNote + " · ") + "revision "
-                          + document.Revision.ToString(CultureInfo.InvariantCulture);
+            + document.Revision.ToString(CultureInfo
+                .InvariantCulture);
         if (!HasPending)
         {
             return revision + " · saved";
@@ -695,6 +702,6 @@ public sealed class StratSession : IDisposable
 
         string prefix = RecoveredPending ? "recovered edits from the last session · " : "";
         return prefix + revision + " · edits commit on save, on leaving the tab or after "
-               + IdleCommitDelay.TotalSeconds.ToString("0", CultureInfo.InvariantCulture) + " s idle";
+            + IdleCommitDelay.TotalSeconds.ToString("0", CultureInfo.InvariantCulture) + " s idle";
     }
 }

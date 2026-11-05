@@ -37,14 +37,14 @@ internal sealed class TrimResult
     ///     non-zero count means the output mixes compressed and uncompressed frames, a confound when a
     ///     candidate is tested in CS2.
     /// </summary>
-    public int LeftUncompressed { get; set; }
+    public int LeftUncompressed { get; init; }
 
     /// <summary>Encoder-identity tally over the window's packets, only populated for rewriting variants.</summary>
-    public int IdentityExact { get; set; }
+    public int IdentityExact { get; init; }
 
-    public int IdentityShorter { get; set; }
-    public int IdentityMismatch { get; set; }
-    public int IdentityFirstDivergentFrame { get; set; } = -1;
+    public int IdentityShorter { get; init; }
+    public int IdentityMismatch { get; init; }
+    public int IdentityFirstDivergentFrame { get; init; } = -1;
 }
 
 /// <summary>
@@ -135,8 +135,8 @@ internal static class DemoTrimWriter
         StripStats strip = default;
         int rewritten = 0, leftUncompressed = 0;
         int identityExact = 0, identityShorter = 0, identityMismatch = 0, firstDivergentFrame = -1;
-        int spawnGroupsOffset = 0, fileInfoOffset;
-        string fileInfoBefore = "(none)", fileInfoAfter = "(none)";
+        int spawnGroupsOffset = 0;
+        string fileInfoBefore, fileInfoAfter;
 
         using (FileStream fs = new(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20))
         {
@@ -202,7 +202,7 @@ internal static class DemoTrimWriter
                     raw.AsSpan(spawnGroups.PayloadStart, spawnGroups.PayloadLength));
             }
 
-            fileInfoOffset = (int)fs.Position;
+            int fileInfoOffset = (int)fs.Position;
             WriteFileInfo(fs, demo, raw, tail, emitted, frames, window, out fileInfoBefore, out fileInfoAfter);
 
             fs.Flush();
@@ -348,7 +348,7 @@ internal static class DemoTrimWriter
 
         if (trimmed.GameInfo?.Cs is { } cs)
         {
-            List<int> retained = cs.RoundStartTicks.Where(t => t <= window.EndTick).ToList();
+            List<int> retained = [.. cs.RoundStartTicks.Where(t => t <= window.EndTick)];
             cs.RoundStartTicks.Clear();
             cs.RoundStartTicks.AddRange(retained);
         }

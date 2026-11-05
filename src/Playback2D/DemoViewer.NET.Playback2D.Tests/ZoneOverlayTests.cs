@@ -2,8 +2,8 @@
 
 using System.Numerics;
 using System.Text;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Playback2D.Assets;
+using DemoViewer.NET.Playback2D.Zones;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -73,7 +73,7 @@ public class ZoneOverlayTests
 
         await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
         await Assert.That(resolver.PlaceId("Hut")).IsNull();
-        await Assert.That(result.Effective.Places.Select(p => p.Name).ToArray())
+        await Assert.That([.. result.Effective.Places.Select(p => p.Name)])
             .IsEquivalentTo(Names("Ramp", "Outside", "Tunnels"), CollectionOrdering.Matching);
 
         // Area 3 was Hut's; its only neighbour is Ramp's area 2, so it is Ramp now, and the Hut volume
@@ -97,7 +97,7 @@ public class ZoneOverlayTests
         PlaceResolver resolver = new(result.Effective);
 
         await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
-        await Assert.That(result.Effective.Places.Select(p => p.Name).ToArray())
+        await Assert.That([.. result.Effective.Places.Select(p => p.Name)])
             .IsEquivalentTo(Names("Outside", "Tunnels", "Site"), CollectionOrdering.Matching);
 
         int site = resolver.PlaceId("Site")!.Value;
@@ -118,7 +118,10 @@ public class ZoneOverlayTests
         ZoneOverlayResult full = Apply(Overlay(
             zones: [new ZoneOverlayZone("E-box", ZoneFixtures.Upper, _hutPolygon, null, null, true)]));
         ZoneOverlayResult partial = Apply(Overlay(
-            zones: [new ZoneOverlayZone("Top", ZoneFixtures.Upper, [0, 0, 100, 0, 100, 100, 0, 100], null, null, true)]));
+            zones:
+            [
+                new ZoneOverlayZone("Top", ZoneFixtures.Upper, [0, 0, 100, 0, 100, 100, 0, 100], null, null, true)
+            ]));
 
         await Assert.That(new PlaceResolver(full.Effective).PlaceId("Hut")).IsNull();
         await Assert.That(full.Effective.Places.Count).IsEqualTo(4);
@@ -150,7 +153,8 @@ public class ZoneOverlayTests
             mapName: "de_other"));
 
         string[] codes = [.. result.Diagnostics.Select(d => d.Code)];
-        Console.WriteLine("[overlay] " + string.Join("\n[overlay] ", result.Diagnostics.Select(d => $"{d.Code}: {d.Message}")));
+        Console.WriteLine("[overlay] "
+            + string.Join("\n[overlay] ", result.Diagnostics.Select(d => $"{d.Code}: {d.Message}")));
 
         await Assert.That(codes).Contains("zones.overlay.unknown-floor");
         await Assert.That(codes).Contains("zones.overlay.bad-polygon");
@@ -166,7 +170,7 @@ public class ZoneOverlayTests
         // Only the last zone was well-formed, and it applied.
         PlaceResolver resolver = new(result.Effective);
         await Assert.That(resolver.Resolve(new Vector3(250, 50, -400)).Name).IsEqualTo("E-box");
-        await Assert.That(result.Effective.Places.Select(p => p.Name).ToArray())
+        await Assert.That([.. result.Effective.Places.Select(p => p.Name)])
             .IsEquivalentTo(Names("Ramp", "Hut", "Outside", "Tunnels", "E-box"), CollectionOrdering.Matching);
     }
 
@@ -174,7 +178,10 @@ public class ZoneOverlayTests
     public async Task NameCollisionWithReplaces_GivesTheNameOneOwner()
     {
         ZoneOverlayResult result = Apply(Overlay(
-            zones: [new ZoneOverlayZone("Hut", ZoneFixtures.Upper, [200, 0, 250, 0, 250, 100, 200, 100], null, null, true)]));
+            zones:
+            [
+                new ZoneOverlayZone("Hut", ZoneFixtures.Upper, [200, 0, 250, 0, 250, 100, 200, 100], null, null, true)
+            ]));
         PlaceResolver resolver = new(result.Effective);
 
         await Assert.That(result.Diagnostics.Count).IsEqualTo(0);
@@ -193,7 +200,7 @@ public class ZoneOverlayTests
         ZoneOverlayDocument overlay = Overlay(hidden: ["Hut"]);
         ZoneOverlayResult a = Apply(overlay, "{ \"hidden\": [\"Hut\"] }");
         ZoneOverlayResult b = Apply(overlay, "{ \"hidden\": [\"Hut\"]  }");
-        ZoneOverlayResult c = Apply(ZoneOverlayDocument.Empty, "{}");
+        ZoneOverlayResult c = Apply(ZoneOverlayDocument.Empty);
 
         await Assert.That(a.Effective.EffectiveVersion).IsNotEqualTo(b.Effective.EffectiveVersion);
         await Assert.That(a.Effective.EffectiveVersion).IsNotEqualTo(ZoneFixtures.ZonesVersion);
@@ -260,7 +267,7 @@ public class ZoneOverlayTests
         await Assert.That(doc.Zones[1].MinZ).IsNull();
         await Assert.That(doc.Merges[0].Into).IsEqualTo("Site");
         await Assert.That(doc.Merges[0].From.Count).IsEqualTo(3);
-        await Assert.That(doc.Hidden.ToArray()).IsEquivalentTo(Names("Scaffolding"), CollectionOrdering.Matching);
+        await Assert.That([.. doc.Hidden]).IsEquivalentTo(Names("Scaffolding"), CollectionOrdering.Matching);
     }
 
     // Through a call rather than an inline array so the analyzer's constant-array rule stays quiet.

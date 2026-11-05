@@ -22,5 +22,11 @@ namespace DemoViewer.NET.Extensions;
 /// <param name="Modifiers">Modifiers at the time of the press.</param>
 /// <param name="Frame">The frame on screen at the time of the press.</param>
 /// <param name="Zones">The open map's zones, or null without any. Read on demand.</param>
-public sealed record ScenePointer(MapLevel Level, double WorldX, double WorldY, SKPoint Screen,
-    ToolModifiers Modifiers, Scene2DFrame Frame, Func<PlaceResolver?> Zones);
+public sealed record ScenePointer(
+    MapLevel Level,
+    double WorldX,
+    double WorldY,
+    SKPoint Screen,
+    ToolModifiers Modifiers,
+    Scene2DFrame Frame,
+    Func<PlaceResolver?> Zones);

@@ -29,7 +29,8 @@ namespace DemoViewer.NET.AppTests;
 [Category("Integration")]
 public class ThemeEditorTests
 {
-    private const string Partial = """{ "id": "partial", "name": "Partial", "tokens": { "ShellBg": "#010203", "PanelBg": "#040506" } }""";
+    private const string Partial =
+        """{ "id": "partial", "name": "Partial", "tokens": { "ShellBg": "#010203", "PanelBg": "#040506" } }""";
 
     private sealed class FakeHost
     {
@@ -37,9 +38,9 @@ public class ThemeEditorTests
 
         public List<string> Used { get; } = [];
 
-        public ThemeVariant? AppVariant { get; set; }
+        public ThemeVariant? AppVariant { get; private set; }
 
-        public int Restores { get; set; }
+        private int Restores { get; set; }
 
         public ThemeEditorHost Build() => new()
         {
@@ -58,12 +59,14 @@ public class ThemeEditorTests
         };
     }
 
-    private static (ThemeEditorViewModel Vm, ThemeRegistry Registry, FakeHost Host) Open(string? themeId, bool missingOnly = false)
+    private static (ThemeEditorViewModel Vm, ThemeRegistry Registry, FakeHost Host) Open(string? themeId,
+        bool missingOnly = false)
     {
         ThemeRegistry registry = new();
         registry.Reload();
         FakeHost host = new();
-        return (new ThemeEditorViewModel(new UserThemeStore(registry), host.Build(), themeId, missingOnly), registry, host);
+        return (new ThemeEditorViewModel(new UserThemeStore(registry), host.Build(), themeId, missingOnly), registry,
+            host);
     }
 
     [Test]
@@ -81,7 +84,8 @@ public class ThemeEditorTests
 
                 ThemeTokenRowViewModel shell = vm.Sections[0].Rows[0];
                 shell.Hex = "#FF0000";
-                await Assert.That(shell.Value.Color).IsEqualTo(Color.Parse("#0A0008")).Because("a built-in refuses edits");
+                await Assert.That(shell.Value.Color).IsEqualTo(Color.Parse("#0A0008"))
+                    .Because("a built-in refuses edits");
                 await Assert.That(vm.IsDirty).IsFalse();
 
                 vm.CopyCommand.Execute(null);
@@ -91,13 +95,15 @@ public class ThemeEditorTests
                 vm.CopyName = "light";
                 await Assert.That(vm.CopyNameError).IsEqualTo("There is already a theme called \"Light\".");
                 vm.ConfirmCopyCommand.Execute(null);
-                await Assert.That(vm.Prompt).IsEqualTo(ThemeEditorPrompt.NameCopy).Because("a clashing name is not saved");
+                await Assert.That(vm.Prompt).IsEqualTo(ThemeEditorPrompt.NameCopy)
+                    .Because("a clashing name is not saved");
 
                 vm.CopyName = "Mine";
                 vm.ConfirmCopyCommand.Execute(null);
                 await Assert.That(vm.Prompt).IsEqualTo(ThemeEditorPrompt.None);
                 await Assert.That(vm.Theme.Id).IsEqualTo("user-mine");
-                await Assert.That(vm.PreviewVariant).IsNotEqualTo(firstPreview).Because("a new theme gets a new preview variant, so the pane re-resolves");
+                await Assert.That<ThemeVariant?>(vm.PreviewVariant).IsNotEqualTo(firstPreview)
+                    .Because("a new theme gets a new preview variant, so the pane re-resolves");
                 await Assert.That(vm.CanEdit).IsTrue();
                 await Assert.That(File.Exists(Path.Combine(folder.Themes, "user-mine.json"))).IsTrue();
                 await Assert.That(vm.Themes.Single(t => t.Theme.Id == "user-mine").IsBuiltIn).IsFalse();
@@ -121,10 +127,12 @@ public class ThemeEditorTests
                 await Assert.That(vm.MissingCount).IsEqualTo(expected);
                 await Assert.That(vm.Sections.Sum(s => s.VisibleRows.Count)).IsEqualTo(expected);
                 await Assert.That(vm.Sections.SelectMany(s => s.VisibleRows).All(r => r.IsMissing)).IsTrue();
-                await Assert.That(vm.Themes.Single(t => t.Theme.Id == "partial").MissingText).IsEqualTo($"{expected} missing");
+                await Assert.That(vm.Themes.Single(t => t.Theme.Id == "partial").MissingText)
+                    .IsEqualTo($"{expected} missing");
 
                 vm.SearchText = "PanelHeaderBg";
-                await Assert.That(vm.Sections.SelectMany(s => s.VisibleRows).Select(r => r.Key)).IsEquivalentTo(["PanelHeaderBg"]);
+                await Assert.That(vm.Sections.SelectMany(s => s.VisibleRows).Select(r => r.Key))
+                    .IsEquivalentTo(["PanelHeaderBg"]);
                 vm.SearchText = "";
 
                 vm.FillMissingCommand.Execute(null);
@@ -222,7 +230,8 @@ public class ThemeEditorTests
                 await Assert.That(host.Used).IsEquivalentTo(["partial"]);
                 await Assert.That(Shell().Value.Color).IsEqualTo(Color.Parse("#010203"));
                 await Assert.That(vm.CurrentPalette().Colors["ShellBg"]).IsEqualTo(Color.Parse("#010203"));
-                await Assert.That(vm.PreviewVariant).IsNotEqualTo(edited).Because("the preview restarts from the saved colours");
+                await Assert.That<ThemeVariant?>(vm.PreviewVariant).IsNotEqualTo(edited)
+                    .Because("the preview restarts from the saved colours");
                 await Assert.That(registry.PreviewVariant).IsEqualTo(vm.PreviewVariant);
                 await Assert.That(vm.IsDirty).IsFalse();
 
@@ -402,7 +411,7 @@ public class ThemeEditorTests
         RecordingWindows windows = new();
         ThemeEditorLauncher launcher = new(windows, new UserThemeStore(registry), new FakeHost().Build());
         ThemeWarningViewModel warning = new(registry, () => selected, () => dismissed, s => dismissed = s,
-            (id, missingOnly) => launcher.Open(id, missingOnly));
+            launcher.Open);
 
         await Assert.That(warning.IsVisible).IsTrue();
         await Assert.That(warning.Message).IsEqualTo(
@@ -433,7 +442,8 @@ public class ThemeEditorTests
         ThemeRegistry registry = new();
         registry.Reload();
         string? dismissed = null;
-        ThemeWarningViewModel warning = new(registry, () => "partial", () => dismissed, s => dismissed = s, (_, _) => { });
+        ThemeWarningViewModel warning = new(registry, () => "partial", () => dismissed, s => dismissed = s,
+            (_, _) => { });
 
         warning.DismissCommand.Execute(null);
         await Assert.That(warning.IsVisible).IsFalse();
@@ -500,18 +510,22 @@ public class ThemeEditorTests
             SettingsService svc = new(folder.Root);
             ServiceCollection services = new();
             services.Configure<AppSettings>(svc.Configuration);
-            using ServiceProvider sp = services.BuildServiceProvider();
+            await using ServiceProvider sp = services.BuildServiceProvider();
             IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
             ThemeRegistry registry = new();
             registry.Reload();
             using SettingsViewModel vm = new(svc, monitor, new FeatureGate(monitor, false), registry);
             SettingsView view = new() { DataContext = vm };
             StackPanel items = new();
-            Window window = new() { Width = 600, Height = 900, Content = new StackPanel { Children = { view, items } } };
+            Window window = new()
+            {
+                Width = 600, Height = 900, Content = new StackPanel { Children = { view, items } }
+            };
             window.Show();
             Dispatcher.UIThread.RunJobs();
 
-            ComboBox picker = view.GetVisualDescendants().OfType<ComboBox>().First(c => ReferenceEquals(c.ItemsSource, vm.Themes));
+            ComboBox picker = view.GetVisualDescendants().OfType<ComboBox>()
+                .First(c => ReferenceEquals(c.ItemsSource, vm.Themes));
             Dictionary<string, bool> chip = [];
             foreach (Theme theme in vm.Themes)
             {
@@ -520,7 +534,8 @@ public class ThemeEditorTests
                 items.Children.Add(item);
                 Dispatcher.UIThread.RunJobs();
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-                chip[theme.Id] = item.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "Built-in" && t.IsEffectivelyVisible);
+                chip[theme.Id] = item.GetVisualDescendants().OfType<TextBlock>()
+                    .Any(t => t is { Text: "Built-in", IsEffectivelyVisible: true });
             }
 
             window.Close();

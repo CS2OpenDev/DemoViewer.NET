@@ -21,11 +21,11 @@ namespace DemoViewer.NET.Visualization;
 public sealed record LayoutStyleConfig
 {
     /// <summary>Edge-routing padding around node rects (used by the rectilinear router).</summary>
-    public double EdgeRoutingPadding { get; init; } = 12;
+    public double EdgeRoutingPadding { get; } = 12;
 
     /// <summary>Min gap between adjacent layers. Under the 90-degree rotation this is horizontal.</summary>
-    public double LayerSeparation { get; init; } = 110;
+    public double LayerSeparation { get; } = 110;
 
     /// <summary>Min gap between sibling nodes within a layer. Under the rotation this is vertical.</summary>
-    public double NodeSeparation { get; init; } = 30;
+    public double NodeSeparation { get; } = 30;
 }

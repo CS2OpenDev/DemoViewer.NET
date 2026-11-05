@@ -49,7 +49,7 @@ public class RenderPurposeTests
         await Assert.That(File.Exists(path)).IsTrue()
             .Because($"RenderPurpose.cs moved; this suite is reading nothing (looked at '{path}')");
 
-        string source = File.ReadAllText(path);
+        string source = await File.ReadAllTextAsync(path);
         Console.WriteLine($"[render-purpose] {path} — {source.Length} chars");
 
         await Assert.That(source).Contains("RESERVED")
@@ -74,11 +74,11 @@ public class RenderPurposeTests
         string thumbnail = Hash(fixture, RenderPurpose.Thumbnail);
 
         Console.WriteLine($"[render-purpose] export={export[..16]} interactive={interactive[..16]} "
-                          + $"thumbnail={thumbnail[..16]}");
+            + $"thumbnail={thumbnail[..16]}");
 
         await Assert.That(interactive).IsEqualTo(export)
             .Because("no layer branches on the purpose — if one now does, say so in RenderPurpose's doc "
-                     + "and re-baseline whatever golden it moves, deliberately");
+                + "and re-baseline whatever golden it moves, deliberately");
         await Assert.That(thumbnail).IsEqualTo(export)
             .Because("Thumbnail is not just unproduced, it is unimplemented");
     }
@@ -103,7 +103,7 @@ public class RenderPurposeTests
         stage.Renderer.Render();
 
         Console.WriteLine($"[render-purpose] layer saw {probe.Seen.Count} context(s), "
-                          + $"distinct purposes: {string.Join(", ", probe.Seen.Distinct())}");
+            + $"distinct purposes: {string.Join(", ", probe.Seen.Distinct())}");
 
         await Assert.That(probe.Seen).IsNotEmpty()
             .Because("a reserved value nothing even receives would be plumbing to delete, not to keep");

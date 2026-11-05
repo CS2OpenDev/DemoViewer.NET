@@ -26,7 +26,7 @@ public class Playback2DAnnotationSettingsTests
         string dir = NewTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), "{}");
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), "{}");
             SettingsService svc = new(dir);
             Playback2DSettings prefs = svc.Current.Playback2D;
 

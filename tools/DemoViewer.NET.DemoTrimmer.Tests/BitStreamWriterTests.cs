@@ -95,10 +95,7 @@ public sealed class BitStreamWriterTests
         }
 
         byte[] stripped = PacketRewriter.Rewrite(
-            writer.ToArray(), new HashSet<int>
-            {
-                PacketRewriter.SvcUserCmdsTypeId
-            }, out StripStats stats);
+            writer.ToArray(), new HashSet<int> { PacketRewriter.SvcUserCmdsTypeId }, out StripStats stats);
 
         await Assert.That(stats.Kept).IsEqualTo(2);
         await Assert.That(stats.Dropped).IsEqualTo(1);
@@ -106,12 +103,10 @@ public sealed class BitStreamWriterTests
 
         List<(uint TypeId, uint Size, byte[] Bytes)> survivors = DecodeMessages(stripped, 2);
         await Assert.That(survivors[0].TypeId).IsEqualTo(40u);
-        await Assert.That(survivors[0].Bytes).IsEquivalentTo(new byte[]
-        {
-            1, 2, 3
-        }, CollectionOrdering.Matching);
+        await Assert.That(survivors[0].Bytes).IsEquivalentTo(new byte[] { 1, 2, 3 }, CollectionOrdering.Matching);
         await Assert.That(survivors[1].TypeId).IsEqualTo(55u);
-        await Assert.That(survivors[1].Bytes).IsEquivalentTo(Enumerable.Repeat((byte)0xAB, 300).ToArray(), CollectionOrdering.Matching);
+        await Assert.That(survivors[1].Bytes)
+            .IsEquivalentTo([.. Enumerable.Repeat((byte)0xAB, 300)], CollectionOrdering.Matching);
     }
 
     private static (uint TypeId, byte[] Payload)[] SampleMessages() =>

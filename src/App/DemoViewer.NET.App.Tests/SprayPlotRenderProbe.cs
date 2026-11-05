@@ -34,7 +34,7 @@ public class SprayPlotRenderProbe
         string path = DemoTestHelper.RequireDemo();
         ParsedDemo demo = DemoTestHelper.GetOrParse(path);
 
-        SprayModel anchored = SpraySampler.Sample(demo, SprayOrigin.FirstBullet);
+        SprayModel anchored = SpraySampler.Sample(demo);
         SprayModel tracked = SpraySampler.Sample(demo, SprayOrigin.TargetCentre);
 
         PlayerSprays subject = anchored.Players
@@ -51,8 +51,8 @@ public class SprayPlotRenderProbe
             ?.Runs.OrderByDescending(r => r.Shots.Count).FirstOrDefault();
 
         Console.WriteLine($"[plot] {subject.Weapon} slot={subject.Slot} "
-                          + $"pattern={pattern.Count} anchored={anchoredRun.Shots.Count} "
-                          + $"tracked={trackedRun?.Shots.Count ?? 0}");
+            + $"pattern={pattern.Count} anchored={anchoredRun.Shots.Count} "
+            + $"tracked={trackedRun?.Shots.Count ?? 0}");
 
         int anchoredInk = 0;
         int trackedInk = 0;
@@ -96,11 +96,7 @@ public class SprayPlotRenderProbe
             WindowDecorations = WindowDecorations.None,
             Width = 360,
             Height = 360,
-            Content = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF8, 0xF9)),
-                Child = plot
-            }
+            Content = new Border { Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF8, 0xF9)), Child = plot }
         };
 
         window.Show();

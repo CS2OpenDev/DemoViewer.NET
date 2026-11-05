@@ -13,8 +13,8 @@ public interface IDemoProvenanceSource
     string? LabelFor(string sha256);
 
     /// <summary>The batch form of <see cref="LabelFor" />: one entry per distinct input hash, null for unlabeled or unknown.</summary>
-    /// <param name="sha256s">The hashes.</param>
-    IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256s);
+    /// <param name="hashes">The hashes.</param>
+    IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> hashes);
 
     /// <summary>The resolved provenance of a demo by path, or null when the cache does not know the demo.</summary>
     /// <param name="demoPath">The demo.</param>

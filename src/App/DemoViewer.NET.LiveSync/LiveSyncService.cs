@@ -36,7 +36,7 @@ namespace DemoViewer.NET.LiveSync;
 public sealed class LiveSyncService : ILiveSyncService
 {
     private const long NoTick = long.MinValue;
-    private readonly object _disposeStart = new();
+    private readonly Lock _disposeStart = new();
 
     // Serializes Enable/Disable/Dispose: the flyout can only issue one at a time, but the
     // shutdown path may race a user action.
@@ -394,7 +394,8 @@ public sealed class LiveSyncService : ILiveSyncService
             return Task.CompletedTask;
         }
 
-        return Dispatcher.UIThread.InvokeAsync(() => _observer?.Republish()).GetTask();
+        return Dispatcher.UIThread.InvokeAsync(() => _observer?.Republish(), DispatcherPriority.Default,
+            cancellationToken).GetTask();
     }
 
     /// <inheritdoc />

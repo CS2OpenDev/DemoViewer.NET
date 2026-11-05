@@ -21,8 +21,8 @@ using CS2DemoKit.Parser;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Highlights;
-using DemoViewer.NET.Services.Diagnostics;
 using DemoViewer.NET.Playback2D.Zones;
+using DemoViewer.NET.Services.Diagnostics;
 using DemoViewer.NET.Services.Zones;
 using DemoViewer.NET.ViewModels;
 using DemoViewer.NET.ViewModels.Diagnostics;
@@ -51,7 +51,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         new(@"^catalog_version:\s*\d+\s*$", RegexOptions.Multiline | RegexOptions.Compiled);
 
     private static readonly Regex _rulesetLine =
-        new(@"^ruleset:.*$", RegexOptions.Multiline | RegexOptions.Compiled);
+        new("^ruleset:.*$", RegexOptions.Multiline | RegexOptions.Compiled);
 
     // The live user-settings monitor (null on the designer / test path) + its OnChange
     // subscription, disposed in Dispose.
@@ -69,10 +69,6 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     private IModuleContext? _context;
 
     private ICurrentDemoSource? _demoSource;
-
-    // Diagnostics-pillar logger (v0.6.0: failure surfaces show clean text, this carries the real
-    // exception). Lazy: the ambient factory is wired after construction.
-    private ILogger? _diagLog;
 
     [ObservableProperty]
     private string _documentText = "";
@@ -92,6 +88,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     private bool _isClean;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSave))]
     private bool _isDirty;
 
     /// <summary>
@@ -142,7 +139,8 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     /// <param name="extensionRulesets">The rulesets the loaded extensions contribute; listed read-only beside the files.</param>
     /// <param name="extensionOn">Whether a contributed ruleset's feature is on; an off one is labelled so.</param>
     public RuleWorkbenchTabViewModel(IOptionsMonitor<AppSettings>? settings = null,
-        Func<IReadOnlyList<ContributedRuleset>>? extensionRulesets = null, Func<ContributedRuleset, bool>? extensionOn = null)
+        Func<IReadOnlyList<ContributedRuleset>>? extensionRulesets = null,
+        Func<ContributedRuleset, bool>? extensionOn = null)
         : this(settings, extensionRulesets, extensionOn, DefaultDirs())
     {
     }
@@ -179,7 +177,9 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             }));
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.RuleWorkbench");
+    // Diagnostics-pillar logger (v0.6.0: failure surfaces show clean text, this carries the real
+    // exception). Lazy: the ambient factory is wired after construction.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.RuleWorkbench");
 
     // Shipped rulesets are read-only unless developer mode is on. A save on a read-only file
     // prompts for a new name (save-as to the user overlay).
@@ -447,7 +447,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         List<WorkbenchScoreRow> rows = new(table.Rows.Count);
         foreach (MetricRow row in table.Rows)
         {
-            List<string> cells = table.ValueColumns.Select(c => Fmt(row.Values.GetValueOrDefault(c))).ToList();
+            List<string> cells = [.. table.ValueColumns.Select(c => Fmt(row.Values.GetValueOrDefault(c)))];
             rows.Add(new WorkbenchScoreRow(RowLabel(row), cells));
         }
 
@@ -477,7 +477,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     ///     </para>
     ///     Node count is set synchronously (the deterministic test hook); the MSAGL layout is fired best-effort.
     /// </summary>
-    public void RenderGraphForOpenFile()
+    private void RenderGraphForOpenFile()
     {
         if (!ShowGraph)
         {
@@ -532,8 +532,8 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             GraphNodeCount = skeleton.Nodes.Count;
             int perPlayer = model.Nodes.Count(n => n.IsPerPlayer);
             GraphSummary = $"open ruleset: {skeleton.Nodes.Count} node(s), {skeleton.Edges.Count} edge(s)"
-                           + (perPlayer > 0 ? $" — {perPlayer} per-player" : "")
-                           + (demo is not null ? " (with demo)." : ".");
+                + (perPlayer > 0 ? $" — {perPlayer} per-player" : "")
+                + (demo is not null ? " (with demo)." : ".");
             if (GraphSupported)
             {
                 _ = GraphViewModel.SetGraphAsync(skeleton.Nodes, skeleton.Edges, skeleton.Groups);
@@ -564,14 +564,11 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         string? openPath = OpenFilePath();
         if (openPath is null || !byPath.TryGetValue(openPath, out RulesetDoc? open))
         {
-            return byPath.Values.ToList(); // nothing open → fall back to everything
+            return [.. byPath.Values]; // nothing open → fall back to everything
         }
 
         List<RulesetDoc> docs = [open];
-        HashSet<string> seen = new(StringComparer.Ordinal)
-        {
-            open.Id
-        };
+        HashSet<string> seen = new(StringComparer.Ordinal) { open.Id };
         Queue<string> pending = new(open.Use);
         while (pending.Count > 0)
         {
@@ -595,10 +592,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         HashSet<string> wasSelected = EvaluableFiles.Where(f => f.IsSelected)
             .Select(f => f.FullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
         EvaluableFiles.Clear();
-        foreach (string? dir in new[]
-                 {
-                     _shippedDir, _userDir
-                 })
+        foreach (string? dir in new[] { _shippedDir, _userDir })
         {
             if (dir is null || !Directory.Exists(dir))
             {
@@ -613,7 +607,6 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
                 {
                     FullPath = path,
                     Display = shipped ? $"{name} (shipped)" : name,
-                    IsShipped = shipped,
                     IsSelected = wasSelected.Count == 0 || wasSelected.Contains(path)
                 });
             }
@@ -646,7 +639,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
 
         // Prefer a target that actually fired so the panel opens on something non-empty.
         SelectedTraceTarget = TraceTargets.FirstOrDefault(t => t.FireCount > 0)
-                              ?? (TraceTargets.Count > 0 ? TraceTargets[0] : null);
+            ?? (TraceTargets.Count > 0 ? TraceTargets[0] : null);
         if (TraceTargets.Count == 0)
         {
             TraceSummary = "No stats or highlights declared to trace.";
@@ -690,7 +683,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     {
         List<string> parts = [];
         if (row.Dimensions.TryGetValue("player_name", out object? name) && name is { } n
-                                                                        && !string.IsNullOrEmpty(n.ToString()))
+            && !string.IsNullOrEmpty(n.ToString()))
         {
             parts.Add(n.ToString()!);
         }
@@ -772,9 +765,12 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
                 }
             }
 
-            return paths
-                .GroupBy(p => p.Path, StringComparer.Ordinal).Select(g => g.First())
-                .OrderBy(p => p.Path, StringComparer.Ordinal).ToList();
+            return
+            [
+                .. paths
+                    .GroupBy(p => p.Path, StringComparer.Ordinal).Select(g => g.First())
+                    .OrderBy(p => p.Path, StringComparer.Ordinal)
+            ];
         }
         catch
         {
@@ -809,8 +805,6 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         OnPropertyChanged(nameof(CanSave));
         Check(); // buffer-aware, inline diagnostics track the edit
     }
-
-    partial void OnIsDirtyChanged(bool value) => OnPropertyChanged(nameof(CanSave));
 
     /// <summary>Creates a starter draft in the user folder and opens it.</summary>
     [RelayCommand]
@@ -1003,7 +997,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             Summary = IsClean
                 ? $"✓ {fileCount} ruleset(s) — no problems."
                 : $"{Diagnostics.Count} problem(s) across {fileCount} ruleset(s)"
-                  + (OpenFileDiagnostics.Count > 0 ? $" ({OpenFileDiagnostics.Count} in this file)." : ".");
+                + (OpenFileDiagnostics.Count > 0 ? $" ({OpenFileDiagnostics.Count} in this file)." : ".");
 
             RenderGraphForOpenFile(); // keep the graph in sync with the edited buffer
         }
@@ -1021,10 +1015,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     private IEnumerable<(string Path, string Text)> EnumerateSources()
     {
         string? openPath = OpenFilePath();
-        foreach (string? dir in new[]
-                 {
-                     _shippedDir, _userDir
-                 })
+        foreach (string? dir in new[] { _shippedDir, _userDir })
         {
             if (dir is null || !Directory.Exists(dir))
             {
@@ -1061,10 +1052,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     {
         string? previousPath = SelectedFile?.FullPath;
         OpenableFiles.Clear();
-        foreach (string? dir in new[]
-                 {
-                     _shippedDir, _userDir
-                 })
+        foreach (string? dir in new[] { _shippedDir, _userDir })
         {
             if (dir is null || !Directory.Exists(dir))
             {
@@ -1103,8 +1091,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         {
             _watcher = new FileSystemWatcher(_userDir, "*.rules.yaml")
             {
-                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName,
-                EnableRaisingEvents = true
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName, EnableRaisingEvents = true
             };
             _watcher.Changed += OnUserDirChanged;
             _watcher.Created += OnUserDirChanged;

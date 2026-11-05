@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
 using SkiaSharp;
@@ -119,7 +118,7 @@ internal sealed class FixtureSceneProvider : SceneProvider
 
     /// <inheritdoc />
     public override SKSizeI DefaultSize =>
-        Fixture.Size.Width > 0 && Fixture.Size.Height > 0 ? Fixture.Size : new SKSizeI(1920, 1080);
+        Fixture.Size is { Width: > 0, Height: > 0 } ? Fixture.Size : new SKSizeI(1920, 1080);
 
     /// <inheritdoc />
     public override string? MapName => string.IsNullOrEmpty(Fixture.MapName) ? null : Fixture.MapName;
@@ -131,7 +130,7 @@ internal sealed class FixtureSceneProvider : SceneProvider
     public override string? SourceDemoId => Fixture.SourceDemoId;
 
     /// <summary>The loaded fixture, for commands that need more than the frame.</summary>
-    public SceneFixture Fixture { get; }
+    private SceneFixture Fixture { get; }
 
     /// <summary>Reads a fixture from disk.</summary>
     /// <param name="path">Path to the <c>.scene.json</c>.</param>
@@ -167,13 +166,11 @@ internal sealed class DemoSceneProvider : SceneProvider
     private readonly TrackerFrameSource _source;
     private bool _disposed;
 
-    private DemoSceneProvider(ParsedDemo demo, TrackerFrameSource source, string name, int demoFrameIndex,
-        double parseMs)
+    private DemoSceneProvider(ParsedDemo demo, TrackerFrameSource source, string name, double parseMs)
     {
         _demo = demo;
         _source = source;
         Name = name;
-        DemoFrameIndex = demoFrameIndex;
         ParseMs = parseMs;
     }
 
@@ -186,17 +183,11 @@ internal sealed class DemoSceneProvider : SceneProvider
     /// <inheritdoc />
     public override string Name { get; }
 
-    /// <summary>The demo frame index output frame 0 sits on.</summary>
-    public int DemoFrameIndex { get; }
-
-    /// <summary>The server tick at <see cref="DemoFrameIndex" />.</summary>
-    public int Tick => _demo.Frames[DemoFrameIndex].ServerTick;
-
     /// <inheritdoc />
     public override double ParseMs { get; }
 
     /// <inheritdoc />
-    public override string? SourceDemoId => Name;
+    public override string SourceDemoId => Name;
 
     /// <inheritdoc />
     public override string? MapName => string.IsNullOrEmpty(_demo.MapName) ? null : _demo.MapName;
@@ -233,13 +224,10 @@ internal sealed class DemoSceneProvider : SceneProvider
         double speed = args.Double("speed", 1.0);
 
         TrackerFrameSource source = new(demo.Frames, new SceneFrameBuilder(), start,
-            demo.Frames.Count - 1, fps, speed, tickRate)
-        {
-            MapName = demo.MapName
-        };
+            demo.Frames.Count - 1, fps, speed, tickRate) { MapName = demo.MapName };
         source.Prepare(CancellationToken.None);
 
-        return new DemoSceneProvider(demo, source, Path.GetFileName(demoPath), start, parseMs);
+        return new DemoSceneProvider(demo, source, Path.GetFileName(demoPath), parseMs);
     }
 
     /// <inheritdoc />

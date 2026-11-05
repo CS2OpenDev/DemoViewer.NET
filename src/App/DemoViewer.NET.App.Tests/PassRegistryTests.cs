@@ -30,7 +30,7 @@ public class PassRegistryTests
         IReadOnlyList<IDemoPass> resolved = registry.Resolve();
 
         await Assert.That(resolved.Select(e => e.Id))
-            .IsEquivalentTo(["a", "c", "b"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            .IsEquivalentTo(["a", "c", "b"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -46,14 +46,15 @@ public class PassRegistryTests
             registry.AddPackPass("roundfacts", () => new Fake("roundfacts", "library"), ["library"], () => true);
             registry.AddPackPass("roundindex", () => new Fake("roundindex", "roundfacts"), ["roundfacts"], () => true);
             registry.AddPackPass("grenades", () => new Fake("grenades", "library"), ["library"], () => true);
-            registry.AddPackPass("suggestedtags", () => new Fake("suggestedtags", "roundindex"), ["roundindex"], () => true);
+            registry.AddPackPass("suggestedtags", () => new Fake("suggestedtags", "roundindex"), ["roundindex"],
+                () => true);
         });
 
         IReadOnlyList<IDemoPass> resolved = registry.Resolve();
 
         await Assert.That(resolved.Select(e => e.Id))
             .IsEquivalentTo(["library", "highlights", "roundfacts", "roundindex", "grenades", "suggestedtags"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
     }
 
     [Test]
@@ -65,7 +66,8 @@ public class PassRegistryTests
         registry.AddPacksLazily(() =>
         {
             taken = registry.TryAddPackPasses([("facts", () => new Fake("facts"), [])], () => true);
-            unknown = registry.TryAddPackPasses([("ext.a", () => new Fake("ext.a", "nowhere"), ["nowhere"])], () => true);
+            unknown = registry.TryAddPackPasses([("ext.a", () => new Fake("ext.a", "nowhere"), ["nowhere"])],
+                () => true);
             cycle = registry.TryAddPackPasses(
             [
                 ("ext.b", () => new Fake("ext.b", "ext.c"), ["ext.c"]),
@@ -84,7 +86,7 @@ public class PassRegistryTests
             await Assert.That(cycle).IsNotNull();
             await Assert.That(good).IsNull();
             await Assert.That(resolved.Select(p => p.Id))
-                .IsEquivalentTo(["facts", "ext.d"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                .IsEquivalentTo(["facts", "ext.d"], CollectionOrdering.Matching);
         }
     }
 
@@ -150,7 +152,7 @@ public class PassRegistryTests
         registry.AddPackPass("broken", () => throw new InvalidOperationException("factory"), ["core"], () => true,
             ex => reported.Add("broken: " + ex.Message));
         registry.AddPackPass("misnamed", () => new Fake("other", "core"), ["core"], () => true,
-            ex => reported.Add("misnamed"));
+            _ => reported.Add("misnamed"));
         registry.AddPackPass("fine", () => new Fake("fine", "core"), ["core"], () => true, _ => reported.Add("fine"));
 
         IReadOnlyList<IDemoPass> resolved = registry.Resolve();
@@ -158,7 +160,7 @@ public class PassRegistryTests
         using (Assert.Multiple())
         {
             await Assert.That(resolved.Select(e => e.Id)).IsEquivalentTo(["core", "fine"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
             await Assert.That(reported).IsEquivalentTo(["broken: factory", "misnamed"], CollectionOrdering.Matching);
         }
     }
@@ -191,16 +193,15 @@ public class PassRegistryTests
         PassRegistry registry = new();
         bool packOn = false;
         registry.AddCore("library", () => new Fake("library"));
-        registry.AddPacksLazily(() =>
-        {
-            registry.AddPackPass("pack", () => new Fake("pack"), [], () => packOn);
-        });
+        registry.AddPacksLazily(() => { registry.AddPackPass("pack", () => new Fake("pack"), [], () => packOn); });
 
-        await Assert.That(registry.Resolve().Select(e => e.Id)).IsEquivalentTo(["library"], CollectionOrdering.Matching);
+        await Assert.That(registry.Resolve().Select(e => e.Id))
+            .IsEquivalentTo(["library"], CollectionOrdering.Matching);
 
         packOn = true;
 
-        await Assert.That(registry.Resolve().Select(e => e.Id)).IsEquivalentTo(["library", "pack"], CollectionOrdering.Matching);
+        await Assert.That(registry.Resolve().Select(e => e.Id))
+            .IsEquivalentTo(["library", "pack"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -210,7 +211,7 @@ public class PassRegistryTests
         registry.AddCore("a", () => new Fake("a", "b"), "b");
         registry.AddCore("b", () => new Fake("b", "a"), "a");
 
-        Assert.Throws<InvalidOperationException>(() => registry.Validate());
+        Assert.Throws<InvalidOperationException>(registry.Validate);
     }
 
     [Test]
@@ -219,7 +220,7 @@ public class PassRegistryTests
         PassRegistry registry = new();
         registry.AddCore("a", () => new Fake("a", "ghost"), "ghost");
 
-        Assert.Throws<InvalidOperationException>(() => registry.Validate());
+        Assert.Throws<InvalidOperationException>(registry.Validate);
     }
 
     [Test]
@@ -251,7 +252,7 @@ public class PassRegistryTests
         IReadOnlyList<IDemoPass> resolved = registry.Resolve();
 
         await Assert.That(resolved.Select(e => e.Id))
-            .IsEquivalentTo(["library", "roundfacts"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            .IsEquivalentTo(["library", "roundfacts"], CollectionOrdering.Matching);
         await Assert.That(coreFactoryCalls).IsEqualTo(1);
         await Assert.That(packFactoryCalls).IsEqualTo(1);
     }
@@ -290,9 +291,13 @@ public class PassRegistryTests
     {
         PackContributions contributions = new(new EvaluatorPack(), () => throw new InvalidOperationException());
         SdkFake shared = new("ext.shared");
-        int built = 0;
         contributions.Pass("ext.shared", () => shared);
-        contributions.Pass("ext.fresh", () => new SdkFake("ext.fresh", ++built));
+        int built = 0;
+        contributions.Pass("ext.fresh", () =>
+        {
+            built++;
+            return new SdkFake("ext.fresh");
+        });
 
         PassRegistry registry = new();
         foreach (PassContribution c in contributions.Passes)
@@ -314,19 +319,25 @@ public class PassRegistryTests
     [Test]
     public async Task Adapter_MapsWantsToInterest_AndForwardForToNeeds()
     {
-        EvaluatorFake evaluator = new("e") { Wanted = ["/yes.dem"], Upstream = ["/later.dem"], Forward = ForwardNeeds.Rules };
+        EvaluatorFake evaluator =
+            new("e") { Wanted = ["/yes.dem"], Upstream = ["/later.dem"], Forward = ForwardNeeds.Rules };
         EvaluatorPassAdapter pass = new(evaluator, ["library"]);
 
         using (Assert.Multiple())
         {
             await Assert.That(pass.Id).IsEqualTo("e");
             await Assert.That(pass.After).IsEquivalentTo(["library"], CollectionOrdering.Matching);
-            await Assert.That(pass.Interest(new VisitedDemo("/yes.dem"), PassLevel.Background)).IsEqualTo(PassInterest.Yes);
-            await Assert.That(pass.Interest(new VisitedDemo("/later.dem"), PassLevel.Background)).IsEqualTo(PassInterest.IfUpstreamRuns);
-            await Assert.That(pass.Interest(new VisitedDemo("/no.dem"), PassLevel.Background)).IsEqualTo(PassInterest.No);
+            await Assert.That(pass.Interest(new VisitedDemo("/yes.dem"), PassLevel.Background))
+                .IsEqualTo(PassInterest.Yes);
+            await Assert.That(pass.Interest(new VisitedDemo("/later.dem"), PassLevel.Background))
+                .IsEqualTo(PassInterest.IfUpstreamRuns);
+            await Assert.That(pass.Interest(new VisitedDemo("/no.dem"), PassLevel.Background))
+                .IsEqualTo(PassInterest.No);
             await Assert.That(pass.Needs(new VisitedDemo("/yes.dem")))
-                .IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules, false));
-            await Assert.That(new EvaluatorPassAdapter(new EvaluatorFake("r") { ReadsUserCommands = true }, []).Needs(new VisitedDemo("/x.dem")))
+                .IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules));
+            await Assert
+                .That(new EvaluatorPassAdapter(new EvaluatorFake("r") { ReadsUserCommands = true }, []).Needs(
+                    new VisitedDemo("/x.dem")))
                 .IsEqualTo(new PassNeeds(ParseMode.Retained, ForwardNeeds.None, true));
         }
     }
@@ -339,7 +350,8 @@ public class PassRegistryTests
         VisitedDemo demo = new("/x.dem");
         ForwardDemoResult forward = new()
         {
-            Demo = new DemoDescriptor("de_test", 64, 1f / 64, 1000, 0, "t", "t", 0, DemoProfile.Unknown, new Dictionary<int, PlayerInfo>()),
+            Demo = new DemoDescriptor("de_test", 64, 1f / 64, 1000, 0, "t", "t", 0, DemoProfile.Unknown,
+                new Dictionary<int, PlayerInfo>()),
             Rounds = [],
             FrameCount = 1,
             FirstServerTick = 0,
@@ -373,9 +385,8 @@ public class PassRegistryTests
         }
     }
 
-    private sealed class SdkFake(string id, int generation = 0) : IExtensionPass
+    private sealed class SdkFake(string id) : IExtensionPass
     {
-        public int Generation { get; } = generation;
         public string Id { get; } = id;
 
         public DemoInterest Interest(string demoPath) => DemoInterest.No;

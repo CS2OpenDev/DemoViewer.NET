@@ -3,8 +3,8 @@
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Services.DemoCache;
 
 #endregion
 
@@ -20,8 +20,8 @@ internal sealed class SuggestedTagsReviewHarness : IDisposable
 {
     internal const string DemoPath = "/d/review.dem";
     internal const int FreezeEnd = 1000;
-    internal const int Seconds = 90;
-    internal const int SecondFreezeEnd = FreezeEnd + Seconds * 64 + 640;
+    private const int Seconds = 90;
+    private const int SecondFreezeEnd = FreezeEnd + Seconds * 64 + 640;
     internal const string ExecuteId = "exec|r1|T|BombsiteA|s=10";
     internal const string DefaultId = "default|r2|T";
 
@@ -35,7 +35,8 @@ internal sealed class SuggestedTagsReviewHarness : IDisposable
         Tags = new TagStore(tagsRoot is null ? null : PackStores.At(tagsRoot));
         Regions = new SiteRegionStore(null);
         Regions.Save(SuggestedTagsTestData.Table);
-        Service = new SuggestedTagsService(Cache.Library(), Cache.RoundFacts(), Proposals, Tags, Regions, () => Profile, () => Enabled,
+        Service = new SuggestedTagsService(Cache.Library(), Cache.RoundFacts(), Proposals, Tags, Regions, () => Profile,
+            () => Enabled,
             () => Background, walk: _ => Walk(), utcNow: () => Now);
     }
 
@@ -99,6 +100,7 @@ internal sealed class SuggestedTagsReviewHarness : IDisposable
             }
 
             yield return RoundIndexTestData.Sample(tick, 6, s < 12 ? "TSpawn" : s < 18 ? "ALong" : "BombsiteA");
+
             foreach (int slot in (int[])[7, 8, 9])
             {
                 yield return RoundIndexTestData.Sample(tick, slot, s < 12 ? "TSpawn" : "ALong");
@@ -138,12 +140,13 @@ internal sealed class SuggestedTagsReviewHarness : IDisposable
     internal void Write(params TagProposal[] proposals)
     {
         Seed();
-        Proposals.Write(DemoPath, new ProposalDocument
-        {
-            Demo = new ProposalDemoHeader { Sha256 = Sha, FileName = "review.dem" },
-            Clock = new RoundFactsClock { TickRate = 64, FrameCount = 2, FirstTick = 1, LastTick = 20000 },
-            DetectorSet = new ProposalDetectorSet { Fingerprint = "fp", ProfileId = "team-default" },
-            Proposals = [.. proposals.Select(p => StoredProposal.From(p, FreezeEnd))]
-        }, "fp", proposals.Length);
+        Proposals.Write(DemoPath,
+            new ProposalDocument
+            {
+                Demo = new ProposalDemoHeader { Sha256 = Sha, FileName = "review.dem" },
+                Clock = new RoundFactsClock { TickRate = 64, FrameCount = 2, FirstTick = 1, LastTick = 20000 },
+                DetectorSet = new ProposalDetectorSet { Fingerprint = "fp", ProfileId = "team-default" },
+                Proposals = [.. proposals.Select(p => StoredProposal.From(p, FreezeEnd))]
+            }, "fp", proposals.Length);
     }
 }

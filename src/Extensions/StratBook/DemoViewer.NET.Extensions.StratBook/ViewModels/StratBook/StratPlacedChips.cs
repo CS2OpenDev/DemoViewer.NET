@@ -33,7 +33,8 @@ public sealed partial class StratPlacedEntry
 {
     private readonly StratStepRow _row;
 
-    internal StratPlacedEntry(StratStepRow row, int positionIndex, string slot, StratPlacedKind kind, string text, string? convertTo, string? warning)
+    internal StratPlacedEntry(StratStepRow row, int positionIndex, string slot, StratPlacedKind kind, string text,
+        string? convertTo, string? warning)
     {
         _row = row;
         PositionIndex = positionIndex;
@@ -79,7 +80,7 @@ public sealed partial class StratPlacedChip
 {
     private readonly StratStepRow _row;
 
-    internal StratPlacedChip(StratStepRow row, string text, IReadOnlyList<StratPlacedEntry> entries, bool isGroup)
+    private StratPlacedChip(StratStepRow row, string text, IReadOnlyList<StratPlacedEntry> entries, bool isGroup)
     {
         _row = row;
         Text = text;
@@ -108,9 +109,10 @@ public sealed partial class StratPlacedChip
         : Entries[0].Kind switch
         {
             StratPlacedKind.Departure => (Entries[0].Warning is { } warning ? warning + ". " : "")
-                                         + "Where the token leaves from at the step's time; it re-times the leg before. ✕ clears it.",
+                + "Where the token leaves from at the step's time; it re-times the leg before. ✕ clears it.",
             StratPlacedKind.Pinned => $"Not using the step's place: {Entries[0].Slot} is pinned here. ✕ clears it.",
-            StratPlacedKind.Seen => "Where the capture saw the player. Clearing it changes how the captured strat plays.",
+            StratPlacedKind.Seen =>
+                "Where the capture saw the player. Clearing it changes how the captured strat plays.",
             StratPlacedKind.Opponent => "An opponent's spot at this step. ✕ clears it.",
             _ => "An exact spot at this step. ✕ clears it."
         };
@@ -141,7 +143,8 @@ public sealed partial class StratPlacedChip
     /// <param name="warnings">Validator warnings by position index.</param>
     /// <param name="legacySeen">A capture written before the mark: every entry reads as seen.</param>
     /// <param name="start">Entries an older file's start is read from, which the Start row shows instead.</param>
-    internal static List<StratPlacedChip> For(StratStepRow row, StratStep step, Func<double, double, double, string?>? placeAt,
+    internal static List<StratPlacedChip> For(StratStepRow row, StratStep step,
+        Func<double, double, double, string?>? placeAt,
         IReadOnlyDictionary<int, string>? warnings = null, bool legacySeen = false, IReadOnlySet<int>? start = null)
     {
         List<StratPlacedChip> chips = [];
@@ -162,8 +165,11 @@ public sealed partial class StratPlacedChip
             string? warning = warnings is not null && warnings.TryGetValue(k, out string? w) ? w : null;
             if (!StratVocabulary.Slots.Contains(slot))
             {
-                string yaw = position.YawDegrees is { } y ? " " + y.ToString("0", CultureInfo.InvariantCulture) + "°" : "";
-                opponents.Add(new StratPlacedEntry(row, k, slot, StratPlacedKind.Opponent, $"{slot} at {point}{yaw}", null, null));
+                string yaw = position.YawDegrees is { } y
+                    ? " " + y.ToString("0", CultureInfo.InvariantCulture) + "°"
+                    : "";
+                opponents.Add(new StratPlacedEntry(row, k, slot, StratPlacedKind.Opponent, $"{slot} at {point}{yaw}",
+                    null, null));
                 continue;
             }
 
@@ -171,7 +177,8 @@ public sealed partial class StratPlacedChip
             PlaceRef? field = names ? StratStepLines.LocationFor(step, slot) : null;
             if (position.Observed == true || legacySeen)
             {
-                StratPlacedEntry entry = new(row, k, slot, StratPlacedKind.Seen, $"{slot} seen at {point}", convertTo, null);
+                StratPlacedEntry entry = new(row, k, slot, StratPlacedKind.Seen, $"{slot} seen at {point}", convertTo,
+                    null);
                 if (Disagrees(field, position, placeAt))
                 {
                     chips.Add(new StratPlacedChip(row, entry.Text, [entry], false));
@@ -186,17 +193,20 @@ public sealed partial class StratPlacedChip
 
             if (names && motion is StepMotion.Travel or StepMotion.Lurk)
             {
-                StratPlacedEntry entry = new(row, k, slot, StratPlacedKind.Departure, $"{slot} leaves from {point}", convertTo, warning);
+                StratPlacedEntry entry = new(row, k, slot, StratPlacedKind.Departure, $"{slot} leaves from {point}",
+                    convertTo, warning);
                 chips.Add(new StratPlacedChip(row, entry.Text, [entry], false));
             }
             else if (names && motion == StepMotion.Position && StratLocations.IsSet(field))
             {
-                StratPlacedEntry entry = new(row, k, slot, StratPlacedKind.Pinned, $"{slot} pinned at {point}", convertTo, null);
+                StratPlacedEntry entry = new(row, k, slot, StratPlacedKind.Pinned, $"{slot} pinned at {point}",
+                    convertTo, null);
                 chips.Add(new StratPlacedChip(row, entry.Text, [entry], false));
             }
             else
             {
-                spots.Add(new StratPlacedEntry(row, k, slot, StratPlacedKind.Spot, $"{slot} at {point}", convertTo, null));
+                spots.Add(new StratPlacedEntry(row, k, slot, StratPlacedKind.Spot, $"{slot} at {point}", convertTo,
+                    null));
             }
         }
 
@@ -206,7 +216,8 @@ public sealed partial class StratPlacedChip
         return chips;
     }
 
-    private static void Group(StratStepRow row, List<StratPlacedChip> chips, string name, List<StratPlacedEntry> entries)
+    private static void Group(StratStepRow row, List<StratPlacedChip> chips, string name,
+        List<StratPlacedEntry> entries)
     {
         if (entries.Count == 1)
         {
@@ -214,7 +225,8 @@ public sealed partial class StratPlacedChip
         }
         else if (entries.Count > 1)
         {
-            chips.Add(new StratPlacedChip(row, string.Create(CultureInfo.InvariantCulture, $"{name} ({entries.Count})"), entries, true));
+            chips.Add(new StratPlacedChip(row, string.Create(CultureInfo.InvariantCulture, $"{name} ({entries.Count})"),
+                entries, true));
         }
     }
 
@@ -228,7 +240,8 @@ public sealed partial class StratPlacedChip
         };
 
     // A capture's spot disagrees with the step's place when the place is a point elsewhere or a place it is not in.
-    private static bool Disagrees(PlaceRef? field, StepPosition position, Func<double, double, double, string?>? placeAt)
+    private static bool Disagrees(PlaceRef? field, StepPosition position,
+        Func<double, double, double, string?>? placeAt)
     {
         if (!StratLocations.IsSet(field))
         {
@@ -240,6 +253,7 @@ public sealed partial class StratPlacedChip
             return Math.Abs(field!.X!.Value - position.X) > 1 || Math.Abs(field.Y!.Value - position.Y) > 1;
         }
 
-        return placeAt is not null && !string.Equals(placeAt(position.X, position.Y, position.LevelMinZ), field!.Place, StringComparison.Ordinal);
+        return placeAt is not null && !string.Equals(placeAt(position.X, position.Y, position.LevelMinZ), field!.Place,
+            StringComparison.Ordinal);
     }
 }

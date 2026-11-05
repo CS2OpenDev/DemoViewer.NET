@@ -37,10 +37,10 @@ public static class Icons
     ///     Bumped when the manifest shape changes, so a stale bake fails loudly instead of oddly.
     ///     <para>2 added <c>blank</c>: the keys CS2 ships deliberately empty artwork for.</para>
     /// </summary>
-    public const int SchemaVersion = 2;
+    private const int ManifestSchemaVersion = 2;
 
     /// <summary>The baked pixel heights. Width follows the source aspect and is not constrained.</summary>
-    public static readonly int[] Scales = [32, 96];
+    private static readonly int[] _scales = [32, 96];
 
     /// <summary>
     ///     Bakes the curated set into <paramref name="outDir" /> and writes <c>icons.json</c> beside it.
@@ -101,13 +101,13 @@ public static class Icons
             List<byte[]> encoded = [];
             bool empty = true;
             bool tintable = true;
-            foreach (int height in Scales)
+            foreach (int height in _scales)
             {
                 using SKBitmap bmp = Render(pic, box, height);
                 empty &= IsFullyTransparent(bmp);
                 tintable &= IsAchromatic(bmp);
                 using SKData png = bmp.Encode(SKEncodedImageFormat.Png, 100)
-                                   ?? throw new InvalidOperationException($"{key}: PNG encode failed");
+                    ?? throw new InvalidOperationException($"{key}: PNG encode failed");
                 encoded.Add(png.ToArray());
             }
 
@@ -120,9 +120,9 @@ public static class Icons
                 continue;
             }
 
-            for (int i = 0; i < Scales.Length; i++)
+            for (int i = 0; i < _scales.Length; i++)
             {
-                string dest = Path.Combine(outDir, PathFor(key, Scales[i]));
+                string dest = Path.Combine(outDir, PathFor(key, _scales[i]));
                 Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
                 File.WriteAllBytes(dest, encoded[i]);
             }
@@ -130,7 +130,7 @@ public static class Icons
             // rank/ is declared rather than measured: the badges are a coherent set of pictures, and a
             // greyscale one (an unranked plate) would otherwise be judged tintable on its pixels alone.
             bool isPicture = key.StartsWith("rank/", StringComparison.Ordinal)
-                             || key.StartsWith("map/", StringComparison.Ordinal);
+                || key.StartsWith("map/", StringComparison.Ordinal);
             manifest[key] = new IconEntry(Round(box.Width), Round(box.Height), tintable && !isPicture);
         }
 
@@ -140,11 +140,11 @@ public static class Icons
         File.WriteAllText(
             Path.Combine(outDir, "icons.json"),
             JsonSerializer.Serialize(
-                new IconManifest(SchemaVersion, bakerVersion, version, Scales, manifest,
+                new IconManifest(ManifestSchemaVersion, bakerVersion, version, _scales, manifest,
                     [.. IconSet.PremierTiers.Select(t => new PremierTierEntry(t.Name, t.Hex, t.MinRating))],
                     IconSet.RankNames,
                     [.. blank]),
-                ManifestJson));
+                _manifestJson));
 
         StringBuilder log = new();
         foreach (string ns in new[] { "equipment", "modifier", "ui", "rank", "map" })
@@ -168,7 +168,7 @@ public static class Icons
             // Reported, not collapsed: aliasing them would make one manifest key resolve to another
             // key's file, and the ~10 KB saved is not worth that indirection in every consumer.
             log.Append(CultureInfo.InvariantCulture, $"  {"duplicate",-10} {duplicates.Count,3} identical sources: ")
-               .Append(string.Join("; ", duplicates)).Append('\n');
+                .Append(string.Join("; ", duplicates)).Append('\n');
         }
 
         log.Append(CultureInfo.InvariantCulture, $"  version    {version}");
@@ -203,8 +203,8 @@ public static class Icons
         int BakeEmblem(string source, bool tinted)
         {
             PackageEntry entry = pak.FindEntry(source + ".vsvg_c")
-                                 ?? throw new InvalidOperationException(
-                                     $"{source} is not in this CS2 build — the Premier emblem moved.");
+                ?? throw new InvalidOperationException(
+                    $"{source} is not in this CS2 build — the Premier emblem moved.");
 
             byte[] svg = ReadSvg(pak, entry);
             crc.Append(svg);
@@ -223,16 +223,16 @@ public static class Icons
 
             (string Key, SKColor? Wash)[] variants = tinted
                 ? [.. IconSet.PremierTiers.Select(t => ("premier/" + t.Name, (SKColor?)Parse(t.Hex)))]
-                : [("premier/unranked", (SKColor?)null)];
+                : [("premier/unranked", null)];
 
             foreach ((string key, SKColor? wash) in variants)
             {
-                foreach (int height in Scales)
+                foreach (int height in _scales)
                 {
                     using SKBitmap plain = Render(pic, box, height);
                     using SKBitmap outBmp = wash is { } tint ? Modulate(plain, tint) : plain.Copy();
                     using SKData png = outBmp.Encode(SKEncodedImageFormat.Png, 100)
-                                       ?? throw new InvalidOperationException($"{key}: PNG encode failed");
+                        ?? throw new InvalidOperationException($"{key}: PNG encode failed");
 
                     string dest = Path.Combine(outDir, PathFor(key, height));
                     Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
@@ -264,10 +264,8 @@ public static class Icons
         SKBitmap outBmp = new(src.Width, src.Height);
         using SKCanvas canvas = new(outBmp);
         canvas.Clear(SKColors.Transparent);
-        using SKPaint paint = new()
-        {
-            ColorFilter = SKColorFilter.CreateBlendMode(tint, SKBlendMode.Modulate)
-        };
+        using SKPaint paint = new();
+        paint.ColorFilter = SKColorFilter.CreateBlendMode(tint, SKBlendMode.Modulate);
         canvas.DrawBitmap(src, 0, 0, paint);
         return outBmp;
     }
@@ -368,7 +366,7 @@ public static class Icons
         pak.Read(pakPath);
         Dictionary<string, PackageEntry> wanted = Select(pak);
 
-        string[] unknown = keys.Where(k => !wanted.ContainsKey(k)).ToArray();
+        string[] unknown = [.. keys.Where(k => !wanted.ContainsKey(k))];
         if (unknown.Length > 0)
         {
             throw new InvalidOperationException("no such icon key: " + string.Join(", ", unknown));
@@ -389,8 +387,8 @@ public static class Icons
 
     /// <summary>The manifest-relative path of one baked icon, e.g. <c>equipment/ak47@32.png</c>.</summary>
     /// <param name="key">The icon key, namespace included.</param>
-    /// <param name="scale">One of <see cref="Scales" />.</param>
-    public static string PathFor(string key, int scale) =>
+    /// <param name="scale">One of <see cref="_scales" />.</param>
+    private static string PathFor(string key, int scale) =>
         FormattableString.Invariant($"{key}@{scale}.png");
 
     // Which vpk entries the curation asks for, keyed by our name. Built by walking the archive's own
@@ -561,7 +559,10 @@ public static class Icons
             using MemoryStream ms = new(svg);
             root = XDocument.Load(ms).Root;
         }
-        catch (System.Xml.XmlException) { return null; }
+        catch (System.Xml.XmlException)
+        {
+            return null;
+        }
 
         string? vb = (string?)root?.Attribute("viewBox");
         if (vb is null)
@@ -590,10 +591,9 @@ public static class Icons
     private static double Round(float v) => Math.Round(v, 3);
 
     // Matches Bundle.cs so the two baked manifests read the same way.
-    private static readonly JsonSerializerOptions ManifestJson = new()
+    private static readonly JsonSerializerOptions _manifestJson = new()
     {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
     /// <summary>The baked manifest: what exists, at what aspect, from which CS2 build.</summary>
@@ -609,6 +609,7 @@ public static class Icons
     ///     consumer can tell "absent because the game means nothing here" from "absent because it is
     ///     missing" — the first must draw nothing and stay silent, the second is worth reporting.
     /// </param>
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed record IconManifest(
         int SchemaVersion,
         string BakerVersion,
@@ -623,6 +624,7 @@ public static class Icons
     /// <param name="Name">Key suffix, e.g. <c>tier3</c>.</param>
     /// <param name="Hex">CS2's wash colour.</param>
     /// <param name="MinRating">Lowest CS Rating in the tier.</param>
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed record PremierTierEntry(string Name, string Hex, int MinRating);
 
     /// <summary>
@@ -636,5 +638,6 @@ public static class Icons
     ///     True when the artwork is a white alpha mask and may be recoloured; false when it is a picture
     ///     (rank badges, the Premier emblem, a handful of multi-colour UI icons) and must be drawn as-is.
     /// </param>
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed record IconEntry(double W, double H, bool Tintable);
 }

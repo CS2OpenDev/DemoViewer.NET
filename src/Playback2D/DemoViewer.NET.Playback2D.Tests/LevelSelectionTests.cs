@@ -26,10 +26,7 @@ public class LevelSelectionTests
     public async Task AutoFollow_HoldsLevel_WhenFollowedMarkerAbsent()
     {
         MapSpace space = Two();
-        LevelSelection selection = new(space)
-        {
-            FollowedSlot = 3
-        };
+        LevelSelection selection = new(space) { FollowedSlot = 3 };
 
         SceneTime time = Time();
         selection.Update(in time, FrameWith(3, -300));
@@ -49,10 +46,7 @@ public class LevelSelectionTests
     public async Task ManualPick_PinsLevel_AgainstFollowedPlayerMove()
     {
         MapSpace space = Two();
-        LevelSelection selection = new(space)
-        {
-            FollowedSlot = 3
-        };
+        LevelSelection selection = new(space) { FollowedSlot = 3 };
 
         MapLevelId lower = space.Levels[0].Id;
         selection.PickManually(lower);
@@ -71,10 +65,7 @@ public class LevelSelectionTests
     public async Task EnableAutoFollow_ClearsDwell()
     {
         MapSpace space = Two();
-        LevelSelection selection = new(space)
-        {
-            FollowedSlot = 3
-        };
+        LevelSelection selection = new(space) { FollowedSlot = 3 };
 
         SceneTime time = Time();
         selection.Update(in time, FrameWith(3, -300));
@@ -118,10 +109,7 @@ public class LevelSelectionTests
     public async Task Update_AllocatesNothing_InTheSteadyState()
     {
         MapSpace space = Two();
-        LevelSelection selection = new(space)
-        {
-            FollowedSlot = 3
-        };
+        LevelSelection selection = new(space) { FollowedSlot = 3 };
 
         SceneTime time = Time();
         Scene2DFrame frame = FrameWith(3, -300);

@@ -34,14 +34,12 @@ public sealed class StratHudDataSource : IHudDataSource
     public HudSnapshot At(int tick)
     {
         // Floored so the counted-up clock shows a whole second only once it has passed; the layer rounds up.
-        double remaining = _countsUp ? Math.Floor(StratFrameSource.ElapsedAt(tick)) : StratFrameSource.RoundSecondsAt(_roundSeconds, tick);
+        double remaining = _countsUp
+            ? Math.Floor(StratFrameSource.ElapsedAt(tick))
+            : StratFrameSource.RoundSecondsAt(_roundSeconds, tick);
 
         // Clamped at zero: a step after the plant sits past the round clock, and the clock there reads
         // 0:00, as the frame's own RoundTime does.
-        return HudSnapshot.Empty with
-        {
-            Tick = tick,
-            CountdownSeconds = Math.Max(0, remaining)
-        };
+        return HudSnapshot.Empty with { Tick = tick, CountdownSeconds = Math.Max(0, remaining) };
     }
 }

@@ -8,7 +8,7 @@ namespace DemoViewer.NET.Services.DemoProcessing.Collectors;
 internal sealed class ActiveCollectors
 {
     private readonly Dictionary<string, List<Registration>> _byPath = new(StringComparer.OrdinalIgnoreCase);
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
 
     /// <summary>Adds <paramref name="collectors" /> to <paramref name="path" /> until the result is disposed.</summary>
     public IDisposable Begin(string path, CollectorSet collectors) => Begin(path, collectors, ForwardNeeds.None);
@@ -85,7 +85,8 @@ internal sealed class ActiveCollectors
         }
     }
 
-    private sealed class Registration(ActiveCollectors owner, string path, CollectorSet collectors, ForwardNeeds needs) : IDisposable
+    private sealed class Registration(ActiveCollectors owner, string path, CollectorSet collectors, ForwardNeeds needs)
+        : IDisposable
     {
         private int _ended;
 

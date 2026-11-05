@@ -117,10 +117,7 @@ public sealed class OpenerDetector : IProposalDetector
                 DetectorMath.Confidence(confidence),
                 new Dictionary<string, double>(StringComparer.Ordinal)
                 {
-                    ["base"] = 0.5,
-                    ["count"] = DetectorMath.Round(fCount),
-                    ["region"] = fRegion,
-                    ["early"] = fEarly
+                    ["base"] = 0.5, ["count"] = DetectorMath.Round(fCount), ["region"] = fRegion, ["early"] = fEarly
                 },
                 labels,
                 evidence);

@@ -17,7 +17,8 @@ internal static class FakeManifests
         new(packId, name, SemVersion.Parse(version), "Fake.dll", "Fake.Pack", VersionRange.Any, VersionRange.Any);
 
     /// <summary>A manifest for <paramref name="packId" /> with explicit ranges.</summary>
-    public static ExtensionManifest For(string packId, string name, string version, string requiresHost, string requiresCs2DemoKit,
+    public static ExtensionManifest For(string packId, string name, string version, string requiresHost,
+        string requiresCs2DemoKit,
         string? minAppVersion = null) =>
         new(packId, name, SemVersion.Parse(version), "Fake.dll", "Fake.Pack", VersionRange.Parse(requiresHost),
             VersionRange.Parse(requiresCs2DemoKit), minAppVersion is null ? null : SemVersion.Parse(minAppVersion));

@@ -55,16 +55,8 @@ public sealed class VisionLayer : ISceneLayer
     {
         _solver = solver;
         _smoother = smoother;
-        _cone = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        _sightline = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            IsAntialias = true
-        };
+        _cone = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
+        _sightline = new SKPaint { Style = SKPaintStyle.Stroke, IsAntialias = true };
     }
 
     /// <summary>The last solved geometry. Test hook, and what the HUD reads for a "seen by" count.</summary>

@@ -22,7 +22,7 @@ public class DemoQuickInfoTests
     public async Task ReadsMap_FromRealDemo_WithoutFullParse()
     {
         string? path = DemoTestHelper.FindDemoPath("vitality-vs-fut-m2-dust2.dem")
-                       ?? DemoTestHelper.FindDemoPath("vitality-vs-fut-m3-nuke.dem");
+            ?? DemoTestHelper.FindDemoPath("vitality-vs-fut-m3-nuke.dem");
         if (path is null)
         {
             throw new SkipTestException("no demo present");

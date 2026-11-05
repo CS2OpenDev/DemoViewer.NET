@@ -34,6 +34,7 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
     private StratOwnerOption? _copyFrom;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasIssue))]
     private string _issueLine = "";
 
     [ObservableProperty]
@@ -60,7 +61,8 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
     /// <summary>True once a specific owner and map are configured; false for "all maps" or no book.</summary>
     public bool HasMap => _map.Length > 0;
 
-    public string MapLine => HasMap ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{_map} callouts for {_owner}") : "";
+    public string MapLine =>
+        HasMap ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{_map} callouts for {_owner}") : "";
 
     public bool HasIssue => IssueLine.Length > 0;
 
@@ -90,7 +92,8 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
     }
 
     /// <summary>The place a typed word means: canonical when it resolves, else the trimmed text (unknown places warn, never refuse).</summary>
-    internal string? ResolvePlace(string? text) => string.IsNullOrWhiteSpace(text) ? null : _canonical.Resolve(text) ?? text.Trim();
+    internal string? ResolvePlace(string? text) =>
+        string.IsNullOrWhiteSpace(text) ? null : _canonical.Resolve(text) ?? text.Trim();
 
     /// <summary>A new alias for the place typed beside it.</summary>
     [RelayCommand]
@@ -144,7 +147,11 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
         CalloutTable table = new()
         {
             Map = _map,
-            Aliases = [.. source.Aliases.Select(a => new CalloutAlias { Alias = a.Alias, Place = a.Place, Primary = a.Primary })]
+            Aliases =
+            [
+                .. source.Aliases.Select(a =>
+                    new CalloutAlias { Alias = a.Alias, Place = a.Place, Primary = a.Primary })
+            ]
         };
         Persist(table);
         Reload();
@@ -153,8 +160,6 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
     private bool CanCopy() => CopyFrom is not null;
 
     partial void OnCopyFromChanged(StratOwnerOption? value) => CopyAliasesCommand.NotifyCanExecuteChanged();
-
-    partial void OnIssueLineChanged(string value) => OnPropertyChanged(nameof(HasIssue));
 
     // A row's edit rewrites the whole table under its former alias key, so a rename reads as remove-then-add
     // in one write rather than two, and the validator sees the final shape only.
@@ -172,7 +177,8 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
         Reload();
     }
 
-    private static bool SameAlias(string a, string b) => string.Equals(CalloutResolver.Fold(a), CalloutResolver.Fold(b), StringComparison.Ordinal);
+    private static bool SameAlias(string? a, string b) =>
+        a is not null && string.Equals(CalloutResolver.Fold(a), CalloutResolver.Fold(b), StringComparison.Ordinal);
 
     // False and IssueLine set to the refusal(s) on a rejected write; the caller reloads either way so the
     // screen always matches disk.
@@ -184,9 +190,14 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
             return true;
         }
 
-        List<StratIssue> refusals = StratValidator.ValidateCallouts(table, _canonical)
-            .Where(i => i.Severity == StratIssueSeverity.Refusal).ToList();
-        IssueLine = refusals.Count > 0 ? string.Join("; ", refusals.Select(i => i.Message)) : "the alias table could not be saved";
+        List<StratIssue> refusals =
+        [
+            .. StratValidator.ValidateCallouts(table, _canonical)
+                .Where(i => i.Severity == StratIssueSeverity.Refusal)
+        ];
+        IssueLine = refusals.Count > 0
+            ? string.Join("; ", refusals.Select(i => i.Message))
+            : "the alias table could not be saved";
         return false;
     }
 
@@ -196,7 +207,7 @@ public sealed partial class CalloutsEditorViewModel : ObservableObject
         Aliases.Clear();
         foreach (CalloutAlias alias in table.Aliases.OrderBy(a => a.Alias, StringComparer.OrdinalIgnoreCase))
         {
-            Aliases.Add(new CalloutAliasRow(this, alias.Alias, alias.Place, alias.Primary));
+            Aliases.Add(new CalloutAliasRow(this, alias.Alias ?? "", alias.Place, alias.Primary));
         }
     }
 }

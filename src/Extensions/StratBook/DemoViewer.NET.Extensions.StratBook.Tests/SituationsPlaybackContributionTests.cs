@@ -5,16 +5,16 @@ using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Playback2D;
-using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Views.Playback2D;
 using TUnit.Assertions.Enums;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     Find Rounds Like This and the Situations result walk as a playback contribution: the
@@ -29,8 +29,9 @@ namespace DemoViewer.NET.AppTests.Extensions.StratBook;
 [NotInParallel(TestLanes.HeadlessUi)]
 public class SituationsPlaybackContributionTests
 {
-    private static (Playback2DTabViewModel Vm, Playback2DFakeContext Ctx, SituationsPlaybackContribution Situations) Tab(
-        IFeatureGate? gate = null, Action<Playback2DFakeContext>? configure = null)
+    private static (Playback2DTabViewModel Vm, Playback2DFakeContext Ctx, SituationsPlaybackContribution Situations)
+        Tab(
+            IFeatureGate? gate = null, Action<Playback2DFakeContext>? configure = null)
     {
         SituationsPlaybackContribution situations = new();
         PlaybackContributionHost host = ReviewPanelsHarness.Host(gate, situations);
@@ -61,8 +62,10 @@ public class SituationsPlaybackContributionTests
             gate.Raise();
             using (Assert.Multiple())
             {
-                await Assert.That(situations.ToolbarItem).IsNotNull().Because("the pack came on with a map already open");
-                await Assert.That(vm.Surface.ToolbarItems.Select(i => i.Id)).IsEquivalentTo([situations.ToolbarItem!.Id], CollectionOrdering.Matching);
+                await Assert.That(situations.ToolbarItem).IsNotNull()
+                    .Because("the pack came on with a map already open");
+                await Assert.That(vm.Surface.ToolbarItems.Select(i => i.Id))
+                    .IsEquivalentTo([situations.ToolbarItem!.Id], CollectionOrdering.Matching);
             }
 
             gate.On = false;
@@ -86,14 +89,16 @@ public class SituationsPlaybackContributionTests
             (Playback2DTabViewModel vm, Playback2DFakeContext ctx, SituationsPlaybackContribution situations) =
                 Tab(configure: c => c.MapName = null);
 
-            await Assert.That(vm.Surface.ToolbarItems).IsEmpty().Because("no map name yet, same condition the key always required");
+            await Assert.That(vm.Surface.ToolbarItems).IsEmpty()
+                .Because("no map name yet, same condition the key always required");
 
             ctx.MapName = "de_dust2";
             ctx.RaiseDemoReset();
             using (Assert.Multiple())
             {
                 await Assert.That(situations.ToolbarItem).IsNotNull();
-                await Assert.That(vm.Surface.ToolbarItems.Select(i => i.Id)).IsEquivalentTo([situations.ToolbarItem!.Id], CollectionOrdering.Matching);
+                await Assert.That(vm.Surface.ToolbarItems.Select(i => i.Id))
+                    .IsEquivalentTo([situations.ToolbarItem!.Id], CollectionOrdering.Matching);
             }
 
             ctx.MapName = null;
@@ -132,7 +137,8 @@ public class SituationsPlaybackContributionTests
                 (string map, SceneTime time, IReadOnlyList<PlayerMarker> markers) = seam.Calls[0];
                 await Assert.That(map).IsEqualTo("de_dust2");
                 await Assert.That(time.Tick).IsEqualTo(ctx.CurrentTick).Because("the frame the markers belong to");
-                await Assert.That(markers.Select(m => m.Place ?? "?")).IsEquivalentTo(["BombsiteA", "Lobby"], CollectionOrdering.Matching);
+                await Assert.That(markers.Select(m => m.Place ?? "?"))
+                    .IsEquivalentTo(["BombsiteA", "Lobby"], CollectionOrdering.Matching);
             }
 
             // Ctrl+F and the toolbar button run the same funnel.
@@ -167,10 +173,11 @@ public class SituationsPlaybackContributionTests
                 });
             ctx.PushPlacedMarkers((1, 3, 600, -400, 64, "BombsiteA"));
 
-            (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
+            (Window window, _) = Playback2DTimelineHarness.Show(vm);
             Playback2DTimelineHarness.Pump();
 
-            SplitButton modeButton = window.GetVisualDescendants().OfType<SplitButton>().Single(b => b.Name == "ModeButton");
+            SplitButton modeButton =
+                window.GetVisualDescendants().OfType<SplitButton>().Single(b => b.Name == "ModeButton");
             modeButton.Flyout!.ShowAt(modeButton);
             Playback2DTimelineHarness.Pump();
 
@@ -181,12 +188,14 @@ public class SituationsPlaybackContributionTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(entry.Header).IsNotEqualTo("Rounds like this").Because("the menu uses MenuHeader, not Label");
+                await Assert.That(entry.Header).IsNotEqualTo("Rounds like this")
+                    .Because("the menu uses MenuHeader, not Label");
                 await Assert.That(separator.IsVisible).IsTrue();
             }
 
             entry.Command!.Execute(null);
-            await Assert.That(seam.Calls.Count).IsEqualTo(1).Because("the menu entry's Command is the toolbar item's own");
+            await Assert.That(seam.Calls.Count).IsEqualTo(1)
+                .Because("the menu entry's Command is the toolbar item's own");
 
             window.Close();
             vm.OnDeactivated();
@@ -209,7 +218,8 @@ public class SituationsPlaybackContributionTests
             (Window window, Playback2DView _) = Playback2DTimelineHarness.Show(vm);
             Playback2DTimelineHarness.Pump();
 
-            SplitButton modeButton = window.GetVisualDescendants().OfType<SplitButton>().Single(b => b.Name == "ModeButton");
+            SplitButton modeButton =
+                window.GetVisualDescendants().OfType<SplitButton>().Single(b => b.Name == "ModeButton");
             modeButton.Flyout!.ShowAt(modeButton);
             Playback2DTimelineHarness.Pump();
 
@@ -233,12 +243,14 @@ public class SituationsPlaybackContributionTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, _, SituationsPlaybackContribution situations) = Tab(configure: c => c.MapName = "de_dust2");
+            (Playback2DTabViewModel vm, _, SituationsPlaybackContribution situations) =
+                Tab(configure: c => c.MapName = "de_dust2");
             global::DemoViewer.NET.Extensions.Sdk.Playback.ToolbarItem item = situations.ToolbarItem!;
 
             using (Assert.Multiple())
             {
-                await Assert.That(item.Label).IsEqualTo("Rounds like this").Because("the button's own text, no gesture hint");
+                await Assert.That(item.Label).IsEqualTo("Rounds like this")
+                    .Because("the button's own text, no gesture hint");
                 await Assert.That(item.Icon).IsEqualTo("⌕");
                 await Assert.That(item.MenuHeader).IsEqualTo("Find rounds like this (Ctrl+F)");
                 await Assert.That(item.Tooltip).StartsWith("Find rounds like this (Ctrl+F): ");

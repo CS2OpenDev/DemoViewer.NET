@@ -4,10 +4,10 @@ using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using DemoViewer.NET.Playback2D.Pipeline.Query;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
+using DemoViewer.NET.Playback2D.Query;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 
@@ -41,7 +41,7 @@ public class QueryCanvasTests
             await Assert.That(document.Get(QuerySide.Ct, 0)!.Value.WorldX).IsEqualTo(10f);
             await Assert.That(document.IsPlaced(QuerySide.T, 4)).IsTrue();
             await Assert.That(document.IsPlaced(QuerySide.T, 0)).IsFalse();
-            await Assert.That(document.Placed.Select(t => (t.Side, t.Slot)).ToArray())
+            await Assert.That([.. document.Placed.Select(t => (t.Side, t.Slot))])
                 .IsEquivalentTo([(QuerySide.Ct, 0), (QuerySide.T, 4)], CollectionOrdering.Matching);
             await Assert.That(changes).IsEqualTo(3);
             await Assert.That(document.Version).IsEqualTo(3);
@@ -68,7 +68,8 @@ public class QueryCanvasTests
         document.Place(Token(QuerySide.Ct, 0, place: "BombsiteA"));
         document.Place(Token(QuerySide.T, 0, place: "Ramp"));
 
-        await Assert.That(document.ResolvedPlaces(QuerySide.Ct)).IsEquivalentTo(["BombsiteA", "Outside"], CollectionOrdering.Matching);
+        await Assert.That(document.ResolvedPlaces(QuerySide.Ct))
+            .IsEquivalentTo(["BombsiteA", "Outside"], CollectionOrdering.Matching);
         await Assert.That(document.ResolvedPlaces(QuerySide.T)).IsEquivalentTo(["Ramp"], CollectionOrdering.Matching);
         await Assert.That(document.Get(QuerySide.Ct, 1)!.Value.IsResolved).IsFalse();
     }
@@ -76,10 +77,7 @@ public class QueryCanvasTests
     [Test]
     public async Task ChangingTheMap_ClearsTheTokens_SinceTheyMeanNothingElsewhere()
     {
-        QueryCanvasDocument document = new()
-        {
-            MapName = "de_nuke"
-        };
+        QueryCanvasDocument document = new() { MapName = "de_nuke" };
         document.Place(Token(QuerySide.Ct, 0));
 
         document.MapName = "de_nuke";
@@ -108,21 +106,14 @@ public class QueryCanvasTests
         using CpuSurfaceProvider provider = new();
         using SceneCompositor compositor = new();
         compositor.Add(new QueryTokenLayer(document));
-        using HeadlessSceneRenderer renderer = new(provider, compositor)
-        {
-            Size = new SKSizeI(400, 400)
-        };
+        using HeadlessSceneRenderer renderer = new(provider, compositor);
+        renderer.Size = new SKSizeI(400, 400);
         renderer.Levels.SetAuthoritativeFloors([new FloorSlice(-1000, -300), new FloorSlice(-300, 500)]);
 
         WorldBounds bounds = new(-2000, -2000, 2000, 2000);
         Scene2DFrame frame = new()
         {
-            Map = new SceneMapInfo
-            {
-                MapName = "synthetic",
-                NetworkedBounds = bounds,
-                ObservedBounds = bounds
-            }
+            Map = new SceneMapInfo { MapName = "synthetic", NetworkedBounds = bounds, ObservedBounds = bounds }
         };
         SceneTime time = new(0, 0, 0, 1 / 64.0, true);
 
@@ -143,7 +134,8 @@ public class QueryCanvasTests
                 .Because("the T token on the lower key fills the lower pane in the T colour");
             await Assert.That(Near(Probe(bitmap, upper, 900, 900, 0, 9), palette.Background)).IsTrue()
                 .Because("an unresolved token is hollow");
-            await Assert.That(Near(Probe(bitmap, upper, 900, 900, QueryTokenLayer.Radius, 0), palette.Background)).IsFalse()
+            await Assert.That(Near(Probe(bitmap, upper, 900, 900, QueryTokenLayer.Radius, 0), palette.Background))
+                .IsFalse()
                 .Because("but its ring is drawn");
             await Assert.That(Near(Probe(bitmap, lower, 900, 900, 0, 9), palette.Background)).IsTrue()
                 .Because("a token keyed to the upper level never reaches the lower pane");
@@ -153,10 +145,7 @@ public class QueryCanvasTests
     [Test]
     public async Task TheFixtureStore_RoundTrips_AndReadsAsFarAsItParses()
     {
-        QueryCanvasDocument document = new()
-        {
-            MapName = "de_nuke"
-        };
+        QueryCanvasDocument document = new() { MapName = "de_nuke" };
         document.Place(new QueryToken(QuerySide.Ct, 0, 620.5f, -420.25f, -512, "BombsiteA"));
         document.Place(new QueryToken(QuerySide.T, 4, 2600, 900, -512, null));
 
@@ -174,18 +163,20 @@ public class QueryCanvasTests
 
         using MemoryStream second = new();
         QueryFixtureStore.Write(again, second);
-        await Assert.That(second.ToArray()).IsEquivalentTo(first.ToArray(), CollectionOrdering.Matching).Because("a fixture round-trips byte for byte");
+        await Assert.That(second.ToArray()).IsEquivalentTo(first.ToArray(), CollectionOrdering.Matching)
+            .Because("a fixture round-trips byte for byte");
         await Assert.That(System.Text.Encoding.UTF8.GetString(first.ToArray())).DoesNotContain("\r\n");
 
-        const string partial = """
+        const string Partial = """
                                {"schemaVersion":"dvquery/1","map":"de_nuke","tokens":[
                                  {"side":"ct","slot":1,"worldX":1,"worldY":2,"levelMinZ":0,"place":"Ramp"},
                                  {"side":"spectator","slot":0,"worldX":0,"worldY":0,"levelMinZ":0},
                                  {"side":"t","slot":9,"worldX":0,"worldY":0,"levelMinZ":0}]}
                                """;
-        using MemoryStream stream = new(System.Text.Encoding.UTF8.GetBytes(partial));
+        using MemoryStream stream = new(System.Text.Encoding.UTF8.GetBytes(Partial));
         QueryCanvasDocument tolerant = QueryFixtureStore.Read(stream);
-        await Assert.That(tolerant.PlacedCount).IsEqualTo(1).Because("an unknown side and a slot out of range are dropped, not fatal");
+        await Assert.That(tolerant.PlacedCount).IsEqualTo(1)
+            .Because("an unknown side and a slot out of range are dropped, not fatal");
         await Assert.That(tolerant.Get(QuerySide.Ct, 1)!.Value.Place).IsEqualTo("Ramp");
     }
 
@@ -205,7 +196,8 @@ public class QueryCanvasTests
             await Assert.That(byDefault.Find(SceneLayerIds.Query)).IsNull().Because("opt-in: absent unless named");
             await Assert.That(named.Find(SceneLayerIds.Query)).IsTypeOf<QueryTokenLayer>();
             await Assert.That(((QueryTokenLayer)named.Find(SceneLayerIds.Query)!).Document).IsSameReferenceAs(document);
-            await Assert.That(starved.Find(SceneLayerIds.Query)).IsNull().Because("named with nothing to draw is skipped, like the ink");
+            await Assert.That(starved.Find(SceneLayerIds.Query)).IsNull()
+                .Because("named with nothing to draw is skipped, like the ink");
         }
     }
 

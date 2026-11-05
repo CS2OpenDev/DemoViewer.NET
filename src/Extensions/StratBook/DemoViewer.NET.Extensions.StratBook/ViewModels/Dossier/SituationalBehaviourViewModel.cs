@@ -3,8 +3,8 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DemoViewer.NET.Extensions.StratBook.Modules.Review;
 using DemoViewer.NET.Extensions.Sdk.Review;
+using DemoViewer.NET.Extensions.StratBook.Modules.Review;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
 #endregion
@@ -57,7 +57,7 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
         Func<string, bool>? selectTab, Action<Action> post, Func<Action, Task>? run = null)
     {
         ArgumentNullException.ThrowIfNull(post);
-        _run = run ?? (work => Task.Run(work));
+        _run = run ?? Task.Run;
         _service = service;
         _review = review;
         _selectTab = selectTab;
@@ -104,7 +104,7 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
 
     /// <summary>The section line for a finished build.</summary>
     /// <param name="set">The build.</param>
-    public static string LineFor(SituationalBehaviourSet set)
+    private static string LineFor(SituationalBehaviourSet set)
     {
         ArgumentNullException.ThrowIfNull(set);
         if (set.Blocks.Count == 0)
@@ -116,7 +116,8 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
 
         int pistols = set.Blocks.Sum(b => b.PistolRounds.Count);
         int maps = set.Blocks.Select(b => b.Map).Distinct(StringComparer.Ordinal).Count();
-        return $"{OpeningTendenciesSectionViewModel.Plural(pistols, "pistol")} over {OpeningTendenciesSectionViewModel.Plural(maps, "map")}";
+        return
+            $"{OpeningTendenciesSectionViewModel.Plural(pistols, "pistol")} over {OpeningTendenciesSectionViewModel.Plural(maps, "map")}";
     }
 
     /// <summary>
@@ -138,9 +139,12 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
             return;
         }
 
-        int added = _review.Add(link.Bucket.Rounds.Select(r => OpeningTendenciesSectionViewModel.ReviewClipFor(link, r, _teamId)),
+        int added = _review.Add(
+            link.Bucket.Rounds.Select(r => OpeningTendenciesSectionViewModel.ReviewClipFor(link, r, _teamId)),
             $"Dossier · {_teamName} · {link.Title}", OpeningTendenciesSectionViewModel.Plural(link.Count, "round"));
-        ReviewLine = added == 0 ? "already in Review" : $"{OpeningTendenciesSectionViewModel.Plural(added, "round")} sent to Review";
+        ReviewLine = added == 0
+            ? "already in Review"
+            : $"{OpeningTendenciesSectionViewModel.Plural(added, "round")} sent to Review";
         _selectTab?.Invoke(ReviewQueueModule.TabId);
     }
 
@@ -208,7 +212,7 @@ public sealed class SituationalBlockViewModel
         SaveDiscipline = Links(block.SaveDiscipline, $"{prefix} · after a loss,");
     }
 
-    public SituationalBehaviourBlock Block { get; }
+    private SituationalBehaviourBlock Block { get; }
 
     public string Map => Block.Map;
 

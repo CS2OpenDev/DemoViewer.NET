@@ -1,8 +1,8 @@
 #region
 
 using Avalonia.Controls;
-using Avalonia.Media.Imaging;
 using Avalonia.Headless;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.TestSupport;
@@ -96,7 +96,8 @@ public class PlaybackLoopPhase2Tests
             vm.Playback.Pause();
 
             int framesAdvanced = vm.Playback.CurrentFrameIndex - 2;
-            Console.WriteLine($"frames advanced={framesAdvanced}  pushes={pushCount}  maxJump/push={maxFrameJumpPerPush}");
+            Console.WriteLine(
+                $"frames advanced={framesAdvanced}  pushes={pushCount}  maxJump/push={maxFrameJumpPerPush}");
 
             // Coalescing bound: at speed 8 the tracker steps multiple frames per push, so push count is strictly
             // less than frames advanced (coalescing). And it did advance.
@@ -118,15 +119,7 @@ public class PlaybackLoopPhase2Tests
             // Render the real shell with the new play/pause/speed transport bound to the controller.
             // A render that produces a non-null frame proves the visual tree (incl. the new toolbar
             // bindings to Playback.TogglePlayCommand / Playback.IsPlaying / Playback.Speed) built.
-            Window window = new()
-            {
-                Width = 1280,
-                Height = 720,
-                Content = new MainView
-                {
-                    DataContext = vm
-                }
-            };
+            Window window = new() { Width = 1280, Height = 720, Content = new MainView { DataContext = vm } };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();

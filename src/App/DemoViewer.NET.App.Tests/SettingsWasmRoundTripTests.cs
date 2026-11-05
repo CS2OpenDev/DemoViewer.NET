@@ -35,15 +35,17 @@ public class SettingsWasmRoundTripTests
     [Test]
     public async Task EveryPlayback2dProperty_SurvivesAFilelessWrite()
     {
-        PropertyInfo[] properties = typeof(Playback2DSettings)
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.CanRead && p.CanWrite)
-            .ToArray();
+        PropertyInfo[] properties =
+        [
+            .. typeof(Playback2DSettings)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p is { CanRead: true, CanWrite: true })
+        ];
 
         await Assert.That(properties.Length).IsGreaterThan(15)
             .Because("the section should carry the registry's full property set, not a stub");
 
-        List<string> unpersisted = new();
+        List<string> unpersisted = [];
 
         foreach (PropertyInfo property in properties)
         {
@@ -68,7 +70,7 @@ public class SettingsWasmRoundTripTests
 
         await Assert.That(string.Join(", ", unpersisted)).IsEqualTo("")
             .Because("every Playback2D property needs a SettingsService.WriteInMemory row, or the "
-                     + "setting silently forgets itself on the browser head");
+                + "setting silently forgets itself on the browser head");
     }
 
     /// <summary>
@@ -142,11 +144,11 @@ public class SettingsWasmRoundTripTests
     private static object? NonDefaultFor(PropertyInfo property, object? current) =>
         property.PropertyType switch
         {
-            Type t when t == typeof(bool) => !(bool)(current ?? false),
-            Type t when t == typeof(int) => (int)(current ?? 0) + 7,
-            Type t when t == typeof(uint) => (uint)(current ?? 0u) ^ 0x00123456u,
-            Type t when t == typeof(double) => (double)(current ?? 0d) + 1.5,
-            Type t when t == typeof(string) => "dv-b5-" + property.Name,
+            { } t when t == typeof(bool) => !(bool)(current ?? false),
+            { } t when t == typeof(int) => (int)(current ?? 0) + 7,
+            { } t when t == typeof(uint) => (uint)(current ?? 0u) ^ 0x00123456u,
+            { } t when t == typeof(double) => (double)(current ?? 0d) + 1.5,
+            { } t when t == typeof(string) => "dv-b5-" + property.Name,
             _ => null
         };
 

@@ -2,15 +2,14 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Hud;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline.Assets;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using DemoViewer.NET.Playback2D.Pipeline.Hud;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
 #endregion
@@ -31,7 +30,7 @@ internal sealed class HostedMapAssets : IMapAssetsBackend
     [ModuleInitializer]
     [SuppressMessage("Usage", "CA2255",
         Justification = "Application code that is a class library only because several heads reference it; "
-                        + "the UI kit's map surface must be live before any extension code asks for a map.")]
+            + "the UI kit's map surface must be live before any extension code asks for a map.")]
     internal static void Install() => MapAssets.Backend ??= new HostedMapAssets();
 
     /// <inheritdoc />
@@ -45,18 +44,17 @@ internal sealed class HostedMapAssets : IMapAssetsBackend
     public IIconSource CreateIcons() => new SkiaIconSource();
 
     /// <inheritdoc />
-    public byte[] RenderPng(Scene2DFrame frame, IMapAsset? map, IReadOnlyList<string> layerIds, ViewportTransform camera,
+    public byte[] RenderPng(Scene2DFrame frame, IMapAsset? map, IReadOnlyList<string> layerIds,
+        ViewportTransform camera,
         SKSizeI size, IReadOnlyList<Func<ISceneLayer>>? layers)
     {
         using CpuSurfaceProvider provider = new();
         using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack(layerIds);
         Compose(compositor, layers);
-        using HeadlessSceneRenderer renderer = new(provider, compositor)
-        {
-            Palette = ScenePalette.Dark,
-            Purpose = RenderPurpose.Export,
-            Camera = camera
-        };
+        using HeadlessSceneRenderer renderer = new(provider, compositor);
+        renderer.Palette = ScenePalette.Dark;
+        renderer.Purpose = RenderPurpose.Export;
+        renderer.Camera = camera;
         renderer.Levels.SetAuthoritativeFloors(map?.Floors);
         renderer.Levels.RadarBinder = map?.CreateRadarBinder();
 

@@ -1,14 +1,13 @@
 #region
 
 using Avalonia.Input;
-using DemoViewer.NET.AppTests.Extensions.StratBook;
-using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
-using DemoViewer.NET.Modules.Playback2D;
-using DemoViewer.NET.Modules.Playback2D.Timeline;
+using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Palette;
+using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Timeline;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
-using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Modules.Playback2D.Timeline;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.TagTestData;
 
@@ -29,26 +28,27 @@ public class TagLabelModeTests
 
     private static readonly List<LibraryRound> _rounds =
     [
-        new LibraryRound(1, 0),
-        new LibraryRound(2, 10_000),
-        new LibraryRound(3, 20_000),
-        new LibraryRound(4, 30_000)
+        new(1, 0),
+        new(2, 10_000),
+        new(3, 20_000),
+        new(4, 30_000)
     ];
 
-    private static readonly string[] OutcomeValues = ["won", "lost"];
-    private static readonly string[] SiteValues = ["A", "B"];
-    private static readonly string[] WonAtA = ["outcome=won", "site=A"];
-    private static readonly string[] Unlabelled = [];
-    private static readonly string[] Won = ["outcome=won"];
-    private static readonly string[] Lost = ["outcome=lost"];
-    private static readonly string[] SiteB = ["site=B"];
+    private static readonly string[] _outcomeValues = ["won", "lost"];
+    private static readonly string[] _siteValues = ["A", "B"];
+    private static readonly string[] _wonAtA = ["outcome=won", "site=A"];
+    private static readonly string[] _unlabelled = [];
+    private static readonly string[] _won = ["outcome=won"];
+    private static readonly string[] _lost = ["outcome=lost"];
+    private static readonly string[] _siteB = ["site=B"];
 
     private static async Task<TagSession> Attached()
     {
-        TagSession session = new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created)
-        {
-            AutoSaveDelay = TimeSpan.FromHours(1)
-        };
+        TagSession session =
+            new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created)
+            {
+                AutoSaveDelay = TimeSpan.FromHours(1)
+            };
         await session.AttachAsync(Demo, Clock, DemoPath);
         return session;
     }
@@ -99,7 +99,8 @@ public class TagLabelModeTests
             {
                 await Assert.That(palette.IsLabelMode).IsTrue();
                 await Assert.That(palette.PanelTitle).IsEqualTo("outcome");
-                await Assert.That(palette.Buttons.Select(b => b.Caption)).IsEquivalentTo(OutcomeValues, CollectionOrdering.Matching);
+                await Assert.That(palette.Buttons.Select(b => b.Caption))
+                    .IsEquivalentTo(_outcomeValues, CollectionOrdering.Matching);
                 await Assert.That(palette.LabelTargetText).StartsWith("A execute");
                 await Assert.That(Hit(palette, Key.D1)).IsFalse().Because("the codes are not live in Label Mode");
             }
@@ -120,9 +121,10 @@ public class TagLabelModeTests
             {
                 await Assert.That(tags.Count).IsEqualTo(2).Because("Label Mode never makes a tag");
                 await Assert.That(tags.Select(t => t.Id)).IsEquivalentTo(firstPassIds, CollectionOrdering.Matching);
-                await Assert.That(LabelsOf(tags[0])).IsEquivalentTo(WonAtA, CollectionOrdering.Matching);
+                await Assert.That(LabelsOf(tags[0])).IsEquivalentTo(_wonAtA, CollectionOrdering.Matching);
                 await Assert.That(tags[1].Labels.Single().Value).IsEqualTo("lost");
-                await Assert.That(session.UndoDepth).IsEqualTo(depthAfterFirstPass + 3).Because("one undo entry per label");
+                await Assert.That(session.UndoDepth).IsEqualTo(depthAfterFirstPass + 3)
+                    .Because("one undo entry per label");
             }
 
             session.Undo();
@@ -133,12 +135,13 @@ public class TagLabelModeTests
             using (Assert.Multiple())
             {
                 await Assert.That(tags.Count).IsEqualTo(2).Because("undoing a label never takes the tag with it");
-                await Assert.That(LabelsOf(tags[0])).IsEquivalentTo(Unlabelled, CollectionOrdering.Matching);
+                await Assert.That(LabelsOf(tags[0])).IsEquivalentTo(_unlabelled, CollectionOrdering.Matching);
                 await Assert.That(session.UndoDepth).IsEqualTo(depthAfterFirstPass);
             }
 
             session.Redo();
-            await Assert.That(LabelsOf(session.Document!.Instances[0])).IsEquivalentTo(Won, CollectionOrdering.Matching);
+            await Assert.That(LabelsOf(session.Document!.Instances[0]))
+                .IsEquivalentTo(_won, CollectionOrdering.Matching);
         });
     }
 
@@ -163,7 +166,8 @@ public class TagLabelModeTests
             using (Assert.Multiple())
             {
                 await Assert.That(palette.LabelTargetText).IsEqualTo("no tag under the playhead");
-                await Assert.That(Hit(palette, Key.L)).IsFalse().Because("the outcome panel shows, with no tag to put it on");
+                await Assert.That(Hit(palette, Key.L)).IsFalse()
+                    .Because("the outcome panel shows, with no tag to put it on");
                 await Assert.That(session.Document!.Instances.Single().Labels.Count).IsEqualTo(1);
                 await Assert.That(session.UndoDepth).IsEqualTo(depth);
             }
@@ -213,8 +217,10 @@ public class TagLabelModeTests
                 await Assert.That(palette.PanelTitle).IsEqualTo("codes");
                 await Assert.That(session.Document!.Instances.Count).IsEqualTo(2);
                 await Assert.That(session.Document.Instances[0].Id).IsEqualTo(execute.Id);
-                await Assert.That(LabelsOf(session.Document.Instances[0])).IsEquivalentTo(Lost, CollectionOrdering.Matching);
-                await Assert.That(LabelsOf(session.Document.Instances[1])).IsEquivalentTo(SiteB, CollectionOrdering.Matching);
+                await Assert.That(LabelsOf(session.Document.Instances[0]))
+                    .IsEquivalentTo(_lost, CollectionOrdering.Matching);
+                await Assert.That(LabelsOf(session.Document.Instances[1]))
+                    .IsEquivalentTo(_siteB, CollectionOrdering.Matching);
             }
         });
     }
@@ -234,7 +240,8 @@ public class TagLabelModeTests
 
             await Assert.That(palette.PanelTitle).IsEqualTo("outcome");
             await Assert.That(Hit(palette, Key.G, KeyModifiers.Control)).IsTrue();
-            await Assert.That(palette.Buttons.Select(b => b.Caption)).IsEquivalentTo(SiteValues, CollectionOrdering.Matching);
+            await Assert.That(palette.Buttons.Select(b => b.Caption))
+                .IsEquivalentTo(_siteValues, CollectionOrdering.Matching);
             Hit(palette, Key.G, KeyModifiers.Control);
             await Assert.That(palette.PanelTitle).IsEqualTo("outcome").Because("the walk wraps");
             await Assert.That(palette.HintText).Contains("Ctrl+L back to tagging");
@@ -252,7 +259,8 @@ public class TagLabelModeTests
         await HeadlessSession.RunOnUi(async () =>
         {
             Playback2DKeymapProfile profile = Playback2DKeymapProfile.Default;
-            await Assert.That(profile.TryResolveInScope(new Playback2DBindingScope(StratBookActions.PaletteScope), Key.L,
+            await Assert.That(profile.TryResolveInScope(new Playback2DBindingScope(StratBookActions.PaletteScope),
+                Key.L,
                 KeyModifiers.Control, out string? mode)).IsTrue();
             await Assert.That(mode).IsEqualTo(StratBookActions.TagLabelMode);
             await Assert.That(profile.TryResolve(Key.L, KeyModifiers.Control, false, out _)).IsFalse()
@@ -260,7 +268,8 @@ public class TagLabelModeTests
 
             using TagSession session = await Attached();
             using TagPaletteViewModel palette = Palette(session, () => 12_000);
-            palette.ApplyKeymap(PaletteKeymaps.From(Playback2DKeymapProfile.FromOverrides(["TagLabelMode=Ctrl+Shift+L"], out IReadOnlyList<string> rejected)));
+            palette.ApplyKeymap(PaletteKeymaps.From(Playback2DKeymapProfile.FromOverrides(["TagLabelMode=Ctrl+Shift+L"],
+                out IReadOnlyList<string> rejected)));
             await Assert.That(rejected).IsEmpty();
             await Assert.That(Hit(palette, Key.L, KeyModifiers.Control)).IsFalse();
             await Assert.That(Hit(palette, Key.L, KeyModifiers.Control | KeyModifiers.Shift)).IsTrue();
@@ -285,9 +294,11 @@ public class TagLabelModeTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(track.InstancesInRun(data, 50)).IsEquivalentTo(new[] { early.Id, late.Id }, CollectionOrdering.Matching);
+                await Assert.That(track.InstancesInRun(data, 50))
+                    .IsEquivalentTo([early.Id, late.Id], CollectionOrdering.Matching);
                 await Assert.That(track.InstancesInRun(data, 50)[0]).IsEqualTo(early.Id);
-                await Assert.That(track.InstancesInRun(data, 450)).IsEquivalentTo(new[] { apart.Id }, CollectionOrdering.Matching);
+                await Assert.That(track.InstancesInRun(data, 450))
+                    .IsEquivalentTo([apart.Id], CollectionOrdering.Matching);
                 await Assert.That(track.InstancesInRun(data, 150)).IsEmpty().Because("no band starts inside a run");
             }
         });
@@ -302,7 +313,8 @@ public class TagLabelModeTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab();
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab();
             review.ReviewMode!.IsOn = true;
             TagSession tags = review.Session!;
             await tags.AttachAsync(Demo, Clock, DemoPath);
@@ -317,14 +329,16 @@ public class TagLabelModeTests
             using (Assert.Multiple())
             {
                 await Assert.That(palette.LabelTargetText).StartsWith("A execute");
-                await Assert.That(palette.PanelTitle).IsEqualTo("outcome").Because("the execute's code leads to outcome");
+                await Assert.That(palette.PanelTitle).IsEqualTo("outcome")
+                    .Because("the execute's code leads to outcome");
             }
 
             ctx.Push(650, 1_300); // the clock moves into the retake; nobody clicks
             using (Assert.Multiple())
             {
                 await Assert.That(palette.LabelTargetText).StartsWith("Retake");
-                await Assert.That(palette.PanelTitle).IsEqualTo("site").Because("a different tag restarts the panels at its own");
+                await Assert.That(palette.PanelTitle).IsEqualTo("site")
+                    .Because("a different tag restarts the panels at its own");
             }
 
             ctx.Push(550, 1_100); // between the two: nothing under the playhead
@@ -342,7 +356,8 @@ public class TagLabelModeTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab();
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab();
             review.ReviewMode!.IsOn = true; // tagging and its lanes live in Review mode
             vm.Timeline.PixelWidth = 1000;
             TagSession tags = review.Session!;
@@ -354,7 +369,8 @@ public class TagLabelModeTests
             Playback2DTimelineHarness.Pump();
             ctx.CurrentTick = 1_100;
 
-            bool Press(Key key, KeyModifiers modifiers = KeyModifiers.None) => ReviewPanelsHarness.Press(vm, key, modifiers);
+            bool Press(Key key, KeyModifiers modifiers = KeyModifiers.None) =>
+                ReviewPanelsHarness.Press(vm, key, modifiers);
 
             await Assert.That(Press(Key.C)).IsTrue();
             await Assert.That(Press(Key.L, KeyModifiers.Control)).IsTrue();
@@ -373,8 +389,8 @@ public class TagLabelModeTests
             using (Assert.Multiple())
             {
                 await Assert.That(written.Count).IsEqualTo(2);
-                await Assert.That(LabelsOf(written[0])).IsEquivalentTo(Won, CollectionOrdering.Matching);
-                await Assert.That(LabelsOf(written[1])).IsEquivalentTo(SiteB, CollectionOrdering.Matching);
+                await Assert.That(LabelsOf(written[0])).IsEquivalentTo(_won, CollectionOrdering.Matching);
+                await Assert.That(LabelsOf(written[1])).IsEquivalentTo(_siteB, CollectionOrdering.Matching);
             }
 
             await Assert.That(Press(Key.Z, KeyModifiers.Control)).IsTrue();

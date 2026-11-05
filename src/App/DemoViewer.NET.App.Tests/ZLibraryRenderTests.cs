@@ -39,7 +39,7 @@ public class ZLibraryRenderTests
         Modified = new DateTime(2026, 7, 1, 12, 0, 0),
         MapName = map,
         ServerName = "BLAST.tv Premier CS2 Server",
-        Players = players.Split(',').ToList(),
+        Players = [.. players.Split(',')],
         DurationSeconds = 3375,
         CtScore = 13,
         TScore = 11,
@@ -82,16 +82,8 @@ public class ZLibraryRenderTests
             // Indicator-state flags are asserted OUTSIDE RunOnUi (it swallows async exceptions).
             indicatorStates = (indexing.IsIndexing, failed.IsFailed, svc.Entries.Count(e => e.IsIndexing));
 
-            LibraryTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 900,
-                Height = 640,
-                Content = view
-            };
+            LibraryTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 900, Height = 640, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
 
@@ -100,7 +92,8 @@ public class ZLibraryRenderTests
             Dispatcher.UIThread.RunJobs();
             if (window.CaptureRenderedFrame() is { } cards)
             {
-                cards.Save(Path.Combine(HeadlessSession.ArtifactDir, "library-cards.png"), new PngBitmapEncoderOptions());
+                cards.Save(Path.Combine(HeadlessSession.ArtifactDir, "library-cards.png"),
+                    new PngBitmapEncoderOptions());
                 cardInk = NonBackground(cards);
             }
 
@@ -140,7 +133,7 @@ public class ZLibraryRenderTests
         // recents persist to the single config file, so the seam is a throwaway config dir.
         string tempRecents = Path.Combine(Path.GetTempPath(), "dvhrec_" + Guid.NewGuid().ToString("N"));
         string realDemo = Path.Combine(Path.GetTempPath(), "dvhreal_" + Guid.NewGuid().ToString("N") + ".dem");
-        File.WriteAllText(realDemo, "x");
+        await File.WriteAllTextAsync(realDemo, "x");
 
         RecentFilesStore recents = new(new SettingsService(tempRecents));
         recents.RecordOpen(realDemo, "de_mirage"); // exists → shown normally
@@ -165,16 +158,8 @@ public class ZLibraryRenderTests
                 // Asserted OUTSIDE RunOnUi (it swallows async exceptions).
                 state = (vm.HasNoFolders, vm.RecentFiles.Count, !vm.RecentFiles[0].Exists);
 
-                LibraryTabView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = 900,
-                    Height = 640,
-                    Content = view
-                };
+                LibraryTabView view = new() { DataContext = vm };
+                Window window = new() { Width = 900, Height = 640, Content = view };
                 window.Show();
                 Dispatcher.UIThread.RunJobs();
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -182,7 +167,8 @@ public class ZLibraryRenderTests
 
                 if (window.CaptureRenderedFrame() is { } hero)
                 {
-                    hero.Save(Path.Combine(HeadlessSession.ArtifactDir, "library-hero.png"), new PngBitmapEncoderOptions());
+                    hero.Save(Path.Combine(HeadlessSession.ArtifactDir, "library-hero.png"),
+                        new PngBitmapEncoderOptions());
                     heroInk = NonBackground(hero);
                 }
 
@@ -306,16 +292,8 @@ public class ZLibraryRenderTests
 
             svc.Entries.AddRange(bulk);
 
-            LibraryTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 900,
-                Height = 640,
-                Content = view
-            };
+            LibraryTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 900, Height = 640, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -335,7 +313,7 @@ public class ZLibraryRenderTests
         });
 
         Console.WriteLine($"[libvirt] entries={totalEntries} cardRows={cardRows} "
-                          + $"realizedCardRows={realizedCardRows} realizedListRows={realizedListRows}");
+            + $"realizedCardRows={realizedCardRows} realizedListRows={realizedListRows}");
         await Assert.That(totalEntries).IsEqualTo(400);
         await Assert.That(cardRows).IsGreaterThanOrEqualTo(100); // 400 entries / 4 columns
         // Viewport is ~640px: ~4 card rows (160px) / ~22 list rows (29px) + recycle buffer. The bound

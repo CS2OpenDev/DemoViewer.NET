@@ -2,11 +2,6 @@
 
 using Avalonia.Controls;
 using Avalonia.Input;
-using IPaneHandle = DemoViewer.NET.Extensions.Sdk.Playback.IPaneHandle;
-using IPanelHandle = DemoViewer.NET.Extensions.Sdk.Playback.IPanelHandle;
-using MenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
-using ModeToggle = DemoViewer.NET.Extensions.Sdk.Playback.ModeToggle;
-using PanePlacement = DemoViewer.NET.Extensions.Sdk.Playback.PanePlacement;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Playback2D.Compositing;
@@ -14,6 +9,11 @@ using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Timeline;
 using DemoViewer.NET.Playback2D.Tools;
 using DemoViewer.NET.Playback2D.Zones;
+using IPaneHandle = DemoViewer.NET.Extensions.Sdk.Playback.IPaneHandle;
+using IPanelHandle = DemoViewer.NET.Extensions.Sdk.Playback.IPanelHandle;
+using MenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
+using ModeToggle = DemoViewer.NET.Extensions.Sdk.Playback.ModeToggle;
+using PanePlacement = DemoViewer.NET.Extensions.Sdk.Playback.PanePlacement;
 
 #endregion
 

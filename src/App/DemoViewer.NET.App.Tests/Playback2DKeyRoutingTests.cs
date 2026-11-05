@@ -41,7 +41,7 @@ public class Playback2DKeyRoutingTests
             Playback2DTimelineHarness.Pump();
             await Assert.That(focused).IsTrue()
                 .Because("a non-focusable check box would retire the hazard instead of proving the "
-                         + "tunnelling handler still covers it");
+                    + "tunnelling handler still covers it");
 
             bool before = vm.ShowRadar;
             window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);

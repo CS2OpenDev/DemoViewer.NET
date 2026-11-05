@@ -1,7 +1,6 @@
 #region
 
 using System.Globalization;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 using FFMpegCore;
 using FFMpegCore.Enums;
@@ -68,6 +67,9 @@ public sealed record FfmpegSinkOptions(
 ///         source, which is what <c>CancellableThrough</c> watches; tripping it terminates the process,
 ///         and <see cref="DisposeAsync" /> then removes the partial output.
 ///     </para>
+///     <para>
+///         <b>Disposal waits up to 30 seconds</b> for ffmpeg to drain before giving up on it.
+///     </para>
 /// </summary>
 public sealed class FfmpegFrameSink : IFrameSink
 {
@@ -75,7 +77,7 @@ public sealed class FfmpegFrameSink : IFrameSink
     private const int StderrTailLines = 6;
 
     /// <summary>How long <see cref="DisposeAsync" /> waits for ffmpeg to drain before giving up.</summary>
-    public static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _shutdownTimeout = TimeSpan.FromSeconds(30);
 
     private readonly ChannelVideoFrameSource _frames = new();
     private readonly FfmpegSinkOptions _options;
@@ -98,7 +100,7 @@ public sealed class FfmpegFrameSink : IFrameSink
     }
 
     /// <summary>Frames handed to the encoder so far.</summary>
-    public int FramesWritten { get; private set; }
+    private int FramesWritten { get; set; }
 
     /// <inheritdoc />
     public async ValueTask WriteAsync(ReadOnlyMemory<byte> rgba, int width, int height, CancellationToken ct)
@@ -171,7 +173,7 @@ public sealed class FfmpegFrameSink : IFrameSink
             {
                 // A timeout rather than an unbounded await: R2's failure mode is a deadlock between the
                 // pump and the writer, and a diagnosable "ffmpeg did not exit in 30 s" beats a hang.
-                await _encoder.WaitAsync(ShutdownTimeout).ConfigureAwait(false);
+                await _encoder.WaitAsync(_shutdownTimeout).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -296,17 +298,11 @@ public sealed class FfmpegFrameSink : IFrameSink
         // One stub frame so RawVideoPipeSource can read the format and size it stamps into the input
         // arguments; it is never serialized because no process is started.
         StubFrame stub = new(options.Width, options.Height);
-        return Build(options, new RawVideoPipeSource([stub])
-        {
-            FrameRate = options.Fps
-        }).Arguments;
+        return Build(options, new RawVideoPipeSource([stub]) { FrameRate = options.Fps }).Arguments;
     }
 
     private FFMpegArgumentProcessor BuildProcessor(CancellationToken ct) =>
-        Build(_options, new RawVideoPipeSource(_frames)
-            {
-                FrameRate = _options.Fps
-            })
+        Build(_options, new RawVideoPipeSource(_frames) { FrameRate = _options.Fps })
             .CancellableThrough(ct)
             .NotifyOnError(OnStderr);
 
@@ -362,10 +358,7 @@ public sealed class FfmpegFrameSink : IFrameSink
     private static FFOptions BuildOptions(FfmpegSinkOptions options) =>
         string.IsNullOrEmpty(options.BinaryFolder)
             ? new FFOptions()
-            : new FFOptions
-            {
-                BinaryFolder = options.BinaryFolder
-            };
+            : new FFOptions { BinaryFolder = options.BinaryFolder };
 
     private void TryDeleteOutput()
     {
@@ -407,6 +400,7 @@ public sealed class FfmpegFrameSink : IFrameSink
 ///     An ffmpeg subprocess failed. The message carries ffmpeg's own last words rather than the pipe
 ///     error that usually races ahead of them.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed class FfmpegEncodeException : InvalidOperationException
 {
     /// <summary>Creates the exception.</summary>

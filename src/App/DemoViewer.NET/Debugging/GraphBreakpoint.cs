@@ -117,24 +117,12 @@ public sealed partial class GraphBreakpoint : ObservableObject
         get
         {
             string edgeTag = $"{Label(EdgeSourceKey)}→{Label(EdgeDestKey)}"
-                             + (string.IsNullOrEmpty(EdgeLabel) ? "" : $" [{EdgeLabel}]")
-                             + (string.IsNullOrEmpty(EdgeConditionLabel) ? "" : $" ⟨{EdgeConditionLabel}⟩");
+                + (string.IsNullOrEmpty(EdgeLabel) ? "" : $" [{EdgeLabel}]")
+                + (string.IsNullOrEmpty(EdgeConditionLabel) ? "" : $" ⟨{EdgeConditionLabel}⟩");
             string target = TargetKind == GraphBreakpointTarget.Node ? Label(NodeKey) : edgeTag;
             return string.IsNullOrWhiteSpace(Condition) ? target : $"{target}  ⟨{Condition}⟩";
         }
     }
-
-    /// <summary>True when this breakpoint targets the given node (by <see cref="IGraphNode.Key" />).</summary>
-    public bool Matches(IGraphNode node) =>
-        TargetKind == GraphBreakpointTarget.Node && NodeKey == node.Key;
-
-    /// <summary>True when this breakpoint targets the given edge (by source/dest key, label, condition).</summary>
-    public bool Matches(IGraphEdge edge) =>
-        TargetKind == GraphBreakpointTarget.Edge
-        && EdgeSourceKey == edge.Source.Key
-        && EdgeDestKey == edge.Destination.Key
-        && EdgeLabel == edge.Label
-        && EdgeConditionLabel == edge.ConditionLabel;
 
     // A key's display form. The wire key carries a scope prefix the user never typed, so the list
     // shows the readable tail plus the slot rather than the raw "p0:7:Alive". The copy number appears

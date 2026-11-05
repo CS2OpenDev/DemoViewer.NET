@@ -14,6 +14,7 @@ namespace DemoViewer.NET.Playback2D.Input;
 ///     <see cref="IPointerTool.Id" />: the router keys on that, so a third party never has to be one of
 ///     these. Persisted by name in <c>Playback2DSettings.LastTool</c>.
 /// </summary>
+[PublicAPI]
 public enum ToolKind
 {
     /// <summary>Drag to pan, wheel to zoom. The permanent fallback.</summary>
@@ -58,6 +59,7 @@ public enum ToolKind
 }
 
 /// <summary>Which physical button produced the event.</summary>
+[PublicAPI]
 public enum ToolPointerButton
 {
     /// <summary>No button (a hover move).</summary>
@@ -75,6 +77,7 @@ public enum ToolPointerButton
 
 /// <summary>Keyboard modifiers active at the moment of the event.</summary>
 [Flags]
+[PublicAPI]
 public enum ToolModifiers
 {
     /// <summary>None.</summary>
@@ -99,6 +102,7 @@ public enum ToolModifiers
 ///     delivers dozens of intermediate points per event, and allocating an array for each would blow the
 ///     per-frame allocation budget on the exact frames where it matters most.
 /// </summary>
+[PublicAPI]
 public readonly ref struct ToolPointerEvent
 {
     /// <summary>The pane under the pointer, or null when it is over no band.</summary>
@@ -136,6 +140,7 @@ public readonly ref struct ToolPointerEvent
 /// <param name="PaneLocal">Cursor position relative to <paramref name="Pane" />'s rectangle.</param>
 /// <param name="Delta">Wheel delta; positive zooms in.</param>
 /// <param name="Modifiers">Modifiers at the time of the event.</param>
+[PublicAPI]
 public readonly record struct ToolWheelEvent(
     LevelPane? Pane,
     SKPoint Screen,
@@ -148,6 +153,7 @@ public readonly record struct ToolWheelEvent(
 ///     router-level because zoom-to-cursor is universal drawing-app behaviour that no tool should be able
 ///     to take away.
 /// </summary>
+[PublicAPI]
 public interface IPointerTool
 {
     /// <summary>
@@ -195,6 +201,7 @@ public interface IPointerTool
 ///         implements and a static map view does not.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IToolServices
 {
     /// <summary>

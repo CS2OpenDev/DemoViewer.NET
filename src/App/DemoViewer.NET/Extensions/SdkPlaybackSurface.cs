@@ -23,7 +23,7 @@ internal sealed class SdkPlaybackContribution(SdkP.IPlaybackContribution inner, 
 {
     private SdkPlaybackSurface? _surface;
 
-    public SdkP.IPlaybackContribution Inner { get; } = inner ?? throw new ArgumentNullException(nameof(inner));
+    private SdkP.IPlaybackContribution Inner { get; } = inner ?? throw new ArgumentNullException(nameof(inner));
 
     public void Attach(IPlaybackSurface surface, IModuleContext context)
     {
@@ -71,8 +71,12 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
 
     public IReadOnlyList<string> Places =>
         _surface.Zones is { } zones
-            ? [.. zones.Zones.Places.Select(p => p.Name).Where(n => !string.IsNullOrEmpty(n)).Distinct(StringComparer.Ordinal)
-                .Order(StringComparer.Ordinal)]
+            ?
+            [
+                .. zones.Zones.Places.Select(p => p.Name).Where(n => !string.IsNullOrEmpty(n))
+                    .Distinct(StringComparer.Ordinal)
+                    .Order(StringComparer.Ordinal)
+            ]
             : [];
 
     public string? PlacesVersion => _surface.Zones?.Zones.EffectiveVersion;
@@ -104,7 +108,7 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
         return floor is null ? null : PlaceOnFloor(_surface.Zones, floor, worldX, worldY);
     }
 
-    public string GestureHint(string actionId) => actionId is null ? "" : _surface.GestureHint(actionId);
+    public string GestureHint(string? actionId) => actionId is null ? "" : _surface.GestureHint(actionId);
 
     public string? ActionFor(string scope, Key key, KeyModifiers modifiers) =>
         !string.IsNullOrEmpty(scope)
@@ -143,13 +147,15 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
         ArgumentNullException.ThrowIfNull(item);
         if (!_guard.Scope.OwnsId(item.Id))
         {
-            _guard.Report("toolbar item", new ArgumentException($"'{item.Id}' does not start with '{_guard.Scope.Id}.', so it is left out."));
+            _guard.Report("toolbar item",
+                new ArgumentException($"'{item.Id}' does not start with '{_guard.Scope.Id}.', so it is left out."));
             return new Registration(static () => { });
         }
 
         Func<SdkP.PlaybackMoment, bool> run = _guard.Wrap("toolbar item", item.Run, false);
         ToolbarItem mirrored = new(item.Id, item.Label, item.Tooltip,
-            frame => run(new SdkP.PlaybackMoment(frame.Time.Tick, frame.Time.FrameIndex, frame)), item.ActionId, item.Order,
+            frame => run(new SdkP.PlaybackMoment(frame.Time.Tick, frame.Time.FrameIndex, frame)), item.ActionId,
+            item.Order,
             item.Icon, item.MenuHeader);
 
         void Sync(object? sender, System.ComponentModel.PropertyChangedEventArgs e) =>
@@ -186,7 +192,8 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
         return pane;
     }
 
-    public SdkP.IPanelHandle AddPanel(int order, Func<object> viewModel, Func<Control>? view = null, string? featureId = null,
+    public SdkP.IPanelHandle AddPanel(int order, Func<object> viewModel, Func<Control>? view = null,
+        string? featureId = null,
         SdkP.ModeToggle? mode = null)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
@@ -212,12 +219,15 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
         ArgumentNullException.ThrowIfNull(layer);
         string filed = ExtensionLayerIds.Compose(_guard.Scope.Id, id);
         string name = string.IsNullOrWhiteSpace(displayName) ? _guard.Scope.Name : displayName;
+
         // The fallback answers a factory that threw; the coalesce one that returned null. GuardedSceneLayer
         // refuses null, and that refusal would throw out here, outside the guard, on every rebuild.
         ISceneLayer Build() =>
             new GuardedSceneLayer(filed,
-                _guard.Run<ISceneLayer?>("scene layer factory", layer, EmptySceneLayer.Instance) ?? EmptySceneLayer.Instance,
+                _guard.Run<ISceneLayer?>("scene layer factory", layer, EmptySceneLayer.Instance)
+                ?? EmptySceneLayer.Instance,
                 _guard);
+
         return Own(_surface.AddLayer(filed, Build, name, enabled));
     }
 
@@ -261,7 +271,7 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
         new(band.TrackId, band.StartFrameIndex, band.EndFrameIndex, band.Label, band.Tooltip);
 
     private static List<SdkP.MenuEntry> Menu(IEnumerable<SdkP.MenuEntry> entries, ExtensionGuard guard) =>
-        [.. entries.Select(e => new SdkP.MenuEntry(e.Header, guard.Wrap("menu entry", e.Run)))];
+        [.. entries.Select(e => e with { Run = guard.Wrap("menu entry", e.Run) })];
 
     private static SdkP.PlaybackPointer Pointer(ScenePointer p)
     {
@@ -281,7 +291,8 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
             keys |= KeyModifiers.Alt;
         }
 
-        return new SdkP.PlaybackPointer(p.Level.Name, p.WorldX, p.WorldY, p.Screen.X, p.Screen.Y, keys, p.Frame.Time.Tick,
+        return new SdkP.PlaybackPointer(p.Level.Name, p.WorldX, p.WorldY, p.Screen.X, p.Screen.Y, keys,
+            p.Frame.Time.Tick,
             () => PlaceOnFloor(p.Zones(), p.Level, p.WorldX, p.WorldY), p.Frame);
     }
 
@@ -363,11 +374,12 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
 
     private sealed class LaneBehaviour(SdkP.ILaneBehaviour inner, ExtensionGuard guard) : IHostLaneBehaviour
     {
-        public void OnBandPressed(TimelineBandViewModel band, Core.ITimelineData data) =>
+        public void OnBandPressed(TimelineBandViewModel band) =>
             guard.Run("lane band press", () => inner.OnBandPressed(Band(band)));
 
-        public IEnumerable<SdkP.MenuEntry> MenuFor(TimelineBandViewModel band, Core.ITimelineData data) =>
-            Menu(guard.Run<IReadOnlyList<SdkP.MenuEntry>>("lane menu", () => [.. inner.MenuFor(Band(band))], []), guard);
+        public IEnumerable<SdkP.MenuEntry> MenuFor(TimelineBandViewModel band) =>
+            Menu(guard.Run<IReadOnlyList<SdkP.MenuEntry>>("lane menu", () => [.. inner.MenuFor(Band(band))], []),
+                guard);
 
         public void OnLabelRequested(int frame) => guard.Run("lane label", () => inner.OnLabelRequested(frame));
 
@@ -375,7 +387,8 @@ internal sealed class SdkPlaybackSurface : SdkP.IPlaybackSurface, IDisposable
             guard.Run("lane drag", () => inner.OnEditSpanDragged(startFrame, endFrame), FaultKind.Recurring);
     }
 
-    private sealed class LaneHandle(Core.ITimelineTrack track, CoreTrack core, IHostLaneHandle handle) : SdkP.ILaneHandle
+    private sealed class LaneHandle(Core.ITimelineTrack track, CoreTrack core, IHostLaneHandle handle)
+        : SdkP.ILaneHandle
     {
         public Core.ITimelineTrack Track => track;
 

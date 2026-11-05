@@ -21,15 +21,15 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class Cs2InstallRecoveryViewModelTests
 {
-    private static readonly Cs2InstallProbe Clean = new(false, false, false);
-    private static readonly Cs2InstallProbe Leftovers = new(true, false, false);
-    private static readonly Cs2InstallProbe SafeLeftovers = new(true, false, true);
-    private static readonly Cs2InstallProbe LeftoversCs2Open = new(true, true, false);
+    private static readonly Cs2InstallProbe _clean = new(false, false, false);
+    private static readonly Cs2InstallProbe _leftovers = new(true, false, false);
+    private static readonly Cs2InstallProbe _safeLeftovers = new(true, false, true);
+    private static readonly Cs2InstallProbe _leftoversCs2Open = new(true, true, false);
 
     [Test]
     public async Task CleanInstall_ShowsNothing()
     {
-        FakeLiveSync svc = new(Clean);
+        FakeLiveSync svc = new(_clean);
         Cs2InstallRecoveryViewModel vm = new(svc, () => false);
 
         await vm.CheckAsync();
@@ -41,7 +41,7 @@ public class Cs2InstallRecoveryViewModelTests
     [Test]
     public async Task UnprovenLeftovers_HoldTheBanner_WithNoWayToDismissIt()
     {
-        FakeLiveSync svc = new(Leftovers);
+        FakeLiveSync svc = new(_leftovers);
         Cs2InstallRecoveryViewModel vm = new(svc, () => false);
 
         await vm.CheckAsync();
@@ -59,7 +59,7 @@ public class Cs2InstallRecoveryViewModelTests
     [Test]
     public async Task ProvablySafeLeftovers_AreRestoredUnasked_AndReported()
     {
-        FakeLiveSync svc = new(SafeLeftovers);
+        FakeLiveSync svc = new(_safeLeftovers);
         Cs2InstallRecoveryViewModel vm = new(svc, () => false);
 
         await vm.CheckAsync();
@@ -76,10 +76,7 @@ public class Cs2InstallRecoveryViewModelTests
     [Test]
     public async Task FailedAutoRestore_FallsBackToTheBanner()
     {
-        FakeLiveSync svc = new(SafeLeftovers)
-        {
-            RestoreFailure = new IOException("in use")
-        };
+        FakeLiveSync svc = new(_safeLeftovers) { RestoreFailure = new IOException("in use") };
         Cs2InstallRecoveryViewModel vm = new(svc, () => false);
 
         await vm.CheckAsync();
@@ -92,7 +89,7 @@ public class Cs2InstallRecoveryViewModelTests
     [Test]
     public async Task RestoreCommand_Succeeds_AndSaysSo()
     {
-        FakeLiveSync svc = new(Leftovers);
+        FakeLiveSync svc = new(_leftovers);
         Cs2InstallRecoveryViewModel vm = new(svc, () => false);
         await vm.CheckAsync();
 
@@ -108,10 +105,7 @@ public class Cs2InstallRecoveryViewModelTests
     [Test]
     public async Task RestoreCommand_Fails_KeepsTheBanner_WithTheReasonAndSteamFallback()
     {
-        FakeLiveSync svc = new(Leftovers)
-        {
-            RestoreFailure = new FileNotFoundException("no backup")
-        };
+        FakeLiveSync svc = new(_leftovers) { RestoreFailure = new FileNotFoundException("no backup") };
         Cs2InstallRecoveryViewModel vm = new(svc, () => false);
         await vm.CheckAsync();
 
@@ -126,7 +120,7 @@ public class Cs2InstallRecoveryViewModelTests
     [Test]
     public async Task Cs2Running_AsksToCloseIt_AndRestoreWaitsForThat()
     {
-        FakeLiveSync svc = new(LeftoversCs2Open);
+        FakeLiveSync svc = new(_leftoversCs2Open);
         Cs2InstallRecoveryViewModel vm = new(svc, () => false);
         await vm.CheckAsync();
 
@@ -136,7 +130,7 @@ public class Cs2InstallRecoveryViewModelTests
         await Assert.That(svc.RestoreCalls).IsEqualTo(0);
         await Assert.That(vm.FailureText).IsEqualTo(Cs2InstallRecoveryViewModel.StillRunningText);
 
-        svc.Probe = Leftovers;
+        svc.Probe = _leftovers;
         await vm.RestoreCommand.ExecuteAsync(null);
         await Assert.That(svc.RestoreCalls).IsEqualTo(1);
         await Assert.That(vm.NeedsRestore).IsFalse();
@@ -147,7 +141,7 @@ public class Cs2InstallRecoveryViewModelTests
     [Test]
     public async Task LiveSyncSession_StandsTheBannerDown_ThenReprobesWhenItEnds()
     {
-        FakeLiveSync svc = new(Leftovers);
+        FakeLiveSync svc = new(_leftovers);
         Cs2InstallRecoveryViewModel vm = new(svc, () => svc.State.Kind != LiveSyncStateKind.Disconnected);
         await vm.CheckAsync();
         await Assert.That(vm.NeedsRestore).IsTrue();
@@ -158,13 +152,13 @@ public class Cs2InstallRecoveryViewModelTests
         await vm.CheckAsync();
         await Assert.That(svc.ProbeCalls).IsEqualTo(probesDuringSession).Because("no probe while CS2 is owned");
 
-        svc.Probe = Clean;
+        svc.Probe = _clean;
         svc.Raise(LiveSyncState.Disconnected);
         await Assert.That(svc.ProbeCalls).IsEqualTo(probesDuringSession + 1);
         await Assert.That(vm.IsVisible).IsFalse();
 
         svc.Raise(new LiveSyncState(LiveSyncStateKind.LaunchingCs2));
-        svc.Probe = Leftovers;
+        svc.Probe = _leftovers;
         svc.Raise(LiveSyncState.Disconnected);
         await Assert.That(vm.NeedsRestore).IsTrue().Because("a session that ended dirty surfaces at once");
     }
@@ -173,14 +167,14 @@ public class Cs2InstallRecoveryViewModelTests
     [Test]
     public async Task ReelJob_LeftoversSurfaceWhenTheReelFinishes()
     {
-        FakeLiveSync svc = new(Clean);
+        FakeLiveSync svc = new(_clean);
         bool reelRunning = false;
         Cs2InstallRecoveryViewModel vm = new(svc, () => reelRunning);
         await vm.CheckAsync();
 
         reelRunning = true;
         vm.Reevaluate();
-        svc.Probe = Leftovers;
+        svc.Probe = _leftovers;
         vm.Reevaluate();
         await Assert.That(vm.IsVisible).IsFalse();
 
@@ -194,7 +188,7 @@ public class Cs2InstallRecoveryViewModelTests
     [Test]
     public async Task ChipOffer_MirrorsTheBanner()
     {
-        FakeLiveSync svc = new(Leftovers);
+        FakeLiveSync svc = new(_leftovers);
         Cs2InstallRecoveryViewModel recovery = new(svc, () => false);
         await recovery.CheckAsync();
         using LiveSyncStatusViewModel chip = new(svc, null, new PlaybackController(), () => { },
@@ -214,7 +208,7 @@ public class Cs2InstallRecoveryViewModelTests
     internal sealed class FakeLiveSync(Cs2InstallProbe probe) : ILiveSyncService
     {
         public Cs2InstallProbe Probe { get; set; } = probe;
-        public Exception? RestoreFailure { get; set; }
+        public Exception? RestoreFailure { get; init; }
         public int ProbeCalls { get; private set; }
         public int RestoreCalls { get; private set; }
 
@@ -249,7 +243,7 @@ public class Cs2InstallRecoveryViewModelTests
                 return Task.FromException(failure);
             }
 
-            Probe = Clean;
+            Probe = _clean;
             return Task.CompletedTask;
         }
 

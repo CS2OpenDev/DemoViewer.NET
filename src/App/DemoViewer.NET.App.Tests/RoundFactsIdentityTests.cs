@@ -4,9 +4,7 @@ using CS2DemoKit.Analysis.RulesetsV2.Compile;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.Yaml;
 using DemoViewer.NET.Modules.Highlights;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 
@@ -38,8 +36,10 @@ public class RoundFactsIdentityTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(Convert.ToInt32(EngineRoundFactsRowSource.ParametersOf(afterDoc)["eco_max_per_player"], System.Globalization.CultureInfo.InvariantCulture)).IsEqualTo(1500);
-                await Assert.That(new RulesRoundFactsRulesetIdentity(after).Fingerprint(64))
+                await Assert
+                    .That(Convert.ToInt32(EngineRoundFactsRowSource.ParametersOf(afterDoc)["eco_max_per_player"],
+                        System.Globalization.CultureInfo.InvariantCulture)).IsEqualTo(1500);
+                await Assert.That<string?>(new RulesRoundFactsRulesetIdentity(after).Fingerprint(64))
                     .IsNotEqualTo(new RulesRoundFactsRulesetIdentity(before).Fingerprint(64));
                 await Assert.That(new RulesRoundFactsRulesetIdentity(before).Fingerprint(64)).IsNotNull();
                 await Assert.That(Old(afterDoc)).IsEqualTo(Old(beforeDoc));

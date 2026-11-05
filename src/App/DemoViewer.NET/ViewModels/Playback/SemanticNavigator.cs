@@ -52,7 +52,8 @@ public sealed class SemanticNavigator
     ///     it occurs. This is the demo-derived event set: the same data <c>GameEventFilters</c> is
     ///     populated from. Empty until <see cref="Build" /> runs.
     /// </summary>
-    public IReadOnlyDictionary<string, int[]> EventBoundaryFramesByName { get; private set; } = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, int[]> EventBoundaryFramesByName { get; private set; } =
+        new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     ///     First frame index of each distinct <see cref="DemoFrame.ServerTick" />. Sorted ascending.
@@ -68,7 +69,7 @@ public sealed class SemanticNavigator
     /// </summary>
     public void Build(IReadOnlyList<DemoFrame> frames)
     {
-        List<int> roundFrames = new();
+        List<int> roundFrames = [];
         Dictionary<string, List<int>> eventFrames = new(StringComparer.OrdinalIgnoreCase);
 
         // Tick boundaries are a parser-tier fact (TickMapper consumes the same array): one shared
@@ -95,7 +96,7 @@ public sealed class SemanticNavigator
 
                 if (!eventFrames.TryGetValue(name, out List<int>? list))
                 {
-                    eventFrames[name] = list = new List<int>();
+                    eventFrames[name] = list = [];
                 }
 
                 // De-dupe within a frame: only append when this frame index isn't already the tail.
@@ -112,7 +113,7 @@ public sealed class SemanticNavigator
             }
         }
 
-        _roundBoundaryFrames = roundFrames.ToArray();
+        _roundBoundaryFrames = [.. roundFrames];
         _tickBoundaryFrames = tickFrames;
         EventBoundaryFramesByName = eventFrames.ToDictionary(
             kv => kv.Key,

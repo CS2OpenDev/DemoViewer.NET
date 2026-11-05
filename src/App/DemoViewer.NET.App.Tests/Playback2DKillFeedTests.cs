@@ -236,18 +236,8 @@ public class Playback2DKillFeedTests
 
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = DeathCtx(kills);
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 1,
-            Name = "Smith",
-            SteamId = 2
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 1, Name = "Smith", SteamId = 2 });
         ctx.Timelines["player_team"].Add(TeamSwap(Swap, 0, 3, 2));
         ctx.Timelines["player_team"].Add(TeamSwap(Swap, 1, 2, 3));
         vm.OnActivated(ctx);
@@ -284,12 +274,7 @@ public class Playback2DKillFeedTests
         {
             Name = "player_team",
             Tick = tick,
-            Fields = new Dictionary<string, object?>
-            {
-                ["UserId"] = slot,
-                ["Team"] = team,
-                ["OldTeam"] = oldTeam
-            }
+            Fields = new Dictionary<string, object?> { ["UserId"] = slot, ["Team"] = team, ["OldTeam"] = oldTeam }
         };
 
     // Empty player_team timeline by default: sides cannot be resolved, so every kill carries side 0.
@@ -305,18 +290,8 @@ public class Playback2DKillFeedTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = DeathCtx(timeline);
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 1,
-            Name = "Smith",
-            SteamId = 2
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 1, Name = "Smith", SteamId = 2 });
         vm.OnActivated(ctx);
         return (vm, ctx);
     }

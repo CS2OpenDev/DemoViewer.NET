@@ -5,11 +5,8 @@ using CS2DemoKit.Parser;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
-using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -85,7 +82,8 @@ public class ForwardQueueTests
             return Pass();
         });
         bool delivered = false;
-        IDemoQueueHandle forward = queue.SubmitBackground(Forward("a.dem", "roundfacts", ForwardNeeds.Rules, _ => delivered = true));
+        IDemoQueueHandle forward =
+            queue.SubmitBackground(Forward("a.dem", "roundfacts", ForwardNeeds.Rules, _ => delivered = true));
         firstStarted.Wait(TimeSpan.FromSeconds(5));
         queue.SubmitJob(new QueueJobRequest(QueueJobKind.PackExport, "user", "test", DemoJobPriority.UserRequested, _ =>
         {
@@ -125,9 +123,10 @@ public class ForwardQueueTests
         queue.Pause();
         coordinator.DemoChanged("a.dem");
         queue.Resume();
-        await WaitForAsync(() => facts.Forward + highlights.Forward + library.Forward == 3, "all three owners");
+        await WaitForAsync(() => facts.Forwarded + highlights.Forwarded + library.Forwarded == 3, "all three owners");
         // The owners run before the entry is marked finished, on the worker.
-        await WaitForAsync(() => queue.Snapshot().Single().State == DemoQueueItemState.Completed, "the entry to finish");
+        await WaitForAsync(() => queue.Snapshot().Single().State == DemoQueueItemState.Completed,
+            "the entry to finish");
 
         using (Assert.Multiple())
         {
@@ -166,7 +165,7 @@ public class ForwardQueueTests
         {
             await Assert.That(parses).IsEqualTo(1);
             await Assert.That(passes).IsEqualTo(0);
-            await Assert.That(facts.Forward).IsEqualTo(0);
+            await Assert.That(facts.Forwarded).IsEqualTo(0);
         }
     }
 
@@ -185,7 +184,8 @@ public class ForwardQueueTests
             return SyntheticParsedDemo.Create();
         });
 
-        IDemoQueueHandle running = queue.SubmitBackground(Forward("a.dem", "library", ForwardNeeds.FinalState | ForwardNeeds.Rules));
+        IDemoQueueHandle running =
+            queue.SubmitBackground(Forward("a.dem", "library", ForwardNeeds.FinalState | ForwardNeeds.Rules));
         await WaitForAsync(() => queue.RunningCount == 1, "forward running");
 
         IDemoQueueHandle covered = queue.SubmitBackground(Forward("a.dem", "roundfacts", ForwardNeeds.Rules));
@@ -204,11 +204,12 @@ public class ForwardQueueTests
     private static ForwardDemoResult UntilCancelled(ManualResetEventSlim started, CancellationToken token)
     {
         started.Set();
-        while (true)
+        while (!token.IsCancellationRequested)
         {
-            token.ThrowIfCancellationRequested();
             Thread.Sleep(2);
         }
+
+        throw new OperationCanceledException(token);
     }
 
     [Test]
@@ -233,19 +234,23 @@ public class ForwardQueueTests
         // a.dem first: the first running background item is what a lane-wide stop would pick.
         IDemoQueueHandle a = queue.SubmitBackground(Forward("a.dem", "library", ForwardNeeds.Rules));
         IDemoQueueHandle b = queue.SubmitBackground(Forward("b.dem", "library", ForwardNeeds.Rules));
-        await WaitForAsync(() => aStarted.IsSet && bStarted.IsSet && queue.RunningCount == 2, "both reads running", 10000);
+        await WaitForAsync(() => aStarted.IsSet && bStarted.IsSet && queue.RunningCount == 2, "both reads running",
+            10000);
 
         using IDemoOpenTicket open = queue.BeginOpen("b.dem", "b.dem");
-        await WaitForAsync(() => queue.Snapshot().Any(s => s.Id == b.Id && s.State == DemoQueueItemState.Queued), "b.dem's read to stop");
+        await WaitForAsync(() => queue.Snapshot().Any(s => s.Id == b.Id && s.State == DemoQueueItemState.Queued),
+            "b.dem's read to stop");
 
         using (Assert.Multiple())
         {
             await Assert.That(Volatile.Read(ref bStopped)).IsEqualTo(1);
-            await Assert.That(queue.Snapshot().Single(s => s.Id == b.Id).Detail).IsEqualTo("Runs on the open of this demo");
+            await Assert.That(queue.Snapshot().Single(s => s.Id == b.Id).Detail)
+                .IsEqualTo("Runs on the open of this demo");
             await Assert.That(queue.Snapshot().Single(s => s.Id == a.Id).State).IsEqualTo(DemoQueueItemState.Running)
                 .Because("another demo's read is not in the open's way");
             await Assert.That(Volatile.Read(ref aCalls)).IsEqualTo(1);
-            await Assert.That(Volatile.Read(ref bCalls)).IsEqualTo(1).Because("the stopped read waits for the open, it does not read again");
+            await Assert.That(Volatile.Read(ref bCalls)).IsEqualTo(1)
+                .Because("the stopped read waits for the open, it does not read again");
         }
     }
 
@@ -273,7 +278,8 @@ public class ForwardQueueTests
         List<string> ran = [];
         int forwarded = 0, failed = 0;
 
-        DemoProcessingRequest Owner(string owner, ForwardNeeds? needs) => new("a.dem", owner, DemoJobPriority.Background, 1,
+        DemoProcessingRequest Owner(string owner, ForwardNeeds? needs) => new("a.dem", owner,
+            DemoJobPriority.Background, 1,
             _ =>
             {
                 lock (ran)
@@ -282,11 +288,13 @@ public class ForwardQueueTests
                 }
             }, _ => failed++, "a.dem", false, needs is null ? null : _ => forwarded++, needs ?? ForwardNeeds.None);
 
-        IDemoQueueHandle library = queue.SubmitBackground(Owner("library", ForwardNeeds.FinalState | ForwardNeeds.Rules));
+        IDemoQueueHandle library =
+            queue.SubmitBackground(Owner("library", ForwardNeeds.FinalState | ForwardNeeds.Rules));
         queue.SubmitBackground(Owner("roundfacts", ForwardNeeds.Rules));
         started.Wait(TimeSpan.FromSeconds(5));
         // Queued behind, newer: before the fold it would have waited for a.dem's parse to finish.
-        queue.SubmitBackground(new DemoProcessingRequest("b.dem", "roundindex", DemoJobPriority.Background, 99, _ => { },
+        queue.SubmitBackground(new DemoProcessingRequest("b.dem", "roundindex", DemoJobPriority.Background, 99,
+            _ => { },
             NeedsUserCommands: false));
         IDemoQueueHandle index = queue.SubmitBackground(Owner("roundindex", null));
         await queue.IdleAsync("both demos", () => ran.Count == 3 && parses.Count == 2);
@@ -294,7 +302,8 @@ public class ForwardQueueTests
         using (Assert.Multiple())
         {
             await Assert.That(ran).IsEquivalentTo(["library", "roundfacts", "roundindex"], CollectionOrdering.Matching);
-            await Assert.That(parses).IsEquivalentTo(["a.dem", "b.dem"], CollectionOrdering.Matching).Because("a.dem is parsed once, and first");
+            await Assert.That(parses).IsEquivalentTo(["a.dem", "b.dem"], CollectionOrdering.Matching)
+                .Because("a.dem is parsed once, and first");
             await Assert.That(parses[0]).IsEqualTo("a.dem");
             await Assert.That(forwarded).IsEqualTo(0);
             await Assert.That(failed).IsEqualTo(0);
@@ -328,7 +337,9 @@ public class ForwardQueueTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(passes).IsEquivalentTo([ForwardNeeds.FinalState, ForwardNeeds.FinalState | ForwardNeeds.Rules], CollectionOrdering.Matching);
+            await Assert.That(passes)
+                .IsEquivalentTo([ForwardNeeds.FinalState, ForwardNeeds.FinalState | ForwardNeeds.Rules],
+                    CollectionOrdering.Matching);
             await Assert.That(facts).IsEqualTo(1);
             await Assert.That(library).IsEqualTo(1);
         }
@@ -372,11 +383,12 @@ public class ForwardQueueTests
         using DemoProcessingQueue queue = Queue((_, _, progress, token) =>
         {
             progress(0.1);
-            while (true)
+            while (!token.IsCancellationRequested)
             {
-                token.ThrowIfCancellationRequested();
                 Thread.Sleep(2);
             }
+
+            throw new OperationCanceledException(token);
         });
         int forwarded = 0, failed = 0;
         IDemoQueueHandle handle = queue.SubmitBackground(Forward("a.dem", "library", ForwardNeeds.Rules,
@@ -406,7 +418,8 @@ public class ForwardQueueTests
     {
         using DemoProcessingQueue queue = Queue((_, _, _, _) => throw new InvalidDataException("not a demo"));
         int failed = 0;
-        IDemoQueueHandle handle = queue.SubmitBackground(Forward("a.dem", "library", ForwardNeeds.Rules, onFailed: _ => failed++));
+        IDemoQueueHandle handle =
+            queue.SubmitBackground(Forward("a.dem", "library", ForwardNeeds.Rules, onFailed: _ => failed++));
         await handle.Completion;
 
         await Assert.That(handle.State).IsEqualTo(DemoQueueItemState.Failed);
@@ -432,9 +445,9 @@ public class ForwardQueueTests
     [Test]
     public async Task NewRoundFactsFingerprint_ReEvaluatesEveryDemoOnce_ForwardAtBackgroundPriority_ThroughTheCap()
     {
-        const int demos = 7;
+        const int Demos = 7;
         DemoCacheStore store = new(null);
-        for (int i = 0; i < demos; i++)
+        for (int i = 0; i < Demos; i++)
         {
             DemoCacheRecord record = new()
             {
@@ -467,7 +480,11 @@ public class ForwardQueueTests
         queueRef = queue;
         queue.MaxQueueSize = 3;
         queue.Changed += () => maxQueued = Math.Max(maxQueued,
-            queue.Snapshot().Count(s => s.Kind == QueueJobKind.DemoProcessing && s.State is DemoQueueItemState.Queued or DemoQueueItemState.Running));
+            queue.Snapshot().Count(s =>
+                s is
+                {
+                    Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Queued or DemoQueueItemState.Running
+                }));
 
         RoundFactsEvaluator facts = new(store, new NoRows(), new Identity("after-merge"));
         using HighlightScanService highlights = new(store, new Harvester("fp"), () => [], () => true);
@@ -480,7 +497,7 @@ public class ForwardQueueTests
         using DemoScheduler coordinator = new(() => scheduled, queue,
             () => [.. highlights.PendingPaths().Concat(facts.PendingPaths()).Distinct()]);
 
-        await Assert.That(facts.PendingPaths().Count).IsEqualTo(demos);
+        await Assert.That(facts.PendingPaths().Count).IsEqualTo(Demos);
         await Assert.That(highlights.PendingPaths()).IsEmpty().Because("the highlight fingerprint did not move");
 
         coordinator.RecheckAll();
@@ -488,9 +505,12 @@ public class ForwardQueueTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(passes.Order()).IsEquivalentTo(Enumerable.Range(0, demos).Select(i => $"/d/{i}.dem"), CollectionOrdering.Matching);
-            await Assert.That(priorities.Distinct()).IsEquivalentTo([DemoJobPriority.Background], CollectionOrdering.Matching);
-            await Assert.That(maxQueued).IsLessThanOrEqualTo(3).Because("the backlog feeds the cap, it is not submitted at once");
+            await Assert.That(passes.Order()).IsEquivalentTo(Enumerable.Range(0, Demos).Select(i => $"/d/{i}.dem"),
+                CollectionOrdering.Matching);
+            await Assert.That(priorities.Distinct())
+                .IsEquivalentTo([DemoJobPriority.Background], CollectionOrdering.Matching);
+            await Assert.That(maxQueued).IsLessThanOrEqualTo(3)
+                .Because("the backlog feeds the cap, it is not submitted at once");
         }
     }
 
@@ -513,7 +533,7 @@ public class ForwardQueueTests
 
         List<(string Path, DemoJobPriority Priority, string Owners)> seen = [];
         DemoProcessingQueue? queueRef = null;
-        using DemoProcessingQueue queue = Queue((path, needs, _, _) =>
+        using DemoProcessingQueue queue = Queue((path, _, _, _) =>
         {
             lock (seen)
             {
@@ -538,15 +558,18 @@ public class ForwardQueueTests
         using (Assert.Multiple())
         {
             await Assert.That(seen.Select(s => s.Path).Distinct().Count()).IsEqualTo(3);
-            await Assert.That(seen.Count).IsEqualTo(3).Because("a demo whose run had no rows is not visited again this session");
-            await Assert.That(seen.Select(s => s.Priority).Distinct()).IsEquivalentTo([DemoJobPriority.Background], CollectionOrdering.Matching);
-            await Assert.That(seen.Select(s => s.Owners).Distinct()).IsEquivalentTo([RoundFactsEvaluator.EvaluatorId], CollectionOrdering.Matching);
+            await Assert.That(seen.Count).IsEqualTo(3)
+                .Because("a demo whose run had no rows is not visited again this session");
+            await Assert.That(seen.Select(s => s.Priority).Distinct())
+                .IsEquivalentTo([DemoJobPriority.Background], CollectionOrdering.Matching);
+            await Assert.That(seen.Select(s => s.Owners).Distinct())
+                .IsEquivalentTo([RoundFactsEvaluator.EvaluatorId], CollectionOrdering.Matching);
         }
     }
 
     private sealed class Evaluator(string id, ForwardNeeds? forward) : IDemoEvaluator
     {
-        public int Forward;
+        public int Forwarded;
         public int Retained;
         public HashSet<string> Wanted { get; } = [];
         public string Id => id;
@@ -554,7 +577,7 @@ public class ForwardQueueTests
         public bool Wants(string path) => Wanted.Contains(path);
         public ForwardNeeds? ForwardFor(string path) => forward;
         public void Evaluate(string path, ParsedDemo parsed) => Interlocked.Increment(ref Retained);
-        public void EvaluateForward(string path, ForwardDemoResult pass) => Interlocked.Increment(ref Forward);
+        public void EvaluateForward(string path, ForwardDemoResult pass) => Interlocked.Increment(ref Forwarded);
     }
 
     private sealed class NoRows : IRoundFactsRowSource
@@ -564,7 +587,7 @@ public class ForwardQueueTests
 
     private sealed class Identity(string fingerprint) : IRoundFactsRulesetIdentity
     {
-        public string? Fingerprint(int tickRate) => fingerprint;
+        public string Fingerprint(int tickRate) => fingerprint;
     }
 
     private sealed class Harvester(string fingerprint) : IHighlightHarvester
@@ -573,9 +596,5 @@ public class ForwardQueueTests
             ($"{fingerprint}@{tickRate}", new Dictionary<string, string>());
 
         public AnalysisRun RunBareAnalysis(ParsedDemo demo) => throw new NotSupportedException();
-
-        public void InvalidateRules()
-        {
-        }
     }
 }

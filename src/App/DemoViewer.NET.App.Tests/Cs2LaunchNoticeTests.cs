@@ -20,10 +20,7 @@ public class Cs2LaunchNoticeTests
     [Arguments("\t")]
     public async Task BlankMockPath_IsNotAcknowledged(string? path)
     {
-        LiveSyncSettings settings = new()
-        {
-            ExternalMockServerPath = path
-        };
+        LiveSyncSettings settings = new() { ExternalMockServerPath = path };
 
         await Assert.That(settings.UsesMock()).IsFalse();
         await Assert.That(Cs2LaunchNotice.IsAcknowledged(settings)).IsFalse();
@@ -36,13 +33,8 @@ public class Cs2LaunchNoticeTests
         {
             ExternalMockServerPath = "C:\\mock\\mock_server.exe"
         })).IsTrue();
-        await Assert.That(Cs2LaunchNotice.IsAcknowledged(new LiveSyncSettings
-        {
-            MockMode = true
-        })).IsTrue();
-        await Assert.That(Cs2LaunchNotice.IsAcknowledged(new LiveSyncSettings
-        {
-            LaunchNoticeAcknowledged = true
-        })).IsTrue();
+        await Assert.That(Cs2LaunchNotice.IsAcknowledged(new LiveSyncSettings { MockMode = true })).IsTrue();
+        await Assert.That(Cs2LaunchNotice.IsAcknowledged(new LiveSyncSettings { LaunchNoticeAcknowledged = true }))
+            .IsTrue();
     }
 }

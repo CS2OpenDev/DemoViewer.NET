@@ -23,6 +23,7 @@ namespace DemoViewer.NET.Playback2D;
 /// <param name="DefuseTime"><see cref="DefuseSeconds" /> formatted m:ss, or "—".</param>
 /// <param name="TScore">T-side score (<c>CCSTeam.m_iScore</c> where <c>m_iTeamNum</c> is 2).</param>
 /// <param name="CtScore">CT-side score (<c>m_iTeamNum</c> 3).</param>
+[PublicAPI]
 public readonly record struct SceneGameInfo(
     string Phase,
     string BombState,

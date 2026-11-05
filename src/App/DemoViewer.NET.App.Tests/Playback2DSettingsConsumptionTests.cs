@@ -52,7 +52,8 @@ public class Playback2DSettingsConsumptionTests
     ///     Keys knowingly missing a reader or a writer. The reason is the entry. Empty: every key in the
     ///     section is both read and written in production.
     /// </summary>
-    private static readonly Dictionary<string, string> _unconsumedByDesign = new(StringComparer.Ordinal);
+    private static readonly IReadOnlyDictionary<string, string> _unconsumedByDesign =
+        new Dictionary<string, string>(StringComparer.Ordinal);
 
     /// <summary>
     ///     Registry keys that the class does not carry. The reason is the entry.
@@ -83,16 +84,18 @@ public class Playback2DSettingsConsumptionTests
         await Assert.That(keys.Count).IsGreaterThan(30)
             .Because("the section carries the registry's full key set, not a stub");
 
-        List<string> unconsumed = keys
-            .Where(k => !k.IsConsumed && !_unconsumedByDesign.ContainsKey(k.Name))
-            .Select(k => k.Describe())
-            .OrderBy(s => s, StringComparer.Ordinal)
-            .ToList();
+        List<string> unconsumed =
+        [
+            .. keys
+                .Where(k => !k.IsConsumed && !_unconsumedByDesign.ContainsKey(k.Name))
+                .Select(k => k.Describe())
+                .OrderBy(s => s, StringComparer.Ordinal)
+        ];
 
         await Assert.That(string.Join("; ", unconsumed)).IsEqualTo("")
             .Because("a key with no writer is a preference the user cannot express, and one with no "
-                     + "reader is a preference the app does not honour — neither is visible to a "
-                     + "round-trip test, which only proves the value can travel");
+                + "reader is a preference the app does not honour — neither is visible to a "
+                + "round-trip test, which only proves the value can travel");
     }
 
     /// <summary>
@@ -109,19 +112,21 @@ public class Playback2DSettingsConsumptionTests
             .ToHashSet(StringComparer.Ordinal);
 
         Console.WriteLine($"[settings-registry] the registry names {registry.Count} keys; the class declares "
-                          + $"{declared.Count}");
+            + $"{declared.Count}");
 
         await Assert.That(registry.Count).IsGreaterThan(20)
             .Because("a parse that found a handful of keys has found the wrong block, and would pass "
-                     + "whatever the class contains");
+                + "whatever the class contains");
 
-        List<string> missing = registry
-            .Where(k => !declared.Contains(k) && !_registryKeysNotYetBuilt.ContainsKey(k))
-            .ToList();
+        List<string> missing =
+        [
+            .. registry
+                .Where(k => !declared.Contains(k) && !_registryKeysNotYetBuilt.ContainsKey(k))
+        ];
 
         await Assert.That(string.Join(", ", missing)).IsEqualTo("")
             .Because("the registry is the persisted-key contract; a key it pins and the class lacks is a "
-                     + "setting the docs and the reader believe exists");
+                + "setting the docs and the reader believe exists");
     }
 
     /// <summary>The allow-lists must be load-bearing, and each entry must say why.</summary>
@@ -190,22 +195,21 @@ public class Playback2DSettingsConsumptionTests
     private static List<SettingConsumption> Analyse(
         Type settings, IEnumerable<SysAssembly> scope, Func<string, bool> isPlumbing)
     {
-        PropertyInfo[] properties = settings
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Where(p => p.CanRead && p.CanWrite)
-            .ToArray();
+        PropertyInfo[] properties =
+        [
+            .. settings
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                .Where(p => p is { CanRead: true, CanWrite: true })
+        ];
 
         HashSet<string> accessors = properties
-            .SelectMany(p => new[]
-            {
-                "get_" + p.Name, "set_" + p.Name
-            })
+            .SelectMany(p => new[] { "get_" + p.Name, "set_" + p.Name })
             .ToHashSet(StringComparer.Ordinal);
 
         string owner = settings.FullName!;
         List<IlSite> sites = Playback2DWholeGraph.Scan(scope,
             (type, member) => string.Equals(type, owner, StringComparison.Ordinal)
-                              && accessors.Contains(member));
+                && accessors.Contains(member));
 
         List<SettingConsumption> result = [];
         foreach (PropertyInfo property in properties)
@@ -285,6 +289,7 @@ public class Playback2DSettingsConsumptionTests
 ///     The canary for
 ///     <see cref="Playback2DSettingsConsumptionTests.TheScan_SeparatesAReadOnlyKeyFromAWriteOnlyKeyFromAWiredOne" />.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class SettingsGuardCanary
 {
     /// <summary>Both halves: the shape a healthy key has.</summary>
@@ -298,6 +303,7 @@ internal sealed class SettingsGuardCanary
 }
 
 /// <summary>Gives <see cref="SettingsGuardCanary" /> its three different wirings.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal static class SettingsGuardCanaryConsumer
 {
     public static int Use(SettingsGuardCanary canary)

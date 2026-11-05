@@ -74,7 +74,7 @@ public sealed partial class AnalysisViewModel
     ///     event with <c>frame.ServerTick</c>), so there is no <c>ServerStartTick</c> subtraction
     ///     (the <c>FrameIndexOfMessage</c> seam). Null when no message is positioned.
     /// </summary>
-    internal int? CurrentFrameClockTick => ResolveFrameClockTick(_messageList, CurrentMessageIndex);
+    private int? CurrentFrameClockTick => ResolveFrameClockTick(_messageList, CurrentMessageIndex);
 
     /// <summary>
     ///     The exact raw in-demo name to spectate, or null when no single player is attributed. On the
@@ -147,7 +147,7 @@ public sealed partial class AnalysisViewModel
     {
         IReadOnlyList<int>? fires = TriggerFireMessagesFor(target);
         if (fires is { Count: > 0 } && NearestFireMessageIndex(fires, CurrentMessageIndex) is { } fireMsg
-                                    && ResolveFrameClockTick(_messageList, fireMsg) is { } fireTick)
+            && ResolveFrameClockTick(_messageList, fireMsg) is { } fireTick)
         {
             return fireTick;
         }

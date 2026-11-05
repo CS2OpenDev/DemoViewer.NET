@@ -18,6 +18,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Theming;
 ///         running application (a unit test), yields the supplied fallback, so a surface always renders.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public static class ThemeColors
 {
     /// <summary>

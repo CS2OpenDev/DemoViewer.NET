@@ -258,7 +258,8 @@ public static class TagQuery
         return found;
     }
 
-    private static IEnumerable<(TagDocument Document, TagInstance Instance)> Matching(IEnumerable<TagDocument> docs, TagSlice slice)
+    private static IEnumerable<(TagDocument Document, TagInstance Instance)> Matching(IEnumerable<TagDocument> docs,
+        TagSlice slice)
     {
         foreach (TagDocument document in docs)
         {
@@ -302,7 +303,8 @@ public static class TagQuery
         foreach (LabelPredicate predicate in slice.Where)
         {
             if (!LabelsIn(instance, predicate.Namespace).Any(l =>
-                    string.Equals(l.Group, predicate.Group, StringComparison.Ordinal) && predicate.Values.Contains(l.Value)))
+                    string.Equals(l.Group, predicate.Group, StringComparison.Ordinal)
+                    && predicate.Values.Contains(l.Value)))
             {
                 return false;
             }
@@ -343,21 +345,22 @@ public static class TagQuery
         _ => instance.Labels.Concat(instance.Facts)
     };
 
-    private static IReadOnlyList<string> KeysOf(PivotAxis axis, TagDocument document, TagInstance instance) => axis switch
-    {
-        PivotAxis.Code => [instance.Code],
-        PivotAxis.Demo => [document.Demo.Sha256],
-        PivotAxis.Round => instance.Round is { } round ? [round.ToString(CultureInfo.InvariantCulture)] : [],
-        // Distinct so a value the instance repeats (or that both namespaces carry, under Any) counts once.
-        PivotAxis.Label label =>
-        [
-            .. LabelsIn(instance, label.Namespace)
-                .Where(l => string.Equals(l.Group, label.Group, StringComparison.Ordinal))
-                .Select(l => l.Value)
-                .Distinct(StringComparer.Ordinal)
-        ],
-        _ => []
-    };
+    private static IReadOnlyList<string> KeysOf(PivotAxis axis, TagDocument document, TagInstance instance) =>
+        axis switch
+        {
+            PivotAxis.Code => [instance.Code],
+            PivotAxis.Demo => [document.Demo.Sha256],
+            PivotAxis.Round => instance.Round is { } round ? [round.ToString(CultureInfo.InvariantCulture)] : [],
+            // Distinct so a value the instance repeats (or that both namespaces carry, under Any) counts once.
+            PivotAxis.Label label =>
+            [
+                .. LabelsIn(instance, label.Namespace)
+                    .Where(l => string.Equals(l.Group, label.Group, StringComparison.Ordinal))
+                    .Select(l => l.Value)
+                    .Distinct(StringComparer.Ordinal)
+            ],
+            _ => []
+        };
 
     private static TagInstanceRef RefOf(TagDocument document, TagInstance instance) =>
         new(document.Demo.Sha256, instance.Id, instance.Code, instance.FromTick, instance.ToTick, instance.Round);

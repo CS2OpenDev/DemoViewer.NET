@@ -1,20 +1,16 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook;
 using System.Text.Json;
 using CS2DemoKit.Analysis;
-using CS2DemoKit.Analysis.Abstractions;
-using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Analysis.Graphs;
 using CS2DemoKit.Analysis.Yaml;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
@@ -33,14 +29,16 @@ namespace DemoViewer.NET.AppTests;
 [Category("RealDemo")]
 public class BackgroundPlanRealDemoTests
 {
-    private static readonly JsonSerializerOptions Json = new() { WriteIndented = false, IncludeFields = true };
+    private static readonly JsonSerializerOptions _json = new() { WriteIndented = false, IncludeFields = true };
 
     internal static string SmallestDemo(int which)
     {
-        List<FileInfo> demos = [.. DemoTestHelper.RequireReplayDemos().Select(f => new FileInfo(f)).OrderBy(f => f.Length)];
+        List<FileInfo> demos =
+            [.. DemoTestHelper.RequireReplayDemos().Select(f => new FileInfo(f)).OrderBy(f => f.Length)];
         return which < demos.Count
             ? demos[which].FullName
-            : throw new SkipTestException($"fewer than {which + 1} demos in the {DemoTestHelper.DemoPathEnvVar} folder");
+            : throw new SkipTestException(
+                $"fewer than {which + 1} demos in the {DemoTestHelper.DemoPathEnvVar} folder");
     }
 
     internal static ParsedDemo ParseMapped(string path, DecodePlan plan) =>
@@ -72,7 +70,8 @@ public class BackgroundPlanRealDemoTests
             }
         }
 
-        Console.WriteLine($"{Path.GetFileName(path)}: " + string.Join(", ", full.Select(kv => $"{kv.Key} {kv.Value.Length}")));
+        Console.WriteLine($"{Path.GetFileName(path)}: "
+            + string.Join(", ", full.Select(kv => $"{kv.Key} {kv.Value.Length}")));
     }
 
     // One parse per call; the parse is dropped before the next plan runs.
@@ -93,29 +92,36 @@ public class BackgroundPlanRealDemoTests
 
         new RoundFactsEvaluator(cache, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity())
             .Evaluate(path, parsed);
-        outputs["round facts"] = JsonSerializer.Serialize(cache.TryLoadRecord(path)?.RoundFacts, Json);
+        outputs["round facts"] = JsonSerializer.Serialize(cache.TryLoadRecord(path)?.RoundFacts, _json);
 
         RoundIndexStore index = new(cache.Data());
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
         new RoundIndexEvaluator(cache.Library(), cache.RoundFacts(), index, sources, () => true).Evaluate(path, parsed);
         outputs["round index"] = index.TryReadText(path) ?? "null";
-        outputs["round positions"] = JsonSerializer.Serialize(index.TryReadPositions(path), Json);
+        outputs["round positions"] = JsonSerializer.Serialize(index.TryReadPositions(path), _json);
 
         ProposalStore proposals = new(cache.Data());
         SuggestedTagsService tags = new(cache.Library(), cache.RoundFacts(), proposals, null, new SiteRegionStore(null),
             () => DetectorProfile.Default, () => true, () => true, index, sources);
         tags.Evaluate(path, parsed);
         outputs["suggested tags"] = JsonSerializer.Serialize(
-            tags.Load(path).Entries.Select(e => e.Proposal).ToList(), Json);
+            tags.Load(path).Entries.Select(e => e.Proposal).ToList(), _json);
 
-        RuleConfigLoadResult rules = YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null);
-        BuildResult build = DemoAnalysis.Build(parsed, [.. rules.Rulesets.Where(r => r.Id != RoundFactsFingerprint.RulesetId)]);
+        RuleConfigLoadResult rules =
+            YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null);
+        BuildResult build = DemoAnalysis.Build(parsed,
+            [.. rules.Rulesets.Where(r => r.Id != RoundFactsFingerprint.RulesetId)]);
         AnalysisRun run = DemoAnalysis.Evaluate(parsed, build, new AnalysisOptions { CaptureSnapshots = false });
-        outputs["highlights"] = JsonSerializer.Serialize(run.Highlights, Json);
+        outputs["highlights"] = JsonSerializer.Serialize(run.Highlights, _json);
 
-        List<string> players = [.. parsed.Players.Values
-            .Where(p => !p.IsBot && !p.IsHltv && !string.IsNullOrWhiteSpace(p.Name)).Select(p => p.Name).Distinct()];
-        (int? ct, int? t, string? ctClan, string? tClan, HashSet<int> coaches) = DemoLibraryService.ExtractFinalState(parsed);
+        List<string> players =
+        [
+            .. parsed.Players.Values
+                .Where(p => p is { IsBot: false, IsHltv: false } && !string.IsNullOrWhiteSpace(p.Name))
+                .Select(p => p.Name).Distinct()
+        ];
+        (int? ct, int? t, string? ctClan, string? tClan, HashSet<int> coaches) =
+            DemoLibraryService.ExtractFinalState(parsed);
         outputs["library"] = JsonSerializer.Serialize(new
         {
             players,
@@ -126,7 +132,7 @@ public class BackgroundPlanRealDemoTests
             ctClan,
             tClan,
             coaches = coaches.Order().ToList()
-        }, Json);
+        }, _json);
         return outputs;
     }
 }

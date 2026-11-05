@@ -2,8 +2,8 @@
 
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
@@ -43,17 +43,15 @@ public class SceneLayerTests
     public async Task RadarLayer_DrawsTheLevelsImage_WhenOneIsBound()
     {
         using SKImage image = SolidImage(SKColors.Magenta, 64);
-        using RadarLayer layer = new()
-        {
-            RadarBoundsOverride = new WorldBounds(-500, -500, 500, 500)
-        };
+        using RadarLayer layer = new();
+        layer.RadarBoundsOverride = new WorldBounds(-500, -500, 500, 500);
 
         SKColor[] pixels = Render(layer, Frame(), image);
 
         // Not pure magenta: the pre-v2 draw was PushOpacity(0.9), ported as a white paint at alpha 229,
         // so the image lands blended 90/10 over the background. Asserting the BLEND rather than the
         // source colour is what actually pins the opacity port.
-        int magentaish = Count(pixels, p => p.Red > 200 && p.Blue > 200 && p.Green < 60);
+        int magentaish = Count(pixels, p => p is { Red: > 200, Blue: > 200, Green: < 60 });
         SKColor sample = pixels[_size.Height / 2 * _size.Width + _size.Width / 2];
         Console.WriteLine($"[radar] magenta-ish pixels={magentaish} centre={sample}");
 
@@ -70,11 +68,9 @@ public class SceneLayerTests
     public async Task RadarLayer_UseRadarImageOff_StillDrawsTheGrid()
     {
         using SKImage image = SolidImage(SKColors.Magenta, 64);
-        using RadarLayer layer = new()
-        {
-            RadarBoundsOverride = new WorldBounds(-500, -500, 500, 500),
-            UseRadarImage = false
-        };
+        using RadarLayer layer = new();
+        layer.RadarBoundsOverride = new WorldBounds(-500, -500, 500, 500);
+        layer.UseRadarImage = false;
 
         SKColor[] pixels = Render(layer, Frame(), image);
         await Assert.That(CountColour(pixels, SKColors.Magenta)).IsEqualTo(0);
@@ -130,14 +126,8 @@ public class SceneLayerTests
     [Test]
     public async Task MarkerLayer_DeadMarker_IsHollow()
     {
-        Scene2DFrame alive = new()
-        {
-            Markers = [new PlayerMarker(0, 2, 0, 0, 0, 0, RingState.Team, 1, "AA", true)]
-        };
-        Scene2DFrame dead = new()
-        {
-            Markers = [new PlayerMarker(0, 2, 0, 0, 0, 0, RingState.Dead, 1, "AA", false)]
-        };
+        Scene2DFrame alive = new() { Markers = [new PlayerMarker(0, 2, 0, 0, 0, 0, RingState.Team, 1, "AA", true)] };
+        Scene2DFrame dead = new() { Markers = [new PlayerMarker(0, 2, 0, 0, 0, 0, RingState.Dead, 1, "AA", false)] };
 
         using MarkerLayer layer = new();
         int aliveFill = CountColour(Render(layer, alive), ScenePalette.Dark.TeamT);
@@ -151,22 +141,16 @@ public class SceneLayerTests
     [Test]
     public async Task MarkerLayer_DrawLabelsOff_RemovesInkWithoutMovingTheDisc()
     {
-        Scene2DFrame frame = new()
-        {
-            Markers = [new PlayerMarker(0, 2, 0, 0, 0, 0, RingState.Team, 1, "AA", true)]
-        };
+        Scene2DFrame frame = new() { Markers = [new PlayerMarker(0, 2, 0, 0, 0, 0, RingState.Team, 1, "AA", true)] };
 
         using MarkerLayer withLabels = new();
-        using MarkerLayer withoutLabels = new()
-        {
-            DrawLabels = false
-        };
+        using MarkerLayer withoutLabels = new() { DrawLabels = false };
 
         SKColor[] labelled = Render(withLabels, frame);
         SKColor[] bare = Render(withoutLabels, frame);
 
         Console.WriteLine($"[markers] fill with labels={CountColour(labelled, ScenePalette.Dark.TeamT)} " +
-                          $"without={CountColour(bare, ScenePalette.Dark.TeamT)}");
+            $"without={CountColour(bare, ScenePalette.Dark.TeamT)}");
 
         // The glyphs sit ON the disc, so hiding them shows more of the team fill, not less.
         await Assert.That(CountColour(bare, ScenePalette.Dark.TeamT))
@@ -218,21 +202,18 @@ public class SceneLayerTests
     [Arguments("il")]
     public async Task MarkerLayer_LabelInk_IsCentredOnTheDisc(string label)
     {
-        const float worldX = 120f, worldY = -260f;
+        const float WorldX = 120f, WorldY = -260f;
         Scene2DFrame frame = new()
         {
-            Markers = [new PlayerMarker(0, 2, worldX, worldY, 0, 0, RingState.Team, 1, label, true)]
+            Markers = [new PlayerMarker(0, 2, WorldX, WorldY, 0, 0, RingState.Team, 1, label, true)]
         };
 
         ViewportTransform camera = ViewportTransform.Fit(_size.Width, _size.Height,
             -500, -500, 500, 500);
-        (double discX, double discY) = camera.WorldToScreen(worldX, worldY);
+        (double discX, double discY) = camera.WorldToScreen(WorldX, WorldY);
 
         using MarkerLayer withLabels = new();
-        using MarkerLayer withoutLabels = new()
-        {
-            DrawLabels = false
-        };
+        using MarkerLayer withoutLabels = new() { DrawLabels = false };
 
         SKColor[] labelled = Render(withLabels, frame, null, camera);
         SKColor[] bare = Render(withoutLabels, frame, null, camera);
@@ -245,9 +226,9 @@ public class SceneLayerTests
         float inkCentreY = (minY + maxY + 1) / 2f;
 
         Console.WriteLine($"[markers] \"{label}\" disc=({discX:F2},{discY:F2}) " +
-                          $"ink=[{minX}..{maxX}]x[{minY}..{maxY}] ({inkPixels} px) " +
-                          $"centre=({inkCentreX:F2},{inkCentreY:F2}) " +
-                          $"offset=({inkCentreX - discX:F2},{inkCentreY - discY:F2})");
+            $"ink=[{minX}..{maxX}]x[{minY}..{maxY}] ({inkPixels} px) " +
+            $"centre=({inkCentreX:F2},{inkCentreY:F2}) " +
+            $"offset=({inkCentreX - discX:F2},{inkCentreY - discY:F2})");
 
         await Assert.That(inkCentreX).IsEqualTo((float)discX).Within(InkCentreTolerancePx);
         await Assert.That(inkCentreY).IsEqualTo((float)discY).Within(InkCentreTolerancePx);
@@ -261,10 +242,7 @@ public class SceneLayerTests
     [Arguments(1.0, true)]
     public async Task BombLayer_ArcCollapsesBelowHalfADegree(double detonationFraction, bool expectArc)
     {
-        Scene2DFrame frame = new()
-        {
-            Bomb = new BombMarker(0, 0, 0, detonationFraction, false, 0)
-        };
+        Scene2DFrame frame = new() { Bomb = new BombMarker(0, 0, 0, detonationFraction, false, 0) };
 
         using BombLayer layer = new();
         int arc = CountColour(Render(layer, frame), ScenePalette.Dark.BombDetonation);
@@ -276,10 +254,7 @@ public class SceneLayerTests
     [Test]
     public async Task BombLayer_DefusingDrawsASecondArc()
     {
-        Scene2DFrame frame = new()
-        {
-            Bomb = new BombMarker(0, 0, 0, 0.6, true, 0.4)
-        };
+        Scene2DFrame frame = new() { Bomb = new BombMarker(0, 0, 0, 0.6, true, 0.4) };
 
         using BombLayer layer = new();
         SKColor[] pixels = Render(layer, frame);
@@ -364,10 +339,7 @@ public class SceneLayerTests
 
     private static Scene2DFrame Frame() => new()
     {
-        Map = new SceneMapInfo
-        {
-            ObservedBounds = new WorldBounds(-500, -500, 500, 500)
-        }
+        Map = new SceneMapInfo { ObservedBounds = new WorldBounds(-500, -500, 500, 500) }
     };
 
     private static int InkCount(ISceneLayer layer, Scene2DFrame frame) => InkPixels(Render(layer, frame));
@@ -425,9 +397,8 @@ public class SceneLayerTests
     {
         SKColor background = ScenePalette.Dark.Background;
         int count = 0;
-        for (int i = 0; i < pixels.Length; i++)
+        foreach (SKColor p in pixels)
         {
-            SKColor p = pixels[i];
             if (p.Red != background.Red || p.Green != background.Green || p.Blue != background.Blue)
             {
                 count++;
@@ -469,9 +440,9 @@ public class SceneLayerTests
     private static int Count(SKColor[] pixels, Func<SKColor, bool> predicate)
     {
         int count = 0;
-        for (int i = 0; i < pixels.Length; i++)
+        foreach (SKColor pixel in pixels)
         {
-            if (predicate(pixels[i]))
+            if (predicate(pixel))
             {
                 count++;
             }
@@ -483,9 +454,8 @@ public class SceneLayerTests
     private static int CountColour(SKColor[] pixels, SKColor colour)
     {
         int count = 0;
-        for (int i = 0; i < pixels.Length; i++)
+        foreach (SKColor p in pixels)
         {
-            SKColor p = pixels[i];
             if (p.Red == colour.Red && p.Green == colour.Green && p.Blue == colour.Blue)
             {
                 count++;

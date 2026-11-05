@@ -39,16 +39,16 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 public sealed class PostPlantService
 {
     /// <summary>World units (XY) from a cluster's centre within which a plant spot joins it.</summary>
-    public const int PlantClusterRadius = 300;
+    private const int PlantClusterRadius = 300;
 
     /// <summary>Seconds after the plant the hold is read at.</summary>
-    public const int HoldSeconds = 10;
+    private const int HoldSeconds = 10;
 
     /// <summary>World units (XY) to the bomb within which a holding player counts as near it.</summary>
-    public const int HoldNearDistance = 700;
+    private const int HoldNearDistance = 700;
 
     /// <summary>World units (XY) to the bomb within which a retaking CT counts as arrived.</summary>
-    public const int RetakeRadius = 1000;
+    private const int RetakeRadius = 1000;
 
     /// <summary>Seconds between one CT's arrival and the next within one group.</summary>
     public const int RetakeGapSeconds = 6;
@@ -69,16 +69,16 @@ public sealed class PostPlantService
     public const string OnePlayer = "one player";
 
     /// <summary>The retake group of rounds where CTs were alive and none reached the bomb.</summary>
-    public const string NobodyReached = "nobody reached the bomb";
+    private const string NobodyReached = "nobody reached the bomb";
 
     /// <summary>The retake group of rounds with no CT alive at the plant.</summary>
     public const string NoCtAlive = "no CT alive";
 
     /// <summary>The hold of rounds with no T alive when it is read.</summary>
-    public const string NoTAlive = "no T alive";
+    private const string NoTAlive = "no T alive";
 
     /// <summary>A position list's bucket for a round whose plant spot the positions do not give.</summary>
-    public const string SpotUnread = "spot unread";
+    private const string SpotUnread = "spot unread";
 
     // A record without a clock header is still a CS2 demo; the frame clock of every build here is 64.
     private const int FallbackTickRate = 64;
@@ -94,7 +94,8 @@ public sealed class PostPlantService
     /// <param name="roundFacts">The Round Facts rows per demo.</param>
     /// <param name="positions">The round positions files, for the spots, the holds and the retakes.</param>
     /// <param name="fingerprintFor">The fingerprint current positions carry per map; a file under another is stale.</param>
-    public PostPlantService(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts, RoundIndexStore positions,
+    public PostPlantService(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts,
+        RoundIndexStore positions,
         Func<string?, string> fingerprintFor)
     {
         ArgumentNullException.ThrowIfNull(teams);
@@ -129,7 +130,8 @@ public sealed class PostPlantService
             }
 
             read++;
-            RoundPositionsDocument? positions = _positions.TryReadPositions(demo.Path, _fingerprintFor(map), record.Sha256);
+            RoundPositionsDocument? positions =
+                _positions.TryReadPositions(demo.Path, _fingerprintFor(map), record.Sha256);
             if (positions is null)
             {
                 withoutPositions++;
@@ -170,13 +172,7 @@ public sealed class PostPlantService
                     .Select(c => c.Value.ToBlock(c.Key.Map, c.Key.Side)))
         ];
 
-        return new PostPlantSet
-        {
-            TeamId = teamId,
-            Blocks = blocks,
-            DemosRead = read,
-            DemosWithoutPositions = withoutPositions
-        };
+        return new PostPlantSet { Blocks = blocks, DemosRead = read, DemosWithoutPositions = withoutPositions };
     }
 
     /// <summary>The alive count at the plant, the team's first: "4v3".</summary>
@@ -219,7 +215,8 @@ public sealed class PostPlantService
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(round);
         if (round.PlantTick is not { } plant || round.PlanterSlot is not { } planter
-                                             || positions.Round(round.Number) is not { } stored || positions.CadenceTicks <= 0)
+            || positions.Round(round.Number) is not { } stored
+            || positions.CadenceTicks <= 0)
         {
             return null;
         }
@@ -248,11 +245,13 @@ public sealed class PostPlantService
     /// <param name="round">A round with a plant.</param>
     /// <param name="spot">The plant spot.</param>
     /// <param name="tickRate">The demo's tick rate.</param>
-    public static string? RetakeGroup(RoundPositionsDocument positions, RoundFacts round, RoundPosition spot, int tickRate)
+    public static string? RetakeGroup(RoundPositionsDocument positions, RoundFacts round, RoundPosition spot,
+        int tickRate)
     {
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(round);
-        if (round.PlantTick is not { } plant || positions.Round(round.Number) is not { } stored || positions.CadenceTicks <= 0)
+        if (round.PlantTick is not { } plant || positions.Round(round.Number) is not { } stored
+            || positions.CadenceTicks <= 0)
         {
             return null;
         }
@@ -314,11 +313,12 @@ public sealed class PostPlantService
     /// <param name="positions">The demo's positions file.</param>
     /// <param name="round">A round with a plant.</param>
     /// <param name="tickRate">The demo's tick rate.</param>
-    public static IReadOnlyList<RoundPosition>? Hold(RoundPositionsDocument positions, RoundFacts round, int tickRate)
+    private static IReadOnlyList<RoundPosition>? Hold(RoundPositionsDocument positions, RoundFacts round, int tickRate)
     {
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(round);
-        if (round.PlantTick is not { } plant || positions.Round(round.Number) is not { } stored || positions.CadenceTicks <= 0)
+        if (round.PlantTick is not { } plant || positions.Round(round.Number) is not { } stored
+            || positions.CadenceTicks <= 0)
         {
             return null;
         }
@@ -429,7 +429,8 @@ public sealed class PostPlantService
         public void Add(DemoContext demo, RoundFacts round, int side)
         {
             int rate = demo.Rate;
-            _rounds.Add(Clip(demo, round, round.FreezeEndTick, round.EndTick ?? round.FreezeEndTick + 3 * PostPlantSeconds * rate));
+            _rounds.Add(Clip(demo, round, round.FreezeEndTick,
+                round.EndTick ?? round.FreezeEndTick + 3 * PostPlantSeconds * rate));
             if (round.PlantTick is not { } plant)
             {
                 return;
@@ -449,7 +450,8 @@ public sealed class PostPlantService
             RoundPosition? spot = PlantSpot(positions, round);
             if (side == 3)
             {
-                _retakes.Add(spot is { } bomb ? RetakeGroup(positions, round, bomb, rate) ?? SpotUnread : SpotUnread, clip);
+                _retakes.Add(spot is { } bomb ? RetakeGroup(positions, round, bomb, rate) ?? SpotUnread : SpotUnread,
+                    clip);
                 return;
             }
 
@@ -469,7 +471,8 @@ public sealed class PostPlantService
                 _holdShapes.Add(SpotUnread, clip);
             }
 
-            foreach (string place in hold.Select(p => positions.PlaceOf(p.PlaceId) ?? "unplaced").Distinct(StringComparer.Ordinal))
+            foreach (string place in hold.Select(p => positions.PlaceOf(p.PlaceId) ?? "unplaced")
+                         .Distinct(StringComparer.Ordinal))
             {
                 _holdPlaces.Add(place, clip);
             }
@@ -524,7 +527,8 @@ public sealed class PostPlantService
                 {
                     n++;
                     named.Add(new TendencyBucket(
-                        string.Create(CultureInfo.InvariantCulture, $"{site.Key} spot {n} ({Math.Round(c.X):0}, {Math.Round(c.Y):0})"),
+                        string.Create(CultureInfo.InvariantCulture,
+                            $"{site.Key} spot {n} ({Math.Round(c.X):0}, {Math.Round(c.Y):0})"),
                         c.Rounds));
                 }
             }

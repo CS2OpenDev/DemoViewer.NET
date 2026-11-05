@@ -35,6 +35,7 @@ public enum AnnotationStoreLocation
 ///     unaffected, and the UI warns that time anchors may be off rather than discarding them.
 /// </param>
 /// <param name="SchemaVersion">The schema version the file declared.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record AnnotationLoadResult(
     IReadOnlyList<AnnotationElement> Elements,
     AnnotationStoreLocation Location,

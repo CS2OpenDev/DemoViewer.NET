@@ -3,7 +3,6 @@
         xmlns:ui="using:DemoViewer.NET.Extensions.Sdk.Ui.Controls"
         xmlns:vm="using:DemoViewer.NET.ViewModels"
         xmlns:shell="using:DemoViewer.NET.ViewModels.Shell"
-        xmlns:controls="using:DemoViewer.NET.Controls"
         x:Class="DemoViewer.NET.Views.ParseChainWindow"
         x:DataType="shell:MainViewModel"
         Title="Parse Chain"
@@ -29,10 +28,10 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:ParseChainEntry">
                         <ui:ParseLinkChip Label="{Binding Label}"
-                                                Detail="{Binding Detail}"
-                                                SourceBadge="{Binding SourceBadge}"
-                                                Indent="{Binding Indent}"
-                                                Command="{Binding OpenCommand}" />
+                                          Detail="{Binding Detail}"
+                                          SourceBadge="{Binding SourceBadge}"
+                                          Indent="{Binding Indent}"
+                                          Command="{Binding OpenCommand}" />
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

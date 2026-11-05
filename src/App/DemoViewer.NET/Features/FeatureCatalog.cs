@@ -32,7 +32,7 @@ public static class FeatureCatalog
     public const string GroupGraphDebug = "graphDebug";
 
     /// <summary>The prefix every pack umbrella id carries. The gate never fails open on it.</summary>
-    public const string PackIdPrefix = "pack.";
+    private const string PackIdPrefix = "pack.";
 
     // The catalog order is load-bearing: a group's LEADER is its FIRST member in All (see GroupLeader).
     // parser.hex precedes parser.parseChain + chrome.parseChain → parserDeepDive leader = parser.hex.
@@ -339,7 +339,8 @@ public static class FeatureCatalog
         {
             if (d.OwnerPackId is not null && d.Required)
             {
-                throw new InvalidOperationException($"Feature '{d.Id}' owned by pack '{d.OwnerPackId}' may not be Required.");
+                throw new InvalidOperationException(
+                    $"Feature '{d.Id}' owned by pack '{d.OwnerPackId}' may not be Required.");
             }
         }
 
@@ -374,11 +375,11 @@ public static class FeatureCatalog
     public static IReadOnlyList<FeatureDescriptor> All => Composed;
 
     /// <summary>The group ids this catalog defines.</summary>
-    public static IReadOnlyList<string> GroupIds { get; } = [GroupParserDeepDive, GroupGraphDebug];
+    private static IReadOnlyList<string> GroupIds { get; } = [GroupParserDeepDive, GroupGraphDebug];
 
     /// <summary>Looks up a descriptor by its stable id, or <c>null</c> if the id is not in the catalog.</summary>
     public static FeatureDescriptor? ById(string id) =>
-        id is not null && Index.TryGetValue(id, out FeatureDescriptor? d) ? d : null;
+        Index.GetValueOrDefault(id);
 
     /// <summary>True for an id that names a pack, known or not: such an id never fails open.</summary>
     public static bool IsPackId(string? id) =>
@@ -388,10 +389,6 @@ public static class FeatureCatalog
     public static IEnumerable<FeatureDescriptor> Children(string parentId) =>
         Composed.Where(d => d.ParentId == parentId);
 
-    /// <summary>The members of <paramref name="groupId" />, in catalog order (first = the leader).</summary>
-    public static IEnumerable<FeatureDescriptor> GroupMembers(string groupId) =>
-        Composed.Where(d => d.GroupId == groupId);
-
     /// <summary>
     ///     The deterministic leader of <paramref name="groupId" />, its FIRST member in <see cref="All" />
     ///     order, whose resolved own-state every member of the group adopts. <c>null</c> for an unknown group.
@@ -400,7 +397,7 @@ public static class FeatureCatalog
         Composed.FirstOrDefault(d => d.GroupId == groupId);
 
     /// <summary>The catalog row for an extension's declared feature.</summary>
-    internal static FeatureDescriptor FromExtension(ExtensionFeature feature)
+    private static FeatureDescriptor FromExtension(ExtensionFeature feature)
     {
         ArgumentNullException.ThrowIfNull(feature);
         FeatureScope scope = feature.Kind switch
@@ -410,17 +407,13 @@ public static class FeatureCatalog
             _ => FeatureScope.SubFeature
         };
         AudienceDefaults d = feature.Defaults;
-        return new FeatureDescriptor(feature.Id, scope, feature.Label, feature.Description, feature.ParentId, null, false,
+        return new FeatureDescriptor(feature.Id, scope, feature.Label, feature.Description, feature.ParentId, null,
+            false,
             Defaults(d.Consumer, d.PowerUser, d.Developer));
     }
 
     // Builds a category→default map without a constant-array argument (CA1861-clean) and reads left-to-right.
     // Concrete return type per CA1859; the descriptor's IReadOnlyDictionary param accepts it directly.
-    internal static Dictionary<UserCategory, bool> Defaults(bool consumer, bool power, bool dev) =>
-        new()
-        {
-            [UserCategory.Consumer] = consumer,
-            [UserCategory.PowerUser] = power,
-            [UserCategory.Developer] = dev
-        };
+    private static Dictionary<UserCategory, bool> Defaults(bool consumer, bool power, bool dev) =>
+        new() { [UserCategory.Consumer] = consumer, [UserCategory.PowerUser] = power, [UserCategory.Developer] = dev };
 }

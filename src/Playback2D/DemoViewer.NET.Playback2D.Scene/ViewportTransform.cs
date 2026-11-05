@@ -14,7 +14,8 @@ namespace DemoViewer.NET.Playback2D;
 ///         are the user gestures. Recompute only on fit / pan / zoom, never per tick.
 ///     </para>
 /// </summary>
-public readonly struct ViewportTransform
+[PublicAPI]
+public readonly struct ViewportTransform : IEquatable<ViewportTransform>
 {
     /// <summary>Viewport width in device-independent pixels.</summary>
     public double ViewWidth { get; }
@@ -174,7 +175,7 @@ public readonly struct ViewportTransform
         double minZoom = 0.05, double maxZoom = 40.0)
     {
         double newZoom = Math.Clamp(Zoom * factor, minZoom, maxZoom);
-        if (newZoom == Zoom)
+        if (newZoom.Equals(Zoom))
         {
             return this;
         }
@@ -189,4 +190,32 @@ public readonly struct ViewportTransform
 
         return new ViewportTransform(ViewWidth, ViewHeight, CenterX, CenterY, BaseScale, newZoom, newPanX, newPanY);
     }
+
+    /// <summary>
+    ///     Field-wise equality with <see cref="double.Equals(double)" /> semantics, the same answer the
+    ///     runtime's reflective struct equality gave, without the reflection.
+    /// </summary>
+    /// <param name="other">The transform to compare with.</param>
+    public bool Equals(ViewportTransform other) =>
+        ViewWidth.Equals(other.ViewWidth) && ViewHeight.Equals(other.ViewHeight) &&
+        CenterX.Equals(other.CenterX) && CenterY.Equals(other.CenterY) &&
+        BaseScale.Equals(other.BaseScale) && Zoom.Equals(other.Zoom) &&
+        PanX.Equals(other.PanX) && PanY.Equals(other.PanY);
+
+    /// <inheritdoc />
+    public override bool Equals(object? obj) => obj is ViewportTransform other && Equals(other);
+
+    /// <inheritdoc />
+    public override int GetHashCode() =>
+        HashCode.Combine(ViewWidth, ViewHeight, CenterX, CenterY, BaseScale, Zoom, PanX, PanY);
+
+    /// <summary>Field-wise equality; see <see cref="Equals(ViewportTransform)" />.</summary>
+    /// <param name="left">The first transform.</param>
+    /// <param name="right">The second transform.</param>
+    public static bool operator ==(ViewportTransform left, ViewportTransform right) => left.Equals(right);
+
+    /// <summary>Field-wise inequality; see <see cref="Equals(ViewportTransform)" />.</summary>
+    /// <param name="left">The first transform.</param>
+    /// <param name="right">The second transform.</param>
+    public static bool operator !=(ViewportTransform left, ViewportTransform right) => !left.Equals(right);
 }

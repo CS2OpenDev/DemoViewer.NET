@@ -42,8 +42,8 @@ public sealed class GraphBreakpointService
     /// <summary>Returns the edge breakpoint for the given source/dest/label/condition, or <c>null</c>.</summary>
     public GraphBreakpoint? FindEdge(string source, string dest, string label, string? conditionLabel) =>
         Breakpoints.FirstOrDefault(b => b.TargetKind == GraphBreakpointTarget.Edge
-                                        && b.EdgeSourceKey == source && b.EdgeDestKey == dest
-                                        && b.EdgeLabel == label && b.EdgeConditionLabel == conditionLabel);
+            && b.EdgeSourceKey == source && b.EdgeDestKey == dest
+            && b.EdgeLabel == label && b.EdgeConditionLabel == conditionLabel);
 
     /// <summary>Adds (or returns the existing) breakpoint on <paramref name="node" />.</summary>
     public GraphBreakpoint AddNode(IGraphNode node, string? condition = null)
@@ -56,9 +56,7 @@ public sealed class GraphBreakpointService
 
         GraphBreakpoint bp = new()
         {
-            TargetKind = GraphBreakpointTarget.Node,
-            NodeKey = node.Key,
-            Condition = condition
+            TargetKind = GraphBreakpointTarget.Node, NodeKey = node.Key, Condition = condition
         };
         AddInternal(bp);
         return bp;
@@ -89,8 +87,8 @@ public sealed class GraphBreakpointService
     /// <summary>Adds a fully-formed breakpoint (used when loading persisted state).</summary>
     public void Add(GraphBreakpoint bp) => AddInternal(bp);
 
-    /// <summary>Removes the breakpoint with this id; returns true if found.</summary>
-    public bool Remove(int id)
+    /// <summary>Removes the breakpoint with this id, if present.</summary>
+    public void Remove(int id)
     {
         for (int i = 0; i < Breakpoints.Count; i++)
         {
@@ -104,11 +102,9 @@ public sealed class GraphBreakpointService
                 }
 
                 Changed?.Invoke();
-                return true;
+                return;
             }
         }
-
-        return false;
     }
 
     /// <summary>Removes all breakpoints.</summary>

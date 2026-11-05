@@ -18,7 +18,8 @@ public class StratStepFieldsTests
 {
     // Members every step row edits whatever the verb, or the canvas does; empty is the step itself.
     private static readonly HashSet<string> _alwaysOnTheRow =
-        new(["", "id", "atSeconds", "actor", "verb", "note", "positions", "strokes", "holdSeconds", "interpolation"], StringComparer.Ordinal);
+        new(["", "id", "atSeconds", "actor", "verb", "note", "positions", "strokes", "holdSeconds", "interpolation"],
+            StringComparer.Ordinal);
 
     // Read through the JSON so it holds whether technique is a typed member or still in Extra.
     private static bool HasTechnique(StratStep step) =>
@@ -51,7 +52,8 @@ public class StratStepFieldsTests
         {
             foreach (string verb in StratVocabulary.Verbs)
             {
-                StratDocument document = StratDocument.Create(Guid.NewGuid(), StratOwner.Me(), "de_mirage", "T", "default", "fields", DateTime.UtcNow);
+                StratDocument document = StratDocument.Create(Guid.NewGuid(), StratOwner.Me(), "de_mirage", "T",
+                    "default", "fields", DateTime.UtcNow);
                 document.Steps.Add(new StratStep { Id = Guid.NewGuid(), AtSeconds = 100, Verb = verb });
                 foreach (StratIssue issue in StratValidator.Validate(document))
                 {
@@ -60,7 +62,8 @@ public class StratStepFieldsTests
                         continue;
                     }
 
-                    string member = issue.Field.Split('/', StringSplitOptions.RemoveEmptyEntries).ElementAtOrDefault(2) ?? "";
+                    string member = issue.Field.Split('/', StringSplitOptions.RemoveEmptyEntries).ElementAtOrDefault(2)
+                        ?? "";
                     StratStepField asked = member switch
                     {
                         "from" => StratStepField.From,
@@ -71,7 +74,8 @@ public class StratStepFieldsTests
                             $"the validator names step member '{member}' ({issue.Field}); map it to a row field")
                     };
                     await Assert.That(StratStepFields.Uses(verb, asked)).IsTrue()
-                        .Because($"the validator says '{issue.Message}' about a {verb}, whose row must show that field");
+                        .Because(
+                            $"the validator says '{issue.Message}' about a {verb}, whose row must show that field");
                 }
             }
         });
@@ -84,21 +88,27 @@ public class StratStepFieldsTests
         {
             using (Assert.Multiple())
             {
-                await Assert.That(StratStepFields.For("move")).IsEqualTo(StratStepField.From | StratStepField.To | StratStepField.Via);
-                await Assert.That(StratStepFields.For("rotate")).IsEqualTo(StratStepField.From | StratStepField.To | StratStepField.Via);
-                await Assert.That(StratStepFields.For("push")).IsEqualTo(StratStepField.From | StratStepField.To | StratStepField.Watch | StratStepField.Via);
+                await Assert.That(StratStepFields.For("move"))
+                    .IsEqualTo(StratStepField.From | StratStepField.To | StratStepField.Via);
+                await Assert.That(StratStepFields.For("rotate"))
+                    .IsEqualTo(StratStepField.From | StratStepField.To | StratStepField.Via);
+                await Assert.That(StratStepFields.For("push")).IsEqualTo(StratStepField.From | StratStepField.To
+                    | StratStepField.Watch | StratStepField.Via);
                 await Assert.That(StratStepFields.For("hold")).IsEqualTo(StratStepField.To | StratStepField.Watch);
                 await Assert.That(StratStepFields.For("peek")).IsEqualTo(StratStepField.To | StratStepField.Watch);
-                await Assert.That(StratStepFields.For("lurk")).IsEqualTo(StratStepField.Watch | StratStepField.Lurk | StratStepField.Via);
+                await Assert.That(StratStepFields.For("lurk"))
+                    .IsEqualTo(StratStepField.Watch | StratStepField.Lurk | StratStepField.Via);
                 await Assert.That(StratStepFields.For("plant")).IsEqualTo(StratStepField.To);
                 await Assert.That(StratStepFields.For("defuse")).IsEqualTo(StratStepField.To);
                 await Assert.That(StratStepFields.For("throw")).IsEqualTo(StratStepField.Utility);
-                await Assert.That(StratStepFields.For("fake")).IsEqualTo(StratStepField.To | StratStepField.Utility | StratStepField.Watch);
+                await Assert.That(StratStepFields.For("fake"))
+                    .IsEqualTo(StratStepField.To | StratStepField.Utility | StratStepField.Watch);
                 await Assert.That(StratStepFields.For("wait")).IsEqualTo(StratStepField.None);
                 await Assert.That(StratStepFields.For("call")).IsEqualTo(StratStepField.None);
                 await Assert.That(StratStepFields.For("other")).IsEqualTo(StratStepField.All);
-                await Assert.That(StratStepFields.For("other")).IsEqualTo(StratStepField.From | StratStepField.To | StratStepField.Utility | StratStepField.Watch
-                                                                           | StratStepField.Via)
+                await Assert.That(StratStepFields.For("other")).IsEqualTo(
+                        StratStepField.From | StratStepField.To | StratStepField.Utility | StratStepField.Watch
+                        | StratStepField.Via)
                     .Because("a lurk's fields belong to the lurk verb alone");
                 await Assert.That(StratStepFields.For("teleport")).IsEqualTo(StratStepField.All)
                     .Because("a verb the validator refuses still shows everything it holds");
@@ -213,13 +223,14 @@ public class StratStepFieldsTests
         {
             using StratBookTabViewModel vm = OpenNew();
             AddStep(vm).Verb = "throw";
-            vm.Session.Apply(PatchOp.ReplaceOp("/steps/0/utility", null, new JsonObject
-            {
-                ["kind"] = "smoke",
-                ["lineupId"] = Guid.NewGuid().ToString(),
-                ["technique"] = "jumpthrow",
-                ["landing"] = new JsonObject { ["x"] = 120.5, ["y"] = -400.0, ["levelMinZ"] = -160.0 }
-            }));
+            vm.Session.Apply(PatchOp.ReplaceOp("/steps/0/utility", null,
+                new JsonObject
+                {
+                    ["kind"] = "smoke",
+                    ["lineupId"] = Guid.NewGuid().ToString(),
+                    ["technique"] = "jumpthrow",
+                    ["landing"] = new JsonObject { ["x"] = 120.5, ["y"] = -400.0, ["levelMinZ"] = -160.0 }
+                }));
 
             vm.Editor.Steps[0].UtilityKind = "molotov";
             UtilityRef utility = vm.Session.Document!.Steps[0].Utility!;
@@ -236,7 +247,8 @@ public class StratStepFieldsTests
             using (Assert.Multiple())
             {
                 await Assert.That(utility.Landing?.Place).IsEqualTo("Connector");
-                await Assert.That(utility.Landing?.X).IsEqualTo(120.5).Because("typing a place keeps the captured point");
+                await Assert.That(utility.Landing?.X).IsEqualTo(120.5)
+                    .Because("typing a place keeps the captured point");
             }
 
             vm.Editor.Steps[0].UtilityKind = StratEditorViewModel.None;
@@ -252,7 +264,10 @@ public class StratStepFieldsTests
             using StratBookTabViewModel vm = OpenNew();
             AddStep(vm).Verb = "throw";
             vm.Session.Apply(PatchOp.ReplaceOp("/steps/0/utility", null,
-                new JsonObject { ["kind"] = "smoke", ["lineupId"] = Guid.NewGuid().ToString(), ["technique"] = "jumpthrow" }));
+                new JsonObject
+                {
+                    ["kind"] = "smoke", ["lineupId"] = Guid.NewGuid().ToString(), ["technique"] = "jumpthrow"
+                }));
 
             vm.Editor.Steps[0].Lineup = StratLineupOption.None;
             UtilityRef utility = vm.Session.Document!.Steps[0].Utility!;
@@ -272,13 +287,14 @@ public class StratStepFieldsTests
         {
             using StratBookTabViewModel vm = OpenNew();
             AddStep(vm).Verb = "throw";
-            vm.Session.Apply(PatchOp.ReplaceOp("/steps/0/utility", null, new JsonObject
-            {
-                ["kind"] = "smoke",
-                ["lineupId"] = Guid.NewGuid().ToString(),
-                ["technique"] = "jumpthrow",
-                ["landing"] = new JsonObject { ["x"] = 120.5, ["y"] = -400.0, ["levelMinZ"] = -160.0 }
-            }));
+            vm.Session.Apply(PatchOp.ReplaceOp("/steps/0/utility", null,
+                new JsonObject
+                {
+                    ["kind"] = "smoke",
+                    ["lineupId"] = Guid.NewGuid().ToString(),
+                    ["technique"] = "jumpthrow",
+                    ["landing"] = new JsonObject { ["x"] = 120.5, ["y"] = -400.0, ["levelMinZ"] = -160.0 }
+                }));
             string before = StepJson(vm.Session.Document!.Steps[0]);
             int depth = vm.Session.UndoDepth;
 
@@ -291,7 +307,8 @@ public class StratStepFieldsTests
             using (Assert.Multiple())
             {
                 await Assert.That(StepJson(vm.Session.Document!.Steps[0])).IsEqualTo(before);
-                await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth).Because("arriving back leaves nothing to undo");
+                await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth)
+                    .Because("arriving back leaves nothing to undo");
             }
         });
     }
@@ -340,7 +357,8 @@ public class StratStepFieldsTests
             {
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 1);
                 await Assert.That(step.Verb).IsEqualTo("peek");
-                await Assert.That(step.To?.Place).IsEqualTo("TopofMid").Because("wait cleared it on the way, peek uses it");
+                await Assert.That(step.To?.Place).IsEqualTo("TopofMid")
+                    .Because("wait cleared it on the way, peek uses it");
                 await Assert.That(step.From).IsNull();
             }
 
@@ -379,7 +397,8 @@ public class StratStepFieldsTests
             using (Assert.Multiple())
             {
                 await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth + 2);
-                await Assert.That(vm.Session.Document!.Steps[0].From).IsNull().Because("the second burst began after from was cleared");
+                await Assert.That(vm.Session.Document!.Steps[0].From).IsNull()
+                    .Because("the second burst began after from was cleared");
             }
 
             vm.Editor.Steps[0].Note = "other edit";
@@ -429,7 +448,8 @@ public class StratStepFieldsTests
             await Assert.That(vm.Session.Document!.Steps[0].Utility?.Landing?.Place).IsEqualTo("Connector");
 
             vm.Editor.Steps[0].LandingText = "";
-            await Assert.That(vm.Session.Document!.Steps[0].Utility?.Landing).IsNull().Because("no `landing: {}` left behind");
+            await Assert.That(vm.Session.Document!.Steps[0].Utility?.Landing).IsNull()
+                .Because("no `landing: {}` left behind");
 
             vm.Session.Apply(PatchOp.ReplaceOp("/steps/0/utility/landing", null,
                 new JsonObject { ["place"] = "Connector", ["x"] = 10.0, ["y"] = 20.0 }));
@@ -451,13 +471,15 @@ public class StratStepFieldsTests
             using StratBookTabViewModel vm = OpenNew();
             AddStep(vm).Verb = "throw";
             Guid id = Guid.NewGuid();
-            vm.Session.Apply(PatchOp.ReplaceOp("/steps/0/utility", null, new JsonObject { ["kind"] = "flash", ["lineupId"] = id.ToString() }));
+            vm.Session.Apply(PatchOp.ReplaceOp("/steps/0/utility", null,
+                new JsonObject { ["kind"] = "flash", ["lineupId"] = id.ToString() }));
 
             StratStepRow row = vm.Editor.Steps[0];
             using (Assert.Multiple())
             {
                 await Assert.That(row.Lineup?.Id).IsEqualTo(id);
-                await Assert.That(row.LineupOptions).Contains(row.Lineup!).Because("a combo box shows nothing for a selection outside its items");
+                await Assert.That(row.LineupOptions).Contains(row.Lineup!)
+                    .Because("a combo box shows nothing for a selection outside its items");
                 await Assert.That(row.ShowLanding).IsFalse().Because("the lineup says where it lands");
             }
         });

@@ -106,7 +106,7 @@ public class RealTimeEnvelopeUiTests
         await Assert.That(visible).Contains("FadeOutBox");
         await Assert.That(visible).Contains("HoldBox")
             .Because("the hold is what decides whether the stroke dissolves from the start or chases "
-                     + "its own tail — the same control produces both, so Real-time has to have it");
+                + "its own tail — the same control produces both, so Real-time has to have it");
         await Assert.That(visible).DoesNotContain("CustomFromBox");
         await Assert.That(visible).DoesNotContain("CustomUntilBox");
     }
@@ -142,13 +142,13 @@ public class RealTimeEnvelopeUiTests
             // containers, but excluding anything inside a ComboBoxItem keeps the match on the selected
             // content even if it later does.
             TextBlock label = box.GetVisualDescendants().OfType<TextBlock>()
-                                  .FirstOrDefault(t => t.Text == RealTimeLabel
-                                                       && !t.GetVisualAncestors().OfType<ComboBoxItem>()
-                                                           .Any())
-                              ?? throw new InvalidOperationException(
-                                  $"'{RealTimeLabel}' is not rendered in {box.Name}. Either the fourth "
-                                  + "item is missing or the selection never reached the presenter — "
-                                  + "this test would otherwise measure nothing.");
+                    .FirstOrDefault(t => t.Text == RealTimeLabel
+                        && !t.GetVisualAncestors().OfType<ComboBoxItem>()
+                            .Any())
+                ?? throw new InvalidOperationException(
+                    $"'{RealTimeLabel}' is not rendered in {box.Name}. Either the fourth "
+                    + "item is missing or the selection never reached the presenter — "
+                    + "this test would otherwise measure nothing.");
 
             // Measured in the font it actually renders in, not against a digit-width constant: the point
             // is to survive a theme whose chrome grows, which a hard-coded number would not.
@@ -170,10 +170,10 @@ public class RealTimeEnvelopeUiTests
 
         await Assert.That(widest).IsEqualTo(RealTimeLabel)
             .Because("this test measures ONE label, so it is only a width gate while that label is the "
-                     + "longest one the box can show");
+                + "longest one the box can show");
         await Assert.That(available).IsGreaterThanOrEqualTo(needed)
             .Because("a mode picker that clips its own longest label is the sizing defect the envelope "
-                     + "row already shipped once, one control to the left");
+                + "row already shipped once, one control to the left");
     }
 
     private static double Measure(string text, TextBlock label) =>

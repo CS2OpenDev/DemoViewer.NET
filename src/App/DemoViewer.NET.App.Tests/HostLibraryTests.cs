@@ -42,13 +42,31 @@ public class HostLibraryTests
                 new CachedPlayerInfo { Slot = 1, Name = "b-ct", SteamId64 = "76561198000000002", Team = 3 },
                 new CachedPlayerInfo { Slot = 2, Name = "a-ct", SteamId64 = "76561198000000001", Team = 3 },
                 new CachedPlayerInfo { Slot = 3, Name = "a-ct again", SteamId64 = "76561198000000001", Team = 3 },
-                new CachedPlayerInfo { Slot = 4, Name = "coach", SteamId64 = "76561198000000009", Team = 3, IsCoach = true },
-                new CachedPlayerInfo { Slot = 5, Name = "bot", SteamId64 = "0", Team = 2, IsBot = true },
+                new CachedPlayerInfo
+                {
+                    Slot = 4,
+                    Name = "coach",
+                    SteamId64 = "76561198000000009",
+                    Team = 3,
+                    IsCoach = true
+                },
+                new CachedPlayerInfo
+                {
+                    Slot = 5,
+                    Name = "bot",
+                    SteamId64 = "0",
+                    Team = 2,
+                    IsBot = true
+                },
                 new CachedPlayerInfo { Slot = 6, Name = "no id", SteamId64 = "0", Team = 2 },
                 new CachedPlayerInfo { Slot = 7, Name = "t", SteamId64 = "76561198000000003", Team = 2 },
                 new CachedPlayerInfo { Slot = 8, Name = "caster", SteamId64 = "76561198000000004", Team = 1 }
             ],
-            Rounds = [new CachedRound { Number = 1, StartTickFrameClock = 100 }, new CachedRound { Number = 2, StartTickFrameClock = 5000 }]
+            Rounds =
+            [
+                new CachedRound { Number = 1, StartTickFrameClock = 100 },
+                new CachedRound { Number = 2, StartTickFrameClock = 5000 }
+            ]
         };
         DemoCacheStore.StampHeader(record);
         DemoCacheStore.StampParse(record);
@@ -69,7 +87,8 @@ public class HostLibraryTests
         store.Upsert(Parsed("/d/two.dem", sha: "bb22"));
 
         IReadOnlyList<LibraryDemo> first = library.Demos;
-        await Assert.That(first.Select(d => d.FilePath).Order()).IsEquivalentTo(store.Index.Select(e => e.Path).Order(), CollectionOrdering.Matching);
+        await Assert.That(first.Select(d => d.FilePath).Order())
+            .IsEquivalentTo(store.Index.Select(e => e.Path).Order(), CollectionOrdering.Matching);
         await Assert.That(ReferenceEquals(library.Demos, first)).IsTrue();
 
         LibraryDemo one = library.Find("/D/ONE.dem")!;
@@ -96,7 +115,8 @@ public class HostLibraryTests
         store.Upsert(Parsed("/d/one.dem"));
 
         LibraryDemo demo = library.Find("/d/one.dem")!;
-        await Assert.That(demo.CtPlayers!.Select(p => p.SteamId64)).IsEquivalentTo([76561198000000001UL, 76561198000000002UL], CollectionOrdering.Matching);
+        await Assert.That(demo.CtPlayers!.Select(p => p.SteamId64))
+            .IsEquivalentTo([76561198000000001UL, 76561198000000002UL], CollectionOrdering.Matching);
         await Assert.That(demo.CtPlayers![0].Name).IsEqualTo("a-ct");
         await Assert.That(demo.TPlayers!.Select(p => p.Name)).IsEquivalentTo(["t"], CollectionOrdering.Matching);
     }
@@ -111,7 +131,7 @@ public class HostLibraryTests
             writer.Upsert(Parsed("/d/old.dem"));
             writer.SaveIndex();
             string indexPath = Path.Combine(root, "index.json");
-            JsonObject index = JsonNode.Parse(File.ReadAllText(indexPath))!.AsObject();
+            JsonObject index = JsonNode.Parse(await File.ReadAllTextAsync(indexPath))!.AsObject();
             index["Version"] = 2;
             foreach (JsonNode? row in index["Entries"]!.AsArray())
             {
@@ -119,7 +139,7 @@ public class HostLibraryTests
                 row.AsObject().Remove("TPlayers");
             }
 
-            File.WriteAllText(indexPath, index.ToJsonString());
+            await File.WriteAllTextAsync(indexPath, index.ToJsonString());
 
             DemoCacheStore store = new(root);
             HostLibrary library = new(store, null, () => false);
@@ -167,7 +187,7 @@ public class HostLibraryTests
             new LibraryChange("/d/one.dem", LibraryChangeKind.Removed),
             new LibraryChange("/d/four.dem", LibraryChangeKind.Added),
             new LibraryChange("/d/four.dem", LibraryChangeKind.FactsUpdated)
-        ], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        ], CollectionOrdering.Matching);
         await Assert.That(library.Find("/d/two.dem")!.Fact("roundfacts")).IsNull();
     }
 
@@ -182,7 +202,8 @@ public class HostLibraryTests
         LibraryDemo one = library.Find("/smb/one.dem")!;
         using (Assert.Multiple())
         {
-            await Assert.That(library.Demos.Select(d => d.FilePath)).IsEquivalentTo(["/nfs/one.dem", "/nfs/two.dem"], CollectionOrdering.Matching);
+            await Assert.That(library.Demos.Select(d => d.FilePath))
+                .IsEquivalentTo(["/nfs/one.dem", "/nfs/two.dem"], CollectionOrdering.Matching);
             await Assert.That(one.FilePath).IsEqualTo("/nfs/one.dem");
             await Assert.That(ReferenceEquals(one, library.Find("/nfs/one.dem"))).IsTrue();
             await Assert.That(ReferenceEquals(one, library.FindBySha256(Sha))).IsTrue();
@@ -207,7 +228,8 @@ public class HostLibraryTests
         using (Assert.Multiple())
         {
             await Assert.That(one.FilePath).IsEqualTo("/nfs/one.dem");
-            await Assert.That(one.Locations).IsEquivalentTo(["/nfs/one.dem", "/smb/one.dem"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(one.Locations).IsEquivalentTo(["/nfs/one.dem", "/smb/one.dem"],
+                CollectionOrdering.Matching);
             await Assert.That(library.Find("/SMB/one.dem")).IsSameReferenceAs(one);
             await Assert.That(library.Demos.Single(d => d.Sha256 == Sha)).IsSameReferenceAs(one);
             await Assert.That(unconfirmed.Sha256).IsNull();
@@ -225,7 +247,8 @@ public class HostLibraryTests
         store.Upsert(Parsed("/smb/one.dem"));
 
         store.Detach("/smb/one.dem");
-        await Assert.That(library.Find("/nfs/one.dem")!.Locations).IsEquivalentTo(["/nfs/one.dem"], CollectionOrdering.Matching);
+        await Assert.That(library.Find("/nfs/one.dem")!.Locations)
+            .IsEquivalentTo(["/nfs/one.dem"], CollectionOrdering.Matching);
 
         store.Detach("/nfs/one.dem");
         using (Assert.Multiple())
@@ -279,7 +302,8 @@ public class HostLibraryTests
         store.Upsert(record);
 
         LibraryDemo demo = library.Find("/d/one.dem")!;
-        await Assert.That(demo.Fact("roundfacts")).IsEqualTo(new LibraryFactState("roundfacts", 1, "fp", DemoDataState.Written, 22));
+        await Assert.That(demo.Fact("roundfacts"))
+            .IsEqualTo(new LibraryFactState("roundfacts", 1, "fp", DemoDataState.Written, 22));
         await Assert.That(demo.Fact("roundfacts")!.IsCurrent(1, "fp")).IsTrue();
         await Assert.That(demo.Fact("other")!.State).IsEqualTo(DemoDataState.Failed);
         await Assert.That(demo.Fact("other")!.IsWritten).IsFalse();
@@ -301,7 +325,8 @@ public class HostLibraryTests
         await Assert.That(page.Demos.Select(d => d.FilePath)).IsEquivalentTo(["/d/2.dem"], CollectionOrdering.Matching);
 
         LibraryPage oldest = library.Query(new LibraryQuery { Sort = LibrarySort.OldestFirst, Take = 2 });
-        await Assert.That(oldest.Demos.Select(d => d.FilePath)).IsEquivalentTo(["/d/0.dem", "/d/1.dem"], CollectionOrdering.Matching);
+        await Assert.That(oldest.Demos.Select(d => d.FilePath))
+            .IsEquivalentTo(["/d/0.dem", "/d/1.dem"], CollectionOrdering.Matching);
 
         await Assert.That(library.Query(new LibraryQuery { SteamId64 = 76561198000000003 }).Total).IsEqualTo(5);
         await Assert.That(library.Query(new LibraryQuery { Clan = "blue", PlayerName = "A-CT" }).Total).IsEqualTo(5);
@@ -321,8 +346,10 @@ public class HostLibraryTests
         await Assert.That(detail.TickRate).IsEqualTo(64);
         await Assert.That(detail.ServerStartTick).IsEqualTo(10);
         await Assert.That(detail.Players.Count).IsEqualTo(8);
-        await Assert.That(detail.Players.Single(p => p.Slot == 5)).IsEqualTo(new LibraryPlayer(5, "bot", 0, 2, true, false));
-        await Assert.That(detail.Rounds).IsEquivalentTo([new LibraryRound(1, 100), new LibraryRound(2, 5000)], CollectionOrdering.Matching);
+        await Assert.That(detail.Players.Single(p => p.Slot == 5))
+            .IsEqualTo(new LibraryPlayer(5, "bot", 0, 2, true, false));
+        await Assert.That(detail.Rounds).IsEquivalentTo([new LibraryRound(1, 100), new LibraryRound(2, 5000)],
+            CollectionOrdering.Matching);
         await Assert.That(ReferenceEquals(detail.Demo, library.Find("/d/one.dem"))).IsTrue();
         await Assert.That(await library.GetDetailAsync("/d/missing.dem", CancellationToken.None)).IsNull();
     }

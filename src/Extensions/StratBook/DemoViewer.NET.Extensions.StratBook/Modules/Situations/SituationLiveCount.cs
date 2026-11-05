@@ -127,7 +127,13 @@ public sealed class SituationLiveCount : IDisposable
             {
                 // The sequence is read on the post thread, so a run that finished after a newer request
                 // was made sees that request's number and stays silent.
-                if (!_disposed && sequence == Volatile.Read(ref _sequence))
+                bool newest;
+                lock (_gate)
+                {
+                    newest = sequence == _sequence;
+                }
+
+                if (!_disposed && newest)
                 {
                     Counted?.Invoke(query, count);
                 }

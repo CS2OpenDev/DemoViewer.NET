@@ -1,23 +1,23 @@
 #region
 
 using System.Numerics;
-using CS2DemoKit.Analysis.Visibility;
-using DemoViewer.NET.Playback2D.Pipeline.Assets;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using CS2DemoKit.Analysis.Visibility;
+using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Layers;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Views.UtilityBook;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Abstractions;
-using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
-using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Playback2D.Pipeline.Assets;
 using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -37,14 +37,14 @@ public class GrenadeIndexTests
     private const string Mirage = "de_mirage";
 
     // Mirage's zones for these tests: west of x = -1000 is CT spawn, east of x = 1000 is T spawn.
-    private static readonly RoundIndexBuilderTests.FakeZoneResolver MirageZones = new("zv-mirage",
+    private static readonly RoundIndexBuilderTests.FakeZoneResolver _mirageZones = new("zv-mirage",
         v => v.X < -1000 ? "CTSpawn" : v.X > 1000 ? "TSpawn" : "Mid");
 
-    private static readonly RoundIndexBuilderTests.FakeZoneResolver InfernoZones = new("zv-inferno", _ => "CTSpawn");
+    private static readonly RoundIndexBuilderTests.FakeZoneResolver _infernoZones = new("zv-inferno", _ => "CTSpawn");
 
-    private static readonly string[] CtAndT = ["CTSpawn", "TSpawn"];
+    private static readonly string[] _ctAndT = ["CTSpawn", "TSpawn"];
     private static readonly string[] TOnly = ["TSpawn"];
-    private static readonly string[] Renamed = ["CT"];
+    private static readonly string[] _renamed = ["CT"];
 
     private static string DemoPath(int n) => $"/d/mirage-{n}.dem";
 
@@ -64,7 +64,8 @@ public class GrenadeIndexTests
     };
 
     // Writes the rows sibling and stamps the record the way the evaluator leaves a walked demo.
-    private static void Indexed(DemoCacheStore cache, string path, string map, string? sha, IEnumerable<GrenadeRow> rows,
+    private static void Indexed(DemoCacheStore cache, string path, string map, string? sha,
+        IEnumerable<GrenadeRow> rows,
         bool stamp = true)
     {
         DemoCacheRecord record = RoundIndexTestData.ParsedRecord(path, map, sha);
@@ -90,13 +91,15 @@ public class GrenadeIndexTests
         float jitter = (n % 3 - 1) * 5f;
         List<GrenadeRow> rows =
         [
-            Row("a", GrenadeKind.Smoke, new Vector3(512 + jitter, 288 - jitter, -160), new Vector3(-1400 + 4 * jitter, -1400, -170)),
+            Row("a", GrenadeKind.Smoke, new Vector3(512 + jitter, 288 - jitter, -160),
+                new Vector3(-1400 + 4 * jitter, -1400, -170)),
             Row("t", GrenadeKind.Smoke, new Vector3(512, 288, -160), new Vector3(1400, 200, -170), team: 2),
             Row("f", GrenadeKind.Flash, new Vector3(512, 288, -160), new Vector3(-1400, -1400, -170))
         ];
         if (n <= 4)
         {
-            rows.Add(Row("bj", GrenadeKind.Smoke, new Vector3(800, 800, -96), new Vector3(-1450, -1350, -170), jump: true,
+            rows.Add(Row("bj", GrenadeKind.Smoke, new Vector3(800, 800, -96), new Vector3(-1450, -1350, -170),
+                jump: true,
                 releaseTick: 2000));
         }
 
@@ -139,7 +142,7 @@ public class GrenadeIndexTests
     private static GrenadeIndex Loaded(DemoCacheStore cache, IZonePlaceResolverSource? zones = null)
     {
         GrenadeIndex index = new(cache.Library(),
-            zones ?? new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones), ("de_inferno", InfernoZones)));
+            zones ?? new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones), ("de_inferno", _infernoZones)));
         index.Load();
         return index;
     }
@@ -155,7 +158,9 @@ public class GrenadeIndexTests
         {
             DemoCacheStore cache = Library();
             Guid first;
-            using (GrenadeIndex index = new(cache.Library(), new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones)), lineups: new GrenadeLineupStore(root)))
+            using (GrenadeIndex index = new(cache.Library(),
+                       new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones)),
+                       lineups: new GrenadeLineupStore(root)))
             {
                 index.Load();
                 first = index.Query(SmokesIntoCt(NineDemos.ToHashSet()))[0].Lineups[0].Id;
@@ -166,14 +171,16 @@ public class GrenadeIndexTests
                 [Row("a", GrenadeKind.Smoke, new Vector3(532, 288, -160), new Vector3(-1400, -1400, -170))]);
             GrenadeLineupStore reread = new(root);
             int anchors = reread.For(Mirage).Anchors.Count;
-            using GrenadeIndex again = new(cache.Library(), new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones)), lineups: reread);
+            using GrenadeIndex again = new(cache.Library(),
+                new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones)), lineups: reread);
             again.Load();
             GrenadeLineup a = again.Query(SmokesIntoCt())[0].Lineups[0];
             using (Assert.Multiple())
             {
                 await Assert.That(a.Id).IsEqualTo(first).Because("the anchor is read back, not re-derived");
                 await Assert.That(a.Throws.Select(t => t.Demo.Path)).Contains(DemoPath(10));
-                await Assert.That(reread.For(Mirage).Anchors.Count).IsEqualTo(anchors).Because("the new throw joined an anchor");
+                await Assert.That(reread.For(Mirage).Anchors.Count).IsEqualTo(anchors)
+                    .Because("the new throw joined an anchor");
                 await Assert.That(File.Exists(Path.Combine(root, GrenadeLineupStore.FileName))).IsTrue();
             }
         }
@@ -191,12 +198,17 @@ public class GrenadeIndexTests
     {
         using GrenadeIndex index = Loaded(Library());
         List<GrenadeLineup> lineups = [.. index.Query(new GrenadeQuery(Mirage)).SelectMany(c => c.Lineups)];
-        List<Guid> gridIds = [.. GrenadeIndex.Cluster(index.Rows(new GrenadeQuery(Mirage))).SelectMany(c => c.Lineups).SelectMany(l => l.AliasIds.Append(l.Id)).Distinct()];
+        List<Guid> gridIds =
+        [
+            .. GrenadeIndex.Cluster(index.Rows(new GrenadeQuery(Mirage))).SelectMany(c => c.Lineups)
+                .SelectMany(l => l.AliasIds.Append(l.Id)).Distinct()
+        ];
         using (Assert.Multiple())
         {
             foreach (Guid id in gridIds)
             {
-                await Assert.That(lineups.Count(l => l.Answers(id))).IsEqualTo(1).Because($"grid id {id} names one lineup");
+                await Assert.That(lineups.Count(l => l.Answers(id))).IsEqualTo(1)
+                    .Because($"grid id {id} names one lineup");
                 await Assert.That(index.DescribeLineup(Mirage, id)).IsNotNull();
             }
         }
@@ -207,9 +219,11 @@ public class GrenadeIndexTests
     {
         DemoCacheStore cache = Library();
         GrenadeLineupStore store = new(null);
-        using GrenadeIndex index = new(cache.Library(), new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones)), lineups: store);
+        using GrenadeIndex index = new(cache.Library(), new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones)),
+            lineups: store);
         index.Query(new GrenadeQuery(Mirage));
-        await Assert.That(store.For(Mirage).Anchors).IsEmpty().Because("an index that has not loaded sees a partial library");
+        await Assert.That(store.For(Mirage).Anchors).IsEmpty()
+            .Because("an index that has not loaded sees a partial library");
     }
 
     [Test]
@@ -245,8 +259,10 @@ public class GrenadeIndexTests
             Indexed(cache, DemoPath(n), Mirage, $"sha{n}",
             [
                 Row("big1", GrenadeKind.Smoke, new Vector3(1200, 0, -160), new Vector3(20, 20, -170)),
-                Row("big2", GrenadeKind.Smoke, new Vector3(1200, 0, -160), new Vector3(22, 18, -170), releaseTick: 2000),
-                Row("small", GrenadeKind.Smoke, new Vector3(-400, 900, -160), new Vector3(220, 220, -170), releaseTick: 3000)
+                Row("big2", GrenadeKind.Smoke, new Vector3(1200, 0, -160), new Vector3(22, 18, -170),
+                    releaseTick: 2000),
+                Row("small", GrenadeKind.Smoke, new Vector3(-400, 900, -160), new Vector3(220, 220, -170),
+                    releaseTick: 3000)
             ]);
         }
 
@@ -263,7 +279,11 @@ public class GrenadeIndexTests
         using GrenadeIndex index = Loaded(Library());
         int reads = 0;
         using UtilityBookTabViewModel vm = new(index, isBrowser: false, loadMapAsset: _ => null,
-            background: work => { reads++; work(); });
+            background: work =>
+            {
+                reads++;
+                work();
+            });
         int afterOpen = reads;
         vm.OnDeactivated();
         vm.Refresh();
@@ -289,7 +309,7 @@ public class GrenadeIndexTests
             background: background.Enqueue, post: posted.Enqueue);
         vm.SelectedMap = Mirage;
         vm.ShowSingleThrows = true;
-        bool nothingYet = !vm.HasGroups && vm.Maps.Count == 0;
+        bool nothingYet = vm is { HasGroups: false, Maps.Count: 0 };
         while (background.Count > 0)
         {
             background.Dequeue()();
@@ -322,7 +342,8 @@ public class GrenadeIndexTests
         try
         {
             GrenadeLineupStore store = new(root);
-            using GrenadeIndex index = new(Library().Library(), new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones)), lineups: store);
+            using GrenadeIndex index = new(Library().Library(),
+                new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones)), lineups: store);
             index.Load();
             Guid id = index.Query(SmokesIntoCt())[0].Lineups[0].Id;
             index.FlushLineups();
@@ -357,8 +378,10 @@ public class GrenadeIndexTests
             await Assert.That(spawn.Kind).IsEqualTo(GrenadeKind.Smoke);
             await Assert.That(spawn.LandingPlace).IsEqualTo("CTSpawn");
             await Assert.That(spawn.Cell).IsEqualTo((-6, -6, -2));
-            await Assert.That(spawn.ThrowCount).IsEqualTo(15).Because("nine from A, four jump-throws from B, two standing from B");
-            await Assert.That(spawn.Lineups.Count).IsEqualTo(2).Because("B's jump-throws and standing throws are one lineup");
+            await Assert.That(spawn.ThrowCount).IsEqualTo(15)
+                .Because("nine from A, four jump-throws from B, two standing from B");
+            await Assert.That(spawn.Lineups.Count).IsEqualTo(2)
+                .Because("B's jump-throws and standing throws are one lineup");
 
             GrenadeLineup a = spawn.Lineups[0];
             await Assert.That(a.Throws.Count).IsEqualTo(9).Because("five units of jitter rounds to one position");
@@ -370,14 +393,15 @@ public class GrenadeIndexTests
             await Assert.That(b.Throws.Count).IsEqualTo(6);
             await Assert.That(b.JumpThrow).IsTrue().Because("its most thrown technique is the jump-throw");
             await Assert.That(b.Techniques.Select(t => (t.Key, t.Throws.Count)))
-                .IsEquivalentTo(new[] { ("stand-jump-left", 4), ("stand-throw-left", 2) }, CollectionOrdering.Matching)
+                .IsEquivalentTo([("stand-jump-left", 4), ("stand-throw-left", 2)], CollectionOrdering.Matching)
                 .Because("the same spot thrown another way is another position of the same lineup");
-            await Assert.That(GrenadeIndex.RoundedOrigin(b.Techniques[1].Origin)).IsEqualTo(GrenadeIndex.RoundedOrigin(b.Techniques[0].Origin));
+            await Assert.That(GrenadeIndex.RoundedOrigin(b.Techniques[1].Origin))
+                .IsEqualTo(GrenadeIndex.RoundedOrigin(b.Techniques[0].Origin));
 
             await Assert.That(north.Cell).IsEqualTo((-5, -5, -2));
             await Assert.That(north.LandingPlace).IsEqualTo("CTSpawn");
             await Assert.That(north.Lineups.Single().Throws.Select(t => t.Demo.Path))
-                .IsEquivalentTo(new[] { DemoPath(6), DemoPath(7) }, CollectionOrdering.Matching);
+                .IsEquivalentTo([DemoPath(6), DemoPath(7)], CollectionOrdering.Matching);
         }
     }
 
@@ -391,14 +415,15 @@ public class GrenadeIndexTests
         using (Assert.Multiple())
         {
             await Assert.That(clusters.Sum(c => c.ThrowCount)).IsEqualTo(17)
-                .Because("the copy of demo 1 shares its hash, the inferno smoke is another map, the unstamped demo never loaded");
+                .Because(
+                    "the copy of demo 1 shares its hash, the inferno smoke is another map, the unstamped demo never loaded");
             await Assert.That(clusters.SelectMany(c => c.Lineups).SelectMany(l => l.Throws).Select(t => t.Demo.Path))
                 .DoesNotContain("/d/zz-copy/mirage-1.dem");
             await Assert.That(index.DemoCount).IsEqualTo(10).Because("the nine and inferno: the copy is the same demo");
             await Assert.That(index.GrenadeCount).IsEqualTo(9 * 3 + 4 + 2 + 2 + 1)
                 .Because("rows without a landing point are not index rows; the copy is not counted");
-            await Assert.That(index.Maps()).IsEquivalentTo(new[] { "de_inferno", Mirage }, CollectionOrdering.Matching);
-            await Assert.That(index.LandingPlaces(Mirage)).IsEquivalentTo(CtAndT, CollectionOrdering.Matching);
+            await Assert.That(index.Maps()).IsEquivalentTo(["de_inferno", Mirage], CollectionOrdering.Matching);
+            await Assert.That(index.LandingPlaces(Mirage)).IsEquivalentTo(_ctAndT, CollectionOrdering.Matching);
         }
     }
 
@@ -413,13 +438,18 @@ public class GrenadeIndexTests
             DemoCacheStore cache = new(null);
             GrenadeStore store = new(cache.DiskData(root));
             cache.Upsert(RoundIndexTestData.ParsedRecord(DemoPath(3), Mirage, "sha3"));
-            store.Write(DemoPath(3), new GrenadeDocument
-            {
-                Demo = new GrenadeDemoHeader { Sha256 = "sha3", StableKey = DemoCacheStore.StableKey(DemoPath(3)) },
-                Grenades = [.. MirageRows(3)]
-            });
+            store.Write(DemoPath(3),
+                new GrenadeDocument
+                {
+                    Demo = new GrenadeDemoHeader
+                    {
+                        Sha256 = "sha3", StableKey = DemoCacheStore.StableKey(DemoPath(3))
+                    },
+                    Grenades = [.. MirageRows(3)]
+                });
             using GrenadeIndex index = new(cache.Library(),
-                new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones), ("de_inferno", InfernoZones)), store: store);
+                new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones), ("de_inferno", _infernoZones)),
+                store: store);
             index.Load();
             int before = index.GrenadeCount;
 
@@ -452,11 +482,14 @@ public class GrenadeIndexTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(index.Rows(new GrenadeQuery(Mirage, new HashSet<GrenadeKind> { GrenadeKind.Flash })).Count)
+            await Assert
+                .That(index.Rows(new GrenadeQuery(Mirage, new HashSet<GrenadeKind> { GrenadeKind.Flash })).Count)
                 .IsEqualTo(9);
-            await Assert.That(index.Rows(new GrenadeQuery(Mirage, ThrowerTeam: 2)).Select(r => r.LandingPlace!).Distinct())
+            await Assert.That(index.Rows(new GrenadeQuery(Mirage, ThrowerTeam: 2)).Select(r => r.LandingPlace!)
+                    .Distinct())
                 .IsEquivalentTo(TOnly, CollectionOrdering.Matching);
-            await Assert.That(index.Rows(new GrenadeQuery("DE_MIRAGE", DemoPaths: new HashSet<string> { DemoPath(6) })).Count)
+            await Assert.That(index.Rows(new GrenadeQuery("DE_MIRAGE", DemoPaths: new HashSet<string> { DemoPath(6) }))
+                    .Count)
                 .IsEqualTo(4).Because("map and path compare without case");
             await Assert.That(index.Rows(SmokesIntoCt()).All(r => r.PlaceSource == "zones:zv-mirage")).IsTrue()
                 .Because("the zones version is stored beside the place");
@@ -483,7 +516,7 @@ public class GrenadeIndexTests
     [Test]
     public async Task AZonesVersionChange_ReResolvesTheMapAtQueryTime()
     {
-        SwitchableZones zones = new(MirageZones);
+        SwitchableZones zones = new(_mirageZones);
         using GrenadeIndex index = Loaded(Library(), zones);
         await Assert.That(index.Query(SmokesIntoCt()).Count).IsEqualTo(2);
 
@@ -494,7 +527,7 @@ public class GrenadeIndexTests
             await Assert.That(index.Query(SmokesIntoCt())).IsEmpty();
             await Assert.That(index.Rows(new GrenadeQuery(Mirage, LandingPlaces: new HashSet<string> { "ct" })).Count)
                 .IsEqualTo(9 * 2 + 4 + 2 + 2).Because("the new name, compared without case");
-            await Assert.That(index.LandingPlaces(Mirage)).IsEquivalentTo(Renamed, CollectionOrdering.Matching);
+            await Assert.That(index.LandingPlaces(Mirage)).IsEquivalentTo(_renamed, CollectionOrdering.Matching);
         }
     }
 
@@ -505,7 +538,8 @@ public class GrenadeIndexTests
         cache.Upsert(RoundIndexTestData.ParsedRecord("/d/new.dem", Mirage, "shaN"));
         GrenadeIndexEvaluator evaluator = new(cache.Library(), cache.Grenades(), () => true,
             walk: _ => new GrenadeWalk(MirageRows(1), 1, GrenadeWalker.InputDecoderName, 4));
-        using GrenadeIndex index = new(cache.Library(), new RoundIndexEvaluatorTests.MapZones((Mirage, MirageZones)), evaluator);
+        using GrenadeIndex index = new(cache.Library(), new RoundIndexEvaluatorTests.MapZones((Mirage, _mirageZones)),
+            evaluator);
         index.Load();
         int changes = 0;
         index.Changed += () => changes++;
@@ -569,7 +603,8 @@ public class GrenadeIndexTests
         }
 
         await Assert.That(index.DescribeLineup(Mirage, Guid.NewGuid())).IsNull();
-        await Assert.That(index.DescribeLineup("de_inferno", lineup.Id)).IsNull().Because("the id names a Mirage position");
+        await Assert.That(index.DescribeLineup("de_inferno", lineup.Id)).IsNull()
+            .Because("the id names a Mirage position");
     }
 
     [Test]
@@ -584,8 +619,10 @@ public class GrenadeIndexTests
         {
             await Assert.That(smokes.Count).IsGreaterThan(0);
             await Assert.That(smokes.All(s => s.Kind == GrenadeKind.Smoke)).IsTrue();
-            await Assert.That(all.Any(s => s.Kind == GrenadeKind.Flash)).IsTrue().Because("unfiltered covers every kind on the map");
-            await Assert.That(smokes.Select(s => s.Id).Distinct().Count()).IsEqualTo(smokes.Count).Because("one id per throw position");
+            await Assert.That(all.Any(s => s.Kind == GrenadeKind.Flash)).IsTrue()
+                .Because("unfiltered covers every kind on the map");
+            await Assert.That(smokes.Select(s => s.Id).Distinct().Count()).IsEqualTo(smokes.Count)
+                .Because("one id per throw position");
         }
     }
 
@@ -623,11 +660,13 @@ public class GrenadeIndexTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.SelectedKind!.Value).IsEqualTo(GrenadeKind.Smoke).Because("smokes are the default");
-            await Assert.That(vm.Groups.Count).IsEqualTo(2).Because("the main CT smoke spot and the two-throw spot beside it");
+            await Assert.That(vm.Groups.Count).IsEqualTo(2)
+                .Because("the main CT smoke spot and the two-throw spot beside it");
             await Assert.That(top.Title).IsEqualTo("Smoke into CTSpawn");
             await Assert.That(top.ThrowCount).IsEqualTo(15);
             await Assert.That(top.Lineups.All(l => l.Throws.Count >= UtilityBookTabViewModel.LineupMinThrows)).IsTrue();
-            await Assert.That(vm.HiddenLine).IsEqualTo("").Because("every CTSpawn position here was thrown from twice or more");
+            await Assert.That(vm.HiddenLine).IsEqualTo("")
+                .Because("every CTSpawn position here was thrown from twice or more");
             await Assert.That(vm.Document.Landings.Count).IsEqualTo(2);
             await Assert.That(vm.Document.Landings[^1].Id).IsEqualTo(top.Id).Because("the biggest draws last, on top");
             await Assert.That(vm.Document.Throws).IsEmpty().Because("no group is focused yet");
@@ -638,8 +677,10 @@ public class GrenadeIndexTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.HasFocus).IsTrue();
-            await Assert.That(vm.Document.Throws.Count).IsEqualTo(top.Lineups.Sum(l => l.Techniques.Count)).Because("one position per technique");
-            await Assert.That(vm.Document.Throws.All(t => t.Trajectory.Count >= 2)).IsTrue().Because("a straight flight stands in for a missing path");
+            await Assert.That(vm.Document.Throws.Count).IsEqualTo(top.Lineups.Sum(l => l.Techniques.Count))
+                .Because("one position per technique");
+            await Assert.That(vm.Document.Throws.All(t => t.Trajectory.Count >= 2)).IsTrue()
+                .Because("a straight flight stands in for a missing path");
             await Assert.That(vm.FocusLine).StartsWith("Smoke into CTSpawn:");
         }
 
@@ -651,8 +692,10 @@ public class GrenadeIndexTests
         {
             await Assert.That(detail.UsedLine).IsEqualTo($"Used {jump.Throws.Count} times in {jump.DemoCount} demos");
             await Assert.That(detail.StyleLine).Contains("jump-throw");
-            await Assert.That(detail.TechniquesLine).IsEqualTo("jump-throw, left click 4 · standing throw, left click 2");
-            await Assert.That(detail.Instances.Count).IsEqualTo(jumping.Throws.Count).Because("the card lists the clicked position's throws");
+            await Assert.That(detail.TechniquesLine)
+                .IsEqualTo("jump-throw, left click 4 · standing throw, left click 2");
+            await Assert.That(detail.Instances.Count).IsEqualTo(jumping.Throws.Count)
+                .Because("the card lists the clicked position's throws");
             await Assert.That(detail.ConsoleText).IsEqualTo(UtilityBookTabViewModel.NoConsoleText)
                 .Because("the fixture rows never set release eye angles");
             await Assert.That(detail.HasConsole).IsFalse();
@@ -660,13 +703,13 @@ public class GrenadeIndexTests
 
         IndexedGrenade opened = detail.Instances[0].Grenade;
         await detail.Instances[0].WatchCommand.ExecuteAsync(null);
-        await Assert.That(playback.Seeks.Single()).IsEqualTo((opened.Demo.Path, opened.Row.ReleaseTick - UtilityBookTabViewModel.WatchLeadTicks));
+        await Assert.That(playback.Seeks.Single()).IsEqualTo((opened.Demo.Path,
+            opened.Row.ReleaseTick - UtilityBookTabViewModel.WatchLeadTicks));
 
         vm.Back();
         await Assert.That(vm.HasDetail).IsFalse().Because("Escape closes the card first");
         vm.Back();
         await Assert.That(vm.HasFocus).IsFalse().Because("then leaves the group");
-
     }
 
     [Test]
@@ -687,7 +730,8 @@ public class GrenadeIndexTests
         vm.Refresh();
         using (Assert.Multiple())
         {
-            await Assert.That(loads.Count).IsEqualTo(mirageLoads).Because("an index change on the same map keeps its bundle");
+            await Assert.That(loads.Count).IsEqualTo(mirageLoads)
+                .Because("an index change on the same map keeps its bundle");
             await Assert.That(vm.MapAsset).IsSameReferenceAs(mirage);
             await Assert.That(mirage.Releases).IsEqualTo(0);
         }
@@ -697,7 +741,8 @@ public class GrenadeIndexTests
         {
             await Assert.That(loads[^1]).IsEqualTo("de_inferno");
             await Assert.That(vm.MapAsset).IsNotSameReferenceAs(mirage);
-            await Assert.That(mirage.Releases).IsEqualTo(1).Because("the Mirage hold is given back once the host rebinds");
+            await Assert.That(mirage.Releases).IsEqualTo(1)
+                .Because("the Mirage hold is given back once the host rebinds");
         }
     }
 
@@ -713,7 +758,6 @@ public class GrenadeIndexTests
     public async Task TheCard_CopiesTheSetposSetangLine()
     {
         DemoCacheStore cache = new(null);
-        List<GrenadeRow> rows = [];
         for (int n = 1; n <= 2; n++)
         {
             GrenadeRow row = Row("a", GrenadeKind.Smoke, new Vector3(512, 288, -160), new Vector3(-1400, -1400, -170));
@@ -725,7 +769,8 @@ public class GrenadeIndexTests
         }
 
         // One single throw somewhere else: hidden by default.
-        Indexed(cache, DemoPath(3), Mirage, "sha3", [Row("s", GrenadeKind.Smoke, new Vector3(-600, 900, -100), new Vector3(1500, 300, -170))]);
+        Indexed(cache, DemoPath(3), Mirage, "sha3",
+            [Row("s", GrenadeKind.Smoke, new Vector3(-600, 900, -100), new Vector3(1500, 300, -170))]);
 
         using GrenadeIndex index = Loaded(cache);
         using UtilityBookTabViewModel vm = new(index, isBrowser: false, loadMapAsset: _ => null);
@@ -744,7 +789,8 @@ public class GrenadeIndexTests
         using (Assert.Multiple())
         {
             await Assert.That(detail.UsedLine).IsEqualTo("Used 2 times in 2 demos");
-            await Assert.That(detail.StyleLine).IsEqualTo("Smoke · running throw, left click · Running · 1.8s air time");
+            await Assert.That(detail.StyleLine)
+                .IsEqualTo("Smoke · running throw, left click · Running · 1.8s air time");
             await Assert.That(copied).IsEqualTo("setpos 512.00 288.00 -160.00; setang -18.12 -15.30 0.00")
                 .Because("the console line is copy-pasteable at this exact shape");
             await Assert.That(detail.CopyStatus).IsEqualTo("copied");
@@ -766,8 +812,10 @@ public class GrenadeIndexTests
         // 8 units apart but on either side of a 16-unit rounding edge (504 rounds to 32, 511.9 to 32, 519 to 32...);
         // 519.9 and 520.1 straddle 520, the midpoint between 512 and 528.
         DemoCacheStore cache = new(null);
-        Indexed(cache, DemoPath(1), Mirage, "sha1", [Row("a", GrenadeKind.Smoke, new Vector3(519.9f, 288, -160), new Vector3(-1400, -1400, -170))]);
-        Indexed(cache, DemoPath(2), Mirage, "sha2", [Row("a", GrenadeKind.Smoke, new Vector3(520.1f, 288, -160), new Vector3(-1395, -1402, -170))]);
+        Indexed(cache, DemoPath(1), Mirage, "sha1",
+            [Row("a", GrenadeKind.Smoke, new Vector3(519.9f, 288, -160), new Vector3(-1400, -1400, -170))]);
+        Indexed(cache, DemoPath(2), Mirage, "sha2",
+            [Row("a", GrenadeKind.Smoke, new Vector3(520.1f, 288, -160), new Vector3(-1395, -1402, -170))]);
         using GrenadeIndex index = Loaded(cache);
 
         GrenadeCluster cluster = index.Query(new GrenadeQuery(Mirage)).Single();
@@ -778,7 +826,8 @@ public class GrenadeIndexTests
             await Assert.That(lineup.AliasIds.Count).IsEqualTo(3).Because("its own id and both grid ids");
             foreach (Guid id in lineup.AliasIds)
             {
-                await Assert.That(index.DescribeLineup(Mirage, id)?.Id).IsEqualTo(lineup.Id).Because("a strat step that stored either id still resolves");
+                await Assert.That(index.DescribeLineup(Mirage, id)?.Id).IsEqualTo(lineup.Id)
+                    .Because("a strat step that stored either id still resolves");
             }
         }
     }
@@ -841,7 +890,8 @@ public class GrenadeIndexTests
             Dispatcher.UIThread.RunJobs();
             if (window.CaptureRenderedFrame() is { } card)
             {
-                card.Save(Path.Combine(HeadlessSession.ArtifactDir, "utility-focus.png"), new PngBitmapEncoderOptions());
+                card.Save(Path.Combine(HeadlessSession.ArtifactDir, "utility-focus.png"),
+                    new PngBitmapEncoderOptions());
                 focusInk = RenderInk(card);
             }
 
@@ -851,11 +901,14 @@ public class GrenadeIndexTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(focused).IsTrue().Because("a click on the icon focuses the group through the host's hit test");
+            await Assert.That(focused).IsTrue()
+                .Because("a click on the icon focuses the group through the host's hit test");
             await Assert.That(carded).IsTrue().Because("a click on a position opens its card");
             await Assert.That(stacked).IsEqualTo(2).Because("the fixture stacks a jump-throw and a standard throw");
-            await Assert.That(reached.Count).IsEqualTo(2).Because("repeated clicks on a stack reach every position in it");
-            await Assert.That(cardOnLeft).IsTrue().Because("the card opens on the side away from the selected position");
+            await Assert.That(reached.Count).IsEqualTo(2)
+                .Because("repeated clicks on a stack reach every position in it");
+            await Assert.That(cardOnLeft).IsTrue()
+                .Because("the card opens on the side away from the selected position");
             await Assert.That(mapInk).IsGreaterThan(500);
             await Assert.That(focusInk).IsGreaterThan(500);
         }

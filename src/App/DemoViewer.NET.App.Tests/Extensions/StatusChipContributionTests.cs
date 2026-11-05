@@ -6,7 +6,6 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.ViewModels.Playback2D;
@@ -27,7 +26,8 @@ public class StatusChipContributionTests
 {
     private const string PackFeature = "pack.chip";
 
-    private static (MainViewModel Shell, HostStatusChip Chip, ExtensionFaults Faults, FakeGate Gate) NewShell(FakeSource source)
+    private static (MainViewModel Shell, HostStatusChip Chip, ExtensionFaults Faults, FakeGate Gate) NewShell(
+        FakeSource source)
     {
         ChipPack pack = new(source);
         ExtensionFaults faults = ExtensionFaults.For([pack], static a => a());
@@ -50,7 +50,8 @@ public class StatusChipContributionTests
             {
                 using (Assert.Multiple())
                 {
-                    await Assert.That(chip.FeatureId).IsEqualTo(PackFeature).Because("a null feature id takes the owning pack's");
+                    await Assert.That(chip.FeatureId).IsEqualTo(PackFeature)
+                        .Because("a null feature id takes the owning pack's");
                     await Assert.That(vm.Chips).Contains(chip.Chip);
                     await Assert.That(chip.Chip.Label).IsEqualTo("Syncing");
                     await Assert.That(chip.Chip.IsStateWorking).IsTrue();
@@ -144,7 +145,8 @@ public class StatusChipContributionTests
                 worker.Join();
                 Dispatcher.UIThread.RunJobs();
 
-                await Assert.That(source.LabelReads - before).IsEqualTo(1).Because("the raises coalesce into one queued refresh");
+                await Assert.That(source.LabelReads - before).IsEqualTo(1)
+                    .Because("the raises coalesce into one queued refresh");
             }
             finally
             {
@@ -195,14 +197,20 @@ public class StatusChipContributionTests
                 vm.MountExportStatus("test.chip", PackFeature, first);
                 vm.MountExportStatus("test.chip", PackFeature, first);
                 vm.MountExportStatus("test.chip", PackFeature, second);
-                string[] logged = [.. vm.Output.DecodeErrors.Rows
-                    .Where(r => r.Message.Contains("'test.chip'", StringComparison.Ordinal))
-                    .Select(r => r.Message)];
+                string[] logged =
+                [
+                    .. vm.Output.DecodeErrors.Rows
+                        .Where(r => r.Message.Contains("'test.chip'", StringComparison.Ordinal))
+                        .Select(r => r.Message)
+                ];
 
                 // Each mount that builds a slot the strip refuses logs again, so one line means no slot was built.
                 using (Assert.Multiple())
                 {
-                    await Assert.That(logged).IsEquivalentTo(["Status chip 'test.chip' is already on the strip; the export chip is left out."], CollectionOrdering.Matching);
+                    await Assert.That(logged)
+                        .IsEquivalentTo(
+                            ["Status chip 'test.chip' is already on the strip; the export chip is left out."],
+                            CollectionOrdering.Matching);
                     await Assert.That(vm.Chips.Count).IsEqualTo(before);
                     await Assert.That(vm.Chips).Contains(chip.Chip).Because("the contributed chip keeps its id");
                 }
@@ -250,13 +258,11 @@ public class StatusChipContributionTests
 
         public StatusChipDotState Dot { get; set; }
 
-        public ICommand? Action { get; set; }
+        public ICommand? Action { get; init; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public bool IsShown => Shown;
-
-        private string _label = "";
 
         public int LabelReads;
 
@@ -265,10 +271,10 @@ public class StatusChipContributionTests
             get
             {
                 Interlocked.Increment(ref LabelReads);
-                return ThrowOnRead ? throw new InvalidOperationException("chip label") : _label;
+                return ThrowOnRead ? throw new InvalidOperationException("chip label") : field;
             }
-            set => _label = value;
-        }
+            set;
+        } = "";
 
         public StatusChipDotState DotState => Dot;
 

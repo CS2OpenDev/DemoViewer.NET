@@ -11,7 +11,6 @@ using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
-using DemoViewer.NET.Controls;
 using DemoViewer.NET.Diagnostics;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Diagnostics;
@@ -79,14 +78,14 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
 
     private readonly List<(string Op, double Ms)> _csvgSpans = [];
 
-    private readonly object _csvgTelemetryGate = new();
+    private readonly Lock _csvgTelemetryGate = new();
     private readonly Func<IReadOnlyList<DemoFrame>?> _frames;
     private readonly Func<string?> _loadedDemoPath;
     private readonly Dictionary<string, long> _runtimeCounters = new(StringComparer.Ordinal);
     private readonly List<double> _runtimeFrameDurations = [];
 
     // Runtime listeners: null until the user toggles capture on; disposed on view unload.
-    private readonly object _runtimeGate = new();
+    private readonly Lock _runtimeGate = new();
     private readonly List<(string Name, double Ms, int Depth)> _runtimeSpans = [];
     private readonly DiagnosticsTelemetryHub _telemetry;
     private ActivityListener? _activityListener;
@@ -148,6 +147,7 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
 
     /// <summary>True while a captured re-run is in flight, disables the re-run button.</summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ReRunCapturedCommand))]
     private bool _isReRunning;
 
     // ── Evaluator runtime (always rendered; idle until toggled) ───────────────
@@ -297,7 +297,8 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
         rows.Add(Row("rules dir", AnalysisViewModel.RulesDirectory));
 
         IReadOnlyList<DemoFrame>? frames = _frames();
-        rows.Add(Row("frames", frames is null ? "(no demo loaded)" : frames.Count.ToString("N0", CultureInfo.InvariantCulture)));
+        rows.Add(Row("frames",
+            frames is null ? "(no demo loaded)" : frames.Count.ToString("N0", CultureInfo.InvariantCulture)));
 
         ParsedDemo? demo = _analysisTab.Analysis.LastEvaluatedDemo;
         if (demo is not null)
@@ -327,7 +328,8 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
         {
             ParseProfilingRows =
             [
-                Row("parse profiling", "no data captured — Re-run with capture turns profiling on; then RELOAD the demo to profile the parse pass")
+                Row("parse profiling",
+                    "no data captured — Re-run with capture turns profiling on; then RELOAD the demo to profile the parse pass")
             ];
             return;
         }
@@ -388,12 +390,14 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
             // Tracker decode nests under the scanner's seek; report the unattributed remainder explicitly.
             long children = t.FieldPathTicks + t.FieldValueTicks + t.DescriptorBuildTicks;
             long remainder = t.PacketEntitiesTicks - children;
-            rows.Add(Indent("tracker.PacketEntities", $"{Ms(t.PacketEntitiesTicks)} · {Mib(t.PacketEntitiesAlloc)}", 1));
+            rows.Add(Indent("tracker.PacketEntities", $"{Ms(t.PacketEntitiesTicks)} · {Mib(t.PacketEntitiesAlloc)}",
+                1));
             rows.Add(Indent("fieldPath", $"{Ms(t.FieldPathTicks)} · {Mib(t.FieldPathAlloc)}", 2));
             rows.Add(Indent("fieldValue", $"{Ms(t.FieldValueTicks)} · {Mib(t.FieldValueAlloc)}", 2));
             rows.Add(Indent("descriptorBuild", $"{Ms(t.DescriptorBuildTicks)} · {Mib(t.DescriptorBuildAlloc)}", 2));
             rows.Add(Indent("(unattributed)", Ms(remainder), 2));
-            rows.Add(Indent("packetEntities count", t.PacketEntitiesCount.ToString("N0", CultureInfo.InvariantCulture), 2));
+            rows.Add(Indent("packetEntities count", t.PacketEntitiesCount.ToString("N0", CultureInfo.InvariantCulture),
+                2));
             rows.Add(Indent("entity field reads", t.EntityFieldReads.ToString("N0", CultureInfo.InvariantCulture), 2));
             rows.Add(Indent("descriptor builds", t.DescriptorBuilds.ToString("N0", CultureInfo.InvariantCulture), 2));
         }
@@ -448,7 +452,7 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
                 _runtimeCounters[inst.Name] = _runtimeCounters.GetValueOrDefault(inst.Name) + measurement;
             }
         });
-        meter.SetMeasurementEventCallback<double>((inst, measurement, _, _) =>
+        meter.SetMeasurementEventCallback<double>((_, measurement, _, _) =>
         {
             lock (_runtimeGate)
             {
@@ -465,7 +469,7 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
         _activityListener = new ActivityListener
         {
             ShouldListenTo = src => src.Name == AnalysisDiagnostics.SourceName,
-            Sample = static (ref options) => ActivitySamplingResult.AllData,
+            Sample = static (ref _) => ActivitySamplingResult.AllData,
             ActivityStopped = OnSpanStopped
         };
         ActivitySource.AddActivityListener(_activityListener);
@@ -565,7 +569,7 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
         LogSummary = total == 0
             ? "no logs captured yet — internal logs appear on load/analysis; CSVG logs when Live Sync runs"
             : $"{LogRows.Count.ToString("N0", CultureInfo.InvariantCulture)} shown / " +
-              $"{total.ToString("N0", CultureInfo.InvariantCulture)} captured";
+            $"{total.ToString("N0", CultureInfo.InvariantCulture)} captured";
     }
 
     /// <summary>Clears the captured diagnostics logs (hub + this view).</summary>
@@ -772,7 +776,7 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
             return Row("frame.duration_ms", "—");
         }
 
-        double[] sorted = durations.OrderBy(d => d).ToArray();
+        double[] sorted = [.. durations.OrderBy(d => d)];
         double mean = sorted.Average();
         double p95 = sorted[Math.Min(sorted.Length - 1, (int)(sorted.Length * 0.95))];
         return Row("frame.duration_ms", $"n={sorted.Length:N0} · mean {mean:F3} · p95 {p95:F3} ms");
@@ -837,8 +841,6 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
     }
 
     private bool CanReRun() => !IsReRunning && _analysisTab.Analysis.LastEvaluatedDemo is not null;
-
-    partial void OnIsReRunningChanged(bool value) => ReRunCapturedCommand.NotifyCanExecuteChanged();
 
     // ── Copy-to-clipboard text builder ────────────────────────────────────────
 

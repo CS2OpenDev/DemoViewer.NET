@@ -16,10 +16,10 @@ namespace DemoViewer.NET.Extensions.Updates;
 public static class ExtensionFeedSource
 {
     /// <summary>The placeholder in a feed URL template that the extension id replaces.</summary>
-    public const string IdPlaceholder = "{id}";
+    private const string IdPlaceholder = "{id}";
 
     /// <summary>The default template, over this repository's releases.</summary>
-    public static string DefaultTemplate { get; } =
+    private static string DefaultTemplate =>
         $"https://github.com/{GitHubReleaseNotesService.Repo}/releases/download/extensions-{IdPlaceholder}/{ExtensionFeed.FileName}";
 
     /// <summary>
@@ -30,7 +30,8 @@ public static class ExtensionFeedSource
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(packId);
         if (!string.IsNullOrWhiteSpace(template)
-            && Uri.TryCreate(template.Trim().Replace(IdPlaceholder, packId, StringComparison.Ordinal), UriKind.Absolute, out Uri? custom)
+            && Uri.TryCreate(template.Trim().Replace(IdPlaceholder, packId, StringComparison.Ordinal), UriKind.Absolute,
+                out Uri? custom)
             && custom.Scheme == Uri.UriSchemeHttps)
         {
             return custom;

@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Extensions.Sdk;
 
 /// <summary>Why <see cref="IExtensionLifecycle.OnEnabledAsync" /> ran.</summary>
+[PublicAPI]
 public enum ExtensionStartReason
 {
     /// <summary>The app started with the extension on.</summary>
@@ -15,6 +16,7 @@ public enum ExtensionStartReason
 ///     (<c>services.AddKeyedSingleton&lt;IExtensionLifecycle, MyLifecycle&gt;(Id)</c>) and the host calls it as the
 ///     master switch moves.
 /// </summary>
+[PublicAPI]
 public interface IExtensionLifecycle
 {
     /// <summary>Start loads and subscriptions. Queue slow work through <see cref="IExtensionJobs" />.</summary>
@@ -31,6 +33,7 @@ public interface IExtensionLifecycle
 }
 
 /// <summary>State an extension can drop when it is switched off and rebuild when it is switched back on.</summary>
+[PublicAPI]
 public interface IExtensionResident
 {
     /// <summary>Subscribe to what keeps it current. Loads nothing.</summary>

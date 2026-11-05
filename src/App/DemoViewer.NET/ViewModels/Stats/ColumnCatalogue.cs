@@ -400,21 +400,27 @@ public static class ColumnCatalogue
             M("TotalK", "K", StatGroup.Core, "Kills (enemy kills over the whole match)", scale: _peerUp),
             M("TotalD", "D", StatGroup.Core, "Deaths", scale: _peerDown),
             M("TotalA", "A", StatGroup.Core, "Assists (on enemy kills)", scale: _peerUp),
-            M("ADR", "ADR", StatGroup.Core, "Average damage per round (damage capped at remaining HP)", agg: ColumnAggregate.Average, width: 66, scale: _adr),
-            M("KAST%", "KAST%", StatGroup.Core, "Rounds with a Kill, Assist, Survival or Traded death (%)", agg: ColumnAggregate.Average, width: 70, scale: _kast),
-            M("HLTV", "Rating", StatGroup.Core, "HLTV 2.0-style rating (composite of KPR, DPR, ADR, KAST and impact)", agg: ColumnAggregate.Average, width: 66, scale: _hltv),
+            M("ADR", "ADR", StatGroup.Core, "Average damage per round (damage capped at remaining HP)",
+                agg: ColumnAggregate.Average, width: 66, scale: _adr),
+            M("KAST%", "KAST%", StatGroup.Core, "Rounds with a Kill, Assist, Survival or Traded death (%)",
+                agg: ColumnAggregate.Average, width: 70, scale: _kast),
+            M("HLTV", "Rating", StatGroup.Core, "HLTV 2.0-style rating (composite of KPR, DPR, ADR, KAST and impact)",
+                agg: ColumnAggregate.Average, width: 66, scale: _hltv),
 
             // ── Rating detail ──
             M("KD", "K/D", StatGroup.Rating, "Kill/death ratio", agg: ColumnAggregate.Average, scale: _kd),
             M("KPR", "KPR", StatGroup.Rating, "Kills per round", agg: ColumnAggregate.Average, scale: _kpr),
-            M("HS%", "HS %", StatGroup.Rating, "Headshot kill percentage", agg: ColumnAggregate.Average, scale: _peerNoTint),
-            M("Surv%", "Survival %", StatGroup.Rating, "Rounds survived (%)", agg: ColumnAggregate.Average, width: 76, scale: _peerNoTint),
+            M("HS%", "HS %", StatGroup.Rating, "Headshot kill percentage", agg: ColumnAggregate.Average,
+                scale: _peerNoTint),
+            M("Surv%", "Survival %", StatGroup.Rating, "Rounds survived (%)", agg: ColumnAggregate.Average, width: 76,
+                scale: _peerNoTint),
 
             // ── Combat ──
             M("TotalHS", "HS Kills", StatGroup.Combat, "Headshot kills", width: 68),
             M("FlashAst", "Flash Assists", StatGroup.Combat, "Kills on enemies you flashed", width: 92),
             M("TrdK", "Trade Kills", StatGroup.Combat, "Kills avenging a teammate within the trade window", width: 84),
-            M("TradedD", "Traded Deaths", StatGroup.Combat, "Your deaths avenged by a teammate within the trade window", width: 98),
+            M("TradedD", "Traded Deaths", StatGroup.Combat, "Your deaths avenged by a teammate within the trade window",
+                width: 98),
             M("Clutch", "Clutches Won", StatGroup.Combat, "1-vs-X situations won", Emphasis.Positive, width: 96),
             M("RapidKills", "Rapid Kills", StatGroup.Combat, "Kill streaks within a 10-second window", width: 82),
 
@@ -431,48 +437,87 @@ public static class ColumnCatalogue
             // crash but a cell that quietly shows no tooltip. Nine of them divide by the count they
             // name and read "over"; FB%, SAcc% and SprayAcc% divide by shot counts the ruleset does not
             // export and are only GATED on Spots, so their phrase says "after" and claims no fraction.
-            M("Acc%", "Acc %", StatGroup.Accuracy, "Enemy bullet hits per bullet fired (%)", agg: ColumnAggregate.Average, width: 64, scale: _peerUp),
+            M("Acc%", "Acc %", StatGroup.Accuracy, "Enemy bullet hits per bullet fired (%)",
+                agg: ColumnAggregate.Average, width: 64, scale: _peerUp),
             // Bar, no tint, for the reason HS% already carries: a headshot share is a STYLE, not a
             // ranking. An AWPer's body hits kill exactly as well as a rifler's heads. HSDmg% divides by
             // ALL enemy damage on top of that, so a player putting half their output into grenades halves
             // the column without one thing about their aim having changed.
-            M("HSAcc%", "HS Acc %", StatGroup.Accuracy, "Share of enemy bullet hits that landed on the head (%)", agg: ColumnAggregate.Average, width: 78, scale: _peerNoTint),
-            M("HSDmg%", "HS Dmg %", StatGroup.Accuracy, "Share of enemy damage dealt by headshots, with utility damage in the denominator (%)", agg: ColumnAggregate.Average, width: 80, scale: _peerNoTint),
-            M("CS%", "CS %", StatGroup.Accuracy, "Counter-strafes stopped clean, over the shots where one was attempted (%). Hover a cell for the attempts behind it", agg: ColumnAggregate.Average, width: 62, scale: _counterStrafeRate, over: new("CSAtt", "attempts", "%")),
-            M("CSAll%", "CS All %", StatGroup.Accuracy, "Clean counter-strafes over every bullet fired, so a thin attempt count cannot flatter the rate (%)", agg: ColumnAggregate.Average, width: 76, scale: _peerUp),
+            M("HSAcc%", "HS Acc %", StatGroup.Accuracy, "Share of enemy bullet hits that landed on the head (%)",
+                agg: ColumnAggregate.Average, width: 78, scale: _peerNoTint),
+            M("HSDmg%", "HS Dmg %", StatGroup.Accuracy,
+                "Share of enemy damage dealt by headshots, with utility damage in the denominator (%)",
+                agg: ColumnAggregate.Average, width: 80, scale: _peerNoTint),
+            M("CS%", "CS %", StatGroup.Accuracy,
+                "Counter-strafes stopped clean, over the shots where one was attempted (%). Hover a cell for the attempts behind it",
+                agg: ColumnAggregate.Average, width: 62, scale: _counterStrafeRate,
+                over: new("CSAtt", "attempts", "%")),
+            M("CSAll%", "CS All %", StatGroup.Accuracy,
+                "Clean counter-strafes over every bullet fired, so a thin attempt count cannot flatter the rate (%)",
+                agg: ColumnAggregate.Average, width: 76, scale: _peerUp),
             // Lower is better, unlike the two columns above it. These are the shots the engine charged a
             // movement penalty for. CSAll% + Linear% is the attempted share; the remainder was fired from
             // a standstill, which is neither a success nor a failure and so is not on the board at all.
-            M("Linear%", "Linear %", StatGroup.Accuracy, "Bullets fired while still moving fast enough for the engine to charge movement inaccuracy (%)", agg: ColumnAggregate.Average, width: 76, scale: _peerDown),
-            M("FB%", "First Bullet %", StatGroup.Accuracy, "First bullet out of the barrel that landed, after first contact (%). Hover a cell for the contacts behind it", agg: ColumnAggregate.Average, width: 100, scale: _contactGatedUp, over: new("Spots", "contacts", "%", "after"), sight: true),
-            M("Spray", "Spray Control", StatGroup.AimQuality, "Mean angular distance between a bullet and the first bullet of its spray: lower is tighter compensation. Hover a cell for the shots behind it", agg: ColumnAggregate.Average, width: 76, scale: _sprayResidual, over: new("SprayN", "shots", "°")),
-            M("Preaim", "Preaim", StatGroup.AimQuality, "Mean degrees off the enemy's chest at first contact (lower is better). Hover a cell for the contacts behind it", agg: ColumnAggregate.Average, width: 70, scale: _contactGatedDown, over: new("Spots", "contacts", "°"), sight: true),
-            M("SAcc%", "Spotted Acc %", StatGroup.Accuracy, "Enemy bullet hits per bullet fired after first contact (%). Hover a cell for the contacts behind it", agg: ColumnAggregate.Average, width: 98, scale: _contactGatedUp, over: new("Spots", "contacts", "%", "after"), sight: true),
-            M("SprayAcc%", "Spray Acc %", StatGroup.Accuracy, "Bullets after the first out of the barrel that landed, after first contact (%). Hover a cell for the contacts behind it", agg: ColumnAggregate.Average, width: 92, scale: _contactGatedUp, over: new("Spots", "contacts", "%", "after"), sight: true),
+            M("Linear%", "Linear %", StatGroup.Accuracy,
+                "Bullets fired while still moving fast enough for the engine to charge movement inaccuracy (%)",
+                agg: ColumnAggregate.Average, width: 76, scale: _peerDown),
+            M("FB%", "First Bullet %", StatGroup.Accuracy,
+                "First bullet out of the barrel that landed, after first contact (%). Hover a cell for the contacts behind it",
+                agg: ColumnAggregate.Average, width: 100, scale: _contactGatedUp,
+                over: new("Spots", "contacts", "%", "after"), sight: true),
+            M("Spray", "Spray Control", StatGroup.AimQuality,
+                "Mean angular distance between a bullet and the first bullet of its spray: lower is tighter compensation. Hover a cell for the shots behind it",
+                agg: ColumnAggregate.Average, width: 76, scale: _sprayResidual, over: new("SprayN", "shots", "°")),
+            M("Preaim", "Preaim", StatGroup.AimQuality,
+                "Mean degrees off the enemy's chest at first contact (lower is better). Hover a cell for the contacts behind it",
+                agg: ColumnAggregate.Average, width: 70, scale: _contactGatedDown, over: new("Spots", "contacts", "°"),
+                sight: true),
+            M("SAcc%", "Spotted Acc %", StatGroup.Accuracy,
+                "Enemy bullet hits per bullet fired after first contact (%). Hover a cell for the contacts behind it",
+                agg: ColumnAggregate.Average, width: 98, scale: _contactGatedUp,
+                over: new("Spots", "contacts", "%", "after"), sight: true),
+            M("SprayAcc%", "Spray Acc %", StatGroup.Accuracy,
+                "Bullets after the first out of the barrel that landed, after first contact (%). Hover a cell for the contacts behind it",
+                agg: ColumnAggregate.Average, width: 92, scale: _contactGatedUp,
+                over: new("Spots", "contacts", "%", "after"), sight: true),
             // Populations: hidden. Each is the denominator of a column above and reads in that column's
             // cell tooltip, beside the value it qualifies, which is the only place a thin sample is
             // visible: three columns to the right, on a board that did not fit, nobody connected the
             // two. Still in the table, the export and the colour gates, which read the MetricRow and not
             // the cells. The group keeps each with the chip of the metric it gates, and the neutral scale
             // stays so the catalogue tests sweep every ruleset label the same way.
-            M("CSAtt", "CS Attempts", StatGroup.Accuracy, "Shots where a counter-strafe was attempted: the CS% denominator", width: 92, scale: _peerNoTint, hidden: true),
-            M("SprayN", "Spray Shots", StatGroup.AimQuality, "Shots whose spray residual could be measured: the Spray denominator", width: 88, scale: _peerNoTint, hidden: true),
-            M("Spots", "Spots", StatGroup.Accuracy, "First enemy contacts: the Preaim denominator, and the gate behind every after-contact column", width: 64, scale: _peerNoTint, hidden: true, sight: true),
+            M("CSAtt", "CS Attempts", StatGroup.Accuracy,
+                "Shots where a counter-strafe was attempted: the CS% denominator", width: 92, scale: _peerNoTint,
+                hidden: true),
+            M("SprayN", "Spray Shots", StatGroup.AimQuality,
+                "Shots whose spray residual could be measured: the Spray denominator", width: 88, scale: _peerNoTint,
+                hidden: true),
+            M("Spots", "Spots", StatGroup.Accuracy,
+                "First enemy contacts: the Preaim denominator, and the gate behind every after-contact column",
+                width: 64, scale: _peerNoTint, hidden: true, sight: true),
 
             // ── Damage ──
-            M("EnemyDmg", "Enemy Dmg", StatGroup.Damage, "Total damage dealt to enemies (HP-capped)", width: 84, scale: _peerUp),
-            M("TeamDmg", "Team Dmg", StatGroup.Damage, "Damage dealt to teammates", Emphasis.Negative, width: 78, scale: _penalty),
-            M("SelfDmg", "Self Dmg", StatGroup.Damage, "Self-inflicted damage", Emphasis.Negative, width: 72, scale: _penalty),
+            M("EnemyDmg", "Enemy Dmg", StatGroup.Damage, "Total damage dealt to enemies (HP-capped)", width: 84,
+                scale: _peerUp),
+            M("TeamDmg", "Team Dmg", StatGroup.Damage, "Damage dealt to teammates", Emphasis.Negative, width: 78,
+                scale: _penalty),
+            M("SelfDmg", "Self Dmg", StatGroup.Damage, "Self-inflicted damage", Emphasis.Negative, width: 72,
+                scale: _penalty),
             M("HitFoe", "Hits (foe)", StatGroup.Damage, "Shots that hit an enemy", width: 76),
             M("HitTeam", "Hits (team)", StatGroup.Damage, "Shots that hit a teammate", Emphasis.Negative, width: 84),
             M("Shots", "Shots Fired", StatGroup.Damage, "Total shots fired", width: 84),
-            M("AvgHP→Dmg", "Avg HP @ Dmg", StatGroup.Damage, "Your average health when dealing damage", agg: ColumnAggregate.Average, width: 98),
+            M("AvgHP→Dmg", "Avg HP @ Dmg", StatGroup.Damage, "Your average health when dealing damage",
+                agg: ColumnAggregate.Average, width: 98),
 
             // ── Opening duels ──
-            M("TotalFK", "Opening K", StatGroup.OpeningDuels, "Opening (first) kills of a round", Emphasis.Positive, width: 80, scale: _peerUp),
-            M("TotalFD", "Opening D", StatGroup.OpeningDuels, "Opening (first) deaths of a round", Emphasis.Negative, width: 80, scale: _peerDown),
-            M("FK±", "Opening +/-", StatGroup.OpeningDuels, "Opening kills minus opening deaths", width: 88, scale: _peerNoTint),
-            M("Duel%", "Duel Win %", StatGroup.OpeningDuels, "Share of opening duels won (%)", agg: ColumnAggregate.Average, width: 84, scale: _duelWin),
+            M("TotalFK", "Opening K", StatGroup.OpeningDuels, "Opening (first) kills of a round", Emphasis.Positive,
+                width: 80, scale: _peerUp),
+            M("TotalFD", "Opening D", StatGroup.OpeningDuels, "Opening (first) deaths of a round", Emphasis.Negative,
+                width: 80, scale: _peerDown),
+            M("FK±", "Opening +/-", StatGroup.OpeningDuels, "Opening kills minus opening deaths", width: 88,
+                scale: _peerNoTint),
+            M("Duel%", "Duel Win %", StatGroup.OpeningDuels, "Share of opening duels won (%)",
+                agg: ColumnAggregate.Average, width: 84, scale: _duelWin),
             M("CTFK", "CT Open K", StatGroup.OpeningDuels, "Opening kills on the CT side", width: 78),
             M("CTFD", "CT Open D", StatGroup.OpeningDuels, "Opening deaths on the CT side", width: 78),
             M("TFK", "T Open K", StatGroup.OpeningDuels, "Opening kills on the T side", width: 72),
@@ -484,7 +529,8 @@ public static class ColumnCatalogue
             M("Rifle", "Rifle Kills", StatGroup.Weapons, "Kills with rifles", width: 78),
             M("SMG", "SMG Kills", StatGroup.Weapons, "Kills with SMGs", width: 76),
             M("Knife", "Knife Kills", StatGroup.Weapons, "Kills with the knife", width: 80),
-            M("DeagleHSRnds", "Deagle-HS Rounds", StatGroup.Weapons, "Rounds with 2+ Desert Eagle headshot kills", width: 118),
+            M("DeagleHSRnds", "Deagle-HS Rounds", StatGroup.Weapons, "Rounds with 2+ Desert Eagle headshot kills",
+                width: 118),
 
             // ── Special kills ──
             M("NoScope", "No-scopes", StatGroup.SpecialKills, "Sniper kills without scoping", width: 80),
@@ -499,15 +545,18 @@ public static class ColumnCatalogue
             M("Flash", "Flashes", StatGroup.Utility, "Flashbangs thrown", width: 66),
             M("Smokes", "Smokes", StatGroup.Utility, "Smoke grenades thrown", width: 64),
             M("Molly", "Molotovs", StatGroup.Utility, "Molotovs / incendiaries thrown", width: 72),
-            M("EFlash", "Enemies Flashed", StatGroup.Utility, "Enemies blinded by your flashes", width: 110, scale: _peerUp),
-            M("AvgBlind", "Avg Blind (s)", StatGroup.Utility, "Average enemy blind duration per flash (seconds)", agg: ColumnAggregate.Average, width: 92, scale: _blind),
+            M("EFlash", "Enemies Flashed", StatGroup.Utility, "Enemies blinded by your flashes", width: 110,
+                scale: _peerUp),
+            M("AvgBlind", "Avg Blind (s)", StatGroup.Utility, "Average enemy blind duration per flash (seconds)",
+                agg: ColumnAggregate.Average, width: 92, scale: _blind),
 
             // ── Objectives ──
             M("Plants", "Plants", StatGroup.Objectives, "Bomb plants", width: 58),
             M("Defuses", "Defuses", StatGroup.Objectives, "Bomb defuses", width: 66),
 
             // ── Economy ──
-            M("Equip", "Avg Equip $", StatGroup.Economy, "Average round-start equipment value", agg: ColumnAggregate.Average, width: 88),
+            M("Equip", "Avg Equip $", StatGroup.Economy, "Average round-start equipment value",
+                agg: ColumnAggregate.Average, width: 88),
             M("Armor", "Armor Rounds", StatGroup.Economy, "Rounds with armor at round start", width: 96),
 
             // ── Multi-kill rounds ──
@@ -544,21 +593,49 @@ public static class ColumnCatalogue
             // The round-scoped half of the aim ruleset. Both angle columns pair the round's FIRST contact
             // with its first landed bullet, which is an approximation the ruleset states rather than a
             // measurement, so Spot rides along: on a round with no contact their 0.0 is the empty state.
-            M("XPlace", "Crosshair Travel", StatGroup.AimQuality, "Degrees the crosshair travelled from first contact to the first landed bullet (lower is better). Hover a cell for the shots behind it", agg: ColumnAggregate.Average, width: 112, scale: _travelGatedDown, over: new("XShots", "shots", "°"), sight: true),
+            M("XPlace", "Crosshair Travel", StatGroup.AimQuality,
+                "Degrees the crosshair travelled from first contact to the first landed bullet (lower is better). Hover a cell for the shots behind it",
+                agg: ColumnAggregate.Average, width: 112, scale: _travelGatedDown, over: new("XShots", "shots", "°"),
+                sight: true),
             // Signed, so neither direction is the good one: positive overshot and had to be walked back,
             // negative was dragged onto the target. Same treatment as FK+/-, where the sign is the story
             // and the bar already carries it.
-            M("FlickErr", "Flick Error", StatGroup.AimQuality, "Crosshair travel minus the angle the contact demanded: positive overshot, negative undershot. Hover a cell for the shots behind it", agg: ColumnAggregate.Average, width: 84, scale: _peerNoTint, over: new("XShots", "shots", "°"), sight: true),
-            M("XShots", "Travel Shots", StatGroup.AimQuality, "Landed shots paired to a contact inside the engagement window: the XPlace and FlickErr denominator", width: 92, scale: _peerNoTint, hidden: true, sight: true),
-            M("TTS", "Time to Shoot", StatGroup.AimQuality, "Milliseconds from an enemy becoming visible to the first shot answering it: reaction without accuracy or fire rate mixed in. Hover a cell for the engagements behind it", agg: ColumnAggregate.Average, width: 96, scale: _shootGatedDown, over: new("TTSn", "engagements", " ms"), sight: true),
-            M("TTSn", "TTS Engagements", StatGroup.AimQuality, "Contacts answered by a shot: the TTS denominator", width: 96, scale: _peerNoTint, hidden: true, sight: true),
-            M("TTD", "Time to Damage", StatGroup.AimQuality, "Milliseconds from an enemy becoming visible to the first bullet that damaged them. Quantised by fire rate, so partly a first-shot-accuracy measure. Hover a cell for the engagements behind it", agg: ColumnAggregate.Average, width: 104, scale: _damageGatedDown, over: new("TTDn", "engagements", " ms"), sight: true),
-            M("TTDn", "TTD Engagements", StatGroup.AimQuality, "Contacts answered by a landed bullet: the TTD denominator", width: 96, scale: _peerNoTint, hidden: true, sight: true),
-            M("AimRx", "Aimed Reaction", StatGroup.AimQuality, "Milliseconds from the crosshair arriving on an enemy to the shot: reaction with the aim travel taken out. Hover a cell for the acquisitions behind it", agg: ColumnAggregate.Average, width: 100, scale: _acquisitionGatedDown, over: new("AimRxn", "acquisitions", " ms"), sight: true),
-            M("AimRxn", "AimRx Engagements", StatGroup.AimQuality, "Acquisitions answered by a shot: the AimRx denominator", width: 104, scale: _peerNoTint, hidden: true, sight: true),
-            M("TTK", "Time to Kill", StatGroup.AimQuality, "Milliseconds from an enemy becoming visible to killing them. Confounds aim with damage output and armour, and can read BELOW TTD because the two average over different engagements. Hover a cell for the kills behind it", agg: ColumnAggregate.Average, width: 88, scale: _peerNoTint, over: new("TTKn", "kills", " ms"), sight: true),
-            M("TTKn", "TTK Engagements", StatGroup.AimQuality, "Contacts that ended in a kill: the TTK denominator", width: 96, scale: _peerNoTint, hidden: true, sight: true),
-            M("Spot", "Spot", StatGroup.Accuracy, "The player made first contact this round: the round-board twin of Spots, and the only aim cell on the round board", width: 56, scale: _peerNoTint, sight: true)
+            M("FlickErr", "Flick Error", StatGroup.AimQuality,
+                "Crosshair travel minus the angle the contact demanded: positive overshot, negative undershot. Hover a cell for the shots behind it",
+                agg: ColumnAggregate.Average, width: 84, scale: _peerNoTint, over: new("XShots", "shots", "°"),
+                sight: true),
+            M("XShots", "Travel Shots", StatGroup.AimQuality,
+                "Landed shots paired to a contact inside the engagement window: the XPlace and FlickErr denominator",
+                width: 92, scale: _peerNoTint, hidden: true, sight: true),
+            M("TTS", "Time to Shoot", StatGroup.AimQuality,
+                "Milliseconds from an enemy becoming visible to the first shot answering it: reaction without accuracy or fire rate mixed in. Hover a cell for the engagements behind it",
+                agg: ColumnAggregate.Average, width: 96, scale: _shootGatedDown,
+                over: new("TTSn", "engagements", " ms"), sight: true),
+            M("TTSn", "TTS Engagements", StatGroup.AimQuality, "Contacts answered by a shot: the TTS denominator",
+                width: 96, scale: _peerNoTint, hidden: true, sight: true),
+            M("TTD", "Time to Damage", StatGroup.AimQuality,
+                "Milliseconds from an enemy becoming visible to the first bullet that damaged them. Quantised by fire rate, so partly a first-shot-accuracy measure. Hover a cell for the engagements behind it",
+                agg: ColumnAggregate.Average, width: 104, scale: _damageGatedDown,
+                over: new("TTDn", "engagements", " ms"), sight: true),
+            M("TTDn", "TTD Engagements", StatGroup.AimQuality,
+                "Contacts answered by a landed bullet: the TTD denominator", width: 96, scale: _peerNoTint,
+                hidden: true, sight: true),
+            M("AimRx", "Aimed Reaction", StatGroup.AimQuality,
+                "Milliseconds from the crosshair arriving on an enemy to the shot: reaction with the aim travel taken out. Hover a cell for the acquisitions behind it",
+                agg: ColumnAggregate.Average, width: 100, scale: _acquisitionGatedDown,
+                over: new("AimRxn", "acquisitions", " ms"), sight: true),
+            M("AimRxn", "AimRx Engagements", StatGroup.AimQuality,
+                "Acquisitions answered by a shot: the AimRx denominator", width: 104, scale: _peerNoTint, hidden: true,
+                sight: true),
+            M("TTK", "Time to Kill", StatGroup.AimQuality,
+                "Milliseconds from an enemy becoming visible to killing them. Confounds aim with damage output and armour, and can read BELOW TTD because the two average over different engagements. Hover a cell for the kills behind it",
+                agg: ColumnAggregate.Average, width: 88, scale: _peerNoTint, over: new("TTKn", "kills", " ms"),
+                sight: true),
+            M("TTKn", "TTK Engagements", StatGroup.AimQuality, "Contacts that ended in a kill: the TTK denominator",
+                width: 96, scale: _peerNoTint, hidden: true, sight: true),
+            M("Spot", "Spot", StatGroup.Accuracy,
+                "The player made first contact this round: the round-board twin of Spots, and the only aim cell on the round board",
+                width: 56, scale: _peerNoTint, sight: true)
         ];
 
         Dictionary<string, ColumnMeta> byKey = new(StringComparer.Ordinal);

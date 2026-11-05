@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Services;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Diagnostics.Tracing;
@@ -10,12 +9,10 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AnalysisBench;
-using DemoViewer.NET.TestSupport;
 using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Abstractions;
 using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Analysis.GoldenStats;
-using CS2DemoKit.Analysis.Graphs;
 using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.Visibility;
@@ -23,6 +20,8 @@ using CS2DemoKit.Analysis.Yaml;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using CS2DemoKit.Parser.GameEvents;
+using DemoViewer.NET.Services;
+using DemoViewer.NET.TestSupport;
 
 #endregion
 
@@ -38,13 +37,13 @@ Dictionary<string, string> namedArgs = args
     .Where(a => a.StartsWith("--", StringComparison.Ordinal) && a.Contains('='))
     .Select(a => a.Split('=', 2))
     .ToDictionary(p => p[0], p => p[1], StringComparer.OrdinalIgnoreCase);
-string[] positional = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+string[] positional = [.. args.Where(a => !a.StartsWith("--", StringComparison.Ordinal))];
 
 // `rules check <dir> [--demo=<path>]` — the standalone rule-config checker verb;
 // dispatches before every bench path. See RulesCheckCommand.
 if (positional is ["rules", "check", ..])
 {
-    return RulesCheckCommand.Run(positional.Skip(2).ToArray(), namedArgs, flags);
+    return RulesCheckCommand.Run([.. positional.Skip(2)], namedArgs);
 }
 
 // `bg-run --list=<file>`: sequential background parses under the process's own GC environment.
@@ -133,7 +132,7 @@ if (suiteMode)
             continue;
         }
 
-        Console.WriteLine($"\n{"═══"} {tc.Id} {"═".PadRight(70 - tc.Id.Length, '═')}");
+        Console.WriteLine($"\n═══ {tc.Id} {"═".PadRight(70 - tc.Id.Length, '═')}");
         string reportFile = Path.Combine(suiteReportDir, $"{tc.Id}_{timestamp}.json");
         try
         {
@@ -155,7 +154,7 @@ if (suiteMode)
         }
     }
 
-    Console.WriteLine($"\n{"═══"} Suite Complete {"═".PadRight(58, '═')}");
+    Console.WriteLine($"\n═══ Suite Complete {"═".PadRight(58, '═')}");
     Console.WriteLine($"  Passed: {passed}  Skipped: {skipped}  Failed: {failed}");
     Console.WriteLine($"  Reports: {Path.GetFullPath(suiteReportDir)}/");
     // An EMPTY suite is a failure, not a pass. demos/**/*.dem is gitignored, so a fresh checkout or
@@ -181,23 +180,32 @@ if (positional.Length == 0)
     Console.Error.WriteLine();
     Console.Error.WriteLine("Options:");
     Console.Error.WriteLine("  --trace              Enable EventSource listener (adds instrumentation overhead)");
-    Console.Error.WriteLine("  --counters           Attach a MeterListener (dotnet-counters-equivalent) and print counter totals");
-    Console.Error.WriteLine("  --timeline           Attach an ActivityListener and print the phase timeline (read/parse/build/eval)");
-    Console.Error.WriteLine("  --bare               Run without snapshots, which is the default; --export and --state-trace turn them on");
-    Console.Error.WriteLine("  --golden             Write tests/fixtures/<demo-id>/ours.golden.json; untracked, and nothing reads it");
-    Console.Error.WriteLine("  --mmap               With --round-debug / --shots-debug: memory-map the .dem instead of File.ReadAllBytes");
-    Console.Error.WriteLine("  --ray-counters       Count rays cast / frustum-rejected pairs on the visibility path and time the raycasting");
+    Console.Error.WriteLine(
+        "  --counters           Attach a MeterListener (dotnet-counters-equivalent) and print counter totals");
+    Console.Error.WriteLine(
+        "  --timeline           Attach an ActivityListener and print the phase timeline (read/parse/build/eval)");
+    Console.Error.WriteLine(
+        "  --bare               Run without snapshots, which is the default; --export and --state-trace turn them on");
+    Console.Error.WriteLine(
+        "  --golden             Write tests/fixtures/<demo-id>/ours.golden.json; untracked, and nothing reads it");
+    Console.Error.WriteLine(
+        "  --mmap               With --round-debug / --shots-debug: memory-map the .dem instead of File.ReadAllBytes");
+    Console.Error.WriteLine(
+        "  --ray-counters       Count rays cast / frustum-rejected pairs on the visibility path and time the raycasting");
     Console.Error.WriteLine("  --round-debug        Detailed per-round event trace");
     Console.Error.WriteLine("  --report=<path>      Write JSON report to file");
-    Console.Error.WriteLine("  --export=csv|json    Export per-(player,round) stats as a MetricTable (turns snapshots on; incompatible with --bare)");
+    Console.Error.WriteLine(
+        "  --export=csv|json    Export per-(player,round) stats as a MetricTable (turns snapshots on; incompatible with --bare)");
     Console.Error.WriteLine("  --out=<path>         Output file for --export (default: ./player_round_stats.<ext>)");
     Console.Error.WriteLine("  --suite              Run all test suite entries");
     Console.Error.WriteLine("  --list-suite         List test suite entries and their status");
     Console.Error.WriteLine("  --report-dir=<dir>   Output directory for suite reports (default: bench-reports)");
     Console.Error.WriteLine();
     Console.Error.WriteLine("Profiling (OFF by default; see docs/profiling.md):");
-    Console.Error.WriteLine("  --profile            (runtime) turn on the entity per-phase profile tree + attach Meter/Activity listeners");
-    Console.Error.WriteLine("  DEMOVIEWER_PROFILE=1 (env) same runtime switch resolved at process start + combined report on exit");
+    Console.Error.WriteLine(
+        "  --profile            (runtime) turn on the entity per-phase profile tree + attach Meter/Activity listeners");
+    Console.Error.WriteLine(
+        "  DEMOVIEWER_PROFILE=1 (env) same runtime switch resolved at process start + combined report on exit");
     Console.Error.WriteLine("  --trace / --counters / --timeline and the above all compose with --suite");
     return 1;
 }
@@ -263,7 +271,8 @@ static int RunBench(string demoPath, string rulesDir, string? reportPath,
     Console.WriteLine($"Demo:  {demoPath} ({demoSizeMb:F1} MB)");
     Console.WriteLine($"Rules: {rulesDir}");
     Console.WriteLine("Path:  forward (DemoAnalysis.Run over the file)");
-    Console.WriteLine($"Mode:  {(captureSnapshots ? "full (with snapshots)" : "bare (no snapshots)")}{(enableTrace ? " + trace" : "")}");
+    Console.WriteLine(
+        $"Mode:  {(captureSnapshots ? "full (with snapshots)" : "bare (no snapshots)")}{(enableTrace ? " + trace" : "")}");
 
     if (reportPath is not null)
     {
@@ -311,17 +320,20 @@ static int RunBench(string demoPath, string rulesDir, string? reportPath,
     AnalysisProvenance provenance = run.Provenance;
     PhaseTimings timings = outcome.Timings;
 
-    Console.WriteLine($"Map:    {facts.MapName}  |  Source: {facts.Profile.SourceKind}  |  Build: {facts.Profile.BuildNumber}  |  Server: \"{facts.ServerName}\"  |  Client: \"{facts.ClientName}\"");
-    Console.WriteLine($"Ran:    {provenance.Source} source  |  profile {provenance.Profile.GetType().Name} ({provenance.ProfileResolution})  |  digest {provenance.Digest}  |  snapshots {(provenance.SnapshotsCaptured ? "captured" : "not captured")}");
+    Console.WriteLine(
+        $"Map:    {facts.MapName}  |  Source: {facts.Profile.SourceKind}  |  Build: {facts.Profile.BuildNumber}  |  Server: \"{facts.ServerName}\"  |  Client: \"{facts.ClientName}\"");
+    Console.WriteLine(
+        $"Ran:    {provenance.Source} source  |  profile {provenance.Profile.GetType().Name} ({provenance.ProfileResolution})  |  digest {provenance.Digest}  |  snapshots {(provenance.SnapshotsCaptured ? "captured" : "not captured")}");
     if (provenance.Dialect.BoundMarkerNeverSeen)
     {
-        Console.WriteLine($"        DIALECT MISMATCH: the profile's round marker never fired (round_officially_ended x{provenance.Dialect.RoundOfficiallyEndedSeen}, cs_pre_restart x{provenance.Dialect.CsPreRestartSeen})");
+        Console.WriteLine(
+            $"        DIALECT MISMATCH: the profile's round marker never fired (round_officially_ended x{provenance.Dialect.RoundOfficiallyEndedSeen}, cs_pre_restart x{provenance.Dialect.CsPreRestartSeen})");
     }
 
     // ── Player tables ──────────────────────────────────────────────────────
     // Materialisation order is arrival order on both paths, so the tables and the goldens are
     // sorted by slot rather than left to it.
-    List<PlayerReport> playerReports = new();
+    List<PlayerReport> playerReports = [];
     foreach (PerPlayerNodeTemplate.MaterializedPlayer mp in run.MaterializedPlayers
                  .OrderBy(p => p.TemplateIndex).ThenBy(p => p.PlayerSlot))
     {
@@ -339,7 +351,8 @@ static int RunBench(string demoPath, string rulesDir, string? reportPath,
     // Chain event summary
     Console.WriteLine();
     Console.WriteLine("─── Rule Chain Events ───────────────────────────────────");
-    IOrderedEnumerable<IGrouping<string, RuleChainEvent>> chainCounts = run.Timeline.Events.GroupBy(e => e.ChainName).OrderBy(g => g.Key);
+    IOrderedEnumerable<IGrouping<string, RuleChainEvent>> chainCounts =
+        run.Timeline.Events.GroupBy(e => e.ChainName).OrderBy(g => g.Key);
     foreach (IGrouping<string, RuleChainEvent> g in chainCounts)
     {
         Console.WriteLine($"  {g.Key,-30} {g.Count(),5} events");
@@ -372,9 +385,12 @@ static int RunBench(string demoPath, string rulesDir, string? reportPath,
     Console.WriteLine($"  ── load (hash+run): {(timings.Read + timings.Total).TotalMilliseconds,8:F1} ms");
     Console.WriteLine($"  Total (run): {timings.Total.TotalMilliseconds,8:F1} ms");
     Console.WriteLine();
-    Console.WriteLine($"  GC Gen0: {outcome.GcAfter.Gen0 - outcome.GcBefore.Gen0}  Gen1: {outcome.GcAfter.Gen1 - outcome.GcBefore.Gen1}  Gen2: {outcome.GcAfter.Gen2 - outcome.GcBefore.Gen2}");
-    Console.WriteLine($"     Eval: Gen0={outcome.GcAfter.Gen0 - outcome.EvalGcBefore.Gen0}  Gen1={outcome.GcAfter.Gen1 - outcome.EvalGcBefore.Gen1}");
-    Console.WriteLine($"  Eval allocated: {outcome.EvalAllocBytes / (1024.0 * 1024.0),8:F1} MiB on this thread, {outcome.AllocBytesAllThreads / (1024.0 * 1024.0),8:F1} MiB on all threads");
+    Console.WriteLine(
+        $"  GC Gen0: {outcome.GcAfter.Gen0 - outcome.GcBefore.Gen0}  Gen1: {outcome.GcAfter.Gen1 - outcome.GcBefore.Gen1}  Gen2: {outcome.GcAfter.Gen2 - outcome.GcBefore.Gen2}");
+    Console.WriteLine(
+        $"     Eval: Gen0={outcome.GcAfter.Gen0 - outcome.EvalGcBefore.Gen0}  Gen1={outcome.GcAfter.Gen1 - outcome.EvalGcBefore.Gen1}");
+    Console.WriteLine(
+        $"  Eval allocated: {outcome.EvalAllocBytes / (1024.0 * 1024.0),8:F1} MiB on this thread, {outcome.AllocBytesAllThreads / (1024.0 * 1024.0),8:F1} MiB on all threads");
 
     // ── Memory ─────────────────────────────────────────────────────────────
     // RSS stays well above the heap figure: the reader maps the file, so its pages are resident but
@@ -518,7 +534,8 @@ static BenchOutcome RunForward(string demoPath, IReadOnlyList<RulesetDoc> rulese
     }
 
     TimeSpan hashElapsed = Stopwatch.GetElapsedTime(hashStart);
-    Console.WriteLine($"Hash:   {hashElapsed.TotalMilliseconds,8:F1} ms  |  {new FileInfo(demoPath).Length / 1024 / 1024} MB");
+    Console.WriteLine(
+        $"Hash:   {hashElapsed.TotalMilliseconds,8:F1} ms  |  {new FileInfo(demoPath).Length / 1024 / 1024} MB");
 
     (VisibilityEngine? visibility, TimeSpan bakeElapsed) = LoadBake(mapName);
 
@@ -533,19 +550,18 @@ static BenchOutcome RunForward(string demoPath, IReadOnlyList<RulesetDoc> rulese
     AnalysisRun run;
     using (AnalysisDiagnostics.ActivitySource.StartActivity("run"))
     {
-        run = DemoAnalysis.Run(demoPath, rulesets, new AnalysisOptions
-        {
-            VisibilityEngine = visibility,
-            CaptureSnapshots = captureSnapshots
-        });
+        run = DemoAnalysis.Run(demoPath, rulesets,
+            new AnalysisOptions { VisibilityEngine = visibility, CaptureSnapshots = captureSnapshots });
     }
 
     TimeSpan runElapsed = Stopwatch.GetElapsedTime(runStart);
     long runAllocBytes = GC.GetAllocatedBytesForCurrentThread() - runAllocBefore;
     long allocAllBytes = GC.GetTotalAllocatedBytes(true) - allocAllBefore;
     GcCounts gcAfter = GcCounts.Now();
-    Console.WriteLine($"Run:    {runElapsed.TotalMilliseconds,8:F1} ms  |  {run.Provenance.FramesConsumed} frames, {run.Provenance.MessagesConsumed} messages, {run.Demo.Players.Count} players");
-    Console.WriteLine($"Build:  {run.Build.Nodes.Count} scaffolding nodes, {run.Build.Edges.Count} edges  |  {run.MaterializedPlayers.Count} materialized players");
+    Console.WriteLine(
+        $"Run:    {runElapsed.TotalMilliseconds,8:F1} ms  |  {run.Provenance.FramesConsumed} frames, {run.Provenance.MessagesConsumed} messages, {run.Demo.Players.Count} players");
+    Console.WriteLine(
+        $"Build:  {run.Build.Nodes.Count} scaffolding nodes, {run.Build.Edges.Count} edges  |  {run.MaterializedPlayers.Count} materialized players");
     PrintGraphSize(run);
 
     return new BenchOutcome(run, sha256,
@@ -571,7 +587,8 @@ static (VisibilityEngine? Engine, TimeSpan Elapsed) LoadBake(string mapName)
 // State-machine transition trace over the snapshot rows (--state-trace=name1,name2,...).
 static void PrintStateTrace(EvaluationResult result, string stateTraceArg)
 {
-    string[] wantedNames = stateTraceArg.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    string[] wantedNames =
+        stateTraceArg.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     Console.WriteLine();
     Console.WriteLine("─── State Trace ─────────────────────────────────────────");
     for (int n = 0; n < result.FinalTrackedNodes.Count; n++)
@@ -610,7 +627,8 @@ static void PrintStateTrace(EvaluationResult result, string stateTraceArg)
             }
 
             MessageRef msg = result.Messages[m];
-            Console.WriteLine($"    [tick {msg.Tick,8} msg {msg.Message.GetType().Name,-30}]  IsActive={s.IsActive,-5}  Value={s.DisplayValue}");
+            Console.WriteLine(
+                $"    [tick {msg.Tick,8} msg {msg.Message.GetType().Name,-30}]  IsActive={s.IsActive,-5}  Value={s.DisplayValue}");
             prevActive = s.IsActive;
             prevValue = s.DisplayValue;
             transitions++;
@@ -635,25 +653,27 @@ static void WriteGoldenStatsFiles(
     Directory.CreateDirectory(fixturesRoot);
 
     // ── ours.golden.json ───────────────────────────────────────────────────
-    List<PlayerStatsInput> oursInputs = playerReports
-        .Select(p => new PlayerStatsInput(
-            p.Name,
-            p.Team,
-            p.Slot,
-            p.Stats))
-        .ToList();
+    List<PlayerStatsInput> oursInputs =
+    [
+        .. playerReports
+            .Select(p => new PlayerStatsInput(
+                p.Name,
+                p.Team,
+                p.Slot,
+                p.Stats))
+    ];
 
     // The converter reads the match facts off a ParsedDemo; the descriptor carries the same two on
     // both paths, so they are set here and the converter gets none.
     GoldenStatsDocument ours = OursGoldenStatsConverter.Convert(
-        Path.GetFileName(demoPath),
-        demoSha256,
-        null,
-        oursInputs,
-        GetGitCommit()) with
-    {
-        Match = new MatchMetadata(demo.MapName, demo.TickCount)
-    };
+            Path.GetFileName(demoPath),
+            demoSha256,
+            null,
+            oursInputs,
+            GetGitCommit()) with
+        {
+            Match = new MatchMetadata(demo.MapName, demo.TickCount)
+        };
 
     string oursPath = Path.Combine(fixturesRoot, "ours.golden.json");
     GoldenStatsSerializer.WriteToFile(ours, oursPath);
@@ -671,14 +691,11 @@ static void WriteRoundExport(string format, string? outPath, string demoPath, An
     }
 
     IOutputFormatter formatter = OutputFormatterRegistry.Get(format)
-                                 ?? throw new ArgumentException(
-                                     $"Unknown --export format '{format}'. Expected one of: {string.Join(", ", OutputFormatterRegistry.Ids)}.",
-                                     nameof(format));
+        ?? throw new ArgumentException(
+            $"Unknown --export format '{format}'. Expected one of: {string.Join(", ", OutputFormatterRegistry.Ids)}.",
+            nameof(format));
 
-    PlayerRoundStatsProjector projector = new()
-    {
-        MatchId = Path.GetFileName(demoPath)
-    };
+    PlayerRoundStatsProjector projector = new() { MatchId = Path.GetFileName(demoPath) };
     IReadOnlyList<MetricTable> tables = projector.Project(result, run.Demo);
 
     Console.WriteLine();
@@ -713,29 +730,33 @@ static void PrintGraphSize(AnalysisRun run)
     int materializedNodes = run.MaterializedPlayers.Sum(p => p.Nodes.Count);
     int lowestSlot = run.MaterializedPlayers.Count > 0 ? run.MaterializedPlayers.Min(p => p.PlayerSlot) : -1;
     int drawnNodes = run.Build.Nodes.Count
-                     + run.MaterializedPlayers.Where(p => p.PlayerSlot == lowestSlot).Sum(p => p.Nodes.Count);
+        + run.MaterializedPlayers.Where(p => p.PlayerSlot == lowestSlot).Sum(p => p.Nodes.Count);
     Console.WriteLine($"Graph:  {drawnNodes,8} nodes drawn (scaffolding + slot {lowestSlot})  |  "
-                      + $"{run.Build.Nodes.Count + materializedNodes} if every player expanded");
+        + $"{run.Build.Nodes.Count + materializedNodes} if every player expanded");
 }
 
 static void PrintPlayerTables(List<PlayerReport> playerReports)
 {
-    IOrderedEnumerable<IGrouping<int, PlayerReport>> byTemplate = playerReports.GroupBy(p => p.TemplateIndex).OrderBy(g => g.Key);
+    IOrderedEnumerable<IGrouping<int, PlayerReport>> byTemplate =
+        playerReports.GroupBy(p => p.TemplateIndex).OrderBy(g => g.Key);
     foreach (IGrouping<int, PlayerReport> tpl in byTemplate)
     {
         Console.WriteLine();
         Console.WriteLine($"─── Template {tpl.Key} ──────────────────────────────────────");
-        List<PlayerReport> players = tpl.ToList();
+        List<PlayerReport> players = [.. tpl];
         if (players.Count == 0 || players[0].Stats.Count == 0)
         {
             continue;
         }
 
-        List<string> colNames = players[0].Stats.Keys.ToList();
+        List<string> colNames = [.. players[0].Stats.Keys];
         int nameWidth = Math.Max(6, players.Max(p => p.Name.Length) + 1);
-        List<int> colWidths = colNames.Select(c =>
-            Math.Max(c.Length + 1, players.Max(p => FormatStat(p.Stats[c]).Length) + 1)
-        ).ToList();
+        List<int> colWidths =
+        [
+            .. colNames.Select(c =>
+                Math.Max(c.Length + 1, players.Max(p => FormatStat(p.Stats[c]).Length) + 1)
+            )
+        ];
 
         Console.Write($"  {"Player".PadRight(nameWidth)}");
         for (int i = 0; i < colNames.Count; i++)
@@ -798,7 +819,7 @@ static string FormatStat(object? value)
         null => "-",
         true => "ON",
         int i => i.ToString(CultureInfo.InvariantCulture),
-        double d => d.ToString(d == Math.Truncate(d) ? "F0" : "F2", CultureInfo.InvariantCulture),
+        double d => d.ToString(double.IsInteger(d) ? "F0" : "F2", CultureInfo.InvariantCulture),
         string s => s,
         _ => value.ToString() ?? "-"
     };
@@ -840,7 +861,8 @@ static void RunRoundDebug(ParsedDemo demo)
                     rn++;
                 }
 
-                Console.WriteLine($"  [tick {frame.ServerTick,7}] round_freeze_end  (round {rn}{(live ? "" : " WARMUP")})");
+                Console.WriteLine(
+                    $"  [tick {frame.ServerTick,7}] round_freeze_end  (round {rn}{(live ? "" : " WARMUP")})");
             }
 
             if (e.Payload is RoundOfficiallyEndedEvent)
@@ -856,19 +878,25 @@ static void RunRoundDebug(ParsedDemo demo)
 
             if (e.Payload is PlayerDeathEvent death)
             {
-                string killer = demo.Players.TryGetValue(death.Attacker, out PlayerInfo? ki) ? ki.Name : $"slot{death.Attacker}";
-                string victim = demo.Players.TryGetValue(death.UserId, out PlayerInfo? vi) ? vi.Name : $"slot{death.UserId}";
-                string assister = death.Assister >= 0 && demo.Players.TryGetValue(death.Assister, out PlayerInfo? asi) ? asi.Name : "";
-                Console.WriteLine($"    R{rn} kill: {killer} -> {victim}{(assister != "" ? $" (assist: {assister})" : "")}{(death.Headshot ? " HS" : "")} [{death.Weapon}]");
+                string killer = demo.Players.TryGetValue(death.Attacker, out PlayerInfo? ki)
+                    ? ki.Name
+                    : $"slot{death.Attacker}";
+                string victim = demo.Players.TryGetValue(death.UserId, out PlayerInfo? vi)
+                    ? vi.Name
+                    : $"slot{death.UserId}";
+                string assister = death.Assister >= 0 && demo.Players.TryGetValue(death.Assister, out PlayerInfo? asi)
+                    ? asi.Name
+                    : "";
+                Console.WriteLine(
+                    $"    R{rn} kill: {killer} -> {victim}{(assister != "" ? $" (assist: {assister})" : "")}{(death.Headshot ? " HS" : "")} [{death.Weapon}]");
             }
 
             if (e.Payload is PlayerHurtEvent hurt && live)
             {
-                string attacker = demo.Players.TryGetValue(hurt.Attacker, out PlayerInfo? ai) ? ai.Name : $"slot{hurt.Attacker}";
-                if (!dmgByPlayer.ContainsKey(attacker))
-                {
-                    dmgByPlayer[attacker] = 0;
-                }
+                string attacker = demo.Players.TryGetValue(hurt.Attacker, out PlayerInfo? ai)
+                    ? ai.Name
+                    : $"slot{hurt.Attacker}";
+                dmgByPlayer.TryAdd(attacker, 0);
 
                 int preHp = victimHpTracker.GetValueOrDefault(hurt.UserId, 100);
                 int capped = hurt.Health > 0 ? hurt.DmgHealth : Math.Min(hurt.DmgHealth, preHp);
@@ -893,7 +921,11 @@ static void RunRoundDebug(ParsedDemo demo)
 
 static void RunShotsDebug(ParsedDemo demo, string playerName)
 {
-    List<KeyValuePair<int, PlayerInfo>> matches = demo.Players.Where(kv => kv.Value.Name.Contains(playerName, StringComparison.OrdinalIgnoreCase)).ToList();
+    List<KeyValuePair<int, PlayerInfo>> matches =
+    [
+        .. demo.Players
+            .Where(kv => kv.Value.Name.Contains(playerName, StringComparison.OrdinalIgnoreCase))
+    ];
     if (matches.Count == 0)
     {
         Console.WriteLine($"  No players found matching '{playerName}'.");
@@ -984,14 +1016,16 @@ static void RunShotsDebug(ParsedDemo demo, string playerName)
                 string suicide = death.Attacker == death.UserId ? " (SUICIDE)" : "";
                 string noKiller = death.Attacker < 0 ? " (NO_KILLER/WORLD)" : "";
                 string phaseTag = $"{(live ? "LIVE" : "WARMUP")} {(roundActive ? "ROUND-ACTIVE" : "ROUND-INACTIVE")}";
-                Console.WriteLine($"  [tick {frame.GameTick,7}] R{rn,2} {phaseTag,-30} PLAYER_DEATH (killer=slot{death.Attacker} weapon={death.Weapon}){suicide}{noKiller}");
+                Console.WriteLine(
+                    $"  [tick {frame.GameTick,7}] R{rn,2} {phaseTag,-30} PLAYER_DEATH (killer=slot{death.Attacker} weapon={death.Weapon}){suicide}{noKiller}");
             }
 
             if (e.Payload is WeaponFireEvent fire && fire.UserId == slot)
             {
                 string weapon = fire.Weapon ?? "?";
                 string aliveTag = aliveThisRound ? "ALIVE" : "DEAD!";
-                string phase = $"{(live ? "LIVE" : "WARMUP")} {(roundActive ? "ROUND" : "FREEZE")} {(combatActive ? "COMBAT" : "BUY")} {aliveTag}";
+                string phase =
+                    $"{(live ? "LIVE" : "WARMUP")} {(roundActive ? "ROUND" : "FREEZE")} {(combatActive ? "COMBAT" : "BUY")} {aliveTag}";
                 shotsCount++;
                 if (!aliveThisRound)
                 {
@@ -999,7 +1033,8 @@ static void RunShotsDebug(ParsedDemo demo, string playerName)
                 }
 
                 weaponHist[weapon] = weaponHist.GetValueOrDefault(weapon, 0) + 1;
-                Console.WriteLine($"  [tick {frame.GameTick,7}] R{rn,2} {phase,-28} weapon_fire {weapon}  (#{shotsCount})");
+                Console.WriteLine(
+                    $"  [tick {frame.GameTick,7}] R{rn,2} {phase,-28} weapon_fire {weapon}  (#{shotsCount})");
             }
 
             if (e.Payload is PlayerHurtEvent hurt)
@@ -1017,7 +1052,8 @@ static void RunShotsDebug(ParsedDemo demo, string playerName)
 
                     if (dedup)
                     {
-                        Console.WriteLine($"  [tick {frame.GameTick,7}] R{rn,2} (DEDUP)                       player_hurt   {hurt.Weapon} -> slot{hurt.UserId}  pellet");
+                        Console.WriteLine(
+                            $"  [tick {frame.GameTick,7}] R{rn,2} (DEDUP)                       player_hurt   {hurt.Weapon} -> slot{hurt.UserId}  pellet");
                     }
                     else
                     {
@@ -1031,7 +1067,8 @@ static void RunShotsDebug(ParsedDemo demo, string playerName)
                             cappedDmgSum += capped;
                             bool kill = hurt.Health == 0;
                             string phaseTag = $"{(live ? "LIVE" : "WARMUP")} {(roundActive ? "ROUND" : "FREEZE")}";
-                            Console.WriteLine($"  [tick {frame.GameTick,7}] R{rn,2} {phaseTag,-22} FOE  {hurt.Weapon,-22} -> slot{hurt.UserId} preHP={preHitHp,3} dmg={hurt.DmgHealth,3} postHP={hurt.Health,3} cap={capped,3} {(kill ? "KILL!" : "")}");
+                            Console.WriteLine(
+                                $"  [tick {frame.GameTick,7}] R{rn,2} {phaseTag,-22} FOE  {hurt.Weapon,-22} -> slot{hurt.UserId} preHP={preHitHp,3} dmg={hurt.DmgHealth,3} postHP={hurt.Health,3} cap={capped,3} {(kill ? "KILL!" : "")}");
                         }
                     }
                 }
@@ -1095,11 +1132,7 @@ static string? RunCommand(string command, string args)
 {
     try
     {
-        ProcessStartInfo psi = new(command, args)
-        {
-            RedirectStandardOutput = true,
-            UseShellExecute = false
-        };
+        ProcessStartInfo psi = new(command, args) { RedirectStandardOutput = true, UseShellExecute = false };
         using Process? proc = Process.Start(psi);
         string output = proc?.StandardOutput.ReadToEnd().Trim() ?? "";
         proc?.WaitForExit();
@@ -1134,14 +1167,16 @@ static TestCase[] DiscoverTestSuite(string benchDir)
         return [];
     }
 
-    return Directory.GetFiles(benchDir, "*.dem")
-        .Order(StringComparer.OrdinalIgnoreCase)
-        .Select(demoPath =>
-        {
-            string id = Path.GetFileNameWithoutExtension(demoPath);
-            return new TestCase(id, demoPath);
-        })
-        .ToArray();
+    return
+    [
+        .. Directory.GetFiles(benchDir, "*.dem")
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .Select(demoPath =>
+            {
+                string id = Path.GetFileNameWithoutExtension(demoPath);
+                return new TestCase(id, demoPath);
+            })
+    ];
 }
 
 // Shared resolution (env override → packaged rules/ → repo-walk); the bench deliberately loads
@@ -1183,11 +1218,14 @@ static void PrintEntityProfile(EntityProfilingSnapshot prof, ScannerProfilingSna
     double proj = Ms(sprof.ProjectileScanTicks);
     double snap = Ms(sprof.SnapshotTicks);
     double scannerTotal = seek + poll + proj + snap;
-    double scannerAlloc = Mib(sprof.SeekAlloc + sprof.ProviderPollAlloc + sprof.ProjectileScanAlloc + sprof.SnapshotAlloc);
+    double scannerAlloc =
+        Mib(sprof.SeekAlloc + sprof.ProviderPollAlloc + sprof.ProjectileScanAlloc + sprof.SnapshotAlloc);
 
     double fold = Ms(sprof.FoldTicks);
-    Console.WriteLine($"  Digest fold (Σ workers)    {fold,9:F1} ms  {Mib(sprof.FoldAlloc),9:F1} MiB   (producer worker time, not wall-clock)");
-    Console.WriteLine($"  AdvanceAndPoll (Σ phases)  {scannerTotal,9:F1} ms  {scannerAlloc,9:F1} MiB   over {sprof.FramesPolled:N0} frames");
+    Console.WriteLine(
+        $"  Digest fold (Σ workers)    {fold,9:F1} ms  {Mib(sprof.FoldAlloc),9:F1} MiB   (producer worker time, not wall-clock)");
+    Console.WriteLine(
+        $"  AdvanceAndPoll (Σ phases)  {scannerTotal,9:F1} ms  {scannerAlloc,9:F1} MiB   over {sprof.FramesPolled:N0} frames");
     Console.WriteLine($"    ├─ pre-frame snapshot    {snap,9:F1} ms  {Mib(sprof.SnapshotAlloc),9:F1} MiB");
     Console.WriteLine($"    └─ layer seek            {seek,9:F1} ms  {Mib(sprof.SeekAlloc),9:F1} MiB");
 
@@ -1201,12 +1239,16 @@ static void PrintEntityProfile(EntityProfilingSnapshot prof, ScannerProfilingSna
     double fval = Ms(prof.FieldValueTicks);
     double dbuild = Ms(prof.DescriptorBuildTicks);
 
-    Console.WriteLine($"        ├─ PacketEntities      {pe,9:F1} ms  {Mib(prof.PacketEntitiesAlloc),9:F1} MiB   over {prof.PacketEntitiesCount:N0} packets, {prof.EntityFieldReads:N0} entity reads");
+    Console.WriteLine(
+        $"        ├─ PacketEntities      {pe,9:F1} ms  {Mib(prof.PacketEntitiesAlloc),9:F1} MiB   over {prof.PacketEntitiesCount:N0} packets, {prof.EntityFieldReads:N0} entity reads");
     Console.WriteLine($"        │   ├─ field-path      {fpath,9:F1} ms  {Mib(prof.FieldPathAlloc),9:F1} MiB");
     Console.WriteLine($"        │   ├─ field-value     {fval,9:F1} ms  {Mib(prof.FieldValueAlloc),9:F1} MiB");
-    Console.WriteLine($"        │   ├─ descriptor build{dbuild,9:F1} ms  {Mib(prof.DescriptorBuildAlloc),9:F1} MiB   ({prof.DescriptorBuilds:N0} builds)");
-    Console.WriteLine($"        │   └─ prelude/other   {pe - fpath - fval - dbuild,9:F1} ms  {Mib(prof.PacketEntitiesAlloc - prof.FieldPathAlloc - prof.FieldValueAlloc - prof.DescriptorBuildAlloc),9:F1} MiB");
-    Console.WriteLine($"        └─ other net msgs      {seek - pe,9:F1} ms  {Mib(sprof.SeekAlloc - prof.PacketEntitiesAlloc),9:F1} MiB");
+    Console.WriteLine(
+        $"        │   ├─ descriptor build{dbuild,9:F1} ms  {Mib(prof.DescriptorBuildAlloc),9:F1} MiB   ({prof.DescriptorBuilds:N0} builds)");
+    Console.WriteLine(
+        $"        │   └─ prelude/other   {pe - fpath - fval - dbuild,9:F1} ms  {Mib(prof.PacketEntitiesAlloc - prof.FieldPathAlloc - prof.FieldValueAlloc - prof.DescriptorBuildAlloc),9:F1} MiB");
+    Console.WriteLine(
+        $"        └─ other net msgs      {seek - pe,9:F1} ms  {Mib(sprof.SeekAlloc - prof.PacketEntitiesAlloc),9:F1} MiB");
 }
 
 // Converts the raw Stopwatch-tick snapshots into the milliseconds-based report record. Returns
@@ -1295,19 +1337,32 @@ static void PrintRayCounters(VisibilityCountersSnapshot rays, TimeSpan evalElaps
     double evalMs = evalElapsed.TotalMilliseconds;
     double raysPerSec = rays.RayMs > 0 ? rays.RaysCast / (rays.RayMs / 1000.0) : 0.0;
     Console.WriteLine($"  Sampled ticks:              {rays.SampledTicks,12:N0}");
-    Console.WriteLine($"  Directed enemy pairs:       {rays.PairsEvaluated,12:N0}   ({(double)rays.PairsEvaluated / Math.Max(1, rays.SampledTicks):F1} per sampled tick)");
-    Console.WriteLine($"    frustum-rejected (0 anchors in FOV): {rays.PairsNoAnchorInFrustum,12:N0}   {Pct(rays.PairsNoAnchorInFrustum, rays.PairsEvaluated),5:F1}% of pairs");
-    Console.WriteLine($"    exposed:                  {rays.PairsExposed,12:N0}   {Pct(rays.PairsExposed, rays.PairsEvaluated),5:F1}%");
-    Console.WriteLine($"    could-see:                {rays.PairsCouldSee,12:N0}   {Pct(rays.PairsCouldSee, rays.PairsEvaluated),5:F1}%");
-    Console.WriteLine($"  Anchors in FOV:             {rays.AnchorsInFrustum,12:N0}   of {rays.AnchorsTotal:N0} ({Pct(rays.AnchorsInFrustum, rays.AnchorsTotal):F1}%)");
-    Console.WriteLine($"  Rays cast:                  {rays.RaysCast,12:N0}   ({(double)rays.RaysCast / rays.PairsEvaluated:F2} per pair; {rays.RaysSkippedByEarlyExit:N0} anchors skipped by early exit)");
-    Console.WriteLine($"    clear (no occluder):      {rays.RaysClear,12:N0}   {Pct(rays.RaysClear, rays.RaysCast),5:F1}%");
-    Console.WriteLine($"    decided by occluder hint: {rays.RaysShortCircuited,12:N0}   {Pct(rays.RaysShortCircuited, rays.RaysCast),5:F1}% of rays cast   ({Pct(rays.RaysShortCircuited, rays.RaysCast - rays.RaysClear):F1}% of occluded; no BVH traversal)");
-    Console.WriteLine($"  Anchors skipped by gate:    {rays.RaysSkippedByGate,12:N0}   {Pct(rays.RaysSkippedByGate, rays.AnchorsTotal),5:F1}% of anchors   ({rays.RaysSkippedBySmoke:N0} behind smoke, the rest outside the frustum)");
-    Console.WriteLine($"    anchor outside FOV:       {rays.RaysCastOutsideFrustum,12:N0}   {Pct(rays.RaysCastOutsideFrustum, rays.RaysCast),5:F1}%   (per-anchor frustum gate would skip these)");
-    Console.WriteLine($"    on frustum-rejected pairs:{rays.RaysCastOnFrustumRejectedPairs,12:N0}   {Pct(rays.RaysCastOnFrustumRejectedPairs, rays.RaysCast),5:F1}%   (per-pair frustum gate would skip these)");
-    Console.WriteLine($"  Raycast wall-clock:         {rays.RayMs,12:F1} ms   {Pct((long)rays.RayMs, (long)evalMs),5:F1}% of eval   ({raysPerSec / 1e6:F2} MRay/s, single thread)");
-    Console.WriteLine($"  Transition-scan wall-clock: {rays.SampleMs,12:F1} ms   {Pct((long)rays.SampleMs, (long)evalMs),5:F1}% of eval   (raycasts + frustum + anchors + crosshair test)");
+    Console.WriteLine(
+        $"  Directed enemy pairs:       {rays.PairsEvaluated,12:N0}   ({(double)rays.PairsEvaluated / Math.Max(1, rays.SampledTicks):F1} per sampled tick)");
+    Console.WriteLine(
+        $"    frustum-rejected (0 anchors in FOV): {rays.PairsNoAnchorInFrustum,12:N0}   {Pct(rays.PairsNoAnchorInFrustum, rays.PairsEvaluated),5:F1}% of pairs");
+    Console.WriteLine(
+        $"    exposed:                  {rays.PairsExposed,12:N0}   {Pct(rays.PairsExposed, rays.PairsEvaluated),5:F1}%");
+    Console.WriteLine(
+        $"    could-see:                {rays.PairsCouldSee,12:N0}   {Pct(rays.PairsCouldSee, rays.PairsEvaluated),5:F1}%");
+    Console.WriteLine(
+        $"  Anchors in FOV:             {rays.AnchorsInFrustum,12:N0}   of {rays.AnchorsTotal:N0} ({Pct(rays.AnchorsInFrustum, rays.AnchorsTotal):F1}%)");
+    Console.WriteLine(
+        $"  Rays cast:                  {rays.RaysCast,12:N0}   ({(double)rays.RaysCast / rays.PairsEvaluated:F2} per pair; {rays.RaysSkippedByEarlyExit:N0} anchors skipped by early exit)");
+    Console.WriteLine(
+        $"    clear (no occluder):      {rays.RaysClear,12:N0}   {Pct(rays.RaysClear, rays.RaysCast),5:F1}%");
+    Console.WriteLine(
+        $"    decided by occluder hint: {rays.RaysShortCircuited,12:N0}   {Pct(rays.RaysShortCircuited, rays.RaysCast),5:F1}% of rays cast   ({Pct(rays.RaysShortCircuited, rays.RaysCast - rays.RaysClear):F1}% of occluded; no BVH traversal)");
+    Console.WriteLine(
+        $"  Anchors skipped by gate:    {rays.RaysSkippedByGate,12:N0}   {Pct(rays.RaysSkippedByGate, rays.AnchorsTotal),5:F1}% of anchors   ({rays.RaysSkippedBySmoke:N0} behind smoke, the rest outside the frustum)");
+    Console.WriteLine(
+        $"    anchor outside FOV:       {rays.RaysCastOutsideFrustum,12:N0}   {Pct(rays.RaysCastOutsideFrustum, rays.RaysCast),5:F1}%   (per-anchor frustum gate would skip these)");
+    Console.WriteLine(
+        $"    on frustum-rejected pairs:{rays.RaysCastOnFrustumRejectedPairs,12:N0}   {Pct(rays.RaysCastOnFrustumRejectedPairs, rays.RaysCast),5:F1}%   (per-pair frustum gate would skip these)");
+    Console.WriteLine(
+        $"  Raycast wall-clock:         {rays.RayMs,12:F1} ms   {Pct((long)rays.RayMs, (long)evalMs),5:F1}% of eval   ({raysPerSec / 1e6:F2} MRay/s, single thread)");
+    Console.WriteLine(
+        $"  Transition-scan wall-clock: {rays.SampleMs,12:F1} ms   {Pct((long)rays.SampleMs, (long)evalMs),5:F1}% of eval   (raycasts + frustum + anchors + crosshair test)");
 }
 
 // Null (omitted from the JSON) when the counters were not enabled for this run.
@@ -1350,7 +1405,11 @@ static ReportVisibilityRays? BuildRayReport(VisibilityCountersSnapshot rays, Tim
 
 internal sealed record TestCase(string Id, string DemoPath);
 
-internal sealed record BenchReport(ReportMetadata Metadata, ReportPerformance Performance, ReportProvenance Provenance, List<PlayerReport> Players);
+internal sealed record BenchReport(
+    ReportMetadata Metadata,
+    ReportPerformance Performance,
+    ReportProvenance Provenance,
+    List<PlayerReport> Players);
 
 internal sealed record ReportMetadata(
     DateTimeOffset Timestamp,
@@ -1393,7 +1452,14 @@ internal sealed record ReportPerformance(
 
 // AllocBytes is the eval bracket on the calling thread; AllocBytesAllThreads adds the reader and the
 // digest workers, which is the figure to compare across runs.
-internal sealed record GcReport(int Gen0, int Gen1, int Gen2, int EvalGen0, int EvalGen1, long AllocBytes, long AllocBytesAllThreads);
+internal sealed record GcReport(
+    int Gen0,
+    int Gen1,
+    int Gen2,
+    int EvalGen0,
+    int EvalGen1,
+    long AllocBytes,
+    long AllocBytesAllThreads);
 
 // What the run reports about itself; see AnalysisProvenance in the engine.
 internal sealed record ReportProvenance(
@@ -1474,7 +1540,12 @@ internal sealed record ReportEntityProfile(
     int EntityFieldReads,
     int DescriptorBuilds);
 
-internal sealed record PlayerReport(string Name, int Slot, int Team, int TemplateIndex, Dictionary<string, object?> Stats);
+internal sealed record PlayerReport(
+    string Name,
+    int Slot,
+    int Team,
+    int TemplateIndex,
+    Dictionary<string, object?> Stats);
 
 /// <summary>
 ///     The visibility path's measured ray budget for one run, from <c>VisibilityCounters</c>. Present
@@ -1534,10 +1605,7 @@ internal static class JsonOpts
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters =
-        {
-            new StatValueConverter()
-        }
+        Converters = { new StatValueConverter() }
     };
 }
 
@@ -1549,7 +1617,7 @@ internal sealed class StatValueConverter : JsonConverter<object?>
     public override bool CanConvert(Type typeToConvert) => typeToConvert == typeof(object);
 
     /// <inheritdoc />
-    public override object? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+    public override object Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
         throw new NotSupportedException();
 
     /// <inheritdoc />
@@ -1607,7 +1675,6 @@ internal sealed class MeterCollector : IDisposable
     public void Dispose()
     {
         _listener.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>Prints accumulated counter totals + the frame-duration histogram summary.</summary>
@@ -1639,7 +1706,7 @@ internal sealed class PhaseTimeline : IDisposable
         _listener = new ActivityListener
         {
             ShouldListenTo = src => src.Name == AnalysisDiagnostics.SourceName,
-            Sample = static (ref options) => ActivitySamplingResult.AllData,
+            Sample = static (ref _) => ActivitySamplingResult.AllData,
             ActivityStopped = OnStopped
         };
         ActivitySource.AddActivityListener(_listener);
@@ -1652,7 +1719,6 @@ internal sealed class PhaseTimeline : IDisposable
     public void Dispose()
     {
         _listener.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>Prints the captured spans in start order, indented by nesting depth.</summary>
@@ -1710,19 +1776,22 @@ internal sealed class EvaluatorListener : EventListener
         Console.WriteLine($"  Messages processed:     {_messagesProcessed:N0}");
         Console.WriteLine($"  Total edges evaluated:  {_totalEdgesEvaluated:N0}");
         Console.WriteLine($"  Total edges fired:      {_totalEdgesFired:N0}");
-        Console.WriteLine($"  Edge hit rate:          {(_totalEdgesEvaluated > 0 ? (double)_totalEdgesFired / _totalEdgesEvaluated * 100 : 0):F1}%");
+        Console.WriteLine(
+            $"  Edge hit rate:          {(_totalEdgesEvaluated > 0 ? (double)_totalEdgesFired / _totalEdgesEvaluated * 100 : 0):F1}%");
         Console.WriteLine($"  Logic nodes recomputed: {_logicNodesRecomputed:N0}");
         Console.WriteLine($"  Players materialized:   {_playersMaterialized:N0}");
         Console.WriteLine($"  Edges registered:       {_edgesRegistered:N0}");
         Console.WriteLine($"  Round resets:           {_roundResets:N0}");
         if (_slowestFrameTicks > 0)
         {
-            Console.WriteLine($"  Slowest frame:          #{_slowestFrameIndex} ({(double)_slowestFrameTicks / Stopwatch.Frequency * 1000.0:F3} ms)");
+            Console.WriteLine(
+                $"  Slowest frame:          #{_slowestFrameIndex} ({(double)_slowestFrameTicks / Stopwatch.Frequency * 1000.0:F3} ms)");
         }
 
         if (_slowestMessageTicks > 0)
         {
-            Console.WriteLine($"  Slowest message:        {_slowestMessageType} ({(double)_slowestMessageTicks / Stopwatch.Frequency * 1000.0:F3} ms)");
+            Console.WriteLine(
+                $"  Slowest message:        {_slowestMessageType} ({(double)_slowestMessageTicks / Stopwatch.Frequency * 1000.0:F3} ms)");
         }
 
         if (_messagesProcessed > 0 && _totalEdgesEvaluated > 0)

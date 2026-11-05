@@ -3,8 +3,8 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Zones;
 
 #endregion
 
@@ -27,7 +27,8 @@ public static partial class StratDepartureCheck
     /// <summary>The check, each leg read from <paramref name="project" />'s main-line projection.</summary>
     /// <param name="document">The strat.</param>
     /// <param name="project">Projects a document's main line with the host's places and routes.</param>
-    public static IReadOnlyList<StratIssue> Check(StratDocument document, Func<StratDocument, StratSceneProjection> project)
+    public static IReadOnlyList<StratIssue> Check(StratDocument document,
+        Func<StratDocument, StratSceneProjection> project)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(project);
@@ -51,7 +52,8 @@ public static partial class StratDepartureCheck
             for (int k = 0; k < step.Positions.Count; k++)
             {
                 StepPosition position = step.Positions[k];
-                if (position.Carried == true || position.Observed == true || !StratVocabulary.Slots.Contains(position.Slot)
+                if (position.Carried == true || position.Observed == true
+                    || !StratVocabulary.Slots.Contains(position.Slot)
                     || !StratStepLines.Involves(step, position.Slot)
                     || step.Positions.FindLastIndex(p => p.Slot == position.Slot) != k)
                 {
@@ -59,7 +61,9 @@ public static partial class StratDepartureCheck
                 }
 
                 StratSceneProjection without = project(StratHistory.Apply(document,
-                    [PatchOp.RemoveOp(string.Create(CultureInfo.InvariantCulture, $"/steps/{i}/positions/{k}"), null)]));
+                [
+                    PatchOp.RemoveOp(string.Create(CultureInfo.InvariantCulture, $"/steps/{i}/positions/{k}"), null)
+                ]));
                 if (i >= without.Ticks.Count || without.LastStand(position.Slot, without.Ticks[i]) is not { } last)
                 {
                     continue;
@@ -84,9 +88,10 @@ public static partial class StratDepartureCheck
     /// <param name="field">An issue's field.</param>
     public static (int Step, int Position)? PositionOf(string field)
     {
-        Match m = PositionPointer().Match(field ?? "");
+        Match m = PositionPointer().Match(field);
         return m.Success
-            ? (int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture))
+            ? (int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture),
+                int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture))
             : null;
     }
 

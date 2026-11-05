@@ -27,11 +27,13 @@ public partial class ThemeNamesDriftTests
     private static partial Regex ClassName();
 
     // The compiled resources the app's App.axaml includes, loaded the way the app loads them.
-    private static object Load(string file) => AvaloniaXamlLoader.Load(new Uri($"avares://DemoViewer.NET/Styles/{file}.axaml"));
+    private static object Load(string file) =>
+        AvaloniaXamlLoader.Load(new Uri($"avares://DemoViewer.NET/Styles/{file}.axaml"));
 
     private static IEnumerable<IStyle> Walk(IStyle style)
     {
         yield return style;
+
         IEnumerable<IStyle> children = style switch
         {
             StyleInclude include => [include.Loaded],
@@ -60,7 +62,8 @@ public partial class ThemeNamesDriftTests
                 IResourceDictionary theme = (IResourceDictionary)palette.ThemeDictionaries[variant];
                 string[] keys = [.. theme.Keys.Cast<string>()];
 
-                await Assert.That(keys).IsEquivalentTo(ThemeTokens.All, CollectionOrdering.Matching).Because($"the {variant} palette");
+                await Assert.That(keys).IsEquivalentTo(ThemeTokens.All, CollectionOrdering.Matching)
+                    .Because($"the {variant} palette");
             }
         });
     }

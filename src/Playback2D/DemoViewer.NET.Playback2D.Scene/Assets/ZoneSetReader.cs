@@ -35,7 +35,7 @@ internal static class ZoneSetReader
     public static ZoneSet Read(ReadOnlySpan<byte> json)
     {
         ZonesFileDto dto = JsonSerializer.Deserialize<ZonesFileDto>(json, _options)
-                           ?? throw new JsonException("zones.json is empty.");
+            ?? throw new JsonException("zones.json is empty.");
 
         if (dto.SchemaVersion < 1)
         {
@@ -77,7 +77,8 @@ internal static class ZoneSetReader
         {
             if (area.Place >= places.Count)
             {
-                throw new JsonException($"zones.json area {area.Id} names place {area.Place}, beyond the {places.Count} places.");
+                throw new JsonException(
+                    $"zones.json area {area.Id} names place {area.Place}, beyond the {places.Count} places.");
             }
 
             areas.Add(new ZoneArea(area.Id, area.Place < 0 ? -1 : area.Place, area.Floor, area.Seed, area.Z,
@@ -103,7 +104,8 @@ internal static class ZoneSetReader
         int placeId = dto.Place ?? -1;
         if (kind == ZoneVolumeKind.Place && (placeId < 0 || placeId >= placeCount))
         {
-            throw new JsonException($"zones.json place volume {dto.Entity} names place {placeId}, beyond the {placeCount} places.");
+            throw new JsonException(
+                $"zones.json place volume {dto.Entity} names place {placeId}, beyond the {placeCount} places.");
         }
 
         Bombsite? site = dto.Site switch
@@ -158,21 +160,22 @@ internal static class ZoneSetReader
 
     private sealed class ZonesFileDto
     {
-        public int SchemaVersion { get; set; }
-        public string? MapName { get; set; }
-        public string? BundleMapVersion { get; set; }
-        public string? ZonesVersion { get; set; }
-        public string? BakerVersion { get; set; }
-        public double FloorQuantum { get; set; } = 64;
-        public List<FloorDto>? Floors { get; set; }
-        public List<PlaceDto>? Places { get; set; }
-        public List<VolumeDto>? Volumes { get; set; }
-        public List<AreaDto>? Areas { get; set; }
-        public List<int[]>? AreaLinks { get; set; }
-        public List<int[]>? Adjacency { get; set; }
-        public ParametersDto? Parameters { get; set; }
+        public int SchemaVersion { get; init; }
+        public string? MapName { get; init; }
+        public string? BundleMapVersion { get; init; }
+        public string? ZonesVersion { get; init; }
+        public string? BakerVersion { get; init; }
+        public double FloorQuantum { get; init; } = 64;
+        public List<FloorDto>? Floors { get; init; }
+        public List<PlaceDto>? Places { get; init; }
+        public List<VolumeDto>? Volumes { get; init; }
+        public List<AreaDto>? Areas { get; init; }
+        public List<int[]>? AreaLinks { get; init; }
+        public List<int[]>? Adjacency { get; init; }
+        public ParametersDto? Parameters { get; init; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class FloorDto
     {
         public double Key { get; set; }
@@ -180,12 +183,14 @@ internal static class ZoneSetReader
         public double MaxZ { get; set; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class PlaceDto
     {
         public int Id { get; set; }
         public string? Name { get; set; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class VolumeDto
     {
         public string? Kind { get; set; }
@@ -198,11 +203,13 @@ internal static class ZoneSetReader
         public List<HullDto>? Hulls { get; set; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class HullDto
     {
         public List<double[]>? Planes { get; set; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class AreaDto
     {
         public int Id { get; set; }
@@ -213,6 +220,7 @@ internal static class ZoneSetReader
         public double[]? Xy { get; set; }
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed class ParametersDto
     {
         [JsonPropertyName("bombRadius")]

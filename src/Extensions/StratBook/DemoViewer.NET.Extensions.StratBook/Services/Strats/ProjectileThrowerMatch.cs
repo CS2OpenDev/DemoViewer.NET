@@ -20,7 +20,7 @@ public static class ProjectileThrowerMatch
     public const int TickTolerance = 8;
 
     /// <summary>World units a <c>Removed</c> sample's position may differ from the detonation's ("a small radius").</summary>
-    public const double PositionTolerance = 256;
+    private const double PositionTolerance = 256;
 
     /// <summary>
     ///     The <c>Removed</c> sample of <paramref name="className" /> nearest <paramref name="position" />, within
@@ -31,10 +31,12 @@ public static class ProjectileThrowerMatch
     /// <param name="className">One of <see cref="GrenadeProjectileClasses" />.</param>
     /// <param name="tick">The detonation's frame-clock tick.</param>
     /// <param name="position">The detonation's world position.</param>
-    public static ProjectileSample? Nearest(IEnumerable<ProjectileSample> samples, string className, int tick, Vector3 position)
+    public static ProjectileSample? Nearest(IEnumerable<ProjectileSample> samples, string className, int tick,
+        Vector3 position)
     {
         ArgumentNullException.ThrowIfNull(samples);
-        (bool found, ProjectileSample? best) = Nearest(samples.Where(s => s.Removed), RemovedProjectile.From, className, tick, position);
+        (bool found, ProjectileSample? best) = Nearest(samples.Where(s => s.Removed), RemovedProjectile.From, className,
+            tick, position);
         return found ? best : null;
     }
 
@@ -43,14 +45,16 @@ public static class ProjectileThrowerMatch
     /// <param name="className">One of <see cref="GrenadeProjectileClasses" />.</param>
     /// <param name="tick">The detonation's frame-clock tick.</param>
     /// <param name="position">The detonation's world position.</param>
-    public static RemovedProjectile? Nearest(IEnumerable<RemovedProjectile> removed, string className, int tick, Vector3 position)
+    public static RemovedProjectile? Nearest(IEnumerable<RemovedProjectile> removed, string className, int tick,
+        Vector3 position)
     {
         ArgumentNullException.ThrowIfNull(removed);
         (bool found, RemovedProjectile best) = Nearest(removed, r => r, className, tick, position);
         return found ? best : null;
     }
 
-    private static (bool Found, T? Best) Nearest<T>(IEnumerable<T> rows, Func<T, RemovedProjectile> view, string className, int tick,
+    private static (bool Found, T? Best) Nearest<T>(IEnumerable<T> rows, Func<T, RemovedProjectile> view,
+        string className, int tick,
         Vector3 position)
     {
         double maxDistanceSquared = PositionTolerance * PositionTolerance;

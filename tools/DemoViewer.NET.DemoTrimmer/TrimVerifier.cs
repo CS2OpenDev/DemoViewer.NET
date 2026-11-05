@@ -232,17 +232,22 @@ internal static class TrimVerifier
         ParsedDemo source, TrimResult result, ParsedDemo trimmed, VerificationReport report)
     {
         HashSet<int> retained = [.. result.EmittedSourceFrames];
-        List<string> expected = source.AllGameEvents
-            .Where(e => retained.Contains(e.FrameNumber))
-            .Select(Signature).ToList();
+        List<string> expected =
+        [
+            .. source.AllGameEvents
+                .Where(e => retained.Contains(e.FrameNumber))
+                .Select(Signature)
+        ];
         // The synthesized player_team seatings are additive by design and have no source-frame
         // counterpart. Exclude them here so this check keeps pinning the RETAINED stream
         // one-to-one (VerifyTeams owns the synthesized events).
-        List<string> actual = trimmed.AllGameEvents
-            .Where(e => !(result.SynthesizedTeams.Count > 0
-                          && e.Payload is PlayerTeamEvent { OldTeam: 0, Silent: true }
-                          && e.Name == "player_team"))
-            .Select(Signature).ToList();
+        List<string> actual =
+        [
+            .. trimmed.AllGameEvents
+                .Where(e => !(result.SynthesizedTeams.Count > 0
+                    && e is { Payload: PlayerTeamEvent { OldTeam: 0, Silent: true }, Name: "player_team" }))
+                .Select(Signature)
+        ];
 
         if (expected.Count != actual.Count)
         {
@@ -263,7 +268,9 @@ internal static class TrimVerifier
 
         report.Check(firstDiff < 0,
             string.Create(CultureInfo.InvariantCulture, $"game-event stream ({expected.Count} events)"),
-            firstDiff < 0 ? "" : $"first difference at #{firstDiff}: expected '{expected[firstDiff]}', got '{actual[firstDiff]}'");
+            firstDiff < 0
+                ? ""
+                : $"first difference at #{firstDiff}: expected '{expected[firstDiff]}', got '{actual[firstDiff]}'");
     }
 
     /// <summary>
@@ -280,7 +287,8 @@ internal static class TrimVerifier
             "0 player_death events — the window is probably warmup");
         report.Check(boundaries >= result.Window.RoundsKept,
             string.Create(CultureInfo.InvariantCulture, $"retained round boundaries >= {result.Window.RoundsKept}"),
-            string.Create(CultureInfo.InvariantCulture, $"only {boundaries} '{WindowSelector.DefaultBoundaryEvent}' events"));
+            string.Create(CultureInfo.InvariantCulture,
+                $"only {boundaries} '{WindowSelector.DefaultBoundaryEvent}' events"));
         report.Notes.Add(string.Create(CultureInfo.InvariantCulture,
             $"retained content: {kills} kills, {boundaries} round boundaries, {trimmed.Players.Count} players"));
     }

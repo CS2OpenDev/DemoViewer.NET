@@ -30,7 +30,8 @@ public class QueueOrderTests
             }
         ], orderHint));
 
-    private static IDemoQueueHandle Job(DemoProcessingQueue queue, string name, DemoJobPriority priority, List<string> ran,
+    private static IDemoQueueHandle Job(DemoProcessingQueue queue, string name, DemoJobPriority priority,
+        List<string> ran,
         PassLevel? level = null) =>
         queue.SubmitJob(new QueueJobRequest(QueueJobKind.SectionCompute, name, "test", priority, _ =>
         {
@@ -62,7 +63,8 @@ public class QueueOrderTests
         release.SetResult();
         await Task.WhenAll(blocker.Completion, open.Completion, user.Completion);
 
-        await Assert.That(ran).IsEquivalentTo(["p:/d/asked.dem", "p:/d/open.dem"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(ran).IsEquivalentTo(["p:/d/asked.dem", "p:/d/open.dem"],
+            TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
 
     [Test]
@@ -76,7 +78,8 @@ public class QueueOrderTests
         queue.Resume();
         await Task.WhenAll(sweep.Completion, import.Completion);
 
-        await Assert.That(ran).IsEquivalentTo(["p:/d/new.dem", "p:/d/old.dem"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(ran).IsEquivalentTo(["p:/d/new.dem", "p:/d/old.dem"],
+            TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
 
     [Test]
@@ -91,7 +94,8 @@ public class QueueOrderTests
         queue.Resume();
         await Task.WhenAll(background.Completion, backlog.Completion, user.Completion);
 
-        await Assert.That(ran).IsEquivalentTo(["user", "backlog", "background"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(ran).IsEquivalentTo(["user", "backlog", "background"],
+            TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
 
     [Test]
@@ -106,7 +110,8 @@ public class QueueOrderTests
         queue.Resume();
         await Task.WhenAll(newer.Completion, loaded.Completion);
 
-        await Assert.That(ran).IsEquivalentTo(["p:/d/loaded.dem", "p:/d/newer.dem"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(ran).IsEquivalentTo(["p:/d/loaded.dem", "p:/d/newer.dem"],
+            TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
 
     [Test]
@@ -137,13 +142,14 @@ public class QueueOrderTests
         release.Set();
         await Task.WhenAll(first.Completion, other.Completion, again.Completion);
 
-        await Assert.That(ran).IsEquivalentTo(["first", "p:/d/a.dem", "p:/d/b.dem"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(ran).IsEquivalentTo(["first", "p:/d/a.dem", "p:/d/b.dem"],
+            TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
 
     private sealed class LoadedOnly(string path) : IShellDemoLease
     {
         public IHeldParse? TryHold(string demo) => null;
 
-        public string? LoadedPath => path;
+        public string LoadedPath => path;
     }
 }

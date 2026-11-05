@@ -18,9 +18,8 @@ public class PlayerAttributesTests
     {
         // IsT / IsCt drive the theme-aware team-chip colour CLASS in the view (Pb2dTeamT / Pb2dTeamCt token);
         // neutral (spectator/unassigned) is neither class → the default neutral token.
-        PlayerAttributes a = new(0);
+        PlayerAttributes a = new(0) { Team = 2 }; // T
 
-        a.Team = 2; // T
         await Assert.That(a.TeamLabel).IsEqualTo("T");
         await Assert.That(a.IsT).IsTrue();
         await Assert.That(a.IsCt).IsFalse();
@@ -52,7 +51,7 @@ public class PlayerAttributesTests
     public async Task TeamChanged_RaisesDerivedPropertyNotifications()
     {
         PlayerAttributes a = new(0);
-        List<string> raised = new();
+        List<string> raised = [];
         a.PropertyChanged += (_, e) => raised.Add(e.PropertyName ?? "");
 
         a.Team = 3;

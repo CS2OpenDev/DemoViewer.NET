@@ -30,8 +30,7 @@ internal static class ConsoleOut
     /// <summary>The indented, relaxed-escaping options every JSON artifact this tool writes uses.</summary>
     public static JsonSerializerOptions Pretty { get; } = new()
     {
-        WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     /// <summary>Whether <c>--json</c> was given; set once by <see cref="Program" /> before dispatch.</summary>
@@ -40,15 +39,11 @@ internal static class ConsoleOut
     /// <summary>Whether <c>--quiet</c> was given: suppresses <see cref="Info" /> only.</summary>
     public static bool IsQuiet { get; set; }
 
-    /// <summary>Whether a single stdout JSON object has already been emitted.</summary>
-    public static bool JsonEmitted { get; private set; }
-
     /// <summary>Resets the sticky state. Only the in-process test host needs this.</summary>
     public static void Reset()
     {
         IsJson = false;
         IsQuiet = false;
-        JsonEmitted = false;
     }
 
     /// <summary>A normal human line. Suppressed by <c>--quiet</c>.</summary>
@@ -74,7 +69,6 @@ internal static class ConsoleOut
     public static void Json(JsonObject payload)
     {
         ArgumentNullException.ThrowIfNull(payload);
-        JsonEmitted = true;
         Console.Out.WriteLine(payload.ToJsonString(Pretty));
     }
 

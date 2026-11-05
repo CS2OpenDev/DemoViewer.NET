@@ -82,7 +82,8 @@ internal sealed class HostIdentity : IExtensionIdentity
     private void OnServiceChanged()
     {
         (string[] accounts, string? active) = Current();
-        if (accounts.AsSpan().SequenceEqual(_raised.Accounts) && string.Equals(active, _raised.Active, StringComparison.Ordinal))
+        if (accounts.AsSpan().SequenceEqual(_raised.Accounts)
+            && string.Equals(active, _raised.Active, StringComparison.Ordinal))
         {
             return;
         }

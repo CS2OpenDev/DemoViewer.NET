@@ -29,11 +29,13 @@ internal static class ColumnEdgeRouter
 
         // Sort by source x then column so adjacent channels cross less; keep the
         // original index to restore order at the end.
-        List<(ITableColumnEdge ce, int idx)> ordered = columnEdges
-            .Select((ce, idx) => (ce, idx))
-            .OrderBy(t => nodePositions.TryGetValue(t.ce.SourceNode, out NodePosition? p) ? p.X : double.MaxValue)
-            .ThenBy(t => t.ce.ColumnIndex)
-            .ToList();
+        List<(ITableColumnEdge ce, int idx)> ordered =
+        [
+            .. columnEdges
+                .Select((ce, idx) => (ce, idx))
+                .OrderBy(t => nodePositions.TryGetValue(t.ce.SourceNode, out NodePosition? p) ? p.X : double.MaxValue)
+                .ThenBy(t => t.ce.ColumnIndex)
+        ];
 
         // How many edges target each column → spread their approach x within the cell.
         Dictionary<int, int> perColumnCount = new();

@@ -1,16 +1,16 @@
 #region
 
 using DemoViewer.NET.Playback2D.Annotations;
+using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Overlay;
-using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Playback2D.Pipeline.Annotations;
-using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using DemoViewer.NET.Playback2D.Pipeline.Overlay;
 using DemoViewer.NET.Playback2D.Pipeline.Query;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
+using DemoViewer.NET.Playback2D.Query;
+using DemoViewer.NET.Playback2D.Zones;
 using SkiaSharp;
 
 #endregion
@@ -167,7 +167,7 @@ internal static class CliScenePlan
     /// <param name="zones">The place resolver actually loaded, or null.</param>
     /// <param name="query">The query fixture actually loaded, or null.</param>
     /// <param name="overlay">The overlay fixture actually loaded, or null.</param>
-    internal static void RequireFeedableOptIns(IReadOnlyList<string>? include,
+    private static void RequireFeedableOptIns(IReadOnlyList<string>? include,
         AnnotationSession? annotations, PlaceResolver? zones, QueryCanvasDocument? query,
         OverlayDocument? overlay)
     {
@@ -211,8 +211,10 @@ internal static class CliScenePlan
                 if (query is null)
                 {
                     throw new CliUsageException(
-                        $"--layers {raw} needs a query to draw. Pass --query <file{QueryFixtureStore.SidecarExtension}>, " +
-                        $"or name a corpus entry with a {FixtureQuery.CorpusDirectoryName}/<name>{QueryFixtureStore.SidecarExtension} " +
+                        $"--layers {raw} needs a query to draw. Pass --query <file{QueryFixtureStore.SidecarExtension}>, "
+                        +
+                        $"or name a corpus entry with a {FixtureQuery.CorpusDirectoryName}/<name>{QueryFixtureStore.SidecarExtension} "
+                        +
                         "fixture beside its scene.");
                 }
 
@@ -224,8 +226,10 @@ internal static class CliScenePlan
                 if (overlay is null)
                 {
                     throw new CliUsageException(
-                        $"--layers {raw} needs an overlay to draw. Pass --overlay <file{OverlayFixtureStore.SidecarExtension}>, " +
-                        $"or name a corpus entry with an {FixtureOverlay.CorpusDirectoryName}/<name>{OverlayFixtureStore.SidecarExtension} " +
+                        $"--layers {raw} needs an overlay to draw. Pass --overlay <file{OverlayFixtureStore.SidecarExtension}>, "
+                        +
+                        $"or name a corpus entry with an {FixtureOverlay.CorpusDirectoryName}/<name>{OverlayFixtureStore.SidecarExtension} "
+                        +
                         "fixture beside its scene.");
                 }
 

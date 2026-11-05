@@ -56,7 +56,7 @@ public class Playback2DKeybindConflictTests
         Playback2DBinding nextRound = Single(Playback2DAction.NextRound);
 
         Console.WriteLine($"[keybind-audit] erase={Playback2DKeymap.Format(erase.Key, erase.Modifiers)} "
-                          + $"nextRound={Playback2DKeymap.Format(nextRound.Key, nextRound.Modifiers)}");
+            + $"nextRound={Playback2DKeymap.Format(nextRound.Key, nextRound.Modifiers)}");
 
         await Assert.That((erase.Key, erase.Modifiers)).IsNotEqualTo((nextRound.Key, nextRound.Modifiers));
     }
@@ -147,7 +147,7 @@ public class Playback2DKeybindConflictTests
 
             await Assert.That(display).IsEqualTo(gesture[..^"Left".Length] + "←")
                 .Because("one chain, two key spellings — a modifier either formatter knows alone is the "
-                         + "Meta defect coming back");
+                    + "Meta defect coming back");
         }
     }
 
@@ -172,7 +172,7 @@ public class Playback2DKeybindConflictTests
             .Because("the browser handles it in its own chrome and never dispatches it to the document");
         await Assert.That(onBrowser).Contains("browser")
             .Because("'is an app-wide shortcut' would send the user hunting for a DemoViewer conflict "
-                     + "they could resolve; this one they cannot");
+                + "they could resolve; this one they cannot");
 
         // Ctrl+W is BOTH a shell accelerator and a close-tab, so it is refused on either head. Every other
         // row here is a perfectly good desktop binding, and refusing it there would be the mirror defect.
@@ -204,7 +204,7 @@ public class Playback2DKeybindConflictTests
         }
 
         Console.WriteLine($"[keybind-browser] reserved set = {Playback2DKeymap.BrowserReservedGestures.Count} "
-                          + "gestures");
+            + "gestures");
 
         await Assert.That(string.Join(", ", overreach)).IsEqualTo("");
         await Assert.That(Playback2DKeymap.BrowserReservedGestures).IsNotEmpty()

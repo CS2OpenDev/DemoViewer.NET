@@ -1,11 +1,11 @@
 #region
 
-using DemoViewer.NET.TestSupport;
 using System.Reflection;
 using System.Xml.Linq;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.TestSupport;
 
 #endregion
 
@@ -48,8 +48,10 @@ public class CompatibilityMatrixTests
             await Assert.That(template.IndexOf(VersionPlaceholder, first + 1, StringComparison.Ordinal)).IsEqualTo(-1)
                 .Because("the placeholder appears exactly once");
             Assert.Throws<ExtensionManifestException>(() => ExtensionManifest.Parse(template));
-            await Assert.That(template.Replace(VersionPlaceholder, $"\"{fromBin.Version}\"", StringComparison.Ordinal)).IsEqualTo(stampedText)
-                .Because("the stamped copy is the template with only its version filled in; anything else means a template edit without a rebuild");
+            await Assert.That(template.Replace(VersionPlaceholder, $"\"{fromBin.Version}\"", StringComparison.Ordinal))
+                .IsEqualTo(stampedText)
+                .Because(
+                    "the stamped copy is the template with only its version filled in; anything else means a template edit without a rebuild");
             await AssertSatisfiesEveryAxis(fromBin);
         }
     }
@@ -62,12 +64,14 @@ public class CompatibilityMatrixTests
 
         ExtensionManifest fromBin = ExtensionManifest.Parse(await File.ReadAllTextAsync(binPath));
         ExtensionManifest fromEmbedded = ExtensionManifests.Of(new StratBookPack());
-        string? informational = typeof(StratBookPack).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        string? informational = typeof(StratBookPack).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 
         using (Assert.Multiple())
         {
             await Assert.That(fromEmbedded).IsEqualTo(fromBin)
-                .Because("the loader judges the bundled pack by its embedded copy; a mismatch here ships a pack that judges itself differently than its own file does");
+                .Because(
+                    "the loader judges the bundled pack by its embedded copy; a mismatch here ships a pack that judges itself differently than its own file does");
             await Assert.That(SemVersion.TryParseInformational(informational, out SemVersion? stamped)).IsTrue()
                 .Because($"the extension assembly carries an NBGV informational version; got '{informational}'");
             await Assert.That((fromBin.Version.Major, fromBin.Version.Minor, fromBin.Version.Patch))
@@ -87,14 +91,17 @@ public class CompatibilityMatrixTests
             await Assert.That(manifest.RequiresHost.Satisfies(host.ContractVersion)).IsTrue()
                 .Because($"requiresHost {manifest.RequiresHost} must admit ContractVersion {host.ContractVersion}");
             await Assert.That(manifest.RequiresCs2DemoKit.Satisfies(host.Cs2DemoKitVersion)).IsTrue()
-                .Because($"requiresCs2DemoKit {manifest.RequiresCs2DemoKit} must admit Cs2DemoKitVersion {host.Cs2DemoKitVersion}");
+                .Because(
+                    $"requiresCs2DemoKit {manifest.RequiresCs2DemoKit} must admit Cs2DemoKitVersion {host.Cs2DemoKitVersion}");
 
             bool appAxis = manifest.MinAppVersion is not { } floor || host.AppVersion is not { } app || app >= floor;
             await Assert.That(appAxis).IsTrue()
-                .Because($"minAppVersion {manifest.MinAppVersion?.ToString() ?? "none"} vs AppVersion {host.AppVersion?.ToString() ?? "unstamped"}");
+                .Because(
+                    $"minAppVersion {manifest.MinAppVersion?.ToString() ?? "none"} vs AppVersion {host.AppVersion?.ToString() ?? "unstamped"}");
 
             PackCompatibility result = PackCompatibility.Check(manifest, host);
-            await Assert.That(result.IsCompatible).IsTrue().Because(result.Describe(manifest, manifest.Id) ?? "compatible");
+            await Assert.That(result.IsCompatible).IsTrue()
+                .Because(result.Describe(manifest, manifest.Id) ?? "compatible");
         }
     }
 
@@ -108,7 +115,8 @@ public class CompatibilityMatrixTests
         string runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         Assembly app = typeof(ExtensionHost).Assembly;
 
-        Dictionary<string, Version?> shipped = new(StringComparer.Ordinal) { [app.GetName().Name!] = app.GetName().Version };
+        Dictionary<string, Version?> shipped =
+            new(StringComparer.Ordinal) { [app.GetName().Name!] = app.GetName().Version };
         HashSet<string> seen = new(StringComparer.Ordinal) { app.GetName().Name! };
         Queue<Assembly> queue = new();
         queue.Enqueue(app);
@@ -134,7 +142,8 @@ public class CompatibilityMatrixTests
                     continue;
                 }
 
-                if (string.Equals(Path.GetDirectoryName(loaded.Location), runtimeDir, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(Path.GetDirectoryName(loaded.Location), runtimeDir,
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -165,13 +174,15 @@ public class CompatibilityMatrixTests
             await Assert.That(verified.Select(r => r.Name!)).Contains("CommunityToolkit.Mvvm");
             await Assert.That(verified.Any(r => r.Name!.StartsWith("CS2DemoKit.", StringComparison.Ordinal))).IsTrue();
             await Assert.That(verified.Any(r => r.Name!.StartsWith("Avalonia", StringComparison.Ordinal))).IsTrue();
-            await Assert.That(verified.Any(r => r.Name!.StartsWith("Microsoft.Extensions.", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(verified.Any(r => r.Name!.StartsWith("Microsoft.Extensions.", StringComparison.Ordinal)))
+                .IsTrue();
 
             foreach (AssemblyName reference in verified)
             {
                 Version? loaded = System.Reflection.Assembly.Load(reference.Name!).GetName().Version;
                 await Assert.That(reference.Version).IsEqualTo(loaded)
-                    .Because($"{reference.Name}: the extension was built against {reference.Version}; this process loads {loaded}");
+                    .Because(
+                        $"{reference.Name}: the extension was built against {reference.Version}; this process loads {loaded}");
             }
         }
     }
@@ -212,7 +223,8 @@ public class CompatibilityMatrixTests
         }
 
         await Assert.That(uncovered).IsEmpty()
-            .Because($"not covered by the app-shipped derivation, the BCL, or the private allowlist: {string.Join(", ", uncovered)}");
+            .Because(
+                $"not covered by the app-shipped derivation, the BCL, or the private allowlist: {string.Join(", ", uncovered)}");
     }
 
     // ── 3: requiresCs2DemoKit is the pin EXACTLY; requiresHost is bounded below the next major ────────
@@ -233,7 +245,8 @@ public class CompatibilityMatrixTests
         string[] pins =
         [
             .. props.Descendants("PackageVersion")
-                .Where(e => ((string?)e.Attribute("Include"))?.StartsWith("CS2DemoKit.", StringComparison.Ordinal) == true)
+                .Where(e => ((string?)e.Attribute("Include"))?.StartsWith("CS2DemoKit.", StringComparison.Ordinal)
+                    == true)
                 .Select(e => e.Attribute("Version")!.Value)
         ];
 
@@ -242,7 +255,8 @@ public class CompatibilityMatrixTests
         using (Assert.Multiple())
         {
             await Assert.That(pins.Distinct().Count()).IsEqualTo(1)
-                .Because("every CS2DemoKit.* package moves in one commit; a split pin means the manifest has nothing single to pin to");
+                .Because(
+                    "every CS2DemoKit.* package moves in one commit; a split pin means the manifest has nothing single to pin to");
             await Assert.That(manifest.RequiresCs2DemoKit).IsEqualTo(VersionRange.Exactly(SemVersion.Parse(pins[0])))
                 .Because("requiresCs2DemoKit must be the exact pin, not a range the pin merely satisfies");
         }
@@ -260,7 +274,7 @@ public class CompatibilityMatrixTests
             await Assert.That(manifest.RequiresHost.Satisfies(ExtensionHost.ContractVersion)).IsTrue();
             await Assert.That(manifest.RequiresHost.Satisfies(nextMajor)).IsFalse()
                 .Because($"requiresHost {manifest.RequiresHost} must be bounded below the next major {nextMajor}; " +
-                         "a contract bump must fail this test before it can ship an unloadable pair");
+                    "a contract bump must fail this test before it can ship an unloadable pair");
         }
     }
 
@@ -289,20 +303,25 @@ public class CompatibilityMatrixTests
         string requiresHost, string requiresCs2DemoKit, string? minAppVersion,
         string hostContract, string hostKit, string? hostApp, string expected)
     {
-        ExtensionManifest manifest = FakeManifests.For("net.demoviewer.pack.matrix", "Matrix", "1.0.0", requiresHost, requiresCs2DemoKit, minAppVersion);
-        ExtensionHostInfo host = new(SemVersion.Parse(hostContract), hostApp is null ? null : SemVersion.Parse(hostApp), SemVersion.Parse(hostKit));
+        ExtensionManifest manifest = FakeManifests.For("net.demoviewer.pack.matrix", "Matrix", "1.0.0", requiresHost,
+            requiresCs2DemoKit, minAppVersion);
+        ExtensionHostInfo host = new(SemVersion.Parse(hostContract), hostApp is null ? null : SemVersion.Parse(hostApp),
+            SemVersion.Parse(hostKit));
 
         PackCompatibility result = PackCompatibility.Check(manifest, host);
         switch (expected)
         {
             case "ok":
-                await Assert.That(result.IsCompatible).IsTrue().Because(result.Describe(manifest, manifest.Id) ?? "compatible");
+                await Assert.That(result.IsCompatible).IsTrue()
+                    .Because(result.Describe(manifest, manifest.Id) ?? "compatible");
                 break;
             case "host":
-                await Assert.That(result is PackCompatibility.HostContractMismatch).IsTrue().Because(result.GetType().Name);
+                await Assert.That(result is PackCompatibility.HostContractMismatch).IsTrue()
+                    .Because(result.GetType().Name);
                 break;
             case "kit":
-                await Assert.That(result is PackCompatibility.Cs2DemoKitMismatch).IsTrue().Because(result.GetType().Name);
+                await Assert.That(result is PackCompatibility.Cs2DemoKitMismatch).IsTrue()
+                    .Because(result.GetType().Name);
                 break;
             case "app":
                 await Assert.That(result is PackCompatibility.AppTooOld).IsTrue().Because(result.GetType().Name);
@@ -320,7 +339,8 @@ public class CompatibilityMatrixTests
     [Test]
     public async Task Describe_Compatible()
     {
-        ExtensionManifest m = FakeManifests.For("net.demoviewer.pack.x", "X", "1.0.0", "^1.0", "0.13.0-beta0001", "0.6.0");
+        ExtensionManifest m =
+            FakeManifests.For("net.demoviewer.pack.x", "X", "1.0.0", "^1.0", "0.13.0-beta0001", "0.6.0");
         string report = CompatibilityReport.Describe(m, _reportHost);
         using (Assert.Multiple())
         {

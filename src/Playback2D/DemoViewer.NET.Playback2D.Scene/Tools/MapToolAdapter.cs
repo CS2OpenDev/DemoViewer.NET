@@ -25,6 +25,7 @@ namespace DemoViewer.NET.Playback2D.Tools;
 ///         duplicate id. Implement <see cref="IPointerTool" /> directly for more than one.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class MapToolAdapter : IPointerTool
 {
     private ToolContext? _context;

@@ -1,9 +1,9 @@
 #region
 
 using System.Text.Json;
-using DemoViewer.NET.Modules.Library;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.GameEvents;
+using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.TestSupport;
@@ -90,12 +90,11 @@ public class DemoLibraryCacheRepairTests
         }
 
         string dataPath = Path.Combine(dir, "library.json");
-        File.WriteAllText(dataPath, JsonSerializer.Serialize(new DemoLibraryData
-        {
-            SchemaVersion = DemoLibraryCacheEntry.CurrentSchema,
-            Folders = [dir],
-            Cache = rows
-        }));
+        File.WriteAllText(dataPath,
+            JsonSerializer.Serialize(new DemoLibraryData
+            {
+                SchemaVersion = DemoLibraryCacheEntry.CurrentSchema, Folders = [dir], Cache = rows
+            }));
         return dataPath;
     }
 
@@ -238,7 +237,7 @@ public class DemoLibraryCacheRepairTests
 
             // Launch 2: press the button.
             int parses = 0;
-            DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(), path =>
+            DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(), _ =>
             {
                 Interlocked.Increment(ref parses);
                 return ScorelessDemo();
@@ -275,7 +274,7 @@ public class DemoLibraryCacheRepairTests
                 await Assert.That(DemoLibraryService.IsScoreResultCoherent(
                         row.CtScore, row.Score, row.CtClan, row.Clan)).IsTrue()
                     .Because("the re-derived row satisfies the contract, so it is never flagged again — "
-                             + "this is what makes the repair terminate");
+                        + "this is what makes the repair terminate");
                 await Assert.That(after).IsEqualTo(0)
                     .Because("a repaired row must not re-enter the backlog on the next launch");
             }
@@ -300,12 +299,11 @@ public class DemoLibraryCacheRepairTests
         {
             File.WriteAllBytes(Path.Combine(dir, "warmup.dem"), [1, 2, 3]);
             string dataPath = Path.Combine(dir, "library.json");
-            File.WriteAllText(dataPath, JsonSerializer.Serialize(new DemoLibraryData
-            {
-                SchemaVersion = DemoLibraryCacheEntry.CurrentSchema,
-                Folders = [dir],
-                Cache = []
-            }));
+            await File.WriteAllTextAsync(dataPath,
+                JsonSerializer.Serialize(new DemoLibraryData
+                {
+                    SchemaVersion = DemoLibraryCacheEntry.CurrentSchema, Folders = [dir], Cache = []
+                }));
 
             int first = await LaunchAsync(dataPath, _ => ScorelessDemo());
             int second = await LaunchAsync(dataPath);
@@ -415,11 +413,11 @@ public class DemoLibraryCacheRepairTests
             {
                 await Assert.That(first).IsEqualTo(0)
                     .Because("a clan with no score is still a stale half-result, and re-deriving it is "
-                             + "on-demand — launching must not spend a parse on it");
+                        + "on-demand — launching must not spend a parse on it");
                 await Assert.That(second).IsEqualTo(0);
                 await Assert.That(ReadRows(dataPath).Single().CtClan).IsEqualTo("Vitality")
                     .Because("the row is left EXACTLY as written — the half data is the evidence the state is "
-                             + "re-derived from on every launch, so erasing it is what would lose the state");
+                        + "re-derived from on every launch, so erasing it is what would lose the state");
             }
         }
         finally
@@ -461,12 +459,11 @@ public class DemoLibraryCacheRepairTests
         {
             File.WriteAllBytes(Path.Combine(dir, "rounds.dem"), [1, 2, 3]);
             string dataPath = Path.Combine(dir, "library.json");
-            File.WriteAllText(dataPath, JsonSerializer.Serialize(new DemoLibraryData
-            {
-                SchemaVersion = DemoLibraryCacheEntry.CurrentSchema,
-                Folders = [dir],
-                Cache = []
-            }));
+            await File.WriteAllTextAsync(dataPath,
+                JsonSerializer.Serialize(new DemoLibraryData
+                {
+                    SchemaVersion = DemoLibraryCacheEntry.CurrentSchema, Folders = [dir], Cache = []
+                }));
 
             await LaunchAsync(dataPath, _ => ScorelessDemo(24));
 

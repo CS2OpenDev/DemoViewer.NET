@@ -3,12 +3,12 @@
 using System.Globalization;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Benchmarking;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
 #endregion
@@ -65,8 +65,7 @@ public class Playback2DWasmBudgetTests
         ScenePipelineBenchmark benchmark = new(stage.Compositor, provider, new StackedLayout(),
             ScenePalette.Dark)
         {
-            Id = "wasm-" + SyntheticScenes.FullSceneBudgetName,
-            AuthoritativeFloors = SyntheticScenes.BudgetFloors
+            Id = "wasm-" + SyntheticScenes.FullSceneBudgetName, AuthoritativeFloors = SyntheticScenes.BudgetFloors
         };
 
         BenchmarkReport report = benchmark.Run(new FixtureFrameSource(fixture),
@@ -127,7 +126,7 @@ public class Playback2DWasmBudgetTests
         long steady = MeasureWindow(stage, fixture, time);
 
         Console.WriteLine($"[wasm-budget] 256 frames at {_size.Width}x{_size.Height}: " +
-                          $"warm window {warm} B, steady window {steady} B");
+            $"warm window {warm} B, steady window {steady} B");
 
         await Assert.That(steady).IsEqualTo(0)
             .Because("WASM is single-threaded — a gen-0 pause there is worse, not more forgivable");
@@ -165,10 +164,7 @@ public class Playback2DWasmBudgetTests
         long before = GC.GetAllocatedBytesForCurrentThread();
         for (int i = 0; i < 256; i++)
         {
-            SceneTime frameTime = time with
-            {
-                DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6
-            };
+            SceneTime frameTime = time with { DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6 };
             stage.Renderer.Advance(fixture.Frame, in frameTime);
             stage.Renderer.Render();
         }

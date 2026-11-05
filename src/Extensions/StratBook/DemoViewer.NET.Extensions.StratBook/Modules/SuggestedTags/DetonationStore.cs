@@ -32,7 +32,10 @@ public sealed class DetonationDocument
 
     /// <summary>The events as the detectors take them.</summary>
     public List<PlacedEvent> ToEvents() =>
-        [.. Events.Select(e => new PlacedEvent(e.Tick, e.Kind, e.ThrowerSlot, 0, new Vector3(e.X, e.Y, e.Z), null, e.ThrowerSteamId, e.ThrowerName))];
+    [
+        .. Events.Select(e => new PlacedEvent(e.Tick, e.Kind, e.ThrowerSlot, 0, new Vector3(e.X, e.Y, e.Z), null,
+            e.ThrowerSteamId, e.ThrowerName))
+    ];
 
     /// <summary>A document over unplaced events.</summary>
     /// <param name="map">The map.</param>
@@ -97,7 +100,7 @@ public sealed class DetonationStore
     public const string Facet = "detonations";
 
     /// <summary>The stamp's schema.</summary>
-    public const int Schema = DetonationDocument.CurrentSchemaVersion;
+    private const int Schema = DetonationDocument.CurrentSchemaVersion;
 
     /// <param name="data">The extension's per-demo data.</param>
     public DetonationStore(IExtensionDemoData data)
@@ -107,10 +110,10 @@ public sealed class DetonationStore
     }
 
     /// <summary>The per-demo data the facet lives in.</summary>
-    public IExtensionDemoData Data { get; }
+    private IExtensionDemoData Data { get; }
 
     /// <summary>The fingerprint the documents are written under now.</summary>
-    public static string Fingerprint => SuggestionsFingerprint.ThrowerSource;
+    private static string Fingerprint => SuggestionsFingerprint.ThrowerSource;
 
     /// <summary>A demo's stamp, or null.</summary>
     /// <param name="demoPath">The demo's path.</param>
@@ -126,7 +129,9 @@ public sealed class DetonationStore
     public void Write(string demoPath, DetonationDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
-        byte[] payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(document, SuggestedTagsJsonContext.Default.DetonationDocument));
+        byte[] payload =
+            Encoding.UTF8.GetBytes(JsonSerializer.Serialize(document,
+                SuggestedTagsJsonContext.Default.DetonationDocument));
         Data.Write(demoPath, new DemoDataWrite(Facet, Schema, Fingerprint, payload) { Count = document.Events.Count });
     }
 

@@ -42,6 +42,7 @@ public enum AimTier
 /// </param>
 /// <param name="Tier">The capability tier, which decides whether a 0.0 is a score or an empty population.</param>
 /// <param name="Note">The population this stat is measured over, spelled out.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record AimStatDefinition(
     string Canonical,
     string RuleId,

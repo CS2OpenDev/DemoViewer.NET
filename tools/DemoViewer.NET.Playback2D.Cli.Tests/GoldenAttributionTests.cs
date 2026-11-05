@@ -1,12 +1,10 @@
 #region
 
 using System.Text.Json.Nodes;
-using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Goldens;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 using TUnit.Core.Exceptions;
 
@@ -37,7 +35,7 @@ namespace DemoViewer.NET.Playback2D.Cli.Tests;
 ///     <para>
 ///         It runs on every platform. On Windows, which authored this corpus, the deltas are zeroes, and
 ///         that assertion goes red first if the rasteriser difference ever stops being confined to text.
-///         Three entries are skipped on macOS: see <see cref="MacOsDivergent" />.
+///         Three entries are skipped on macOS: see <see cref="_macOsDivergent" />.
 ///     </para>
 /// </summary>
 [NotInParallel]
@@ -63,15 +61,15 @@ public class GoldenAttributionTests
     [MethodDataSource(nameof(AttributedEntries))]
     public async Task EveryPixelOverTheStrictCeiling_LiesUnderGlyphInk(string name)
     {
-        if (OperatingSystem.IsMacOS() && MacOsDivergent.Contains(name))
+        if (OperatingSystem.IsMacOS() && _macOsDivergent.Contains(name))
         {
             throw new SkipTestException($"{name}: the committed golden was authored on Windows and " +
-                                        "macOS renders it outside the unrelaxed ceiling. See MacOsDivergent.");
+                "macOS renders it outside the unrelaxed ceiling. See _macOsDivergent.");
         }
 
         GoldenCorpus corpus = GoldenCorpus.Load(Dv2d.CorpusDirectory);
         GoldenCorpusEntry entry = corpus.Find(name)
-                                  ?? throw new InvalidOperationException($"no corpus entry '{name}'");
+            ?? throw new InvalidOperationException($"no corpus entry '{name}'");
         SceneFixture fixture = SceneFixture.Load(entry.ScenePath);
 
         string goldenPath = entry.GoldenPath(RenderBackend.CpuRaster);
@@ -92,8 +90,8 @@ public class GoldenAttributionTests
         // the tier is closed and this prints 0.
         int labels = GoldenEntryPlan.LabelCount(fixture);
         SKSizeI size = entry.Size;
-        long budget = (long)(GoldenCommand.ToleranceFor(entry, labels, null).MaxGlyphOutlierFraction
-                             * size.Width * size.Height);
+        long budget = (long)(GoldenCommand.ToleranceFor(entry, null).MaxGlyphOutlierFraction
+            * size.Width * size.Height);
         Console.WriteLine($"[attribution] {ink.Describe(name, labels)}, budget {budget} px");
 
         // The mask depends on MarkerLayer being findable under SceneLayerIds.Markers, so a renamed id
@@ -154,7 +152,7 @@ public class GoldenAttributionTests
     ///         tolerance change.
     ///     </para>
     /// </summary>
-    private static readonly HashSet<string> MacOsDivergent =
+    private static readonly HashSet<string> _macOsDivergent =
         new(StringComparer.Ordinal) { "nuke-single-upper", "query-nuke-execute", "overlay-nuke-execute" };
 
     /// <summary>

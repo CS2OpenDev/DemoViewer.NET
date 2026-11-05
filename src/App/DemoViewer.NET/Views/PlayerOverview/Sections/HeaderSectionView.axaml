@@ -35,7 +35,8 @@
                 <!-- The Steam avatar's slot. -->
                 <Border x:Name="AvatarPlaceholder" Width="64" Height="64" CornerRadius="14" VerticalAlignment="Center"
                         Background="{DynamicResource PanelHeaderBg}" BorderBrush="{DynamicResource BorderAccent}"
-                        BorderThickness="1" ToolTip.Tip="The Steam avatar shows here once an online extension can fetch it">
+                        BorderThickness="1"
+                        ToolTip.Tip="The Steam avatar shows here once an online extension can fetch it">
                     <TextBlock Text="{Binding Initials}" FontSize="22" FontWeight="SemiBold"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextBright}" />
@@ -47,11 +48,13 @@
                                    Foreground="{DynamicResource TextCardHeader}" TextTrimming="CharacterEllipsis"
                                    ToolTip.Tip="{Binding Name}" />
                         <Border Classes="badge" IsVisible="{Binding IsMine}" VerticalAlignment="Center">
-                            <TextBlock Text="YOU" FontSize="10" FontWeight="SemiBold" FontFamily="Consolas,Menlo,monospace" />
+                            <TextBlock Text="YOU" FontSize="10" FontWeight="SemiBold"
+                                       FontFamily="Consolas,Menlo,monospace" />
                         </Border>
                     </StackPanel>
                     <WrapPanel Orientation="Horizontal">
-                        <SelectableTextBlock Classes="mono" Text="{Binding SteamId64}" FontSize="12" VerticalAlignment="Center"
+                        <SelectableTextBlock Classes="mono" Text="{Binding SteamId64}" FontSize="12"
+                                             VerticalAlignment="Center"
                                              Foreground="{DynamicResource TextMid}" />
                         <Button Classes="ghost chip" Content="Copy" Margin="6 0 14 0" Click="OnCopySteamIdClick"
                                 VerticalAlignment="Center" AutomationProperties.Name="Copy SteamID64" />
@@ -65,7 +68,8 @@
                 </StackPanel>
 
                 <!-- The latest standing of each rank system, over every demo of the player. -->
-                <ItemsControl Grid.Column="2" x:Name="RankChips" ItemsSource="{Binding Ranks}" IsVisible="{Binding HasRanks}"
+                <ItemsControl Grid.Column="2" x:Name="RankChips" ItemsSource="{Binding Ranks}"
+                              IsVisible="{Binding HasRanks}"
                               VerticalAlignment="Center">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -81,11 +85,13 @@
                                     <ui:GameIcon Key="{Binding BadgeKey}" IconHeight="30" VerticalAlignment="Center" />
                                     <StackPanel Spacing="0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Title}" FontSize="9.5" FontWeight="SemiBold"
-                                                   FontFamily="Consolas,Menlo,monospace" Foreground="{DynamicResource TextMid}" />
+                                                   FontFamily="Consolas,Menlo,monospace"
+                                                   Foreground="{DynamicResource TextMid}" />
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <TextBlock Text="{Binding ValueText}" FontSize="15" FontWeight="SemiBold"
                                                        Foreground="{DynamicResource TextValue}" />
-                                            <TextBlock Text="{Binding ChangeText}" FontSize="11" VerticalAlignment="Center"
+                                            <TextBlock Text="{Binding ChangeText}" FontSize="11"
+                                                       VerticalAlignment="Center"
                                                        FontFamily="Consolas,Menlo,monospace"
                                                        Classes.up="{Binding IsUp}" Classes.down="{Binding IsDown}" />
                                         </StackPanel>

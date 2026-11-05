@@ -17,6 +17,7 @@ namespace DemoViewer.NET.Playback2D.Levels;
 ///     </para>
 /// </summary>
 /// <param name="Key">The quantized lower Z. Opaque: compare it, never do arithmetic on it.</param>
+[PublicAPI]
 public readonly record struct MapLevelId(int Key)
 {
     /// <summary>The "no level" sentinel. Distinct from every real id, including a level at Z 0.</summary>

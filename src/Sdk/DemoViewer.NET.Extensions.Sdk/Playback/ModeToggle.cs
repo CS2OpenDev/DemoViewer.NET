@@ -1,21 +1,23 @@
+#region
+
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk.Playback;
 
 /// <summary>A mode of the 2D Playback tab that a contribution owns. The toolbar shows it while available.</summary>
+[PublicAPI]
 public sealed class ModeToggle : INotifyPropertyChanged
 {
-    private bool _isAvailable = true;
-    private bool _isOn;
-
     /// <summary>Creates the toggle.</summary>
     /// <param name="id">Unique within the tab.</param>
     /// <param name="label">The toolbar text.</param>
-    /// <param name="tooltip">The toolbar tooltip.</param>
+    /// <param name="tooltip">The toolbar tooltip; null for none.</param>
     /// <param name="actionId">The action that flips it, or null for none.</param>
     /// <param name="icon">The toolbar icon key, or null.</param>
-    public ModeToggle(string id, string label, string tooltip, string? actionId = null, string? icon = null)
+    public ModeToggle(string id, string label, string? tooltip, string? actionId = null, string? icon = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(label);
@@ -44,15 +46,15 @@ public sealed class ModeToggle : INotifyPropertyChanged
     /// <summary>Whether the mode is on. Setting it raises <see cref="Changed" /> on a flip.</summary>
     public bool IsOn
     {
-        get => _isOn;
+        get;
         set
         {
-            if (_isOn == value)
+            if (field == value)
             {
                 return;
             }
 
-            _isOn = value;
+            field = value;
             Raise();
             Changed?.Invoke();
         }
@@ -61,18 +63,18 @@ public sealed class ModeToggle : INotifyPropertyChanged
     /// <summary>False hides the toggle; its action can then only turn the mode off.</summary>
     public bool IsAvailable
     {
-        get => _isAvailable;
+        get;
         set
         {
-            if (_isAvailable == value)
+            if (field == value)
             {
                 return;
             }
 
-            _isAvailable = value;
+            field = value;
             Raise();
         }
-    }
+    } = true;
 
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -337,6 +337,7 @@ internal sealed class WetStroke
 ///         direct-execution test with no dispatcher.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class AnnotationSession
 {
     /// <summary>Default eraser radius in world units. About a player disc wide at fit zoom.</summary>
@@ -356,8 +357,6 @@ public sealed class AnnotationSession
     ///     a server says otherwise; the same fallback every other rate reader in the app uses.
     /// </summary>
     public const int DefaultTicksPerSecond = 64;
-
-    private int _ticksPerSecond = DefaultTicksPerSecond;
 
     /// <summary>Creates a session over a document.</summary>
     /// <param name="document">The document this session edits.</param>
@@ -386,9 +385,9 @@ public sealed class AnnotationSession
     /// </summary>
     public int TicksPerSecond
     {
-        get => _ticksPerSecond;
-        set => _ticksPerSecond = value > 0 ? value : DefaultTicksPerSecond;
-    }
+        get;
+        set => field = value > 0 ? value : DefaultTicksPerSecond;
+    } = DefaultTicksPerSecond;
 
     /// <summary>
     ///     Answers "which round encloses this DV tick", in ticks, for <see cref="EnvelopeMode.Round" />.
@@ -413,10 +412,7 @@ public sealed class AnnotationSession
     ///     only the colour differs, so a two-pen user never has to keep two widths in step.
     /// </summary>
     public AnnotationStyle SecondaryStyle { get; set; } =
-        AnnotationStyle.Default with
-        {
-            ColorArgb = DefaultSecondaryColorArgb
-        };
+        AnnotationStyle.Default with { ColorArgb = DefaultSecondaryColorArgb };
 
     /// <summary>
     ///     The tool the right button routes to, mirrored here for the UI's benefit exactly as

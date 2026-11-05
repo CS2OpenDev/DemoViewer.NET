@@ -2,9 +2,9 @@
 
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 using TUnit.Core.Exceptions;
 
@@ -40,12 +40,12 @@ internal static class GpuFixtureRender
     ///         case would have measured nothing while claiming to.
     ///     </para>
     /// </summary>
-    public static RenderSurfaceProbe RequireGpu()
+    public static void RequireGpu()
     {
         RenderSurfaceProbe probe = RenderSurfaceProviderFactory.Probe();
         if (probe.GpuAvailable)
         {
-            return probe;
+            return;
         }
 
         if (RenderBackendPreferenceParser.FromEnvironment() == RenderBackendPreference.ForceGpu)
@@ -76,11 +76,9 @@ internal static class GpuFixtureRender
     public static byte[] RenderPng(IRenderSurfaceProvider provider, SceneFixture fixture, SKSizeI size)
     {
         using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack();
-        using HeadlessSceneRenderer renderer = new(provider, compositor)
-        {
-            Palette = ScenePalette.Dark,
-            Camera = fixture.Camera
-        };
+        using HeadlessSceneRenderer renderer = new(provider, compositor);
+        renderer.Palette = ScenePalette.Dark;
+        renderer.Camera = fixture.Camera;
 
         SceneTime time = fixture.Time;
         return renderer.RenderPng(fixture.Frame, in time, size);

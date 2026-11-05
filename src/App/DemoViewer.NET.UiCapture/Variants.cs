@@ -25,17 +25,19 @@ using DemoViewer.NET.Controls.Stats;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Extensions.Manifest;
-using DemoViewer.NET.Extensions.Updates;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
+using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Settings;
 using DemoViewer.NET.Extensions.StratBook.Views.Settings;
+using DemoViewer.NET.Extensions.Updates;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Modules.RuleWorkbench;
-using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
@@ -44,8 +46,6 @@ using DemoViewer.NET.Services.Identity;
 using DemoViewer.NET.Services.LiveSync;
 using DemoViewer.NET.Services.Players;
 using DemoViewer.NET.Services.Update;
-using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
-using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Theming;
 using DemoViewer.NET.ViewModels;
 using DemoViewer.NET.ViewModels.Commands;
@@ -60,14 +60,15 @@ using DemoViewer.NET.ViewModels.MatchOverview;
 using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.ViewModels.PlayerOverview;
 using DemoViewer.NET.ViewModels.Settings;
-using DemoViewer.NET.ViewModels.Stats;
 using DemoViewer.NET.ViewModels.Setup;
 using DemoViewer.NET.ViewModels.Shell;
+using DemoViewer.NET.ViewModels.Stats;
 using DemoViewer.NET.ViewModels.Tutorial;
 using DemoViewer.NET.ViewModels.Update;
 using DemoViewer.NET.Views;
 using DemoViewer.NET.Views.Analysis;
 using DemoViewer.NET.Views.DemoProcessing;
+using DemoViewer.NET.Views.Diagnostics;
 using DemoViewer.NET.Views.ErrorReport;
 using DemoViewer.NET.Views.Highlights;
 using DemoViewer.NET.Views.Library;
@@ -76,15 +77,13 @@ using DemoViewer.NET.Views.MatchOverview;
 using DemoViewer.NET.Views.PlayerOverview;
 using DemoViewer.NET.Views.RuleWorkbench;
 using DemoViewer.NET.Views.Settings;
-using DemoViewer.NET.Views.Stats;
-using DemoViewer.NET.Views.Diagnostics;
 using DemoViewer.NET.Views.Setup;
+using DemoViewer.NET.Views.Stats;
 using DemoViewer.NET.Views.Tutorial;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Path = System.IO.Path;
-using DemoViewer.NET.Extensions.StratBook.Controls;
 
 #endregion
 
@@ -147,7 +146,7 @@ public static partial class Variants
             ["icon-fallback"] = IconFallbackGallery,
             ["navstrip-real"] = NavStripReal,
             ["navstrip-real-target"] = NavStripRealTarget,
-            ["navstrip-proposed"] = () => NavStripProposed(),
+            ["navstrip-proposed"] = NavStripProposed,
             ["navstrip-icon-probe"] = NavIconProbe,
             ["navstrip-redesign-a"] = () => NavStripRedesign(JumpVariant.IconOnly),
             ["navstrip-redesign-b"] = () => NavStripRedesign(JumpVariant.IconCaption),
@@ -160,7 +159,7 @@ public static partial class Variants
             ["toolbar-proposed"] = () => Toolbar(true),
             ["welcome-current"] = () => Welcome(false),
             ["welcome-proposed"] = () => Welcome(true),
-            ["breakpoints-map"] = () => BreakpointsMap(),
+            ["breakpoints-map"] = BreakpointsMap,
             ["settings"] = () => Settings(),
             // Concurrency seeded to 2 so the BACKGROUND PROCESSING section shows the RAM-risk warning (the
             // safety-critical element). The default state (1, no warning) is
@@ -312,7 +311,7 @@ public static partial class Variants
             ["player-overview-search"] = () => PlayerOverview(true, "zyw"),
             // A Me account with a dozen demos: the header with aliases, and a history mixing read stats, a demo
             // whose facet is not written ("stats pending"), an approximate time and a left-early row.
-            ["player-overview-populated"] = () => PlayerOverviewPopulated(),
+            ["player-overview-populated"] = PlayerOverviewPopulated,
             ["strat-editor"] = () => StratEditor(false, false),
             ["strat-editor-collapsed"] = () => StratEditor(true, true),
             ["strat-editor-bare"] = () => StratEditor(false, false, true),
@@ -380,7 +379,6 @@ public static partial class Variants
     // Region rects (overlay == backdrop coords, both fill the window from 0,0 at 1280x800).
     private static readonly Rect _tabNavRect = new(6, 4, 384, 36); // union of the tab headers
     private static readonly Rect _libraryTabRect = new(8, 5, 96, 34); // the "Library" tab header
-    private static readonly Rect _openDemoRect = new(1136, 6, 120, 32); // top-right "Open Demo" button
     private static readonly Rect _firstCardRect = new(24, 68, 231, 147); // the first Library demo card
     private static readonly Rect _transportRect = new(10, 758, 330, 34); // bottom transport strip
 
@@ -418,7 +416,8 @@ public static partial class Variants
                 ],
                 [(4, 28000), (7, 50000), (12, 58000)],
                 [
-                    ("s1mple", "76561198000000001", 0, 2, 7, 54321, "s1mple — 2 kills after the plant (round 7)", "clutch.plant_kills"),
+                    ("s1mple", "76561198000000001", 0, 2, 7, 54321, "s1mple — 2 kills after the plant (round 7)",
+                        "clutch.plant_kills"),
                     ("s1mple", "76561198000000001", 0, 2, 7, 54600, "s1mple — ace (round 7)", "clutch.ace"),
                     ("ZywOo", "76561198000000002", 1, 3, 4, 30110, "ZywOo — 3k retake (round 4)", "clutch.retake_3k")
                 ]));
@@ -456,10 +455,12 @@ public static partial class Variants
             // it FALSE so the footer renders the real "Generate reel" primary the majority of users see.
             dryRunOnly: false,
             // Injected so the "demo moved" pre-flight is reachable without touching the filesystem.
-            fileExists: _ => demosExist);
-        // The reel defaults are unseeded in a headless host, so pin an output folder. Otherwise every
-        // capture shows the "choose an output folder" banner instead of the state under test.
-        vm.ReelConfig.OutputFolder = "/Users/you/Movies/Reels";
+            fileExists: _ => demosExist)
+        {
+            // The reel defaults are unseeded in a headless host, so pin an output folder. Otherwise every
+            // capture shows the "choose an output folder" banner instead of the state under test.
+            ReelConfig = { OutputFolder = "/Users/you/Movies/Reels" }
+        };
 
         if (populated)
         {
@@ -511,10 +512,7 @@ public static partial class Variants
             }
         }
 
-        return new HighlightsTabView
-        {
-            DataContext = vm
-        };
+        return new HighlightsTabView { DataContext = vm };
     }
 
     // A realistic corpus for the density capture: 8 demos × 30 highlights over 6 maps and 8 players, which is
@@ -531,11 +529,12 @@ public static partial class Variants
 
         for (int d = 0; d < 8; d++)
         {
+            int demo = d;
             (string Name, string SteamId, int Team, int Slot)[] roster =
             [
                 .. Enumerable.Range(0, 5).Select(i =>
                 {
-                    int p = (d * 3 + i) % players.Length;
+                    int p = (demo * 3 + i) % players.Length;
                     return (players[p], "7656119800000" + p.ToString("D4",
                             CultureInfo.InvariantCulture),
                         i < 3 ? 2 : 3, i);
@@ -548,7 +547,7 @@ public static partial class Variants
                     .. Enumerable.Range(0, 30).Select(e =>
                     {
                         (string name, string steam, int _, int slot) = roster[e % roster.Length];
-                        string type = types[(d + e) % types.Length];
+                        string type = types[(demo + e) % types.Length];
                         int round = e + 1;
                         return (name, steam, slot, e, round, 6000 + e * 3700,
                             $"{name} — {type[(type.IndexOf('.') + 1)..].Replace('_', ' ')} (round {round})",
@@ -567,7 +566,8 @@ public static partial class Variants
         string path, string map, long modified,
         (string Name, string SteamId, int Team, int Slot)[] players,
         (int Number, int StartTick)[] rounds,
-        (string Name, string SteamId, int Slot, int FrameIndex, int Round, int Tick, string Title, string TypeKey)[] events,
+        (string Name, string SteamId, int Slot, int FrameIndex, int Round, int Tick, string Title, string TypeKey)[]
+            events,
         DemoAnalysisState scanState =
             DemoAnalysisState.Indexed)
     {
@@ -579,30 +579,19 @@ public static partial class Variants
             TickCount = 120000,
             ModifiedTicks = modified,
             ProfileName = "Cs2GotvProfile",
-            Analysis = new TierStamp
-            {
-                Schema = DemoCacheRecord.AnalysisSchema,
-                ComputedAtTicks = 1
-            },
+            Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
             AnalysisState = scanState,
             ConfigFingerprint = "capture@64",
             Players =
             [
                 .. players.Select(p => new CachedPlayerInfo
                 {
-                    Name = p.Name,
-                    SteamId64 = p.SteamId,
-                    Team = p.Team,
-                    Slot = p.Slot
+                    Name = p.Name, SteamId64 = p.SteamId, Team = p.Team, Slot = p.Slot
                 })
             ],
             Rounds =
             [
-                .. rounds.Select(r => new CachedRound
-                {
-                    Number = r.Number,
-                    StartTickFrameClock = r.StartTick
-                })
+                .. rounds.Select(r => new CachedRound { Number = r.Number, StartTickFrameClock = r.StartTick })
             ],
             Highlights =
             [
@@ -648,11 +637,11 @@ public static partial class Variants
 
         // Recents live in the Recents section of the single config file. Seed them through a
         // throwaway temp-dir SettingsService, then load via the store (mirrors the real DI wiring).
-        List<RecentFile> seeded = new()
-        {
-            new RecentFile("/demos/nuke_ecoround.dem", "de_nuke", DateTime.UtcNow.AddDays(-2)), // missing → dimmed
-            new RecentFile(realDemo, "de_mirage", DateTime.UtcNow.AddDays(-6)) // exists
-        };
+        List<RecentFile> seeded =
+        [
+            new("/demos/nuke_ecoround.dem", "de_nuke", DateTime.UtcNow.AddDays(-2)), // missing → dimmed
+            new(realDemo, "de_mirage", DateTime.UtcNow.AddDays(-6)) // exists
+        ];
         SettingsService recentsSettings = new(dir);
         recentsSettings.SaveRecents(seeded);
         RecentFilesStore recents = new(recentsSettings);
@@ -680,15 +669,9 @@ public static partial class Variants
             () => Task.FromResult<IReadOnlyList<string>>([]),
             () => Task.CompletedTask,
             recents,
-            contributions: contributions)
-        {
-            IsDragOver = state == LibraryState.DragOver
-        };
+            contributions: contributions) { IsDragOver = state == LibraryState.DragOver };
 
-        return new LibraryTabView
-        {
-            DataContext = vm
-        };
+        return new LibraryTabView { DataContext = vm };
     }
 
     // A real TeamIdentityService + DemoProvenanceSource over cache rows mirroring the sample
@@ -698,7 +681,7 @@ public static partial class Variants
     private static IReadOnlyList<ILibraryContribution> LibraryPackContributions(DemoLibraryService lib)
     {
         DemoCacheStore cache = new(null);
-        TeamIdentityService teams = new(null, DemoViewer.NET.Extensions.HostLibrary.For(cache, null), run: a =>
+        TeamIdentityService teams = new(null, HostLibrary.For(cache, null), run: a =>
         {
             a();
             return Task.CompletedTask;
@@ -725,10 +708,7 @@ public static partial class Variants
                 {
                     record.Players.Add(new CachedPlayerInfo
                     {
-                        Slot = record.Players.Count,
-                        Name = name,
-                        SteamId64 = $"76561198{++steamId:D9}",
-                        Team = 2
+                        Slot = record.Players.Count, Name = name, SteamId64 = $"76561198{++steamId:D9}", Team = 2
                     });
                 }
 
@@ -740,7 +720,9 @@ public static partial class Variants
         return
         [
             new TeamLibraryContribution(() => teams),
-            new ProvenanceLibraryContribution(() => new DemoProvenanceSource(DemoViewer.NET.Extensions.HostLibrary.For(cache, null), teams), () => teams)
+            new ProvenanceLibraryContribution(
+                () => new DemoProvenanceSource(HostLibrary.For(cache, null), teams),
+                () => teams)
         ];
     }
 
@@ -767,10 +749,7 @@ public static partial class Variants
             "unknown name 'kils' — did you mean 'kills'?",
             "resolve.unknown-name", "example.rules.yaml", 12, 7));
 
-        return new RuleWorkbenchView
-        {
-            DataContext = vm
-        };
+        return new RuleWorkbenchView { DataContext = vm };
     }
 
     /// <summary>
@@ -782,16 +761,10 @@ public static partial class Variants
     /// </summary>
     private static HarvestFrameListControl FrameList()
     {
-        List<HarvestFrameRowViewModel> rows = new()
-        {
-            new HarvestFrameRowViewModel
-            {
-                FrameNumber = 1,
-                FrameType = "DEM_FileHeader",
-                MessageCount = 0,
-                ByteSize = 320
-            },
-            new HarvestFrameRowViewModel
+        List<HarvestFrameRowViewModel> rows =
+        [
+            new() { FrameNumber = 1, FrameType = "DEM_FileHeader", MessageCount = 0, ByteSize = 320 },
+            new()
             {
                 FrameNumber = 2,
                 FrameType = "DEM_SignonPacket",
@@ -799,53 +772,18 @@ public static partial class Variants
                 ByteSize = 4096,
                 IsBreakpointSet = true
             },
-            new HarvestFrameRowViewModel
-            {
-                FrameNumber = 3,
-                FrameType = "DEM_Packet",
-                MessageCount = 24,
-                ByteSize = 12800
-            },
-            new HarvestFrameRowViewModel
-            {
-                FrameNumber = 4,
-                FrameType = "DEM_FullPacket",
-                MessageCount = 41,
-                ByteSize = 65536
-            },
-            new HarvestFrameRowViewModel
-            {
-                FrameNumber = 5,
-                FrameType = "DEM_StringTables",
-                MessageCount = 3,
-                ByteSize = 2048
-            },
-            new HarvestFrameRowViewModel
-            {
-                FrameNumber = 6,
-                FrameType = "DEM_ConsoleCmd",
-                MessageCount = 0,
-                ByteSize = 96
-            },
-            new HarvestFrameRowViewModel
-            {
-                FrameNumber = 7,
-                FrameType = "DEM_Packet",
-                MessageCount = 19,
-                ByteSize = 9600
-            }
-        };
+            new() { FrameNumber = 3, FrameType = "DEM_Packet", MessageCount = 24, ByteSize = 12800 },
+            new() { FrameNumber = 4, FrameType = "DEM_FullPacket", MessageCount = 41, ByteSize = 65536 },
+            new() { FrameNumber = 5, FrameType = "DEM_StringTables", MessageCount = 3, ByteSize = 2048 },
+            new() { FrameNumber = 6, FrameType = "DEM_ConsoleCmd", MessageCount = 0, ByteSize = 96 },
+            new() { FrameNumber = 7, FrameType = "DEM_Packet", MessageCount = 19, ByteSize = 9600 }
+        ];
 
-        MainViewModel vm = new()
-        {
-            HasFile = true
-        };
+        MainViewModel vm = new() { HasFile = true };
         HarvestFrameListControl ctl = new()
         {
-            DataContext = vm,
-            Frames = rows
+            DataContext = vm, Frames = rows, SelectedItem = rows[2] // exercise the selected-row fill token
         };
-        ctl.SelectedItem = rows[2]; // exercise the selected-row fill token
         return ctl;
     }
 
@@ -882,10 +820,7 @@ public static partial class Variants
         // count badge only) and the active sev-err underline/tint on Decode errors.
         vm.DecodeErrors.SelectCommand.Execute(null);
 
-        return WrapInShell(new OutputPanel
-        {
-            DataContext = vm
-        }, 900, 280);
+        return WrapInShell(new OutputPanel { DataContext = vm }, 900, 280);
     }
 
     /// <summary>
@@ -930,18 +865,11 @@ public static partial class Variants
         };
         foreach (TelemetryLogRow row in hub.Logs)
         {
-            Grid g = new()
-            {
-                ColumnDefinitions = new ColumnDefinitions("Auto,42,54,Auto,*"),
-                ColumnSpacing = 8
-            };
+            Grid g = new() { ColumnDefinitions = new ColumnDefinitions("Auto,42,54,Auto,*"), ColumnSpacing = 8 };
 
-            void Cell(int col, string text, string? tok = null, Action<TextBlock>? mutate = null)
+            void LogCell(int col, string text, string? tok = null, Action<TextBlock>? mutate = null)
             {
-                TextBlock tb = new()
-                {
-                    Text = text
-                };
+                TextBlock tb = new() { Text = text };
                 if (tok is not null)
                 {
                     tb.Foreground = Tok(tok);
@@ -952,8 +880,8 @@ public static partial class Variants
                 g.Children.Add(tb);
             }
 
-            Cell(0, row.Time, "TextDim");
-            Cell(1, row.LevelLabel, null, tb =>
+            LogCell(0, row.Time, "TextDim");
+            LogCell(1, row.LevelLabel, null, tb =>
             {
                 tb.FontWeight = FontWeight.SemiBold;
                 tb.Classes.Add("tlvl");
@@ -970,13 +898,13 @@ public static partial class Variants
                     tb.Classes.Add("tlvl-debug");
                 }
             });
-            Cell(2, row.Source, "TextDim");
-            Cell(3, row.Category, "TextDim", tb =>
+            LogCell(2, row.Source, "TextDim");
+            LogCell(3, row.Category, "TextDim", tb =>
             {
                 tb.MaxWidth = 200;
                 tb.TextTrimming = TextTrimming.CharacterEllipsis;
             });
-            Cell(4, row.Message, "TextValue", tb => tb.TextWrapping = TextWrapping.Wrap);
+            LogCell(4, row.Message, "TextValue", tb => tb.TextWrapping = TextWrapping.Wrap);
             list.Items.Add(g);
         }
 
@@ -1032,31 +960,16 @@ public static partial class Variants
             new("⤴", "CCSUsrMsg_ServerRankUpdate", "cstrike15_usermessages.proto", noop)
         ];
 
-        StackPanel rows = new()
-        {
-            Spacing = 0
-        };
+        StackPanel rows = new() { Spacing = 0 };
         foreach (CommandPaletteItem it in items)
         {
-            Grid g = new()
-            {
-                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-                Margin = new Thickness(4, 4)
-            };
-            TextBlock icon = new()
-            {
-                Text = it.Icon,
-                Margin = new Thickness(0, 0, 8, 0)
-            };
+            Grid g = new() { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), Margin = new Thickness(4, 4) };
+            TextBlock icon = new() { Text = it.Icon, Margin = new Thickness(0, 0, 8, 0) };
             icon.Classes.Add(it.IsKindFrame ? "ck-frame"
                 : it.IsKindTick ? "ck-tick"
                 : it.IsKindClass ? "ck-class"
                 : "ck-proto");
-            TextBlock label = new()
-            {
-                Text = it.Label,
-                Foreground = Tok("TextBright")
-            };
+            TextBlock label = new() { Text = it.Label, Foreground = Tok("TextBright") };
             TextBlock detail = new()
             {
                 Text = it.Detail,
@@ -1150,13 +1063,7 @@ public static partial class Variants
 
         return new Border
         {
-            Width = 760,
-            Height = 460,
-            Background = Tok("PanelBg"),
-            Child = new BinaryPane
-            {
-                DataContext = vm
-            }
+            Width = 760, Height = 460, Background = Tok("PanelBg"), Child = new BinaryPane { DataContext = vm }
         };
     }
 
@@ -1180,17 +1087,10 @@ public static partial class Variants
             ("unknown(123)", 44, true)
         ];
 
-        StackPanel col = new()
-        {
-            Spacing = 6,
-            Margin = new Thickness(14)
-        };
+        StackPanel col = new() { Spacing = 6, Margin = new Thickness(14) };
         foreach ((string name, int size, bool unknown) in kinds)
         {
-            col.Children.Add(new InspectorCard
-            {
-                DataContext = new HarvestCardViewModel(name, size, unknown)
-            });
+            col.Children.Add(new InspectorCard { DataContext = new HarvestCardViewModel(name, size, unknown) });
         }
 
         return WrapInShell(col, 560, 620);
@@ -1207,16 +1107,10 @@ public static partial class Variants
     /// </summary>
     private static AnalysisTabView AnalysisProgress()
     {
-        MainViewModel vm = new()
-        {
-            HasFile = true
-        };
+        MainViewModel vm = new() { HasFile = true };
         vm.Analysis.IsRunning = true;
         vm.Analysis.EvaluationProgress = 0.42;
-        return new AnalysisTabView
-        {
-            DataContext = vm
-        };
+        return new AnalysisTabView { DataContext = vm };
     }
 
     /// <summary>
@@ -1244,10 +1138,7 @@ public static partial class Variants
         VisionModuleContext ctx = new("de_dust2",
             [.. seed.Select((s, i) => new VisionPlayer(i, s.Team, s.Name, s.X, s.Y, 40, s.Yaw))]);
 
-        Playback2DTabViewModel vm = new()
-        {
-            ShowVision = true
-        };
+        Playback2DTabViewModel vm = new() { ShowVision = true };
         vm.OnActivated(ctx);
 
         if (vm.MapAsset?.CollisionTrisPath is null)
@@ -1279,10 +1170,7 @@ public static partial class Variants
             Height = 720,
             Background = Tok("ShellBg"),
             Padding = new Thickness(10),
-            Child = new Scene2DHost
-            {
-                DataContext = vm
-            }
+            Child = new Scene2DHost { DataContext = vm }
         };
     }
 
@@ -1295,7 +1183,7 @@ public static partial class Variants
         Modified = DateTime.Now.AddDays(-3),
         MapName = map,
         ServerName = "BLAST.tv Premier CS2 Server",
-        Players = players.Split(',').Select(p => p.Trim()).ToList(),
+        Players = [.. players.Split(',').Select(p => p.Trim())],
         DurationSeconds = 3375,
         CtScore = 13,
         TScore = 11,
@@ -1316,14 +1204,8 @@ public static partial class Variants
         Environment.SetEnvironmentVariable(AppPaths.ConfigDirEnvVar, dir);
 
         SettingsService svc = new(dir);
-        FirstRunWizardViewModel vm = new(svc)
-        {
-            CurrentStep = 1
-        };
-        return new FirstRunWizardView
-        {
-            DataContext = vm
-        };
+        FirstRunWizardViewModel vm = new(svc) { CurrentStep = 1 };
+        return new FirstRunWizardView { DataContext = vm };
     }
 
     /// <summary>
@@ -1340,14 +1222,8 @@ public static partial class Variants
         Environment.SetEnvironmentVariable(AppPaths.ConfigDirEnvVar, dir);
 
         SettingsService svc = new(dir);
-        FirstRunWizardViewModel vm = new(svc)
-        {
-            CurrentStep = 3
-        };
-        return new FirstRunWizardView
-        {
-            DataContext = vm
-        };
+        FirstRunWizardViewModel vm = new(svc) { CurrentStep = 3 };
+        return new FirstRunWizardView { DataContext = vm };
     }
 
     /// <summary>
@@ -1360,7 +1236,8 @@ public static partial class Variants
     ///     Extensions section and auto-expands its group for the capture, the on variant the same way minus
     ///     the override. Rendered inside the headless UI thread by <c>CaptureHost</c>.
     /// </summary>
-    private static SettingsView Settings(int maxConcurrency = 1, bool? packOff = null, bool armDelete = false, bool incompatible = false,
+    private static SettingsView Settings(int maxConcurrency = 1, bool? packOff = null, bool armDelete = false,
+        bool incompatible = false,
         bool staged = false, string? updates = null, bool appUpdates = false)
     {
         string dir = Path.Combine(
@@ -1404,9 +1281,12 @@ public static partial class Variants
                 "stratbook.suggested-tags-tuning", "SUGGESTED TAGS TUNING", 0, "extension",
                 () => new SuggestedTagsTuningViewModel(
                     new SuggestedTagsTuningService(
-                        DemoViewer.NET.Extensions.HostLibrary.For(cache, null),
-                        new SuggestedTagsService(DemoViewer.NET.Extensions.HostLibrary.For(cache, null), new DemoViewer.NET.Services.Facts.RoundFactsSource(cache),
-                            new ProposalStore(MemoryDemoData.For(DemoViewer.NET.Extensions.HostLibrary.For(cache, null))), null, new SiteRegionStore(null),
+                        HostLibrary.For(cache, null),
+                        new SuggestedTagsService(HostLibrary.For(cache, null),
+                            new RoundFactsSource(cache),
+                            new ProposalStore(
+                                MemoryDemoData.For(HostLibrary.For(cache, null))), null,
+                            new SiteRegionStore(null),
                             () => new ProfileStore(null).Current, () => true, () => false),
                         null,
                         new SiteRegionStore(null),
@@ -1429,10 +1309,15 @@ public static partial class Variants
             [
                 new CapturePackDataRemoval(new ExtensionDataInventory(
                 [
-                    new StoreInventoryItem(new StoreDescriptor("strats", "Strats", StoreRoot.Config, ["strats"], true), 14, 182_000),
-                    new StoreInventoryItem(new StoreDescriptor("tags", "Tags", StoreRoot.Config, ["tags"], true), 9, 54_000),
-                    new StoreInventoryItem(new StoreDescriptor("teams", "Teams", StoreRoot.Config, ["teams.json"], true), 1, 3_100),
-                    new StoreInventoryItem(new StoreDescriptor("round-index", "Round Index", StoreRoot.Cache, ["round-index"], false), 240, 9_800_000)
+                    new StoreInventoryItem(new StoreDescriptor("strats", "Strats", StoreRoot.Config, ["strats"], true),
+                        14, 182_000),
+                    new StoreInventoryItem(new StoreDescriptor("tags", "Tags", StoreRoot.Config, ["tags"], true), 9,
+                        54_000),
+                    new StoreInventoryItem(
+                        new StoreDescriptor("teams", "Teams", StoreRoot.Config, ["teams.json"], true), 1, 3_100),
+                    new StoreInventoryItem(
+                        new StoreDescriptor("round-index", "Round Index", StoreRoot.Cache, ["round-index"], false), 240,
+                        9_800_000)
                 ]))
             ]
             : null;
@@ -1451,7 +1336,10 @@ public static partial class Variants
         if (staged)
         {
             PackStatus real = FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId);
-            ExtensionManifest higher = real.Manifest! with { Version = new SemVersion(1, 1, 0), RequiresCs2DemoKit = VersionRange.Parse("0.14.0") };
+            ExtensionManifest higher = real.Manifest! with
+            {
+                Version = new SemVersion(1, 1, 0), RequiresCs2DemoKit = VersionRange.Parse("0.14.0")
+            };
             string stagedRoot = Path.Combine(dir, "extensions", StratBookPack.PackId);
             statuses =
             [
@@ -1462,7 +1350,8 @@ public static partial class Variants
                     Rejected =
                     [
                         new LoadOutcome(Path.Combine(stagedRoot, "1.1.0"), higher, LoadFailure.Incompatible,
-                            PackCompatibility.Check(higher, ExtensionHost.Current).Describe(higher, StratBookPack.PackId)!)
+                            PackCompatibility.Check(higher, ExtensionHost.Current)
+                                .Describe(higher, StratBookPack.PackId)!)
                     ]
                 }
             ];
@@ -1478,23 +1367,23 @@ public static partial class Variants
             ExtensionManifest running = real.Manifest!;
             SemVersion next = new(running.Version.Major, running.Version.Minor, running.Version.Patch + 1);
             string manifest = $$"""
-                {
-                  "id": "{{running.Id}}",
-                  "name": "{{running.Name}}",
-                  "version": "{{next}}",
-                  "assembly": "{{running.Assembly}}",
-                  "entryType": "{{running.EntryType}}",
-                  "requiresHost": "{{running.RequiresHost}}",
-                  "requiresCs2DemoKit": "{{running.RequiresCs2DemoKit}}"
-                }
-                """;
+                                {
+                                  "id": "{{running.Id}}",
+                                  "name": "{{running.Name}}",
+                                  "version": "{{next}}",
+                                  "assembly": "{{running.Assembly}}",
+                                  "entryType": "{{running.EntryType}}",
+                                  "requiresHost": "{{running.RequiresHost}}",
+                                  "requiresCs2DemoKit": "{{running.RequiresCs2DemoKit}}"
+                                }
+                                """;
             Uri feedUrl = new("https://example.invalid/extensions.json");
             CaptureFeedClient client = new($$"""
-                { "id": "{{running.Id}}", "entries": [ {
-                  "version": "{{next}}", "manifest": {{manifest}},
-                  "url": "https://example.invalid/{{running.Id}}-{{next}}.zip",
-                  "sha256": "{{new string('0', 64)}}", "size": 4718592, "publishedAt": "2026-10-03T12:00:00Z" } ] }
-                """);
+                                             { "id": "{{running.Id}}", "entries": [ {
+                                               "version": "{{next}}", "manifest": {{manifest}},
+                                               "url": "https://example.invalid/{{running.Id}}-{{next}}.zip",
+                                               "sha256": "{{new string('0', 64)}}", "size": 4718592, "publishedAt": "2026-10-03T12:00:00Z" } ] }
+                                             """);
             if (updates == "installed")
             {
                 string stagedDir = Path.Combine(dir, "extensions", running.Id, next.ToString());
@@ -1503,7 +1392,8 @@ public static partial class Variants
                 File.WriteAllText(Path.Combine(stagedDir, running.Assembly), string.Empty);
             }
 
-            updater = new ExtensionUpdateService(dir, [real], ExtensionHost.Current, TrustPolicy.Nothing, client, _ => feedUrl);
+            updater = new ExtensionUpdateService(dir, [real], ExtensionHost.Current, TrustPolicy.Nothing, client,
+                _ => feedUrl);
             updater.CheckAsync().GetAwaiter().GetResult();
         }
 
@@ -1512,7 +1402,8 @@ public static partial class Variants
             UpdateViewModel.Shared = new UpdateViewModel(new CaptureAppUpdateService());
         }
 
-        SettingsViewModel vm = new(svc, monitor, gate, new ThemeRegistry(), settingsPages: settingsPages, dataRemovals: dataRemovals,
+        SettingsViewModel vm = new(svc, monitor, gate, new ThemeRegistry(), settingsPages: settingsPages,
+            dataRemovals: dataRemovals,
             packStatuses: statuses, extensionUpdates: updater);
         if (appUpdates)
         {
@@ -1529,20 +1420,19 @@ public static partial class Variants
             vm.ExtensionDataActions.Single().ArmCommand.ExecuteAsync(null).GetAwaiter().GetResult();
         }
 
-        return new SettingsView
-        {
-            DataContext = vm
-        };
+        return new SettingsView { DataContext = vm };
     }
 
     // A capture-only installed build: Settings shows the update controls only when a service exists.
     private sealed class CaptureAppUpdateService : IUpdateService
     {
-        public string? CurrentVersion => "0.8.2";
+        public string CurrentVersion => "0.8.2";
 
-        public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default) => Task.FromResult(UpdateCheckResult.UpToDate());
+        public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default) =>
+            Task.FromResult(UpdateCheckResult.UpToDate());
 
-        public Task<bool> DownloadAndApplyAsync(IProgress<int>? progress = null, CancellationToken ct = default) => Task.FromResult(false);
+        public Task<bool> DownloadAndApplyAsync(IProgress<int>? progress = null, CancellationToken ct = default) =>
+            Task.FromResult(false);
     }
 
     // A capture-only feed: one canned extensions.json, no network, no download.
@@ -1550,7 +1440,8 @@ public static partial class Variants
     {
         public Task<string> GetFeedAsync(Uri url, CancellationToken ct) => Task.FromResult(feed);
 
-        public Task DownloadAsync(Uri url, Stream destination, long maxBytes, IProgress<long>? progress, CancellationToken ct) =>
+        public Task DownloadAsync(Uri url, Stream destination, long maxBytes, IProgress<long>? progress,
+            CancellationToken ct) =>
             throw new NotSupportedException("the capture never downloads");
     }
 
@@ -1582,7 +1473,9 @@ public static partial class Variants
     {
         public string FeatureId => StratBookPack.PackFeatureId;
         public Task<ExtensionDataInventory> InventoryAsync() => Task.FromResult(inventory);
-        public Task<ExtensionDataRemovalResult> DeleteAsync() => Task.FromResult(new ExtensionDataRemovalResult(true, inventory, 0));
+
+        public Task<ExtensionDataRemovalResult> DeleteAsync() =>
+            Task.FromResult(new ExtensionDataRemovalResult(true, inventory, 0));
     }
 
     // Renders the Playback2D HUD DOMAIN accents (health/armor/headshot/…) as text + glyphs on the real
@@ -1608,10 +1501,7 @@ public static partial class Variants
         {
             return new TextBlock
             {
-                Text = text,
-                Foreground = Tok(tok),
-                FontSize = 12,
-                VerticalAlignment = VerticalAlignment.Center
+                Text = text, Foreground = Tok(tok), FontSize = 12, VerticalAlignment = VerticalAlignment.Center
             };
         }
 
@@ -1629,12 +1519,7 @@ public static partial class Variants
 
         static StackPanel Row(params Control[] kids)
         {
-            StackPanel sp = new()
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 6,
-                Margin = new Thickness(0, 3)
-            };
+            StackPanel sp = new() { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 3) };
             foreach (Control k in kids)
             {
                 sp.Children.Add(k);
@@ -1647,7 +1532,7 @@ public static partial class Variants
         // `teamT`/`teamCt` (or neither = neutral), and the class STYLES (attached to the root below) resolve the
         // token. If the class selector silently fails, T/CT render neutral gray like the else-case. That's the
         // regression this catches (mirrors Playback2DView's Border.teamChip{,.teamT,.teamCt}).
-        static Border Chip(string label, string teamClass)
+        static Border TeamChip(string label, string teamClass)
         {
             Border b = new()
             {
@@ -1670,25 +1555,14 @@ public static partial class Variants
             return b;
         }
 
-        StackPanel info = new()
-        {
-            Spacing = 2
-        };
-        info.Children.Add(Row(Lbl("Teams"), Chip("T", "teamT"), Chip("CT", "teamCt"), Chip("—", "")));
+        StackPanel info = new() { Spacing = 2 };
+        info.Children.Add(Row(Lbl("Teams"), TeamChip("T", "teamT"), TeamChip("CT", "teamCt"), TeamChip("—", "")));
         info.Children.Add(Row(Lbl("Phase"), Val("LIVE", "Pb2dPositive")));
         info.Children.Add(Row(Lbl("Bomb"), Val("PLANTED A", "Pb2dBomb")));
         info.Children.Add(Row(Lbl("Defuse"), Val("6.7s", "Pb2dDefuseTime")));
-        Border infoBorder = new()
-        {
-            Background = Tok("Pb2dInfoBg"),
-            Padding = new Thickness(10, 8),
-            Child = info
-        };
+        Border infoBorder = new() { Background = Tok("Pb2dInfoBg"), Padding = new Thickness(10, 8), Child = info };
 
-        StackPanel card = new()
-        {
-            Spacing = 2
-        };
+        StackPanel card = new() { Spacing = 2 };
         card.Children.Add(Row(Lbl("HP"), Val("100", "Pb2dHealth"),
             Glyph("◈", "Pb2dArmor"), Val("100", "Pb2dArmor"), Glyph("⛨", "Pb2dDefuser")));
         card.Children.Add(Row(Lbl("Cash"), Val("$4200", "Pb2dPositive"), Lbl("ADR"), Val("94.3", "Pb2dAdr")));
@@ -1706,18 +1580,10 @@ public static partial class Variants
             Child = card
         };
 
-        StackPanel col = new()
-        {
-            Spacing = 0,
-            Margin = new Thickness(10)
-        };
+        StackPanel col = new() { Spacing = 0, Margin = new Thickness(10) };
         col.Children.Add(infoBorder);
         col.Children.Add(cardBorder);
-        Border root = new()
-        {
-            Background = Tok("Pb2dPanelBg"),
-            Child = col
-        };
+        Border root = new() { Background = Tok("Pb2dPanelBg"), Child = col };
 
         // The team-chip class styles, same selectors as Playback2DView, so this render proves the class path.
         static Style ChipStyle(string extraClass, string tok)
@@ -1775,19 +1641,12 @@ public static partial class Variants
 
     private static Rectangle VDiv(bool strong = false) => new()
     {
-        Width = 1,
-        Height = 18,
-        Fill = Tok(strong ? "BorderStrong" : "BorderSubtle"),
-        Margin = new Thickness(8, 0)
+        Width = 1, Height = 18, Fill = Tok(strong ? "BorderStrong" : "BorderSubtle"), Margin = new Thickness(8, 0)
     };
 
     private static Border FrameReadoutPill()
     {
-        StackPanel inner = new()
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center
-        };
+        StackPanel inner = new() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
 
         void Mono(string t, string tok, double fs = 12)
         {
@@ -1806,10 +1665,7 @@ public static partial class Variants
         Mono(" / 0", "TextDim");
         inner.Children.Add(new Rectangle
         {
-            Width = 1,
-            Height = 14,
-            Fill = Tok("BorderSubtle"),
-            Margin = new Thickness(8, 0)
+            Width = 1, Height = 14, Fill = Tok("BorderSubtle"), Margin = new Thickness(8, 0)
         });
         Mono("tick 0", "TextMid");
         return new Border
@@ -1828,9 +1684,7 @@ public static partial class Variants
     {
         StackPanel g = new()
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 2,
-            VerticalAlignment = VerticalAlignment.Center
+            Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center
         };
         g.Children.Add(NavBtn("◀"));
         g.Children.Add(FrameReadoutPill());
@@ -1860,9 +1714,7 @@ public static partial class Variants
     {
         StackPanel g = new()
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 2,
-            VerticalAlignment = VerticalAlignment.Center
+            Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center
         };
         g.Children.Add(GroupLabel("JUMP"));
         foreach (string s in _jumpButtons)
@@ -1886,17 +1738,11 @@ public static partial class Variants
         ToolTip.SetTip(overflow, "Breakpoint step controls (dev) — collapsed into overflow at narrow width");
         DockPanel.SetDock(overflow, Dock.Right);
 
-        DockPanel dock = new()
-        {
-            LastChildFill = true,
-            VerticalAlignment = VerticalAlignment.Center
-        };
+        DockPanel dock = new() { LastChildFill = true, VerticalAlignment = VerticalAlignment.Center };
         dock.Children.Add(overflow); // right-docked first
         StackPanel left = new()
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 2,
-            VerticalAlignment = VerticalAlignment.Center
+            Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center
         };
         left.Children.Add(ClockGroup());
         left.Children.Add(VDiv(true));
@@ -1921,7 +1767,7 @@ public static partial class Variants
     /// </summary>
     private static Border Toolbar(bool proposed)
     {
-        static Button Chip(string content)
+        static Button ToolChip(string content)
         {
             return new Button
             {
@@ -1934,58 +1780,33 @@ public static partial class Variants
 
         StackPanel row = new()
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            VerticalAlignment = VerticalAlignment.Center
+            Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center
         };
 
         if (!proposed)
         {
-            row.Children.Add(new Button
-            {
-                Content = "Open Demo…",
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            row.Children.Add(Chip("Parse Chain"));
+            row.Children.Add(new Button { Content = "Open Demo…", VerticalAlignment = VerticalAlignment.Center });
+            row.Children.Add(ToolChip("Parse Chain"));
+            row.Children.Add(new ToggleButton { Content = "Debugger", FontSize = 11, Padding = new Thickness(8, 3) });
             row.Children.Add(new ToggleButton
             {
-                Content = "Debugger",
-                FontSize = 11,
-                Padding = new Thickness(8, 3)
+                Content = "Output", FontSize = 11, Padding = new Thickness(8, 3), IsChecked = true
             });
-            row.Children.Add(new ToggleButton
-            {
-                Content = "Output",
-                FontSize = 11,
-                Padding = new Thickness(8, 3),
-                IsChecked = true
-            });
-            row.Children.Add(Chip("★ Bookmark"));
-            row.Children.Add(Chip("Bookmarks ▾"));
+            row.Children.Add(ToolChip("★ Bookmark"));
+            row.Children.Add(ToolChip("Bookmarks ▾"));
             row.VerticalAlignment = VerticalAlignment.Top;
-            return new Border
-            {
-                Background = Tok("ShellBg"),
-                Padding = new Thickness(6, 8),
-                Child = row
-            };
+            return new Border { Background = Tok("ShellBg"), Padding = new Thickness(6, 8), Child = row };
         }
 
         // proposed: compact primary + bookmarks, dev chrome behind a View overflow
-        row.Children.Add(new Button
-        {
-            Content = "📂 Open Demo",
-            VerticalAlignment = VerticalAlignment.Center
-        });
-        row.Children.Add(Chip("★ Bookmark"));
-        row.Children.Add(Chip("Bookmarks ▾"));
+        row.Children.Add(new Button { Content = "📂 Open Demo", VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(ToolChip("★ Bookmark"));
+        row.Children.Add(ToolChip("Bookmarks ▾"));
 
-        Button viewBtn = Chip("View ▾");
+        Button viewBtn = ToolChip("View ▾");
         StackPanel overflow = new()
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            VerticalAlignment = VerticalAlignment.Center
+            Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center
         };
         DockPanel.SetDock(overflow, Dock.Right);
         overflow.Children.Add(new TextBlock
@@ -1997,11 +1818,7 @@ public static partial class Variants
         });
         overflow.Children.Add(viewBtn);
 
-        DockPanel dock = new()
-        {
-            LastChildFill = true,
-            VerticalAlignment = VerticalAlignment.Center
-        };
+        DockPanel dock = new() { LastChildFill = true, VerticalAlignment = VerticalAlignment.Center };
         dock.Children.Add(overflow);
         dock.Children.Add(row);
 
@@ -2022,9 +1839,7 @@ public static partial class Variants
                 {
                     new TextBlock
                     {
-                        Text = "View ▾  (gated: power/dev)",
-                        FontSize = 10,
-                        Foreground = Tok("TextDim")
+                        Text = "View ▾  (gated: power/dev)", FontSize = 10, Foreground = Tok("TextDim")
                     },
                     new TextBlock
                     {
@@ -2037,22 +1852,10 @@ public static partial class Variants
             }
         };
 
-        StackPanel col = new()
-        {
-            Spacing = 0
-        };
-        col.Children.Add(new Border
-        {
-            Child = dock,
-            Height = 44,
-            Padding = new Thickness(6, 4)
-        });
+        StackPanel col = new() { Spacing = 0 };
+        col.Children.Add(new Border { Child = dock, Height = 44, Padding = new Thickness(6, 4) });
         col.Children.Add(flyoutHint);
-        return new Border
-        {
-            Background = Tok("ShellBg"),
-            Child = col
-        };
+        return new Border { Background = Tok("ShellBg"), Child = col };
     }
 
     /// <summary>
@@ -2105,10 +1908,7 @@ public static partial class Variants
             FontSize = 15
         });
 
-        StackPanel recent = new()
-        {
-            Spacing = 4
-        };
+        StackPanel recent = new() { Spacing = 4 };
         recent.Children.Add(new TextBlock
         {
             Text = "RECENT",
@@ -2135,12 +1935,7 @@ public static partial class Variants
                             Foreground = Tok("TextBright"),
                             FontFamily = new FontFamily("Consolas,Menlo,monospace")
                         },
-                        new TextBlock
-                        {
-                            Text = meta,
-                            FontSize = 10,
-                            Foreground = Tok("TextDim")
-                        }
+                        new TextBlock { Text = meta, FontSize = 10, Foreground = Tok("TextDim") }
                     }
                 }
             };
@@ -2206,11 +2001,7 @@ public static partial class Variants
             };
         }
 
-        StackPanel col = new()
-        {
-            Spacing = 0,
-            Margin = new Thickness(18)
-        };
+        StackPanel col = new() { Spacing = 0, Margin = new Thickness(18) };
         col.Children.Add(new TextBlock
         {
             Text = "Three breakpoint surfaces — one coherent model",
@@ -2219,16 +2010,15 @@ public static partial class Variants
             Foreground = Tok("TextValue"),
             Margin = new Thickness(0, 0, 0, 12)
         });
-        col.Children.Add(Panel("① NavStrip  ‘TO BREAKPOINT’  (amber)", "chrome · dev / power", "ACTION — continue / step-tick / step-round while navigating.", "AccentAmber"));
-        col.Children.Add(Panel("② Debugger panel  (SplitView rail)", "panel · dev / power", "MANAGEMENT — add / list / enable / delete frame·tick·event breakpoints; ‘stopped at’ + Continue.", "BorderAccent"));
-        col.Children.Add(Panel("③ Analysis graph breakpoints", "in-tab · dev only  (NOT headless-renderable — MSAGL)", "DISTINCT DOMAIN — breakpoints on rule-graph nodes/edges; own list + conditional editor.", "AccentHighlight"));
-        return new Border
-        {
-            Background = Tok("ShellBg"),
-            Width = 560,
-            Height = 420,
-            Child = col
-        };
+        col.Children.Add(Panel("① NavStrip  ‘TO BREAKPOINT’  (amber)", "chrome · dev / power",
+            "ACTION — continue / step-tick / step-round while navigating.", "AccentAmber"));
+        col.Children.Add(Panel("② Debugger panel  (SplitView rail)", "panel · dev / power",
+            "MANAGEMENT — add / list / enable / delete frame·tick·event breakpoints; ‘stopped at’ + Continue.",
+            "BorderAccent"));
+        col.Children.Add(Panel("③ Analysis graph breakpoints", "in-tab · dev only  (NOT headless-renderable — MSAGL)",
+            "DISTINCT DOMAIN — breakpoints on rule-graph nodes/edges; own list + conditional editor.",
+            "AccentHighlight"));
+        return new Border { Background = Tok("ShellBg"), Width = 560, Height = 420, Child = col };
     }
 
     /// <summary>
@@ -2239,14 +2029,8 @@ public static partial class Variants
     /// </summary>
     private static NavStrip NavStripReal()
     {
-        MainViewModel vm = new()
-        {
-            HasFile = true
-        };
-        return new NavStrip
-        {
-            DataContext = vm
-        };
+        MainViewModel vm = new() { HasFile = true };
+        return new NavStrip { DataContext = vm };
     }
 
     /// <summary>
@@ -2257,35 +2041,19 @@ public static partial class Variants
     /// </summary>
     private static NavStrip NavStripRealTarget()
     {
-        MainViewModel vm = new()
-        {
-            HasFile = true
-        };
+        MainViewModel vm = new() { HasFile = true };
         // Clear the ctor's default seed so exactly one target reads on the chip (not "N events").
         vm.GameEventFilters.Clear();
         vm.GameEventFilters.Add(new GameEventFilterItem("player_death"));
-        vm.GameEventFilters.Add(new GameEventFilterItem("bomb_planted")
-        {
-            IsEnabled = false
-        });
-        vm.GameEventFilters.Add(new GameEventFilterItem("round_officially_ended")
-        {
-            IsEnabled = false
-        });
-        return new NavStrip
-        {
-            DataContext = vm
-        };
+        vm.GameEventFilters.Add(new GameEventFilterItem("bomb_planted") { IsEnabled = false });
+        vm.GameEventFilters.Add(new GameEventFilterItem("round_officially_ended") { IsEnabled = false });
+        return new NavStrip { DataContext = vm };
     }
 
     /// <summary>A button carrying design-system style classes (picks up Styles/Primitives.axaml).</summary>
     private static Button Classed(string content, params string[] classes)
     {
-        Button b = new()
-        {
-            Content = content,
-            VerticalAlignment = VerticalAlignment.Center
-        };
+        Button b = new() { Content = content, VerticalAlignment = VerticalAlignment.Center };
         foreach (string c in classes)
         {
             b.Classes.Add(c);
@@ -2301,51 +2069,23 @@ public static partial class Variants
     /// </summary>
     private static Border Primitives()
     {
-        StackPanel col = new()
-        {
-            Spacing = 10,
-            Margin = new Thickness(20)
-        };
+        StackPanel col = new() { Spacing = 10, Margin = new Thickness(20) };
 
         col.Children.Add(Section("Buttons — .primary / .ghost / .chip"));
-        StackPanel buttons = new()
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8
-        };
+        StackPanel buttons = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
         buttons.Children.Add(Classed("Add", "primary"));
         buttons.Children.Add(Classed("Cancel", "ghost"));
         buttons.Children.Add(Classed("Parse Chain", "chip"));
-        buttons.Children.Add(new ToggleButton
-        {
-            Content = "Debugger",
-            Classes =
-            {
-                "chip"
-            }
-        });
-        buttons.Children.Add(new ToggleButton
-        {
-            Content = "Output",
-            IsChecked = true,
-            Classes =
-            {
-                "chip"
-            }
-        });
-        buttons.Children.Add(new Button
-        {
-            Content = "Fluent (unclassed)",
-            VerticalAlignment = VerticalAlignment.Center
-        });
+        buttons.Children.Add(new ToggleButton { Content = "Debugger", Classes = { "chip" } });
+        buttons.Children.Add(new ToggleButton { Content = "Output", IsChecked = true, Classes = { "chip" } });
+        buttons.Children.Add(
+            new Button { Content = "Fluent (unclassed)", VerticalAlignment = VerticalAlignment.Center });
         col.Children.Add(buttons);
 
         col.Children.Add(Section("Nav buttons — .nav-btn / .bp-btn / .icon-btn"));
         StackPanel navs = new()
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 4,
-            VerticalAlignment = VerticalAlignment.Center
+            Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center
         };
         navs.Children.Add(Classed("◀", "nav-btn"));
         navs.Children.Add(Classed("▶", "nav-btn"));
@@ -2357,71 +2097,33 @@ public static partial class Variants
             Height = 18,
             Fill = Tok("BorderStrong"),
             Margin = new Thickness(6, 0),
-            Classes =
-            {
-                "divider",
-                "strong"
-            }
+            Classes = { "divider", "strong" }
         });
         navs.Children.Add(Classed("●", "icon-btn"));
         navs.Children.Add(Classed("✕", "icon-btn"));
         col.Children.Add(navs);
 
         col.Children.Add(Section("Inputs — .field / .mono (Fluent chrome kept)"));
-        StackPanel inputs = new()
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8
-        };
-        inputs.Children.Add(new TextBox
-        {
-            PlaceholderText = "value (e.g. 37)",
-            Width = 160,
-            Classes =
-            {
-                "field"
-            }
-        });
+        StackPanel inputs = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
+        inputs.Children.Add(new TextBox { PlaceholderText = "value (e.g. 37)", Width = 160, Classes = { "field" } });
         inputs.Children.Add(new ComboBox
         {
-            Width = 120,
-            SelectedIndex = 0,
-            ItemsSource = _speedOptions,
-            Classes =
-            {
-                "field"
-            }
+            Width = 120, SelectedIndex = 0, ItemsSource = _speedOptions, Classes = { "field" }
         });
         inputs.Children.Add(new TextBlock
         {
             Text = "de_mirage · tick 12480",
-            Classes =
-            {
-                "mono"
-            },
+            Classes = { "mono" },
             Foreground = Tok("TextValue"),
             VerticalAlignment = VerticalAlignment.Center
         });
         col.Children.Add(inputs);
 
         col.Children.Add(Section("Tabs — TabItem.shell-tab"));
-        TabControl tabs = new()
+        TabControl tabs = new() { Height = 40 };
+        foreach (string h in new[] { "Library", "Stats", "2D Playback", "Parser" })
         {
-            Height = 40
-        };
-        foreach (string h in new[]
-                 {
-                     "Library", "Stats", "2D Playback", "Parser"
-                 })
-        {
-            tabs.Items.Add(new TabItem
-            {
-                Header = h,
-                Classes =
-                {
-                    "shell-tab"
-                }
-            });
+            tabs.Items.Add(new TabItem { Header = h, Classes = { "shell-tab" } });
         }
 
         tabs.SelectedIndex = 0;
@@ -2436,49 +2138,23 @@ public static partial class Variants
     /// </summary>
     private static Border Chrome()
     {
-        StackPanel col = new()
-        {
-            Spacing = 0
-        };
+        StackPanel col = new() { Spacing = 0 };
 
         // Section header band (Border.sectionHeader + TextBlock.sectionLabel) with a count badge.
-        Border header = new()
-        {
-            Classes =
-            {
-                "sectionHeader"
-            }
-        };
-        Grid hgrid = new()
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto")
-        };
+        Border header = new() { Classes = { "sectionHeader" } };
+        Grid hgrid = new() { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
         TextBlock hlabel = new()
         {
-            Text = "DEBUGGER",
-            Classes =
-            {
-                "sectionLabel"
-            },
-            VerticalAlignment = VerticalAlignment.Center
+            Text = "DEBUGGER", Classes = { "sectionLabel" }, VerticalAlignment = VerticalAlignment.Center
         };
         Border badge = new()
         {
-            Classes =
+            Classes = { "badge" },
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Child = new TextBlock
             {
-                "badge"
-            },
-            HorizontalAlignment = HorizontalAlignment.Right
-        };
-        badge.Child = new TextBlock
-        {
-            Text = "3 bp",
-            Classes =
-            {
-                "mono"
-            },
-            FontSize = 10,
-            Foreground = Tok("TextChainBadge")
+                Text = "3 bp", Classes = { "mono" }, FontSize = 10, Foreground = Tok("TextChainBadge")
+            }
         };
         Grid.SetColumn(hlabel, 0);
         Grid.SetColumn(badge, 2);
@@ -2487,80 +2163,32 @@ public static partial class Variants
         header.Child = hgrid;
         col.Children.Add(header);
 
-        StackPanel body = new()
-        {
-            Spacing = 14,
-            Margin = new Thickness(16)
-        };
+        StackPanel body = new() { Spacing = 14, Margin = new Thickness(16) };
 
         // Group label + divider (as used in the NavStrip groups).
         StackPanel groupRow = new()
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            VerticalAlignment = VerticalAlignment.Center
+            Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center
         };
-        groupRow.Children.Add(new TextBlock
-        {
-            Text = "JUMP",
-            Classes =
-            {
-                "group-label"
-            }
-        });
+        groupRow.Children.Add(new TextBlock { Text = "JUMP", Classes = { "group-label" } });
         groupRow.Children.Add(Classed("◀ ev", "nav-btn"));
         groupRow.Children.Add(Classed("ev ▶", "nav-btn"));
-        groupRow.Children.Add(new Rectangle
-        {
-            Width = 1,
-            Height = 18,
-            Classes =
-            {
-                "divider"
-            }
-        });
-        groupRow.Children.Add(new TextBlock
-        {
-            Text = "TO BREAKPOINT",
-            Classes =
-            {
-                "group-label"
-            }
-        });
+        groupRow.Children.Add(new Rectangle { Width = 1, Height = 18, Classes = { "divider" } });
+        groupRow.Children.Add(new TextBlock { Text = "TO BREAKPOINT", Classes = { "group-label" } });
         groupRow.Children.Add(Classed("▶▶", "nav-btn", "bp-btn"));
         body.Children.Add(groupRow);
 
         // Border.card: a raised content tile, with a Border.badge count pill in its header row.
-        Border card = new()
-        {
-            Classes =
-            {
-                "card"
-            },
-            Padding = new Thickness(14, 12)
-        };
+        Border card = new() { Classes = { "card" }, Padding = new Thickness(14, 12) };
         Border cardBadge = new()
         {
-            Classes =
+            Classes = { "badge" },
+            Child = new TextBlock
             {
-                "badge"
+                Text = "12 events", Classes = { "mono" }, FontSize = 10, Foreground = Tok("TextChainBadge")
             }
         };
-        cardBadge.Child = new TextBlock
-        {
-            Text = "12 events",
-            Classes =
-            {
-                "mono"
-            },
-            FontSize = 10,
-            Foreground = Tok("TextChainBadge")
-        };
-        StackPanel cardHead = new()
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8
-        };
+        StackPanel cardHead = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
         cardHead.Children.Add(new TextBlock
         {
             Text = "Border.card",
@@ -2578,7 +2206,8 @@ public static partial class Variants
                 cardHead,
                 new TextBlock
                 {
-                    Text = "CardBg + BorderAccent, radius 8 — the general raised surface. The pill is Border.badge.",
+                    Text =
+                        "CardBg + BorderAccent, radius 8 — the general raised surface. The pill is Border.badge.",
                     FontSize = 11,
                     Foreground = Tok("TextMid"),
                     TextWrapping = TextWrapping.Wrap
@@ -2590,52 +2219,29 @@ public static partial class Variants
         // Border.card-flyout: a popup surface holding .ctx-action rows.
         Border flyout = new()
         {
-            Classes =
-            {
-                "card-flyout"
-            },
+            Classes = { "card-flyout" },
             HorizontalAlignment = HorizontalAlignment.Left,
-            MinWidth = 200
-        };
-        flyout.Child = new StackPanel
-        {
-            Spacing = 2,
-            Children =
+            MinWidth = 200,
+            Child = new StackPanel
             {
-                Classed("Select all", "ctx-action"),
-                Classed("Deselect all", "ctx-action"),
-                new Rectangle
+                Spacing = 2,
+                Children =
                 {
-                    Height = 1,
-                    Classes =
-                    {
-                        "divider"
-                    },
-                    Margin = new Thickness(0, 2)
-                },
-                Classed("Jump to round start", "ctx-action")
+                    Classed("Select all", "ctx-action"),
+                    Classed("Deselect all", "ctx-action"),
+                    new Rectangle { Height = 1, Classes = { "divider" }, Margin = new Thickness(0, 2) },
+                    Classed("Jump to round start", "ctx-action")
+                }
             }
         };
-        body.Children.Add(new TextBlock
-        {
-            Text = "Border.card-flyout + Button.ctx-action",
-            Classes =
-            {
-                "group-label"
-            }
-        });
+        body.Children.Add(
+            new TextBlock { Text = "Border.card-flyout + Button.ctx-action", Classes = { "group-label" } });
         body.Children.Add(flyout);
 
         col.Children.Add(body);
         // Render on PanelBg (not ShellBg) so the sectionHeader band reads with the same context it has
         // in-app. Its PanelHeaderBg fill + bottom BorderStrong rule sit over panel content, not the void.
-        return new Border
-        {
-            Width = 520,
-            Height = 430,
-            Background = Tok("PanelBg"),
-            Child = col
-        };
+        return new Border { Width = 520, Height = 430, Background = Tok("PanelBg"), Child = col };
     }
 
     /// <summary>
@@ -2645,32 +2251,19 @@ public static partial class Variants
     /// </summary>
     private static Border TablesAndCards()
     {
-        StackPanel col = new()
-        {
-            Spacing = 10,
-            Margin = new Thickness(16)
-        };
+        StackPanel col = new() { Spacing = 10, Margin = new Thickness(16) };
 
         col.Children.Add(Section("ListBox.data-list + TextBlock.col-label"));
 
         // Column-header row using .col-label, above a transparent borderless .data-list.
         Grid headerRow = new()
         {
-            ColumnDefinitions = new ColumnDefinitions("2*,*,Auto"),
-            Margin = new Thickness(10, 0, 10, 2)
+            ColumnDefinitions = new ColumnDefinitions("2*,*,Auto"), Margin = new Thickness(10, 0, 10, 2)
         };
 
         void Col(string t, int c, HorizontalAlignment ha = HorizontalAlignment.Left)
         {
-            TextBlock tb = new()
-            {
-                Text = t,
-                Classes =
-                {
-                    "col-label"
-                },
-                HorizontalAlignment = ha
-            };
+            TextBlock tb = new() { Text = t, Classes = { "col-label" }, HorizontalAlignment = ha };
             Grid.SetColumn(tb, c);
             headerRow.Children.Add(tb);
         }
@@ -2680,48 +2273,16 @@ public static partial class Variants
         Col("×", 2, HorizontalAlignment.Right);
         col.Children.Add(headerRow);
 
-        ListBox list = new()
-        {
-            Classes =
-            {
-                "data-list"
-            },
-            Height = 120,
-            SelectedIndex = 1
-        };
+        ListBox list = new() { Classes = { "data-list" }, Height = 120, SelectedIndex = 1 };
         foreach ((string ev, string tick, string hits) in _dataRows)
         {
-            Grid row = new()
-            {
-                ColumnDefinitions = new ColumnDefinitions("2*,*,Auto")
-            };
-            TextBlock a = new()
-            {
-                Text = ev,
-                Classes =
-                {
-                    "mono"
-                },
-                FontSize = 11,
-                Foreground = Tok("TextBright")
-            };
-            TextBlock b = new()
-            {
-                Text = tick,
-                Classes =
-                {
-                    "mono"
-                },
-                FontSize = 11,
-                Foreground = Tok("TextFrameInfo")
-            };
+            Grid row = new() { ColumnDefinitions = new ColumnDefinitions("2*,*,Auto") };
+            TextBlock a = new() { Text = ev, Classes = { "mono" }, FontSize = 11, Foreground = Tok("TextBright") };
+            TextBlock b = new() { Text = tick, Classes = { "mono" }, FontSize = 11, Foreground = Tok("TextFrameInfo") };
             TextBlock c2 = new()
             {
                 Text = hits,
-                Classes =
-                {
-                    "mono"
-                },
+                Classes = { "mono" },
                 FontSize = 11,
                 Foreground = Tok("TextHeaderField"),
                 HorizontalAlignment = HorizontalAlignment.Right
@@ -2750,10 +2311,7 @@ public static partial class Variants
         });
 
         col.Children.Add(Section("Regression — real InspectorCard header"));
-        col.Children.Add(new InspectorCard
-        {
-            DataContext = new HarvestCardViewModel("CNETMsg_Tick", 24)
-        });
+        col.Children.Add(new InspectorCard { DataContext = new HarvestCardViewModel("CNETMsg_Tick", 24) });
 
         return WrapInShell(col, 540, 560);
     }
@@ -2763,11 +2321,7 @@ public static partial class Variants
     // shipping path: manifest aspect, scale selection, and opacity-mask tinting.
     private static Border GameIconGallery()
     {
-        StackPanel root = new()
-        {
-            Margin = new Thickness(16),
-            Spacing = 14
-        };
+        StackPanel root = new() { Margin = new Thickness(16), Spacing = 14 };
 
         root.Children.Add(Row("kill feed", 13,
         [
@@ -2800,22 +2354,14 @@ public static partial class Variants
 
         static StackPanel Row(string caption, double height, (string Key, string Brush)[] icons)
         {
-            StackPanel panel = new()
-            {
-                Spacing = 6
-            };
-            panel.Children.Add(new TextBlock
-            {
-                Text = caption,
-                FontSize = 11,
-                Opacity = 0.6
-            });
+            StackPanel panel = new() { Spacing = 6 };
+            panel.Children.Add(new TextBlock { Text = caption, FontSize = 11, Opacity = 0.6 });
 
             WrapPanel strip = new();
             Application app = Application.Current!;
             foreach ((string key, string brushKey) in icons)
             {
-                IBrush? brush = app.TryGetResource(brushKey, app.ActualThemeVariant, out object? res) && res is IBrush b
+                IBrush brush = app.TryGetResource(brushKey, app.ActualThemeVariant, out object? res) && res is IBrush b
                     ? b
                     : Brushes.White;
                 strip.Children.Add(new GameIcon
@@ -2838,11 +2384,7 @@ public static partial class Variants
     // tinting: a badge rendered as a flat foreground-coloured blob is the failure it guards against.
     private static Border RankBadgeGallery()
     {
-        StackPanel root = new()
-        {
-            Margin = new Thickness(16),
-            Spacing = 12
-        };
+        StackPanel root = new() { Margin = new Thickness(16), Spacing = 12 };
 
         root.Children.Add(Caption("competitive — Silver I to The Global Elite"));
         root.Children.Add(Ladder(GameIcons.IconCatalogue.CompetitiveRank, 1, 18));
@@ -2853,8 +2395,7 @@ public static partial class Variants
         WrapPanel states = new();
         foreach (GameIcons.IconRef? r in new[]
                  {
-                     GameIcons.IconCatalogue.UnrankedBadge(),
-                     GameIcons.IconCatalogue.UnrankedBadge(expired: true),
+                     GameIcons.IconCatalogue.UnrankedBadge(), GameIcons.IconCatalogue.UnrankedBadge(expired: true),
                      GameIcons.IconCatalogue.NeedsWinsBadge()
                  })
         {
@@ -2869,12 +2410,7 @@ public static partial class Variants
         root.Children.Add(states);
         return WrapInShell(root, 760, 330);
 
-        static TextBlock Caption(string t) => new()
-        {
-            Text = t,
-            FontSize = 11,
-            Opacity = 0.6
-        };
+        static TextBlock Caption(string t) => new() { Text = t, FontSize = 11, Opacity = 0.6 };
 
         static WrapPanel Ladder(Func<int, GameIcons.IconRef?> pick, int from, int to)
         {
@@ -2904,11 +2440,7 @@ public static partial class Variants
     // on, and the one that is invisible in a unit test.
     private static Border IconFallbackGallery()
     {
-        StackPanel root = new()
-        {
-            Margin = new Thickness(16),
-            Spacing = 14
-        };
+        StackPanel root = new() { Margin = new Thickness(16), Spacing = 14 };
 
         root.Children.Add(Case("resolved", "equipment/ak47", "ak47",
             "artwork exists - the fallback never shows"));
@@ -2925,22 +2457,10 @@ public static partial class Variants
 
         static Control Case(string title, string? key, string? fallback, string note)
         {
-            StackPanel row = new()
-            {
-                Spacing = 3
-            };
-            row.Children.Add(new TextBlock
-            {
-                Text = title,
-                FontSize = 11,
-                Opacity = 0.85
-            });
+            StackPanel row = new() { Spacing = 3 };
+            row.Children.Add(new TextBlock { Text = title, FontSize = 11, Opacity = 0.85 });
 
-            StackPanel line = new()
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 10
-            };
+            StackPanel line = new() { Orientation = Orientation.Horizontal, Spacing = 10 };
             line.Children.Add(new Border
             {
                 Width = 120,
@@ -2960,10 +2480,7 @@ public static partial class Variants
             });
             line.Children.Add(new TextBlock
             {
-                Text = note,
-                FontSize = 10.5,
-                Opacity = 0.55,
-                VerticalAlignment = VerticalAlignment.Center
+                Text = note, FontSize = 10.5, Opacity = 0.55, VerticalAlignment = VerticalAlignment.Center
             });
 
             row.Children.Add(line);
@@ -2981,20 +2498,14 @@ public static partial class Variants
             "TextValue", "TextCardHeader", "TextDim"
         ];
 
-        WrapPanel wrap = new()
-        {
-            Margin = new Thickness(16)
-        };
+        WrapPanel wrap = new() { Margin = new Thickness(16) };
         Application app = Application.Current!;
         foreach (string key in keys)
         {
-            IBrush? brush = app.TryGetResource(key, app.ActualThemeVariant, out object? res) && res is IBrush b ? b : null;
-            StackPanel cell = new()
-            {
-                Width = 150,
-                Margin = new Thickness(6),
-                Spacing = 4
-            };
+            IBrush? brush = app.TryGetResource(key, app.ActualThemeVariant, out object? res) && res is IBrush b
+                ? b
+                : null;
+            StackPanel cell = new() { Width = 150, Margin = new Thickness(6), Spacing = 4 };
             cell.Children.Add(new Border
             {
                 Height = 44,
@@ -3002,12 +2513,7 @@ public static partial class Variants
                 BorderThickness = new Thickness(1),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x60))
             });
-            cell.Children.Add(new TextBlock
-            {
-                Text = key,
-                FontSize = 11,
-                Opacity = brush is null ? 0.4 : 0.9
-            });
+            cell.Children.Add(new TextBlock { Text = key, FontSize = 11, Opacity = brush is null ? 0.4 : 0.9 });
             wrap.Children.Add(cell);
         }
 
@@ -3015,16 +2521,7 @@ public static partial class Variants
     }
 
     private static TextBlock Section(string text) =>
-        new()
-        {
-            Text = text,
-            FontWeight = FontWeight.SemiBold,
-            FontSize = 14,
-            Classes =
-            {
-                "sectionLabel"
-            }
-        };
+        new() { Text = text, FontWeight = FontWeight.SemiBold, FontSize = 14, Classes = { "sectionLabel" } };
 
     // pulsePhase != null → pin the spotlight to a static breathing phase (0 dim … 1 bright) for review;
     // null → the live breathing animation (settles near its bright end under the headless render pump).
@@ -3065,12 +2562,8 @@ public static partial class Variants
 
         // Set AnimatePulse BEFORE the DataContext so the code-behind's DataContextChanged handler applies
         // the correct (animated vs pinned) pulse state on first pass; then pin the static phase if asked.
-        TutorialView view = new()
-        {
-            AnimatePulse = pulsePhase is null
-        };
-        view.DataContext = vm;
-        if (pulsePhase is double p)
+        TutorialView view = new() { AnimatePulse = pulsePhase is null, DataContext = vm };
+        if (pulsePhase is { } p)
         {
             view.SetStaticPulse(p);
         }
@@ -3115,13 +2608,10 @@ public static partial class Variants
         }
 
         // Right-docked "Open Demo" toolbar affordance: the target the open-demo gateway (Waiting) step
-        // spotlights (_openDemoRect). Present in every mock for a realistic toolbar.
+        // spotlights. Present in every mock for a realistic toolbar.
         Button openDemo = new()
         {
-            Classes =
-            {
-                "primary"
-            },
+            Classes = { "primary" },
             Content = "Open Demo",
             FontSize = 12,
             Padding = new Thickness(14, 5),
@@ -3198,11 +2688,7 @@ public static partial class Variants
         // ── Content (fills) ──
         dock.Children.Add(TutorialContent(mock));
 
-        return new Border
-        {
-            Background = Tok("ShellBg"),
-            Child = dock
-        };
+        return new Border { Background = Tok("ShellBg"), Child = dock };
     }
 
     private static Control TutorialContent(TutorialMock mock)
@@ -3211,11 +2697,7 @@ public static partial class Variants
         // viewport; Welcome is a plain shell.
         if (mock is TutorialMock.Library or TutorialMock.TabNav or TutorialMock.Waiting)
         {
-            WrapPanel cards = new()
-            {
-                Margin = new Thickness(24, 22),
-                Orientation = Orientation.Horizontal
-            };
+            WrapPanel cards = new() { Margin = new Thickness(24, 22), Orientation = Orientation.Horizontal };
             (string Map, string Players)[] demos =
             [
                 ("de_mirage", "ZywOo · apEX · flameZ"),
@@ -3248,12 +2730,7 @@ public static partial class Variants
                                 FontSize = 15,
                                 Foreground = Tok("TextValue")
                             },
-                            new TextBlock
-                            {
-                                Text = players,
-                                FontSize = 11,
-                                Foreground = Tok("TextDim")
-                            }
+                            new TextBlock { Text = players, FontSize = 11, Foreground = Tok("TextDim") }
                         }
                     }
                 });
@@ -3281,10 +2758,7 @@ public static partial class Variants
             }
         };
         return mock == TutorialMock.Welcome
-            ? new Border
-            {
-                Background = Tok("ShellBg")
-            }
+            ? new Border { Background = Tok("ShellBg") }
             : viewport;
     }
 
@@ -3295,13 +2769,7 @@ public static partial class Variants
             "ShellBg", Application.Current.ActualThemeVariant, out object? res) && res is IBrush b
             ? b
             : new SolidColorBrush(Color.FromRgb(0x1e, 0x1e, 0x24));
-        return new Border
-        {
-            Width = w,
-            Height = h,
-            Background = shell,
-            Child = body
-        };
+        return new Border { Width = w, Height = h, Background = shell, Child = body };
     }
 
     /// <summary>A filled vector glyph, scaled uniform to <paramref name="size" />, tinted <paramref name="brush" />.</summary>
@@ -3331,18 +2799,10 @@ public static partial class Variants
             ("flag · event", GeoFlag), ("ring · round", GeoRing), ("tick", GeoTick)
         ];
 
-        WrapPanel wrap = new()
-        {
-            Margin = new Thickness(18)
-        };
+        WrapPanel wrap = new() { Margin = new Thickness(18) };
         foreach ((string name, string data) in glyphs)
         {
-            StackPanel cell = new()
-            {
-                Width = 108,
-                Spacing = 6,
-                Margin = new Thickness(6)
-            };
+            StackPanel cell = new() { Width = 108, Spacing = 6, Margin = new Thickness(6) };
             cell.Children.Add(new Border
             {
                 Width = 64,
@@ -3370,9 +2830,7 @@ public static partial class Variants
     {
         StackPanel s = new()
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = spacing,
-            VerticalAlignment = VerticalAlignment.Center
+            Orientation = Orientation.Horizontal, Spacing = spacing, VerticalAlignment = VerticalAlignment.Center
         };
         foreach (Control k in kids)
         {
@@ -3408,9 +2866,7 @@ public static partial class Variants
     {
         StackPanel g = new()
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 3,
-            VerticalAlignment = VerticalAlignment.Center
+            Orientation = Orientation.Horizontal, Spacing = 3, VerticalAlignment = VerticalAlignment.Center
         };
         g.Children.Add(GhostBtn(Icon(GeoStepBack, 15, Tok("TextMid")), "Previous frame"));
         g.Children.Add(FrameReadoutPill());
@@ -3444,9 +2900,7 @@ public static partial class Variants
         IBrush amber = Tok("AccentAmber");
         StackPanel g = new()
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 3,
-            VerticalAlignment = VerticalAlignment.Center
+            Orientation = Orientation.Horizontal, Spacing = 3, VerticalAlignment = VerticalAlignment.Center
         };
         g.Children.Add(new Rectangle
         {
@@ -3457,7 +2911,8 @@ public static partial class Variants
             VerticalAlignment = VerticalAlignment.Center
         });
         g.Children.Add(GroupLabel("TO BREAKPOINT"));
-        g.Children.Add(GhostBtn(Icon(GeoFastFwd, 15, amber), "Continue — run forward until a breakpoint trips (or end of demo)"));
+        g.Children.Add(GhostBtn(Icon(GeoFastFwd, 15, amber),
+            "Continue — run forward until a breakpoint trips (or end of demo)"));
         g.Children.Add(GhostBtn(HRow(1, Icon(GeoTriRight, 11, amber), Icon(GeoTick, 14, amber)),
             "Step Tick — advance to the next tick or breakpoint", 34));
         g.Children.Add(GhostBtn(HRow(1, Icon(GeoTriRight, 11, amber), Icon(GeoRing, 14, amber)),
@@ -3474,9 +2929,7 @@ public static partial class Variants
 
         StackPanel g = new()
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 3,
-            VerticalAlignment = VerticalAlignment.Center
+            Orientation = Orientation.Horizontal, Spacing = 3, VerticalAlignment = VerticalAlignment.Center
         };
         g.Children.Add(GroupLabel("JUMP"));
 
@@ -3487,7 +2940,8 @@ public static partial class Variants
             // tick buttons don't read as icon-soup.
             foreach ((string geo, string _, string prevTip, string _) in _jumpTargets)
             {
-                g.Children.Add(GhostBtn(HRow(1, Icon(GeoChevronLeft, 12, chevron), Icon(geo, 16, marker)), prevTip, 34));
+                g.Children.Add(GhostBtn(HRow(1, Icon(GeoChevronLeft, 12, chevron), Icon(geo, 16, marker)), prevTip,
+                    34));
             }
 
             g.Children.Add(new Rectangle
@@ -3502,7 +2956,8 @@ public static partial class Variants
             for (int i = _jumpTargets.Length - 1; i >= 0; i--)
             {
                 (string geo, string _, string _, string nextTip) = _jumpTargets[i];
-                g.Children.Add(GhostBtn(HRow(1, Icon(geo, 16, marker), Icon(GeoChevronRight, 12, chevron)), nextTip, 34));
+                g.Children.Add(
+                    GhostBtn(HRow(1, Icon(geo, 16, marker), Icon(GeoChevronRight, 12, chevron)), nextTip, 34));
             }
 
             return g;
@@ -3540,13 +2995,11 @@ public static partial class Variants
     {
         Button prev = GhostBtn(Icon(GeoChevronLeft, 12, chevron), prevTip, 26);
         Button next = GhostBtn(Icon(GeoChevronRight, 12, chevron), nextTip, 26);
-        Control caption = HRow(5, Icon(geo, 16, marker), new TextBlock
-        {
-            Text = wordText,
-            FontSize = 11.5,
-            Foreground = word,
-            VerticalAlignment = VerticalAlignment.Center
-        });
+        Control caption = HRow(5, Icon(geo, 16, marker),
+            new TextBlock
+            {
+                Text = wordText, FontSize = 11.5, Foreground = word, VerticalAlignment = VerticalAlignment.Center
+            });
         caption.Margin = new Thickness(pill ? 4 : 3, 0);
 
         StackPanel inner = HRow(pill ? 0 : 1, prev, caption, next);
@@ -3596,10 +3049,7 @@ public static partial class Variants
             VerticalAlignment = VerticalAlignment.Center
         };
 
-        DockPanel dock = new()
-        {
-            LastChildFill = true
-        };
+        DockPanel dock = new() { LastChildFill = true };
         dock.Children.Add(bp);
         dock.Children.Add(clock);
         dock.Children.Add(div);
@@ -3618,11 +3068,7 @@ public static partial class Variants
     /// <summary>Large detail render of just the JUMP group: for judging glyph crispness at iteration time.</summary>
     private static Border JumpDetail(JumpVariant v)
     {
-        StackPanel col = new()
-        {
-            Spacing = 12,
-            Margin = new Thickness(20)
-        };
+        StackPanel col = new() { Spacing = 12, Margin = new Thickness(20) };
         col.Children.Add(new TextBlock
         {
             Text = "JUMP group — " + v,
@@ -3640,13 +3086,7 @@ public static partial class Variants
             HorizontalAlignment = HorizontalAlignment.Left,
             Child = BuildJumpGroup(v)
         });
-        return new Border
-        {
-            Width = 620,
-            Height = 130,
-            Background = Tok("ShellBg"),
-            Child = col
-        };
+        return new Border { Width = 620, Height = 130, Background = Tok("ShellBg"), Child = col };
     }
 
     /// <summary>
@@ -3655,11 +3095,7 @@ public static partial class Variants
     /// </summary>
     private static Border NavStripRedesignCompare()
     {
-        StackPanel col = new()
-        {
-            Spacing = 0,
-            Margin = new Thickness(0, 6, 0, 6)
-        };
+        StackPanel col = new() { Spacing = 0, Margin = new Thickness(0, 6, 0, 6) };
 
         void Row(string caption, Control strip)
         {
@@ -3675,22 +3111,12 @@ public static partial class Variants
         }
 
         Row("CURRENT  —  letter labels (ev / rnd / tk) + ASCII glyphs (▶▶ ▶| ▶||)",
-            new NavStrip
-            {
-                DataContext = new MainViewModel
-                {
-                    HasFile = true
-                }
-            });
+            new NavStrip { DataContext = new MainViewModel { HasFile = true } });
         Row("OPTION A  —  compact icons, tooltip-driven (most media-bar)", NavStripRedesign(JumpVariant.IconOnly));
         Row("OPTION B  —  icon + caption word (most self-documenting)", NavStripRedesign(JumpVariant.IconCaption));
         Row("OPTION C  —  segmented pills (most modern grouping)", NavStripRedesign(JumpVariant.SegmentedPill));
 
-        return new Border
-        {
-            Background = Tok("ShellBg"),
-            Child = col
-        };
+        return new Border { Background = Tok("ShellBg"), Child = col };
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -3718,37 +3144,17 @@ public static partial class Variants
             ("SuspendedForReel", StatusChipDotState.Off, false, false, "CS2 · Paused for reel render")
         ];
 
-        StackPanel col = new()
-        {
-            Spacing = 5,
-            Margin = new Thickness(0, 6, 0, 6)
-        };
+        StackPanel col = new() { Spacing = 5, Margin = new Thickness(0, 6, 0, 6) };
         foreach ((string state, StatusChipDotState dot, bool pulse, bool hollow, string label) in rows)
         {
-            StatusChipViewModel chip = new()
-            {
-                DotState = dot,
-                IsPulsing = pulse,
-                IsHollow = hollow,
-                Label = label
-            };
+            StatusChipViewModel chip = new() { DotState = dot, IsPulsing = pulse, IsHollow = hollow, Label = label };
             col.Children.Add(new StatusStrip
             {
-                StatusText = state,
-                StatusBrush = Tok("TextMid"),
-                Chips = new[]
-                {
-                    chip
-                }
+                StatusText = state, StatusBrush = Tok("TextMid"), Chips = new[] { chip }
             });
         }
 
-        return new Border
-        {
-            Width = 500,
-            Background = Tok("ShellBg"),
-            Child = col
-        };
+        return new Border { Width = 500, Background = Tok("ShellBg"), Child = col };
     }
 
     /// <summary>The real flyout body per engine state, over a fake engine + demo context.</summary>
@@ -3766,45 +3172,24 @@ public static partial class Variants
         FakeModuleContext withDemo = new(demo, "de_dust2");
         FakeModuleContext bareName = new("match.dem", "de_dust2"); // bare filename → the no-local-path guard
 
-        WrapPanel wrap = new()
-        {
-            Margin = new Thickness(16)
-        };
+        WrapPanel wrap = new() { Margin = new Thickness(16) };
 
         void Add(string caption, LiveSyncState state, FakeModuleContext ctx, long? tick = null,
             LiveSyncVersionInfo? versions = null, LiveSyncCapabilities? caps = null)
         {
             FakeLiveSync svc = new()
             {
-                State = state,
-                LastCs2DemoTick = tick,
-                Versions = versions,
-                Capabilities = caps
+                State = state, LastCs2DemoTick = tick, Versions = versions, Capabilities = caps
             };
             LiveSyncStatusViewModel vm = new(svc, ctx, new PlaybackController(), () => { });
-            StackPanel cell = new()
-            {
-                Width = 340,
-                Margin = new Thickness(8),
-                Spacing = 6
-            };
+            StackPanel cell = new() { Width = 340, Margin = new Thickness(8), Spacing = 6 };
             cell.Children.Add(new TextBlock
             {
-                Text = caption,
-                FontSize = 11,
-                FontWeight = FontWeight.SemiBold,
-                Foreground = Tok("TextMid")
+                Text = caption, FontSize = 11, FontWeight = FontWeight.SemiBold, Foreground = Tok("TextMid")
             });
             cell.Children.Add(new Border
             {
-                Classes =
-                {
-                    "card-flyout"
-                },
-                Child = new LiveSyncStatusView
-                {
-                    DataContext = vm
-                }
+                Classes = { "card-flyout" }, Child = new LiveSyncStatusView { DataContext = vm }
             });
             wrap.Children.Add(cell);
         }
@@ -3821,12 +3206,7 @@ public static partial class Variants
             caps: LiveSyncCapabilities.None);
         Add("FAULTED", new LiveSyncState(LiveSyncStateKind.Faulted, "Disconnected — CS2 quit."), withDemo);
 
-        return new Border
-        {
-            Width = 1120,
-            Background = Tok("ShellBg"),
-            Child = wrap
-        };
+        return new Border { Width = 1120, Background = Tok("ShellBg"), Child = wrap };
     }
 
     /// <summary>
@@ -3840,14 +3220,9 @@ public static partial class Variants
     private static Border Playback2DLiveSyncHud()
     {
         // One indicator chip: a Pb2dOverlayBg pill [dot][label], the dot filled/stroked with its Pb2d token.
-        static Border Chip(string dotTok, bool hollow, string label)
+        static Border HudChip(string dotTok, bool hollow, string label)
         {
-            Ellipse dot = new()
-            {
-                Width = 9,
-                Height = 9,
-                VerticalAlignment = VerticalAlignment.Center
-            };
+            Ellipse dot = new() { Width = 9, Height = 9, VerticalAlignment = VerticalAlignment.Center };
             if (hollow)
             {
                 dot.Stroke = Tok(dotTok);
@@ -3859,11 +3234,7 @@ public static partial class Variants
                 dot.Fill = Tok(dotTok);
             }
 
-            StackPanel row = new()
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 6
-            };
+            StackPanel row = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
             row.Children.Add(dot);
             row.Children.Add(new TextBlock
             {
@@ -3883,19 +3254,11 @@ public static partial class Variants
             };
         }
 
-        StackPanel col = new()
-        {
-            Spacing = 12,
-            Margin = new Thickness(10)
-        };
+        StackPanel col = new() { Spacing = 12, Margin = new Thickness(10) };
 
         void Add(string caption, Border chip)
         {
-            StackPanel cell = new()
-            {
-                Spacing = 4,
-                HorizontalAlignment = HorizontalAlignment.Right
-            };
+            StackPanel cell = new() { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right };
             cell.Children.Add(new TextBlock
             {
                 Text = caption,
@@ -3908,34 +3271,22 @@ public static partial class Variants
             col.Children.Add(cell);
         }
 
-        Add("Following — Good (Pb2dPositive)", Chip("Pb2dPositive", false, "CS2 · Following"));
-        Add("Paused (inferred) — HOLLOW RING, green", Chip("Pb2dPositive", true, "CS2 · Paused (inferred)"));
-        Add("Seek unconfirmed — Degraded (Pb2dTeamT)", Chip("Pb2dTeamT", false, "CS2 · Seek unconfirmed"));
-        Add("Connecting… — Working, neutral", Chip("Pb2dTextBright", false, "CS2 · Connecting…"));
+        Add("Following — Good (Pb2dPositive)", HudChip("Pb2dPositive", false, "CS2 · Following"));
+        Add("Paused (inferred) — HOLLOW RING, green", HudChip("Pb2dPositive", true, "CS2 · Paused (inferred)"));
+        Add("Seek unconfirmed — Degraded (Pb2dTeamT)", HudChip("Pb2dTeamT", false, "CS2 · Seek unconfirmed"));
+        Add("Connecting… — Working, neutral", HudChip("Pb2dTextBright", false, "CS2 · Connecting…"));
 
         // Backdrop = the real dark viewport island; the chips overlay top-right exactly as in the view.
-        Grid root = new()
-        {
-            Width = 640,
-            Height = 440
-        };
+        Grid root = new() { Width = 640, Height = 440 };
         root.Children.Add(new Scene2DHost());
         root.Children.Add(new StackPanel
         {
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
-            Children =
-            {
-                col
-            }
+            Children = { col }
         });
 
-        return new Border
-        {
-            Background = Tok("ShellBg"),
-            Padding = new Thickness(16),
-            Child = root
-        };
+        return new Border { Background = Tok("ShellBg"), Padding = new Thickness(16), Child = root };
     }
 
     // ── Create-Reel dialog + Reel chip ────
@@ -3949,20 +3300,18 @@ public static partial class Variants
     /// </summary>
     private static HighlightReelDialogView ReelDialog(bool dryRunOnly, bool moved)
     {
-        HighlightSelection[] selections = new[]
-        {
+        HighlightSelection[] selections =
+        [
             ReelSel("/demos/dust2_faze.dem", "de_dust2", "s1mple", "76561198000000010", 7, 54000,
                 "s1mple — 2 kills after the plant (round 7)"),
             ReelSel("/demos/dust2_faze.dem", "de_dust2", "s1mple", "76561198000000010", 7, 54400,
                 "s1mple — ace (round 7)"),
             ReelSel("/demos/nuke_moved.dem", "de_nuke", "ZywOo", "76561198000000020", 4, 30000,
                 "ZywOo — 3k retake (round 4)")
-        };
+        ];
         HighlightsSettings defaults = new()
         {
-            ReelOutputDirectory = "/Users/pro/Movies/Reels",
-            ClipLeadInSeconds = 15,
-            ClipLeadOutSeconds = 5
+            ReelOutputDirectory = "/Users/pro/Movies/Reels", ClipLeadInSeconds = 15, ClipLeadOutSeconds = 5
         };
         Func<string, bool> exists = moved ? p => !p.Contains("nuke_moved", StringComparison.Ordinal) : _ => true;
 
@@ -3970,12 +3319,7 @@ public static partial class Variants
             selections, defaults, null, null,
             null, dryRunOnly, exists);
 
-        return new HighlightReelDialogView
-        {
-            DataContext = vm,
-            Width = 720,
-            Height = 680
-        };
+        return new HighlightReelDialogView { DataContext = vm, Width = 720, Height = 680 };
     }
 
     private static HighlightSelection ReelSel(
@@ -3991,20 +3335,11 @@ public static partial class Variants
             // Slot is the join now. The record holds the roster once and the event points at it.
             Players =
             [
-                new CachedPlayerInfo
-                {
-                    Slot = round,
-                    Name = name,
-                    SteamId64 = steam
-                }
+                new CachedPlayerInfo { Slot = round, Name = name, SteamId64 = steam }
             ],
             Rounds =
             [
-                new CachedRound
-                {
-                    Number = round,
-                    StartTickFrameClock = tick - 3000
-                }
+                new CachedRound { Number = round, StartTickFrameClock = tick - 3000 }
             ]
         };
         CachedHighlightEvent h = new()
@@ -4026,38 +3361,21 @@ public static partial class Variants
     /// </summary>
     private static Border ReelChips()
     {
-        StackPanel col = new()
-        {
-            Spacing = 16,
-            Margin = new Thickness(16),
-            Width = 400
-        };
+        StackPanel col = new() { Spacing = 16, Margin = new Thickness(16), Width = 400 };
 
         void Add(string caption, ReelJobStatus status)
         {
-            ReelJobStatusViewModel vm = new(new CaptureReelJob
-            {
-                Status = status
-            }, _ => { });
+            ReelJobStatusViewModel vm = new(new CaptureReelJob { Status = status }, _ => { });
             col.Children.Add(new TextBlock
             {
-                Text = caption,
-                Foreground = Tok("TextDim"),
-                FontSize = 11,
-                Margin = new Thickness(2, 0)
+                Text = caption, Foreground = Tok("TextDim"), FontSize = 11, Margin = new Thickness(2, 0)
             });
             col.Children.Add(new Border
             {
-                Classes =
-                {
-                    "card-flyout"
-                },
+                Classes = { "card-flyout" },
                 MaxWidth = 380,
                 HorizontalAlignment = HorizontalAlignment.Left,
-                Child = new ReelJobStatusView
-                {
-                    DataContext = vm
-                }
+                Child = new ReelJobStatusView { DataContext = vm }
             });
         }
 
@@ -4070,12 +3388,7 @@ public static partial class Variants
             new ReelJobStatus(ReelJobPhase.Failed, 2, 8, null,
                 "OBS dropped the capture — check that OBS is running.", null, [2]));
 
-        return new Border
-        {
-            Background = Tok("ShellBg"),
-            Padding = new Thickness(16),
-            Child = col
-        };
+        return new Border { Background = Tok("ShellBg"), Padding = new Thickness(16), Child = col };
     }
 
     // ── Demo-processing queue ──────────────────────────────────────────────────
@@ -4096,7 +3409,8 @@ public static partial class Variants
                 ("corrupt_half_download.dem", "highlights", DemoJobPriority.Background, DemoQueueItemState.Failed,
                     "Unexpected end of stream at byte 48213504: the file is truncated"),
                 ("mirage_scrim_2025.dem", "highlights", DemoJobPriority.UserRequested, DemoQueueItemState.Queued, null),
-                ("faceit_liquid_vs_navi.dem", "library, highlights", DemoJobPriority.Background, DemoQueueItemState.Running, null),
+                ("faceit_liquid_vs_navi.dem", "library, highlights", DemoJobPriority.Background,
+                    DemoQueueItemState.Running, null),
                 ("inferno_retake_drills.dem", "library", DemoJobPriority.Background, DemoQueueItemState.Queued, null),
                 ("overpass_faceit.dem", "library", DemoJobPriority.Background, DemoQueueItemState.Cancelled, null));
             queue.Rank("inferno_retake_drills.dem", 0, true);
@@ -4113,35 +3427,33 @@ public static partial class Variants
         if (bookkeeping)
         {
             // Light work beside the one parse: the planner and a save. Neither is a row or a count.
-            queue.Seed(("Checking demos for work", "scheduler", DemoJobPriority.Background, DemoQueueItemState.Running, null),
+            queue.Seed(
+                ("Checking demos for work", "scheduler", DemoJobPriority.Background, DemoQueueItemState.Running, null),
                 ("Library: save the scan", "library", DemoJobPriority.Background, DemoQueueItemState.Running, null));
-            foreach (DemoQueueItem item in queue.Items.Where(i => i.DisplayName is "Checking demos for work" or "Library: save the scan"))
+            foreach (DemoQueueItem item in queue.Items.Where(i =>
+                         i.DisplayName is "Checking demos for work" or "Library: save the scan"))
             {
                 item.Light = true;
                 item.Kind = item.Owners == "scheduler" ? QueueJobKind.Scheduling : QueueJobKind.StoreSave;
             }
 
-            checks = new StaticChecks(new WorkCheck(false, 0, new DateTimeOffset(2026, 10, 17, 21, 5, 0, TimeSpan.Zero)));
+            checks = new StaticChecks(
+                new WorkCheck(false, 0, new DateTimeOffset(2026, 10, 17, 21, 5, 0, TimeSpan.Zero)));
         }
 
-        ProcessingQueueStatusViewModel vm = new(queue, () => { }, checks: checks, post: a => a()) { IsRecentView = recent };
+        ProcessingQueueStatusViewModel vm =
+            new(queue, () => { }, checks: checks, post: a => a()) { IsRecentView = recent };
         return new Border
         {
             Background = Tok("ShellBg"),
             Padding = new Thickness(20),
             Child = new Border
             {
-                Classes =
-                {
-                    "card-flyout"
-                },
+                Classes = { "card-flyout" },
                 MaxWidth = 360,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Top,
-                Child = new ProcessingQueueStatusView
-                {
-                    DataContext = vm
-                }
+                Child = new ProcessingQueueStatusView { DataContext = vm }
             }
         };
     }
@@ -4171,26 +3483,27 @@ public static partial class Variants
     /// </summary>
     private static Border MenuFlyoutStates()
     {
-        MenuItem hovered = new() { Header = "Tag as", Items = { new MenuItem { Header = "Scrim" }, new MenuItem { Header = "Official" } } };
+        MenuItem hovered = new()
+        {
+            Header = "Tag as", Items = { new MenuItem { Header = "Scrim" }, new MenuItem { Header = "Official" } }
+        };
         MenuFlyout flyout = new()
         {
             Placement = PlacementMode.BottomEdgeAlignedLeft,
             Items =
             {
                 new MenuItem { Header = "Open in 2D playback" },
-                new MenuItem { Header = "Copy path", InputGesture = new KeyGesture(Key.C, KeyModifiers.Control) },
+                new MenuItem
+                {
+                    Header = "Copy path", InputGesture = new KeyGesture(Key.C, KeyModifiers.Control)
+                },
                 new MenuItem { Header = "Re-parse (already queued)", IsEnabled = false },
                 new MenuItem { Header = "-" },
                 hovered
             }
         };
         Button anchor = new() { Content = "Actions", Classes = { "primary" }, Flyout = flyout };
-        Border host = new()
-        {
-            Background = Tok("ShellBg"),
-            Padding = new Thickness(20),
-            Child = anchor
-        };
+        Border host = new() { Background = Tok("ShellBg"), Padding = new Thickness(20), Child = anchor };
         host.AttachedToVisualTree += (_, _) => Dispatcher.UIThread.Post(() =>
         {
             flyout.ShowAt(anchor);
@@ -4213,36 +3526,17 @@ public static partial class Variants
             ("Paused", StatusChipDotState.Off, false, "Background paused")
         ];
 
-        StackPanel col = new()
-        {
-            Spacing = 5,
-            Margin = new Thickness(0, 6, 0, 6)
-        };
+        StackPanel col = new() { Spacing = 5, Margin = new Thickness(0, 6, 0, 6) };
         foreach ((string state, StatusChipDotState dot, bool pulse, string label) in rows)
         {
-            StatusChipViewModel chip = new()
-            {
-                DotState = dot,
-                IsPulsing = pulse,
-                Label = label
-            };
+            StatusChipViewModel chip = new() { DotState = dot, IsPulsing = pulse, Label = label };
             col.Children.Add(new StatusStrip
             {
-                StatusText = state,
-                StatusBrush = Tok("TextMid"),
-                Chips = new[]
-                {
-                    chip
-                }
+                StatusText = state, StatusBrush = Tok("TextMid"), Chips = new[] { chip }
             });
         }
 
-        return new Border
-        {
-            Width = 460,
-            Background = Tok("ShellBg"),
-            Child = col
-        };
+        return new Border { Width = 460, Background = Tok("ShellBg"), Child = col };
     }
 
     private static Panel MatchOverview(MatchOverviewMock mock, int spectators = 0)
@@ -4253,10 +3547,7 @@ public static partial class Variants
         // Real (no-op) actions so the captures show every affordance in its true state. Each gate also
         // requires a wired delegate, so a bare `new()` renders them permanently absent and hides a gating
         // regression. computeFullStats in particular drives the highlight card's "index them" action.
-        MatchOverviewTabViewModel vm = new(() => { }, () => { }, _ => { }, _ => { })
-        {
-            ErrorReportOpener = _ => { }
-        };
+        MatchOverviewTabViewModel vm = new(() => { }, () => { }, _ => { }, _ => { }) { ErrorReportOpener = _ => { } };
         string fileName = mock == MatchOverviewMock.Failed
             ? "corrupt_round12_de_ancient.dem"
             : "match730_pug_de_mirage_2024.dem";
@@ -4272,7 +3563,7 @@ public static partial class Variants
         if (mock == MatchOverviewMock.Failed)
         {
             vm.Fail(vm.SubjectKey, "The demo header is truncated — the file may have stopped recording early or been "
-                                   + "copied incompletely. Try re-downloading it from the source.");
+                + "copied incompletely. Try re-downloading it from the source.");
             return OverviewPanel(vm);
         }
 
@@ -4316,11 +3607,7 @@ public static partial class Variants
         // Post-analysis: drive the REAL SetAnalysis with a synthesized game table, so the capture exercises
         // the same projection (column keys, "—" fallbacks, CT-then-T ordering) the shell feeds it.
         vm.BeginAnalysis(vm.SubjectKey);
-        vm.SetAnalysis(vm.SubjectKey, OverviewGameTable(), new Dictionary<int, int?>
-        {
-            [0] = 13,
-            [1] = 9
-        }, 22);
+        vm.SetAnalysis(vm.SubjectKey, OverviewGameTable(), new Dictionary<int, int?> { [0] = 13, [1] = 9 }, 22);
         // The score is authoritative (CCSTeam.m_iScore), fed separately from the analysis run. Mirror that
         // here, with clan names so the capture shows the pro-demo labelling rather than "ENDED CT".
         vm.SetTeamScores(vm.SubjectKey, 13, 9);
@@ -4342,36 +3629,23 @@ public static partial class Variants
         // require a wired action, so a bare `new()` would render them permanently absent and hide a
         // regression in the gating.
         MatchOverviewTabViewModel vm = new(
-            () => { }, () => { }, _ => { }, _ => { }, () => { })
-        {
-            ErrorReportOpener = _ => { }
-        };
+            () => { }, () => { }, _ => { }, _ => { }, () => { }) { ErrorReportOpener = _ => { } };
 
         DemoCacheRecord r = new()
         {
-            Path = "/demos/faceit_2025-06-14_dust2.dem",
-            Size = 148_000_000,
-            ModifiedTicks = 638_000_000_000_000_000
+            Path = "/demos/faceit_2025-06-14_dust2.dem", Size = 148_000_000, ModifiedTicks = 638_000_000_000_000_000
         };
 
         if (tier >= DemoCacheTier.Header)
         {
-            r.Header = new TierStamp
-            {
-                Schema = DemoCacheRecord.HeaderSchema,
-                ComputedAtTicks = 1
-            };
+            r.Header = new TierStamp { Schema = DemoCacheRecord.HeaderSchema, ComputedAtTicks = 1 };
             r.Map = "de_dust2";
             r.Server = "FACEIT Server EU #4021";
         }
 
         if (tier >= DemoCacheTier.Parse)
         {
-            r.Parse = new TierStamp
-            {
-                Schema = DemoCacheRecord.ParseSchema,
-                ComputedAtTicks = 1
-            };
+            r.Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 };
             r.DurationSeconds = 2292;
             r.TickRate = 64;
             r.TickCount = 146_688;
@@ -4381,45 +3655,27 @@ public static partial class Variants
             r.TClan = "FaZe Clan";
             for (int i = 0; i < 22; i++)
             {
-                r.Rounds.Add(new CachedRound
-                {
-                    Number = i + 1,
-                    StartTickFrameClock = 1000 + i * 5000
-                });
+                r.Rounds.Add(new CachedRound { Number = i + 1, StartTickFrameClock = 1000 + i * 5000 });
             }
 
             int slot = 0;
             foreach ((string name, bool bot) in _overviewCt)
             {
-                r.Players.Add(new CachedPlayerInfo
-                {
-                    Slot = slot++,
-                    Name = name,
-                    Team = teamSplit ? 3 : 0,
-                    IsBot = bot
-                });
+                r.Players.Add(
+                    new CachedPlayerInfo { Slot = slot++, Name = name, Team = teamSplit ? 3 : 0, IsBot = bot });
             }
 
             foreach ((string name, bool bot) in _overviewT)
             {
-                r.Players.Add(new CachedPlayerInfo
-                {
-                    Slot = slot++,
-                    Name = name,
-                    Team = teamSplit ? 2 : 0,
-                    IsBot = bot
-                });
+                r.Players.Add(
+                    new CachedPlayerInfo { Slot = slot++, Name = name, Team = teamSplit ? 2 : 0, IsBot = bot });
             }
         }
 
         r.AnalysisState = analysisState;
         if (tier >= DemoCacheTier.Analysis && analysisState != DemoAnalysisState.Failed)
         {
-            r.Analysis = new TierStamp
-            {
-                Schema = DemoCacheRecord.AnalysisSchema,
-                ComputedAtTicks = 1
-            };
+            r.Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 };
             r.AnalysisRoundCount = 22;
             r.CtSideWins = 12;
             r.TSideWins = 10;
@@ -4497,12 +3753,9 @@ public static partial class Variants
             "player_game",
             ["player_name", "team"],
             ["TotalK", "TotalD", "TotalA", "ADR", "HLTV", "CTW", "TW"],
-            rows.Select(r => new MetricRow(
-                    new Dictionary<string, object?>
-                    {
-                        ["player_name"] = r.Name,
-                        ["team"] = r.Team
-                    },
+            [
+                .. rows.Select(r => new MetricRow(
+                    new Dictionary<string, object?> { ["player_name"] = r.Name, ["team"] = r.Team },
                     new Dictionary<string, object?>
                     {
                         ["TotalK"] = r.K,
@@ -4513,16 +3766,16 @@ public static partial class Variants
                         // Per-team round wins by side. The CT-ending team took 6 as CT + 7 as T = 13; the
                         // T-ending team 6 + 3 = 9. So the SIDE split (CT 12 / T 10) differs from the TEAM
                         // totals (13 / 9), exactly the half-swap case the page must not conflate.
-                        ["CTW"] = r.Team == 3 ? 6 : 6,
+                        ["CTW"] = 6,
                         ["TW"] = r.Team == 3 ? 7 : 3
                     }))
-                .ToList());
+            ]);
     }
 
     // The real Player Overview tab over an in-memory library of three demos, one with its player stats.
     private static Panel PlayerOverview(bool withMe, string? search = null)
     {
-        const string me = "76561198000000001";
+        const string Me = "76561198000000001";
         DemoCacheStore store = new(null);
         for (int i = 0; i < 3; i++)
         {
@@ -4534,33 +3787,37 @@ public static partial class Variants
                 Map = "de_nuke",
                 Players =
                 [
-                    new CachedPlayerInfo { Slot = 1, Name = "s1mple", SteamId64 = me, Team = 3 },
+                    new CachedPlayerInfo { Slot = 1, Name = "s1mple", SteamId64 = Me, Team = 3 },
                     new CachedPlayerInfo { Slot = 2, Name = "ZywOo", SteamId64 = "76561198000000002", Team = 2 },
-                    new CachedPlayerInfo { Slot = 3, Name = i == 0 ? "ZywOo" : "zywoo-alt", SteamId64 = "76561198000000003", Team = 2 }
+                    new CachedPlayerInfo
+                    {
+                        Slot = 3, Name = i == 0 ? "ZywOo" : "zywoo-alt", SteamId64 = "76561198000000003", Team = 2
+                    }
                 ]
             };
             DemoCacheStore.StampHeader(r);
             DemoCacheStore.StampParse(r);
             if (i == 0)
             {
-                r.PackStamps.Add(new PackStamp(StampedFacts.StampId(PlayerMatchFacet.RulesetId), StampedFacts.Schema, "fp")
-                {
-                    ComputedAtTicks = 1
-                });
+                r.PackStamps.Add(
+                    new PackStamp(StampedFacts.StampId(PlayerMatchFacet.RulesetId), StampedFacts.Schema, "fp")
+                    {
+                        ComputedAtTicks = 1
+                    });
             }
 
             store.Upsert(r);
         }
 
         PlayerDirectory directory = new(store);
-        IdentityService identity = new(new SettingsService((string?)null), directory);
+        IdentityService identity = new(new SettingsService(null), directory);
         if (withMe)
         {
-            identity.SetAccounts([new IdentityAccount(me, "main", DateTime.UtcNow)]);
+            identity.SetAccounts([new IdentityAccount(Me, "main", DateTime.UtcNow)]);
         }
 
         PlayerOverviewTabViewModel vm = new(
-            new PlayerOverviewServices(directory, identity, null, _ => { }, _ => { }, (_, _) => { }, _ => { }),
+            new PlayerOverviewServices(directory, identity, null, _ => { }, (_, _) => { }, _ => { }),
             new FakeProcessingQueue { BackgroundEnabled = false });
         vm.OnActivated(null!);
         if (search is not null)
@@ -4568,22 +3825,12 @@ public static partial class Variants
             vm.SearchText = search;
         }
 
-        return new Panel
-        {
-            Background = Tok("ShellBg"),
-            Children =
-            {
-                new PlayerOverviewTabView
-                {
-                    DataContext = vm
-                }
-            }
-        };
+        return new Panel { Background = Tok("ShellBg"), Children = { new PlayerOverviewTabView { DataContext = vm } } };
     }
 
     private static Panel PlayerOverviewPopulated()
     {
-        const string me = "76561198000000001";
+        const string Me = "76561198000000001";
         string[] maps = ["de_nuke", "de_inferno", "de_mirage", "de_ancient", "de_anubis", "de_dust2"];
         string stampId = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
         DemoCacheStore store = new(null);
@@ -4600,38 +3847,55 @@ public static partial class Variants
                 SourceKind = "GotvMatchmaking",
                 Players =
                 [
-                    new CachedPlayerInfo { Slot = 1, Name = i < 8 ? "s1mple" : "s1mple-old", SteamId64 = me, Team = leftEarly ? 0 : i % 2 == 0 ? 3 : 2 },
+                    new CachedPlayerInfo
+                    {
+                        Slot = 1,
+                        Name = i < 8 ? "s1mple" : "s1mple-old",
+                        SteamId64 = Me,
+                        Team = leftEarly ? 0 : i % 2 == 0 ? 3 : 2
+                    },
                     new CachedPlayerInfo { Slot = 2, Name = "ZywOo", SteamId64 = "76561198000000002", Team = 2 }
                 ],
-                MatchMeta = new DemoViewer.NET.Services.MatchMeta.DemoMatchMeta
+                MatchMeta = new Services.MatchMeta.DemoMatchMeta
                 {
-                    MatchTimeUtcTicks = new DateTime(2026, 10, 18, 21, 30, 0, DateTimeKind.Utc).Ticks - (i * 26 * TimeSpan.TicksPerHour),
+                    MatchTimeUtcTicks =
+                        new DateTime(2026, 10, 18, 21, 30, 0, DateTimeKind.Utc).Ticks
+                        - (i * 26 * TimeSpan.TicksPerHour),
                     MatchTimeSource = i == 7
-                        ? DemoViewer.NET.Services.MatchMeta.MatchTimeSource.FileWriteTime
-                        : DemoViewer.NET.Services.MatchMeta.MatchTimeSource.ValveMatchInfo,
+                        ? Services.MatchMeta.MatchTimeSource.FileWriteTime
+                        : Services.MatchMeta.MatchTimeSource.ValveMatchInfo,
                     GameMode = i % 3 == 0 ? "competitive" : "premier",
                     // Premier climbs from 13,640 by the oldest match; Competitive is one Skill Group per map.
                     Players =
                     [
                         i % 3 == 0
-                            ? new DemoViewer.NET.Services.MatchMeta.MatchRankRow
+                            ? new Services.MatchMeta.MatchRankRow
                             {
-                                SteamId64 = me, RankType = 12, RankOld = 11 + (i % 2), RankNew = 11 + ((i + 1) % 2), RankChange = (i + 1) % 2 - i % 2,
-                                RankSource = DemoViewer.NET.Services.MatchMeta.RankSource.ServerRankUpdate
+                                SteamId64 = Me,
+                                RankType = 12,
+                                RankOld = 11 + (i % 2),
+                                RankNew = 11 + ((i + 1) % 2),
+                                RankChange = (i + 1) % 2 - i % 2,
+                                RankSource = Services.MatchMeta.RankSource.ServerRankUpdate
                             }
-                            : new DemoViewer.NET.Services.MatchMeta.MatchRankRow
+                            : new Services.MatchMeta.MatchRankRow
                             {
-                                SteamId64 = me, RankType = 11, RankOld = 15_100 - (i * 130), RankNew = 15_100 - (i * 130) + (i % 3 == 1 ? -110 : 240),
-                                RankChange = i % 3 == 1 ? -110 : 240, RankSource = DemoViewer.NET.Services.MatchMeta.RankSource.ServerRankUpdate
+                                SteamId64 = Me,
+                                RankType = 11,
+                                RankOld = 15_100 - (i * 130),
+                                RankNew = 15_100 - (i * 130) + (i % 3 == 1 ? -110 : 240),
+                                RankChange = i % 3 == 1 ? -110 : 240,
+                                RankSource = Services.MatchMeta.RankSource.ServerRankUpdate
                             }
                     ]
                 }
             };
-            r.SetStamp(new PackStamp(DemoViewer.NET.Services.MatchMeta.MatchMetaEvaluator.StampId,
-                DemoViewer.NET.Services.MatchMeta.DemoMatchMeta.CurrentSchema, DemoViewer.NET.Services.MatchMeta.MatchMetaEvaluator.Version) { ComputedAtTicks = 1 });
+            r.SetStamp(new PackStamp(Services.MatchMeta.MatchMetaEvaluator.StampId,
+                Services.MatchMeta.DemoMatchMeta.CurrentSchema,
+                Services.MatchMeta.MatchMetaEvaluator.Version) { ComputedAtTicks = 1 });
             if (leftEarly)
             {
-                r.FacetPlayers = [new FacetPlayer { SteamId64 = me, Names = ["s1mple"], Slots = [1] }];
+                r.FacetPlayers = [new FacetPlayer { SteamId64 = Me, Names = ["s1mple"], Slots = [1] }];
             }
 
             DemoCacheStore.StampHeader(r);
@@ -4649,68 +3913,49 @@ public static partial class Variants
         {
             int i = int.Parse(path[(path.LastIndexOf('_') + 1)..^4], CultureInfo.InvariantCulture);
             bool won = i % 3 != 1;
-            Dictionary<string, DemoViewer.NET.Extensions.Sdk.FactValue> values = new()
+            Dictionary<string, FactValue> values = new()
             {
-                ["rounds"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(22L),
-                ["TotalK"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(14L + (i * 3 % 13)),
-                ["TotalD"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(12L + (i * 5 % 9)),
-                ["TotalA"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(2L + (i % 6)),
-                ["TotalHS"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(7L + (i % 5)),
-                ["TeamKills"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(0L),
-                ["EnemyDmg"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(1500L + (i * 97 % 900)),
-                ["KAST%"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(62.0 + (i * 7 % 25)),
-                ["HLTV"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(0.82 + (i * 13 % 60 / 100.0)),
-                ["Shots"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(300L),
-                ["CTW"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(won ? 13L : 8L),
-                ["CTL"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(won ? 9L : 13L)
+                ["rounds"] = FactValue.Of(22L),
+                ["TotalK"] = FactValue.Of(14L + (i * 3 % 13)),
+                ["TotalD"] = FactValue.Of(12L + (i * 5 % 9)),
+                ["TotalA"] = FactValue.Of(2L + (i % 6)),
+                ["TotalHS"] = FactValue.Of(7L + (i % 5)),
+                ["TeamKills"] = FactValue.Of(0L),
+                ["EnemyDmg"] = FactValue.Of(1500L + (i * 97 % 900)),
+                ["KAST%"] = FactValue.Of(62.0 + (i * 7 % 25)),
+                ["HLTV"] = FactValue.Of(0.82 + (i * 13 % 60 / 100.0)),
+                ["Shots"] = FactValue.Of(300L),
+                ["CTW"] = FactValue.Of(won ? 13L : 8L),
+                ["CTL"] = FactValue.Of(won ? 9L : 13L)
             };
-            return new DemoViewer.NET.Extensions.Sdk.FactTable(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match",
+            return new FactTable(PlayerMatchFacet.Key, "fp", StampedFacts.Schema,
+                "player_match",
                 ["player_slot", "steam_id"], [], new Dictionary<string, string>(),
                 [
-                    new DemoViewer.NET.Extensions.Sdk.FactRow(
-                        new Dictionary<string, DemoViewer.NET.Extensions.Sdk.FactValue>
+                    new FactRow(
+                        new Dictionary<string, FactValue>
                         {
-                            ["player_slot"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(1L),
-                            ["steam_id"] = DemoViewer.NET.Extensions.Sdk.FactValue.Of(me)
+                            ["player_slot"] = FactValue.Of(1L), ["steam_id"] = FactValue.Of(Me)
                         },
                         values)
                 ]);
         });
-        rows.LoadAsync(ulong.Parse(me, CultureInfo.InvariantCulture)).GetAwaiter().GetResult();
+        rows.LoadAsync(ulong.Parse(Me, CultureInfo.InvariantCulture)).GetAwaiter().GetResult();
         PlayerRankCache ranks = new(store, directory);
-        ranks.LoadAsync(ulong.Parse(me, CultureInfo.InvariantCulture)).GetAwaiter().GetResult();
+        ranks.LoadAsync(ulong.Parse(Me, CultureInfo.InvariantCulture)).GetAwaiter().GetResult();
 
-        IdentityService identity = new(new SettingsService((string?)null), directory);
-        identity.SetAccounts([new IdentityAccount(me, "main", DateTime.UtcNow)]);
+        IdentityService identity = new(new SettingsService(null), directory);
+        identity.SetAccounts([new IdentityAccount(Me, "main", DateTime.UtcNow)]);
         PlayerOverviewTabViewModel vm = new(
-            new PlayerOverviewServices(directory, identity, rows, _ => { }, _ => { }, (_, _) => { }, _ => { }, Ranks: ranks),
+            new PlayerOverviewServices(directory, identity, rows, _ => { }, (_, _) => { }, _ => { },
+                Ranks: ranks),
             new FakeProcessingQueue { QueuedCount = 1 });
         vm.OnActivated(null!);
-        return new Panel
-        {
-            Background = Tok("ShellBg"),
-            Children =
-            {
-                new PlayerOverviewTabView
-                {
-                    DataContext = vm
-                }
-            }
-        };
+        return new Panel { Background = Tok("ShellBg"), Children = { new PlayerOverviewTabView { DataContext = vm } } };
     }
 
     private static Panel OverviewPanel(MatchOverviewTabViewModel vm) =>
-        new()
-        {
-            Background = Tok("ShellBg"),
-            Children =
-            {
-                new MatchOverviewTabView
-                {
-                    DataContext = vm
-                }
-            }
-        };
+        new() { Background = Tok("ShellBg"), Children = { new MatchOverviewTabView { DataContext = vm } } };
 
     /// <summary>
     ///     The real <see cref="DemoViewer.NET.Views.Highlights.HighlightsTabView" /> over a real
@@ -4762,10 +4007,6 @@ public static partial class Variants
 
         public AnalysisRun RunBareAnalysis(ParsedDemo demo) =>
             throw new NotSupportedException("capture never scans");
-
-        public void InvalidateRules()
-        {
-        }
     }
 
     private enum LibraryState
@@ -4806,9 +4047,7 @@ public static partial class Variants
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; }
         public event Action? Changed;
         public event Action? CapacityAvailable;
-        public int MaxConcurrency { get; set; } = 1;
-        public int MaxQueueSize { get; set; } = 200;
-        public bool BackgroundEnabled { get; set; } = true;
+        public bool BackgroundEnabled { get; init; } = true;
         public bool IsPaused { get; private set; }
         public int QueuedCount { get; set; }
         public int RunningCount { get; set; }
@@ -4843,20 +4082,11 @@ public static partial class Variants
             string? path, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request) =>
-            throw new NotSupportedException();
-
         public IDemoQueueHandle SubmitVisit(DemoVisitRequest request) => throw new NotSupportedException();
 
         public IDemoQueueHandle SubmitJob(QueueJobRequest request) => throw new NotSupportedException();
 
-        public int ActiveCount(QueueJobKind kind) => 0;
-
         public IReadOnlyList<DemoQueueItemSnapshot> Snapshot() => [];
-
-        public void CancelOwned(string ownerTag, string path)
-        {
-        }
 
         public void CancelOwned(string ownerTag)
         {
@@ -4953,7 +4183,7 @@ public static partial class Variants
     {
         public static readonly VisionEmptyEntities Instance = new();
 
-        public IEnumerable<IReadOnlyEntity> All() => [];
+        IEnumerable<IReadOnlyEntity> IReadOnlyEntityView.All() => [];
         public IEnumerable<IReadOnlyEntity> OfClass(string className) => [];
         public IReadOnlyEntity? BySerial(int serial) => null;
         public IReadOnlyEntity? ByIndex(int entityIndex) => null;
@@ -5026,8 +4256,8 @@ public static partial class Variants
 
         // ── IModuleContext ──
         public bool HasDemo => true;
-        public string? DemoPath => "/demos/capture_dust2.dem";
-        public string? MapName => mapName;
+        public string DemoPath => "/demos/capture_dust2.dem";
+        public string MapName => mapName;
         public int TickRate => 64;
         public double CurtimeSeconds(int tick) => tick / 64.0;
         public int CurrentFrameIndex => FrameIndex;
@@ -5059,9 +4289,7 @@ public static partial class Variants
         [
             .. players.Select(p => new PlayerRosterEntry
             {
-                Slot = p.Slot,
-                SteamId = 76561198000000100UL + (ulong)p.Slot,
-                Name = p.Name
+                Slot = p.Slot, SteamId = 76561198000000100UL + (ulong)p.Slot, Name = p.Name
             })
         ];
 
@@ -5157,10 +4385,7 @@ public static partial class Variants
         StatScale adrScale = StatScale.FromPeers(adr)! with { NeutralLow = 70, NeutralHigh = 90 };
         StatScale aimScale = StatScale.Absolute(0, 100, 45, 65);
 
-        StackPanel board = new()
-        {
-            Spacing = 1
-        };
+        StackPanel board = new() { Spacing = 1 };
         board.Children.Add(new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -5186,7 +4411,10 @@ public static partial class Variants
                 {
                     new TextBlock
                     {
-                        Text = names[i], Width = 168, FontSize = 12, Foreground = Tok("TextBright"),
+                        Text = names[i],
+                        Width = 168,
+                        FontSize = 12,
+                        Foreground = Tok("TextBright"),
                         VerticalAlignment = VerticalAlignment.Center,
                         TextTrimming = TextTrimming.CharacterEllipsis
                     },
@@ -5199,21 +4427,23 @@ public static partial class Variants
             });
         }
 
-        StackPanel col = new()
-        {
-            Spacing = 8,
-            Margin = new Thickness(14, 10)
-        };
+        StackPanel col = new() { Spacing = 8, Margin = new Thickness(14, 10) };
         col.Children.Add(Section("SCOREBOARD CELLS - StatValue Bar + Chip, sign / banded / peer / absolute scales"));
         col.Children.Add(new TeamBadge
         {
-            Team = TeamBadge.TeamCt, Label = "My Team", Outcome = TeamOutcome.Win, Detail = "13 : 9",
+            Team = TeamBadge.TeamCt,
+            Label = "My Team",
+            Outcome = TeamOutcome.Win,
+            Detail = "13 : 9",
             HorizontalAlignment = HorizontalAlignment.Left
         });
         col.Children.Add(board);
         col.Children.Add(new TeamBadge
         {
-            Team = TeamBadge.TeamT, Label = "Enemy Team", Outcome = TeamOutcome.Loss, Detail = "9 : 13",
+            Team = TeamBadge.TeamT,
+            Label = "Enemy Team",
+            Outcome = TeamOutcome.Loss,
+            Detail = "9 : 13",
             HorizontalAlignment = HorizontalAlignment.Left
         });
 
@@ -5231,7 +4461,10 @@ public static partial class Variants
         });
         col.Children.Add(new SegmentedBar
         {
-            Width = 150, Height = 14, Compact = true, FontSize = 9,
+            Width = 150,
+            Height = 14,
+            Compact = true,
+            FontSize = 9,
             HorizontalAlignment = HorizontalAlignment.Left,
             Segments =
             [
@@ -5245,60 +4478,69 @@ public static partial class Variants
         col.Children.Add(Section("StatTile + RingGauge"));
         col.Children.Add(new StackPanel
         {
-            Orientation = Orientation.Horizontal, Spacing = 8,
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
             Children =
             {
                 new StatTile
                 {
-                    Label = "ADR", Value = 87, Scale = adrScale, Format = "0", IsHero = true
+                    Label = "ADR",
+                    Value = 87,
+                    Scale = adrScale,
+                    Format = "0",
+                    IsHero = true
                 },
                 new StatTile
                 {
-                    Label = "K/D", Value = 1.75, Minimum = 0.4, Maximum = 1.8, NeutralLow = 0.95,
-                    NeutralHigh = 1.15, Caption = "+0.31"
+                    Label = "K/D",
+                    Value = 1.75,
+                    Minimum = 0.4,
+                    Maximum = 1.8,
+                    NeutralLow = 0.95,
+                    NeutralHigh = 1.15,
+                    Caption = "+0.31"
                 },
                 new StatTile
                 {
-                    Label = "KAST", Value = 74, Minimum = 40, Maximum = 90, Format = "0"
+                    Label = "KAST",
+                    Value = 74,
+                    Minimum = 40,
+                    Maximum = 90,
+                    Format = "0"
                 },
                 new StatTile
                 {
-                    Label = "DEATHS", Value = 21, Minimum = 8, Maximum = 24,
-                    Polarity = StatPolarity.LowerIsBetter, Format = "0"
+                    Label = "DEATHS",
+                    Value = 21,
+                    Minimum = 8,
+                    Maximum = 24,
+                    Polarity = StatPolarity.LowerIsBetter,
+                    Format = "0"
                 },
-                new RingGauge
-                {
-                    Value = 11.96, Scale = ratingScale, Format = "+0.0;-0.0;0", Caption = "1ST"
-                },
-                new RingGauge
-                {
-                    Value = 2.71, Scale = ratingScale, Format = "+0.0;-0.0;0", Caption = "2ND"
-                },
-                new RingGauge
-                {
-                    Value = -8.57, Scale = ratingScale, Format = "+0.0;-0.0;0", Caption = "10TH"
-                }
+                new RingGauge { Value = 11.96, Scale = ratingScale, Format = "+0.0;-0.0;0", Caption = "1ST" },
+                new RingGauge { Value = 2.71, Scale = ratingScale, Format = "+0.0;-0.0;0", Caption = "2ND" },
+                new RingGauge { Value = -8.57, Scale = ratingScale, Format = "+0.0;-0.0;0", Caption = "10TH" }
             }
         });
 
         col.Children.Add(Section("Sparkline - Line / Bars / Dots, one series per round"));
         col.Children.Add(new StackPanel
         {
-            Orientation = Orientation.Horizontal, Spacing = 14,
+            Orientation = Orientation.Horizontal,
+            Spacing = 14,
             Children =
             {
+                new Sparkline { Width = 250, Values = [0, 2, 1, 3, 0, 1, 4, 2, 0, 1, 2, 3, 1, 0, 2] },
                 new Sparkline
                 {
-                    Width = 250, Values = [0, 2, 1, 3, 0, 1, 4, 2, 0, 1, 2, 3, 1, 0, 2]
-                },
-                new Sparkline
-                {
-                    Width = 250, Mode = SparklineMode.Bars,
+                    Width = 250,
+                    Mode = SparklineMode.Bars,
                     Values = [12, 80, 45, 130, 0, 66, 150, 90, 20, 40, 75, 110, 35, 0, 95]
                 },
                 new Sparkline
                 {
-                    Width = 250, Mode = SparklineMode.Dots,
+                    Width = 250,
+                    Mode = SparklineMode.Dots,
                     Values = [1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1]
                 }
             }
@@ -5310,11 +4552,7 @@ public static partial class Variants
     /// <summary>The ugly inputs, each labelled with what it is meant to degrade to.</summary>
     private static Border StatsComponentsEdge()
     {
-        StackPanel col = new()
-        {
-            Spacing = 6,
-            Margin = new Thickness(14, 10)
-        };
+        StackPanel col = new() { Spacing = 6, Margin = new Thickness(14, 10) };
         col.Children.Add(Section("DEGENERATE INPUTS - none of these may throw or invent data"));
         col.Children.Add(EdgeRow("every peer equal (Min == Max)",
             Cell(5, new StatScale(5, 5), 110, "0", false)));
@@ -5324,64 +4562,57 @@ public static partial class Variants
             Cell(123456.789, new StatScale(0, 200000), 48, "0.##", false)));
         col.Children.Add(EdgeRow("negative zero", Cell(-0.0, new StatScale(-1, 1), 110, "0.##", false)));
         col.Children.Add(EdgeRow("far outside the domain", Cell(9999, new StatScale(0, 10), 110, "0", false)));
-        col.Children.Add(EdgeRow("no segments", new SegmentedBar
-        {
-            Width = 200, Height = 18
-        }));
+        col.Children.Add(EdgeRow("no segments", new SegmentedBar { Width = 200, Height = 18 }));
         col.Children.Add(EdgeRow("labels wider than their slices", new SegmentedBar
         {
-            Width = 60, Height = 14,
+            Width = 60,
+            Height = 14,
             Segments =
             [
                 new StatSegment(1, null, "wide"), new StatSegment(1, null, "wider"),
                 new StatSegment(1, null, "widest")
             ]
         }));
-        col.Children.Add(EdgeRow("empty series", new Sparkline
-        {
-            Width = 160, Height = 24, Values = []
-        }));
-        col.Children.Add(EdgeRow("one point", new Sparkline
-        {
-            Width = 160, Height = 24, Values = [7]
-        }));
-        col.Children.Add(EdgeRow("flat series", new Sparkline
-        {
-            Width = 160, Height = 24, Values = [3, 3, 3, 3, 3]
-        }));
-        col.Children.Add(EdgeRow("all-zero bars", new Sparkline
-        {
-            Width = 160, Height = 24, Mode = SparklineMode.Bars, Values = [0, 0, 0, 0, 0]
-        }));
-        col.Children.Add(EdgeRow("full ring / no value / thickness > radius", new StackPanel
-        {
-            Orientation = Orientation.Horizontal, Spacing = 8,
-            Children =
+        col.Children.Add(EdgeRow("empty series", new Sparkline { Width = 160, Height = 24, Values = [] }));
+        col.Children.Add(EdgeRow("one point", new Sparkline { Width = 160, Height = 24, Values = [7] }));
+        col.Children.Add(EdgeRow("flat series", new Sparkline { Width = 160, Height = 24, Values = [3, 3, 3, 3, 3] }));
+        col.Children.Add(EdgeRow("all-zero bars",
+            new Sparkline { Width = 160, Height = 24, Mode = SparklineMode.Bars, Values = [0, 0, 0, 0, 0] }));
+        col.Children.Add(EdgeRow("full ring / no value / thickness > radius",
+            new StackPanel
             {
-                new RingGauge
+                Orientation = Orientation.Horizontal,
+                Spacing = 8,
+                Children =
                 {
-                    Value = 100, Minimum = 0, Maximum = 100, Format = "0", Caption = "full"
-                },
-                new RingGauge
-                {
-                    Value = null, Caption = "none"
-                },
-                new RingGauge
-                {
-                    Value = 50, Minimum = 0, Maximum = 100, Width = 16, Height = 16, Thickness = 24
+                    new RingGauge
+                    {
+                        Value = 100,
+                        Minimum = 0,
+                        Maximum = 100,
+                        Format = "0",
+                        Caption = "full"
+                    },
+                    new RingGauge { Value = null, Caption = "none" },
+                    new RingGauge
+                    {
+                        Value = 50,
+                        Minimum = 0,
+                        Maximum = 100,
+                        Width = 16,
+                        Height = 16,
+                        Thickness = 24
+                    }
                 }
-            }
-        }));
-        col.Children.Add(EdgeRow("neither side, no outcome", new TeamBadge
-        {
-            Team = 0, Label = "Spectators", HorizontalAlignment = HorizontalAlignment.Left
-        }));
+            }));
+        col.Children.Add(EdgeRow("neither side, no outcome",
+            new TeamBadge { Team = 0, Label = "Spectators", HorizontalAlignment = HorizontalAlignment.Left }));
 
         return WrapInShell(col, 700, 560);
     }
 
     private static StackPanel EdgeRow(string label, Control sample) =>
-        new StackPanel
+        new()
         {
             Orientation = Orientation.Horizontal,
             Spacing = 10,
@@ -5389,7 +4620,10 @@ public static partial class Variants
             {
                 new TextBlock
                 {
-                    Text = label, Width = 250, FontSize = 10, Foreground = Tok("TextDim"),
+                    Text = label,
+                    Width = 250,
+                    FontSize = 10,
+                    Foreground = Tok("TextDim"),
                     VerticalAlignment = VerticalAlignment.Center
                 },
                 sample
@@ -5399,14 +4633,23 @@ public static partial class Variants
     private static StatValue Cell(double? value, StatScale scale, double width, string format, bool leader) =>
         new()
         {
-            Value = value, Scale = scale, Format = format, Width = width, Height = 19, IsLeader = leader,
+            Value = value,
+            Scale = scale,
+            Format = format,
+            Width = width,
+            Height = 19,
+            IsLeader = leader,
             Classes = { "tracked" }
         };
 
     private static StatValue Chip(double value, StatScale scale, double width) =>
         new()
         {
-            Value = value, Scale = scale, Format = "0", Width = width, Height = 19,
+            Value = value,
+            Scale = scale,
+            Format = "0",
+            Width = width,
+            Height = 19,
             Classes = { "chip" }
         };
 
@@ -5422,14 +4665,8 @@ public static partial class Variants
                 Orientation = Orientation.Horizontal,
                 Children =
                 {
-                    new TextBlock
-                    {
-                        Text = text, Classes = { "col-label" }
-                    },
-                    new TextBlock
-                    {
-                        Text = "▼", Classes = { "stat-sort-caret" }
-                    }
+                    new TextBlock { Text = text, Classes = { "col-label" } },
+                    new TextBlock { Text = "▼", Classes = { "stat-sort-caret" } }
                 }
             }
         };
@@ -5443,11 +4680,8 @@ public static partial class Variants
 
 
     /// <summary>The Diagnostics tab's dev-only component gallery, as the app builds it.</summary>
-    private static Border StatsGallery() => WrapInShell(new ScrollViewer
-    {
-        Padding = new Thickness(14, 10),
-        Content = new StatsGalleryView()
-    }, 780, 760);
+    private static Border StatsGallery() =>
+        WrapInShell(new ScrollViewer { Padding = new Thickness(14, 10), Content = new StatsGalleryView() }, 780, 760);
 
     /// <summary>
     ///     The Report Analysis Errors window body. The stub view-model seeds its own awkward values (a
@@ -5456,10 +4690,7 @@ public static partial class Variants
     /// </summary>
     private static Panel ErrorReportBody(bool expanded, bool fresh)
     {
-        ErrorReportViewModel vm = new()
-        {
-            IsDiagnosticsExpanded = expanded
-        };
+        ErrorReportViewModel vm = new() { IsDiagnosticsExpanded = expanded };
 
         if (fresh)
         {
@@ -5469,17 +4700,7 @@ public static partial class Variants
             vm.LastSavedText = string.Empty;
         }
 
-        return new Panel
-        {
-            Background = Tok("ShellBg"),
-            Children =
-            {
-                new ErrorReportView
-                {
-                    DataContext = vm
-                }
-            }
-        };
+        return new Panel { Background = Tok("ShellBg"), Children = { new ErrorReportView { DataContext = vm } } };
     }
 
     /// <summary>The real Stats tab with no evaluation: the toolbar band the report button lives in.</summary>
@@ -5491,17 +4712,6 @@ public static partial class Variants
             ErrorReportOpener = _ => { }
         };
 
-        return new Panel
-        {
-            Background = Tok("ShellBg"),
-            Children =
-            {
-                new StatsTabView
-                {
-                    DataContext = vm
-                }
-            }
-        };
+        return new Panel { Background = Tok("ShellBg"), Children = { new StatsTabView { DataContext = vm } } };
     }
-
 }

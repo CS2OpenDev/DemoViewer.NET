@@ -16,6 +16,7 @@ namespace DemoViewer.NET.Playback2D.Vision;
 /// <param name="ConeMaxRange">Ray length cap, in world units.</param>
 /// <param name="SightlineHalfFovHDeg">Horizontal half-FOV for the could-see test.</param>
 /// <param name="SightlineHalfFovVDeg">Vertical half-FOV for the could-see test.</param>
+[PublicAPI]
 public sealed record VisionOptions(
     int ConeRays = 26,
     float ConeHalfFovDeg = 53f,
@@ -36,6 +37,7 @@ public sealed record VisionOptions(
 ///         would put the zero-allocation budget out of reach on its own.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class ConePolygon
 {
     private float[] _rayEnds = [];
@@ -100,6 +102,7 @@ public sealed class ConePolygon
 /// <param name="ViewerY">Pre-resolved viewer world Y.</param>
 /// <param name="TargetX">Pre-resolved target world X, or <see cref="float.NaN" /> to resolve the slot.</param>
 /// <param name="TargetY">Pre-resolved target world Y.</param>
+[PublicAPI]
 public readonly record struct SightlineSegment(
     int ViewerSlot,
     int ViewerTeam,
@@ -123,6 +126,7 @@ public readonly record struct SightlineSegment(
 ///     One frame's solved line-of-sight geometry, in world space. Buffers are pooled and reused, so a
 ///     solution is valid only until the next <see cref="Clear" />.
 /// </summary>
+[PublicAPI]
 public sealed class VisionSolution
 {
     private readonly List<ConePolygon> _conePool = new(12);
@@ -183,23 +187,19 @@ public sealed class VisionSolution
 
     // A window over the pooled list's live prefix. A List<T>.GetRange would allocate; exposing the pool
     // directly would leak stale cones from a previous, busier frame.
-    private sealed class ConeView : IReadOnlyList<ConePolygon>
+    private sealed class ConeView(VisionSolution owner) : IReadOnlyList<ConePolygon>
     {
-        private readonly VisionSolution _owner;
-
-        public ConeView(VisionSolution owner) => _owner = owner;
-
-        public ConePolygon this[int index] => index >= 0 && index < _owner._coneCount
-            ? _owner._conePool[index]
+        public ConePolygon this[int index] => index >= 0 && index < owner._coneCount
+            ? owner._conePool[index]
             : throw new ArgumentOutOfRangeException(nameof(index));
 
-        public int Count => _owner._coneCount;
+        public int Count => owner._coneCount;
 
         public IEnumerator<ConePolygon> GetEnumerator()
         {
-            for (int i = 0; i < _owner._coneCount; i++)
+            for (int i = 0; i < owner._coneCount; i++)
             {
-                yield return _owner._conePool[i];
+                yield return owner._conePool[i];
             }
         }
 
@@ -218,6 +218,7 @@ public sealed class VisionSolution
 ///         deliverable.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IVisionSolver
 {
     /// <summary>False when no engine is loaded for this map: "no data", not "nothing seen".</summary>

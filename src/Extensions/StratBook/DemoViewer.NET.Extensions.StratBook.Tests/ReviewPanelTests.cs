@@ -5,16 +5,15 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
-using DemoViewer.NET.AppTests.Extensions.StratBook;
-using DemoViewer.NET.Modules.Playback2D;
-using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Palette;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Views.Playback2D;
-using MenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
 using TUnit.Assertions.Enums;
+using MenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
 using static DemoViewer.NET.AppTests.TagTestData;
 
 #endregion
@@ -33,14 +32,19 @@ public class ReviewPanelTests
 
     private static readonly List<LibraryRound> _rounds =
     [
-        new LibraryRound(1, 0),
-        new LibraryRound(2, 10_000),
-        new LibraryRound(3, 20_000)
+        new(1, 0),
+        new(2, 10_000),
+        new(3, 20_000)
     ];
 
-    private static async Task<(TagSession Session, ReviewPanelViewModel Panel, List<int> Seeks, Func<int> SetPlayhead)> Panel(int playhead = 12_000)
+    private static async Task<(TagSession Session, ReviewPanelViewModel Panel, List<int> Seeks, Func<int> SetPlayhead)>
+        Panel(int playhead = 12_000)
     {
-        TagSession session = new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created) { AutoSaveDelay = TimeSpan.FromHours(1) };
+        TagSession session =
+            new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created)
+            {
+                AutoSaveDelay = TimeSpan.FromHours(1)
+            };
         await session.AttachAsync(Demo, Clock, DemoPath);
         int tick = playhead;
         TagPaletteViewModel palette = new(session, null, () => tick);
@@ -81,9 +85,12 @@ public class ReviewPanelTests
             using (Assert.Multiple())
             {
                 await Assert.That(panel.Labels.Count).IsEqualTo(3);
-                await Assert.That(panel.HandLabels.Select(r => r.Id)).IsEquivalentTo([hand.Id], CollectionOrdering.Matching);
-                await Assert.That(panel.MachineLabels.Select(r => r.Id)).IsEquivalentTo([run.Id, accepted.Id], CollectionOrdering.Matching);
-                await Assert.That(panel.MachineLabels.Select(r => r.SourceText)).IsEquivalentTo(["strat run", "suggested: retake"], CollectionOrdering.Matching);
+                await Assert.That(panel.HandLabels.Select(r => r.Id))
+                    .IsEquivalentTo([hand.Id], CollectionOrdering.Matching);
+                await Assert.That(panel.MachineLabels.Select(r => r.Id))
+                    .IsEquivalentTo([run.Id, accepted.Id], CollectionOrdering.Matching);
+                await Assert.That(panel.MachineLabels.Select(r => r.SourceText))
+                    .IsEquivalentTo(["strat run", "suggested: retake"], CollectionOrdering.Matching);
                 await Assert.That(panel.HandHeader).IsEqualTo("Yours (1)");
                 await Assert.That(panel.MachineHeader).IsEqualTo("From suggestions (2)");
             }
@@ -105,7 +112,8 @@ public class ReviewPanelTests
             using (Assert.Multiple())
             {
                 await Assert.That(seeks.Single()).IsEqualTo(11_000).Because("selecting a label seeks to its start");
-                await Assert.That(editor.FromText).IsEqualTo("15.63").Because("(11000 - 10000) / 64 = 15.625 seconds into round 2");
+                await Assert.That(editor.FromText).IsEqualTo("15.63")
+                    .Because("(11000 - 10000) / 64 = 15.625 seconds into round 2");
                 await Assert.That(editor.CanDelete).IsTrue();
             }
 
@@ -127,7 +135,8 @@ public class ReviewPanelTests
                 await Assert.That(saved.Code).IsEqualTo("Retake");
                 await Assert.That(saved.FromTick).IsEqualTo(10_000 + 20 * 64);
                 await Assert.That(saved.ToTick).IsEqualTo(10_000 + 25 * 64);
-                await Assert.That(saved.Labels.Select(l => $"{l.Group}={l.Value}")).IsEquivalentTo(["outcome=won"], CollectionOrdering.Matching);
+                await Assert.That(saved.Labels.Select(l => $"{l.Group}={l.Value}"))
+                    .IsEquivalentTo(["outcome=won"], CollectionOrdering.Matching);
                 await Assert.That(saved.Positions.Single().Place).IsEqualTo("Ramp");
                 await Assert.That(saved.Round).IsEqualTo(2);
             }
@@ -138,7 +147,8 @@ public class ReviewPanelTests
             await Assert.That(panel.LabelsHeader).IsEqualTo("Labels: 0");
 
             await Assert.That(session.Undo()).IsTrue();
-            await Assert.That(session.Document!.Instances.Single().Code).IsEqualTo("Retake").Because("a delete undoes like any edit");
+            await Assert.That(session.Document!.Instances.Single().Code).IsEqualTo("Retake")
+                .Because("a delete undoes like any edit");
             await Assert.That(session.Redo()).IsTrue();
             await Assert.That(session.Document!.Instances).IsEmpty();
         });
@@ -199,7 +209,8 @@ public class ReviewPanelTests
     public async Task KeysTypedIntoTheEditor_NeverReachTheKeymap() =>
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab();
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab();
             await review.Session!.AttachAsync(Demo, Clock, DemoPath);
             review.ReviewMode!.IsOn = true;
             (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm, 1280, 800);
@@ -229,7 +240,8 @@ public class ReviewPanelTests
     public async Task OnTheLane_TheHandlesMoveTheEditor_AClickStartsALabel_AndABandOffersEditAndDelete() =>
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab();
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab();
             vm.Timeline.PixelWidth = 999; // one px per frame over the harness's 1000 frames
             TagSession tags = review.Session!;
             await tags.AttachAsync(Demo, Clock, DemoPath);
@@ -252,12 +264,15 @@ public class ReviewPanelTests
             using (Assert.Multiple())
             {
                 await Assert.That(editor.CurrentSpan).IsEqualTo((600, 1_400));
-                await Assert.That(ctx.SeekFrames.Count + ctx.SeekTicks.Count).IsEqualTo(seeks).Because("a handle drag never seeks");
-                await Assert.That(tags.Document!.Instances.Single().FromTick).IsEqualTo(800).Because("the drag moves the draft; Save writes it");
+                await Assert.That(ctx.SeekFrames.Count + ctx.SeekTicks.Count).IsEqualTo(seeks)
+                    .Because("a handle drag never seeks");
+                await Assert.That(tags.Document!.Instances.Single().FromTick).IsEqualTo(800)
+                    .Because("the drag moves the draft; Save writes it");
             }
 
             vm.Timeline.DragEditEdge(true, 900);
-            await Assert.That(editor.CurrentSpan!.Value.From).IsEqualTo(1_400).Because("the start never passes the end");
+            await Assert.That(editor.CurrentSpan!.Value.From).IsEqualTo(1_400)
+                .Because("the start never passes the end");
             editor.SaveCommand.Execute(null);
             await Assert.That(tags.Document!.Instances.Single().FromTick).IsEqualTo(1_400);
             await Assert.That(vm.Timeline.HasEditSpan).IsFalse();
@@ -265,7 +280,8 @@ public class ReviewPanelTests
 
             TimelineBandViewModel band = vm.Timeline.LaneBands.Single(b => b.TrackId == review.TagLane!.TrackId);
             IReadOnlyList<MenuEntry> menu = vm.Timeline.MenuFor(band);
-            await Assert.That(menu.Select(m => m.Header)).IsEquivalentTo(["Edit A execute", "Delete A execute"], CollectionOrdering.Matching);
+            await Assert.That(menu.Select(m => m.Header))
+                .IsEquivalentTo(["Edit A execute", "Delete A execute"], CollectionOrdering.Matching);
             menu[1].Run();
             await Assert.That(tags.Document!.Instances).IsEmpty();
 
@@ -294,7 +310,8 @@ public class ReviewPanelTests
     public async Task ThePanel_RendersTheLabelsTab_WithTheEditorOpen() =>
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab();
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab();
             ctx.Push(1, 2);
             TagSession tags = review.Session!;
             await tags.AttachAsync(Demo, Clock, DemoPath);
@@ -305,7 +322,8 @@ public class ReviewPanelTests
             review.Review!.ShowLabels();
             review.Review.SelectLabelCommand.Execute(review.Review.Labels[0]);
             Playback2DTimelineHarness.Pump();
-            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "review-labels-editor.png"), new PngBitmapEncoderOptions());
+            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "review-labels-editor.png"),
+                new PngBitmapEncoderOptions());
             await Assert.That(review.Review.HasEditor).IsTrue();
             window.Close();
         });
@@ -315,7 +333,8 @@ public class ReviewPanelTests
     public async Task ThePanel_RendersHandMadeAndMachineWrittenLabelsApart() =>
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab();
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab();
             ctx.Push(1, 2);
             TagSession tags = review.Session!;
             await tags.AttachAsync(Demo, Clock, DemoPath);
@@ -332,7 +351,8 @@ public class ReviewPanelTests
             (Window window, Playback2DView _) = Playback2DTimelineHarness.Show(vm, 1280, 900);
             review.Review!.ShowLabels();
             Playback2DTimelineHarness.Pump();
-            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "review-labels-grouped.png"), new PngBitmapEncoderOptions());
+            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "review-labels-grouped.png"),
+                new PngBitmapEncoderOptions());
             await Assert.That(review.Review.MachineLabels.Count).IsEqualTo(2);
             window.Close();
         });

@@ -4,6 +4,9 @@ using System.Text.Json;
 using Avalonia.Controls;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Models;
 using DemoViewer.NET.Modules;
@@ -11,12 +14,9 @@ using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Export;
-using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
-using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.ViewModels.Library;
 using DemoViewer.NET.ViewModels.Playback2D;
 using DemoViewer.NET.ViewModels.Shell;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using TUnit.Assertions.Enums;
@@ -40,7 +40,8 @@ public class StratBookShellTests
     private static readonly string[] _withoutSituations = ["stratbook.browser", "review.queue"];
     private static readonly string[] _reviewOnly = ["review.queue"];
 
-    private static MainViewModel NewShell(IFeatureGate? gate, SettingsService? settings = null, params IWorkspaceModule[] modules)
+    private static MainViewModel NewShell(IFeatureGate? gate, SettingsService? settings = null,
+        params IWorkspaceModule[] modules)
     {
         ModuleRegistry registry = new();
         foreach (IWorkspaceModule module in modules)
@@ -77,8 +78,8 @@ public class StratBookShellTests
         // One entry, not Empty(): BadgeFor is per-entry, so a provenance-query assertion needs something
         // to iterate.
         MainViewModel vm = new(null, registry, TestLibraries.WithEntry(
-            Path.Combine(Path.GetTempPath(), "dvstratshell_" + Guid.NewGuid().ToString("N") + ".dem")),
-            null, gate, null, null,
+                Path.Combine(Path.GetTempPath(), "dvstratshell_" + Guid.NewGuid().ToString("N") + ".dem")),
+            null, gate,
             libraryContributions: contributions, hubTabs: [StratBookHubAccess.HubHost()]);
         vm.RestoreSession();
         return vm;
@@ -99,8 +100,8 @@ public class StratBookShellTests
             MainViewModel vm = NewShell(null, null, module);
             try
             {
-                string[] strip = vm.Tabs.Select(t => t.TabId).ToArray();
-                string[] rail = vm.StratBookHub().Sections.Sections.Select(s => s.TabId).ToArray();
+                string[] strip = [.. vm.Tabs.Select(t => t.TabId)];
+                string[] rail = [.. vm.StratBookHub().Sections.Sections.Select(s => s.TabId)];
 
                 using (Assert.Multiple())
                 {
@@ -108,11 +109,14 @@ public class StratBookShellTests
                     await Assert.That(strip).DoesNotContain("situations.search");
                     await Assert.That(strip).DoesNotContain("review.queue");
                     await Assert.That(strip).DoesNotContain("teams.browser");
-                    await Assert.That(rail).IsEquivalentTo(_railOrder, TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                    await Assert.That(rail)
+                        .IsEquivalentTo(_railOrder, CollectionOrdering.Matching)
                         .Because("rail order is the section Order, not registration order");
-                    await Assert.That(vm.LibraryTab.Sections.Sections.Select(s => s.TabId)).IsEquivalentTo(_teamsOnly, CollectionOrdering.Matching);
+                    await Assert.That(vm.LibraryTab.Sections.Sections.Select(s => s.TabId))
+                        .IsEquivalentTo(_teamsOnly, CollectionOrdering.Matching);
                     await Assert.That(vm.LibraryTab.HasTeamsView).IsTrue();
-                    await Assert.That(vm.LibraryTab.IsDemosView).IsTrue().Because("the Library lands on the demo browser");
+                    await Assert.That(vm.LibraryTab.IsDemosView).IsTrue()
+                        .Because("the Library lands on the demo browser");
                 }
             }
             finally
@@ -152,7 +156,7 @@ public class StratBookShellTests
                 SettingsService svc = new(dir);
                 ServiceCollection services = new();
                 services.Configure<AppSettings>(svc.Configuration);
-                using ServiceProvider sp = services.BuildServiceProvider();
+                await using ServiceProvider sp = services.BuildServiceProvider();
                 IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
                 using FeatureGate gate = new(monitor, false);
 
@@ -203,7 +207,8 @@ public class StratBookShellTests
                 WorkspaceTabDescriptor strats = vm.StratBookHub().Sections.Sections[0];
                 WorkspaceTabDescriptor situations = vm.StratBookHub().Sections.Sections[1];
 
-                await Assert.That(strats.IsActive).IsFalse().Because("nothing is live while the hub is not the selected tab");
+                await Assert.That(strats.IsActive).IsFalse()
+                    .Because("nothing is live while the hub is not the selected tab");
 
                 vm.SelectedTab = hub;
                 using (Assert.Multiple())
@@ -314,7 +319,8 @@ public class StratBookShellTests
                     await Assert.That(vm.Tabs.Select(t => t.TabId)).DoesNotContain(HostIds.StratBookHub)
                         .Because("a rail with nothing on it has no tab");
                     await Assert.That(vm.SelectedTab!.TabId).IsEqualTo("builtin.library")
-                        .Because("the hub's own order-neighbour is not always Library, but a disabled pack falls back to it specifically");
+                        .Because(
+                            "the hub's own order-neighbour is not always Library, but a disabled pack falls back to it specifically");
                 }
 
                 gate.Answers["tab.review"] = true;
@@ -322,7 +328,8 @@ public class StratBookShellTests
                 using (Assert.Multiple())
                 {
                     await Assert.That(vm.Tabs.Select(t => t.TabId)).Contains(HostIds.StratBookHub);
-                    await Assert.That(vm.StratBookHub().Sections.Sections.Select(s => s.TabId)).IsEquivalentTo(_reviewOnly, CollectionOrdering.Matching);
+                    await Assert.That(vm.StratBookHub().Sections.Sections.Select(s => s.TabId))
+                        .IsEquivalentTo(_reviewOnly, CollectionOrdering.Matching);
                 }
 
                 gate.Answers["tab.teams"] = false;
@@ -381,7 +388,7 @@ public class StratBookShellTests
         await HeadlessSession.RunOnUi(async () =>
         {
             FakeGate gate = new();
-            MainViewModel vm = NewShell(gate, null);
+            MainViewModel vm = NewShell(gate);
             try
             {
                 await Assert.That(vm.Tabs.Select(t => t.TabId)).Contains("builtin.parser");
@@ -456,7 +463,8 @@ public class StratBookShellTests
                 using (Assert.Multiple())
                 {
                     await Assert.That(vm3.SelectedTab!.TabId).IsEqualTo(HostIds.StratBookHub);
-                    await Assert.That(vm3.StratBookHub().Sections.SelectedSection!.TabId).IsEqualTo("situations.search");
+                    await Assert.That(vm3.StratBookHub().Sections.SelectedSection!.TabId)
+                        .IsEqualTo("situations.search");
                 }
 
                 vm3.Dispose();
@@ -495,7 +503,7 @@ public class StratBookShellTests
         gate.Answers.Remove("tab.review");
     }
 
-    private static (DemoCacheStore Cache, TeamIdentityService Teams) NewTeams()
+    private static TeamIdentityService NewTeams()
     {
         DemoCacheStore cache = new(null);
         TeamIdentityService teams = new(null, cache.Library(), run: a =>
@@ -503,7 +511,7 @@ public class StratBookShellTests
             a();
             return Task.CompletedTask;
         });
-        return (cache, teams);
+        return teams;
     }
 
     [Test]
@@ -512,7 +520,7 @@ public class StratBookShellTests
         {
             FakeGate gate = new();
             SetPackOff(gate);
-            (_, TeamIdentityService teams) = NewTeams();
+            TeamIdentityService teams = NewTeams();
             await teams.StartAsync();
             CountingProvenanceSource provenance = new();
 
@@ -547,7 +555,8 @@ public class StratBookShellTests
         });
 
     [Test]
-    public async Task PackOff_AtStartup_WithAPersistedPackSection_RestoresToLibrary_AndCarriesThePackBlobThroughUnchanged()
+    public async Task
+        PackOff_AtStartup_WithAPersistedPackSection_RestoresToLibrary_AndCarriesThePackBlobThroughUnchanged()
     {
         string dir = NewTempDir();
         try
@@ -560,10 +569,8 @@ public class StratBookShellTests
                 JsonElement seeded = JsonSerializer.SerializeToElement(
                     new { RailCollapsed = true, ListCollapsed = true, Future = 7 });
                 svc.SaveSession(new SessionPayload(null, null, null, false, false, "stratbook.browser",
-                    null, null, new Dictionary<string, JsonElement>(StringComparer.Ordinal)
-                    {
-                        [StratBookPack.PackId] = seeded
-                    }));
+                    null, null,
+                    new Dictionary<string, JsonElement>(StringComparer.Ordinal) { [StratBookPack.PackId] = seeded }));
 
                 FakeGate gate = new();
                 SetPackOff(gate);
@@ -589,7 +596,8 @@ public class StratBookShellTests
 
                 SessionPayload? reloaded = svc.LoadSession();
                 await Assert.That(JsonElement.DeepEquals(reloaded!.Packs![StratBookPack.PackId], seeded)).IsTrue()
-                    .Because("re-saving with the pack off must carry the blob through byte for byte, never re-snapshot the live (default) hub");
+                    .Because(
+                        "re-saving with the pack off must carry the blob through byte for byte, never re-snapshot the live (default) hub");
 
                 // The pack back on, over the same file: the carried-through blob restores.
                 FakeGate gateOn = new();
@@ -705,7 +713,8 @@ public class StratBookShellTests
                 }
 
                 SessionPayload? reloaded = svc.LoadSession();
-                await Assert.That(reloaded!.Packs![StratBookPack.PackId].GetProperty("ListCollapsed").GetBoolean()).IsTrue()
+                await Assert.That(reloaded!.Packs![StratBookPack.PackId].GetProperty("ListCollapsed").GetBoolean())
+                    .IsTrue()
                     .Because("the live change made after enabling must win over B0's saved false");
             });
         }
@@ -755,8 +764,10 @@ public class StratBookShellTests
                 }
 
                 SessionPayload? reloaded = svc.LoadSession();
-                await Assert.That(reloaded!.Packs![StratBookPack.PackId].GetProperty("ListCollapsed").GetBoolean()).IsTrue()
-                    .Because("the pack was live for this change; disabling it afterward must not revert to the startup blob");
+                await Assert.That(reloaded!.Packs![StratBookPack.PackId].GetProperty("ListCollapsed").GetBoolean())
+                    .IsTrue()
+                    .Because(
+                        "the pack was live for this change; disabling it afterward must not revert to the startup blob");
             });
         }
         finally
@@ -800,7 +811,8 @@ public class StratBookShellTests
                     using (Assert.Multiple())
                     {
                         await Assert.That(vm.StratBookHub().IsRailCollapsed).IsTrue()
-                            .Because("the pre-Packs blob folds into Packs[stratbook], and its rail flag into the host's hub state");
+                            .Because(
+                                "the pre-Packs blob folds into Packs[stratbook], and its rail flag into the host's hub state");
                         await Assert.That(vm.StratsLayout().IsListCollapsed).IsFalse();
                     }
                 }
@@ -941,7 +953,7 @@ public class StratBookShellTests
         await HeadlessSession.RunOnUi(async () =>
         {
             FakeGate gate = new();
-            (_, TeamIdentityService teams) = NewTeams();
+            TeamIdentityService teams = NewTeams();
             await teams.StartAsync();
             CountingProvenanceSource provenance = new();
             SectionsModule module = new();
@@ -1002,7 +1014,7 @@ public class StratBookShellTests
     public async Task PackOn_TheLibraryTeamFilterAndProvenanceChip_WorkAsBefore() =>
         await HeadlessSession.RunOnUi(async () =>
         {
-            (_, TeamIdentityService teams) = NewTeams();
+            TeamIdentityService teams = NewTeams();
             await teams.StartAsync();
             CountingProvenanceSource provenance = new();
 
@@ -1014,7 +1026,8 @@ public class StratBookShellTests
                     await Assert.That(vm.LibraryTab.Filters).IsNotEmpty();
                     await Assert.That(vm.LibraryTab.HasBadge).IsTrue();
                     await Assert.That(provenance.ResolveAllCalls).IsGreaterThan(0)
-                        .Because("the pack on is the pre-gating behaviour: nothing new is suppressed, through the batch hook");
+                        .Because(
+                            "the pack on is the pre-gating behaviour: nothing new is suppressed, through the batch hook");
                 }
             }
             finally
@@ -1114,10 +1127,7 @@ public class StratBookShellTests
             };
             yield return new WorkspaceTabDescriptor
             {
-                TabId = "test.unmapped",
-                Header = "Unmapped",
-                Order = 11,
-                ViewFactory = () => new ContentControl()
+                TabId = "test.unmapped", Header = "Unmapped", Order = 11, ViewFactory = () => new ContentControl()
             };
         }
     }
@@ -1166,9 +1176,10 @@ public class StratBookShellTests
         {
         }
 
-        public object? SnapshotState() => new SectionState(id);
+        public object SnapshotState() => new SectionState(id);
     }
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed record SectionState(string Id);
 
     private sealed class FakeGate : IFeatureGate
@@ -1197,20 +1208,20 @@ public class StratBookShellTests
 
         public string? LabelFor(string sha256) => null;
 
-        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256s) =>
-            sha256s.ToDictionary(s => s, _ => (string?)null, StringComparer.Ordinal);
+        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> hashes) =>
+            hashes.ToDictionary(s => s, _ => (string?)null, StringComparer.Ordinal);
 
-        public DemoProvenance? Resolve(string demoPath)
+        public DemoProvenance Resolve(string demoPath)
         {
             ResolveCalls++;
-            return new DemoProvenance(demoPath, null, null, null, ProvenanceOrigin.None);
+            return new DemoProvenance(null, null, null, ProvenanceOrigin.None);
         }
 
         public IReadOnlyDictionary<string, DemoProvenance> ResolveAll(IEnumerable<string> demoPaths)
         {
             ResolveAllCalls++;
             return demoPaths.ToDictionary(p => p,
-                p => new DemoProvenance(p, null, null, null, ProvenanceOrigin.None), StringComparer.Ordinal);
+                _ => new DemoProvenance(null, null, null, ProvenanceOrigin.None), StringComparer.Ordinal);
         }
 
         // Never raised: no test here depends on it, and the interface requires the member regardless.

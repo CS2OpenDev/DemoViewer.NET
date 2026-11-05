@@ -44,14 +44,16 @@ public sealed record StratSpawns(IReadOnlyList<SpawnSpot> T, IReadOnlyList<Spawn
     /// <param name="team"><c>T</c> or <c>CT</c>.</param>
     /// <param name="place">The spawn's place name, for a map without a buy zone.</param>
     /// <param name="levelFor">A floor Z's level key.</param>
-    public static IReadOnlyList<SpawnSpot> Spots(ZoneSet zones, string team, string place, Func<double, double> levelFor)
+    private static IReadOnlyList<SpawnSpot> Spots(ZoneSet zones, string team, string place,
+        Func<double, double> levelFor)
     {
         ArgumentNullException.ThrowIfNull(zones);
         ArgumentNullException.ThrowIfNull(levelFor);
         List<ZoneArea> areas;
         double cx, cy;
         ZoneVolume? buy = zones.Volumes
-            .Where(v => v.Kind == ZoneVolumeKind.Buyzone && string.Equals(v.Team, team, StringComparison.OrdinalIgnoreCase))
+            .Where(v => v.Kind == ZoneVolumeKind.Buyzone
+                && string.Equals(v.Team, team, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(v => (v.Max.X - v.Min.X) * (double)(v.Max.Y - v.Min.Y))
             .FirstOrDefault();
         if (buy is not null)
@@ -59,9 +61,9 @@ public sealed record StratSpawns(IReadOnlyList<SpawnSpot> T, IReadOnlyList<Spawn
             areas =
             [
                 .. zones.Areas.Where(a => a.CornerCount > 0
-                                          && a.CentroidX >= buy.Min.X && a.CentroidX <= buy.Max.X
-                                          && a.CentroidY >= buy.Min.Y && a.CentroidY <= buy.Max.Y
-                                          && a.Z >= buy.Min.Z - ZSlack && a.Z <= buy.Max.Z)
+                    && a.CentroidX >= buy.Min.X && a.CentroidX <= buy.Max.X
+                    && a.CentroidY >= buy.Min.Y && a.CentroidY <= buy.Max.Y
+                    && a.Z >= buy.Min.Z - ZSlack && a.Z <= buy.Max.Z)
             ];
             cx = (buy.Min.X + buy.Max.X) / 2.0;
             cy = (buy.Min.Y + buy.Max.Y) / 2.0;
@@ -100,7 +102,8 @@ public sealed record StratSpawns(IReadOnlyList<SpawnSpot> T, IReadOnlyList<Spawn
                 }
 
                 if (!taken.Contains(area)
-                    && taken.All(t => Squared(t.CentroidX - area.CentroidX, t.CentroidY - area.CentroidY) >= spacing * spacing))
+                    && taken.All(t =>
+                        Squared(t.CentroidX - area.CentroidX, t.CentroidY - area.CentroidY) >= spacing * spacing))
                 {
                     taken.Add(area);
                 }
@@ -131,14 +134,19 @@ public sealed record StratSpawns(IReadOnlyList<SpawnSpot> T, IReadOnlyList<Spawn
     {
         ArgumentNullException.ThrowIfNull(document);
         bool ct = string.Equals(document.Side, StratVocabulary.SideCt, StringComparison.Ordinal);
-        List<StartPosition> positions = [.. Entries(StratVocabulary.Slots, ct ? Ct : T), .. Entries(StratVocabulary.OpponentSlots, ct ? T : Ct)];
+        List<StartPosition> positions =
+            [.. Entries(StratVocabulary.Slots, ct ? Ct : T), .. Entries(StratVocabulary.OpponentSlots, ct ? T : Ct)];
         return positions.Count > 0 ? new StratStart { Kind = StratStart.SpawnKind, Positions = positions } : null;
     }
 
     private static IEnumerable<StartPosition> Entries(IReadOnlyList<string> slots, IReadOnlyList<SpawnSpot> spots) =>
         slots.Take(spots.Count).Select((slot, i) => new StartPosition
         {
-            Slot = slot, Place = spots[i].Place, X = spots[i].X, Y = spots[i].Y, LevelMinZ = spots[i].LevelMinZ
+            Slot = slot,
+            Place = spots[i].Place,
+            X = spots[i].X,
+            Y = spots[i].Y,
+            LevelMinZ = spots[i].LevelMinZ
         });
 
     private static double Squared(double dx, double dy) => dx * dx + dy * dy;

@@ -62,8 +62,8 @@ public sealed class PlayerRankCache
     private const int Capacity = 4;
 
     private readonly PlayerDirectory _directory;
-    private readonly object _gate = new();
-    private readonly object _libraryGate = new();
+    private readonly Lock _gate = new();
+    private readonly Lock _libraryGate = new();
     private readonly Func<string, DemoMatchMeta?> _read;
     private readonly DemoCacheStore _store;
     private readonly LinkedList<Subject> _subjects = [];
@@ -167,7 +167,8 @@ public sealed class PlayerRankCache
                     }
                     else if (!subject.Entries.TryGetValue(id, out entry) || entry.Stamp != stamp)
                     {
-                        MatchRankRow? rank = _read(match.Row.Path)?.Players?.Find(p => string.Equals(p.SteamId64, id64, StringComparison.Ordinal));
+                        MatchRankRow? rank = _read(match.Row.Path)?.Players
+                            ?.Find(p => string.Equals(p.SteamId64, id64, StringComparison.Ordinal));
                         entry = new Entry(stamp, rank);
                     }
 

@@ -101,20 +101,9 @@ public class UpdateBannerRenderTests
                             // "Details…" mirrors the v0.6.0 banner (it re-opens the update-notice
                             // pop-up; the command lives on MainViewModel, so the mirror uses a
                             // placeholder: presence and layout are what this smoke proves).
-                            new Button
-                            {
-                                Content = "Details…"
-                            },
-                            new Button
-                            {
-                                Content = "Update & Restart",
-                                Command = vm.UpdateAndRestartCommand
-                            },
-                            new Button
-                            {
-                                Content = "Later",
-                                Command = vm.DismissCommand
-                            }
+                            new Button { Content = "Details…" },
+                            new Button { Content = "Update & Restart", Command = vm.UpdateAndRestartCommand },
+                            new Button { Content = "Later", Command = vm.DismissCommand }
                         }
                     }
                 }
@@ -125,33 +114,15 @@ public class UpdateBannerRenderTests
                 Spacing = 12,
                 Children =
                 {
-                    new TextBlock
-                    {
-                        Text = "Downloading update…"
-                    },
-                    new ProgressBar
-                    {
-                        Width = 220,
-                        Minimum = 0,
-                        Maximum = 100,
-                        Value = 42
-                    },
-                    new TextBlock
-                    {
-                        Text = "42%"
-                    }
+                    new TextBlock { Text = "Downloading update…" },
+                    new ProgressBar { Width = 220, Minimum = 0, Maximum = 100, Value = 42 },
+                    new TextBlock { Text = "42%" }
                 }
             };
 
         return new Window
         {
-            Width = 720,
-            Height = 120,
-            Content = new Border
-            {
-                Padding = new Thickness(12, 8),
-                Child = content
-            }
+            Width = 720, Height = 120, Content = new Border { Padding = new Thickness(12, 8), Child = content }
         };
     }
 
@@ -189,7 +160,7 @@ public class UpdateBannerRenderTests
 
     private sealed class StubService : IUpdateService
     {
-        public string? CurrentVersion => "0.5.1";
+        public string CurrentVersion => "0.5.1";
 
         public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default) =>
             Task.FromResult(UpdateCheckResult.UpdateAvailable("0.5.2"));

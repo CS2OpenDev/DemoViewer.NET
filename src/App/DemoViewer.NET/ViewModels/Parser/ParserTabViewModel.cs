@@ -26,8 +26,7 @@ namespace DemoViewer.NET.ViewModels.Parser;
 ///     <para>
 ///         Extracted from the legacy MainViewModel: the shell callbacks (<see cref="OnFrameSelected" />,
 ///         <see cref="RepoRootSource" />, <see cref="ProtoIndexSource" />, <see cref="FrameListSource" />,
-///         <see cref="DemoBytesSource" />, <see cref="EntityTrackerSource" />,
-///         <see cref="PopulateFrameGameEvents" />) replace the prior direct shell reads.
+///         <see cref="DemoBytesSource" />, <see cref="EntityTrackerSource" />) replace the prior direct shell reads.
 ///     </para>
 /// </summary>
 public sealed partial class ParserTabViewModel : ObservableObject
@@ -125,15 +124,10 @@ public sealed partial class ParserTabViewModel : ObservableObject
     private bool _showRawHex = true;
 
     /// <summary>Initializes a new <see cref="ParserTabViewModel" /> instance.</summary>
-    public ParserTabViewModel(FrameNavigationViewModel navigation)
+    public ParserTabViewModel()
     {
-        Navigation = navigation;
-
         HexViewRaw = new HarvestHexViewModel();
-        HexViewDecompressed = new HarvestHexViewModel
-        {
-            PlaceholderText = "Select a frame to view decoded payload"
-        };
+        HexViewDecompressed = new HarvestHexViewModel { PlaceholderText = "Select a frame to view decoded payload" };
 
         // Reverse byte → node selection. Clicking a byte in the Frame Details
         // (decompressed) view resolves the encompassing payload-tree node and selects it,
@@ -193,13 +187,10 @@ public sealed partial class ParserTabViewModel : ObservableObject
     public HarvestHexViewModel HexViewRaw { get; }
 
     /// <summary>Exposes the normalized-view flag for the still-on-shell tick-group card build.</summary>
-    internal bool IsNormalizedView { get; private set; }
+    private bool IsNormalizedView { get; set; }
 
     /// <summary>Message cards.</summary>
     public ObservableCollection<HarvestCardViewModel> MessageCards { get; } = [];
-
-    /// <summary>Navigation.</summary>
-    public FrameNavigationViewModel Navigation { get; }
 
     /// <summary>
     ///     Notifies the shell that the user selected a new frame. The shell handler
@@ -215,14 +206,6 @@ public sealed partial class ParserTabViewModel : ObservableObject
 
     /// <summary>Payload nodes.</summary>
     public ObservableCollection<PayloadNode> PayloadNodes { get; } = [];
-
-    /// <summary>
-    ///     Fills the shell-owned <c>FrameGameEvents</c> collection from the selected
-    ///     frame, or clears it when invoked with <c>null</c>. Kept on shell because
-    ///     <c>OnSelectedTickGroupChanged</c> populates the same collection from a
-    ///     different code path (3.5b territory).
-    /// </summary>
-    public Action<DemoFrame?>? PopulateFrameGameEvents { get; set; }
 
     /// <summary>
     ///     Source of the <see cref="ProtoIndex" /> singleton built at startup. The parse-chain
@@ -313,7 +296,8 @@ public sealed partial class ParserTabViewModel : ObservableObject
     internal void BuildCardsForFrameExternal(DemoFrame frame) => BuildCardsForFrame(frame);
 
     /// <summary>Exposes the card factory for the still-on-shell tick-group + analysis card builds.</summary>
-    internal HarvestCardViewModel BuildHarvestCardExternal(NetMessage msg, byte[]? msgBytes, int normalizedOffset = 0) =>
+    internal HarvestCardViewModel
+        BuildHarvestCardExternal(NetMessage msg, byte[]? msgBytes, int normalizedOffset = 0) =>
         BuildHarvestCard(msg, msgBytes, normalizedOffset);
 
     /// <summary>
@@ -364,7 +348,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
     ///     <paramref name="demoBytes" />. Returns null if <paramref name="demoBytes" />
     ///     is unavailable or the frame has no payload.
     /// </summary>
-    internal static byte[]? GetDecompressedPayload(DemoFrame frame, byte[]? demoBytes)
+    private static byte[]? GetDecompressedPayload(DemoFrame frame, byte[]? demoBytes)
     {
         if (demoBytes is null || frame.PayloadLength <= 0)
         {
@@ -378,7 +362,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
     ///     Returns the raw proto bytes of <paramref name="msg" /> sliced from
     ///     <paramref name="decompressedPayload" />, or null if position info is missing.
     /// </summary>
-    internal static byte[]? GetMsgBytes(NetMessage msg, byte[]? decompressedPayload)
+    private static byte[]? GetMsgBytes(NetMessage msg, byte[]? decompressedPayload)
     {
         if (decompressedPayload is null)
         {
@@ -395,10 +379,10 @@ public sealed partial class ParserTabViewModel : ObservableObject
             return null;
         }
 
-        return decompressedPayload.AsSpan(start, len).ToArray();
+        return [.. decompressedPayload.AsSpan(start, len)];
     }
 
-    internal static int GetNetMessageTypeId(string typeName)
+    private static int GetNetMessageTypeId(string typeName)
     {
         foreach (NET_Messages val in Enum.GetValues<NET_Messages>())
         {
@@ -431,26 +415,9 @@ public sealed partial class ParserTabViewModel : ObservableObject
     internal static bool IsPacketFrame(DemoFrame frame) =>
         frame.Command is "DEM_Packet" or "DEM_SignonPacket" or "DEM_FullPacket";
 
-    // ── Static helpers (3.5a) ─────────────────────────────────────────────────
-
-    /// <summary>
-    ///     Builds the SelectionInfo string for a frame-level RAW highlight.
-    ///     Includes a Snappy note for compressed frames so users know to check Frame Details.
-    /// </summary>
-    internal static string RawFrameHighlightInfo(DemoFrame frame)
-    {
-        string info = $"Frame: {frame.Command}  tick {frame.GameTick ?? frame.ServerTick}  ({frame.RawLength} bytes at 0x{frame.RawStart:X})";
-        if (frame.IsCompressed)
-        {
-            info += "  •  Snappy-compressed — switch to Frame Details for decompressed bytes";
-        }
-
-        return info;
-    }
-
     // ── Parse-chain cluster (3.5a) ────────────────────────────────────────────
 
-    internal void RebuildParseChain(DemoFrame? frame, NetMessage? message, PayloadNode? node, object? entityItem)
+    private void RebuildParseChain(DemoFrame? frame, NetMessage? message, PayloadNode? node, object? entityItem)
     {
         ParseChain.Clear();
 
@@ -514,7 +481,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
     ///     On success, <paramref name="path" /> contains the full ancestor chain
     ///     (root → target) inclusive.
     /// </summary>
-    internal static bool TryFindPath(
+    private static bool TryFindPath(
         IEnumerable<PayloadNode> nodes,
         PayloadNode target,
         List<PayloadNode> path)
@@ -544,7 +511,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
         IReadOnlyDictionary<string, FieldSemantic>? semanticMap = null)
     {
         List<HarvestPropertyViewModel> children = node.HasChildren
-            ? node.Children.Select(c => AdaptNode(c, card, semanticMap)).ToList()
+            ? [.. node.Children.Select(c => AdaptNode(c, card, semanticMap))]
             : [];
 
         // EnrichedHint resolution lives on the shell (it owns the player-name lookups).
@@ -559,7 +526,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
         HarvestPropertyViewModel prop = new()
         {
             FieldName = node.Name,
-            Value = node.Value ?? "",
+            Value = node.Value,
             WireType = node.WireTypeName,
             FieldNumber = node.FieldNumber,
             ByteOffset = node.HasByteRange ? node.ByteStart : null,
@@ -584,7 +551,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
         Add(ParseChainEntry.Linked("BuildFields()",
             localPath: pbBuilderPath, localLine: 107, indent: indent + 1));
 
-        List<PayloadNode> path = new();
+        List<PayloadNode> path = [];
         TryFindPath(PayloadNodes, node, path);
 
         string? currentMsg = parentMsgName;
@@ -651,9 +618,11 @@ public sealed partial class ParserTabViewModel : ObservableObject
         if (!frame.IsCompressed && !IsNormalizedView && decompSpans is { Count: > 0 })
         {
             int rawBase = frame.PayloadStart;
-            List<HexSpan> rawSpans = decompSpans
-                .Select(s => new HexSpan(rawBase + s.Start, s.Length, s.Level, s.Label))
-                .ToList();
+            List<HexSpan> rawSpans =
+            [
+                .. decompSpans
+                    .Select(s => s with { Start = rawBase + s.Start })
+            ];
             HexViewRaw.SetSpans(rawSpans);
         }
         else
@@ -810,10 +779,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
     {
         HarvestCardViewModel card = new(typeName, bytes.Length, true)
         {
-            Message = null,
-            RawUnknownBytes = bytes,
-            NormalizedOffset = 0,
-            NormalizedPayloadOffset = 0
+            Message = null, RawUnknownBytes = bytes, NormalizedOffset = 0, NormalizedPayloadOffset = 0
         };
         card.SelectCommand = new RelayCommand(() => HandleCardSelected(card));
 
@@ -842,8 +808,8 @@ public sealed partial class ParserTabViewModel : ObservableObject
 
         // EntityFieldNodes lives on EntityTab; the entity selection already drove
         // its rebuild before this method runs (callback ordering wired in ctor).
-        IEnumerable<PayloadNode> fieldNodes = EntityFieldNodesSource?.Invoke() ?? Array.Empty<PayloadNode>();
-        List<PayloadNode> fieldList = fieldNodes.SelectMany(n => n.Children).Take(20).ToList();
+        IEnumerable<PayloadNode> fieldNodes = EntityFieldNodesSource?.Invoke() ?? [];
+        List<PayloadNode> fieldList = [.. fieldNodes.SelectMany(n => n.Children).Take(20)];
         if (fieldList.Count > 0)
         {
             foreach (PayloadNode fieldNode in fieldList)
@@ -946,22 +912,17 @@ public sealed partial class ParserTabViewModel : ObservableObject
 
         if (update.Kind == EntityUpdateInfo.UpdateType.Leave)
         {
-            return new PayloadNode
-            {
-                Name = label,
-                Value = "(leaving PVS)",
-                Depth = depth
-            };
+            return new PayloadNode { Name = label, Value = "(leaving PVS)", Depth = depth };
         }
 
-        List<PayloadNode> fieldNodes = update.Fields
-            .Select(kv => new PayloadNode
-            {
-                Name = kv.Key,
-                Value = MainViewModel.FormatValue(kv.Value),
-                Depth = depth + 1
-            })
-            .ToList();
+        List<PayloadNode> fieldNodes =
+        [
+            .. update.Fields
+                .Select(kv => new PayloadNode
+                {
+                    Name = kv.Key, Value = MainViewModel.FormatValue(kv.Value), Depth = depth + 1
+                })
+        ];
 
         return new PayloadNode
         {
@@ -971,12 +932,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
                 ? fieldNodes
                 :
                 [
-                    new PayloadNode
-                    {
-                        Name = "(no fields)",
-                        Value = "",
-                        Depth = depth + 1
-                    }
+                    new PayloadNode { Name = "(no fields)", Value = "", Depth = depth + 1 }
                 ]
         };
     }
@@ -1229,8 +1185,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
             if (nodes[i].Name == "entity_data")
             {
                 PayloadNode original = nodes[i];
-                List<PayloadNode> children = updates.Select(u => BuildEntityUpdateNode(u, original.Depth + 1))
-                    .ToList();
+                List<PayloadNode> children = [.. updates.Select(u => BuildEntityUpdateNode(u, original.Depth + 1))];
 
                 nodes[i] = new PayloadNode
                 {
@@ -1264,8 +1219,8 @@ public sealed partial class ParserTabViewModel : ObservableObject
         }
 
         int shift = _selectedCard?.NormalizedPayloadOffset
-                    ?? SelectedMessage?.DecompressedStart
-                    ?? 0;
+            ?? SelectedMessage?.DecompressedStart
+            ?? 0;
 
         int nodeOffset = frameDetailsOffset - shift;
         if (nodeOffset < 0)
@@ -1299,11 +1254,6 @@ public sealed partial class ParserTabViewModel : ObservableObject
 
         SelectedMessage = null;
 
-        // Clear shell-owned FrameGameEvents unconditionally: matches the legacy
-        // OnSelectedFrameChanged behaviour, which cleared them at the top before
-        // the null check (PopulateFrameGameEvents accepts null and clears).
-        PopulateFrameGameEvents?.Invoke(null);
-
         if (value is null)
         {
             HexViewRaw.ClearSpans();
@@ -1335,10 +1285,6 @@ public sealed partial class ParserTabViewModel : ObservableObject
             HarvestFrameRowViewModel? row = idx >= 0 && idx < FrameRows.Count ? FrameRows[idx] : null;
             SetProperty(ref _selectedFrameRow, row, nameof(SelectedFrameRow));
         }
-
-        // Populate game events for this frame (shell-owned collection). Already
-        // cleared above; this re-invocation fills it for the non-null branch.
-        PopulateFrameGameEvents?.Invoke(value);
 
         RebuildParseChain(value, null, null, null);
 
@@ -1405,16 +1351,16 @@ public sealed partial class ParserTabViewModel : ObservableObject
         // (= normalized entry start + 8-byte header).  For direct-payload frames it is 0.
         // Fall back to the approximate DecompressedStart only for the legacy non-card path.
         int shift = _selectedCard?.NormalizedPayloadOffset
-                    ?? SelectedMessage?.DecompressedStart
-                    ?? 0;
+            ?? SelectedMessage?.DecompressedStart
+            ?? 0;
 
         // Walk the ancestor chain (root → selected node).
-        List<PayloadNode> path = new();
+        List<PayloadNode> path = [];
         TryFindPath(PayloadNodes, value, path);
 
         // Level 0 = selected (most prominent), Level 1 = parent, Level 2 = grandparent, etc.
         // path is root→selected, so path[last] is the selected node → level 0.
-        List<HexSpan> spans = new();
+        List<HexSpan> spans = [];
         for (int i = 0; i < path.Count; i++)
         {
             PayloadNode node = path[i];
@@ -1451,10 +1397,10 @@ public sealed partial class ParserTabViewModel : ObservableObject
             return;
         }
 
-        List<PayloadNode> path = new();
+        List<PayloadNode> path = [];
         TryFindPath(PayloadNodes, value, path);
 
-        List<HexSpan> spans = new();
+        List<HexSpan> spans = [];
         for (int i = 0; i < path.Count; i++)
         {
             PayloadNode node = path[i];
@@ -1495,7 +1441,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
         Leb128Utils.TryReadUInt32(span[pos..], out uint rawCmd, out int cmdLen);
         bool isCompressed = (rawCmd & 0x40u) != 0;
         string cmdHex = string.Join(" ", span.Slice(pos, cmdLen).ToArray().Select(b => $"{b:X2}"));
-        int cmdAbsOffset = frame.RawStart + pos;
+        int cmdAbsOffset = frame.RawStart;
         FrameHeaderFields.Add(new FrameHeaderFieldViewModel
         {
             Label = "cmd",
@@ -1503,9 +1449,9 @@ public sealed partial class ParserTabViewModel : ObservableObject
             Decoded = frame.Command + (isCompressed ? "  |  DemIsCompressed" : ""),
             OffsetText = $"@ 0x{cmdAbsOffset:X}",
             Tooltip = "ULEB128 varint — EDemoCommands enum value. "
-                      + "Bit 6 (0x40) encodes the DemIsCompressed flag; "
-                      + "the remaining bits are the actual command.\n"
-                      + "Click to highlight these bytes in the RAW tab.",
+                + "Bit 6 (0x40) encodes the DemIsCompressed flag; "
+                + "the remaining bits are the actual command.\n"
+                + "Click to highlight these bytes in the RAW tab.",
             HighlightInRawCommand = new RelayCommand(() =>
             {
                 HexViewRaw.SetSelection(cmdAbsOffset, cmdLen,
@@ -1526,7 +1472,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
             Decoded = (frame.GameTick ?? frame.ServerTick).ToString(CultureInfo.InvariantCulture),
             OffsetText = $"@ 0x{tickAbsOffset:X}",
             Tooltip = "ULEB128 varint — Simulation tick at which this frame was recorded.\n"
-                      + "Click to highlight these bytes in the RAW tab.",
+                + "Click to highlight these bytes in the RAW tab.",
             HighlightInRawCommand = new RelayCommand(() =>
             {
                 HexViewRaw.SetSelection(tickAbsOffset, tickLen,
@@ -1550,9 +1496,9 @@ public sealed partial class ParserTabViewModel : ObservableObject
             Decoded = sizeDecoded,
             OffsetText = $"@ 0x{sizeAbsOffset:X}",
             Tooltip = "ULEB128 varint — Payload length as stored in the .dem file. "
-                      + "For compressed frames this is the Snappy-compressed size; "
-                      + "the hex view below shows the fully decompressed payload.\n"
-                      + "Click to highlight these bytes in the RAW tab.",
+                + "For compressed frames this is the Snappy-compressed size; "
+                + "the hex view below shows the fully decompressed payload.\n"
+                + "Click to highlight these bytes in the RAW tab.",
             HighlightInRawCommand = new RelayCommand(() =>
             {
                 HexViewRaw.SetSelection(sizeAbsOffset, sizeLen,
@@ -1599,7 +1545,8 @@ public sealed partial class ParserTabViewModel : ObservableObject
         {
             int start = card.NormalizedOffset;
             int len = NormalizedHeaderSize + payloadLen;
-            _msgHlInfo = $"{msg.MessageTypeName}  |  Normalized offset {card.NormalizedPayloadOffset}  ({payloadLen} bytes)";
+            _msgHlInfo =
+                $"{msg.MessageTypeName}  |  Normalized offset {card.NormalizedPayloadOffset}  ({payloadLen} bytes)";
             _msgDecompressedRanges = [new HexSpan(start, len, 0, _msgHlInfo)];
         }
         else if (msg.DecompressedStart is { } start && payloadLen > 0)

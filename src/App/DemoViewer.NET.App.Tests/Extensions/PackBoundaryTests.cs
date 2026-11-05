@@ -24,7 +24,7 @@ public class PackBoundaryTests
     private const string Playback2DPipelineProject = "src/Playback2D/DemoViewer.NET.Playback2D.Pipeline";
 
     /// <summary>Known mentions of a pack-owned namespace in core text, with the item that removes each.</summary>
-    private static readonly (string FilePath, string Namespace, string RemovalItem)[] AllowedEdges =
+    private static readonly (string FilePath, string Namespace, string RemovalItem)[] _allowedEdges =
     [
     ];
 
@@ -32,13 +32,16 @@ public class PackBoundaryTests
     public async Task AppProject_HasNoProjectReferenceToAnExtension()
     {
         string repoRoot = DemoTestHelper.FindRepoRoot()
-            ?? throw new SkipTestException("repo root not found (no DemoViewer.NET.slnx above the test binary)");
+            ?? throw new SkipTestException(
+                "repo root not found (no DemoViewer.NET.slnx above the test binary)");
 
         XDocument csproj = XDocument.Load(Path.Combine(repoRoot, AppProject, "DemoViewer.NET.csproj"));
-        List<string> extensionReferences = csproj.Descendants("ProjectReference")
-            .Select(r => (string?)r.Attribute("Include") ?? "")
-            .Where(include => include.Replace('\\', '/').Contains("/Extensions/", StringComparison.Ordinal))
-            .ToList();
+        List<string> extensionReferences =
+        [
+            .. csproj.Descendants("ProjectReference")
+                .Select(r => (string?)r.Attribute("Include") ?? "")
+                .Where(include => include.Replace('\\', '/').Contains("/Extensions/", StringComparison.Ordinal))
+        ];
 
         await Assert.That(extensionReferences).IsEmpty()
             .Because("the app assembly must not reference an extension; the heads compose both");
@@ -55,16 +58,20 @@ public class PackBoundaryTests
     public async Task Playback2DProject_HasNoProjectReferenceToAnExtension(string projectDir, string csprojName)
     {
         string repoRoot = DemoTestHelper.FindRepoRoot()
-            ?? throw new SkipTestException("repo root not found (no DemoViewer.NET.slnx above the test binary)");
+            ?? throw new SkipTestException(
+                "repo root not found (no DemoViewer.NET.slnx above the test binary)");
 
         XDocument csproj = XDocument.Load(Path.Combine(repoRoot, projectDir, csprojName));
-        List<string> extensionReferences = csproj.Descendants("ProjectReference")
-            .Select(r => (string?)r.Attribute("Include") ?? "")
-            .Where(include => include.Replace('\\', '/').Contains("/Extensions/", StringComparison.Ordinal))
-            .ToList();
+        List<string> extensionReferences =
+        [
+            .. csproj.Descendants("ProjectReference")
+                .Select(r => (string?)r.Attribute("Include") ?? "")
+                .Where(include => include.Replace('\\', '/').Contains("/Extensions/", StringComparison.Ordinal))
+        ];
 
         await Assert.That(extensionReferences).IsEmpty()
-            .Because($"{csprojName} must not reference an extension; the extension references it, not the other way round");
+            .Because(
+                $"{csprojName} must not reference an extension; the extension references it, not the other way round");
     }
 
     /// <summary>
@@ -82,10 +89,11 @@ public class PackBoundaryTests
 
         string[] grants =
         [
-            .. granting.SelectMany(a => a.GetCustomAttributes(typeof(System.Runtime.CompilerServices.InternalsVisibleToAttribute), false)
-                    .Cast<System.Runtime.CompilerServices.InternalsVisibleToAttribute>()
-                    .Where(g => g.AssemblyName == "DemoViewer.NET.Extensions.StratBook")
-                    .Select(_ => a.GetName().Name!))
+            .. granting.SelectMany(a => a
+                .GetCustomAttributes(typeof(System.Runtime.CompilerServices.InternalsVisibleToAttribute), false)
+                .Cast<System.Runtime.CompilerServices.InternalsVisibleToAttribute>()
+                .Where(g => g.AssemblyName == "DemoViewer.NET.Extensions.StratBook")
+                .Select(_ => a.GetName().Name!))
         ];
 
         await Assert.That(grants).IsEmpty();
@@ -95,7 +103,8 @@ public class PackBoundaryTests
     public async Task CoreNamespaces_DoNotReferencePack_Except_AllowedEdges()
     {
         string repoRoot = DemoTestHelper.FindRepoRoot()
-            ?? throw new SkipTestException("repo root not found (no DemoViewer.NET.slnx above the test binary)");
+            ?? throw new SkipTestException(
+                "repo root not found (no DemoViewer.NET.slnx above the test binary)");
 
         // Pack-owned namespaces: declared in the extension project and never in the app project. A namespace
         // both declare (Services.Zones, Services.RoundFacts, DemoViewer.NET.Extensions.StratBook.Services.RoundIndex) is shared and
@@ -103,12 +112,13 @@ public class PackBoundaryTests
         HashSet<string> packOwnedNamespaces = FindPackOwnedNamespaces(repoRoot);
 
         string appRoot = Path.Combine(repoRoot, AppProject);
-        HashSet<string> allowedSet = new(AllowedEdges.Select(e => $"{e.FilePath}|{e.Namespace}"), StringComparer.Ordinal);
+        HashSet<string> allowedSet =
+            new(_allowedEdges.Select(e => $"{e.FilePath}|{e.Namespace}"), StringComparer.Ordinal);
 
-        List<(string FilePath, string Namespace)> violations = new();
+        List<(string FilePath, string Namespace)> violations = [];
         foreach (string file in SourceFiles(appRoot))
         {
-            string content = File.ReadAllText(file);
+            string content = await File.ReadAllTextAsync(file);
             string relPath = Path.GetRelativePath(repoRoot, file).Replace('\\', '/');
 
             foreach (string ns in packOwnedNamespaces)
@@ -123,13 +133,14 @@ public class PackBoundaryTests
         if (violations.Count > 0)
         {
             string message = "Core sources mention pack-owned namespaces:\n\n";
-            foreach (var (filePath, ns) in violations.OrderBy(v => v.FilePath).ThenBy(v => v.Namespace))
+            foreach ((string filePath, string ns) in violations.OrderBy(v => v.FilePath).ThenBy(v => v.Namespace))
             {
                 message += $"  {filePath} -> {ns}\n";
             }
 
             message += "\nKnown allowed edges:\n";
-            foreach (var (filePath, ns, item) in AllowedEdges.OrderBy(e => e.FilePath).ThenBy(e => e.Namespace))
+            foreach ((string filePath, string ns, string item) in _allowedEdges.OrderBy(e => e.FilePath)
+                         .ThenBy(e => e.Namespace))
             {
                 message += $"  {filePath} -> {ns} (removed by {item})\n";
             }
@@ -141,10 +152,12 @@ public class PackBoundaryTests
     // Every .cs and .axaml under a project root, build output excluded.
     private static IEnumerable<string> SourceFiles(string root) =>
         Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories)
-            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                           && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                           && (file.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
-                               || file.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase)));
+            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",
+                    StringComparison.Ordinal)
+                && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
+                    StringComparison.Ordinal)
+                && (file.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
+                    || file.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase)));
 
     private static HashSet<string> FindPackOwnedNamespaces(string repoRoot)
     {
@@ -160,7 +173,8 @@ public class PackBoundaryTests
         HashSet<string> namespaces = new(StringComparer.Ordinal);
         foreach (string file in SourceFiles(root).Where(f => f.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)))
         {
-            foreach (Match match in Regex.Matches(File.ReadAllText(file), @"^\s*namespace\s+([A-Za-z0-9_.]+)\s*[;{]", RegexOptions.Multiline))
+            foreach (Match match in Regex.Matches(File.ReadAllText(file), @"^\s*namespace\s+([A-Za-z0-9_.]+)\s*[;{]",
+                         RegexOptions.Multiline))
             {
                 namespaces.Add(match.Groups[1].Value);
             }
@@ -189,7 +203,7 @@ public class PackBoundaryTests
         }
 
         // 2. xmlns attribute in XAML: xmlns="clr-namespace:Namespace;..." or "using:Namespace".
-        if (content.Contains(@$"clr-namespace:{ns}", StringComparison.Ordinal)
+        if (content.Contains($"clr-namespace:{ns}", StringComparison.Ordinal)
             || content.Contains(@$"using:{ns}""", StringComparison.Ordinal))
         {
             return true;

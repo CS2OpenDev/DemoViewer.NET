@@ -102,10 +102,6 @@ public sealed partial class TabSectionHost : ObservableObject
         return true;
     }
 
-    /// <summary>True when this id names one of the sections the host was given, enabled or not.</summary>
-    /// <param name="tabId">The section's persisted tab id.</param>
-    public bool Holds(string? tabId) => tabId is { Length: > 0 } && Sections.Any(s => s.TabId == tabId);
-
     /// <summary>The host tab became the selected strip tab: the selected section goes live with it.</summary>
     /// <param name="context">The module context the shell activates tabs with.</param>
     public void OnHostActivated(IModuleContext context)

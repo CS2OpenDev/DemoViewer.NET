@@ -24,7 +24,8 @@ public sealed record PackCommand(CommandDescriptor Command, string PackId, strin
 public static class LegacyCommandIds
 {
     // Extensions whose every command once shipped as its id minus the extension's prefix.
-    private static readonly HashSet<string> _shippedBare = new(StringComparer.Ordinal) { "net.demoviewer.pack.stratbook" };
+    private static readonly HashSet<string> _shippedBare =
+        new(StringComparer.Ordinal) { "net.demoviewer.pack.stratbook" };
 
     /// <summary>Old id to current id for <paramref name="pack" />'s commands; empty for every other extension.</summary>
     /// <param name="pack">The extension.</param>
@@ -114,13 +115,14 @@ public sealed class CommandRegistry
     /// <summary>Built once from the compatible packs (<see cref="FeaturePacks.Compatible" />).</summary>
     // Lazy: the loader builds registries to check a third-party extension before FeaturePacks is set, and
     // reading FeaturePacks then would freeze it empty.
-    private static readonly Lazy<CommandRegistry> _default = new(() => Build(FeaturePacks.Compatible, static (pack, ex) =>
-    {
-        if (ExtensionFaults.Current is { } faults)
+    private static readonly Lazy<CommandRegistry> _default = new(() => Build(FeaturePacks.Compatible,
+        static (pack, ex) =>
         {
-            faults.FailStartup(faults.GuardFor(pack).Scope, "commands", ex);
-        }
-    }));
+            if (ExtensionFaults.Current is { } faults)
+            {
+                faults.FailStartup(faults.GuardFor(pack).Scope, "commands", ex);
+            }
+        }));
 
     /// <summary>The registry over the packs this launch composed.</summary>
     public static CommandRegistry Default => _default.Value;
@@ -240,7 +242,7 @@ public sealed class CommandRegistry
                     continue;
                 }
 
-                Playback2DBindingScope bindingScope = new(command.Scope ?? "");
+                Playback2DBindingScope bindingScope = new(command.Scope);
                 if (!bindingScope.IsCore
                     && !(scopeOwners.TryGetValue(bindingScope.Name, out string? owner) && owner == pack.Id))
                 {
@@ -335,7 +337,9 @@ public sealed class CommandRegistry
             return "while drawing";
         }
 
-        return scope.Name is { } name && _scopes.TryGetValue(name, out CommandScope? declared) ? declared.Label : scope.Name ?? "";
+        return scope.Name is { } name && _scopes.TryGetValue(name, out CommandScope? declared)
+            ? declared.Label
+            : scope.Name ?? "";
     }
 
     /// <summary>

@@ -32,7 +32,7 @@ internal static class GraphRenderer
             return;
         }
 
-        List<Rect> placedLabels = new();
+        List<Rect> placedLabels = [];
 
         for (int i = 0; i < table.ColumnEdges.Count && i < tableEntry.ColumnEdgeRoutes.Count; i++)
         {

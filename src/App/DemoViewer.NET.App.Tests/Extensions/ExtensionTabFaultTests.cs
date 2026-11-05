@@ -54,7 +54,8 @@ public class ExtensionTabFaultTests
                 await Assert.That(PlaceholderText(vm)).Contains("could not show this tab");
 
                 await Assert.That(vm.TrySelectTab("bad.lifecycle")).IsTrue();
-                await Assert.That(vm.TrySelectTab("bad.view")).IsTrue().Because("leaving a tab whose deactivate throws");
+                await Assert.That(vm.TrySelectTab("bad.view")).IsTrue()
+                    .Because("leaving a tab whose deactivate throws");
 
                 vm.SaveSession();
 
@@ -106,7 +107,8 @@ public class ExtensionTabFaultTests
 
         public void Contribute(IExtensionContributions contributions, IServiceProvider services)
         {
-            contributions.HubTab(new HubTabContribution("bad.hub", "Bad hub", 9, "BAD") { Session = new ThrowingSession() });
+            contributions.HubTab(
+                new HubTabContribution("bad.hub", "Bad hub", 9, "BAD") { Session = new ThrowingSession() });
             contributions.Tabs(new ThrowingModule());
             contributions.Tabs(new CreateTabsThrows());
         }
@@ -166,7 +168,8 @@ public class ExtensionTabFaultTests
         public string DisplayName => "Create throws";
         public Version ContractVersion => new(1, 0, 0);
 
-        public IEnumerable<WorkspaceTabDescriptor> CreateTabs(IModuleHost host) => throw new InvalidOperationException("create");
+        public IEnumerable<WorkspaceTabDescriptor> CreateTabs(IModuleHost host) =>
+            throw new InvalidOperationException("create");
     }
 
     private sealed class ThrowingLifecycle : IWorkspaceTabViewModel
@@ -175,6 +178,6 @@ public class ExtensionTabFaultTests
 
         public void OnDeactivated() => throw new InvalidOperationException("deactivate");
 
-        public object? SnapshotState() => throw new InvalidOperationException("snapshot");
+        public object SnapshotState() => throw new InvalidOperationException("snapshot");
     }
 }

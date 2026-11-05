@@ -2,9 +2,9 @@
 
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Zones;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
 using static DemoViewer.NET.AppTests.StratTestData;
@@ -25,12 +25,13 @@ public class StratAssignmentsFacingTests
     private const int One = 320, Two = 960, Three = 1600, Four = 2240;
 
     // Ramp's centre is up and to the right of B's spot at the origin: 45 degrees.
-    private static readonly PlaceCentreResolver Centres = (place, _) => place == "Ramp" ? (100, 100) : null;
+    private static readonly PlaceCentreResolver _centres = (place, _) => place == "Ramp" ? (100, 100) : null;
 
     // B stands at the origin from step 1 and walks north at step 4; step 2 has B's line and no position.
     private static StratDocument Watching(StepWatch watch, bool positionOnTwo = false)
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "execute", "watch", Created);
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "execute", "watch", Created);
         StratStep one = Step(1, 110, StratVocabulary.ActorAll, "hold");
         one.Positions = [Position("B", 0, 0, 10), Position("C", 50, 0)];
         StratStep two = Step(2, 100, StratVocabulary.ActorAll, "hold");
@@ -49,7 +50,8 @@ public class StratAssignmentsFacingTests
 
     private static TokenTrack Track(StratDocument document, string slot, PlaceCentreResolver? centres,
         ThrowOriginResolver? origins = null) =>
-        StratSceneProjection.Build(document, StratPath.MainLine(document), origins, centres).Tracks.Single(t => t.Slot == slot);
+        StratSceneProjection.Build(document, StratPath.MainLine(document), origins, centres).Tracks
+            .Single(t => t.Slot == slot);
 
     private static float YawAt(TokenTrack track, int tick) =>
         track.TrySample(tick, out TokenKeyframe sample) ? sample.YawDegrees : float.NaN;
@@ -59,7 +61,7 @@ public class StratAssignmentsFacingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            TokenTrack b = Track(Watching(new StepWatch { Places = ["Ramp", "Hut"] }), "B", Centres);
+            TokenTrack b = Track(Watching(new StepWatch { Places = ["Ramp", "Hut"] }), "B", _centres);
 
             using (Assert.Multiple())
             {
@@ -75,13 +77,14 @@ public class StratAssignmentsFacingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            PlaceCentreResolver centres = (place, _) => place switch
+            static (double X, double Y)? Centres(string place, double levelMinZ) => place switch
             {
                 "Hut" => (6, -8),
                 "Ramp" => (100, 100),
                 _ => null
             };
-            TokenTrack b = Track(Watching(new StepWatch { Places = ["Hut", "Ramp"] }), "B", centres);
+
+            TokenTrack b = Track(Watching(new StepWatch { Places = ["Hut", "Ramp"] }), "B", Centres);
 
             await Assert.That(YawAt(b, Two)).IsEqualTo(45f).Because("B stands on Hut, so it faces Ramp");
         });
@@ -92,13 +95,14 @@ public class StratAssignmentsFacingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            TokenTrack b = Track(Watching(new StepWatch { Places = ["Ramp"], YawDegrees = -90 }, true), "B", Centres);
-            TokenTrack authored = Track(Watching(new StepWatch { Places = ["Ramp"] }, true), "B", Centres);
+            TokenTrack b = Track(Watching(new StepWatch { Places = ["Ramp"], YawDegrees = -90 }, true), "B", _centres);
+            TokenTrack authored = Track(Watching(new StepWatch { Places = ["Ramp"] }, true), "B", _centres);
 
             using (Assert.Multiple())
             {
                 await Assert.That(YawAt(b, Two)).IsEqualTo(270f).Because("the angle is normalized to 0..360");
-                await Assert.That(YawAt(authored, Two)).IsEqualTo(45f).Because("the watched place beats the position's yaw");
+                await Assert.That(YawAt(authored, Two)).IsEqualTo(45f)
+                    .Because("the watched place beats the position's yaw");
             }
         });
     }
@@ -113,11 +117,12 @@ public class StratAssignmentsFacingTests
             TokenTrack baseline = Track(plain, "B", null);
 
             TokenTrack noZones = Track(Watching(new StepWatch { Places = ["Ramp"] }), "B", null);
-            TokenTrack unknown = Track(Watching(new StepWatch { Places = ["Nowhere", "Ramp"] }), "B", Centres);
+            TokenTrack unknown = Track(Watching(new StepWatch { Places = ["Nowhere", "Ramp"] }), "B", _centres);
             using (Assert.Multiple())
             {
                 await Assert.That(noZones.Keyframes).IsEquivalentTo(baseline.Keyframes, CollectionOrdering.Matching);
-                await Assert.That(unknown.Keyframes).IsEquivalentTo(baseline.Keyframes, CollectionOrdering.Matching).Because("only the first watched place is faced");
+                await Assert.That(unknown.Keyframes).IsEquivalentTo(baseline.Keyframes, CollectionOrdering.Matching)
+                    .Because("only the first watched place is faced");
             }
         });
     }
@@ -130,7 +135,7 @@ public class StratAssignmentsFacingTests
             StratDocument plain = Watching(new StepWatch());
             plain.Steps[1].Assignments = null;
             TokenTrack baseline = Track(plain, "B", null);
-            TokenTrack turned = Track(Watching(new StepWatch { Places = ["Ramp"] }), "B", Centres);
+            TokenTrack turned = Track(Watching(new StepWatch { Places = ["Ramp"] }), "B", _centres);
 
             List<string> moved = [];
             for (int tick = 0; tick <= Four + 64; tick += 16)
@@ -158,10 +163,11 @@ public class StratAssignmentsFacingTests
             two.Utility = new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid() };
             two.Assignments!.RemoveAt(1);
             two.Actor = "B";
-            ThrowOriginResolver origins = (_, _) => new TokenPlacement(-300, -300, 0, 90);
+            static TokenPlacement? Origins(string map, UtilityRef utility) => new TokenPlacement(-300, -300, 0, 90);
 
-            TokenTrack b = Track(document, "B", Centres, origins);
-            await Assert.That(b.Keyframes.Single(k => k.Tick == Two)).IsEqualTo(new TokenKeyframe(Two, -300, -300, 0, 90));
+            TokenTrack b = Track(document, "B", _centres, Origins);
+            await Assert.That(b.Keyframes.Single(k => k.Tick == Two))
+                .IsEqualTo(new TokenKeyframe(Two, -300, -300, 0, 90));
         });
     }
 
@@ -171,7 +177,7 @@ public class StratAssignmentsFacingTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratDocument document = Watching(new StepWatch { Places = ["Ramp"] });
-            List<StepPosition> carried = StratStepCarry.PositionsAt(document, 1, null, Centres);
+            List<StepPosition> carried = StratStepCarry.PositionsAt(document, 1, null, _centres);
             List<StepPosition> without = StratStepCarry.PositionsAt(document, 1, null);
 
             using (Assert.Multiple())
@@ -181,16 +187,26 @@ public class StratAssignmentsFacingTests
                 await Assert.That(StratStore.Serialize(Doc(carried.Single(p => p.Slot == "C"))))
                     .IsEqualTo(StratStore.Serialize(Doc(document.Steps[0].Positions[1])))
                     .Because("an entry the projection did not turn is carried as stored");
-                await Assert.That(carried.All(p => p.Carried == true)).IsTrue().Because("every carried entry is marked");
-                await Assert.That(document.Steps[0].Positions[1].Carried).IsNull().Because("the step it was copied from keeps its entry");
+                await Assert.That(carried.All(p => p.Carried == true)).IsTrue()
+                    .Because("every carried entry is marked");
+                await Assert.That(document.Steps[0].Positions[1].Carried).IsNull()
+                    .Because("the step it was copied from keeps its entry");
             }
 
             // One document around a position without its mark, so two entries compare by their bytes.
             StratDocument Doc(StepPosition position)
             {
-                StratDocument holder = StratDocument.Create(Guid.Empty, Team, "de_mirage", "T", "execute", "x", Created);
-                StepPosition copy = new() { Slot = position.Slot, X = position.X, Y = position.Y, LevelMinZ = position.LevelMinZ,
-                    YawDegrees = position.YawDegrees, Extra = position.Extra };
+                StratDocument holder =
+                    StratDocument.Create(Guid.Empty, Team, "de_mirage", "T", "execute", "x", Created);
+                StepPosition copy = new()
+                {
+                    Slot = position.Slot,
+                    X = position.X,
+                    Y = position.Y,
+                    LevelMinZ = position.LevelMinZ,
+                    YawDegrees = position.YawDegrees,
+                    Extra = position.Extra
+                };
                 holder.Steps = [new StratStep { Id = Guid.Empty, Positions = [copy] }];
                 return holder;
             }
@@ -218,7 +234,8 @@ public class StratAssignmentsFacingTests
             {
                 await Assert.That(centres.Centre("Ramp", -512)).IsEqualTo((50d, 50d));
                 await Assert.That(centres.Centre("Ramp", -2048)).IsEqualTo((1050d, 50d));
-                await Assert.That(centres.Centre("Ramp", 0)).IsEqualTo((550d, 50d)).Because("no areas on that floor: over all of them");
+                await Assert.That(centres.Centre("Ramp", 0)).IsEqualTo((550d, 50d))
+                    .Because("no areas on that floor: over all of them");
                 await Assert.That(centres.Centre("Hut", -2048)).IsEqualTo((300d, 100d));
                 await Assert.That(centres.Centre("Nowhere", -512)).IsNull();
             }
@@ -233,10 +250,12 @@ public class StratAssignmentsFacingTests
             StratDocument document = Watching(new StepWatch { Places = ["Ramp"] });
             TaskCompletionSource<IZonePlaceResolver?> zones = new();
             (StratStore _, StratSession session) = Opened(document);
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped, readOnly: true,
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped, readOnly: true,
                 placesFor: _ => zones.Task, post: a => a());
 
-            await Assert.That(YawAt(canvas.Tracks.Get("B")!, Two)).IsEqualTo(10f).Because("no centres until the zones load");
+            await Assert.That(YawAt(canvas.Tracks.Get("B")!, Two)).IsEqualTo(10f)
+                .Because("no centres until the zones load");
 
             // StratMapFirstTests' synthetic map: Ramp is the square from (100, 0) to (200, 100), on a floor B is not on.
             zones.SetResult(StratMapFirstTests.SyntheticZones());

@@ -59,15 +59,17 @@ public class Playback2DCommandBindingTests
         await Assert.That(commands.Count).IsGreaterThanOrEqualTo(15)
             .Because("the module's view-models carry the D-track command set, not a stub");
 
-        List<string> unbound = commands
-            .Where(c => !c.IsReachable)
-            .Select(c => c.Describe())
-            .OrderBy(s => s, StringComparer.Ordinal)
-            .ToList();
+        List<string> unbound =
+        [
+            .. commands
+                .Where(c => !c.IsReachable)
+                .Select(c => c.Describe())
+                .OrderBy(s => s, StringComparer.Ordinal)
+        ];
 
         await Assert.That(string.Join("; ", unbound)).IsEqualTo("")
             .Because("a command bound nowhere is either dead surface or — the AUTO toggle's case — a "
-                     + "control that reaches the property and skips the work the command also does");
+                + "control that reaches the property and skips the work the command also does");
     }
 
     /// <summary>
@@ -95,7 +97,7 @@ public class Playback2DCommandBindingTests
 
         await Assert.That(bound.IsReachable).IsTrue()
             .Because("Playback2DView.axaml binds it — a matcher that could not find this would make every "
-                     + "assertion above a false alarm");
+                + "assertion above a false alarm");
         await Assert.That(bound.Sites.Any(s => s.EndsWith(".axaml", StringComparison.Ordinal))).IsTrue();
     }
 
@@ -133,10 +135,12 @@ public class Playback2DCommandBindingTests
                     continue;
                 }
 
-                List<string> sites = Playback2DWholeGraph.ProductionSources
-                    .Where(f => Mentions(property.Name, f.Text))
-                    .Select(f => f.Path)
-                    .ToList();
+                List<string> sites =
+                [
+                    .. Playback2DWholeGraph.ProductionSources
+                        .Where(f => Mentions(property.Name, f.Text))
+                        .Select(f => f.Path)
+                ];
 
                 commands.Add(new CommandBinding(Short(type), property.Name, sites));
             }
@@ -164,6 +168,7 @@ public class Playback2DCommandBindingTests
 ///     Its command name appears in no production source by design: if this ever starts coming back
 ///     "reachable", the corpus has grown to include something it must not.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed class CommandGuardCanaryViewModel
 {
     /// <summary>Deliberately un-XAML-able: no view binds it and none ever should.</summary>

@@ -1,20 +1,20 @@
+#region
+
 using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Extensions.Sdk.Ui;
 using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Modules.Abstractions;
+
+#endregion
 
 namespace ThirdPartyFake.ViewModels;
 
 /// <summary>The tab: a status chip, a key/value table and a nested detail resolved by naming.</summary>
 public sealed class FakeTabViewModel : ExtensionViewModel, IWorkspaceTabViewModel
 {
-    private int _activations;
-
     public StatusChipViewModel Status { get; } = new()
     {
-        DotState = StatusChipDotState.Good,
-        Label = "Fake · ready",
-        Tooltip = "The third-party fake's own chip"
+        DotState = StatusChipDotState.Good, Label = "Fake · ready", Tooltip = "The third-party fake's own chip"
     };
 
     public IReadOnlyList<KvpRow> Rows { get; } =
@@ -26,10 +26,10 @@ public sealed class FakeTabViewModel : ExtensionViewModel, IWorkspaceTabViewMode
 
     public FakeDetailViewModel Detail { get; } = new();
 
-    public int Activations
+    private int Activations
     {
-        get => _activations;
-        private set => SetProperty(ref _activations, value);
+        get;
+        set => SetProperty(ref field, value);
     }
 
     public void OnActivated(IModuleContext context) => Activations++;

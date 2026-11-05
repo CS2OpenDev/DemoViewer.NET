@@ -37,10 +37,7 @@ public class MatchOverviewSpectatorTests
         players[10] = new PlayerInfo(10, "observer", 201UL, 10, 0, false);
         players[11] = new PlayerInfo(11, "coach", 202UL, 11, 1, false);
         players[12] = new PlayerInfo(12, "admin", 203UL, 12, 0, false);
-        players[13] = new PlayerInfo(13, "CSTV", 0UL, 13, 0, true)
-        {
-            IsHltv = true
-        };
+        players[13] = new PlayerInfo(13, "CSTV", 0UL, 13, 0, true) { IsHltv = true };
 
         MatchOverviewTabViewModel vm = new();
         vm.BeginOpening("synthetic.dem", null, null, "synthetic.dem");
@@ -60,7 +57,7 @@ public class MatchOverviewSpectatorTests
             .IsEqualTo((vm.Terrorists.Count + vm.CounterTerrorists.Count).ToString(CultureInfo.InvariantCulture));
 
         // The proxy is neither a player nor a spectator. It is infrastructure.
-        IReadOnlyList<string> named = vm.Terrorists.Concat(vm.CounterTerrorists).Select(p => p.Name).ToList();
+        IReadOnlyList<string> named = [.. vm.Terrorists.Concat(vm.CounterTerrorists).Select(p => p.Name)];
         await Assert.That(named).DoesNotContain("CSTV");
     }
 

@@ -64,6 +64,7 @@ public sealed record ReviewHighlightRef(string RulesetId, string HighlightId, in
 ///         handed never sees a field change under it.
 ///     </para>
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed record ReviewEntry
 {
     /// <summary>Stable across edits and moves; the key every mutation names.</summary>
@@ -140,8 +141,8 @@ public sealed record ReviewEntry
             FromTick = Math.Max(0, Math.Min(fromTick, toTick)),
             ToTick = Math.Max(0, Math.Max(fromTick, toTick)),
             TickRate = Math.Max(0, tickRate),
-            Note = note ?? "",
-            Source = source ?? "",
+            Note = note,
+            Source = source,
             Highlight = highlight
         };
     }
@@ -151,10 +152,7 @@ public sealed record ReviewEntry
     /// <param name="subtitle">The line under it, or empty.</param>
     public static ReviewEntry Section(string title, string subtitle = "") => new()
     {
-        Id = Guid.NewGuid(),
-        Kind = ReviewEntryKind.Section,
-        Title = title ?? "",
-        Note = subtitle ?? ""
+        Id = Guid.NewGuid(), Kind = ReviewEntryKind.Section, Title = title, Note = subtitle
     };
 }
 
@@ -182,18 +180,19 @@ public sealed class ReviewQueueFile
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
-    public int SchemaVersion { get; set; } = CurrentSchema;
+    public int SchemaVersion { get; init; } = CurrentSchema;
 
-    public ReviewClockHeader Clock { get; set; } = new();
+    public ReviewClockHeader Clock { get; init; } = new();
 
     /// <summary>The queue in order.</summary>
-    public List<ReviewEntry> Entries { get; set; } = [];
+    public List<ReviewEntry> Entries { get; init; } = [];
 
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Extra { get; set; }
+    public Dictionary<string, JsonElement>? Extra { get; init; }
 }
 
 /// <summary>The file's <c>clock</c> block: which clock every tick in it is on.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class ReviewClockHeader
 {
     public string Kind { get; set; } = ClockIdentity.DvFrameClock;

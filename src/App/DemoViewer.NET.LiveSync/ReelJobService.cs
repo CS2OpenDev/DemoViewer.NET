@@ -34,7 +34,7 @@ public sealed class ReelJobService(
     Action<string>? log = null,
     Func<bool>? isCs2Running = null) : IReelJobService, IDisposable
 {
-    private readonly object _lifecycle = new();
+    private readonly Lock _lifecycle = new();
     private CancellationTokenSource? _cts;
     private Task? _job;
     private ReelRequest? _lastRequest;
@@ -115,10 +115,7 @@ public sealed class ReelJobService(
             ];
             retry = remaining.Count == 0
                 ? null
-                : _lastRequest with
-                {
-                    Clips = remaining
-                };
+                : _lastRequest with { Clips = remaining };
         }
 
         if (retry is not null)
@@ -169,8 +166,8 @@ public sealed class ReelJobService(
                 {
                     Phase = ReelJobPhase.Failed,
                     Error = "Real reel generation needs Windows — the InEngineHooked capture "
-                            + "provider streams frames from a DXGI present hook. "
-                            + "Use \"Dry run (mock)\" to validate the clip plan on other platforms."
+                    + "provider streams frames from a DXGI present hook. "
+                    + "Use \"Dry run (mock)\" to validate the clip plan on other platforms."
                 };
                 return;
             }
@@ -193,7 +190,8 @@ public sealed class ReelJobService(
             {
                 if (suspendedSync)
                 {
-                    await InstallRecovery.WaitForCs2ExitAsync(InstallRecovery.Cs2ExitTimeout, cancellationToken, isCs2Running)
+                    await InstallRecovery
+                        .WaitForCs2ExitAsync(InstallRecovery.Cs2ExitTimeout, cancellationToken, isCs2Running)
                         .ConfigureAwait(false);
                 }
 
@@ -207,7 +205,8 @@ public sealed class ReelJobService(
                     : new OutputLogBridge(
                         (_, category, message) => log($"{category}: {message}"),
                         // Transient job: read the live setting directly (no hot gRPC stream here).
-                        () => LiveSyncService.ToMelLevel((settings?.CurrentValue ?? new AppSettings()).LiveSync.MinimumLogLevel),
+                        () => LiveSyncService.ToMelLevel((settings?.CurrentValue ?? new AppSettings()).LiveSync
+                            .MinimumLogLevel),
                         () => (settings?.CurrentValue ?? new AppSettings()).LiveSync.CaptureFrameworkLogs),
                 cancellationToken,
                 // Pin the capture backend for real reels (dry runs are playback-only and never
@@ -248,9 +247,7 @@ public sealed class ReelJobService(
             await session.StartAsync(
                 new EngineSessionOptions
                 {
-                    Width = captureWidth,
-                    Height = captureHeight,
-                    Fullscreen = effective.GameFullscreen
+                    Width = captureWidth, Height = captureHeight, Fullscreen = effective.GameFullscreen
                 },
                 true, cancellationToken).ConfigureAwait(false);
 
@@ -321,8 +318,7 @@ public sealed class ReelJobService(
 
             SetStatus(terminal ?? Status with
             {
-                Phase = ReelJobPhase.Failed,
-                Error = "The reel job ended without a result."
+                Phase = ReelJobPhase.Failed, Error = "The reel job ended without a result."
             });
         }
 
@@ -333,11 +329,7 @@ public sealed class ReelJobService(
         {
             lock (failed)
             {
-                SetStatus(Status with
-                {
-                    Phase = ReelJobPhase.Capturing,
-                    CurrentClipLabel = ClipLabel(request, index)
-                });
+                SetStatus(Status with { Phase = ReelJobPhase.Capturing, CurrentClipLabel = ClipLabel(request, index) });
             }
 
             return Task.CompletedTask;
@@ -358,9 +350,7 @@ public sealed class ReelJobService(
 
                 SetStatus(Status with
                 {
-                    Phase = ReelJobPhase.Capturing,
-                    ClipsCompleted = completed,
-                    FailedClipIndices = [.. failed]
+                    Phase = ReelJobPhase.Capturing, ClipsCompleted = completed, FailedClipIndices = [.. failed]
                 });
             }
 
@@ -387,9 +377,7 @@ public sealed class ReelJobService(
             ReelClip clip = request.Clips[i];
             SetStatus(Status with
             {
-                Phase = ReelJobPhase.Capturing,
-                CurrentClipLabel = clip.Label,
-                ClipsCompleted = completed
+                Phase = ReelJobPhase.Capturing, CurrentClipLabel = clip.Label, ClipsCompleted = completed
             });
 
             try
@@ -462,11 +450,7 @@ public sealed class ReelJobService(
             ConcatenateClips = request.Concatenate,
             Encoding = request.Crf is null && request.VideoBitrate is null
                 ? null
-                : new Cs2EncodingSettings
-                {
-                    Crf = request.Crf,
-                    VideoBitrate = request.VideoBitrate
-                }
+                : new Cs2EncodingSettings { Crf = request.Crf, VideoBitrate = request.VideoBitrate }
         },
         Clips =
         [

@@ -15,11 +15,6 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class ToleranceSliderTests
 {
-    private const string DemoA = "/d/a.dem";
-    private const string DemoB = "/d/b.dem";
-    private const string DemoC = "/d/c.dem";
-    private const string DemoTrain = "/d/train.dem";
-
     private static readonly string[] _nukePlaces = ["BombsiteA", "Hell", "Ramp", "Outside", "Lobby", "Heaven"];
 
     [Test]
@@ -31,7 +26,10 @@ public class ToleranceSliderTests
         using (Assert.Multiple())
         {
             await Assert.That(h.Vm.ToleranceStops).IsEquivalentTo(
-                [SituationTolerance.Exact, SituationTolerance.Adjacent, SituationTolerance.TwoHops, SituationTolerance.AnyPlace], CollectionOrdering.Matching);
+            [
+                SituationTolerance.Exact, SituationTolerance.Adjacent, SituationTolerance.TwoHops,
+                SituationTolerance.AnyPlace
+            ], CollectionOrdering.Matching);
             await Assert.That(h.Vm.ToleranceMaximum).IsEqualTo(3);
             await Assert.That(h.Vm.ToleranceValue).IsEqualTo(0);
         }
@@ -40,11 +38,13 @@ public class ToleranceSliderTests
         await Assert.That(h.Vm.Draft.Tolerance).IsEqualTo(SituationTolerance.Exact);
         await Assert.That(h.Vm.ToleranceLabel).IsEqualTo("exact, exactly N");
 
-        await Assert.That(await h.CountAt(1)).IsEqualTo(2).Because("A round 2 sums five over A and Hell; B has four in A");
+        await Assert.That(await h.CountAt(1)).IsEqualTo(2)
+            .Because("A round 2 sums five over A and Hell; B has four in A");
         await Assert.That(h.Vm.Draft.Tolerance).IsEqualTo(SituationTolerance.Adjacent);
         await Assert.That(h.Vm.ToleranceLabel).IsEqualTo("adjacent places, at least N");
 
-        await Assert.That(await h.CountAt(2)).IsEqualTo(2).Because("Ramp joins the neighbourhood but no CT stands there");
+        await Assert.That(await h.CountAt(2)).IsEqualTo(2)
+            .Because("Ramp joins the neighbourhood but no CT stands there");
         await Assert.That(h.Vm.Draft.Tolerance).IsEqualTo(SituationTolerance.TwoHops);
         await Assert.That(h.Vm.ToleranceLabel).IsEqualTo("two hops, at least N");
 
@@ -59,7 +59,8 @@ public class ToleranceSliderTests
         h.Vm.ToleranceValue = 2.4;
         using (Assert.Multiple())
         {
-            await Assert.That(h.Vm.Draft.Tolerance).IsEqualTo(SituationTolerance.TwoHops).Because("a drag between detents lands on the nearest stop");
+            await Assert.That(h.Vm.Draft.Tolerance).IsEqualTo(SituationTolerance.TwoHops)
+                .Because("a drag between detents lands on the nearest stop");
             await Assert.That(h.Vm.ResultCount).IsNull();
         }
 
@@ -109,14 +110,16 @@ public class ToleranceSliderTests
         using (Assert.Multiple())
         {
             await Assert.That(h.Index.Adjacency("de_train")).IsNull().Because("train has a row but no indexed demo");
-            await Assert.That(h.Vm.ToleranceStops).IsEquivalentTo([SituationTolerance.Exact, SituationTolerance.AnyPlace], CollectionOrdering.Matching);
+            await Assert.That(h.Vm.ToleranceStops)
+                .IsEquivalentTo([SituationTolerance.Exact, SituationTolerance.AnyPlace], CollectionOrdering.Matching);
             await Assert.That(h.Vm.ToleranceMaximum).IsEqualTo(1);
             await Assert.That(h.Vm.AdjacencySource).IsNull();
             await Assert.That(h.Vm.AdjacencyLine).IsEqualTo("no adjacency graph: exact or any place");
         }
 
         h.Vm.ToleranceValue = 1;
-        await Assert.That(h.Vm.Draft.Tolerance).IsEqualTo(SituationTolerance.AnyPlace).Because("the second stop is the loose end");
+        await Assert.That(h.Vm.Draft.Tolerance).IsEqualTo(SituationTolerance.AnyPlace)
+            .Because("the second stop is the loose end");
 
         // A tolerance the stops do not offer (a watch saved at Adjacent) sits on Exact, which is what
         // the index runs it as, and the draft keeps it so a re-save does not change the watch.
@@ -141,8 +144,7 @@ public class ToleranceSliderTests
         RoundIndexBuilderTests.FakeZoneResolver nuke = new("zv-1", _ => null,
             new Dictionary<string, string[]>(StringComparer.Ordinal)
             {
-                ["BombsiteA"] = ["Heaven"],
-                ["Heaven"] = ["BombsiteA"]
+                ["BombsiteA"] = ["Heaven"], ["Heaven"] = ["BombsiteA"]
             });
         using ToleranceSliderHarness zoned = new(new RoundIndexEvaluatorTests.MapZones(("de_nuke", nuke)));
         using ToleranceSliderHarness plain = new();
@@ -166,7 +168,8 @@ public class ToleranceSliderTests
         using (Assert.Multiple())
         {
             await Assert.That(await zoned.CountAt(1)).IsEqualTo(0).Because("no round holds five over A and Heaven");
-            await Assert.That(await plain.CountAt(1)).IsEqualTo(1).Because("A round 2 holds three in A and two in Hell");
+            await Assert.That(await plain.CountAt(1)).IsEqualTo(1)
+                .Because("A round 2 holds three in A and two in Hell");
             await Assert.That(await zoned.CountAt(3)).IsEqualTo(3);
         }
 
@@ -180,5 +183,4 @@ public class ToleranceSliderTests
         int count = random.Next(0, 4);
         return [.. Enumerable.Range(0, count).Select(_ => _nukePlaces[random.Next(_nukePlaces.Length)])];
     }
-
 }

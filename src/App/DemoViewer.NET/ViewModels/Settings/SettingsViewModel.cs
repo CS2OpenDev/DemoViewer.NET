@@ -2,7 +2,6 @@
 
 using System.Collections.ObjectModel;
 using System.Globalization;
-using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -62,26 +61,28 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     [
         ("UserCategory", "user category consumer power-user developer tier show hide"),
         ("Theme", "theme dark light high contrast egirl colors appearance reload drop-in"),
-        ("Identity", "identity me my accounts steam steamid steamid64 profile who am i active account smurf suggestion"),
-        ("Updates", "updates version check release notes update restart beta prerelease subscribe channel automatic network offline"),
+        ("Identity",
+            "identity me my accounts steam steamid steamid64 profile who am i active account smurf suggestion"),
+        ("Updates",
+            "updates version check release notes update restart beta prerelease subscribe channel automatic network offline"),
         ("Folders", "library folders scan demos dem watch add remove folder"),
         ("Processing", "background processing queue max demos concurrency parse ram"),
         ("Idle", "idle timeout auto close memory ram resume inactivity"),
         ("Features", "features tabs toggles chrome overrides hidden reset gate sub-features"),
         ("LiveSync", "live sync cs2 csvg install path game window fullscreen width height mock "
-                     + "tick offset plugin session log verbosity grpc"),
+            + "tick offset plugin session log verbosity grpc"),
         ("Highlights", "highlights reels clips lead-in lead-out padding output format fps crf "
-                       + "bitrate resolution audio scan"),
+            + "bitrate resolution audio scan"),
         ("Diagnostics", "diagnostics logging log level rows file rolling caps size count"),
         ("Playback2DKeys", "keys keybinds keybindings keyboard shortcuts hotkeys gestures rebind "
-                           + "controls 2d playback radar draw erase undo pan follow round kill speed"),
+            + "controls 2d playback radar draw erase undo pan follow round kill speed"),
         // The generic keyword surface for the section that lists every FeatureScope.Pack master switch.
         // ExtensionsSectionMatches below ALSO scans each built row's own Label, so a pack's name (and its
         // tabs' names) are findable without listing them here by hand. A pack's own contributed PAGES
         // (Suggested Tags tuning, Grenade Index) carry their own Keywords on the contribution
         // instead of a row here.
         ("Extensions", "extension extensions pack packs plugin addon add-on master switch background "
-                       + "indexing reindex")
+            + "indexing reindex")
     ];
 
     // Every feature row, in one flat list, for the gate-driven refresh sweep (the bound collections below are
@@ -140,7 +141,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     ///     <c>AppSettings.ProcessingQueue.BackgroundProcessingEnabled</c>. Opening a demo always runs regardless.
     /// </summary>
     [ObservableProperty]
-    private bool _backgroundProcessingEnabled = true;
+    private bool _backgroundProcessingEnabled;
 
     /// <summary>
     ///     The row currently waiting for a keypress, or null. At most one at a time: two armed rows would
@@ -155,37 +156,34 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     /// <summary>Rolled log files retained → <c>AppSettings.Diagnostics.FileMaxCount</c> (next launch).</summary>
     [ObservableProperty]
-    private int _diagnosticsFileMaxCount = 5;
+    private int _diagnosticsFileMaxCount;
 
     /// <summary>Rolling-file size cap in KB → <c>AppSettings.Diagnostics.FileMaxSizeKilobytes</c> (next launch).</summary>
     [ObservableProperty]
-    private int _diagnosticsFileMaxSizeKb = 4096;
+    private int _diagnosticsFileMaxSizeKb;
 
     /// <summary>Minimum severity for the internal log stream → <c>AppSettings.Diagnostics.MinimumLogLevel</c>. Live.</summary>
     [ObservableProperty]
-    private LiveSyncLogLevel _diagnosticsLogLevel = LiveSyncLogLevel.Information;
+    private LiveSyncLogLevel _diagnosticsLogLevel;
 
     // ── Diagnostics logging (the unified internal ILogger pillar) ─────────────
 
     /// <summary>Master switch for internal diagnostics logging → <c>AppSettings.Diagnostics.EnableInternalLogging</c>. Live.</summary>
     [ObservableProperty]
-    private bool _diagnosticsLoggingEnabled = true;
+    private bool _diagnosticsLoggingEnabled;
 
     /// <summary>Max rows in the in-app log window → <c>AppSettings.Diagnostics.MaxLogRows</c>. Live (v0.6.0).</summary>
     [ObservableProperty]
-    private int _diagnosticsMaxLogRows = 5000;
+    private int _diagnosticsMaxLogRows;
 
     /// <summary>
     ///     Mirror internal logs to a rolling file → <c>AppSettings.Diagnostics.WriteLogFile</c> (takes effect next
     ///     launch).
     /// </summary>
     [ObservableProperty]
-    private bool _diagnosticsWriteLogFile = true;
+    private bool _diagnosticsWriteLogFile;
 
     private bool _disposed;
-
-    // Lazy: most sessions never hit the best-effort catch this backs.
-    private ILogger? _diagLog;
 
     /// <summary>Advanced (developer): force an incompatible plugin → <c>AppSettings.LiveSync.ForceIncompatiblePlugin</c>.</summary>
     [ObservableProperty]
@@ -206,24 +204,24 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     ///     launch check, the What's New fetch, and the extension check on open; the buttons still work.
     /// </summary>
     [ObservableProperty]
-    private bool _checkForUpdatesAutomatically = true;
+    private bool _checkForUpdatesAutomatically;
 
     // ── Idle mode: desktop only; suppressed on WASM like Background processing. ──
 
     /// <summary>Master enable for idle mode → <c>AppSettings.Idle.Enabled</c> (default ON). Live.</summary>
     [ObservableProperty]
-    private bool _idleEnabled = true;
+    private bool _idleEnabled;
 
     /// <summary>Keep background processing running while idle → <c>AppSettings.Idle.KeepBackgroundProcessing</c>.</summary>
     [ObservableProperty]
-    private bool _idleKeepBackgroundProcessing = true;
+    private bool _idleKeepBackgroundProcessing;
 
     /// <summary>
     ///     Idle wait in MINUTES (editable via a numeric spinner; decimals allowed for finer control, e.g. 0.5 =
     ///     30 s). Maps to the model's <see cref="TimeSpan" /> <c>AppSettings.Idle.IdleTimeoutWait</c> on persist.
     /// </summary>
     [ObservableProperty]
-    private double _idleTimeoutMinutes = 15;
+    private double _idleTimeoutMinutes;
 
     [ObservableProperty]
     private bool _isGroupDiagnosticsExpanded = true;
@@ -251,6 +249,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     ///     only write valid rows, so a non-empty note here always means the file was edited by hand.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasKeybindRejections))]
     private string _keybindRejectionNote = "";
 
     /// <summary>Also surface framework (ASP.NET/gRPC) log lines → <c>AppSettings.LiveSync.CaptureFrameworkLogs</c>.</summary>
@@ -269,18 +268,18 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     /// <summary>CS2 game window height → <c>AppSettings.LiveSync.GameWindowHeight</c>.</summary>
     [ObservableProperty]
-    private int _liveSyncGameWindowHeight = 800;
+    private int _liveSyncGameWindowHeight;
 
     /// <summary>CS2 game window width → <c>AppSettings.LiveSync.GameWindowWidth</c> (v0.6.0 UI).</summary>
     [ObservableProperty]
-    private int _liveSyncGameWindowWidth = 1280;
+    private int _liveSyncGameWindowWidth;
 
     /// <summary>
     ///     Minimum severity for the CSVG log surface → <c>AppSettings.LiveSync.MinimumLogLevel</c>.
     ///     Live: lowering it surfaces more detail on a running session with no reconnect.
     /// </summary>
     [ObservableProperty]
-    private LiveSyncLogLevel _liveSyncLogLevel = LiveSyncLogLevel.Information;
+    private LiveSyncLogLevel _liveSyncLogLevel;
 
     /// <summary>Mock-mode toggle (developer) → <c>AppSettings.LiveSync.MockMode</c>.</summary>
     [ObservableProperty]
@@ -299,11 +298,11 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     ///     16 GB OOM-safety invariant; &gt; 1 is advanced and clamped to [1, <see cref="ConcurrencyMax" />].
     /// </summary>
     [ObservableProperty]
-    private int _maxConcurrency = 1;
+    private int _maxConcurrency;
 
     /// <summary>Max background-tier items held in the queue → <c>AppSettings.ProcessingQueue.MaxQueueSize</c>.</summary>
     [ObservableProperty]
-    private int _maxQueueSize = 200;
+    private int _maxQueueSize;
 
     /// <summary>Reel bitrate kbps (0 = unset) → <c>AppSettings.Highlights.ReelBitrateKbps</c> when in bitrate mode.</summary>
     [ObservableProperty]
@@ -311,31 +310,31 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     /// <summary>Capture game audio in reels → <c>AppSettings.Highlights.ReelCaptureAudio</c>.</summary>
     [ObservableProperty]
-    private bool _reelCaptureAudio = true;
+    private bool _reelCaptureAudio;
 
     /// <summary>Concatenate the reel's clips into one video → <c>AppSettings.Highlights.ReelConcatenate</c>.</summary>
     [ObservableProperty]
-    private bool _reelConcatenate = true;
+    private bool _reelConcatenate;
 
     /// <summary>Reel container format → <c>AppSettings.Highlights.ReelContainerFormat</c>.</summary>
     [ObservableProperty]
-    private string _reelContainerFormat = "mp4";
+    private string _reelContainerFormat;
 
     /// <summary>Reel CRF quality → <c>AppSettings.Highlights.ReelCrf</c> (lower = better).</summary>
     [ObservableProperty]
-    private int _reelCrf = 20;
+    private int _reelCrf;
 
     /// <summary>Reel capture frame rate → <c>AppSettings.Highlights.ReelFps</c>.</summary>
     [ObservableProperty]
-    private int _reelFps = 60;
+    private int _reelFps;
 
     /// <summary>Reel default lead-in seconds → <c>AppSettings.Highlights.ClipLeadInSeconds</c>.</summary>
     [ObservableProperty]
-    private double _reelLeadInSeconds = 15;
+    private double _reelLeadInSeconds;
 
     /// <summary>Reel default lead-out seconds → <c>AppSettings.Highlights.ClipLeadOutSeconds</c>.</summary>
     [ObservableProperty]
-    private double _reelLeadOutSeconds = 5;
+    private double _reelLeadOutSeconds;
 
     /// <summary>Reel output folder → <c>AppSettings.Highlights.ReelOutputDirectory</c>.</summary>
     [ObservableProperty]
@@ -343,15 +342,18 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     /// <summary>Encoding mode radio: CRF (quality) when true, else bitrate. Persisted via the CRF ⊕ bitrate write.</summary>
     [ObservableProperty]
-    private bool _reelUseCrf = true;
+    private bool _reelUseCrf;
 
     /// <summary>The selected category card (bound to the ListBox SelectedItem). Persisted on change.</summary>
     [ObservableProperty]
     private CategoryOption _selectedCategoryOption;
 
-    /// <summary>The selected theme (bound to the ComboBox SelectedItem). Its <see cref="Theme.Id" /> is persisted on change.</summary>
+    /// <summary>
+    ///     The selected theme (bound to the ComboBox SelectedItem). Its <see cref="Theme.Id" /> is persisted on
+    ///     change. Null while the ComboBox's list is being refilled.
+    /// </summary>
     [ObservableProperty]
-    private Theme _selectedTheme;
+    private Theme? _selectedTheme;
 
     /// <summary>The settings search box. Empty = everything shows (gates permitting).</summary>
     [ObservableProperty]
@@ -443,7 +445,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     public SettingsViewModel(
         SettingsService settings, IOptionsMonitor<AppSettings> monitor, IFeatureGate gate, ThemeRegistry themes,
         Action? replayWalkthrough = null, IReadOnlyList<SettingsPageContribution>? settingsPages = null,
-        IReadOnlyList<IReindexEstimate>? reindexEstimates = null, IReadOnlyList<IExtensionDataRemoval>? dataRemovals = null,
+        IReadOnlyList<IReindexEstimate>? reindexEstimates = null,
+        IReadOnlyList<IExtensionDataRemoval>? dataRemovals = null,
         IReadOnlyList<PackStatus>? packStatuses = null, ExtensionUpdateService? extensionUpdates = null)
         : this(settings, monitor, gate, themes, OperatingSystem.IsBrowser, replayWalkthrough, settingsPages,
             reindexEstimates, dataRemovals, packStatuses, extensionUpdates)
@@ -509,7 +512,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         _reindexEstimate = reindexEstimates is { Count: > 0 } estimates ? estimates[0] : null;
         foreach (IExtensionDataRemoval removal in dataRemovals ?? [])
         {
-            string label = FeatureCatalog.All.FirstOrDefault(d => d.Id == removal.FeatureId)?.Label ?? removal.FeatureId;
+            string label = FeatureCatalog.All.FirstOrDefault(d => d.Id == removal.FeatureId)?.Label
+                ?? removal.FeatureId;
             ExtensionDataActions.Add(new ExtensionDataActionViewModel(removal, label));
         }
 
@@ -525,7 +529,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         AppSettings current = settings.Current;
         _allowUnverifiedExtensions = current.Extensions.AllowUnverified;
         _allowUnverifiedAtOpen = current.Extensions.AllowUnverified;
-        ExternalExtensionRows = ExternalExtensionRow.Build(StatusesOrProcess(packStatuses), FeaturePacks.ExternalRejected);
+        ExternalExtensionRows =
+            ExternalExtensionRow.Build(StatusesOrProcess(packStatuses), FeaturePacks.ExternalRejected);
         _selectedCategoryOption = OptionFor(current.UserCategory);
         _selectedTheme = ThemeFor(current.Theme);
         UpdateSelectedThemeMissing();
@@ -594,7 +599,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
         // The feeds are asked on open, at most once an hour, unless automatic checks are off; the per-row
         // button always asks.
-        if (current.Updates.CheckAutomatically && ShouldAutoCheckExtensionUpdates(current.Extensions.LastUpdateCheckUtc, DateTimeOffset.UtcNow))
+        if (current.Updates.CheckAutomatically
+            && ShouldAutoCheckExtensionUpdates(current.Extensions.LastUpdateCheckUtc, DateTimeOffset.UtcNow))
         {
             _ = CheckExtensionUpdatesAsync();
         }
@@ -695,7 +701,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     /// <summary>Opens Theme Customization on the selected theme (System opens on the variant it shows).</summary>
     [RelayCommand]
-    private void CustomizeTheme() => _openThemeEditor?.Invoke(SelectedTheme.CanCustomize ? SelectedTheme.Id : null);
+    private void CustomizeTheme() =>
+        _openThemeEditor?.Invoke(SelectedTheme is { CanCustomize: true } theme ? theme.Id : null);
 
     /// <summary>Whether the Live Sync (CS2) section is shown: desktop only (suppressed on WASM).</summary>
     public bool CanManageLiveSync { get; } = !OperatingSystem.IsBrowser();
@@ -881,10 +888,12 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         {
             _faults.Changed -= RefreshFaultNotices;
         }
+
         if (_identity is not null)
         {
             _identity.Changed -= RefreshIdentity;
         }
+
         _onChange?.Dispose();
         _extensionUpdatesCts.Cancel();
         _extensionUpdatesCts.Dispose();
@@ -935,7 +944,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         }
 
         return keywords.Contains(filter, StringComparison.OrdinalIgnoreCase)
-               || Fuzz.PartialRatio(filter.ToLowerInvariant(), keywords) >= 80;
+            || Fuzz.PartialRatio(filter.ToLowerInvariant(), keywords) >= 80;
     }
 
     // Recomputes every section/group visibility from (platform gate × filter). Called from the
@@ -964,7 +973,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         bool anyPageVisible = RefreshContributedPageVisibility(filter);
 
         ShowGroupGeneral = ShowSectionUserCategory || ShowSectionTheme || ShowSectionIdentity || ShowSectionUpdates
-                           || ShowSectionPlayback2DKeys;
+            || ShowSectionPlayback2DKeys;
         ShowGroupLibrary = ShowSectionFolders || ShowSectionProcessing || ShowSectionIdle;
         ShowGroupFeatures = ShowSectionFeatures;
         ShowGroupExtensions = ShowSectionExtensions || anyPageVisible;
@@ -1046,9 +1055,6 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    partial void OnKeybindRejectionNoteChanged(string value) =>
-        OnPropertyChanged(nameof(HasKeybindRejections));
-
     // One row per SHIPPED binding, reserved rows included: a reserved gesture that is simply absent from
     // the list reads as free, which is the opposite of what the reservation means. A row whose action a
     // pack owns carries that pack's label and gate id, so IsVisible and the label chip can read it.
@@ -1057,7 +1063,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         IReadOnlyDictionary<string, PackCommand> packOwners = CommandRegistry.Default.PackOwnerByAction;
         foreach (Playback2DBinding binding in Playback2DKeymapProfile.Default.Bindings)
         {
-            PackCommand? owner = packOwners.TryGetValue(binding.ActionId, out PackCommand? found) ? found : null;
+            PackCommand? owner = packOwners.GetValueOrDefault(binding.ActionId);
             Playback2DKeybindRows.Add(new KeybindRow(this, binding, owner?.PackLabel, owner?.PackFeatureId));
         }
     }
@@ -1118,7 +1124,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Disarms whatever row is capturing. Idempotent.</summary>
-    internal void CancelKeybindCapture()
+    private void CancelKeybindCapture()
     {
         if (CapturingKeybind is { } row)
         {
@@ -1233,7 +1239,10 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     // Matched by current id, so a row written under an action's old id goes with it.
     private static string[] WithoutAction(string[] rows, string actionId) =>
-        [.. rows.Where(r => !string.Equals(Playback2DKeymapProfile.ActionIdOfRow(r), actionId, StringComparison.OrdinalIgnoreCase))];
+    [
+        .. rows.Where(r =>
+            !string.Equals(Playback2DKeymapProfile.ActionIdOfRow(r), actionId, StringComparison.OrdinalIgnoreCase))
+    ];
 
     // A modifier's own key event carries the modifier in neither Key nor KeyModifiers reliably across
     // platforms, so they are matched by key identity rather than by inspecting the flags.
@@ -1277,11 +1286,13 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     internal void AddFolders(IReadOnlyList<string> paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
-        string[] updated = LibraryFolders
-            .Concat(paths)
-            .Where(p => !string.IsNullOrEmpty(p))
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
+        string[] updated =
+        [
+            .. LibraryFolders
+                .Concat(paths)
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Distinct(StringComparer.Ordinal)
+        ];
         if (updated.Length == LibraryFolders.Count)
         {
             return; // nothing new
@@ -1301,10 +1312,10 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         Persist(s => s.UserCategory = value.Value);
     }
 
-    partial void OnSelectedThemeChanged(Theme value)
+    partial void OnSelectedThemeChanged(Theme? value)
     {
         UpdateSelectedThemeMissing();
-        if (_applyingExternal)
+        if (_applyingExternal || value is null)
         {
             return;
         }
@@ -1741,11 +1752,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         }
 
         IReadOnlyList<IStorageFolder> picked = await _storageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Select the reel output folder",
-                AllowMultiple = false
-            });
+            new FolderPickerOpenOptions { Title = "Select the reel output folder", AllowMultiple = false });
         string? path = picked.Count > 0 ? picked[0].TryGetLocalPath() : null;
         if (!string.IsNullOrEmpty(path))
         {
@@ -1766,11 +1773,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         }
 
         IReadOnlyList<IStorageFolder> picked = await _storageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Select your CS2 install folder",
-                AllowMultiple = false
-            });
+            new FolderPickerOpenOptions { Title = "Select your CS2 install folder", AllowMultiple = false });
         string? path = picked.Count > 0 ? picked[0].TryGetLocalPath() : null;
         if (!string.IsNullOrEmpty(path))
         {
@@ -1795,17 +1798,15 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         }
 
         IReadOnlyList<IStorageFolder> picked = await _storageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Add demo folder",
-                AllowMultiple = true
-            });
+            new FolderPickerOpenOptions { Title = "Add demo folder", AllowMultiple = true });
 
-        List<string> paths = picked
-            .Select(f => f.TryGetLocalPath())
-            .Where(p => !string.IsNullOrEmpty(p))
-            .Cast<string>()
-            .ToList();
+        List<string> paths =
+        [
+            .. picked
+                .Select(f => f.TryGetLocalPath())
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Cast<string>()
+        ];
         if (paths.Count == 0)
         {
             return;
@@ -1818,9 +1819,11 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void RemoveFolder(string path)
     {
-        string[] updated = LibraryFolders
-            .Where(f => !string.Equals(f, path, StringComparison.Ordinal))
-            .ToArray();
+        string[] updated =
+        [
+            .. LibraryFolders
+                .Where(f => !string.Equals(f, path, StringComparison.Ordinal))
+        ];
         if (updated.Length == LibraryFolders.Count)
         {
             return; // not present
@@ -1983,7 +1986,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         if (_identity is { } identity && row is not null)
         {
-            identity.SetAccounts(identity.Accounts.Where(a => !string.Equals(a.SteamId64, row.SteamId64, StringComparison.Ordinal)));
+            identity.SetAccounts(identity.Accounts.Where(a =>
+                !string.Equals(a.SteamId64, row.SteamId64, StringComparison.Ordinal)));
         }
     }
 
@@ -2026,10 +2030,12 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         IdentityAccounts.Clear();
         foreach (IdentityAccount account in accounts)
         {
-            PlayerEntry? entry = ulong.TryParse(account.SteamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
-                ? _identityDirectory?.Get(id)
-                : null;
-            IdentityAccounts.Add(new IdentityAccountRow(account.SteamId64, account.Label, entry?.Name, entry?.DemoCount ?? 0,
+            PlayerEntry? entry =
+                ulong.TryParse(account.SteamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
+                    ? _identityDirectory?.Get(id)
+                    : null;
+            IdentityAccounts.Add(new IdentityAccountRow(account.SteamId64, account.Label, entry?.Name,
+                entry?.DemoCount ?? 0,
                 string.Equals(account.SteamId64, active, StringComparison.Ordinal)));
         }
 
@@ -2135,7 +2141,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
         foreach (FeatureDescriptor descriptor in FeatureCatalog.All)
         {
-            if (descriptor.Scope == FeatureScope.Chrome && descriptor.OwnerPackId is null)
+            if (descriptor is { Scope: FeatureScope.Chrome, OwnerPackId: null })
             {
                 AddFeatureRow(ChromeFeatureRows, descriptor, 0);
             }
@@ -2255,7 +2261,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task CheckExtensionUpdatesAsync()
     {
-        if (_extensionUpdates is null || ExtensionUpdateRows.Count == 0 || _disposed || ExtensionUpdateRows.Any(r => r.IsChecking))
+        if (_extensionUpdates is null || ExtensionUpdateRows.Count == 0 || _disposed
+            || ExtensionUpdateRows.Any(r => r.IsChecking))
         {
             return;
         }
@@ -2330,7 +2337,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         bool platformUnavailable =
             _isBrowser() && ShellModuleFeatureGate.DesktopOnlyIds.Contains(descriptor.Id);
 
-        FeatureToggleRow row = new(this, _gate, descriptor, indentLevel, platformUnavailable, version, incompatibility, source, loadNote, update);
+        FeatureToggleRow row = new(this, _gate, descriptor, indentLevel, platformUnavailable, version, incompatibility,
+            source, loadNote, update);
         group.Add(row);
         _featureRows.Add(row);
     }
@@ -2382,7 +2390,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
                 else
                 {
                     string label = FeatureCatalog.All.FirstOrDefault(d => d.Id == watched.FeatureId)?.Label
-                                   ?? "extension";
+                        ?? "extension";
                     StratBookToggleNotice = $"The {label} stops its background work. Its data stays on disk.";
                 }
             }
@@ -2399,7 +2407,8 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ResetButtonText));
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.Settings");
+    // Lazy: most sessions never hit the best-effort catch this backs.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.Settings");
 
     // Resolves the re-index count off the UI thread (PendingPaths over a large library is not free) and
     // writes the final notice, UNLESS a later toggle already changed the generation: dropping a stale
@@ -2605,8 +2614,10 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         IReadOnlyList<ThemeLoadProblem> problems = _registry.LoadProblems;
         ThemeLoadProblemsText = problems.Count == 0
             ? null
-            : (problems.Count == 1 ? "1 theme file couldn't be loaded:\n" : $"{problems.Count} theme files couldn't be loaded:\n")
-              + string.Join("\n", problems.Select(p => $"{p.FileName}: {p.Reason}"));
+            : (problems.Count == 1
+                ? "1 theme file couldn't be loaded:\n"
+                : $"{problems.Count} theme files couldn't be loaded:\n")
+            + string.Join("\n", problems.Select(p => $"{p.FileName}: {p.Reason}"));
     }
 
     // The editor or "Reload themes" re-scanned the folder: refresh the list, keeping the selection (or falling

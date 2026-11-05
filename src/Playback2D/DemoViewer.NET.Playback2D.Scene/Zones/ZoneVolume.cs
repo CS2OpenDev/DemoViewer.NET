@@ -7,6 +7,7 @@ using System.Numerics;
 namespace DemoViewer.NET.Playback2D.Zones;
 
 /// <summary>What a volume in <c>zones.json</c> is, by the entity class the baker read it from.</summary>
+[PublicAPI]
 public enum ZoneVolumeKind
 {
     /// <summary><c>env_cs_place</c>: a named place.</summary>
@@ -23,6 +24,7 @@ public enum ZoneVolumeKind
 }
 
 /// <summary>The two bombsites, by <c>bomb_site_designation</c> (0 = A, 1 = B).</summary>
+[PublicAPI]
 public enum Bombsite
 {
     /// <summary>Designation 0.</summary>
@@ -84,6 +86,7 @@ internal sealed class ZoneHull
 ///     One trigger or place volume: a set of convex hulls with a world AABB as the pre-reject. A user
 ///     zone is the same thing built from a polygon and a Z band, so the resolver has one code path.
 /// </summary>
+[PublicAPI]
 public sealed class ZoneVolume
 {
     /// <summary>Creates a volume.</summary>

@@ -2,12 +2,11 @@
 
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.TestSupport;
 using SkiaSharp;
 
@@ -54,11 +53,7 @@ public class ReviewRegressionTests
         SceneTime frameClock = new(100, 100, 1.0, 1.0 / 64, false);
         SceneTime injected = new(999, 4242, 66.5, 1.0 / 30, true);
 
-        Scene2DFrame frame = new()
-        {
-            Time = frameClock,
-            Markers = OneMarker
-        };
+        Scene2DFrame frame = new() { Time = frameClock, Markers = OneMarker };
 
         using CpuSurfaceProvider provider = new();
         using SceneCompositor compositor = new();
@@ -82,11 +77,7 @@ public class ReviewRegressionTests
     public async Task Render_PassesTheInjectedClockToTheRenderContext()
     {
         SceneTime injected = new(7, 7, 0.5, 1.0 / 64, true);
-        Scene2DFrame frame = new()
-        {
-            Time = new SceneTime(1, 1, 0, 0, false),
-            Markers = OneMarker
-        };
+        Scene2DFrame frame = new() { Time = new SceneTime(1, 1, 0, 0, false), Markers = OneMarker };
 
         using CpuSurfaceProvider provider = new();
         using SceneCompositor compositor = new();
@@ -115,7 +106,7 @@ public class ReviewRegressionTests
     [Test]
     public async Task ResolvedBackend_ReportsItsBackend_AfterTheProviderIsDisposed()
     {
-        using DisposeTrackingProvider provider = new();
+        DisposeTrackingProvider provider = new();
         ResolvedBackend resolved = new(provider, "cpu", null);
 
         RenderBackend before = resolved.Backend;
@@ -176,14 +167,14 @@ public class ReviewRegressionTests
         GC.WaitForPendingFinalizers();
         GC.Collect(2, GCCollectionMode.Aggressive, true, true);
 
-        const int iterations = 256;
+        const int Iterations = 256;
         long before = GC.GetAllocatedBytesForCurrentThread();
-        for (int i = 0; i < iterations; i++)
+        for (int i = 0; i < Iterations; i++)
         {
             snapshot.Refresh(tracker);
         }
 
-        long perFrame = (GC.GetAllocatedBytesForCurrentThread() - before) / iterations;
+        long perFrame = (GC.GetAllocatedBytesForCurrentThread() - before) / Iterations;
 
         // 424 with the per-frame delegate, 360 without; a delegate is 64 bytes.
         await Assert.That(perFrame).IsLessThanOrEqualTo(384);

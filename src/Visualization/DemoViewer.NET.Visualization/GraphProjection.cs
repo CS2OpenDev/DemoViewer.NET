@@ -49,7 +49,7 @@ public static class GraphProjection
 
         // Selected node set (reference identity — same instances the layout/state paths use).
         HashSet<IGraphNode> selected = new(ReferenceEqualityComparer.Instance);
-        List<IGraphNode> selectedNodes = new();
+        List<IGraphNode> selectedNodes = [];
         foreach (IGraphNode node in nodes)
         {
             if (include(node))
@@ -60,7 +60,7 @@ public static class GraphProjection
         }
 
         // Induced edges: both endpoints must survive.
-        List<IGraphEdge> inducedEdges = new();
+        List<IGraphEdge> inducedEdges = [];
         foreach (IGraphEdge edge in edges)
         {
             if (selected.Contains(edge.Source) && selected.Contains(edge.Destination))
@@ -72,12 +72,12 @@ public static class GraphProjection
         // Groups restricted to surviving members; drop any that end up empty so the layout doesn't
         // draw a container around nothing. Group bounds are recomputed by the layout pass from the
         // restricted member set, so no stale full-size boxes.
-        List<INodeGroup> restrictedGroups = new();
+        List<INodeGroup> restrictedGroups = [];
         if (groups is not null)
         {
             foreach (INodeGroup group in groups)
             {
-                List<IGraphNode> members = new();
+                List<IGraphNode> members = [];
                 foreach (IGraphNode member in group.Members)
                 {
                     if (selected.Contains(member))

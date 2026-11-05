@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Extensions.Sdk;
 
 /// <summary>How the last write of a demo's facet ended.</summary>
+[PublicAPI]
 public enum DemoDataState
 {
     /// <summary>Not written yet, or marked for a rebuild.</summary>
@@ -27,6 +28,7 @@ public enum DemoDataState
 /// <param name="State">How the last write ended.</param>
 /// <param name="WrittenAtTicks">When the facet was last written, in UTC ticks; 0 when it never was.</param>
 /// <param name="Count">The extension's own count for the facet (rows, items), or 0.</param>
+[PublicAPI]
 public sealed record DemoDataStamp(
     string DemoPath,
     string? Sha256,
@@ -41,7 +43,8 @@ public sealed record DemoDataStamp(
     /// <param name="schema">The payload shape the extension reads.</param>
     /// <param name="fingerprint">What the extension would write now.</param>
     public bool IsCurrent(int schema, string? fingerprint) =>
-        State == DemoDataState.Written && Schema == schema && string.Equals(Fingerprint, fingerprint, StringComparison.Ordinal);
+        State == DemoDataState.Written && Schema == schema
+        && string.Equals(Fingerprint, fingerprint, StringComparison.Ordinal);
 }
 
 /// <summary>One facet of one demo, as written.</summary>
@@ -55,6 +58,7 @@ public sealed record DemoDataStamp(
 ///     fingerprint reads the facet as absent.
 /// </param>
 /// <param name="Payload">The facet's main content.</param>
+[PublicAPI]
 public sealed record DemoDataWrite(string Facet, int Schema, string? Fingerprint, ReadOnlyMemory<byte> Payload)
 {
     /// <summary>
@@ -75,7 +79,13 @@ public sealed record DemoDataWrite(string Facet, int Schema, string? Fingerprint
 /// <param name="ExtensionVersion">The extension's version that wrote it.</param>
 /// <param name="WrittenAtTicks">When it was written, in UTC ticks.</param>
 /// <param name="Content">The payload, or the part asked for.</param>
-public sealed record DemoDataRecord(int Schema, string? Fingerprint, string? ExtensionVersion, long WrittenAtTicks, byte[] Content);
+[PublicAPI]
+public sealed record DemoDataRecord(
+    int Schema,
+    string? Fingerprint,
+    string? ExtensionVersion,
+    long WrittenAtTicks,
+    byte[] Content);
 
 /// <summary>
 ///     The extension's per-demo data: content the extension computes for a demo and can always compute again,
@@ -116,6 +126,7 @@ public sealed record DemoDataRecord(int Schema, string? Fingerprint, string? Ext
 ///         keep nothing.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IExtensionDemoData
 {
     /// <summary>False in the browser build, where nothing is kept.</summary>

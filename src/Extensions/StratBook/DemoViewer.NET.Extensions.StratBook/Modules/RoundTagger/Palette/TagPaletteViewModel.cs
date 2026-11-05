@@ -19,9 +19,10 @@ public sealed record PaletteKeymap(Func<Key, KeyModifiers, string?> ActionFor, F
 {
     /// <summary>The palette keys at the pack's shipped gestures, before the 2D tab hands over the user's keymap.</summary>
     public static PaletteKeymap Default { get; } = new(
-        (key, modifiers) => StratBookCommands.All.FirstOrDefault(c => c.Scope == StratBookActions.PaletteScope
-                                                                      && c.DefaultChord is { } chord
-                                                                      && chord.Key == key && chord.KeyModifiers == modifiers)?.Id,
+        (key, modifiers) => StratBookCommands.All.FirstOrDefault(c =>
+            c is { Scope: StratBookActions.PaletteScope, DefaultChord: { } chord }
+            && chord.Key == key
+            && chord.KeyModifiers == modifiers)?.Id,
         id => StratBookCommands.All.FirstOrDefault(c => c.Id == id)?.DefaultChord is { } chord
             ? KeyGestureText.Format(chord.Key, chord.KeyModifiers)
             : "");
@@ -46,11 +47,11 @@ public sealed class TagPaletteButtonViewModel
 
     public string Caption => Button.Caption;
 
-    public bool HasHotkey { get; }
+    private bool HasHotkey { get; }
 
-    public Key Key { get; }
+    private Key Key { get; }
 
-    public KeyModifiers Modifiers { get; }
+    private KeyModifiers Modifiers { get; }
 
     /// <summary>The hotkey as the keymap spells gestures ("1", "Ctrl+Shift+W"), or "".</summary>
     public string HotkeyText { get; }
@@ -234,13 +235,13 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
     /// <summary>The palette's keys from the resolved keymap, so a rebind shows the user's gesture.</summary>
     public string HintText => IsLabelMode
         ? $"{Gesture(StratBookActions.TagLabelMode)} back to tagging · "
-          + $"{Gesture(StratBookActions.TagLabelGroupNext)} next group · "
-          + $"{Gesture(StratBookActions.TagPaletteBack)} drop the pick, then leave · "
-          + $"{Gesture("Undo")} undo · click a tag's band: label it, again: the next one there"
+        + $"{Gesture(StratBookActions.TagLabelGroupNext)} next group · "
+        + $"{Gesture(StratBookActions.TagPaletteBack)} drop the pick, then leave · "
+        + $"{Gesture("Undo")} undo · click a tag's band: label it, again: the next one there"
         : $"{Gesture(StratBookActions.FocusTagPalette)} focus · {Gesture(StratBookActions.TagPaletteBack)} back · "
-          + $"{Gesture(StratBookActions.TagNote)} note · {Gesture(StratBookActions.TagClearSticky)} clear sticky · "
-          + $"{Gesture(StratBookActions.TagLabelMode)} label mode · "
-          + $"{Gesture("Undo")} undo · click map: point, again: movement";
+        + $"{Gesture(StratBookActions.TagNote)} note · {Gesture(StratBookActions.TagClearSticky)} clear sticky · "
+        + $"{Gesture(StratBookActions.TagLabelMode)} label mode · "
+        + $"{Gesture("Undo")} undo · click map: point, again: movement";
 
     /// <summary>Raised when the user picks a palette, with its id, so the tab can persist the choice.</summary>
     public event Action<string>? PaletteChosen;
@@ -267,7 +268,7 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
     /// <param name="keymap">The palette's keys under the keymap the tab routes through.</param>
     public void ApplyKeymap(PaletteKeymap keymap)
     {
-        _keymap = keymap ?? PaletteKeymap.Default;
+        _keymap = keymap;
         OnPropertyChanged(nameof(HintText));
     }
 
@@ -356,7 +357,7 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
 
     /// <summary>Presses a button of the open panel: a code starts a tag, a label adds to the one being made.</summary>
     /// <param name="button">A button of <see cref="CurrentPanel" />.</param>
-    public bool Press(TagPaletteButton button)
+    private bool Press(TagPaletteButton button)
     {
         ArgumentNullException.ThrowIfNull(button);
         if (CurrentPanel is not { } panel || !panel.Buttons.Contains(button) || _session.Document is null)
@@ -399,7 +400,7 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
     ///     Esc: writes a pending tag with the labels it has and returns to the codes; on the codes with nothing
     ///     pending, leaves the palette.
     /// </summary>
-    public bool Back()
+    private bool Back()
     {
         // Label Mode: the first Esc drops the Tag Track pick (back to the playhead's tag), the next one
         // goes back to tagging.
@@ -457,7 +458,7 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Opens the note box on the tag being made, else on the last one written. False when there is neither.</summary>
-    public bool BeginNote()
+    private bool BeginNote()
     {
         string? current = _pending is { } pending ? pending.Note : LastInstance()?.Note;
         if (_pending is null && LastInstance() is null)
@@ -471,7 +472,7 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Keeps the note: on the pending tag, or as its own undoable edit of the last one. Blank removes it.</summary>
-    public bool CommitNote()
+    private bool CommitNote()
     {
         if (!IsEditingNote)
         {
@@ -504,14 +505,14 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Closes the note box without changing anything.</summary>
-    public void CancelNote()
+    private void CancelNote()
     {
         IsEditingNote = false;
         NoteDraft = "";
     }
 
     /// <summary>Forgets every sticky label. False when there were none.</summary>
-    public bool ClearSticky()
+    private bool ClearSticky()
     {
         if (_sticky.Count == 0)
         {
@@ -559,7 +560,7 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Switches Label Mode on or off. Turning it on writes a pending tag first.</summary>
-    public bool ToggleLabelMode() => SetLabelMode(!IsLabelMode);
+    private bool ToggleLabelMode() => SetLabelMode(!IsLabelMode);
 
     /// <summary>
     ///     Turns Label Mode on or off. On, the palette shows the labels panels for the target; off, it
@@ -640,7 +641,7 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
             return false;
         }
 
-        List<TagPalettePanel> panels = Palette.Panels.Where(p => p.IsLabels).ToList();
+        List<TagPalettePanel> panels = [.. Palette.Panels.Where(p => p.IsLabels)];
         if (panels.Count == 0)
         {
             return false;
@@ -893,7 +894,7 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
     private static void AddLabel(TagInstance instance, string group, string value)
     {
         if (!instance.Labels.Any(l => string.Equals(l.Group, group, StringComparison.Ordinal)
-                                      && string.Equals(l.Value, value, StringComparison.Ordinal)))
+                && string.Equals(l.Value, value, StringComparison.Ordinal)))
         {
             instance.Labels.Add(new TagLabel(group, value));
         }
@@ -944,7 +945,8 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
 
     private static string Describe(TagInstance instance)
     {
-        string labels = string.Join(", ", instance.Labels.Select(l => l.Group.Length == 0 ? l.Value : $"{l.Group}={l.Value}"));
+        string labels = string.Join(", ",
+            instance.Labels.Select(l => l.Group.Length == 0 ? l.Value : $"{l.Group}={l.Value}"));
         string text = labels.Length == 0 ? instance.Code : $"{instance.Code} · {labels}";
         if (instance.Positions.Count + instance.Movements.Count > 0)
         {

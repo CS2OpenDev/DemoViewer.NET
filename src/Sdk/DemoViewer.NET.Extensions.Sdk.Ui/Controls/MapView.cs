@@ -3,7 +3,6 @@
 using Avalonia;
 using Avalonia.Controls;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Tools;
 
@@ -26,6 +25,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///         Outside the app (a designer, a bare test) there is no host to draw the map and the control is empty.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class MapView : Control
 {
     /// <summary>Defines the <see cref="MapName" /> property.</summary>
@@ -213,6 +213,7 @@ public sealed class MapView : Control
 ///     A scene layer added to a <see cref="MapView" /> or a <see cref="SceneView" />: the id it was filed
 ///     under, and its removal.
 /// </summary>
+[PublicAPI]
 public interface ILayerHandle : IDisposable
 {
     /// <summary>
@@ -230,7 +231,7 @@ internal interface IMapViewBackend
     Control View { get; }
 
     /// <summary>The map to show.</summary>
-    string? MapName { get; set; }
+    string? MapName { set; }
 
     /// <summary>True when art for the map was found.</summary>
     bool HasMap { get; }

@@ -23,7 +23,7 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Layers;
 internal sealed class DebugGridLayer : ISceneLayer
 {
     /// <summary>One CS2 cell width, matching the pre-v2 viewport's grid step.</summary>
-    internal const double GridStepWorld = 512;
+    private const double GridStepWorld = 512;
 
     private const int MajorEvery = 4;
     private const float MarkerRadiusPx = 12f;
@@ -80,8 +80,8 @@ internal sealed class DebugGridLayer : ISceneLayer
 
         // A degenerate transform can map the whole pane to a sliver of world; cap the line count so a
         // bad camera is a blank frame rather than a hang.
-        const int maxLines = 512;
-        if ((maxX - minX) / GridStepWorld > maxLines || (maxY - minY) / GridStepWorld > maxLines)
+        const int MaxLines = 512;
+        if ((maxX - minX) / GridStepWorld > MaxLines || (maxY - minY) / GridStepWorld > MaxLines)
         {
             return;
         }

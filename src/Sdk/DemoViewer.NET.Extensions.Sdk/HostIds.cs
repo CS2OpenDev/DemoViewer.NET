@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Extensions.Sdk;
 
 /// <summary>Ids of host tabs, features and passes an extension can name.</summary>
+[PublicAPI]
 public static class HostIds
 {
     /// <summary>

@@ -33,10 +33,14 @@
 
             <Grid Classes="mateRow" Margin="8 0" ColumnDefinitions="*,64,72,56,56,64">
                 <TextBlock Grid.Column="0" Classes="col-label" Text="PLAYER" />
-                <TextBlock Grid.Column="1" Classes="col-label num" Text="MATCHES" ToolTip.Tip="Matches both ended on the same side" />
-                <TextBlock Grid.Column="2" Classes="col-label num" Text="W-L" ToolTip.Tip="Matches won and lost together" />
-                <TextBlock Grid.Column="3" Classes="col-label num" Text="WIN%" ToolTip.Tip="Matches won together of those with stats" />
-                <TextBlock Grid.Column="4" Classes="col-label num" Text="HLTV" ToolTip.Tip="Their HLTV rating in the matches together" />
+                <TextBlock Grid.Column="1" Classes="col-label num" Text="MATCHES"
+                           ToolTip.Tip="Matches both ended on the same side" />
+                <TextBlock Grid.Column="2" Classes="col-label num" Text="W-L"
+                           ToolTip.Tip="Matches won and lost together" />
+                <TextBlock Grid.Column="3" Classes="col-label num" Text="WIN%"
+                           ToolTip.Tip="Matches won together of those with stats" />
+                <TextBlock Grid.Column="4" Classes="col-label num" Text="HLTV"
+                           ToolTip.Tip="Their HLTV rating in the matches together" />
             </Grid>
 
             <ListBox x:Name="TeammatesList" Classes="data-list" MaxHeight="300" ItemsSource="{Binding Rows}"
@@ -48,7 +52,8 @@
                 </ListBox.ItemsPanel>
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="sections:TeammateRowItem">
-                        <Grid Classes="mateRow" Height="26" Background="Transparent" ColumnDefinitions="*,64,72,56,56,64">
+                        <Grid Classes="mateRow" Height="26" Background="Transparent"
+                              ColumnDefinitions="*,64,72,56,56,64">
                             <TextBlock Grid.Column="0" Text="{Binding Name}" />
                             <TextBlock Grid.Column="1" Classes="num" Text="{Binding MatchesText}" />
                             <TextBlock Grid.Column="2" Classes="num" Text="{Binding RecordText}" />
@@ -56,7 +61,7 @@
                             <TextBlock Grid.Column="4" Classes="num" Text="{Binding HltvText}" />
                             <Button Grid.Column="5" Classes="ghost chip" Content="Open" HorizontalAlignment="Right"
                                     ToolTip.Tip="Open this player's overview"
-                                    Command="{Binding $parent[ListBox].((sections:TeammatesSectionViewModel)DataContext).OpenTeammateCommand}"
+                                    Command="{Binding $parent[ListBox].((sections:TeammatesSectionViewModel)DataContext).OpenTeammateCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding}" />
                         </Grid>
                     </DataTemplate>

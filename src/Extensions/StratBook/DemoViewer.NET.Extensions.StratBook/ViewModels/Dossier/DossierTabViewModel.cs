@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
@@ -9,13 +8,14 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Extensions.Sdk.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.Dossier;
 using DemoViewer.NET.Extensions.StratBook.Modules.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Playback2D.Overlay;
-using DemoViewer.NET.Extensions.Sdk.Review;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Playback2D.Overlay;
 
 #endregion
 
@@ -132,7 +132,8 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     /// <param name="roundIndex">The round index stamps the projection key reads; none when null.</param>
     /// <param name="notes">The user's stars, edits and notes; a session-only store when null.</param>
     /// <param name="export">Writes an export (text, stem, extension) and opens it; the temp-file writer when null.</param>
-    public DossierTabViewModel(TeamIdentityService teams, IExtensionLibrary library, VetoHistoryStore vetoes, bool? isBrowser = null,
+    public DossierTabViewModel(TeamIdentityService teams, IExtensionLibrary library, VetoHistoryStore vetoes,
+        bool? isBrowser = null,
         SetupHeatmapService? heatmaps = null,
         IExtensionReviewQueue? review = null,
         Func<string, bool>? selectTab = null,
@@ -163,16 +164,18 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
         _post = post ?? (action => Dispatcher.UIThread.Post(action));
         _decode = decode ?? DecodePng;
         IsBrowser = isBrowser ?? OperatingSystem.IsBrowser();
-        _runSection = runSection ?? (_ => work => Task.Run(work));
+        _runSection = runSection ?? (_ => Task.Run);
         Openings = new OpeningTendenciesSectionViewModel(openings, review, selectTab, _post, _runSection("openings"));
         PostPlant = new PostPlantSectionViewModel(postPlant, review, selectTab, _post, _runSection("post-plant"));
-        Situational = new SituationalBehaviourSectionViewModel(situational, review, selectTab, _post, _runSection("situational"));
+        Situational =
+            new SituationalBehaviourSectionViewModel(situational, review, selectTab, _post, _runSection("situational"));
         Editor = new DossierEditorViewModel(notes ?? new DossierNotesStore(null), IsBrowser, export);
         Openings.PropertyChanged += OnSectionChanged;
         PostPlant.PropertyChanged += OnSectionChanged;
         Situational.PropertyChanged += OnSectionChanged;
         Editor.Projected += OnEditorProjected;
-        foreach (DossierSectionViewModel section in (DossierSectionViewModel[])[RecordSection, RosterSection, VetoSection, NotesSection])
+        foreach (DossierSectionViewModel section in (DossierSectionViewModel[])
+                 [RecordSection, RosterSection, VetoSection, NotesSection])
         {
             section.PropertyChanged += OnSectionToggled;
         }
@@ -183,11 +186,9 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
         {
             _grenades.Changed += Refresh;
         }
+
         Refresh();
     }
-
-    /// <summary>The line the panel shows on the browser host: nothing here outlives the tab.</summary>
-    public static string BrowserNote => TeamIdentityService.BrowserNote;
 
     public bool IsBrowser { get; }
 
@@ -198,7 +199,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     public ObservableCollection<VetoRowViewModel> Vetoes { get; } = [];
 
     /// <summary>A section starts open with this many findings or fewer, the Review queue's rule.</summary>
-    public const int OpenSectionLimit = 50;
+    private const int OpenSectionLimit = 50;
 
     // Open or closed per section key, for the session.
     private readonly Dictionary<string, bool> _expanded = new(StringComparer.OrdinalIgnoreCase);
@@ -255,7 +256,8 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
 
     private void OnSectionToggled(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (!_applyingDefault && e.PropertyName == nameof(DossierSectionViewModel.IsExpanded) && sender is DossierSectionViewModel section)
+        if (!_applyingDefault && e.PropertyName == nameof(DossierSectionViewModel.IsExpanded)
+            && sender is DossierSectionViewModel section)
         {
             _expanded[section.Key] = section.IsExpanded;
         }
@@ -279,23 +281,26 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
             }
         }
 
-        Dictionary<string, DossierMapSectionViewModel> existing = MapSections.ToDictionary(m => m.Map, StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, DossierMapSectionViewModel> existing =
+            MapSections.ToDictionary(m => m.Map, StringComparer.OrdinalIgnoreCase);
         List<DossierMapSectionViewModel> wanted = [];
         foreach (string map in maps)
         {
-            List<DossierFindingViewModel> findings = Editor.MapFindings.TryGetValue(map, out List<DossierFindingViewModel>? f) ? f : [];
+            List<DossierFindingViewModel> findings =
+                Editor.MapFindings.TryGetValue(map, out List<DossierFindingViewModel>? f) ? f : [];
             if (!existing.TryGetValue(map, out DossierMapSectionViewModel? section))
             {
-                section = new DossierMapSectionViewModel(map, _expanded.TryGetValue("map|" + map, out bool open) && open);
+                section = new DossierMapSectionViewModel(map,
+                    _expanded.TryGetValue("map|" + map, out bool open) && open);
                 section.PropertyChanged += OnSectionToggled;
             }
 
             OpenByDefault(section, findings.Count);
 
-            bool same(string m) => string.Equals(m, map, StringComparison.OrdinalIgnoreCase);
-            section.Set(Maps.FirstOrDefault(m => same(m.Map)), [.. Heatmaps.Where(h => same(h.Map))],
-                [.. Openings.Blocks.Where(b => same(b.Map))], [.. PostPlant.Blocks.Where(b => same(b.Map))],
-                [.. Situational.Blocks.Where(b => same(b.Map))], findings);
+            bool Same(string m) => string.Equals(m, map, StringComparison.OrdinalIgnoreCase);
+            section.Set(Maps.FirstOrDefault(m => Same(m.Map)), [.. Heatmaps.Where(h => Same(h.Map))],
+                [.. Openings.Blocks.Where(b => Same(b.Map))], [.. PostPlant.Blocks.Where(b => Same(b.Map))],
+                [.. Situational.Blocks.Where(b => Same(b.Map))], findings);
             wanted.Add(section);
         }
 
@@ -323,7 +328,8 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     {
         foreach (DossierMapSectionViewModel section in MapSections)
         {
-            List<DossierFindingViewModel> findings = Editor.MapFindings.TryGetValue(section.Map, out List<DossierFindingViewModel>? f) ? f : [];
+            List<DossierFindingViewModel> findings =
+                Editor.MapFindings.TryGetValue(section.Map, out List<DossierFindingViewModel>? f) ? f : [];
             section.SetFindings(findings);
             OpenByDefault(section, findings.Count);
         }
@@ -448,7 +454,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     private void OnSectionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(OpeningTendenciesSectionViewModel.IsBuilding) && sender is ObservableObject section
-                                                                                     && !IsSectionBuilding(section))
+            && !IsSectionBuilding(section))
         {
             CollectFindings();
         }
@@ -567,7 +573,8 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
         key.Append(CultureInfo.InvariantCulture, $"|grenades:{_grenades?.IsReady}");
         foreach ((DemoRef demo, int side, TeamAssignment assignment) in _teams.SidesOf(row.Id))
         {
-            key.Append('|').Append(side).Append(JsonSerializer.Serialize(demo)).Append(JsonSerializer.Serialize(assignment));
+            key.Append('|').Append(side).Append(JsonSerializer.Serialize(demo))
+                .Append(JsonSerializer.Serialize(assignment));
             if (_library.Find(demo.Path) is { } entry)
             {
                 DemoDataStamp? index = _roundIndex?.Stamp(demo.Path);
@@ -674,7 +681,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     /// <param name="heatmap">The heatmap.</param>
     /// <param name="round">One of its rounds.</param>
     /// <param name="teamId">The dossier's team.</param>
-    public static ReviewClip ReviewClipFor(SetupHeatmap heatmap, SetupHeatmapRound round, Guid? teamId = null)
+    private static ReviewClip ReviewClipFor(SetupHeatmap heatmap, SetupHeatmapRound round, Guid? teamId = null)
     {
         ArgumentNullException.ThrowIfNull(heatmap);
         ArgumentNullException.ThrowIfNull(round);
@@ -934,7 +941,8 @@ public sealed class PeriodDiffRowViewModel
         CountLabel = period.Count == 1 ? "1 demo" : $"{period.Count} demos";
         RecordLabel = period.Wins + period.Losses == 0
             ? "no resolved score"
-            : $"{period.Wins}-{period.Losses}" + (period.Undetermined > 0 ? $" ({period.Undetermined} undetermined)" : "");
+            : $"{period.Wins}-{period.Losses}"
+            + (period.Undetermined > 0 ? $" ({period.Undetermined} undetermined)" : "");
         WinRateLabel = period.WinRate is { } wr
             ? wr.ToString("P0", CultureInfo.InvariantCulture)
             : "—";
@@ -992,7 +1000,7 @@ public sealed class VetoRowViewModel(VetoEntry entry)
 public sealed partial class SetupHeatmapViewModel : ObservableObject
 {
     /// <summary>The note in place of a picture when no round of the heatmap had a sampled setup.</summary>
-    public const string NoPositionsNote = "no positions in the setup window; rebuild the index";
+    private const string NoPositionsNote = "no positions in the setup window; rebuild the index";
 
     [ObservableProperty]
     private Bitmap? _image;

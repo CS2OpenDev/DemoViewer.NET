@@ -197,7 +197,7 @@ public sealed class DemoCorpus
         Path.Combine(CacheRoot, demo.Sha256 ?? "unpinned-" + demo.Name, demo.File);
 
     /// <summary>Lower-case hex SHA-256 of a file's bytes, streamed rather than buffered.</summary>
-    public static string ComputeSha256(string path)
+    private static string ComputeSha256(string path)
     {
         using FileStream stream = File.OpenRead(path);
         return Convert.ToHexStringLower(SHA256.HashData(stream));
@@ -311,7 +311,6 @@ public sealed class DemoCorpus
                 Discard(partial);
                 unusable.Add(ex);
                 tried.Add($"{source.Description}: {ex.Message}");
-                continue;
             }
             catch (Exception ex)
             {

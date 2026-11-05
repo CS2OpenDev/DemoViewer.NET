@@ -1,7 +1,6 @@
 #region
 
 using System.Globalization;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.Identity;
 using DemoViewer.NET.Services.Players;
 
@@ -77,7 +76,6 @@ public sealed record PlayerOverviewSession(string? SubjectSteamId64, bool Pinned
 /// <param name="Identity">Who the user is.</param>
 /// <param name="Rows">The facet rows of the accounts shown; null where nothing reads stats yet.</param>
 /// <param name="OpenDemo">Opens a demo by path.</param>
-/// <param name="SelectTab">Selects a shell tab by its TabId.</param>
 /// <param name="FocusPlayerInStats">Opens a demo by path and shows the account in Stats.</param>
 /// <param name="OpenSettings">Opens Settings scrolled to a section anchor, or the top when null.</param>
 /// <param name="Facts">The library's analysis outputs, read for highlights; null where nothing reads them.</param>
@@ -88,7 +86,6 @@ public sealed record PlayerOverviewServices(
     IdentityService Identity,
     PlayerRowCache? Rows,
     Action<string> OpenDemo,
-    Action<string> SelectTab,
     Action<string, ulong> FocusPlayerInStats,
     Action<string?> OpenSettings,
     IAnalysisFacts? Facts = null,
@@ -160,10 +157,11 @@ public sealed class MeAccountItem(string steamId64, string title, bool isActive)
         string title = account.Label is { Length: > 0 } label
             ? label
             : ulong.TryParse(account.SteamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
-              && directory.Get(id) is { Name.Length: > 0 } entry
+            && directory.Get(id) is { Name.Length: > 0 } entry
                 ? DisplayText.Sanitize(entry.Name)
                 : account.SteamId64;
-        return new MeAccountItem(account.SteamId64, title, string.Equals(account.SteamId64, active, StringComparison.Ordinal));
+        return new MeAccountItem(account.SteamId64, title,
+            string.Equals(account.SteamId64, active, StringComparison.Ordinal));
     }
 }
 
@@ -203,9 +201,12 @@ public sealed class PlayerCandidateItem
     internal static PlayerCandidateItem From(PlayerEntry entry)
     {
         string name = entry.Name.Length > 0 ? DisplayText.Sanitize(entry.Name) : "Unnamed player";
-        string demos = entry.DemoCount == 1 ? "1 demo" : string.Create(CultureInfo.InvariantCulture, $"{entry.DemoCount} demos");
+        string demos = entry.DemoCount == 1
+            ? "1 demo"
+            : string.Create(CultureInfo.InvariantCulture, $"{entry.DemoCount} demos");
         string lastSeen = entry.LastSeenTicks > 0 && entry.LastSeenTicks <= DateTime.MaxValue.Ticks
-            ? "last seen " + new DateTime(entry.LastSeenTicks, DateTimeKind.Utc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            ? "last seen "
+            + new DateTime(entry.LastSeenTicks, DateTimeKind.Utc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : "";
         string aliases = string.Join(", ", entry.Aliases.Skip(1).Take(3).Select(a => DisplayText.Sanitize(a.Name)));
         return new PlayerCandidateItem(entry.SteamId64, name, demos, lastSeen, aliases);

@@ -3,10 +3,10 @@
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Update;
+using DemoViewer.NET.ViewModels.ErrorReport;
 using DemoViewer.NET.ViewModels.Settings;
 using DemoViewer.NET.ViewModels.Setup;
 using DemoViewer.NET.ViewModels.Shell;
-using DemoViewer.NET.ViewModels.ErrorReport;
 using DemoViewer.NET.ViewModels.Update;
 
 #endregion
@@ -73,7 +73,7 @@ public class WhatsNewGateTests
         string dir = NewTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"),
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"),
                 """{ "FirstRunCompleted": true, "LastSeenVersion": "0.0.1" }""");
             await HeadlessSession.RunOnUi(async () =>
             {
@@ -108,7 +108,7 @@ public class WhatsNewGateTests
         string dir = NewTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"),
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"),
                 $$"""{ "FirstRunCompleted": true, "LastSeenVersion": "{{AppVersionInfo.CurrentReleaseVersion}}" }""");
             await HeadlessSession.RunOnUi(async () =>
             {
@@ -191,7 +191,7 @@ public class WhatsNewGateTests
         {
             CountingUpdateService updater = new();
             UpdateViewModel.Shared = new UpdateViewModel(updater);
-            File.WriteAllText(Path.Combine(dir, "settings.json"),
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"),
                 $$"""{ "FirstRunCompleted": true, "Updates": { "CheckAutomatically": {{(automatic ? "true" : "false")}} } }""");
             await HeadlessSession.RunOnUi(async () =>
             {
@@ -236,7 +236,7 @@ public class WhatsNewGateTests
         string dir = NewTempDir();
         try
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"),
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"),
                 """{ "FirstRunCompleted": true, "LastSeenVersion": "0.0.1", "Updates": { "CheckAutomatically": false } }""");
             await HeadlessSession.RunOnUi(async () =>
             {
@@ -270,8 +270,10 @@ public class WhatsNewGateTests
         // Beta labels survive: the release tag carries them, and each beta gets its own What's New.
         await Assert.That(GitHubReleaseNotesService.NormalizeVersion("0.9.0-beta0001")).IsEqualTo("0.9.0-beta0001");
         await Assert.That(GitHubReleaseNotesService.NormalizeVersion("v0.9.0-beta0002")).IsEqualTo("0.9.0-beta0002");
-        await Assert.That(GitHubReleaseNotesService.NormalizeVersion("0.9.0.1-beta0001+abcea5a99b")).IsEqualTo("0.9.0-beta0001");
-        await Assert.That(GitHubReleaseNotesService.NormalizeVersion("0.9.0-beta0001-gabcea5a99b")).IsEqualTo("0.9.0-beta0001");
+        await Assert.That(GitHubReleaseNotesService.NormalizeVersion("0.9.0.1-beta0001+abcea5a99b"))
+            .IsEqualTo("0.9.0-beta0001");
+        await Assert.That(GitHubReleaseNotesService.NormalizeVersion("0.9.0-beta0001-gabcea5a99b"))
+            .IsEqualTo("0.9.0-beta0001");
         await Assert.That(GitHubReleaseNotesService.NormalizeVersion("(unknown)")).IsNull();
         await Assert.That(GitHubReleaseNotesService.NormalizeVersion(null)).IsNull();
         await Assert.That(GitHubReleaseNotesService.NormalizeVersion("")).IsNull();
@@ -283,7 +285,7 @@ public class WhatsNewGateTests
     {
         public int Checks { get; private set; }
 
-        public string? CurrentVersion => "0.5.1";
+        public string CurrentVersion => "0.5.1";
 
         public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default)
         {
@@ -300,7 +302,6 @@ public class WhatsNewGateTests
     {
         public List<WhatsNewViewModel> WhatsNews { get; } = [];
         public List<UpdateNoticeViewModel> UpdateNotices { get; } = [];
-        public List<ErrorReportViewModel> ErrorReports { get; } = [];
 
         public void OpenParseChainInspector(object dataContext)
         {
@@ -310,7 +311,9 @@ public class WhatsNewGateTests
         {
         }
 
-        public void ShowErrorReport(ErrorReportViewModel viewModel) => ErrorReports.Add(viewModel);
+        public void ShowErrorReport(ErrorReportViewModel viewModel)
+        {
+        }
 
         public void ShowFirstRunWizard(FirstRunWizardViewModel viewModel)
         {

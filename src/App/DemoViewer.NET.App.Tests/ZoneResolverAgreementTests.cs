@@ -5,8 +5,8 @@ using System.Text;
 using CS2DemoKit.Analysis.Visibility;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Playback2D.Assets;
+using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.TestSupport;
 using TUnit.Core.Exceptions;
 
@@ -84,18 +84,18 @@ public class ZoneResolverAgreementTests
         foreach (string path in demos)
         {
             ParsedDemo demo = DemoTestHelper.GetOrParse(path);
-            string? map = demo.MapName;
+            string map = demo.MapName;
             string? bundleDir = MapAssetBundleReader.FindBundleDirectory(map);
             PlaceResolver? resolver = ZoneAssetPipeline.TryLoad(bundleDir, null);
             if (resolver is null)
             {
-                Console.WriteLine($"[agreement] {Path.GetFileName(path)}: {map ?? "?"} has no zones.json, skipped");
+                Console.WriteLine($"[agreement] {Path.GetFileName(path)}: {map} has no zones.json, skipped");
                 continue;
             }
 
             Measurement m = Measure(demo, resolver);
-            double floor = _floors.GetValueOrDefault(map!, DefaultFloor);
-            Console.WriteLine(m.Report(Path.GetFileName(path), map!, floor));
+            double floor = _floors.GetValueOrDefault(map, DefaultFloor);
+            Console.WriteLine(m.Report(Path.GetFileName(path), map, floor));
 
             if (m.Placed == 0)
             {
@@ -105,10 +105,10 @@ public class ZoneResolverAgreementTests
                 continue;
             }
 
-            if (!pools.TryGetValue(map!, out Pool? pool))
+            if (!pools.TryGetValue(map, out Pool? pool))
             {
                 pool = new Pool();
-                pools[map!] = pool;
+                pools[map] = pool;
             }
 
             pool.Add(Path.GetFileName(path), m);
@@ -182,9 +182,9 @@ public class ZoneResolverAgreementTests
         foreach (string path in all)
         {
             string map = DownstreamUtilities.TryReadQuickInfo(path, out DownstreamUtilities.DemoQuickInfo info) &&
-                         !string.IsNullOrEmpty(info.MapName)
-                ? info.MapName
-                : "?";
+                !string.IsNullOrEmpty(info.MapName)
+                    ? info.MapName
+                    : "?";
             int count = taken.GetValueOrDefault(map);
             if (count >= perMap)
             {
@@ -196,8 +196,9 @@ public class ZoneResolverAgreementTests
         }
 
         Console.WriteLine($"[agreement] {chosen.Count} of {all.Length} demos selected " +
-                          $"({(perMap == int.MaxValue ? "no" : perMap.ToString(CultureInfo.InvariantCulture))} per-map cap): " +
-                          string.Join(", ", taken.OrderBy(t => t.Key).Select(t => $"{t.Key} x{t.Value}")));
+            $"({(perMap == int.MaxValue ? "no" : perMap.ToString(CultureInfo.InvariantCulture))} per-map cap): "
+            +
+            string.Join(", ", taken.OrderBy(t => t.Key).Select(t => $"{t.Key} x{t.Value}")));
         return [.. chosen];
     }
 
@@ -207,8 +208,8 @@ public class ZoneResolverAgreementTests
         private readonly List<(string Demo, double Percent)> _demos = [];
 
         public int Demos => _demos.Count;
-        public int Placed { get; private set; }
-        public int Agreed { get; private set; }
+        private int Placed { get; set; }
+        private int Agreed { get; set; }
         public double AgreementPercent => Placed == 0 ? 0 : 100.0 * Agreed / Placed;
 
         public void Add(string demo, Measurement m)
@@ -223,7 +224,8 @@ public class ZoneResolverAgreementTests
 
         public string Report(string map, double floor) => string.Create(CultureInfo.InvariantCulture,
             $"[agreement] POOLED {map}  demos={Demos}  placed={Placed}  agreed={Agreed}  " +
-            $"agree={AgreementPercent:F2} %  min={_demos.Min(d => d.Percent):F2} %  max={_demos.Max(d => d.Percent):F2} %  " +
+            $"agree={AgreementPercent:F2} %  min={_demos.Min(d => d.Percent):F2} %  max={_demos.Max(d => d.Percent):F2} %  "
+            +
             $"floor={floor} %  {(AgreementPercent >= floor ? "OK" : "UNDER")}");
     }
 
@@ -234,7 +236,7 @@ public class ZoneResolverAgreementTests
         public int Samples { get; set; }
         public int Placed { get; private set; }
         public int Agreed { get; private set; }
-        public int Unresolved { get; private set; }
+        private int Unresolved { get; set; }
         public double AgreementPercent => Placed == 0 ? 0 : 100.0 * Agreed / Placed;
 
         public void Add(string pawnPlace, PlaceHit hit)

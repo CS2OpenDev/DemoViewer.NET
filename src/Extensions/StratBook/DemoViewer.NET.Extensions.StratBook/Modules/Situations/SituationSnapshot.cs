@@ -2,21 +2,24 @@
 
 using System.Numerics;
 using CS2DemoKit.Parser.EntityTracking;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 
 #endregion
 
 namespace DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 
 /// <summary>One alive player at the snapshot tick: where they stood, and the place that position minted.</summary>
-/// <param name="Slot">The roster slot.</param>
 /// <param name="WorldX">World X.</param>
 /// <param name="WorldY">World Y.</param>
 /// <param name="WorldZ">World Z, raw; the canvas keys it to a floor when it places the token.</param>
 /// <param name="Place">The raw place name, or null when the source had none (the token writes <c>?</c>).</param>
-public readonly record struct SituationSnapshotPlayer(int Slot, float WorldX, float WorldY, float WorldZ, string? Place);
+public readonly record struct SituationSnapshotPlayer(
+    float WorldX,
+    float WorldY,
+    float WorldZ,
+    string? Place);
 
 /// <summary>
 ///     The 2D scene's current tick, cut down to what the Query Canvas places: the alive players per
@@ -101,7 +104,7 @@ public sealed class SituationSnapshot
             // resolves the same position and the pawn source reads the same field.
             PositionSample sample = new(time.FrameIndex, time.Tick, marker.Slot,
                 new Vector3(marker.WorldX, marker.WorldY, marker.WorldZ), marker.Place, marker.Team, marker.IsAlive);
-            SituationSnapshotPlayer player = new(marker.Slot, marker.WorldX, marker.WorldY, marker.WorldZ,
+            SituationSnapshotPlayer player = new(marker.WorldX, marker.WorldY, marker.WorldZ,
                 source.PlaceFor(in sample));
             (marker.Team == 3 ? ct : t).Add(player);
         }

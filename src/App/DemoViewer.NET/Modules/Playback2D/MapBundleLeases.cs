@@ -2,7 +2,6 @@
 
 using Avalonia.Threading;
 using CS2DemoKit.Analysis.Visibility;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Pipeline.Assets;

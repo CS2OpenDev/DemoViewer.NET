@@ -17,8 +17,8 @@ using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
 using DemoViewer.NET.Services.Players;
 using DemoViewer.NET.Services.Review;
-using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.ViewModels.Playback2D;
+using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.ViewModels.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -34,28 +34,27 @@ namespace DemoViewer.NET.Extensions;
 /// </summary>
 internal sealed class ExtensionShellHub : IFirstPartyShellState, IFirstPartyExportChips
 {
-    private MainViewModel? _shell;
     private bool _playheadPending;
 
-    public MainViewModel? Shell => _shell;
+    public MainViewModel? Shell { get; private set; }
 
-    public ParsedDemo? CurrentDemo => (_shell?.ModuleContext as ModuleContext)?.CurrentDemo;
+    public ParsedDemo? CurrentDemo => (Shell?.ModuleContext as ModuleContext)?.CurrentDemo;
 
-    public string? CurrentDemoHash => (_shell?.ModuleContext as ModuleContext)?.DemoSha256;
+    public string? CurrentDemoHash => (Shell?.ModuleContext as ModuleContext)?.DemoSha256;
 
-    public int CurrentTick => _shell?.Playback.CurrentTick ?? 0;
+    public int CurrentTick => Shell?.Playback.CurrentTick ?? 0;
 
-    public bool IsPlaying => _shell?.Playback.IsPlaying ?? false;
+    public bool IsPlaying => Shell?.Playback.IsPlaying ?? false;
 
-    public bool IsLiveSyncSessionActive => _shell?.LiveSync?.State.IsSessionActive == true;
+    public bool IsLiveSyncSessionActive => Shell?.LiveSync?.State.IsSessionActive == true;
 
-    public bool IsReelJobRunning => _shell?.ReelJob?.Status.IsRunning == true;
+    public bool IsReelJobRunning => Shell?.ReelJob?.Status.IsRunning == true;
 
     public event Action? DemoChanged;
 
     // An export starts from a tab, so the shell is attached by the time a job mounts its status.
     public void Mount(string chipId, string featureId, Playback2DExportStatusViewModel status) =>
-        _shell?.MountExportStatus(chipId, featureId, status);
+        Shell?.MountExportStatus(chipId, featureId, status);
 
     /// <summary>Raised on the UI thread, once per rendered frame at most, after the tick or play state moves.</summary>
     public event Action? PlayheadChanged;
@@ -63,12 +62,12 @@ internal sealed class ExtensionShellHub : IFirstPartyShellState, IFirstPartyExpo
     public void Attach(MainViewModel shell)
     {
         ArgumentNullException.ThrowIfNull(shell);
-        if (_shell is not null)
+        if (Shell is not null)
         {
             return;
         }
 
-        _shell = shell;
+        Shell = shell;
         if (shell.ModuleContext is { } context)
         {
             context.DemoReset += () => DemoChanged?.Invoke();
@@ -107,7 +106,6 @@ internal sealed class ExtensionContext : IExtensionContext
     private readonly Lazy<IExtensionLibrary> _library;
     private readonly Lazy<IExtensionReviewPackExport?> _packExport;
     private readonly Lazy<IExtensionReviewQueue> _review;
-    private readonly Lazy<ReviewQueue> _reviewQueue;
     private readonly Lazy<IExtensionSceneExport?> _sceneExport;
     private readonly ExtensionGuard _guard;
     private readonly HostKeymap _keymap;
@@ -122,22 +120,26 @@ internal sealed class ExtensionContext : IExtensionContext
         _logPrefix = "Extension." + extension.Id;
         _guard = services.GetService<ExtensionFaults>()?.GuardFor(extension) ?? ExtensionGuard.Standalone(extension);
         Features = new GateView(services.GetService<IFeatureGate>(), _guard);
-        Jobs = new ExtensionJobs(extension.Id, () => services.GetService<IDemoProcessingQueue>(),
-            () => services.GetService<JobKindRegistry>() ?? JobKindRegistry.Default, _guard, Post, Dispatcher.UIThread.CheckAccess);
-        Passes = new ExtensionPasses(extension.Id, () => services.GetService<DemoScheduler>(), Post);
+        Jobs = new ExtensionJobs(extension.Id, services.GetService<IDemoProcessingQueue>,
+            () => services.GetService<JobKindRegistry>() ?? JobKindRegistry.Default, _guard, Post,
+            Dispatcher.UIThread.CheckAccess);
+        Passes = new ExtensionPasses(extension.Id, services.GetService<DemoScheduler>, Post);
         Shell = new ShellView(services.GetRequiredService<ExtensionShellHub>(), _guard);
-        Stores = new ExtensionStores(extension.Id, AppPaths.ConfigRoot, AppPaths.DemoCacheDir, PackContributions.AcceptedStores(extension, _guard));
+        Stores = new ExtensionStores(extension.Id, AppPaths.ConfigRoot, AppPaths.DemoCacheDir,
+            PackContributions.AcceptedStores(extension, _guard));
         Settings = new ExtensionSettingsStore(extension.Id, AppPaths.ConfigRoot, Post);
         Notifications = services.GetService<NotificationCenter>()?.For(_guard, CreateLogger("Notifications"))
-                        ?? new NotificationCenter(Post).For(_guard, CreateLogger("Notifications"));
+            ?? new NotificationCenter(Post).For(_guard, CreateLogger("Notifications"));
         _keymap = new HostKeymap(() => CommandRegistry.Default.EffectiveBindings,
             () => services.GetService<SettingsService>()?.Current.Playback2D.KeybindOverrides ?? []);
-        Identity = new HostIdentity(() => services.GetService<IdentityService>(), _guard);
+        Identity = new HostIdentity(services.GetService<IdentityService>, _guard);
         // The settings watcher raises on a thread-pool thread for an edit of the file.
         services.GetService<IOptionsMonitor<AppSettings>>()?.OnChange(_ => Post(_keymap.Refresh));
-        string? version = extension.GetType().Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        string? version = extension.GetType().Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
         _data = new Lazy<IExtensionDemoData>(() => AppPaths.DemoCacheDir is { } cache
-            ? new ExtensionDemoDataStore(extension.Id, Path.Combine(cache, ExtensionFolders.DataDirectoryName, ExtensionFolders.SafeName(extension.Id)),
+            ? new ExtensionDemoDataStore(extension.Id,
+                Path.Combine(cache, ExtensionFolders.DataDirectoryName, ExtensionFolders.SafeName(extension.Id)),
                 services.GetRequiredService<DemoCacheStore>(), Post, version, Dispatcher.UIThread.CheckAccess,
                 services.GetService<IDemoProcessingQueue>() is { } queue
                     // Asked for by a view the user is looking at, so it runs while the queue is paused too.
@@ -147,12 +149,12 @@ internal sealed class ExtensionContext : IExtensionContext
             : UnavailableDemoData.Instance);
         // Lazy all the way to the resolve: constructing the ReviewQueue is what schedules the queue's
         // startup read, so an eager resolve here queued one on every launch whether or not anything looked.
-        _reviewQueue = new Lazy<ReviewQueue>(() => services.GetService<ReviewQueue>() ?? new ReviewQueue(null));
+        Lazy<ReviewQueue> reviewQueue = new(() => services.GetService<ReviewQueue>() ?? new ReviewQueue(null));
         _review = new Lazy<IExtensionReviewQueue>(() =>
-            new ExtensionReviewQueue(_reviewQueue.Value, _guard, Dispatcher.UIThread.CheckAccess));
+            new ExtensionReviewQueue(reviewQueue.Value, _guard, Dispatcher.UIThread.CheckAccess));
         _packExport = new Lazy<IExtensionReviewPackExport?>(() =>
             services.GetService<FirstPartyExports>()?.PackExport is { } run
-                ? new ExtensionReviewPackExport(run, _reviewQueue.Value,
+                ? new ExtensionReviewPackExport(run, reviewQueue.Value,
                     services.GetService<FirstPartyExports>()?.ExportOutputDirectory,
                     onUiThread: Dispatcher.UIThread.CheckAccess)
                 : null);
@@ -167,7 +169,7 @@ internal sealed class ExtensionContext : IExtensionContext
         _library = new Lazy<IExtensionLibrary>(() => new ExtensionLibraryView(
             HostLibrary.For(services.GetRequiredService<DemoCacheStore>(), services.GetService<IDemoProcessingQueue>(),
                 () => services.GetService<AnalysisFacts>() ?? (IAnalysisFacts)NoFacts.Instance), _guard,
-            () => services.GetService<PlayerDirectory>()));
+            services.GetService<PlayerDirectory>));
     }
 
     public string ExtensionId { get; }
@@ -340,8 +342,13 @@ internal sealed class ExtensionContext : IExtensionContext
 ///     job that throws is counted against the extension before the queue marks it failed, a handle cancels
 ///     its own job only, and a job's completion is told on the UI thread through the extension's post.
 /// </summary>
-internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueue?> queue, Func<JobKindRegistry> kinds,
-    ExtensionGuard? guard = null, Action<Action>? post = null, Func<bool>? onUiThread = null)
+internal sealed class ExtensionJobs(
+    string extensionId,
+    Func<IDemoProcessingQueue?> queue,
+    Func<JobKindRegistry> kinds,
+    ExtensionGuard? guard = null,
+    Action<Action>? post = null,
+    Func<bool>? onUiThread = null)
     : IExtensionJobs
 {
     private readonly Func<bool> _onUiThread = onUiThread ?? (static () => true);
@@ -380,7 +387,8 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
             return handle;
         }
 
-        QueueJobRequest queued = new(kind, request.Title, extensionId, PriorityOf(priority), QueueWork.WithStopToken(async ctx =>
+        QueueJobRequest queued = new(kind, request.Title, extensionId, PriorityOf(priority),
+            QueueWork.WithStopToken(async ctx =>
             {
                 handle.Started();
                 try
@@ -388,12 +396,14 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
                     await Counted(ctx, work).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException
-                                           && !(ex is OperationCanceledException && ctx.CancellationToken.IsCancellationRequested))
+                                           && !(ex is OperationCanceledException
+                                               && ctx.CancellationToken.IsCancellationRequested))
                 {
                     handle.Error = ex;
                     throw;
                 }
-            }), request.Options.Key, ReplacePending: request.Options.Key is not null, Preemptible: request.Options.Preemptible,
+            }), request.Options.Key, ReplacePending: request.Options.Key is not null,
+            Preemptible: request.Options.Preemptible,
             Serial: request.Options.Serial, ExtensionKind: extensionKind, Level: LevelOf(priority));
         IDemoQueueHandle submitted = target!.SubmitJob(queued);
         handle.Attach(submitted.Cancel);
@@ -418,20 +428,23 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
         }
 
         Func<IDemoJobContext, Task> work = request.DemoWork!;
-        DemoJob job = DemoJob.Submit(target, new DemoJobRequest(path, label, extensionId, LevelOf(priority), async input =>
-        {
-            handle.Started();
-            try
+        DemoJob job = DemoJob.Submit(target, new DemoJobRequest(path, label, extensionId, LevelOf(priority),
+            async input =>
             {
-                await QueueWork.WithStopToken(() => work(new DemoContext(input)), input.CancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (guard is not null && ex is not OutOfMemoryException
-                                       && !(ex is OperationCanceledException && input.CancellationToken.IsCancellationRequested))
-            {
-                guard.Report("job", ex);
-                throw;
-            }
-        }, request.ReadsUserCommands, request.Title));
+                handle.Started();
+                try
+                {
+                    await QueueWork.WithStopToken(() => work(new DemoContext(input)), input.CancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (guard is not null && ex is not OutOfMemoryException
+                                           && !(ex is OperationCanceledException
+                                               && input.CancellationToken.IsCancellationRequested))
+                {
+                    guard.Report("job", ex);
+                    throw;
+                }
+            }, request.ReadsUserCommands, request.Title));
         handle.Attach(job.Cancel);
         _ = job.Completion.ContinueWith(_ => handle.End(StatusOf(job.State), job.Error),
             CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
@@ -443,9 +456,13 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
         ArgumentNullException.ThrowIfNull(work);
         options ??= new JobOptions();
         (QueueJobKind kind, string? extensionKind) = Resolve(options.Kind);
-        options = options with { Priority = JobScope.IsUserAction ? JobPriority.UserRequested : Granted(options.Priority) };
+        options = options with
+        {
+            Priority = JobScope.IsUserAction ? JobPriority.UserRequested : Granted(options.Priority)
+        };
 
-        QueueJobRequest request = new(kind, title, extensionId, PriorityOf(options.Priority), ctx => Counted(ctx, work), options.Key,
+        QueueJobRequest request = new(kind, title, extensionId, PriorityOf(options.Priority), ctx => Counted(ctx, work),
+            options.Key,
             ReplacePending: options.Key is not null, Preemptible: options.Preemptible, Serial: options.Serial,
             ExtensionKind: extensionKind, Level: LevelOf(options.Priority));
         return QueueWork.Submit(queue(), request);
@@ -485,7 +502,8 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
             await work(new Context(ctx)).ConfigureAwait(false);
         }
         catch (Exception ex) when (guard is not null && ex is not OutOfMemoryException
-                                   && !(ex is OperationCanceledException && ctx.CancellationToken.IsCancellationRequested))
+                                   && !(ex is OperationCanceledException
+                                       && ctx.CancellationToken.IsCancellationRequested))
         {
             guard.Report("job", ex);
             throw;
@@ -505,7 +523,8 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
         }
 
         throw new ArgumentException(
-            $"Job kind '{kindId}' is neither built in nor declared in {extensionId}'s IExtension.JobKinds.", nameof(kindId));
+            $"Job kind '{kindId}' is neither built in nor declared in {extensionId}'s IExtension.JobKinds.",
+            nameof(kindId));
     }
 
     private sealed class Context(IQueueJobContext inner) : IJobContext
@@ -551,8 +570,10 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
     // One job's state as the extension sees it. Completed is raised through the extension's post, once.
     private sealed class JobHandle(Action<Action> post) : IJobHandle
     {
-        private readonly TaskCompletionSource<JobResult> _done = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly object _gate = new();
+        private readonly TaskCompletionSource<JobResult>
+            _done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private readonly Lock _gate = new();
         private Action? _cancel;
         private Action<JobResult>? _completed;
         private bool _cancelRequested;
@@ -656,7 +677,7 @@ internal sealed class ExtensionJobs(string extensionId, Func<IDemoProcessingQueu
 internal sealed class ExtensionPasses(string extensionId, Func<DemoScheduler?> scheduler, Action<Action>? post = null)
     : IExtensionPasses
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Action<Action> _post = post ?? (static a => a());
     private Action? _changed;
     private DemoScheduler? _subscribed;
@@ -694,7 +715,7 @@ internal sealed class ExtensionPasses(string extensionId, Func<DemoScheduler?> s
         }
 
         if (handlers is not null && _subscribed is { } source
-                                  && string.Equals(source.OwnerOf(passId), extensionId, StringComparison.Ordinal))
+            && string.Equals(source.OwnerOf(passId), extensionId, StringComparison.Ordinal))
         {
             _post(handlers);
         }

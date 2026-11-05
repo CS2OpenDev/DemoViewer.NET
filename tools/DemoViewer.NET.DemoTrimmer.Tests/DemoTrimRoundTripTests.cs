@@ -30,7 +30,7 @@ public sealed class DemoTrimRoundTripTests
     /// <summary>Round count kept small so a test run stays within a few seconds of replay per variant.</summary>
     private const int Rounds = 1;
 
-    private static readonly Lock SourceLock = new();
+    private static readonly Lock _sourceLock = new();
     private static (byte[] Raw, ParsedDemo Demo)? _source;
 
     /// <summary>
@@ -41,7 +41,7 @@ public sealed class DemoTrimRoundTripTests
     private static (byte[] Raw, ParsedDemo Demo) Source()
     {
         string path = DemoTestHelper.RequireDemo();
-        lock (SourceLock)
+        lock (_sourceLock)
         {
             if (_source is null)
             {
@@ -125,10 +125,7 @@ public sealed class DemoTrimRoundTripTests
         try
         {
             long previous = long.MaxValue;
-            foreach (TrimVariant variant in new[]
-                     {
-                         TrimVariant.V1, TrimVariant.V2, TrimVariant.V3
-                     })
+            foreach (TrimVariant variant in new[] { TrimVariant.V1, TrimVariant.V2, TrimVariant.V3 })
             {
                 TrimWindow window = WindowSelector.Select(demo, Rounds, variant.EnterAtCheckpoint);
                 TrimResult result = DemoTrimWriter.Write(
@@ -156,7 +153,7 @@ public sealed class DemoTrimRoundTripTests
             TrimResult result = DemoTrimWriter.Write(demo, raw, window, variant, outPath);
 
             // 1. It parses.
-            byte[] trimmedRaw = File.ReadAllBytes(outPath);
+            byte[] trimmedRaw = await File.ReadAllBytesAsync(outPath);
             ParsedDemo trimmed = DemoParser.Parse(trimmedRaw.AsMemory());
 
             // 2. It is the same window of the source: container tail + header offsets (which the parser

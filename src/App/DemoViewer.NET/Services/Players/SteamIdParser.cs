@@ -41,7 +41,8 @@ public static partial class SteamIdParser
     [GeneratedRegex(@"^\[?U:1:(?<n>\d{1,10})(:\d+)?\]?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SteamId3Pattern();
 
-    [GeneratedRegex(@"^STEAM_[0-5]:(?<y>[01]):(?<z>\d{1,10})$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^STEAM_[0-5]:(?<y>[01]):(?<z>\d{1,10})$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SteamId2Pattern();
 
     [GeneratedRegex(@"^(?:https?://)?(?:www\.)?steamcommunity\.com/(?<kind>profiles|id)/(?<v>[^/?#\s]+)/?(?:[?#].*)?$",
@@ -73,9 +74,9 @@ public static partial class SteamIdParser
             }
 
             return SteamId3Pattern().Match(value) is { Success: true } inUrl
-                   && FromAccountId(inUrl.Groups["n"].Value, SteamIdForm.ProfileUrl) is { } parsed
-                ? parsed
-                : null;
+                && FromAccountId(inUrl.Groups["n"].Value, SteamIdForm.ProfileUrl) is { } parsed
+                    ? parsed
+                    : null;
         }
 
         if (SteamId3Pattern().Match(input) is { Success: true } id3)
@@ -87,7 +88,9 @@ public static partial class SteamIdParser
             && ulong.TryParse(id2.Groups["z"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong z))
         {
             ulong account = z * 2 + (id2.Groups["y"].Value == "1" ? 1UL : 0UL);
-            return account is > 0 and <= uint.MaxValue ? new SteamIdParse(SteamIdForm.SteamId2, IndividualBase + account) : null;
+            return account is > 0 and <= uint.MaxValue
+                ? new SteamIdParse(SteamIdForm.SteamId2, IndividualBase + account)
+                : null;
         }
 
         if (IsSteamId64(input, out ulong id))
@@ -100,13 +103,16 @@ public static partial class SteamIdParser
 
     /// <summary>True for an individual account in the public universe: account ids 1 to 2^32 - 1.</summary>
     /// <param name="steamId64">The account.</param>
-    public static bool IsIndividual(ulong steamId64) => steamId64 > IndividualBase && steamId64 - IndividualBase <= uint.MaxValue;
+    public static bool IsIndividual(ulong steamId64) =>
+        steamId64 > IndividualBase && steamId64 - IndividualBase <= uint.MaxValue;
 
     private static SteamIdParse? FromAccountId(string digits, SteamIdForm form) =>
-        ulong.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out ulong account) && account is > 0 and <= uint.MaxValue
+        ulong.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out ulong account)
+        && account is > 0 and <= uint.MaxValue
             ? new SteamIdParse(form, IndividualBase + account)
             : null;
 
     private static bool IsSteamId64(string text, out ulong id) =>
-        ulong.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out id) && id > uint.MaxValue && text.All(char.IsAsciiDigit);
+        ulong.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out id) && id > uint.MaxValue
+        && text.All(char.IsAsciiDigit);
 }

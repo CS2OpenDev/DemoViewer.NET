@@ -42,8 +42,8 @@ internal static class LabelRenderer
         {
             double rad = angleDegrees * Math.PI / 180;
             Matrix matrix = Matrix.CreateTranslation(-cx, -cy)
-                            * Matrix.CreateRotation(rad)
-                            * Matrix.CreateTranslation(cx, cy);
+                * Matrix.CreateRotation(rad)
+                * Matrix.CreateTranslation(cx, cy);
             using (dc.PushTransform(matrix))
             {
                 dc.DrawRectangle(bgBrush, null,

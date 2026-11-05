@@ -3,8 +3,8 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using Avalonia.Controls;
-using Avalonia.Media.Imaging;
 using Avalonia.Headless;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Controls;
@@ -15,7 +15,6 @@ using DemoViewer.NET.ViewModels.Diagnostics;
 using DemoViewer.NET.ViewModels.Parser;
 using DemoViewer.NET.Views;
 using TUnit.Core.Exceptions;
-using DemoViewer.NET.Extensions.StratBook.Controls;
 
 #endregion
 
@@ -44,7 +43,7 @@ public class UnknownMessageCardTests
             ParserTabViewModel vm = NewParserTab(c);
             vm.SelectedFrame = c.Demo.Frames[c.SmallestUnknownFrame];
 
-            List<HarvestCardViewModel> unknown = vm.MessageCards.Where(card => card.IsUnknown).ToList();
+            List<HarvestCardViewModel> unknown = [.. vm.MessageCards.Where(card => card.IsUnknown)];
             int expected = c.Census[c.SmallestUnknownFrame].Count;
 
             await Assert.That(unknown.Count).IsEqualTo(expected);
@@ -112,19 +111,13 @@ public class UnknownMessageCardTests
 
         await HeadlessSession.RunOnUi(async () =>
         {
-            OutputPanelViewModel output = new(new FrameNavigationViewModel())
-            {
-                IsVisible = true
-            };
+            OutputPanelViewModel output = new(new FrameNavigationViewModel()) { IsVisible = true };
             foreach (UnknownTypeRow row in c.GroupedRows)
             {
                 output.UnknownMessages.Append(new OutputRow(row.FirstFrame, row.Tick, "WARN", row.Message));
             }
 
-            OutputPanel view = new()
-            {
-                DataContext = output
-            };
+            OutputPanel view = new() { DataContext = output };
 
             string path = Capture(view, 900, 320, "grouped_output.png");
             Console.WriteLine($"[capture] {path}");
@@ -135,21 +128,14 @@ public class UnknownMessageCardTests
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    private static ParserTabViewModel NewParserTab(DemoCensus c) => new(new FrameNavigationViewModel())
+    private static ParserTabViewModel NewParserTab(DemoCensus c) => new()
     {
-        DemoBytesSource = () => c.DemoBytes,
-        UnknownByFrame = c.Census,
-        FrameListSource = () => c.Demo.Frames.ToList()
+        DemoBytesSource = () => c.DemoBytes, UnknownByFrame = c.Census, FrameListSource = () => [.. c.Demo.Frames]
     };
 
     private static string Capture(Control content, int width, int height, string fileName)
     {
-        Window window = new()
-        {
-            Width = width,
-            Height = height,
-            Content = content
-        };
+        Window window = new() { Width = width, Height = height, Content = content };
         window.Show();
         Dispatcher.UIThread.RunJobs();
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -207,11 +193,9 @@ public sealed class DemoCensus
         // fail, and only when the batch happens to run another parse alongside them. The per-parse
         // callback sees this parse and nothing else. It fires on pass-2 worker threads, which is why
         // the bag is concurrent.
-        ConcurrentBag<UnknownMessageInfo> bag = new();
-        ParsedDemo demo = DemoParser.Parse(bytes.AsMemory(), new ParseOptions
-        {
-            OnUnknownMessage = info => bag.Add(info)
-        });
+        ConcurrentBag<UnknownMessageInfo> bag = [];
+        ParsedDemo demo =
+            DemoParser.Parse(bytes.AsMemory(), new ParseOptions { OnUnknownMessage = bag.Add });
 
         Dictionary<int, List<UnknownMessageInfo>> census = new();
         Dictionary<int, (string Name, int First, int Size, int Count)> byType = new();
@@ -219,7 +203,7 @@ public sealed class DemoCensus
         {
             if (!census.TryGetValue(info.FrameNumber, out List<UnknownMessageInfo>? list))
             {
-                census[info.FrameNumber] = list = new List<UnknownMessageInfo>();
+                census[info.FrameNumber] = list = [];
             }
 
             list.Add(info);
@@ -238,18 +222,21 @@ public sealed class DemoCensus
             ? -1
             : census.Keys.OrderBy(fn => demo.Frames[fn].InnerMessages.Count).First();
 
-        List<UnknownTypeRow> rows = byType
-            .OrderByDescending(kv => kv.Value.Count)
-            .Select(kv =>
-            {
-                int f = kv.Value.First;
-                string tick = f >= 0 && f < demo.Frames.Count
-                    ? (demo.Frames[f].GameTick ?? demo.Frames[f].ServerTick).ToString(CultureInfo.InvariantCulture)
-                    : "—";
-                string msg = $"type {kv.Key} ({kv.Value.Name})  ×{kv.Value.Count}  •  ~{kv.Value.Size} B  •  first @ frame {f}";
-                return new UnknownTypeRow(f, tick, msg);
-            })
-            .ToList();
+        List<UnknownTypeRow> rows =
+        [
+            .. byType
+                .OrderByDescending(kv => kv.Value.Count)
+                .Select(kv =>
+                {
+                    int f = kv.Value.First;
+                    string tick = f >= 0 && f < demo.Frames.Count
+                        ? (demo.Frames[f].GameTick ?? demo.Frames[f].ServerTick).ToString(CultureInfo.InvariantCulture)
+                        : "—";
+                    string msg =
+                        $"type {kv.Key} ({kv.Value.Name})  ×{kv.Value.Count}  •  ~{kv.Value.Size} B  •  first @ frame {f}";
+                    return new UnknownTypeRow(f, tick, msg);
+                })
+        ];
 
         return new DemoCensus(demo, bytes, census, smallest, rows);
     }

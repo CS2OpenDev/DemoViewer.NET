@@ -42,6 +42,7 @@ public abstract record PackSource
     /// <summary>A third-party extension installed under the extensions folder.</summary>
     /// <param name="Directory">The version folder it loaded from.</param>
     /// <param name="Verified">True when this app's publisher key signed it.</param>
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     public sealed record External(string Directory, bool Verified) : PackSource
     {
         /// <inheritdoc />

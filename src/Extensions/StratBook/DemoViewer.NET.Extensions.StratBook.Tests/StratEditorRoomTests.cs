@@ -10,13 +10,13 @@ using Avalonia.Input;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
-using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Views.Shell;
 
 #endregion
@@ -39,16 +39,24 @@ public class StratEditorRoomTests
         {
             StratBookLayout layout = new() { IsListCollapsed = collapsed };
             using StratBookTabViewModel strats = Seeded(layout);
-            HubTabViewModel hub = new(HostIds.StratBookHub, "Strat Book", "STRAT BOOK") { IsRailCollapsed = collapsed };
+            HubTabViewModel hub = new("Strat Book", "STRAT BOOK") { IsRailCollapsed = collapsed };
             hub.Sections.Reconcile([
                 new WorkspaceTabDescriptor
                 {
-                    TabId = "stratbook.browser", Header = "Strats", Order = 0, HostId = HostIds.StratBookHub,
-                    ViewModelFactory = () => strats, ViewFactory = () => new StratBookTabView()
+                    TabId = "stratbook.browser",
+                    Header = "Strats",
+                    Order = 0,
+                    HostId = HostIds.StratBookHub,
+                    ViewModelFactory = () => strats,
+                    ViewFactory = () => new StratBookTabView()
                 },
                 new WorkspaceTabDescriptor
                 {
-                    TabId = "review.queue", Header = "Review", Order = 1, HostId = HostIds.StratBookHub, Badge = "12",
+                    TabId = "review.queue",
+                    Header = "Review",
+                    Order = 1,
+                    HostId = HostIds.StratBookHub,
+                    Badge = "12",
                     ViewFactory = () => new TextBlock { Text = "Review" }
                 }
             ]);
@@ -60,34 +68,45 @@ public class StratEditorRoomTests
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             Dispatcher.UIThread.RunJobs();
 
-            ScrollViewer scroll = window.GetVisualDescendants().OfType<ScrollViewer>().Single(s => s.Name == "EditorScroll");
+            ScrollViewer scroll = window.GetVisualDescendants().OfType<ScrollViewer>()
+                .Single(s => s.Name == "EditorScroll");
             Control content = (Control)scroll.Content!;
             double viewport = scroll.Viewport.Width;
             List<string> overflow = [];
             foreach (Control control in content.GetVisualDescendants().OfType<Control>()
-                         .Where(c => c is TextBox or ComboBox or Button or ToggleButton or TextBlock && c.IsEffectivelyVisible))
+                         .Where(c => c is TextBox or ComboBox or Button or ToggleButton or TextBlock
+                             && c.IsEffectivelyVisible))
             {
-                if (control.TranslatePoint(new Point(control.Bounds.Width, 0), scroll) is { } right && right.X > viewport + 0.5)
+                if (control.TranslatePoint(new Point(control.Bounds.Width, 0), scroll) is { } right
+                    && right.X > viewport + 0.5)
                 {
-                    overflow.Add($"{control.GetType().Name} '{(control as TextBlock)?.Text ?? control.Name}' ends at {right.X:F0}");
+                    overflow.Add(
+                        $"{control.GetType().Name} '{(control as TextBlock)?.Text ?? control.Name}' ends at {right.X:F0}");
                 }
             }
 
             // Each location field keeps room for its text beside its buttons.
             List<string> narrow = [];
-            List<DemoViewer.NET.Extensions.StratBook.Controls.PlaceField> fields = [.. content.GetVisualDescendants().OfType<DemoViewer.NET.Extensions.StratBook.Controls.PlaceField>().Where(f => f.IsEffectivelyVisible)];
+            List<DemoViewer.NET.Extensions.StratBook.Controls.PlaceField> fields =
+            [
+                .. content.GetVisualDescendants().OfType<DemoViewer.NET.Extensions.StratBook.Controls.PlaceField>()
+                    .Where(f => f.IsEffectivelyVisible)
+            ];
             foreach (DemoViewer.NET.Extensions.StratBook.Controls.PlaceField field in fields)
             {
-                double text = field.GetVisualDescendants().OfType<Avalonia.Controls.Presenters.TextPresenter>().FirstOrDefault()?.Bounds.Width ?? 0;
+                double text = field.GetVisualDescendants().OfType<Avalonia.Controls.Presenters.TextPresenter>()
+                    .FirstOrDefault()?.Bounds.Width ?? 0;
                 if (text < 45)
                 {
                     narrow.Add($"{field.Name} text {text:F0}");
                 }
             }
 
-            int chips = content.GetVisualDescendants().OfType<Border>().Count(b => b.Classes.Contains("placedChip") && b.IsEffectivelyVisible);
+            int chips = content.GetVisualDescendants().OfType<Border>()
+                .Count(b => b.Classes.Contains("placedChip") && b.IsEffectivelyVisible);
             window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir,
-                collapsed ? "strat-editor-1280-collapsed.png" : "strat-editor-1280.png"), new PngBitmapEncoderOptions());
+                    collapsed ? "strat-editor-1280-collapsed.png" : "strat-editor-1280.png"),
+                new PngBitmapEncoderOptions());
             window.Close();
 
             using (Assert.Multiple())
@@ -97,9 +116,11 @@ public class StratEditorRoomTests
                 await Assert.That(overflow).IsEmpty()
                     .Because($"the editor is {viewport:F0} wide: {string.Join("; ", overflow.Take(8))}");
                 await Assert.That(fields.Count).IsGreaterThan(10).Because("the seeded rows show their location fields");
-                await Assert.That(fields.Max(f => f.Chips.Count)).IsGreaterThanOrEqualTo(6).Because("the long lists show as chips the scan measures");
+                await Assert.That(fields.Max(f => f.Chips.Count)).IsGreaterThanOrEqualTo(6)
+                    .Because("the long lists show as chips the scan measures");
                 await Assert.That(narrow).IsEmpty().Because(string.Join("; ", narrow.Take(8)));
-                await Assert.That(chips).IsGreaterThanOrEqualTo(4).Because("the seeded entries show as placed chips the scan measures");
+                await Assert.That(chips).IsGreaterThanOrEqualTo(4)
+                    .Because("the seeded entries show as placed chips the scan measures");
             }
         });
 
@@ -187,7 +208,8 @@ public class StratEditorRoomTests
     private static StratBookTabViewModel Seeded(StratBookLayout layout)
     {
         (GrenadeIndex index, GrenadeLineup lineup) = StratThrowOriginTests.Indexed();
-        StratBookTabViewModel vm = new(new StratStore(null), null, a => Dispatcher.UIThread.Post(a), false, grenades: index,
+        StratBookTabViewModel vm = new(new StratStore(null), null, a => Dispatcher.UIThread.Post(a), false,
+            grenades: index,
             layout: layout,
             lineupMap: map => new UtilityBookTabViewModel(index, lockedMap: map));
         vm.Session.AutoSaveDelay = TimeSpan.FromHours(1);
@@ -198,11 +220,22 @@ public class StratEditorRoomTests
         vm.Editor.Notes = "a note";
 
         // A start with a place and a point per token, the row open: its ten fields are measured with the rest.
-        vm.Session.Apply(StratStartBlock.Write(vm.Session.Document!, new StratStart
-        {
-            Kind = StratStart.CustomKind,
-            Positions = [.. StratStartBlock.Tokens.Select((t, i) => new StartPosition { Slot = t, Place = "TSpawn", X = -1234.4 - i, Y = -2560.6, LevelMinZ = -256 })]
-        }));
+        vm.Session.Apply(StratStartBlock.Write(vm.Session.Document!,
+            new StratStart
+            {
+                Kind = StratStart.CustomKind,
+                Positions =
+                [
+                    .. StratStartBlock.Tokens.Select((t, i) => new StartPosition
+                    {
+                        Slot = t,
+                        Place = "TSpawn",
+                        X = -1234.4 - i,
+                        Y = -2560.6,
+                        LevelMinZ = -256
+                    })
+                ]
+            }));
         vm.Editor.Start.IsExpanded = true;
 
         StratEditorViewModel editor = vm.Editor;
@@ -214,17 +247,22 @@ public class StratEditorRoomTests
 
         // Every field of the widest rows holds a value: other shows them all, and a throw has a lineup.
         int other = StratVocabulary.Verbs.ToList().IndexOf("other");
-        vm.Session.Apply(PatchOp.ReplaceOp($"/steps/{other}/from", null, new JsonObject { ["x"] = -1234.4, ["y"] = -2560.6, ["levelMinZ"] = -256 }));
+        vm.Session.Apply(PatchOp.ReplaceOp($"/steps/{other}/from", null,
+            new JsonObject { ["x"] = -1234.4, ["y"] = -2560.6, ["levelMinZ"] = -256 }));
         vm.Session.Apply(PatchOp.ReplaceOp($"/steps/{other}/to", null, new JsonObject { ["place"] = "TopofMid" }));
-        vm.Session.Apply(PatchOp.ReplaceOp($"/steps/{other}/utility", null, new JsonObject
-        {
-            ["kind"] = "smoke", ["lineupId"] = Guid.NewGuid().ToString(), ["landing"] = new JsonObject { ["place"] = "Connector" }
-        }));
+        vm.Session.Apply(PatchOp.ReplaceOp($"/steps/{other}/utility", null,
+            new JsonObject
+            {
+                ["kind"] = "smoke",
+                ["lineupId"] = Guid.NewGuid().ToString(),
+                ["landing"] = new JsonObject { ["place"] = "Connector" }
+            }));
         vm.Session.Apply(PatchOp.ReplaceOp($"/steps/{other}/note", null, JsonValue.Create("a long note")));
 
         // A long via on a travelling step: the chips wrap inside the field.
         int moving = StratVocabulary.Verbs.ToList().IndexOf("move");
-        vm.Session.Apply(PatchOp.AddOp($"/steps/{moving}/via", new JsonArray("TopofMid", "Connector", "Underpass", "Apartments", "PalaceAlley")));
+        vm.Session.Apply(PatchOp.AddOp($"/steps/{moving}/via",
+            new JsonArray("TopofMid", "Connector", "Underpass", "Apartments", "PalaceAlley")));
         vm.Session.Apply(PatchOp.AddOp($"/steps/{moving}/viaPoints",
             new JsonArray(new JsonObject { ["x"] = -1234.4, ["y"] = -2560.6, ["levelMinZ"] = -256 })));
         int thrown = StratVocabulary.Verbs.ToList().IndexOf("throw");
@@ -235,47 +273,80 @@ public class StratEditorRoomTests
         // A step with three lines, each watching two callouts, one at a set angle: the widest line row.
         StratStep lines = new()
         {
-            Id = Guid.NewGuid(), AtSeconds = -50, Actor = StratVocabulary.ActorAll, Verb = "move",
+            Id = Guid.NewGuid(),
+            AtSeconds = -50,
+            Actor = StratVocabulary.ActorAll,
+            Verb = "move",
             Assignments =
             [
                 new StepAssignment
                 {
-                    Slot = "B", To = new PlaceRef { Place = "PalaceInterior" }, Watch = new StepWatch { Places = ["BombsiteA", "CTSpawn", "TopofMid", "PalaceAlley"] },
-                    Via = ["TopofMid", "Connector", "Underpass", "Apartments"], ViaPoints = [new PlaceRef { X = -1234.4, Y = -2560.6, LevelMinZ = -256 }]
+                    Slot = "B",
+                    To = new PlaceRef { Place = "PalaceInterior" },
+                    Watch = new StepWatch { Places = ["BombsiteA", "CTSpawn", "TopofMid", "PalaceAlley"] },
+                    Via = ["TopofMid", "Connector", "Underpass", "Apartments"],
+                    ViaPoints = [new PlaceRef { X = -1234.4, Y = -2560.6, LevelMinZ = -256 }]
                 },
-                new StepAssignment { Slot = "C", To = new PlaceRef { Place = "Connector" }, Watch = new StepWatch { Places = ["Stairs", "Jungle"] } },
                 new StepAssignment
                 {
-                    Slot = "D", To = new PlaceRef { X = -1234.4, Y = -2560.6, LevelMinZ = -256 },
-                    Watch = new StepWatch { Places = ["TRamp", "PalaceAlley"], Points = [new PlaceRef { X = -900, Y = -1500, LevelMinZ = -256 }], YawDegrees = 135 }
+                    Slot = "C",
+                    To = new PlaceRef { Place = "Connector" },
+                    Watch = new StepWatch { Places = ["Stairs", "Jungle"] }
+                },
+                new StepAssignment
+                {
+                    Slot = "D",
+                    To = new PlaceRef { X = -1234.4, Y = -2560.6, LevelMinZ = -256 },
+                    Watch = new StepWatch
+                    {
+                        Places = ["TRamp", "PalaceAlley"],
+                        Points = [new PlaceRef { X = -900, Y = -1500, LevelMinZ = -256 }],
+                        YawDegrees = 135
+                    }
                 }
             ]
         };
-        vm.Session.Apply(PatchOp.AddOp("/steps/-", JsonSerializer.SerializeToNode(lines, StratJsonContext.Default.StratStep)));
+        vm.Session.Apply(PatchOp.AddOp("/steps/-",
+            JsonSerializer.SerializeToNode(lines, StratJsonContext.Default.StratStep)));
 
         // Two players shown as one, with a shared angle and split: the widest compact row. And a lurk with every field set.
         StratStep pair = new()
         {
-            Id = Guid.NewGuid(), AtSeconds = -52, Actor = StratVocabulary.ActorAll, Verb = "hold",
+            Id = Guid.NewGuid(),
+            AtSeconds = -52,
+            Actor = StratVocabulary.ActorAll,
+            Verb = "hold",
             Assignments =
             [
                 .. StratVocabulary.Slots.Skip(1).Take(2).Select(s => new StepAssignment
                 {
-                    Slot = s, To = new PlaceRef { Place = "PalaceInterior" }, Watch = new StepWatch { Places = ["BombsiteA", "CTSpawn", "Jungle", "TopofMid", "PalaceAlley", "Underpass"], YawDegrees = 135 }
+                    Slot = s,
+                    To = new PlaceRef { Place = "PalaceInterior" },
+                    Watch = new StepWatch
+                    {
+                        Places = ["BombsiteA", "CTSpawn", "Jungle", "TopofMid", "PalaceAlley", "Underpass"],
+                        YawDegrees = 135
+                    }
                 })
             ]
         };
-        vm.Session.Apply(PatchOp.AddOp("/steps/-", JsonSerializer.SerializeToNode(pair, StratJsonContext.Default.StratStep)));
+        vm.Session.Apply(PatchOp.AddOp("/steps/-",
+            JsonSerializer.SerializeToNode(pair, StratJsonContext.Default.StratStep)));
         int lurk = StratVocabulary.Verbs.ToList().IndexOf("lurk");
-        vm.Session.Apply(PatchOp.AddOp($"/steps/{lurk}/lurk", new JsonObject
-        {
-            ["areas"] = new JsonArray("PalaceInterior", "Connector", "Jungle", "TopofMid", "Underpass", "Apartments"),
-            ["areaPoints"] = new JsonArray(new JsonObject { ["x"] = -900, ["y"] = -1500, ["levelMinZ"] = -256 }),
-            ["rotate"] = new JsonObject
+        vm.Session.Apply(PatchOp.AddOp($"/steps/{lurk}/lurk",
+            new JsonObject
             {
-                ["atSeconds"] = 40, ["when"] = "after first kill", ["to"] = new JsonObject { ["x"] = -1234.4, ["y"] = -2560.6, ["levelMinZ"] = -256 }
-            }
-        }));
+                ["areas"] =
+                    new JsonArray("PalaceInterior", "Connector", "Jungle", "TopofMid", "Underpass", "Apartments"),
+                ["areaPoints"] =
+                    new JsonArray(new JsonObject { ["x"] = -900, ["y"] = -1500, ["levelMinZ"] = -256 }),
+                ["rotate"] = new JsonObject
+                {
+                    ["atSeconds"] = 40,
+                    ["when"] = "after first kill",
+                    ["to"] = new JsonObject { ["x"] = -1234.4, ["y"] = -2560.6, ["levelMinZ"] = -256 }
+                }
+            }));
 
         // Position entries as placed chips: a departure on the lurk with seen spots and opponents beside it, and a pin on
         // the pair's hold.
@@ -304,7 +375,8 @@ public class StratEditorRoomTests
             vm.Session.Apply(PatchOp.AddOp($"/steps/{lurk}/positions/-", entry));
         }
 
-        vm.Session.Apply(PatchOp.AddOp($"/steps/{vm.Session.Document!.Steps.Count - 1}/positions/-", Entry("B", -1700.5, -2000.25)));
+        vm.Session.Apply(PatchOp.AddOp($"/steps/{vm.Session.Document!.Steps.Count - 1}/positions/-",
+            Entry("B", -1700.5, -2000.25)));
 
         // The editor's catalog groups the map off the UI thread and posts back.
         for (int i = 0; i < 500 && vm.Editor.ResolveLineup(lineup.Id) is null; i++)
@@ -346,13 +418,15 @@ public class StratEditorRoomTests
             LineupPickerViewModel picker = vm.LineupPicker!;
             Control overlay = view.FindControl<Control>("LineupPickerOverlay")!;
             Control body = view.FindControl<Control>("TabBody")!;
-            IInputElement? focused = TopLevel.GetTopLevel(view)!.FocusManager!.GetFocusedElement();
+            IInputElement? focused = TopLevel.GetTopLevel(view)!.FocusManager.GetFocusedElement();
             using (Assert.Multiple())
             {
                 await Assert.That(overlay.IsEffectivelyVisible).IsTrue();
                 await Assert.That(picker.SelectedPosition).IsNotNull().Because("the step's lineup opens selected");
-                await Assert.That(body.IsEnabled).IsFalse().Because("Tab and Enter must not reach the editor behind the picker");
-                await Assert.That(focused is Visual v && v.GetVisualAncestors().OfType<LineupPickerView>().Any()).IsTrue()
+                await Assert.That(body.IsEnabled).IsFalse()
+                    .Because("Tab and Enter must not reach the editor behind the picker");
+                await Assert.That(focused is Visual v && v.GetVisualAncestors().OfType<LineupPickerView>().Any())
+                    .IsTrue()
                     .Because("the picker takes the focus, so Escape works at once");
             }
 

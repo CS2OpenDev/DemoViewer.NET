@@ -44,7 +44,7 @@ public class VisibilityEngineTests
         ParsedDemo demo = DemoParser.Parse(bytes.AsMemory());
         IReadOnlyList<DemoFrame> frames = demo.Frames;
 
-        List<Vector3> feet = new();
+        List<Vector3> feet = [];
         EntityTracker tracker = new();
         int start = Math.Min(frames.Count / 4, Math.Max(0, frames.Count - 1));
         int end = Math.Min(frames.Count - 1, start + 12000);
@@ -86,7 +86,7 @@ public class VisibilityEngineTests
         int compared = 0, mismatches = 0;
         foreach (Vector3 f in fx.Feet)
         {
-            Vector3 o = new(f.X, f.Y, f.Z + EyeStanding);
+            Vector3 o = f with { Z = f.Z + EyeStanding };
             bool eHit = fx.Engine.RayDownDistance(o, 100_000f, out float eT);
             bool bHit = BruteRayDown(fx.V, fx.TriCount, o, out float bT);
             compared++;
@@ -116,7 +116,7 @@ public class VisibilityEngineTests
         }
 
         // Build a diverse pair set (bounded so the brute-force oracle stays fast in Debug).
-        List<(Vector3 A, Vector3 B)> pairs = new();
+        List<(Vector3 A, Vector3 B)> pairs = [];
         List<Vector3> feet = fx.Feet;
         int n = feet.Count;
         for (int i = 0; i < n && pairs.Count < 500; i++)
@@ -156,7 +156,8 @@ public class VisibilityEngineTests
             }
         }
 
-        Console.WriteLine($"[vengine] segment compared={compared} mismatches={mismatches} visibleFrac={(double)visible / compared:P0}");
+        Console.WriteLine(
+            $"[vengine] segment compared={compared} mismatches={mismatches} visibleFrac={(double)visible / compared:P0}");
         await Assert.That(compared).IsGreaterThan(100);
         await Assert.That(mismatches).IsEqualTo(0);
         // Guard against a degenerate all-visible/all-blocked set that would make equivalence meaningless.
@@ -206,7 +207,7 @@ public class VisibilityEngineTests
         }
 
         Console.WriteLine($"[vengine] through-floor occluded {throughFloorOccluded}/{throughFloorTotal}  " +
-                          $"symmetric {symmetric}/{symTotal}");
+            $"symmetric {symmetric}/{symTotal}");
         await Assert.That(throughFloorTotal).IsGreaterThan(0);
         // Feet sit on solid floor (Phase-G gate), so a sightline into the ground is always blocked.
         await Assert.That((double)throughFloorOccluded / throughFloorTotal).IsGreaterThan(0.98);

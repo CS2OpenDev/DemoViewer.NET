@@ -1,7 +1,6 @@
 #region
 
 using System.Globalization;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.ViewModels.Stats;
@@ -68,24 +67,30 @@ public sealed record PlayerDemo(PlayerMatch Match, bool HasFacet, IReadOnlyDicti
 ///     each side the demos with stats played, its summed rounds and counts and its ADR, KAST% and KD under
 ///     <see cref="PlayerRoundFacet.Column" /> (<c>CT:ADR</c>), pooled over the <see cref="WithSides" /> demos alone.
 /// </param>
-public sealed record PlayerAggregate(int Matches, int WithStats, int Wins, int Losses, int Ties, IReadOnlyDictionary<string, double> Values)
+public sealed record PlayerAggregate(
+    int Matches,
+    int WithStats,
+    int Wins,
+    int Losses,
+    int Ties,
+    IReadOnlyDictionary<string, double> Values)
 {
     // HLTV 2.0's constant terms (rules/player_stats.rules.yaml, HLTV): 0.1587 and the impact term's -0.41 x 0.2372.
     // Every other term is linear in a per-round count, so two slots' ratings add up to the account's plus one of these.
     private const double HltvConstant = 0.1587 - (0.2372 * 0.41);
     private const double HltvPerKastPercent = 0.73 / 100;
 
-    private static readonly string[] Activity = ["Shots", "TotalD", "EnemyDmg"];
+    private static readonly string[] _activity = ["Shots", "TotalD", "EnemyDmg"];
 
     // The rounds a slot's team won and lost on each side. A slot tallies every round its team finishes, not only
     // the rounds the account held it, so two slots of one account can tally the same round.
-    private static readonly string[] TeamTally = ["CTW", "CTL", "TW", "TL"];
+    private static readonly string[] _teamTally = ["CTW", "CTL", "TW", "TL"];
 
     /// <summary>The demos with stats whose facet carries line-of-sight data: the population of every sight column.</summary>
-    public int WithSight { get; init; }
+    public int WithSight { get; private init; }
 
     /// <summary>The demos with stats whose rounds by side are pooled; fewer than <see cref="WithStats" /> while the library computes the rest.</summary>
-    public int WithSides { get; init; }
+    public int WithSides { get; private init; }
 
     /// <summary>The pooled value of a catalogue column, or null when it does not pool or no demo has stats.</summary>
     /// <param name="key">A catalogue key.</param>
@@ -141,7 +146,9 @@ public sealed record PlayerAggregate(int Matches, int WithStats, int Wins, int L
         {
             foreach ((string key, ColumnRule rule) in ColumnRules.All)
             {
-                List<IReadOnlyDictionary<string, double>> over = ColumnCatalogue.RequiresVisibility(key) ? sighted : rows;
+                List<IReadOnlyDictionary<string, double>> over = ColumnCatalogue.RequiresVisibility(key)
+                    ? sighted
+                    : rows;
                 if (over.Count > 0 && rule.Pool(over) is { } value)
                 {
                     values[key] = value;
@@ -149,7 +156,7 @@ public sealed record PlayerAggregate(int Matches, int WithStats, int Wins, int L
             }
         }
 
-        foreach (int side in (int[]) [PlayerRoundFacet.Ct, PlayerRoundFacet.T])
+        foreach (int side in (int[])[PlayerRoundFacet.Ct, PlayerRoundFacet.T])
         {
             if (sides.GetValueOrDefault(PlayerRoundFacet.Column(side, "rounds")) is not (> 0 and var rounds))
             {
@@ -169,7 +176,10 @@ public sealed record PlayerAggregate(int Matches, int WithStats, int Wins, int L
             values[PlayerRoundFacet.Column(side, "KD")] = Sum("deaths") == 0 ? 0 : Sum("kills") / Sum("deaths");
         }
 
-        return new PlayerAggregate(demos.Count, rows.Count, wins, losses, ties, values) { WithSight = sighted.Count, WithSides = withSides };
+        return new PlayerAggregate(demos.Count, rows.Count, wins, losses, ties, values)
+        {
+            WithSight = sighted.Count, WithSides = withSides
+        };
     }
 
     /// <summary>The demos of <paramref name="demos" /> that pass <paramref name="filter" />, in their order; <see cref="PlayerFilter.Last" /> applies last.</summary>
@@ -193,11 +203,13 @@ public sealed record PlayerAggregate(int Matches, int WithStats, int Wins, int L
     {
         DemoCacheIndexEntry row = match.Row;
         return (filter.Map is null || string.Equals(row.Map, filter.Map, StringComparison.OrdinalIgnoreCase))
-               && (filter.FromTicks is not { } from || match.TimeTicks >= from)
-               && (filter.BeforeTicks is not { } before || match.TimeTicks < before)
-               && (filter.Side is null || match.Side == filter.Side)
-               && (filter.Source is null || string.Equals(row.MatchSource ?? row.SourceKind, filter.Source, StringComparison.OrdinalIgnoreCase))
-               && (filter.GameMode is null || string.Equals(row.GameMode, filter.GameMode, StringComparison.OrdinalIgnoreCase));
+            && (filter.FromTicks is not { } from || match.TimeTicks >= from)
+            && (filter.BeforeTicks is not { } before || match.TimeTicks < before)
+            && (filter.Side is null || match.Side == filter.Side)
+            && (filter.Source is null || string.Equals(row.MatchSource ?? row.SourceKind, filter.Source,
+                StringComparison.OrdinalIgnoreCase))
+            && (filter.GameMode is null
+                || string.Equals(row.GameMode, filter.GameMode, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Win when the account's side won more rounds than it lost (<c>CTW + TW</c> against <c>CTL + TL</c>).</summary>
@@ -211,7 +223,9 @@ public sealed record PlayerAggregate(int Matches, int WithStats, int Wins, int L
 
         double won = stats.GetValueOrDefault("CTW") + stats.GetValueOrDefault("TW");
         double lost = stats.GetValueOrDefault("CTL") + stats.GetValueOrDefault("TL");
-        return won + lost == 0 ? null : won > lost ? MatchOutcome.Win : won < lost ? MatchOutcome.Loss : MatchOutcome.Tie;
+        return won + lost == 0 ? null :
+            won > lost ? MatchOutcome.Win :
+            won < lost ? MatchOutcome.Loss : MatchOutcome.Tie;
     }
 
     /// <summary>
@@ -222,7 +236,8 @@ public sealed record PlayerAggregate(int Matches, int WithStats, int Wins, int L
     /// <param name="except">The account left out.</param>
     /// <param name="columns">The columns kept.</param>
     public static IReadOnlyDictionary<ulong, IReadOnlyDictionary<string, double>> Others(
-        IReadOnlyDictionary<ulong, IReadOnlyDictionary<string, double>> accounts, ulong except, IReadOnlyList<string> columns)
+        IReadOnlyDictionary<ulong, IReadOnlyDictionary<string, double>> accounts, ulong except,
+        IReadOnlyList<string> columns)
     {
         ArgumentNullException.ThrowIfNull(accounts);
         ArgumentNullException.ThrowIfNull(columns);
@@ -254,7 +269,7 @@ public sealed record PlayerAggregate(int Matches, int WithStats, int Wins, int L
     ///     ghost row on the old slot, so a row counts only when it ended on a side (team 2 or 3) or shows activity
     ///     (shots, deaths or damage). Counts and sums add up; <c>rounds</c> is the match's on every row; KAST rounds
     ///     and rounds survived add up to at most the match's rounds; HLTV adds up less the constant terms of each
-    ///     extra slot. The side round tallies (<see cref="TeamTally" />) add up only while they fit in the match's
+    ///     extra slot. The side round tallies (<see cref="_teamTally" />) add up only while they fit in the match's
     ///     rounds; past that two slots tallied the same rounds, and the slot with the most shots keeps its four.
     ///     Null when no row of the account counts.
     /// </summary>
@@ -272,7 +287,7 @@ public sealed record PlayerAggregate(int Matches, int WithStats, int Wins, int L
         {
             if (!string.Equals(row.Dimensions.GetValueOrDefault("steam_id")?.AsText(), id, StringComparison.Ordinal)
                 || (row.Dimensions.GetValueOrDefault("team")?.AsInteger() is not (2 or 3)
-                    && !Activity.Any(c => row.Values.GetValueOrDefault(c)?.AsNumber() > 0)))
+                    && !_activity.Any(c => row.Values.GetValueOrDefault(c)?.AsNumber() > 0)))
             {
                 continue;
             }
@@ -303,9 +318,9 @@ public sealed record PlayerAggregate(int Matches, int WithStats, int Wins, int L
         }
 
         double rounds = merged.GetValueOrDefault(ColumnRules.Rounds);
-        if (TeamTally.Sum(c => merged.GetValueOrDefault(c)) > rounds)
+        if (_teamTally.Sum(c => merged.GetValueOrDefault(c)) > rounds)
         {
-            foreach (string column in TeamTally)
+            foreach (string column in _teamTally)
             {
                 merged[column] = Number(busiest!, column);
             }
@@ -316,9 +331,10 @@ public sealed record PlayerAggregate(int Matches, int WithStats, int Wins, int L
             merged["Survived"] = Math.Min(survived, rounds);
         }
 
-        double kastPercent =rounds == 0 ? 0 : Math.Min(kastRounds, rounds) / rounds * 100;
+        double kastPercent = rounds == 0 ? 0 : Math.Min(kastRounds, rounds) / rounds * 100;
         merged["KAST%"] = kastPercent;
-        merged["HLTV"] = merged.GetValueOrDefault("HLTV") - ((slots - 1) * HltvConstant) - ((kastPercents - kastPercent) * HltvPerKastPercent);
+        merged["HLTV"] = merged.GetValueOrDefault("HLTV") - ((slots - 1) * HltvConstant)
+            - ((kastPercents - kastPercent) * HltvPerKastPercent);
         return merged;
     }
 

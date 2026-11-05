@@ -77,7 +77,6 @@ public sealed class TagSession : IDisposable
     private RoundFactsRows? _factRows;
     private bool _factRowsRead;
     private int _lastSavedVersion = -1;
-    private IReadOnlyList<LibraryRound>? _rounds;
     private bool _saveFailed;
 
     /// <summary>Creates a session. Every dependency is optional so a headless test needs no container.</summary>
@@ -123,7 +122,7 @@ public sealed class TagSession : IDisposable
     ///     The attached demo's cached rounds (frame clock), or null without a cache record. The Tag Palette
     ///     clamps a new span by them: the same rows <c>round</c> is derived from, so the two cannot disagree.
     /// </summary>
-    public IReadOnlyList<LibraryRound>? Rounds => _rounds;
+    public IReadOnlyList<LibraryRound>? Rounds { get; private set; }
 
     /// <summary>Bumped on every change, undoable or not. Never goes backwards.</summary>
     public int Version { get; private set; }
@@ -131,9 +130,6 @@ public sealed class TagSession : IDisposable
     /// <summary>How long changes coalesce before a save: the annotation controller's 750 ms. Shortened by tests.</summary>
     public TimeSpan AutoSaveDelay { get; set; } = TimeSpan.FromMilliseconds(750);
 
-    public bool CanUndo => _undo.Count > 0;
-
-    public bool CanRedo => _redo.Count > 0;
 
     /// <summary>How many undo entries are available.</summary>
     public int UndoDepth => _undo.Count;
@@ -145,7 +141,7 @@ public sealed class TagSession : IDisposable
     public bool DemoMismatch { get; private set; }
 
     /// <summary>The stored file could not be read. It is not overwritten, and nothing is saved.</summary>
-    public bool Unreadable { get; private set; }
+    private bool Unreadable { get; set; }
 
     /// <summary>Saves completed, successful or not. Tests wait on it.</summary>
     public int SaveCount { get; private set; }
@@ -242,12 +238,14 @@ public sealed class TagSession : IDisposable
         }
 
         DemoPath = demoPath;
-        _rounds = string.IsNullOrEmpty(demoPath) || _roundsFor is null ? null : await _roundsFor(demoPath).ConfigureAwait(true);
+        Rounds = string.IsNullOrEmpty(demoPath) || _roundsFor is null
+            ? null
+            : await _roundsFor(demoPath).ConfigureAwait(true);
         _factRows = null;
         _factRowsRead = false;
         _saveFailed = false;
 
-        TagLoadResult result = _store?.Load(demo.Sha256, clock) ?? TagLoadResult.Empty(null);
+        TagLoadResult result = _store?.Load(demo.Sha256, clock) ?? TagLoadResult.Empty();
         ClockMismatch = result.ClockMismatch;
         DemoMismatch = result.DemoMismatch;
         Unreadable = result.Unreadable;
@@ -390,7 +388,7 @@ public sealed class TagSession : IDisposable
         return best?.Number;
     }
 
-    private int? RoundAt(int tick) => RoundAt(_rounds, tick);
+    private int? RoundAt(int tick) => RoundAt(Rounds, tick);
 
     // Facts for one instance from the attached demo's rows. False without a source or without rows, in
     // which case the instance is left as it was and the refresher fills it when rows are written.
@@ -609,15 +607,17 @@ public sealed class TagSession : IDisposable
             restored.Round = current.Round;
         }
 
-        restored.Facts = current.Facts.Select(Copy).ToList();
+        restored.Facts = [.. current.Facts.Select(Copy)];
         restored.FactsStamp = current.FactsStamp;
 
         List<TagPosition> currentPoints =
             [.. current.Positions, .. current.Movements.SelectMany(m => new[] { m.From, m.To })];
-        foreach (TagPosition point in restored.Positions.Concat(restored.Movements.SelectMany(m => new[] { m.From, m.To })))
+        foreach (TagPosition point in restored.Positions.Concat(
+                     restored.Movements.SelectMany(m => new[] { m.From, m.To })))
         {
             TagPosition? same = currentPoints.FirstOrDefault(p =>
-                p.X.Equals(point.X) && p.Y.Equals(point.Y) && p.LevelMinZ.Equals(point.LevelMinZ) && p.Tick == point.Tick);
+                p.X.Equals(point.X) && p.Y.Equals(point.Y) && p.LevelMinZ.Equals(point.LevelMinZ)
+                && p.Tick == point.Tick);
             if (same is not null)
             {
                 point.Place = same.Place;

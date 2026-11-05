@@ -3,7 +3,6 @@
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 
@@ -30,11 +29,12 @@ internal static class LibraryTestExtensions
         HostLibrary.For(store, null).DetailOf(record);
 
     // Projections need a store only for the rows it already holds; a record or row from a fixture projects as itself.
-    private static readonly DemoCacheStore Memory = new(null);
+    private static readonly DemoCacheStore _memory = new(null);
 
     /// <summary>A fixture's record as the library hands it to a record pass.</summary>
-    public static LibraryDemoDetail AsDetail(this DemoCacheRecord record) => HostLibrary.For(Memory, null).DetailOf(record);
+    public static LibraryDemoDetail AsDetail(this DemoCacheRecord record) =>
+        HostLibrary.For(_memory, null).DetailOf(record);
 
     /// <summary>A fixture's index row as the library hands it out.</summary>
-    public static LibraryDemo AsRow(this DemoCacheIndexEntry entry) => HostLibrary.For(Memory, null).Project(entry);
+    public static LibraryDemo AsRow(this DemoCacheIndexEntry entry) => HostLibrary.For(_memory, null).Project(entry);
 }

@@ -3,7 +3,6 @@
 using System.Runtime.CompilerServices;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.Sdk.Export;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Hud;
@@ -56,9 +55,7 @@ internal static class SceneExportScenes
         return new ExportSceneSetup(scene.Frames, scene.TickRate, scene.MapName, scene.Palette ?? palette,
             scene.DisplayMode, null, demoHud, frames.Map, scene.Ink)
         {
-            Source = scene.Source is { } source ? () => source(frames) : null,
-            SourceHud = hud,
-            Owned = owned
+            Source = scene.Source is { } source ? () => source(frames) : null, SourceHud = hud, Owned = owned
         };
     }
 
@@ -76,7 +73,7 @@ internal static class SceneExportScenes
         int start = clip.FromTick;
         int end = clip.ToTick;
         int count;
-        if (outputFrames is int held)
+        if (outputFrames is { } held)
         {
             count = held;
         }
@@ -87,7 +84,8 @@ internal static class SceneExportScenes
                 return null;
             }
 
-            start = Math.Max(0, TrackerFrameSource.FrameIndexForTick(frames, Math.Max(clip.FromTick, frames[0].ServerTick)));
+            start = Math.Max(0,
+                TrackerFrameSource.FrameIndexForTick(frames, Math.Max(clip.FromTick, frames[0].ServerTick)));
             end = TrackerFrameSource.FrameIndexForTick(frames, Math.Min(clip.ToTick, frames[^1].ServerTick));
             if (end < start)
             {
@@ -124,10 +122,10 @@ internal static class SceneExportScenes
 internal sealed class ExtensionSceneExport : IExtensionSceneExport, IDisposable
 {
     /// <summary>The refusal when an extension's capture answers null and it named no copy of its own.</summary>
-    internal const string NothingToExportRefusal = "There is nothing to export.";
+    private const string NothingToExportRefusal = "There is nothing to export.";
 
     /// <summary>The refusal when a clip's tick range lies outside the demo it names.</summary>
-    internal const string OutsideTheDemoRefusal = "The clip's range lies outside the demo.";
+    private const string OutsideTheDemoRefusal = "The clip's range lies outside the demo.";
 
     // Keyed by the ink session the pane puts on the request: the one object that is one-per-run, for the
     // reason Scene2DExportRequest.Ink gives. A second Start cannot trade scenes with a parked first one.
@@ -214,7 +212,7 @@ internal sealed class ExtensionSceneExport : IExtensionSceneExport, IDisposable
         }
 
         ExportJobService job = Job(_exports);
-        Func<SceneExportScene?> capture = _guard.Wrap<SceneExportScene?>("export capture", request.Capture, null);
+        Func<SceneExportScene?> capture = _guard.Wrap("export capture", request.Capture, null);
         Playback2DExportDialogViewModel dialog = FirstPartySceneExport.NewDialog(
             _exports,
             new SceneExportDefaults(request.Choices.FormatId, request.Choices.Fps, request.Choices.Width,

@@ -4,29 +4,29 @@ using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules;
-using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
-using DemoViewer.NET.Services;
-using DemoViewer.NET.Services.DemoProcessing;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 using DemoViewer.NET.Playback2D.Pipeline.Goldens;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
+using DemoViewer.NET.Services;
+using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Export;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.TestSupport;
-using Microsoft.Extensions.DependencyInjection;
-using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.ViewModels.Playback2D;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.ViewModels.Playback;
+using Microsoft.Extensions.DependencyInjection;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
@@ -59,7 +59,8 @@ public class StratExportTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (StratBookTabViewModel vm, List<Playback2DExportStatusViewModel> chips, ExtensionSceneExport export) = OpenFiveSteps();
+            (StratBookTabViewModel vm, List<Playback2DExportStatusViewModel> chips, ExtensionSceneExport export) =
+                OpenFiveSteps();
             using (export)
             using (vm)
             {
@@ -75,13 +76,15 @@ public class StratExportTests
                     await Assert.That(dialog.SelectedFps).IsEqualTo(20);
                     await Assert.That(dialog.ResolvedSize).IsEqualTo(new SKSizeI(640, 640));
                     await Assert.That(dialog.SelectedRange!.StartFrame).IsEqualTo(320).Because("the first step");
-                    await Assert.That(dialog.SelectedRange.EndFrame).IsEqualTo(2880 + 128).Because("the last step plus 2 s");
+                    await Assert.That(dialog.SelectedRange.EndFrame).IsEqualTo(2880 + 128)
+                        .Because("the last step plus 2 s");
                     await Assert.That(dialog.EstimatedFrameCount).IsEqualTo(FiveStepFrames);
                     await Assert.That(Path.GetFileName(dialog.OutputPath)).IsEqualTo("A exec.gif");
                     await Assert.That(dialog.CanStart).IsTrue();
 
                     // The seven scene layers, the ink and the clock, named: the killfeed and roster have no source.
-                    await Assert.That(request.LayerIds).IsEquivalentTo(StratExportJob.LayerIds(true, true), CollectionOrdering.Matching);
+                    await Assert.That(request.LayerIds)
+                        .IsEquivalentTo(StratExportJob.LayerIds(true, true), CollectionOrdering.Matching);
                     await Assert.That(request.LayerIds.Count).IsEqualTo(9);
                     await Assert.That(request.LayerIds).DoesNotContain(SceneLayerIds.HudKillFeed);
 
@@ -135,7 +138,8 @@ public class StratExportTests
                 await Assert.That(codec.Info.Height).IsEqualTo(640);
 
                 byte[] actual = DecodeFrame(codec, GoldenFrame);
-                using SKCodec silencedCodec = SKCodec.Create(new MemoryStream(await File.ReadAllBytesAsync(silencedOutput)));
+                using SKCodec silencedCodec =
+                    SKCodec.Create(new MemoryStream(await File.ReadAllBytesAsync(silencedOutput)));
                 byte[] silenced = DecodeFrame(silencedCodec, GoldenFrame);
                 string golden = GoldenPath();
                 if (Environment.GetEnvironmentVariable("STRAT_GOLDEN_UPDATE") == "1")
@@ -160,11 +164,14 @@ public class StratExportTests
                 {
                     string artifacts = Path.Combine(AppContext.BaseDirectory, "artifacts");
                     Directory.CreateDirectory(artifacts);
-                    await File.WriteAllBytesAsync(Path.Combine(artifacts, "strat-export-five-steps.actual.png"), actual);
-                    await File.WriteAllBytesAsync(Path.Combine(artifacts, "strat-export-five-steps.silenced.png"), silenced);
+                    await File.WriteAllBytesAsync(Path.Combine(artifacts, "strat-export-five-steps.actual.png"),
+                        actual);
+                    await File.WriteAllBytesAsync(Path.Combine(artifacts, "strat-export-five-steps.silenced.png"),
+                        silenced);
                 }
 
-                await Assert.That(result.FailureReason).IsNull().Because(result.FailureReason ?? "the export succeeded");
+                await Assert.That(result.FailureReason).IsNull()
+                    .Because(result.FailureReason ?? "the export succeeded");
                 await Assert.That(result.Match).IsTrue();
             }
             finally
@@ -204,7 +211,7 @@ public class StratExportTests
                 {
                     await Assert.That(key).IsSameReferenceAs(scene.Ink);
                     await Assert.That(setup.Annotations).IsSameReferenceAs(scene.Ink);
-                    await Assert.That(setup.Source).IsNotNull().Because("a strat has no demo behind it");
+                    await Assert.That(setup.Source is not null).IsTrue().Because("a strat has no demo behind it");
                     await Assert.That(setup.Frames).IsEmpty();
                     await Assert.That(setup.DisplayMode).IsEqualTo(LevelDisplayMode.Stacked);
                     await Assert.That(setup.Palette).IsEqualTo(ScenePalette.Dark).Because("the request named none");
@@ -252,7 +259,7 @@ public class StratExportTests
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }
@@ -293,7 +300,10 @@ public class StratExportTests
 
             using Playback2DExportDialogViewModel dialog = new(
                 [new ExportRangeOption("whole round", 0, 115 * 64)],
-                new Playback2DSettings { ExportFormatId = ExportFormats.Gif, ExportFps = 20, ExportWidth = 640, ExportHeight = 640 },
+                new Playback2DSettings
+                {
+                    ExportFormatId = ExportFormats.Gif, ExportFps = 20, ExportWidth = 640, ExportHeight = 640
+                },
                 outputFrameCount: StratFrameSource.OutputFrameCount,
                 fileExists: _ => false,
                 scene: new ExportDialogScene("Export strat", "strat", FirstPartySceneExport.SizePresets,
@@ -313,7 +323,8 @@ public class StratExportTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            FeatureDescriptor descriptor = FeatureCatalog.All.Single(d => d.Id == StratBookTabViewModel.ExportFeatureId);
+            FeatureDescriptor descriptor =
+                FeatureCatalog.All.Single(d => d.Id == StratBookTabViewModel.ExportFeatureId);
             using ShellModuleFeatureGate onBrowser = new(null, static () => true);
             using ShellModuleFeatureGate onDesktop = new(null, static () => false);
 
@@ -401,7 +412,7 @@ public class StratExportTests
 
     // The scene the pane's Start would hand over, as the host builds it: the tab's capture, no map art (the
     // canvas has none here, and the golden is recorded on the grid), and the range in strat ticks.
-    private static ExportSceneSetup? Capture(StratBookTabViewModel vm, Playback2DExportDialogViewModel dialog,
+    private static ExportSceneSetup Capture(StratBookTabViewModel vm, Playback2DExportDialogViewModel dialog,
         ExportRangeOption range)
     {
         if (vm.Canvas.CaptureForExport() is not { } capture)
@@ -420,7 +431,7 @@ public class StratExportTests
     private static async Task RenderAsync(StratBookTabViewModel vm, Playback2DExportDialogViewModel dialog,
         ExportRangeOption range, string output, Action<SceneCompositor>? configureLayers)
     {
-        ExportSceneSetup setup = Capture(vm, dialog, range)! with { ConfigureLayers = configureLayers };
+        ExportSceneSetup setup = Capture(vm, dialog, range) with { ConfigureLayers = configureLayers };
         Scene2DExportRequest request = new(dialog.BuildRequest(range), output, string.Empty,
             range.StartFrame, range.EndFrame, dialog.SelectedEncoder, dialog.SelectedQuality,
             setup.Annotations);
@@ -467,7 +478,7 @@ public class StratExportTests
     private static string GoldenPath()
     {
         string repo = DemoTestHelper.FindRepoRoot()
-                      ?? throw new InvalidOperationException("repo root not found from the test output directory");
+            ?? throw new InvalidOperationException("repo root not found from the test output directory");
         return Path.Combine(repo, "tests", "fixtures", "strats", "export", GoldenName);
     }
 }

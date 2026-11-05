@@ -123,7 +123,7 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
     public bool HasShownPanels => Panels.Any(p => p.IsShown);
 
     /// <summary>A shown panel holds the keyboard: the contributions' action handlers see every action first.</summary>
-    public bool HasKeyboard => Panels.Any(p => p.IsShown && p.HasKeyboard);
+    public bool HasKeyboard => Panels.Any(p => p is { IsShown: true, HasKeyboard: true });
 
     /// <inheritdoc />
     public IReadOnlyList<MapLevel> MapLevels => _levels() ?? [];
@@ -223,7 +223,8 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
     }
 
     /// <inheritdoc />
-    public IPanelHandle AddPanel(int order, Func<object> viewModel, Func<Control>? view = null, string? featureId = null,
+    public IPanelHandle AddPanel(int order, Func<object> viewModel, Func<Control>? view = null,
+        string? featureId = null,
         ModeToggle? mode = null)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
@@ -250,7 +251,8 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
     }
 
     /// <inheritdoc />
-    public IDisposable AddLayer(string layerId, Func<ISceneLayer> layer, string? displayName = null, bool enabled = true)
+    public IDisposable AddLayer(string layerId, Func<ISceneLayer> layer, string? displayName = null,
+        bool enabled = true)
     {
         ArgumentException.ThrowIfNullOrEmpty(layerId);
         ArgumentNullException.ThrowIfNull(layer);
@@ -264,7 +266,7 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
         // _layerChoices outlives every registration, so re-adding an id, or a gate cycle that disposes
         // and re-attaches the whole contribution, keeps what the user picked this session.
         ContributedLayerToggle toggle =
-            new(layerId, displayName, _layerChoices.TryGetValue(layerId, out bool chosen) ? chosen : enabled);
+            new(layerId, displayName, _layerChoices.GetValueOrDefault(layerId, enabled));
         toggle.PropertyChanged += OnContributedLayerToggled;
         ContributedLayers.Add(toggle);
         OnPropertyChanged(nameof(HasContributedLayers));
@@ -274,8 +276,10 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
         LayersChanged?.Invoke();
         return new Removal(() =>
         {
-            if (_layers.Remove(entry))
+            int at = _layers.FindIndex(l => ReferenceEquals(l.Value, entry.Value));
+            if (at >= 0)
             {
+                _layers.RemoveAt(at);
                 // Inside the branch, and by instance: two owners can compose the same filed id
                 // ("a.b" + "c" and "a" + "b.c"), and the loser must not delete the winner's row.
                 DropRow(toggle);
@@ -415,7 +419,7 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
     /// <summary>The tab's resolved keymap changed.</summary>
     internal void SetKeymap(Playback2DKeymapProfile keymap)
     {
-        Keymap = keymap ?? Playback2DKeymapProfile.Default;
+        Keymap = keymap;
         KeymapChanged?.Invoke();
     }
 
@@ -570,25 +574,20 @@ public sealed partial class Playback2DSurface : ObservableObject, IPlaybackSurfa
 /// </summary>
 public sealed class Playback2DPanel : ObservableObject, IPanelHandle
 {
-    private readonly Func<object> _factory;
     private readonly Playback2DSurface _owner;
     private readonly Func<Control>? _view;
-    private object? _content;
-    private bool _hasKeyboard;
-    private bool _isGateOn;
-    private bool _isShown;
-    private object? _presented;
 
-    internal Playback2DPanel(Playback2DSurface owner, int order, Func<object> factory, Func<Control>? view, string? featureId,
+    internal Playback2DPanel(Playback2DSurface owner, int order, Func<object> factory, Func<Control>? view,
+        string? featureId,
         ModeToggle? mode)
     {
         _owner = owner;
         Order = order;
-        _factory = factory;
+        Factory = factory;
         _view = view;
         FeatureId = featureId;
         Mode = mode;
-        _isGateOn = featureId is null || owner.IsFeatureEnabled(featureId);
+        IsGateOn = featureId is null || owner.IsFeatureEnabled(featureId);
         if (mode is not null)
         {
             mode.Changed += OnModeChanged;
@@ -604,25 +603,25 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
     /// <summary>The mode the panel shows under, or null for none.</summary>
     public ModeToggle? Mode { get; }
 
-    internal Func<object> Factory => _factory;
+    internal Func<object> Factory { get; }
 
     /// <summary>The open panel's view model, or null.</summary>
-    public object? Content => _content;
+    public object? Content { get; private set; }
 
     /// <summary>
     ///     What the view presents: the contributed control with the view model as its DataContext, or the
     ///     view model itself for the ViewLocator. Null while closed.
     /// </summary>
-    public object? View => _presented;
+    public object? View { get; private set; }
 
     /// <summary>The gate reads on. Open panels with the gate on make Review mode available.</summary>
-    public bool IsGateOn => _isGateOn;
+    public bool IsGateOn { get; private set; }
 
     /// <inheritdoc />
-    public bool IsOpen => _content is not null;
+    public bool IsOpen => Content is not null;
 
     /// <inheritdoc />
-    public bool IsShown => _isShown;
+    public bool IsShown { get; private set; }
 
     /// <inheritdoc />
     public event Action? ShownChanged;
@@ -633,15 +632,15 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
     /// <inheritdoc />
     public bool HasKeyboard
     {
-        get => _hasKeyboard;
+        get;
         set
         {
-            if (_hasKeyboard == value)
+            if (field == value)
             {
                 return;
             }
 
-            _hasKeyboard = value;
+            field = value;
             OnPropertyChanged();
             _owner.OnPanelKeyboardChanged();
         }
@@ -658,16 +657,16 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
 
     internal void Show(object content)
     {
-        _content = content;
+        Content = content;
         if (_view is { } build)
         {
             Control control = build();
             control.DataContext = content;
-            _presented = control;
+            View = control;
         }
         else
         {
-            _presented = content;
+            View = content;
         }
 
         OnPropertyChanged(nameof(Content));
@@ -677,9 +676,9 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
 
     internal object? Hide()
     {
-        object? content = _content;
-        _content = null;
-        _presented = null;
+        object? content = Content;
+        Content = null;
+        View = null;
         OnPropertyChanged(nameof(Content));
         OnPropertyChanged(nameof(View));
         OnPropertyChanged(nameof(IsOpen));
@@ -707,18 +706,18 @@ public sealed class Playback2DPanel : ObservableObject, IPanelHandle
     {
         bool gate = FeatureId is null || _owner.IsFeatureEnabled(FeatureId);
         bool shown = IsOpen && gate && (Mode?.IsOn ?? true);
-        if (gate != _isGateOn)
+        if (gate != IsGateOn)
         {
-            _isGateOn = gate;
+            IsGateOn = gate;
             OnPropertyChanged(nameof(IsGateOn));
         }
 
-        if (shown == _isShown)
+        if (shown == IsShown)
         {
             return;
         }
 
-        _isShown = shown;
+        IsShown = shown;
         OnPropertyChanged(nameof(IsShown));
         ShownChanged?.Invoke();
     }

@@ -25,6 +25,20 @@
     </ItemGroup>
 
     <!--
+        ReSharper's usage annotations, for every project because source files are linked across
+        projects. [PublicAPI] marks the packable projects' public types as published on purpose, so the
+        solution-wide unused and can-be-private inspections stop reporting them. The attributes are
+        [Conditional("JETBRAINS_ANNOTATIONS")]: nothing is emitted and no assembly gains a reference.
+        Import the namespace; never alias a type from it. A using alias is written to the PDB import
+        scope as a type reference, which drags a JetBrains.Annotations assembly reference into every
+        shipped DLL (Playback2D's ArchitectureTests.Scene_ReferencesOnlySkiaSharpAndBcl catches it).
+    -->
+    <ItemGroup>
+        <PackageReference Include="JetBrains.Annotations" PrivateAssets="all"/>
+        <Using Include="JetBrains.Annotations"/>
+    </ItemGroup>
+
+    <!--
         The language and framework settings every project wants, here rather than restated per csproj.
         A project overrides any of them from its own body, which is evaluated after this file: the
         Browser head does that for its net10.0-browser TFM.

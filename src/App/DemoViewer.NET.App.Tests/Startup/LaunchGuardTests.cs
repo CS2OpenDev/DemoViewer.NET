@@ -9,10 +9,10 @@ namespace DemoViewer.NET.AppTests.Startup;
 /// <summary>Safe mode's decision: what the previous launch left behind, and the command line.</summary>
 public class LaunchGuardTests
 {
-    private static readonly DateTimeOffset At = new(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset _at = new(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
 
     private static LaunchState State(LaunchPhase phase, bool hung = false, CrashRecord? crash = null) =>
-        new(phase, At, false, 1, hung, crash);
+        new(phase, _at, false, 1, hung, crash);
 
     private static string NewRoot()
     {
@@ -24,19 +24,22 @@ public class LaunchGuardTests
     [Test]
     public async Task TheDecision_FollowsWhatThePreviousLaunchLeft()
     {
-        CrashRecord inHello = new(At, "System.InvalidOperationException", "Hello", "pack.hello");
-        CrashRecord unattributed = new(At, "System.InvalidOperationException", null, null);
+        CrashRecord inHello = new(_at, "System.InvalidOperationException", "Hello", "pack.hello");
+        CrashRecord unattributed = new(_at, "System.InvalidOperationException", null, null);
 
         using (Assert.Multiple())
         {
             await Assert.That(LaunchGuard.Decide(null, false)).IsEqualTo(SafeModeState.Off).Because("a first launch");
             await Assert.That(LaunchGuard.Decide(State(LaunchPhase.Exited), false)).IsEqualTo(SafeModeState.Off);
-            await Assert.That(LaunchGuard.Decide(State(LaunchPhase.Exited), true).Reason).IsEqualTo(SafeModeReason.Requested);
-            await Assert.That(LaunchGuard.Decide(State(LaunchPhase.Starting), false).Reason).IsEqualTo(SafeModeReason.StartupFailed)
+            await Assert.That(LaunchGuard.Decide(State(LaunchPhase.Exited), true).Reason)
+                .IsEqualTo(SafeModeReason.Requested);
+            await Assert.That(LaunchGuard.Decide(State(LaunchPhase.Starting), false).Reason)
+                .IsEqualTo(SafeModeReason.StartupFailed)
                 .Because("a launch that never finished starting crashed or froze while starting");
             await Assert.That(LaunchGuard.Decide(State(LaunchPhase.Running, crash: inHello), false))
                 .IsEqualTo(new SafeModeState(true, SafeModeReason.ExtensionCrashed, "Hello", "pack.hello"));
-            await Assert.That(LaunchGuard.Decide(State(LaunchPhase.Running, crash: unattributed), false)).IsEqualTo(SafeModeState.Off)
+            await Assert.That(LaunchGuard.Decide(State(LaunchPhase.Running, crash: unattributed), false))
+                .IsEqualTo(SafeModeState.Off)
                 .Because("a crash with no extension on its stack is not a reason to turn every extension off");
             await Assert.That(LaunchGuard.Decide(State(LaunchPhase.Running, hung: true), false).Reason)
                 .IsEqualTo(SafeModeReason.StoppedResponding);
@@ -53,7 +56,8 @@ public class LaunchGuardTests
         {
             LaunchGuard first = LaunchGuard.Begin(root, []);
             await Assert.That(first.Decision.IsActive).IsFalse();
-            await Assert.That(LaunchGuard.Read(Path.Combine(root, LaunchGuard.FileName))!.Phase).IsEqualTo(LaunchPhase.Starting);
+            await Assert.That(LaunchGuard.Read(Path.Combine(root, LaunchGuard.FileName))!.Phase)
+                .IsEqualTo(LaunchPhase.Starting);
 
             LaunchGuard second = LaunchGuard.Begin(root, []);
             await Assert.That(second.Decision.Reason).IsEqualTo(SafeModeReason.StartupFailed);
@@ -74,8 +78,10 @@ public class LaunchGuardTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(LaunchGuard.Begin(null, ["--safe-mode"]).Decision.Reason).IsEqualTo(SafeModeReason.Requested);
-            await Assert.That(LaunchGuard.Begin(null, ["/Safe-Mode"]).Decision.Reason).IsEqualTo(SafeModeReason.Requested);
+            await Assert.That(LaunchGuard.Begin(null, ["--safe-mode"]).Decision.Reason)
+                .IsEqualTo(SafeModeReason.Requested);
+            await Assert.That(LaunchGuard.Begin(null, ["/Safe-Mode"]).Decision.Reason)
+                .IsEqualTo(SafeModeReason.Requested);
             await Assert.That(LaunchGuard.Begin(null, ["--other"]).Decision.IsActive).IsFalse();
         }
     }
@@ -90,12 +96,15 @@ public class LaunchGuardTests
         System.Runtime.Loader.AssemblyLoadContext context = new("external:test@1.0", isCollectible: true);
         try
         {
-            System.Reflection.Assembly entry = context.LoadFromAssemblyPath(Path.Combine(bin, "DemoViewer.NET.Extensions.StratBook.dll"));
-            System.Reflection.Assembly dependency = context.LoadFromAssemblyPath(Path.Combine(bin, "DemoViewer.NET.Extensions.Sdk.dll"));
+            System.Reflection.Assembly entry =
+                context.LoadFromAssemblyPath(Path.Combine(bin, "DemoViewer.NET.Extensions.StratBook.dll"));
+            System.Reflection.Assembly dependency =
+                context.LoadFromAssemblyPath(Path.Combine(bin, "DemoViewer.NET.Extensions.Sdk.dll"));
             // Closed over the pack type from the same load context, so the SDK copy there is the one that throws.
-            System.Reflection.MethodInfo throws = dependency.GetType("DemoViewer.NET.Extensions.Sdk.ExtensionServiceProviderExtensions")!
-                .GetMethod("GetExtensionContext")!
-                .MakeGenericMethod(entry.GetType("DemoViewer.NET.Extensions.StratBook.StratBookPack")!);
+            System.Reflection.MethodInfo throws =
+                dependency.GetType("DemoViewer.NET.Extensions.Sdk.ExtensionServiceProviderExtensions")!
+                    .GetMethod("GetExtensionContext")!
+                    .MakeGenericMethod(entry.GetType("DemoViewer.NET.Extensions.StratBook.StratBookPack")!);
             Exception thrown;
             try
             {
@@ -197,7 +206,8 @@ public class LaunchGuardTests
         answer();
         using (Assert.Multiple())
         {
-            await Assert.That(Contains(reports, true)).IsTrue().Because("nothing answered the ping for longer than the limit");
+            await Assert.That(Contains(reports, true)).IsTrue()
+                .Because("nothing answered the ping for longer than the limit");
             await Assert.That(reports[^1]).IsFalse().Because("the UI thread answered again");
         }
     }
@@ -231,7 +241,9 @@ public class SafeModeSettingsTests
                 await Assert.That(second.Current.Features.Overrides).ContainsKey("pack.notloaded");
                 await Assert.That(second.Current.Features.Overrides["pack.notloaded"]).IsFalse();
                 await Assert.That(second.Current.Extensions.AllowUnverified).IsTrue();
-                await Assert.That(DemoViewer.NET.Extensions.Loading.ExtensionStartup.ReadAllowUnverified(Path.Combine(root, "settings.json")))
+                await Assert
+                    .That(DemoViewer.NET.Extensions.Loading.ExtensionStartup.ReadAllowUnverified(Path.Combine(root,
+                        "settings.json")))
                     .IsTrue().Because("the launch reads what the settings service wrote");
             }
         }

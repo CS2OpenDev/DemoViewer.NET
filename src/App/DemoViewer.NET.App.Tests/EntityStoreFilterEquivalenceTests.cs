@@ -21,10 +21,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("Integration")]
 public class EntityStoreFilterEquivalenceTests
 {
-    private static readonly IReadOnlySet<string> _onlyTeam = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "CCSTeam"
-    };
+    private static readonly IReadOnlySet<string> _onlyTeam = new HashSet<string>(StringComparer.Ordinal) { "CCSTeam" };
 
     private static readonly string[] _demoNames =
     [
@@ -36,7 +33,7 @@ public class EntityStoreFilterEquivalenceTests
     [Test]
     public async Task CcsTeamOnlyFilter_ProducesIdenticalScore_ToFullReplay()
     {
-        string[] present = _demoNames.Select(DemoTestHelper.FindDemoPath).OfType<string>().ToArray();
+        string[] present = [.. _demoNames.Select(DemoTestHelper.FindDemoPath).OfType<string>()];
         if (present.Length == 0)
         {
             throw new SkipTestException("no equivalence demo present");
@@ -50,10 +47,7 @@ public class EntityStoreFilterEquivalenceTests
             EntityTracker full = new();
             full.ReplayToIndex(frames.Count - 1, frames);
 
-            EntityTracker filtered = new()
-            {
-                StoreClassFilter = _onlyTeam
-            };
+            EntityTracker filtered = new() { StoreClassFilter = _onlyTeam };
             filtered.ReplayToIndex(frames.Count - 1, frames);
 
             (int? fCt, int? fT, string? fCtClan, string? fTClan) = ReadTeams(full);

@@ -27,9 +27,7 @@ public class GoldenPerceptualToleranceTests
     private static readonly GoldenTolerance _openGlyphTier =
         GoldenTolerance.DefaultPerceptual with
         {
-            GlyphOutlierChannelDelta = 96,
-            MaxGlyphOutlierFraction = 0.0001,
-            MinWindowSsim = 0.90
+            GlyphOutlierChannelDelta = 96, MaxGlyphOutlierFraction = 0.0001, MinWindowSsim = 0.90
         };
 
     [Test]
@@ -174,7 +172,7 @@ public class GoldenPerceptualToleranceTests
     [Test]
     public async Task OnePixelShift_PassesEveryChannelRule_AndFailsOnSsim()
     {
-        byte[] expected = Pixels(64, 64, (x, y) => Checker(x, y));
+        byte[] expected = Pixels(64, 64, Checker);
         byte[] actual = Pixels(64, 64, (x, y) => Checker(x + 1, y));
 
         GoldenComparison result =
@@ -231,7 +229,7 @@ public class GoldenPerceptualToleranceTests
     [Test]
     public async Task SmallerThanTheWindow_StillComputesSsim()
     {
-        byte[] expected = Pixels(6, 6, (x, y) => Checker(x, y));
+        byte[] expected = Pixels(6, 6, Checker);
         byte[] actual = Pixels(6, 6, (x, y) => Checker(x + 1, y));
 
         GoldenComparison result =
@@ -261,8 +259,8 @@ public class GoldenPerceptualToleranceTests
         GoldenComparison result =
             GoldenImageComparer.Compare(expected, actual, GoldenTolerance.DefaultPerceptual);
 
-        const double c1 = 0.01 * 255 * (0.01 * 255);
-        double closedForm = (2 * 100.0 * 110.0 + c1) / (100.0 * 100.0 + 110.0 * 110.0 + c1);
+        const double C1 = 0.01 * 255 * (0.01 * 255);
+        double closedForm = (2 * 100.0 * 110.0 + C1) / (100.0 * 100.0 + 110.0 * 110.0 + C1);
 
         await Assert.That(closedForm).IsEqualTo(0.99547).Within(0.00001);
         await Assert.That(result.Ssim).IsEqualTo(closedForm).Within(0.00002);
@@ -285,15 +283,15 @@ public class GoldenPerceptualToleranceTests
     [Test]
     public async Task Ssim_OnAnAntiCorrelatedCheckerboard_MatchesTheClosedFormStructureTerm()
     {
-        byte[] expected = Pixels(48, 48, (x, y) => Checker(x, y));
+        byte[] expected = Pixels(48, 48, Checker);
         byte[] actual = Pixels(48, 48, (x, y) => Checker(x + 1, y));
 
         GoldenComparison result =
             GoldenImageComparer.Compare(expected, actual, GoldenTolerance.DefaultPerceptual);
 
-        const double c2 = 0.03 * 255 * (0.03 * 255);
-        const double variance = 3.0 * 3.0;
-        double closedForm = (-2 * variance + c2) / (2 * variance + c2);
+        const double C2 = 0.03 * 255 * (0.03 * 255);
+        const double Variance = 3.0 * 3.0;
+        double closedForm = (-2 * Variance + C2) / (2 * Variance + C2);
 
         await Assert.That(closedForm).IsEqualTo(0.52955).Within(0.00001);
         await Assert.That(result.Ssim).IsEqualTo(closedForm).Within(0.0005);
@@ -304,11 +302,7 @@ public class GoldenPerceptualToleranceTests
     // ALonePixelUnderBothChannelRules_StillFailsOnWindowedSsim exists to catch, so SSIM is stood down
     // here to keep each case about one rule.
     private static GoldenTolerance ChannelRulesOnly(GoldenTolerance tolerance) =>
-        tolerance with
-        {
-            MinSsim = 0,
-            MinWindowSsim = 0
-        };
+        tolerance with { MinSsim = 0, MinWindowSsim = 0 };
 
     /// <summary>
     ///     <b>The Windows gate is unchanged.</b> Every stock tolerance keeps the glyph tier shut, which

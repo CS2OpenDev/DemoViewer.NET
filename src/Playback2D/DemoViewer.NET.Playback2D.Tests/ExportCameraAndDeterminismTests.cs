@@ -3,12 +3,12 @@
 using System.Collections.Immutable;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
 #endregion
@@ -248,10 +248,7 @@ public class ExportDeterminismTests
         List<PlayerMarker> markers = new(source.Markers.Count);
         foreach (PlayerMarker marker in source.Markers)
         {
-            markers.Add(marker with
-            {
-                WorldX = marker.WorldX + dx
-            });
+            markers.Add(marker with { WorldX = marker.WorldX + dx });
         }
 
         return new Scene2DFrame
@@ -298,10 +295,7 @@ public class ExportAllocationTests
 
         // Warm-up run: JIT, the surface, the pooled buffer, the picture caches and the text blobs are all
         // one-time costs, and charging them to the budget would make the gate meaningless.
-        await Measure(session, source, request with
-        {
-            EndFrame = 63
-        }, surfaces);
+        await Measure(session, source, request with { EndFrame = 63 }, surfaces);
 
         // TWO runs of different lengths, differenced. A single run cannot separate the loop's per-frame
         // cost from a run's own fixed setup, one compositor scope, one camera resolver, one renderer,
@@ -312,20 +306,14 @@ public class ExportAllocationTests
         long shortRun = long.MaxValue, longRun = long.MaxValue;
         for (int i = 0; i < Samples; i++)
         {
-            shortRun = Math.Min(shortRun, await Measure(session, source, request with
-            {
-                EndFrame = 511
-            }, surfaces));
-            longRun = Math.Min(longRun, await Measure(session, source, request with
-            {
-                EndFrame = 1023
-            }, surfaces));
+            shortRun = Math.Min(shortRun, await Measure(session, source, request with { EndFrame = 511 }, surfaces));
+            longRun = Math.Min(longRun, await Measure(session, source, request with { EndFrame = 1023 }, surfaces));
         }
 
         long extra = longRun - shortRun;
         double perFrame = extra / 512.0;
         Console.WriteLine($"[alloc] export {perFrame:F2} bytes/frame " +
-                          $"(512 frames: {shortRun} B, 1024 frames: {longRun} B, delta {extra} B)");
+            $"(512 frames: {shortRun} B, 1024 frames: {longRun} B, delta {extra} B)");
 
         // The ceiling is 64 BYTES for the extra 512 frames, not 64 per frame: a single 48-byte
         // allocation appears once, at a varying iteration past ~150, with no gen-0 collection in the
@@ -362,21 +350,18 @@ public class ExportAllocationTests
         using CpuSurfaceProvider surfaces = new();
         SceneExportSession session = new(compositor);
 
-        const int frames = 256;
-        FixtureFrameSource source = ExportFixtures.Source(frames);
-        ExportRequest request = ExportFixtures.Request(frames, size: new SKSizeI(64, 48));
+        const int Frames = 256;
+        FixtureFrameSource source = ExportFixtures.Source(Frames);
+        ExportRequest request = ExportFixtures.Request(Frames, size: new SKSizeI(64, 48));
 
-        await session.RunAsync(request with
-            {
-                EndFrame = 63
-            }, source, new NullSink(), surfaces, null,
+        await session.RunAsync(request with { EndFrame = 63 }, source, new NullSink(), surfaces, null,
             CancellationToken.None);
 
         long before = GC.GetAllocatedBytesForCurrentThread();
         await session.RunAsync(request, source, new NullSink(), surfaces, null, CancellationToken.None);
         long after = GC.GetAllocatedBytesForCurrentThread();
 
-        double perFrame = (after - before) / (double)frames;
+        double perFrame = (after - before) / (double)Frames;
         Console.WriteLine($"[alloc] export without a bundle: {perFrame:F1} bytes/frame");
         await Assert.That(perFrame).IsGreaterThanOrEqualTo(0.0);
     }

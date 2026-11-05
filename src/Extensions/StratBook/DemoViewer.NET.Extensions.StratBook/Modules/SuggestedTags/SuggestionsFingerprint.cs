@@ -20,12 +20,12 @@ public static class SuggestionsFingerprint
     ///     Bumped whenever a detector's rule or the proposals file shape changes in a way the profile and
     ///     the regions cannot express: every demo's proposals are then rebuilt once.
     /// </summary>
-    public const int DetectorCodeVersion = 1;
+    private const int DetectorCodeVersion = 1;
 
     /// <summary>
     ///     Where occupancy and the detonation cloud come from. Changing it rebuilds every proposals file.
     /// </summary>
-    public const string OccupancyStrategy = "occupancy=round-index;cloud=positions";
+    private const string OccupancyStrategy = "occupancy=round-index;cloud=positions";
 
     /// <summary>
     ///     Where the thrower fix-up's removed projectiles come from: the collector's stamp, which moves with its

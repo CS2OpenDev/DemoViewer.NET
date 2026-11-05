@@ -53,10 +53,6 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _demoBindingText = "";
 
-    // Diagnostics-pillar logger (v0.6.0, the restore-failure surface shows clean text, this
-    // carries the real exception). Lazy: the ambient factory is wired after construction.
-    private ILogger? _diagLog;
-
     private bool _disposed;
 
     /// <summary>The launch-notice strip's "don't show again" box.</summary>
@@ -174,10 +170,7 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
         _acknowledgeLaunchNotice = acknowledgeLaunchNotice;
         _installRecovery = installRecovery;
 
-        Chip = new StatusChipViewModel
-        {
-            FlyoutContent = this
-        };
+        Chip = new StatusChipViewModel { FlyoutContent = this };
 
         _liveSync.StateChanged += OnStateChanged;
         if (_moduleContext is not null)
@@ -202,7 +195,9 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.LiveSync");
+    // Diagnostics-pillar logger (v0.6.0, the restore-failure surface shows clean text, this
+    // carries the real exception). Lazy: the ambient factory is wired after construction.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.LiveSync");
 
     /// <summary>The status-strip chip this VM drives (added to <c>MainViewModel.Chips</c> when gated on).</summary>
     public StatusChipViewModel Chip { get; }
@@ -519,7 +514,7 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
                     state.Reason);
                 ShowSection(degraded: true);
                 StateHeadline = state.Reason
-                                ?? "Seek unconfirmed — CS2 did not confirm the last seek; showing CS2's reported position.";
+                    ?? "Seek unconfirmed — CS2 did not confirm the last seek; showing CS2's reported position.";
                 RefreshVersions();
                 break;
 
@@ -551,7 +546,7 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     private void UpdateHudProjection(LiveSyncState state)
     {
         _hudActive = (_isHudGateEnabled?.Invoke() ?? true)
-                     && state.Kind != LiveSyncStateKind.Disconnected;
+            && state.Kind != LiveSyncStateKind.Disconnected;
 
         _hudDot = state.Kind switch
         {
@@ -561,7 +556,8 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
                 or LiveSyncStateKind.SyncedSeekPending => LiveSyncHudDot.Good,
             LiveSyncStateKind.Degraded => LiveSyncHudDot.Degraded,
             LiveSyncStateKind.Faulted => LiveSyncHudDot.Error,
-            _ => LiveSyncHudDot.Working // HostStarting / LaunchingCs2 / Connecting / LoadingDemo / ConnectedIdle / SuspendedForReel
+            _ => LiveSyncHudDot
+                .Working // HostStarting / LaunchingCs2 / Connecting / LoadingDemo / ConnectedIdle / SuspendedForReel
         };
 
         _hudChanged?.Invoke(this, EventArgs.Empty);
@@ -575,7 +571,7 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     public void NotifyHudGateChanged()
     {
         _hudActive = (_isHudGateEnabled?.Invoke() ?? true)
-                     && _liveSync.State.Kind != LiveSyncStateKind.Disconnected;
+            && _liveSync.State.Kind != LiveSyncStateKind.Disconnected;
         _hudChanged?.Invoke(this, EventArgs.Empty);
     }
 

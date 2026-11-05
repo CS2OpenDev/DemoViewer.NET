@@ -20,7 +20,7 @@ public static class StressTestGraphs
         const int NodeCount = 120;
         Random rng = new(424242);
 
-        List<SampleNode> nodes = new();
+        List<SampleNode> nodes = [];
         for (int i = 0; i < NodeCount; i++)
         {
             nodes.Add(new SampleNode($"S{i:D3}", i == 0, i % 4 != 0,
@@ -28,8 +28,8 @@ public static class StressTestGraphs
                 i % 11 == 0 ? "ConjunctionNode" : null));
         }
 
-        HashSet<(int, int)> seen = new();
-        List<IGraphEdge> edges = new();
+        HashSet<(int, int)> seen = [];
+        List<IGraphEdge> edges = [];
         // Connected spine.
         for (int i = 0; i < NodeCount - 1; i++)
         {
@@ -55,10 +55,10 @@ public static class StressTestGraphs
         }
 
         // Group nodes into contiguous bands of ~20.
-        List<INodeGroup> groups = new();
+        List<INodeGroup> groups = [];
         for (int g = 0; g * 20 < NodeCount; g++)
         {
-            IGraphNode[] members = nodes.Skip(g * 20).Take(20).Cast<IGraphNode>().ToArray();
+            IGraphNode[] members = [.. nodes.Skip(g * 20).Take(20).Cast<IGraphNode>()];
             if (members.Length > 0)
             {
                 groups.Add(new SampleGroup($"Band {g}", members));
@@ -67,10 +67,10 @@ public static class StressTestGraphs
 
         // One player table with column edges from early-band nodes.
         string[] columns = ["Kills", "Assists", "Deaths", "KAST%"];
-        List<ITableRow> rows = new();
+        List<ITableRow> rows = [];
         for (int p = 0; p < 10; p++)
         {
-            List<ITableCell> cells = new();
+            List<ITableCell> cells = [];
             for (int c = 0; c < columns.Length; c++)
             {
                 cells.Add(new SampleTableCell
@@ -80,12 +80,7 @@ public static class StressTestGraphs
                 });
             }
 
-            rows.Add(new SampleTableRow
-            {
-                Label = $"Player_{p:D2}",
-                FilterAnnotation = $"slot == {p}",
-                Cells = cells
-            });
+            rows.Add(new SampleTableRow { Label = $"Player_{p:D2}", FilterAnnotation = $"slot == {p}", Cells = cells });
         }
 
         IReadOnlyList<ITableColumnEdge> columnEdges =
@@ -97,28 +92,23 @@ public static class StressTestGraphs
         ];
         IReadOnlyList<INodeTable> tables =
         [
-            new SampleTable
-            {
-                ColumnNames = columns,
-                Rows = rows,
-                ColumnEdges = columnEdges
-            }
+            new SampleTable { ColumnNames = columns, Rows = rows, ColumnEdges = columnEdges }
         ];
 
-        return (nodes.Cast<IGraphNode>().ToList(), edges, groups, tables);
+        return ([.. nodes.Cast<IGraphNode>()], edges, groups, tables);
     }
 
     /// <summary>10 sources → 1 sink through 2 intermediate layers. Tests convergence.</summary>
     public static (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges,
         IReadOnlyList<INodeGroup> Groups) BuildConvergence()
     {
-        List<SampleNode> sources = new();
+        List<SampleNode> sources = [];
         for (int i = 0; i < 10; i++)
         {
             sources.Add(new SampleNode($"Src_{i}", isActive: true));
         }
 
-        List<SampleNode> intermediates = new();
+        List<SampleNode> intermediates = [];
         for (int i = 0; i < 3; i++)
         {
             intermediates.Add(new SampleNode($"Mid_{i}", isActive: true));
@@ -126,12 +116,9 @@ public static class StressTestGraphs
 
         SampleNode sink = new("Sink", isActive: true, displayValue: "converged");
 
-        List<IGraphNode> nodes = new();
-        nodes.AddRange(sources);
-        nodes.AddRange(intermediates);
-        nodes.Add(sink);
+        List<IGraphNode> nodes = [.. sources, .. intermediates, sink];
 
-        List<IGraphEdge> edges = new();
+        List<IGraphEdge> edges = [];
         for (int i = 0; i < sources.Count; i++)
         {
             edges.Add(new SampleEdge(sources[i], intermediates[i % 3],
@@ -145,8 +132,8 @@ public static class StressTestGraphs
 
         IReadOnlyList<INodeGroup> groups =
         [
-            new SampleGroup("Sources", sources.ToArray()),
-            new SampleGroup("Intermediates", intermediates.ToArray())
+            new SampleGroup("Sources", [.. sources]),
+            new SampleGroup("Intermediates", [.. intermediates])
         ];
 
         return (nodes, edges, groups);
@@ -163,15 +150,15 @@ public static class StressTestGraphs
         const int NodeCount = 30;
         Random rng = new(20260528);
 
-        List<SampleNode> nodes = new();
+        List<SampleNode> nodes = [];
         for (int i = 0; i < NodeCount; i++)
         {
             nodes.Add(new SampleNode($"N{i:D2}", i == 0, i % 3 != 0,
                 (i % 5).ToString(CultureInfo.InvariantCulture)));
         }
 
-        HashSet<(int, int)> seen = new();
-        List<IGraphEdge> edges = new();
+        HashSet<(int, int)> seen = [];
+        List<IGraphEdge> edges = [];
         // Spine to keep the graph connected and layered.
         for (int i = 0; i < NodeCount - 1; i++)
         {
@@ -195,7 +182,7 @@ public static class StressTestGraphs
                 $"f{s}_{d}", VisualEdgeEffect.SetValue));
         }
 
-        return (nodes.Cast<IGraphNode>().ToList(), edges, []);
+        return ([.. nodes.Cast<IGraphNode>()], edges, []);
     }
 
     /// <summary>Diamond pattern: A→B, A→C, B→D, C→D. Tests crossing minimization.</summary>
@@ -226,13 +213,13 @@ public static class StressTestGraphs
     public static (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges,
         IReadOnlyList<INodeGroup> Groups) BuildDisconnectedComponents()
     {
-        List<SampleNode> nodes = new();
-        List<IGraphEdge> edges = new();
-        List<INodeGroup> groups = new();
+        List<SampleNode> nodes = [];
+        List<IGraphEdge> edges = [];
+        List<INodeGroup> groups = [];
 
         for (int comp = 0; comp < 3; comp++)
         {
-            List<SampleNode> members = new();
+            List<SampleNode> members = [];
             // Each component is a small chain with a fan-out tail.
             SampleNode head = new($"C{comp}_Head", true, true);
             members.Add(head);
@@ -247,10 +234,10 @@ public static class StressTestGraphs
             }
 
             nodes.AddRange(members);
-            groups.Add(new SampleGroup($"Component {comp}", members.ToArray()));
+            groups.Add(new SampleGroup($"Component {comp}", [.. members]));
         }
 
-        return (nodes.Cast<IGraphNode>().ToList(), edges, groups);
+        return ([.. nodes.Cast<IGraphNode>()], edges, groups);
     }
 
     /// <summary>10 sources → 1 sink. High in-degree single node. Stresses port assignment (Pass 3).</summary>
@@ -258,25 +245,23 @@ public static class StressTestGraphs
         IReadOnlyList<INodeGroup> Groups) BuildFanIn()
     {
         SampleNode sink = new("Sink", isActive: true, displayValue: "merged");
-        List<SampleNode> sources = new();
+        List<SampleNode> sources = [];
         for (int i = 0; i < 10; i++)
         {
             sources.Add(new SampleNode($"Src_{i}", true, i % 2 == 0,
                 i.ToString(CultureInfo.InvariantCulture)));
         }
 
-        List<IGraphNode> nodes = new();
-        nodes.AddRange(sources);
-        nodes.Add(sink);
+        List<IGraphNode> nodes = [.. sources, sink];
 
-        List<IGraphEdge> edges = new();
+        List<IGraphEdge> edges = [];
         foreach (SampleNode src in sources)
         {
             edges.Add(new SampleEdge(src, sink, "feed", VisualEdgeEffect.SetValue));
         }
 
         IReadOnlyList<INodeGroup> groups =
-            [new SampleGroup("Fan-In Test", nodes.ToArray())];
+            [new SampleGroup("Fan-In Test", [.. nodes])];
 
         return (nodes, edges, groups);
     }
@@ -286,27 +271,23 @@ public static class StressTestGraphs
         IReadOnlyList<INodeGroup> Groups) BuildFanOut()
     {
         SampleNode root = new("Source", true, true);
-        List<SampleNode> children = new();
+        List<SampleNode> children = [];
         for (int i = 0; i < 10; i++)
         {
             children.Add(new SampleNode($"Child_{i}", isActive: i % 2 == 0,
                 displayValue: i.ToString(CultureInfo.InvariantCulture)));
         }
 
-        List<IGraphNode> nodes = new()
-        {
-            root
-        };
-        nodes.AddRange(children);
+        List<IGraphNode> nodes = [root, .. children];
 
-        List<IGraphEdge> edges = new();
+        List<IGraphEdge> edges = [];
         foreach (SampleNode child in children)
         {
             edges.Add(new SampleEdge(root, child, "spawn", VisualEdgeEffect.Activate));
         }
 
         IReadOnlyList<INodeGroup> groups =
-            [new SampleGroup("Fan-Out Test", nodes.ToArray())];
+            [new SampleGroup("Fan-Out Test", [.. nodes])];
 
         return (nodes, edges, groups);
     }
@@ -320,34 +301,30 @@ public static class StressTestGraphs
     {
         const int SpokeCount = 20;
         SampleNode hub = new("Hub", true, true, "fanout");
-        List<SampleNode> spokes = new();
+        List<SampleNode> spokes = [];
         for (int i = 0; i < SpokeCount; i++)
         {
             spokes.Add(new SampleNode($"Spoke_{i:D2}", isActive: i % 2 == 0,
                 displayValue: i.ToString(CultureInfo.InvariantCulture)));
         }
 
-        List<IGraphNode> nodes = new()
-        {
-            hub
-        };
-        nodes.AddRange(spokes);
+        List<IGraphNode> nodes = [hub, .. spokes];
 
-        List<IGraphEdge> edges = new();
+        List<IGraphEdge> edges = [];
         for (int i = 0; i < spokes.Count; i++)
         {
             edges.Add(new SampleEdge(hub, spokes[i],
                 $"emit_{i:D2}", VisualEdgeEffect.Activate, $"idx == {i}"));
         }
 
-        return (nodes, edges, [new SampleGroup("Hub Test", nodes.ToArray())]);
+        return (nodes, edges, [new SampleGroup("Hub Test", [.. nodes])]);
     }
 
     /// <summary>A→B→C→...→J linear chain. Tests multi-layer routing.</summary>
     public static (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges,
         IReadOnlyList<INodeGroup> Groups) BuildLongChain()
     {
-        List<SampleNode> chainNodes = new();
+        List<SampleNode> chainNodes = [];
         for (int i = 0; i < 10; i++)
         {
             chainNodes.Add(new SampleNode($"Step_{(char)('A' + i)}",
@@ -355,7 +332,7 @@ public static class StressTestGraphs
                 i <= 5 ? "done" : null));
         }
 
-        List<IGraphEdge> edges = new();
+        List<IGraphEdge> edges = [];
         for (int i = 0; i < chainNodes.Count - 1; i++)
         {
             edges.Add(new SampleEdge(chainNodes[i], chainNodes[i + 1],
@@ -366,7 +343,7 @@ public static class StressTestGraphs
         edges.Add(new SampleEdge(chainNodes[0], chainNodes[^1],
             "shortcut", VisualEdgeEffect.SetValue, "skip all"));
 
-        return (chainNodes.Cast<IGraphNode>().ToList(), edges, []);
+        return ([.. chainNodes.Cast<IGraphNode>()], edges, []);
     }
 
     /// <summary>
@@ -391,29 +368,26 @@ public static class StressTestGraphs
         IReadOnlyList<INodeGroup> groups =
             [new SampleGroup("Lifecycle", [root, roundActive, roundNumber])];
 
-        List<INodeTable> tables = new();
+        List<INodeTable> tables = [];
         string[] tableNames = ["Per-Round", "Per-Game", "Per-Half"];
         for (int t = 0; t < 3; t++)
         {
             string[] columns = ["Kills", "Deaths", "Damage", "Score"];
-            List<ITableRow> rows = new();
+            List<ITableRow> rows = [];
             for (int p = 0; p < 5; p++)
             {
-                List<ITableCell> cells = new();
+                List<ITableCell> cells = [];
                 for (int c = 0; c < columns.Length; c++)
                 {
                     cells.Add(new SampleTableCell
                     {
-                        IsActive = c < 2,
-                        DisplayValue = ((p + c + t) % 7).ToString(CultureInfo.InvariantCulture)
+                        IsActive = c < 2, DisplayValue = ((p + c + t) % 7).ToString(CultureInfo.InvariantCulture)
                     });
                 }
 
                 rows.Add(new SampleTableRow
                 {
-                    Label = $"{tableNames[t]}_P{p}",
-                    FilterAnnotation = $"slot == {p}",
-                    Cells = cells
+                    Label = $"{tableNames[t]}_P{p}", FilterAnnotation = $"slot == {p}", Cells = cells
                 });
             }
 
@@ -425,12 +399,7 @@ public static class StressTestGraphs
                 new SampleColumnEdge(roundActive, 2, "player_hurt", VisualEdgeEffect.SetValue, "attacker == player"),
                 new SampleColumnEdge(root, 3, "round_freeze_end", VisualEdgeEffect.Activate)
             ];
-            tables.Add(new SampleTable
-            {
-                ColumnNames = columns,
-                Rows = rows,
-                ColumnEdges = columnEdges
-            });
+            tables.Add(new SampleTable { ColumnNames = columns, Rows = rows, ColumnEdges = columnEdges });
         }
 
         return (nodes, edges, groups, tables);
@@ -473,14 +442,14 @@ public static class StressTestGraphs
     public static (IReadOnlyList<IGraphNode> Nodes, IReadOnlyList<IGraphEdge> Edges,
         IReadOnlyList<INodeGroup> Groups) BuildSkipChainNoSubtitle()
     {
-        List<SampleNode> chainNodes = new();
+        List<SampleNode> chainNodes = [];
         for (int i = 0; i < 10; i++)
         {
             chainNodes.Add(new SampleNode($"Step_{(char)('A' + i)}",
                 i == 0, true));
         }
 
-        List<IGraphEdge> edges = new();
+        List<IGraphEdge> edges = [];
         for (int i = 0; i < chainNodes.Count - 1; i++)
         {
             edges.Add(new SampleEdge(chainNodes[i], chainNodes[i + 1],
@@ -490,6 +459,6 @@ public static class StressTestGraphs
         edges.Add(new SampleEdge(chainNodes[0], chainNodes[^1],
             "shortcut", VisualEdgeEffect.SetValue, "skip all"));
 
-        return (chainNodes.Cast<IGraphNode>().ToList(), edges, []);
+        return ([.. chainNodes.Cast<IGraphNode>()], edges, []);
     }
 }

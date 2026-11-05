@@ -9,6 +9,7 @@ namespace DemoViewer.NET.Playback2D;
 /// <param name="MinY">Lower world Y.</param>
 /// <param name="MaxX">Upper world X.</param>
 /// <param name="MaxY">Upper world Y.</param>
+[PublicAPI]
 public readonly record struct WorldBounds(double MinX, double MinY, double MaxX, double MaxY)
 {
     /// <summary>

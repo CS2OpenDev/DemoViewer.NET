@@ -9,6 +9,7 @@ namespace DemoViewer.NET.Playback2D;
 ///         the frame.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class SceneMapInfo
 {
     /// <summary>The all-unknown map info a frame carries before anything is read.</summary>

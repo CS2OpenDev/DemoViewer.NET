@@ -17,9 +17,6 @@ public interface IRecordPass
     /// <summary>Unique among the record passes.</summary>
     string Id { get; }
 
-    /// <summary>Who the pass belongs to, for fault reports. The pass's own id unless an extension owns it.</summary>
-    string Owner => Id;
-
     /// <summary>
     ///     Stamp ids on the row the pass reads. A pass naming any is held on a demo until each is on its row, and
     ///     runs again only when one of them moves; a pass naming none runs again on every new row.
@@ -64,14 +61,19 @@ public sealed class RecordPassRunner : IDisposable
     private const string RunKey = "records.run";
     private const string RunTitle = "Reading cached demos";
 
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly HashSet<string> _dirty = new(StringComparer.OrdinalIgnoreCase);
 
     // Keyed by the store's demo key, so every path of one demo shares them. A fault is also held under the
     // path it was visited by: that path's key changes once its file is hashed.
     private readonly HashSet<(string Pass, string Demo)> _faulted = new(PassDemoKeyComparer.Instance);
-    private readonly Dictionary<(string Pass, string Demo), DemoCacheIndexEntry> _ranOn = new(PassDemoKeyComparer.Instance);
-    private readonly Dictionary<(string Pass, string Demo), PackStamp[]> _ranOnInputs = new(PassDemoKeyComparer.Instance);
+
+    private readonly Dictionary<(string Pass, string Demo), DemoCacheIndexEntry> _ranOn =
+        new(PassDemoKeyComparer.Instance);
+
+    private readonly Dictionary<(string Pass, string Demo), PackStamp[]> _ranOnInputs =
+        new(PassDemoKeyComparer.Instance);
+
     private readonly Dictionary<string, string> _refused = new(StringComparer.Ordinal);
     private readonly Func<IReadOnlyList<IRecordPass>> _passes;
     private readonly IDemoProcessingQueue? _queue;
@@ -93,7 +95,7 @@ public sealed class RecordPassRunner : IDisposable
     }
 
     /// <summary>Told when a pass throws, with its owner and the demo when there is one.</summary>
-    public Action<IRecordPass, string?, Exception>? Faulted { get; set; }
+    public Action<IRecordPass, string?, Exception>? Faulted { get; init; }
 
     /// <summary>Runs when a run removed before it started is noticed, before the runner can queue another. Test seam.</summary>
     internal Action? BeforeRemovedRunEnds { get; set; }
@@ -333,7 +335,8 @@ public sealed class RecordPassRunner : IDisposable
         }
 
         bool refreshed = false;
-        if ((entry.CtPlayers is null || entry.TPlayers is null) && record.Parse.IsPresent && _store.RefreshIndexRow(record))
+        if ((entry.CtPlayers is null || entry.TPlayers is null) && record.Parse.IsPresent
+            && _store.RefreshIndexRow(record))
         {
             refreshed = true;
             entry = _store.TryGetPrimary(path) ?? entry;
@@ -384,7 +387,8 @@ public sealed class RecordPassRunner : IDisposable
         return refreshed;
     }
 
-    private List<(IRecordPass Pass, PackStamp[]? Inputs)> Wanting(IReadOnlyList<IRecordPass> passes, string demo, DemoCacheIndexEntry entry)
+    private List<(IRecordPass Pass, PackStamp[]? Inputs)> Wanting(IReadOnlyList<IRecordPass> passes, string demo,
+        DemoCacheIndexEntry entry)
     {
         List<(IRecordPass, PackStamp[]?)> wanting = [];
         foreach (IRecordPass pass in passes)
@@ -411,8 +415,10 @@ public sealed class RecordPassRunner : IDisposable
                 lock (_lock)
                 {
                     if (inputs is null
-                            ? _ranOn.TryGetValue((pass.Id, demo), out DemoCacheIndexEntry? ran) && ReferenceEquals(ran, entry)
-                            : _ranOnInputs.TryGetValue((pass.Id, demo), out PackStamp[]? ranInputs) && ranInputs.SequenceEqual(inputs))
+                            ? _ranOn.TryGetValue((pass.Id, demo), out DemoCacheIndexEntry? ran)
+                            && ReferenceEquals(ran, entry)
+                            : _ranOnInputs.TryGetValue((pass.Id, demo), out PackStamp[]? ranInputs)
+                            && ranInputs.SequenceEqual(inputs))
                     {
                         continue;
                     }
@@ -492,7 +498,8 @@ public sealed class RecordPassRunner : IDisposable
                 }
                 else
                 {
-                    report = !(_refused.TryGetValue(pass.Id, out string? last) && string.Equals(last, refusal.Message, StringComparison.Ordinal));
+                    report = !(_refused.TryGetValue(pass.Id, out string? last)
+                        && string.Equals(last, refusal.Message, StringComparison.Ordinal));
                     _refused[pass.Id] = refusal.Message;
                 }
             }

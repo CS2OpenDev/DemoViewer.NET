@@ -1,13 +1,13 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Query;
 using DemoViewer.NET.Playback2D.Tools;
 using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
@@ -31,10 +31,7 @@ public class QueryCanvasTests
     // 512-unit snap radius.
     private static readonly Dictionary<string, (double X, double Y)> _centroids = new(StringComparer.Ordinal)
     {
-        ["BombsiteA"] = (600, -400),
-        ["Outside"] = (-1300, -900),
-        ["Lobby"] = (-900, 200),
-        ["Ramp"] = (1300, -1000)
+        ["BombsiteA"] = (600, -400), ["Outside"] = (-1300, -900), ["Lobby"] = (-900, 200), ["Ramp"] = (1300, -1000)
     };
 
     private static readonly WorldBounds _bounds = new(-3453, -4281, 3715, 2887);
@@ -64,7 +61,8 @@ public class QueryCanvasTests
             await Assert.That(h.Vm.CtToken).IsEqualTo(stored.Ct);
             await Assert.That(h.Vm.TToken).IsEqualTo(stored.T);
             await Assert.That(h.Vm.CtToken).IsEqualTo(CtToken);
-            await Assert.That(PlaceCountToken.Encode(query.Ct.Select(p => ((string?)p.Place, p.Count)))).IsEqualTo(stored.Ct);
+            await Assert.That(PlaceCountToken.Encode(query.Ct.Select(p => ((string?)p.Place, p.Count))))
+                .IsEqualTo(stored.Ct);
             await Assert.That(query.Map).IsEqualTo("de_nuke");
             await Assert.That(query.Tolerance).IsEqualTo(SituationTolerance.Exact);
             await Assert.That(h.Index.Count(query)).IsEqualTo(1);
@@ -89,7 +87,8 @@ public class QueryCanvasTests
 
         await Assert.That(h.Vm.Draft.IsEmpty).IsTrue();
         h.Vm.SearchCommand.Execute(null);
-        await Assert.That(h.Vm.ResultCount).IsEqualTo(1).Because("nothing placed matches every indexed round of the map");
+        await Assert.That(h.Vm.ResultCount).IsEqualTo(1)
+            .Because("nothing placed matches every indexed round of the map");
         await Assert.That(h.Vm.ResultLine).Contains("nothing placed");
 
         h.Drop(QuerySide.T, 0, "Ramp");
@@ -101,7 +100,8 @@ public class QueryCanvasTests
             await Assert.That(query.T).IsEquivalentTo([new PlaceQuery("Ramp", 1)], CollectionOrdering.Matching);
             await Assert.That(h.Vm.CtToken).IsEqualTo("");
             await Assert.That(h.Vm.TToken).IsEqualTo("Ramp:1");
-            await Assert.That(h.Index.Count(query)).IsEqualTo(0).Because("exact means exactly one on Ramp, and the row holds two");
+            await Assert.That(h.Index.Count(query)).IsEqualTo(0)
+                .Because("exact means exactly one on Ramp, and the row holds two");
         }
 
         h.Drop(QuerySide.T, 1, "Ramp");
@@ -117,7 +117,7 @@ public class QueryCanvasTests
         h.Press(3000, 2500);
         h.Release(3000, 2500);
 
-        QueryRailSlotViewModel slot = h.Vm.Slots.Single(s => s.Side == QuerySide.Ct && s.Slot == 0);
+        QueryRailSlotViewModel slot = h.Vm.Slots.Single(s => s is { Side: QuerySide.Ct, Slot: 0 });
         using (Assert.Multiple())
         {
             await Assert.That(h.Vm.Document.IsPlaced(QuerySide.Ct, 0)).IsTrue();
@@ -176,7 +176,7 @@ public class QueryCanvasTests
         h.Press(bx, by);
         h.Release(bx, by);
         await Assert.That(h.Vm.CtToken).IsEqualTo("BombsiteA:2");
-        h.Vm.Lift(h.Vm.Slots.Single(s => s.Side == QuerySide.Ct && s.Slot == 1));
+        h.Vm.Lift(h.Vm.Slots.Single(s => s is { Side: QuerySide.Ct, Slot: 1 }));
 
         // Grab the token, carry it to Outside: the place is decided at the release, and the disc
         // goes hollow on the way.
@@ -221,8 +221,8 @@ public class QueryCanvasTests
     public async Task TheRail_ArmsPlacesAndLifts_AndFollowsTheDocument()
     {
         using Harness h = new();
-        QueryRailSlotViewModel ct1 = h.Vm.Slots.Single(s => s.Side == QuerySide.Ct && s.Slot == 0);
-        QueryRailSlotViewModel t5 = h.Vm.Slots.Single(s => s.Side == QuerySide.T && s.Slot == 4);
+        QueryRailSlotViewModel ct1 = h.Vm.Slots.Single(s => s is { Side: QuerySide.Ct, Slot: 0 });
+        QueryRailSlotViewModel t5 = h.Vm.Slots.Single(s => s is { Side: QuerySide.T, Slot: 4 });
 
         await Assert.That(h.Vm.Slots.Count).IsEqualTo(10);
         await Assert.That(h.Vm.CtSlots.Count()).IsEqualTo(5);
@@ -311,7 +311,8 @@ public class QueryCanvasTests
             await Assert.That(mapChanges).IsEqualTo(1);
         }
 
-        using SituationsTabViewModel tab = new(h.Index, null, h.Cache.Library(), h.Sources, () => RoundIndexTokenSource.Pawn, isBrowser: false);
+        using SituationsTabViewModel tab = new(h.Index, null, h.Cache.Library(), h.Sources,
+            () => RoundIndexTokenSource.Pawn, isBrowser: false);
         await Assert.That(tab.Canvas.Maps).IsEquivalentTo(["de_nuke"], CollectionOrdering.Matching);
         await Assert.That(tab.Canvas.CanSearch).IsTrue();
     }
@@ -336,15 +337,15 @@ public class QueryCanvasTests
             {
                 document.Places[place] = new PlaceSampleSummary
                 {
-                    Count = 4,
-                    Buckets = [new PlaceZBucketSum(-416, 4, x * 4, y * 4)]
+                    Count = 4, Buckets = [new PlaceZBucketSum(-416, 4, x * 4, y * 4)]
                 };
             }
 
             Indexed(Cache, Sidecars, Demo, document);
             Index.Load();
 
-            Vm = new QueryCanvasViewModel(Index, new QueryPlaceResolver(Index, Sources.Zones), Cache.Library(), _ => null);
+            Vm = new QueryCanvasViewModel(Index, new QueryPlaceResolver(Index, Sources.Zones), Cache.Library(),
+                _ => null);
             Tool = Vm.Tool;
 
             MapSpaceFactory levels = new();
@@ -398,7 +399,9 @@ public class QueryCanvasTests
             {
                 Pane = pane,
                 Screen = screen,
-                PaneLocal = pane is null ? default : new SKPoint(screen.X - pane.ViewportRect.Left, screen.Y - pane.ViewportRect.Top),
+                PaneLocal = pane is null
+                    ? default
+                    : new SKPoint(screen.X - pane.ViewportRect.Left, screen.Y - pane.ViewportRect.Top),
                 World = world,
                 Button = button
             };

@@ -1,7 +1,7 @@
 #region
 
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline.Goldens;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 
 #endregion
 
@@ -83,8 +83,8 @@ public class GoldenCorpusTests
         }
 
         Console.WriteLine($"[corpus] {declared.Count} declared goldens, " +
-                          $"{Directory.GetFiles(cpuDir, "*.png").Length} committed, " +
-                          $"{orphans.Count} orphaned");
+            $"{Directory.GetFiles(cpuDir, "*.png").Length} committed, " +
+            $"{orphans.Count} orphaned");
 
         await Assert.That(orphans)
             .IsEmpty()
@@ -141,19 +141,16 @@ public class GoldenCorpusTests
     {
         using CorpusCopy copy = new();
         string manifestPath = Path.Combine(copy.Path, GoldenCorpus.ManifestFileName);
-        string before = File.ReadAllText(manifestPath);
+        string before = await File.ReadAllTextAsync(manifestPath);
         int entriesBefore = GoldenCorpus.Load(copy.Path).Entries.Count;
 
         GoldenCorpusEntry existing = GoldenCorpus.Load(copy.Path).Find("duel-mirage-b")!;
-        GoldenCorpus.Upsert(copy.Path, existing with
-        {
-            Pending = true
-        });
+        GoldenCorpus.Upsert(copy.Path, existing with { Pending = true });
 
         GoldenCorpus after = GoldenCorpus.Load(copy.Path);
         await Assert.That(after.Entries.Count).IsEqualTo(entriesBefore);
         await Assert.That(after.Find("duel-mirage-b")!.Pending).IsTrue();
-        await Assert.That(File.ReadAllText(manifestPath)).IsNotEqualTo(before);
+        await Assert.That(await File.ReadAllTextAsync(manifestPath)).IsNotEqualTo(before);
         await Assert.That(after.Find("synthetic-utility")!.Notes).IsNotNull();
     }
 

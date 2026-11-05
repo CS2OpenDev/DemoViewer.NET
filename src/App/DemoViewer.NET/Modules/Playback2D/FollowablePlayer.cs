@@ -1,4 +1,8 @@
+#region
+
 using DemoViewer.NET.ViewModels.PlayerOverview;
+
+#endregion
 
 namespace DemoViewer.NET.Modules.Playback2D;
 

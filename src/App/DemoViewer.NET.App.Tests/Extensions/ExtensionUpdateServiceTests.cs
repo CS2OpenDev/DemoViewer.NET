@@ -40,7 +40,8 @@ public class ExtensionUpdateServiceTests
             client.Feeds[FeedUrl(Id)] = FakeFeeds.Json(new FakeFeeds.Entry("1.0.0"), new FakeFeeds.Entry("0.9.0"));
             ExtensionUpdateState upToDate = await service.CheckAsync(Id);
 
-            client.Feeds[FeedUrl(Id)] = FakeFeeds.Json(new FakeFeeds.Entry("1.0.1"), new FakeFeeds.Entry("1.2.0", RequiresHost: "^3.0"));
+            client.Feeds[FeedUrl(Id)] = FakeFeeds.Json(new FakeFeeds.Entry("1.0.1"),
+                new FakeFeeds.Entry("1.2.0", RequiresHost: "^3.0"));
             ExtensionUpdateState available = await service.CheckAsync(Id);
 
             client.Feeds[FeedUrl(Id)] = FakeFeeds.Json(new FakeFeeds.Entry("1.2.0", RequiresHost: "^3.0"));
@@ -69,7 +70,8 @@ public class ExtensionUpdateServiceTests
 
                 await Assert.That(available.Status).IsEqualTo(ExtensionUpdateStatus.UpdateAvailable);
                 await Assert.That(available.Offered!.Version).IsEqualTo(SemVersion.Parse("1.0.1"));
-                await Assert.That(available.Latest!.Version).IsEqualTo(SemVersion.Parse("1.2.0")).Because("the latest overall is reported beside the offered one");
+                await Assert.That(available.Latest!.Version).IsEqualTo(SemVersion.Parse("1.2.0"))
+                    .Because("the latest overall is reported beside the offered one");
 
                 await Assert.That(needsApp.Status).IsEqualTo(ExtensionUpdateStatus.NeedsNewerApp);
                 await Assert.That(needsApp.Offered).IsNull();
@@ -89,7 +91,8 @@ public class ExtensionUpdateServiceTests
                 await Assert.That(unreachable.Status).IsEqualTo(ExtensionUpdateStatus.FeedUnreachable);
                 await Assert.That(unreachable.Error).IsEqualTo("the update feed could not be reached");
                 await Assert.That(unreachable.LogDetail).IsEqualTo("offline");
-                await Assert.That(unreachable.Installed).IsEqualTo(SemVersion.Parse("1.0.0")).Because("the running version is known even when the feed is not");
+                await Assert.That(unreachable.Installed).IsEqualTo(SemVersion.Parse("1.0.0"))
+                    .Because("the running version is known even when the feed is not");
 
                 await Assert.That(service.LastStates.Single().Status).IsEqualTo(ExtensionUpdateStatus.FeedUnreachable)
                     .Because("a per-pack check updates the remembered states");
@@ -132,7 +135,8 @@ public class ExtensionUpdateServiceTests
             {
                 await Assert.That(notPublished.Status).IsEqualTo(ExtensionUpdateStatus.NotPublished);
                 await Assert.That(notPublished.Error).IsNull();
-                await Assert.That(ExtensionUpdateRow.Describe(notPublished)).IsEqualTo("No updates have been published yet.");
+                await Assert.That(ExtensionUpdateRow.Describe(notPublished))
+                    .IsEqualTo("No updates have been published yet.");
                 await Assert.That(notPublished.Latest).IsNull();
                 await Assert.That(notPublished.Installed).IsEqualTo(SemVersion.Parse("1.0.0"));
                 await Assert.That(notPublished.CheckedAt).IsNotNull();
@@ -155,12 +159,20 @@ public class ExtensionUpdateServiceTests
         string root = NewRoot();
         try
         {
-            FakeFeedClient client = new();
-            client.Feeds[FeedUrl(Id)] = FakeFeeds.Json(new FakeFeeds.Entry("1.0.1"), new FakeFeeds.Entry("1.2.0", RequiresHost: "^3.0"));
+            FakeFeedClient client = new()
+            {
+                Feeds =
+                {
+                    [FeedUrl(Id)] = FakeFeeds.Json(new FakeFeeds.Entry("1.0.1"),
+                        new FakeFeeds.Entry("1.2.0", RequiresHost: "^3.0"))
+                }
+            };
 
             ExtensionUpdateState strict = await NewService(root, client, isOffered: (_, _) => false).CheckAsync(Id);
             ExtensionUpdateState loose = await NewService(root, client, isOffered: (_, _) => true).CheckAsync(Id);
-            ExtensionUpdateState throwing = await NewService(root, client, isOffered: (_, _) => throw new InvalidOperationException("boom")).CheckAsync(Id);
+            ExtensionUpdateState throwing =
+                await NewService(root, client, isOffered: (_, _) => throw new InvalidOperationException("boom"))
+                    .CheckAsync(Id);
 
             using (Assert.Multiple())
             {
@@ -168,7 +180,8 @@ public class ExtensionUpdateServiceTests
                 await Assert.That(strict.Latest!.Version).IsEqualTo(SemVersion.Parse("1.2.0"));
                 await Assert.That(loose.Status).IsEqualTo(ExtensionUpdateStatus.UpdateAvailable);
                 await Assert.That(loose.Offered!.Version).IsEqualTo(SemVersion.Parse("1.2.0"));
-                await Assert.That(throwing.Status).IsEqualTo(ExtensionUpdateStatus.NeedsNewerApp).Because("a predicate that throws offers nothing");
+                await Assert.That(throwing.Status).IsEqualTo(ExtensionUpdateStatus.NeedsNewerApp)
+                    .Because("a predicate that throws offers nothing");
                 await Assert.That(ExtensionUpdateService.DefaultIsOffered(loose.Offered, Host)).IsFalse();
             }
         }
@@ -190,8 +203,7 @@ public class ExtensionUpdateServiceTests
             FakeFeeds.Entry wrongSha = new("1.0.1", zip, Sha256: new string('a', 64));
             FakeFeeds.Entry tooSmall = new("1.0.1", zip, Size: zip.Length - 1);
             FakeFeeds.Entry tooLarge = new("1.0.1", zip, Size: zip.Length + 1);
-            FakeFeedClient client = new();
-            client.Zips[wrongSha.Url] = zip;
+            FakeFeedClient client = new() { Zips = { [wrongSha.Url] = zip } };
             ExtensionUpdateService service = NewService(root, client);
 
             StageResult sha = await service.DownloadAndStageAsync(Entry(wrongSha));
@@ -205,7 +217,8 @@ public class ExtensionUpdateServiceTests
                 await Assert.That(small.Outcome).IsEqualTo(StageOutcome.Refused);
                 await Assert.That(small.Detail).IsEqualTo("the download failed");
                 await Assert.That(large.Outcome).IsEqualTo(StageOutcome.Refused);
-                await Assert.That(large.Detail).IsEqualTo($"the download is {zip.Length} bytes; the feed said {zip.Length + 1}");
+                await Assert.That(large.Detail)
+                    .IsEqualTo($"the download is {zip.Length} bytes; the feed said {zip.Length + 1}");
                 await Assert.That(NothingStaged(root)).IsTrue();
                 await Assert.That(service.PendingVersion(Id)).IsNull();
             }
@@ -237,12 +250,12 @@ public class ExtensionUpdateServiceTests
                 foreach (byte[] zip in evil)
                 {
                     FakeFeeds.Entry entry = new("1.0.1", zip);
-                    FakeFeedClient client = new();
-                    client.Zips[entry.Url] = zip;
+                    FakeFeedClient client = new() { Zips = { [entry.Url] = zip } };
                     StageResult result = await NewService(root, client).DownloadAndStageAsync(Entry(entry));
                     await Assert.That(result.Outcome).IsEqualTo(StageOutcome.Refused);
                     await Assert.That(result.Detail).Contains("escaped.txt");
-                    await Assert.That(result.Detail).DoesNotContain(root).Because("Settings shows the detail; a path belongs in the log only");
+                    await Assert.That(result.Detail).DoesNotContain(root)
+                        .Because("Settings shows the detail; a path belongs in the log only");
                     await Assert.That(NothingStaged(root)).IsTrue();
                 }
 
@@ -268,7 +281,7 @@ public class ExtensionUpdateServiceTests
             byte[] withLink;
             using (MemoryStream stream = new())
             {
-                using (ZipArchive archive = new(stream, ZipArchiveMode.Create, leaveOpen: true))
+                await using (ZipArchive archive = new(stream, ZipArchiveMode.Create, leaveOpen: true))
                 {
                     Write(archive, ExtensionManifest.FileName, manifest);
                     Write(archive, "Fake.dll", "x");
@@ -283,11 +296,13 @@ public class ExtensionUpdateServiceTests
 
             using (Assert.Multiple())
             {
-                foreach ((byte[] zip, string reason) in new[] { (withLink, "'link.dll' is a link"), (caseTwins, "differing only by case") })
+                foreach ((byte[] zip, string reason) in new[]
+                         {
+                             (withLink, "'link.dll' is a link"), (caseTwins, "differing only by case")
+                         })
                 {
                     FakeFeeds.Entry entry = new("1.0.1", zip);
-                    FakeFeedClient client = new();
-                    client.Zips[entry.Url] = zip;
+                    FakeFeedClient client = new() { Zips = { [entry.Url] = zip } };
                     StageResult result = await NewService(root, client).DownloadAndStageAsync(Entry(entry));
                     await Assert.That(result.Outcome).IsEqualTo(StageOutcome.Refused);
                     await Assert.That(result.Detail).Contains(reason);
@@ -316,12 +331,20 @@ public class ExtensionUpdateServiceTests
         string root = NewRoot();
         try
         {
-            byte[] wrongVersion = Zip((ExtensionManifest.FileName, FakeFeeds.Manifest(Id, new FakeFeeds.Entry("1.0.2"))), ("Fake.dll", "x"));
-            byte[] wrongId = Zip((ExtensionManifest.FileName, FakeFeeds.Manifest("net.demoviewer.pack.other", new FakeFeeds.Entry("1.0.1"))), ("Fake.dll", "x"));
+            byte[] wrongVersion =
+                Zip((ExtensionManifest.FileName, FakeFeeds.Manifest(Id, new FakeFeeds.Entry("1.0.2"))),
+                    ("Fake.dll", "x"));
+            byte[] wrongId =
+                Zip(
+                    (ExtensionManifest.FileName,
+                        FakeFeeds.Manifest("net.demoviewer.pack.other", new FakeFeeds.Entry("1.0.1"))),
+                    ("Fake.dll", "x"));
             byte[] noManifest = Zip(("Fake.dll", "x"));
-            byte[] nested = Zip(("inner/" + ExtensionManifest.FileName, FakeFeeds.Manifest(Id, new FakeFeeds.Entry("1.0.1"))), ("inner/Fake.dll", "x"));
+            byte[] nested =
+                Zip(("inner/" + ExtensionManifest.FileName, FakeFeeds.Manifest(Id, new FakeFeeds.Entry("1.0.1"))),
+                    ("inner/Fake.dll", "x"));
             byte[] noAssembly = Zip((ExtensionManifest.FileName, FakeFeeds.Manifest(Id, new FakeFeeds.Entry("1.0.1"))));
-            byte[] notAZip = "not a zip"u8.ToArray();
+            byte[] notAZip = [.. "not a zip"u8];
 
             (byte[] Zip, string Reason)[] cases =
             [
@@ -338,8 +361,7 @@ public class ExtensionUpdateServiceTests
                 foreach ((byte[] zip, string reason) in cases)
                 {
                     FakeFeeds.Entry entry = new("1.0.1", zip);
-                    FakeFeedClient client = new();
-                    client.Zips[entry.Url] = zip;
+                    FakeFeedClient client = new() { Zips = { [entry.Url] = zip } };
                     StageResult result = await NewService(root, client).DownloadAndStageAsync(Entry(entry));
                     await Assert.That(result.Outcome).IsEqualTo(StageOutcome.Refused);
                     await Assert.That(result.Detail).Contains(reason);
@@ -361,8 +383,7 @@ public class ExtensionUpdateServiceTests
         {
             byte[] zip = ExtensionZip(Id, "1.0.1");
             FakeFeeds.Entry entry = new("1.0.1", zip);
-            FakeFeedClient client = new();
-            client.Zips[entry.Url] = zip;
+            FakeFeedClient client = new() { Zips = { [entry.Url] = zip } };
             RecordingTrust trust = new(false);
             ExtensionUpdateService service = NewService(root, client, trust);
 
@@ -374,7 +395,8 @@ public class ExtensionUpdateServiceTests
                 await Assert.That(result.Outcome).IsEqualTo(StageOutcome.Refused);
                 await Assert.That(result.Detail).IsEqualTo("the copy is not signed by this app's publisher");
                 await Assert.That(trust.Asked.Count).IsEqualTo(1);
-                await Assert.That(trust.Asked[0].Directory).IsEqualTo(extracted).Because("the policy judges the unpacked copy before it is installed");
+                await Assert.That(trust.Asked[0].Directory).IsEqualTo(extracted)
+                    .Because("the policy judges the unpacked copy before it is installed");
                 await Assert.That(trust.Asked[0].Manifest.Version).IsEqualTo(SemVersion.Parse("1.0.1"));
                 await Assert.That(Directory.Exists(extracted)).IsFalse();
                 await Assert.That(NothingStaged(root)).IsTrue();
@@ -392,11 +414,13 @@ public class ExtensionUpdateServiceTests
         string root = NewRoot();
         try
         {
-            byte[] zip = ExtensionZip(Id, "1.0.1", ("Fake.xml", "<doc />"), ("de/", null), ("de/Fake.resources.dll", "res"));
+            byte[] zip = ExtensionZip(Id, "1.0.1", ("Fake.xml", "<doc />"), ("de/", null),
+                ("de/Fake.resources.dll", "res"));
             FakeFeeds.Entry entry = new("1.0.1", zip);
-            FakeFeedClient client = new();
-            client.Zips[entry.Url] = zip;
-            client.Feeds[FeedUrl(Id)] = FakeFeeds.Json(entry);
+            FakeFeedClient client = new()
+            {
+                Zips = { [entry.Url] = zip }, Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(entry) }
+            };
             RecordingTrust trust = new(true);
             ExtensionUpdateService service = NewService(root, client, trust);
             List<ExtensionDownloadProgress> progress = [];
@@ -414,11 +438,15 @@ public class ExtensionUpdateServiceTests
                 await Assert.That(Directory.Exists(installed)).IsTrue();
                 await Assert.That(File.Exists(Path.Combine(installed, ExtensionManifest.FileName))).IsTrue();
                 await Assert.That(File.Exists(Path.Combine(installed, "Fake.dll"))).IsTrue();
-                await Assert.That(File.Exists(Path.Combine(installed, "extension.sig"))).IsTrue().Because("the verified signature travels intact");
+                await Assert.That(File.Exists(Path.Combine(installed, "extension.sig"))).IsTrue()
+                    .Because("the verified signature travels intact");
                 await Assert.That(File.Exists(Path.Combine(installed, "Fake.xml"))).IsTrue();
-                await Assert.That(File.ReadAllText(Path.Combine(installed, "de", "Fake.resources.dll"))).IsEqualTo("res");
-                await Assert.That(Directory.Exists(Path.Combine(root, "extensions", ".staging", Id))).IsFalse().Because("the staging folder is gone after the rename");
-                await Assert.That(trust.Asked.Single().Directory).IsEqualTo(Path.Combine(root, "extensions", ".staging", Id, "1.0.1"));
+                await Assert.That(await File.ReadAllTextAsync(Path.Combine(installed, "de", "Fake.resources.dll")))
+                    .IsEqualTo("res");
+                await Assert.That(Directory.Exists(Path.Combine(root, "extensions", ".staging", Id))).IsFalse()
+                    .Because("the staging folder is gone after the rename");
+                await Assert.That(trust.Asked.Single().Directory)
+                    .IsEqualTo(Path.Combine(root, "extensions", ".staging", Id, "1.0.1"));
                 await Assert.That(progress.Count).IsGreaterThanOrEqualTo(2);
                 await Assert.That(progress[^1]).IsEqualTo(new ExtensionDownloadProgress(zip.Length, zip.Length));
                 await Assert.That(service.PendingVersion(Id)).IsEqualTo(SemVersion.Parse("1.0.1"));
@@ -432,7 +460,8 @@ public class ExtensionUpdateServiceTests
             ExtensionLoader.Discovery discovered = ExtensionLoader.Discover(Path.Combine(root, "extensions"));
             using (Assert.Multiple())
             {
-                await Assert.That(discovered.Candidates.Select(c => c.Directory)).IsEquivalentTo([installed], CollectionOrdering.Matching);
+                await Assert.That(discovered.Candidates.Select(c => c.Directory))
+                    .IsEquivalentTo([installed], CollectionOrdering.Matching);
                 await Assert.That(discovered.Rejected).IsEmpty();
             }
 
@@ -468,32 +497,35 @@ public class ExtensionUpdateServiceTests
                 throw new SkipTestException($"no {ExtensionManifest.FileName} beside {shippedDll}");
             }
 
-            ExtensionManifest built = ExtensionManifest.Parse(File.ReadAllText(shippedManifest));
+            ExtensionManifest built = ExtensionManifest.Parse(await File.ReadAllTextAsync(shippedManifest));
             SemVersion next = new(built.Version.Major, built.Version.Minor, built.Version.Patch + 1);
-            string json = File.ReadAllText(shippedManifest).Replace($"\"{built.Version}\"", $"\"{next}\"", StringComparison.Ordinal);
+            string json = (await File.ReadAllTextAsync(shippedManifest))
+                .Replace($"\"{built.Version}\"", $"\"{next}\"", StringComparison.Ordinal);
             (string publicKey, System.Security.Cryptography.ECDsa privateKey) = NewKeyPair();
             using (privateKey)
             {
                 string tree = Path.Combine(root, "tree");
                 Directory.CreateDirectory(tree);
-                File.WriteAllText(Path.Combine(tree, ExtensionManifest.FileName), json);
+                await File.WriteAllTextAsync(Path.Combine(tree, ExtensionManifest.FileName), json);
                 File.Copy(shippedDll, Path.Combine(tree, built.Assembly));
-                File.WriteAllText(Path.Combine(tree, ExtensionSignature.FileName), ExtensionSignature.Sign(tree, privateKey));
+                await File.WriteAllTextAsync(Path.Combine(tree, ExtensionSignature.FileName),
+                    ExtensionSignature.Sign(tree, privateKey));
                 byte[] signed = ZipDirectory(tree);
 
-                byte[] dll = File.ReadAllBytes(Path.Combine(tree, built.Assembly));
+                byte[] dll = await File.ReadAllBytesAsync(Path.Combine(tree, built.Assembly));
                 dll[dll.Length / 2] ^= 0x01;
-                File.WriteAllBytes(Path.Combine(tree, built.Assembly), dll);
+                await File.WriteAllBytesAsync(Path.Combine(tree, built.Assembly), dll);
                 byte[] tampered = ZipDirectory(tree);
 
                 FakeFeeds.Entry good = new(next.ToString(), signed);
-                FakeFeedClient client = new();
-                client.Zips[good.Url] = signed;
+                FakeFeedClient client = new() { Zips = { [good.Url] = signed } };
                 PackStatus status = Status(built.Id, built.Version.ToString());
                 SignedTrustPolicy policy = new([publicKey]);
                 ExtensionUpdateService service = new(root, [status], Host, policy, client, FeedUrl);
 
-                StageResult installed = await service.DownloadAndStageAsync(ExtensionFeed.Parse(FakeFeeds.Json(built.Id, good)).Entries.Single());
+                StageResult installed =
+                    await service.DownloadAndStageAsync(ExtensionFeed.Parse(FakeFeeds.Json(built.Id, good)).Entries
+                        .Single());
 
                 string otherRoot = NewRoot();
                 try
@@ -501,14 +533,19 @@ public class ExtensionUpdateServiceTests
                     client.Zips[good.Url] = tampered;
                     FakeFeeds.Entry bad = new(next.ToString(), tampered);
                     ExtensionUpdateService again = new(otherRoot, [status], Host, policy, client, FeedUrl);
-                    StageResult refused = await again.DownloadAndStageAsync(ExtensionFeed.Parse(FakeFeeds.Json(built.Id, bad)).Entries.Single());
+                    StageResult refused =
+                        await again.DownloadAndStageAsync(ExtensionFeed.Parse(FakeFeeds.Json(built.Id, bad)).Entries
+                            .Single());
 
                     using (Assert.Multiple())
                     {
                         await Assert.That(installed.Outcome).IsEqualTo(StageOutcome.Installed);
-                        await Assert.That(installed.Directory).IsEqualTo(Path.Combine(root, "extensions", built.Id, next.ToString()));
-                        await Assert.That(File.Exists(Path.Combine(installed.Directory!, ExtensionSignature.FileName))).IsTrue();
-                        await Assert.That(policy.Judge(installed.Directory!, built).Trusted).IsTrue().Because("what was installed still verifies in place");
+                        await Assert.That(installed.Directory)
+                            .IsEqualTo(Path.Combine(root, "extensions", built.Id, next.ToString()));
+                        await Assert.That(File.Exists(Path.Combine(installed.Directory!, ExtensionSignature.FileName)))
+                            .IsTrue();
+                        await Assert.That(policy.Judge(installed.Directory!, built).Trusted).IsTrue()
+                            .Because("what was installed still verifies in place");
                         await Assert.That(refused.Outcome).IsEqualTo(StageOutcome.Refused);
                         await Assert.That(refused.Detail).Contains("a file changed after signing");
                         await Assert.That(NothingStaged(otherRoot)).IsTrue();
@@ -534,11 +571,10 @@ public class ExtensionUpdateServiceTests
         {
             string installed = Path.Combine(root, "extensions", Id, "1.0.1");
             Directory.CreateDirectory(installed);
-            File.WriteAllText(Path.Combine(installed, "marker.txt"), "mine");
+            await File.WriteAllTextAsync(Path.Combine(installed, "marker.txt"), "mine");
             byte[] zip = ExtensionZip(Id, "1.0.1");
             FakeFeeds.Entry entry = new("1.0.1", zip);
-            FakeFeedClient client = new();
-            client.Zips[entry.Url] = zip;
+            FakeFeedClient client = new() { Zips = { [entry.Url] = zip } };
 
             StageResult result = await NewService(root, client).DownloadAndStageAsync(Entry(entry));
 
@@ -546,8 +582,9 @@ public class ExtensionUpdateServiceTests
             {
                 await Assert.That(result.Outcome).IsEqualTo(StageOutcome.AlreadyInstalled);
                 await Assert.That(result.Directory).IsEqualTo(installed);
-                await Assert.That(client.Downloads).IsEqualTo(0).Because("nothing is fetched for a version already on disk");
-                await Assert.That(File.ReadAllText(Path.Combine(installed, "marker.txt"))).IsEqualTo("mine");
+                await Assert.That(client.Downloads).IsEqualTo(0)
+                    .Because("nothing is fetched for a version already on disk");
+                await Assert.That(await File.ReadAllTextAsync(Path.Combine(installed, "marker.txt"))).IsEqualTo("mine");
                 await Assert.That(File.Exists(Path.Combine(installed, "Fake.dll"))).IsFalse();
             }
         }
@@ -565,24 +602,21 @@ public class ExtensionUpdateServiceTests
         {
             byte[] zip = ExtensionZip(Id, "1.0.1");
             FakeFeeds.Entry entry = new("1.0.1", zip);
-            FakeFeedClient client = new()
-            {
-                HalfwayGate = new TaskCompletionSource()
-            };
-            client.Zips[entry.Url] = zip;
+            FakeFeedClient client = new() { HalfwayGate = new TaskCompletionSource(), Zips = { [entry.Url] = zip } };
             ExtensionUpdateService service = NewService(root, client);
             using CancellationTokenSource cts = new();
 
             Task<StageResult> pending = service.DownloadAndStageAsync(Entry(entry), ct: cts.Token);
-            await client.Halfway.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await client.Halfway.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
             string part = Path.Combine(root, "extensions", ".staging", Id, "1.0.1.zip.part");
             bool partExistedMidway = File.Exists(part);
             await cts.CancelAsync();
-            StageResult result = await pending.WaitAsync(TimeSpan.FromSeconds(10));
+            StageResult result = await pending.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
 
             using (Assert.Multiple())
             {
-                await Assert.That(partExistedMidway).IsTrue().Because("the download was in flight when it was cancelled");
+                await Assert.That(partExistedMidway).IsTrue()
+                    .Because("the download was in flight when it was cancelled");
                 await Assert.That(result.Outcome).IsEqualTo(StageOutcome.Cancelled);
                 await Assert.That(File.Exists(part)).IsFalse();
                 await Assert.That(NothingStaged(root)).IsTrue();
@@ -602,9 +636,10 @@ public class ExtensionUpdateServiceTests
         {
             byte[] zip = ExtensionZip(Id, "1.0.1");
             FakeFeeds.Entry entry = new("1.0.1", zip);
-            FakeFeedClient client = new();
-            client.Zips[entry.Url] = zip;
-            client.Feeds[FeedUrl(Id)] = FakeFeeds.Json(entry);
+            FakeFeedClient client = new()
+            {
+                Zips = { [entry.Url] = zip }, Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(entry) }
+            };
             RecordingQueue queue = new();
             ExtensionUpdateService service = NewService(root, client, queue: queue);
 
@@ -626,7 +661,8 @@ public class ExtensionUpdateServiceTests
                 ], CollectionOrdering.Matching);
                 await Assert.That(queue.Requests.Take(3).All(r => r.Priority == DemoJobPriority.UserRequested)).IsTrue()
                     .Because("the user pressed the button");
-                await Assert.That(queue.Requests[3].Priority).IsEqualTo(DemoJobPriority.Background).Because("the startup sweep asked for nothing");
+                await Assert.That(queue.Requests[3].Priority).IsEqualTo(DemoJobPriority.Background)
+                    .Because("the startup sweep asked for nothing");
                 await Assert.That(queue.Requests.All(r => r.Kind == QueueJobKind.ExtensionUpdate)).IsTrue();
                 await Assert.That(queue.Requests.All(r => r.OwnerTag == ExtensionUpdateService.Owner)).IsTrue();
             }
@@ -648,9 +684,9 @@ public class ExtensionUpdateServiceTests
             string extensions = Path.Combine(root, "extensions");
             string staging = Path.Combine(extensions, ".staging", Id);
             Directory.CreateDirectory(staging);
-            File.WriteAllText(Path.Combine(staging, "1.0.1.zip.part"), "half");
+            await File.WriteAllTextAsync(Path.Combine(staging, "1.0.1.zip.part"), "half");
             Directory.CreateDirectory(Path.Combine(staging, "1.0.1"));
-            File.WriteAllText(Path.Combine(staging, "1.0.1", "x"), "x");
+            await File.WriteAllTextAsync(Path.Combine(staging, "1.0.1", "x"), "x");
             string older = StageVersion(extensions, "0.9.0");
             string running = StageVersion(extensions, "1.0.0");
             string newer = StageVersion(extensions, "1.0.1");
@@ -658,7 +694,7 @@ public class ExtensionUpdateServiceTests
             string otherPack = StageVersion(extensions, "0.1.0", id: "net.demoviewer.pack.other");
             string stray = Path.Combine(extensions, Id, "not-a-version");
             Directory.CreateDirectory(stray);
-            File.WriteAllText(Path.Combine(root, "settings.json"), "{}");
+            await File.WriteAllTextAsync(Path.Combine(root, "settings.json"), "{}");
 
             ExtensionUpdateService service = NewService(root, new FakeFeedClient(),
                 statuses: [Status(version: "1.0.0", source: new PackSource.Staged(running))]);
@@ -671,13 +707,15 @@ public class ExtensionUpdateServiceTests
                 await Assert.That(Directory.Exists(running)).IsTrue().Because("the running copy loaded from here");
                 await Assert.That(Directory.Exists(newer)).IsTrue();
                 await Assert.That(Directory.Exists(incompatible)).IsTrue().Because("it may load after an app update");
-                await Assert.That(Directory.Exists(otherPack)).IsTrue().Because("not a declared extension; not ours to remove");
+                await Assert.That(Directory.Exists(otherPack)).IsTrue()
+                    .Because("not a declared extension; not ours to remove");
                 await Assert.That(Directory.Exists(stray)).IsTrue().Because("no manifest, so no version to compare");
                 await Assert.That(File.Exists(Path.Combine(root, "settings.json"))).IsTrue();
             }
 
             // With the bundled copy running at 1.0.0, the equal staged copy is superseded too.
-            ExtensionUpdateService bundled = NewService(root, new FakeFeedClient(), statuses: [Status(version: "1.0.0")]);
+            ExtensionUpdateService bundled =
+                NewService(root, new FakeFeedClient(), statuses: [Status(version: "1.0.0")]);
             bundled.Cleanup();
             using (Assert.Multiple())
             {
@@ -698,12 +736,14 @@ public class ExtensionUpdateServiceTests
         Func<ExtensionFeedEntry, ExtensionHostInfo, bool>? isOffered = null) =>
         new(root, statuses ?? [Status()], Host, trust ?? TrustAll, client, FeedUrl, queue, isOffered);
 
-    private static ExtensionFeedEntry Entry(FakeFeeds.Entry e) => ExtensionFeed.Parse(FakeFeeds.Json(e)).Entries.Single();
+    private static ExtensionFeedEntry Entry(FakeFeeds.Entry e) =>
+        ExtensionFeed.Parse(FakeFeeds.Json(e)).Entries.Single();
 
     // The same ephemeral P-256 pair ExtensionSignatureTests generates: the public half as base64 SPKI.
     private static (string PublicKey, System.Security.Cryptography.ECDsa PrivateKey) NewKeyPair()
     {
-        System.Security.Cryptography.ECDsa key = System.Security.Cryptography.ECDsa.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256);
+        System.Security.Cryptography.ECDsa key =
+            System.Security.Cryptography.ECDsa.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256);
         return (Convert.ToBase64String(key.ExportSubjectPublicKeyInfo()), key);
     }
 
@@ -725,7 +765,8 @@ public class ExtensionUpdateServiceTests
     {
         string dir = Path.Combine(extensions, id, version);
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, ExtensionManifest.FileName), FakeFeeds.Manifest(id, new FakeFeeds.Entry(version, RequiresHost: requiresHost)));
+        File.WriteAllText(Path.Combine(dir, ExtensionManifest.FileName),
+            FakeFeeds.Manifest(id, new FakeFeeds.Entry(version, RequiresHost: requiresHost)));
         File.WriteAllText(Path.Combine(dir, "Fake.dll"), "x");
         return dir;
     }
@@ -734,7 +775,8 @@ public class ExtensionUpdateServiceTests
     private static bool NothingStaged(string root)
     {
         string extensions = Path.Combine(root, "extensions");
-        return !Directory.Exists(extensions) || !Directory.EnumerateFiles(extensions, "*", SearchOption.AllDirectories).Any();
+        return !Directory.Exists(extensions)
+            || !Directory.EnumerateFiles(extensions, "*", SearchOption.AllDirectories).Any();
     }
 
     private static string NewRoot()

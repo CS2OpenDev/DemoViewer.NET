@@ -28,6 +28,7 @@ public interface IReleaseNotesService
 /// <param name="BodyMarkdown">The release body: GitHub-flavored markdown.</param>
 /// <param name="PublishedAt">Publication timestamp, when the feed supplied one.</param>
 /// <param name="HtmlUrl">Browser URL of the release page, for a "View on GitHub" link.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record ReleaseNotes(
     string Version,
     string Title,

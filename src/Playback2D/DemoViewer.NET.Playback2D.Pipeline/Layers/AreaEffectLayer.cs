@@ -27,16 +27,8 @@ public sealed class AreaEffectLayer : ISceneLayer
     /// <summary>Creates the layer.</summary>
     public AreaEffectLayer()
     {
-        _fill = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        _stroke = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            IsAntialias = true
-        };
+        _fill = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
+        _stroke = new SKPaint { Style = SKPaintStyle.Stroke, IsAntialias = true };
     }
 
     /// <inheritdoc />

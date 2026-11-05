@@ -5,7 +5,6 @@ using CS2DemoKit.Parser.EntityTracking;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.TestSupport;
 using DemoViewer.NET.ViewModels.Shell;
-using TUnit.Core.Exceptions;
 
 #endregion
 
@@ -44,7 +43,8 @@ public class GameClockOpenRealDemoTests
             int tickRate = vm.Playback.TickRate;
             int firstFreezeEnd = vm.Navigator.EventBoundaryFramesByName["round_freeze_end"][0];
             (double expected, bool valid) = GameClock.ComputeClockBase(frames, firstFreezeEnd, tickRate);
-            Console.WriteLine($"{Path.GetFileName(demo)}: first freeze end frame {firstFreezeEnd}, clockBase {expected:R}");
+            Console.WriteLine(
+                $"{Path.GetFileName(demo)}: first freeze end frame {firstFreezeEnd}, clockBase {expected:R}");
             await Assert.That(valid).IsTrue();
 
             // No tracker exists, so an unsettled clock would read a base of 0 here.
@@ -63,7 +63,8 @@ public class GameClockOpenRealDemoTests
             EntityTracker? seeked = await WaitForTrackerAt(vm, at);
             await Assert.That(seeked).IsNotNull();
 
-            await Assert.That(vm.EntityTab.EntityStatusText).StartsWith($"Tick {seeked!.CurrentTick} ").Because("the tab rebuilt from the paid seek");
+            await Assert.That(vm.EntityTab.EntityStatusText).StartsWith($"Tick {seeked!.CurrentTick} ")
+                .Because("the tab rebuilt from the paid seek");
 
             // The open lands before any entity exists; a seek from the tab must still match a fresh replay.
             vm.Navigation.SeekToFrame(firstFreezeEnd);
@@ -71,8 +72,10 @@ public class GameClockOpenRealDemoTests
             await Assert.That(seeked).IsNotNull();
             EntityTracker fresh = new();
             fresh.ReplayToIndex(firstFreezeEnd, frames);
-            Dictionary<int, EntityState> reference = fresh.CurrentEntities.AllIndexed().ToDictionary(x => x.Index, x => x.Entity);
-            Dictionary<int, EntityState> shown = seeked!.CurrentEntities.AllIndexed().ToDictionary(x => x.Index, x => x.Entity);
+            Dictionary<int, EntityState> reference =
+                fresh.CurrentEntities.AllIndexed().ToDictionary(x => x.Index, x => x.Entity);
+            Dictionary<int, EntityState> shown = seeked!.CurrentEntities.AllIndexed()
+                .ToDictionary(x => x.Index, x => x.Entity);
             await Assert.That(reference.Count).IsGreaterThan(0);
             await Assert.That(shown.Count).IsEqualTo(reference.Count);
             foreach ((int idx, EntityState re) in reference)
@@ -82,7 +85,7 @@ public class GameClockOpenRealDemoTests
                 await Assert.That(se.Serial).IsEqualTo(re.Serial);
             }
 
-            await Assert.That(vm.EntityTab.EntityGroups.Count).IsGreaterThan(0);
+            await Assert.That(vm.EntityTab.HasEntities).IsTrue();
         });
     }
 
@@ -101,7 +104,8 @@ public class GameClockOpenRealDemoTests
             int at = vm.Playback.CurrentFrameIndex;
             await Assert.That(at).IsGreaterThanOrEqualTo(0);
             EntityTracker? seeked = await WaitForTrackerAt(vm, at);
-            await Assert.That(seeked).IsNotNull().Because("a tab that reads entity state takes the open's seek at once");
+            await Assert.That(seeked).IsNotNull()
+                .Because("a tab that reads entity state takes the open's seek at once");
         });
     }
 
@@ -109,7 +113,8 @@ public class GameClockOpenRealDemoTests
     {
         for (int i = 0; i < 400; i++)
         {
-            if (vm.Playback.AuthoritativeTracker is { } t && t.CurrentFrameIndex == frameIndex && !vm.EntityTab.IsSeekingEntities)
+            if (vm.Playback.AuthoritativeTracker is { } t && t.CurrentFrameIndex == frameIndex
+                && !vm.EntityTab.IsSeekingEntities)
             {
                 return t;
             }

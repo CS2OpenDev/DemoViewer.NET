@@ -167,7 +167,7 @@ public sealed class ShapeTool : IPointerTool
     /// <param name="y">Pointer world Y.</param>
     /// <param name="pressure">Pointer pressure, carried through.</param>
     /// <param name="modifiers">The modifiers at this event.</param>
-    internal InkPoint Constrain(InkPoint first, float x, float y, float pressure, ToolModifiers modifiers)
+    private InkPoint Constrain(InkPoint first, float x, float y, float pressure, ToolModifiers modifiers)
     {
         if ((modifiers & ToolModifiers.Shift) == 0)
         {

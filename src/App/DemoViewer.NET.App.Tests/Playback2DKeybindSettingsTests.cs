@@ -75,7 +75,7 @@ public class Playback2DKeybindSettingsTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 KeybindRow row = Row(vm, Playback2DAction.NextRound);
                 await Assert.That(row.Gesture).IsEqualTo("E");
@@ -83,7 +83,8 @@ public class Playback2DKeybindSettingsTests
                 Capture(vm, row, Key.W, KeyModifiers.Shift);
 
                 string[] expected = ["NextRound=Shift+W"];
-                await Assert.That(svc.Current.Playback2D.KeybindOverrides).IsEquivalentTo(expected, CollectionOrdering.Matching);
+                await Assert.That(svc.Current.Playback2D.KeybindOverrides)
+                    .IsEquivalentTo(expected, CollectionOrdering.Matching);
                 await Assert.That(row.Gesture).IsEqualTo("Shift+W");
                 await Assert.That(row.IsOverridden).IsTrue();
                 await Assert.That(row.Conflict).IsEqualTo("");
@@ -111,7 +112,7 @@ public class Playback2DKeybindSettingsTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 KeybindRow row = Row(vm, Playback2DAction.NextRound);
 
@@ -154,7 +155,7 @@ public class Playback2DKeybindSettingsTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 KeybindRow row = Row(vm, Playback2DAction.NextRound);
                 vm.BeginKeybindCapture(row);
@@ -189,7 +190,7 @@ public class Playback2DKeybindSettingsTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 KeybindRow next = Row(vm, Playback2DAction.NextRound);
                 KeybindRow prev = Row(vm, Playback2DAction.PrevRound);
@@ -201,7 +202,8 @@ public class Playback2DKeybindSettingsTests
                 await Assert.That(next.Gesture).IsEqualTo("E");
                 await Assert.That(next.IsOverridden).IsFalse();
                 string[] remaining = ["PrevRound=Shift+T"];
-                await Assert.That(svc.Current.Playback2D.KeybindOverrides).IsEquivalentTo(remaining, CollectionOrdering.Matching);
+                await Assert.That(svc.Current.Playback2D.KeybindOverrides)
+                    .IsEquivalentTo(remaining, CollectionOrdering.Matching);
 
                 vm.ResetAllKeybindsCommand.Execute(null);
                 await Assert.That(svc.Current.Playback2D.KeybindOverrides).IsEmpty();
@@ -233,7 +235,7 @@ public class Playback2DKeybindSettingsTests
             seed.Write(s => s.Playback2D.KeybindOverrides = ["TagNote=Ctrl+Shift+M"]);
 
             (SettingsViewModel vm, SettingsService svc, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 KeybindRow row = vm.Playback2DKeybindRows.Single(r => r.Action == TagNote);
                 using (Assert.Multiple())
@@ -271,14 +273,15 @@ public class Playback2DKeybindSettingsTests
             seed.Write(s => s.Playback2D.KeybindOverrides = ["tagnote=Ctrl+Shift+M", "NextRound=Shift+W"]);
 
             (SettingsViewModel vm, SettingsService svc, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 KeybindRow row = vm.Playback2DKeybindRows.Single(r => r.Action == TagNote);
                 Capture(vm, row, Key.M, KeyModifiers.Control | KeyModifiers.Alt);
 
                 string[] expected = ["NextRound=Shift+W", TagNote + "=Ctrl+Alt+M"];
                 await Assert.That(row.Conflict).IsEqualTo("");
-                await Assert.That(svc.Current.Playback2D.KeybindOverrides).IsEquivalentTo(expected, CollectionOrdering.Matching);
+                await Assert.That(svc.Current.Playback2D.KeybindOverrides)
+                    .IsEquivalentTo(expected, CollectionOrdering.Matching);
                 await Assert.That(row.Gesture).IsEqualTo("Ctrl+Alt+M");
 
                 vm.Dispose();
@@ -301,7 +304,7 @@ public class Playback2DKeybindSettingsTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 KeybindRow row = Row(vm, Playback2DAction.NextRound);
                 Capture(vm, row, Key.W, KeyModifiers.Shift);
@@ -328,7 +331,7 @@ public class Playback2DKeybindSettingsTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 KeybindRow fit = Row(vm, Playback2DAction.FitCamera);
                 await Assert.That(fit.IsReserved).IsTrue();
@@ -362,7 +365,7 @@ public class Playback2DKeybindSettingsTests
             seed.Write(s => s.Playback2D.KeybindOverrides = ["NextRound=Ctrl+O", "Teleport=Y"]);
 
             (SettingsViewModel vm, SettingsService _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 Console.WriteLine($"[keybind-ui] note: {vm.KeybindRejectionNote}");
                 await Assert.That(vm.HasKeybindRejections).IsTrue();
@@ -393,7 +396,7 @@ public class Playback2DKeybindSettingsTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 (SettingsViewModel vm, SettingsService svc, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                await using (sp)
                 {
                     svc.Write(s => s.Playback2D.KeybindOverrides = ["NextRound=Shift+W"]);
 
@@ -418,7 +421,7 @@ public class Playback2DKeybindSettingsTests
         try
         {
             (SettingsViewModel vm, SettingsService _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 vm.SettingsFilterText = "keybind";
                 await Assert.That(vm.ShowSectionPlayback2DKeys).IsTrue();

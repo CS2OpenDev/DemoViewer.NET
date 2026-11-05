@@ -1,6 +1,5 @@
 #region
 
-using System.Text.Json;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
@@ -17,8 +16,6 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class StratLinePatchesTests
 {
-    private static string Shape(StratStep step) => JsonSerializer.Serialize(step, StratJsonContext.Default.StratStep);
-
     // Step 1 of FiveSteps as five bare lines to BombsiteA, with its positions kept.
     private static StratDocument FiveLines(string? oddPlace = null)
     {
@@ -35,7 +32,8 @@ public class StratLinePatchesTests
         return document;
     }
 
-    private static List<PatchOp> Rewrite(StratStep step) => StratLinePatches.Write(step, "/steps/0", StratLinePatches.Copy(step));
+    private static List<PatchOp> Rewrite(StratStep step) =>
+        StratLinePatches.Write(step, "/steps/0", StratLinePatches.Copy(step));
 
     [Test]
     public async Task FiveBareLinesToOnePlace_FoldToAStepForAll()
@@ -49,8 +47,9 @@ public class StratLinePatchesTests
             using (Assert.Multiple())
             {
                 await Assert.That(ops.Select(o => o.Op + " " + o.Path)).IsEquivalentTo(
-                    ["replace /steps/0/to", "remove /steps/0/assignments"], TUnit.Assertions.Enums.CollectionOrdering.Any);
-                await Assert.That(step.Actor).IsEqualTo(StratVocabulary.ActorAll).Because("five lines already summarise as all");
+                    ["replace /steps/0/to", "remove /steps/0/assignments"]);
+                await Assert.That(step.Actor).IsEqualTo(StratVocabulary.ActorAll)
+                    .Because("five lines already summarise as all");
             }
 
             StratStep folded = StratHistory.Apply(document, ops).Steps[0];
@@ -59,7 +58,8 @@ public class StratLinePatchesTests
                 await Assert.That(folded.Assignments).IsNull();
                 await Assert.That(folded.Actor).IsEqualTo(StratVocabulary.ActorAll);
                 await Assert.That(folded.To!.Place).IsEqualTo("BombsiteA");
-                await Assert.That(folded.Positions.Count).IsEqualTo(step.Positions.Count).Because("positions are not lines");
+                await Assert.That(folded.Positions.Count).IsEqualTo(step.Positions.Count)
+                    .Because("positions are not lines");
             }
         });
     }
@@ -84,7 +84,9 @@ public class StratLinePatchesTests
             without.Steps[0].Positions = [];
             await Assert.That(with.Steps[0].Positions.Count).IsGreaterThan(0);
 
-            string Ops(StratDocument d) => string.Join(";", Rewrite(d.Steps[0]).Select(o => o.Op + " " + o.Path + " " + o.Value?.ToJsonString()));
+            string Ops(StratDocument d) => string.Join(";",
+                Rewrite(d.Steps[0]).Select(o => o.Op + " " + o.Path + " " + o.Value?.ToJsonString()));
+
             await Assert.That(Ops(with)).IsEqualTo(Ops(without));
         });
     }
@@ -121,7 +123,12 @@ public class StratLinePatchesTests
         lines.To = null;
         lines.Assignments =
         [
-            new StepAssignment { Slot = "B", To = new PlaceRef { Place = "Ramp" }, Watch = new StepWatch { Places = ["Hut", "Elsewhere"] } },
+            new StepAssignment
+            {
+                Slot = "B",
+                To = new PlaceRef { Place = "Ramp" },
+                Watch = new StepWatch { Places = ["Hut", "Elsewhere"] }
+            },
             new StepAssignment { Slot = "C", To = new PlaceRef { Place = "Nowhere" } }
         ];
         StratStepEditingTests.Seed(vm, everyone, lines);
@@ -142,7 +149,9 @@ public class StratLinePatchesTests
             {
                 await Assert.That(everyone.ToIssue).IsNull().Because("no place is checked while the zones load");
                 await Assert.That(lines.Lines[1].PlaceIssue).IsNull();
-                await Assert.That(vm.Session.Issues.Any(i => i.Message.Contains("is not a place", StringComparison.Ordinal))).IsFalse();
+                await Assert
+                    .That(vm.Session.Issues.Any(i => i.Message.Contains("is not a place", StringComparison.Ordinal)))
+                    .IsFalse();
             }
 
             // StratMapFirstTests' synthetic map has two places, Hut and Ramp.
@@ -157,7 +166,8 @@ public class StratLinePatchesTests
                 await Assert.That(lines.Lines[0].WatchIssue?.Message).Contains("'Elsewhere'");
                 await Assert.That(lines.Lines[0].WatchIssue!.Message).DoesNotContain("Hut");
                 await Assert.That(lines.Lines[1].PlaceIssue?.Message).Contains("'Nowhere'");
-                await Assert.That(vm.Session.Issues.Where(i => i.Message.Contains("is not a place", StringComparison.Ordinal))
+                await Assert.That(vm.Session.Issues
+                    .Where(i => i.Message.Contains("is not a place", StringComparison.Ordinal))
                     .All(i => i.Severity == StratIssueSeverity.Warning)).IsTrue();
             }
         });
@@ -171,7 +181,8 @@ public class StratLinePatchesTests
             TaskCompletionSource<IZonePlaceResolver?> zones = new();
             using StratBookTabViewModel vm = TabWith(zones);
             int index = vm.Session.Document!.Steps.Count - 1;
-            vm.Session.Apply(PatchOp.ReplaceOp($"/steps/{index}/to", null, System.Text.Json.Nodes.JsonNode.Parse("""{ "place": "BombsiteA" }""")));
+            vm.Session.Apply(PatchOp.ReplaceOp($"/steps/{index}/to", null,
+                System.Text.Json.Nodes.JsonNode.Parse("""{ "place": "BombsiteA" }""")));
             StratStepRow row = vm.Editor.Steps[index];
             int depth = vm.Session.UndoDepth;
 
@@ -183,7 +194,8 @@ public class StratLinePatchesTests
             }
 
             row.ToText = "Connector";
-            await Assert.That(vm.Session.Document!.Steps[index].To!.Place).IsEqualTo("BombsiteA").Because("typing there writes nothing");
+            await Assert.That(vm.Session.Document!.Steps[index].To!.Place).IsEqualTo("BombsiteA")
+                .Because("typing there writes nothing");
             await Assert.That(vm.Session.UndoDepth).IsEqualTo(depth);
 
             vm.Editor.Steps[index].ClearStrayToCommand.Execute(null);

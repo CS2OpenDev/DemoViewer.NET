@@ -40,7 +40,8 @@ internal sealed record RegisteredCollector(CollectorContribution Contribution, I
         {
             if (!GrenadeProjectileClasses.Contains(name))
             {
-                return $"collector {contribution.Id} reads projectile class '{name}', which is not one of {string.Join(", ", GrenadeProjectileClasses.All)}";
+                return
+                    $"collector {contribution.Id} reads projectile class '{name}', which is not one of {string.Join(", ", GrenadeProjectileClasses.All)}";
             }
         }
 
@@ -65,9 +66,21 @@ internal sealed class CollectorSet
         }
 
         All = [.. _byId.Values.OrderBy(c => c.Id, StringComparer.Ordinal)];
-        Providers = [.. All.SelectMany(c => c.Contribution.Providers).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal)];
-        ProjectileClasses = [.. All.SelectMany(c => c.Contribution.ProjectileClasses).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
-        GameEvents = [.. All.SelectMany(c => c.Contribution.GameEvents).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal)];
+        Providers =
+        [
+            .. All.SelectMany(c => c.Contribution.Providers).Distinct(StringComparer.OrdinalIgnoreCase)
+                .Order(StringComparer.Ordinal)
+        ];
+        ProjectileClasses =
+        [
+            .. All.SelectMany(c => c.Contribution.ProjectileClasses).Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+        ];
+        GameEvents =
+        [
+            .. All.SelectMany(c => c.Contribution.GameEvents).Distinct(StringComparer.OrdinalIgnoreCase)
+                .Order(StringComparer.Ordinal)
+        ];
         ReadsUserCommands = All.Any(c => c.Contribution.ReadsUserCommands);
         Key = string.Join("\n", All.Select(c => c.Contribution.Stamp));
     }
@@ -102,7 +115,7 @@ internal sealed class CollectorSet
     /// <summary>True when every member of <paramref name="other" /> is here under the same stamp.</summary>
     public bool IsSupersetOf(CollectorSet other) =>
         other.All.All(c => _byId.TryGetValue(c.Id, out RegisteredCollector? mine)
-                           && string.Equals(mine.Contribution.Stamp, c.Contribution.Stamp, StringComparison.Ordinal));
+            && string.Equals(mine.Contribution.Stamp, c.Contribution.Stamp, StringComparison.Ordinal));
 
     public bool Contains(string collectorId) => _byId.ContainsKey(collectorId);
 

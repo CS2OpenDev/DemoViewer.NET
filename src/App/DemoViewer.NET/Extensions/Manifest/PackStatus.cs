@@ -75,7 +75,8 @@ public sealed record PackStatus(
 
         if (!string.Equals(manifest.Id, pack.Id, StringComparison.Ordinal))
         {
-            return new PackStatus(pack, manifest, new PackCompatibility.ManifestInvalid($"manifest id '{manifest.Id}' is not the pack id '{pack.Id}'"));
+            return new PackStatus(pack, manifest,
+                new PackCompatibility.ManifestInvalid($"manifest id '{manifest.Id}' is not the pack id '{pack.Id}'"));
         }
 
         return new PackStatus(pack, manifest, PackCompatibility.Check(manifest, host));

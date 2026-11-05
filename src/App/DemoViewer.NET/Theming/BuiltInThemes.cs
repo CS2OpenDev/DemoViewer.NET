@@ -31,7 +31,7 @@ public static class BuiltInThemes
 
     private static readonly Lazy<(ThemePalette Dark, ThemePalette Light)> _bases = new(LoadBases);
 
-    private static readonly Lazy<IReadOnlyList<ThemeDefinition>> _customDefs = new(() => LoadCustomDefinitions());
+    private static readonly Lazy<IReadOnlyList<ThemeDefinition>> _customDefs = new(LoadCustomDefinitions);
 
     private static readonly Lazy<IReadOnlyList<ThemePalette>> _all = new(() =>
         [Dark, Light, .. _customDefs.Value.Select(ThemePalette.Resolve)]);
@@ -56,16 +56,18 @@ public static class BuiltInThemes
     private static (ThemePalette, ThemePalette) LoadBases()
     {
         using Stream stream = typeof(BuiltInThemes).Assembly.GetManifestResourceStream(PaletteResource)
-                              ?? throw new InvalidOperationException($"{PaletteResource} is not embedded.");
+            ?? throw new InvalidOperationException($"{PaletteResource} is not embedded.");
         XDocument doc = XDocument.Load(stream);
-        return (Read(doc, "Dark", "dark", "Dark", ThemeVariant.Dark), Read(doc, "Light", "light", "Light", ThemeVariant.Light));
+        return (Read(doc, "Dark", "dark", "Dark", ThemeVariant.Dark),
+            Read(doc, "Light", "light", "Light", ThemeVariant.Light));
     }
 
     private static ThemePalette Read(XDocument doc, string key, string id, string name, ThemeVariant variant)
     {
         XElement dict = doc.Descendants()
-                            .FirstOrDefault(e => e.Name.LocalName == "ResourceDictionary" && (string?)e.Attribute(_x + "Key") == key)
-                        ?? throw new InvalidOperationException($"The palette has no {key} dictionary.");
+                .FirstOrDefault(e =>
+                    e.Name.LocalName == "ResourceDictionary" && (string?)e.Attribute(_x + "Key") == key)
+            ?? throw new InvalidOperationException($"The palette has no {key} dictionary.");
         Dictionary<string, Color> colors = new(StringComparer.Ordinal);
         Dictionary<string, ThemeGradient> gradients = new(StringComparer.Ordinal);
         foreach (XElement entry in dict.Elements())
@@ -105,7 +107,7 @@ public static class BuiltInThemes
         List<ThemeDefinition> defs = [];
         foreach (string resource in asm.GetManifestResourceNames()
                      .Where(n => n.Contains(".Themes.", StringComparison.Ordinal)
-                                 && n.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                         && n.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                      .OrderBy(n => n, StringComparer.Ordinal))
         {
             try
@@ -117,7 +119,7 @@ public static class BuiltInThemes
                 }
 
                 using StreamReader reader = new(stream);
-                if (ThemeJson.TryParse(reader.ReadToEnd(), resource) is { } def)
+                if (ThemeJson.TryParse(reader.ReadToEnd()) is { } def)
                 {
                     defs.Add(def);
                 }

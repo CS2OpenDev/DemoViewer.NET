@@ -94,7 +94,7 @@ public sealed partial class HighlightBacklogViewModel : ViewModelBase, IDisposab
         RetryAllFailedCommand.NotifyCanExecuteChanged();
     }
 
-    internal static string BuildNotice(int stale, int failed, bool backgroundScan)
+    private static string BuildNotice(int stale, int failed, bool backgroundScan)
     {
         List<string> parts = [];
         if (stale > 0)
@@ -103,12 +103,13 @@ public sealed partial class HighlightBacklogViewModel : ViewModelBase, IDisposab
             parts.Add(backgroundScan
                 ? $"{demos} highlights from older rules or none yet. They are refreshing in the background."
                 : $"{demos} highlights from older rules or none yet. They refresh as demos are processed, "
-                  + "or turn on the background scan in Settings to refresh them all.");
+                + "or turn on the background scan in Settings to refresh them all.");
         }
 
         if (failed > 0)
         {
-            parts.Add(failed == 1 ? "1 demo failed its highlight scan." : $"{failed} demos failed their highlight scan.");
+            parts.Add(
+                failed == 1 ? "1 demo failed its highlight scan." : $"{failed} demos failed their highlight scan.");
         }
 
         return string.Join(" ", parts);

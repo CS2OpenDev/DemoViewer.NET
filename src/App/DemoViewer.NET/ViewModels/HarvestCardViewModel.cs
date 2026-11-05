@@ -77,7 +77,7 @@ public sealed partial class HarvestCardViewModel : ObservableObject
     ///     Unknown. The header Border binds one of the <c>IsKind*</c> bools below to a category style class,
     ///     so the wash resolves per theme (dark tint in Dark, pale tint in Light) instead of a fixed brush.
     /// </summary>
-    public string HeaderKind { get; }
+    private string HeaderKind { get; }
 
     /// <summary>Category-class selectors for the InspectorCard header background (exactly one is true).</summary>
     public bool IsKindNet => HeaderKind == "Net";
@@ -148,15 +148,15 @@ public sealed partial class HarvestCardViewModel : ObservableObject
             _ when typeName.StartsWith("svc_", StringComparison.OrdinalIgnoreCase)
                 => ("svc", "Svc"),
             _ when typeName.StartsWith("DEM_", StringComparison.OrdinalIgnoreCase)
-                   || typeName.StartsWith("CDem", StringComparison.OrdinalIgnoreCase)
+                || typeName.StartsWith("CDem", StringComparison.OrdinalIgnoreCase)
                 => ("DEM", "Dem"),
             _ when typeName.StartsWith("cs_", StringComparison.OrdinalIgnoreCase)
                 => ("cs", "Cs"),
             _ when typeName.StartsWith("GameEvent", StringComparison.OrdinalIgnoreCase)
-                   || typeName.StartsWith("game_event", StringComparison.OrdinalIgnoreCase)
+                || typeName.StartsWith("game_event", StringComparison.OrdinalIgnoreCase)
                 => ("event", "GameEvent"),
             _ when typeName.StartsWith("CLC", StringComparison.OrdinalIgnoreCase)
-                   || typeName.StartsWith("clc_", StringComparison.OrdinalIgnoreCase)
+                || typeName.StartsWith("clc_", StringComparison.OrdinalIgnoreCase)
                 => ("clc", "Clc"),
             _ => ("msg", "Default")
         };

@@ -26,7 +26,7 @@ public static class QueryFixtureStore
     public const string SidecarExtension = ".dvquery.json";
 
     /// <summary>The schema stamp a writer puts in the file.</summary>
-    public const string SchemaVersion = "dvquery/1";
+    private const string SchemaVersion = "dvquery/1";
 
     /// <summary>Reads a document from a file.</summary>
     /// <param name="path">The <c>.dvquery.json</c> path.</param>
@@ -46,12 +46,9 @@ public static class QueryFixtureStore
         ArgumentNullException.ThrowIfNull(source);
 
         QueryFixtureDto dto = JsonSerializer.Deserialize(source, QueryFixtureJsonContext.Default.QueryFixtureDto)
-                              ?? throw new JsonException("Query fixture payload was null.");
+            ?? throw new JsonException("Query fixture payload was null.");
 
-        QueryCanvasDocument document = new()
-        {
-            MapName = dto.Map ?? ""
-        };
+        QueryCanvasDocument document = new() { MapName = dto.Map ?? "" };
 
         foreach (QueryTokenDto token in dto.Tokens ?? [])
         {
@@ -68,23 +65,6 @@ public static class QueryFixtureStore
         }
 
         return document;
-    }
-
-    /// <summary>Writes a document to a file, creating the directory if needed. Indented, LF on every platform.</summary>
-    /// <param name="document">The document.</param>
-    /// <param name="path">The <c>.dvquery.json</c> path.</param>
-    public static void WriteFile(QueryCanvasDocument document, string path)
-    {
-        ArgumentNullException.ThrowIfNull(document);
-        ArgumentException.ThrowIfNullOrEmpty(path);
-
-        if (Path.GetDirectoryName(path) is { Length: > 0 } directory)
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        using FileStream stream = File.Create(path);
-        Write(document, stream);
     }
 
     /// <summary>Writes a document to a stream. Not closed.</summary>
@@ -115,11 +95,7 @@ public static class QueryFixtureStore
 
         // An explicit LF, for the reason SceneFixtureSerializer gives: the corpus is committed text
         // pinned to LF, and Environment.NewLine would make a Windows write dirty every checkout.
-        using Utf8JsonWriter writer = new(destination, new JsonWriterOptions
-        {
-            Indented = true,
-            NewLine = "\n"
-        });
+        using Utf8JsonWriter writer = new(destination, new JsonWriterOptions { Indented = true, NewLine = "\n" });
         JsonSerializer.Serialize(writer, dto, QueryFixtureJsonContext.Default.QueryFixtureDto);
     }
 }

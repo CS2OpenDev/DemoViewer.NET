@@ -25,7 +25,7 @@ public class LibraryScoreTests
     public async Task ExtractFinalScore_RealDemo_ProducesPlausibleScoreboard()
     {
         string? path = DemoTestHelper.FindDemoPath("match730_003826256877184877003_0981591541_410.dem")
-                       ?? DemoTestHelper.FindDemoPath("vitality-vs-fut-m2-dust2.dem");
+            ?? DemoTestHelper.FindDemoPath("vitality-vs-fut-m2-dust2.dem");
         if (path is null)
         {
             throw new SkipTestException("no score-extraction demo present");

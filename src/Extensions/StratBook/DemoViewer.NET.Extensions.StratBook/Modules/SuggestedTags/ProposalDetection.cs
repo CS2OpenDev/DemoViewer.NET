@@ -30,7 +30,7 @@ public static class ProposalDetection
 
     /// <summary>The detector with an id, or null.</summary>
     /// <param name="id">A detector id.</param>
-    public static IProposalDetector? Find(string id) => All.FirstOrDefault(d => d.Id == id);
+    private static IProposalDetector? Find(string id) => All.FirstOrDefault(d => d.Id == id);
 
     /// <summary>
     ///     The proposals for every round, round by round. Events are the whole demo's; each round takes
@@ -121,10 +121,10 @@ public static class ProposalDetection
 internal static class DetectorMath
 {
     /// <summary>The confidence floor every proposal is clamped to.</summary>
-    internal const double MinConfidence = 0.05;
+    private const double MinConfidence = 0.05;
 
     /// <summary>The confidence ceiling.</summary>
-    internal const double MaxConfidence = 0.99;
+    private const double MaxConfidence = 0.99;
 
     /// <summary>
     ///     Clamps to <c>[0.05, 0.99]</c> and rounds to four places, so a proposal written to disk and read
@@ -149,10 +149,12 @@ internal static class DetectorMath
         "event",
         e.Tick,
         e.ThrowerName is { Length: > 0 } name
-            ? string.Create(CultureInfo.InvariantCulture, $"{e.Kind} by {DisplayText.Sanitize(name)} -> {e.Place ?? "unplaced"}")
+            ? string.Create(CultureInfo.InvariantCulture,
+                $"{e.Kind} by {DisplayText.Sanitize(name)} -> {e.Place ?? "unplaced"}")
             : e.ThrowerSlot >= 0
-            ? string.Create(CultureInfo.InvariantCulture, $"{e.Kind} by slot {e.ThrowerSlot} -> {e.Place ?? "unplaced"}")
-            : string.Create(CultureInfo.InvariantCulture, $"{e.Kind} -> {e.Place ?? "unplaced"}"));
+                ? string.Create(CultureInfo.InvariantCulture,
+                    $"{e.Kind} by slot {e.ThrowerSlot} -> {e.Place ?? "unplaced"}")
+                : string.Create(CultureInfo.InvariantCulture, $"{e.Kind} -> {e.Place ?? "unplaced"}"));
 
     /// <summary>A tick <paramref name="seconds" /> before <paramref name="tick" />, floored at the round start.</summary>
     internal static int Lead(RoundOccupancy round, int tick, double seconds) =>
@@ -171,6 +173,6 @@ internal static class DetectorMath
         int toTick) =>
     [
         .. events.Where(e => e.Side == side && e.Place is { } place && places.Contains(place)
-                             && e.Tick >= fromTick && e.Tick < toTick)
+            && e.Tick >= fromTick && e.Tick < toTick)
     ];
 }

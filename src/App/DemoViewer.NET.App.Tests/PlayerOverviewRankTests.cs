@@ -9,7 +9,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Controls.Stats;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Identity;
 using DemoViewer.NET.Services.MatchMeta;
@@ -36,7 +35,7 @@ public class PlayerOverviewRankTests
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
     // Demo i of PlayerOverviewHistoryTests on the given map, with Grim's rank row stamped as the evaluator writes it.
-    internal static DemoCacheRecord Ranked(int i, string map, MatchRankRow? rank, long computedAt = 1)
+    private static DemoCacheRecord Ranked(int i, string map, MatchRankRow? rank, long computedAt = 1)
     {
         DemoCacheRecord record = PlayerOverviewHistoryTests.Demo(i);
         record.Map = map;
@@ -44,18 +43,39 @@ public class PlayerOverviewRankTests
         if (rank is not null)
         {
             rank.SteamId64 = Id(Grim);
-            record.MatchMeta.Players = [rank, new MatchRankRow { SteamId64 = "76561190000000012", RankType = rank.RankType, RankOld = 3 }];
+            record.MatchMeta.Players =
+                [rank, new MatchRankRow { SteamId64 = "76561190000000012", RankType = rank.RankType, RankOld = 3 }];
         }
 
-        record.SetStamp(new PackStamp(MatchMetaEvaluator.StampId, DemoMatchMeta.CurrentSchema, MatchMetaEvaluator.Version) { ComputedAtTicks = computedAt });
+        record.SetStamp(
+            new PackStamp(MatchMetaEvaluator.StampId, DemoMatchMeta.CurrentSchema, MatchMetaEvaluator.Version)
+            {
+                ComputedAtTicks = computedAt
+            });
         return record;
     }
 
     private static MatchRankRow Premier(int old, int change) =>
-        new() { RankType = 11, RankOld = old, RankNew = old + change, RankChange = change, Wins = 50, RankSource = RankSource.ServerRankUpdate };
+        new()
+        {
+            RankType = 11,
+            RankOld = old,
+            RankNew = old + change,
+            RankChange = change,
+            Wins = 50,
+            RankSource = RankSource.ServerRankUpdate
+        };
 
     private static MatchRankRow Competitive(int old, int change) =>
-        new() { RankType = 12, RankOld = old, RankNew = old + change, RankChange = change, Wins = 30, RankSource = RankSource.ServerRankUpdate };
+        new()
+        {
+            RankType = 12,
+            RankOld = old,
+            RankNew = old + change,
+            RankChange = change,
+            Wins = 30,
+            RankSource = RankSource.ServerRankUpdate
+        };
 
     // Oldest first: premier 14000 → 14189 → 14100 → 14350, and competitive on Nuke and Mirage in between.
     internal static DemoCacheStore Library()
@@ -80,9 +100,8 @@ public class PlayerOverviewRankTests
                 Gate.Reset();
             }
 
-            Store = store;
             PlayerDirectory directory = new(store, _ => true);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             Identity.SetAccounts([new IdentityAccount(Id(Grim), null, DateTime.UtcNow)]);
             Ranks = new PlayerRankCache(store, directory, path =>
             {
@@ -91,13 +110,12 @@ public class PlayerOverviewRankTests
                 return store.TryLoadRecord(path, false)?.MatchMeta;
             });
             Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, null,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }, Ranks: Ranks));
+                _ => { }, (_, _) => { }, _ => { }, Ranks: Ranks));
             Tab.OnActivated(null!);
         }
 
-        public DemoCacheStore Store { get; }
-        public IdentityService Identity { get; }
-        public PlayerRankCache Ranks { get; }
+        private IdentityService Identity { get; }
+        private PlayerRankCache Ranks { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public ConcurrentQueue<string> Reads { get; } = new();
 
@@ -131,7 +149,8 @@ public class PlayerOverviewRankTests
         {
             await Assert.That(rank.IsVisible).IsTrue();
             await Assert.That(rank.Slot).IsEqualTo(SectionSlot.Rail);
-            await Assert.That(rank.Charts.Select(c => c.Title)).IsEquivalentTo(["Premier", "Competitive"], CollectionOrdering.Matching);
+            await Assert.That(rank.Charts.Select(c => c.Title))
+                .IsEquivalentTo(["Premier", "Competitive"], CollectionOrdering.Matching);
         }
     }
 
@@ -145,7 +164,7 @@ public class PlayerOverviewRankTests
         using (Assert.Multiple())
         {
             await Assert.That(premier.Values).IsEquivalentTo([14189.0, 14100.0, 14350.0], CollectionOrdering.Matching);
-            await Assert.That((premier.Minimum, premier.Maximum)).IsEqualTo((13000.0, (double?) null));
+            await Assert.That((premier.Minimum, premier.Maximum)).IsEqualTo((13000.0, (double?)null));
             await Assert.That(premier.SummaryText).IsEqualTo("3 matches · latest 14,350 · peak 14,350 · +161");
             await Assert.That(premier.PointTips[0]).EndsWith("Nuke · Premier 14,000 → 14,189 (+189)");
         }
@@ -161,7 +180,7 @@ public class PlayerOverviewRankTests
         using (Assert.Multiple())
         {
             await Assert.That(competitive.Values).IsEquivalentTo([10.0, 11.0, 10.0], CollectionOrdering.Matching);
-            await Assert.That((competitive.Minimum, competitive.Maximum)).IsEqualTo((0.0, (double?) 18));
+            await Assert.That((competitive.Minimum, competitive.Maximum)).IsEqualTo((0.0, (double?)18));
             await Assert.That(competitive.PointTips[1]).Contains("Mirage");
             await Assert.That(competitive.SummaryText).IsEqualTo(
                 $"3 matches · latest {GameIcons.IconCatalogue.RankName(10)} · peak {GameIcons.IconCatalogue.RankName(11)}");
@@ -177,12 +196,15 @@ public class PlayerOverviewRankTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(ranks.Select(r => r.Title)).IsEquivalentTo(["PREMIER", "COMPETITIVE"], CollectionOrdering.Matching);
-            await Assert.That((ranks[0].ValueText, ranks[0].ChangeText, ranks[0].IsUp)).IsEqualTo(("14,350", "+250", true));
+            await Assert.That(ranks.Select(r => r.Title))
+                .IsEquivalentTo(["PREMIER", "COMPETITIVE"], CollectionOrdering.Matching);
+            await Assert.That((ranks[0].ValueText, ranks[0].ChangeText, ranks[0].IsUp))
+                .IsEqualTo(("14,350", "+250", true));
             await Assert.That(ranks[0].BadgeKey).IsEqualTo(GameIcons.IconCatalogue.PremierEmblem(14350)!.Key);
             await Assert.That(ranks[0].Tooltip).StartsWith("Premier 14,100 → 14,350 (+250) · ");
             await Assert.That(ranks[0].Tooltip).EndsWith("Inferno");
-            await Assert.That((ranks[1].ValueText, ranks[1].BadgeKey)).IsEqualTo((GameIcons.IconCatalogue.RankName(10), "rank/competitive/10"))
+            await Assert.That((ranks[1].ValueText, ranks[1].BadgeKey))
+                .IsEqualTo((GameIcons.IconCatalogue.RankName(10), "rank/competitive/10"))
                 .Because("the latest Competitive match was on Nuke, whatever Mirage's was");
         }
     }
@@ -198,7 +220,8 @@ public class PlayerOverviewRankTests
         {
             await Assert.That(rows.Single(r => r.Map == "de_nuke").Rank!.BadgeKey).IsEqualTo("rank/competitive/10");
             await Assert.That(rows.Single(r => r.Map == "de_mirage").Rank!.BadgeKey).IsEqualTo("rank/competitive/11");
-            await Assert.That(rows.Single(r => r.Map == "de_inferno").HasRank).IsFalse().Because("Inferno was only played in Premier");
+            await Assert.That(rows.Single(r => r.Map == "de_inferno").HasRank).IsFalse()
+                .Because("Inferno was only played in Premier");
             await Assert.That(rows.Single(r => r.Map == "de_nuke").Rank!.Tooltip).StartsWith(
                 $"Latest Competitive rank on the map: {GameIcons.IconCatalogue.RankName(10)}");
         }
@@ -208,7 +231,8 @@ public class PlayerOverviewRankTests
     public async Task APlacementAccount_ReadsAsUnranked_NeverZero()
     {
         DemoCacheStore store = new(null);
-        store.Upsert(Ranked(0, "de_nuke", new MatchRankRow { RankType = 12, Wins = 4, RankSource = RankSource.ServerRankUpdate }));
+        store.Upsert(Ranked(0, "de_nuke",
+            new MatchRankRow { RankType = 12, Wins = 4, RankSource = RankSource.ServerRankUpdate }));
         store.Upsert(Ranked(1, "de_mirage", new MatchRankRow { RankType = 11, RankSource = RankSource.Controller }));
         using Shell shell = new(store);
         await shell.Settled();
@@ -218,10 +242,12 @@ public class PlayerOverviewRankTests
 
         using (Assert.Multiple())
         {
-            await Assert.That((competitive.ValueText, competitive.BadgeKey)).IsEqualTo(("Unranked", "rank/competitive/needwins"));
+            await Assert.That((competitive.ValueText, competitive.BadgeKey))
+                .IsEqualTo(("Unranked", "rank/competitive/needwins"));
             await Assert.That((premier.ValueText, premier.BadgeKey)).IsEqualTo(("Unranked", "premier/unranked"));
             await Assert.That((chart.HasBars, chart.SummaryText)).IsEqualTo((false, "1 match · unranked"));
-            await Assert.That(shell.Maps.Rows.Single(r => r.Map == "de_nuke").Rank!.BadgeKey).IsEqualTo("rank/competitive/needwins");
+            await Assert.That(shell.Maps.Rows.Single(r => r.Map == "de_nuke").Rank!.BadgeKey)
+                .IsEqualTo("rank/competitive/needwins");
             HistoryRowItem row = shell.History.Rows.Single(r => r.Match.Row.Path == "/lib/0.dem");
             await Assert.That(row.RankChangeText).IsEqualTo("–");
             await Assert.That(row.RankTip).IsEqualTo("Competitive unranked");
@@ -240,7 +266,8 @@ public class PlayerOverviewRankTests
         await Assert.That(shell.Rank.IsVisible).IsFalse();
         await Assert.That(shell.Rank.Charts).IsEmpty();
         await Assert.That(shell.Header.HasRanks).IsFalse();
-        await Assert.That(shell.Reads.Count).IsEqualTo(1).Because("a demo without a matchrank stamp has nothing to read");
+        await Assert.That(shell.Reads.Count).IsEqualTo(1)
+            .Because("a demo without a matchrank stamp has nothing to read");
     }
 
     [Test]
@@ -257,7 +284,7 @@ public class PlayerOverviewRankTests
             await Assert.That((up.RankChangeText, up.IsRankUp, up.IsRankDown)).IsEqualTo(("+250", true, false));
             await Assert.That(up.RankTip).IsEqualTo("Premier 14,100 → 14,350 (+250)");
             await Assert.That((down.RankChangeText, down.IsRankUp, down.IsRankDown)).IsEqualTo(("-89", false, true));
-            await Assert.That((none.RankChangeText, none.RankTip)).IsEqualTo(("–", (string?) null));
+            await Assert.That((none.RankChangeText, none.RankTip)).IsEqualTo(("–", (string?)null));
         }
     }
 
@@ -274,9 +301,12 @@ public class PlayerOverviewRankTests
         using (Assert.Multiple())
         {
             await Assert.That(shell.Rank.IsLoading).IsFalse();
-            await Assert.That(shell.Rank.Charts.Select(c => c.Values.Single())).IsEquivalentTo([14100.0, 11.0], CollectionOrdering.Matching);
-            await Assert.That(shell.Header.Ranks[0].ValueText).IsEqualTo("14,350").Because("a standing reads every demo, whatever the filter");
-            await Assert.That(shell.History.Rows.Select(r => r.RankChangeText)).IsEquivalentTo(["-1", "-89"], CollectionOrdering.Matching);
+            await Assert.That(shell.Rank.Charts.Select(c => c.Values.Single()))
+                .IsEquivalentTo([14100.0, 11.0], CollectionOrdering.Matching);
+            await Assert.That(shell.Header.Ranks[0].ValueText).IsEqualTo("14,350")
+                .Because("a standing reads every demo, whatever the filter");
+            await Assert.That(shell.History.Rows.Select(r => r.RankChangeText))
+                .IsEquivalentTo(["-1", "-89"], CollectionOrdering.Matching);
         }
 
         filter.Map = filter.Maps[0];
@@ -284,7 +314,8 @@ public class PlayerOverviewRankTests
         {
             await Assert.That(shell.Rank.Charts.Sum(c => c.Values.Count)).IsEqualTo(6);
             await Assert.That(shell.History.Rows.Count).IsEqualTo(7);
-            await Assert.That(shell.Reads.Count).IsEqualTo(7).Because("a filter change recomputes from the rows already read");
+            await Assert.That(shell.Reads.Count).IsEqualTo(7)
+                .Because("a filter change recomputes from the rows already read");
         }
     }
 
@@ -325,15 +356,18 @@ public class PlayerOverviewRankRenderTests
         {
             DemoCacheStore store = PlayerOverviewRankTests.Library();
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRankCache ranks = new(store, directory);
             await ranks.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, null,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }, Ranks: ranks));
+                _ => { }, (_, _) => { }, _ => { }, Ranks: ranks));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewHistoryTests.Grim);
 
-            Window window = new() { Width = 1300, Height = 900, Content = new PlayerOverviewTabView { DataContext = vm } };
+            Window window = new()
+            {
+                Width = 1300, Height = 900, Content = new PlayerOverviewTabView { DataContext = vm }
+            };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -347,7 +381,7 @@ public class PlayerOverviewRankRenderTests
             {
                 await Assert.That(view.IsVisible).IsTrue();
                 await Assert.That(bars.Length).IsEqualTo(2);
-                await Assert.That(bars.All(b => b.Mode == SparklineMode.Bars && b.Bounds.Width > 0)).IsTrue();
+                await Assert.That(bars.All(b => b is { Mode: SparklineMode.Bars, Bounds.Width: > 0 })).IsTrue();
                 await Assert.That(badges.Select(b => b.Key)).IsEquivalentTo(
                     vm.Reveal<HeaderSectionViewModel>().Ranks.Select(r => r.BadgeKey), CollectionOrdering.Matching);
                 await Assert.That(badges.All(b => b.Bounds.Width > 0)).IsTrue();
@@ -365,16 +399,19 @@ public class PlayerOverviewRankRenderTests
         {
             DemoCacheStore store = PlayerOverviewRankTests.Library();
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRankCache ranks = new(store, directory);
             await ranks.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, null,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }, Ranks: ranks));
+                _ => { }, (_, _) => { }, _ => { }, Ranks: ranks));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewHistoryTests.Grim);
             vm.ShowPage(PlayerOverviewPageKind.History);
 
-            Window window = new() { Width = 1600, Height = 900, Content = new PlayerOverviewTabView { DataContext = vm } };
+            Window window = new()
+            {
+                Width = 1600, Height = 900, Content = new PlayerOverviewTabView { DataContext = vm }
+            };
             window.Show();
             Settle();
             HistorySectionView history = window.GetVisualDescendants().OfType<HistorySectionView>().Single();
@@ -382,12 +419,15 @@ public class PlayerOverviewRankRenderTests
             ScrollViewer historyScroll = history.FindControl<ScrollViewer>("HistoryScroll")!;
             double mapsLeft = maps.TranslatePoint(new Point(0, 0), window)!.Value.X;
             double historyRight = history.TranslatePoint(new Point(history.Bounds.Width, 0), window)!.Value.X;
-            double tops = Math.Abs(maps.TranslatePoint(new Point(0, 0), window)!.Value.Y - history.TranslatePoint(new Point(0, 0), window)!.Value.Y);
+            double tops = Math.Abs(maps.TranslatePoint(new Point(0, 0), window)!.Value.Y
+                - history.TranslatePoint(new Point(0, 0), window)!.Value.Y);
             using (Assert.Multiple())
             {
-                await Assert.That(mapsLeft).IsGreaterThan(historyRight).Because("maps sits to the right of the history");
+                await Assert.That(mapsLeft).IsGreaterThan(historyRight)
+                    .Because("maps sits to the right of the history");
                 await Assert.That(tops).IsLessThan(1.0).Because("both start at the top of the page");
-                await Assert.That(historyScroll.Extent.Width).IsGreaterThan(historyScroll.Viewport.Width).Because("at 1,600 px the history table scrolls");
+                await Assert.That(historyScroll.Extent.Width).IsGreaterThan(historyScroll.Viewport.Width)
+                    .Because("at 1,600 px the history table scrolls");
             }
 
             window.Width = 2560;
@@ -395,7 +435,8 @@ public class PlayerOverviewRankRenderTests
             using (Assert.Multiple())
             {
                 await Assert.That(historyScroll.Extent.Width).IsLessThanOrEqualTo(historyScroll.Viewport.Width + 0.5);
-                await Assert.That(historyScroll.Viewport.Width).IsGreaterThan(940.0).Because("with room, the table stretches rather than sitting at its minimum");
+                await Assert.That(historyScroll.Viewport.Width).IsGreaterThan(940.0)
+                    .Because("with room, the table stretches rather than sitting at its minimum");
             }
 
             window.Width = 1200;
@@ -422,30 +463,39 @@ public class PlayerOverviewRankRenderTests
         {
             DemoCacheStore store = PlayerOverviewRankTests.Library();
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRankCache ranks = new(store, directory);
             await ranks.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, null,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }, Ranks: ranks));
+                _ => { }, (_, _) => { }, _ => { }, Ranks: ranks));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewHistoryTests.Grim);
             vm.ShowPage(PlayerOverviewPageKind.History);
 
-            Window window = new() { Width = 1300, Height = 900, Content = new PlayerOverviewTabView { DataContext = vm } };
+            Window window = new()
+            {
+                Width = 1300, Height = 900, Content = new PlayerOverviewTabView { DataContext = vm }
+            };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             Dispatcher.UIThread.RunJobs();
 
             MapsSectionView view = window.GetVisualDescendants().OfType<MapsSectionView>().Single();
-            Point[] corners = [.. view.GetVisualDescendants().OfType<GameIcon>().Where(i => i.Name == "MapRankBadge" && i.IsVisible)
-                .Select(i => i.TranslatePoint(new Point(i.Bounds.Width, 0), i.FindAncestorOfType<Border>()!)!.Value)];
+            Point[] corners =
+            [
+                .. view.GetVisualDescendants().OfType<GameIcon>()
+                    .Where(i => i is { Name: "MapRankBadge", IsVisible: true })
+                    .Select(i => i.TranslatePoint(new Point(i.Bounds.Width, 0), i.FindAncestorOfType<Border>()!)!.Value)
+            ];
             Border[] cards = [.. view.GetVisualDescendants().OfType<Border>().Where(b => b.Name == "MapCard")];
             using (Assert.Multiple())
             {
                 await Assert.That(cards.Length).IsEqualTo(3);
-                await Assert.That(corners.Length).IsEqualTo(2).Because("Nuke and Mirage have a Competitive rank; Inferno does not");
-                await Assert.That(corners.Distinct().Count()).IsEqualTo(1).Because("each badge sits in its card's top-right corner, whatever the map name");
+                await Assert.That(corners.Length).IsEqualTo(2)
+                    .Because("Nuke and Mirage have a Competitive rank; Inferno does not");
+                await Assert.That(corners.Distinct().Count()).IsEqualTo(1)
+                    .Because("each badge sits in its card's top-right corner, whatever the map name");
             }
 
             window.Close();

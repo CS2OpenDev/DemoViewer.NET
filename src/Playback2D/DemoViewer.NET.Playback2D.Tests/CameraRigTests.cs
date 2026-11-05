@@ -2,8 +2,8 @@
 
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Cameras;
-using DemoViewer.NET.Playback2D.Pipeline.Cameras;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Cameras;
 using SkiaSharp;
 
 #endregion
@@ -46,10 +46,7 @@ public class CameraRigTests
     {
         Scene2DFrame frame = new()
         {
-            Map = new SceneMapInfo
-            {
-                ObservedBounds = new WorldBounds(-500, -400, 600, 700)
-            }
+            Map = new SceneMapInfo { ObservedBounds = new WorldBounds(-500, -400, 600, 700) }
         };
 
         ViewportTransform actual = FitMapRig.Instance.ComputeTarget(Pane(), frame)!.Value;
@@ -82,10 +79,7 @@ public class CameraRigTests
     [Test]
     public async Task FitAliveRig_WithNobodyAlive_Holds()
     {
-        Scene2DFrame frame = new()
-        {
-            Markers = [Marker(0, 2, 0, 0, 0, false)]
-        };
+        Scene2DFrame frame = new() { Markers = [Marker(0, 2, 0, 0, 0, false)] };
 
         await Assert.That(FitAliveRig.Instance.ComputeTarget(Pane(), frame)).IsNull();
     }
@@ -98,10 +92,7 @@ public class CameraRigTests
     [Test]
     public async Task FitAliveRig_FiltersByLevel_OnlyWhenThereIsMoreThanOnePane()
     {
-        Scene2DFrame frame = new()
-        {
-            Markers = [Marker(0, 2, -300, -200, -400), Marker(1, 3, 400, 500, 100)]
-        };
+        Scene2DFrame frame = new() { Markers = [Marker(0, 2, -300, -200, -400), Marker(1, 3, 400, 500, 100)] };
 
         MapSpace space = new();
         space.Rebuild([new FloorSlice(-448, -352), new FloorSlice(0, 192)]);
@@ -131,10 +122,7 @@ public class CameraRigTests
         {
             float x = -1000 + i * 71.5f;
             float y = 250 - i * 33.25f;
-            Scene2DFrame frame = new()
-            {
-                Markers = [Marker(3, 3, x, y, 0)]
-            };
+            Scene2DFrame frame = new() { Markers = [Marker(3, 3, x, y, 0)] };
 
             ViewportTransform actual = rig.ComputeTarget(Pane(), frame)!.Value;
             ViewportTransform expected = ViewportTransform.Fit(PaneW, PaneH,
@@ -147,10 +135,7 @@ public class CameraRigTests
     public async Task FollowPlayerRig_WithNoMarkerForTheSlot_Holds()
     {
         FollowPlayerRig rig = new(9);
-        Scene2DFrame frame = new()
-        {
-            Markers = [Marker(3, 3, 0, 0, 0)]
-        };
+        Scene2DFrame frame = new() { Markers = [Marker(3, 3, 0, 0, 0)] };
 
         await Assert.That(rig.ComputeTarget(Pane(), frame)).IsNull();
     }
@@ -159,10 +144,7 @@ public class CameraRigTests
     public async Task FollowPlayerRig_FollowsADeadPlayersLastKnownMarker()
     {
         FollowPlayerRig rig = new(3, deadzoneHalfWorld: 0);
-        Scene2DFrame frame = new()
-        {
-            Markers = [Marker(3, 3, 120, -40, 0, false)]
-        };
+        Scene2DFrame frame = new() { Markers = [Marker(3, 3, 120, -40, 0, false)] };
 
         ViewportTransform? target = rig.ComputeTarget(Pane(), frame);
         await Assert.That(target).IsNotNull();
@@ -220,10 +202,7 @@ public class CameraRigTests
 
         Scene2DFrame frame = new()
         {
-            Map = new SceneMapInfo
-            {
-                ObservedBounds = new WorldBounds(-4000, -4000, 4000, 4000)
-            }
+            Map = new SceneMapInfo { ObservedBounds = new WorldBounds(-4000, -4000, 4000, 4000) }
         };
         SceneTime time = new(0, 0, 0, 1.0 / 60, false);
 
@@ -257,27 +236,15 @@ public class CameraRigTests
         await Assert.That(twoHalves).IsEqualTo(full).Within(1e-12);
     }
 
-    private static Scene2DFrame FrameAt(float x, float y) => new()
-    {
-        Markers = [Marker(3, 3, x, y, 0)]
-    };
+    private static Scene2DFrame FrameAt(float x, float y) => new() { Markers = [Marker(3, 3, x, y, 0)] };
 
     private static PlayerMarker Marker(int slot, int team, float x, float y, float z, bool alive = true) =>
         new(slot, team, x, y, z, 0, RingState.Team, 1, "AB", alive);
 
     private static LevelPane Pane()
     {
-        MapLevel level = new()
-        {
-            Id = new MapLevelId(0),
-            Name = "floor 0",
-            ZMin = -1000,
-            ZMax = 1000
-        };
-        return new LevelPane(level, default, ManualRig.Instance)
-        {
-            ViewportRect = new SKRect(0, 0, PaneW, PaneH)
-        };
+        MapLevel level = new() { Id = new MapLevelId(0), Name = "floor 0", ZMin = -1000, ZMax = 1000 };
+        return new LevelPane(level, default, ManualRig.Instance) { ViewportRect = new SKRect(0, 0, PaneW, PaneH) };
     }
 
     private static async Task AssertSame(ViewportTransform actual, ViewportTransform expected)

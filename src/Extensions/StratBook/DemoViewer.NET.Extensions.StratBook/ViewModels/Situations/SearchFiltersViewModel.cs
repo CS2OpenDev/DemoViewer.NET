@@ -159,14 +159,16 @@ public sealed partial class SearchFiltersViewModel : ExtensionViewModel, IDispos
     /// <param name="library">The index rows the date and source fields read.</param>
     /// <param name="teams">Team Identity, for the opponent list and our side; null offers neither.</param>
     /// <param name="provenance">Demo Provenance Labels, for the source field; null offers no source filter.</param>
-    public SearchFiltersViewModel(IExtensionLibrary library, TeamIdentityService? teams = null, IDemoProvenanceSource? provenance = null)
+    public SearchFiltersViewModel(IExtensionLibrary library, TeamIdentityService? teams = null,
+        IDemoProvenanceSource? provenance = null)
     {
         ArgumentNullException.ThrowIfNull(library);
         _library = library;
         _teams = teams;
         _provenance = provenance;
 
-        Side = new SearchFilterField<int?>("Our side", [_anySide, new SearchFilterOption<int?>("Us on CT", 3), new SearchFilterOption<int?>("Us on T", 2)]);
+        Side = new SearchFilterField<int?>("Our side",
+            [_anySide, new SearchFilterOption<int?>("Us on CT", 3), new SearchFilterOption<int?>("Us on T", 2)]);
         BuyCt = new SearchFilterField<BuyType?>("CT buy", BuyOptions());
         BuyT = new SearchFilterField<BuyType?>("T buy", BuyOptions());
         Phase = new SearchFilterField<RoundPhase?>("Phase",
@@ -180,8 +182,11 @@ public sealed partial class SearchFiltersViewModel : ExtensionViewModel, IDispos
         [
             new SearchFilterOption<ClockBand?>("Any time", null),
             new SearchFilterOption<ClockBand?>($"First {RoundFactsRules.EarlyBandSeconds} s", ClockBand.Early),
-            new SearchFilterOption<ClockBand?>($"{RoundFactsRules.EarlyBandSeconds} s to {MinutesAndSeconds(RoundFactsRules.LateBandSeconds)}", ClockBand.Middle),
-            new SearchFilterOption<ClockBand?>($"After {MinutesAndSeconds(RoundFactsRules.LateBandSeconds)}", ClockBand.Late)
+            new SearchFilterOption<ClockBand?>(
+                $"{RoundFactsRules.EarlyBandSeconds} s to {MinutesAndSeconds(RoundFactsRules.LateBandSeconds)}",
+                ClockBand.Middle),
+            new SearchFilterOption<ClockBand?>($"After {MinutesAndSeconds(RoundFactsRules.LateBandSeconds)}",
+                ClockBand.Late)
         ]);
         ManCount = new SearchFilterField<ManCountState?>("Man count",
         [
@@ -357,7 +362,8 @@ public sealed partial class SearchFiltersViewModel : ExtensionViewModel, IDispos
     }
 
     private static void Select<T>(SearchFilterField<T> field, T value) =>
-        field.Selected = field.Options.FirstOrDefault(o => EqualityComparer<T>.Default.Equals(o.Value, value)) ?? field.Options[0];
+        field.Selected = field.Options.FirstOrDefault(o => EqualityComparer<T>.Default.Equals(o.Value, value))
+            ?? field.Options[0];
 
     /// <summary>Every field back to any.</summary>
     [RelayCommand]
@@ -385,6 +391,7 @@ public sealed partial class SearchFiltersViewModel : ExtensionViewModel, IDispos
     private static IEnumerable<SearchFilterOption<BuyType?>> BuyOptions()
     {
         yield return new SearchFilterOption<BuyType?>("Any buy", null);
+
         foreach (BuyType buy in new[] { BuyType.Pistol, BuyType.Eco, BuyType.Semi, BuyType.Force, BuyType.Full })
         {
             yield return new SearchFilterOption<BuyType?>(RoundFactsRules.LowerCamel(buy), buy);
@@ -395,6 +402,7 @@ public sealed partial class SearchFiltersViewModel : ExtensionViewModel, IDispos
     private IEnumerable<SearchFilterOption<Guid?>> OpponentOptions()
     {
         yield return _anyOpponent;
+
         if (_teams is null)
         {
             yield break;

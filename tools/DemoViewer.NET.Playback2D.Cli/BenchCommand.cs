@@ -3,10 +3,9 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json.Nodes;
-using DemoViewer.NET.Playback2D;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Pipeline.Benchmarking;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Goldens;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 
@@ -30,7 +29,7 @@ namespace DemoViewer.NET.Playback2D.Cli;
 internal static class BenchCommand
 {
     /// <summary>The environment variable that relaxes the time budgets on a shared runner.</summary>
-    public const string BudgetScaleVariable = "DV2D_BUDGET_SCALE";
+    private const string BudgetScaleVariable = "DV2D_BUDGET_SCALE";
 
     /// <summary>Runs the command.</summary>
     /// <param name="args">The parsed arguments.</param>
@@ -181,7 +180,7 @@ internal static class BenchCommand
     }
 
     /// <summary>The <c>DV2D_BUDGET_SCALE</c> value, or 1.0.</summary>
-    public static double DefaultBudgetScale() =>
+    private static double DefaultBudgetScale() =>
         double.TryParse(Environment.GetEnvironmentVariable(BudgetScaleVariable), NumberStyles.Float,
             CultureInfo.InvariantCulture, out double scale) && scale > 0
             ? scale
@@ -198,8 +197,8 @@ internal static class BenchCommand
 
         GoldenCorpus corpus = CorpusLocator.Load(args);
         GoldenCorpusEntry entry = corpus.Find(name)
-                                  ?? throw new CliUsageException(
-                                      $"--name {name} matches no entry in {corpus.Directory}.");
+            ?? throw new CliUsageException(
+                $"--name {name} matches no entry in {corpus.Directory}.");
         if (!File.Exists(entry.ScenePath))
         {
             throw new FileNotFoundException($"corpus entry '{name}' has no scene at {entry.ScenePath}.",
@@ -235,29 +234,22 @@ internal static class BenchCommand
             ["command"] = "bench",
             ["ok"] = passed,
             ["backend"] = plan.Backend.Backend.ToString(),
-            ["source"] = new JsonObject
-            {
-                ["kind"] = source.Kind,
-                ["name"] = entry?.Name ?? source.Name
-            },
+            ["source"] = new JsonObject { ["kind"] = source.Kind, ["name"] = entry?.Name ?? source.Name },
             ["frames"] = frames,
             ["warmup"] = warmup,
-            ["size"] = new JsonObject
-            {
-                ["width"] = plan.Size.Width,
-                ["height"] = plan.Size.Height
-            },
+            ["size"] = new JsonObject { ["width"] = plan.Size.Width, ["height"] = plan.Size.Height },
             ["layers"] = RenderCommand.ToArray(plan.LayerIds),
             ["advance_ms"] = Percentiles(result.Advance),
             ["render_ms"] = Percentiles(result.Render),
             ["frame_ms"] = Percentiles(result.Total),
             ["allocated_bytes_per_frame"] = result.AllocatedBytesPerFrame,
-            ["gc"] = new JsonObject
-            {
-                ["gen0"] = result.Gen0Collections,
-                ["gen1"] = result.Gen1Collections,
-                ["gen2"] = result.Gen2Collections
-            },
+            ["gc"] =
+                new JsonObject
+                {
+                    ["gen0"] = result.Gen0Collections,
+                    ["gen1"] = result.Gen1Collections,
+                    ["gen2"] = result.Gen2Collections
+                },
             ["budget"] = new JsonObject
             {
                 ["scale"] = scale,
@@ -265,12 +257,7 @@ internal static class BenchCommand
                 ["advance_p99_ms"] = budget.AdvanceP99Ms,
                 ["bytes_per_frame"] = budget.BytesPerFrame
             },
-            ["gate"] = new JsonObject
-            {
-                ["enabled"] = gate,
-                ["passed"] = passed,
-                ["violations"] = violationArray
-            },
+            ["gate"] = new JsonObject { ["enabled"] = gate, ["passed"] = passed, ["violations"] = violationArray },
             ["metadata"] = Metadata()
         };
     }
@@ -284,7 +271,7 @@ internal static class BenchCommand
             ["os"] = RuntimeInformation.OSDescription,
             ["architecture"] = RuntimeInformation.OSArchitecture.ToString(),
             ["cpu"] = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ??
-                      RuntimeInformation.ProcessArchitecture.ToString(),
+                RuntimeInformation.ProcessArchitecture.ToString(),
             ["logical_cores"] = Environment.ProcessorCount,
             ["ram_bytes"] = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes,
             ["dotnet_version"] = RuntimeInformation.FrameworkDescription
@@ -328,9 +315,9 @@ internal static class BenchCommand
     private static string? ResolveWorktreeHead(string gitFilePath)
     {
         string content = File.ReadAllText(gitFilePath).Trim();
-        const string prefix = "gitdir:";
-        return content.StartsWith(prefix, StringComparison.Ordinal)
-            ? ReadHead(content[prefix.Length..].Trim())
+        const string Prefix = "gitdir:";
+        return content.StartsWith(Prefix, StringComparison.Ordinal)
+            ? ReadHead(content[Prefix.Length..].Trim())
             : null;
     }
 

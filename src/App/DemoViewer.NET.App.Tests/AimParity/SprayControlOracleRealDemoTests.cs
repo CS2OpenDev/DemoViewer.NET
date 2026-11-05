@@ -81,7 +81,7 @@ public class SprayControlOracleRealDemoTests
             Console.WriteLine($"   {name,-24} {result.Render()}");
             measuredTotal += result.MeasuredShots;
 
-            if (result.Shots > 0 && result.Runs < 1)
+            if (result is { Shots: > 0, Runs: < 1 })
             {
                 violations.Add($"{name}: {result.Shots} shots and no run, so no shot anchored anything");
             }
@@ -146,7 +146,8 @@ public class SprayControlOracleRealDemoTests
             throw new SkipTestException(drift.Message);
         }
 
-        Console.WriteLine("── spray control: oracle (landed fold) against the shipped columns (landed arm, fired segmentation) ──");
+        Console.WriteLine(
+            "── spray control: oracle (landed fold) against the shipped columns (landed arm, fired segmentation) ──");
         Console.WriteLine(
             $"   {"player",-24}{"oracleN",8}{"SprayN",8}{"oracleAngle",13}{"Spray",8}{"oraclePitch",13}{"oracleYaw",11}");
         int compared = 0;
@@ -181,7 +182,7 @@ public class SprayControlOracleRealDemoTests
         await Assert.That(violations).IsEmpty();
         await Assert.That(wired).IsGreaterThan(0)
             .Because("this demo carries bullet_damage, so a Spray of 0.0 over an empty SprayN on EVERY player means "
-                     + "the column reads a stat the ruleset does not declare, or an arm that never fires");
+                + "the column reads a stat the ruleset does not declare, or an arm that never fires");
     }
 
     /// <summary>

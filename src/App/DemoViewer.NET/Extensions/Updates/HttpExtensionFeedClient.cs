@@ -25,13 +25,13 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
     public static HttpExtensionFeedClient Shared { get; } = new();
 
     /// <summary>How long the response headers may take; 30 s by default.</summary>
-    public static TimeSpan HeaderTimeout => TimeSpan.FromSeconds(30);
+    private static TimeSpan HeaderTimeout => TimeSpan.FromSeconds(30);
 
     /// <summary>How long one body read may make no progress before the transfer counts as stalled; 60 s by default.</summary>
-    public static TimeSpan StallTimeout => TimeSpan.FromSeconds(60);
+    private static TimeSpan StallTimeout => TimeSpan.FromSeconds(60);
 
     /// <summary>The default budgets over the default handler.</summary>
-    public HttpExtensionFeedClient() : this(null, null, null)
+    private HttpExtensionFeedClient() : this(null)
     {
     }
 
@@ -39,7 +39,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
     /// <param name="headerTimeout">Overrides <see cref="HeaderTimeout" />.</param>
     /// <param name="stallTimeout">Overrides <see cref="StallTimeout" />.</param>
     /// <param name="time">The clock both budgets run on; the system clock by default.</param>
-    public HttpExtensionFeedClient(HttpMessageHandler? handler, TimeSpan? headerTimeout = null, TimeSpan? stallTimeout = null,
+    public HttpExtensionFeedClient(HttpMessageHandler? handler, TimeSpan? headerTimeout = null,
+        TimeSpan? stallTimeout = null,
         TimeProvider? time = null)
     {
         _http = handler is null ? new HttpClient() : new HttpClient(handler, disposeHandler: false);
@@ -64,7 +65,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
             StringBuilder text = new();
             while (true)
             {
-                int read = await ReadWithStallTimeout(() => reader.ReadAsync(buffer, ct).AsTask(), ct).ConfigureAwait(false);
+                int read = await ReadWithStallTimeout(reader.ReadAsync(buffer, ct).AsTask(), ct)
+                    .ConfigureAwait(false);
                 if (read == 0)
                 {
                     return text.ToString();
@@ -85,7 +87,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task DownloadAsync(Uri url, Stream destination, long maxBytes, IProgress<long>? progress, CancellationToken ct)
+    public async Task DownloadAsync(Uri url, Stream destination, long maxBytes, IProgress<long>? progress,
+        CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(url);
         ArgumentNullException.ThrowIfNull(destination);
@@ -102,7 +105,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
             long total = 0;
             while (true)
             {
-                int read = await ReadWithStallTimeout(() => stream.ReadAsync(buffer, ct).AsTask(), ct).ConfigureAwait(false);
+                int read = await ReadWithStallTimeout(stream.ReadAsync(buffer, ct).AsTask(), ct)
+                    .ConfigureAwait(false);
                 if (read == 0)
                 {
                     return;
@@ -111,7 +115,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
                 total += read;
                 if (total > maxBytes)
                 {
-                    throw new ExtensionDownloadException($"the download is larger than the {maxBytes} bytes the feed said");
+                    throw new ExtensionDownloadException(
+                        $"the download is larger than the {maxBytes} bytes the feed said");
                 }
 
                 await destination.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
@@ -135,7 +140,8 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
         HttpResponseMessage response;
         try
         {
-            response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, headers.Token).ConfigureAwait(false);
+            response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, headers.Token)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -155,11 +161,11 @@ public sealed class HttpExtensionFeedClient : IExtensionFeedClient, IDisposable
     }
 
     // A read that makes no progress for the stall budget is a stalled transfer, not a cancellation.
-    private async Task<int> ReadWithStallTimeout(Func<Task<int>> read, CancellationToken ct)
+    private async Task<int> ReadWithStallTimeout(Task<int> pending, CancellationToken ct)
     {
         using CancellationTokenSource delay = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        Task<int> pending = read();
-        Task finished = await Task.WhenAny(pending, Task.Delay(_stallTimeout, _time, delay.Token)).ConfigureAwait(false);
+        Task finished = await Task.WhenAny(pending, Task.Delay(_stallTimeout, _time, delay.Token))
+            .ConfigureAwait(false);
         if (finished != pending)
         {
             ct.ThrowIfCancellationRequested();

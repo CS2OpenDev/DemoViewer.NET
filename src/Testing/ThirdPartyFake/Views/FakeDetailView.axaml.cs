@@ -1,4 +1,8 @@
+#region
+
 using Avalonia.Controls;
+
+#endregion
 
 namespace ThirdPartyFake.Views;
 

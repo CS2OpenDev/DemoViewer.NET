@@ -159,7 +159,8 @@
                         <!-- The contributions' mode toggles (Surface.ModeToggles): the Strat Book's Review mode, whose
                              panels, lanes and tagging keys come and go with it. Each hides while its mode has
                              nothing to show; none exist with the extension off. -->
-                        <ItemsControl x:Name="ModeToggles" DockPanel.Dock="Right" ItemsSource="{Binding Surface.ModeToggles}">
+                        <ItemsControl x:Name="ModeToggles" DockPanel.Dock="Right"
+                                      ItemsSource="{Binding Surface.ModeToggles}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Orientation="Horizontal" />
@@ -322,7 +323,8 @@
                                 </MenuItem>
                                 <Separator />
                                 <MenuItem x:Name="FollowMenuItem" Header="Follow Player" />
-                                <MenuItem x:Name="PlayerOverviewMenuItem" Header="Open player overview" IsVisible="False" />
+                                <MenuItem x:Name="PlayerOverviewMenuItem" Header="Open player overview"
+                                          IsVisible="False" />
                                 <!-- The contributions' toolbar items (Surface.ToolbarItems), e.g. "Rounds like
                                      this": rebuilt in code-behind on every open (OnModeMenuOpened), after this
                                      separator; none while the owning pack is off. IsVisible is set there too,
@@ -371,7 +373,8 @@
                                         Command="{Binding Command}"
                                         ToolTip.Tip="{Binding Tooltip}">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Text="{Binding Icon}" IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                        <TextBlock Text="{Binding Icon}"
+                                                   IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}" />
                                         <TextBlock Text="{Binding Label}" />
                                     </StackPanel>
                                 </Button>
@@ -435,45 +438,45 @@
                                         <Run Text="{Binding Assister}" />
                                     </TextBlock>
                                     <ui:GameIcon Key="equipment/flashbang_assist" Fallback="⚡"
-                                                       IconHeight="12" FontSize="10"
-                                                       Foreground="{DynamicResource Pb2dFlashAssist}"
-                                                       VerticalAlignment="Center"
-                                                       IsVisible="{Binding AssistedFlash}"
-                                                       ToolTip.Tip="flash assist" />
+                                                 IconHeight="12" FontSize="10"
+                                                 Foreground="{DynamicResource Pb2dFlashAssist}"
+                                                 VerticalAlignment="Center"
+                                                 IsVisible="{Binding AssistedFlash}"
+                                                 ToolTip.Tip="flash assist" />
                                     <!-- CS2's own weapon artwork, tinted to the feed's palette, with the
                                          weapon's own name as the fallback. One element: the catalogue
                                          decides whether this key is missing (draw the name) or blank
                                          (draw nothing — an environment death has no weapon). -->
                                     <ui:GameIcon
-                                            Key="{Binding Weapon, Converter={x:Static controls:WeaponIconKey.Key}}"
-                                            Fallback="{Binding Weapon}" IconHeight="13"
-                                            FontFamily="Consolas,Menlo,monospace" FontSize="11"
-                                            Foreground="{DynamicResource Pb2dPositive}"
-                                            VerticalAlignment="Center" ToolTip.Tip="{Binding Weapon}" />
+                                        Key="{Binding Weapon, Converter={x:Static controls:WeaponIconKey.Key}}"
+                                        Fallback="{Binding Weapon}" IconHeight="13"
+                                        FontFamily="Consolas,Menlo,monospace" FontSize="11"
+                                        Foreground="{DynamicResource Pb2dPositive}"
+                                        VerticalAlignment="Center" ToolTip.Tip="{Binding Weapon}" />
                                     <ui:GameIcon Key="modifier/headshot" IconHeight="12"
-                                                       Foreground="{DynamicResource Pb2dHeadshot}"
-                                                       VerticalAlignment="Center" IsVisible="{Binding Headshot}"
-                                                       ToolTip.Tip="headshot" />
+                                                 Foreground="{DynamicResource Pb2dHeadshot}"
+                                                 VerticalAlignment="Center" IsVisible="{Binding Headshot}"
+                                                 ToolTip.Tip="headshot" />
                                     <ui:GameIcon Key="modifier/penetrate" IconHeight="12"
-                                                       Foreground="{DynamicResource Pb2dWallbang}"
-                                                       VerticalAlignment="Center" IsVisible="{Binding Penetrated}"
-                                                       ToolTip.Tip="wallbang (penetration)" />
+                                                 Foreground="{DynamicResource Pb2dWallbang}"
+                                                 VerticalAlignment="Center" IsVisible="{Binding Penetrated}"
+                                                 ToolTip.Tip="wallbang (penetration)" />
                                     <ui:GameIcon Key="modifier/noscope" IconHeight="12"
-                                                       Foreground="{DynamicResource Pb2dNoScope}"
-                                                       VerticalAlignment="Center" IsVisible="{Binding NoScope}"
-                                                       ToolTip.Tip="no-scope" />
+                                                 Foreground="{DynamicResource Pb2dNoScope}"
+                                                 VerticalAlignment="Center" IsVisible="{Binding NoScope}"
+                                                 ToolTip.Tip="no-scope" />
                                     <ui:GameIcon Key="modifier/smoke" IconHeight="12"
-                                                       Foreground="{DynamicResource Pb2dTextMid}"
-                                                       VerticalAlignment="Center" IsVisible="{Binding ThroughSmoke}"
-                                                       ToolTip.Tip="through smoke" />
+                                                 Foreground="{DynamicResource Pb2dTextMid}"
+                                                 VerticalAlignment="Center" IsVisible="{Binding ThroughSmoke}"
+                                                 ToolTip.Tip="through smoke" />
                                     <ui:GameIcon Key="modifier/blind" IconHeight="12"
-                                                       Foreground="{DynamicResource Pb2dGlyphBlind}"
-                                                       VerticalAlignment="Center" IsVisible="{Binding AttackerBlind}"
-                                                       ToolTip.Tip="killer was blind" />
+                                                 Foreground="{DynamicResource Pb2dGlyphBlind}"
+                                                 VerticalAlignment="Center" IsVisible="{Binding AttackerBlind}"
+                                                 ToolTip.Tip="killer was blind" />
                                     <ui:GameIcon Key="modifier/inair" IconHeight="12"
-                                                       Foreground="{DynamicResource Pb2dTextBright}"
-                                                       VerticalAlignment="Center" IsVisible="{Binding AttackerInAir}"
-                                                       ToolTip.Tip="killer airborne" />
+                                                 Foreground="{DynamicResource Pb2dTextBright}"
+                                                 VerticalAlignment="Center" IsVisible="{Binding AttackerInAir}"
+                                                 ToolTip.Tip="killer airborne" />
                                     <TextBlock Text="→" Foreground="{DynamicResource Pb2dTextDim}" FontSize="11"
                                                VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding Victim}"
@@ -515,7 +518,7 @@
                             <DataTemplate x:DataType="lv:LevelChipViewModel">
                                 <Button Width="52" Height="26" Padding="0" Margin="0,0,0,3"
                                         HorizontalContentAlignment="Center"
-                                        Command="{Binding $parent[ItemsControl].((lv:LevelStripViewModel)DataContext).SelectCommand}"
+                                        Command="{Binding $parent[ItemsControl].((lv:LevelStripViewModel)DataContext).SelectCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}"
                                         ToolTip.Tip="{Binding Tooltip}">
                                     <StackPanel Orientation="Horizontal" Spacing="3"
@@ -605,7 +608,8 @@
         <!-- Right: game info, the player cards, and in Review mode the review panels. Outside Review mode the
              cards take the column; in it they collapse to a strip and the panels take the rest. The code-behind
              swaps the row sizes on IsCardStrip. -->
-        <Grid Grid.Column="2" x:Name="RightColumn" RowDefinitions="Auto,*,Auto" Background="{DynamicResource Pb2dPanelBg}">
+        <Grid Grid.Column="2" x:Name="RightColumn" RowDefinitions="Auto,*,Auto"
+              Background="{DynamicResource Pb2dPanelBg}">
             <!-- Game-info: score / round / phase / bomb / time. -->
             <Border Grid.Row="0" Background="{DynamicResource Pb2dInfoBg}" Padding="10,8" Margin="0,0,0,2">
                 <StackPanel Spacing="6">
@@ -695,137 +699,144 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:PlayerAttributes">
                             <Panel IsVisible="{Binding InMatch}">
-                            <Panel.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="Open player overview"
-                                              Command="{Binding PlayerOverview.OpenCommand}"
-                                              IsVisible="{Binding PlayerOverview.Offers}"
-                                              IsEnabled="{Binding PlayerOverview.CanOpen}"
-                                              ToolTip.Tip="{Binding PlayerOverview.Tip}"
-                                              ToolTip.ShowOnDisabled="True" />
-                                </ContextMenu>
-                            </Panel.ContextMenu>
-                            <!-- The strip: one line per player, the same selection surface as the card. -->
-                            <Border Margin="0,0,0,2" Padding="6,2" CornerRadius="3"
-                                    Background="{DynamicResource Pb2dCardBg}"
-                                    Classes="playerCard playerStrip" Classes.followed="{Binding IsFollowed}"
-                                    Opacity="{Binding RowOpacity}"
-                                    IsVisible="{Binding $parent[ListBox].((vm:Playback2DTabViewModel)DataContext).IsCardStrip}">
-                                <DockPanel>
-                                    <Border DockPanel.Dock="Left" CornerRadius="3" Padding="4,0" Margin="0,0,6,0"
-                                            Classes="teamChip" Classes.teamT="{Binding IsT}" Classes.teamCt="{Binding IsCt}">
-                                        <TextBlock Text="{Binding TeamLabel}" FontSize="9" FontWeight="Bold"
-                                                   Foreground="{DynamicResource Pb2dTextOnTeam}" />
-                                    </Border>
-                                    <TextBlock DockPanel.Dock="Right" FontFamily="Consolas,Menlo,monospace" FontSize="10"
-                                               VerticalAlignment="Center" Margin="6,0,0,0">
-                                        <Run Text="{Binding Health}" Foreground="{DynamicResource Pb2dHealth}" />
-                                        <Run Text=" $" Foreground="{DynamicResource Pb2dTextDim}" />
-                                        <Run Text="{Binding Cash}" Foreground="{DynamicResource Pb2dPositive}" />
-                                    </TextBlock>
-                                    <TextBlock Text="{Binding Name}" FontSize="11" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource Pb2dTextBrightest}" TextTrimming="CharacterEllipsis" />
-                                </DockPanel>
-                            </Border>
-                            <Border Margin="0,0,0,6" Padding="8,6" CornerRadius="4"
-                                    Background="{DynamicResource Pb2dCardBg}"
-                                    Classes="playerCard" Classes.followed="{Binding IsFollowed}"
-                                    IsVisible="{Binding !$parent[ListBox].((vm:Playback2DTabViewModel)DataContext).IsCardStrip}"
-                                    Opacity="{Binding RowOpacity}">
-                                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto">
-                                    <!-- Header: team chip + name. -->
-                                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="6">
-                                        <Border CornerRadius="3" Padding="5,1"
+                                <Panel.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Open player overview"
+                                                  Command="{Binding PlayerOverview.OpenCommand}"
+                                                  IsVisible="{Binding PlayerOverview.Offers}"
+                                                  IsEnabled="{Binding PlayerOverview.CanOpen}"
+                                                  ToolTip.Tip="{Binding PlayerOverview.Tip}"
+                                                  ToolTip.ShowOnDisabled="True" />
+                                    </ContextMenu>
+                                </Panel.ContextMenu>
+                                <!-- The strip: one line per player, the same selection surface as the card. -->
+                                <Border Margin="0,0,0,2" Padding="6,2" CornerRadius="3"
+                                        Background="{DynamicResource Pb2dCardBg}"
+                                        Classes="playerCard" Classes.followed="{Binding IsFollowed}"
+                                        Opacity="{Binding RowOpacity}"
+                                        IsVisible="{Binding $parent[ListBox].((vm:Playback2DTabViewModel)DataContext).IsCardStrip, FallbackValue=False}">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Left" CornerRadius="3" Padding="4,0" Margin="0,0,6,0"
                                                 Classes="teamChip" Classes.teamT="{Binding IsT}"
                                                 Classes.teamCt="{Binding IsCt}">
-                                            <TextBlock Text="{Binding TeamLabel}" FontSize="10"
-                                                       FontWeight="Bold" Foreground="{DynamicResource Pb2dTextOnTeam}" />
+                                            <TextBlock Text="{Binding TeamLabel}" FontSize="9" FontWeight="Bold"
+                                                       Foreground="{DynamicResource Pb2dTextOnTeam}" />
                                         </Border>
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource Pb2dTextBrightest}"
-                                                   VerticalAlignment="Center" />
-                                        <TextBlock Text="⦿ requested" FontSize="9"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource Pb2dPositive}"
-                                                   IsVisible="{Binding IsFollowed}"
-                                                   ToolTip.Tip="Following this player - requested, not confirmed (CS2 spectating has no readback)." />
-                                    </StackPanel>
-
-                                    <!-- HP / Armor row. -->
-                                    <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                                                Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
-                                        <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
-                                                   FontFamily="Consolas,Menlo,monospace"
-                                                   FontSize="11">
-                                            <Run Text="HP" Foreground="{DynamicResource Pb2dTextDim}" />
+                                        <TextBlock DockPanel.Dock="Right" FontFamily="Consolas,Menlo,monospace"
+                                                   FontSize="10"
+                                                   VerticalAlignment="Center" Margin="6,0,0,0">
                                             <Run Text="{Binding Health}" Foreground="{DynamicResource Pb2dHealth}" />
-                                        </TextBlock>
-                                        <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
-                                                   FontFamily="Consolas,Menlo,monospace"
-                                                   FontSize="11">
-                                            <Run Text="AR" Foreground="{DynamicResource Pb2dTextDim}" />
-                                            <Run Text="{Binding Armor}" Foreground="{DynamicResource Pb2dArmor}" />
-                                        </TextBlock>
-                                        <TextBlock Text="◈" Foreground="{DynamicResource Pb2dArmor}" FontSize="11"
-                                                   IsVisible="{Binding HasHelmet}" ToolTip.Tip="Helmet" />
-                                        <TextBlock Text="⛨" Foreground="{DynamicResource Pb2dDefuser}" FontSize="11"
-                                                   IsVisible="{Binding HasDefuser}" ToolTip.Tip="Defuser" />
-                                    </StackPanel>
-
-                                    <!-- Weapon + grenades. -->
-                                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
-                                                Margin="0,3,0,0">
-                                        <TextBlock Text="{Binding ActiveWeapon}"
-                                                   Foreground="{DynamicResource Pb2dTextBrightest}"
-                                                   FontFamily="Consolas,Menlo,monospace" FontSize="11" />
-                                        <TextBlock Text="{Binding Grenades}" Foreground="{DynamicResource Pb2dTextMid}"
-                                                   FontFamily="Consolas,Menlo,monospace" FontSize="10"
-                                                   Margin="0,1,0,0" />
-                                    </StackPanel>
-
-                                    <!-- Economy row: cash / equip / match K/D/A totals. -->
-                                    <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
-                                                Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
-                                        <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
-                                                   FontFamily="Consolas,Menlo,monospace"
-                                                   FontSize="11">
-                                            <Run Text="$" Foreground="{DynamicResource Pb2dTextDim}" />
+                                            <Run Text=" $" Foreground="{DynamicResource Pb2dTextDim}" />
                                             <Run Text="{Binding Cash}" Foreground="{DynamicResource Pb2dPositive}" />
                                         </TextBlock>
-                                        <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
-                                                   FontFamily="Consolas,Menlo,monospace"
-                                                   FontSize="11">
-                                            <Run Text="eq" Foreground="{DynamicResource Pb2dTextDim}" />
-                                            <Run Text="{Binding EquipmentValue}"
-                                                 Foreground="{DynamicResource Pb2dTextBright}" />
-                                        </TextBlock>
-                                        <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
-                                                   FontFamily="Consolas,Menlo,monospace"
-                                                   FontSize="11" ToolTip.Tip="Match-total kills / deaths / assists">
-                                            <Run Text="K/D/A" Foreground="{DynamicResource Pb2dTextDim}" />
-                                            <Run Text="{Binding Kda}" Foreground="{DynamicResource Pb2dTextBright}" />
-                                        </TextBlock>
-                                    </StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontSize="11" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Pb2dTextBrightest}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+                                </Border>
+                                <Border Margin="0,0,0,6" Padding="8,6" CornerRadius="4"
+                                        Background="{DynamicResource Pb2dCardBg}"
+                                        Classes="playerCard" Classes.followed="{Binding IsFollowed}"
+                                        IsVisible="{Binding !$parent[ListBox].((vm:Playback2DTabViewModel)DataContext).IsCardStrip}"
+                                        Opacity="{Binding RowOpacity}">
+                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto">
+                                        <!-- Header: team chip + name. -->
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                                            <Border CornerRadius="3" Padding="5,1"
+                                                    Classes="teamChip" Classes.teamT="{Binding IsT}"
+                                                    Classes.teamCt="{Binding IsCt}">
+                                                <TextBlock Text="{Binding TeamLabel}" FontSize="10"
+                                                           FontWeight="Bold"
+                                                           Foreground="{DynamicResource Pb2dTextOnTeam}" />
+                                            </Border>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource Pb2dTextBrightest}"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Text="⦿ requested" FontSize="9"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Pb2dPositive}"
+                                                       IsVisible="{Binding IsFollowed}"
+                                                       ToolTip.Tip="Following this player - requested, not confirmed (CS2 spectating has no readback)." />
+                                        </StackPanel>
 
-                                    <!-- Impact row: ADR (average damage per round) + match-total damage. -->
-                                    <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
-                                                Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
-                                        <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
-                                                   FontFamily="Consolas,Menlo,monospace"
-                                                   FontSize="11"
-                                                   ToolTip.Tip="Average damage per round (total damage ÷ rounds played)">
-                                            <Run Text="ADR" Foreground="{DynamicResource Pb2dTextDim}" />
-                                            <Run Text="{Binding Adr}" Foreground="{DynamicResource Pb2dAdr}" />
-                                        </TextBlock>
-                                        <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
-                                                   FontFamily="Consolas,Menlo,monospace"
-                                                   FontSize="11" ToolTip.Tip="Match-total damage dealt">
-                                            <Run Text="dmg" Foreground="{DynamicResource Pb2dTextDim}" />
-                                            <Run Text="{Binding Damage}" Foreground="{DynamicResource Pb2dTextBright}" />
-                                        </TextBlock>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
+                                        <!-- HP / Armor row. -->
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                    Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
+                                            <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
+                                                       FontFamily="Consolas,Menlo,monospace"
+                                                       FontSize="11">
+                                                <Run Text="HP" Foreground="{DynamicResource Pb2dTextDim}" />
+                                                <Run Text="{Binding Health}" Foreground="{DynamicResource Pb2dHealth}" />
+                                            </TextBlock>
+                                            <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
+                                                       FontFamily="Consolas,Menlo,monospace"
+                                                       FontSize="11">
+                                                <Run Text="AR" Foreground="{DynamicResource Pb2dTextDim}" />
+                                                <Run Text="{Binding Armor}" Foreground="{DynamicResource Pb2dArmor}" />
+                                            </TextBlock>
+                                            <TextBlock Text="◈" Foreground="{DynamicResource Pb2dArmor}" FontSize="11"
+                                                       IsVisible="{Binding HasHelmet}" ToolTip.Tip="Helmet" />
+                                            <TextBlock Text="⛨" Foreground="{DynamicResource Pb2dDefuser}"
+                                                       FontSize="11"
+                                                       IsVisible="{Binding HasDefuser}" ToolTip.Tip="Defuser" />
+                                        </StackPanel>
+
+                                        <!-- Weapon + grenades. -->
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                                    Margin="0,3,0,0">
+                                            <TextBlock Text="{Binding ActiveWeapon}"
+                                                       Foreground="{DynamicResource Pb2dTextBrightest}"
+                                                       FontFamily="Consolas,Menlo,monospace" FontSize="11" />
+                                            <TextBlock Text="{Binding Grenades}"
+                                                       Foreground="{DynamicResource Pb2dTextMid}"
+                                                       FontFamily="Consolas,Menlo,monospace" FontSize="10"
+                                                       Margin="0,1,0,0" />
+                                        </StackPanel>
+
+                                        <!-- Economy row: cash / equip / match K/D/A totals. -->
+                                        <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                                    Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
+                                            <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
+                                                       FontFamily="Consolas,Menlo,monospace"
+                                                       FontSize="11">
+                                                <Run Text="$" Foreground="{DynamicResource Pb2dTextDim}" />
+                                                <Run Text="{Binding Cash}" Foreground="{DynamicResource Pb2dPositive}" />
+                                            </TextBlock>
+                                            <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
+                                                       FontFamily="Consolas,Menlo,monospace"
+                                                       FontSize="11">
+                                                <Run Text="eq" Foreground="{DynamicResource Pb2dTextDim}" />
+                                                <Run Text="{Binding EquipmentValue}"
+                                                     Foreground="{DynamicResource Pb2dTextBright}" />
+                                            </TextBlock>
+                                            <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
+                                                       FontFamily="Consolas,Menlo,monospace"
+                                                       FontSize="11" ToolTip.Tip="Match-total kills / deaths / assists">
+                                                <Run Text="K/D/A" Foreground="{DynamicResource Pb2dTextDim}" />
+                                                <Run Text="{Binding Kda}" Foreground="{DynamicResource Pb2dTextBright}" />
+                                            </TextBlock>
+                                        </StackPanel>
+
+                                        <!-- Impact row: ADR (average damage per round) + match-total damage. -->
+                                        <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
+                                                    Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
+                                            <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
+                                                       FontFamily="Consolas,Menlo,monospace"
+                                                       FontSize="11"
+                                                       ToolTip.Tip="Average damage per round (total damage ÷ rounds played)">
+                                                <Run Text="ADR" Foreground="{DynamicResource Pb2dTextDim}" />
+                                                <Run Text="{Binding Adr}" Foreground="{DynamicResource Pb2dAdr}" />
+                                            </TextBlock>
+                                            <TextBlock Foreground="{DynamicResource Pb2dTextMid}"
+                                                       FontFamily="Consolas,Menlo,monospace"
+                                                       FontSize="11" ToolTip.Tip="Match-total damage dealt">
+                                                <Run Text="dmg" Foreground="{DynamicResource Pb2dTextDim}" />
+                                                <Run Text="{Binding Damage}"
+                                                     Foreground="{DynamicResource Pb2dTextBright}" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
                             </Panel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>

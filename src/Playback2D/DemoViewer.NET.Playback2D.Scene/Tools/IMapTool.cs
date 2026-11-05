@@ -12,6 +12,7 @@ namespace DemoViewer.NET.Playback2D.Tools;
 ///     A pointer tool on a 2D map. A press it accepts makes it the owner of the gesture: it then sees every
 ///     move and the release, or a cancel when the gesture is abandoned. Called on the UI thread.
 /// </summary>
+[PublicAPI]
 public interface IMapTool
 {
     /// <summary>A press. Return true to own the gesture; false leaves the press to the map.</summary>
@@ -35,6 +36,7 @@ public interface IMapTool
 }
 
 /// <summary>What a tool may ask of the map it is on.</summary>
+[PublicAPI]
 public interface IMapToolContext
 {
     /// <summary>The pane under a point of the view, or null.</summary>
@@ -91,6 +93,7 @@ public interface IMapToolContext
 }
 
 /// <summary>A pointer sample a tool sees.</summary>
+[PublicAPI]
 public readonly struct MapToolEvent
 {
     /// <summary>The pane under the pointer, or null outside every pane.</summary>
@@ -113,6 +116,7 @@ public readonly struct MapToolEvent
 }
 
 /// <summary>A pointer button.</summary>
+[PublicAPI]
 public enum MapToolButton
 {
     /// <summary>No button, as on a move with nothing held.</summary>
@@ -130,6 +134,7 @@ public enum MapToolButton
 
 /// <summary>Keys held during a pointer sample.</summary>
 [Flags]
+[PublicAPI]
 public enum MapToolModifiers
 {
     /// <summary>None.</summary>

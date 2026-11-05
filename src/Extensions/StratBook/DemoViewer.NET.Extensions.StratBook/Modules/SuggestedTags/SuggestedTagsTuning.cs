@@ -35,12 +35,16 @@ public readonly record struct FiredProposal(string Demo, TagProposal Proposal);
 /// <param name="Accepted">Accepted as proposed.</param>
 /// <param name="Edited">Accepted with a change.</param>
 /// <param name="Rejected">Rejected, never offered again.</param>
-/// <param name="Pending">Still waiting for a verdict.</param>
 /// <param name="Recall">Matched hand tags over every hand tag of the code, or null with none to score.</param>
 /// <param name="Precision">Matched proposals over every fired proposal, or null with nothing fired.</param>
 public sealed record DetectorTuningRow(
-    string Detector, int Made, int Accepted, int Edited, int Rejected, int Pending,
-    double? Recall, double? Precision);
+    string Detector,
+    int Made,
+    int Accepted,
+    int Edited,
+    int Rejected,
+    double? Recall,
+    double? Precision);
 
 /// <summary>The tuning view's whole table, plus how many demos fed each half of it.</summary>
 /// <param name="Rows">One row per detector, in <see cref="ProposalDetection.All" /> order.</param>
@@ -62,7 +66,7 @@ public static class SuggestedTagsTuning
     ///     greedy pairing takes the largest overlaps first, so two close instances do not both claim the
     ///     same tag.
     /// </summary>
-    public const double OverlapFraction = 0.5;
+    private const double OverlapFraction = 0.5;
 
     /// <summary>
     ///     Every detector's row: the verdict counts from <paramref name="entries" />, and recall/precision
@@ -94,8 +98,8 @@ public static class SuggestedTagsTuning
             IReadOnlyList<FiredProposal> fired = proposalsByDetector.GetValueOrDefault(detector.Id, []);
             IReadOnlyList<HandTagWindow> hand = handTagsByCode.GetValueOrDefault(detector.Code, []);
             (double? recall, double? precision) = Score(fired, hand);
-            rows.Add(new DetectorTuningRow(detector.Id, c.Made, c.Accepted, c.Edited, c.Rejected, c.Pending,
-                recall, precision));
+            rows.Add(new DetectorTuningRow(detector.Id, c.Made, c.Accepted, c.Edited, c.Rejected, recall,
+                precision));
         }
 
         return new TuningReport(rows, demosWithVerdicts, demosWithHandTags);

@@ -24,9 +24,7 @@ internal static class MsaglTranslator
 
     internal static (
         IReadOnlyDictionary<IGraphNode, NodePosition> NodePositions,
-        IReadOnlyDictionary<IGraphEdge, IReadOnlyList<AvPoint>> EdgeRoutes,
-        double GraphWidth,
-        double GraphHeight
+        IReadOnlyDictionary<IGraphEdge, IReadOnlyList<AvPoint>> EdgeRoutes
         ) RunLayout(
             IReadOnlyList<IGraphNode> nodes,
             IReadOnlyList<IGraphEdge> edges,
@@ -43,8 +41,7 @@ internal static class MsaglTranslator
             double cr = nodeStyle.CornerRadius;
 
             Node msaglNode = new(
-                CurveFactory.CreateRectangleWithRoundedCorners(w, h, cr, cr, new MsaglPoint(0, 0)));
-            msaglNode.UserData = node;
+                CurveFactory.CreateRectangleWithRoundedCorners(w, h, cr, cr, new MsaglPoint(0, 0))) { UserData = node };
             graph.Nodes.Add(msaglNode);
             msaglNodes[node] = msaglNode;
         }
@@ -77,10 +74,9 @@ internal static class MsaglTranslator
         {
             Transformation = PlaneTransformation.Rotation(Math.PI / 2),
             NodeSeparation = ls.NodeSeparation,
-            LayerSeparation = ls.LayerSeparation
+            LayerSeparation = ls.LayerSeparation,
+            EdgeRoutingSettings = { EdgeRoutingMode = EdgeRoutingMode.Rectilinear, Padding = ls.EdgeRoutingPadding }
         };
-        settings.EdgeRoutingSettings.EdgeRoutingMode = EdgeRoutingMode.Rectilinear;
-        settings.EdgeRoutingSettings.Padding = ls.EdgeRoutingPadding;
 
         LayoutHelpers.CalculateLayout(graph, settings, null);
 
@@ -118,13 +114,13 @@ internal static class MsaglTranslator
             routes[graphEdge] = CurveToWaypoints(msaglEdge.Curve, AdjustX, FlipY);
         }
 
-        return (positions, routes, bb.Width + 2 * Pad, bb.Height + 2 * Pad);
+        return (positions, routes);
     }
 
     private static List<AvPoint> CurveToWaypoints(ICurve curve,
         Func<double, double> adjustX, Func<double, double> flipY)
     {
-        List<AvPoint> points = new();
+        List<AvPoint> points = [];
 
         if (curve is Curve composite)
         {

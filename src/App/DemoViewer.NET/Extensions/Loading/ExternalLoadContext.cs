@@ -18,9 +18,8 @@ public sealed class ExternalLoadContext : AssemblyLoadContext
     private readonly AssemblyDependencyResolver? _resolver;
 
     public ExternalLoadContext(ExtensionCandidate candidate)
-        : base($"external:{candidate?.Manifest.Id}@{candidate?.Manifest.Version}", isCollectible: false)
+        : base(NameOf(candidate), isCollectible: false)
     {
-        ArgumentNullException.ThrowIfNull(candidate);
         _directory = candidate.Directory;
         try
         {
@@ -32,8 +31,14 @@ public sealed class ExternalLoadContext : AssemblyLoadContext
         }
     }
 
+    private static string NameOf(ExtensionCandidate candidate)
+    {
+        ArgumentNullException.ThrowIfNull(candidate);
+        return $"external:{candidate.Manifest.Id}@{candidate.Manifest.Version}";
+    }
+
     /// <summary>True when the app ships an assembly of this name, so the extension must use the app's copy.</summary>
-    public static bool IsShared(string simpleName)
+    private static bool IsShared(string simpleName)
     {
         ArgumentNullException.ThrowIfNull(simpleName);
         foreach (Assembly loaded in Default.Assemblies)
@@ -45,7 +50,7 @@ public sealed class ExternalLoadContext : AssemblyLoadContext
         }
 
         return File.Exists(Path.Combine(AppContext.BaseDirectory, simpleName + ".dll"))
-               || TrustedPlatformAssembly(simpleName);
+            || TrustedPlatformAssembly(simpleName);
     }
 
     protected override Assembly? Load(AssemblyName assemblyName)

@@ -46,20 +46,6 @@ public class DemoJobTests
         string path = Demo) =>
         new(path, "clips", "ext.sample", level, work);
 
-    private static async Task WaitForAsync(Func<bool> condition, string what, int timeoutMs = 5000)
-    {
-        DateTime deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while (!condition())
-        {
-            if (DateTime.UtcNow > deadline)
-            {
-                throw new TimeoutException($"timed out waiting for {what}");
-            }
-
-            await Task.Delay(5);
-        }
-    }
-
     [Test]
     public async Task AJob_JoinsTheQueuedVisit_AndRunsAfterItsPasses_OnOneRead()
     {
@@ -75,7 +61,9 @@ public class DemoJobTests
 
             return Task.CompletedTask;
         }, PassLevel.Backlog));
-        IDemoQueueHandle visit = rig.Queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [new TestPass("library") { Ran = ran }]));
+        IDemoQueueHandle visit =
+            rig.Queue.SubmitVisit(
+                new DemoVisitRequest(Demo, PassLevel.Backlog, [new TestPass("library") { Ran = ran }]));
         await Assert.That(job.State).IsEqualTo(DemoQueueItemState.Queued);
         rig.Queue.Resume();
         await Task.WhenAll(job.Completion, visit.Completion);
@@ -83,7 +71,8 @@ public class DemoJobTests
         using (Assert.Multiple())
         {
             await Assert.That(rig.FileParses).IsEqualTo(1);
-            await Assert.That(ran).IsEquivalentTo(["library", "job"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(ran)
+                .IsEquivalentTo(["library", "job"], CollectionOrdering.Matching);
             await Assert.That(job.State).IsEqualTo(DemoQueueItemState.Completed);
         }
     }
@@ -94,7 +83,8 @@ public class DemoJobTests
         using Rig rig = new();
         TestPass library = new("library");
         rig.Queue.Pause();
-        DemoJob job = DemoJob.Submit(rig.Queue, Request(_ => throw new InvalidOperationException("boom"), PassLevel.Backlog));
+        DemoJob job = DemoJob.Submit(rig.Queue,
+            Request(_ => throw new InvalidOperationException("boom"), PassLevel.Backlog));
         rig.Queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [library]));
         rig.Queue.Resume();
         await job.Completion;
@@ -129,7 +119,8 @@ public class DemoJobTests
         {
             await Assert.That(job.State).IsEqualTo(DemoQueueItemState.Cancelled);
             await Assert.That(jobRan).IsFalse();
-            await Assert.That(library.Ran).IsEquivalentTo(["library"], CollectionOrdering.Matching).Because("the co-owner's pass keeps the visit");
+            await Assert.That(library.Ran).IsEquivalentTo(["library"], CollectionOrdering.Matching)
+                .Because("the co-owner's pass keeps the visit");
             await Assert.That(visit.State).IsEqualTo(DemoQueueItemState.Completed);
         }
     }
@@ -244,7 +235,9 @@ public class DemoJobTests
     {
         using Rig rig = new();
         DemoLease lease = await DemoJob.LeaseAsync(rig.Queue, Demo, "pack export", "review", PassLevel.UserRequested);
-        IDemoQueueHandle other = rig.Queue.SubmitVisit(new DemoVisitRequest("/d/other.dem", PassLevel.UserRequested, [new TestPass("library")]));
+        IDemoQueueHandle other =
+            rig.Queue.SubmitVisit(new DemoVisitRequest("/d/other.dem", PassLevel.UserRequested,
+                [new TestPass("library")]));
         await Task.Delay(100);
         await Assert.That(other.State).IsEqualTo(DemoQueueItemState.Queued).Because("one demo is read at a time");
 
@@ -269,17 +262,20 @@ public class DemoJobTests
             background = rig.Queue.SubmitVisit(new DemoVisitRequest("/d/old.dem", PassLevel.Background,
                 [new TestPass("library")]));
             int leases = 0;
-            using (await DemoJob.LeaseAsync(rig.Queue, "/d/a.dem", "pack export", PackExportQueue.Owner, PassLevel.UserRequested, ct))
+            using (await DemoJob.LeaseAsync(rig.Queue, "/d/a.dem", "pack export", PackExportQueue.Owner,
+                       PassLevel.UserRequested, ct))
             {
                 leases++;
             }
 
             await Task.Delay(100, ct);
             betweenLeases = background!.State;
-            using (await DemoJob.LeaseAsync(rig.Queue, "/d/b.dem", "pack export", PackExportQueue.Owner, PassLevel.UserRequested, ct))
+            using (await DemoJob.LeaseAsync(rig.Queue, "/d/b.dem", "pack export", PackExportQueue.Owner,
+                       PassLevel.UserRequested, ct))
             {
                 leases++;
-                other = DemoJob.Submit(rig.Queue, new DemoJobRequest("/d/c.dem", "clips", "someone-else", PassLevel.UserRequested,
+                other = DemoJob.Submit(rig.Queue, new DemoJobRequest("/d/c.dem", "clips", "someone-else",
+                    PassLevel.UserRequested,
                     _ => Task.CompletedTask));
                 await Task.Delay(100, ct);
                 otherWhileExporting = other.State;
@@ -301,7 +297,8 @@ public class DemoJobTests
             await Assert.That(backgroundWhileExporting).IsEqualTo(DemoQueueItemState.Queued)
                 .Because("background reads hold off for the whole export session");
             await Assert.That(background!.State).IsEqualTo(DemoQueueItemState.Completed);
-            await Assert.That(other.State).IsEqualTo(DemoQueueItemState.Completed).Because("it runs once the export ends");
+            await Assert.That(other.State).IsEqualTo(DemoQueueItemState.Completed)
+                .Because("it runs once the export ends");
         }
     }
 
@@ -322,7 +319,7 @@ public class DemoJobTests
         public IHeldParse? TryHold(string demo) =>
             string.Equals(demo, path, StringComparison.OrdinalIgnoreCase) ? new Hold(parsed) : null;
 
-        public string? LoadedPath => path;
+        public string LoadedPath => path;
 
         private sealed class Hold(ParsedDemo parsed) : IHeldParse
         {

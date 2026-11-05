@@ -188,7 +188,7 @@ public readonly record struct GlyphAttribution(
     private static SKColor[] Pixels(byte[] png, out int width, out int height)
     {
         using SKBitmap bitmap = SKBitmap.Decode(png)
-                                ?? throw new InvalidOperationException("the image did not decode");
+            ?? throw new InvalidOperationException("the image did not decode");
         width = bitmap.Width;
         height = bitmap.Height;
         return bitmap.Pixels;

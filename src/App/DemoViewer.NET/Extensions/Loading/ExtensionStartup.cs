@@ -16,7 +16,9 @@ namespace DemoViewer.NET.Extensions.Loading;
 ///     host keeps them out of the highlights set whatever loaded.
 /// </param>
 public sealed record ExtensionStartupResult(
-    IReadOnlyList<PackStatus> Statuses, IReadOnlyList<LoadOutcome> ExternalRejected, IReadOnlyList<string> ClaimedRulesets);
+    IReadOnlyList<PackStatus> Statuses,
+    IReadOnlyList<LoadOutcome> ExternalRejected,
+    IReadOnlyList<string> ClaimedRulesets);
 
 /// <summary>The desktop head's extension resolution, before Avalonia starts.</summary>
 public static class ExtensionStartup
@@ -29,7 +31,8 @@ public static class ExtensionStartup
     /// <param name="publisherKeys">The keys that verify a third-party copy.</param>
     /// <param name="allowUnverified">The user's "Allow unverified and potentially dangerous extensions" setting.</param>
     /// <param name="safeMode">True to load nothing.</param>
-    public static ExtensionStartupResult Resolve(string? configRoot, IReadOnlyList<ShippedPack> shipped, ExtensionHostInfo host,
+    public static ExtensionStartupResult Resolve(string? configRoot, IReadOnlyList<ShippedPack> shipped,
+        ExtensionHostInfo host,
         ITrustPolicy shippedTrust, IReadOnlyList<string> publisherKeys, bool allowUnverified, bool safeMode)
     {
         ArgumentNullException.ThrowIfNull(shipped);
@@ -55,7 +58,7 @@ public static class ExtensionStartup
     /// </summary>
     /// <param name="configRoot">The config root; null reads only the shipped manifests.</param>
     /// <param name="shipped">The extensions this build ships.</param>
-    public static IReadOnlyList<string> ClaimedRulesets(string? configRoot, IReadOnlyList<ShippedPack> shipped)
+    private static IReadOnlyList<string> ClaimedRulesets(string? configRoot, IReadOnlyList<ShippedPack> shipped)
     {
         ArgumentNullException.ThrowIfNull(shipped);
         List<ExtensionManifest> manifests = [];
@@ -89,7 +92,9 @@ public static class ExtensionStartup
         return
         [
             .. manifests
-                .SelectMany(m => m.Rulesets.Where(RulesetContribution.IsValidId).Select(id => RulesetContribution.QualifiedId(m.Id, id)))
+                .SelectMany(m =>
+                    m.Rulesets.Where(RulesetContribution.IsValidId)
+                        .Select(id => RulesetContribution.QualifiedId(m.Id, id)))
                 .Distinct(StringComparer.Ordinal)
         ];
     }
@@ -109,11 +114,12 @@ public static class ExtensionStartup
 
             JsonNode? root = JsonNode.Parse(File.ReadAllText(settingsFile));
             return Find(root, "Extensions") is JsonObject section
-                   && Find(section, "AllowUnverified") is JsonValue value
-                   && value.TryGetValue(out bool allowed)
-                   && allowed;
+                && Find(section, "AllowUnverified") is JsonValue value
+                && value.TryGetValue(out bool allowed)
+                && allowed;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException
+                                       or InvalidOperationException)
         {
             return false;
         }

@@ -84,8 +84,8 @@ public class Scene2DHostTests
             captured!.Save(path, new PngBitmapEncoderOptions());
             (int nonBg, bool team) = ScanPixels(captured);
             Console.WriteLine($"[scene2d] {path} nonBg={nonBg} team={team} " +
-                              $"panes={host.Compositor.Stats.PanesRendered} " +
-                              $"layers={host.Compositor.Stats.LayersRendered}");
+                $"panes={host.Compositor.Stats.PanesRendered} " +
+                $"layers={host.Compositor.Stats.LayersRendered}");
 
             await Assert.That(nonBg).IsGreaterThan(100);
             await Assert.That(team).IsTrue();
@@ -286,7 +286,7 @@ public class Scene2DHostTests
             await worker;
 
             Console.WriteLine($"[gate] submissions={host.LastSubmissionIdForTest} " +
-                              $"workerFrames={host.GateStressFramesForTest}");
+                $"workerFrames={host.GateStressFramesForTest}");
             await Assert.That(failure).IsNull();
             await Assert.That(host.GateStressFramesForTest).IsGreaterThan(0);
             await Assert.That(host.LastSubmissionIdForTest).IsGreaterThan(0L);
@@ -313,7 +313,7 @@ public class Scene2DHostTests
             (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab();
             ctx.PushMarkers((0, 2, -800f, 600f, 64f, 90f), (1, 3, 900f, -500f, 64f, 270f));
 
-            (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
+            (_, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
             Scene2DHost host = Playback2DTimelineHarness.SceneHost(view);
             host.FitToExtent();
             Playback2DTimelineHarness.Pump();
@@ -334,7 +334,7 @@ public class Scene2DHostTests
             // retains the last frame that actually drew, so a host that has stopped rendering entirely
             // still captures the picture it painted before the detach. The counters cannot lie about it.
             Console.WriteLine($"[reattach] panes={host.Compositor.Stats.PanesRendered} " +
-                              $"layers={host.Compositor.Stats.LayersRendered}");
+                $"layers={host.Compositor.Stats.LayersRendered}");
 
             await Assert.That(host.Compositor.Stats.PanesRendered).IsGreaterThan(0)
                 .Because("a re-attached host must draw the scene again, not a dead surface");

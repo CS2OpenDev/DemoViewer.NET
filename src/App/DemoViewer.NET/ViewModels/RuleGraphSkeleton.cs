@@ -32,9 +32,7 @@ public static class RuleGraphSkeleton
         {
             nodeVms.Add(new GraphNodeViewModel(n.Name, n.IsRoot, n.Subtitle)
             {
-                DisplayValue = n.DisplayValue,
-                IsPerPlayer = n.IsPerPlayer,
-                TrackedIndex = -1
+                DisplayValue = n.DisplayValue, IsPerPlayer = n.IsPerPlayer, TrackedIndex = -1
             });
         }
 
@@ -46,8 +44,8 @@ public static class RuleGraphSkeleton
         }
 
         return new Skeleton(
-            nodeVms.Cast<IGraphNode>().ToList(),
-            edgeVms.Cast<IGraphEdge>().ToList(),
+            [.. nodeVms.Cast<IGraphNode>()],
+            [.. edgeVms.Cast<IGraphEdge>()],
             null);
     }
 
@@ -64,9 +62,7 @@ public static class RuleGraphSkeleton
         {
             GraphNodeViewModel vm = new(node.Name, node is RootNode, node.Subtitle)
             {
-                IsActive = node.IsActive,
-                DisplayValue = node.GetDisplayValue(),
-                TrackedIndex = -1
+                IsActive = node.IsActive, DisplayValue = node.GetDisplayValue(), TrackedIndex = -1
             };
             byNode[node] = vm;
             nodeVms.Add(vm);
@@ -86,8 +82,8 @@ public static class RuleGraphSkeleton
         // produced an empty list (CS2DemoKit#50). The 0.13 clustering source is
         // RuleGraphNode.Ruleset on RuleGraph.FromBuild.
         return new Skeleton(
-            nodeVms.Cast<IGraphNode>().ToList(),
-            edgeVms.Cast<IGraphEdge>().ToList(),
+            [.. nodeVms.Cast<IGraphNode>()],
+            [.. edgeVms.Cast<IGraphEdge>()],
             null);
     }
 

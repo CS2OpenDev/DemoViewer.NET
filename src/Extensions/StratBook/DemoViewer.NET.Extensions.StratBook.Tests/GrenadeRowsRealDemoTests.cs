@@ -24,7 +24,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("RealDemo")]
 public class GrenadeRowsRealDemoTests
 {
-    private static readonly JsonSerializerOptions Json = new(GrenadeSidecar.JsonOptions) { WriteIndented = false };
+    private static readonly JsonSerializerOptions _json = new(GrenadeSidecar.JsonOptions) { WriteIndented = false };
 
     [Test]
     [Arguments(0)]
@@ -47,10 +47,12 @@ public class GrenadeRowsRealDemoTests
         int tickRate = parsed.TickRate > 0 ? parsed.TickRate : 64;
         IReadOnlyList<RulesetDoc> docs = Docs();
         HashSet<string> outputs = new(GrenadeTables.Tables, StringComparer.Ordinal);
-        CollectorSet set = CollectorSet.Of([new RegisteredCollector(GrenadeTrajectoryCollector.Contribution(() => 4), null)]);
+        CollectorSet set =
+            CollectorSet.Of([new RegisteredCollector(GrenadeTrajectoryCollector.Contribution(() => 4), null)]);
 
         GrenadeWalkInputs held = GrenadeIndexEvaluator.Run(parsed, 4);
-        GrenadeWalk rows = GrenadeWalker.Assemble(held, ClipRounds.Derive(parsed), parsed.Players.Values, tickRate, parsed.ServerStartTick);
+        GrenadeWalk rows = GrenadeWalker.Assemble(held, ClipRounds.Derive(parsed), parsed.Players.Values, tickRate,
+            parsed.ServerStartTick);
 
         using DemoReader reader = DemoReader.OpenFile(path, ForwardDemoPass.ReaderOptions(CancellationToken.None));
         ForwardDemoResult forward = ForwardDemoPass.Run(reader, ForwardNeeds.Rules, docs, null, outputs, set);
@@ -62,10 +64,11 @@ public class GrenadeRowsRealDemoTests
             forward.Demo.TickRate > 0 ? forward.Demo.TickRate : 64, forward.Demo.ServerStartTick);
 
         List<string> diffs = Diff(rows, streamed);
-        Console.WriteLine($"{name}: {rows.Rows.Count} rows (coverage {rows.InputCoverage:0.0000}), {streamed.Rows.Count} streamed; "
-                          + $"{held.Tables.Projectiles.Count(p => p.ThrowerSlot < 0)} landings of unresolved throwers, {held.Tables.Releases.Count} releases; "
-                          + $"thrower {Distribution(rows.Rows, r => r.ThrowerSource)}; release {Distribution(rows.Rows, r => r.ReleaseSource)}; "
-                          + $"jump {Distribution(rows.Rows, r => r.JumpThrowSource)}; detonation {Distribution(rows.Rows, r => r.DetonationSource)}");
+        Console.WriteLine(
+            $"{name}: {rows.Rows.Count} rows (coverage {rows.InputCoverage:0.0000}), {streamed.Rows.Count} streamed; "
+            + $"{held.Tables.Projectiles.Count(p => p.ThrowerSlot < 0)} landings of unresolved throwers, {held.Tables.Releases.Count} releases; "
+            + $"thrower {Distribution(rows.Rows, r => r.ThrowerSource)}; release {Distribution(rows.Rows, r => r.ReleaseSource)}; "
+            + $"jump {Distribution(rows.Rows, r => r.JumpThrowSource)}; detonation {Distribution(rows.Rows, r => r.DetonationSource)}");
         if (diffs.Count > 0)
         {
             Console.WriteLine($"{name}: " + string.Join("\n  ", diffs.Take(20)));
@@ -75,9 +78,11 @@ public class GrenadeRowsRealDemoTests
         {
             await Assert.That(rows.Rows.Count).IsGreaterThan(0);
             await Assert.That(diffs).IsEmpty().Because("the streaming read's run records the same tables and flights");
-            await Assert.That(rows.Rows.Count(r => r.Trajectory.Count == 0)).IsEqualTo(0).Because("the observer kept every flight");
+            await Assert.That(rows.Rows.Count(r => r.Trajectory.Count == 0)).IsEqualTo(0)
+                .Because("the observer kept every flight");
             await Assert.That(rows.Rows.Count(r => r.ThrowerSource == ThrowerSource.None)).IsEqualTo(0);
-            await Assert.That(rows.InputCoverage).IsGreaterThanOrEqualTo(0.99).Because("the lane carries nearly every thrower's commands");
+            await Assert.That(rows.InputCoverage).IsGreaterThanOrEqualTo(0.99)
+                .Because("the lane carries nearly every thrower's commands");
             await Assert.That(rows.InputDecoder).IsEqualTo(GrenadeWalker.InputDecoderName);
             await Assert.That(rows.TrajectoryStride).IsEqualTo(4);
         }
@@ -85,12 +90,15 @@ public class GrenadeRowsRealDemoTests
 
     private static IReadOnlyList<RulesetDoc> Docs()
     {
-        RuleConfigLoadResult shipped = YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null);
+        RuleConfigLoadResult shipped =
+            YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null);
         return [.. shipped.Rulesets, .. GrenadeTables.LoadRulesets()];
     }
 
     private static string Distribution<T>(IEnumerable<GrenadeRow> rows, Func<GrenadeRow, T> key) where T : notnull =>
-        string.Join(", ", rows.GroupBy(key).OrderBy(g => g.Key.ToString(), StringComparer.Ordinal).Select(g => $"{g.Key} {g.Count()}"));
+        string.Join(", ",
+            rows.GroupBy(key).OrderBy(g => g.Key.ToString(), StringComparer.Ordinal)
+                .Select(g => $"{g.Key} {g.Count()}"));
 
     // Every (row, field) that differs, as "id.field: left against right".
     private static List<string> Diff(GrenadeWalk a, GrenadeWalk b)
@@ -110,10 +118,10 @@ public class GrenadeRowsRealDemoTests
                 continue;
             }
 
-            JsonObject left = (JsonObject)JsonSerializer.SerializeToNode(a.Rows[i], Json)!;
-            JsonObject right = (JsonObject)JsonSerializer.SerializeToNode(b.Rows[i], Json)!;
-            left["trajectory"] = JsonSerializer.SerializeToNode(a.Rows[i].Trajectory, Json);
-            right["trajectory"] = JsonSerializer.SerializeToNode(b.Rows[i].Trajectory, Json);
+            JsonObject left = (JsonObject)JsonSerializer.SerializeToNode(a.Rows[i], _json)!;
+            JsonObject right = (JsonObject)JsonSerializer.SerializeToNode(b.Rows[i], _json)!;
+            left["trajectory"] = JsonSerializer.SerializeToNode(a.Rows[i].Trajectory, _json);
+            right["trajectory"] = JsonSerializer.SerializeToNode(b.Rows[i].Trajectory, _json);
             foreach ((string key, JsonNode? value) in left)
             {
                 string l = value?.ToJsonString() ?? "null";
@@ -130,7 +138,7 @@ public class GrenadeRowsRealDemoTests
 
     // The five benchmark demos, then the seven pro demos. Resolving through the manifest sets rather
     // than a directory walk is what lets a machine with no local corpus serve these from DEMO_SOURCES.
-    internal static string CorpusDemo(int which)
+    private static string CorpusDemo(int which)
     {
         int benchmarks = DemoTestHelper.Corpus.SetMembers("benchmarks").Count;
         return which < benchmarks

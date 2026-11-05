@@ -1,10 +1,10 @@
 #region
 
+using System.Globalization;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
 using SkiaSharp;
-using System.Globalization;
 
 #endregion
 
@@ -33,11 +33,7 @@ public sealed class FloorLabelLayer : ISceneLayer
     {
         _ownsText = text is null;
         _text = text ?? new TextBlobCache();
-        _paint = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
+        _paint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
     }
 
     /// <inheritdoc />

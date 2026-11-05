@@ -61,10 +61,12 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
 
     /// <summary>The scheduler's check of the library for work, or empty when there is no scheduler.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCheckLine))]
     private string _checkLine = "";
 
     /// <summary>Light work running now that is not a row ("Also: saving the library"), or empty.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAlsoLine))]
     private string _alsoLine = "";
 
     /// <summary>True when the persisted master switch is off (background fully disabled in Settings).</summary>
@@ -89,6 +91,7 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
 
     /// <summary>True while background processing is transiently paused (the Pause/Resume toggle state).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PauseResumeLabel))]
     private bool _isPaused;
 
     /// <summary>Demos waiting for a worker slot.</summary>
@@ -131,10 +134,7 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
             _checks.CheckChanged += OnCheckChanged;
         }
 
-        Chip = new StatusChipViewModel
-        {
-            FlyoutContent = this
-        };
+        Chip = new StatusChipViewModel { FlyoutContent = this };
 
         // Project the queue's live Items into row VMs and keep them in sync with the collection's own
         // add/remove/reset notifications (the queue reconciles Items by id on the post thread).
@@ -177,10 +177,6 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
     /// <summary>Whether the strip shows the chip: a counted item is active, or background work is paused.</summary>
     public bool IsActive => RunningCount > 0 || QueuedCount > 0 || IsPaused;
 
-    partial void OnCheckLineChanged(string value) => OnPropertyChanged(nameof(HasCheckLine));
-
-    partial void OnAlsoLineChanged(string value) => OnPropertyChanged(nameof(HasAlsoLine));
-
     /// <summary>Whether the flyout's "Background processing settings" link is shown (an opener was supplied).</summary>
     public bool CanOpenSettings => _openSettings is not null;
 
@@ -216,8 +212,6 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
         OnPropertyChanged(nameof(IsQueueView));
         OnPropertyChanged(nameof(IsRecentView));
     }
-
-    partial void OnIsPausedChanged(bool value) => OnPropertyChanged(nameof(PauseResumeLabel));
 
     /// <summary>
     ///     Transiently pauses or resumes background processing (NOT persisted; the app starts
@@ -283,7 +277,7 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
     ///     Re-reads the queue's counts / pause / background state and maps them onto the chip + header.
     ///     Called at construction, on every posted <c>Changed</c>, and eagerly after a Pause/Resume click.
     /// </summary>
-    public void Refresh()
+    private void Refresh()
     {
         if (_disposed)
         {
@@ -291,7 +285,7 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
         }
 
         SyncRows();
-        RunningCount = Rows.Count(r => r.IsRunning && !r.Item.RidesRead);
+        RunningCount = Rows.Count(r => r is { IsRunning: true, Item.RidesRead: false });
         QueuedCount = Rows.Count(r => r.IsQueued);
         IsPaused = _queue.IsPaused;
         IsBackgroundDisabled = !_queue.BackgroundEnabled;
@@ -305,9 +299,12 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
     // The scheduler's planning has its own line; any other light work running names the first of it.
     private string BuildAlsoLine()
     {
-        List<string> running = [.. _queue.Items
-            .Where(i => i.Light && i.State == DemoQueueItemState.Running && i.Kind != QueueJobKind.Scheduling)
-            .Select(i => !string.IsNullOrEmpty(i.DisplayName) ? i.DisplayName! : i.Kind.ToString())];
+        List<string> running =
+        [
+            .. _queue.Items
+                .Where(i => i is { Light: true, State: DemoQueueItemState.Running, Kind: not QueueJobKind.Scheduling })
+                .Select(i => !string.IsNullOrEmpty(i.DisplayName) ? i.DisplayName! : i.Kind.ToString())
+        ];
         return running.Count switch
         {
             0 => "",
@@ -414,19 +411,22 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
             DropRow(id);
         }
 
-        Arrange(Rows, live
-            .OrderBy(x => x.Row.IsRunning ? 0 : 1)
-            .ThenBy(x => x.Row.Item.Light)
-            .ThenBy(x => x.Row.Item.StartRank ?? int.MaxValue)
-            .ThenBy(x => x.Index)
-            .Select(x => x.Row)
-            .ToList());
+        Arrange(Rows, [
+            .. live
+                .OrderBy(x => x.Row.IsRunning ? 0 : 1)
+                .ThenBy(x => x.Row.Item.Light)
+                .ThenBy(x => x.Row.Item.StartRank ?? int.MaxValue)
+                .ThenBy(x => x.Index)
+                .Select(x => x.Row)
+        ]);
 
-        List<DemoQueueRowViewModel> recent = _finishedAt.Keys
-            .Select(id => _rowsById[id])
-            .OrderByDescending(r => r.Item.EndedSeq)
-            .ThenByDescending(r => _finishedAt[r.Id])
-            .ToList();
+        List<DemoQueueRowViewModel> recent =
+        [
+            .. _finishedAt.Keys
+                .Select(id => _rowsById[id])
+                .OrderByDescending(r => r.Item.EndedSeq)
+                .ThenByDescending(r => _finishedAt[r.Id])
+        ];
         _evicted.RemoveWhere(id => !present.Contains(id));
         foreach (DemoQueueRowViewModel old in recent.Skip(RecentCap))
         {
@@ -437,11 +437,13 @@ public sealed partial class ProcessingQueueStatusViewModel : ViewModelBase, IDis
             }
         }
 
-        Arrange(RecentRows, recent.Take(RecentCap).ToList());
+        Arrange(RecentRows, [.. recent.Take(RecentCap)]);
 
         IsEmpty = Rows.Count == 0;
         IsRecentEmpty = RecentRows.Count == 0;
-        QueueViewLabel = Rows.Count == 0 ? "Queue" : string.Format(CultureInfo.InvariantCulture, "Queue ({0})", Rows.Count);
+        QueueViewLabel = Rows.Count == 0
+            ? "Queue"
+            : string.Format(CultureInfo.InvariantCulture, "Queue ({0})", Rows.Count);
         RecentViewLabel = RecentRows.Count == 0
             ? "Recent"
             : string.Format(CultureInfo.InvariantCulture, "Recent ({0})", RecentRows.Count);

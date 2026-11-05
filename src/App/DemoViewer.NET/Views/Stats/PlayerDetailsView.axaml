@@ -47,10 +47,10 @@
         <DataTemplate x:Key="WeaponBarRowTemplate" x:DataType="stats:BarRowItem">
             <Grid ColumnDefinitions="34,72,150,Auto" Margin="0 2" ToolTip.Tip="{Binding Tooltip}">
                 <ui:GameIcon Grid.Column="0" IconHeight="11"
-                                   Key="{Binding Label, Converter={x:Static controls:WeaponIconKey.Key}}"
-                                   Foreground="{DynamicResource TextMid}"
-                                   HorizontalAlignment="Left" VerticalAlignment="Center"
-                                   Margin="0 0 6 0" />
+                             Key="{Binding Label, Converter={x:Static controls:WeaponIconKey.Key}}"
+                             Foreground="{DynamicResource TextMid}"
+                             HorizontalAlignment="Left" VerticalAlignment="Center"
+                             Margin="0 0 6 0" />
                 <TextBlock Grid.Column="1" Text="{Binding Label}" Classes="pdKvLabel"
                            TextTrimming="CharacterEllipsis" Margin="0 0 8 0" />
                 <statsCtl:StatValue Grid.Column="2"
@@ -220,29 +220,29 @@
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Kills"
                                                Classes="pdStripLabel" />
                                     <statsCtl:Sparkline Grid.Row="0" Grid.Column="1"
-                                                     Width="{Binding Form.PixelWidth}" Height="36"
-                                                     Values="{Binding Form.KillValues}"
-                                                     PointTooltips="{Binding Form.PointTooltips}" />
+                                                        Width="{Binding Form.PixelWidth}" Height="36"
+                                                        Values="{Binding Form.KillValues}"
+                                                        PointTooltips="{Binding Form.PointTooltips}" />
                                     <!-- damage bar strip (click a bar → Rounds deep-link) -->
                                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Damage"
                                                Classes="pdStripLabel" />
                                     <statsCtl:Sparkline Grid.Row="1" Grid.Column="1"
-                                                     Width="{Binding Form.PixelWidth}" Height="36"
-                                                     Mode="Bars" Gap="4"
-                                                     Values="{Binding Form.DamageValues}"
-                                                     PointTooltips="{Binding Form.PointTooltips}"
-                                                     Cursor="Hand"
-                                                     Tapped="OnFormBarTapped" />
+                                                        Width="{Binding Form.PixelWidth}" Height="36"
+                                                        Mode="Bars" Gap="4"
+                                                        Values="{Binding Form.DamageValues}"
+                                                        PointTooltips="{Binding Form.PointTooltips}"
+                                                        Cursor="Hand"
+                                                        Tapped="OnFormBarTapped" />
                                     <!-- KAST dot strip -->
                                     <TextBlock Grid.Row="2" Grid.Column="0" Text="KAST"
                                                Classes="pdStripLabel"
                                                IsVisible="{Binding Form.HasKast}" />
                                     <statsCtl:Sparkline Grid.Row="2" Grid.Column="1"
-                                                     Width="{Binding Form.PixelWidth}" Height="14"
-                                                     Mode="Dots" DotRadius="3.5"
-                                                     Values="{Binding Form.KastValues}"
-                                                     PointTooltips="{Binding Form.PointTooltips}"
-                                                     IsVisible="{Binding Form.HasKast}" />
+                                                        Width="{Binding Form.PixelWidth}" Height="14"
+                                                        Mode="Dots" DotRadius="3.5"
+                                                        Values="{Binding Form.KastValues}"
+                                                        PointTooltips="{Binding Form.PointTooltips}"
+                                                        IsVisible="{Binding Form.HasKast}" />
                                     <!-- opening-duel tick strip -->
                                     <TextBlock Grid.Row="3" Grid.Column="0" Text="Duel"
                                                Classes="pdStripLabel"

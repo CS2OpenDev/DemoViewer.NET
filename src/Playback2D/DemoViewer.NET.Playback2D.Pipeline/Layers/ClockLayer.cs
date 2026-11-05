@@ -1,10 +1,10 @@
 #region
 
+using System.Globalization;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Hud;
 using DemoViewer.NET.Playback2D.Layers;
 using SkiaSharp;
-using System.Globalization;
 
 #endregion
 
@@ -47,7 +47,7 @@ public sealed class ClockLayer : ISceneLayer
     private readonly bool _ownsText;
     private readonly SKPaint _paint;
     private readonly Dictionary<int, string> _rounds = new(64);
-    private readonly string[] _scores = new string[128];
+    private readonly string?[] _scores = new string?[128];
     private readonly HudStyle _style;
     private readonly TextBlobCache _text;
 
@@ -64,11 +64,7 @@ public sealed class ClockLayer : ISceneLayer
         _style = style ?? new HudStyle();
         _ownsText = text is null;
         _text = text ?? new TextBlobCache();
-        _paint = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
+        _paint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
     }
 
     /// <inheritdoc />
@@ -147,9 +143,9 @@ public sealed class ClockLayer : ISceneLayer
         panelW = Math.Max(panelW, Widest(caption, defuse) + _style.MarginPx * 2);
 
         float panelH = padY + topRowH
-                            + (caption is { } cap ? cap.Height : 0)
-                            + (defuse is { } def ? def.Height + 1f : 0)
-                            + padY;
+            + (caption is { } cap ? cap.Height : 0)
+            + (defuse is { } def ? def.Height + 1f : 0)
+            + padY;
         float panelTop = _style.MarginPx * 0.5f;
 
         _paint.Color = new SKColor(_style.PanelArgb);
@@ -186,6 +182,7 @@ public sealed class ClockLayer : ISceneLayer
             {
                 canvas.DrawText(roundCaption.Blob, rx, ry, _paint);
             }
+
             below += roundCaption.Height;
         }
 
@@ -197,7 +194,7 @@ public sealed class ClockLayer : ISceneLayer
             // No countdown to race means no race: NaN loses every comparison, and painting a defuse red
             // because nothing is ticking would say the exact opposite of what is happening.
             bool wins = double.IsNaN(_snapshot.CountdownSeconds)
-                        || _snapshot.DefuseSeconds <= _snapshot.CountdownSeconds;
+                || _snapshot.DefuseSeconds <= _snapshot.CountdownSeconds;
             _paint.Color = wins ? ctx.Palette.BombDefuse : ctx.Palette.BombDetonation;
             (float dx, float dy) = race.OriginForTopLeft(centreX - race.Width / 2, below + 1f);
             if (DrawLabels)
@@ -247,7 +244,7 @@ public sealed class ClockLayer : ISceneLayer
     // A score is a small non-negative integer, so the whole domain is an array: no dictionary, no
     // formatting past the first time a number is reached. Anything outside overtime's plausible range
     // formats every frame, which is the correct trade for an input that cannot happen in a real demo.
-    private string Score(int score) => score is >= 0 && score < 128
+    private string Score(int score) => score is >= 0 and < 128
         ? _scores[score] ??= score.ToString(CultureInfo.InvariantCulture)
         : score.ToString(CultureInfo.InvariantCulture);
 

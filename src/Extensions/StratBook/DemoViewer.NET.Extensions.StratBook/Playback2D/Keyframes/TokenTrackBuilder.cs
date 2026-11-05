@@ -43,7 +43,8 @@ public static class TokenTrackBuilder
     /// <param name="steps">Every step on the path, in authoring order, ticks non-decreasing.</param>
     /// <param name="placements">Per step, the slot's entry or null; same length as <paramref name="steps" />.</param>
     /// <exception cref="ArgumentException">Mismatched lengths, or a tick earlier than the one before it.</exception>
-    public static TokenTrack Build(string slot, IReadOnlyList<TokenStep> steps, IReadOnlyList<TokenPlacement?> placements)
+    public static TokenTrack Build(string slot, IReadOnlyList<TokenStep> steps,
+        IReadOnlyList<TokenPlacement?> placements)
     {
         ArgumentNullException.ThrowIfNull(steps);
         ArgumentNullException.ThrowIfNull(placements);

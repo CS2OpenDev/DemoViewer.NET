@@ -3,10 +3,10 @@
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DemoViewer.NET.Modules.Abstractions;
-using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.Sdk.Review;
+using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 
@@ -49,7 +49,7 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
     public const string BrowserNote = "session only: this browser tab forgets the queue when it reloads";
 
     /// <summary>How far either side of the playhead a manual pick reaches.</summary>
-    public const int PickSeconds = 5;
+    private const int PickSeconds = 5;
 
     /// <summary>A section with more clips than this starts collapsed.</summary>
     public const int CollapseAbove = 50;
@@ -87,7 +87,6 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
 
     // PackSummary re-plans the whole pack; only a queue change can move it, not a filter or a toggle.
     private bool _queueChanged = true;
-    private string _headerLine = "";
 
     private readonly IExtensionReviewPackExport? _packExport;
     private readonly Func<ISituationPlayback?> _playback;
@@ -106,6 +105,7 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
     /// <summary>Where the pack goes; for GIF, the folder is this path without its extension.</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ExportPackCommand))]
+    [NotifyPropertyChangedFor(nameof(PackSummary))]
     private string _packOutputPath;
 
     /// <summary>What the pack export is doing, did, or why it did not start.</summary>
@@ -192,7 +192,7 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
     public bool HasRows { get; private set; }
 
     /// <summary>"12 clips · 3 sections · 4 demos", or empty with nothing queued.</summary>
-    public string HeaderLine => _headerLine;
+    public string HeaderLine { get; private set; } = "";
 
     /// <summary>The formats a pack can be written as, the host's order; empty where it exports nothing.</summary>
     public IReadOnlyList<string> PackFormats { get; }
@@ -238,11 +238,11 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
     /// <summary>"review-pack-20260926-1412.mp4".</summary>
     /// <param name="now">The moment the name stamps.</param>
     /// <param name="formatId">The format, for the extension.</param>
-    public static string DefaultPackName(DateTime now, string formatId) =>
+    private static string DefaultPackName(DateTime now, string formatId) =>
         string.Create(CultureInfo.InvariantCulture, $"review-pack-{now:yyyyMMdd-HHmm}.{formatId}");
 
     /// <summary>The pack the queue plans to right now, at the tab's format and path; null with no exporter.</summary>
-    public ReviewPackPlan? PlanPack() => _packExport?.Plan(PackOutputPath, SelectedPackFormat);
+    private ReviewPackPlan? PlanPack() => _packExport?.Plan(PackOutputPath, SelectedPackFormat);
 
     /// <summary>Why the queue file was not read, or null; while set the file is left alone.</summary>
     public string? FileProblem => _queue.FileProblem;
@@ -452,8 +452,6 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
         OnPropertyChanged(nameof(PackSummary));
     }
 
-    partial void OnPackOutputPathChanged(string value) => OnPropertyChanged(nameof(PackSummary));
-
     /// <summary>A new title card at the end.</summary>
     [RelayCommand]
     private void AddSection() => _queue.AddSection("New section");
@@ -550,7 +548,7 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
 
             int total = i - start;
             bool titleMatches = card is not null && search.Length > 0
-                                                 && card.Title.Contains(search, StringComparison.OrdinalIgnoreCase);
+                && card.Title.Contains(search, StringComparison.OrdinalIgnoreCase);
             if (card is not null)
             {
                 sections++;
@@ -620,7 +618,7 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
         Rows.SyncTo(visible);
 
         int clips = position;
-        _headerLine = entries.Count == 0
+        HeaderLine = entries.Count == 0
             ? ""
             : string.Create(CultureInfo.InvariantCulture,
                 $"{Plural(clips, "clip")}, {unreviewedAll} unreviewed · {Plural(sections, "section")} · {Plural(demos.Count, "demo")}");
@@ -638,7 +636,11 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
             MapFilters = mapFilters;
         }
 
-        List<string> teamFilters = [AllTeams, .. teams.Where(t => t is not (NoTeam or UnknownTeam)), .. teams.Where(t => t is NoTeam or UnknownTeam)];
+        List<string> teamFilters =
+        [
+            AllTeams, .. teams.Where(t => t is not (NoTeam or UnknownTeam)),
+            .. teams.Where(t => t is NoTeam or UnknownTeam)
+        ];
         if (!teamFilters.SequenceEqual(TeamFilters))
         {
             TeamFilters = teamFilters;
@@ -656,6 +658,7 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
             _queueChanged = false;
             OnPropertyChanged(nameof(PackSummary));
         }
+
         ClearCommand.NotifyCanExecuteChanged();
         ExportPackCommand.NotifyCanExecuteChanged();
 
@@ -787,8 +790,8 @@ public sealed partial class ReviewRowViewModel : ObservableObject
         get
         {
             string range = $"{ReviewQueueTabViewModel.Clock(Entry.FromTick, Entry.TickRate)} to "
-                           + ReviewQueueTabViewModel.Clock(Entry.ToTick, Entry.TickRate);
-            return Entry.Seconds is double seconds
+                + ReviewQueueTabViewModel.Clock(Entry.ToTick, Entry.TickRate);
+            return Entry.Seconds is { } seconds
                 ? string.Create(CultureInfo.InvariantCulture, $"{range} · {Math.Round(seconds)} s")
                 : range;
         }
@@ -860,7 +863,9 @@ public sealed partial class ReviewRowViewModel : ObservableObject
             ? unreviewedInScope == 0 && inScope > 0
                 ? string.Create(CultureInfo.InvariantCulture, $"Mark {inScope} unreviewed")
                 : string.Create(CultureInfo.InvariantCulture, $"Mark {unreviewedInScope} shown reviewed")
-            : unreviewed == 0 && total > 0 ? "Mark unreviewed" : "Mark section reviewed";
+            : unreviewed == 0 && total > 0
+                ? "Mark unreviewed"
+                : "Mark section reviewed";
         if (ReviewText != reviewText)
         {
             ReviewText = reviewText;

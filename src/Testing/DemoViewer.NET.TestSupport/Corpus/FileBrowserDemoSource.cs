@@ -41,6 +41,7 @@ public sealed class FileBrowserDemoSource : IDemoSource, IDisposable
 
     /// <summary>Leading <c>/</c>, no trailing one, or empty for the source root.</summary>
     private readonly string _prefix;
+
     private readonly HttpClient _client;
     private readonly TimeSpan _transferTimeout;
 
@@ -137,10 +138,7 @@ public sealed class FileBrowserDemoSource : IDemoSource, IDisposable
             instance.GetComponents(UriComponents.SchemeAndServer, UriFormat.UriEscaped),
             UriKind.Absolute);
         _transferTimeout = transferTimeout ?? TimeSpan.FromMinutes(30);
-        _client = new HttpClient(handler ?? CreateDefaultHandler(), handler is null)
-        {
-            Timeout = _headerTimeout,
-        };
+        _client = new HttpClient(handler ?? CreateDefaultHandler(), handler is null) { Timeout = _headerTimeout, };
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", trimmedToken);
         _sourceProblem = new Lazy<string?>(SourceProblem, LazyThreadSafetyMode.ExecutionAndPublication);
     }

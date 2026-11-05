@@ -12,6 +12,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///     migrated from <c>ParseChainEntry</c> for reuse by future link-rendering surfaces
 ///     (entity class links, field decode errors).
 /// </summary>
+[PublicAPI]
 public static class OpenExternal
 {
     /// <summary>
@@ -30,10 +31,7 @@ public static class OpenExternal
 
         try
         {
-            Process.Start(new ProcessStartInfo(localPath)
-            {
-                UseShellExecute = true
-            });
+            Process.Start(new ProcessStartInfo(localPath) { UseShellExecute = true });
             return true;
         }
         catch
@@ -52,10 +50,7 @@ public static class OpenExternal
     {
         try
         {
-            Process.Start(new ProcessStartInfo(uri)
-            {
-                UseShellExecute = true
-            });
+            Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
             return true;
         }
         catch

@@ -11,6 +11,7 @@ namespace DemoViewer.NET.Playback2D;
 ///     the Z band it depicts. Replaces the Avalonia <c>Bitmap</c> the old viewport held, so the radar
 ///     draw is renderer-agnostic.
 /// </summary>
+[PublicAPI]
 public sealed class MapRadarImage
 {
     /// <summary>The bundle's image file name, the stable key, and what a fixture round-trips.</summary>

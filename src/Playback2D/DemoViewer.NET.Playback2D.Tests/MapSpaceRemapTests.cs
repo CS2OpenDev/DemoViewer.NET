@@ -190,7 +190,7 @@ public class MapSpaceRemapTests
         gapped.Rebuild([new FloorSlice(0, 640), new FloorSlice(4000, 4640)]);
         await Assert.That(gapped.IdForAnchor(3900)).IsEqualTo(gapped.Levels[1].Id)
             .Because("nearest band centre, exactly as TryRemapAnchor's last rule — ink never belongs "
-                     + "to no floor at all");
+                + "to no floor at all");
     }
 
     /// <summary>

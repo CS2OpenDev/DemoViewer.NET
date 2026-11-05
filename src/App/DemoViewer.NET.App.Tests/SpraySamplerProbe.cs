@@ -46,7 +46,7 @@ public class SpraySamplerProbe
         foreach (SprayPatternPoint pt in best.Value.Take(12))
         {
             Console.WriteLine($"[spray]   idx={pt.RecoilIndex,2} n={pt.Samples,3} "
-                              + $"yaw={pt.PunchYawDeg,8:F3} pitch={pt.PunchPitchDeg,8:F3}");
+                + $"yaw={pt.PunchYawDeg,8:F3} pitch={pt.PunchPitchDeg,8:F3}");
         }
 
         SprayRun sample = model.Players.OrderByDescending(p => p.Runs.Count).First().Runs[0];
@@ -54,20 +54,21 @@ public class SpraySamplerProbe
         foreach (SpraySample s in sample.Shots)
         {
             Console.WriteLine($"[spray]   shot={s.ShotIndex} recoil={s.RecoilIndex,2} "
-                              + $"dYaw={s.OffsetYawDeg,7:F2} dPitch={s.OffsetPitchDeg,7:F2}");
+                + $"dYaw={s.OffsetYawDeg,7:F2} dPitch={s.OffsetPitchDeg,7:F2}");
         }
 
         // The tracking mode: same demo, origin moving with the victim.
         SprayModel tracked = SpraySampler.Sample(demo, SprayOrigin.TargetCentre);
         List<SpraySample> trackedShots = [.. tracked.Players.SelectMany(p => p.Runs).SelectMany(r => r.Shots)];
         Console.WriteLine($"[track] pairs={tracked.Players.Count} shots={trackedShots.Count} "
-                          + $"empty={tracked.Players.Count(p => p.Runs.Count == 0)}");
+            + $"empty={tracked.Players.Count(p => p.Runs.Count == 0)}");
         if (trackedShots.Count > 0)
         {
             double mean = trackedShots.Average(x =>
                 Math.Sqrt((x.OffsetYawDeg * x.OffsetYawDeg) + (x.OffsetPitchDeg * x.OffsetPitchDeg)));
             Console.WriteLine($"[track] mean offset from victim chest = {mean:F2} deg");
-            Console.WriteLine($"[track] anchor offsets are NOT zero: {trackedShots.Count(x => x.ShotIndex == 0 && Math.Abs(x.OffsetYawDeg) > 0.001)} of {trackedShots.Count(x => x.ShotIndex == 0)}");
+            Console.WriteLine(
+                $"[track] anchor offsets are NOT zero: {trackedShots.Count(x => x.ShotIndex == 0 && Math.Abs(x.OffsetYawDeg) > 0.001)} of {trackedShots.Count(x => x.ShotIndex == 0)}");
         }
 
         await Assert.That(model.Players.Count).IsGreaterThan(0)

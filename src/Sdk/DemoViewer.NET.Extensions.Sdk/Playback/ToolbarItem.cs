@@ -1,9 +1,14 @@
+#region
+
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk.Playback;
 
 /// <summary>A toolbar button a contribution adds. Its label and tooltip may change; refresh them on <see cref="IPlaybackSurface.KeymapChanged" />.</summary>
+[PublicAPI]
 public sealed class ToolbarItem : INotifyPropertyChanged
 {
     private string _label;
@@ -13,14 +18,14 @@ public sealed class ToolbarItem : INotifyPropertyChanged
     /// <summary>Creates the item.</summary>
     /// <param name="id">Unique within the tab. Starts with the extension's id and a dot; a third-party id that does not is left out and logged.</param>
     /// <param name="label">The button text.</param>
-    /// <param name="tooltip">The button tooltip.</param>
+    /// <param name="tooltip">The button tooltip; null for none.</param>
     /// <param name="run">Runs it at the moment shown; true when it acted.</param>
     /// <param name="actionId">The action that also runs it, or null.</param>
     /// <param name="order">Position among contributed items.</param>
     /// <param name="icon">The icon key, or null.</param>
     /// <param name="menuHeader">The overflow menu's text; null for the label.</param>
-    public ToolbarItem(string id, string label, string tooltip, Func<PlaybackMoment, bool> run, string? actionId = null,
-        int order = 0, string? icon = null, string? menuHeader = null)
+    public ToolbarItem(string id, string label, string? tooltip, Func<PlaybackMoment, bool> run,
+        string? actionId = null, int order = 0, string? icon = null, string? menuHeader = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(label);

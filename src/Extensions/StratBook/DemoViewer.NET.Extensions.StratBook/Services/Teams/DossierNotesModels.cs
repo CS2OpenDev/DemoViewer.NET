@@ -14,9 +14,10 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 ///     what it counts, never an index), so a star or an edit survives a rebuild that reorders or adds
 ///     findings; one whose finding no longer exists is kept and simply not shown.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class DossierTeamNotes
 {
-    public Guid TeamId { get; set; }
+    public Guid TeamId { get; init; }
 
     /// <summary>The user's own paragraph at the top of both forms; empty prints nothing.</summary>
     public string Summary { get; set; } = "";
@@ -35,6 +36,7 @@ public sealed class DossierTeamNotes
 }
 
 /// <summary>One finding the user wrote by hand. Its key is <c>note:</c> plus <see cref="Id" />.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class DossierNote
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -50,9 +52,9 @@ public sealed class DossierNotesFile
 {
     public const int CurrentSchema = 1;
 
-    public int SchemaVersion { get; set; } = CurrentSchema;
+    public int SchemaVersion { get; init; } = CurrentSchema;
 
-    public List<DossierTeamNotes> Teams { get; set; } = [];
+    public List<DossierTeamNotes> Teams { get; init; } = [];
 
     /// <summary>Same shape as <see cref="VetoHistoryFile.JsonOptions" />.</summary>
     public static JsonSerializerOptions JsonOptions { get; } = new()

@@ -20,6 +20,7 @@ namespace DemoViewer.NET.Playback2D;
 ///         the parser itself does hold the bytes; a caller that already has them uses the span overload.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public static class DemoContentHash
 {
     // 64 KiB matches the annotation store's original read size; SequentialScan lets the OS read ahead,

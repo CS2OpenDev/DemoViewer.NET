@@ -2,13 +2,13 @@
 
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
-using DemoViewer.NET.Playback2D.Vision;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Assets;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
+using DemoViewer.NET.Playback2D.Vision;
 using SkiaSharp;
 
 #endregion
@@ -66,17 +66,13 @@ internal sealed class SceneStage : IDisposable
             Compositor.Add(layer);
         }
 
-        foreach (ISceneLayer layer in extra ?? [])
+        foreach (ISceneLayer layer in extra)
         {
             Compositor.Add(layer);
         }
 
         Renderer = new HeadlessSceneRenderer(Compositor, _provider, new StackedLayout(),
-            palette ?? ScenePalette.Dark)
-        {
-            Size = size,
-            Purpose = RenderPurpose.Export
-        };
+            palette ?? ScenePalette.Dark) { Size = size, Purpose = RenderPurpose.Export };
 
         // Exactly as Scene2DHost wires it, so the level-crossing snap and its per-frame cost
         // are inside the allocation and budget gates rather than beside them.
@@ -86,14 +82,14 @@ internal sealed class SceneStage : IDisposable
     public SceneCompositor Compositor { get; }
 
     public HeadlessSceneRenderer Renderer { get; }
-    public MarkerSmoother Smoother { get; }
-    public RadarLayer Radar { get; }
+    private MarkerSmoother Smoother { get; }
+    private RadarLayer Radar { get; }
     public MarkerLayer Markers { get; }
-    public VisionLayer Vision { get; }
-    public FloorLabelLayer FloorLabel { get; }
+    private VisionLayer Vision { get; }
+    private FloorLabelLayer FloorLabel { get; }
 
     /// <summary>The map bundle bound to this stage, when one was loaded. Owned; disposed with the stage.</summary>
-    public LoadedMapAsset? MapAsset { get; private set; }
+    private LoadedMapAsset? MapAsset { get; set; }
 
     public void Dispose()
     {

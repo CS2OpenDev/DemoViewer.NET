@@ -57,10 +57,6 @@ public sealed class PlaceholderModule : IWorkspaceModule
         };
         // One-way bind to the VM's status so the push counter is visible.
         text.Bind(TextBlock.TextProperty, new Binding(nameof(PlaceholderTabViewModel.Status)));
-        return new Border
-        {
-            Padding = new Thickness(24),
-            Child = text
-        };
+        return new Border { Padding = new Thickness(24), Child = text };
     }
 }

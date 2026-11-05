@@ -3,7 +3,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DemoViewer.NET.Extensions;
 
 #endregion
 
@@ -24,7 +23,10 @@ public sealed class SchemaSettingsPageViewModel : IDisposable
         ArgumentNullException.ThrowIfNull(schema);
         ArgumentNullException.ThrowIfNull(settings);
         _settings = settings;
-        Rows = new ObservableCollection<SchemaSettingRow>(schema.Settings.Select(d => SchemaSettingRow.For(d, settings)));
+        Rows =
+        [
+            .. schema.Settings.Select(d => SchemaSettingRow.For(d, settings))
+        ];
         _settings.Changed += OnChanged;
     }
 
@@ -47,7 +49,7 @@ public sealed class SchemaSettingsPageViewModel : IDisposable
 }
 
 /// <summary>One rendered setting.</summary>
-public abstract partial class SchemaSettingRow : ObservableObject
+public abstract class SchemaSettingRow : ObservableObject
 {
     private protected SchemaSettingRow(SettingDescriptor descriptor, IExtensionSettings settings)
     {
@@ -91,14 +93,15 @@ public abstract partial class SchemaSettingRow : ObservableObject
     /// <summary>Sets the row's value from the store.</summary>
     private protected abstract void Read();
 
-    internal static SchemaSettingRow For(SettingDescriptor descriptor, IExtensionSettings settings) => descriptor.Kind switch
-    {
-        SettingKind.Toggle => new ToggleSettingRow(descriptor, settings),
-        SettingKind.Number => new NumberSettingRow(descriptor, settings),
-        SettingKind.Choice => new ChoiceSettingRow(descriptor, settings),
-        SettingKind.Folder => new FolderSettingRow(descriptor, settings),
-        _ => new TextSettingRow(descriptor, settings)
-    };
+    internal static SchemaSettingRow For(SettingDescriptor descriptor, IExtensionSettings settings) =>
+        descriptor.Kind switch
+        {
+            SettingKind.Toggle => new ToggleSettingRow(descriptor, settings),
+            SettingKind.Number => new NumberSettingRow(descriptor, settings),
+            SettingKind.Choice => new ChoiceSettingRow(descriptor, settings),
+            SettingKind.Folder => new FolderSettingRow(descriptor, settings),
+            _ => new TextSettingRow(descriptor, settings)
+        };
 }
 
 /// <summary>An on-off row.</summary>
@@ -107,7 +110,8 @@ public sealed partial class ToggleSettingRow : SchemaSettingRow
     [ObservableProperty]
     private bool _value;
 
-    internal ToggleSettingRow(SettingDescriptor descriptor, IExtensionSettings settings) : base(descriptor, settings) => Reflect();
+    internal ToggleSettingRow(SettingDescriptor descriptor, IExtensionSettings settings) : base(descriptor, settings) =>
+        Reflect();
 
     private protected override void Read() => Value = Settings.Get(Key, Descriptor.Default is true);
 
@@ -126,7 +130,8 @@ public sealed partial class NumberSettingRow : SchemaSettingRow
     [ObservableProperty]
     private decimal? _value;
 
-    internal NumberSettingRow(SettingDescriptor descriptor, IExtensionSettings settings) : base(descriptor, settings) => Reflect();
+    internal NumberSettingRow(SettingDescriptor descriptor, IExtensionSettings settings) : base(descriptor, settings) =>
+        Reflect();
 
     /// <summary>The smallest value.</summary>
     public decimal Minimum => Descriptor.Minimum is { } minimum ? (decimal)minimum : decimal.MinValue;
@@ -140,11 +145,13 @@ public sealed partial class NumberSettingRow : SchemaSettingRow
     /// <summary>The display format: no decimals for a whole step.</summary>
     public string FormatString => IsWhole ? "0" : "0.###";
 
-    private bool IsWhole => Descriptor.Step == Math.Floor(Descriptor.Step);
+    private bool IsWhole => double.IsInteger(Descriptor.Step);
 
     private protected override void Read()
     {
-        double fallback = Descriptor.Default is IConvertible c ? c.ToDouble(System.Globalization.CultureInfo.InvariantCulture) : 0;
+        double fallback = Descriptor.Default is IConvertible c
+            ? c.ToDouble(System.Globalization.CultureInfo.InvariantCulture)
+            : 0;
         Value = (decimal)Settings.Get(Key, fallback);
     }
 
@@ -173,7 +180,8 @@ public sealed partial class ChoiceSettingRow : SchemaSettingRow
     [ObservableProperty]
     private SettingChoice? _selected;
 
-    internal ChoiceSettingRow(SettingDescriptor descriptor, IExtensionSettings settings) : base(descriptor, settings) => Reflect();
+    internal ChoiceSettingRow(SettingDescriptor descriptor, IExtensionSettings settings) : base(descriptor, settings) =>
+        Reflect();
 
     /// <summary>What the row offers.</summary>
     public IReadOnlyList<SettingChoice> Choices => Descriptor.Choices;
@@ -182,7 +190,8 @@ public sealed partial class ChoiceSettingRow : SchemaSettingRow
     {
         string stored = Settings.Get(Key, Descriptor.Default as string ?? "");
         Selected = Choices.FirstOrDefault(c => string.Equals(c.Value, stored, StringComparison.Ordinal))
-                   ?? Choices.FirstOrDefault(c => string.Equals(c.Value, Descriptor.Default as string, StringComparison.Ordinal));
+            ?? Choices.FirstOrDefault(c =>
+                string.Equals(c.Value, Descriptor.Default as string, StringComparison.Ordinal));
     }
 
     partial void OnSelectedChanged(SettingChoice? value)
@@ -200,7 +209,8 @@ public sealed partial class TextSettingRow : SchemaSettingRow
     [ObservableProperty]
     private string _value = "";
 
-    internal TextSettingRow(SettingDescriptor descriptor, IExtensionSettings settings) : base(descriptor, settings) => Reflect();
+    internal TextSettingRow(SettingDescriptor descriptor, IExtensionSettings settings) : base(descriptor, settings) =>
+        Reflect();
 
     private protected override void Read() => Value = Settings.Get(Key, Descriptor.Default as string ?? "");
 
@@ -221,7 +231,8 @@ public sealed partial class FolderSettingRow : SchemaSettingRow
     [NotifyPropertyChangedFor(nameof(Shown))]
     private string? _path;
 
-    internal FolderSettingRow(SettingDescriptor descriptor, IExtensionSettings settings) : base(descriptor, settings) => Reflect();
+    internal FolderSettingRow(SettingDescriptor descriptor, IExtensionSettings settings) : base(descriptor, settings) =>
+        Reflect();
 
     /// <summary>True when a folder is picked.</summary>
     public bool HasPath => !string.IsNullOrEmpty(Path);
@@ -231,7 +242,7 @@ public sealed partial class FolderSettingRow : SchemaSettingRow
 
     private protected override void Read()
     {
-        string? stored = Settings.Get<string?>(Key, Descriptor.Default as string);
+        string? stored = Settings.Get(Key, Descriptor.Default as string);
         Path = string.IsNullOrEmpty(stored) ? null : stored;
     }
 

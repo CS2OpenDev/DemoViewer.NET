@@ -32,20 +32,21 @@ public static class StratValidator
     public const double EarliestAfterTimerSeconds = -60;
 
     // The usual side (null for either) and what targetSite should hold.
-    private static readonly Dictionary<string, (string? Side, SiteRule Site)> Applicability = new(StringComparer.Ordinal)
-    {
-        ["execute"] = (StratVocabulary.SideT, SiteRule.Required),
-        ["rush"] = (StratVocabulary.SideT, SiteRule.Required),
-        ["explode"] = (StratVocabulary.SideT, SiteRule.Required),
-        ["split"] = (StratVocabulary.SideT, SiteRule.Required),
-        ["wrap"] = (StratVocabulary.SideT, SiteRule.Required),
-        ["fake"] = (StratVocabulary.SideT, SiteRule.Required),
-        ["default"] = (StratVocabulary.SideT, SiteRule.None),
-        ["setup"] = (StratVocabulary.SideCt, SiteRule.Optional),
-        ["retake"] = (StratVocabulary.SideCt, SiteRule.Required),
-        ["anti-eco"] = (null, SiteRule.Optional),
-        ["save"] = (null, SiteRule.None)
-    };
+    private static readonly Dictionary<string, (string? Side, SiteRule Site)> _applicability =
+        new(StringComparer.Ordinal)
+        {
+            ["execute"] = (StratVocabulary.SideT, SiteRule.Required),
+            ["rush"] = (StratVocabulary.SideT, SiteRule.Required),
+            ["explode"] = (StratVocabulary.SideT, SiteRule.Required),
+            ["split"] = (StratVocabulary.SideT, SiteRule.Required),
+            ["wrap"] = (StratVocabulary.SideT, SiteRule.Required),
+            ["fake"] = (StratVocabulary.SideT, SiteRule.Required),
+            ["default"] = (StratVocabulary.SideT, SiteRule.None),
+            ["setup"] = (StratVocabulary.SideCt, SiteRule.Optional),
+            ["retake"] = (StratVocabulary.SideCt, SiteRule.Required),
+            ["anti-eco"] = (null, SiteRule.Optional),
+            ["save"] = (null, SiteRule.None)
+        };
 
     private enum SiteRule
     {
@@ -101,7 +102,8 @@ public static class StratValidator
             }
             else if (!seen.TryAdd(key, i))
             {
-                issues.Add(Refuse(pointer + "/alias", $"alias '{alias.Alias}' is already defined at /aliases/{seen[key]}"));
+                issues.Add(Refuse(pointer + "/alias",
+                    $"alias '{alias.Alias}' is already defined at /aliases/{seen[key]}"));
             }
 
             if (string.IsNullOrWhiteSpace(alias.Place))
@@ -118,7 +120,8 @@ public static class StratValidator
         {
             foreach (string gone in snapshot.Names.Where(n => !places.IsCanonical(n)))
             {
-                issues.Add(Warn("/canonical/names", $"'{gone}' was a place when the aliases were edited and is not one now"));
+                issues.Add(Warn("/canonical/names",
+                    $"'{gone}' was a place when the aliases were edited and is not one now"));
             }
         }
 
@@ -153,7 +156,7 @@ public static class StratValidator
             issues.Add(Refuse("/status", $"status '{document.Status}' is not Theory, InProgress, Active or Archived"));
         }
 
-        if (!Applicability.TryGetValue(document.Type, out (string? Side, SiteRule Site) rule))
+        if (!_applicability.TryGetValue(document.Type, out (string? Side, SiteRule Site) rule))
         {
             issues.Add(Warn("/type", $"type '{document.Type}' is not in the vocabulary"));
         }
@@ -182,13 +185,16 @@ public static class StratValidator
 
         if (document.Economy is { } economy && !StratVocabulary.Economies.Contains(economy))
         {
-            issues.Add(Warn("/economy", $"economy '{economy}' is not one of {string.Join(", ", StratVocabulary.Economies)}"));
+            issues.Add(Warn("/economy",
+                $"economy '{economy}' is not one of {string.Join(", ", StratVocabulary.Economies)}"));
         }
 
-        if (!string.Equals(document.Clock.Kind, StratClock.RoundKind, StringComparison.Ordinal) && !StratClock.IsTrigger(document.Clock))
+        if (!string.Equals(document.Clock.Kind, StratClock.RoundKind, StringComparison.Ordinal)
+            && !StratClock.IsTrigger(document.Clock))
         {
             // The plant clock is reserved, not defined: the steps are read as round clock regardless.
-            issues.Add(Warn("/clock/kind", $"clock '{document.Clock.Kind}' is not defined in this version; read as the round clock"));
+            issues.Add(Warn("/clock/kind",
+                $"clock '{document.Clock.Kind}' is not defined in this version; read as the round clock"));
         }
     }
 
@@ -272,7 +278,8 @@ public static class StratValidator
             else if (!trigger && (step.AtSeconds > roundSeconds || step.AtSeconds < EarliestAfterTimerSeconds))
             {
                 issues.Add(Warn(pointer + "/atSeconds",
-                    string.Create(CultureInfo.InvariantCulture, $"{step.AtSeconds} s is outside the round clock ({roundSeconds} to {EarliestAfterTimerSeconds})")));
+                    string.Create(CultureInfo.InvariantCulture,
+                        $"{step.AtSeconds} s is outside the round clock ({roundSeconds} to {EarliestAfterTimerSeconds})")));
             }
 
             if (step.Actor != StratVocabulary.ActorAll && !StratVocabulary.Slots.Contains(step.Actor))
@@ -314,11 +321,13 @@ public static class StratValidator
                 {
                     if (lineupExists is null)
                     {
-                        issues.Add(Info(pointer + "/utility/lineupId", "lineup not checked: there is no Utility Book index yet"));
+                        issues.Add(Info(pointer + "/utility/lineupId",
+                            "lineup not checked: there is no Utility Book index yet"));
                     }
                     else if (!lineupExists(document.Map, lineupId))
                     {
-                        issues.Add(Warn(pointer + "/utility/lineupId", $"lineup {lineupId} was not found on {document.Map}"));
+                        issues.Add(Warn(pointer + "/utility/lineupId",
+                            $"lineup {lineupId} was not found on {document.Map}"));
                     }
 
                     if (string.Equals(StratStepLines.ActorOf(step), StratVocabulary.ActorAll, StringComparison.Ordinal))
@@ -345,7 +354,8 @@ public static class StratValidator
                 if (lurk.Rotate is { } rotate)
                 {
                     CheckPlace(places, rotate.To?.Place, pointer + "/lurk/rotate/to/place", document.Map, issues);
-                    if (rotate.AtSeconds is { } rotateAt && !StratLurkPatches.IsLater(rotateAt, step.AtSeconds, document.Clock))
+                    if (rotate.AtSeconds is { } rotateAt
+                        && !StratLurkPatches.IsLater(rotateAt, step.AtSeconds, document.Clock))
                     {
                         issues.Add(Warn(pointer + "/lurk/rotate/atSeconds",
                             $"the rotate at {StratClock.Format(document.Clock, rotateAt)} is not later in the round than the step at {StratClock.Format(document.Clock, step.AtSeconds)}"));
@@ -358,19 +368,22 @@ public static class StratValidator
                 string slot = step.Positions[p].Slot;
                 if (!StratVocabulary.Slots.Contains(slot) && !StratVocabulary.OpponentSlots.Contains(slot))
                 {
-                    issues.Add(Warn($"{pointer}/positions/{p}/slot", $"position slot '{slot}' is not A to E or O1 to O5"));
+                    issues.Add(Warn($"{pointer}/positions/{p}/slot",
+                        $"position slot '{slot}' is not A to E or O1 to O5"));
                 }
             }
 
             if (step.Interpolation is { } interpolation && !StratVocabulary.Interpolations.Contains(interpolation))
             {
                 // path is reserved, and a later build's value still opens.
-                issues.Add(Warn(pointer + "/interpolation", $"interpolation '{interpolation}' is not defined in this version; read as linear"));
+                issues.Add(Warn(pointer + "/interpolation",
+                    $"interpolation '{interpolation}' is not defined in this version; read as linear"));
             }
 
             if (step.Extra is { Count: > 0 } extra)
             {
-                issues.Add(Info(pointer, "unknown fields kept: " + string.Join(", ", extra.Keys.Order(StringComparer.Ordinal))));
+                issues.Add(Info(pointer,
+                    "unknown fields kept: " + string.Join(", ", extra.Keys.Order(StringComparer.Ordinal))));
             }
         }
 
@@ -384,7 +397,8 @@ public static class StratValidator
         string actor = StratStepLines.ActorFor(lines);
         if (!string.Equals(step.Actor, actor, StringComparison.Ordinal))
         {
-            issues.Add(Warn(pointer + "/actor", $"a step with these lines has actor '{actor}', which older builds read"));
+            issues.Add(
+                Warn(pointer + "/actor", $"a step with these lines has actor '{actor}', which older builds read"));
         }
 
         if (step.To is not null)
@@ -394,7 +408,8 @@ public static class StratValidator
 
         if (step.Via is not null || step.ViaPoints is not null)
         {
-            issues.Add(Warn(pointer + (step.Via is not null ? "/via" : "/viaPoints"), "each line has its own via; the step's via is not used"));
+            issues.Add(Warn(pointer + (step.Via is not null ? "/via" : "/viaPoints"),
+                "each line has its own via; the step's via is not used"));
         }
 
         Dictionary<string, int> seen = new(StringComparer.Ordinal);
@@ -408,7 +423,8 @@ public static class StratValidator
             }
             else if (!seen.TryAdd(line.Slot, j))
             {
-                issues.Add(Refuse(at + "/slot", $"slot {line.Slot} already has a line in this step, at {pointer}/assignments/{seen[line.Slot]}"));
+                issues.Add(Refuse(at + "/slot",
+                    $"slot {line.Slot} already has a line in this step, at {pointer}/assignments/{seen[line.Slot]}"));
             }
 
             if (step.Verb == "move" && !StratLocations.IsSet(line.To))
@@ -428,7 +444,8 @@ public static class StratValidator
         }
     }
 
-    private static void ValidateBranches(StratDocument document, HashSet<Guid> stepIds, IReadOnlyList<StratIndexEntry>? index,
+    private static void ValidateBranches(StratDocument document, HashSet<Guid> stepIds,
+        IReadOnlyList<StratIndexEntry>? index,
         List<StratIssue> issues)
     {
         List<Guid> order = [.. document.Steps.Select(s => s.Id)];
@@ -446,23 +463,28 @@ public static class StratValidator
             {
                 if (branch.Target.StepId is not { } stepId || !stepIds.Contains(stepId))
                 {
-                    issues.Add(Refuse(pointer + "/target/stepId", "the branch continues at a step that is not in this strat"));
+                    issues.Add(Refuse(pointer + "/target/stepId",
+                        "the branch continues at a step that is not in this strat"));
                 }
                 else if (afterKnown && order.IndexOf(stepId) <= order.IndexOf(branch.AfterStepId))
                 {
-                    issues.Add(Refuse(pointer + "/target/stepId", "the branch continues at a step that is not later than the one it follows"));
+                    issues.Add(Refuse(pointer + "/target/stepId",
+                        "the branch continues at a step that is not later than the one it follows"));
                 }
             }
             else if (index is not null
                      && !index.Any(e => e.Id == branch.Target.StratId && e.Owner.Equals(document.Owner)
-                                                                      && string.Equals(e.Map, document.Map, StringComparison.OrdinalIgnoreCase)))
+                         && string.Equals(e.Map, document.Map,
+                             StringComparison.OrdinalIgnoreCase)))
             {
-                issues.Add(Warn(pointer + "/target/stratId", "the branch continues at a strat that is not in this book on this map"));
+                issues.Add(Warn(pointer + "/target/stratId",
+                    "the branch continues at a strat that is not in this book on this map"));
             }
         }
     }
 
-    private static void CheckVia(CalloutResolver? places, List<string>? via, string pointer, string map, List<StratIssue> issues)
+    private static void CheckVia(CalloutResolver? places, List<string>? via, string pointer, string map,
+        List<StratIssue> issues)
     {
         for (int k = 0; k < (via?.Count ?? 0); k++)
         {
@@ -470,7 +492,8 @@ public static class StratValidator
         }
     }
 
-    private static void CheckPlace(CalloutResolver? places, string? place, string pointer, string map, List<StratIssue> issues)
+    private static void CheckPlace(CalloutResolver? places, string? place, string pointer, string map,
+        List<StratIssue> issues)
     {
         if (places is not null && !string.IsNullOrEmpty(place) && !places.IsCanonical(place))
         {
@@ -478,7 +501,8 @@ public static class StratValidator
         }
     }
 
-    private static StratIssue Refuse(string pointer, string message) => new(StratIssueSeverity.Refusal, pointer, message);
+    private static StratIssue Refuse(string pointer, string message) =>
+        new(StratIssueSeverity.Refusal, pointer, message);
 
     private static StratIssue Warn(string pointer, string message) => new(StratIssueSeverity.Warning, pointer, message);
 

@@ -21,7 +21,7 @@ public class PlaybackControllerSpeedTests
     public async Task PlaybackRate_IsLinearInSpeed_NotQuadratic()
     {
         PlaybackController c = new();
-        c.LoadDemo(Array.Empty<DemoFrame>(), 64);
+        c.LoadDemo([], 64);
 
         c.Speed = 1.0;
         double f1 = c.EffectiveFramesPerSecond();
@@ -50,13 +50,10 @@ public class PlaybackControllerSpeedTests
     public async Task PlaybackRate_EqualsTickRate_AtOneX_ForAnyTickRate()
     {
         // 1× advances one demo-frame per server tick → frames/sec == tick rate, for any tick rate.
-        foreach (int tickRate in new[]
-                 {
-                     32, 64, 128
-                 })
+        foreach (int tickRate in new[] { 32, 64, 128 })
         {
             PlaybackController c = new();
-            c.LoadDemo(Array.Empty<DemoFrame>(), tickRate);
+            c.LoadDemo([], tickRate);
             c.Speed = 1.0;
             await Assert.That(Math.Abs(c.EffectiveFramesPerSecond() - tickRate)).IsLessThan(1e-6);
         }

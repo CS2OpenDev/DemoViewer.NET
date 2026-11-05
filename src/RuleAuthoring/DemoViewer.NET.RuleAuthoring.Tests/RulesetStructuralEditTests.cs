@@ -1,8 +1,6 @@
 #region
 
-using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.Yaml;
-using DemoViewer.NET.RuleAuthoring;
 
 #endregion
 
@@ -237,7 +235,8 @@ public class RulesetStructuralEditTests
 
         RulesetDocumentEditor edited = RulesetDocumentEditor.Open(Yaml).SetStatField("kills", "label", "Kills, all");
 
-        await Assert.That(edited.Text).Contains("kills: { count: kill, per: match, label: \"Kills, all\" }     # every kill");
+        await Assert.That(edited.Text)
+            .Contains("kills: { count: kill, per: match, label: \"Kills, all\" }     # every kill");
         await Assert.That(LoadedStatCount(edited.Text, "probe")).IsEqualTo(1);
     }
 

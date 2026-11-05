@@ -40,26 +40,12 @@ public class MatchOverviewStagingTests
         Size = 10,
         ModifiedTicks = 20,
         Map = "de_dust2",
-        Parse = new TierStamp
-        {
-            Schema = DemoCacheRecord.ParseSchema,
-            ComputedAtTicks = 1
-        },
-        Analysis = new TierStamp
-        {
-            Schema = DemoCacheRecord.AnalysisSchema,
-            ComputedAtTicks = 1
-        },
+        Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 },
+        Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
         AnalysisState = DemoAnalysisState.Indexed,
         Players =
         [
-            new CachedPlayerInfo
-            {
-                Slot = 1,
-                Name = "s1mple",
-                SteamId64 = "765",
-                Team = 3
-            }
+            new CachedPlayerInfo { Slot = 1, Name = "s1mple", SteamId64 = "765", Team = 3 }
         ],
         Highlights =
         [
@@ -76,7 +62,7 @@ public class MatchOverviewStagingTests
     };
 
     private static MatchOverviewTabViewModel Overview(HighlightsTabViewModel tray) => new(
-        stageClip: (d, r, h, t, s) => tray.StageFromCache(d, r, h, t, s),
+        stageClip: tray.StageFromCache,
         unstageClip: (d, r, h, t, s) => tray.Unstage(new HighlightKey(d, r, h, t, s)),
         isClipStaged: (d, r, h, t, s) => tray.IsStaged(new HighlightKey(d, r, h, t, s)));
 
@@ -187,26 +173,12 @@ public class MatchOverviewStagingTests
         Size = 10,
         ModifiedTicks = 20,
         Map = "de_dust2",
-        Parse = new TierStamp
-        {
-            Schema = DemoCacheRecord.ParseSchema,
-            ComputedAtTicks = 1
-        },
-        Analysis = new TierStamp
-        {
-            Schema = DemoCacheRecord.AnalysisSchema,
-            ComputedAtTicks = 1
-        },
+        Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 },
+        Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
         AnalysisState = DemoAnalysisState.Indexed,
         Players =
         [
-            new CachedPlayerInfo
-            {
-                Slot = 1,
-                Name = "s1mple",
-                SteamId64 = "765",
-                Team = 3
-            }
+            new CachedPlayerInfo { Slot = 1, Name = "s1mple", SteamId64 = "765", Team = 3 }
         ],
         Highlights =
         [
@@ -256,13 +228,12 @@ public class MatchOverviewStagingTests
     [Test]
     public async Task SelectAll_StagesEveryHighlightInTheSection_AndIsAddOnly()
     {
-        (HighlightsTabViewModel tray, _) = Tray();
         DemoCacheStore multi = new(null);
         multi.Upsert(MultiRecord());
         HighlightScanService scanner = new(multi, new NoopHarvester(), () => [], () => false);
         HighlightsTabViewModel multiTray = new(multi, scanner);
         MatchOverviewTabViewModel vm = new(
-            stageClip: (d, r, h, t, s) => multiTray.StageFromCache(d, r, h, t, s),
+            stageClip: multiTray.StageFromCache,
             unstageClip: (d, r, h, t, s) => multiTray.Unstage(new HighlightKey(d, r, h, t, s)),
             isClipStaged: (d, r, h, t, s) => multiTray.IsStaged(new HighlightKey(d, r, h, t, s)));
         vm.SetCachedRecord(MultiRecord());
@@ -295,9 +266,5 @@ public class MatchOverviewStagingTests
 
         public AnalysisRun RunBareAnalysis(ParsedDemo demo) =>
             throw new NotSupportedException("staging tests never scan");
-
-        public void InvalidateRules()
-        {
-        }
     }
 }

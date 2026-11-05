@@ -14,17 +14,15 @@ namespace DemoViewer.NET.TestSupport.Corpus;
 /// </summary>
 public sealed class DirectoryDemoSource : IDemoSource
 {
-    private readonly string _root;
-
     /// <param name="root">The directory the corpus is laid out under. A <c>file://</c> URI is accepted.</param>
     public DirectoryDemoSource(string root)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
-        _root = Normalize(root);
+        Description = Normalize(root);
     }
 
     /// <inheritdoc />
-    public string Description => _root;
+    public string Description { get; }
 
     /// <inheritdoc />
     public bool TryCopyTo(CorpusDemo demo, string destination)
@@ -67,19 +65,19 @@ public sealed class DirectoryDemoSource : IDemoSource
     {
         if (demo.Dir is not null)
         {
-            yield return Path.Combine(_root, demo.Dir, demo.File);
+            yield return Path.Combine(Description, demo.Dir, demo.File);
         }
 
-        yield return Path.Combine(_root, demo.File);
+        yield return Path.Combine(Description, demo.File);
     }
 
     private static string Normalize(string root)
     {
         string trimmed = root.Trim();
         return trimmed.StartsWith("file://", StringComparison.OrdinalIgnoreCase)
-               && Uri.TryCreate(trimmed, UriKind.Absolute, out Uri? uri)
-               && uri.IsFile
-            ? uri.LocalPath
-            : trimmed;
+            && Uri.TryCreate(trimmed, UriKind.Absolute, out Uri? uri)
+            && uri.IsFile
+                ? uri.LocalPath
+                : trimmed;
     }
 }

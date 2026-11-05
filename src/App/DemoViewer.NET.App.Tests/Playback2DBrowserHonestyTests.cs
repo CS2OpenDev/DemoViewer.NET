@@ -50,27 +50,27 @@ public class Playback2DBrowserHonestyTests
         try
         {
             (SettingsViewModel browser, ServiceProvider spB) = NewVm(dir, true);
-            using (spB)
+            await using (spB)
             {
                 Console.WriteLine($"[wasm-honesty] browser note='{browser.KeybindPersistenceNote}'");
 
                 await Assert.That(browser.KeybindsPersist).IsFalse();
                 await Assert.That(browser.KeybindPersistenceNote).IsNotEmpty()
                     .Because("a rebind that dies on refresh with nothing said is exactly the defect this "
-                             + "guards against");
+                        + "guards against");
                 await Assert.That(browser.KeybindPersistenceNote).Contains("Session only");
                 await Assert.That(browser.KeybindPersistenceNote).Contains("reload")
                     .Because("the annotation sentence names the reload, because that is the moment the "
-                             + "user loses the work");
+                        + "user loses the work");
             }
 
             (SettingsViewModel desktop, ServiceProvider spD) = NewVm(dir, false);
-            using (spD)
+            await using (spD)
             {
                 await Assert.That(desktop.KeybindsPersist).IsTrue();
                 await Assert.That(desktop.KeybindPersistenceNote).IsEmpty()
                     .Because("on desktop it is not a caveat, and a permanent warning is noise that "
-                             + "teaches people to stop reading warnings");
+                        + "teaches people to stop reading warnings");
             }
         }
         finally
@@ -90,7 +90,7 @@ public class Playback2DBrowserHonestyTests
         try
         {
             (SettingsViewModel browser, ServiceProvider spB) = NewVm(dir, true);
-            using (spB)
+            await using (spB)
             {
                 Console.WriteLine($"[wasm-honesty] browser rejection='{browser.KeybindRejectionSource}'");
                 await Assert.That(browser.KeybindRejectionSource).DoesNotContain("settings.json");
@@ -99,7 +99,7 @@ public class Playback2DBrowserHonestyTests
             }
 
             (SettingsViewModel desktop, ServiceProvider spD) = NewVm(dir, false);
-            using (spD)
+            await using (spD)
             {
                 await Assert.That(desktop.KeybindRejectionSource).Contains("settings.json")
                     .Because("on desktop the file IS the answer to 'where do I fix this'");
@@ -127,22 +127,22 @@ public class Playback2DBrowserHonestyTests
         string dir = NewTempDir();
         try
         {
-            const string exportId = "playback2d.export";
-            await Assert.That(ShellModuleFeatureGate.DesktopOnlyIds.Contains(exportId)).IsTrue()
+            const string ExportId = "playback2d.export";
+            await Assert.That(ShellModuleFeatureGate.DesktopOnlyIds.Contains(ExportId)).IsTrue()
                 .Because("this suite is asserting about THE desktop-only id, not a spelling of it");
 
             (SettingsViewModel browser, ServiceProvider spB, SettingsService svc) =
                 NewVmWithService(dir, true);
-            using (spB)
+            await using (spB)
             {
-                FeatureToggleRow row = Row(browser, exportId);
+                FeatureToggleRow row = Row(browser, ExportId);
                 Console.WriteLine($"[wasm-honesty] browser row: enabled={row.IsEnabled} "
-                                  + $"interactive={row.IsInteractive} hint='{row.LockHint}'");
+                    + $"interactive={row.IsInteractive} hint='{row.LockHint}'");
 
                 await Assert.That(row.IsPlatformUnavailable).IsTrue();
                 await Assert.That(row.IsEnabled).IsFalse()
                     .Because("the module's own gate answers false, and a list that disagrees with it is "
-                             + "showing the user a capability they do not have");
+                        + "showing the user a capability they do not have");
                 await Assert.That(row.IsInteractive).IsFalse();
                 await Assert.That(row.LockHint).Contains("browser");
 
@@ -150,14 +150,14 @@ public class Playback2DBrowserHonestyTests
                 // that would follow the user to a desktop head they never asked it on.
                 row.IsEnabled = true;
                 await Assert.That(row.IsEnabled).IsFalse();
-                await Assert.That(svc.Current.Features.Overrides.ContainsKey(exportId)).IsFalse()
+                await Assert.That(svc.Current.Features.Overrides.ContainsKey(ExportId)).IsFalse()
                     .Because("an override that can never take effect is a preference nobody expressed");
             }
 
             (SettingsViewModel desktop, ServiceProvider spD) = NewVm(dir, false);
-            using (spD)
+            await using (spD)
             {
-                FeatureToggleRow row = Row(desktop, exportId);
+                FeatureToggleRow row = Row(desktop, ExportId);
                 await Assert.That(row.IsPlatformUnavailable).IsFalse();
                 await Assert.That(row.IsInteractive).IsTrue()
                     .Because("on desktop it is an ordinary, switchable feature");
@@ -226,13 +226,13 @@ public class Playback2DBrowserHonestyTests
             Playback2DTimelineHarness.Pump();
 
             TextBlock label = view.FindControl<TextBlock>("ExportUnavailableLabel")
-                              ?? throw new InvalidOperationException(
-                                  "ExportUnavailableLabel is not in the view — the note has no surface.");
+                ?? throw new InvalidOperationException(
+                    "ExportUnavailableLabel is not in the view — the note has no surface.");
             Button button = view.FindControl<Button>("ExportButton")
-                            ?? throw new InvalidOperationException("ExportButton is gone.");
+                ?? throw new InvalidOperationException("ExportButton is gone.");
 
             Console.WriteLine($"[wasm-honesty] label visible={label.IsEffectivelyVisible} "
-                              + $"text='{label.Text}' button visible={button.IsEffectivelyVisible}");
+                + $"text='{label.Text}' button visible={button.IsEffectivelyVisible}");
 
             await Assert.That(button.IsEffectivelyVisible).IsFalse();
             await Assert.That(label.IsEffectivelyVisible).IsTrue()

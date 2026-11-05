@@ -34,6 +34,7 @@ public class PipStrip : TemplatedControl
         AvaloniaProperty.Register<PipStrip, int>(nameof(Count));
 
     /// <summary>Above this the strip renders the number instead of drawing marks.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<int> MaxPipsProperty =
         AvaloniaProperty.Register<PipStrip, int>(nameof(MaxPips), 12);
 
@@ -46,10 +47,12 @@ public class PipStrip : TemplatedControl
         AvaloniaProperty.Register<PipStrip, IBrush?>(nameof(EmptyBrush));
 
     /// <summary>Mark radius.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<double> PipRadiusProperty =
         AvaloniaProperty.Register<PipStrip, double>(nameof(PipRadius), 3.5);
 
     /// <summary>Gap between mark centres, beyond the diameter.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<double> PipGapProperty =
         AvaloniaProperty.Register<PipStrip, double>(nameof(PipGap), 4);
 
@@ -110,7 +113,7 @@ public class PipStrip : TemplatedControl
     ///     DECLARED cap only; the arranged width can force the same fallback at a lower count, which
     ///     <see cref="Render" /> decides once it knows how much room it actually got.
     /// </summary>
-    public bool IsOverflowing => Count > MaxPips;
+    private bool IsOverflowing => Count > MaxPips;
 
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
@@ -140,12 +143,12 @@ public class PipStrip : TemplatedControl
         // drawn with (Foreground is only the fallback): without it a theme switch repaints every pip
         // and leaves the overflow number in the old theme's colour.
         if (change.Property == CountProperty || change.Property == FontSizeProperty
-                                             || change.Property == ForegroundProperty
-                                             || change.Property == PipBrushProperty
-                                             || change.Property == FontFamilyProperty
-                                             || change.Property == FontWeightProperty
-                                             || change.Property == FontStyleProperty
-                                             || change.Property == FontFeaturesProperty)
+            || change.Property == ForegroundProperty
+            || change.Property == PipBrushProperty
+            || change.Property == FontFamilyProperty
+            || change.Property == FontWeightProperty
+            || change.Property == FontStyleProperty
+            || change.Property == FontFeaturesProperty)
         {
             _overflow = null;
         }
@@ -188,7 +191,7 @@ public class PipStrip : TemplatedControl
         {
             if (EmptyBrush is { } empty)
             {
-                context.DrawEllipse(null, new Pen(empty, 1), new Point(content.X + r, cy), r, r);
+                context.DrawEllipse(null, new Pen(empty), new Point(content.X + r, cy), r, r);
             }
 
             return;

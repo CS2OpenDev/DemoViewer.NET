@@ -11,6 +11,7 @@ namespace DemoViewer.NET.Playback2D.Zones;
 /// <param name="Zones">Custom zones, applied in order after <see cref="Hidden" /> and <see cref="Merges" />.</param>
 /// <param name="Merges">Several baked places becoming one custom place.</param>
 /// <param name="Hidden">Baked places removed from the vocabulary; their areas re-flood from neighbours.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed record ZoneOverlayDocument(
     int SchemaVersion,
     string? MapName,

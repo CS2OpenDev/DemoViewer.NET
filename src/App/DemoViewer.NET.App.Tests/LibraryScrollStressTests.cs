@@ -63,16 +63,8 @@ public class LibraryScrollStressTests
 
             svc.Entries.AddRange(bulk);
 
-            LibraryTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 900,
-                Height = 640,
-                Content = view
-            };
+            LibraryTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 900, Height = 640, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -96,7 +88,8 @@ public class LibraryScrollStressTests
             return Task.CompletedTask;
         });
 
-        Console.WriteLine($"[libscroll] cardSweeps={cardSweeps} listSweeps={listSweeps} failure={failure?.GetType().Name}");
+        Console.WriteLine(
+            $"[libscroll] cardSweeps={cardSweeps} listSweeps={listSweeps} failure={failure?.GetType().Name}");
         await Assert.That(failure).IsNull().Because(failure?.ToString() ?? "no failure");
         await Assert.That(cardSweeps).IsGreaterThan(0);
         await Assert.That(listSweeps).IsGreaterThan(0);
@@ -178,16 +171,8 @@ public class LibraryScrollStressTests
 
             svc.Entries.AddRange(bulk);
 
-            LibraryTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 900,
-                Height = 640,
-                Content = view
-            };
+            LibraryTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 900, Height = 640, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();

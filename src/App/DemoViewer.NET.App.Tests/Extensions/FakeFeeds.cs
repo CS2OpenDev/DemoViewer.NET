@@ -44,7 +44,10 @@ internal static class FakeFeeds
         for (int i = 0; i < entries.Length; i++)
         {
             Entry e = entries[i];
-            string sha = e.Sha256 ?? (e.Bytes is null ? new string('0', 64) : Convert.ToHexStringLower(SHA256.HashData(e.Bytes)));
+            string sha = e.Sha256
+                ?? (e.Bytes is null
+                    ? new string('0', 64)
+                    : Convert.ToHexStringLower(SHA256.HashData(e.Bytes)));
             long size = e.Size ?? e.Bytes?.LongLength ?? 1;
             if (i > 0)
             {
@@ -52,15 +55,15 @@ internal static class FakeFeeds
             }
 
             sb.Append(CultureInfo.InvariantCulture, $$"""
-                {
-                  "version": "{{e.Version}}",
-                  "manifest": {{Manifest(id, e)}},
-                  "url": "{{e.Url}}",
-                  "sha256": "{{sha}}",
-                  "size": {{size}},
-                  "publishedAt": "2026-10-03T12:00:00Z"
-                }
-                """);
+                                                      {
+                                                        "version": "{{e.Version}}",
+                                                        "manifest": {{Manifest(id, e)}},
+                                                        "url": "{{e.Url}}",
+                                                        "sha256": "{{sha}}",
+                                                        "size": {{size}},
+                                                        "publishedAt": "2026-10-03T12:00:00Z"
+                                                      }
+                                                      """);
         }
 
         sb.Append("] }");

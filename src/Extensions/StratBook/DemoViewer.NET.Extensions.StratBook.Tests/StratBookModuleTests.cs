@@ -1,13 +1,13 @@
 #region
 
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Features;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Features;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratTestData;
 
@@ -61,7 +61,8 @@ public class StratBookModuleTests
                 await Assert.That(tab.Header).IsEqualTo("Strats");
                 await Assert.That(tab.HostId).IsEqualTo(HostIds.StratBookHub);
                 await Assert.That(tab.Order).IsEqualTo(0).Because("first on the rail");
-                await Assert.That(tab.ViewModelFactory is not null).IsTrue().Because("lazy and retained, never DataContext");
+                await Assert.That(tab.ViewModelFactory is not null).IsTrue()
+                    .Because("lazy and retained, never DataContext");
                 await Assert.That(tab.DataContext).IsNull();
             }
 
@@ -81,7 +82,8 @@ public class StratBookModuleTests
             {
                 await Assert.That(feature).IsNotNull();
                 await Assert.That(feature!.Scope).IsEqualTo(FeatureScope.Tab);
-                await Assert.That(feature.ParentId).IsEqualTo("pack.stratbook").Because("the tab cascades off with the Strat Book extension");
+                await Assert.That(feature.ParentId).IsEqualTo("pack.stratbook")
+                    .Because("the tab cascades off with the Strat Book extension");
                 await Assert.That(feature.GroupId).IsNull();
                 foreach (UserCategory category in Enum.GetValues<UserCategory>())
                 {
@@ -118,12 +120,18 @@ public class StratBookModuleTests
                     int slot = 0;
                     foreach (string id in five)
                     {
-                        record.Players.Add(new CachedPlayerInfo { Slot = slot++, Name = "p" + id[^2..], SteamId64 = id, Team = 2 });
+                        record.Players.Add(new CachedPlayerInfo
+                        {
+                            Slot = slot++, Name = "p" + id[^2..], SteamId64 = id, Team = 2
+                        });
                     }
 
                     foreach (string id in other)
                     {
-                        record.Players.Add(new CachedPlayerInfo { Slot = slot++, Name = "p" + id[^2..], SteamId64 = id, Team = 3 });
+                        record.Players.Add(new CachedPlayerInfo
+                        {
+                            Slot = slot++, Name = "p" + id[^2..], SteamId64 = id, Team = 3
+                        });
                     }
 
                     DemoCacheStore.StampParse(record);
@@ -142,7 +150,8 @@ public class StratBookModuleTests
                 await Assert.That(vm.Owners.Count).IsEqualTo(teams.Teams.Count + 1);
                 await Assert.That(vm.Owners[0].Owner).IsEqualTo(StratOwner.Me());
                 await Assert.That(vm.Owners[1].Label).EndsWith("(us)").Because("us comes first among the teams");
-                await Assert.That(vm.SelectedOwner!.Owner).IsEqualTo(StratOwner.Team(ours.Id)).Because("the default book is us");
+                await Assert.That(vm.SelectedOwner!.Owner).IsEqualTo(StratOwner.Team(ours.Id))
+                    .Because("the default book is us");
             }
 
             // The editor's pins are the team's latest roster.
@@ -196,7 +205,8 @@ public class StratBookModuleTests
                 await Assert.That(vm.Editor.Map).IsEqualTo("de_nuke");
                 await Assert.That(vm.Editor.Side).IsEqualTo("CT");
                 await Assert.That(vm.Editor.Type).IsEqualTo("setup");
-                await Assert.That(vm.Editor.Slots.Select(s => s.Letter)).IsEquivalentTo(StratVocabulary.Slots, CollectionOrdering.Matching);
+                await Assert.That(vm.Editor.Slots.Select(s => s.Letter))
+                    .IsEquivalentTo(StratVocabulary.Slots, CollectionOrdering.Matching);
                 await Assert.That(store.SessionFor(vm.Strats[0].Id)).IsSameReferenceAs(vm.Session);
             }
         });
@@ -241,11 +251,12 @@ public class StratBookModuleTests
             StratStore store = new(null);
             using StratBookTabViewModel vm = OpenNew(store);
             StratOwner owner = vm.Session.Document!.Owner;
-            store.SaveCallouts(owner, new CalloutTable
-            {
-                Map = "de_mirage",
-                Aliases = [new CalloutAlias { Alias = "A ramp", Place = "TRamp", Primary = true }]
-            });
+            store.SaveCallouts(owner,
+                new CalloutTable
+                {
+                    Map = "de_mirage",
+                    Aliases = [new CalloutAlias { Alias = "A ramp", Place = "TRamp", Primary = true }]
+                });
 
             // Re-open so the editor reads the owner's words.
             Guid id = vm.Session.Document.Id;
@@ -265,7 +276,8 @@ public class StratBookModuleTests
             {
                 await Assert.That(step.AtSeconds).IsEqualTo(90);
                 await Assert.That(step.From!.Place).IsEqualTo("TRamp").Because("steps store places, never callouts");
-                await Assert.That(step.To!.Place).IsEqualTo("Somewhere New").Because("an unknown place is kept and warns");
+                await Assert.That(step.To!.Place).IsEqualTo("Somewhere New")
+                    .Because("an unknown place is kept and warns");
                 await Assert.That(step.Utility!.Kind).IsEqualTo("smoke");
                 await Assert.That(step.Utility.Landing!.Place).IsEqualTo("BombsiteA");
                 await Assert.That(row.FromText).IsEqualTo("A ramp").Because("the table shows the owner's word");
@@ -276,7 +288,8 @@ public class StratBookModuleTests
             using (Assert.Multiple())
             {
                 await Assert.That(step.AtSeconds).IsEqualTo(90);
-                await Assert.That(row.TimeText).IsEqualTo("1:30").Because("text that is not a time falls back to the stored one");
+                await Assert.That(row.TimeText).IsEqualTo("1:30")
+                    .Because("text that is not a time falls back to the stored one");
             }
         });
     }
@@ -289,11 +302,9 @@ public class StratBookModuleTests
             StratStore store = new(null);
             StratDocument document = Minimal();
             store.Save(document, [], "created");
-            using StratSession session = new(store, null, () => false, () => Created)
-            {
-                AutoSaveDelay = TimeSpan.FromHours(1),
-                IdleCommitDelay = TimeSpan.FromHours(1)
-            };
+            using StratSession session = new(store, null, () => false, () => Created);
+            session.AutoSaveDelay = TimeSpan.FromHours(1);
+            session.IdleCommitDelay = TimeSpan.FromHours(1);
             session.Open(document.Id);
 
             Guid smokeLineupId = Guid.NewGuid();
@@ -303,7 +314,8 @@ public class StratBookModuleTests
             editor.Project();
 
             StratStepRow row = editor.Steps[0];
-            await Assert.That(row.LineupOptions.Select(o => o.Label)).IsEquivalentTo([StratEditorViewModel.None], CollectionOrdering.Matching)
+            await Assert.That(row.LineupOptions.Select(o => o.Label))
+                .IsEquivalentTo([StratEditorViewModel.None], CollectionOrdering.Matching)
                 .Because("no utility kind yet: the lookup is never asked");
 
             row.UtilityKind = "smoke";
@@ -312,7 +324,8 @@ public class StratBookModuleTests
             {
                 await Assert.That(row.LineupOptions.Select(o => o.Label))
                     .IsEquivalentTo([StratEditorViewModel.None, "Smoke into CTSpawn"], CollectionOrdering.Matching);
-                await Assert.That(row.Lineup).IsEqualTo(StratLineupOption.None).Because("choosing a kind does not choose a lineup");
+                await Assert.That(row.Lineup).IsEqualTo(StratLineupOption.None)
+                    .Because("choosing a kind does not choose a lineup");
             }
 
             row.Lineup = smokeOption;
@@ -361,7 +374,8 @@ public class StratBookModuleTests
             using (Assert.Multiple())
             {
                 await Assert.That(vm.Session.Document!.Steps.Count).IsEqualTo(2);
-                await Assert.That(vm.Session.Document.Branches.Single().Target.StepId).IsEqualTo(vm.Session.Document.Steps[1].Id);
+                await Assert.That(vm.Session.Document.Branches.Single().Target.StepId)
+                    .IsEqualTo(vm.Session.Document.Steps[1].Id);
                 await Assert.That(vm.Editor.Branches.Count).IsEqualTo(1);
             }
         });
@@ -448,7 +462,8 @@ public class StratBookModuleTests
 
     private sealed class OneLineupCatalog(StratLineupOption smoke) : IStratLineupCatalog
     {
-        public IReadOnlyList<StratLineupOption> Options(string map, string utilityKind) => utilityKind == "smoke" ? [smoke] : [];
+        public IReadOnlyList<StratLineupOption> Options(string map, string utilityKind) =>
+            utilityKind == "smoke" ? [smoke] : [];
 
         public StratLineupChoice? Resolve(string map, Guid lineupId) =>
             lineupId == smoke.Id ? new StratLineupChoice(lineupId, smoke.Label, "smoke", []) : null;

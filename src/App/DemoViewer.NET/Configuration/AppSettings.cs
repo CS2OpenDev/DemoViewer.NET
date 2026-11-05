@@ -19,7 +19,7 @@ namespace DemoViewer.NET.Configuration;
 public sealed class AppSettings
 {
     /// <summary>Demo-library configuration (watched folders, …).</summary>
-    public LibrarySettings Library { get; set; } = new();
+    public LibrarySettings Library { get; init; } = new();
 
     /// <summary>
     ///     Which feature tier the UI presents. Defaults to <see cref="UserCategory.PowerUser" />, the
@@ -28,7 +28,7 @@ public sealed class AppSettings
     public UserCategory UserCategory { get; set; } = UserCategory.PowerUser;
 
     /// <summary>Feature-flag overrides and developer toggles read by the feature-gating layer.</summary>
-    public FeatureFlags Features { get; set; } = new();
+    public FeatureFlags Features { get; init; } = new();
 
     /// <summary>
     ///     Active UI theme, a <see cref="Theming.Theme.Id" /> from the central <see cref="Theming.ThemeRegistry" />
@@ -49,31 +49,31 @@ public sealed class AppSettings
     public bool FirstRunCompleted { get; set; }
 
     /// <summary>Live CS2 sync (CSVG) configuration, desktop-only feature, section always binder-safe.</summary>
-    public LiveSyncSettings LiveSync { get; set; } = new();
+    public LiveSyncSettings LiveSync { get; init; } = new();
 
     /// <summary>Highlights pipeline configuration, desktop-only, binder-safe.</summary>
-    public HighlightsSettings Highlights { get; set; } = new();
+    public HighlightsSettings Highlights { get; init; } = new();
 
     /// <summary>Global demo-processing queue configuration, binder-safe.</summary>
-    public ProcessingQueueSettings ProcessingQueue { get; set; } = new();
+    public ProcessingQueueSettings ProcessingQueue { get; init; } = new();
 
     /// <summary>Unified diagnostics-logging configuration (in-app log window caps + rolling file sink).</summary>
-    public DiagnosticsSettings Diagnostics { get; set; } = new();
+    public DiagnosticsSettings Diagnostics { get; init; } = new();
 
     /// <summary>Idle-mode configuration (auto-close the open demo after inactivity to conserve RAM).</summary>
-    public IdleSettings Idle { get; set; } = new();
+    public IdleSettings Idle { get; init; } = new();
 
     /// <summary>The 2D Playback module's settings. ONE section for the whole module.</summary>
-    public Playback2DSettings Playback2D { get; set; } = new();
+    public Playback2DSettings Playback2D { get; init; } = new();
 
     /// <summary>The extension updater's settings: the feed URL and when Settings last checked.</summary>
-    public ExtensionsSettings Extensions { get; set; } = new();
+    public ExtensionsSettings Extensions { get; init; } = new();
 
     /// <summary>The app updater's settings.</summary>
-    public UpdateSettings Updates { get; set; } = new();
+    public UpdateSettings Updates { get; init; } = new();
 
     /// <summary>Who the user is: their Steam accounts and which one is active.</summary>
-    public IdentitySettings Identity { get; set; } = new();
+    public IdentitySettings Identity { get; init; } = new();
 
     /// <summary>
     ///     The app version (x.y.z) whose release notes the user has been shown, the post-update
@@ -280,7 +280,7 @@ public sealed class LiveSyncSettings
     public bool MockMode { get; set; }
 
     /// <summary>Optional externally-built mock_server path; setting it implies mock mode (CSVG semantics).</summary>
-    public string? ExternalMockServerPath { get; set; }
+    public string? ExternalMockServerPath { get; init; }
 
     /// <summary>
     ///     True when no real CS2 is launched: <see cref="MockMode" />, or a non-blank
@@ -390,6 +390,7 @@ public sealed class UpdateSettings
 ///     The extension updater's settings. Desktop only: the browser head has no
 ///     filesystem to stage into, so it never reads these.
 /// </summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class ExtensionsSettings
 {
     /// <summary>
@@ -438,16 +439,17 @@ public sealed class IdentitySettings
 public sealed class IdentityAccountSettings
 {
     /// <summary>The account's SteamID64.</summary>
-    public string SteamId64 { get; set; } = "";
+    public string SteamId64 { get; init; } = "";
 
     /// <summary>The user's own name for it ("main", "smurf"), or null.</summary>
-    public string? Label { get; set; }
+    public string? Label { get; init; }
 
     /// <summary>When it was added, UTC.</summary>
-    public DateTime AddedUtc { get; set; }
+    public DateTime AddedUtc { get; init; }
 }
 
 /// <summary>Demo-library settings.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class LibrarySettings
 {
     /// <summary>Folders the library indexer watches. Empty by default.</summary>
@@ -463,6 +465,7 @@ public sealed class LibrarySettings
 }
 
 /// <summary>Feature-flag state read by the feature-gating layer.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class FeatureFlags
 {
     /// <summary>Per-feature explicit on/off overrides, keyed by feature id.</summary>

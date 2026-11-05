@@ -7,8 +7,8 @@ using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 using DemoViewer.NET.Services.Export;
 using DemoViewer.NET.ViewModels.Playback2D;
@@ -67,7 +67,7 @@ public class Playback2DExportPaneMountTests
                 // fully-qualified type name as the ContentControl's only text.
                 bool rendersTypeName = view.GetVisualDescendants().OfType<TextBlock>()
                     .Any(t => t.Text?.Contains("Playback2DExportDialogViewModel", StringComparison.Ordinal)
-                              == true);
+                        == true);
                 await Assert.That(rendersTypeName).IsFalse();
             }
             finally
@@ -275,16 +275,8 @@ public class Playback2DExportStatusSurfaceTests
     private static (Window Window, Playback2DExportStatusView View) Show(
         Playback2DExportStatusViewModel status)
     {
-        Playback2DExportStatusView view = new()
-        {
-            DataContext = status
-        };
-        Window window = new()
-        {
-            Width = 420,
-            Height = 420,
-            Content = view
-        };
+        Playback2DExportStatusView view = new() { DataContext = status };
+        Window window = new() { Width = 420, Height = 420, Content = view };
         window.Show();
         Playback2DTimelineHarness.Pump();
         return (window, view);
@@ -377,17 +369,14 @@ public class Playback2DExportSetupTests
                 .Because("with no Application there is no affinity to violate and this proves nothing");
 
             ScenePalette captured = vm.CaptureExportPalette(); // what Start does, on the UI thread
-            Scene2DExportRequest request = Request(null) with
-            {
-                Palette = captured
-            };
+            Scene2DExportRequest request = Request(null) with { Palette = captured };
 
             // Task.Run, not the dispatcher: this is the runner's thread.
             ExportSceneSetup setup = await Task.Run(() => vm.BuildExportSetup(host, request));
 
             await Assert.That(setup.Palette).IsEqualTo(captured)
                 .Because("the palette is resolved at Start and travels on the request; the READ is what "
-                         + "is thread-affine, never the value");
+                    + "is thread-affine, never the value");
         });
 
     private static Scene2DExportRequest Request(AnnotationSession? ink) =>

@@ -65,16 +65,17 @@ public sealed class DemoProvenanceSource : IDemoProvenanceSource, IDisposable
 
         // A pin outlives the demo leaving the library: the hash still names it, and a tag document
         // joined on that hash still wants the answer the user gave.
-        return _teams.ProvenanceOverrides.FirstOrDefault(o => string.Equals(o.DemoSha256, sha256, StringComparison.Ordinal))?.Label;
+        return _teams.ProvenanceOverrides
+            .FirstOrDefault(o => string.Equals(o.DemoSha256, sha256, StringComparison.Ordinal))?.Label;
     }
 
     /// <inheritdoc />
-    public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256s)
+    public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> hashes)
     {
-        ArgumentNullException.ThrowIfNull(sha256s);
+        ArgumentNullException.ThrowIfNull(hashes);
         IReadOnlyList<ProvenanceOverride> overrides = _teams.ProvenanceOverrides;
         Dictionary<string, string?> labels = new(StringComparer.Ordinal);
-        foreach (string sha in sha256s)
+        foreach (string sha in hashes)
         {
             if (string.IsNullOrEmpty(sha) || labels.ContainsKey(sha))
             {
@@ -116,7 +117,7 @@ public sealed class DemoProvenanceSource : IDemoProvenanceSource, IDisposable
     /// </summary>
     /// <param name="entry">The library row.</param>
     /// <param name="assignment">Team Identity's assignment, or null when the demo is unknown or unclusterable.</param>
-    public static ProvenanceInputs InputsFor(LibraryDemo entry, TeamAssignment? assignment)
+    private static ProvenanceInputs InputsFor(LibraryDemo entry, TeamAssignment? assignment)
     {
         ArgumentNullException.ThrowIfNull(entry);
         return new ProvenanceInputs(
@@ -143,7 +144,7 @@ public sealed class DemoProvenanceSource : IDemoProvenanceSource, IDisposable
         string key = DemoKeys.StableKey(entry.FilePath);
         string? pinned = overrides.FirstOrDefault(o => TeamIdentityService.Matches(o, key, entry.Sha256))?.Label;
         string? fallback = DemoProvenanceHeuristic.Default(InputsFor(entry, _teams.GetAssignment(entry.FilePath)));
-        return new DemoProvenance(entry.FilePath, entry.Sha256, pinned ?? fallback, fallback,
+        return new DemoProvenance(entry.Sha256, pinned ?? fallback, fallback,
             pinned is not null ? ProvenanceOrigin.Override
             : fallback is not null ? ProvenanceOrigin.Heuristic
             : ProvenanceOrigin.None);

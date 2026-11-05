@@ -50,8 +50,6 @@ public sealed class DeciderRecord
     public int Wins { get; init; }
 
     public int Losses { get; init; }
-
-    public double? WinRate => Wins + Losses > 0 ? (double)Wins / (Wins + Losses) : null;
 }
 
 /// <summary>
@@ -62,8 +60,6 @@ public sealed class DeciderRecord
 /// </summary>
 public sealed class MapPoolRecord
 {
-    public Guid TeamId { get; init; }
-
     /// <summary>Every map played, most-played first.</summary>
     public IReadOnlyList<MapPoolMapRow> Maps { get; init; } = [];
 

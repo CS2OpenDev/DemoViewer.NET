@@ -1,7 +1,6 @@
 #region
 
 using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -44,9 +43,6 @@ public class ExportLayerParityTests
             [SceneLayerIds.Radar, SceneLayerIds.Vision], false, false);
 
         await Assert.That(ids.Order()).IsEquivalentTo(
-            new[]
-            {
-                SceneLayerIds.Radar, SceneLayerIds.Vision
-            }.Order(), CollectionOrdering.Matching);
+            new[] { SceneLayerIds.Radar, SceneLayerIds.Vision }.Order(), CollectionOrdering.Matching);
     }
 }

@@ -28,8 +28,6 @@ public sealed class TrajectoryBuilder
         _stride = stride;
     }
 
-    /// <summary>The number of kept points so far, the pending last one excluded.</summary>
-    public int Count => _points.Count;
 
     /// <summary>The first point: the release point on the spawn tick, never a cell read.</summary>
     /// <param name="tick">The spawn tick.</param>

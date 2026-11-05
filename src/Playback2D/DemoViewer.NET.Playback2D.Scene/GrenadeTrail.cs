@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Playback2D;
 
 /// <summary>Grenade-projectile kind, drives the trail colour.</summary>
+[PublicAPI]
 public enum GrenadeKind
 {
     /// <summary>A high-explosive grenade.</summary>
@@ -20,6 +21,7 @@ public enum GrenadeKind
 }
 
 /// <summary>One sampled point on a grenade's flight path (world space).</summary>
+[PublicAPI]
 public readonly record struct GrenadeTrailPoint(float X, float Y, float Z);
 
 /// <summary>
@@ -32,6 +34,7 @@ public readonly record struct GrenadeTrailPoint(float X, float Y, float Z);
 ///     opacity for the cloud's whole life. Cleared wholesale on a discontinuous frame jump so a segment never
 ///     streaks across the map.
 /// </summary>
+[PublicAPI]
 public sealed class GrenadeTrail
 {
     /// <summary>The projectile's kind.</summary>

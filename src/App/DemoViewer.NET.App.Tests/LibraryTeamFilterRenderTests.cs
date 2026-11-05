@@ -3,10 +3,9 @@
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Extensions;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.ViewModels.Library;
 using DemoViewer.NET.Views.Library;
 
@@ -78,7 +77,7 @@ public class LibraryTeamFilterRenderTests
 
             DemoLibraryService library = new(a => a(),
                 Path.Combine(Path.GetTempPath(), "dvlibteamrender_" + Guid.NewGuid().ToString("N") + ".json"));
-            foreach (string path in (string[]) ["/d/a.dem", "/d/b.dem", "/d/c.dem"])
+            foreach (string path in (string[])["/d/a.dem", "/d/b.dem", "/d/c.dem"])
             {
                 library.Entries.Add(new DemoEntry
                 {

@@ -5,7 +5,6 @@ using CS2DemoKit.Parser;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.TestSupport;
 
 #endregion
@@ -32,10 +31,11 @@ public class RoundFactsRealDemoTests
     private static RoundFactsRows RowsFor(ParsedDemo parsed, string path)
     {
         DemoCacheStore store = new(null);
-        RoundFactsEvaluator evaluator = new(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
+        RoundFactsEvaluator evaluator = new(store, new EngineRoundFactsRowSource(),
+            new RulesRoundFactsRulesetIdentity());
         evaluator.Evaluate(path, parsed);
         return store.RoundFactsOf(path)
-               ?? throw new InvalidOperationException("the evaluator wrote no rows");
+            ?? throw new InvalidOperationException("the evaluator wrote no rows");
     }
 
     [Test]
@@ -89,7 +89,9 @@ public class RoundFactsRealDemoTests
                     continue;
                 }
 
-                await Assert.That(officiallyEnded.Any(t => panels.Any(s => Math.Abs(t - (decided + s * parsed.TickRate)) <= 1))).IsTrue()
+                await Assert
+                    .That(officiallyEnded.Any(t => panels.Any(s => Math.Abs(t - (decided + s * parsed.TickRate)) <= 1)))
+                    .IsTrue()
                     .Because($"round {round.Number}: the close is 7 s or 8.5 s after the decision");
             }
         }
@@ -161,9 +163,9 @@ public class RoundFactsRealDemoTests
                 // The halftime swap moves the score with the teams; a per-side score therefore swaps too.
                 bool swapped = current.Half != previous.Half;
                 int expectedCt = (swapped ? previous.T.ScoreBefore : previous.Ct.ScoreBefore)
-                                 + (previous.WinnerSide == (swapped ? 2 : 3) ? 1 : 0);
+                    + (previous.WinnerSide == (swapped ? 2 : 3) ? 1 : 0);
                 int expectedT = (swapped ? previous.Ct.ScoreBefore : previous.T.ScoreBefore)
-                                + (previous.WinnerSide == (swapped ? 3 : 2) ? 1 : 0);
+                    + (previous.WinnerSide == (swapped ? 3 : 2) ? 1 : 0);
                 await Assert.That(current.Ct.ScoreBefore).IsEqualTo(expectedCt).Because($"round {current.Number} CT");
                 await Assert.That(current.T.ScoreBefore).IsEqualTo(expectedT).Because($"round {current.Number} T");
             }
@@ -181,7 +183,7 @@ public class RoundFactsRealDemoTests
         // alone reads round 3 CT as semi; the money read makes it force: the CT
         // side lost round 2 and holds $600 across five players at freeze end, under the $2,000 line.
         string path = DemoTestHelper.RequireDemo("match730_003844252717140672725_0377894676_389.dem");
-        ParsedDemo parsed = DemoParser.Parse(File.ReadAllBytes(path).AsMemory());
+        ParsedDemo parsed = DemoParser.Parse((await File.ReadAllBytesAsync(path)).AsMemory());
         RoundFactsRows rows = RowsFor(parsed, path);
         RoundFacts Round(int n) => rows.Rounds.Single(r => r.Number == n);
 

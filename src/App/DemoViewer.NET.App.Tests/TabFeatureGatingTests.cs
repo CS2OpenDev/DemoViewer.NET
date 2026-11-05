@@ -102,7 +102,7 @@ public class TabFeatureGatingTests
 
                 ServiceCollection services = new();
                 services.Configure<AppSettings>(svc.Configuration);
-                using ServiceProvider sp = services.BuildServiceProvider();
+                await using ServiceProvider sp = services.BuildServiceProvider();
                 IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
                 using FeatureGate gate = new(monitor, false);
 
@@ -136,7 +136,7 @@ public class TabFeatureGatingTests
     {
         await WithGatedShell(UserCategory.Consumer, async (_, vm) =>
         {
-            string[] ids = vm.Tabs.Select(t => t.TabId).ToArray();
+            string[] ids = [.. vm.Tabs.Select(t => t.TabId)];
 
             await Assert.That(ids).Contains("builtin.library");
             await Assert.That(ids).Contains("builtin.stats");
@@ -160,7 +160,7 @@ public class TabFeatureGatingTests
     {
         await WithGatedShell(UserCategory.Developer, async (_, vm) =>
         {
-            string[] ids = vm.Tabs.Select(t => t.TabId).ToArray();
+            string[] ids = [.. vm.Tabs.Select(t => t.TabId)];
 
             foreach (string expected in _allTabIds)
             {
@@ -181,7 +181,7 @@ public class TabFeatureGatingTests
             MainViewModel vm = NewShell(null);
             try
             {
-                string[] ids = vm.Tabs.Select(t => t.TabId).ToArray();
+                string[] ids = [.. vm.Tabs.Select(t => t.TabId)];
                 await Assert.That(ids).Contains("builtin.parser");
                 await Assert.That(ids).Contains("builtin.diagnostics");
                 await Assert.That(ids).Contains("ruleworkbench.editor");
@@ -212,7 +212,7 @@ public class TabFeatureGatingTests
             // Flip up to Developer. The write raises Changed inline → reconcile runs synchronously.
             svc.Write(s => s.UserCategory = UserCategory.Developer);
 
-            string[] ids = vm.Tabs.Select(t => t.TabId).ToArray();
+            string[] ids = [.. vm.Tabs.Select(t => t.TabId)];
             await Assert.That(ids).Contains("builtin.parser").Because("a re-enabled tab is inserted live");
             await Assert.That(ids).Contains("builtin.analysis");
             await Assert.That(ids).Contains("builtin.diagnostics");
@@ -235,7 +235,7 @@ public class TabFeatureGatingTests
 
             svc.Write(s => s.UserCategory = UserCategory.Consumer);
 
-            string[] after = vm.Tabs.Select(t => t.TabId).ToArray();
+            string[] after = [.. vm.Tabs.Select(t => t.TabId)];
             await Assert.That(after).DoesNotContain("builtin.parser").Because("the disabled selected tab is removed");
 
             // Selection moved to the nearest lower-Order surviving tab. Parser (Order 0)'s nearest lower in
@@ -273,7 +273,7 @@ public class TabFeatureGatingTests
 
             // Disable (Consumer drops Authoring) then re-enable (Developer re-adds it).
             svc.Write(s => s.UserCategory = UserCategory.Consumer);
-            await Assert.That(vm.Tabs.Select(t => t.TabId).ToArray()).DoesNotContain("ruleworkbench.editor");
+            await Assert.That([.. vm.Tabs.Select(t => t.TabId)]).DoesNotContain("ruleworkbench.editor");
 
             svc.Write(s => s.UserCategory = UserCategory.Developer);
             WorkspaceTabDescriptor reAdded = vm.Tabs.First(t => t.TabId == "ruleworkbench.editor");
@@ -410,16 +410,8 @@ public class TabFeatureGatingTests
             // Sanity: the affordance note is populated (a Consumer hides gated features).
             await Assert.That(vm.HiddenFeatureNote).IsNotEqualTo("");
 
-            MainView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1280,
-                Height = 800,
-                Content = view
-            };
+            MainView view = new() { DataContext = vm };
+            Window window = new() { Width = 1280, Height = 800, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -475,13 +467,15 @@ public class TabFeatureGatingTests
             await Assert.That(vm.IsHexPaneEnabled).IsFalse();
             await Assert.That(vm.IsParseChainEnabled).IsFalse();
             await Assert.That(vm.IsDebuggerChromeEnabled).IsFalse();
-            await Assert.That(vm.IsOutputChromeEnabled).IsFalse().Because("Output chrome is power-user+, off for consumer");
+            await Assert.That(vm.IsOutputChromeEnabled).IsFalse()
+                .Because("Output chrome is power-user+, off for consumer");
             await Assert.That(vm.IsBreakpointNavEnabled).IsFalse();
             await Assert.That(vm.IsSerializerSchemaEnabled).IsFalse();
             await Assert.That(vm.IsAnalysisBreakpointsEnabled).IsFalse();
 
             await Assert.That(vm.HiddenFeatureCount).IsGreaterThan(0);
-            await Assert.That(vm.HiddenFeatureNote).IsNotEqualTo("").Because("a positive hidden count surfaces the affordance");
+            await Assert.That(vm.HiddenFeatureNote).IsNotEqualTo("")
+                .Because("a positive hidden count surfaces the affordance");
         });
     }
 
@@ -541,8 +535,10 @@ public class TabFeatureGatingTests
             svc.Write(s => s.UserCategory = UserCategory.Consumer);
 
             await Assert.That(vm.IsDebuggerChromeEnabled).IsFalse().Because("the chrome gate re-resolved off");
-            await Assert.That(vm.IsDebuggerPanelVisible).IsFalse().Because("the open panel is force-closed when its chrome hides");
-            await Assert.That(shimRaised).IsTrue().Because("the shim re-raises PropertyChanged so bound chrome reflows");
+            await Assert.That(vm.IsDebuggerPanelVisible).IsFalse()
+                .Because("the open panel is force-closed when its chrome hides");
+            await Assert.That(shimRaised).IsTrue()
+                .Because("the shim re-raises PropertyChanged so bound chrome reflows");
         });
     }
 

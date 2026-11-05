@@ -22,6 +22,7 @@ namespace DemoViewer.NET.Playback2D;
 /// <param name="BombDetonation">The depleting detonation arc width.</param>
 /// <param name="BombDefuse">The depleting defuse arc width.</param>
 /// <param name="SmokeStroke">The smoke disc's outline width.</param>
+[PublicAPI]
 public readonly record struct SceneStrokeWidths(
     float MinorGrid = 1f,
     float MajorGrid = 1f,
@@ -77,6 +78,7 @@ public readonly record struct SceneStrokeWidths(
 /// <param name="MarkerRingCt">CT-side marker outline.</param>
 /// <param name="MarkerRingNeutral">Neutral marker outline.</param>
 /// <param name="Strokes">Stroke widths.</param>
+[PublicAPI]
 public readonly record struct ScenePalette(
     SKColor Background,
     SKColor MinorGrid,

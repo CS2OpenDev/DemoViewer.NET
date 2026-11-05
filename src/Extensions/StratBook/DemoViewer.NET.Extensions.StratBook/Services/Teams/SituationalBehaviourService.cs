@@ -32,16 +32,16 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 public sealed class SituationalBehaviourService
 {
     /// <summary>Seconds a clip runs before the moment it was counted for.</summary>
-    public const int ClipLeadSeconds = 5;
+    private const int ClipLeadSeconds = 5;
 
     /// <summary>Seconds a clip runs after the moment it was counted for.</summary>
-    public const int ClipTailSeconds = 8;
+    private const int ClipTailSeconds = 8;
 
     /// <summary>Seconds a round clip runs when the round has no end: comfortably past a live round's length.</summary>
-    public const int FallbackRoundSeconds = 115;
+    private const int FallbackRoundSeconds = 115;
 
     /// <summary>The bucket of anti-eco rounds with no enemy damage at all.</summary>
-    public const string NoContact = "no contact";
+    private const string NoContact = "no contact";
 
     // A record without a clock header is still a CS2 demo; the frame clock of every build here is 64.
     private const int FallbackTickRate = 64;
@@ -125,12 +125,7 @@ public sealed class SituationalBehaviourService
                     .Select(c => c.Value.ToBlock(c.Key.Map, c.Key.Side)))
         ];
 
-        return new SituationalBehaviourSet
-        {
-            TeamId = teamId,
-            Blocks = blocks,
-            DemosRead = read
-        };
+        return new SituationalBehaviourSet { Blocks = blocks, DemosRead = read };
     }
 
     /// <summary>"won"/"lost"/"no result" for the side in the round, the vocabulary <see cref="PistolFollowUpLabel" /> combines.</summary>
@@ -162,7 +157,8 @@ public sealed class SituationalBehaviourService
     };
 
     private static TendencyRound FullRoundClip(DemoContext demo, RoundFacts round) =>
-        ClipRange(demo, round, round.FreezeEndTick, round.EndTick ?? round.FreezeEndTick + FallbackRoundSeconds * demo.Rate);
+        ClipRange(demo, round, round.FreezeEndTick,
+            round.EndTick ?? round.FreezeEndTick + FallbackRoundSeconds * demo.Rate);
 
     private static TendencyRound MomentClip(DemoContext demo, RoundFacts round, int tick) =>
         ClipRange(demo, round, tick - ClipLeadSeconds * demo.Rate, tick + ClipTailSeconds * demo.Rate);
@@ -198,9 +194,12 @@ public sealed class SituationalBehaviourService
         public List<TendencyBucket> Clock(string none)
         {
             int last = -1;
-            for (int bin = 0; bin <= OpeningTendenciesService.ClockCapSeconds / OpeningTendenciesService.ClockBinSeconds; bin++)
+            for (int bin = 0;
+                 bin <= OpeningTendenciesService.ClockCapSeconds / OpeningTendenciesService.ClockBinSeconds;
+                 bin++)
             {
-                if (_rounds.ContainsKey(OpeningTendenciesService.ClockLabel(bin * OpeningTendenciesService.ClockBinSeconds)))
+                if (_rounds.ContainsKey(
+                        OpeningTendenciesService.ClockLabel(bin * OpeningTendenciesService.ClockBinSeconds)))
                 {
                     last = bin;
                 }
@@ -344,7 +343,9 @@ public sealed class SituationalBehaviourService
             TendencyRound clip = MomentClip(demo, round, bestTick);
             _manAdvantageRounds.Add(clip);
             _manAdvantage.Add($"{best}-up", clip);
-            _manAdvantageOutcomes.Add(round.WinnerSide == side ? "closed it out" : round.WinnerSide is 2 or 3 ? "lead given back" : "no result", clip);
+            _manAdvantageOutcomes.Add(
+                round.WinnerSide == side ? "closed it out" :
+                round.WinnerSide is 2 or 3 ? "lead given back" : "no result", clip);
         }
 
         private void AddSaveDiscipline(DemoContext demo, RoundFacts round, int side, RoundFacts? next, int? nextSide,

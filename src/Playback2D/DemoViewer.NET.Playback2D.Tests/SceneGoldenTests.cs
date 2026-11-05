@@ -1,9 +1,9 @@
 #region
 
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Goldens;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
 #endregion
@@ -100,7 +100,7 @@ public class SceneGoldenTests
         GoldenTolerance tolerance = GoldenTolerance.ForLabelledFrame(size.Width, size.Height, labels);
         GoldenComparison result = GoldenImageComparer.Compare(expected, actual, tolerance);
         Console.WriteLine($"[golden] {name} labels={labels} " +
-                          $"glyphBudget={tolerance.MaxGlyphOutlierFraction:P4} {result.Summary}");
+            $"glyphBudget={tolerance.MaxGlyphOutlierFraction:P4} {result.Summary}");
 
         if (!result.Match)
         {

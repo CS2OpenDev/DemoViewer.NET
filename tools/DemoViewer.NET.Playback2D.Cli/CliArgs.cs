@@ -18,6 +18,7 @@ internal sealed class CliUsageException : Exception
     }
 
     /// <summary>Parameterless overload required by CA1032.</summary>
+    [UsedImplicitly]
     public CliUsageException()
     {
     }
@@ -112,9 +113,9 @@ internal sealed class CliArgs
             // "--name value" only when the next token is not itself an option. That keeps "--speed -1"
             // working (a lone '-' prefix is a value, not an option) while "--cpu --json" stays two flags.
             string? value = i + 1 < args.Length && !IsOptionToken(args[i + 1]) &&
-                            !string.Equals(args[i + 1], "--", StringComparison.Ordinal)
-                ? args[++i]
-                : null;
+                !string.Equals(args[i + 1], "--", StringComparison.Ordinal)
+                    ? args[++i]
+                    : null;
             parsed.AddOption(body, value);
         }
 
@@ -206,9 +207,7 @@ internal sealed class CliArgs
     public IReadOnlyList<string>? List(string name)
     {
         string? raw = String(name);
-        return raw is null
-            ? null
-            : raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return raw?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     /// <summary>Marks a positional token consumed for the purpose of unknown-option detection.</summary>

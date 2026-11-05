@@ -36,17 +36,20 @@ public static class QueueWork
         }
 
         IDemoQueueHandle handle = queue.SubmitJob(new QueueJobRequest(kind, title, owner, priority, ctx =>
-        {
-            using (JobScope.Enter(ctx.CancellationToken))
             {
-                work(ctx.CancellationToken);
-            }
+                using (JobScope.Enter(ctx.CancellationToken))
+                {
+                    work(ctx.CancellationToken);
+                }
 
-            return Task.CompletedTask;
-        }, key, ReplacePending: key is not null, Preemptible: preemptible, Serial: serial, ExtensionKind: extensionKind));
+                return Task.CompletedTask;
+            }, key, ReplacePending: key is not null, Preemptible: preemptible, Serial: serial,
+            ExtensionKind: extensionKind));
 
         // A disposed queue refuses without running; the work still has to happen.
-        return handle.State == DemoQueueItemState.Rejected ? Task.Run(() => work(CancellationToken.None)) : handle.Completion;
+        return handle.State == DemoQueueItemState.Rejected
+            ? Task.Run(() => work(CancellationToken.None))
+            : handle.Completion;
     }
 
     /// <summary>
@@ -84,7 +87,9 @@ public static class QueueWork
             }
         }, key, ReplacePending: key is not null, Preemptible: false));
 
-        return handle.State == DemoQueueItemState.Rejected ? Task.Run(() => work(PoolContext.Instance)) : handle.Completion;
+        return handle.State == DemoQueueItemState.Rejected
+            ? Task.Run(() => work(PoolContext.Instance))
+            : handle.Completion;
     }
 
     /// <summary>
@@ -115,7 +120,9 @@ public static class QueueWork
                 }
             }
         });
-        return handle.State == DemoQueueItemState.Rejected ? Task.Run(() => body(PoolContext.Instance)) : handle.Completion;
+        return handle.State == DemoQueueItemState.Rejected
+            ? Task.Run(() => body(PoolContext.Instance))
+            : handle.Completion;
     }
 
     /// <summary>True when there is no queue to submit to, or a test asked for the pool.</summary>

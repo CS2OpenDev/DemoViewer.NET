@@ -22,8 +22,8 @@ namespace DemoViewer.NET.AppTests;
 public class FocusPlayerTests
 {
     internal const ulong Alice = 76561198000000001;
-    internal const ulong Kirk = 76561198000000002;
-    internal const ulong Coach = 76561198000000003;
+    private const ulong Kirk = 76561198000000002;
+    private const ulong Coach = 76561198000000003;
 
     private static NodeSnapshot Num(int value) => new(true, value.ToString(CultureInfo.InvariantCulture), value);
 
@@ -97,16 +97,14 @@ public class FocusPlayerTests
                         ["player_name"] = "Coach",
                         ["steam_id"] = Coach.ToString(CultureInfo.InvariantCulture)
                     },
-                    new Dictionary<string, object?>
-                    {
-                        ["coaching_team"] = 3
-                    })
+                    new Dictionary<string, object?> { ["coaching_team"] = 3 })
             ]);
         return (result, demo, coaches);
     }
 
     /// <summary>A Stats tab over the scenario whose overview entry records what it was asked to open.</summary>
-    internal static StatsTabViewModel Updated(List<(ulong SteamId64, string? Name)>? opened = null, bool withOpener = true)
+    internal static StatsTabViewModel Updated(List<(ulong SteamId64, string? Name)>? opened = null,
+        bool withOpener = true)
     {
         StatsTabViewModel vm = new(null, () => "/demos/match.dem");
         if (withOpener)
@@ -125,7 +123,7 @@ public class FocusPlayerTests
         StatsTabViewModel vm = Updated();
 
         await Assert.That(vm.GameRows.Where(r => r.PlayerName == "Alice").Select(r => r.SteamId64))
-            .IsEquivalentTo(new[] { Alice, Alice }, CollectionOrdering.Matching);
+            .IsEquivalentTo([Alice, Alice], CollectionOrdering.Matching);
         foreach (string name in (string[])["Bob", "BOT Kirk", "Coach"])
         {
             StatsRow row = vm.GameRows.Single(r => r.PlayerName == name);
@@ -161,7 +159,8 @@ public class FocusPlayerTests
 
         await Assert.That(opened).IsEmpty();
         vm.OpenPlayerOverviewCommand.Execute(vm.GameRows.First(r => r.PlayerName == "Alice"));
-        await Assert.That(opened).IsEquivalentTo(new (ulong, string?)[] { (Alice, "Alice") }, CollectionOrdering.Matching);
+        await Assert.That(opened)
+            .IsEquivalentTo(new (ulong, string?)[] { (Alice, "Alice") }, CollectionOrdering.Matching);
     }
 
     [Test]

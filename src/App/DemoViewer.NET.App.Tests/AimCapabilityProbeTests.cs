@@ -30,10 +30,7 @@ public class AimCapabilityProbeTests
     [Test]
     public async Task Probe_WithNoBulletDamageButPlayerHurtPresent_DegradesAccuracyRatherThanSupportingIt()
     {
-        List<GameEvent> events = [];
-        events.AddRange(Shots(40));
-        events.AddRange(Hurts(12, varyHitGroup: true));
-        events.AddRange(Rounds(4, closed: true));
+        List<GameEvent> events = [.. Shots(40), .. Hurts(12, varyHitGroup: true), .. Rounds(4, closed: true)];
 
         AimCapabilityReport report = AimCapabilityProbe.Scan(SyntheticParsedDemo.Create(allGameEvents: events));
 
@@ -52,11 +49,8 @@ public class AimCapabilityProbeTests
     [Test]
     public async Task Probe_WithBulletDamagePresent_SupportsAccuracyAndDamagePerShot()
     {
-        List<GameEvent> events = [];
-        events.AddRange(Shots(40));
-        events.AddRange(BulletDamages(18));
-        events.AddRange(Hurts(12, varyHitGroup: true));
-        events.AddRange(Rounds(4, closed: true));
+        List<GameEvent> events =
+            [.. Shots(40), .. BulletDamages(18), .. Hurts(12, varyHitGroup: true), .. Rounds(4, closed: true)];
 
         AimCapabilityReport report = AimCapabilityProbe.Scan(SyntheticParsedDemo.Create(allGameEvents: events));
 
@@ -232,12 +226,12 @@ public class AimCapabilityProbeTests
                 allGameEvents: [.. Shots(40), .. Sounds(50), .. Rounds(4, closed: true)],
                 profile: profile));
 
-        bool overclaims = report.DeclarationDrift.Any(
-            line => line.Contains("HasPlayerBlind", StringComparison.Ordinal)
-                    && line.Contains("never fires", StringComparison.Ordinal));
-        bool underclaims = report.DeclarationDrift.Any(
-            line => line.Contains("HasPlayerSound", StringComparison.Ordinal)
-                    && line.Contains("is not declared", StringComparison.Ordinal));
+        bool overclaims = report.DeclarationDrift.Any(line => line.Contains("HasPlayerBlind", StringComparison.Ordinal)
+            && line.Contains("never fires",
+                StringComparison.Ordinal));
+        bool underclaims = report.DeclarationDrift.Any(line => line.Contains("HasPlayerSound", StringComparison.Ordinal)
+            && line.Contains("is not declared",
+                StringComparison.Ordinal));
 
         using (Assert.Multiple())
         {
@@ -251,12 +245,11 @@ public class AimCapabilityProbeTests
     [Test]
     public async Task Probe_WithANullDemo_Throws()
     {
-        ArgumentNullException? thrown = await Assert.ThrowsAsync<ArgumentNullException>(
-            () =>
-            {
-                AimCapabilityProbe.Scan(null!);
-                return Task.CompletedTask;
-            });
+        ArgumentNullException? thrown = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+        {
+            AimCapabilityProbe.Scan(null!);
+            return Task.CompletedTask;
+        });
 
         await Assert.That(thrown).IsNotNull();
     }
@@ -269,13 +262,7 @@ public class AimCapabilityProbeTests
         {
             yield return new GameEvent(
                 "weapon_fire", -1, i, i, i,
-                new WeaponFireEvent
-                {
-                    UserId = i % 10,
-                    UserIdPawn = 0,
-                    Weapon = "ak47",
-                    Silenced = false
-                });
+                new WeaponFireEvent { UserId = i % 10, UserIdPawn = 0, Weapon = "ak47", Silenced = false });
         }
     }
 
@@ -287,7 +274,7 @@ public class AimCapabilityProbeTests
             // the probe reads only the wire name and the count, so a payload-free fire keeps the
             // fixture about the thing under test. Field-name reporting is covered against the real
             // fixture, where the payloads are the ones the demo actually carried.
-            yield return new GameEvent("bullet_damage", -1, i, i, i, null!);
+            yield return new GameEvent("bullet_damage", -1, i, i, i);
         }
     }
 
@@ -335,6 +322,7 @@ public class AimCapabilityProbeTests
         for (int i = 0; i < count; i++)
         {
             yield return TestGameEvents.RoundFreezeEnd(frameNumber: i * 100, serverTick: i * 100, gameTick: i * 100);
+
             if (closed)
             {
                 yield return TestGameEvents.RoundOfficiallyEnded(

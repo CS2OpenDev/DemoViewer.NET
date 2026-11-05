@@ -17,6 +17,7 @@ namespace DemoViewer.NET.Playback2D.Levels;
 ///         manual override.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class LevelPane
 {
     /// <summary>
@@ -26,11 +27,10 @@ public sealed class LevelPane
     /// </summary>
     [SuppressMessage("Design", "CA1051:Do not declare visible instance fields",
         Justification = "Deliberate: SliceCamera is a mutable struct that pointer tools update in place. " +
-                        "A property would hand out a copy and break pan/zoom.")]
+            "A property would hand out a copy and break pan/zoom.")]
     public SliceCamera Camera;
 
     private ViewportTransform _epochTransform;
-    private SKRect _viewportRect;
 
     /// <summary>Creates a pane for a level with a starting camera and rig.</summary>
     /// <param name="level">The level this pane shows.</param>
@@ -58,15 +58,15 @@ public sealed class LevelPane
     /// </summary>
     public SKRect ViewportRect
     {
-        get => _viewportRect;
+        get;
         set
         {
-            if (_viewportRect == value)
+            if (field == value)
             {
                 return;
             }
 
-            _viewportRect = value;
+            field = value;
             CameraEpoch++;
         }
     }
@@ -135,6 +135,7 @@ public sealed class LevelPane
 /// <param name="Transform">World → pane-local screen for this frame.</param>
 /// <param name="ViewportRect">Host-space rectangle of the band.</param>
 /// <param name="CameraEpoch">Cache key component for <c>PerCamera</c> pictures.</param>
+[PublicAPI]
 public readonly record struct LevelPaneSnapshot(
     MapLevelId LevelId,
     int LevelIndex,

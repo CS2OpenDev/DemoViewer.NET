@@ -20,10 +20,7 @@ namespace DemoViewer.NET.Services;
 /// </summary>
 public sealed class BookmarkStore
 {
-    private static readonly JsonSerializerOptions _writeOptions = new()
-    {
-        WriteIndented = true
-    };
+    private static readonly JsonSerializerOptions _writeOptions = new() { WriteIndented = true };
 
     private readonly string? _path;
 

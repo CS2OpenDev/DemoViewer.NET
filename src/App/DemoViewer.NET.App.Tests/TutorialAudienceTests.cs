@@ -50,10 +50,7 @@ public class TutorialAudienceTests
 
     private static AppSettings Settings(UserCategory category, params (string Id, bool On)[] overrides)
     {
-        AppSettings settings = new()
-        {
-            UserCategory = category
-        };
+        AppSettings settings = new() { UserCategory = category };
         foreach ((string id, bool on) in overrides)
         {
             settings.Features.Overrides[id] = on;
@@ -222,8 +219,7 @@ public class TutorialAudienceTests
             SettingsService settings = new(dir);
             foreach (Cs2DemosLookup lookup in new[]
                      {
-                         new Cs2DemosLookup(null, []),
-                         new Cs2DemosLookup(null, ["C:/Steam"]),
+                         new Cs2DemosLookup(null, []), new Cs2DemosLookup(null, ["C:/Steam"]),
                          new Cs2DemosLookup("C:/Steam/replays", [])
                      })
             {
@@ -247,7 +243,7 @@ public class TutorialAudienceTests
         }
 
         string root = DemoTestHelper.FindRepoRoot()
-                      ?? throw new InvalidOperationException("repo root not found");
+            ?? throw new InvalidOperationException("repo root not found");
         string views = Path.Combine(root, "src", "App", "DemoViewer.NET", "Views");
         foreach (string xaml in new[]
                  {

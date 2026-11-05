@@ -3,7 +3,6 @@
 using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DemoViewer.NET.Models;
-using DemoViewer.NET.ViewModels.Common;
 
 #endregion
 
@@ -14,8 +13,7 @@ namespace DemoViewer.NET.ViewModels.Analysis;
 ///     <see cref="AnalysisViewModel" /> (the rule-evaluator driver) and owns the
 ///     seek coordination between Analysis and the frame list.
 /// </summary>
-/// <remarks>Initializes a new <see cref="AnalysisTabViewModel" /> instance.</remarks>
-public sealed class AnalysisTabViewModel(FrameNavigationViewModel navigation) : ObservableObject
+public sealed class AnalysisTabViewModel : ObservableObject
 {
     /// <summary>The rule-evaluator driver. Existing UI binds to <c>AnalysisTab.Analysis.*</c>.</summary>
     public AnalysisViewModel Analysis { get; } = new();
@@ -27,13 +25,10 @@ public sealed class AnalysisTabViewModel(FrameNavigationViewModel navigation) : 
     /// </summary>
     public bool IsFrameSeekSuppressed { get; private set; }
 
-    /// <summary>Navigation.</summary>
-    public FrameNavigationViewModel Navigation { get; } = navigation;
-
     /// <summary>No durable Analysis-tab state to restore. Intentional no-op.</summary>
     [SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Uniform per-tab session contract; instance method by design.")]
-    public void RestoreState(TabSessionState s)
+    public void RestoreState(TabSessionState _)
     {
     }
 

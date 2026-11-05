@@ -16,16 +16,8 @@ public class RoundPhasesTests
         PlantTick = plant,
         EndTick = end,
         EndSource = end is null ? RoundEndSource.None : RoundEndSource.WinStatus,
-        Ct = new SideFacts
-        {
-            Side = 3,
-            PlayersAtFreezeEnd = 5
-        },
-        T = new SideFacts
-        {
-            Side = 2,
-            PlayersAtFreezeEnd = 5
-        }
+        Ct = new SideFacts { Side = 3, PlayersAtFreezeEnd = 5 },
+        T = new SideFacts { Side = 2, PlayersAtFreezeEnd = 5 }
     };
 
     [Test]
@@ -118,27 +110,9 @@ public class RoundPhasesTests
         RoundFacts round = Round();
         round.Kills =
         [
-            new KillStep
-            {
-                Tick = 1500,
-                VictimSide = 3,
-                CtAlive = 4,
-                TAlive = 5
-            },
-            new KillStep
-            {
-                Tick = 1800,
-                VictimSide = 2,
-                CtAlive = 4,
-                TAlive = 4
-            },
-            new KillStep
-            {
-                Tick = 1800,
-                VictimSide = 2,
-                CtAlive = 4,
-                TAlive = 3
-            }
+            new KillStep { Tick = 1500, VictimSide = 3, CtAlive = 4, TAlive = 5 },
+            new KillStep { Tick = 1800, VictimSide = 2, CtAlive = 4, TAlive = 4 },
+            new KillStep { Tick = 1800, VictimSide = 2, CtAlive = 4, TAlive = 3 }
         ];
 
         using (Assert.Multiple())

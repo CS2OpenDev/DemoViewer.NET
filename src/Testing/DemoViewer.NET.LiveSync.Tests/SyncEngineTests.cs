@@ -31,10 +31,7 @@ public class SyncEngineTests
 
     private static readonly LiveSyncCapabilities _v11 = LiveSyncCapabilities.None with
     {
-        CommandAck = true,
-        SeekAck = true,
-        EnginePauseDetection = true,
-        UserDemoUi = true
+        CommandAck = true, SeekAck = true, EnginePauseDetection = true, UserDemoUi = true
     };
 
     private static async Task WaitForAsync(Func<bool> condition, string what, int timeoutMs = 5000)
@@ -323,7 +320,8 @@ public class SyncEngineTests
 
             // No status echo at all — the per-tick engine-truth pause flag confirms the toggle.
             engine.NotifyTick(600, false);
-            await WaitForAsync(() => probe.Current.Kind == LiveSyncStateKind.SyncedFollowing, "following via tick truth");
+            await WaitForAsync(() => probe.Current.Kind == LiveSyncStateKind.SyncedFollowing,
+                "following via tick truth");
 
             engine.SetDesiredPlaying(false);
             await WaitForAsync(() => client.Count("pause") >= 1, "pause sent");
@@ -364,10 +362,7 @@ public class SyncEngineTests
 
         // v1.1 timescale-set: mirrored, clamped, and duplicate values are not resent.
         FakeSyncClient client = new();
-        SyncEngine engine = new(client, _fast, _v11 with
-        {
-            TimescaleSet = true
-        });
+        SyncEngine engine = new(client, _fast, _v11 with { TimescaleSet = true });
         StatusProbe probe = new();
         probe.Attach(engine);
         await using (engine)
@@ -448,7 +443,8 @@ public class SyncEngineTests
             engine.NoteRemoteDemoChanged("/cs2/replays/user_pick.dem");
 
             await WaitForAsync(
-                () => probe.Current is { Kind: LiveSyncStateKind.Degraded, RemoteDemoPath: "/cs2/replays/user_pick.dem" },
+                () => probe.Current is
+                    { Kind: LiveSyncStateKind.Degraded, RemoteDemoPath: "/cs2/replays/user_pick.dem" },
                 "degraded with the CS2-side demo path");
             await Assert.That(probe.Current.Reason).Contains("user_pick.dem");
 
@@ -465,7 +461,8 @@ public class SyncEngineTests
             await Assert.That(client.Count("load:")).IsEqualTo(loadsBefore);
 
             engine.NotifyTick(0);
-            await WaitForAsync(() => probe.Current.Kind == LiveSyncStateKind.SyncedHolding, "re-synced on adopted demo");
+            await WaitForAsync(() => probe.Current.Kind == LiveSyncStateKind.SyncedHolding,
+                "re-synced on adopted demo");
         }
     }
 

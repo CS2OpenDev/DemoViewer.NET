@@ -80,8 +80,11 @@ public class StratRoleViewPanelTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(vm.Lines.Any(l => !l.IsContext && l.Text.Contains("molotov", StringComparison.Ordinal))).IsTrue();
-            await Assert.That(vm.Branches).IsEquivalentTo(["if contact at Connector before 1:05 → A exec, double smoke, step 4"], CollectionOrdering.Matching);
+            await Assert.That(vm.Lines.Any(l => !l.IsContext && l.Text.Contains("molotov", StringComparison.Ordinal)))
+                .IsTrue();
+            await Assert.That(vm.Branches)
+                .IsEquivalentTo(["if contact at Connector before 1:05 → A exec, double smoke, step 4"],
+                    CollectionOrdering.Matching);
         }
 
         vm.SelectedSlot = "A";

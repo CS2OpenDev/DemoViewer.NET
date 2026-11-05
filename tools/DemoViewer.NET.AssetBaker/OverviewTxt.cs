@@ -20,7 +20,7 @@ public static class OverviewTxt
 
         // Root wraps one map block, e.g. { "de_nuke": { ...fields... } }. Take the first (only) block.
         KvNode map = root.Children.Values.OfType<KvNode>().FirstOrDefault()
-                     ?? throw new InvalidDataException($"{path}: no map block found");
+            ?? throw new InvalidDataException($"{path}: no map block found");
 
         double posX = map.GetDouble("pos_x");
         double posY = map.GetDouble("pos_y");
@@ -28,7 +28,7 @@ public static class OverviewTxt
         double rotate = map.GetDoubleOrDefault("rotate", 0); // absent ⇒ 0 (no rotation). [UNCERTAIN] — stored raw.
         double zoom = map.GetDoubleOrDefault("zoom", 1); // absent ⇒ 1. [UNCERTAIN] — stored raw.
 
-        List<(string, double, double)> sections = new();
+        List<(string, double, double)> sections = [];
         if (map.Children.TryGetValue("verticalsections", out object? vsObj) && vsObj is KvNode vs)
         {
             foreach ((string name, object child) in vs.Ordered)
@@ -178,7 +178,7 @@ public static class OverviewTxt
         public readonly Dictionary<string, object> Children = new(StringComparer.OrdinalIgnoreCase);
 
         // Preserves insertion order (verticalsections order matters) AND allows keyed lookup.
-        public readonly List<(string Key, object Value)> Ordered = new();
+        public readonly List<(string Key, object Value)> Ordered = [];
 
         public void Add(string key, object value)
         {
@@ -186,7 +186,7 @@ public static class OverviewTxt
             Children[key] = value; // last-wins on dup keys (fine for our fields)
         }
 
-        public string GetString(string key) =>
+        private string GetString(string key) =>
             Children.TryGetValue(key, out object? v) && v is string s
                 ? s
                 : throw new InvalidDataException($"missing key '{key}'");
@@ -196,7 +196,8 @@ public static class OverviewTxt
 
         public double GetDoubleOrDefault(string key, double fallback) =>
             Children.TryGetValue(key, out object? v) && v is string s
-                                                     && double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double d)
+            && double.TryParse(s, NumberStyles.Float,
+                CultureInfo.InvariantCulture, out double d)
                 ? d
                 : fallback;
     }

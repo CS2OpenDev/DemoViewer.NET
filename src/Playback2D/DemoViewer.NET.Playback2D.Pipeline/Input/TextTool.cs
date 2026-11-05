@@ -119,7 +119,7 @@ public sealed class TextTool : IPointerTool
         // The document is checked by identity: a demo swap mid-edit re-points the session, and a string
         // typed for the old demo must not land in the new one. Reset has already dropped the mark there.
         if (document is not null && ReferenceEquals(document, s.Session.Document)
-                                 && document.TryGet(id, out AnnotationElement element))
+            && document.TryGet(id, out AnnotationElement element))
         {
             if (string.IsNullOrWhiteSpace(text))
             {
@@ -127,10 +127,7 @@ public sealed class TextTool : IPointerTool
             }
             else
             {
-                document.Apply(new DocDelta.Replace(id, element with
-                {
-                    Text = text
-                }));
+                document.Apply(new DocDelta.Replace(id, element with { Text = text }));
             }
         }
 

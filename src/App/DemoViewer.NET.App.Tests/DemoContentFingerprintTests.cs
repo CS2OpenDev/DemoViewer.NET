@@ -35,7 +35,7 @@ public class DemoContentFingerprintTests
         return path;
     }
 
-    private static readonly TimeSpan Settled = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan _settled = TimeSpan.FromMinutes(10);
 
     [Test]
     public async Task ALargeFile_ReadsExactlyTwoWindows_AndHashesEachEnd()
@@ -68,7 +68,8 @@ public class DemoContentFingerprintTests
         {
             await Assert.That(stream.BytesRead).IsEqualTo(2L * DemoContentFingerprint.DefaultWindowBytes);
             await Assert.That(stream.Reads).IsEqualTo(2).Because("on a network mount every read is a round trip");
-            await Assert.That(fp.Tail).IsEqualTo(Sha(bytes.AsSpan(bytes.Length - DemoContentFingerprint.DefaultWindowBytes)));
+            await Assert.That(fp.Tail)
+                .IsEqualTo(Sha(bytes.AsSpan(bytes.Length - DemoContentFingerprint.DefaultWindowBytes)));
         }
     }
 
@@ -92,10 +93,11 @@ public class DemoContentFingerprintTests
     public async Task AFileNoLargerThanOneWindow_HasBothEndsEqualToTheContentHash()
     {
         byte[] bytes = Bytes(Window - 7, 4);
-        string path = TempFile(bytes, Settled);
+        string path = TempFile(bytes, _settled);
         try
         {
-            DemoContentFingerprint? fp = DemoContentFingerprint.TryCompute(path, TimeProvider.System, windowBytes: Window);
+            DemoContentFingerprint? fp =
+                DemoContentFingerprint.TryCompute(path, TimeProvider.System, windowBytes: Window);
             string content = DemoContentHash.Compute(path);
 
             await Assert.That(fp).IsNotNull();
@@ -129,12 +131,13 @@ public class DemoContentFingerprintTests
     public async Task TheCombinedPass_MatchesTheContentHash_AndTheStandaloneFingerprint()
     {
         byte[] bytes = Bytes(3 * Window + 11, 5);
-        string path = TempFile(bytes, Settled);
+        string path = TempFile(bytes, _settled);
         try
         {
             (string? sha, DemoContentFingerprint? fp) =
                 DemoContentFingerprint.TryComputeWithContentHash(path, TimeProvider.System, windowBytes: Window);
-            DemoContentFingerprint? alone = DemoContentFingerprint.TryCompute(path, TimeProvider.System, windowBytes: Window);
+            DemoContentFingerprint? alone =
+                DemoContentFingerprint.TryCompute(path, TimeProvider.System, windowBytes: Window);
 
             using (Assert.Multiple())
             {
@@ -178,10 +181,11 @@ public class DemoContentFingerprintTests
     public async Task AWriteDuringTheRead_WithholdsTheHashAndTheFingerprint()
     {
         byte[] bytes = Bytes(2 * Window + 1, 7);
-        string path = TempFile(bytes, Settled);
+        string path = TempFile(bytes, _settled);
         try
         {
-            FileStat old = new(bytes.Length, DateTimeOffset.UtcNow - Settled);
+            FileStat old = new(bytes.Length, DateTimeOffset.UtcNow - _settled);
+
             // IsSettled stats twice and the read is bracketed by two more: the last one sees a new write.
             Func<string, FileStat> Moving()
             {
@@ -272,7 +276,11 @@ public class DemoContentFingerprintTests
         }
 
         public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
-        public override void Flush() { }
+
+        public override void Flush()
+        {
+        }
+
         public override void SetLength(long value) => throw new NotSupportedException();
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }

@@ -26,7 +26,8 @@ public sealed class UiWatchdog : IDisposable
     /// <param name="post">Runs an action on the UI thread; null for the dispatcher.</param>
     /// <param name="limit">How long the UI thread may be quiet; null for ten seconds.</param>
     /// <param name="clock">The clock; null for the system's.</param>
-    public UiWatchdog(Action<bool> report, Action<Action>? post = null, TimeSpan? limit = null, TimeProvider? clock = null)
+    public UiWatchdog(Action<bool> report, Action<Action>? post = null, TimeSpan? limit = null,
+        TimeProvider? clock = null)
     {
         ArgumentNullException.ThrowIfNull(report);
         _report = report;

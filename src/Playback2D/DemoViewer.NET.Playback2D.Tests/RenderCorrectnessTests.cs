@@ -3,15 +3,14 @@
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Cameras;
-using DemoViewer.NET.Playback2D.Pipeline.Cameras;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Hud;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using DemoViewer.NET.Playback2D.Pipeline.Hud;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 
@@ -45,12 +44,9 @@ public class RenderCorrectnessTests
         // else, or a layer that happens to animate would mask it.
         using SceneCompositor compositor = new();
         using CpuSurfaceProvider provider = new();
-        using HeadlessSceneRenderer renderer = new(compositor, provider, new StackedLayout(),
-            ScenePalette.Dark)
-        {
-            Size = new SKSizeI(640, 360),
-            AdvanceCameras = true
-        };
+        using HeadlessSceneRenderer renderer = new(compositor, provider, new StackedLayout(), ScenePalette.Dark);
+        renderer.Size = new SKSizeI(640, 360);
+        renderer.AdvanceCameras = true;
 
         Scene2DFrame frame = PoisonedFrame();
         SceneTime time = new(1000, 0, 0, 1.0 / TickRate, false);
@@ -66,7 +62,7 @@ public class RenderCorrectnessTests
 
         ViewportTransform camera = renderer.Panes.Panes[0].Camera.Current;
         Console.WriteLine($"[nan-camera] keepArmed={keepArmed} centerX={camera.CenterX} " +
-                          $"baseScale={camera.BaseScale}");
+            $"baseScale={camera.BaseScale}");
 
         await Assert.That(double.IsFinite(camera.CenterX)).IsTrue();
         await Assert.That(double.IsFinite(camera.CenterY)).IsTrue();
@@ -100,20 +96,8 @@ public class RenderCorrectnessTests
         SceneFrameBuilder builder = new();
         FakeEntity pawn = new FakeEntity("CCSPlayerPawn").With("m_iHealth", 100);
 
-        FakePlayer broken = new()
-        {
-            Slot = 0,
-            Team = 2,
-            Pawn = pawn,
-            WorldPosition = (float.NaN, 5f, 64f)
-        };
-        FakePlayer sound = new()
-        {
-            Slot = 1,
-            Team = 3,
-            Pawn = pawn,
-            WorldPosition = (100f, 200f, 64f)
-        };
+        FakePlayer broken = new() { Slot = 0, Team = 2, Pawn = pawn, WorldPosition = (float.NaN, 5f, 64f) };
+        FakePlayer sound = new() { Slot = 1, Team = 3, Pawn = pawn, WorldPosition = (100f, 200f, 64f) };
 
         Build(builder, Input([broken], 1, TickRate));
         WorldBounds afterPoison = builder.ObservedBounds;
@@ -158,7 +142,7 @@ public class RenderCorrectnessTests
         compositor.Render(surface.Canvas, Submission(ScenePalette.Light));
 
         Console.WriteLine($"[palette-cache] renders={layer.RenderCalls} " +
-                          $"pixel={PixelAt(surface, 32, 32)}");
+            $"pixel={PixelAt(surface, 32, 32)}");
 
         await Assert.That(layer.RenderCalls).IsEqualTo(2);
         await Assert.That(PixelAt(surface, 32, 32)).IsEqualTo(ScenePalette.Light.MinorGrid);
@@ -193,7 +177,8 @@ public class RenderCorrectnessTests
         byte[] light = Snapshot(surface);
 
         await Assert.That(light).IsNotEquivalentTo(dark, CollectionOrdering.Matching)
-            .Because("a dark grid surviving a light swap at the same epoch is exactly the cache-key defect this guards");
+            .Because(
+                "a dark grid surviving a light swap at the same epoch is exactly the cache-key defect this guards");
     }
 
     // ── the single-pane Render pins every PerCamera key to a default pane ────────────────────────────
@@ -224,7 +209,7 @@ public class RenderCorrectnessTests
         int secondColumn = ColumnOfInk(surface);
 
         Console.WriteLine($"[single-pane] ink column {firstColumn} → {secondColumn}, " +
-                          $"renders={layer.RenderCalls}");
+            $"renders={layer.RenderCalls}");
 
         await Assert.That(layer.RenderCalls).IsEqualTo(2);
         await Assert.That(secondColumn - firstColumn).IsEqualTo(30).Within(1);
@@ -267,11 +252,9 @@ public class RenderCorrectnessTests
         // branch handing a freed SKImage to DrawImage: an access violation inside Skia, not an exception
         // the frame loop can catch. So this asserts on the cache's own state BEFORE it would draw again.
         using SKImage source = SolidImage(64, 64, SKColors.Magenta);
-        using RadarLayer layer = new()
-        {
-            CacheScaledImage = true,
-            RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100)
-        };
+        using RadarLayer layer = new();
+        layer.CacheScaledImage = true;
+        layer.RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100);
 
         using CpuSurfaceProvider provider = new();
         using SKSurface surface = provider.CreateSurface(new SKSizeI(128, 128));
@@ -328,11 +311,9 @@ public class RenderCorrectnessTests
         // exactly two.
         const int Edge = 128;
         using SKImage source = CheckerImage(Edge, Edge);
-        using RadarLayer layer = new()
-        {
-            CacheScaledImage = true,
-            RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100)
-        };
+        using RadarLayer layer = new();
+        layer.CacheScaledImage = true;
+        layer.RadarBoundsOverride = new WorldBounds(-100, -100, 100, 100);
 
         using CpuSurfaceProvider provider = new();
         using SKSurface surface = provider.CreateSurface(new SKSizeI(Edge, Edge));
@@ -361,7 +342,9 @@ public class RenderCorrectnessTests
         using SKSurface surface = SKSurface.Create(new SKImageInfo(width, height,
             SKColorType.Rgba8888, SKAlphaType.Premul));
         surface.Canvas.Clear(SKColors.Black);
-        using SKPaint white = new() { Color = SKColors.White, IsAntialias = false };
+        using SKPaint white = new();
+        white.Color = SKColors.White;
+        white.IsAntialias = false;
         for (int y = 0; y < height; y += 2)
         {
             for (int x = (y / 2 % 2) * 2; x < width; x += 4)
@@ -454,7 +437,7 @@ public class RenderCorrectnessTests
         }
 
         Console.WriteLine($"[hud-collide] {size.Width}x{size.Height} roster={rosterInk} px " +
-                          $"feed={feedInk} px overlap={overlap} px");
+            $"feed={feedInk} px overlap={overlap} px");
 
         await Assert.That(rosterInk).IsGreaterThan(0).Because("the roster must still draw, not withdraw");
         await Assert.That(feedInk).IsGreaterThan(0);
@@ -475,7 +458,7 @@ public class RenderCorrectnessTests
         double centre = (top + bottom) / 2.0;
 
         Console.WriteLine($"[hud-centring] roster ink rows {top}..{bottom}, centre {centre:F1} " +
-                          $"against pane centre {size.Height / 2.0:F1}");
+            $"against pane centre {size.Height / 2.0:F1}");
 
         await Assert.That(Math.Abs(centre - size.Height / 2.0)).IsLessThan(2.0);
     }
@@ -490,13 +473,7 @@ public class RenderCorrectnessTests
         // any HUD source built before the next Build.
         SceneFrameBuilder builder = new();
         FakeEntity pawn = new FakeEntity("CCSPlayerPawn").With("m_iHealth", 100);
-        FakePlayer player = new()
-        {
-            Slot = 0,
-            Team = 2,
-            Pawn = pawn,
-            WorldPosition = (10f, 20f, 64f)
-        };
+        FakePlayer player = new() { Slot = 0, Team = 2, Pawn = pawn, WorldPosition = (10f, 20f, 64f) };
 
         Build(builder, Input([player], 1, TickRate));
         await Assert.That(builder.LastRoster.Count).IsEqualTo(1);
@@ -593,7 +570,7 @@ public class RenderCorrectnessTests
         long steady = MeasureUpdates(factory, frame);
 
         Console.WriteLine($"[alloc] histogram path: warm {warm} B, steady {steady} B over 512 updates " +
-                          $"({steady / 512.0:F2} B/frame)");
+            $"({steady / 512.0:F2} B/frame)");
 
         await Assert.That(steady).IsEqualTo(0);
     }
@@ -650,11 +627,7 @@ public class RenderCorrectnessTests
             new PlayerMarker(0, 2, float.NaN, 0f, 0f, 0f, RingState.Team, 1, "AA", true),
             new PlayerMarker(1, 3, 500f, 300f, 0f, 0f, RingState.Team, 1, "BB", true)
         ],
-        Map = new SceneMapInfo
-        {
-            MapName = "synthetic_nan",
-            ObservedBounds = new WorldBounds(-1000, -1000, 1000, 1000)
-        }
+        Map = new SceneMapInfo { MapName = "synthetic_nan", ObservedBounds = new WorldBounds(-1000, -1000, 1000, 1000) }
     };
 
     // Ten markers on one Z band, and ten on another far enough apart that the density-valley split finds
@@ -679,19 +652,12 @@ public class RenderCorrectnessTests
             Markers = markers,
             Map = new SceneMapInfo
             {
-                MapName = "synthetic_floors",
-                ObservedBounds = new WorldBounds(-1200, -800, 1200, 800)
+                MapName = "synthetic_floors", ObservedBounds = new WorldBounds(-1200, -800, 1200, 800)
             }
         };
     }
 
-    private static MapLevel Level() => new()
-    {
-        Id = new MapLevelId(3),
-        Name = "floor",
-        ZMin = -1000,
-        ZMax = 1000
-    };
+    private static MapLevel Level() => new() { Id = new MapLevelId(3), Name = "floor", ZMin = -1000, ZMax = 1000 };
 
     // A single-pane context that HAS framed its pane, so picture caching is live: the palette gate and
     // the unframed-pane bypass are separate mechanisms and a test of one must not ride on the other.
@@ -851,7 +817,7 @@ public class RenderCorrectnessTests
     }
 
     // SceneFrameInput is a ref struct; an `in` parameter cannot bind a call's return value.
-    private static Scene2DFrame Build(SceneFrameBuilder builder, SceneFrameInput input) =>
+    private static void Build(SceneFrameBuilder builder, SceneFrameInput input) =>
         builder.Build(in input);
 
     private static SceneFrameInput Input(IReadOnlyList<IPlayerState> players, int frameIndex, int tick) =>

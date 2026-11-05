@@ -8,12 +8,12 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Extensions.StratBook.Controls;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
-using DemoViewer.NET.Extensions.StratBook.Controls;
+using DemoViewer.NET.Modules.Playback2D;
 
 #endregion
 
@@ -28,7 +28,8 @@ public class StratDragWindowTests
     public async Task DraggingATokenWithThePointer_ChangesTheRowsField() =>
         await HeadlessSession.RunOnUi(async () =>
         {
-            using StratBookTabViewModel vm = new(new StratStore(null), null, a => Dispatcher.UIThread.Post(a), false, layout: new StratBookLayout(),
+            using StratBookTabViewModel vm = new(new StratStore(null), null, a => Dispatcher.UIThread.Post(a), false,
+                layout: new StratBookLayout(),
                 canvasServices: new StratCanvasServices(null, null, StratTestKeymap.Shipped));
             vm.Session.AutoSaveDelay = TimeSpan.FromHours(1);
             vm.Session.IdleCommitDelay = TimeSpan.FromHours(1);
@@ -38,8 +39,15 @@ public class StratDragWindowTests
             // Everyone at one spot on a hold, then A's move with no place yet.
             StratStep seed = new()
             {
-                Id = Guid.NewGuid(), AtSeconds = 115, Actor = StratVocabulary.ActorAll, Verb = "hold",
-                Positions = [.. StratVocabulary.Slots.Select((s, i) => new StepPosition { Slot = s, X = i * 300, Y = 0, LevelMinZ = 0 })]
+                Id = Guid.NewGuid(),
+                AtSeconds = 115,
+                Actor = StratVocabulary.ActorAll,
+                Verb = "hold",
+                Positions =
+                [
+                    .. StratVocabulary.Slots.Select((s, i) =>
+                        new StepPosition { Slot = s, X = i * 300, Y = 0, LevelMinZ = 0 })
+                ]
             };
             StratStep move = new() { Id = Guid.NewGuid(), AtSeconds = 110, Actor = "A", Verb = "move" };
             vm.Session.Apply(PatchOp.ReplaceOp("/steps", null, new JsonArray(
@@ -55,6 +63,7 @@ public class StratDragWindowTests
             Playback2DTimelineHarness.Pump();
 
             Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().First(h => h.IsEffectivelyVisible);
+
             Point Screen(double x, double y)
             {
                 (double sx, double sy) = host.PrimaryCameraTransform.WorldToScreen(x, y);

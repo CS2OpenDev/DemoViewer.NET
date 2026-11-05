@@ -35,9 +35,10 @@ public static class ExtensionSignature
 
     // Domain-separates the signature from any other 32-byte message this key might ever be asked
     // to sign. The signed message is this tag followed by the digest, never the bare digest.
-    private static readonly byte[] DomainTag = Encoding.ASCII.GetBytes("DemoViewer.NET extension signature v1");
+    private static readonly byte[] _domainTag = [.. "DemoViewer.NET extension signature v1"u8];
 
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly JsonSerializerOptions _jsonOptions =
+        new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     /// <summary>
     ///     The canonical digest of <paramref name="directory" />: every file in the tree, recursive,
@@ -130,10 +131,12 @@ public static class ExtensionSignature
     {
         ArgumentNullException.ThrowIfNull(privateKey);
         byte[] digest = ComputeDigest(directory);
-        byte[] signature = privateKey.SignData(Payload(digest), HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
+        byte[] signature = privateKey.SignData(Payload(digest), HashAlgorithmName.SHA256,
+            DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
         string keyId = KeyId(privateKey.ExportSubjectPublicKeyInfo());
-        SignatureFile file = new(AlgorithmName, keyId, Convert.ToBase64String(digest), Convert.ToBase64String(signature));
-        return JsonSerializer.Serialize(file, JsonOptions);
+        SignatureFile file = new(AlgorithmName, keyId, Convert.ToBase64String(digest),
+            Convert.ToBase64String(signature));
+        return JsonSerializer.Serialize(file, _jsonOptions);
     }
 
     /// <summary>
@@ -169,17 +172,19 @@ public static class ExtensionSignature
         byte[] signature;
         try
         {
-            file = JsonSerializer.Deserialize<SignatureFile>(sigText, JsonOptions);
-            if (file?.KeyId is null || file.Digest is null || file.Signature is null)
+            file = JsonSerializer.Deserialize<SignatureFile>(sigText, _jsonOptions);
+            if (file?.SignerKeyId is null || file.Digest is null || file.Signature is null)
             {
-                return SignatureCheck.Fail(SignatureFailure.Malformed, InvalidDetail, "the signature file is missing a required field");
+                return SignatureCheck.Fail(SignatureFailure.Malformed, InvalidDetail,
+                    "the signature file is missing a required field");
             }
 
             recordedDigest = Convert.FromBase64String(file.Digest);
             signature = Convert.FromBase64String(file.Signature);
             if (recordedDigest.Length != 32)
             {
-                return SignatureCheck.Fail(SignatureFailure.Malformed, InvalidDetail, "the recorded digest is not 32 bytes");
+                return SignatureCheck.Fail(SignatureFailure.Malformed, InvalidDetail,
+                    "the recorded digest is not 32 bytes");
             }
         }
         catch (Exception ex) when (ex is JsonException or FormatException)
@@ -190,7 +195,8 @@ public static class ExtensionSignature
         bool signatureOk;
         try
         {
-            signatureOk = VerifiesAgainstAnyKey(file.KeyId, Payload(recordedDigest), signature, publisherKeysBase64Spki, out bool keyKnown);
+            signatureOk = VerifiesAgainstAnyKey(file.SignerKeyId, Payload(recordedDigest), signature,
+                publisherKeysBase64Spki, out bool keyKnown);
             if (!keyKnown)
             {
                 return SignatureCheck.Fail(SignatureFailure.UnknownKey, NotSignedDetail);
@@ -229,15 +235,17 @@ public static class ExtensionSignature
     }
 
     /// <summary>The SHA-256 of a SubjectPublicKeyInfo, lowercase hex: how a signature names the key it claims.</summary>
-    public static string KeyId(byte[] subjectPublicKeyInfo) => Convert.ToHexStringLower(SHA256.HashData(subjectPublicKeyInfo));
+    public static string KeyId(byte[] subjectPublicKeyInfo) =>
+        Convert.ToHexStringLower(SHA256.HashData(subjectPublicKeyInfo));
 
-    private static byte[] Payload(byte[] digest) => [..DomainTag, ..digest];
+    private static byte[] Payload(byte[] digest) => [.. _domainTag, .. digest];
 
     // True only when a listed key's id matches the claimed one AND that key verifies the signature.
     // keyKnown is false when no listed key has the claimed id, which the caller reads as "not ours"
     // rather than "broken", since nothing here can check a signature against a key it was not given.
     private static bool VerifiesAgainstAnyKey(
-        string claimedKeyId, byte[] payload, byte[] signature, IReadOnlyList<string> publisherKeysBase64Spki, out bool keyKnown)
+        string claimedKeyId, byte[] payload, byte[] signature, IReadOnlyList<string> publisherKeysBase64Spki,
+        out bool keyKnown)
     {
         keyKnown = false;
         foreach (string base64Key in publisherKeysBase64Spki)
@@ -270,12 +278,14 @@ public static class ExtensionSignature
 
             // The signature is always IEEE P1363 over a P-256 key; a listed key on another curve
             // cannot be the one that produced it, whatever its id, so it is never asked to verify.
-            if (!string.Equals(key.ExportParameters(false).Curve.Oid.Value, ECCurve.NamedCurves.nistP256.Oid.Value, StringComparison.Ordinal))
+            if (!string.Equals(key.ExportParameters(false).Curve.Oid.Value, ECCurve.NamedCurves.nistP256.Oid.Value,
+                    StringComparison.Ordinal))
             {
                 continue;
             }
 
-            if (key.VerifyData(payload, signature, HashAlgorithmName.SHA256, DSASignatureFormat.IeeeP1363FixedFieldConcatenation))
+            if (key.VerifyData(payload, signature, HashAlgorithmName.SHA256,
+                    DSASignatureFormat.IeeeP1363FixedFieldConcatenation))
             {
                 return true;
             }
@@ -315,7 +325,8 @@ public static class ExtensionSignature
 
                 if ((attributes & FileAttributes.ReparsePoint) != 0)
                 {
-                    throw new ExtensionSignatureException($"'{relative}' is a link; the signed tree may not contain one");
+                    throw new ExtensionSignatureException(
+                        $"'{relative}' is a link; the signed tree may not contain one");
                 }
 
                 if ((attributes & FileAttributes.Directory) != 0)
@@ -373,18 +384,20 @@ public static class ExtensionSignature
         public SignatureFile(string alg, string keyId, string digest, string signature)
         {
             Alg = alg;
-            KeyId = keyId;
+            SignerKeyId = keyId;
             Digest = digest;
             Signature = signature;
         }
 
-        public string? Alg { get; set; }
+        public string? Alg { get; init; }
 
-        public string? KeyId { get; set; }
+        // Named apart from the outer KeyId method; the JSON field stays "keyId".
+        [JsonPropertyName("keyId")]
+        public string? SignerKeyId { get; init; }
 
-        public string? Digest { get; set; }
+        public string? Digest { get; init; }
 
-        public string? Signature { get; set; }
+        public string? Signature { get; init; }
     }
 }
 
@@ -422,16 +435,13 @@ public sealed record SignatureCheck(bool Verified, SignatureFailure? Failure, st
     public static SignatureCheck Ok { get; } = new(true, null, null);
 
     /// <summary>A failure with its public detail and, optionally, a log-only specific.</summary>
-    public static SignatureCheck Fail(SignatureFailure failure, string detail, string? logDetail = null) => new(false, failure, detail, logDetail);
+    public static SignatureCheck Fail(SignatureFailure failure, string detail, string? logDetail = null) =>
+        new(false, failure, detail, logDetail);
 }
 
 /// <summary>A staged directory's signature could not be computed or checked: a cap was exceeded, a link was found, or a file could not be read.</summary>
 public sealed class ExtensionSignatureException : Exception
 {
-    public ExtensionSignatureException()
-    {
-    }
-
     public ExtensionSignatureException(string message) : base(message)
     {
     }

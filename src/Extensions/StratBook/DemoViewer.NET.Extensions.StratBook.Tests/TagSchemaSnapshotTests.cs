@@ -2,8 +2,8 @@
 
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.TestSupport;
 using TUnit.Core.Exceptions;
 
@@ -36,16 +36,17 @@ internal static class TagTestData
         }
     }
 
-    public static TagInstance Instance(string code, int from, int to, params (string Group, string Value)[] labels) => new()
-    {
-        Id = Guid.NewGuid(),
-        Code = code,
-        FromTick = from,
-        ToTick = to,
-        CreatedUtc = Created,
-        ModifiedUtc = Created,
-        Labels = [.. labels.Select(l => new TagLabel(l.Group, l.Value))]
-    };
+    public static TagInstance Instance(string code, int from, int to, params (string Group, string Value)[] labels) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            Code = code,
+            FromTick = from,
+            ToTick = to,
+            CreatedUtc = Created,
+            ModifiedUtc = Created,
+            Labels = [.. labels.Select(l => new TagLabel(l.Group, l.Value))]
+        };
 
     public static TagDocument Document(string sha = Sha, params TagInstance[] instances)
     {
@@ -93,7 +94,10 @@ internal static class TagTestData
                 new TagLabel("outcome", "won"),
                 new TagLabel("site", "A"),
                 new TagLabel("site", "B"),
-                new TagLabel("", "sloppy") { Extra = new Dictionary<string, JsonElement> { ["futureLabel"] = Element("\"kept\"") } }
+                new TagLabel("", "sloppy")
+                {
+                    Extra = new Dictionary<string, JsonElement> { ["futureLabel"] = Element("\"kept\"") }
+                }
             ],
             Facts =
             [
@@ -111,7 +115,15 @@ internal static class TagTestData
             [
                 new TagMovement
                 {
-                    From = new TagPosition { X = -220, Y = 1610, LevelMinZ = -384, Tick = 41300, Place = "Ramp", PlaceSource = "pawn" },
+                    From = new TagPosition
+                    {
+                        X = -220,
+                        Y = 1610,
+                        LevelMinZ = -384,
+                        Tick = 41300,
+                        Place = "Ramp",
+                        PlaceSource = "pawn"
+                    },
                     To = new TagPosition { X = -1180.5, Y = 2044.25, LevelMinZ = -384, Tick = 41600 }
                 }
             ],
@@ -128,9 +140,9 @@ internal static class TagTestData
             ModifiedUtc = Created.AddHours(1),
             Source = TagSources.Suggested,
             Provenance = JsonNode.Parse("""
-                { "source": "suggested-tags", "detector": "execute", "proposalId": "exec|r12|T|BombsiteB|s=21",
-                  "confidence": 0.78, "detectorSetFingerprint": "abc123", "edited": false }
-                """)!.AsObject(),
+                                        { "source": "suggested-tags", "detector": "execute", "proposalId": "exec|r12|T|BombsiteB|s=21",
+                                          "confidence": 0.78, "detectorSetFingerprint": "abc123", "edited": false }
+                                        """)!.AsObject(),
             Labels = [new TagLabel(TagStore.StratGroup, "b-split")]
         });
 
@@ -163,7 +175,8 @@ public class TagSchemaSnapshotTests
         if (Environment.GetEnvironmentVariable("PB2D_GOLDEN_UPDATE") == "1")
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, JsonSerializer.Serialize(TagTestData.SchemaSample(), TagJsonContext.Default.TagDocument) + "\n");
+            await File.WriteAllTextAsync(path,
+                JsonSerializer.Serialize(TagTestData.SchemaSample(), TagJsonContext.Default.TagDocument) + "\n");
         }
 
         if (!File.Exists(path))
@@ -171,7 +184,7 @@ public class TagSchemaSnapshotTests
             throw new SkipTestException($"missing {path}; regenerate with PB2D_GOLDEN_UPDATE=1");
         }
 
-        string original = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        string original = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
         string root = TagTestData.TempRoot();
         try
         {
@@ -179,7 +192,7 @@ public class TagSchemaSnapshotTests
             // goes through are the store's.
             string sidecar = TagStore.SidecarPathFor(root, TagTestData.Sha);
             Directory.CreateDirectory(Path.GetDirectoryName(sidecar)!);
-            File.WriteAllText(sidecar, original);
+            await File.WriteAllTextAsync(sidecar, original);
 
             TagStore store = new(PackStores.At(root));
             TagLoadResult loaded = store.Load(TagTestData.Sha, TagTestData.Clock);
@@ -194,15 +207,18 @@ public class TagSchemaSnapshotTests
                 await Assert.That(document.Instances[0].Labels.Count(l => l.Group == "site")).IsEqualTo(2)
                     .Because("groups repeat: labels are a list, not a dictionary");
                 await Assert.That(document.Instances[0].Facts.Count).IsEqualTo(6);
-                await Assert.That(document.Instances[1].Provenance!["detector"]!.GetValue<string>()).IsEqualTo("execute");
+                await Assert.That(document.Instances[1].Provenance!["detector"]!.GetValue<string>())
+                    .IsEqualTo("execute");
                 await Assert.That(document.Extra!.ContainsKey("futureRoot")).IsTrue();
             }
 
             await Assert.That(store.Save(document)).IsTrue();
-            string round = File.ReadAllText(sidecar);
+            string round = await File.ReadAllTextAsync(sidecar);
             await Assert.That(round + "\n").IsEqualTo(original)
-                .Because("the v1 sidecar is a published format; a round trip must be field-identical, unknown fields included");
-            await Assert.That(JsonSerializer.Serialize(TagTestData.SchemaSample(), TagJsonContext.Default.TagDocument) + "\n")
+                .Because(
+                    "the v1 sidecar is a published format; a round trip must be field-identical, unknown fields included");
+            await Assert.That(JsonSerializer.Serialize(TagTestData.SchemaSample(), TagJsonContext.Default.TagDocument)
+                    + "\n")
                 .IsEqualTo(original).Because("this build still writes the committed shape");
         }
         finally
@@ -215,7 +231,8 @@ public class TagSchemaSnapshotTests
     public async Task NoSuggestionBlock_AndNullFieldsAreAbsent()
     {
         TagInstance bare = TagTestData.Instance("Default", 100, 200);
-        string json = JsonSerializer.Serialize(TagTestData.Document(TagTestData.Sha, bare), TagJsonContext.Default.TagDocument);
+        string json = JsonSerializer.Serialize(TagTestData.Document(TagTestData.Sha, bare),
+            TagJsonContext.Default.TagDocument);
 
         using (Assert.Multiple())
         {

@@ -65,12 +65,14 @@ public static class LiveAimStats
             return [];
         }
 
-        return Directory.EnumerateDirectories(fixtures)
-            .Where(dir => File.Exists(Path.Combine(dir, "expected.golden.json")))
-            .Select(Path.GetFileName)
-            .OfType<string>()
-            .OrderBy(id => id, StringComparer.Ordinal)
-            .ToList();
+        return
+        [
+            .. Directory.EnumerateDirectories(fixtures)
+                .Where(dir => File.Exists(Path.Combine(dir, "expected.golden.json")))
+                .Select(Path.GetFileName)
+                .OfType<string>()
+                .OrderBy(id => id, StringComparer.Ordinal)
+        ];
     }
 
     /// <summary>
@@ -104,10 +106,7 @@ public static class LiveAimStats
         ArgumentNullException.ThrowIfNull(demo);
 
         VisibilityEngine? vision = TryLoadCollision(demo.MapName);
-        AnalysisOptions options = new()
-        {
-            VisibilityEngine = vision
-        };
+        AnalysisOptions options = new() { VisibilityEngine = vision };
 
         RuleConfigLoadResult loaded = YamlConfigLoader.LoadDocuments(
             [(RulesetRelativePath, File.ReadAllText(RulesetPath()))]);
@@ -124,7 +123,7 @@ public static class LiveAimStats
         try
         {
             result = DemoAnalysis.Evaluate(demo, build, options).Snapshots
-                     ?? throw new InvalidOperationException("evaluation produced no snapshots");
+                ?? throw new InvalidOperationException("evaluation produced no snapshots");
         }
         catch (InvalidOperationException ex) when (AimSchemaDriftException.LooksLikeDrift(ex))
         {
@@ -179,7 +178,7 @@ public static class LiveAimStats
     /// </summary>
     /// <param name="path">The demo file.</param>
     /// <returns>The hash.</returns>
-    public static string Sha256OfFile(string path)
+    private static string Sha256OfFile(string path)
     {
         using FileStream stream = File.OpenRead(path);
         return Convert.ToHexStringLower(SHA256.HashData(stream));
@@ -198,7 +197,7 @@ public static class LiveAimStats
     /// </summary>
     /// <param name="mapName">The map, for example <c>de_nuke</c>.</param>
     /// <returns>The path, or <c>null</c>.</returns>
-    public static string? FindCollisionBake(string? mapName) => CollisionSoup.Find(mapName);
+    private static string? FindCollisionBake(string? mapName) => CollisionSoup.Find(mapName);
 
     private static VisibilityEngine? TryLoadCollision(string? mapName) =>
         FindCollisionBake(mapName) is { } path ? CollisionSoup.Load(path) : null;
@@ -206,8 +205,8 @@ public static class LiveAimStats
     private static string RulesetPath()
     {
         string root = DemoTestHelper.FindRepoRoot()
-                      ?? throw new SkipTestException(
-                          "Repo root not located from the test assembly (looked for the solution file).");
+            ?? throw new SkipTestException(
+                "Repo root not located from the test assembly (looked for the solution file).");
 
         string path = Path.Combine(root, "rules", "aim_rating.rules.yaml");
         return File.Exists(path)
@@ -255,19 +254,14 @@ public sealed record AimPlayerRow(string Name, int Slot, int Team, IReadOnlyDict
 ///     reading 0.0, and comparing it against a reference would manufacture a divergence.
 /// </param>
 /// <param name="Players">Per-player rows, keyed by display name.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record AimRunResult(
     string DemoFileName,
     string DemoSha256,
     string? MapName,
     double TickRate,
     bool VisibilityAvailable,
-    IReadOnlyDictionary<string, AimPlayerRow> Players)
-{
-    /// <summary>Whether a stat's tier is actually supported by this run.</summary>
-    /// <param name="tier">The tier to test.</param>
-    /// <returns><c>true</c> when the tier can produce a real measurement on this run.</returns>
-    public bool Supports(AimTier tier) => tier != AimTier.Visibility || VisibilityAvailable;
-}
+    IReadOnlyDictionary<string, AimPlayerRow> Players);
 
 /// <summary>
 ///     Raised when a per-player entity provider the aim ruleset needs names a field the demo's
@@ -291,6 +285,7 @@ public sealed record AimRunResult(
 ///         it.
 ///     </para>
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed class AimSchemaDriftException : Exception
 {
     /// <summary>Creates an empty exception.</summary>
@@ -321,7 +316,7 @@ public sealed class AimSchemaDriftException : Exception
     /// <param name="inner">The provider guard's exception.</param>
     /// <returns>The exception.</returns>
     public static AimSchemaDriftException For(string demoFileName, Exception inner) =>
-        new($"'{demoFileName}' cannot feed the aim ruleset: {inner?.Message}", demoFileName, inner!);
+        new($"'{demoFileName}' cannot feed the aim ruleset: {inner.Message}", demoFileName, inner);
 
     /// <summary>
     ///     Whether an exception is the provider schema guard rather than any other invalid-operation
@@ -331,6 +326,6 @@ public sealed class AimSchemaDriftException : Exception
     /// <param name="ex">The exception.</param>
     /// <returns><c>true</c> when it is the schema guard.</returns>
     public static bool LooksLikeDrift(Exception ex) =>
-        ex?.Message.Contains("does not exist on", StringComparison.Ordinal) == true
+        ex.Message.Contains("does not exist on", StringComparison.Ordinal)
         && ex.Message.Contains("provider '", StringComparison.Ordinal);
 }

@@ -15,6 +15,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui;
 ///     every bound consumer (filter re-application, ItemsControl container generation) run once per
 ///     entry: O(N²) total. One Reset = one rebuild.
 /// </summary>
+[PublicAPI]
 public sealed class BulkObservableCollection<T> : ObservableCollection<T>
 {
     /// <summary>Replaces the whole contents with <paramref name="items" /> under a single Reset notification.</summary>
@@ -43,7 +44,8 @@ public sealed class BulkObservableCollection<T> : ObservableCollection<T>
         HashSet<T> wanted = new(target, ReferenceEqualityComparer.Instance as IEqualityComparer<T>);
         HashSet<T> present = new(Items, ReferenceEqualityComparer.Instance as IEqualityComparer<T>);
         List<T> staying = [.. Items.Where(wanted.Contains)];
-        if (!staying.SequenceEqual(target.Where(present.Contains), ReferenceEqualityComparer.Instance as IEqualityComparer<T>))
+        if (!staying.SequenceEqual(target.Where(present.Contains),
+                ReferenceEqualityComparer.Instance as IEqualityComparer<T>))
         {
             ReplaceAll(target);
             return;
@@ -76,7 +78,8 @@ public sealed class BulkObservableCollection<T> : ObservableCollection<T>
             }
 
             changed = true;
-            OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, gone, start));
+            OnCollectionChanged(
+                new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, gone, start));
             end = start;
         }
 

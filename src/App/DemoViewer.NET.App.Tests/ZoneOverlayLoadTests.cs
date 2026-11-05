@@ -4,13 +4,12 @@ using Avalonia.Threading;
 using CS2DemoKit.Analysis.Visibility;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Modules.RuleWorkbench;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Playback2D.Pipeline.Assets;
+using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Zones;
 using TUnit.Core.Exceptions;
-using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 
 #endregion
 
@@ -69,17 +68,17 @@ public class ZoneOverlayLoadTests
             await RequireNobodyHoldsTheMap();
             using RuleWorkbenchTabViewModel workbench = new();
 
-            (Playback2DTabViewModel vm, _) = ActivatedTab();
+            Playback2DTabViewModel vm = ActivatedTab();
             PlaceResolver? resolver = vm.Zones;
 
             await Assert.That(resolver).IsNotNull();
             await Assert.That(resolver!.Zones.HasOverlay).IsFalse();
-            await Assert.That(vm.MapAsset!.ZoneLoad.Diagnostics.Select(d => d.Code).ToArray())
+            await Assert.That([.. vm.MapAsset!.ZoneLoad.Diagnostics.Select(d => d.Code)])
                 .Contains("zones.overlay.malformed");
 
             // Published to the hub on the first read, and from there onto the Workbench's rows.
             await Assert.That(ZoneOverlayDiagnostics.OverlayPath).IsEqualTo(overlay);
-            await Assert.That(ZoneOverlayDiagnostics.Current.Select(d => d.Code).ToArray())
+            await Assert.That([.. ZoneOverlayDiagnostics.Current.Select(d => d.Code)])
                 .Contains("zones.overlay.malformed");
 
             Dispatcher.UIThread.RunJobs();
@@ -103,7 +102,7 @@ public class ZoneOverlayLoadTests
         {
             ZoneOverlayDiagnostics.Reset();
             await RequireNobodyHoldsTheMap();
-            (Playback2DTabViewModel vm, _) = ActivatedTab();
+            Playback2DTabViewModel vm = ActivatedTab();
             LoadedMapAsset? asset = vm.MapAsset;
             await Assert.That(asset).IsNotNull();
 
@@ -112,15 +111,15 @@ public class ZoneOverlayLoadTests
             await Assert.That(before!.PlaceId("Sandwich")).IsNull();
 
             ConfigDir.WriteOverlay("""
-                                {
-                                  "schemaVersion": 1,
-                                  "mapName": "de_nuke",
-                                  "zones": [
-                                    { "name": "Sandwich", "floor": -512,
-                                      "polygon": [ -1600, -1900, -1200, -1900, -1200, -1500, -1600, -1500 ] }
-                                  ]
-                                }
-                                """);
+                                   {
+                                     "schemaVersion": 1,
+                                     "mapName": "de_nuke",
+                                     "zones": [
+                                       { "name": "Sandwich", "floor": -512,
+                                         "polygon": [ -1600, -1900, -1200, -1900, -1200, -1500, -1600, -1500 ] }
+                                     ]
+                                   }
+                                   """);
 
             vm.ReloadZonesCommand.Execute(null);
 
@@ -130,7 +129,8 @@ public class ZoneOverlayLoadTests
             await Assert.That(after!.PlaceId("Sandwich")).IsNotNull();
             await Assert.That(after.Zones.HasOverlay).IsTrue();
             await Assert.That(after.Zones.EffectiveVersion).IsNotEqualTo(before.Zones.EffectiveVersion);
-            await Assert.That(after.Zones.Places.Single(p => p.Name == "Sandwich").Origin).IsEqualTo(PlaceOrigin.Custom);
+            await Assert.That(after.Zones.Places.Single(p => p.Name == "Sandwich").Origin)
+                .IsEqualTo(PlaceOrigin.Custom);
             await Assert.That(ZoneOverlayDiagnostics.Current.Count).IsEqualTo(0);
             await Assert.That(vm.Status).Contains("Zones reloaded");
 
@@ -166,24 +166,25 @@ public class ZoneOverlayLoadTests
         }
 
         ConfigDir.WriteOverlay("""
-                            {
-                              "schemaVersion": 1,
-                              "mapName": "de_nuke",
-                              "zones": [
-                                { "name": "Sandwich", "floor": -512,
-                                  "polygon": [ -1600, -1900, -1200, -1900, -1200, -1500, -1600, -1500 ] }
-                              ]
-                            }
-                            """);
+                               {
+                                 "schemaVersion": 1,
+                                 "mapName": "de_nuke",
+                                 "zones": [
+                                   { "name": "Sandwich", "floor": -512,
+                                     "polygon": [ -1600, -1900, -1200, -1900, -1200, -1500, -1600, -1500 ] }
+                                 ]
+                               }
+                               """);
 
         PlaceResolver? second = lease.RefreshZones();
         await Assert.That(second).IsNotNull();
         using (Assert.Multiple())
         {
-            await Assert.That(ReferenceEquals(second, first)).IsFalse().Because("the overlay was saved after the first read");
+            await Assert.That(ReferenceEquals(second, first)).IsFalse()
+                .Because("the overlay was saved after the first read");
             await Assert.That(second!.PlaceId("Sandwich")).IsNotNull();
             await Assert.That(second.Zones.HasOverlay).IsTrue();
-            await Assert.That(second.Zones.EffectiveVersion).IsNotEqualTo(first!.Zones.EffectiveVersion);
+            await Assert.That(second.Zones.EffectiveVersion).IsNotEqualTo(first.Zones.EffectiveVersion);
             await Assert.That(ReferenceEquals(lease.RefreshZones(), second)).IsTrue()
                 .Because("an unchanged overlay is not re-read");
             await Assert.That(ReferenceEquals(lease.Zones, second)).IsTrue()
@@ -198,17 +199,13 @@ public class ZoneOverlayLoadTests
         await Assert.That(MapBundleLeases.HoldersOf(Map)).IsEqualTo(0)
             .Because($"another test is still holding {Map}, so its overlay root is the one in force");
 
-    private static (Playback2DTabViewModel Vm, Playback2DFakeContext Ctx) ActivatedTab()
+    private static Playback2DTabViewModel ActivatedTab()
     {
-        Playback2DFakeContext ctx = new()
-        {
-            MapName = Map,
-            Gate = new FakeModuleFeatureGate()
-        };
+        Playback2DFakeContext ctx = new() { MapName = Map, Gate = new FakeModuleFeatureGate() };
         ctx.AddPlayer(0, "Alpha", 2);
         Playback2DTabViewModel vm = new();
         vm.OnActivated(ctx);
-        return (vm, ctx);
+        return vm;
     }
 
     private static string RequireBundle()
@@ -235,7 +232,7 @@ public class ZoneOverlayLoadTests
             Environment.SetEnvironmentVariable(AppPaths.ConfigDirEnvVar, Path);
         }
 
-        public string Path { get; }
+        private string Path { get; }
 
         public static string WriteOverlay(string json)
         {

@@ -26,7 +26,6 @@ namespace DemoViewer.NET.ViewModels.Update;
 /// </summary>
 public sealed partial class UpdateViewModel : ViewModelBase
 {
-    private static UpdateViewModel? _shared;
     private readonly IUpdateService? _service;
 
     /// <summary>The version offered by the last check; drives the banner text.</summary>
@@ -76,8 +75,8 @@ public sealed partial class UpdateViewModel : ViewModelBase
     /// </summary>
     public static UpdateViewModel Shared
     {
-        get => _shared ??= new UpdateViewModel(AppHostHooks.UpdateServiceFactory?.Invoke());
-        set => _shared = value;
+        get => field ??= new UpdateViewModel(AppHostHooks.UpdateServiceFactory?.Invoke());
+        set;
     }
 
     /// <summary>True when this build can update at all: gates the Settings controls.</summary>

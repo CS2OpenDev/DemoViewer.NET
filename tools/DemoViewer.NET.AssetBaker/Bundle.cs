@@ -17,12 +17,14 @@ public sealed record RadarTransform(
     int ImageSize);
 
 /// <summary>The map's world-space playable rectangle (derived from the radar coverage).</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record WorldBounds(double MinX, double MinY, double MaxX, double MaxY);
 
 /// <summary>One nav-derived walkable floor band (world Z) — feeds the app's FloorSplitter.SetSectionHeights.</summary>
 public sealed record FloorBand(double MinZ, double MaxZ);
 
 /// <summary>overview-txt verticalsection → which radar PNG applies over a Z band (image-selection, not storeys).</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record RadarLayer(double MinZ, double MaxZ, string Image);
 
 /// <summary>
@@ -30,6 +32,7 @@ public sealed record RadarLayer(double MinZ, double MaxZ, string Image);
 ///     raycasts for 3D line-of-sight. Absent (null) when a map has no extractable collision. Bounds are the
 ///     collision AABB (world units), useful as a coarse pre-reject and a frame-alignment sanity check.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record CollisionMeshRef(
     string File,
     int TriangleCount,
@@ -45,6 +48,7 @@ public sealed record CollisionMeshRef(
 ///     the radar PNG(s). The app loads this VRF-free and selects it by (MapName × MapVersion). The nav-derived
 ///     <see cref="Floors" /> are the headline: real walkable Z bands, computed once, no runtime nav parse.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record AssetBundle(
     int SchemaVersion,
     string MapName,

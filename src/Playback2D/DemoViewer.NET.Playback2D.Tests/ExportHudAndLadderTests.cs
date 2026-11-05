@@ -7,13 +7,13 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using DemoViewer.NET.Playback2D.Pipeline.Hud;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 
@@ -46,14 +46,14 @@ public class KillFeedTimelineTests
     [Test]
     public async Task AKillExactlyAtTheWindowsLowerEdge_HasExpired()
     {
-        const int tickRate = 64;
+        const int TickRate = 64;
         int nowTick = 10_000;
-        int lowTick = nowTick - KillFeedTimeline.DefaultWindowSeconds * tickRate;
+        int lowTick = nowTick - KillFeedTimeline.DefaultWindowSeconds * TickRate;
 
         List<KillFeedRow> all = [Kill(lowTick), Kill(lowTick + 1)];
         List<KillFeedRow> window = [];
 
-        KillFeedTimeline.Window(all, nowTick, tickRate, window);
+        KillFeedTimeline.Window(all, nowTick, TickRate, window);
 
         await Assert.That(window.Count).IsEqualTo(1);
         await Assert.That(window[0].Tick).IsEqualTo(lowTick + 1);
@@ -125,7 +125,7 @@ public class KillFeedTimelineTests
         long steady = MeasureWindow(all, window);
 
         Console.WriteLine($"[alloc] killfeed window: warm {warm} B, steady {steady} B "
-                          + $"({steady / 512.0:F2} B/call)");
+            + $"({steady / 512.0:F2} B/call)");
         await Assert.That(steady).IsEqualTo(0L);
     }
 
@@ -287,13 +287,7 @@ public class HudLayerTests
             RenderPurpose.Export, ScenePalette.Dark, 1f)
         {
             Pane = new LevelPaneSnapshot(default, 0,
-                new MapLevel
-                {
-                    Id = default,
-                    Name = "l",
-                    ZMin = 0,
-                    ZMax = 100
-                },
+                new MapLevel { Id = default, Name = "l", ZMin = 0, ZMax = 100 },
                 ViewportTransform.Fit(400, 200, -100, -100, 100, 100), paneRect, 0)
         };
 
@@ -514,10 +508,7 @@ public class FfmpegAcquisitionTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
             CancellationToken cancellationToken) =>
-            Task.FromResult(new HttpResponseMessage(status)
-            {
-                Content = new ByteArrayContent(payload)
-            });
+            Task.FromResult(new HttpResponseMessage(status) { Content = new ByteArrayContent(payload) });
     }
 
     private sealed class TempDirectory : IDisposable

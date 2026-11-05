@@ -55,7 +55,7 @@ override DemoViewer.NET.GameIcons.PremierTier.GetHashCode() -> int
 override DemoViewer.NET.GameIcons.PremierTier.ToString() -> string!
 static DemoViewer.NET.GameIcons.IconCatalogue.CompetitiveRank(int rank) -> DemoViewer.NET.GameIcons.IconRef?
 static DemoViewer.NET.GameIcons.IconCatalogue.Demand(string? key, out DemoViewer.NET.GameIcons.IconAvailability availability) -> DemoViewer.NET.GameIcons.IconRef?
-static DemoViewer.NET.GameIcons.IconCatalogue.Get(string! key) -> DemoViewer.NET.GameIcons.IconRef?
+static DemoViewer.NET.GameIcons.IconCatalogue.Get(string? key) -> DemoViewer.NET.GameIcons.IconRef?
 static DemoViewer.NET.GameIcons.IconCatalogue.IsBlank(string? key) -> bool
 static DemoViewer.NET.GameIcons.IconCatalogue.Keys.get -> System.Collections.Generic.IReadOnlyCollection<string!>!
 static DemoViewer.NET.GameIcons.IconCatalogue.Map(string? mapName) -> DemoViewer.NET.GameIcons.IconRef?

@@ -11,6 +11,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Views.StratBook;
 ///     mapping, so <c>CreateStratDialogViewModel</c> resolves to it with no registration. No code-behind: the walk,
 ///     the rebuilds and the save are all the view-model's.
 /// </summary>
+[UsedImplicitly]
 public partial class CreateStratDialogView : UserControl
 {
     /// <summary>Initializes a new <see cref="CreateStratDialogView" /> instance.</summary>

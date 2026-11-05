@@ -34,7 +34,8 @@ public class ProtoIndexTests
         string? url = _idx.FieldUrl("CNETMsg_SetConVar", "convars");
 
         await Assert.That(url)
-            .IsEqualTo("https://github.com/SteamDatabase/GameTracking-CS2/blob/master/Protobufs/networkbasetypes.proto");
+            .IsEqualTo(
+                "https://github.com/SteamDatabase/GameTracking-CS2/blob/master/Protobufs/networkbasetypes.proto");
         await Assert.That(url!.Contains("#L", StringComparison.Ordinal)).IsFalse();
     }
 
@@ -81,7 +82,7 @@ public class ProtoIndexTests
     [Test]
     public async Task Search_PutsPrefixMatchesFirst()
     {
-        List<ProtoResult> hits = _idx.Search("C").ToList();
+        List<ProtoResult> hits = [.. _idx.Search("C")];
 
         await Assert.That(hits.Count).IsGreaterThan(1);
         await Assert.That(hits[0].Rank).IsEqualTo(0);

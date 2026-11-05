@@ -26,7 +26,7 @@ public sealed partial class DemoActionRow : ObservableObject
     }
 
     /// <summary>The contributed action.</summary>
-    public DemoAction Action { get; }
+    private DemoAction Action { get; }
 
     /// <summary>The button text.</summary>
     public string Label => Action.Label;
@@ -48,9 +48,9 @@ public sealed partial class DemoActionRow : ObservableObject
         }
 
         IsVisible = subject is not null
-                    && _isFeatureOn(_featureId)
-                    && !string.Equals(_requestedFor, subject, StringComparison.OrdinalIgnoreCase)
-                    && Action.IsAvailable(subject);
+            && _isFeatureOn(_featureId)
+            && !string.Equals(_requestedFor, subject, StringComparison.OrdinalIgnoreCase)
+            && Action.IsAvailable(subject);
     }
 
     [RelayCommand]

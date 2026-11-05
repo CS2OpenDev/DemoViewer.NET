@@ -13,8 +13,8 @@ using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Extensions.Manifest;
-using DemoViewer.NET.Extensions.Updates;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.Updates;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.Identity;
@@ -93,11 +93,13 @@ public class SettingsViewModelTests
 
     // The real pack's status over a fake feed client rooted at dir. The feed offers whatever the
     // caller serves; the zip carries a manifest for the real pack id so the staged copy is discoverable.
-    private static ExtensionUpdateService NewUpdater(string dir, UpdateFixtures.FakeFeedClient client, ITrustPolicy? trust = null) =>
+    private static ExtensionUpdateService NewUpdater(string dir, UpdateFixtures.FakeFeedClient client,
+        ITrustPolicy? trust = null) =>
         new(dir, [FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId)], ExtensionHost.Current,
             trust ?? UpdateFixtures.TrustAll, client, UpdateFixtures.FeedUrl);
 
-    private static string StratBookFeed(params FakeFeeds.Entry[] entries) => FakeFeeds.Json(StratBookPack.PackId, entries);
+    private static string StratBookFeed(params FakeFeeds.Entry[] entries) =>
+        FakeFeeds.Json(StratBookPack.PackId, entries);
 
     // The pending-reindex-count test seam: a fixed pack feature id (the real StratBookPack's) with a
     // caller-supplied count function, so a test can observe "Counting…" before controlling when it lands.
@@ -110,7 +112,9 @@ public class SettingsViewModelTests
     // The "delete extension data" test seam: canned inventory/delete results and a call count
     // for each, so a test can assert Confirm reached the remover without a real PackDataRemover, queue or
     // filesystem. No gate/PackSwitch coupling: a real IExtensionDataRemoval owns that, this fake does not.
-    private sealed class FakePackDataRemoval(ExtensionDataInventory inventory, ExtensionDataRemovalResult result,
+    private sealed class FakePackDataRemoval(
+        ExtensionDataInventory inventory,
+        ExtensionDataRemovalResult result,
         TaskCompletionSource<ExtensionDataRemovalResult>? deleteGate = null) : IExtensionDataRemoval
     {
         public int InventoryCalls { get; private set; }
@@ -151,7 +155,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 // Baseline: everything visible (desktop gates), Features group collapsed by default.
                 await Assert.That(vm.ShowSectionTheme).IsTrue();
@@ -191,7 +195,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 vm.SelectCategoryCommand.Execute(UserCategory.Developer);
 
@@ -218,7 +222,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 // AddFolders is the exact write path AddFolderCommand feeds after the OS picker.
                 vm.AddFolders(["/demos/aim", "/demos/retake"]);
@@ -251,7 +255,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 vm.SelectedTheme = vm.Themes.First(t => t.Id == "system");
 
@@ -278,7 +282,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 await Assert.That(vm.Themes.Any(t => t.Id == "light")).IsTrue();
 
@@ -306,7 +310,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 await Assert.That(vm.Themes.Any(t => t.Id == "midnight")).IsFalse();
 
@@ -319,7 +323,7 @@ public class SettingsViewModelTests
 
                 await Assert.That(vm.Themes.Any(t => t.Id == "midnight")).IsTrue();
                 // Selection unchanged (still the default Dark) and NOT persisted by the reload.
-                await Assert.That(vm.SelectedTheme.Id).IsEqualTo("dark");
+                await Assert.That(vm.SelectedTheme?.Id).IsEqualTo("dark");
                 await Assert.That(svc.Current.Theme).IsEqualTo("Dark");
 
                 vm.Dispose();
@@ -343,7 +347,7 @@ public class SettingsViewModelTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                await using (sp)
                 {
                     // A DIFFERENT writer changes settings (simulating another surface / a hand-edited file).
                     // A legacy CAPITALIZED "System" proves the id lookup is case-insensitive (back-compat with
@@ -356,7 +360,7 @@ public class SettingsViewModelTests
                     });
 
                     await Assert.That(vm.SelectedCategory).IsEqualTo(UserCategory.Consumer);
-                    await Assert.That(vm.SelectedTheme.Id).IsEqualTo("system");
+                    await Assert.That(vm.SelectedTheme?.Id).IsEqualTo("system");
                     await Assert.That(vm.LibraryFolders.Contains("/ext/demos")).IsTrue();
 
                     vm.Dispose();
@@ -379,7 +383,7 @@ public class SettingsViewModelTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                await using (sp)
                 {
                     await Assert.That(vm.SubscribeToBeta).IsFalse();
                     await Assert.That(svc.Current.Updates.SubscribeToBeta).IsFalse();
@@ -411,8 +415,9 @@ public class SettingsViewModelTests
         {
             await HeadlessSession.RunOnUi(async () =>
             {
-                (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir, isBrowser: () => false);
-                using (sp)
+                (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
+                    NewVm(dir, isBrowser: () => false);
+                await using (sp)
                 {
                     await Assert.That(vm.CheckForUpdatesAutomatically).IsTrue();
                     await Assert.That(svc.Current.Updates.CheckAutomatically).IsTrue();
@@ -428,8 +433,9 @@ public class SettingsViewModelTests
                     vm.Dispose();
                 }
 
-                (SettingsViewModel browser, SettingsService _, IFeatureGate _, ServiceProvider sp2) = NewVm(dir, isBrowser: () => true);
-                using (sp2)
+                (SettingsViewModel browser, SettingsService _, IFeatureGate _, ServiceProvider sp2) =
+                    NewVm(dir, isBrowser: () => true);
+                await using (sp2)
                 {
                     await Assert.That(browser.ShowAutomaticUpdateChecks).IsFalse();
                     browser.Dispose();
@@ -451,21 +457,13 @@ public class SettingsViewModelTests
         {
             await HeadlessSession.RunOnUi(async () =>
             {
-                (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
+                await using (sp)
                 {
                     vm.AddFolders(["/demos/one"]);
 
-                    SettingsView view = new()
-                    {
-                        DataContext = vm
-                    };
-                    Window window = new()
-                    {
-                        Width = 560,
-                        Height = 720,
-                        Content = view
-                    };
+                    SettingsView view = new() { DataContext = vm };
+                    Window window = new() { Width = 560, Height = 720, Content = view };
                     window.Show();
                     Dispatcher.UIThread.RunJobs();
                     AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -505,27 +503,20 @@ public class SettingsViewModelTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                await using (sp)
                 {
                     vm.SettingsFilterText = "extension"; // selects and auto-expands the Extensions group
 
-                    SettingsView view = new()
-                    {
-                        DataContext = vm
-                    };
-                    Window window = new()
-                    {
-                        Width = 560,
-                        Height = 900,
-                        Content = view
-                    };
+                    SettingsView view = new() { DataContext = vm };
+                    Window window = new() { Width = 560, Height = 900, Content = view };
                     window.Show();
                     Dispatcher.UIThread.RunJobs();
                     AvaloniaHeadlessPlatform.ForceRenderTimerTick();
                     Dispatcher.UIThread.RunJobs();
 
                     ScrollViewer scroll = view.FindControl<ScrollViewer>("SectionsScroll")
-                                           ?? throw new InvalidOperationException("SectionsScroll is gone from the view.");
+                        ?? throw new InvalidOperationException(
+                            "SectionsScroll is gone from the view.");
 
                     Console.WriteLine($"[extensions-width] extent={scroll.Extent} viewport={scroll.Viewport}");
                     await Assert.That(scroll.Extent.Width).IsLessThanOrEqualTo(scroll.Viewport.Width)
@@ -568,29 +559,24 @@ public class SettingsViewModelTests
                         using (Assert.Multiple())
                         {
                             await Assert.That(vm.ContributedSettingsPages.Select(p => p.Header)).IsEquivalentTo(
-                                ["SUGGESTED TAGS TUNING", "GRENADE INDEX"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                                ["SUGGESTED TAGS TUNING", "GRENADE INDEX"],
+                                CollectionOrdering.Matching);
                             await Assert.That(vm.ContributedSettingsPages.All(p => p.IsVisible)).IsTrue()
                                 .Because("the pack is on by default and the search filter is empty");
                         }
 
-                        SettingsView view = new()
-                        {
-                            DataContext = vm
-                        };
-                        Window window = new()
-                        {
-                            Width = 560,
-                            Height = 1400,
-                            Content = view
-                        };
+                        SettingsView view = new() { DataContext = vm };
+                        Window window = new() { Width = 560, Height = 1400, Content = view };
                         window.Show();
                         Dispatcher.UIThread.RunJobs();
                         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
                         Dispatcher.UIThread.RunJobs();
 
                         ScrollViewer scroll = view.FindControl<ScrollViewer>("SectionsScroll")
-                                               ?? throw new InvalidOperationException("SectionsScroll is gone from the view.");
-                        Console.WriteLine($"[contributed-pages-width] extent={scroll.Extent} viewport={scroll.Viewport}");
+                            ?? throw new InvalidOperationException(
+                                "SectionsScroll is gone from the view.");
+                        Console.WriteLine(
+                            $"[contributed-pages-width] extent={scroll.Extent} viewport={scroll.Viewport}");
                         await Assert.That(scroll.Extent.Width).IsLessThanOrEqualTo(scroll.Viewport.Width)
                             .Because("the two contributed pages must fit the real host width, not just the row list");
                     }
@@ -601,7 +587,7 @@ public class SettingsViewModelTests
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }
@@ -646,8 +632,8 @@ public class SettingsViewModelTests
                 "fake.widget", "WIDGET SETTINGS", 0, "widget gadget",
                 () => new FakePageViewModel(), () => new Border(), StratBookPack.PackFeatureId);
             SettingsViewModel vm = new(svc, monitor, gate, new ThemeRegistry(), OperatingSystem.IsBrowser,
-                null, [fake], null);
-            using (sp)
+                null, [fake]);
+            await using (sp)
             {
                 try
                 {
@@ -709,8 +695,8 @@ public class SettingsViewModelTests
                 },
                 () => new Border(), StratBookPack.PackFeatureId);
             SettingsViewModel vm = new(svc, monitor, gate, new ThemeRegistry(), OperatingSystem.IsBrowser,
-                null, [fake], null);
-            using (sp)
+                null, [fake]);
+            await using (sp)
             {
                 try
                 {
@@ -726,7 +712,8 @@ public class SettingsViewModelTests
 
                     svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
                     svc.Write(s => s.Features.Overrides.Remove(StratBookPack.PackFeatureId));
-                    await Assert.That(calls).IsEqualTo(1).Because("already built; a later toggle cycle does not rebuild");
+                    await Assert.That(calls).IsEqualTo(1)
+                        .Because("already built; a later toggle cycle does not rebuild");
                     await Assert.That(page.IsVisible).IsTrue();
                 }
                 finally
@@ -752,13 +739,10 @@ public class SettingsViewModelTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                await using (sp)
                 {
                     using MainViewModel shell = new(library: TestLibraries.Empty());
-                    BrowserWindowService windowService = new()
-                    {
-                        OnOpenSettings = shell.ShowSettingsOverlay
-                    };
+                    BrowserWindowService windowService = new() { OnOpenSettings = shell.ShowSettingsOverlay };
 
                     windowService.OpenSettings(vm);
                     await Assert.That(ReferenceEquals(shell.SettingsOverlay, vm)).IsTrue()
@@ -788,7 +772,7 @@ public class SettingsViewModelTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-                using (sp)
+                await using (sp)
                 {
                     ViewLocator locator = new();
                     await Assert.That(locator.Match(vm)).IsTrue();
@@ -819,7 +803,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate gate, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow row = Row(vm, "tab.parser");
                 await Assert.That(row.IsEnabled).IsTrue().Because("Parser is PowerUser-default-on");
@@ -830,7 +814,8 @@ public class SettingsViewModelTests
                 await Assert.That(svc.Current.Features.Overrides.TryGetValue("tab.parser", out bool persisted)).IsTrue()
                     .Because("the toggle persisted an explicit override");
                 await Assert.That(persisted).IsFalse();
-                await Assert.That(gate.IsEnabled("tab.parser")).IsFalse().Because("the gate re-resolved from the override");
+                await Assert.That(gate.IsEnabled("tab.parser")).IsFalse()
+                    .Because("the gate re-resolved from the override");
                 await Assert.That(row.IsOverridden).IsTrue();
 
                 string json = await File.ReadAllTextAsync(Path.Combine(dir, "settings.json"));
@@ -854,7 +839,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow row = Row(vm, "tab.library");
                 await Assert.That(row.IsRequired).IsTrue();
@@ -883,7 +868,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 Row(vm, "tab.parser").IsEnabled = false; // override a default-on tab off
                 Row(vm, "tab.diagnostics").IsEnabled = true; // override a (power) default-off tab on
@@ -893,9 +878,11 @@ public class SettingsViewModelTests
 
                 await Assert.That(svc.Current.Features.Overrides.Count).IsEqualTo(0)
                     .Because("reset clears every per-feature override");
-                await Assert.That(Row(vm, "tab.parser").IsEnabled).IsTrue().Because("reverted to the PowerUser default");
+                await Assert.That(Row(vm, "tab.parser").IsEnabled).IsTrue()
+                    .Because("reverted to the PowerUser default");
                 await Assert.That(Row(vm, "tab.parser").IsOverridden).IsFalse();
-                await Assert.That(Row(vm, "tab.diagnostics").IsEnabled).IsFalse().Because("reverted to the PowerUser default");
+                await Assert.That(Row(vm, "tab.diagnostics").IsEnabled).IsFalse()
+                    .Because("reverted to the PowerUser default");
 
                 vm.Dispose();
             }
@@ -915,7 +902,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 await Assert.That(Row(vm, "tab.parser").IsEnabled).IsTrue().Because("PowerUser default shows Parser");
                 int hiddenAsPower = vm.HiddenCount;
@@ -924,7 +911,8 @@ public class SettingsViewModelTests
 
                 await Assert.That(Row(vm, "tab.parser").IsEnabled).IsFalse().Because("Consumer default hides Parser");
                 await Assert.That(vm.FeatureCategoryLabel).IsEqualTo("Consumer");
-                await Assert.That(vm.HiddenCount).IsGreaterThan(hiddenAsPower).Because("a consumer hides more features");
+                await Assert.That(vm.HiddenCount).IsGreaterThan(hiddenAsPower)
+                    .Because("a consumer hides more features");
                 await Assert.That(svc.Current.Features.Overrides.Count).IsEqualTo(0)
                     .Because("a category change must never materialise per-feature overrides");
 
@@ -945,7 +933,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow row = Row(vm, "tab.playback2d"); // default-on for all, not Required
                 await Assert.That(row.IsOverridden).IsFalse();
@@ -976,7 +964,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate gate, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 // chrome.debugger is a non-leader member of graphDebug (leader = analysis.breakpoints).
                 FeatureToggleRow follower = Row(vm, "chrome.debugger");
@@ -986,14 +974,16 @@ public class SettingsViewModelTests
 
                 follower.IsEnabled = true; // stray programmatic set: must not persist an inert override
 
-                await Assert.That(follower.IsEnabled).IsFalse().Because("a follower bounces to the leader-governed state");
+                await Assert.That(follower.IsEnabled).IsFalse()
+                    .Because("a follower bounces to the leader-governed state");
                 await Assert.That(follower.IsOverridden).IsFalse().Because("no phantom override for a follower");
                 await Assert.That(svc.Current.Features.Overrides.ContainsKey("chrome.debugger")).IsFalse();
 
                 // The LEADER's toggle flips the whole group live (tab.analysis is on for power → no cascade).
                 Row(vm, "analysis.breakpoints").IsEnabled = true;
                 await Assert.That(gate.IsEnabled("chrome.debugger")).IsTrue().Because("the group follows its leader");
-                await Assert.That(Row(vm, "chrome.debugger").IsEnabled).IsTrue().Because("the follower row refreshed live");
+                await Assert.That(Row(vm, "chrome.debugger").IsEnabled).IsTrue()
+                    .Because("the follower row refreshed live");
 
                 vm.Dispose();
             }
@@ -1016,7 +1006,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 await Assert.That(master.Scope).IsEqualTo(FeatureScope.Pack);
@@ -1059,7 +1049,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 FeatureToggleRow child = Row(vm, "tab.situations");
@@ -1103,7 +1093,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 FeatureToggleRow child = Row(vm, "tab.situations");
@@ -1140,15 +1130,17 @@ public class SettingsViewModelTests
                 FakeManifests.For(StratBookPack.PackId, "Strat Book", "1.1.0", "^1.0", "0.15.0"),
                 LoadFailure.Incompatible,
                 "Strat Book 1.1.0 needs CS2DemoKit 0.15.0; this app ships 0.14.0");
-            LoadOutcome broken = new("/extensions/net.demoviewer.pack.stratbook/1.0.9", null, LoadFailure.ManifestInvalid, "'version' is required.");
+            LoadOutcome broken = new("/extensions/net.demoviewer.pack.stratbook/1.0.9", null,
+                LoadFailure.ManifestInvalid, "'version' is required.");
             PackStatus staged = real with
             {
                 Source = new PackSource.Staged("/extensions/net.demoviewer.pack.stratbook/1.0.1"),
                 Rejected = [higher, broken]
             };
 
-            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir, packStatuses: [staged]);
-            using (sp)
+            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
+                NewVm(dir, packStatuses: [staged]);
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 using (Assert.Multiple())
@@ -1165,7 +1157,8 @@ public class SettingsViewModelTests
                 }
 
                 master.IsEnabled = false;
-                await Assert.That(svc.Current.Features.Overrides[StratBookPack.PackFeatureId]).IsFalse().Because("the switch still works");
+                await Assert.That(svc.Current.Features.Overrides[StratBookPack.PackFeatureId]).IsFalse()
+                    .Because("the switch still works");
 
                 vm.Dispose();
             }
@@ -1185,13 +1178,14 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 FeatureToggleRow child = Row(vm, "tab.situations");
                 using (Assert.Multiple())
                 {
-                    await Assert.That(master.Version).IsEqualTo(DemoViewer.NET.Extensions.ExtensionManifests.Of(new StratBookPack()).Version.ToString());
+                    await Assert.That(master.Version).IsEqualTo(ExtensionManifests
+                        .Of(new StratBookPack()).Version.ToString());
                     await Assert.That(master.HasVersion).IsTrue();
                     await Assert.That(master.IsIncompatible).IsFalse();
                     await Assert.That(master.IsInteractive).IsTrue();
@@ -1222,8 +1216,9 @@ public class SettingsViewModelTests
             PackStatus status = PackStatus.Evaluate(pack, host);
             PackStatus[] statuses = [.. FeaturePacks.Statuses, status];
 
-            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir, packStatuses: statuses);
-            using (sp)
+            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
+                NewVm(dir, packStatuses: statuses);
+            await using (sp)
             {
                 FeatureToggleRow row = Row(vm, pack.FeatureId);
                 using (Assert.Multiple())
@@ -1232,7 +1227,8 @@ public class SettingsViewModelTests
                     await Assert.That(row.Version).IsEqualTo("1.2.0");
                     await Assert.That(row.Scope).IsEqualTo(FeatureScope.Pack);
                     await Assert.That(row.IsIncompatible).IsTrue();
-                    await Assert.That(row.Incompatibility).IsEqualTo("Future Book 1.2.0 needs app contract ^2.0; this app provides 1.0.0");
+                    await Assert.That(row.Incompatibility)
+                        .IsEqualTo("Future Book 1.2.0 needs app contract ^2.0; this app provides 1.0.0");
                     await Assert.That(row.IsEnabled).IsFalse();
                     await Assert.That(row.IsInteractive).IsFalse();
                     await Assert.That(row.HasLockHint).IsTrue();
@@ -1251,7 +1247,8 @@ public class SettingsViewModelTests
                 }
 
                 vm.SettingsFilterText = "Future Book";
-                await Assert.That(vm.ShowSectionExtensions).IsTrue().Because("the synthesized row is searchable by its name");
+                await Assert.That(vm.ShowSectionExtensions).IsTrue()
+                    .Because("the synthesized row is searchable by its name");
 
                 vm.Dispose();
             }
@@ -1272,12 +1269,13 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate gate, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 vm.SelectCategoryCommand.Execute(UserCategory.Developer);
                 svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
 
-                int expected = FeatureCatalog.All.Count(d => d.OwnerPackId == StratBookPack.PackFeatureId && !d.Required);
+                int expected =
+                    FeatureCatalog.All.Count(d => d is { OwnerPackId: StratBookPack.PackFeatureId, Required: false });
                 await Assert.That(expected).IsGreaterThan(0);
                 await Assert.That(gate.HiddenCount).IsEqualTo(expected);
                 await Assert.That(vm.HiddenCount).IsEqualTo(expected);
@@ -1301,7 +1299,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 vm.SettingsFilterText = "extension";
                 await Assert.That(vm.ShowSectionExtensions).IsTrue();
@@ -1341,7 +1339,7 @@ public class SettingsViewModelTests
         try
         {
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
-            using (sp)
+            await using (sp)
             {
                 await Assert.That(vm.StratBookToggleNotice).IsNull();
                 vm.Dispose();
@@ -1366,7 +1364,7 @@ public class SettingsViewModelTests
             TaskCompletionSource<int> tcs = new();
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, new FakeReindexEstimate(() => tcs.Task));
-            using (sp)
+            await using (sp)
             {
                 svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
                 svc.Write(s => s.Features.Overrides.Remove(StratBookPack.PackFeatureId)); // off -> on
@@ -1395,7 +1393,7 @@ public class SettingsViewModelTests
         {
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, new FakeReindexEstimate(() => Task.FromResult(0)));
-            using (sp)
+            await using (sp)
             {
                 svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
 
@@ -1423,17 +1421,18 @@ public class SettingsViewModelTests
         {
             TaskCompletionSource<int> probeA = new();
             TaskCompletionSource<int> probeB = new();
-            Queue<Func<Task<int>>> probes = new(new Func<Task<int>>[] { () => probeA.Task, () => probeB.Task });
+            Queue<Func<Task<int>>> probes = new([() => probeA.Task, () => probeB.Task]);
 
             (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
                 NewVm(dir, new FakeReindexEstimate(() => probes.Dequeue()()));
-            using (sp)
+            await using (sp)
             {
                 svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
                 svc.Write(s => s.Features.Overrides.Remove(StratBookPack.PackFeatureId)); // on: starts probe A
                 await Assert.That(vm.StratBookToggleNotice).IsEqualTo("Counting…");
 
-                svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = true); // still on: no transition, no new probe
+                svc.Write(s =>
+                    s.Features.Overrides[StratBookPack.PackFeatureId] = true); // still on: no transition, no new probe
                 svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false); // off
                 svc.Write(s => s.Features.Overrides.Remove(StratBookPack.PackFeatureId)); // on again: starts probe B
 
@@ -1470,15 +1469,19 @@ public class SettingsViewModelTests
         {
             ExtensionDataInventory inventory = new(
             [
-                new StoreInventoryItem(new StoreDescriptor("strats", "Strats", StoreRoot.Config, ["strats"], true), 3, 4096),
-                new StoreInventoryItem(new StoreDescriptor("round-index", "Round Index", StoreRoot.Cache, ["round-index"], false), 10, 1_048_576)
+                new StoreInventoryItem(new StoreDescriptor("strats", "Strats", StoreRoot.Config, ["strats"], true), 3,
+                    4096),
+                new StoreInventoryItem(
+                    new StoreDescriptor("round-index", "Round Index", StoreRoot.Cache, ["round-index"], false), 10,
+                    1_048_576)
             ]);
             ExtensionDataRemovalResult result = new(true, inventory, 1);
             FakePackDataRemoval fake = new(inventory, result);
             (SettingsViewModel vm, SettingsService svc, _, ServiceProvider sp) = NewVm(dir, dataRemoval: fake);
-            using (sp)
+            await using (sp)
             {
-                svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false); // the pack stays off throughout
+                svc.Write(s =>
+                    s.Features.Overrides[StratBookPack.PackFeatureId] = false); // the pack stays off throughout
                 ExtensionDataActionViewModel row = vm.ExtensionDataActions.Single();
 
                 await row.ArmCommand.ExecuteAsync(null);
@@ -1489,14 +1492,16 @@ public class SettingsViewModelTests
                     await Assert.That(row.IsConfirming).IsTrue();
                     await Assert.That(row.ConfirmationText).Contains("Strats: 4.0 KB");
                     await Assert.That(row.ConfirmationText).DoesNotContain("Round Index")
-                        .Because("only the user-work stores are named; the regenerable one is just \"caches will be rebuilt\"");
+                        .Because(
+                            "only the user-work stores are named; the regenerable one is just \"caches will be rebuilt\"");
                 }
 
                 row.CancelCommand.Execute(null);
                 using (Assert.Multiple())
                 {
                     await Assert.That(row.IsConfirming).IsFalse();
-                    await Assert.That(fake.DeleteCalls).IsEqualTo(0).Because("Cancel must never reach the remover's delete");
+                    await Assert.That(fake.DeleteCalls).IsEqualTo(0)
+                        .Because("Cancel must never reach the remover's delete");
                 }
 
                 await row.ArmCommand.ExecuteAsync(null);
@@ -1526,7 +1531,7 @@ public class SettingsViewModelTests
         {
             FakePackDataRemoval fake = new(ExtensionDataInventory.Empty, ExtensionDataRemovalResult.NotRun);
             (SettingsViewModel vm, _, _, ServiceProvider sp) = NewVm(dir, dataRemoval: fake);
-            using (sp)
+            await using (sp)
             {
                 ExtensionDataActionViewModel row = vm.ExtensionDataActions.Single();
                 await row.ArmCommand.ExecuteAsync(null);
@@ -1560,7 +1565,7 @@ public class SettingsViewModelTests
             TaskCompletionSource<ExtensionDataRemovalResult> gate = new();
             FakePackDataRemoval fake = new(ExtensionDataInventory.Empty, ExtensionDataRemovalResult.NotRun, gate);
             (SettingsViewModel vm, _, _, ServiceProvider sp) = NewVm(dir, dataRemoval: fake);
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 ExtensionDataActionViewModel row = vm.ExtensionDataActions.Single();
@@ -1608,14 +1613,15 @@ public class SettingsViewModelTests
             TaskCompletionSource<ExtensionDataRemovalResult> gate = new();
             FakePackDataRemoval fake = new(ExtensionDataInventory.Empty, ExtensionDataRemovalResult.NotRun, gate);
             (SettingsViewModel vm, _, _, ServiceProvider sp) = NewVm(dir, dataRemoval: fake);
-            using (sp)
+            await using (sp)
             {
                 ExtensionDataActionViewModel row = vm.ExtensionDataActions.Single();
 
                 Task first = row.ConfirmCommand.ExecuteAsync(null);
                 Task second = row.ConfirmCommand.ExecuteAsync(null);
 
-                await Assert.That(fake.DeleteCalls).IsEqualTo(1).Because("the second call sees IsBusy already true and no-ops");
+                await Assert.That(fake.DeleteCalls).IsEqualTo(1)
+                    .Because("the second call sees IsBusy already true and no-ops");
 
                 gate.SetResult(new ExtensionDataRemovalResult(true, ExtensionDataInventory.Empty, 0));
                 await Task.WhenAll(first, second);
@@ -1643,19 +1649,24 @@ public class SettingsViewModelTests
             string next = new SemVersion(running.Major, running.Minor, running.Patch + 1).ToString();
             byte[] zip = UpdateFixtures.ExtensionZip(StratBookPack.PackId, next);
             FakeFeeds.Entry offered = new(next, zip);
-            UpdateFixtures.FakeFeedClient client = new();
-            client.Zips[offered.Url] = zip;
-            client.Feeds[UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(offered);
+            UpdateFixtures.FakeFeedClient client = new()
+            {
+                Zips = { [offered.Url] = zip },
+                Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(offered) }
+            };
             ExtensionUpdateService updater = NewUpdater(dir, client);
 
             // Checked a minute ago: opening Settings must not check again on its own.
-            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir, extensionUpdates: updater,
+            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
+                extensionUpdates: updater,
                 seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow.AddMinutes(-1));
-            using (sp)
+            await using (sp)
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
-                ExtensionUpdateRow line = master.Update ?? throw new InvalidOperationException("the master row has no update line");
-                FeatureToggleRow child = vm.ExtensionsFeatureRows.First(r => r.OwnerPackId == StratBookPack.PackFeatureId);
+                ExtensionUpdateRow line = master.Update
+                    ?? throw new InvalidOperationException("the master row has no update line");
+                FeatureToggleRow child =
+                    vm.ExtensionsFeatureRows.First(r => r.OwnerPackId == StratBookPack.PackFeatureId);
                 DateTimeOffset? before = svc.Current.Extensions.LastUpdateCheckUtc;
 
                 using (Assert.Multiple())
@@ -1676,7 +1687,8 @@ public class SettingsViewModelTests
                     await Assert.That(line.Message).IsEqualTo($"{next} available.");
                     await Assert.That(line.CanUpdate).IsTrue();
                     await Assert.That(line.OfferedVersion).IsEqualTo(next);
-                    await Assert.That(svc.Current.Extensions.LastUpdateCheckUtc).IsNotEqualTo(before).Because("a manual check records its time");
+                    await Assert.That(svc.Current.Extensions.LastUpdateCheckUtc).IsNotEqualTo(before)
+                        .Because("a manual check records its time");
                 }
 
                 await line.UpdateCommand.ExecuteAsync(null);
@@ -1716,13 +1728,20 @@ public class SettingsViewModelTests
             string next = new SemVersion(running.Major, running.Minor, running.Patch + 1).ToString();
             string future = new SemVersion(running.Major + 1, 0, 0).ToString();
             byte[] zip = UpdateFixtures.ExtensionZip(StratBookPack.PackId, next);
-            UpdateFixtures.FakeFeedClient client = new();
-            client.Feeds[UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(future, RequiresHost: "^9.0"));
+            UpdateFixtures.FakeFeedClient client = new()
+            {
+                Feeds =
+                {
+                    [UpdateFixtures.FeedUrl(StratBookPack.PackId)] =
+                        StratBookFeed(new FakeFeeds.Entry(future, RequiresHost: "^9.0"))
+                }
+            };
             ExtensionUpdateService updater = NewUpdater(dir, client);
 
-            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir, extensionUpdates: updater,
+            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
+                extensionUpdates: updater,
                 seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
-            using (sp)
+            await using (sp)
             {
                 ExtensionUpdateRow line = Row(vm, StratBookPack.PackFeatureId).Update!;
 
@@ -1748,12 +1767,18 @@ public class SettingsViewModelTests
                 {
                     await Assert.That(needsApp).IsEqualTo(
                         $"{future} available but needs app contract ^9.0 (this app provides {ExtensionHost.ContractVersion}).");
-                    await Assert.That(unreachable).IsEqualTo("Could not check for updates: the update feed could not be reached.");
-                    await Assert.That(invalid).IsEqualTo("Could not check for updates: the update feed could not be read.");
-                    await Assert.That(line.Message).IsEqualTo($"{next} available.").Because("a refused download leaves the offer standing");
-                    await Assert.That(line.Failure).IsEqualTo($"Update {next} could not be installed: the download does not match the feed's checksum.");
+                    await Assert.That(unreachable)
+                        .IsEqualTo("Could not check for updates: the update feed could not be reached.");
+                    await Assert.That(invalid)
+                        .IsEqualTo("Could not check for updates: the update feed could not be read.");
+                    await Assert.That(line.Message).IsEqualTo($"{next} available.")
+                        .Because("a refused download leaves the offer standing");
+                    await Assert.That(line.Failure)
+                        .IsEqualTo(
+                            $"Update {next} could not be installed: the download does not match the feed's checksum.");
                     await Assert.That(line.CanUpdate).IsTrue().Because("the user can retry");
-                    await Assert.That(Directory.Exists(Path.Combine(dir, "extensions", StratBookPack.PackId))).IsFalse();
+                    await Assert.That(Directory.Exists(Path.Combine(dir, "extensions", StratBookPack.PackId)))
+                        .IsFalse();
                 }
 
                 vm.Dispose();
@@ -1772,12 +1797,19 @@ public class SettingsViewModelTests
         try
         {
             SemVersion running = FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId).Manifest!.Version;
-            UpdateFixtures.FakeFeedClient client = new();
-            client.Feeds[UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(running.ToString()));
+            UpdateFixtures.FakeFeedClient client = new()
+            {
+                Feeds =
+                {
+                    [UpdateFixtures.FeedUrl(StratBookPack.PackId)] =
+                        StratBookFeed(new FakeFeeds.Entry(running.ToString()))
+                }
+            };
             ExtensionUpdateService updater = NewUpdater(dir, client);
 
-            (SettingsViewModel first, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir, extensionUpdates: updater);
-            using (sp)
+            (SettingsViewModel first, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
+                NewVm(dir, extensionUpdates: updater);
+            await using (sp)
             {
                 // Never checked: opening Settings asks the feed. The check is fire-and-forget, so wait for its record.
                 DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(10);
@@ -1805,8 +1837,9 @@ public class SettingsViewModelTests
                 first.Dispose();
 
                 // Opened again within the hour: no second fetch, and the row shows the remembered verdict.
-                (SettingsViewModel second, SettingsService _, IFeatureGate _, ServiceProvider sp2) = NewVm(dir, extensionUpdates: updater);
-                using (sp2)
+                (SettingsViewModel second, SettingsService _, IFeatureGate _, ServiceProvider sp2) =
+                    NewVm(dir, extensionUpdates: updater);
+                await using (sp2)
                 {
                     await Task.Delay(100);
                     ExtensionUpdateRow again = Row(second, StratBookPack.PackFeatureId).Update!;
@@ -1825,9 +1858,11 @@ public class SettingsViewModelTests
             using (Assert.Multiple())
             {
                 await Assert.That(SettingsViewModel.ShouldAutoCheckExtensionUpdates(null, now)).IsTrue();
-                await Assert.That(SettingsViewModel.ShouldAutoCheckExtensionUpdates(now.AddMinutes(-30), now)).IsFalse();
+                await Assert.That(SettingsViewModel.ShouldAutoCheckExtensionUpdates(now.AddMinutes(-30), now))
+                    .IsFalse();
                 await Assert.That(SettingsViewModel.ShouldAutoCheckExtensionUpdates(now.AddMinutes(-60), now)).IsTrue();
-                await Assert.That(SettingsViewModel.ShouldAutoCheckExtensionUpdates(now.AddMinutes(5), now)).IsTrue().Because("a clock that went backwards is due");
+                await Assert.That(SettingsViewModel.ShouldAutoCheckExtensionUpdates(now.AddMinutes(5), now)).IsTrue()
+                    .Because("a clock that went backwards is due");
             }
         }
         finally
@@ -1844,13 +1879,20 @@ public class SettingsViewModelTests
         try
         {
             SemVersion running = FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId).Manifest!.Version;
-            UpdateFixtures.FakeFeedClient client = new();
-            client.Feeds[UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(running.ToString()));
+            UpdateFixtures.FakeFeedClient client = new()
+            {
+                Feeds =
+                {
+                    [UpdateFixtures.FeedUrl(StratBookPack.PackId)] =
+                        StratBookFeed(new FakeFeeds.Entry(running.ToString()))
+                }
+            };
             ExtensionUpdateService updater = NewUpdater(dir, client);
 
-            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir, extensionUpdates: updater,
+            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
+                extensionUpdates: updater,
                 seed: s => s.Updates.CheckAutomatically = false);
-            using (sp)
+            await using (sp)
             {
                 await Task.Delay(100);
                 ExtensionUpdateRow line = Row(vm, StratBookPack.PackFeatureId).Update!;
@@ -1886,8 +1928,9 @@ public class SettingsViewModelTests
         string dir = NewTempDir();
         try
         {
-            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir, isBrowser: () => true);
-            using (sp)
+            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) =
+                NewVm(dir, isBrowser: () => true);
+            await using (sp)
             {
                 ExtensionUpdateRow? line = Row(vm, StratBookPack.PackFeatureId).Update;
                 using (Assert.Multiple())
@@ -1904,9 +1947,10 @@ public class SettingsViewModelTests
             }
 
             (SettingsViewModel desktop, SettingsService _, IFeatureGate _, ServiceProvider sp2) = NewVm(dir);
-            using (sp2)
+            await using (sp2)
             {
-                await Assert.That(Row(desktop, StratBookPack.PackFeatureId).HasUpdate).IsFalse().Because("a desktop with no updater shows no line");
+                await Assert.That(Row(desktop, StratBookPack.PackFeatureId).HasUpdate).IsFalse()
+                    .Because("a desktop with no updater shows no line");
                 desktop.Dispose();
             }
         }
@@ -1926,37 +1970,38 @@ public class SettingsViewModelTests
         {
             SemVersion running = FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId).Manifest!.Version;
             string next = new SemVersion(running.Major, running.Minor, running.Patch + 1).ToString();
-            UpdateFixtures.FakeFeedClient client = new();
-            client.Feeds[UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(next));
+            UpdateFixtures.FakeFeedClient client = new()
+            {
+                Feeds =
+                {
+                    [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(next))
+                }
+            };
             ExtensionUpdateService updater = NewUpdater(dir, client);
             await updater.CheckAsync();
 
             await HeadlessSession.RunOnUi(async () =>
             {
-                (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir, extensionUpdates: updater,
+                (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
+                    extensionUpdates: updater,
                     seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
-                using (sp)
+                await using (sp)
                 {
                     vm.SettingsFilterText = "extension";
-                    SettingsView view = new()
-                    {
-                        DataContext = vm
-                    };
-                    Window window = new()
-                    {
-                        Width = 560,
-                        Height = 900,
-                        Content = view
-                    };
+                    SettingsView view = new() { DataContext = vm };
+                    Window window = new() { Width = 560, Height = 900, Content = view };
                     window.Show();
                     Dispatcher.UIThread.RunJobs();
                     AvaloniaHeadlessPlatform.ForceRenderTimerTick();
                     Dispatcher.UIThread.RunJobs();
 
                     ScrollViewer scroll = view.FindControl<ScrollViewer>("SectionsScroll")
-                                           ?? throw new InvalidOperationException("SectionsScroll is gone from the view.");
-                    Button? update = view.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Content as string == "Update" && b.IsVisible);
-                    TextBlock? message = view.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.Text == $"{next} available.");
+                        ?? throw new InvalidOperationException(
+                            "SectionsScroll is gone from the view.");
+                    Button? update = view.GetVisualDescendants().OfType<Button>()
+                        .FirstOrDefault(b => b.Content as string == "Update" && b.IsVisible);
+                    TextBlock? message = view.GetVisualDescendants().OfType<TextBlock>()
+                        .FirstOrDefault(t => t.Text == $"{next} available.");
 
                     using (Assert.Multiple())
                     {
@@ -1981,8 +2026,9 @@ public class SettingsViewModelTests
         string dir = NewTempDir();
         try
         {
-            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir, isBrowser: () => false);
-            using (sp)
+            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
+                NewVm(dir, isBrowser: () => false);
+            await using (sp)
             using (IdentityService identity = new(svc, IdentityServiceTests.Library(20, 15)))
             {
                 await Assert.That(vm.CanManageIdentity).IsFalse().Because("nothing is attached yet");
@@ -1997,7 +2043,8 @@ public class SettingsViewModelTests
                 {
                     await Assert.That(vm.IdentityAccounts.Select(r => r.SteamId64))
                         .IsEquivalentTo(["76561197960265729", "76561197960265730"], CollectionOrdering.Matching);
-                    await Assert.That(vm.IdentityAccounts.Select(r => r.IsActive)).IsEquivalentTo([true, false], CollectionOrdering.Matching);
+                    await Assert.That(vm.IdentityAccounts.Select(r => r.IsActive))
+                        .IsEquivalentTo([true, false], CollectionOrdering.Matching);
                     await Assert.That(vm.IdentityInput).IsEmpty();
                     await Assert.That(svc.Current.Identity.ActiveSteamId64).IsEqualTo("76561197960265729");
                 }
@@ -2015,14 +2062,16 @@ public class SettingsViewModelTests
                 vm.SetActiveIdentityAccountCommand.Execute(vm.IdentityAccounts[1]);
                 await Assert.That(identity.ActiveSteamId64).IsEqualTo("76561197960265730");
                 vm.RemoveIdentityAccountCommand.Execute(vm.IdentityAccounts[1]);
-                await Assert.That(identity.ActiveSteamId64).IsEqualTo("76561197960265729").Because("the first becomes active");
+                await Assert.That(identity.ActiveSteamId64).IsEqualTo("76561197960265729")
+                    .Because("the first becomes active");
 
                 await Assert.That(vm.IdentitySuggestionText).Contains("Is this you?");
                 vm.AcceptIdentitySuggestionCommand.Execute(null);
                 using (Assert.Multiple())
                 {
                     await Assert.That(identity.IsMine("76561198000000009")).IsTrue();
-                    await Assert.That(identity.ActiveSteamId64).IsEqualTo("76561197960265729").Because("the list was not empty");
+                    await Assert.That(identity.ActiveSteamId64).IsEqualTo("76561197960265729")
+                        .Because("the list was not empty");
                     await Assert.That(vm.IdentitySuggestionText).IsNull();
                 }
 
@@ -2041,8 +2090,9 @@ public class SettingsViewModelTests
         string dir = NewTempDir();
         try
         {
-            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir, isBrowser: () => true);
-            using (sp)
+            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
+                NewVm(dir, isBrowser: () => true);
+            await using (sp)
             using (IdentityService identity = new(svc))
             {
                 vm.AttachIdentity(identity, null);
@@ -2071,8 +2121,9 @@ public class SettingsViewModelTests
         {
             await HeadlessSession.RunOnUi(async () =>
             {
-                (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir, isBrowser: () => false);
-                using (sp)
+                (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) =
+                    NewVm(dir, isBrowser: () => false);
+                await using (sp)
                 using (IdentityService identity = new(svc, IdentityServiceTests.Library(20, 15)))
                 {
                     identity.SetAccounts([
@@ -2082,16 +2133,8 @@ public class SettingsViewModelTests
                     vm.AttachIdentity(identity, null);
                     vm.SettingsFilterText = "identity";
 
-                    SettingsView view = new()
-                    {
-                        DataContext = vm
-                    };
-                    Window window = new()
-                    {
-                        Width = 560,
-                        Height = 720,
-                        Content = view
-                    };
+                    SettingsView view = new() { DataContext = vm };
+                    Window window = new() { Width = 560, Height = 720, Content = view };
                     window.Show();
                     Dispatcher.UIThread.RunJobs();
                     AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -2105,13 +2148,18 @@ public class SettingsViewModelTests
                     Console.WriteLine($"[settings-identity] {outPath} nonBg={nonBg}");
 
                     ScrollViewer scroll = view.FindControl<ScrollViewer>("SectionsScroll")
-                                          ?? throw new InvalidOperationException("SectionsScroll is gone from the view.");
-                    RadioButton[] radios = [.. view.GetVisualDescendants().OfType<RadioButton>().Where(r => r.GroupName == "identityActive")];
+                        ?? throw new InvalidOperationException(
+                            "SectionsScroll is gone from the view.");
+                    RadioButton[] radios =
+                    [
+                        .. view.GetVisualDescendants().OfType<RadioButton>().Where(r => r.GroupName == "identityActive")
+                    ];
                     using (Assert.Multiple())
                     {
                         await Assert.That(nonBg).IsGreaterThan(200);
                         await Assert.That(view.FindControl<Border>("SectionIdentity")!.IsEffectivelyVisible).IsTrue();
-                        await Assert.That(radios.Select(r => r.IsChecked)).IsEquivalentTo(new bool?[] { true, false }, CollectionOrdering.Matching);
+                        await Assert.That(radios.Select(r => r.IsChecked))
+                            .IsEquivalentTo(new bool?[] { true, false }, CollectionOrdering.Matching);
                         await Assert.That(vm.IdentitySuggestionText).IsNotNull();
                         await Assert.That(scroll.Extent.Width).IsLessThanOrEqualTo(scroll.Viewport.Width)
                             .Because("wider content than the viewport would silently clip at the real host width");

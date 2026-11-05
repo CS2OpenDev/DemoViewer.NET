@@ -26,25 +26,14 @@ public class Playback2DRosterReseedTests
 
         // Frame 1: a live player exists but the roster is still empty → marker renders (with a NUMBER label),
         // but there is no attributes card and no initials yet.
-        ctx.Push(new FakeSnap(1, new[]
-        {
-            Alive(0, 2, 100, 200)
-        }));
+        ctx.Push(new FakeSnap(1, [Alive(0, 2, 100, 200)]));
         await Assert.That(vm.Markers.Count).IsEqualTo(1);
         await Assert.That(vm.Markers[0].Label).IsEqualTo("1"); // slot+1 fallback, no name
         await Assert.That(vm.Attributes.Count(a => a.InMatch)).IsEqualTo(0); // no cards yet
 
         // The host now sets the roster (post-load) and another push arrives.
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
-        ctx.Push(new FakeSnap(2, new[]
-        {
-            Alive(0, 2, 110, 210)
-        }));
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
+        ctx.Push(new FakeSnap(2, [Alive(0, 2, 110, 210)]));
 
         // The cards + initials now appear, no tab re-activation needed.
         await Assert.That(vm.Markers[0].Label).IsEqualTo("NE"); // initials from the roster name
@@ -56,9 +45,7 @@ public class Playback2DRosterReseedTests
 
     private static DeadCapablePlayer Alive(int slot, int team, float x, float y)
     {
-        Ent pawn = new("CCSPlayerPawn");
-        pawn.F["m_iHealth"] = 100;
-        pawn.F["m_lifeState"] = 0;
+        Ent pawn = new("CCSPlayerPawn") { F = { ["m_iHealth"] = 100, ["m_lifeState"] = 0 } };
         return new DeadCapablePlayer(slot, team, pawn, new Ent("CCSPlayerController"), (x, y, 64f));
     }
 
@@ -109,8 +96,8 @@ public class Playback2DRosterReseedTests
 
     private sealed class View : IReadOnlyEntityView
     {
-        public IEnumerable<IReadOnlyEntity> All() => Array.Empty<IReadOnlyEntity>();
-        public IEnumerable<IReadOnlyEntity> OfClass(string className) => Array.Empty<IReadOnlyEntity>();
+        public IEnumerable<IReadOnlyEntity> All() => [];
+        public IEnumerable<IReadOnlyEntity> OfClass(string className) => [];
         public IReadOnlyEntity? BySerial(int serial) => null;
         public IReadOnlyEntity? ByIndex(int entityIndex) => null;
         public IReadOnlyEntity? ResolveHandle(ulong handle) => null;

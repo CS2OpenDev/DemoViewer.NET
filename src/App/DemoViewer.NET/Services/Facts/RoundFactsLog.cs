@@ -1,7 +1,6 @@
 #region
 
 using Microsoft.Extensions.Logging;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 
@@ -34,6 +33,7 @@ internal static partial class RoundFactsLog
     public static partial void CompositionFailed(ILogger logger, Exception exception);
 
     [LoggerMessage(EventId = 6, Level = LogLevel.Warning,
-        Message = "{fileName}: the round facts ruleset produced no rows; not retried until the next session or a ruleset change")]
+        Message =
+            "{fileName}: the round facts ruleset produced no rows; not retried until the next session or a ruleset change")]
     public static partial void NoRows(ILogger logger, string fileName);
 }

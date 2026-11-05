@@ -1,7 +1,7 @@
 #region
 
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
+using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Services.DemoCache;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 
@@ -28,7 +28,8 @@ public class SuggestedInboxModuleTests
     public async Task WithThePackOff_TheBadge_IsNeverRecomputed()
     {
         DemoCacheStore cache = CacheWithPending("/d/a.dem", 3);
-        SuggestedInboxModule module = new(() => throw new InvalidOperationException("never built here"), () => false, new ProposalStore(cache.Data()));
+        SuggestedInboxModule module = new(() => throw new InvalidOperationException("never built here"), () => false,
+            new ProposalStore(cache.Data()));
         WorkspaceTabDescriptor tab = module.CreateTabs(null!).Single();
 
         await Assert.That(tab.Badge).IsNull().Because("the initial read is skipped while the pack is off");
@@ -41,7 +42,8 @@ public class SuggestedInboxModuleTests
     public async Task WithThePackOn_TheBadge_FollowsTheIndex()
     {
         DemoCacheStore cache = CacheWithPending("/d/a.dem", 0);
-        SuggestedInboxModule module = new(() => throw new InvalidOperationException("never built here"), () => true, new ProposalStore(cache.Data()));
+        SuggestedInboxModule module = new(() => throw new InvalidOperationException("never built here"), () => true,
+            new ProposalStore(cache.Data()));
         WorkspaceTabDescriptor tab = module.CreateTabs(null!).Single();
 
         await Assert.That(tab.Badge).IsNull();

@@ -18,7 +18,7 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class ReelChipShellReconcileTests
 {
-    private static ReelJobStatus Status(ReelJobPhase phase, int completed = 0, int total = 0,
+    private static ReelJobStatus StatusOf(ReelJobPhase phase, int completed = 0, int total = 0,
         string? output = null) =>
         new(phase, completed, total, null, null, output, []);
 
@@ -33,10 +33,10 @@ public class ReelChipShellReconcileTests
 
             await Assert.That(vm.Chips.Count).IsEqualTo(0).Because("Idle ⇒ no reel chip");
 
-            job.Raise(Status(ReelJobPhase.StartingSession, 0, 3));
+            job.Raise(StatusOf(ReelJobPhase.StartingSession, 0, 3));
             await Assert.That(vm.Chips.Count).IsEqualTo(1).Because("running ⇒ chip present");
 
-            job.Raise(Status(ReelJobPhase.Completed, 3, 3, "/out/reel.mp4"));
+            job.Raise(StatusOf(ReelJobPhase.Completed, 3, 3, "/out/reel.mp4"));
             await Assert.That(vm.Chips.Count).IsEqualTo(1).Because("finished-not-dismissed ⇒ still present");
 
             // The chip's FlyoutContent IS the ReelJobStatusViewModel (StatusChip pattern). Invoke Dismiss.
@@ -44,7 +44,7 @@ public class ReelChipShellReconcileTests
             reelVm.DismissCommand.Execute(null);
             await Assert.That(vm.Chips.Count).IsEqualTo(0).Because("Dismiss removes the finished chip");
 
-            job.Raise(Status(ReelJobPhase.StartingSession, 0, 2));
+            job.Raise(StatusOf(ReelJobPhase.StartingSession, 0, 2));
             await Assert.That(vm.Chips.Count).IsEqualTo(1).Because("a new run un-dismisses and re-shows the chip");
         });
     }
@@ -58,9 +58,10 @@ public class ReelChipShellReconcileTests
             FakeReelJob job = new();
             vm.AttachReelJob(job);
 
-            job.Raise(Status(ReelJobPhase.Capturing, 0, 2));
-            job.Raise(Status(ReelJobPhase.Cancelled));
-            await Assert.That(vm.Chips.Count).IsEqualTo(1).Because("a cancelled result is a result — shown until dismissed");
+            job.Raise(StatusOf(ReelJobPhase.Capturing, 0, 2));
+            job.Raise(StatusOf(ReelJobPhase.Cancelled));
+            await Assert.That(vm.Chips.Count).IsEqualTo(1)
+                .Because("a cancelled result is a result — shown until dismissed");
 
             ReelJobStatusViewModel reelVm = (ReelJobStatusViewModel)vm.Chips[0].FlyoutContent!;
             reelVm.DismissCommand.Execute(null);

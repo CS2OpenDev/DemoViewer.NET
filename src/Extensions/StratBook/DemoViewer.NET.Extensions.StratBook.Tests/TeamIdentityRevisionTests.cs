@@ -2,9 +2,9 @@
 
 using System.Text.Json;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
@@ -20,8 +20,10 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class TeamIdentityRevisionTests
 {
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed record FixtureSide(List<string> Key, string? Clan);
 
+    [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     private sealed record FixtureDemo(string Id, string Kind, long OrderTicks, Dictionary<string, FixtureSide> Sides);
 
     private sealed record Fixture(int SchemaVersion, string Note, List<FixtureDemo> Demos);
@@ -30,9 +32,11 @@ public class TeamIdentityRevisionTests
 
     private static List<DemoSideInput> Corpus(string kind, string? sourceKind)
     {
-        string repo = DemoTestHelper.FindRepoRoot() ?? throw new SkipTestException("repo root not found from the test output directory");
+        string repo = DemoTestHelper.FindRepoRoot()
+            ?? throw new SkipTestException("repo root not found from the test output directory");
         Fixture fixture = JsonSerializer.Deserialize<Fixture>(
-            File.ReadAllText(Path.Combine(repo, "tests", "fixtures", "team-identity", "side-keys.v1.json")), _readOptions)!;
+            File.ReadAllText(Path.Combine(repo, "tests", "fixtures", "team-identity", "side-keys.v1.json")),
+            _readOptions)!;
         return
         [
             .. fixture.Demos.Where(d => d.Kind == kind).Select(d => new DemoSideInput
@@ -47,7 +51,8 @@ public class TeamIdentityRevisionTests
         ];
     }
 
-    private static TeamIndexFile Cluster(TeamsFile teams, IEnumerable<DemoSideInput> inputs, IReadOnlySet<Guid>? keep = null)
+    private static TeamIndexFile Cluster(TeamsFile teams, IEnumerable<DemoSideInput> inputs,
+        IReadOnlySet<Guid>? keep = null)
     {
         TeamClusterer clusterer = new(teams);
         foreach (DemoSideInput input in inputs.OrderBy(i => i.OrderTicks).ThenBy(i => i.Path, StringComparer.Ordinal))
@@ -67,7 +72,8 @@ public class TeamIdentityRevisionTests
 
     private static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];
 
-    private static DemoSideInput Demo(string id, int day, string[] t, string[] ct, string? tClan = null, string? ctClan = null,
+    private static DemoSideInput Demo(string id, int day, string[] t, string[] ct, string? tClan = null,
+        string? ctClan = null,
         string? sourceKind = null) => new()
     {
         StableKey = DemoCacheStore.StableKey(id),
@@ -80,7 +86,8 @@ public class TeamIdentityRevisionTests
 
     private static int _stranger = 7000;
 
-    private static string[] Strangers() => Ids(Interlocked.Add(ref _stranger, 5) - 4, _stranger - 3, _stranger - 2, _stranger - 1, _stranger);
+    private static string[] Strangers() => Ids(Interlocked.Add(ref _stranger, 5) - 4, _stranger - 3, _stranger - 2,
+        _stranger - 1, _stranger);
 
     // ── The source gate ──────────────────────────────────────────────────────────────────────────
 
@@ -91,18 +98,23 @@ public class TeamIdentityRevisionTests
         {
             await Assert.That(TeamSourcePolicy.EffectiveKind(null, "Valve Counter-Strike 2 us_east Server (srcds)"))
                 .IsEqualTo(DemoSourceKind.GotvMatchmaking);
-            await Assert.That(TeamSourcePolicy.EffectiveKind(null, "FACEIT.com register to play here")).IsEqualTo(DemoSourceKind.Faceit)
+            await Assert.That(TeamSourcePolicy.EffectiveKind(null, "FACEIT.com register to play here"))
+                .IsEqualTo(DemoSourceKind.Faceit)
                 .Because("the engine reads FACEIT server names as Unknown");
             await Assert.That(TeamSourcePolicy.EffectiveKind("Unknown", "FACEIT.com")).IsEqualTo(DemoSourceKind.Faceit);
-            await Assert.That(TeamSourcePolicy.EffectiveKind(null, "ESL Match Server #1")).IsEqualTo(DemoSourceKind.Unknown);
+            await Assert.That(TeamSourcePolicy.EffectiveKind(null, "ESL Match Server #1"))
+                .IsEqualTo(DemoSourceKind.Unknown);
 
             await Assert.That(TeamSourcePolicy.AutoTracks("GotvMatchmaking", false, null)).IsFalse();
             await Assert.That(TeamSourcePolicy.AutoTracks("Faceit", false, null)).IsFalse();
-            await Assert.That(TeamSourcePolicy.AutoTracks("Unknown", false, null)).IsTrue().Because("scrim and tournament servers are Unknown");
+            await Assert.That(TeamSourcePolicy.AutoTracks("Unknown", false, null)).IsTrue()
+                .Because("scrim and tournament servers are Unknown");
             await Assert.That(TeamSourcePolicy.AutoTracks("HltvPro", false, null)).IsTrue();
             await Assert.That(TeamSourcePolicy.AutoTracks(null, false, null)).IsTrue();
-            await Assert.That(TeamSourcePolicy.AutoTracks("Faceit", true, null)).IsTrue().Because("both clan tags: a league on those servers");
-            await Assert.That(TeamSourcePolicy.AutoTracks("GotvMatchmaking", false, DemoProvenanceLabel.Scrim)).IsTrue();
+            await Assert.That(TeamSourcePolicy.AutoTracks("Faceit", true, null)).IsTrue()
+                .Because("both clan tags: a league on those servers");
+            await Assert.That(TeamSourcePolicy.AutoTracks("GotvMatchmaking", false, DemoProvenanceLabel.Scrim))
+                .IsTrue();
             await Assert.That(TeamSourcePolicy.AutoTracks("HltvPro", true, DemoProvenanceLabel.Matchmaking)).IsFalse()
                 .Because("the user's pin decides over every signal");
         }
@@ -135,7 +147,11 @@ public class TeamIdentityRevisionTests
             foreach (Team team in teams.Teams)
             {
                 int sides = index.Demos.Values.SelectMany(d => d.Sides.Values).Count(s => s.TeamId == team.Id);
-                List<string> active = [.. TeamSuggestions.ActiveRoster(index, team.Id).Select(p => p.SteamId64).Order(StringComparer.Ordinal)];
+                List<string> active =
+                [
+                    .. TeamSuggestions.ActiveRoster(index, team.Id).Select(p => p.SteamId64)
+                        .Order(StringComparer.Ordinal)
+                ];
                 List<string> expected = sides >= TeamSuggestions.ActiveMinAppearances
                     ? [.. team.Rosters.Single().CoreLineup!.Order(StringComparer.Ordinal)]
                     : [];
@@ -156,11 +172,13 @@ public class TeamIdentityRevisionTests
         TeamIndexFile index = Cluster(teams, inputs);
 
         TeamSuggestion squad = TeamSuggestions.Compute(teams, index).Single(s => s.Kind == TeamSuggestionKind.Squad);
-        Console.WriteLine($"squad: {string.Join(", ", squad.Players.Select(p => $"{p.SteamId64}:{p.Games}"))} together={squad.GamesTogether} of {squad.MyGames}");
+        Console.WriteLine(
+            $"squad: {string.Join(", ", squad.Players.Select(p => $"{p.SteamId64}:{p.Games}"))} together={squad.GamesTogether} of {squad.MyGames}");
         using (Assert.Multiple())
         {
             await Assert.That(squad.Players[0].SteamId64).IsEqualTo(owner).Because("the squad starts with you");
-            await Assert.That(squad.Players.Count).IsEqualTo(3).Because("the user and the two regular partners the design measured");
+            await Assert.That(squad.Players.Count).IsEqualTo(3)
+                .Because("the user and the two regular partners the design measured");
             await Assert.That(squad.GamesTogether).IsGreaterThanOrEqualTo(TeamSuggestions.SquadMinGames);
         }
 
@@ -172,17 +190,28 @@ public class TeamIdentityRevisionTests
             Name = "My team",
             NameSource = TeamNameSource.User,
             IsUs = true,
-            Rosters = [new Roster { Id = "squad", Since = DateOnly.MinValue, Squad = [.. squad.Players.Select(p => p.SteamId64)] }]
+            Rosters =
+            [
+                new Roster
+                {
+                    Id = "squad", Since = DateOnly.MinValue, Squad = [.. squad.Players.Select(p => p.SteamId64)]
+                }
+            ]
         });
         TeamIndexFile after = Cluster(accepted, inputs);
-        List<TeamIndexSide> ours = [.. after.Demos.Values.SelectMany(d => d.Sides.Values).Where(s => s.TeamId is not null)];
+        List<TeamIndexSide> ours =
+            [.. after.Demos.Values.SelectMany(d => d.Sides.Values).Where(s => s.TeamId is not null)];
         using (Assert.Multiple())
         {
             await Assert.That(accepted.Teams.Count).IsEqualTo(1).Because("still no auto team");
-            await Assert.That(ours.Count).IsEqualTo(squad.GamesTogether).Because("a trio squad needs all three on the side");
-            await Assert.That(ours.All(s => s.Tier == 3 && !s.StandIn)).IsTrue().Because("fills are not stand-ins");
-            await Assert.That(accepted.Teams[0].Rosters[0].HasCoreLineup).IsFalse().Because("a squad never becomes a fixed five");
-            await Assert.That(TeamSuggestions.Compute(accepted, after).Any(s => s.Kind == TeamSuggestionKind.Squad)).IsFalse();
+            await Assert.That(ours.Count).IsEqualTo(squad.GamesTogether)
+                .Because("a trio squad needs all three on the side");
+            await Assert.That(ours.All(s => s is { Tier: 3, StandIn: false })).IsTrue()
+                .Because("fills are not stand-ins");
+            await Assert.That(accepted.Teams[0].Rosters[0].HasCoreLineup).IsFalse()
+                .Because("a squad never becomes a fixed five");
+            await Assert.That(TeamSuggestions.Compute(accepted, after).Any(s => s.Kind == TeamSuggestionKind.Squad))
+                .IsFalse();
         }
     }
 
@@ -192,12 +221,17 @@ public class TeamIdentityRevisionTests
         TeamsFile teams = new();
         teams.Teams.Add(new Team
         {
-            Id = Guid.NewGuid(), Name = "Five", NameSource = TeamNameSource.User,
+            Id = Guid.NewGuid(),
+            Name = "Five",
+            NameSource = TeamNameSource.User,
             Rosters = [new Roster { Id = "s", Squad = [.. Ids(1, 2, 3, 4, 5)] }]
         });
         teams.Teams.Add(new Team
         {
-            Id = Guid.NewGuid(), Name = "Trio", NameSource = TeamNameSource.User, IsUs = true,
+            Id = Guid.NewGuid(),
+            Name = "Trio",
+            NameSource = TeamNameSource.User,
+            IsUs = true,
             Rosters = [new Roster { Id = "s", Squad = [.. Ids(11, 12, 13)] }]
         });
         TeamIndexFile index = Cluster(teams,
@@ -226,7 +260,10 @@ public class TeamIdentityRevisionTests
         // The shape of a library clustered before the gate: an us team whose one roster is a rolling core.
         Team us = new()
         {
-            Id = Guid.NewGuid(), Name = "My team", NameSource = TeamNameSource.User, IsUs = true,
+            Id = Guid.NewGuid(),
+            Name = "My team",
+            NameSource = TeamNameSource.User,
+            IsUs = true,
             Rosters = [new Roster { Id = "r1", ExtendedCore = [.. Ids(1, 2, 3, 41, 42)] }]
         };
         TeamsFile teams = new();
@@ -245,7 +282,8 @@ public class TeamIdentityRevisionTests
                 .Because("a rolling core would absorb every fill it meets in queue play");
             await Assert.That(after.Demos.Values.All(d => d.Side(2)!.RosterId == "squad")).IsTrue();
             await Assert.That(teams.Find(us.Id)).IsNotNull().Because("a user team survives with no side");
-            await Assert.That(TeamSuggestions.Compute(new TeamsFile { Me = new MeAccounts { SteamIds = [Ids(1)[0]] }, Teams = [us] }, before)
+            await Assert.That(TeamSuggestions
+                .Compute(new TeamsFile { Me = new MeAccounts { SteamIds = [Ids(1)[0]] }, Teams = [us] }, before)
                 .Any(s => s.Kind == TeamSuggestionKind.Squad)).IsFalse().Because("two games is under the squad bar");
         }
     }
@@ -273,10 +311,13 @@ public class TeamIdentityRevisionTests
         {
             await Assert.That(teams.Teams.Count).IsEqualTo(1).Because("four of the five keep it one team");
             await Assert.That(change.Kind).IsEqualTo(TeamSuggestionKind.RosterChange);
-            await Assert.That(change.Players.Select(p => p.SteamId64)).IsEquivalentTo(Ids(6), CollectionOrdering.Matching);
+            await Assert.That(change.Players.Select(p => p.SteamId64))
+                .IsEquivalentTo(Ids(6), CollectionOrdering.Matching);
             await Assert.That(change.Left.Select(p => p.SteamId64)).IsEquivalentTo(Ids(5), CollectionOrdering.Matching);
-            await Assert.That(change.Since).IsEqualTo(new DateOnly(2026, 1, 8)).Because("the newcomer's first side inside the window");
-            await Assert.That(TeamSuggestions.ActiveRoster(index, teams.Teams[0].Id).Select(p => p.SteamId64).Order(StringComparer.Ordinal))
+            await Assert.That(change.Since).IsEqualTo(new DateOnly(2026, 1, 8))
+                .Because("the newcomer's first side inside the window");
+            await Assert.That(TeamSuggestions.ActiveRoster(index, teams.Teams[0].Id).Select(p => p.SteamId64)
+                    .Order(StringComparer.Ordinal))
                 .IsEquivalentTo(Ids(1, 2, 3, 4, 6), CollectionOrdering.Matching);
         }
 
@@ -301,7 +342,8 @@ public class TeamIdentityRevisionTests
 
         TeamsFile teams = new();
         TeamIndexFile index = Cluster(teams, inputs);
-        await Assert.That(TeamSuggestions.Compute(teams, index)).IsEmpty().Because("four of ten is a stand-in, not a roster change");
+        await Assert.That(TeamSuggestions.Compute(teams, index)).IsEmpty()
+            .Because("four of ten is a stand-in, not a roster change");
     }
 
     [Test]
@@ -339,8 +381,11 @@ public class TeamIdentityRevisionTests
         Guid id = teams.Teams.Single().Id;
 
         // The same demos, now queue play: the auto team gets no side.
-        TeamsFile kept = JsonSerializer.Deserialize<TeamsFile>(JsonSerializer.Serialize(teams, TeamsFile.JsonOptions), TeamsFile.JsonOptions)!;
-        TeamsFile dropped = JsonSerializer.Deserialize<TeamsFile>(JsonSerializer.Serialize(teams, TeamsFile.JsonOptions), TeamsFile.JsonOptions)!;
+        TeamsFile kept = JsonSerializer.Deserialize<TeamsFile>(JsonSerializer.Serialize(teams, TeamsFile.JsonOptions),
+            TeamsFile.JsonOptions)!;
+        TeamsFile dropped =
+            JsonSerializer.Deserialize<TeamsFile>(JsonSerializer.Serialize(teams, TeamsFile.JsonOptions),
+                TeamsFile.JsonOptions)!;
         List<DemoSideInput> queue =
         [
             Demo("/d/r1.dem", 1, Ids(1, 2, 3, 4, 5), Strangers(), sourceKind: "GotvMatchmaking"),
@@ -373,8 +418,11 @@ public class TeamIdentityRevisionTests
             {
                 DemoCacheRecord record = new()
                 {
-                    Path = path, Size = 1, ModifiedTicks = new DateTime(2026, 2, day, 0, 0, 0, DateTimeKind.Utc).Ticks,
-                    Map = "de_nuke", SourceKind = nameof(DemoSourceKind.GotvMatchmaking)
+                    Path = path,
+                    Size = 1,
+                    ModifiedTicks = new DateTime(2026, 2, day, 0, 0, 0, DateTimeKind.Utc).Ticks,
+                    Map = "de_nuke",
+                    SourceKind = nameof(DemoSourceKind.GotvMatchmaking)
                 };
                 int slot = 0;
                 foreach (string id in Ids(1, 2, 3, 4, 5))
@@ -403,7 +451,8 @@ public class TeamIdentityRevisionTests
         using (Assert.Multiple())
         {
             await Assert.That(service.Us).IsNotNull();
-            await Assert.That(service.Us!.Rosters.Single(r => r.IsSquad).Squad!).IsEquivalentTo(Ids(1, 2, 3), CollectionOrdering.Matching);
+            await Assert.That(service.Us!.Rosters.Single(r => r.IsSquad).Squad!)
+                .IsEquivalentTo(Ids(1, 2, 3), CollectionOrdering.Matching);
         }
     }
 }

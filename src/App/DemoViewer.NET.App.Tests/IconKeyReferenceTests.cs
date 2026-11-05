@@ -1,8 +1,8 @@
 #region
 
-using DemoViewer.NET.TestSupport;
 using System.Text.RegularExpressions;
 using DemoViewer.NET.GameIcons;
+using DemoViewer.NET.TestSupport;
 
 #endregion
 
@@ -36,11 +36,11 @@ public class IconKeyReferenceTests
     private const string Namespaces = "(?:equipment|modifier|ui|rank|premier|map)/[a-z0-9_/]+";
 
     // Key="ui/bomb_c4" in XAML.
-    private static readonly Regex XamlKey =
+    private static readonly Regex _xamlKey =
         new("Key=" + Quote + "(" + Namespaces + ")" + Quote, RegexOptions.Compiled);
 
     // "modifier/headshot" as a C# string literal.
-    private static readonly Regex CsharpKey =
+    private static readonly Regex _csharpKey =
         new(Quote + "(" + Namespaces + ")" + Quote, RegexOptions.Compiled);
 
     [Test]
@@ -52,10 +52,10 @@ public class IconKeyReferenceTests
 
         foreach (string file in Sources(root))
         {
-            string text = File.ReadAllText(file);
+            string text = await File.ReadAllTextAsync(file);
             bool xaml = file.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase);
 
-            foreach (Match m in (xaml ? XamlKey : CsharpKey).Matches(text))
+            foreach (Match m in (xaml ? _xamlKey : _csharpKey).Matches(text))
             {
                 string key = m.Groups[1].Value;
                 checkedKeys++;
@@ -99,7 +99,7 @@ public class IconKeyReferenceTests
         foreach (string f in Directory.EnumerateFiles(src, "*.*", SearchOption.AllDirectories))
         {
             if (f.Contains(obj, StringComparison.Ordinal) || f.Contains(bin, StringComparison.Ordinal)
-                                                          || f.Contains(tests, StringComparison.Ordinal))
+                || f.Contains(tests, StringComparison.Ordinal))
             {
                 continue;
             }

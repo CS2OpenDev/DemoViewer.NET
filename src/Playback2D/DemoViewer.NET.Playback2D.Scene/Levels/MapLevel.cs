@@ -15,6 +15,7 @@ namespace DemoViewer.NET.Playback2D.Levels;
 ///         pane.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class MapLevel
 {
     /// <summary>Stable identity across rebuilds.</summary>
@@ -62,6 +63,7 @@ public sealed class MapLevel
 }
 
 /// <summary>How confidently radar images were matched to levels.</summary>
+[PublicAPI]
 public enum RadarBindingQuality
 {
     /// <summary>No radar layers at all, or none bound.</summary>

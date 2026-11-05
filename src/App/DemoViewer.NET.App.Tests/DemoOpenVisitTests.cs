@@ -21,32 +21,18 @@ namespace DemoViewer.NET.AppTests;
 public class DemoOpenVisitTests
 {
     private const string Demo = "/d/match.dem";
-    private static readonly byte[] Bytes = [1];
-
-    private static async Task WaitForAsync(Func<bool> condition, string what, int timeoutMs = 5000)
-    {
-        DateTime deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while (!condition())
-        {
-            if (DateTime.UtcNow > deadline)
-            {
-                throw new TimeoutException($"timed out waiting for {what}");
-            }
-
-            await Task.Delay(5);
-        }
-    }
+    private static readonly byte[] _bytes = [1];
 
     private sealed class Rig : IDisposable
     {
-        public readonly HeavyJobGate Gate = new();
+        private readonly HeavyJobGate _gate = new();
         public readonly DemoProcessingQueue Queue;
         public readonly ParsedDemo OpenParse = SyntheticParsedDemo.Create();
         public int FileParses;
         public int ByteParses;
 
         public Rig(Action<ParsedDemo>? parseReleased = null) =>
-            Queue = new DemoProcessingQueue(Gate, a => a(),
+            Queue = new DemoProcessingQueue(_gate, a => a(),
                 parseBytes: _ =>
                 {
                     Interlocked.Increment(ref ByteParses);
@@ -63,11 +49,12 @@ public class DemoOpenVisitTests
         public void Dispose()
         {
             Queue.Dispose();
-            Gate.Dispose();
+            _gate.Dispose();
         }
     }
 
-    private static DemoVisitRequest Visit(Action<IDemoPass, PassOutcome, Exception?>? ended, params IDemoPass[] passes) =>
+    private static DemoVisitRequest Visit(Action<IDemoPass, PassOutcome, Exception?>? ended,
+        params IDemoPass[] passes) =>
         new(Demo, PassLevel.Backlog, passes, 0, "match.dem", ended);
 
     [Test]
@@ -80,13 +67,14 @@ public class DemoOpenVisitTests
         FakePass facts = new("facts", "library") { OnRun = input => seen.Add(input.Retained!) };
 
         rig.Queue.Pause();
-        IDemoQueueHandle handle = rig.Queue.SubmitVisit(Visit((_, outcome, _) => outcomes.Add(outcome), facts, library));
+        IDemoQueueHandle handle =
+            rig.Queue.SubmitVisit(Visit((_, outcome, _) => outcomes.Add(outcome), facts, library));
         using IDemoOpenTicket open = rig.Queue.BeginOpen(Demo, "match.dem");
         rig.Queue.Resume();
 
         await Assert.That(rig.Queue.Snapshot().Single(s => s.Kind == QueueJobKind.DemoProcessing).Detail)
             .IsEqualTo("Runs on the open of this demo");
-        ParsedDemo parsed = await open.ParseAsync(Bytes);
+        ParsedDemo parsed = await open.ParseAsync(_bytes);
         await open.RunPassesAsync(parsed);
         open.Complete();
         await handle.Completion;
@@ -95,7 +83,8 @@ public class DemoOpenVisitTests
         {
             await Assert.That(rig.FileParses).IsEqualTo(0).Because("the open's parse served the visit");
             await Assert.That(rig.ByteParses).IsEqualTo(1);
-            await Assert.That(library.Ran.Concat(facts.Ran)).IsEquivalentTo(["library", "facts"], CollectionOrdering.Matching);
+            await Assert.That(library.Ran.Concat(facts.Ran))
+                .IsEquivalentTo(["library", "facts"], CollectionOrdering.Matching);
             await Assert.That(seen).IsEquivalentTo([rig.OpenParse, rig.OpenParse], CollectionOrdering.Matching);
             await Assert.That(outcomes).IsEquivalentTo([PassOutcome.Ran, PassOutcome.Ran], CollectionOrdering.Matching);
             await Assert.That(handle.State).IsEqualTo(DemoQueueItemState.Completed);
@@ -115,11 +104,11 @@ public class DemoOpenVisitTests
         using IDemoOpenTicket open = rig.Queue.BeginOpen(Demo, "match.dem");
         rig.Queue.Resume();
 
-        await open.RunPassesAsync(await open.ParseAsync(Bytes));
+        await open.RunPassesAsync(await open.ParseAsync(_bytes));
         open.Complete();
         await handle.Completion;
 
-        await Assert.That(ran).IsEquivalentTo(["a", "b"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(ran).IsEquivalentTo(["a", "b"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -128,7 +117,7 @@ public class DemoOpenVisitTests
         using Rig rig = new();
         FakePass library = new("library");
         using IDemoOpenTicket open = rig.Queue.BeginOpen(Demo, "match.dem");
-        ParsedDemo parsed = await open.ParseAsync(Bytes);
+        ParsedDemo parsed = await open.ParseAsync(_bytes);
 
         IDemoQueueHandle handle = rig.Queue.SubmitVisit(Visit(null, library));
         await Assert.That(handle.State).IsEqualTo(DemoQueueItemState.Queued);
@@ -150,7 +139,7 @@ public class DemoOpenVisitTests
         using Rig rig = new();
         FakePass library = new("library");
         using IDemoOpenTicket open = rig.Queue.BeginOpen(Demo, "match.dem");
-        ParsedDemo parsed = await open.ParseAsync(Bytes);
+        ParsedDemo parsed = await open.ParseAsync(_bytes);
         IDemoQueueHandle? handle = null;
 
         await open.RunPassesAsync(parsed, () => handle = rig.Queue.SubmitVisit(Visit(null, library)));
@@ -197,7 +186,7 @@ public class DemoOpenVisitTests
         using IDemoOpenTicket second = rig.Queue.BeginOpen("/d/other.dem", "other.dem");
         rig.Queue.Resume();
 
-        ParsedDemo parsed = await second.ParseAsync(Bytes);
+        ParsedDemo parsed = await second.ParseAsync(_bytes);
         await second.RunPassesAsync(parsed);
         second.Complete();
         await handle.Completion;
@@ -215,7 +204,7 @@ public class DemoOpenVisitTests
         List<ParsedDemo> released = [];
         using Rig rig = new(released.Add);
         using IDemoOpenTicket open = rig.Queue.BeginOpen(Demo, "match.dem");
-        ParsedDemo parsed = await open.ParseAsync(Bytes);
+        ParsedDemo parsed = await open.ParseAsync(_bytes);
 
         await open.RunPassesAsync(parsed);
         open.Complete();
@@ -243,12 +232,14 @@ public class DemoOpenVisitTests
 
         IDemoQueueHandle handle = rig.Queue.SubmitVisit(Visit(null, grenades));
         await handle.Completion;
-        IDemoQueueHandle other = rig.Queue.SubmitVisit(new DemoVisitRequest("/d/other.dem", PassLevel.Backlog, [new FakePass("library")]));
+        IDemoQueueHandle other =
+            rig.Queue.SubmitVisit(new DemoVisitRequest("/d/other.dem", PassLevel.Backlog, [new FakePass("library")]));
         await other.Completion;
 
         using (Assert.Multiple())
         {
-            await Assert.That(seen).IsEquivalentTo([rig.OpenParse], CollectionOrdering.Matching).Because("the loaded demo is never read again");
+            await Assert.That(seen).IsEquivalentTo([rig.OpenParse], CollectionOrdering.Matching)
+                .Because("the loaded demo is never read again");
             await Assert.That(heldDuringRun).IsTrue();
             await Assert.That(lease.Holds).IsEqualTo(0).Because("the hold ends with the passes");
             await Assert.That(rig.FileParses).IsEqualTo(1).Because("only the other demo was read");
@@ -273,7 +264,7 @@ public class DemoOpenVisitTests
         IDemoQueueHandle handle = rig.Queue.SubmitVisit(Visit(null, roundFacts));
         using IDemoOpenTicket open = rig.Queue.BeginOpen(Demo, "match.dem");
         rig.Queue.Resume();
-        ParsedDemo parsed = await open.ParseAsync(Bytes);
+        ParsedDemo parsed = await open.ParseAsync(_bytes);
 
         OpenRunPlan plan = rules.PlanOpen(YamlConfigLoader.LoadWithOverlay(shipped, null).Rulesets, Demo);
         AnalysisRun shellRun = DemoAnalysis.Evaluate(parsed, plan.Cuts(DemoAnalysis.Build(parsed, plan.Docs)));
@@ -286,7 +277,8 @@ public class DemoOpenVisitTests
         {
             await Assert.That(seeded).IsTrue();
             await Assert.That(served).IsSameReferenceAs(shellRun).Because("the visit's rules run is the shell's");
-            await Assert.That(rules.BareRun(parsed, Demo)).IsNotSameReferenceAs(shellRun).Because("the open released its parse");
+            await Assert.That(rules.BareRun(parsed, Demo)).IsNotSameReferenceAs(shellRun)
+                .Because("the open released its parse");
         }
     }
 

@@ -21,6 +21,7 @@ namespace DemoViewer.NET.Controls.Stats;
 public class RingGauge : StatPresenter
 {
     /// <summary>Stroke width of both the track and the value arc.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<double> ThicknessProperty =
         AvaloniaProperty.Register<RingGauge, double>(nameof(Thickness), 3);
 

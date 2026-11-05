@@ -11,7 +11,8 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 ///     stamp it to the owning pack's id. A caller that builds the shell directly (bypassing the pack)
 ///     names it explicitly, e.g. <c>StratBookPack.PackFeatureId</c>.
 /// </param>
-public sealed class TeamLibraryContribution(Func<TeamIdentityService> resolve, string? featureId = null) : ILibraryContribution
+public sealed class TeamLibraryContribution(Func<TeamIdentityService> resolve, string? featureId = null)
+    : ILibraryContribution
 {
     private TeamIdentityService? _teams;
 
@@ -22,15 +23,15 @@ public sealed class TeamLibraryContribution(Func<TeamIdentityService> resolve, s
     public event Action? Changed;
 
     /// <inheritdoc />
-    public LibraryFilter? Filter
+    public LibraryFilter Filter
     {
         get
         {
             TeamIdentityService teams = Resolve();
             List<LibraryFilterItem> items =
             [
-                new LibraryFilterItem("", "All teams"),
-                new LibraryFilterItem("us", "Us")
+                new("", "All teams"),
+                new("us", "Us")
             ];
             foreach (Team team in teams.Teams)
             {

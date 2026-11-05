@@ -2,11 +2,11 @@
 
 using System.Diagnostics;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Assets;
 using DemoViewer.NET.Playback2D.Pipeline.Goldens;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.TestSupport;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
@@ -39,13 +39,10 @@ public class ResultCardThumbnailTests
     private const int MatchTick = 10746 + 5 * 64;
 
     /// <summary>The document the fixture, the golden and the in-process render all come from.</summary>
-    internal static RoundPositionsDocument FixturePositions() => new()
+    private static RoundPositionsDocument FixturePositions() => new()
     {
         Fingerprint = "ri1;cadence=1;token=1;rf=1;src=pawn;pos=1",
-        Demo = new RoundPositionsDemo
-        {
-            StableKey = "3f9c0a1b2c3d4e5f60718293"
-        },
+        Demo = new RoundPositionsDemo { StableKey = "3f9c0a1b2c3d4e5f60718293" },
         CadenceTicks = 64,
         Places = ["BombsiteA", "Outside", "Ramp", "Lobby", "Silo"],
         Rounds =
@@ -85,13 +82,15 @@ public class ResultCardThumbnailTests
             await Assert.That(frame!.Markers.Count).IsEqualTo(8);
             await Assert.That(frame.Markers.Count(m => m.Team == 3)).IsEqualTo(5);
             await Assert.That(frame.Markers.Count(m => m.Team == 2)).IsEqualTo(3);
-            await Assert.That(frame.Markers.All(m => m.IsAlive && m.Ring == RingState.Team && m.Label.Length == 0 && m.YawDegrees == 0)).IsTrue();
+            await Assert.That(frame.Markers.All(m =>
+                m is { IsAlive: true, Ring: RingState.Team, Label.Length: 0, YawDegrees: 0 })).IsTrue();
             await Assert.That(frame.Markers.Single(m => m.Slot == 1).Place).IsEqualTo("Ramp");
             await Assert.That(frame.Markers.Single(m => m.Slot == 1).WorldZ).IsEqualTo(-700f);
             await Assert.That(frame.Time.Tick).IsEqualTo(MatchTick);
             await Assert.That(frame.Time.IsDiscontinuity).IsTrue();
             await Assert.That(frame.Map.MapName).IsEqualTo("de_nuke");
-            await Assert.That(frame.Map.NetworkedBounds).IsNull().Because("no bundle: the synthetic grid over the players");
+            await Assert.That(frame.Map.NetworkedBounds).IsNull()
+                .Because("no bundle: the synthetic grid over the players");
             await Assert.That(frame.Map.ObservedBounds.MinX).IsEqualTo(-1340 - 512);
 
             await Assert.That(SituationThumbnailRenderer.BuildFrame("de_nuke", positions, 4, MatchTick, null)).IsNull();
@@ -150,9 +149,10 @@ public class ResultCardThumbnailTests
                 MapName = "de_nuke",
                 MapVersion = asset.Bundle.MapVersion,
                 Notes = "A Result Card thumbnail: SituationThumbnailRenderer.BuildFrame over one sampled step of a " +
-                        "positions file (ResultCardThumbnailTests.FixturePositions), eight alive markers with no label " +
-                        "over de_nuke's two floors at the card's 320x180. Written by ResultCardThumbnailTests with " +
-                        "RI_GOLDEN_UPDATE=1; the golden is dv2d golden update --name result-card-nuke."
+                    "positions file (ResultCardThumbnailTests.FixturePositions), eight alive markers with no label "
+                    +
+                    "over de_nuke's two floors at the card's 320x180. Written by ResultCardThumbnailTests with " +
+                    "RI_GOLDEN_UPDATE=1; the golden is dv2d golden update --name result-card-nuke."
             }.Save(scenePath);
             Console.WriteLine($"[fixture] wrote {scenePath}");
         }
@@ -191,7 +191,8 @@ public class ResultCardThumbnailTests
             await Assert.That(result.Match).IsTrue();
             await Assert.That(committed.Frame.Markers.Count).IsEqualTo(frame.Markers.Count);
             await Assert.That(committed.Frame.Markers.Select(m => (m.Slot, m.Team, m.WorldX, m.WorldY, m.WorldZ)))
-                .IsEquivalentTo(frame.Markers.Select(m => (m.Slot, m.Team, m.WorldX, m.WorldY, m.WorldZ)), CollectionOrdering.Matching);
+                .IsEquivalentTo(frame.Markers.Select(m => (m.Slot, m.Team, m.WorldX, m.WorldY, m.WorldZ)),
+                    CollectionOrdering.Matching);
             await Assert.That(committed.MapVersion).IsEqualTo(asset.Bundle.MapVersion);
         }
     }

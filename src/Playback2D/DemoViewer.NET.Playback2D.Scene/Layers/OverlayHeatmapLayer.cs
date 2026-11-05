@@ -36,6 +36,7 @@ namespace DemoViewer.NET.Playback2D.Layers;
 ///         a golden, so an overlay fixture is judged at the unrelaxed pixel gate.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class OverlayHeatmapLayer : ISceneLayer
 {
     /// <summary>Kernel radius in world units: about three player widths, the spot a stationary player warms.</summary>
@@ -61,7 +62,6 @@ public sealed class OverlayHeatmapLayer : ISceneLayer
     // whole map a faint colour around every point.
     private const float FloorAlpha = 0.02f;
 
-    private readonly OverlayDocument _document;
     private readonly SKPaint _paint;
     private readonly SKSamplingOptions _sampling = new(SKFilterMode.Linear, SKMipmapMode.None);
 
@@ -70,15 +70,12 @@ public sealed class OverlayHeatmapLayer : ISceneLayer
     public OverlayHeatmapLayer(OverlayDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
-        _document = document;
-        _paint = new SKPaint
-        {
-            IsAntialias = false
-        };
+        Document = document;
+        _paint = new SKPaint { IsAntialias = false };
     }
 
     /// <summary>The document being drawn.</summary>
-    public OverlayDocument Document => _document;
+    public OverlayDocument Document { get; }
 
     /// <inheritdoc />
     public string Id => SceneLayerIds.Overlay;
@@ -98,7 +95,7 @@ public sealed class OverlayHeatmapLayer : ISceneLayer
     public bool IsEnabled { get; set; } = true;
 
     /// <inheritdoc />
-    public int ContentVersion => _document.Version;
+    public int ContentVersion => Document.Version;
 
     /// <inheritdoc />
     public bool Advance(in SceneTime time, Scene2DFrame frame) => false;
@@ -108,7 +105,7 @@ public sealed class OverlayHeatmapLayer : ISceneLayer
     {
         ArgumentNullException.ThrowIfNull(canvas);
 
-        IReadOnlyList<OverlayPoint> points = _document.Points;
+        IReadOnlyList<OverlayPoint> points = Document.Points;
         if (points.Count == 0)
         {
             return;

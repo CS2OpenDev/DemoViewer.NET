@@ -78,7 +78,6 @@ public sealed record StratRun(
 ///     The record of one strat, computed on demand and never stored. Every count is
 ///     backed by the runs that produced it, so a number opens its clips.
 /// </summary>
-/// <param name="StratId">The strat.</param>
 /// <param name="Revision">The strat's revision when the record was computed.</param>
 /// <param name="Runs">One per evidence instance, in document then instance order.</param>
 /// <param name="Total">Every run.</param>
@@ -87,7 +86,6 @@ public sealed record StratRun(
 /// <param name="FailureBreakdown">Keyed by <c>strat.failure</c> value: runs that name it, each counted once.</param>
 /// <param name="SmallSample">Fewer than <see cref="StratEvidence.SmallSampleBelow" /> runs: "caution under eight".</param>
 public sealed record StratRecord(
-    Guid StratId,
     int Revision,
     IReadOnlyList<StratRun> Runs,
     RecordSplit Total,
@@ -124,19 +122,18 @@ public static class StratEvidence
     public const string RevisionGroup = "strat.rev";
 
     /// <summary><c>completed</c> or <c>aborted</c>; absent means completed.</summary>
-    public const string ResultGroup = "strat.result";
+    private const string ResultGroup = "strat.result";
 
     /// <summary>Why it failed; repeatable.</summary>
-    public const string FailureGroup = "strat.failure";
+    private const string FailureGroup = "strat.failure";
 
-    public const string Completed = "completed";
-    public const string Aborted = "aborted";
+    private const string Aborted = "aborted";
 
     /// <summary>The shipped palette's human outcome group: the fallback when Round Facts has not run.</summary>
     public const string OutcomeGroup = "outcome";
 
     public const string OutcomeWon = "won";
-    public const string OutcomeLost = "lost";
+    private const string OutcomeLost = "lost";
 
     /// <summary>The Round Facts fact the refresh writes: <c>T</c>, <c>CT</c> or <c>none</c>.</summary>
     public const string WinnerFact = "winner";
@@ -178,7 +175,8 @@ public static class StratEvidence
         List<StratRun> runs = [];
         if (spellings.Count > 0)
         {
-            TagSlice slice = new(null, null, [new LabelPredicate(LabelNamespace.Human, TagStore.StratGroup, spellings)], null, null, null);
+            TagSlice slice = new(null, null, [new LabelPredicate(LabelNamespace.Human, TagStore.StratGroup, spellings)],
+                null, null, null);
             IReadOnlyList<TagInstanceRef> refs = TagQuery.Find(documents, slice);
 
             Dictionary<(string, Guid), TagInstance> instances = [];
@@ -190,8 +188,9 @@ public static class StratEvidence
                 }
             }
 
-            IReadOnlyDictionary<string, string?> labels = provenance?.Invoke(refs.Select(r => r.Sha256).Distinct(StringComparer.Ordinal))
-                                                          ?? new Dictionary<string, string?>();
+            IReadOnlyDictionary<string, string?> labels =
+                provenance?.Invoke(refs.Select(r => r.Sha256).Distinct(StringComparer.Ordinal))
+                ?? new Dictionary<string, string?>();
             foreach (TagInstanceRef found in refs)
             {
                 if (!instances.TryGetValue((found.Sha256, found.Id), out TagInstance? instance))
@@ -210,22 +209,21 @@ public static class StratEvidence
             }
         }
 
-        return Record(stratId, revision, runs);
+        return Record(revision, runs);
     }
 
     /// <summary>The record over runs already classified: the splits, the breakdown and the caution flag.</summary>
-    /// <param name="stratId">The strat.</param>
     /// <param name="revision">Its current revision.</param>
     /// <param name="runs">The runs.</param>
-    public static StratRecord Record(Guid stratId, int revision, IReadOnlyList<StratRun> runs)
+    public static StratRecord Record(int revision, IReadOnlyList<StratRun> runs)
     {
         ArgumentNullException.ThrowIfNull(runs);
         Dictionary<string, RecordSplit> byProvenance = runs
             .GroupBy(r => r.Provenance ?? Unlabeled, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => RecordSplit.Of(g), StringComparer.Ordinal);
+            .ToDictionary(g => g.Key, RecordSplit.Of, StringComparer.Ordinal);
         Dictionary<int, RecordSplit> byRevision = runs
             .GroupBy(r => r.Revision)
-            .ToDictionary(g => g.Key, g => RecordSplit.Of(g));
+            .ToDictionary(g => g.Key, RecordSplit.Of);
 
         // A won run's failure label is a note on a win, not a reason the strat failed, so the breakdown reads
         // the runs that did not win: lost, aborted, and unknown (which may yet turn out lost).
@@ -238,7 +236,7 @@ public static class StratEvidence
             }
         }
 
-        return new StratRecord(stratId, revision, runs, RecordSplit.Of(runs), byProvenance, byRevision, failures,
+        return new StratRecord(revision, runs, RecordSplit.Of(runs), byProvenance, byRevision, failures,
             runs.Count < SmallSampleBelow);
     }
 
@@ -275,7 +273,7 @@ public static class StratEvidence
     /// </summary>
     /// <param name="instance">The evidence instance.</param>
     /// <param name="stratId">The strat.</param>
-    public static int RevisionOf(TagInstance instance, Guid stratId)
+    private static int RevisionOf(TagInstance instance, Guid stratId)
     {
         ArgumentNullException.ThrowIfNull(instance);
         List<TagLabel> labels = instance.Labels;
@@ -293,14 +291,18 @@ public static class StratEvidence
 
         bool oneStrat = labels.Where(l => IsGroup(l, TagStore.StratGroup)).All(l => IsStratLabelFor(l, stratId));
         return oneStrat
-            ? labels.Where(l => IsGroup(l, RevisionGroup)).Select(l => ParseRevision(l.Value)).FirstOrDefault(r => r is not null) ?? 0
+            ? labels.Where(l => IsGroup(l, RevisionGroup)).Select(l => ParseRevision(l.Value))
+                .FirstOrDefault(r => r is not null) ?? 0
             : 0;
     }
 
     private static int? ParseRevision(string value) =>
-        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int revision) && revision > 0 ? revision : null;
+        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int revision) && revision > 0
+            ? revision
+            : null;
 
-    private static bool IsGroup(TagLabel label, string group) => string.Equals(label.Group, group, StringComparison.Ordinal);
+    private static bool IsGroup(TagLabel label, string group) =>
+        string.Equals(label.Group, group, StringComparison.Ordinal);
 
     private static bool IsStratLabelFor(TagLabel label, Guid stratId) =>
         IsGroup(label, TagStore.StratGroup) && Guid.TryParse(label.Value, out Guid id) && id == stratId;
@@ -334,11 +336,12 @@ public sealed class StratEvidenceService
 
     /// <summary>The record of a strat as it stands now.</summary>
     /// <param name="strat">The strat; its id, revision and side are read.</param>
-    public StratRecord Compute(StratDocument strat)
+    private StratRecord Compute(StratDocument strat)
     {
         ArgumentNullException.ThrowIfNull(strat);
         Guid id = strat.Id;
-        List<TagDocument> documents = _tags.LoadDocuments(e => e.StratIds.Any(v => Guid.TryParse(v, out Guid g) && g == id));
+        List<TagDocument> documents =
+            _tags.LoadDocuments(e => e.StratIds.Any(v => Guid.TryParse(v, out Guid g) && g == id));
         return StratEvidence.Build(id, strat.Revision, strat.Side, documents,
             _provenance is null ? null : _provenance.LabelsFor);
     }
@@ -351,7 +354,8 @@ public sealed class StratEvidenceService
         ArgumentNullException.ThrowIfNull(strat);
         StratDocument snapshot = strat.Clone();
         cancellationToken.ThrowIfCancellationRequested();
-        return StratBookJobs.RunAsync<StratRecord?>(_jobs, "Strats: record", () => Compute(snapshot), null, new JobOptions())
+        return StratBookJobs
+            .RunAsync(_jobs, "Strats: record", () => Compute(snapshot), null, new JobOptions())
             .ContinueWith(t => t.Result ?? throw new OperationCanceledException(cancellationToken), cancellationToken,
                 TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
     }
@@ -388,9 +392,12 @@ public sealed class StratRecordPane
         ByProvenance =
         [
             .. record.ByProvenance.Keys
-                .OrderBy(k => ProvenanceRank(k)).ThenBy(k => k, StringComparer.Ordinal)
+                .OrderBy(ProvenanceRank).ThenBy(k => k, StringComparer.Ordinal)
                 .Select(k => new StratRecordRow(k, k, record.ByProvenance[k],
-                    [.. record.Runs.Where(r => string.Equals(r.Provenance ?? StratEvidence.Unlabeled, k, StringComparison.Ordinal))]))
+                [
+                    .. record.Runs.Where(r =>
+                        string.Equals(r.Provenance ?? StratEvidence.Unlabeled, k, StringComparison.Ordinal))
+                ]))
         ];
 
         ByRevision =
@@ -406,11 +413,14 @@ public sealed class StratRecordPane
             .. record.FailureBreakdown.Keys
                 .OrderBy(FailureRank).ThenBy(k => k, StringComparer.Ordinal)
                 .Select(f => new StratFailureRow(f, record.FailureBreakdown[f],
-                    [.. record.Runs.Where(r => r.Outcome != RunOutcome.Won && r.Failures.Contains(f, StringComparer.Ordinal))]))
+                [
+                    .. record.Runs.Where(r =>
+                        r.Outcome != RunOutcome.Won && r.Failures.Contains(f, StringComparer.Ordinal))
+                ]))
         ];
     }
 
-    public StratRecord Record { get; }
+    private StratRecord Record { get; }
 
     public StratRecordRow Total { get; }
 

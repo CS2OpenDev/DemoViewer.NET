@@ -27,17 +27,21 @@
                 BorderThickness="1" CornerRadius="6" Padding="12 10" Margin="0 0 0 12">
             <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                    <TextBlock Grid.Column="0" Text="My team" Classes="col-label" Foreground="{DynamicResource TextCardHeader}" FontSize="11"
+                    <TextBlock Grid.Column="0" Text="My team" Classes="col-label"
+                               Foreground="{DynamicResource TextCardHeader}" FontSize="11"
                                VerticalAlignment="Center" />
                     <Button Grid.Column="1" Content="Edit squad" Classes="ghost" FontSize="11" Padding="10 5"
                             Command="{Binding EditSquadCommand}" IsVisible="{Binding CanEditSquad}"
                             ToolTip.Tip="Pick the players you play with; a side is your team when all of a trio, or three of a larger squad, play" />
                 </Grid>
-                <TextBlock Text="{Binding MyTeamLine}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextValue}" />
-                <TextBlock Text="{Binding FillsLine}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMid}"
+                <TextBlock Text="{Binding MyTeamLine}" FontSize="12" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextValue}" />
+                <TextBlock Text="{Binding FillsLine}" FontSize="11" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextMid}"
                            IsVisible="{Binding FillsLine, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 <StackPanel Spacing="6" IsVisible="{Binding IsEditingSquad}">
-                    <TextBlock Text="You are always in the squad. Tick one to four players you play with." FontSize="11"
+                    <TextBlock Text="You are always in the squad. Tick one to four players you play with."
+                               FontSize="11"
                                Foreground="{DynamicResource TextMid}" />
                     <ItemsControl ItemsSource="{Binding SquadCandidates}">
                         <ItemsControl.ItemsPanel>
@@ -47,14 +51,17 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:SquadCandidateRow">
-                                <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" FontSize="11" MinWidth="200" Margin="0 0 12 2" />
+                                <CheckBox IsChecked="{Binding IsChecked}" Content="{Binding Label}" FontSize="11"
+                                          MinWidth="200" Margin="0 0 12 2" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Content="Save squad" Classes="primary" Command="{Binding SaveSquadCommand}" />
-                        <Button Content="Cancel" Classes="ghost" FontSize="11" Padding="10 5" Command="{Binding CancelSquadCommand}" />
-                        <TextBlock Text="{Binding SquadHint}" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                        <Button Content="Cancel" Classes="ghost" FontSize="11" Padding="10 5"
+                                Command="{Binding CancelSquadCommand}" />
+                        <TextBlock Text="{Binding SquadHint}" FontSize="11" Foreground="{DynamicResource TextMid}"
+                                   VerticalAlignment="Center" />
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
@@ -67,7 +74,8 @@
                 BorderThickness="1" CornerRadius="6" Padding="12 10" Margin="0 0 0 12">
             <StackPanel Spacing="6">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="Suggestions" Classes="col-label" Foreground="{DynamicResource TextCardHeader}" FontSize="11"
+                    <TextBlock Text="Suggestions" Classes="col-label" Foreground="{DynamicResource TextCardHeader}"
+                               FontSize="11"
                                VerticalAlignment="Center" />
                     <CheckBox Content="{Binding SettledLabel}" FontSize="11" IsChecked="{Binding ShowSettled}"
                               ToolTip.Tip="Also list the suggestions you dismissed" />
@@ -80,15 +88,15 @@
                                            Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
                                 <Button Grid.Column="1" Content="Accept" Classes="ghost" FontSize="11" Padding="10 5"
                                         IsVisible="{Binding !IsDismissed}"
-                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).AcceptSuggestionCommand}"
+                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).AcceptSuggestionCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" />
                                 <Button Grid.Column="2" Content="Dismiss" Classes="ghost" FontSize="11" Padding="10 5"
                                         IsVisible="{Binding !IsDismissed}"
-                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).DismissSuggestionCommand}"
+                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).DismissSuggestionCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" />
                                 <Button Grid.Column="2" Content="Restore" Classes="ghost" FontSize="11" Padding="10 5"
                                         IsVisible="{Binding IsDismissed}"
-                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).RestoreSuggestionCommand}"
+                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).RestoreSuggestionCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" />
                             </Grid>
                         </DataTemplate>
@@ -127,7 +135,8 @@
                 <DockPanel>
                     <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0 0 0 8">
                         <TextBlock Grid.Column="0" Text="Teams" Classes="col-label"
-                                   Foreground="{DynamicResource TextCardHeader}" FontSize="11" VerticalAlignment="Center" />
+                                   Foreground="{DynamicResource TextCardHeader}" FontSize="11"
+                                   VerticalAlignment="Center" />
                         <CheckBox Grid.Column="1" Content="show hidden" IsChecked="{Binding ShowHidden}" FontSize="11" />
                     </Grid>
                     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0 8 0 0">
@@ -144,13 +153,16 @@
                             <DataTemplate x:DataType="vm:TeamRow">
                                 <StackPanel Spacing="2">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="{Binding Name}" FontSize="12" Foreground="{DynamicResource TextValue}" />
+                                        <TextBlock Text="{Binding Name}" FontSize="12"
+                                                   Foreground="{DynamicResource TextValue}" />
                                         <TextBlock Text="us" FontSize="10" IsVisible="{Binding IsUs}"
-                                                   Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
+                                                   Foreground="{DynamicResource TextCardHeader}"
+                                                   VerticalAlignment="Center" />
                                         <TextBlock Text="hidden" FontSize="10" IsVisible="{Binding Hidden}"
                                                    Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
                                     </StackPanel>
-                                    <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{DynamicResource TextMid}" />
+                                    <TextBlock Text="{Binding Summary}" FontSize="10"
+                                               Foreground="{DynamicResource TextMid}" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -181,10 +193,12 @@
                                 <TextBox Text="{Binding RenameText}" FontSize="12" MinWidth="200" Margin="0 0 8 4" />
                                 <Button Content="Rename" Classes="ghost" FontSize="11" Padding="10 5" Margin="0 0 8 4"
                                         Command="{Binding RenameCommand}" />
-                                <Button Content="Set as us" Classes="ghost" FontSize="11" Padding="10 5" Margin="0 0 8 4"
+                                <Button Content="Set as us" Classes="ghost" FontSize="11" Padding="10 5"
+                                        Margin="0 0 8 4"
                                         Command="{Binding SetAsUsCommand}"
                                         ToolTip.Tip="Exactly one team is us; setting another clears the first" />
-                                <Button Content="{Binding HideLabel}" Classes="ghost" FontSize="11" Padding="10 5" Margin="0 0 8 4"
+                                <Button Content="{Binding HideLabel}" Classes="ghost" FontSize="11" Padding="10 5"
+                                        Margin="0 0 8 4"
                                         Command="{Binding HideCommand}" />
                             </WrapPanel>
                             <WrapPanel Orientation="Horizontal">
@@ -204,29 +218,48 @@
                             </WrapPanel>
 
                             <!-- Rosters. -->
-                            <TextBlock Text="Rosters" Classes="col-label" Foreground="{DynamicResource TextCardHeader}" FontSize="11" />
+                            <TextBlock Text="Rosters" Classes="col-label" Foreground="{DynamicResource TextCardHeader}"
+                                       FontSize="11" />
                             <ItemsControl ItemsSource="{Binding Rosters}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:RosterRow">
-                                        <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="0 4 0 8" Margin="0 0 0 4">
+                                        <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1"
+                                                Padding="0 4 0 8" Margin="0 0 0 4">
                                             <StackPanel Spacing="4">
-                                                <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource TextValue}" />
-                                                <TextBlock Text="{Binding FiveLine}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
-                                                <TextBlock Text="{Binding CoreLine}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMid}"
+                                                <TextBlock Text="{Binding Label}" FontSize="12"
+                                                           Foreground="{DynamicResource TextValue}" />
+                                                <TextBlock Text="{Binding FiveLine}" FontSize="11" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextMid}" />
+                                                <TextBlock Text="{Binding CoreLine}" FontSize="11" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextMid}"
                                                            IsVisible="{Binding CoreLine, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                                 <ItemsControl ItemsSource="{Binding Members}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate x:DataType="vm:MemberRow">
-                                                            <Grid ColumnDefinitions="180,60,90,90,60,Auto" ColumnSpacing="6">
-                                                                <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11" Foreground="{DynamicResource TextValue}" TextTrimming="CharacterEllipsis" />
-                                                                <TextBlock Grid.Column="1" Text="{Binding Appearances}" FontSize="11" Foreground="{DynamicResource TextMid}" />
-                                                                <TextBlock Grid.Column="2" Text="{Binding FirstSeen}" FontSize="11" Foreground="{DynamicResource TextMid}" />
-                                                                <TextBlock Grid.Column="3" Text="{Binding LastSeen}" FontSize="11" Foreground="{DynamicResource TextMid}" />
-                                                                <TextBlock Grid.Column="4" Text="{Binding StandIns, StringFormat='{}{0} stand-in'}" FontSize="11" Foreground="{DynamicResource TextMid}" />
-                                                                <Button Grid.Column="5" Content="Open player overview" Classes="ghost" FontSize="11" Padding="8 1"
-                                                                        IsVisible="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).OffersPlayerOverview}"
+                                                            <Grid ColumnDefinitions="180,60,90,90,60,Auto"
+                                                                  ColumnSpacing="6">
+                                                                <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                                                           FontSize="11"
+                                                                           Foreground="{DynamicResource TextValue}"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Grid.Column="1" Text="{Binding Appearances}"
+                                                                           FontSize="11"
+                                                                           Foreground="{DynamicResource TextMid}" />
+                                                                <TextBlock Grid.Column="2" Text="{Binding FirstSeen}"
+                                                                           FontSize="11"
+                                                                           Foreground="{DynamicResource TextMid}" />
+                                                                <TextBlock Grid.Column="3" Text="{Binding LastSeen}"
+                                                                           FontSize="11"
+                                                                           Foreground="{DynamicResource TextMid}" />
+                                                                <TextBlock Grid.Column="4"
+                                                                           Text="{Binding StandIns, StringFormat='{}{0} stand-in'}"
+                                                                           FontSize="11"
+                                                                           Foreground="{DynamicResource TextMid}" />
+                                                                <Button Grid.Column="5" Content="Open player overview"
+                                                                        Classes="ghost" FontSize="11" Padding="8 1"
+                                                                        IsVisible="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).OffersPlayerOverview, FallbackValue=False}"
                                                                         IsEnabled="{Binding SteamId64, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).OpenPlayerOverviewCommand}"
+                                                                        Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).OpenPlayerOverviewCommand, FallbackValue={x:Null}}"
                                                                         CommandParameter="{Binding}"
                                                                         ToolTip.Tip="This player across every demo in the library" />
                                                             </Grid>
@@ -241,22 +274,28 @@
 
                             <!-- Demos. -->
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                <TextBlock Grid.Column="0" Text="Demos" Classes="col-label" Foreground="{DynamicResource TextCardHeader}" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="0" Text="Demos" Classes="col-label"
+                                           Foreground="{DynamicResource TextCardHeader}" FontSize="11"
+                                           VerticalAlignment="Center" />
                                 <WrapPanel Grid.Column="1" Orientation="Horizontal">
-                                    <Button Content="Split checked into a new team" Classes="ghost" FontSize="11" Padding="10 5" Margin="0 0 8 0"
+                                    <Button Content="Split checked into a new team" Classes="ghost" FontSize="11"
+                                            Padding="10 5" Margin="0 0 8 0"
                                             Command="{Binding SplitCommand}" />
-                                    <Button Content="Start roster here" Classes="ghost" FontSize="11" Padding="10 5" Margin="0 0 8 0"
+                                    <Button Content="Start roster here" Classes="ghost" FontSize="11" Padding="10 5"
+                                            Margin="0 0 8 0"
                                             Command="{Binding StartRosterCommand}"
                                             ToolTip.Tip="A new roster from the selected demo's date on; it establishes its own five" />
                                     <ComboBox ItemsSource="{Binding MoveTargets}" SelectedItem="{Binding MoveTarget}"
-                                              FontSize="11" MinWidth="140" Margin="0 0 8 0" PlaceholderText="another team">
+                                              FontSize="11" MinWidth="140" Margin="0 0 8 0"
+                                              PlaceholderText="another team">
                                         <ComboBox.ItemTemplate>
                                             <DataTemplate x:DataType="vm:TeamRow">
                                                 <TextBlock Text="{Binding Name}" />
                                             </DataTemplate>
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
-                                    <Button Content="Move to" Classes="ghost" FontSize="11" Padding="10 5" Margin="0 0 8 0"
+                                    <Button Content="Move to" Classes="ghost" FontSize="11" Padding="10 5"
+                                            Margin="0 0 8 0"
                                             Command="{Binding MoveDemoCommand}"
                                             ToolTip.Tip="The selected demo's side belongs to the chosen team; an override, kept by every rebuild" />
                                     <Button Content="Not a team" Classes="ghost" FontSize="11" Padding="10 5"
@@ -264,21 +303,36 @@
                                             ToolTip.Tip="The selected demo's side is not this team; an override, kept by every rebuild" />
                                 </WrapPanel>
                             </Grid>
-                            <ListBox ItemsSource="{Binding Demos}" SelectedItem="{Binding SelectedDemo}" Background="Transparent">
+                            <ListBox ItemsSource="{Binding Demos}" SelectedItem="{Binding SelectedDemo}"
+                                     Background="Transparent">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:DemoRow">
                                         <Grid ColumnDefinitions="Auto,90,110,30,*,110,Auto" ColumnSpacing="8">
                                             <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked}" />
-                                            <TextBlock Grid.Column="1" Text="{Binding Date}" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="2" Text="{Binding Map}" FontSize="11" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="3" Text="{Binding SideLabel}" FontSize="11" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
-                                            <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Opponent, StringFormat='vs {0}'}" FontSize="11" Foreground="{DynamicResource TextValue}" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="with a stand-in" FontSize="10" IsVisible="{Binding StandIn}" Foreground="{DynamicResource TextMid}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Date}" FontSize="11"
+                                                       Foreground="{DynamicResource TextMid}"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2" Text="{Binding Map}" FontSize="11"
+                                                       Foreground="{DynamicResource TextValue}"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="3" Text="{Binding SideLabel}" FontSize="11"
+                                                       Foreground="{DynamicResource TextValue}"
+                                                       VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Opponent, StringFormat='vs {0}'}"
+                                                           FontSize="11" Foreground="{DynamicResource TextValue}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="with a stand-in" FontSize="10"
+                                                           IsVisible="{Binding StandIn}"
+                                                           Foreground="{DynamicResource TextMid}" />
                                             </StackPanel>
-                                            <TextBlock Grid.Column="5" Text="{Binding Detail}" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
-                                            <Button Grid.Column="6" Content="Open" Classes="ghost" FontSize="11" Padding="8 3"
-                                                    Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).OpenDemoCommand}"
+                                            <TextBlock Grid.Column="5" Text="{Binding Detail}" FontSize="11"
+                                                       Foreground="{DynamicResource TextMid}"
+                                                       VerticalAlignment="Center" />
+                                            <Button Grid.Column="6" Content="Open" Classes="ghost" FontSize="11"
+                                                    Padding="8 3"
+                                                    Command="{Binding $parent[UserControl].((vm:TeamsTabViewModel)DataContext).OpenDemoCommand, FallbackValue={x:Null}}"
                                                     CommandParameter="{Binding}" />
                                         </Grid>
                                     </DataTemplate>

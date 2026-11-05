@@ -2,8 +2,8 @@
 
 using System.Collections.Immutable;
 using DemoViewer.NET.Playback2D.Cameras;
-using DemoViewer.NET.Playback2D.Pipeline.Cameras;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Cameras;
 
 #endregion
 
@@ -102,9 +102,8 @@ public sealed class CameraScriptResolver : IPaneCameraPolicy
         for (int i = 0; i < list.Count; i++)
         {
             LevelPane pane = list[i];
-            for (int j = 0; j < captured.Length; j++)
+            foreach (PaneCameraSnapshot snapshot in captured)
             {
-                PaneCameraSnapshot snapshot = captured[j];
                 if (snapshot.LevelId != pane.LevelId)
                 {
                     continue;

@@ -114,7 +114,8 @@ public sealed class GraphView : Control
         context.DrawRectangle(new SolidColorBrush(style.CanvasBackground), null,
             new Rect(0, 0, Bounds.Width, Bounds.Height));
 
-        if (vm is null || !TryGetViewTransform(out LayoutResult? layout, out double scale, out double offX, out double offY))
+        if (vm is null || !TryGetViewTransform(out LayoutResult layout, out double scale, out double offX,
+                out double offY))
         {
             return;
         }
@@ -150,7 +151,7 @@ public sealed class GraphView : Control
     }
 
     /// <summary>Resets pan to (0,0) and zoom to 1× so the layout refits the control.</summary>
-    public void ResetView()
+    private void ResetView()
     {
         _panZoom.Reset();
         InvalidateVisual();
@@ -194,10 +195,11 @@ public sealed class GraphView : Control
     ///     label rect test rather than a route-distance test, because the chip is the affordance and a
     ///     rect containment check stays cheap on the 474-edge shipped graph.
     /// </summary>
-    public IGraphEdge? HitTestConditionLabel(Point screen)
+    private IGraphEdge? HitTestConditionLabel(Point screen)
     {
         GraphViewModel? vm = ViewModel;
-        if (vm is null || !TryGetViewTransform(out LayoutResult? layout, out double scale, out double offX, out double offY))
+        if (vm is null || !TryGetViewTransform(out LayoutResult layout, out double scale, out double offX,
+                out double offY))
         {
             return null;
         }
@@ -282,10 +284,11 @@ public sealed class GraphView : Control
     ///     coordinates), or <c>null</c>. Topmost (last-drawn) node wins on overlap. Inverts the
     ///     same pan/zoom transform <see cref="Render" /> uses, so a hit matches what's drawn.
     /// </summary>
-    public IGraphNode? HitTestNode(Point screen)
+    private IGraphNode? HitTestNode(Point screen)
     {
         GraphViewModel? vm = ViewModel;
-        if (vm is null || !TryGetViewTransform(out LayoutResult? layout, out double scale, out double offX, out double offY))
+        if (vm is null || !TryGetViewTransform(out LayoutResult layout, out double scale, out double offX,
+                out double offY))
         {
             return null;
         }
@@ -317,10 +320,11 @@ public sealed class GraphView : Control
     ///     edges against their route polyline. Works in logical space (tolerance scaled by zoom) so a
     ///     hit matches what's drawn at any zoom.
     /// </summary>
-    public IGraphEdge? HitTestEdge(Point screen)
+    private IGraphEdge? HitTestEdge(Point screen)
     {
         GraphViewModel? vm = ViewModel;
-        if (vm is null || !TryGetViewTransform(out LayoutResult? layout, out double scale, out double offX, out double offY))
+        if (vm is null || !TryGetViewTransform(out LayoutResult layout, out double scale, out double offX,
+                out double offY))
         {
             return null;
         }
@@ -434,7 +438,7 @@ public sealed class GraphView : Control
             IGraphNode? node = HitTestNode(p);
             if (node is not null)
             {
-                NodeContextRequested?.Invoke(this, new GraphElementContextEventArgs(p, node, null));
+                NodeContextRequested?.Invoke(this, new GraphElementContextEventArgs(node, null));
                 e.Handled = true;
                 return;
             }
@@ -442,7 +446,7 @@ public sealed class GraphView : Control
             IGraphEdge? edge = HitTestEdge(p);
             if (edge is not null)
             {
-                EdgeContextRequested?.Invoke(this, new GraphElementContextEventArgs(p, null, edge));
+                EdgeContextRequested?.Invoke(this, new GraphElementContextEventArgs(null, edge));
                 e.Handled = true;
             }
 
@@ -500,11 +504,8 @@ public sealed class GraphView : Control
 ///     the control-relative pointer position plus exactly one hit element. <see cref="Node" /> is set
 ///     for a node hit, <see cref="Edge" /> for an edge hit; the other is <c>null</c>.
 /// </summary>
-public sealed class GraphElementContextEventArgs(Point position, IGraphNode? node, IGraphEdge? edge) : EventArgs
+public sealed class GraphElementContextEventArgs(IGraphNode? node, IGraphEdge? edge) : EventArgs
 {
-    /// <summary>Pointer position relative to the <see cref="GraphView" />, for anchoring a menu.</summary>
-    public Point Position { get; } = position;
-
     /// <summary>The hit node, or <c>null</c> when an edge was hit.</summary>
     public IGraphNode? Node { get; } = node;
 

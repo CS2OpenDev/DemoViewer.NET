@@ -22,7 +22,7 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposable
 {
     /// <summary>Seconds a member round opens before the take, so the approach is on screen.</summary>
-    public const int ExecuteLeadSeconds = 10;
+    private const int ExecuteLeadSeconds = 10;
 
     private readonly StratCanvasServices? _canvasServices;
     private readonly LineupOriginSource? _lineupOrigins;
@@ -63,7 +63,8 @@ public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposa
     /// <param name="mapLoader">The preview canvas's map loader; the baked assets when null.</param>
     /// <param name="lineupOrigins">The preview canvas's throw origins; null projects none.</param>
     /// <param name="canvasServices">The preview canvas's gate, zone resolver and settings fallback; see <see cref="StratCanvasServices" />.</param>
-    public DetectedStratsViewModel(StratMiningService? mining, Func<ISituationPlayback?> playback, Func<Guid, string?> teamName,
+    public DetectedStratsViewModel(StratMiningService? mining, Func<ISituationPlayback?> playback,
+        Func<Guid, string?> teamName,
         Func<StratOwner?> targetBook, Action<Guid> openStrat, Action<Action>? post = null,
         Func<string?, IMapAssetLease?>? mapLoader = null, LineupOriginSource? lineupOrigins = null,
         StratCanvasServices? canvasServices = null)
@@ -84,8 +85,6 @@ public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposa
 
         Refresh();
     }
-
-    public bool IsAvailable => _mining is not null;
 
     public bool IsMining => _mining?.IsMining ?? false;
 
@@ -160,14 +159,16 @@ public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposa
     private async Task Rebuild(string? notice)
     {
         if (_mining is null || SelectedRow is not { StratId: null } row
-                            || _mining.Patterns.FirstOrDefault(p => p.Pattern.Key == row.Key)?.Pattern is not { } pattern)
+            || _mining.Patterns.FirstOrDefault(p => p.Pattern.Key == row.Key)?.Pattern is not
+                { } pattern)
         {
             return;
         }
 
         ClosePreview();
         StratOwner owner = _targetBook() ?? StratOwner.Me();
-        StratPreviewViewModel preview = new(pattern, row.Title, _mapLoader, _post, _lineupOrigins, _canvasServices) { Notice = notice };
+        StratPreviewViewModel preview =
+            new(pattern, row.Title, _mapLoader, _post, _lineupOrigins, _canvasServices) { Notice = notice };
         CancellationTokenSource cancel = new();
         _previewCancel = cancel;
         Preview = preview;
@@ -220,9 +221,9 @@ public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposa
             PromoteResult result = _mining.Promote(preview.Pattern, built, book);
             if (result.PatternChanged)
             {
-                const string changed = "This pattern changed; review again.";
-                StatusLine = changed;
-                await Rebuild(changed);
+                const string Changed = "This pattern changed; review again.";
+                StatusLine = Changed;
+                await Rebuild(Changed);
                 return;
             }
 
@@ -395,15 +396,16 @@ public sealed class DetectedRowViewModel
         List<string> teams = [.. p.Teams.Select(teamName).OfType<string>().Order(StringComparer.Ordinal)];
         TeamsLine = teams.Count > 0 ? $"Run by {string.Join(", ", teams)}" : "No known team";
         Summary = string.Create(CultureInfo.InvariantCulture,
-            $"{p.Map} · {side} · {p.Support} rounds in {p.Demos} {(p.Demos == 1 ? "demo" : "demos")}")
-                  + (known > 0 ? string.Create(CultureInfo.InvariantCulture, $" · won {p.Wins}/{known}") : "")
-                  + (p.UtilityCompared ? "" : " · positions only")
-                  + (detected.StratId is not null ? " · in book" : detected.Dismissed ? " · dismissed" : "");
+                $"{p.Map} · {side} · {p.Support} rounds in {p.Demos} {(p.Demos == 1 ? "demo" : "demos")}")
+            + (known > 0 ? string.Create(CultureInfo.InvariantCulture, $" · won {p.Wins}/{known}") : "")
+            + (p.UtilityCompared ? "" : " · positions only")
+            + (detected.StratId is not null ? " · in book" : detected.Dismissed ? " · dismissed" : "");
         UtilityLine = p.UtilityCompared
             ? "Utility and positions compared."
             : "Positions and timing only: some of these demos have no grenade rows. Index their grenades in the Utility Book to compare utility.";
         TimingLine = p.Kind == PatternKind.Execute
-            ? string.Create(CultureInfo.InvariantCulture, $"Site taken {p.Medoid.AnchorSeconds:0} s after freeze end in the most typical round.")
+            ? string.Create(CultureInfo.InvariantCulture,
+                $"Site taken {p.Medoid.AnchorSeconds:0} s after freeze end in the most typical round.")
             : "The opening 15 to 25 seconds after freeze end.";
         CommonThrows =
         [
@@ -418,7 +420,9 @@ public sealed class DetectedRowViewModel
                 m.Round,
                 m.Won switch { true => "won", false => "lost", _ => "" },
                 m.TeamId is { } id ? teamName(id) : null,
-                p.Kind == PatternKind.Execute ? Math.Max(m.FreezeEndTick, m.AnchorTick - executeLeadSeconds * Math.Max(1, m.TickRate)) : m.FreezeEndTick))
+                p.Kind == PatternKind.Execute
+                    ? Math.Max(m.FreezeEndTick, m.AnchorTick - executeLeadSeconds * Math.Max(1, m.TickRate))
+                    : m.FreezeEndTick))
         ];
     }
 
@@ -452,9 +456,15 @@ public sealed class DetectedRowViewModel
 }
 
 /// <summary>A member round: the demo, the round, how it ended and where Open lands.</summary>
-public sealed record DetectedMemberRow(string DemoPath, string FileName, int Round, string Result, string? Team, int OpenTick)
+public sealed record DetectedMemberRow(
+    string DemoPath,
+    string FileName,
+    int Round,
+    string Result,
+    string? Team,
+    int OpenTick)
 {
     public string Line => string.Create(CultureInfo.InvariantCulture, $"Round {Round} · {FileName}")
-                          + (Result.Length > 0 ? $" · {Result}" : "")
-                          + (Team is null ? "" : $" · {Team}");
+        + (Result.Length > 0 ? $" · {Result}" : "")
+        + (Team is null ? "" : $" · {Team}");
 }

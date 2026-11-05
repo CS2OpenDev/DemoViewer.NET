@@ -45,11 +45,11 @@ public sealed class MatchRankRow
     public string SteamId64 { get; set; } = "";
 
     /// <summary>The rank system: 11 premier, 12 competitive.</summary>
-    public int RankType { get; set; }
+    public int RankType { get; init; }
 
     /// <summary>The rank going into the match, or null when unranked.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? RankOld { get; set; }
+    public int? RankOld { get; init; }
 
     /// <summary>The rank coming out of it, or null when unranked or unknown.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -79,7 +79,7 @@ public sealed class DemoMatchMeta
     /// <summary>The shape this build writes; the <c>matchmeta</c> stamp's schema.</summary>
     public const int CurrentSchema = 1;
 
-    public int Schema { get; set; } = CurrentSchema;
+    public int Schema { get; init; } = CurrentSchema;
 
     /// <summary>When the match was played (UTC ticks), or null when <see cref="MatchTimeSource" /> is <see cref="MatchMeta.MatchTimeSource.Unknown" />.</summary>
     public long? MatchTimeUtcTicks { get; set; }
@@ -88,15 +88,15 @@ public sealed class DemoMatchMeta
 
     /// <summary>Valve's matchmaking reservation id as a decimal string, or null for a demo that is not a Valve match.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ReservationId { get; set; }
+    public string? ReservationId { get; init; }
 
     /// <summary>The second number of a Valve file name.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public long? OutcomeId { get; set; }
+    public long? OutcomeId { get; init; }
 
     /// <summary>The third number of a Valve file name.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public long? Token { get; set; }
+    public long? Token { get; init; }
 
     /// <summary>
     ///     The server's game mode, <c>svc_ServerInfo</c>'s <c>gamemode</c> ("premier", "competitive", ...), else
@@ -115,7 +115,8 @@ public sealed class DemoMatchMeta
 
     /// <summary>True when the time is a guess (the file's write time) rather than the match's own.</summary>
     [JsonIgnore]
-    public bool IsApproximate => MatchTimeSource is not (MatchTimeSource.UserOverride or MatchTimeSource.ValveMatchInfo or MatchTimeSource.ExternalMetadata);
+    public bool IsApproximate => MatchTimeSource is not (MatchTimeSource.UserOverride or MatchTimeSource.ValveMatchInfo
+        or MatchTimeSource.ExternalMetadata);
 }
 
 /// <summary>
@@ -163,7 +164,9 @@ public sealed class NewestMatchFirst : IComparer<DemoCacheIndexEntry>
         }
 
         long local = entry.ModifiedTicks;
-        return local <= 0 || local > DateTime.MaxValue.Ticks ? local : new DateTime(local, DateTimeKind.Local).ToUniversalTime().Ticks;
+        return local <= 0 || local > DateTime.MaxValue.Ticks
+            ? local
+            : new DateTime(local, DateTimeKind.Local).ToUniversalTime().Ticks;
     }
 
     private static ulong ReservationOf(DemoCacheIndexEntry entry) =>

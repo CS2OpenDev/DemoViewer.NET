@@ -2,12 +2,11 @@
 
 using System.Numerics;
 using System.Security.Cryptography;
-using System.Text;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Zones;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
@@ -36,11 +35,13 @@ public class ZoneOutlineLayerTests
         PlaceResolver resolver = new(ZoneFixtures.Build());
 
         IReadOnlyList<PlaceOutline> upper = resolver.OutlinesFor(ZoneFixtures.Upper);
-        await Assert.That(upper.Select(o => o.Name).ToArray()).IsEquivalentTo(Names("Ramp", "Hut", "Outside"), CollectionOrdering.Matching);
+        await Assert.That([.. upper.Select(o => o.Name)])
+            .IsEquivalentTo(Names("Ramp", "Hut", "Outside"), CollectionOrdering.Matching);
         await Assert.That(ReferenceEquals(upper, resolver.OutlinesFor(ZoneFixtures.Upper))).IsTrue();
 
         PlaceOutline ramp = upper.Single(o => o.Name == "Ramp");
-        Console.WriteLine("[outline] Ramp: " + string.Join("  ", ramp.Edges.Select(e => $"({e.A.X},{e.A.Y})-({e.B.X},{e.B.Y})")));
+        Console.WriteLine("[outline] Ramp: "
+            + string.Join("  ", ramp.Edges.Select(e => $"({e.A.X},{e.A.Y})-({e.B.X},{e.B.Y})")));
 
         // The seam between areas 1 and 2 (x = 100) and the T-junction along y = 0 (area 7 under both 1
         // and 2) are interior to Ramp and must not be drawn; the seam with Hut (x = 200) must be.
@@ -60,7 +61,8 @@ public class ZoneOutlineLayerTests
         {
             foreach (PlaceOutline outline in resolver.OutlinesFor(floor))
             {
-                ZoneArea[] areas = [.. resolver.Zones.Areas.Where(a => a.PlaceId == outline.PlaceId && a.FloorKey.Equals(floor))];
+                ZoneArea[] areas =
+                    [.. resolver.Zones.Areas.Where(a => a.PlaceId == outline.PlaceId && a.FloorKey.Equals(floor))];
                 foreach ((Vector2 a, Vector2 b) in outline.Edges)
                 {
                     Vector2 mid = (a + b) / 2;
@@ -74,7 +76,7 @@ public class ZoneOutlineLayerTests
         }
 
         // The lower floor holds one place and the island holds none.
-        await Assert.That(resolver.OutlinesFor(ZoneFixtures.Lower).Select(o => o.Name).ToArray())
+        await Assert.That([.. resolver.OutlinesFor(ZoneFixtures.Lower).Select(o => o.Name)])
             .IsEquivalentTo(Names("Tunnels"), CollectionOrdering.Matching);
         await Assert.That(resolver.OutlinesFor(4096).Count).IsEqualTo(0);
     }
@@ -109,10 +111,7 @@ public class ZoneOutlineLayerTests
     public async Task Layer_DrawsOneFloorPerPane_AndEveryFloorOnASinglePane()
     {
         PlaceResolver resolver = new(ZoneFixtures.Build());
-        using ZoneOutlineLayer layer = new(resolver)
-        {
-            DrawLabels = false
-        };
+        using ZoneOutlineLayer layer = new(resolver) { DrawLabels = false };
 
         MapSpace space = new();
         space.Rebuild([new FloorSlice(-100000, -528), new FloorSlice(-528, 100000)]);
@@ -136,12 +135,9 @@ public class ZoneOutlineLayerTests
         ZoneOverlayDocument overlay = new(1, null, null,
             [new ZoneOverlayZone("E-box", ZoneFixtures.Upper, [200, 0, 300, 0, 300, 100, 200, 100], null, null, false)],
             [], []);
-        ZoneSet effective = ZoneOverlayApplier.Apply(baked, overlay, Encoding.UTF8.GetBytes("{}"), "o").Effective;
+        ZoneSet effective = ZoneOverlayApplier.Apply(baked, overlay, "{}"u8, "o").Effective;
 
-        using ZoneOutlineLayer layer = new(new PlaceResolver(baked))
-        {
-            DrawLabels = false
-        };
+        using ZoneOutlineLayer layer = new(new PlaceResolver(baked)) { DrawLabels = false };
         SceneRenderContext ctx = TestContexts.For(Scene2DFrame.Empty, _camera, Width, Height);
 
         byte[] bakedPng = Render(layer, ctx);
@@ -177,12 +173,13 @@ public class ZoneOutlineLayerTests
 
     private static byte[] Render(ZoneOutlineLayer layer, SceneRenderContext ctx)
     {
-        using SKSurface surface = SKSurface.Create(new SKImageInfo(Width, Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+        using SKSurface surface =
+            SKSurface.Create(new SKImageInfo(Width, Height, SKColorType.Rgba8888, SKAlphaType.Premul));
         surface.Canvas.Clear(SKColors.Black);
         layer.Render(surface.Canvas, ctx);
         using SKImage image = surface.Snapshot();
         using SKPixmap pixels = image.PeekPixels();
-        return pixels.GetPixelSpan().ToArray();
+        return [.. pixels.GetPixelSpan()];
     }
 
     private static int Ink(byte[] rgba)

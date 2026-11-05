@@ -12,9 +12,6 @@ namespace DemoViewer.NET.ViewModels.PlayerOverview;
 /// </summary>
 public static class PlayerOverviewLink
 {
-    /// <summary>The entry's label.</summary>
-    public const string Label = "Open player overview";
-
     /// <summary>The tooltip on an entry that offers no action.</summary>
     public const string NoSteamIdTip = "this demo carries no SteamID for this player";
 
@@ -29,5 +26,7 @@ public static class PlayerOverviewLink
     /// <param name="isBot">True for a bot.</param>
     /// <param name="isCoach">True for a coach.</param>
     public static ulong Of(string? steamId64, bool isBot, bool isCoach) =>
-        ulong.TryParse(steamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id) ? Of(id, isBot, isCoach) : 0;
+        ulong.TryParse(steamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
+            ? Of(id, isBot, isCoach)
+            : 0;
 }

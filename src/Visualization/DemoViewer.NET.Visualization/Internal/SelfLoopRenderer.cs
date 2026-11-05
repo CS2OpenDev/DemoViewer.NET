@@ -41,10 +41,7 @@ internal static class SelfLoopRenderer
 
             result[edge] = new List<Point>
             {
-                new(startX, topY),
-                new(startX - 30, topY - h),
-                new(endX + 30, topY - h),
-                new(endX, topY)
+                new(startX, topY), new(startX - 30, topY - h), new(endX + 30, topY - h), new(endX, topY)
             };
         }
 

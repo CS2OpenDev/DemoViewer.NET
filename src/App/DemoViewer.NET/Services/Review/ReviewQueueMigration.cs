@@ -1,8 +1,8 @@
 #region
 
-using DemoViewer.NET.Playback2D.Pipeline.Review;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
 
 #endregion
 
@@ -33,20 +33,21 @@ public static partial class ReviewQueueMigration
     ///     it generated ("&lt;title&gt;. setpos x y z; setang p y r").
     /// </summary>
     /// <param name="entry">A queue entry.</param>
-    public static bool IsGeneratedLineupClip(ReviewEntry entry)
+    private static bool IsGeneratedLineupClip(ReviewEntry entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
         return entry.Kind == ReviewEntryKind.Clip
-               && string.Equals(entry.Source, LineupSource, StringComparison.Ordinal)
-               && entry.Question.Length == 0
-               && !entry.Reviewed
-               && GeneratedNote().IsMatch(entry.Note);
+            && string.Equals(entry.Source, LineupSource, StringComparison.Ordinal)
+            && entry.Question.Length == 0
+            && !entry.Reviewed
+            && GeneratedNote().IsMatch(entry.Note);
     }
 
     /// <summary>The entries without the generated lineup clips and without lineup cards left empty.</summary>
     /// <param name="entries">The queue in order.</param>
     /// <param name="result">What was dropped and kept.</param>
-    public static List<ReviewEntry> DropGeneratedLineupClips(IReadOnlyList<ReviewEntry> entries, out ReviewQueueMigrationResult result)
+    public static List<ReviewEntry> DropGeneratedLineupClips(IReadOnlyList<ReviewEntry> entries,
+        out ReviewQueueMigrationResult result)
     {
         ArgumentNullException.ThrowIfNull(entries);
         List<ReviewEntry> kept = new(entries.Count);
@@ -66,7 +67,8 @@ public static partial class ReviewQueueMigration
                 continue;
             }
 
-            if (entry.Kind == ReviewEntryKind.Clip && string.Equals(entry.Source, LineupSource, StringComparison.Ordinal))
+            if (entry.Kind == ReviewEntryKind.Clip
+                && string.Equals(entry.Source, LineupSource, StringComparison.Ordinal))
             {
                 keptLineups++;
             }
@@ -79,7 +81,8 @@ public static partial class ReviewQueueMigration
         {
             bool empty = i + 1 >= kept.Count || kept[i + 1].Kind == ReviewEntryKind.Section;
             if (kept[i].Kind == ReviewEntryKind.Section && empty
-                                                        && kept[i].Title.StartsWith(LineupCardPrefix, StringComparison.Ordinal))
+                && kept[i].Title.StartsWith(LineupCardPrefix,
+                    StringComparison.Ordinal))
             {
                 kept.RemoveAt(i);
                 cards++;
@@ -101,7 +104,8 @@ public static partial class ReviewQueueMigration
     /// <param name="path">The queue file.</param>
     /// <param name="file">What was read from it.</param>
     /// <param name="result">What was dropped, or null when nothing was or no backup could be taken.</param>
-    public static IReadOnlyList<ReviewEntry> MigrateFile(string path, ReviewQueueFile file, out ReviewQueueMigrationResult? result)
+    public static IReadOnlyList<ReviewEntry> MigrateFile(string path, ReviewQueueFile file,
+        out ReviewQueueMigrationResult? result)
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(file);
@@ -124,9 +128,13 @@ public static partial class ReviewQueueMigration
         string next = path + ".migrating";
         try
         {
-            ReviewQueueFile rewritten = new() { SchemaVersion = file.SchemaVersion, Clock = file.Clock, Entries = kept, Extra = file.Extra };
+            ReviewQueueFile rewritten = new()
+            {
+                SchemaVersion = file.SchemaVersion, Clock = file.Clock, Entries = kept, Extra = file.Extra
+            };
             File.WriteAllText(next, JsonSerializer.Serialize(rewritten, ReviewQueueFile.JsonOptions));
-            ReviewQueueFile? back = JsonSerializer.Deserialize<ReviewQueueFile>(File.ReadAllText(next), ReviewQueueFile.JsonOptions);
+            ReviewQueueFile? back =
+                JsonSerializer.Deserialize<ReviewQueueFile>(File.ReadAllText(next), ReviewQueueFile.JsonOptions);
             if (back is null || !back.Entries.Select(e => e.Id).SequenceEqual(kept.Select(e => e.Id)))
             {
                 File.Delete(next);
@@ -154,6 +162,7 @@ public static partial class ReviewQueueMigration
         }
     }
 
-    [GeneratedRegex(@"^.+\. setpos -?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+; setang -?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^.+\. setpos -?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+; setang -?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+$",
+        RegexOptions.CultureInvariant)]
     private static partial Regex GeneratedNote();
 }

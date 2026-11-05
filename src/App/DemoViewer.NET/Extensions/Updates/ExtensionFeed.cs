@@ -24,16 +24,14 @@ public sealed partial record ExtensionFeed(string Id, IReadOnlyList<ExtensionFee
     public const string FileName = "extensions.json";
 
     /// <summary>More entries than this is not a feed.</summary>
-    public const int MaxEntries = 500;
+    private const int MaxEntries = 500;
 
     /// <summary>The feed may not be larger than this, in characters, before it is parsed.</summary>
     public const int MaxLength = 4 * 1024 * 1024;
 
     private static readonly JsonDocumentOptions _json = new()
     {
-        CommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true,
-        MaxDepth = 16
+        CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true, MaxDepth = 16
     };
 
     /// <summary>The highest version published, or null for an empty feed.</summary>
@@ -73,7 +71,8 @@ public sealed partial record ExtensionFeed(string Id, IReadOnlyList<ExtensionFee
                 throw new ExtensionFeedException($"'id' must be a reverse-DNS name; got '{id}'.");
             }
 
-            if (!root.TryGetProperty("entries", out JsonElement entriesElement) || entriesElement.ValueKind != JsonValueKind.Array)
+            if (!root.TryGetProperty("entries", out JsonElement entriesElement)
+                || entriesElement.ValueKind != JsonValueKind.Array)
             {
                 throw new ExtensionFeedException("'entries' is required and must be an array.");
             }
@@ -114,7 +113,8 @@ public sealed partial record ExtensionFeed(string Id, IReadOnlyList<ExtensionFee
             throw new ExtensionFeedException($"'version' is not a semantic version: '{versionText}'.");
         }
 
-        if (!element.TryGetProperty("manifest", out JsonElement manifestElement) || manifestElement.ValueKind != JsonValueKind.Object)
+        if (!element.TryGetProperty("manifest", out JsonElement manifestElement)
+            || manifestElement.ValueKind != JsonValueKind.Object)
         {
             throw new ExtensionFeedException($"Entry {version}: 'manifest' is required and must be an object.");
         }
@@ -151,17 +151,20 @@ public sealed partial record ExtensionFeed(string Id, IReadOnlyList<ExtensionFee
             throw new ExtensionFeedException($"Entry {version}: 'sha256' must be 64 hex characters.");
         }
 
-        if (!element.TryGetProperty("size", out JsonElement sizeElement) || sizeElement.ValueKind != JsonValueKind.Number
+        if (!element.TryGetProperty("size", out JsonElement sizeElement)
+            || sizeElement.ValueKind != JsonValueKind.Number
             || !sizeElement.TryGetInt64(out long size) || size <= 0)
         {
             throw new ExtensionFeedException($"Entry {version}: 'size' must be a positive integer.");
         }
 
         DateTimeOffset? publishedAt = null;
-        if (element.TryGetProperty("publishedAt", out JsonElement publishedElement) && publishedElement.ValueKind != JsonValueKind.Null)
+        if (element.TryGetProperty("publishedAt", out JsonElement publishedElement)
+            && publishedElement.ValueKind != JsonValueKind.Null)
         {
             if (publishedElement.ValueKind != JsonValueKind.String
-                || !DateTimeOffset.TryParse(publishedElement.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out DateTimeOffset published))
+                || !DateTimeOffset.TryParse(publishedElement.GetString(), CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal, out DateTimeOffset published))
             {
                 throw new ExtensionFeedException($"Entry {version}: 'publishedAt' is not a timestamp.");
             }
@@ -209,10 +212,6 @@ public sealed record ExtensionFeedEntry(
 /// <summary>A feed that could not be read or did not validate.</summary>
 public sealed class ExtensionFeedException : Exception
 {
-    public ExtensionFeedException()
-    {
-    }
-
     public ExtensionFeedException(string message) : base(message)
     {
     }

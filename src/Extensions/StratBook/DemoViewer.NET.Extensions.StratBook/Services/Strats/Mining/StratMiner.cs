@@ -17,23 +17,23 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 public static class StratMiner
 {
     /// <summary>Rounds that make a pattern (owner, 2026-09-27).</summary>
-    public const int MinSupport = 2;
+    private const int MinSupport = 2;
 
     /// <summary>World units at which a player pairing costs 1.</summary>
-    public const double PositionScale = 500;
+    private const double PositionScale = 500;
 
     /// <summary>Two grenades land on the same spot when this close, world units.</summary>
-    public const double LandingRadius = 350;
+    private const double LandingRadius = 350;
 
     /// <summary>Two grenades are the same throw when this close in time, seconds.</summary>
-    public const double ThrowTimeWindow = 10;
+    private const double ThrowTimeWindow = 10;
 
     /// <summary>Seconds of execute timing that cost 1.</summary>
-    public const double ExecuteTimeScale = 20;
+    private const double ExecuteTimeScale = 20;
 
-    public const double PositionWeight = 1.0;
+    private const double PositionWeight = 1.0;
     public const double UtilityWeight = 0.6;
-    public const double TimeWeight = 0.3;
+    private const double TimeWeight = 0.3;
 
     /// <summary>
     ///     What an uncompared utility costs. Positive so a positions-only pair has to sit closer than a pair
@@ -42,7 +42,7 @@ public static class StratMiner
     public const double UnknownUtilityPenalty = 0.25;
 
     /// <summary>The linkage cut: two rounds further apart never share a pattern.</summary>
-    public const double Cutoff = 0.55;
+    private const double Cutoff = 0.55;
 
     /// <summary>Anchor offsets in seconds from a setup's freeze end.</summary>
     public static IReadOnlyList<int> SetupAnchors { get; } = [15, 25];
@@ -56,9 +56,6 @@ public static class StratMiner
     /// <summary>An execute's utility window, seconds from the take.</summary>
     public static (int From, int To) ExecuteThrowWindow { get; } = (-25, 5);
 
-    /// <summary>The anchor offsets for a kind.</summary>
-    /// <param name="kind">The kind.</param>
-    public static IReadOnlyList<int> AnchorsFor(PatternKind kind) => kind == PatternKind.Execute ? ExecuteAnchors : SetupAnchors;
 
     /// <summary>
     ///     How far apart two rounds are: positions, utility and (for an execute) timing. Infinity when they
@@ -94,7 +91,8 @@ public static class StratMiner
     ///     units. Players pair by position, not slot: the same setup is run by different people in different
     ///     demos. An unpaired player costs 1. NaN when no anchor has players on both.
     /// </summary>
-    public static double PositionDistance(IReadOnlyList<IReadOnlyList<MinedPawn>> a, IReadOnlyList<IReadOnlyList<MinedPawn>> b)
+    public static double PositionDistance(IReadOnlyList<IReadOnlyList<MinedPawn>> a,
+        IReadOnlyList<IReadOnlyList<MinedPawn>> b)
     {
         double sum = 0;
         int anchors = 0;
@@ -136,7 +134,8 @@ public static class StratMiner
         return (best + (cols - rows)) / cols;
     }
 
-    private static void Assign(ReadOnlySpan<double> cost, int rows, int cols, Span<bool> used, int i, double acc, ref double best)
+    private static void Assign(ReadOnlySpan<double> cost, int rows, int cols, Span<bool> used, int i, double acc,
+        ref double best)
     {
         if (acc >= best)
         {
@@ -172,7 +171,7 @@ public static class StratMiner
         a.Count + b.Count == 0 ? 1 : 2.0 * PairCount(a, b) / (a.Count + b.Count);
 
     /// <summary>The matched throws of two rounds as index pairs, the closest first.</summary>
-    public static List<(int A, int B)> Pairs(IReadOnlyList<MinedThrow> a, IReadOnlyList<MinedThrow> b)
+    private static List<(int A, int B)> Pairs(IReadOnlyList<MinedThrow> a, IReadOnlyList<MinedThrow> b)
     {
         List<(int, int)> pairs = [];
         Match(a, b, pairs);
@@ -185,7 +184,8 @@ public static class StratMiner
     private static int Match(IReadOnlyList<MinedThrow> a, IReadOnlyList<MinedThrow> b, List<(int, int)>? pairs)
     {
         int size = a.Count * b.Count;
-        Span<(double Cost, int A, int B)> candidates = size <= 128 ? stackalloc (double, int, int)[128] : new (double, int, int)[size];
+        Span<(double Cost, int A, int B)> candidates =
+            size <= 128 ? stackalloc (double, int, int)[128] : new (double, int, int)[size];
         int n = 0;
         for (int i = 0; i < a.Count; i++)
         {
@@ -196,7 +196,9 @@ public static class StratMiner
                     continue;
                 }
 
-                double dx = a[i].Landing.X - b[j].Landing.X, dy = a[i].Landing.Y - b[j].Landing.Y, dz = a[i].Landing.Z - b[j].Landing.Z;
+                double dx = a[i].Landing.X - b[j].Landing.X,
+                    dy = a[i].Landing.Y - b[j].Landing.Y,
+                    dz = a[i].Landing.Z - b[j].Landing.Z;
                 double landing = Math.Sqrt(dx * dx + dy * dy + dz * dz);
                 double dt = Math.Abs(a[i].Seconds - b[j].Seconds);
                 if (landing > LandingRadius || dt > ThrowTimeWindow)
@@ -220,8 +222,11 @@ public static class StratMiner
         }
 
         candidates = candidates[..n];
-        candidates.Sort(static (x, y) => x.Cost != y.Cost ? x.Cost.CompareTo(y.Cost)
-            : x.A != y.A ? x.A.CompareTo(y.A) : x.B.CompareTo(y.B));
+        candidates.Sort(static (x, y) =>
+        {
+            int byCost = x.Cost.CompareTo(y.Cost);
+            return byCost != 0 ? byCost : x.A != y.A ? x.A.CompareTo(y.A) : x.B.CompareTo(y.B);
+        });
         Span<bool> takenA = a.Count <= 64 ? stackalloc bool[64] : new bool[a.Count];
         Span<bool> takenB = b.Count <= 64 ? stackalloc bool[64] : new bool[b.Count];
         takenA.Clear();
@@ -280,7 +285,7 @@ public static class StratMiner
     }
 
     /// <summary>Rounds of two demos this close (same round number, side and kind) are one demo copied.</summary>
-    public const double CopyDistance = 0.02;
+    private const double CopyDistance = 0.02;
 
     /// <summary>
     ///     Drops a round that repeats another demo's round: same map, round number, side and kind and every

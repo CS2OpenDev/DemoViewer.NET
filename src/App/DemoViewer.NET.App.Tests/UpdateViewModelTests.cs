@@ -19,10 +19,7 @@ public class UpdateViewModelTests
     [Test]
     public async Task StartupCheck_WithUpdate_RaisesBanner()
     {
-        FakeUpdateService svc = new()
-        {
-            CheckResult = UpdateCheckResult.UpdateAvailable("0.5.2")
-        };
+        FakeUpdateService svc = new() { CheckResult = UpdateCheckResult.UpdateAvailable("0.5.2") };
         UpdateViewModel vm = new(svc);
 
         await vm.CheckOnStartupAsync();
@@ -37,10 +34,7 @@ public class UpdateViewModelTests
     [Test]
     public async Task StartupCheck_UpToDate_StaysSilent()
     {
-        FakeUpdateService svc = new()
-        {
-            CheckResult = UpdateCheckResult.UpToDate()
-        };
+        FakeUpdateService svc = new() { CheckResult = UpdateCheckResult.UpToDate() };
         UpdateViewModel vm = new(svc);
 
         await vm.CheckOnStartupAsync();
@@ -56,10 +50,7 @@ public class UpdateViewModelTests
     [Test]
     public async Task StartupCheck_Failure_IsSilent()
     {
-        FakeUpdateService svc = new()
-        {
-            CheckResult = UpdateCheckResult.Failed("no such host is known")
-        };
+        FakeUpdateService svc = new() { CheckResult = UpdateCheckResult.Failed("no such host is known") };
         UpdateViewModel vm = new(svc);
 
         await vm.CheckOnStartupAsync();
@@ -75,31 +66,19 @@ public class UpdateViewModelTests
     [Test]
     public async Task ManualCheck_ReportsEveryOutcome()
     {
-        UpdateViewModel upToDate = new(new FakeUpdateService
-        {
-            CheckResult = UpdateCheckResult.UpToDate()
-        });
+        UpdateViewModel upToDate = new(new FakeUpdateService { CheckResult = UpdateCheckResult.UpToDate() });
         await upToDate.CheckNowCommand.ExecuteAsync(null);
         await Assert.That(upToDate.StatusMessage).IsEqualTo("You're up to date.");
 
-        UpdateViewModel failed = new(new FakeUpdateService
-        {
-            CheckResult = UpdateCheckResult.Failed("rate limited")
-        });
+        UpdateViewModel failed = new(new FakeUpdateService { CheckResult = UpdateCheckResult.Failed("rate limited") });
         await failed.CheckNowCommand.ExecuteAsync(null);
         await Assert.That(failed.StatusMessage).Contains("rate limited");
 
-        UpdateViewModel unpackaged = new(new FakeUpdateService
-        {
-            CheckResult = UpdateCheckResult.NotSupported()
-        });
+        UpdateViewModel unpackaged = new(new FakeUpdateService { CheckResult = UpdateCheckResult.NotSupported() });
         await unpackaged.CheckNowCommand.ExecuteAsync(null);
         await Assert.That(unpackaged.StatusMessage).Contains("installed builds only");
 
-        UpdateViewModel avail = new(new FakeUpdateService
-        {
-            CheckResult = UpdateCheckResult.UpdateAvailable("0.6.0")
-        });
+        UpdateViewModel avail = new(new FakeUpdateService { CheckResult = UpdateCheckResult.UpdateAvailable("0.6.0") });
         await avail.CheckNowCommand.ExecuteAsync(null);
         await Assert.That(avail.StatusMessage).Contains("0.6.0");
         // A Settings check must also raise the shell banner: they share one VM for exactly this.
@@ -112,8 +91,7 @@ public class UpdateViewModelTests
     {
         FakeUpdateService svc = new()
         {
-            CheckResult = UpdateCheckResult.UpdateAvailable("0.5.2"),
-            DownloadSucceeds = true
+            CheckResult = UpdateCheckResult.UpdateAvailable("0.5.2"), DownloadSucceeds = true
         };
         UpdateViewModel vm = new(svc);
         await vm.CheckOnStartupAsync();
@@ -135,8 +113,7 @@ public class UpdateViewModelTests
     {
         FakeUpdateService svc = new()
         {
-            CheckResult = UpdateCheckResult.UpdateAvailable("0.5.2"),
-            DownloadSucceeds = false
+            CheckResult = UpdateCheckResult.UpdateAvailable("0.5.2"), DownloadSucceeds = false
         };
         UpdateViewModel vm = new(svc);
         await vm.CheckOnStartupAsync();
@@ -152,10 +129,7 @@ public class UpdateViewModelTests
     [Test]
     public async Task Dismiss_HidesBannerOnly()
     {
-        FakeUpdateService svc = new()
-        {
-            CheckResult = UpdateCheckResult.UpdateAvailable("0.5.2")
-        };
+        FakeUpdateService svc = new() { CheckResult = UpdateCheckResult.UpdateAvailable("0.5.2") };
         UpdateViewModel vm = new(svc);
         await vm.CheckOnStartupAsync();
 
@@ -212,7 +186,7 @@ public class UpdateViewModelTests
         public bool DownloadSucceeds { get; init; }
         public int DownloadCalls { get; private set; }
 
-        public string? CurrentVersion => "0.5.1";
+        public string CurrentVersion => "0.5.1";
 
         public Task<UpdateCheckResult> CheckAsync(CancellationToken ct = default) => Task.FromResult(CheckResult);
 

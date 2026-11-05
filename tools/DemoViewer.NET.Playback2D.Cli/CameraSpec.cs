@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using SkiaSharp;
 
@@ -17,7 +16,7 @@ namespace DemoViewer.NET.Playback2D.Cli;
 internal static class CameraSpec
 {
     /// <summary>The spec accepted by <c>--camera</c>, for the usage text.</summary>
-    public const string Syntax = "fit-map|fit-alive|follow:<steamId>|fixed:<x>,<y>,<zoom>";
+    private const string Syntax = "fit-map|fit-alive|follow:<steamId>|fixed:<x>,<y>,<zoom>";
 
     /// <summary>
     ///     Resolves the transform. With no <c>--camera</c>, the fixture's own camera is used, re-fitted to

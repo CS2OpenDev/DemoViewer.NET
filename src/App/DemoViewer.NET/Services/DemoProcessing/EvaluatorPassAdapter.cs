@@ -1,9 +1,3 @@
-#region
-
-using CS2DemoKit.Parser;
-
-#endregion
-
 namespace DemoViewer.NET.Services.DemoProcessing;
 
 /// <summary>
@@ -24,7 +18,7 @@ public sealed class EvaluatorPassAdapter : IDemoPass, IPassScheduling
     }
 
     /// <summary>The wrapped evaluator.</summary>
-    public IDemoEvaluator Evaluator { get; }
+    private IDemoEvaluator Evaluator { get; }
 
     /// <inheritdoc />
     public string Id => Evaluator.Id;
@@ -76,7 +70,9 @@ public sealed class EvaluatorPassAdapter : IDemoPass, IPassScheduling
 
     /// <summary>The level the evaluator asks for a demo at, from <see cref="IDemoEvaluator.PriorityFor" />.</summary>
     public PassLevel LevelFor(VisitedDemo demo) =>
-        Evaluator.PriorityFor(demo.Path) >= DemoJobPriority.UserRequested ? PassLevel.UserRequested : PassLevel.Background;
+        Evaluator.PriorityFor(demo.Path) >= DemoJobPriority.UserRequested
+            ? PassLevel.UserRequested
+            : PassLevel.Background;
 
     /// <summary>The evaluator's <see cref="IDemoEvaluator.OrderHint" />.</summary>
     public long OrderHint(VisitedDemo demo) => Evaluator.OrderHint(demo.Path);

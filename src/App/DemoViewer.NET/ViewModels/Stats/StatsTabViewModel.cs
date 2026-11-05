@@ -41,7 +41,6 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 
     private readonly Func<string?, string?> _collisionResolver;
     private readonly Func<string?> _demoPathAccessor;
-    private Action<string>? _errorReportOpener;
 
     // Optional analyzer options seam (frame window / stride / FOV). null → analyzer defaults over
     // the whole demo (the product path). Tests inject a frame window so the LOS replay covers a
@@ -49,10 +48,6 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     private readonly VisibilityAnalyzer.Options? _visibilityOptions;
 
     private string? _collisionTrisPath;
-
-    // Diagnostics-pillar logger (v0.6.0: failure surfaces show clean text, this carries the real
-    // exception). Lazy: the ambient factory is wired after construction.
-    private ILogger? _diagLog;
 
     // ── Extra tables: configured outputs + keyed breakdowns ───────────────────
 
@@ -140,7 +135,6 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _visibilityCts;
 
     // Retained from the last Update: the compute call needs the frames + players + map name.
-    private ParsedDemo? _visibilityDemo;
 
     // The account each slot opens in the Player Overview, per PlayerOverviewLink; a slot with none is absent.
     private Dictionary<int, ulong> _steamIdBySlot = [];
@@ -182,7 +176,9 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         }
     }
 
-    private ILogger DiagLog => _diagLog ??= DiagnosticsLog.CreateLogger("App.Stats");
+    // Diagnostics-pillar logger (v0.6.0: failure surfaces show clean text, this carries the real
+    // exception). Lazy: the ambient factory is wired after construction.
+    private ILogger DiagLog => field ??= DiagnosticsLog.CreateLogger("App.Stats");
 
     /// <summary>
     ///     Opens an account in the Player Overview tab, given its SteamID64 and the name this demo shows. Null where
@@ -306,13 +302,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     ///     (configured outputs, keyed breakdowns) are per-evaluation.
     /// </summary>
     public IReadOnlyList<MetricTable> ExportTables =>
-        new[]
-            {
-                GameTable, RoundTable, EventsTable, VisibilityPlayersTable, VisibilityPairsTable
-            }
+    [
+        .. new[] { GameTable, RoundTable, EventsTable, VisibilityPlayersTable, VisibilityPairsTable }
             .Where(t => t is not null).Cast<MetricTable>()
             .Concat(ExtraTables)
-            .ToList();
+    ];
 
     /// <summary>The table picker's items: every non-built-in table this evaluation produced.</summary>
     public IReadOnlyList<MetricTable> ExtraTables { get; private set; } = [];
@@ -389,16 +383,16 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     /// </summary>
     public Action<string>? ErrorReportOpener
     {
-        get => _errorReportOpener;
+        get;
         set
         {
-            _errorReportOpener = value;
+            field = value;
             OnPropertyChanged(nameof(CanReportErrors));
         }
     }
 
     /// <summary>Gates the toolbar's "Report Analysis Errors" button: this page always reports the OPEN demo.</summary>
-    public bool CanReportErrors => _errorReportOpener is not null && _demoPathAccessor() is { Length: > 0 };
+    public bool CanReportErrors => ErrorReportOpener is not null && _demoPathAccessor() is { Length: > 0 };
 
     /// <summary>
     ///     The shell calls this when the open demo changes. The gate reads a Func the view cannot observe,
@@ -462,7 +456,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         Dispose();
         ClosePlayerDetails();
 
-        _visibilityDemo = null;
+        LoadedDemo = null;
         _steamIdBySlot = [];
         _pendingFocus = null;
         _sprays.Clear();
@@ -518,14 +512,14 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     {
         string? matchId = _demoPathAccessor() is { } path ? Path.GetFileName(path) : null;
         EvaluationResult result = run.Snapshots
-                                  ?? throw new InvalidOperationException("Stats tab requires snapshot-mode evaluation.");
+            ?? throw new InvalidOperationException(
+                "Stats tab requires snapshot-mode evaluation.");
 
-        List<MetricTable> extras = new();
-        extras.AddRange(run.ProjectConfiguredOutputs(demo, matchId));
-        extras.AddRange(new KeyedStatsProjector
-        {
-            MatchId = matchId
-        }.Project(result, demo));
+        List<MetricTable> extras =
+        [
+            .. run.ProjectConfiguredOutputs(demo, matchId),
+            .. new KeyedStatsProjector { MatchId = matchId }.Project(result, demo)
+        ];
 
         Update(result, demo, extras);
     }
@@ -577,7 +571,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     {
         if (_demoPathAccessor() is { Length: > 0 } path)
         {
-            _errorReportOpener?.Invoke(path);
+            ErrorReportOpener?.Invoke(path);
         }
     }
 
@@ -591,15 +585,17 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         List<string> fullOrder = IsRoundView ? _roundColumnOrder : _gameColumnOrder;
         // Hidden columns carry a group but never a chip: a group whose every column is a denominator
         // would otherwise be a chip that opens on an empty table.
-        List<CategoryChip> chips = fullOrder
-            .Select(ColumnCatalogue.Resolve)
-            .Where(m => !m.Hidden)
-            .Select(m => m.Group)
-            .Where(ColumnCatalogue.IsPlayerFacing)
-            .Distinct()
-            .OrderBy(g => g == StatGroup.Core ? -1 : (int)g)
-            .Select(g => new CategoryChip(g, CategoryChip.LabelFor(g), g == SelectedCategory))
-            .ToList();
+        List<CategoryChip> chips =
+        [
+            .. fullOrder
+                .Select(ColumnCatalogue.Resolve)
+                .Where(m => !m.Hidden)
+                .Select(m => m.Group)
+                .Where(ColumnCatalogue.IsPlayerFacing)
+                .Distinct()
+                .OrderBy(g => g == StatGroup.Core ? -1 : (int)g)
+                .Select(g => new CategoryChip(g, CategoryChip.LabelFor(g), g == SelectedCategory))
+        ];
         if (chips.Count == 0 || chips[0].Group != StatGroup.Core)
         {
             chips.Insert(0, new CategoryChip(StatGroup.Core, CategoryChip.LabelFor(StatGroup.Core),
@@ -621,9 +617,10 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     ///     </para>
     /// </summary>
     private List<string> VisibleColumns(List<string> fullOrder) =>
-        fullOrder
+    [
+        .. fullOrder
             .Where(c => ColumnCatalogue.ShowsUnder(c, SelectedCategory))
-            .ToList();
+    ];
 
     /// <summary>Steps the round browser to the previous live round.</summary>
     [RelayCommand]
@@ -757,30 +754,20 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         SetExtraTables(extraTables ?? []);
         _steamIdBySlot = SteamIdsBySlot(demo, extraTables);
 
-        GameTable = new PlayerGameStatsProjector
-        {
-            MatchId = matchId
-        }.Project(result, demo).Single();
-        RoundTable = new PlayerRoundStatsProjector
-        {
-            MatchId = matchId
-        }.Project(result, demo).Single();
-        EventsTable = new RuleChainEventProjector
-        {
-            MatchId = matchId
-        }.Project(result, demo).Single();
+        GameTable = new PlayerGameStatsProjector { MatchId = matchId }.Project(result, demo).Single();
+        RoundTable = new PlayerRoundStatsProjector { MatchId = matchId }.Project(result, demo).Single();
+        EventsTable = new RuleChainEventProjector { MatchId = matchId }.Project(result, demo).Single();
 
-        Highlights = EventsTable.Rows
-            .Select(r => new HighlightRow(
-                Convert.ToInt32(r.Dimensions.GetValueOrDefault("round_number") ?? 0, CultureInfo.InvariantCulture),
-                Convert.ToInt32(r.Dimensions.GetValueOrDefault("tick") ?? 0, CultureInfo.InvariantCulture),
-                r.Dimensions.GetValueOrDefault("chain")?.ToString() ?? "?",
-                r.Dimensions.GetValueOrDefault("player_name")?.ToString() ?? "")
-            {
-                PlayerOverview = EntryFor(r)
-            })
-            .OrderBy(h => h.Tick)
-            .ToList();
+        Highlights =
+        [
+            .. EventsTable.Rows
+                .Select(r => new HighlightRow(
+                    Convert.ToInt32(r.Dimensions.GetValueOrDefault("round_number") ?? 0, CultureInfo.InvariantCulture),
+                    Convert.ToInt32(r.Dimensions.GetValueOrDefault("tick") ?? 0, CultureInfo.InvariantCulture),
+                    r.Dimensions.GetValueOrDefault("chain")?.ToString() ?? "?",
+                    r.Dimensions.GetValueOrDefault("player_name")?.ToString() ?? "") { PlayerOverview = EntryFor(r) })
+                .OrderBy(h => h.Tick)
+        ];
         OnPropertyChanged(nameof(Highlights));
 
         // Column display order comes from the catalogue (canonical analyst order: Core first,
@@ -812,11 +799,13 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         (_sortKey, _sortDescending) = DefaultSort(_gameColumnOrder);
         RebuildGameRows();
 
-        Rounds = RoundTable.Rows
-            .Select(r => Convert.ToInt32(r.Dimensions["round_number"], CultureInfo.InvariantCulture))
-            .Distinct()
-            .Order()
-            .ToList();
+        Rounds =
+        [
+            .. RoundTable.Rows
+                .Select(r => Convert.ToInt32(r.Dimensions["round_number"], CultureInfo.InvariantCulture))
+                .Distinct()
+                .Order()
+        ];
         OnPropertyChanged(nameof(Rounds));
         SelectedRound = Rounds.Count > 0 ? Rounds[0] : 0;
         RebuildRoundRows();
@@ -837,11 +826,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
             ? ""
             : _collisionTrisPath is null
                 ? $"No collision geometry is shipped for {demo.MapName}, so the line-of-sight columns "
-                  + "have nothing to measure on this demo: Preaim, Crosshair Travel, Time to Shoot, Time "
-                  + "to Damage, Aimed Reaction, Time to Kill, and the accuracies counted after first "
-                  + "contact. They read as no data rather than zero."
+                + "have nothing to measure on this demo: Preaim, Crosshair Travel, Time to Shoot, Time "
+                + "to Damage, Aimed Reaction, Time to Kill, and the accuracies counted after first "
+                + "contact. They read as no data rather than zero."
                 : "The line-of-sight pass found no enemy contacts in this demo, so the columns that "
-                  + "depend on it read as no data rather than zero.";
+                + "depend on it read as no data rather than zero.";
         OnPropertyChanged(nameof(SightNotice));
         OnPropertyChanged(nameof(HasSightNotice));
         OnPropertyChanged(nameof(IsSightNoticeVisible));
@@ -900,13 +889,14 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     ///     catalogue order, unknown columns last.
     /// </summary>
     private static List<string> OrderColumns(IReadOnlyList<string> valueColumns) =>
-        valueColumns
+    [
+        .. valueColumns
             .Select((name, i) => (Name: name, Meta: ColumnCatalogue.Resolve(name), Original: i))
             .OrderBy(c => c.Meta.Group == StatGroup.Core ? 0 : 1)
             .ThenBy(c => c.Meta.Order)
             .ThenBy(c => c.Original)
             .Select(c => c.Name)
-            .ToList();
+    ];
 
     /// <summary>
     ///     Builds the header list for one visible column set, stamping the sort indicator on the
@@ -960,9 +950,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         Dictionary<string, ColumnScale> scales =
             BuildColumnScales(GameTable.Rows, _visibleGameColumnOrder);
 
-        List<StatsRow> rows = GameTable.Rows
-            .Select(r => WithAccount(BuildRow(r, _visibleGameColumnOrder, scales, SightUnavailable)))
-            .ToList();
+        List<StatsRow> rows =
+        [
+            .. GameTable.Rows
+                .Select(r => WithAccount(BuildRow(r, _visibleGameColumnOrder, scales, SightUnavailable)))
+        ];
 
         rows.Sort((a, b) =>
         {
@@ -1019,7 +1011,8 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     private static (string? Key, bool Descending) DefaultSort(List<string> visibleOrder)
     {
         string? kills = visibleOrder.FirstOrDefault(c => string.Equals(c, "Kills", StringComparison.OrdinalIgnoreCase))
-                        ?? visibleOrder.FirstOrDefault(c => string.Equals(c, "TotalK", StringComparison.OrdinalIgnoreCase));
+            ?? visibleOrder.FirstOrDefault(c =>
+                string.Equals(c, "TotalK", StringComparison.OrdinalIgnoreCase));
         if (kills is not null)
         {
             return (kills, true);
@@ -1054,12 +1047,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         List<TeamSection> sections = new(2);
         foreach (IGrouping<int, StatsRow> group in sortedRows.GroupBy(r => r.TeamSort).OrderBy(g => g.Key))
         {
-            List<StatsRow> members = group
-                .Select((r, i) => r with
-                {
-                    IsAlt = i % 2 == 1
-                })
-                .ToList();
+            List<StatsRow> members =
+            [
+                .. group
+                    .Select((r, i) => r with { IsAlt = i % 2 == 1 })
+            ];
             bool isCt = group.Key == 0;
             string side = members[0].TeamLabel is { Length: > 0 } label ? label : "—";
             int? score = scoreBySort.GetValueOrDefault(group.Key);
@@ -1161,11 +1153,13 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         for (int i = 0; i < order.Count; i++)
         {
             ColumnMeta meta = ColumnCatalogue.Resolve(order[i]);
-            List<double> values = members
-                .Select(r => r.Cells[i].Raw)
-                .Where(v => v is int or long or double or float)
-                .Select(v => Convert.ToDouble(v, CultureInfo.InvariantCulture))
-                .ToList();
+            List<double> values =
+            [
+                .. members
+                    .Select(r => r.Cells[i].Raw)
+                    .Where(v => v is int or long or double or float)
+                    .Select(v => Convert.ToDouble(v, CultureInfo.InvariantCulture))
+            ];
 
             object? total = meta.Aggregate switch
             {
@@ -1186,11 +1180,13 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
             double? over = null;
             if (meta.Denominator is not null)
             {
-                List<(double Rate, double Count)> samples = members
-                    .Select(r => r.Cells[i])
-                    .Where(c => c.Numeric is not null && c.Denominator is not null)
-                    .Select(c => (Rate: c.Numeric!.Value, Count: c.Denominator!.Value))
-                    .ToList();
+                List<(double Rate, double Count)> samples =
+                [
+                    .. members
+                        .Select(r => r.Cells[i])
+                        .Where(c => c.Numeric is not null && c.Denominator is not null)
+                        .Select(c => (Rate: c.Numeric!.Value, Count: c.Denominator!.Value))
+                ];
                 if (samples.Count > 0)
                 {
                     double pooled = samples.Sum(s => s.Count);
@@ -1202,16 +1198,10 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
                 }
             }
 
-            cells.Add(new StatCell(total, meta)
-            {
-                Denominator = over
-            });
+            cells.Add(new StatCell(total, meta) { Denominator = over });
         }
 
-        return new StatsRow("team", 0, cells)
-        {
-            IsTotals = true
-        };
+        return new StatsRow("team", 0, cells) { IsTotals = true };
     }
 
     // ── Export ─────────────────────────────────────────────────────────────────
@@ -1304,21 +1294,22 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 
         // Materialized before projection on purpose: the peer group for a round is the players IN that
         // round, and a fused Where/Select never lets the column be seen as a whole.
-        List<MetricRow> roundRows = RoundTable.Rows
-            .Where(r => Convert.ToInt32(r.Dimensions["round_number"], CultureInfo.InvariantCulture) == round)
-            .ToList();
+        List<MetricRow> roundRows =
+        [
+            .. RoundTable.Rows
+                .Where(r => Convert.ToInt32(r.Dimensions["round_number"], CultureInfo.InvariantCulture) == round)
+        ];
         Dictionary<string, ColumnScale> roundScales =
             BuildColumnScales(roundRows, _visibleRoundColumnOrder);
 
-        RoundRows = roundRows
-            .Select(r => WithAccount(BuildRow(r, _visibleRoundColumnOrder, roundScales, SightUnavailable)))
-            .OrderBy(r => r.TeamSort)
-            .ThenBy(r => r.PlayerName, StringComparer.OrdinalIgnoreCase)
-            .Select((r, i) => r with
-            {
-                IsAlt = i % 2 == 1
-            })
-            .ToList();
+        RoundRows =
+        [
+            .. roundRows
+                .Select(r => WithAccount(BuildRow(r, _visibleRoundColumnOrder, roundScales, SightUnavailable)))
+                .OrderBy(r => r.TeamSort)
+                .ThenBy(r => r.PlayerName, StringComparer.OrdinalIgnoreCase)
+                .Select((r, i) => r with { IsAlt = i % 2 == 1 })
+        ];
         OnPropertyChanged(nameof(RoundRows));
         OnPropertyChanged(nameof(CurrentRows));
     }
@@ -1338,23 +1329,24 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     /// </summary>
     private List<PodiumEntry> BuildPodium(IReadOnlyList<MetricRow> rows)
     {
-        const string ratingColumn = "HLTV";
-        StatScale? scale = ColumnCatalogue.Resolve(ratingColumn).Scale?.Resolve(
-            rows.Select(r => new StatCell(r.Values.GetValueOrDefault(ratingColumn)).Numeric)
+        const string RatingColumn = "HLTV";
+        StatScale? scale = ColumnCatalogue.Resolve(RatingColumn).Scale?.Resolve(
+        [
+            .. rows.Select(r => new StatCell(r.Values.GetValueOrDefault(RatingColumn)).Numeric)
                 .Where(v => v is not null)
                 .Select(v => v!.Value)
-                .ToList());
+        ]);
 
         List<PodiumEntry> podium = [];
         int rank = 1;
         foreach (MetricRow row in rows
-                     .Select(r => (Row: r, Rating: new StatCell(r.Values.GetValueOrDefault(ratingColumn)).Numeric))
+                     .Select(r => (Row: r, Rating: new StatCell(r.Values.GetValueOrDefault(RatingColumn)).Numeric))
                      .Where(x => x.Rating is not null)
                      .OrderByDescending(x => x.Rating!.Value)
                      .Take(3)
                      .Select(x => x.Row))
         {
-            double rating = new StatCell(row.Values.GetValueOrDefault(ratingColumn)).Numeric!.Value;
+            double rating = new StatCell(row.Values.GetValueOrDefault(RatingColumn)).Numeric!.Value;
             int team = row.Dimensions.GetValueOrDefault("team") is { } t
                 ? Convert.ToInt32(t, CultureInfo.InvariantCulture)
                 : 0;
@@ -1590,15 +1582,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
             cells.Add(new StatCell(unavailable || noSample ? null : row.Values.GetValueOrDefault(column),
                 meta, scale, resolved.MarksLeader)
             {
-                Denominator = unavailable || noSample ? null : over,
-                Unavailable = unavailable
+                Denominator = unavailable || noSample ? null : over, Unavailable = unavailable
             });
         }
 
-        return new StatsRow(player, team, cells)
-        {
-            PlayerSlot = RowSlot(row)
-        };
+        return new StatsRow(player, team, cells) { PlayerSlot = RowSlot(row) };
     }
 
     /// <summary>
@@ -1687,7 +1675,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>The game-table slot <paramref name="steamId64" /> played the most rounds on a side in, or null.</summary>
-    internal int? SlotOf(ulong steamId64)
+    private int? SlotOf(ulong steamId64)
     {
         if (GameTable is null || steamId64 == 0)
         {
@@ -1765,7 +1753,8 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     }
 
     private List<PlayerRef> BuildDetailPlayers(MetricTable gameTable) =>
-        gameTable.Rows
+    [
+        .. gameTable.Rows
             .Select(r => new PlayerRef(
                 RowSlot(r),
                 r.Dimensions.GetValueOrDefault("player_name")?.ToString() ?? "?",
@@ -1779,7 +1768,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
             .Where(p => p.Slot >= 0)
             .OrderBy(p => p.TeamSort)
             .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+    ];
 
     partial void OnIsVisibilityViewChanged(bool value)
     {
@@ -1803,7 +1792,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     ///     spray sampler and the visibility replay, which is why closing the tab clears it: without
     ///     that, a standalone close pins the whole demo.
     /// </summary>
-    internal ParsedDemo? LoadedDemo => _visibilityDemo;
+    internal ParsedDemo? LoadedDemo { get; private set; }
 
     /// <summary>
     ///     Samples this demo's sprays, once per origin, off the UI thread.
@@ -1827,7 +1816,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         // demo's sprays. The house superseded-run rule, minus the token the visibility compute has:
         // the sampler carries no cancellation seam, so the result goes back to the caller that asked
         // for it and simply is not retained.
-        if (!ReferenceEquals(demo, _visibilityDemo))
+        if (!ReferenceEquals(demo, LoadedDemo))
         {
             return model;
         }
@@ -1843,7 +1832,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
         _visibilityCts?.Dispose();
         _visibilityCts = null;
 
-        _visibilityDemo = demo;
+        LoadedDemo = demo;
         _sprays.Clear();
         _collisionTrisPath = _collisionResolver(demo.MapName);
         VisibilityPlayersTable = null;
@@ -1864,7 +1853,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task ComputeVisibilityAsync()
     {
-        if (_visibilityDemo is not { } demo || _collisionTrisPath is not { } trisPath)
+        if (LoadedDemo is not { } demo || _collisionTrisPath is not { } trisPath)
         {
             return;
         }
@@ -1897,10 +1886,7 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
                     VisibilityAnalyzer.Analyze(demo.Frames, engine, PositionUtil.CellToWorld,
                         options, token);
                 token.ThrowIfCancellationRequested();
-                return new VisibilityStatsProjector
-                {
-                    MatchId = matchId
-                }.Project(report, demo);
+                return new VisibilityStatsProjector { MatchId = matchId }.Project(report, demo);
             }, token);
 
             if (token.IsCancellationRequested)
@@ -1944,17 +1930,19 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 
     private static List<VisibilityRow> BuildVisibilityRows(MetricTable playersTable)
     {
-        return playersTable.Rows
-            .Select(r => new VisibilityRow(
-                r.Dimensions.GetValueOrDefault("player_name")?.ToString() ?? "?",
-                Convert.ToInt32(r.Dimensions.GetValueOrDefault("team") ?? 0, CultureInfo.InvariantCulture),
-                AsDouble(r.Values.GetValueOrDefault("ExposedToEnemiesSec")),
-                AsDouble(r.Values.GetValueOrDefault("CouldSeeEnemySec")),
-                AsDouble(r.Values.GetValueOrDefault("ExposedShare")),
-                AsDouble(r.Values.GetValueOrDefault("VisionShare"))))
-            .OrderBy(r => r.TeamSort)
-            .ThenBy(r => r.PlayerName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        return
+        [
+            .. playersTable.Rows
+                .Select(r => new VisibilityRow(
+                    r.Dimensions.GetValueOrDefault("player_name")?.ToString() ?? "?",
+                    Convert.ToInt32(r.Dimensions.GetValueOrDefault("team") ?? 0, CultureInfo.InvariantCulture),
+                    AsDouble(r.Values.GetValueOrDefault("ExposedToEnemiesSec")),
+                    AsDouble(r.Values.GetValueOrDefault("CouldSeeEnemySec")),
+                    AsDouble(r.Values.GetValueOrDefault("ExposedShare")),
+                    AsDouble(r.Values.GetValueOrDefault("VisionShare"))))
+                .OrderBy(r => r.TeamSort)
+                .ThenBy(r => r.PlayerName, StringComparer.OrdinalIgnoreCase)
+        ];
 
         static double AsDouble(object? v)
         {
@@ -1971,7 +1959,12 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
 ///     built in the same catalogue display order). <see cref="Meta" /> carries the view-only
 ///     presentation (friendly name, group, width, alignment) from <see cref="ColumnCatalogue" />.
 /// </summary>
-public sealed record StatColumn(string Label, int Index, ColumnMeta Meta, bool IsSorted = false, bool SortDescending = false)
+public sealed record StatColumn(
+    string Label,
+    int Index,
+    ColumnMeta Meta,
+    bool IsSorted = false,
+    bool SortDescending = false)
 {
     /// <summary>Friendly header text.</summary>
     public string Display => Meta.Display;
@@ -1984,9 +1977,6 @@ public sealed record StatColumn(string Label, int Index, ColumnMeta Meta, bool I
 
     /// <summary>Full stat description for the header tooltip.</summary>
     public string Tooltip => Meta.Tooltip;
-
-    /// <summary>Group label shown when this column starts a new group band.</summary>
-    public string GroupLabel { get; init; } = "";
 }
 
 /// <summary>
@@ -2094,7 +2084,7 @@ public sealed record PlayerRef(int Slot, string Name, int Team)
     public string? PlayerOverviewTip => CanOpenPlayerOverview ? null : PlayerOverviewLink.NoSteamIdTip;
 
     /// <summary>Team tag (CS2 wire values: 2 = T, 3 = CT).</summary>
-    public string TeamLabel => Team switch
+    private string TeamLabel => Team switch
     {
         2 => "T",
         3 => "CT",
@@ -2153,9 +2143,6 @@ public sealed record TeamSection(
 
     /// <summary>Round total as text, empty when it could not be derived.</summary>
     public string ScoreText => Score is { } s ? s.ToString(CultureInfo.InvariantCulture) : "";
-
-    /// <summary>"CT — 13" or just "CT" when the score couldn't be derived reliably.</summary>
-    public string Header => Score is { } s ? $"{SideLabel}   {s}" : SideLabel;
 }
 
 /// <summary>
@@ -2225,7 +2212,9 @@ public sealed record VisibilityRow(
     public string VisionShareDisplay => FormatShare(VisionShare);
 
     private static string FormatSeconds(double s) => s.ToString("0.#", CultureInfo.InvariantCulture) + " s";
-    private static string FormatShare(double share) => (share * 100).ToString("0.#", CultureInfo.InvariantCulture) + " %";
+
+    private static string FormatShare(double share) =>
+        (share * 100).ToString("0.#", CultureInfo.InvariantCulture) + " %";
 }
 
 /// <summary>
@@ -2240,7 +2229,10 @@ internal readonly record struct ColumnScale(StatScale? Scale = null, bool MarksL
 ///     One cell: the raw boxed value (for sorting) plus its display string and, when built for a
 ///     catalogued column, the presentation metadata (width, alignment, emphasis).
 /// </summary>
-public sealed record StatCell(object? Raw, ColumnMeta? Meta = null, StatScale? Scale = null,
+public sealed record StatCell(
+    object? Raw,
+    ColumnMeta? Meta = null,
+    StatScale? Scale = null,
     bool MarksLeader = false)
 {
     /// <summary>
@@ -2287,7 +2279,8 @@ public sealed record StatCell(object? Raw, ColumnMeta? Meta = null, StatScale? S
             string noun = Math.Abs(count - 1) < 1e-9 && over.Noun.EndsWith('s')
                 ? over.Noun[..^1]
                 : over.Noun;
-            return $"{Display}{over.Unit} {over.Preposition} {count.ToString("0.##", CultureInfo.InvariantCulture)} {noun}";
+            return
+                $"{Display}{over.Unit} {over.Preposition} {count.ToString("0.##", CultureInfo.InvariantCulture)} {noun}";
         }
     }
 

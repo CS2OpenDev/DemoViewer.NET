@@ -25,14 +25,14 @@ internal static class LabelPlacementPass
     internal static void Run(LayoutContext ctx)
     {
         Dictionary<IGraphEdge, LabelPlacement> placed = new();
-        List<Rect> placedRects = new();
+        List<Rect> placedRects = [];
 
         // Static obstacles: node boxes.
-        List<Rect> nodeRects = ctx.NodePositions.Keys.Select(ctx.NodeRect).ToList();
+        List<Rect> nodeRects = [.. ctx.NodePositions.Keys.Select(ctx.NodeRect)];
 
         // Order edges by descending route length so the long, label-bearing edges
         // claim space first (greedy seeding from the most constrained first).
-        List<(IGraphEdge Edge, IReadOnlyList<Point> Route, string Text, double Len)> labelled = new();
+        List<(IGraphEdge Edge, IReadOnlyList<Point> Route, string Text, double Len)> labelled = [];
         foreach (IGraphEdge edge in ctx.Edges)
         {
             if (ReferenceEquals(edge.Source, edge.Destination))

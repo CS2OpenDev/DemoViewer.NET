@@ -24,7 +24,7 @@ public sealed class DossierNotesStore
     public const string FileName = "dossier-notes.json";
 
     /// <summary>The key prefix of a user-written finding.</summary>
-    public const string NoteKeyPrefix = "note:";
+    private const string NoteKeyPrefix = "note:";
 
     private readonly StoredFile? _file;
     private readonly List<DossierTeamNotes> _teams = [];
@@ -118,19 +118,6 @@ public sealed class DossierNotesStore
         }
     }
 
-    /// <summary>Brings back every left-out finding of the team.</summary>
-    /// <param name="teamId">The team.</param>
-    public void ClearHidden(Guid teamId)
-    {
-        DossierTeamNotes notes = Ensure(teamId);
-        if (notes.Hidden.Count == 0)
-        {
-            return;
-        }
-
-        notes.Hidden.Clear();
-        Commit();
-    }
 
     /// <summary>Sets the summary paragraph.</summary>
     /// <param name="teamId">The team.</param>
@@ -174,7 +161,7 @@ public sealed class DossierNotesStore
         string value = text?.Trim() ?? "";
         DossierTeamNotes notes = Ensure(teamId);
         if (value.Length == 0 || notes.Notes.FirstOrDefault(n => NoteKey(n.Id) == key) is not { } note
-                              || string.Equals(note.Text, value, StringComparison.Ordinal))
+            || string.Equals(note.Text, value, StringComparison.Ordinal))
         {
             return;
         }
@@ -268,7 +255,8 @@ public sealed class DossierNotesStore
             DossierNotesFile? file = JsonSerializer.Deserialize<DossierNotesFile>(bytes, DossierNotesFile.JsonOptions);
             if (file is null || file.SchemaVersion > DossierNotesFile.CurrentSchema)
             {
-                Refuse($"{FileName} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
+                Refuse(
+                    $"{FileName} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
                 return;
             }
 

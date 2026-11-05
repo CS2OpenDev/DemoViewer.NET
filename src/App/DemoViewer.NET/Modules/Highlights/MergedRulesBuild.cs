@@ -5,18 +5,17 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CS2DemoKit.Analysis;
+using CS2DemoKit.Analysis.Catalog;
 using CS2DemoKit.Analysis.Config;
 using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Analysis.Graphs;
 using CS2DemoKit.Analysis.Output;
-using CS2DemoKit.Analysis.Catalog;
 using CS2DemoKit.Analysis.RulesetsV2.Compile;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Analysis.Yaml;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
@@ -52,9 +51,11 @@ public sealed class MergedRulesBuild
     private readonly Dictionary<string, string> _sources = new(StringComparer.Ordinal);
 
     // Keyed by the doc instances it was composed from: a reload hands out new ones, and a gate change can drop a dependency.
-    private readonly Dictionary<(string Id, int TickRate), (IReadOnlyList<RulesetDoc> Closure, string Identity)> _identities = [];
+    private readonly Dictionary<(string Id, int TickRate), (IReadOnlyList<RulesetDoc> Closure, string Identity)>
+        _identities = [];
+
     private readonly HashSet<string> _reportedExclusions = new(StringComparer.Ordinal);
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Func<RuleConfigLoadResult> _load;
     private readonly Lazy<IReadOnlyList<StampedRuleset>> _stamped;
     private RuleConfigLoadResult? _rules;
@@ -63,11 +64,6 @@ public sealed class MergedRulesBuild
 
     /// <summary>The shipped rules with the user's overlay and no stamped rulesets.</summary>
     public MergedRulesBuild() : this(LoadShippedWithUserOverlay)
-    {
-    }
-
-    /// <summary>The shipped rules with the user's overlay and the <paramref name="stamped" /> rulesets.</summary>
-    public MergedRulesBuild(Func<IReadOnlyList<StampedRuleset>> stamped) : this(LoadShippedWithUserOverlay, stamped)
     {
     }
 
@@ -131,7 +127,8 @@ public sealed class MergedRulesBuild
         RuleConfigLoadResult rules = Rules;
         lock (_gate)
         {
-            if (ReferenceEquals(rules, _rules) && _merged is { } hit && string.Equals(hit.Off, offKey, StringComparison.Ordinal))
+            if (ReferenceEquals(rules, _rules) && _merged is { } hit
+                && string.Equals(hit.Off, offKey, StringComparison.Ordinal))
             {
                 return hit;
             }
@@ -206,18 +203,22 @@ public sealed class MergedRulesBuild
         ArgumentNullException.ThrowIfNull(run);
         ArgumentNullException.ThrowIfNull(table);
         ArgumentNullException.ThrowIfNull(rulesets);
-        if (!rulesets.Any(id => EnabledDoc(id)?.Show?.Tables.Any(t => string.Equals(t.Name, table, StringComparison.Ordinal)) == true))
+        if (rulesets.All(id =>
+                EnabledDoc(id)?.Show?.Tables.Any(t => string.Equals(t.Name, table, StringComparison.Ordinal)) != true))
         {
-            throw new InvalidOperationException($"table {table} is not declared by an enabled ruleset of the pass ({string.Join(", ", rulesets)})");
+            throw new InvalidOperationException(
+                $"table {table} is not declared by an enabled ruleset of the pass ({string.Join(", ", rulesets)})");
         }
 
-        List<OutputDef> output = [.. run.Build.Outputs?.Where(o => string.Equals(o.Id, table, StringComparison.Ordinal)) ?? []];
+        List<OutputDef> output =
+            [.. run.Build.Outputs?.Where(o => string.Equals(o.Id, table, StringComparison.Ordinal)) ?? []];
         if (output.Count == 0)
         {
             throw new InvalidOperationException($"the run did not record table {table}");
         }
 
-        MetricTable projected = (run with { Build = run.Build with { Outputs = output } }).ProjectConfiguredOutputs().Single();
+        MetricTable projected = (run with { Build = run.Build with { Outputs = output } }).ProjectConfiguredOutputs()
+            .Single();
         return
         [
             .. projected.Rows.Select(r => new FactRow(
@@ -237,7 +238,8 @@ public sealed class MergedRulesBuild
         IReadOnlyList<RulesetDoc> docs = Docs;
         foreach (StampedRuleset ruleset in StampedRulesets)
         {
-            RulesetDoc? doc = docs.FirstOrDefault(d => d.Enabled && string.Equals(d.Id, ruleset.RulesetId, StringComparison.Ordinal));
+            RulesetDoc? doc = docs.FirstOrDefault(d =>
+                d.Enabled && string.Equals(d.Id, ruleset.RulesetId, StringComparison.Ordinal));
             if (doc?.Show is not { } show || (stale is not null && !stale(ruleset.RulesetId)))
             {
                 continue;
@@ -267,7 +269,8 @@ public sealed class MergedRulesBuild
         IReadOnlyList<RulesetDoc> core = CoreDocs;
         lock (_gate)
         {
-            if (ReferenceEquals(core, _coreDocs) && _fingerprints.TryGetValue(tickRate, out HighlightConfigFingerprint.Result? hit))
+            if (ReferenceEquals(core, _coreDocs)
+                && _fingerprints.TryGetValue(tickRate, out HighlightConfigFingerprint.Result? hit))
             {
                 return hit;
             }
@@ -332,18 +335,21 @@ public sealed class MergedRulesBuild
     public string RulesetIdentity(string rulesetId, int tickRate)
     {
         IReadOnlyList<RulesetDoc> docs = Docs;
-        RulesetDoc doc = Enabled(docs, rulesetId) ?? throw new InvalidOperationException($"no enabled {rulesetId} ruleset");
+        RulesetDoc doc = Enabled(docs, rulesetId)
+            ?? throw new InvalidOperationException($"no enabled {rulesetId} ruleset");
         List<RulesetDoc> closure = UseClosure(docs, doc);
         lock (_gate)
         {
-            if (_identities.TryGetValue((rulesetId, tickRate), out (IReadOnlyList<RulesetDoc> Closure, string Identity) hit)
+            if (_identities.TryGetValue((rulesetId, tickRate),
+                    out (IReadOnlyList<RulesetDoc> Closure, string Identity) hit)
                 && hit.Closure.SequenceEqual(closure, ReferenceEqualityComparer.Instance))
             {
                 return hit.Identity;
             }
         }
 
-        string composed = HighlightConfigFingerprint.Compute(closure, tickRate, RulesHighlightHarvester.GotvProfileId).Fingerprint;
+        string composed = HighlightConfigFingerprint.Compute(closure, tickRate, RulesHighlightHarvester.GotvProfileId)
+            .Fingerprint;
         List<string> sources = new(closure.Count);
         lock (_gate)
         {
@@ -361,7 +367,8 @@ public sealed class MergedRulesBuild
 
         string source = string.Join("\n", sources);
         string engine = typeof(DemoAnalysis).Assembly.GetName().Version?.ToString() ?? "";
-        string identity = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"{composed}\n{source}\n{engine}")));
+        string identity =
+            Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"{composed}\n{source}\n{engine}")));
         lock (_gate)
         {
             _identities[(rulesetId, tickRate)] = (closure, identity);
@@ -405,7 +412,8 @@ public sealed class MergedRulesBuild
         }
 
         string engine = typeof(DemoAnalysis).Assembly.GetName().Version?.ToString() ?? "";
-        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"missing:{string.Join(",", missing)}\n{source}\n{engine}")));
+        return Convert.ToHexStringLower(
+            SHA256.HashData(Encoding.UTF8.GetBytes($"missing:{string.Join(",", missing)}\n{source}\n{engine}")));
 
         void Visit(RulesetDoc current)
         {
@@ -454,7 +462,8 @@ public sealed class MergedRulesBuild
 
             foreach (string id in current.Use)
             {
-                Visit(Enabled(docs, id) ?? throw new InvalidOperationException($"{current.Id} uses {id}, which is not enabled"));
+                Visit(Enabled(docs, id)
+                    ?? throw new InvalidOperationException($"{current.Id} uses {id}, which is not enabled"));
             }
 
             order.Add(current);
@@ -503,7 +512,8 @@ public sealed class MergedRulesBuild
     ///     when none that carried them is cached.
     /// </summary>
     internal CollectorResults Collected(ParsedDemo parsed, string path) =>
-        RunCut(parsed, OutputsFor?.Invoke(path) ?? StampedOutputs(), CollectorsFor?.Invoke(path) ?? CollectorSet.Empty, false).Results;
+        RunCut(parsed, OutputsFor?.Invoke(path) ?? StampedOutputs(), CollectorsFor?.Invoke(path) ?? CollectorSet.Empty,
+            false).Results;
 
     /// <summary>
     ///     True when an evaluated run is held for <paramref name="parsed" />, not just collector results. The
@@ -521,7 +531,8 @@ public sealed class MergedRulesBuild
         RunCut(parsed, OutputsFor?.Invoke(path) ?? StampedOutputs(), CollectorsFor?.Invoke(path) ?? CollectorSet.Empty);
 
     // A caller reading only collector results does not need round_facts recorded on the run it is served.
-    private CachedRun RunCut(ParsedDemo parsed, IReadOnlySet<string> cut, CollectorSet collectors, bool readsRoundFacts = true)
+    private CachedRun RunCut(ParsedDemo parsed, IReadOnlySet<string> cut, CollectorSet collectors,
+        bool readsRoundFacts = true)
     {
         (string off, IReadOnlyList<RulesetDoc> docs) = MergedDocs();
 
@@ -531,9 +542,11 @@ public sealed class MergedRulesBuild
         outputs.UnionWith(LibraryTeamTables.Tables);
         lock (_gate)
         {
-            if (_runs.TryGetValue(parsed, out CachedRun? cached) && string.Equals(cached.Off, off, StringComparison.Ordinal))
+            if (_runs.TryGetValue(parsed, out CachedRun? cached)
+                && string.Equals(cached.Off, off, StringComparison.Ordinal))
             {
-                if (cached.Recorded.IsSupersetOf(readsRoundFacts ? outputs : cut) && cached.Collectors.IsSupersetOf(collectors))
+                if (cached.Recorded.IsSupersetOf(readsRoundFacts ? outputs : cut)
+                    && cached.Collectors.IsSupersetOf(collectors))
                 {
                     return cached;
                 }
@@ -547,7 +560,8 @@ public sealed class MergedRulesBuild
         BuildResult build = ForwardDemoPass.Build(parsed, docs, outputs, collectors);
         ReportExclusions(build);
         DecodeSites.Enter(2);
-        (AnalysisOptions options, CollectorObserver? observer) = collectors.Declare(new AnalysisOptions { CaptureSnapshots = false });
+        (AnalysisOptions options, CollectorObserver? observer) =
+            collectors.Declare(new AnalysisOptions { CaptureSnapshots = false });
         AnalysisRun run = DemoAnalysis.Evaluate(parsed, build, options);
         CachedRun fresh = new(off, outputs, collectors, run, observer?.Results ?? CollectorResults.None);
         lock (_gate)
@@ -597,8 +611,11 @@ public sealed class MergedRulesBuild
             }
         }
 
-        OpenRunPlan plan = new(WithoutStampedRulesets(read), new HashSet<string>(StringComparer.Ordinal), stampedTables, stampedIds)
-            { Rules = rules, Off = off };
+        OpenRunPlan plan =
+            new(WithoutStampedRulesets(read), new HashSet<string>(StringComparer.Ordinal), stampedTables, stampedIds)
+            {
+                Rules = rules, Off = off
+            };
         if (path is null)
         {
             return plan;
@@ -619,12 +636,7 @@ public sealed class MergedRulesBuild
 
         HashSet<string> cut = new(stale, StringComparer.Ordinal) { ForwardDemoPass.RoundFactsTable };
         cut.UnionWith(LibraryTeamTables.Tables);
-        return plan with
-        {
-            Docs = docs,
-            Cut = cut,
-            Collectors = OpenCollectorSet()
-        };
+        return plan with { Docs = docs, Cut = cut, Collectors = OpenCollectorSet() };
     }
 
     // A fault here leaves the open run without collectors; a visit needing one then makes its own run.
@@ -646,7 +658,8 @@ public sealed class MergedRulesBuild
     ///     instead of evaluating again. Dropped when the rules, a gate or the cut moved since
     ///     <see cref="PlanOpen(IReadOnlyList{RulesetDoc}, string)" />. True when stored.
     /// </summary>
-    public bool Seed(ParsedDemo parsed, string path, OpenRunPlan plan, AnalysisRun run) => Seed(parsed, path, plan, run, null);
+    public bool Seed(ParsedDemo parsed, string path, OpenRunPlan plan, AnalysisRun run) =>
+        Seed(parsed, path, plan, run, null);
 
     /// <summary>
     ///     <see cref="Seed(ParsedDemo, string, OpenRunPlan, AnalysisRun)" /> with what the run's observer
@@ -664,9 +677,11 @@ public sealed class MergedRulesBuild
 
         (string off, _) = MergedDocs();
         IReadOnlySet<string> wanted = OutputsFor?.Invoke(path) ?? StampedOutputs();
-        string? reason = !string.Equals(off, plan.Off, StringComparison.Ordinal) ? "a stamped ruleset was turned on or off"
-            : !plan.Cut.IsSupersetOf(wanted) ? "more outputs went stale"
-            : null;
+        string? reason = !string.Equals(off, plan.Off, StringComparison.Ordinal)
+            ? "a stamped ruleset was turned on or off"
+            : !plan.Cut.IsSupersetOf(wanted)
+                ? "more outputs went stale"
+                : null;
         lock (_gate)
         {
             if (reason is null && !ReferenceEquals(plan.Rules, _rules))
@@ -702,7 +717,8 @@ public sealed class MergedRulesBuild
             for (int i = 0; i < a.Count; i++)
             {
                 if (!string.Equals(a[i].Id, b[i].Id, StringComparison.Ordinal)
-                    || !string.Equals(JsonSerializer.Serialize(a[i]), JsonSerializer.Serialize(b[i]), StringComparison.Ordinal))
+                    || !string.Equals(JsonSerializer.Serialize(a[i]), JsonSerializer.Serialize(b[i]),
+                        StringComparison.Ordinal))
                 {
                     return false;
                 }
@@ -743,8 +759,10 @@ public sealed class MergedRulesBuild
         RuleConfigLoadResult rules = Rules;
         foreach (ExcludedRuleset excluded in build.ExcludedRulesets)
         {
-            StampedRuleset? stamped = StampedRulesets.FirstOrDefault(r => string.Equals(r.RulesetId, excluded.Id, StringComparison.Ordinal));
-            RulesetDoc? doc = rules.Rulesets.FirstOrDefault(r => string.Equals(r.Id, excluded.Id, StringComparison.Ordinal));
+            StampedRuleset? stamped =
+                StampedRulesets.FirstOrDefault(r => string.Equals(r.RulesetId, excluded.Id, StringComparison.Ordinal));
+            RulesetDoc? doc =
+                rules.Rulesets.FirstOrDefault(r => string.Equals(r.Id, excluded.Id, StringComparison.Ordinal));
             if (stamped is null || doc is null || RuleLayers.SourceOf(doc) is not { } source)
             {
                 continue;
@@ -780,13 +798,19 @@ public sealed class MergedRulesBuild
     }
 
     // Run is null only on an entry that recorded no round_facts, which RunCut serves to collector readers alone.
-    private sealed record CachedRun(string Off, IReadOnlySet<string> Recorded, CollectorSet Collectors, AnalysisRun? Run, CollectorResults Results);
+    private sealed record CachedRun(
+        string Off,
+        IReadOnlySet<string> Recorded,
+        CollectorSet Collectors,
+        AnalysisRun? Run,
+        CollectorResults Results);
 
     // The first registration of an id wins: the composition root lists core's before any extension's.
     private static IReadOnlyList<StampedRuleset> Distinct(IReadOnlyList<StampedRuleset> stamped) =>
         [.. stamped.DistinctBy(r => r.RulesetId, StringComparer.Ordinal)];
 
-    private static IReadOnlyList<RulesetDoc> WithoutStampedRulesets(IReadOnlyList<RulesetDoc> rulesets, IReadOnlyList<StampedRuleset> stamped)
+    private static IReadOnlyList<RulesetDoc> WithoutStampedRulesets(IReadOnlyList<RulesetDoc> rulesets,
+        IReadOnlyList<StampedRuleset> stamped)
     {
         if (stamped.Count == 0)
         {
@@ -873,7 +897,10 @@ public sealed record OpenRunPlan(
 
     /// <summary>The build's outputs cut to the core tables plus <see cref="Cut" />.</summary>
     public BuildResult Cuts(BuildResult build) =>
-        build with { Outputs = build.Outputs?.Where(o => !StampedTables.Contains(o.Id) || Cut.Contains(o.Id)).ToList() };
+        build with
+        {
+            Outputs = build.Outputs?.Where(o => !StampedTables.Contains(o.Id) || Cut.Contains(o.Id)).ToList()
+        };
 
     /// <summary>The run as the core rulesets alone would show it: no stamped table and no stamped highlight.</summary>
     public AnalysisRun Shown(AnalysisRun run) => run with
@@ -886,12 +913,15 @@ public sealed record OpenRunPlan(
 /// <summary>The merged build's log seams.</summary>
 internal static partial class MergedRulesBuildLog
 {
-    [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "rules: the open's read differs from the background read, so its visit runs rules on its own")]
+    [LoggerMessage(EventId = 1, Level = LogLevel.Information,
+        Message = "rules: the open's read differs from the background read, so its visit runs rules on its own")]
     public static partial void OpenRulesDiffer(ILogger logger);
 
-    [LoggerMessage(EventId = 2, Level = LogLevel.Information, Message = "rules: the open's run was not handed to its visit: {reason}")]
+    [LoggerMessage(EventId = 2, Level = LogLevel.Information,
+        Message = "rules: the open's run was not handed to its visit: {reason}")]
     public static partial void SeedDropped(ILogger logger, string reason);
 
-    [LoggerMessage(EventId = 3, Level = LogLevel.Warning, Message = "rules: the open's run declares no collectors, the registered set could not be read: {reason}")]
+    [LoggerMessage(EventId = 3, Level = LogLevel.Warning,
+        Message = "rules: the open's run declares no collectors, the registered set could not be read: {reason}")]
     public static partial void OpenCollectorsFailed(ILogger logger, string reason);
 }

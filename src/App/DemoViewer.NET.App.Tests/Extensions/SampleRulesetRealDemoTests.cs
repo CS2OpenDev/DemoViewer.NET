@@ -3,7 +3,6 @@
 using System.Reflection;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
@@ -29,7 +28,7 @@ public class SampleRulesetRealDemoTests
     [Test]
     public async Task TheSample_ShipsARuleset_AndReadsItsOwnOutputBack()
     {
-        string path = AppTests.BackgroundPlanRealDemoTests.SmallestDemo(0);
+        string path = BackgroundPlanRealDemoTests.SmallestDemo(0);
         string root = ExternalExtensionTests.NewRoot();
         try
         {
@@ -55,11 +54,11 @@ public class SampleRulesetRealDemoTests
         IReadOnlyList<ContributedRuleset> rulesets = contributions.Rulesets;
         string shipped = CS2DemoKit.Analysis.Yaml.RuleSetLocator.ResolveShippedRulesDirectory();
         MergedRulesBuild rules = new(() => RuleLayers.Load(shipped, null, rulesets, NullLogger.Instance),
-        () =>
-        [
-            StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
-            .. rulesets.Select(r => new StampedRuleset(r.RulesetId, r.Owner, static () => true))
-        ]);
+            () =>
+            [
+                StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                .. rulesets.Select(r => new StampedRuleset(r.RulesetId, r.Owner, static () => true))
+            ]);
         DemoCacheStore cache = sp.GetRequiredService<DemoCacheStore>();
         cache.Upsert(new DemoCacheRecord
         {
@@ -70,7 +69,8 @@ public class SampleRulesetRealDemoTests
         StampedFacts stamped = new(rules);
         FactsEvaluator facts = new(cache, stamped);
 
-        IReadOnlySet<string> outputs = rules.StampedOutputs(id => id != RoundFactsFingerprint.RulesetId && facts.Records(path, id));
+        IReadOnlySet<string> outputs =
+            rules.StampedOutputs(id => id != RoundFactsFingerprint.RulesetId && facts.Records(path, id));
         using (DemoReader reader = DemoReader.OpenFile(path, ForwardDemoPass.ReaderOptions(CancellationToken.None)))
         {
             facts.EvaluateForward(path, ForwardDemoPass.Run(reader, ForwardNeeds.Rules, rules.Docs, outputs: outputs));
@@ -78,16 +78,21 @@ public class SampleRulesetRealDemoTests
 
         AnalysisFacts library = new(cache, stamped, new RoundFactsSource(cache));
         Type helloFacts = pack.GetType().Assembly.GetType("HelloExtension.HelloFacts", true)!;
-        FactKey key = (FactKey)helloFacts.GetProperty("Key", BindingFlags.Public | BindingFlags.Static)!.GetValue(null)!;
-        int? kills = (int?)helloFacts.GetMethod("TotalKills", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, [library, path]);
+        FactKey key =
+            (FactKey)helloFacts.GetProperty("Key", BindingFlags.Public | BindingFlags.Static)!.GetValue(null)!;
+        int? kills =
+            (int?)helloFacts.GetMethod("TotalKills", BindingFlags.Public | BindingFlags.Static)!.Invoke(null,
+                [library, path]);
         using (Assert.Multiple())
         {
-            await Assert.That(rulesets.Select(r => r.RulesetId)).IsEquivalentTo(["dev_example_hello__kills"], CollectionOrdering.Matching);
+            await Assert.That(rulesets.Select(r => r.RulesetId))
+                .IsEquivalentTo(["dev_example_hello__kills"], CollectionOrdering.Matching);
             await Assert.That(outputs).IsEquivalentTo(["hello_kills"], CollectionOrdering.Matching);
             await Assert.That(library.Declared).Contains(key);
             await Assert.That(library.IsCurrent(path, key)).IsTrue();
             await Assert.That(kills ?? 0).IsGreaterThan(0).Because("the sample's own reader sums its table back");
-            await Assert.That(rules.Fingerprint(64).Fingerprint).IsEqualTo(AppTests.MergedRulesBuildTests.ShippedFingerprint64);
+            await Assert.That(rules.Fingerprint(64).Fingerprint)
+                .IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
         }
     }
 }

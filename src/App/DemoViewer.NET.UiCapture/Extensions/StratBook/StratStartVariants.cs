@@ -9,7 +9,6 @@ using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
-using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
 using DemoViewer.NET.Views.Shell;
 
 #endregion
@@ -38,7 +37,11 @@ public static partial class Variants
 
             StratStep move = new()
             {
-                Id = Guid.NewGuid(), AtSeconds = 115, Actor = "all", Verb = "move", Note = "default 1-2-2",
+                Id = Guid.NewGuid(),
+                AtSeconds = 115,
+                Actor = "all",
+                Verb = "move",
+                Note = "default 1-2-2",
                 Assignments =
                 [
                     new StepAssignment { Slot = "A", To = new PlaceRef { Place = "UpperTunnel" } },
@@ -48,7 +51,8 @@ public static partial class Variants
                     new StepAssignment { Slot = "E", To = new PlaceRef { Place = "OutsideLong" } }
                 ]
             };
-            vm.Session.Apply(PatchOp.ReplaceOp("/steps", null, new JsonArray(JsonSerializer.SerializeToNode(move, StratJsonContext.Default.StratStep))));
+            vm.Session.Apply(PatchOp.ReplaceOp("/steps", null,
+                new JsonArray(JsonSerializer.SerializeToNode(move, StratJsonContext.Default.StratStep))));
             vm.Editor.Start.IsExpanded = true;
         }, zones, null, "de_dust2");
         view.AttachedToVisualTree += (_, _) => Dispatcher.UIThread.Post(() =>
@@ -83,27 +87,57 @@ public static partial class Variants
             vm.Editor.ClockChoice = StratEditorViewModel.TriggerClockChoice;
             StratStep[] steps =
             [
-                new() { Id = Guid.NewGuid(), AtSeconds = 0, Actor = "all", Verb = "move", To = new PlaceRef { Place = "Apartments" }, Note = "on contact" },
-                new() { Id = Guid.NewGuid(), AtSeconds = 12, Actor = "C", Verb = "throw", Utility = new UtilityRef { Kind = "flash" }, Note = "pop over apps" },
                 new()
                 {
-                    Id = Guid.NewGuid(), AtSeconds = 14, Actor = "all", Verb = "push", Note = "entry and trade",
+                    Id = Guid.NewGuid(),
+                    AtSeconds = 0,
+                    Actor = "all",
+                    Verb = "move",
+                    To = new PlaceRef { Place = "Apartments" },
+                    Note = "on contact"
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    AtSeconds = 12,
+                    Actor = "C",
+                    Verb = "throw",
+                    Utility = new UtilityRef { Kind = "flash" },
+                    Note = "pop over apps"
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    AtSeconds = 14,
+                    Actor = "all",
+                    Verb = "push",
+                    Note = "entry and trade",
                     Assignments =
                     [
                         new StepAssignment { Slot = "A", To = new PlaceRef { Place = "BombsiteB" } },
                         new StepAssignment { Slot = "B", To = new PlaceRef { Place = "BombsiteB" } }
                     ]
                 },
-                new() { Id = Guid.NewGuid(), AtSeconds = 22, Actor = "B", Verb = "plant", To = new PlaceRef { Place = "BombsiteB" } }
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    AtSeconds = 22,
+                    Actor = "B",
+                    Verb = "plant",
+                    To = new PlaceRef { Place = "BombsiteB" }
+                }
             ];
-            JsonArray json = [.. steps.Select(s => JsonSerializer.SerializeToNode(s, StratJsonContext.Default.StratStep))];
+            JsonArray json =
+                [.. steps.Select(s => JsonSerializer.SerializeToNode(s, StratJsonContext.Default.StratStep))];
             vm.Session.Apply(PatchOp.ReplaceOp("/steps", null, json));
-        }, zones, null, "de_mirage");
+        }, zones);
         view.AttachedToVisualTree += (_, _) => Dispatcher.UIThread.Post(() =>
         {
             strats!.Canvas.Transport.Pause();
-            strats.Canvas.Transport.Seek(5 * DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes.StepSchedule.TicksPerSecond);
-            if (view.GetVisualDescendants().OfType<ItemsControl>().FirstOrDefault(c => c.Name == "StepRows") is { } rows)
+            strats.Canvas.Transport.Seek(5 * Extensions.StratBook.Playback2D.Keyframes.StepSchedule
+                .TicksPerSecond);
+            if (view.GetVisualDescendants().OfType<ItemsControl>().FirstOrDefault(c => c.Name == "StepRows") is
+                { } rows)
             {
                 rows.BringIntoView();
             }

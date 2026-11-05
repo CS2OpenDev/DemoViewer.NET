@@ -51,14 +51,10 @@ public sealed class RoundPositionsDocument
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
-        Converters =
-        {
-            new RoundPositionConverter(),
-            new RoundPositionsPlayerConverter()
-        }
+        Converters = { new RoundPositionConverter(), new RoundPositionsPlayerConverter() }
     };
 
-    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
+    public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
     /// <summary>Identical to the <c>.dvri.json</c> this file belongs to.</summary>
     public string Fingerprint { get; set; } = "";
@@ -66,12 +62,12 @@ public sealed class RoundPositionsDocument
     public RoundPositionsDemo Demo { get; set; } = new();
 
     /// <summary>Ticks between sampled steps, the sidecar's value: <c>tick = freezeEndTick + step * cadenceTicks</c>.</summary>
-    public int CadenceTicks { get; set; }
+    public int CadenceTicks { get; init; }
 
     /// <summary>The place table a tuple's place id indexes; <see cref="PlaceCountToken.NullPlace" /> stands for a null place.</summary>
-    public List<string> Places { get; set; } = [];
+    public List<string> Places { get; init; } = [];
 
-    public List<RoundPositionsRound> Rounds { get; set; } = [];
+    public List<RoundPositionsRound> Rounds { get; init; } = [];
 
     /// <summary>The player on each slot a tuple names, in slot order: who the slot is across demos.</summary>
     public List<RoundPositionsPlayer> Players { get; set; } = [];
@@ -155,19 +151,19 @@ public sealed class RoundPositionsDocument
 /// <summary>The join keys, so a reader with a hash can refuse a file that belongs to another demo.</summary>
 public sealed class RoundPositionsDemo
 {
-    public string StableKey { get; set; } = "";
+    public string StableKey { get; init; } = "";
 
-    public string? Sha256 { get; set; }
+    public string? Sha256 { get; init; }
 }
 
 /// <summary>One live round: which slots sat CT, and the alive tuples per sampled step.</summary>
 public sealed class RoundPositionsRound
 {
     /// <summary>== <c>RoundFacts.Number</c>.</summary>
-    public int Number { get; set; }
+    public int Number { get; init; }
 
     /// <summary>Frame clock. Step 0 is sampled here.</summary>
-    public int FreezeEndTick { get; set; }
+    public int FreezeEndTick { get; init; }
 
     /// <summary>Slots whose sample was CT this round (CS2DemoKit #58 <c>Team</c>); every other tuple is T.</summary>
     public int[] Ct { get; set; } = [];
@@ -176,7 +172,7 @@ public sealed class RoundPositionsRound
     ///     Indexed by step. A step the walk did not sample is an empty list, so the list is as long as
     ///     the round's last sampled step plus one and a tuple's tick is always its index times the cadence.
     /// </summary>
-    public List<List<RoundPosition>> Pos { get; set; } = [];
+    public List<List<RoundPosition>> Pos { get; init; } = [];
 
     /// <summary>The tuples at a step, or none when the step is out of range or was not sampled.</summary>
     /// <param name="step">The step.</param>
@@ -196,7 +192,8 @@ public sealed record RoundPositionsPlayer(int Slot, ulong SteamId64, string Name
 /// <summary><c>[slot, "steamId64", name]</c>.</summary>
 internal sealed class RoundPositionsPlayerConverter : JsonConverter<RoundPositionsPlayer>
 {
-    public override RoundPositionsPlayer Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override RoundPositionsPlayer Read(ref Utf8JsonReader reader, Type typeToConvert,
+        JsonSerializerOptions options)
     {
         RoundIndexRunConverter.Expect(ref reader, JsonTokenType.StartArray);
         reader.Read();
@@ -308,5 +305,8 @@ public sealed class RoundIndexDisagreementTally
 
     /// <summary>The tallied rounds, in round order; empty when nothing disagreed.</summary>
     public IReadOnlyList<RoundIndexDisagreement> ToDisagreements() =>
-        [.. _byRound.OrderBy(kv => kv.Key).Select(kv => new RoundIndexDisagreement(kv.Key, kv.Value.Side, kv.Value.Alive))];
+    [
+        .. _byRound.OrderBy(kv => kv.Key)
+            .Select(kv => new RoundIndexDisagreement(kv.Key, kv.Value.Side, kv.Value.Alive))
+    ];
 }

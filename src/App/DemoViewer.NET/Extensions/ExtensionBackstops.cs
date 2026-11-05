@@ -101,7 +101,8 @@ public sealed class ExtensionBindingSink(ILogSink? inner, ExtensionFaults faults
     }
 
     /// <inheritdoc />
-    public void Log(LogEventLevel level, string area, object? source, string messageTemplate, params object?[] propertyValues)
+    public void Log(LogEventLevel level, string area, object? source, string messageTemplate,
+        params object?[] propertyValues)
     {
         if (inner?.IsEnabled(level, area) == true)
         {

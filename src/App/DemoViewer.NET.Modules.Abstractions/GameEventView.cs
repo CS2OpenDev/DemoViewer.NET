@@ -5,6 +5,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     decoded game event for event-driven modules (the 2D pilot is state-based and uses entity
 ///     deltas instead, but this is here for modules that need events).
 /// </summary>
+[PublicAPI]
 public sealed class GameEventView
 {
     /// <summary>Event name, e.g. <c>"player_death"</c>, <c>"weapon_fire"</c>.</summary>

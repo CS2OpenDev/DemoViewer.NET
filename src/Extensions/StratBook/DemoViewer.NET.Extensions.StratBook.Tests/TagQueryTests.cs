@@ -15,16 +15,16 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class TagQueryTests
 {
-    private static readonly string ShaA = new('a', 64);
-    private static readonly string ShaB = new('b', 64);
-    private static readonly string ShaC = new('c', 64);
+    private static readonly string _shaA = new('a', 64);
+    private static readonly string _shaB = new('b', 64);
+    private static readonly string _shaC = new('c', 64);
 
-    private static readonly string[] ThreeCodes = ["A execute", "B execute", "Default"];
-    private static readonly string[] Outcomes = ["lost", "won"];
-    private static readonly string[] RoundKeys = ["1", "2", "3", "5", "10"];
-    private static readonly int[] WonOnASite = [1000, 7000];
-    private static readonly int[] CreatedLater = [7000, 3000];
-    private static readonly string[] AtTwoHundred = ["A", "B"];
+    private static readonly string[] _threeCodes = ["A execute", "B execute", "Default"];
+    private static readonly string[] _outcomes = ["lost", "won"];
+    private static readonly string[] _roundKeys = ["1", "2", "3", "5", "10"];
+    private static readonly int[] _wonOnASite = [1000, 7000];
+    private static readonly int[] _createdLater = [7000, 3000];
+    private static readonly string[] _atTwoHundred = ["A", "B"];
 
     /// <summary>
     ///     Three demos. A: two executes on A and a Default, one of them labelled with both sites. B: a B
@@ -33,27 +33,32 @@ public class TagQueryTests
     /// </summary>
     private static List<TagDocument> Fixture()
     {
-        TagDocument a = Document(ShaA,
+        TagDocument a = Document(_shaA,
             Tagged(Instance("A execute", 1000, 1600, ("outcome", "won"), ("site", "A")), round: 1),
-            Tagged(Instance("A execute", 5000, 5600, ("outcome", "lost"), ("site", "A"), ("site", "B"), ("site", "A")), round: 3),
+            Tagged(Instance("A execute", 5000, 5600, ("outcome", "lost"), ("site", "A"), ("site", "B"), ("site", "A")),
+                round: 3),
             Tagged(Instance("Default", 9000, 9900, ("outcome", "won")), round: 5));
 
-        TagDocument b = Document(ShaB,
+        TagDocument b = Document(_shaB,
             Tagged(Instance("B execute", 2000, 2600, ("outcome", "lost"), ("site", "B")), round: 2),
-            Tagged(Instance("B execute", 7000, 7600, ("outcome", "won"), ("site", "B")), round: 10, source: TagSources.Suggested,
+            Tagged(Instance("B execute", 7000, 7600, ("outcome", "won"), ("site", "B")), round: 10,
+                source: TagSources.Suggested,
                 created: Created.AddDays(2)),
-            Tagged(Instance("B execute", 8000, 8600, ("outcome", "won"), ("site", "B")), round: 11, source: TagSources.Import));
+            Tagged(Instance("B execute", 8000, 8600, ("outcome", "won"), ("site", "B")), round: 11,
+                source: TagSources.Import));
 
-        TagInstance factSite = Tagged(Instance("A execute", 3000, 3600, ("outcome", "won")), round: 2, created: Created.AddDays(1));
+        TagInstance factSite = Tagged(Instance("A execute", 3000, 3600, ("outcome", "won")), round: 2,
+            created: Created.AddDays(1));
         factSite.Facts = [new TagLabel("plantSite", "A"), new TagLabel("winner", "T")];
-        TagDocument c = Document(ShaC,
+        TagDocument c = Document(_shaC,
             factSite,
             Tagged(Instance("Default", 100, 200, ("outcome", "won")), round: null));
 
         return [a, b, c];
     }
 
-    private static TagInstance Tagged(TagInstance instance, int? round, string source = TagSources.Human, DateTime? created = null)
+    private static TagInstance Tagged(TagInstance instance, int? round, string source = TagSources.Human,
+        DateTime? created = null)
     {
         instance.Round = round;
         instance.Source = source;
@@ -71,8 +76,8 @@ public class TagQueryTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(pivot.RowKeys).IsEquivalentTo(ThreeCodes, CollectionOrdering.Matching);
-            await Assert.That(pivot.ColumnKeys).IsEquivalentTo(Outcomes, CollectionOrdering.Matching);
+            await Assert.That(pivot.RowKeys).IsEquivalentTo(_threeCodes, CollectionOrdering.Matching);
+            await Assert.That(pivot.ColumnKeys).IsEquivalentTo(_outcomes, CollectionOrdering.Matching);
             await Assert.That(pivot.Cells[("A execute", "won")].Count).IsEqualTo(2);
             await Assert.That(pivot.Cells[("A execute", "lost")].Count).IsEqualTo(1);
             await Assert.That(pivot.Cells[("B execute", "won")].Count).IsEqualTo(1)
@@ -111,10 +116,10 @@ public class TagQueryTests
         using (Assert.Multiple())
         {
             // Demo A: the round-1 execute is site A; the round-3 one says A, B, A and is one A and one B.
-            await Assert.That(pivot.Cells[(ShaA, "A")].Count).IsEqualTo(2);
-            await Assert.That(pivot.Cells[(ShaA, "B")].Count).IsEqualTo(1);
-            await Assert.That(pivot.Cells[(ShaA, "B")].Single().Round).IsEqualTo(3);
-            await Assert.That(pivot.RowKeys).IsEquivalentTo(new[] { ShaA, ShaB }, CollectionOrdering.Matching)
+            await Assert.That(pivot.Cells[(_shaA, "A")].Count).IsEqualTo(2);
+            await Assert.That(pivot.Cells[(_shaA, "B")].Count).IsEqualTo(1);
+            await Assert.That(pivot.Cells[(_shaA, "B")].Single().Round).IsEqualTo(3);
+            await Assert.That(pivot.RowKeys).IsEquivalentTo([_shaA, _shaB], CollectionOrdering.Matching)
                 .Because("demo C has no human site label, so it has no key on the column axis and no row");
         }
     }
@@ -135,7 +140,7 @@ public class TagQueryTests
         using (Assert.Multiple())
         {
             await Assert.That(human.Cells.Count).IsEqualTo(0);
-            await Assert.That(fact.Cells[("A execute", "A")].Single().Sha256).IsEqualTo(ShaC);
+            await Assert.That(fact.Cells[("A execute", "A")].Single().Sha256).IsEqualTo(_shaC);
             await Assert.That(any.Cells[("A execute", "T")].Count).IsEqualTo(1)
                 .Because("the same value in both namespaces is one value under Any");
         }
@@ -148,7 +153,7 @@ public class TagQueryTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(pivot.RowKeys).IsEquivalentTo(RoundKeys, CollectionOrdering.Matching);
+            await Assert.That(pivot.RowKeys).IsEquivalentTo(_roundKeys, CollectionOrdering.Matching);
             await Assert.That(pivot.RowKeys[^1]).IsEqualTo("10").Because("round keys sort as numbers, not text");
             await Assert.That(pivot.Cells.Values.Sum(c => c.Count)).IsEqualTo(6)
                 .Because("seven admitted instances, one with no round, which is in no cell");
@@ -172,11 +177,14 @@ public class TagQueryTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(found.Select(r => r.FromTick)).IsEquivalentTo(WonOnASite, CollectionOrdering.Matching);
-            await Assert.That(TagQuery.Find(Fixture(), TagSlice.Everything with
-            {
-                Where = [new LabelPredicate(LabelNamespace.Human, "outcome", Set())]
-            }).Count).IsEqualTo(0).Because("an empty one-of matches nothing");
+            await Assert.That(found.Select(r => r.FromTick)).IsEquivalentTo(_wonOnASite, CollectionOrdering.Matching);
+            await Assert
+                .That(TagQuery.Find(Fixture(),
+                        TagSlice.Everything with
+                        {
+                            Where = [new LabelPredicate(LabelNamespace.Human, "outcome", Set())]
+                        })
+                    .Count).IsEqualTo(0).Because("an empty one-of matches nothing");
         }
     }
 
@@ -186,11 +194,11 @@ public class TagQueryTests
         LabelPredicate plantedA = new(LabelNamespace.Fact, "plantSite", Set("A"));
         IReadOnlyList<TagInstanceRef> found = TagQuery.Find(Fixture(), TagSlice.Everything with { Where = [plantedA] });
 
-        await Assert.That(found.Single().Sha256).IsEqualTo(ShaC);
-        await Assert.That(TagQuery.Find(Fixture(), TagSlice.Everything with
-        {
-            Where = [new LabelPredicate(LabelNamespace.Fact, "site", Set("A"))]
-        }).Count).IsEqualTo(0).Because("site is a human label, and a Fact predicate does not read labels");
+        await Assert.That(found.Single().Sha256).IsEqualTo(_shaC);
+        await Assert
+            .That(TagQuery.Find(Fixture(),
+                TagSlice.Everything with { Where = [new LabelPredicate(LabelNamespace.Fact, "site", Set("A"))] }).Count)
+            .IsEqualTo(0).Because("site is a human label, and a Fact predicate does not read labels");
     }
 
     [Test]
@@ -200,10 +208,12 @@ public class TagQueryTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Demos = Set(ShaB, ShaC) }).Count).IsEqualTo(4);
-            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Codes = Set("Default") }).Count).IsEqualTo(2);
+            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Demos = Set(_shaB, _shaC) }).Count)
+                .IsEqualTo(4);
+            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Codes = Set("Default") }).Count)
+                .IsEqualTo(2);
             await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Rounds = new HashSet<int> { 2 } })
-                .Select(r => r.Sha256)).IsEquivalentTo(new[] { ShaB, ShaC }, CollectionOrdering.Matching);
+                .Select(r => r.Sha256)).IsEquivalentTo([_shaB, _shaC], CollectionOrdering.Matching);
         }
     }
 
@@ -215,11 +225,14 @@ public class TagQueryTests
         using (Assert.Multiple())
         {
             await Assert.That(TagQuery.Find(docs, TagSlice.Everything).Any(r => r.Round == 11)).IsFalse();
-            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Source = TagSource.Import }).Single().Round)
+            await Assert
+                .That(TagQuery.Find(docs, TagSlice.Everything with { Source = TagSource.Import }).Single().Round)
                 .IsEqualTo(11);
-            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Source = TagSource.Suggested }).Single().Round)
+            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Source = TagSource.Suggested }).Single()
+                    .Round)
                 .IsEqualTo(10);
-            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Source = TagSource.Human }).Count).IsEqualTo(6);
+            await Assert.That(TagQuery.Find(docs, TagSlice.Everything with { Source = TagSource.Human }).Count)
+                .IsEqualTo(6);
         }
     }
 
@@ -228,13 +241,15 @@ public class TagQueryTests
     {
         List<TagDocument> docs = Fixture();
 
-        IReadOnlyList<TagInstanceRef> sinceStart = TagQuery.Find(docs, TagSlice.Everything with { CreatedAfterUtc = Created });
+        IReadOnlyList<TagInstanceRef> sinceStart =
+            TagQuery.Find(docs, TagSlice.Everything with { CreatedAfterUtc = Created });
         IReadOnlyList<TagInstanceRef> sinceDayOne =
             TagQuery.Find(docs, TagSlice.Everything with { CreatedAfterUtc = Created.AddDays(1) });
 
         using (Assert.Multiple())
         {
-            await Assert.That(sinceStart.Select(r => r.FromTick)).IsEquivalentTo(CreatedLater, CollectionOrdering.Matching);
+            await Assert.That(sinceStart.Select(r => r.FromTick))
+                .IsEquivalentTo(_createdLater, CollectionOrdering.Matching);
             await Assert.That(sinceDayOne.Single().FromTick).IsEqualTo(7000)
                 .Because("an instance created at the cursor is already seen");
         }
@@ -249,9 +264,9 @@ public class TagQueryTests
         TagInstance first = docs[0].Instances[0];
         using (Assert.Multiple())
         {
-            await Assert.That(found[0]).IsEqualTo(new TagInstanceRef(ShaA, first.Id, "A execute", 1000, 1600, 1));
-            await Assert.That(found.Select(r => r.Sha256).ToArray())
-                .IsEquivalentTo(new[] { ShaA, ShaA, ShaA, ShaB, ShaB, ShaC, ShaC }, CollectionOrdering.Matching);
+            await Assert.That(found[0]).IsEqualTo(new TagInstanceRef(_shaA, first.Id, "A execute", 1000, 1600, 1));
+            await Assert.That([.. found.Select(r => r.Sha256)])
+                .IsEquivalentTo([_shaA, _shaA, _shaA, _shaB, _shaB, _shaC, _shaC], CollectionOrdering.Matching);
             await Assert.That(found[^1].Round).IsNull();
         }
     }
@@ -259,7 +274,7 @@ public class TagQueryTests
     [Test]
     public async Task At_ReturnsInstancesContainingTheTick_BoundsInclusive_WhateverTheSource()
     {
-        TagDocument doc = Document(ShaB,
+        TagDocument doc = Document(_shaB,
             Instance("A", 100, 200),
             Tagged(Instance("B", 200, 300), round: 1, source: TagSources.Import),
             Instance("C", 301, 400));
@@ -268,7 +283,8 @@ public class TagQueryTests
         {
             await Assert.That(TagQuery.At(doc, 99).Count).IsEqualTo(0);
             await Assert.That(TagQuery.At(doc, 100).Single().Code).IsEqualTo("A");
-            await Assert.That(TagQuery.At(doc, 200).Select(r => r.Code)).IsEquivalentTo(AtTwoHundred, CollectionOrdering.Matching);
+            await Assert.That(TagQuery.At(doc, 200).Select(r => r.Code))
+                .IsEquivalentTo(_atTwoHundred, CollectionOrdering.Matching);
             await Assert.That(TagQuery.At(doc, 300).Single().Code).IsEqualTo("B");
             await Assert.That(TagQuery.At(doc, 400).Single().Code).IsEqualTo("C");
             await Assert.That(TagQuery.At(doc, 401).Count).IsEqualTo(0);
@@ -285,15 +301,15 @@ public class TagQueryTests
             store.Save(document);
         }
 
-        TagSlice slice = TagSlice.Everything with { Demos = Set(ShaA, ShaC) };
+        TagSlice slice = TagSlice.Everything with { Demos = Set(_shaA, _shaC) };
         TagPivot pivot = TagQuery.Pivot(store.LoadDocuments(e => slice.Demos!.Contains(e.Sha256)), slice,
             new PivotAxis.Code(), new PivotAxis.Demo());
 
         using (Assert.Multiple())
         {
-            await Assert.That(pivot.ColumnKeys).IsEquivalentTo(new[] { ShaA, ShaC }, CollectionOrdering.Matching);
-            await Assert.That(pivot.Cells[("A execute", ShaA)].Count).IsEqualTo(2);
-            await Assert.That(pivot.Cells[("A execute", ShaC)].Count).IsEqualTo(1);
+            await Assert.That(pivot.ColumnKeys).IsEquivalentTo([_shaA, _shaC], CollectionOrdering.Matching);
+            await Assert.That(pivot.Cells[("A execute", _shaA)].Count).IsEqualTo(2);
+            await Assert.That(pivot.Cells[("A execute", _shaC)].Count).IsEqualTo(1);
         }
     }
 }

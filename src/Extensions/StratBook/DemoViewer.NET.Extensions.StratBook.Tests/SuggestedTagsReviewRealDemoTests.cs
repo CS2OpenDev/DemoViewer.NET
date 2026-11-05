@@ -2,9 +2,9 @@
 
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
+using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.TestSupport;
 
 #endregion
@@ -40,7 +40,8 @@ public class SuggestedTagsReviewRealDemoTests
 
         ProposalStore proposals = new(cache.Data());
         TagStore tags = new(null);
-        SuggestedTagsService service = new(cache.Library(), cache.RoundFacts(), proposals, tags, new SiteRegionStore(null),
+        SuggestedTagsService service = new(cache.Library(), cache.RoundFacts(), proposals, tags,
+            new SiteRegionStore(null),
             () => DetectorProfile.Default, () => true, () => true);
         service.Evaluate(path, parsed);
 

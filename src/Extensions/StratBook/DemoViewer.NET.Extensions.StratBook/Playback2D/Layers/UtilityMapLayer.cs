@@ -25,19 +25,19 @@ namespace DemoViewer.NET.Extensions.StratBook.Playback2D.Layers;
 public sealed class UtilityMapLayer : ISceneLayer
 {
     /// <summary>Landing icon radius in screen pixels for a group of two throws.</summary>
-    public const float LandingRadius = 11f;
+    private const float LandingRadius = 11f;
 
     /// <summary>The icon grows by this much per doubling of throws, up to <see cref="LandingRadiusMax" />.</summary>
-    public const float LandingGrowth = 2f;
+    private const float LandingGrowth = 2f;
 
     /// <summary>The largest a landing icon grows.</summary>
-    public const float LandingRadiusMax = 17f;
+    private const float LandingRadiusMax = 17f;
 
     /// <summary>Throw position disc radius in screen pixels.</summary>
-    public const float ThrowRadius = SceneDefaults.MarkerRadius + 1f;
+    private const float ThrowRadius = SceneDefaults.MarkerRadius + 1f;
 
     /// <summary>Extra pixels around a disc that still count as a hit.</summary>
-    public const float HitSlop = 4f;
+    private const float HitSlop = 4f;
 
     private readonly UtilityMapDocument _document;
     private readonly SKPaint _fill;
@@ -57,7 +57,10 @@ public sealed class UtilityMapLayer : ISceneLayer
         _icons = icons;
         _fill = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
         _stroke = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 2f, IsAntialias = true };
-        _line = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 2f, StrokeCap = SKStrokeCap.Round, IsAntialias = true };
+        _line = new SKPaint
+        {
+            Style = SKPaintStyle.Stroke, StrokeWidth = 2f, StrokeCap = SKStrokeCap.Round, IsAntialias = true
+        };
         _font = new SKFont { Size = 11f, Embolden = true };
     }
 
@@ -84,7 +87,7 @@ public sealed class UtilityMapLayer : ISceneLayer
 
     /// <summary>A landing icon's radius for its throw count.</summary>
     /// <param name="throws">Throws in the group.</param>
-    public static float RadiusFor(int throws) =>
+    private static float RadiusFor(int throws) =>
         Math.Min(LandingRadiusMax, LandingRadius + LandingGrowth * MathF.Log2(Math.Max(2, throws) / 2f));
 
     /// <summary>Every landing group under a pane-local point, topmost first; empty when none.</summary>
@@ -140,8 +143,8 @@ public sealed class UtilityMapLayer : ISceneLayer
             }
 
             (double x, double y) = transform.WorldToScreen(position.X, position.Y);
-            const float r = ThrowRadius + HitSlop;
-            if (Square(local.X - x) + Square(local.Y - y) <= r * r)
+            const float R = ThrowRadius + HitSlop;
+            if (Square(local.X - x) + Square(local.Y - y) <= R * R)
             {
                 hits.Add(position);
             }
@@ -168,7 +171,8 @@ public sealed class UtilityMapLayer : ISceneLayer
             if (ctx.BelongsHere(position.Z))
             {
                 DrawThrow(canvas, position, in ctx);
-                if (i == LastStacked(_document.Throws, i, in ctx) && Stacked(_document.Throws, i, in ctx) is > 1 and var count)
+                if (i == LastStacked(_document.Throws, i, in ctx)
+                    && Stacked(_document.Throws, i, in ctx) is > 1 and var count)
                 {
                     DrawBadge(canvas, position.X, position.Y, ThrowRadius, count, 255, in ctx);
                 }
@@ -236,7 +240,9 @@ public sealed class UtilityMapLayer : ISceneLayer
 
             for (int j = discs.Count - 1; j > i; j--)
             {
-                if (!hidden[j] && discs[j].Radius >= discs[i].Radius && Square(discs[i].X - discs[j].X) + Square(discs[i].Y - discs[j].Y) <= Square(discs[j].Radius))
+                if (!hidden[j] && discs[j].Radius >= discs[i].Radius
+                    && Square(discs[i].X - discs[j].X) + Square(discs[i].Y - discs[j].Y)
+                    <= Square(discs[j].Radius))
                 {
                     hidden[i] = true;
                     counts[j] += counts[i];
@@ -255,9 +261,9 @@ public sealed class UtilityMapLayer : ISceneLayer
         (float X, float Y, float Z) at = Where(items[i]);
         (double ax, double ay) = ctx.Transform.WorldToScreen(at.X, at.Y);
         int count = 0;
-        for (int j = 0; j < items.Count; j++)
+        foreach (T item in items)
         {
-            (float X, float Y, float Z) other = Where(items[j]);
+            (float X, float Y, float Z) other = Where(item);
             if (!ctx.BelongsHere(other.Z))
             {
                 continue;
@@ -304,7 +310,8 @@ public sealed class UtilityMapLayer : ISceneLayer
         _ => (0, 0, 0)
     };
 
-    private void DrawBadge(SKCanvas canvas, float worldX, float worldY, float radius, int count, byte alpha, in SceneRenderContext ctx)
+    private void DrawBadge(SKCanvas canvas, float worldX, float worldY, float radius, int count, byte alpha,
+        in SceneRenderContext ctx)
     {
         (double x, double y) = ctx.Transform.WorldToScreen(worldX, worldY);
         SKPoint at = new((float)x + radius * 0.8f, (float)y - radius * 0.8f);
@@ -392,7 +399,8 @@ public sealed class UtilityMapLayer : ISceneLayer
         {
             float w = side * image.Width / Math.Max(1f, image.Height);
             SKRect dest = new(at.X - w / 2, at.Y - side / 2, at.X + w / 2, at.Y + side / 2);
-            using SKPaint paint = new() { Color = SKColors.White.WithAlpha(alpha) };
+            using SKPaint paint = new();
+            paint.Color = SKColors.White.WithAlpha(alpha);
             canvas.DrawImage(image, dest, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), paint);
             return;
         }

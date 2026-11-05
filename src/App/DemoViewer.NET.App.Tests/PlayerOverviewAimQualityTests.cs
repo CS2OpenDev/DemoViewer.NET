@@ -7,7 +7,6 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Controls.Stats;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
@@ -31,7 +30,7 @@ namespace DemoViewer.NET.AppTests;
 public class PlayerOverviewAimQualityTests
 {
     private const ulong Grim = PlayerOverviewHistoryTests.Grim;
-    private static readonly string Stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly string _stamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
@@ -40,28 +39,47 @@ public class PlayerOverviewAimQualityTests
     {
         Dictionary<string, FactValue> values = new(PlayerOverviewCategoriesTests.Facet(i).Rows.Single().Values)
         {
-            ["Shots"] = FactValue.Of(300L + i), ["HitFoe"] = FactValue.Of(60L), ["head_hits"] = FactValue.Of(12L),
-            ["head_damage"] = FactValue.Of(900L), ["CSAtt"] = FactValue.Of(80L), ["cs_clean"] = FactValue.Of(40L), ["moving_shots"] = FactValue.Of(30L),
-            ["spray_error_sum"] = FactValue.Of(120.0), ["SprayN"] = FactValue.Of(50L)
+            ["Shots"] = FactValue.Of(300L + i),
+            ["HitFoe"] = FactValue.Of(60L),
+            ["head_hits"] = FactValue.Of(12L),
+            ["head_damage"] = FactValue.Of(900L),
+            ["CSAtt"] = FactValue.Of(80L),
+            ["cs_clean"] = FactValue.Of(40L),
+            ["moving_shots"] = FactValue.Of(30L),
+            ["spray_error_sum"] = FactValue.Of(120.0),
+            ["SprayN"] = FactValue.Of(50L)
         };
         long k = sight ? 1 : 0;
         foreach ((string column, long value) in (ReadOnlySpan<(string, long)>)
                  [
-                     ("Spots", 40 + i), ("preaim_angle_sum", 400 + (10 * i)), ("contact_shots", 200), ("contact_hits", 50),
+                     ("Spots", 40 + i), ("preaim_angle_sum", 400 + (10 * i)), ("contact_shots", 200),
+                     ("contact_hits", 50),
                      ("first_bullet_shots", 80), ("first_bullet_hits", 24), ("spray_shots", 120), ("spray_hits", 20),
-                     ("XShots", 30), ("travel_sum", 240 + i), ("flick_error_sum", 30), ("TTSn", 25), ("tts_ticks", 500 + i),
-                     ("TTDn", 20), ("ttd_ticks", 600 + i), ("AimRxn", 15), ("aimrx_ticks", 225), ("TTKn", 10), ("ttk_ticks", 900)
+                     ("XShots", 30), ("travel_sum", 240 + i), ("flick_error_sum", 30), ("TTSn", 25),
+                     ("tts_ticks", 500 + i),
+                     ("TTDn", 20), ("ttd_ticks", 600 + i), ("AimRxn", 15), ("aimrx_ticks", 225), ("TTKn", 10),
+                     ("ttk_ticks", 900)
                  ])
         {
             values[column] = FactValue.Of(value * k);
         }
 
-        return new FactTable(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match", ["player_slot", "steam_id", "team"], [],
+        return new FactTable(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match",
+            ["player_slot", "steam_id", "team"], [],
             new Dictionary<string, string>(),
-            [new FactRow(new Dictionary<string, FactValue> { ["player_slot"] = FactValue.Of(2L), ["steam_id"] = FactValue.Of(Id(Grim)), ["team"] = FactValue.Of(3L) }, values)]);
+            [
+                new FactRow(
+                    new Dictionary<string, FactValue>
+                    {
+                        ["player_slot"] = FactValue.Of(2L),
+                        ["steam_id"] = FactValue.Of(Id(Grim)),
+                        ["team"] = FactValue.Of(3L)
+                    }, values)
+            ]);
     }
 
-    private static int Of(string path) => int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture);
+    private static int Of(string path) =>
+        int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture);
 
     internal static DemoCacheStore Library(int demos, Func<int, bool> sight, Func<int, bool>? stamped = null)
     {
@@ -71,7 +89,7 @@ public class PlayerOverviewAimQualityTests
             for (int i = 0; i < demos; i++)
             {
                 DemoCacheRecord record = PlayerOverviewHistoryTests.Demo(i, stamped?.Invoke(i) ?? true);
-                if (record.Stamp(Stamp) is { } facet)
+                if (record.Stamp(_stamp) is { } facet)
                 {
                     record.SetStamp(facet with { HasVisibility = sight(i) });
                 }
@@ -84,9 +102,10 @@ public class PlayerOverviewAimQualityTests
     }
 
     internal static PlayerRowCache Cache(DemoCacheStore store, PlayerDirectory directory) =>
-        new(store, directory, path => store.TryGetIndex(path)?.Stamp(Stamp) is { State: DemoAnalysisState.Indexed } stamp
-            ? Facet(Of(path), stamp.HasVisibility)
-            : null);
+        new(store, directory, path =>
+            store.TryGetIndex(path)?.Stamp(_stamp) is { State: DemoAnalysisState.Indexed } stamp
+                ? Facet(Of(path), stamp.HasVisibility)
+                : null);
 
     private static CategoryStatItem Stat(AimQualitySectionViewModel section, string key) =>
         section.Blocks.SelectMany(c => c.Stats).Single(s => s.Key == key);
@@ -96,14 +115,15 @@ public class PlayerOverviewAimQualityTests
         public Shell(DemoCacheStore store)
         {
             PlayerDirectory directory = new(store, _ => true);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             Identity.SetAccounts([new IdentityAccount(Id(Grim), null, DateTime.UtcNow)]);
             Rows = Cache(store, directory);
-            Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, Rows, _ => { }, _ => { }, (_, _) => { }, _ => { }));
+            Tab = new PlayerOverviewTabViewModel(new PlayerOverviewServices(directory, Identity, Rows, _ => { },
+                (_, _) => { }, _ => { }));
             Tab.OnActivated(null!);
         }
 
-        public IdentityService Identity { get; }
+        private IdentityService Identity { get; }
         public PlayerRowCache Rows { get; }
         public PlayerOverviewTabViewModel Tab { get; }
         public AimQualitySectionViewModel Aim => Tab.Reveal<AimQualitySectionViewModel>();
@@ -121,13 +141,18 @@ public class PlayerOverviewAimQualityTests
         string[] keys = [.. AimQualitySectionViewModel.All.SelectMany(b => b.Entries).Select(e => e.Key)];
         string[] sight =
         [
-            .. ColumnCatalogue.All.Where(m => m.RequiresVisibility && !m.Hidden && ColumnRules.For(m.Key) is not ColumnRule.NotAggregable).Select(m => m.Key)
+            .. ColumnCatalogue.All.Where(m =>
+                    m is { RequiresVisibility: true, Hidden: false }
+                    && ColumnRules.For(m.Key) is not ColumnRule.NotAggregable)
+                .Select(m => m.Key)
         ];
 
         using (Assert.Multiple())
         {
-            await Assert.That(sight.Except(keys)).IsEmpty().Because("every pooled sight column on the board is in the section");
-            await Assert.That(ColumnCatalogue.All.Where(m => m.Group == StatGroup.AimQuality && !m.Hidden).Select(m => m.Key).Except(keys)).IsEmpty();
+            await Assert.That(sight.Except(keys)).IsEmpty()
+                .Because("every pooled sight column on the board is in the section");
+            await Assert.That(ColumnCatalogue.All.Where(m => m is { Group: StatGroup.AimQuality, Hidden: false })
+                .Select(m => m.Key).Except(keys)).IsEmpty();
             await Assert.That(keys.Where(k => ColumnRules.For(k) is null or ColumnRule.NotAggregable)).IsEmpty();
             await Assert.That(keys).IsEquivalentTo(keys.Distinct(), CollectionOrdering.Matching);
         }
@@ -154,14 +179,19 @@ public class PlayerOverviewAimQualityTests
 
             await Assert.That(Stat(aim, "Preaim").Value!.Value)
                 .IsEqualTo(sighted.Sum(i => 400.0 + (10 * i)) / sighted.Sum(i => 40.0 + i)).Within(1e-9);
-            await Assert.That(Stat(aim, "TTD").Value!.Value).IsEqualTo(sighted.Sum(i => 600.0 + i) / 60 * 15.625).Within(1e-9);
-            await Assert.That(Stat(aim, "Preaim").Detail).IsEqualTo(string.Create(CultureInfo.InvariantCulture, $"over {sighted.Sum(i => 40 + i)} contacts"));
-            await Assert.That(Stat(aim, "FB%").Detail).IsEqualTo(string.Create(CultureInfo.InvariantCulture, $"after {sighted.Sum(i => 40 + i)} contacts"));
-            await Assert.That(Stat(aim, "Acc%").Value).IsEqualTo(60.0 * 6 / Enumerable.Range(0, 6).Sum(i => 300.0 + i) * 100)
+            await Assert.That(Stat(aim, "TTD").Value!.Value).IsEqualTo(sighted.Sum(i => 600.0 + i) / 60 * 15.625)
+                .Within(1e-9);
+            await Assert.That(Stat(aim, "Preaim").Detail).IsEqualTo(string.Create(CultureInfo.InvariantCulture,
+                $"over {sighted.Sum(i => 40 + i)} contacts"));
+            await Assert.That(Stat(aim, "FB%").Detail).IsEqualTo(string.Create(CultureInfo.InvariantCulture,
+                $"after {sighted.Sum(i => 40 + i)} contacts"));
+            await Assert.That(Stat(aim, "Acc%").Value)
+                .IsEqualTo(60.0 * 6 / Enumerable.Range(0, 6).Sum(i => 300.0 + i) * 100)
                 .Because("accuracy pools every demo");
             await Assert.That(aim.ScopeText).IsEqualTo("line of sight from 3 matches");
-            await Assert.That(aim.Note).IsEqualTo("3 matches without line-of-sight data are left out of the reaction, crosshair and after-contact columns. "
-                                                  + "Opening a match on a map with a collision bake adds it.");
+            await Assert.That(aim.Note).IsEqualTo(
+                "3 matches without line-of-sight data are left out of the reaction, crosshair and after-contact columns. "
+                + "Opening a match on a map with a collision bake adds it.");
         }
     }
 
@@ -184,7 +214,8 @@ public class PlayerOverviewAimQualityTests
                 await Assert.That(stat.HasDetail).IsFalse().Because(stat.Key);
             }
 
-            await Assert.That(stats.Where(s => !ColumnCatalogue.RequiresVisibility(s.Key)).Select(s => s.Value)).DoesNotContain((double?)null);
+            await Assert.That(stats.Where(s => !ColumnCatalogue.RequiresVisibility(s.Key)).Select(s => s.Value))
+                .DoesNotContain((double?)null);
             await Assert.That(aim.ScopeText).IsEqualTo("no line-of-sight data");
             await Assert.That(aim.Note).StartsWith("None of these matches has line-of-sight data");
             await Assert.That(shell.Tab.Reveal<SummarySectionViewModel>().Tiles.Single(t => t.Key == "Preaim").Text)
@@ -234,25 +265,32 @@ public class PlayerOverviewAimQualityRenderTests
         {
             DemoCacheStore store = PlayerOverviewAimQualityTests.Library(3, _ => false);
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRowCache rows = PlayerOverviewAimQualityTests.Cache(store, directory);
             await rows.LoadAsync(PlayerOverviewHistoryTests.Grim);
             using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows,
-                _ => { }, _ => { }, (_, _) => { }, _ => { }));
+                _ => { }, (_, _) => { }, _ => { }));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewHistoryTests.Grim);
             await vm.Loading;
 
             // Tall enough to realise the last section under everything above it.
             vm.ShowPage(PlayerOverviewPageKind.Stats);
-            Window window = new() { Width = 1300, Height = 6000, Content = new PlayerOverviewTabView { DataContext = vm } };
+            Window window = new()
+            {
+                Width = 1300, Height = 6000, Content = new PlayerOverviewTabView { DataContext = vm }
+            };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             Dispatcher.UIThread.RunJobs();
 
             AimQualitySectionView view = window.GetVisualDescendants().OfType<AimQualitySectionView>().Single();
-            string[] texts = [.. view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible).Select(t => t.Text ?? "")];
+            string[] texts =
+            [
+                .. view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible)
+                    .Select(t => t.Text ?? "")
+            ];
             using (Assert.Multiple())
             {
                 await Assert.That(view.IsVisible).IsTrue();
@@ -261,8 +299,10 @@ public class PlayerOverviewAimQualityRenderTests
                 await Assert.That(texts).Contains("Reaction");
                 await Assert.That(texts).Contains("Accuracy");
                 await Assert.That(texts).Contains(ColumnCatalogue.Resolve("TTD").Display);
-                await Assert.That(view.GetVisualDescendants().OfType<StatValue>().Count(v => v.Text == AimQualitySectionViewModel.NoData)).IsEqualTo(10);
-                await Assert.That(texts.Any(t => t.StartsWith("None of these matches", StringComparison.Ordinal))).IsTrue();
+                await Assert.That(view.GetVisualDescendants().OfType<StatValue>()
+                    .Count(v => v.Text == AimQualitySectionViewModel.NoData)).IsEqualTo(10);
+                await Assert.That(texts.Any(t => t.StartsWith("None of these matches", StringComparison.Ordinal)))
+                    .IsTrue();
             }
 
             window.Close();

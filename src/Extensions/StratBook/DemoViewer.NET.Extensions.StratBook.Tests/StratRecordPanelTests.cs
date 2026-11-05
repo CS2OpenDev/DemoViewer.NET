@@ -2,13 +2,13 @@
 
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.Review;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
-using DemoViewer.NET.Playback2D.Pipeline.Review;
-using DemoViewer.NET.Services.Review;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Review;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.TagTestData;
 
@@ -24,11 +24,11 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class StratRecordPanelTests
 {
-    private static readonly Guid StratId = Guid.Parse("0b7e4a21-9c3d-4f58-b6a2-e1d0c9b8a7f6");
-    private static readonly string ShaA = new('a', 64);
-    private static readonly string ShaB = new('b', 64);
+    private static readonly Guid _stratId = Guid.Parse("0b7e4a21-9c3d-4f58-b6a2-e1d0c9b8a7f6");
+    private static readonly string _shaA = new('a', 64);
+    private static readonly string _shaB = new('b', 64);
 
-    private static string S => StratId.ToString("D");
+    private static string S => _stratId.ToString("D");
 
     private static TagInstance Run(int round, (string Group, string Value)[] labels, string? winner = null) =>
         Extend(Instance("A execute", round * 1000, round * 1000 + 600, labels), round, winner);
@@ -46,7 +46,7 @@ public class StratRecordPanelTests
 
     private static StratDocument Strat(Guid? id = null, string side = StratVocabulary.SideT, int revision = 1)
     {
-        StratDocument document = StratTestData.Minimal(id ?? StratId);
+        StratDocument document = StratTestData.Minimal(id ?? _stratId);
         document.Side = side;
         document.Revision = revision;
         return document;
@@ -56,12 +56,12 @@ public class StratRecordPanelTests
     public async Task Configure_ComputesTheRecord_ByProvenanceAndTheFailureBreakdown()
     {
         using Fixture fixture = Fixture.Create(
-            Document(ShaA,
+            Document(_shaA,
                 Run(1, [("strat", S), ("strat.rev", "1")], winner: "T"),
                 Run(2, [("strat", S), ("strat.rev", "1"), ("strat.failure", "utility-late")], winner: "CT")),
-            Document(ShaB,
+            Document(_shaB,
                 Run(1, [("strat", S), ("strat.rev", "1"), ("strat.result", "aborted")], winner: "T")));
-        fixture.Provenance[ShaA] = DemoProvenanceLabel.Scrim;
+        fixture.Provenance[_shaA] = DemoProvenanceLabel.Scrim;
 
         fixture.Panel.Configure(Strat());
         await fixture.Panel.Pending;
@@ -85,7 +85,8 @@ public class StratRecordPanelTests
     [Test]
     public async Task TaggingARound_UpdatesThePanel_WithoutReconfiguring()
     {
-        using Fixture fixture = Fixture.Create(Document(ShaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
+        using Fixture fixture =
+            Fixture.Create(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
 
         fixture.Panel.Configure(Strat());
         await fixture.Panel.Pending;
@@ -98,7 +99,8 @@ public class StratRecordPanelTests
         await fixture.Panel.Pending;
         using (Assert.Multiple())
         {
-            await Assert.That(fixture.Panel.Total.Run.Count).IsEqualTo(2).Because("a tag written elsewhere reaches the open panel");
+            await Assert.That(fixture.Panel.Total.Run.Count).IsEqualTo(2)
+                .Because("a tag written elsewhere reaches the open panel");
             await Assert.That(fixture.Panel.Total.Lost.Count).IsEqualTo(1);
         }
     }
@@ -106,7 +108,8 @@ public class StratRecordPanelTests
     [Test]
     public async Task ChangingTheStratsSide_Rebuilds_AndFlipsWonAndLost()
     {
-        using Fixture fixture = Fixture.Create(Document(ShaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
+        using Fixture fixture =
+            Fixture.Create(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
 
         fixture.Panel.Configure(Strat(side: StratVocabulary.SideT));
         await fixture.Panel.Pending;
@@ -124,7 +127,8 @@ public class StratRecordPanelTests
     [Test]
     public async Task ClosingTheStrat_ClearsThePanel()
     {
-        using Fixture fixture = Fixture.Create(Document(ShaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
+        using Fixture fixture =
+            Fixture.Create(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
         fixture.Panel.Configure(Strat());
         await fixture.Panel.Pending;
         await Assert.That(fixture.Panel.HasStrat).IsTrue();
@@ -144,11 +148,11 @@ public class StratRecordPanelTests
     public async Task ANumber_SendsExactlyItsRuns_ToTheReviewQueue_UnderOneTitleCard_AndShowsReview()
     {
         using Fixture fixture = Fixture.Create(
-            Document(ShaA,
+            Document(_shaA,
                 Run(1, [("strat", S), ("strat.rev", "1")], winner: "T"),
                 Run(2, [("strat", S), ("strat.rev", "1")], winner: "T"),
                 Run(3, [("strat", S), ("strat.rev", "1")], winner: "CT")));
-        fixture.Cache.Upsert(RecordFor(ShaA, "/d/a.dem"));
+        fixture.Cache.Upsert(RecordFor(_shaA, "/d/a.dem"));
 
         fixture.Panel.Configure(Strat());
         await fixture.Panel.Pending;
@@ -163,8 +167,10 @@ public class StratRecordPanelTests
             await Assert.That(entries.Count).IsEqualTo(3).Because("one title card, then the two won clips");
             await Assert.That(entries[0].Kind).IsEqualTo(ReviewEntryKind.Section);
             await Assert.That(entries[0].Title).IsEqualTo("Strat record · total · All runs");
-            await Assert.That(entries.Skip(1).All(e => e.DemoPath == "/d/a.dem" && e.Source == ReviewSources.Tag)).IsTrue();
-            await Assert.That(fixture.SelectedTabs).IsEquivalentTo([ReviewQueueModule.TabId], CollectionOrdering.Matching);
+            await Assert.That(entries.Skip(1).All(e => e is { DemoPath: "/d/a.dem", Source: ReviewSources.Tag }))
+                .IsTrue();
+            await Assert.That(fixture.SelectedTabs)
+                .IsEquivalentTo([ReviewQueueModule.TabId], CollectionOrdering.Matching);
             await Assert.That(fixture.Panel.StatusLine).IsEqualTo("2 clips sent to Review");
         }
 
@@ -175,7 +181,8 @@ public class StratRecordPanelTests
     [Test]
     public async Task ARunWhoseDemoIsNotInTheLibrary_IsNotQueued_AndTheLineSaysSo()
     {
-        using Fixture fixture = Fixture.Create(Document(ShaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
+        using Fixture fixture =
+            Fixture.Create(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
         fixture.Panel.Configure(Strat());
         await fixture.Panel.Pending;
 
@@ -192,7 +199,7 @@ public class StratRecordPanelTests
     public async Task WithNoReviewQueue_TheStatusLineSaysSo()
     {
         TagStore tags = new(null);
-        tags.Save(Document(ShaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
+        tags.Save(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
         StratRecordPanelViewModel panel = new(new StratEvidenceService(tags), tags, debounce: TimeSpan.Zero);
         panel.Configure(Strat());
         await panel.Pending;
@@ -222,7 +229,8 @@ public class StratRecordPanelTests
             Cache = new DemoCacheStore(null);
             Queue = new ReviewQueue(null);
             StratEvidenceService evidence = new(Tags, new FixedProvenance(Provenance));
-            Panel = new StratRecordPanelViewModel(evidence, Tags, new ExtensionReviewQueue(Queue), Cache.Library().FindBySha256,
+            Panel = new StratRecordPanelViewModel(evidence, Tags, new ExtensionReviewQueue(Queue),
+                Cache.Library().FindBySha256,
                 tab =>
                 {
                     SelectedTabs.Add(tab);
@@ -259,8 +267,8 @@ public class StratRecordPanelTests
     {
         public string? LabelFor(string sha256) => labels.GetValueOrDefault(sha256);
 
-        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> sha256s) =>
-            sha256s.Distinct(StringComparer.Ordinal).ToDictionary(s => s, LabelFor, StringComparer.Ordinal);
+        public IReadOnlyDictionary<string, string?> LabelsFor(IEnumerable<string> hashes) =>
+            hashes.Distinct(StringComparer.Ordinal).ToDictionary(s => s, LabelFor, StringComparer.Ordinal);
 
         public DemoProvenance? Resolve(string demoPath) => null;
 

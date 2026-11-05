@@ -24,7 +24,7 @@ namespace DemoViewer.NET.Extensions;
 /// </summary>
 internal sealed class HostLibrary : IExtensionLibrary
 {
-    private static readonly ConditionalWeakTable<DemoCacheStore, HostLibrary> Shared = new();
+    private static readonly ConditionalWeakTable<DemoCacheStore, HostLibrary> _shared = new();
 
     // The shown key of a row projected while the packs contributed: never a key the facts answer.
     private const string DeferredKey = "\0deferred";
@@ -34,15 +34,16 @@ internal sealed class HostLibrary : IExtensionLibrary
     private bool _deferred;
     private int _recheckPosted;
     private volatile bool _hasFactsStamps;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Func<bool> _onUiThread;
     private readonly Action<Action> _post;
+
     private readonly IDemoProcessingQueue? _queue;
+
     // The rows last reported, by primary path, and the primary each of their paths was reported under.
     private readonly Dictionary<string, DemoCacheIndexEntry> _seen = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _shownAt = new(StringComparer.OrdinalIgnoreCase);
     private readonly DemoCacheStore _store;
-    private IReadOnlyList<LibraryDemo> _demos = [];
     private long _demosVersion = -1;
 
     /// <param name="store">The demo cache.</param>
@@ -58,11 +59,14 @@ internal sealed class HostLibrary : IExtensionLibrary
         _onUiThread = onUiThread ?? (static () => Dispatcher.UIThread.CheckAccess());
         _post = post ?? (static action => Dispatcher.UIThread.Post(action));
         _factsSource = facts;
+        bool hasFactsStamps = false;
         foreach (DemoCacheIndexEntry entry in store.Contents)
         {
             Remember(entry);
-            _hasFactsStamps |= HasFactsStamp(entry);
+            hasFactsStamps |= HasFactsStamp(entry);
         }
+
+        _hasFactsStamps = hasFactsStamps;
 
         store.Changed += OnStoreChanged;
     }
@@ -73,7 +77,7 @@ internal sealed class HostLibrary : IExtensionLibrary
     /// <param name="facts">Resolves the analysis facts on first read; the first caller that passes one wins.</param>
     public static HostLibrary For(DemoCacheStore store, IDemoProcessingQueue? queue, Func<IAnalysisFacts>? facts = null)
     {
-        HostLibrary library = Shared.GetValue(store, s => new HostLibrary(s, queue, facts: facts));
+        HostLibrary library = _shared.GetValue(store, s => new HostLibrary(s, queue, facts: facts));
         if (facts is not null)
         {
             Interlocked.CompareExchange(ref library._factsSource, facts, null);
@@ -149,7 +153,8 @@ internal sealed class HostLibrary : IExtensionLibrary
         // resolved the rulesets: its reader never heard.
         lock (_gate)
         {
-            bool moved = _deferred || (_shownKey is not null && !string.Equals(key, _shownKey, StringComparison.Ordinal));
+            bool moved = _deferred
+                || (_shownKey is not null && !string.Equals(key, _shownKey, StringComparison.Ordinal));
             _deferred = false;
             if (!moved)
             {
@@ -172,19 +177,19 @@ internal sealed class HostLibrary : IExtensionLibrary
             {
                 if (version == _demosVersion)
                 {
-                    return _demos;
+                    return field;
                 }
             }
 
             List<LibraryDemo> demos = [.. _store.Contents.Select(e => Project(e, visibility))];
             lock (_gate)
             {
-                _demos = demos;
+                field = demos;
                 _demosVersion = version;
                 return demos;
             }
         }
-    }
+    } = [];
 
     /// <summary>Raised on the thread the store raises its own change on, the UI thread in the app.</summary>
     public event Action<LibraryChange>? Changed;
@@ -207,10 +212,22 @@ internal sealed class HostLibrary : IExtensionLibrary
         IEnumerable<LibraryDemo> matches = Demos.Where(d => Matches(d, query));
         List<LibraryDemo> all = query.Sort switch
         {
-            LibrarySort.OldestFirst => [.. matches.OrderBy(d => d.Modified).ThenBy(d => d.FilePath, StringComparer.OrdinalIgnoreCase)],
-            LibrarySort.FileName => [.. matches.OrderBy(d => d.FileName, StringComparer.OrdinalIgnoreCase).ThenBy(d => d.FilePath, StringComparer.OrdinalIgnoreCase)],
-            LibrarySort.Map => [.. matches.OrderBy(d => d.MapName ?? "", StringComparer.OrdinalIgnoreCase).ThenByDescending(d => d.Modified)],
-            _ => [.. matches.OrderByDescending(d => d.Modified).ThenBy(d => d.FilePath, StringComparer.OrdinalIgnoreCase)]
+            LibrarySort.OldestFirst =>
+                [.. matches.OrderBy(d => d.Modified).ThenBy(d => d.FilePath, StringComparer.OrdinalIgnoreCase)],
+            LibrarySort.FileName =>
+            [
+                .. matches.OrderBy(d => d.FileName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(d => d.FilePath, StringComparer.OrdinalIgnoreCase)
+            ],
+            LibrarySort.Map =>
+            [
+                .. matches.OrderBy(d => d.MapName ?? "", StringComparer.OrdinalIgnoreCase)
+                    .ThenByDescending(d => d.Modified)
+            ],
+            _ =>
+            [
+                .. matches.OrderByDescending(d => d.Modified).ThenBy(d => d.FilePath, StringComparer.OrdinalIgnoreCase)
+            ]
         };
         int skip = Math.Clamp(query.Skip, 0, all.Count);
         int take = query.Take is { } t ? Math.Clamp(t, 0, all.Count - skip) : all.Count - skip;
@@ -230,7 +247,7 @@ internal sealed class HostLibrary : IExtensionLibrary
             return Task.FromResult(Detail(path));
         }
 
-        return QueueWork.RunAsync<LibraryDemoDetail?>(_queue, QueueJobKind.StoreLoad, "Load: demo record", "library",
+        return QueueWork.RunAsync(_queue, QueueJobKind.StoreLoad, "Load: demo record", "library",
             () => Detail(path), null, DemoJobPriority.UserRequested).WaitAsync(cancellationToken);
     }
 
@@ -242,11 +259,14 @@ internal sealed class HostLibrary : IExtensionLibrary
         IFactsVisibility? visibility = Revalidate();
         DemoCacheIndexEntry? entry = _store.TryGetIndex(record.Path);
         LibraryDemo demo = entry is not null && entry.MatchesFile(record.Size, record.ModifiedTicks)
-                                             && _store.TryGetPrimary(record.Path) is { } primary
-            ? Project(primary, visibility)
-            : ProjectRow(record.ToIndexEntry(), visibility);
+            && _store.TryGetPrimary(record.Path) is { } primary
+                ? Project(primary, visibility)
+                : ProjectRow(record.ToIndexEntry(), visibility);
         return new LibraryDemoDetail(demo, record.TickRate, record.TickCount, record.ServerStartTick,
-            [.. record.Players.Select(p => new LibraryPlayer(p.Slot, p.Name, SteamIdOf(p.SteamId64), p.Team, p.IsBot, p.IsCoach))],
+            [
+                .. record.Players.Select(p =>
+                    new LibraryPlayer(p.Slot, p.Name, SteamIdOf(p.SteamId64), p.Team, p.IsBot, p.IsCoach))
+            ],
             [.. record.Rounds.Select(r => new LibraryRound(r.Number, r.StartTickFrameClock))]);
     }
 
@@ -260,7 +280,8 @@ internal sealed class HostLibrary : IExtensionLibrary
         _projected.GetValue(entry, e => ProjectRow(e, visibility));
 
     private static LibraryDemo ProjectRow(DemoCacheIndexEntry entry, IFactsVisibility? visibility) =>
-        new(entry.Path, Path.GetFileName(entry.Path), entry.Map, new DateTime(entry.ModifiedTicks, DateTimeKind.Local), entry.Size)
+        new(entry.Path, Path.GetFileName(entry.Path), entry.Map, new DateTime(entry.ModifiedTicks, DateTimeKind.Local),
+            entry.Size)
         {
             Sha256 = entry.Sha256,
             Locations = LocationsOf(entry),
@@ -284,12 +305,16 @@ internal sealed class HostLibrary : IExtensionLibrary
                 DemoCacheTier.Header => LibraryDemoState.HeaderRead,
                 _ => LibraryDemoState.Found
             },
-            Facts = [.. entry.PackStamps.Where(s => visibility?.Shows(s.Id) ?? true).Select(s => new LibraryFactState(s.Id, s.Schema, s.Fingerprint, s.State switch
-            {
-                DemoAnalysisState.Indexed => DemoDataState.Written,
-                DemoAnalysisState.Failed => DemoDataState.Failed,
-                _ => DemoDataState.Pending
-            }, s.Count) { WrittenAtTicks = s.ComputedAtTicks })]
+            Facts =
+            [
+                .. entry.PackStamps.Where(s => visibility?.Shows(s.Id) ?? true).Select(s => new LibraryFactState(s.Id,
+                    s.Schema, s.Fingerprint, s.State switch
+                    {
+                        DemoAnalysisState.Indexed => DemoDataState.Written,
+                        DemoAnalysisState.Failed => DemoDataState.Failed,
+                        _ => DemoDataState.Pending
+                    }, s.Count) { WrittenAtTicks = s.ComputedAtTicks })
+            ]
         };
 
     // The row's own path first, then its other confirmed paths. A view with no hash vouches for no other path.
@@ -312,8 +337,11 @@ internal sealed class HostLibrary : IExtensionLibrary
     private static List<LibrarySidePlayer>? Side(List<IndexSidePlayer>? players) =>
         players is null
             ? null
-            : [.. players.Select(p => (Id: SteamIdOf(p.SteamId64), p.Name, p.Slots)).Where(p => p.Id != 0)
-                .Select(p => new LibrarySidePlayer(p.Id, p.Name) { Slots = [.. p.Slots] })];
+            :
+            [
+                .. players.Select(p => (Id: SteamIdOf(p.SteamId64), p.Name, p.Slots)).Where(p => p.Id != 0)
+                    .Select(p => new LibrarySidePlayer(p.Id, p.Name) { Slots = [.. p.Slots] })
+            ];
 
     private static ulong SteamIdOf(string steamId64) =>
         ulong.TryParse(steamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id) ? id : 0;
@@ -323,10 +351,11 @@ internal sealed class HostLibrary : IExtensionLibrary
         && (query.ModifiedFrom is not { } from || demo.Modified >= from)
         && (query.ModifiedBefore is not { } before || demo.Modified < before)
         && (query.Clan is null || string.Equals(demo.CtClan, query.Clan, StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(demo.TClan, query.Clan, StringComparison.OrdinalIgnoreCase))
-        && (query.PlayerName is null || demo.PlayerNames.Any(n => n.Contains(query.PlayerName, StringComparison.OrdinalIgnoreCase)))
+            || string.Equals(demo.TClan, query.Clan, StringComparison.OrdinalIgnoreCase))
+        && (query.PlayerName is null
+            || demo.PlayerNames.Any(n => n.Contains(query.PlayerName, StringComparison.OrdinalIgnoreCase)))
         && (query.SteamId64 is not { } id || (demo.CtPlayers?.Any(p => p.SteamId64 == id) ?? false)
-                                          || (demo.TPlayers?.Any(p => p.SteamId64 == id) ?? false))
+            || (demo.TPlayers?.Any(p => p.SteamId64 == id) ?? false))
         && (query.AtLeast is not { } state || demo.State >= state)
         && (query.HasFact is null || demo.Fact(query.HasFact) is { IsWritten: true });
 
@@ -379,7 +408,9 @@ internal sealed class HostLibrary : IExtensionLibrary
                     (null, null) => LibraryChangeKind.Removed,
                     (null, _) => LibraryChangeKind.Added,
                     (_, null) => LibraryChangeKind.Removed,
-                    _ => OnlyFactsMoved(Project(before, visibility), Project(after, visibility)) ? LibraryChangeKind.FactsUpdated : LibraryChangeKind.Updated
+                    _ => OnlyFactsMoved(Project(before, visibility), Project(after, visibility))
+                        ? LibraryChangeKind.FactsUpdated
+                        : LibraryChangeKind.Updated
                 });
             }
         }
@@ -395,7 +426,8 @@ internal sealed class HostLibrary : IExtensionLibrary
             (null, _) => after.Locations.Count <= 1,
             (_, null) => before.Locations.Count <= 1,
             _ => string.Equals(before.Path, after.Path, StringComparison.OrdinalIgnoreCase)
-                 && before.Locations.Select(l => l.Path).SequenceEqual(after.Locations.Select(l => l.Path), StringComparer.OrdinalIgnoreCase)
+                && before.Locations.Select(l => l.Path).SequenceEqual(after.Locations.Select(l => l.Path),
+                    StringComparer.OrdinalIgnoreCase)
         };
 
     // Under _gate.
@@ -422,7 +454,14 @@ internal sealed class HostLibrary : IExtensionLibrary
 
     private static bool OnlyFactsMoved(LibraryDemo before, LibraryDemo after) =>
         !before.Facts.SequenceEqual(after.Facts)
-        && before with { PlayerNames = after.PlayerNames, CtPlayers = after.CtPlayers, TPlayers = after.TPlayers, Facts = after.Facts, Locations = after.Locations } == after
+        && before with
+        {
+            PlayerNames = after.PlayerNames,
+            CtPlayers = after.CtPlayers,
+            TPlayers = after.TPlayers,
+            Facts = after.Facts,
+            Locations = after.Locations
+        } == after
         && before.PlayerNames.SequenceEqual(after.PlayerNames, StringComparer.Ordinal)
         && before.Locations.SequenceEqual(after.Locations, StringComparer.Ordinal)
         && SameSide(before.CtPlayers, after.CtPlayers)
@@ -432,8 +471,9 @@ internal sealed class HostLibrary : IExtensionLibrary
         a is null
             ? b is null
             : b is not null && a.Count == b.Count && a.Zip(b).All(p => p.First.SteamId64 == p.Second.SteamId64
-                                                                      && string.Equals(p.First.Name, p.Second.Name, StringComparison.Ordinal)
-                                                                      && p.First.Slots.SequenceEqual(p.Second.Slots));
+                && string.Equals(p.First.Name, p.Second.Name,
+                    StringComparison.Ordinal)
+                && p.First.Slots.SequenceEqual(p.Second.Slots));
 }
 
 /// <summary>
@@ -444,7 +484,7 @@ internal sealed class ExtensionLibraryView : IExtensionLibrary
 {
     private readonly ExtensionGuard _guard;
     private readonly HostLibrary _host;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private Action<LibraryChange>? _changed;
     private bool _subscribed;
 
@@ -560,7 +600,8 @@ internal sealed class ExtensionFactsView(IAnalysisFacts inner, ExtensionGuard gu
 
         public RoundFacts? RoundAt(string demoPath, int frameClockTick) => rows.RoundAt(demoPath, frameClockTick);
 
-        public IReadOnlyList<FactLabel> FactsFor(string demoPath, int round, int? atTick = null) => rows.FactsFor(demoPath, round, atTick);
+        public IReadOnlyList<FactLabel> FactsFor(string demoPath, int round, int? atTick = null) =>
+            rows.FactsFor(demoPath, round, atTick);
 
         public event Action<string>? Updated
         {

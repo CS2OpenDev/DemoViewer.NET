@@ -3,9 +3,9 @@
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Hud;
+using DemoViewer.NET.Playback2D.Pipeline.Hud;
 using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Pipeline.Rendering;
-using DemoViewer.NET.Playback2D.Pipeline.Hud;
 using SkiaSharp;
 
 #endregion
@@ -81,7 +81,7 @@ public class KillFeedIconTests
 
         // Same key, same bucket → the identical image, because a feed redraws it every frame.
         await Assert.That(icons.Lookup("equipment/ak47", 12f))
-                    .IsSameReferenceAs(icons.Lookup("equipment/ak47", 12f));
+            .IsSameReferenceAs(icons.Lookup("equipment/ak47", 12f));
     }
 
     private static KillFeedRow Row() =>
@@ -151,7 +151,7 @@ public class KillFeedIconAllocationTests
         long withIcons = PerFrameBytes(icons);
 
         Console.WriteLine($"[budget] kill feed: text {textOnly} B/frame, icons {withIcons} B/frame, "
-                          + $"delta {withIcons - textOnly}");
+            + $"delta {withIcons - textOnly}");
 
         // Measured as a DELTA, not an absolute. Whatever the shipped text feed allocates per frame is a
         // pre-existing property of this layer and of TextBlobCache; what must not regress is the icon

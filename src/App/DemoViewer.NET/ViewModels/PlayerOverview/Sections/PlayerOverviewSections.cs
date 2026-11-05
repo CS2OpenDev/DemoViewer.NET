@@ -9,12 +9,11 @@ public static class PlayerOverviewSections
 {
     /// <summary>Builds one of each section, in page order.</summary>
     /// <param name="services">What the sections can reach.</param>
-    /// <param name="filter">The tab's filter bar, whose window the summary tiles follow.</param>
-    public static IReadOnlyList<PlayerOverviewSection> Create(PlayerOverviewServices services, PlayerOverviewFilterViewModel filter) =>
+    public static IReadOnlyList<PlayerOverviewSection> Create(PlayerOverviewServices services) =>
     [
         new HeaderSectionViewModel(services),
 
-        new SummarySectionViewModel(filter),
+        new SummarySectionViewModel(),
         new TrendsSectionViewModel(),
         new RankSectionViewModel(),
 

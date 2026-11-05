@@ -24,8 +24,7 @@ public class TimelineTrackTests
     [Test]
     public async Task RoundTrack_BuildsOneBandPerFreezeEnd()
     {
-        FakeTimelineData data = new(300);
-        data.EventFrames["round_freeze_end"] = [0, 100, 200];
+        FakeTimelineData data = new(300) { EventFrames = { ["round_freeze_end"] = [0, 100, 200] } };
 
         IReadOnlyList<TimelineBand> bands = new RoundTrack().BuildBands(data);
 
@@ -40,8 +39,7 @@ public class TimelineTrackTests
     [Test]
     public async Task RoundTrack_PrependsWarmupBandWhenFirstFreezeEndIsNotFrameZero()
     {
-        FakeTimelineData data = new(300);
-        data.EventFrames["round_freeze_end"] = [50, 200];
+        FakeTimelineData data = new(300) { EventFrames = { ["round_freeze_end"] = [50, 200] } };
 
         IReadOnlyList<TimelineBand> bands = new RoundTrack().BuildBands(data);
 
@@ -57,8 +55,7 @@ public class TimelineTrackTests
     [Test]
     public async Task RoundTrack_LastBandEndsAtLastFrame()
     {
-        FakeTimelineData data = new(500);
-        data.EventFrames["round_freeze_end"] = [0, 100];
+        FakeTimelineData data = new(500) { EventFrames = { ["round_freeze_end"] = [0, 100] } };
 
         IReadOnlyList<TimelineBand> bands = new RoundTrack().BuildBands(data);
 
@@ -68,13 +65,18 @@ public class TimelineTrackTests
     [Test]
     public async Task RoundTrack_TintsBandFromRoundEndWinner()
     {
-        FakeTimelineData data = new(300);
-        data.EventFrames["round_freeze_end"] = [0, 100];
-        data.Events["round_end"] =
-        [
-            Record(90, 90, ("winner", "2")),
-            Record(290, 290, ("winner", "3"))
-        ];
+        FakeTimelineData data = new(300)
+        {
+            EventFrames = { ["round_freeze_end"] = [0, 100] },
+            Events =
+            {
+                ["round_end"] =
+                [
+                    Record(90, 90, ("winner", "2")),
+                    Record(290, 290, ("winner", "3"))
+                ]
+            }
+        };
 
         IReadOnlyList<TimelineBand> bands = new RoundTrack().BuildBands(data);
 
@@ -98,13 +100,18 @@ public class TimelineTrackTests
     [Test]
     public async Task KillTrack_MarkerPerDeath_SortedByFrame()
     {
-        FakeTimelineData data = new(1000);
-        data.Events["player_death"] =
-        [
-            Record(64, 10),
-            Record(640, 100),
-            Record(1280, 200)
-        ];
+        FakeTimelineData data = new(1000)
+        {
+            Events =
+            {
+                ["player_death"] =
+                [
+                    Record(64, 10),
+                    Record(640, 100),
+                    Record(1280, 200)
+                ]
+            }
+        };
 
         IReadOnlyList<TimelineMarker> markers = new KillTrack().BuildMarkers(data);
 
@@ -118,12 +125,17 @@ public class TimelineTrackTests
     [Test]
     public async Task KillTrack_TooltipCarriesAttackerVictimWeapon()
     {
-        FakeTimelineData data = new(1000);
-        data.Events["player_death"] =
-        [
-            Record(64, 10, ("attacker", "s1mple"), ("victim", "device"), ("weapon", "ak47"),
-                ("headshot", "1"))
-        ];
+        FakeTimelineData data = new(1000)
+        {
+            Events =
+            {
+                ["player_death"] =
+                [
+                    Record(64, 10, ("attacker", "s1mple"), ("victim", "device"), ("weapon", "ak47"),
+                        ("headshot", "1"))
+                ]
+            }
+        };
 
         IReadOnlyList<TimelineMarker> markers = new KillTrack().BuildMarkers(data);
 
@@ -138,9 +150,7 @@ public class TimelineTrackTests
     {
         // The DROP happens in the adapter (an unresolvable tick yields no record at all), the track then
         // simply never sees it, which is what keeps a -1 frame index out of the layout.
-        FakeTimelineData data = new(100);
-        data.Events["player_death"] = [Record(64, 10)];
-        data.Ticks[9999] = -1;
+        FakeTimelineData data = new(100) { Events = { ["player_death"] = [Record(64, 10)] }, Ticks = { [9999] = -1 } };
 
         IReadOnlyList<TimelineMarker> markers = new KillTrack().BuildMarkers(data);
 
@@ -163,12 +173,17 @@ public class TimelineTrackTests
     [Test]
     public async Task KillTrack_ColoursEachMarkerByTheAttackersSide()
     {
-        FakeTimelineData data = new(1000);
-        data.Events["player_death"] =
-        [
-            Record(64, 10, ("attacker", "s1mple"), ("team", "2")),
-            Record(640, 100, ("attacker", "device"), ("team", "3"))
-        ];
+        FakeTimelineData data = new(1000)
+        {
+            Events =
+            {
+                ["player_death"] =
+                [
+                    Record(64, 10, ("attacker", "s1mple"), ("team", "2")),
+                    Record(640, 100, ("attacker", "device"), ("team", "3"))
+                ]
+            }
+        };
 
         IReadOnlyList<TimelineMarker> markers = new KillTrack().BuildMarkers(data);
 
@@ -192,10 +207,15 @@ public class TimelineTrackTests
     [Test]
     public async Task RoundAndKillTracks_UseTheSameRgbForEachSide()
     {
-        FakeTimelineData data = new(300);
-        data.EventFrames["round_freeze_end"] = [0, 100];
-        data.Events["round_end"] = [Record(90, 90, ("winner", "2")), Record(290, 290, ("winner", "3"))];
-        data.Events["player_death"] = [Record(64, 10, ("team", "2")), Record(640, 100, ("team", "3"))];
+        FakeTimelineData data = new(300)
+        {
+            EventFrames = { ["round_freeze_end"] = [0, 100] },
+            Events =
+            {
+                ["round_end"] = [Record(90, 90, ("winner", "2")), Record(290, 290, ("winner", "3"))],
+                ["player_death"] = [Record(64, 10, ("team", "2")), Record(640, 100, ("team", "3"))]
+            }
+        };
 
         IReadOnlyList<TimelineBand> bands = new RoundTrack().BuildBands(data);
         IReadOnlyList<TimelineMarker> markers = new KillTrack().BuildMarkers(data);
@@ -219,14 +239,19 @@ public class TimelineTrackTests
     [Test]
     public async Task KillTrack_UnknownSide_FallsBackToTheHostsKindDefault()
     {
-        FakeTimelineData data = new(1000);
-        data.Events["player_death"] =
-        [
-            Record(64, 10, ("attacker", "s1mple")),
-            Record(128, 20, ("attacker", "world"), ("team", "")),
-            Record(192, 30, ("attacker", "world"), ("team", "0")),
-            Record(256, 40, ("attacker", "spectator"), ("team", "1"))
-        ];
+        FakeTimelineData data = new(1000)
+        {
+            Events =
+            {
+                ["player_death"] =
+                [
+                    Record(64, 10, ("attacker", "s1mple")),
+                    Record(128, 20, ("attacker", "world"), ("team", "")),
+                    Record(192, 30, ("attacker", "world"), ("team", "0")),
+                    Record(256, 40, ("attacker", "spectator"), ("team", "1"))
+                ]
+            }
+        };
 
         IReadOnlyList<TimelineMarker> markers = new KillTrack().BuildMarkers(data);
 
@@ -238,10 +263,15 @@ public class TimelineTrackTests
     [Test]
     public async Task BombTrack_ProducesPlantDefuseExplodeKinds()
     {
-        FakeTimelineData data = new(1000);
-        data.Events["bomb_planted"] = [Record(100, 20, ("site", "A"))];
-        data.Events["bomb_defused"] = [Record(200, 40)];
-        data.Events["bomb_exploded"] = [Record(300, 60)];
+        FakeTimelineData data = new(1000)
+        {
+            Events =
+            {
+                ["bomb_planted"] = [Record(100, 20, ("site", "A"))],
+                ["bomb_defused"] = [Record(200, 40)],
+                ["bomb_exploded"] = [Record(300, 60)]
+            }
+        };
 
         IReadOnlyList<TimelineMarker> markers = new BombTrack().BuildMarkers(data);
 
@@ -255,8 +285,7 @@ public class TimelineTrackTests
     [Test]
     public async Task BombTrack_UnavailableWithoutBombEvents()
     {
-        FakeTimelineData data = new(1000);
-        data.Events["player_death"] = [Record(64, 10)];
+        FakeTimelineData data = new(1000) { Events = { ["player_death"] = [Record(64, 10)] } };
 
         await Assert.That(new BombTrack().IsAvailable(data)).IsFalse();
     }

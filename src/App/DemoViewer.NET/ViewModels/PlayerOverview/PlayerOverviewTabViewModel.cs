@@ -40,7 +40,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     /// <summary>The tab's feature id.</summary>
     public const string FeatureId = "tab.playeroverview";
 
-    private static readonly string FacetStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly string _facetStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
     private readonly Action<Action> _post;
     private readonly IDemoProcessingQueue? _queue;
@@ -49,9 +49,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     private readonly PlayerSearch _search;
     private readonly PlayerOverviewServices _services;
     private bool _active;
-    private PlayerOverviewContext? _context;
     private bool _disposed;
-    private bool _pinned;
     private bool _queueRefreshQueued;
     private bool _clearingSearch;
     private bool _refreshQueued;
@@ -59,7 +57,6 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     private PlayerRows? _rows;
     private bool _stale = true;
     private int _shown;
-    private ulong? _subject;
     private bool _subjectWasMine;
 
     /// <summary>The message under the empty state's or the banner's title.</summary>
@@ -68,7 +65,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
 
     /// <summary>The inner tab on show.</summary>
     [ObservableProperty]
-    private PlayerOverviewPage _selectedPage;
+    private PlayerOverviewPage? _selectedPage;
 
     /// <summary>The processing chip's caption while the queue is computing the subject's stats, else empty.</summary>
     [ObservableProperty]
@@ -100,14 +97,15 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     /// <param name="services">What the tab and its sections reach.</param>
     /// <param name="queue">The processing queue, for the paused and switched-off states; null reads as always running.</param>
     /// <param name="post">Runs a refresh later on the UI thread, so a burst of changes refreshes once; inline when null.</param>
-    public PlayerOverviewTabViewModel(PlayerOverviewServices services, IDemoProcessingQueue? queue = null, Action<Action>? post = null)
+    public PlayerOverviewTabViewModel(PlayerOverviewServices services, IDemoProcessingQueue? queue = null,
+        Action<Action>? post = null)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _queue = queue;
         _post = post ?? (action => action());
         _search = new PlayerSearch(services.Directory);
         Filter = new PlayerOverviewFilterViewModel();
-        Sections = PlayerOverviewSections.Create(services with { OpenPlayer = OpenPlayer }, Filter);
+        Sections = PlayerOverviewSections.Create(services with { OpenPlayer = OpenPlayer });
         Persistent = [.. Sections.Where(s => s.IsPersistent)];
         // History's two tables need about 1,850px between them; from 1,500 they sit side by side and scroll sideways
         // until they fit.
@@ -163,22 +161,24 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     public bool HasMeAccounts => MeAccounts.Count > 0;
 
     /// <summary>The account the page is about, or null.</summary>
-    public ulong? SubjectSteamId64 => _subject;
+    public ulong? SubjectSteamId64 { get; private set; }
 
     /// <summary>True when the user opened the subject; false while the tab follows the active Me account.</summary>
-    public bool IsPinned => _pinned;
+    public bool IsPinned { get; private set; }
 
     /// <summary>What the sections last rendered; null before the first refresh.</summary>
-    public PlayerOverviewContext? Context => _context;
+    public PlayerOverviewContext? Context { get; private set; }
 
     /// <summary>True when the page shows a full-page empty state instead of sections.</summary>
-    public bool ShowEmpty => State is PlayerOverviewState.NoPlayers or PlayerOverviewState.NoSubject or PlayerOverviewState.SubjectNotFound;
+    public bool ShowEmpty => State is PlayerOverviewState.NoPlayers or PlayerOverviewState.NoSubject
+        or PlayerOverviewState.SubjectNotFound;
 
     /// <summary>True when the sections show.</summary>
     public bool ShowSections => !ShowEmpty;
 
     /// <summary>True when the sections show under a line saying some demos have no stats yet.</summary>
-    public bool ShowBanner => State is PlayerOverviewState.Computing or PlayerOverviewState.ProcessingOff or PlayerOverviewState.Paused;
+    public bool ShowBanner => State is PlayerOverviewState.Computing or PlayerOverviewState.ProcessingOff
+        or PlayerOverviewState.Paused;
 
     /// <summary>True when the state's action is setting who the user is.</summary>
     public bool CanOpenIdentity => State == PlayerOverviewState.NoSubject;
@@ -221,8 +221,9 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     public void OnDeactivated() => _active = false;
 
     /// <inheritdoc />
-    public object? SnapshotState() =>
-        new PlayerOverviewSession(_subject?.ToString(CultureInfo.InvariantCulture), _pinned, SelectedPage.Kind.ToString());
+    public object SnapshotState() =>
+        new PlayerOverviewSession(SubjectSteamId64?.ToString(CultureInfo.InvariantCulture), IsPinned,
+            (SelectedPage ?? Pages[0]).Kind.ToString());
 
     /// <summary>
     ///     Reopens the player the user had open. A subject that only followed the active account is not restored:
@@ -283,7 +284,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     public void ShowPage(PlayerOverviewPageKind kind) => SelectedPage = Pages.First(p => p.Kind == kind);
 
     // A null from the strip (its items rebuilt) keeps the page that was showing; the subject never moves the page.
-    partial void OnSelectedPageChanging(PlayerOverviewPage? oldValue, PlayerOverviewPage newValue)
+    partial void OnSelectedPageChanging(PlayerOverviewPage? oldValue, PlayerOverviewPage? newValue)
     {
         if (oldValue is not null)
         {
@@ -291,7 +292,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         }
     }
 
-    partial void OnSelectedPageChanged(PlayerOverviewPage value)
+    partial void OnSelectedPageChanged(PlayerOverviewPage? value)
     {
         if (value is null)
         {
@@ -312,7 +313,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         {
             OpenFromSearch(result.Candidates[0].SteamId64);
         }
-        else if (result.SteamId64 is { } id && !result.IsFlagged)
+        else if (result is { SteamId64: { } id, IsFlagged: false })
         {
             OpenFromSearch(id);
         }
@@ -393,9 +394,11 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         {
             SteamIdForm.SteamId64 => true,
             SteamIdForm.SteamId3 => input.EndsWith(']'),
-            SteamIdForm.ProfileUrl => input.IndexOfAny(['/', '?', '#'], input.IndexOf("/profiles/", StringComparison.OrdinalIgnoreCase) + 10) >= 0
-                                      || input.EndsWith(']')
-                                      || input.EndsWith(id.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal),
+            SteamIdForm.ProfileUrl => input.IndexOfAny(['/', '?', '#'],
+                    input.IndexOf("/profiles/", StringComparison.OrdinalIgnoreCase) + 10) >= 0
+                || input.EndsWith(']')
+                || input.EndsWith(id.ToString(CultureInfo.InvariantCulture),
+                    StringComparison.Ordinal),
             _ => false
         };
     }
@@ -413,15 +416,15 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
 
     private void SetSubject(ulong? steamId64, bool pinned)
     {
-        _subject = steamId64;
-        _pinned = steamId64 is not null && pinned;
+        SubjectSteamId64 = steamId64;
+        IsPinned = steamId64 is not null && pinned;
         _subjectWasMine = steamId64 is { } id && _services.Identity.IsMine(id);
     }
 
     private void OnIdentityChanged()
     {
-        bool stillMine = _subject is { } id && _services.Identity.IsMine(id);
-        if (!_pinned || (_subjectWasMine && !stillMine))
+        bool stillMine = SubjectSteamId64 is { } id && _services.Identity.IsMine(id);
+        if (!IsPinned || (_subjectWasMine && !stillMine))
         {
             SetSubject(ParseId(_services.Identity.ActiveSteamId64), false);
         }
@@ -438,15 +441,18 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     // The rows are read already: a new window is a recompute over them, with no directory or file read.
     private void OnFilterChanged()
     {
-        if (_context is { } context)
+        if (Context is { } context)
         {
-            Show(context with { Filter = Filter.Filter, Window = PlayerAggregate.Window(context.Demos, Filter.Filter) });
+            Show(context with
+            {
+                Filter = Filter.Filter, Window = PlayerAggregate.Window(context.Demos, Filter.Filter)
+            });
         }
     }
 
     private void OnQueueChanged()
     {
-        if (_queueRefreshQueued || !_active || _context is null)
+        if (_queueRefreshQueued || !_active || Context is null)
         {
             return;
         }
@@ -455,7 +461,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         _post(() =>
         {
             _queueRefreshQueued = false;
-            if (!_disposed && _context is { } context)
+            if (!_disposed && Context is { } context)
             {
                 ApplyState(context);
             }
@@ -488,20 +494,20 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         // A read still running for an earlier refresh finishes into the cache and is not shown.
         int load = ++_load;
         PlayerDirectory directory = _services.Directory;
-        PlayerEntry? player = _subject is { } id ? directory.Get(id) : null;
+        PlayerEntry? player = SubjectSteamId64 is { } id ? directory.Get(id) : null;
         IReadOnlyList<PlayerMatch> matches = player is null ? [] : directory.Matches(player.SteamId64);
         int withStats = 0;
         foreach (PlayerMatch match in matches)
         {
-            if (match.Row.Stamp(FacetStamp) is { State: DemoAnalysisState.Indexed })
+            if (match.Row.Stamp(_facetStamp) is { State: DemoAnalysisState.Indexed })
             {
                 withStats++;
             }
         }
 
         // A new subject starts unfiltered; the same subject keeps the user's selection.
-        Filter.SetOptions(matches, reset: _optionsFor != _subject);
-        _optionsFor = _subject;
+        Filter.SetOptions(matches, reset: _optionsFor != SubjectSteamId64);
+        _optionsFor = SubjectSteamId64;
 
         PlayerRowCache? cache = _services.Rows;
         if (player is null || _rows?.SteamId64 != player.SteamId64)
@@ -544,7 +550,8 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         // A demo finishing in the background drops the subject from the caches; the stats read before stay on
         // show while the re-read runs, so the page does not flash a loading state for every demo the queue does.
         bool firstRead = reading && _rows is null;
-        PlayerOverviewContext context = Compose(new PlayerOverviewContext(_subject, player, matches, withStats, _subjectWasMine,
+        PlayerOverviewContext context = Compose(new PlayerOverviewContext(SubjectSteamId64, player, matches, withStats,
+            _subjectWasMine,
             _services, [], Filter.Filter, [], firstRead, _ranks, ranking && _ranks is null));
         RebuildMeAccounts();
         Pages.First(p => p.Kind == PlayerOverviewPageKind.History).Count = player is null ? null : matches.Count;
@@ -569,7 +576,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
             // A sidecar that will not read leaves its demo "stats not read"; the next refresh tries again.
         }
 
-        if (_load != load || _disposed || _context is not { } context)
+        if (_load != load || _disposed || Context is not { } context)
         {
             return;
         }
@@ -591,7 +598,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
             // A record that will not read leaves its rank empty; the next refresh tries again.
         }
 
-        if (_load != load || _disposed || _context is not { } context)
+        if (_load != load || _disposed || Context is not { } context)
         {
             return;
         }
@@ -618,12 +625,12 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         foreach (PlayerMatch match in context.Matches)
         {
             demos.Add(read is not null
-                      && read.TryGetValue(match.Row.ContentId(), out PlayerDemo? held)
-                      && held.HasFacet
-                      && match.Row.Stamp(FacetStamp) is { State: DemoAnalysisState.Indexed } stamp
-                      && held.Match.Row.Stamp(FacetStamp) == stamp
-                ? held with { Match = match }
-                : new PlayerDemo(match, false, null));
+                && read.TryGetValue(match.Row.ContentId(), out PlayerDemo? held)
+                && held.HasFacet
+                && match.Row.Stamp(_facetStamp) is { State: DemoAnalysisState.Indexed } stamp
+                && held.Match.Row.Stamp(_facetStamp) == stamp
+                    ? held with { Match = match }
+                    : new PlayerDemo(match, false, null));
         }
 
         return context with { Demos = demos, Window = PlayerAggregate.Window(demos, context.Filter) };
@@ -633,19 +640,19 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     // they are shown, so a section that reads files (highlights, head-to-head, benchmarks) reads none while hidden.
     private void Show(PlayerOverviewContext context)
     {
-        _context = context;
+        Context = context;
         _shown++;
         foreach (PlayerOverviewSection section in Persistent)
         {
             section.Update(context);
         }
 
-        Render(SelectedPage);
+        Render(SelectedPage ?? Pages[0]);
     }
 
     private void Render(PlayerOverviewPage page)
     {
-        if (_context is not { } context || page.RenderedFor == _shown)
+        if (Context is not { } context || page.RenderedFor == _shown)
         {
             return;
         }
@@ -667,7 +674,8 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         {
             state = PlayerOverviewState.NoPlayers;
             Title = "No players yet";
-            Detail = "This library has no demos with SteamIDs. Players show up here once a demo that names them is indexed.";
+            Detail =
+                "This library has no demos with SteamIDs. Players show up here once a demo that names them is indexed.";
         }
         else if (context.SteamId64 is not { } id)
         {
@@ -732,7 +740,8 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     private static string StatsFor(int withStats, int total, int pending) =>
         string.Create(CultureInfo.InvariantCulture, $"Stats for {withStats} of {Demos(total)} · {pending} remaining");
 
-    private static string Demos(int count) => count == 1 ? "1 demo" : string.Create(CultureInfo.InvariantCulture, $"{count} demos");
+    private static string Demos(int count) =>
+        count == 1 ? "1 demo" : string.Create(CultureInfo.InvariantCulture, $"{count} demos");
 
     private static ulong? ParseId(string? steamId64) =>
         ulong.TryParse(steamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id) && id != 0 ? id : null;

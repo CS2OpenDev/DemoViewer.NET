@@ -7,7 +7,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CS2DemoKit.Analysis.Clips;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Controls;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Dependencies;
@@ -118,6 +117,8 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
 
     /// <summary>The inline pre-flight banner (null when the plan validates).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasError))]
+    [NotifyPropertyChangedFor(nameof(ShowErrorBanner))]
     private string? _errorBanner;
 
     [ObservableProperty]
@@ -154,6 +155,8 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     ///     without rendering, and the browser head has no reel path at all.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowFfmpegStrip))]
+    [NotifyCanExecuteChangedFor(nameof(GenerateCommand))]
     private bool _isFfmpegMissing;
 
     // ── Padding ───────────────────────────────────────────────────────────────
@@ -176,6 +179,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     // ── Output ────────────────────────────────────────────────────────────────
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(GenerateCommand))]
     private string _outputFolder;
 
     // The plan built by the last Recompute: the exact ReelClips handed to IReelJobService.Start. Excludes
@@ -215,6 +219,8 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
 
     /// <summary>CRF mode selected (radio). When true the bitrate field is disabled; when false CRF is disabled.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CrfEnabled))]
+    [NotifyPropertyChangedFor(nameof(BitrateEnabled))]
     private bool _useCrf;
 
     /// <summary>
@@ -285,8 +291,8 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
         _customWidth = defaults.ReelWidth > 0 ? defaults.ReelWidth : 1920;
         _customHeight = defaults.ReelHeight > 0 ? defaults.ReelHeight : 1080;
         _selectedResolution = Array.Find(_resolutionOptions,
-                                  o => !o.IsCustom && o.Width == defaults.ReelWidth && o.Height == defaults.ReelHeight)
-                              ?? ReelResolutionOption.Custom;
+                o => !o.IsCustom && o.Width == defaults.ReelWidth && o.Height == defaults.ReelHeight)
+            ?? ReelResolutionOption.Custom;
         _baseFileName = SuggestBaseName(selections);
         _seededBaseName = _baseFileName;
 
@@ -316,7 +322,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     public ObservableCollection<ReelClipGroupViewModel> ClipGroups { get; } = [];
 
     /// <summary>The tray-mutation seam (▲▼✕). Null in the pure-VM tests, which leaves the buttons inert.</summary>
-    public IClipTrayHost? Tray { get; set; }
+    public IClipTrayHost? Tray { get; init; }
 
     /// <summary>
     ///     Header, e.g. "CLIPS (7 staged · 5 after merge)": the live coalescing feedback. Collapses to a bare
@@ -403,8 +409,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     public bool ShowFfmpegStrip => IsFfmpegMissing;
 
     /// <summary>The strip's explanation copy.</summary>
-    public string FfmpegMissingMessage { get; } =
-        "Reel rendering needs ffmpeg, which wasn't found on this machine.";
+    public string FfmpegMissingMessage { get; } = "Reel rendering needs ffmpeg, which wasn't found on this machine.";
 
     /// <summary>
     ///     The self-install instructions. The app-managed folder option exists so a user who cannot
@@ -421,8 +426,8 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     private bool JobRunning => _reelJob?.Status.IsRunning ?? false;
 
     private bool CanGenerate => _movedCount == 0 && _unresolvedCount == 0 && _plan.Count > 0
-                                && !string.IsNullOrWhiteSpace(OutputFolder)
-                                && IsResolutionValid && !JobRunning && !IsFfmpegMissing;
+        && !string.IsNullOrWhiteSpace(OutputFolder)
+        && IsResolutionValid && !JobRunning && !IsFfmpegMissing;
 
     /// <summary>The CRF numeric field is editable only in CRF mode (CRF ⊕ bitrate).</summary>
     public bool CrfEnabled => UseCrf;
@@ -456,17 +461,11 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     {
         string winget = OperatingSystem.IsWindows()
             ? "Install it with:   winget install Gyan.FFmpeg   (then restart DemoViewer), or download " +
-              "a build and add its bin folder to PATH."
+            "a build and add its bin folder to PATH."
             : "Install it with your package manager and make sure it is on PATH.";
         return FfmpegDependency.ManagedDirectory is { } managed
             ? winget + $" No PATH edits wanted? Copy ffmpeg.exe and ffprobe.exe into:  {managed}  and press Re-check."
             : winget;
-    }
-
-    partial void OnIsFfmpegMissingChanged(bool value)
-    {
-        OnPropertyChanged(nameof(ShowFfmpegStrip));
-        GenerateCommand.NotifyCanExecuteChanged();
     }
 
     // Re-probes the machine. Cheap (a PATH stat scan), so it runs on every Recompute: a user who
@@ -474,9 +473,9 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     private void RefreshFfmpegStatus()
     {
         IsFfmpegMissing = _ffmpegLocator is not null
-                          && !IsDryRunOnly
-                          && _reelJob is not null
-                          && !_ffmpegLocator().Found;
+            && !IsDryRunOnly
+            && _reelJob is not null
+            && !_ffmpegLocator().Found;
     }
 
     /// <summary>Opens the ffmpeg download page in the default browser.</summary>
@@ -499,12 +498,6 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
 
     /// <summary>Raised when the dialog should close (Cancel, or a successful Generate hand-off).</summary>
     public event EventHandler? Closed;
-
-    partial void OnErrorBannerChanged(string? value)
-    {
-        OnPropertyChanged(nameof(HasError));
-        OnPropertyChanged(nameof(ShowErrorBanner));
-    }
 
     /// <summary>
     ///     Primary action. Asks first if the user has not acknowledged the launch notice, then if a live-sync
@@ -579,11 +572,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
         }
 
         IReadOnlyList<IStorageFolder> picked = await _storageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Select the reel output folder",
-                AllowMultiple = false
-            });
+            new FolderPickerOpenOptions { Title = "Select the reel output folder", AllowMultiple = false });
         string? path = picked.Count > 0 ? picked[0].TryGetLocalPath() : null;
         if (!string.IsNullOrEmpty(path))
         {
@@ -599,14 +588,6 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     partial void OnLeadInSecondsChanged(double value) => Recompute();
     partial void OnLeadOutSecondsChanged(double value) => Recompute();
     partial void OnDontCrossRoundStartChanged(bool value) => Recompute();
-    partial void OnOutputFolderChanged(string value) => GenerateCommand.NotifyCanExecuteChanged();
-
-    partial void OnUseCrfChanged(bool value)
-    {
-        // CRF ⊕ Bitrate: selecting one disables the other's field: a purely reactive projection here.
-        OnPropertyChanged(nameof(CrfEnabled));
-        OnPropertyChanged(nameof(BitrateEnabled));
-    }
 
     partial void OnSelectedResolutionChanged(ReelResolutionOption? value)
     {
@@ -716,21 +697,24 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
 
             foreach (ClipWindows.Clip clip in demoPlayer.OrderBy(c => c.StartTick))
             {
-                List<CandidateSource> contributingSources = byGroup
-                    .GetValueOrDefault(
-                        (clip.DemoPath.ToUpperInvariant(), clip.SteamId64, clip.RoundNumber), [])
-                    .Where(s => s.Candidate.StartTick <= clip.EndTick && s.Candidate.EndTick >= clip.StartTick)
-                    .ToList();
+                List<CandidateSource> contributingSources =
+                [
+                    .. byGroup
+                        .GetValueOrDefault(
+                            (clip.DemoPath.ToUpperInvariant(), clip.SteamId64, clip.RoundNumber), [])
+                        .Where(s => s.Candidate.StartTick <= clip.EndTick && s.Candidate.EndTick >= clip.StartTick)
+                ];
 
-                List<ReelClipContributorViewModel> contributors = contributingSources
-                    .Select(s => new ReelClipContributorViewModel(
-                        DisplayText.Sanitize(s.Candidate.Title),
-                        WindowText(s.Candidate.StartTick, s.Candidate.EndTick),
-                        DurationText(s.Candidate.StartTick, s.Candidate.EndTick, facts.TickRate),
-                        $"r{s.Candidate.RoundNumber.ToString(CultureInfo.InvariantCulture)}",
-                        $"tick {s.SourceTick.ToString("N0", CultureInfo.InvariantCulture)}",
-                        s.Key, () => Tray))
-                    .ToList();
+                List<ReelClipContributorViewModel> contributors =
+                [
+                    .. contributingSources
+                        .Select(s => new ReelClipContributorViewModel(
+                            DisplayText.Sanitize(s.Candidate.Title),
+                            DurationText(s.Candidate.StartTick, s.Candidate.EndTick, facts.TickRate),
+                            $"r{s.Candidate.RoundNumber.ToString(CultureInfo.InvariantCulture)}",
+                            $"tick {s.SourceTick.ToString("N0", CultureInfo.InvariantCulture)}",
+                            s.Key, () => Tray))
+                ];
 
                 double mergedSeconds = DurationSeconds(clip.StartTick, clip.EndTick, facts.TickRate);
                 bool moved = !facts.Exists;
@@ -783,7 +767,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
             // "remove it", not "deselect it": the tray's ✕ is the affordance now, and the checkbox the old
             // copy pointed at no longer exists anywhere on the page.
             ErrorBanner = $"{_movedCount} clip{(_movedCount == 1 ? " has" : "s have")} a problem " +
-                          $"(demo moved). Fix or remove {(_movedCount == 1 ? "it" : "them")} to continue.";
+                $"(demo moved). Fix or remove {(_movedCount == 1 ? "it" : "them")} to continue.";
         }
         else if (_unresolvedCount > 0)
         {
@@ -791,7 +775,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
             // roster has no slot→name mapping (a legacy names-only cache record), so re-scanning re-parses it
             // and repairs the roster (HighlightScanService), after which the player resolves and this clears.
             ErrorBanner = $"{_unresolvedCount} clip{(_unresolvedCount == 1 ? "" : "s")} can't resolve the " +
-                          "player to spectate. Re-scan the demo (Rescan all) to refresh its roster, then retry.";
+                "player to spectate. Re-scan the demo (Rescan all) to refresh its roster, then retry.";
         }
         else if (string.IsNullOrWhiteSpace(OutputFolder))
         {
@@ -944,8 +928,6 @@ public sealed record ReelResolutionOption(string Display, int Width, int Height,
 /// </summary>
 public sealed class ReelClipGroupViewModel
 {
-    private readonly Func<IClipTrayHost?> _tray;
-
     /// <param name="header">Group header, e.g. "s1mple · Dust II".</param>
     /// <param name="groupKey">Stable (path, steamId) key: the handle the tray mutates by.</param>
     /// <param name="mapName">RAW map name (e.g. <c>de_dust2</c>) for the accent-dot converter.</param>
@@ -968,14 +950,13 @@ public sealed class ReelClipGroupViewModel
         CanMoveUp = position > 0;
         CanMoveDown = position < total - 1;
         HasProblem = hasProblem;
-        _tray = tray;
 
         // Built ONCE, not as expression-bodied properties: a `=> new(...)` command hands the binding a fresh
         // instance on every get, so CanExecute notifications land on an object nothing is bound to and the
         // ▲▼ buttons freeze in whatever state they were first evaluated in.
-        MoveUpCommand = new RelayCommand(() => _tray()?.MoveGroup(GroupKey, -1), () => CanMoveUp);
-        MoveDownCommand = new RelayCommand(() => _tray()?.MoveGroup(GroupKey, +1), () => CanMoveDown);
-        RemoveCommand = new RelayCommand(() => _tray()?.RemoveGroup(GroupKey));
+        MoveUpCommand = new RelayCommand(() => tray()?.MoveGroup(GroupKey, -1), () => CanMoveUp);
+        MoveDownCommand = new RelayCommand(() => tray()?.MoveGroup(GroupKey, +1), () => CanMoveDown);
+        RemoveCommand = new RelayCommand(() => tray()?.RemoveGroup(GroupKey));
     }
 
     /// <summary>Group header, e.g. "s1mple · Dust II".</summary>
@@ -1061,34 +1042,26 @@ public sealed class ReelClipRowViewModel(
 /// </summary>
 public sealed class ReelClipContributorViewModel
 {
-    private readonly Func<IClipTrayHost?> _tray;
-
     /// <param name="title">Sanitized rendered title.</param>
-    /// <param name="windowText">Tick window, e.g. "ticks 54,105–54,650".</param>
     /// <param name="durationText">Estimated seconds, e.g. "~8.5s".</param>
     /// <param name="roundDisplay">Round label, e.g. "r7".</param>
     /// <param name="tickDisplay">Source firing tick, e.g. "tick 54,321".</param>
     /// <param name="key">The staged highlight's identity: the ✕ handle.</param>
     /// <param name="tray">Late-bound tray seam.</param>
     public ReelClipContributorViewModel(
-        string title, string windowText, string durationText, string roundDisplay, string tickDisplay,
+        string title, string durationText, string roundDisplay, string tickDisplay,
         HighlightKey key, Func<IClipTrayHost?> tray)
     {
         Title = title;
-        WindowText = windowText;
         DurationText = durationText;
         RoundDisplay = roundDisplay;
         TickDisplay = tickDisplay;
         Key = key;
-        _tray = tray;
-        RemoveCommand = new RelayCommand(() => _tray()?.RemoveClip(Key));
+        RemoveCommand = new RelayCommand(() => tray()?.RemoveClip(Key));
     }
 
     /// <summary>Sanitized rendered title.</summary>
     public string Title { get; }
-
-    /// <summary>The contributor's own window, e.g. "ticks 54,105–54,650".</summary>
-    public string WindowText { get; }
 
     /// <summary>The contributor's estimated seconds, e.g. "~8.5s".</summary>
     public string DurationText { get; }
@@ -1100,7 +1073,7 @@ public sealed class ReelClipContributorViewModel
     public string TickDisplay { get; }
 
     /// <summary>The staged highlight's identity.</summary>
-    public HighlightKey Key { get; }
+    private HighlightKey Key { get; }
 
     /// <summary>Un-stages just this highlight.</summary>
     public RelayCommand RemoveCommand { get; }

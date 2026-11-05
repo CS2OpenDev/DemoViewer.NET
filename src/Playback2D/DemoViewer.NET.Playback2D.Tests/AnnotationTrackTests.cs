@@ -21,7 +21,7 @@ public class AnnotationTrackTests
 
         await Assert.That(track.Id).IsEqualTo("annotation")
             .Because("Track ids are bare words; 'playback2d.annotations' is the layer id AND the " +
-                     "feature id, and one string across three registries is a collision waiting to happen");
+                "feature id, and one string across three registries is a collision waiting to happen");
         await Assert.That(track.DisplayName).IsEqualTo("Annotations");
     }
 

@@ -40,7 +40,7 @@ public static class StratLocations
     /// <param name="x">World X, or null.</param>
     /// <param name="y">World Y, or null.</param>
     /// <param name="callouts">The owner's words; null prints canonical names split into words.</param>
-    public static string? Text(string? place, double? x, double? y, CalloutResolver? callouts)
+    private static string? Text(string? place, double? x, double? y, CalloutResolver? callouts)
     {
         if (!string.IsNullOrEmpty(place))
         {
@@ -82,8 +82,11 @@ public static class StratLocations
             return [];
         }
 
-        List<PlaceRef> entries = [.. watch.Places.Where(p => !string.IsNullOrEmpty(p)).Select(p => new PlaceRef { Place = p })];
-        entries.AddRange(watch.Points?.Where(HasPoint) ?? []);
+        List<PlaceRef> entries =
+        [
+            .. watch.Places.Where(p => !string.IsNullOrEmpty(p)).Select(p => new PlaceRef { Place = p }),
+            .. watch.Points?.Where(HasPoint) ?? []
+        ];
         return entries;
     }
 
@@ -92,8 +95,11 @@ public static class StratLocations
     /// <param name="points">The <c>viaPoints</c>, or null.</param>
     public static IReadOnlyList<PlaceRef> Via(IReadOnlyList<string>? places, IReadOnlyList<PlaceRef>? points)
     {
-        List<PlaceRef> entries = [.. (places ?? []).Where(p => !string.IsNullOrEmpty(p)).Select(p => new PlaceRef { Place = p })];
-        entries.AddRange(points?.Where(HasPoint) ?? []);
+        List<PlaceRef> entries =
+        [
+            .. (places ?? []).Where(p => !string.IsNullOrEmpty(p)).Select(p => new PlaceRef { Place = p }),
+            .. points?.Where(HasPoint) ?? []
+        ];
         return entries;
     }
 
@@ -106,8 +112,11 @@ public static class StratLocations
             return [];
         }
 
-        List<PlaceRef> entries = [.. lurk.Areas.Where(p => !string.IsNullOrEmpty(p)).Select(p => new PlaceRef { Place = p })];
-        entries.AddRange(lurk.AreaPoints?.Where(HasPoint) ?? []);
+        List<PlaceRef> entries =
+        [
+            .. lurk.Areas.Where(p => !string.IsNullOrEmpty(p)).Select(p => new PlaceRef { Place = p }),
+            .. lurk.AreaPoints?.Where(HasPoint) ?? []
+        ];
         return entries;
     }
 
@@ -122,7 +131,8 @@ public static class StratLocations
     /// <param name="y">World Y.</param>
     /// <param name="levelMinZ">The clicked floor's level key.</param>
     /// <param name="placesKnown">False when the map's places could not be read.</param>
-    public static PlaceRef Picked(PlaceRef? stored, string? place, double x, double y, double levelMinZ, bool placesKnown)
+    public static PlaceRef Picked(PlaceRef? stored, string? place, double x, double y, double levelMinZ,
+        bool placesKnown)
     {
         PlaceRef next = stored is null ? new PlaceRef() : Clone(stored);
         next.Place = placesKnown ? place : stored?.Place;
@@ -162,7 +172,8 @@ public static class StratLocations
     /// <param name="a">A location, or null.</param>
     /// <param name="b">A location, or null.</param>
     public static bool Same(PlaceRef? a, PlaceRef? b) =>
-        (a is null && b is null) || (a is not null && b is not null && string.Equals(Json(a), Json(b), StringComparison.Ordinal));
+        (a is null && b is null)
+        || (a is not null && b is not null && string.Equals(Json(a), Json(b), StringComparison.Ordinal));
 
     /// <summary>A deep copy, unknown fields included.</summary>
     /// <param name="location">The location.</param>
@@ -172,7 +183,8 @@ public static class StratLocations
     /// <summary>A landing read as a location: the two write the same members.</summary>
     /// <param name="landing">The landing.</param>
     public static PlaceRef FromLanding(UtilityLanding landing) =>
-        JsonSerializer.Deserialize(JsonSerializer.Serialize(landing, StratJsonContext.Default.UtilityLanding), StratJsonContext.Default.PlaceRef)!;
+        JsonSerializer.Deserialize(JsonSerializer.Serialize(landing, StratJsonContext.Default.UtilityLanding),
+            StratJsonContext.Default.PlaceRef)!;
 
     /// <summary>A location written as a landing.</summary>
     /// <param name="location">The location.</param>
@@ -185,7 +197,8 @@ public static class StratLocations
     // + 0.0 turns a rounded -0 into 0, so a point never prints as "-0".
     private static double Whole(double value) => Math.Round(value, MidpointRounding.AwayFromZero) + 0.0;
 
-    private static string Json(PlaceRef location) => JsonSerializer.Serialize(location, StratJsonContext.Default.PlaceRef);
+    private static string Json(PlaceRef location) =>
+        JsonSerializer.Serialize(location, StratJsonContext.Default.PlaceRef);
 
     private static string? TextOf(JsonNode? node) =>
         node is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : null;

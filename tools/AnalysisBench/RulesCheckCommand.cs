@@ -27,14 +27,7 @@ namespace AnalysisBench;
 /// </summary>
 internal static class RulesCheckCommand
 {
-    // Demo-less v2 resolution: the parser's 64/s default and a
-    // default source profile. The resolution diagnostics (bad refs, type errors, cycles) are
-    // rate- and profile-independent; folding + param binding (which the hash depends on) only
-    // matter at the per-demo build, so a demo-less check surfaces every reference/type error.
-    private const double DemoLessTickRate = 64.0;
-    private const string DemoLessProfileId = "Cs2GotvProfile";
-
-    internal static int Run(string[] positional, Dictionary<string, string> namedArgs, HashSet<string> flags)
+    internal static int Run(string[] positional, Dictionary<string, string> namedArgs)
     {
         string rulesDir = positional.Length > 0
             ? positional[0]
@@ -75,7 +68,7 @@ internal static class RulesCheckCommand
         }
 
         Console.WriteLine($"rules check: {errors} error(s), {warnings} warning(s) "
-                          + $"across {load.LoadedFiles.Count} file(s)");
+            + $"across {load.LoadedFiles.Count} file(s)");
         return errors > 0 ? 1 : 0;
     }
 
@@ -145,7 +138,7 @@ internal static class RulesCheckCommand
         BuildResult build = builder.Build(rulesets);
         AnalysisRun run = DemoAnalysis.Evaluate(parsed, build);
         EvaluationResult result = run.Snapshots
-                                  ?? throw new InvalidOperationException("snapshot evaluation expected");
+            ?? throw new InvalidOperationException("snapshot evaluation expected");
 
         Dictionary<StateNode, int> fireCountByNode = BuildFireCountByNode(build, result);
 
@@ -237,7 +230,7 @@ internal static class RulesCheckCommand
     private static Dictionary<StateNode, int> BuildFireCountByNode(BuildResult build, EvaluationResult result)
     {
         Dictionary<StateNode, int> fireCountByNode = new(ReferenceEqualityComparer.Instance);
-        foreach (StateEdge edge in build.EdgeBacking?.Values ?? Enumerable.Empty<StateEdge>())
+        foreach (StateEdge edge in build.EdgeBacking?.Values ?? [])
         {
             if (edge.WrittenNode is { } node)
             {

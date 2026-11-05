@@ -59,13 +59,13 @@ public class PlayerDetailsTests
             : [("TotalK", false), ("ADR", false), ("Kills", true), ("Damage", true)];
         HashSet<string> boolColumns = withRoundBools ? ["HasKAST", "FK", "FD"] : [];
 
-        List<PerPlayerNodeTemplate.MaterializedPlayer> materialized = new();
-        List<List<int>> colIdx = new();
+        List<PerPlayerNodeTemplate.MaterializedPlayer> materialized = [];
+        List<List<int>> colIdx = [];
         foreach ((int slot, string name) in players)
         {
-            List<PerPlayerColumnAssignment> assignments = new();
-            List<int> indices = new();
-            List<StateNode> nodes = new();
+            List<PerPlayerColumnAssignment> assignments = [];
+            List<int> indices = [];
+            List<StateNode> nodes = [];
             foreach ((string column, bool roundScoped) in columns)
             {
                 StateNode node = boolColumns.Contains(column)
@@ -139,35 +139,14 @@ public class PlayerDetailsTests
             ["kills_by_weapon"],
             [
                 new MetricRow(
-                    new Dictionary<string, object?>
-                    {
-                        ["player_slot"] = 0,
-                        ["key"] = "ak47"
-                    },
-                    new Dictionary<string, object?>
-                    {
-                        ["kills_by_weapon"] = 3
-                    }),
+                    new Dictionary<string, object?> { ["player_slot"] = 0, ["key"] = "ak47" },
+                    new Dictionary<string, object?> { ["kills_by_weapon"] = 3 }),
                 new MetricRow(
-                    new Dictionary<string, object?>
-                    {
-                        ["player_slot"] = 0,
-                        ["key"] = "awp"
-                    },
-                    new Dictionary<string, object?>
-                    {
-                        ["kills_by_weapon"] = 7
-                    }),
+                    new Dictionary<string, object?> { ["player_slot"] = 0, ["key"] = "awp" },
+                    new Dictionary<string, object?> { ["kills_by_weapon"] = 7 }),
                 new MetricRow(
-                    new Dictionary<string, object?>
-                    {
-                        ["player_slot"] = 1,
-                        ["key"] = "knife"
-                    },
-                    new Dictionary<string, object?>
-                    {
-                        ["kills_by_weapon"] = 1
-                    })
+                    new Dictionary<string, object?> { ["player_slot"] = 1, ["key"] = "knife" },
+                    new Dictionary<string, object?> { ["kills_by_weapon"] = 1 })
             ]);
 
     private static StatsTabViewModel BuildUpdatedVm(bool withWeaponTable = false)
@@ -276,12 +255,14 @@ public class PlayerDetailsTests
 
         // Achievements: only Alice's chains; the game-scoped chain never appears.
         await Assert.That(details.Achievements.Count).IsEqualTo(2);
-        await Assert.That(details.Achievements.Select(a => a.Chain)).IsEquivalentTo(_expectedChains, CollectionOrdering.Matching);
+        await Assert.That(details.Achievements.Select(a => a.Chain))
+            .IsEquivalentTo(_expectedChains, CollectionOrdering.Matching);
         await Assert.That(details.Achievements[1].IsClutch).IsTrue();
 
         // Rounds table: one row per live round for the slot.
         await Assert.That(details.RoundTableRows.Count).IsEqualTo(2);
-        await Assert.That(details.RoundTableColumns.Select(c => c.Key)).IsEquivalentTo(_expectedRoundKeys, CollectionOrdering.Matching);
+        await Assert.That(details.RoundTableColumns.Select(c => c.Key))
+            .IsEquivalentTo(_expectedRoundKeys, CollectionOrdering.Matching);
 
         // Form deep-link: selecting a round jumps the section and highlights the row.
         details.SelectRoundFromForm(2);
@@ -319,7 +300,8 @@ public class PlayerDetailsTests
         await Assert.That(details.Form.HasKast).IsTrue();
         await Assert.That(details.Form.HasDuels).IsTrue();
         await Assert.That(details.Form.KastValues.All(v => v != 0)).IsTrue();
-        await Assert.That(details.Form.DuelTicks.Select(t => t.Glyph)).IsEquivalentTo(["▲", "▼"], CollectionOrdering.Matching);
+        await Assert.That(details.Form.DuelTicks.Select(t => t.Glyph))
+            .IsEquivalentTo(["▲", "▼"], CollectionOrdering.Matching);
 
         // Bob had no KAST / opening duels: hollow dots, no glyphs.
         details.NextPlayerCommand.Execute(null);
@@ -337,7 +319,8 @@ public class PlayerDetailsTests
         vm.OpenPlayerDetailsCommand.Execute(vm.GameRows.Single(r => r.PlayerName == "Alice"));
         WeaponBreakdownViewModel weapons = vm.PlayerDetails!.Weapons;
 
-        await Assert.That(weapons.Bars.Select(b => b.Label)).IsEquivalentTo(_expectedWeapons, CollectionOrdering.Matching);
+        await Assert.That(weapons.Bars.Select(b => b.Label))
+            .IsEquivalentTo(_expectedWeapons, CollectionOrdering.Matching);
         await Assert.That(weapons.Bars[0].ValueText).IsEqualTo("7");
         await Assert.That(weapons.Bars[0].Value > weapons.Bars[1].Value).IsTrue();
         await Assert.That(weapons.Bars[0].Max).IsEqualTo(weapons.Bars[1].Max);
@@ -381,16 +364,8 @@ public class PlayerDetailsTests
             StatsTabViewModel vm = BuildUpdatedVm(true);
             vm.OpenPlayerDetailsCommand.Execute(vm.GameRows.Single(r => r.PlayerName == "Alice"));
 
-            StatsTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1200,
-                Height = 700,
-                Content = view
-            };
+            StatsTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 1200, Height = 700, Content = view };
             window.Show();
 
             Dispatcher.UIThread.RunJobs();
@@ -419,7 +394,7 @@ public class PlayerDetailsTests
             Marshal.Copy(fb.Address, buffer, 0, buffer.Length);
         }
 
-        HashSet<int> colors = new();
+        HashSet<int> colors = [];
         for (int i = 0; i + 3 < buffer.Length; i += 4)
         {
             colors.Add(buffer[i] | buffer[i + 1] << 8 | buffer[i + 2] << 16);

@@ -21,6 +21,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///         Frames are decoded one at a time into a single bitmap: a 12 s clip decoded whole is about 220 MB.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class GifView : Control, IDisposable
 {
     /// <summary>Defines the <see cref="Source" /> property.</summary>
@@ -31,7 +32,6 @@ public sealed class GifView : Control, IDisposable
     private SKCodecFrameInfo[] _frames = [];
     private SKData? _data;
     private WriteableBitmap? _bitmap;
-    private int _frame = -1;
     private int _generation;
     private DispatcherTimer? _timer;
 
@@ -51,7 +51,7 @@ public sealed class GifView : Control, IDisposable
     public int FrameCount => _codec?.FrameCount ?? 0;
 
     /// <summary>The frame on screen, or -1.</summary>
-    public int CurrentFrame => _frame;
+    public int CurrentFrame { get; private set; } = -1;
 
     /// <summary>Completes when the current source has been read and its first frame decoded.</summary>
     public Task Loading { get; private set; } = Task.CompletedTask;
@@ -100,7 +100,7 @@ public sealed class GifView : Control, IDisposable
     /// <inheritdoc />
     public override void Render(DrawingContext context)
     {
-        if (_bitmap is null || _frame < 0)
+        if (_bitmap is null || CurrentFrame < 0)
         {
             return;
         }
@@ -171,8 +171,9 @@ public sealed class GifView : Control, IDisposable
         }
 
         int count = Math.Max(1, _codec.FrameCount);
-        int next = (_frame + 1) % count;
-        SKImageInfo info = new(_bitmap.PixelSize.Width, _bitmap.PixelSize.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        int next = (CurrentFrame + 1) % count;
+        SKImageInfo info = new(_bitmap.PixelSize.Width, _bitmap.PixelSize.Height, SKColorType.Bgra8888,
+            SKAlphaType.Premul);
         using (ILockedFramebuffer buffer = _bitmap.Lock())
         {
             int prior = next == 0 ? -1 : next - 1;
@@ -180,7 +181,7 @@ public sealed class GifView : Control, IDisposable
             _codec.GetPixels(info, buffer.Address, buffer.RowBytes, options);
         }
 
-        _frame = next;
+        CurrentFrame = next;
         if (_timer is not null)
         {
             _timer.Interval = Delay(next);
@@ -207,7 +208,7 @@ public sealed class GifView : Control, IDisposable
         _data = null;
         _bitmap?.Dispose();
         _bitmap = null;
-        _frame = -1;
+        CurrentFrame = -1;
         InvalidateMeasure();
         InvalidateVisual();
     }

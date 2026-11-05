@@ -1,9 +1,13 @@
+#region
+
 using System.Globalization;
 using System.Numerics;
 using System.Reflection;
 using System.Text;
 using CS2DemoKit.Parser;
 using CS2OpenSchema.Protos;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk;
 
@@ -20,6 +24,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 /// <param name="Providers">Per-player provider names the collector reads, from the engine's catalog (<c>entity.pawn.pos_x</c> ...).</param>
 /// <param name="ProjectileClasses">Grenade projectile classes the collector reads (<c>CSmokeGrenadeProjectile</c> ...).</param>
 /// <param name="Create">A fresh collector for one run.</param>
+[PublicAPI]
 public sealed record CollectorContribution(
     string Id,
     string PassId,
@@ -46,7 +51,7 @@ public sealed record CollectorContribution(
     ///     engine build. A pass folds it into its own fingerprint, so a changed read set or engine re-runs it.
     /// </summary>
     // The informational version: NBGV keeps AssemblyVersion at major.minor.0.0 for every patch and prerelease.
-    private static readonly string EngineBuild =
+    private static readonly string _engineBuild =
         typeof(DemoFrame).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
         ?? typeof(DemoFrame).Assembly.GetName().Version?.ToString() ?? "";
 
@@ -68,13 +73,14 @@ public sealed record CollectorContribution(
                 text.Append(";g=").AppendJoin(',', GameEvents.Order(StringComparer.Ordinal));
             }
 
-            text.Append(";e=").Append(EngineBuild);
+            text.Append(";e=").Append(_engineBuild);
             return text.ToString();
         }
     }
 }
 
 /// <summary>One run's reader, made by <see cref="CollectorContribution.Create" />. Called on the evaluation thread only.</summary>
+[PublicAPI]
 public interface IFrameCollector
 {
     /// <summary>
@@ -88,6 +94,7 @@ public interface IFrameCollector
 }
 
 /// <summary>Where <see cref="IFrameCollector.Finish" /> puts its result.</summary>
+[PublicAPI]
 public interface ICollectorSink
 {
     /// <summary>The result the owning pass gets from <see cref="IPassContext.Collected{T}" />. The last put wins.</summary>
@@ -97,6 +104,7 @@ public interface ICollectorSink
 /// <summary>A declared provider resolved once through <see cref="IFrameReadView.Provider" />, for reads without the name lookup.</summary>
 /// <param name="Name">The provider's catalog name.</param>
 /// <param name="Index">The host's index for it; meaningful only to the view that resolved it.</param>
+[PublicAPI]
 public readonly record struct ObservedRead(string Name, int Index);
 
 /// <summary>
@@ -107,6 +115,7 @@ public readonly record struct ObservedRead(string Name, int Index);
 ///         slot has a pawn on this frame, and a health or position read cannot tell a dead player from a live one.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IFrameReadView
 {
     /// <summary>The frame just read.</summary>
@@ -167,6 +176,7 @@ public interface IFrameReadView
 /// <param name="SmokeEffectTickBegin">A smoke's cloud start server tick once it pops; 0 while it flies and for every other class.</param>
 /// <param name="SmokeDetonationPosition">Where a smoke popped, when networked.</param>
 /// <param name="IsIncendiary">A molotov projectile: true for an incendiary, false for a molotov. Null for other classes and when unseen.</param>
+[PublicAPI]
 public readonly record struct ObservedProjectile(
     int EntityIndex,
     int Serial,

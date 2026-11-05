@@ -1,14 +1,13 @@
 #region
 
-using Avalonia.Controls;
 using Avalonia.Threading;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
+using DemoViewer.NET.Services.DemoCache;
 
 #endregion
 
@@ -25,7 +24,8 @@ public static partial class Variants
     private static StratBookTabView StratLineupPicker()
     {
         GrenadeIndex index = PickerIndex();
-        StratBookTabViewModel vm = new(new StratStore(null), null, a => Dispatcher.UIThread.Post(a), false, grenades: index,
+        StratBookTabViewModel vm = new(new StratStore(null), null, a => Dispatcher.UIThread.Post(a), false,
+            grenades: index,
             lineupMap: map => new UtilityBookTabViewModel(index, lockedMap: map));
         vm.Session.AutoSaveDelay = TimeSpan.FromHours(1);
         vm.Session.IdleCommitDelay = TimeSpan.FromHours(1);
@@ -63,7 +63,8 @@ public static partial class Variants
             List<GrenadeRow> rows = [];
             for (int p = 0; p < positions.Length; p++)
             {
-                var at = positions[p];
+                (float X, float Y, float Z, bool Jump, int Demos, float LandX, float LandY, float LandZ) at =
+                    positions[p];
                 if (n > at.Demos)
                 {
                     continue;
@@ -98,10 +99,11 @@ public static partial class Variants
                 Grenades = rows
             };
             cache.Upsert(record);
-            new GrenadeStore(MemoryDemoData.For(DemoViewer.NET.Extensions.HostLibrary.For(cache, null))).Write(path, document);
+            new GrenadeStore(MemoryDemoData.For(Extensions.HostLibrary.For(cache, null))).Write(path,
+                document);
         }
 
-        GrenadeIndex index = new(DemoViewer.NET.Extensions.HostLibrary.For(cache, null));
+        GrenadeIndex index = new(Extensions.HostLibrary.For(cache, null));
         index.Load();
         return index;
     }

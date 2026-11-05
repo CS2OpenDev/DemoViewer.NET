@@ -8,7 +8,6 @@ using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Extensions.Updates;
-using DemoViewer.NET.Features;
 using DemoViewer.NET.Services.DemoProcessing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -23,7 +22,8 @@ namespace DemoViewer.NET.AppTests.Extensions;
 /// </summary>
 internal static class UpdateFixtures
 {
-    public static readonly ExtensionHostInfo Host = new(SemVersion.Parse("2.0.0"), SemVersion.Parse("0.9.0"), SemVersion.Parse("0.14.0"));
+    public static readonly ExtensionHostInfo Host = new(SemVersion.Parse("2.0.0"), SemVersion.Parse("0.9.0"),
+        SemVersion.Parse("0.14.0"));
 
     /// <summary>The feed URL the tests hand the service for every pack.</summary>
     public static Uri FeedUrl(string packId) => new($"https://example.invalid/feeds/{packId}/{ExtensionFeed.FileName}");
@@ -71,8 +71,6 @@ internal static class UpdateFixtures
 
     public static ITrustPolicy TrustAll { get; } = new RecordingTrust(true);
 
-    public static ITrustPolicy TrustNothing { get; } = new RecordingTrust(false);
-
     /// <summary>Serves what the test puts in it; counts and gates downloads so a test can cancel one mid-way.</summary>
     public sealed class FakeFeedClient : IExtensionFeedClient
     {
@@ -84,7 +82,7 @@ internal static class UpdateFixtures
         public Exception? FeedFailure { get; set; }
 
         /// <summary>When set, a download writes the first half, reports it, then waits here before the rest.</summary>
-        public TaskCompletionSource? HalfwayGate { get; set; }
+        public TaskCompletionSource? HalfwayGate { get; init; }
 
         /// <summary>Completes when a gated download has written its first half.</summary>
         public TaskCompletionSource Halfway { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -106,7 +104,8 @@ internal static class UpdateFixtures
                 : throw new HttpRequestException($"404 for {url}");
         }
 
-        public async Task DownloadAsync(Uri url, Stream destination, long maxBytes, IProgress<long>? progress, CancellationToken ct)
+        public async Task DownloadAsync(Uri url, Stream destination, long maxBytes, IProgress<long>? progress,
+            CancellationToken ct)
         {
             Downloads++;
             if (!Zips.TryGetValue(url, out byte[]? bytes))
@@ -139,9 +138,7 @@ internal static class UpdateFixtures
         public List<QueueJobRequest> Requests { get; } = [];
 
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; } = new([]);
-        public int MaxConcurrency { get; set; } = 1;
-        public int MaxQueueSize { get; set; } = 200;
-        public bool BackgroundEnabled { get; set; } = true;
+        public bool BackgroundEnabled => true;
         public bool IsPaused => false;
         public int QueuedCount => 0;
         public int RunningCount => 0;
@@ -158,12 +155,9 @@ internal static class UpdateFixtures
             remove { }
         }
 
-        public int ActiveCount(QueueJobKind kind) => 0;
-
-        public Task<ParsedDemo> RequestForegroundAsync(string? path, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default) =>
+        public Task<ParsedDemo> RequestForegroundAsync(string? path, ReadOnlyMemory<byte> bytes,
+            CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
-
-        public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request) => throw new NotSupportedException();
 
         public IDemoQueueHandle SubmitVisit(DemoVisitRequest request) => throw new NotSupportedException();
 
@@ -180,10 +174,6 @@ internal static class UpdateFixtures
         public IReadOnlyList<DemoQueueItemSnapshot> Snapshot() => [];
 
         public void RemoveByUser(Guid itemId)
-        {
-        }
-
-        public void CancelOwned(string ownerTag, string path)
         {
         }
 
@@ -217,7 +207,10 @@ internal static class UpdateFixtures
         private sealed class InlineHandle(Task completion) : IDemoQueueHandle
         {
             public Guid Id { get; } = Guid.NewGuid();
-            public DemoQueueItemState State => completion.IsCompleted ? DemoQueueItemState.Completed : DemoQueueItemState.Running;
+
+            public DemoQueueItemState State =>
+                completion.IsCompleted ? DemoQueueItemState.Completed : DemoQueueItemState.Running;
+
             public Task Completion => completion;
 
             public void Cancel()

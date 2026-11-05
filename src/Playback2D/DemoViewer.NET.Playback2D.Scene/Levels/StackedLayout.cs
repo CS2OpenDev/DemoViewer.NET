@@ -11,8 +11,9 @@ namespace DemoViewer.NET.Playback2D.Levels;
 /// <summary>How the level set is laid out on the host surface.</summary>
 [SuppressMessage("Naming", "CA1720:Identifier contains type name",
     Justification = "'Single' is the canonical member name; the persisted Playback2DSettings.LevelDisplayMode " +
-                    "key spells it that way. Renaming it to satisfy an analyser would break a " +
-                    "persisted setting to avoid a coincidence with System.Single.")]
+        "key spells it that way. Renaming it to satisfy an analyser would break a " +
+        "persisted setting to avoid a coincidence with System.Single.")]
+[PublicAPI]
 public enum LevelDisplayMode
 {
     /// <summary>Every level as a horizontal band, highest on top. The pre-v2 behaviour.</summary>
@@ -30,6 +31,7 @@ public enum LevelDisplayMode
 ///     <see cref="PaneSet" />, which owns pane lifetime and camera identity: a layout policy answers a
 ///     geometry question and must not be able to lose a user's pan.
 /// </summary>
+[PublicAPI]
 public interface ILevelLayoutPolicy
 {
     /// <summary>
@@ -59,6 +61,7 @@ public interface ILevelLayoutPolicy
 ///     the pane for level <c>i</c> (0 = lowest) occupies band <c>count - 1 - i</c> so the highest floor
 ///     renders on top.
 /// </summary>
+[PublicAPI]
 public sealed class StackedLayout : ILevelLayoutPolicy
 {
     private readonly List<LevelPane> _arranged = [];

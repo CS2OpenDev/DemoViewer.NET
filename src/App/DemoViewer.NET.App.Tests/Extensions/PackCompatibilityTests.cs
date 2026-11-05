@@ -2,7 +2,6 @@
 
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
-using DemoViewer.NET.Features;
 using Microsoft.Extensions.DependencyInjection;
 using TUnit.Assertions.Enums;
 
@@ -42,7 +41,8 @@ public class PackCompatibilityTests
         {
             await Assert.That(result is PackCompatibility.HostContractMismatch { Actual.Major: 1 }).IsTrue();
             await Assert.That(result.IsCompatible).IsFalse();
-            await Assert.That(result.Describe(m, "x")).IsEqualTo("Strat Book 1.2.0 needs app contract ^2.0; this app provides 1.0.0");
+            await Assert.That(result.Describe(m, "x"))
+                .IsEqualTo("Strat Book 1.2.0 needs app contract ^2.0; this app provides 1.0.0");
         }
     }
 
@@ -56,12 +56,14 @@ public class PackCompatibilityTests
         ExtensionManifest needsMajor = FakeManifests.For("net.demoviewer.pack.x", "Strat Book", "1.2.0", "^2.0", "*");
         using (Assert.Multiple())
         {
-            await Assert.That(PackCompatibility.Check(needsMinor, host) is PackCompatibility.HostContractMismatch).IsTrue();
+            await Assert.That(PackCompatibility.Check(needsMinor, host) is PackCompatibility.HostContractMismatch)
+                .IsTrue();
             await Assert.That(PackCompatibility.Check(needsMinor, host).Describe(needsMinor, "x"))
                 .IsEqualTo("Strat Book 1.2.0 needs app contract ^2.1; this app provides 2.0.2");
             await Assert.That(PackCompatibility.Check(needsMajor, host).IsCompatible).IsTrue()
                 .Because("a pack that calls nothing newer than 2.0 still runs on this host");
-            await Assert.That(PackCompatibility.Check(needsMinor, host with { ContractVersion = SemVersion.Parse("2.1.0") }).IsCompatible)
+            await Assert.That(PackCompatibility
+                    .Check(needsMinor, host with { ContractVersion = SemVersion.Parse("2.1.0") }).IsCompatible)
                 .IsTrue();
         }
     }
@@ -74,7 +76,8 @@ public class PackCompatibilityTests
         using (Assert.Multiple())
         {
             await Assert.That(result is PackCompatibility.Cs2DemoKitMismatch).IsTrue();
-            await Assert.That(result.Describe(m, "x")).IsEqualTo("Strat Book 1.0.0 needs CS2DemoKit 0.15.0; this app ships 0.14.0");
+            await Assert.That(result.Describe(m, "x"))
+                .IsEqualTo("Strat Book 1.0.0 needs CS2DemoKit 0.15.0; this app ships 0.14.0");
         }
     }
 
@@ -86,7 +89,8 @@ public class PackCompatibilityTests
         {
             PackCompatibility result = PackCompatibility.Check(m, _host);
             await Assert.That(result is PackCompatibility.AppTooOld).IsTrue();
-            await Assert.That(result.Describe(m, "x")).IsEqualTo("Strat Book 1.0.0 needs app 0.7.0 or newer; this is 0.6.2");
+            await Assert.That(result.Describe(m, "x"))
+                .IsEqualTo("Strat Book 1.0.0 needs app 0.7.0 or newer; this is 0.6.2");
 
             ExtensionHostInfo unstamped = _host with { AppVersion = null };
             await Assert.That(PackCompatibility.Check(m, unstamped).IsCompatible).IsTrue()
@@ -112,8 +116,10 @@ public class PackCompatibilityTests
         {
             await Assert.That(status.IsCompatible).IsFalse();
             await Assert.That(status.Manifest).IsNull();
-            await Assert.That(status.Compatibility is PackCompatibility.ManifestInvalid { Reason: "no resource" }).IsTrue();
-            await Assert.That(status.Problem).IsEqualTo("net.demoviewer.pack.throwing has an invalid manifest: no resource")
+            await Assert.That(status.Compatibility is PackCompatibility.ManifestInvalid { Reason: "no resource" })
+                .IsTrue();
+            await Assert.That(status.Problem)
+                .IsEqualTo("net.demoviewer.pack.throwing has an invalid manifest: no resource")
                 .Because("with no manifest the pack id names the extension");
         }
 
@@ -134,16 +140,16 @@ public class PackCompatibilityTests
     public async Task Evaluate_ManifestInvalid_WhenARangeHasAnEmptyAlternative()
     {
         ParsingPack pack = new("""
-            {
-              "id": "net.demoviewer.pack.parsing",
-              "name": "Parsing",
-              "version": "1.0.0",
-              "assembly": "Parsing.dll",
-              "entryType": "Parsing.Pack",
-              "requiresHost": "^1.0 || ",
-              "requiresCs2DemoKit": "*"
-            }
-            """);
+                               {
+                                 "id": "net.demoviewer.pack.parsing",
+                                 "name": "Parsing",
+                                 "version": "1.0.0",
+                                 "assembly": "Parsing.dll",
+                                 "entryType": "Parsing.Pack",
+                                 "requiresHost": "^1.0 || ",
+                                 "requiresCs2DemoKit": "*"
+                               }
+                               """);
         PackStatus status = PackStatus.Evaluate(pack, _host);
         using (Assert.Multiple())
         {
@@ -162,7 +168,8 @@ public class PackCompatibilityTests
         IReadOnlyList<PackStatus> statuses = PackStatus.Evaluate([bad, good], _host);
         using (Assert.Multiple())
         {
-            await Assert.That(statuses.Select(s => s.Pack.Id)).IsEquivalentTo(["net.demoviewer.pack.bad", "net.demoviewer.pack.good"], CollectionOrdering.Matching);
+            await Assert.That(statuses.Select(s => s.Pack.Id))
+                .IsEquivalentTo(["net.demoviewer.pack.bad", "net.demoviewer.pack.good"], CollectionOrdering.Matching);
             await Assert.That(statuses[0].IsCompatible).IsFalse();
             await Assert.That(statuses[1].IsCompatible).IsTrue();
             await Assert.That(statuses[1].Problem).IsNull();

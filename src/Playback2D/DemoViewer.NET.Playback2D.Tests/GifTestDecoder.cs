@@ -12,15 +12,13 @@ internal static class GifTestDecoder
 {
     public static DecodedGif Decode(byte[] data)
     {
-        int pos = 0;
-
         if (data.Length < 13 || data[0] != 'G' || data[1] != 'I' || data[2] != 'F' || data[3] != '8' ||
             data[4] != '9' || data[5] != 'a')
         {
             throw new InvalidDataException("Not a GIF89a file.");
         }
 
-        pos = 6;
+        int pos = 6;
         int width = ReadUInt16(data, ref pos);
         int height = ReadUInt16(data, ref pos);
         byte screenFlags = data[pos++];
@@ -30,7 +28,7 @@ internal static class GifTestDecoder
         if ((screenFlags & 0x80) != 0)
         {
             int size = 3 << ((screenFlags & 7) + 1);
-            globalTable = data.AsSpan(pos, size).ToArray();
+            globalTable = [.. data.AsSpan(pos, size)];
             pos += size;
         }
 
@@ -72,7 +70,7 @@ internal static class GifTestDecoder
                 {
                     pos += 12;
                     byte[] payload = ReadSubBlocks(data, ref pos);
-                    if (payload.Length >= 3 && payload[0] == 1)
+                    if (payload is [1, _, _, ..])
                     {
                         loopCount = payload[1] | (payload[2] << 8);
                     }
@@ -111,7 +109,7 @@ internal static class GifTestDecoder
             if ((imageFlags & 0x80) != 0)
             {
                 int size = 3 << ((imageFlags & 7) + 1);
-                table = data.AsSpan(pos, size).ToArray();
+                table = [.. data.AsSpan(pos, size)];
                 pos += size;
             }
 
@@ -336,6 +334,7 @@ internal static class GifTestDecoder
 }
 
 /// <summary>A decoded animation.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed record DecodedGif(int Width, int Height, int? LoopCount, IReadOnlyList<DecodedFrame> Frames);
 
 /// <summary>One frame as composited onto the canvas, packed RGB, plus its control block and rectangle.</summary>

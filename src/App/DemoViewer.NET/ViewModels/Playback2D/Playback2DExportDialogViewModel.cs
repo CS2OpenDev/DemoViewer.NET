@@ -6,12 +6,11 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Controls;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 using DemoViewer.NET.Services.Dependencies;
 using DemoViewer.NET.Services.Export;
@@ -105,10 +104,10 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
     private readonly ExportDialogScene _scene;
 
     [ObservableProperty]
-    private string _customHeightText = "1080";
+    private string _customHeightText;
 
     [ObservableProperty]
-    private string _customWidthText = "1920";
+    private string _customWidthText;
 
     private CancellationTokenSource? _downloadCts;
 
@@ -135,7 +134,7 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
     private string? _ffmpegLicenseText;
 
     [ObservableProperty]
-    private bool _includeAnnotations = true;
+    private bool _includeAnnotations;
 
     /// <summary>
     ///     The master HUD switch, persisted as the original <c>ExportIncludeHud</c>.
@@ -147,19 +146,19 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
     ///     </para>
     /// </summary>
     [ObservableProperty]
-    private bool _includeHud = true;
+    private bool _includeHud;
 
     /// <summary>Whether <c>hud.clock</c> (the score, round and countdown strip) is burned in.</summary>
     [ObservableProperty]
-    private bool _includeHudClock = true;
+    private bool _includeHudClock;
 
     /// <summary>Whether <c>hud.killfeed</c> is burned in.</summary>
     [ObservableProperty]
-    private bool _includeHudKillFeed = true;
+    private bool _includeHudKillFeed;
 
     /// <summary>Whether <c>hud.roster</c> (the player cards down both edges) is burned in.</summary>
     [ObservableProperty]
-    private bool _includeHudRoster = true;
+    private bool _includeHudRoster;
 
     [ObservableProperty]
     private bool _includeVision;
@@ -193,19 +192,19 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
     private string? _noticeBanner;
 
     [ObservableProperty]
-    private string _outputPath = string.Empty;
+    private string _outputPath;
 
     [ObservableProperty]
-    private string _selectedEncoder = EncoderLadder.Auto;
+    private string _selectedEncoder;
 
     [ObservableProperty]
-    private string _selectedFormat = ExportFormats.WebM;
+    private string _selectedFormat;
 
     [ObservableProperty]
     private int _selectedFps = 60;
 
     [ObservableProperty]
-    private string _selectedQuality = ExportQualities.Standard;
+    private string _selectedQuality;
 
     [ObservableProperty]
     private ExportRangeOption? _selectedRange;
@@ -266,7 +265,7 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
 
         _scene = scene ?? ExportDialogScene.Demo;
 
-        Ranges = new ObservableCollection<ExportRangeOption>(ranges);
+        Ranges = [.. ranges];
         _job = job;
         _captureLiveCamera = captureLiveCamera ?? DefaultCamera;
         _outputFrameCount = outputFrameCount ?? (static (start, end, _, _) => Math.Max(1, end - start + 1));
@@ -291,7 +290,7 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
         _includeAnnotations = seed.ExportIncludeAnnotations;
         _includeVision = seed.ExportIncludeVision;
         _selectedSize = Sizes.FirstOrDefault(s => s.Width == seed.ExportWidth && s.Height == seed.ExportHeight)
-                        ?? Sizes[0];
+            ?? Sizes[0];
         _customWidthText = seed.ExportWidth.ToString(CultureInfo.InvariantCulture);
         _customHeightText = seed.ExportHeight.ToString(CultureInfo.InvariantCulture);
         _outputPath = BuildDefaultPath(seed, _scene.FileStem);
@@ -805,10 +804,10 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
 
         string trimmed = requested.Trim().ToLowerInvariant();
         return string.Equals(trimmed, EncoderLadder.Auto, StringComparison.Ordinal) ||
-               string.Equals(trimmed, EncoderLadder.Software, StringComparison.Ordinal) ||
-               EncoderLadder.Find(formatId, trimmed) is not null
-            ? trimmed
-            : EncoderLadder.Auto;
+            string.Equals(trimmed, EncoderLadder.Software, StringComparison.Ordinal) ||
+            EncoderLadder.Find(formatId, trimmed) is not null
+                ? trimmed
+                : EncoderLadder.Auto;
     }
 
     private void RefreshFfmpegStatus() =>

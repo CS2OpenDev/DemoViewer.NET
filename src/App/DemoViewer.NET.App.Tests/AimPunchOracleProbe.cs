@@ -5,7 +5,6 @@ using CS2DemoKit.Analysis.Abstractions;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using CS2DemoKit.Parser.GameEvents;
-using CS2OpenSchema.Events;
 using DemoViewer.NET.TestSupport;
 using TUnit.Core.Exceptions;
 
@@ -69,9 +68,8 @@ public class AimPunchOracleProbe
         double worst = 0;
         Dictionary<int, List<(double X, double Y)>> byIndex = [];
 
-        for (int i = 0; i < demo.Frames.Count; i++)
+        foreach (DemoFrame frame in demo.Frames)
         {
-            DemoFrame frame = demo.Frames[i];
             foreach (GameEvent evt in EventsIn(frame))
             {
                 if (evt.Payload is not BulletDamageEvent shot)
@@ -105,10 +103,10 @@ public class AimPunchOracleProbe
                     object? tb = pawn["m_aimPunchTickBase"];
                     Vector3? eye = pawn.TryGet<Vector3>("m_angEyeAngles");
                     Console.WriteLine($"[ang]  eyeX={eye?.X,8:F3} shootX={shot.ShootAngX,8:F3} "
-                                      + $"punchX={shot.AimPunchX,7:F3} eye-shoot={(eye?.X - shot.ShootAngX),7:F3}");
+                        + $"punchX={shot.AimPunchX,7:F3} eye-shoot={(eye?.X - shot.ShootAngX),7:F3}");
                     Console.WriteLine($"[pair] rawX={column.X,9:F3} rawY={column.Y,9:F3} "
-                                      + $"wrapX={columnPitch,8:F3} oracleX={shot.AimPunchX,8:F3} "
-                                      + $"oracleY={shot.AimPunchY,8:F3} velX={vel?.X,8:F3} tickBase={tb} tick={frame.ServerTick}");
+                        + $"wrapX={columnPitch,8:F3} oracleX={shot.AimPunchX,8:F3} "
+                        + $"oracleY={shot.AimPunchY,8:F3} velX={vel?.X,8:F3} tickBase={tb} tick={frame.ServerTick}");
                 }
 
                 int ri = (int)Math.Round(shot.RecoilIndex);
@@ -149,7 +147,7 @@ public class AimPunchOracleProbe
             Console.WriteLine($"[punch] mean |oracle| = {sumAbsOracle / compared:F3} deg");
             Console.WriteLine($"[punch] mean |delta|  = {sumAbsDelta / compared:F3} deg   worst={worst:F3}");
             Console.WriteLine($"[punch] within 0.25 deg: {agreed} / {compared} "
-                              + $"({100.0 * agreed / compared:F1}%)");
+                + $"({100.0 * agreed / compared:F1}%)");
         }
 
         if (landed == 0)
@@ -162,10 +160,10 @@ public class AimPunchOracleProbe
 
         await Assert.That(resolved).IsNotNull()
             .Because("neither punch field path resolved on any shooting pawn, so a whole entity "
-                     + "replay produced no comparison at all");
+                + "replay produced no comparison at all");
         await Assert.That(compared).IsGreaterThan(0)
             .Because($"{landed} landed bullets carry a server punch and none of them reached the "
-                     + "comparison, so the attacker pawns are not resolving");
+                + "comparison, so the attacker pawns are not resolving");
     }
 
     private static double Wrap(double degrees)
@@ -187,7 +185,7 @@ public class AimPunchOracleProbe
     {
         foreach (NetMessage msg in frame.DecodedMessages)
         {
-            if (msg is GameEventMessage gem && gem.DecodedEvent is { } evt)
+            if (msg is GameEventMessage { DecodedEvent: { } evt })
             {
                 yield return evt;
             }

@@ -17,7 +17,15 @@ namespace DemoViewer.NET.Services.Players;
 /// <param name="Ties">Of those, the demos tied.</param>
 /// <param name="Hltv">The teammate's HLTV pooled over the shared demos with stats; null when none has.</param>
 /// <param name="Rated">The shared demos <paramref name="Hltv" /> pools.</param>
-public sealed record PlayerTeammate(ulong SteamId64, string Name, int Matches, int Wins, int Losses, int Ties, double? Hltv, int Rated)
+public sealed record PlayerTeammate(
+    ulong SteamId64,
+    string Name,
+    int Matches,
+    int Wins,
+    int Losses,
+    int Ties,
+    double? Hltv,
+    int Rated)
 {
     /// <summary>Shared demos with an outcome: the win rate's denominator.</summary>
     public int WithOutcome => Wins + Losses + Ties;
@@ -55,7 +63,8 @@ public static class Teammates
             HashSet<ulong> counted = [];
             foreach (IndexSidePlayer player in (side == 3 ? match.Row.CtPlayers : match.Row.TPlayers) ?? [])
             {
-                if (!ulong.TryParse(player.SteamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id) || id == 0 || id == subject
+                if (!ulong.TryParse(player.SteamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
+                    || id == 0 || id == subject
                     || !counted.Add(id))
                 {
                     continue;
@@ -79,7 +88,8 @@ public static class Teammates
 
         return
         [
-            .. mates.Select(m => new PlayerTeammate(m.Key, m.Value.Name, m.Value.Matches, m.Value.Wins, m.Value.Losses, m.Value.Ties,
+            .. mates.Select(m => new PlayerTeammate(m.Key, m.Value.Name, m.Value.Matches, m.Value.Wins, m.Value.Losses,
+                    m.Value.Ties,
                     m.Value.Rows.Count == 0 ? null : rating.Pool(m.Value.Rows), m.Value.Rows.Count))
                 .OrderByDescending(t => t.Matches)
                 .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)

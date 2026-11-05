@@ -74,12 +74,15 @@ public class ShippedRulesetLabelTests
             }
         }
 
-        string[] collisions = claimants
-            .Where(pair => pair.Value.Count > 1)
-            .Select(pair => $"{pair.Key} is claimed by {string.Join(" and ", pair.Value)}")
-            .ToArray();
+        string[] collisions =
+        [
+            .. claimants
+                .Where(pair => pair.Value.Count > 1)
+                .Select(pair => $"{pair.Key} is claimed by {string.Join(" and ", pair.Value)}")
+        ];
         await Assert.That(collisions).IsEmpty()
-            .Because("the later ruleset's column silently overwrites the earlier one:\n" + string.Join("\n", collisions));
+            .Because(
+                "the later ruleset's column silently overwrites the earlier one:\n" + string.Join("\n", collisions));
     }
 
     /// <summary>
@@ -103,7 +106,7 @@ public class ShippedRulesetLabelTests
         }
 
         StatDef? stat = doc.Stats.FirstOrDefault(s => s.Id == entry.Stat)
-                        ?? doc.Stats.FirstOrDefault(s => s.Thresholds?.Any(t => t.Target == entry.Stat) == true);
+            ?? doc.Stats.FirstOrDefault(s => s.Thresholds?.Any(t => t.Target == entry.Stat) == true);
         if (stat is null)
         {
             throw new InvalidOperationException(

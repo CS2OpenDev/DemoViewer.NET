@@ -9,12 +9,12 @@ namespace DemoViewer.NET.AppTests;
 /// <summary>
 ///     An <see cref="IExtensionJobs" /> that runs each job on the caller's thread and records what was
 ///     submitted, so a test sees the options a service queued its work with. A job on a demo gets the parse
-///     <see cref="ParseDemo" /> hands out and counts as one read in <see cref="DemoReads" />.
+///     <see cref="ParseDemo" /> hands out.
 /// </summary>
 internal sealed class InlineJobs : IExtensionJobs
 {
     private readonly List<(string Title, JobOptions Options)> _submitted = [];
-    private readonly List<string> _demoReads = [];
+
     private readonly ChangeSignal _submissions = new();
 
     public IReadOnlyList<(string Title, JobOptions Options)> Submitted
@@ -28,25 +28,13 @@ internal sealed class InlineJobs : IExtensionJobs
         }
     }
 
-    /// <summary>The demo paths jobs on a demo ran on, one per job.</summary>
-    public IReadOnlyList<string> DemoReads
-    {
-        get
-        {
-            lock (_demoReads)
-            {
-                return [.. _demoReads];
-            }
-        }
-    }
-
-    public CancellationToken JobToken { get; set; }
 
     /// <summary>Returns once <paramref name="until" /> holds, re-checking on each submission.</summary>
-    public Task WaitForSubmissionAsync(Func<bool> until) => _submissions.WaitUntilAsync(until, "the expected job to be submitted");
+    public Task WaitForSubmissionAsync(Func<bool> until) =>
+        _submissions.WaitUntilAsync(until, "the expected job to be submitted");
 
     /// <summary>The parse a job on a demo gets; a job on a demo is rejected when null.</summary>
-    public Func<string, ParsedDemo>? ParseDemo { get; set; }
+    public Func<string, ParsedDemo>? ParseDemo { get; init; }
 
     public IJobHandle Enqueue(JobRequest request)
     {
@@ -64,15 +52,10 @@ internal sealed class InlineJobs : IExtensionJobs
                 return Handle.Ended(new JobResult(JobStatus.Rejected));
             }
 
-            lock (_demoReads)
-            {
-                _demoReads.Add(path);
-            }
-
-            return Handle.Of(request.DemoWork!(new DemoContext(path, parse(path), JobToken)));
+            return Handle.Of(request.DemoWork!(new DemoContext(path, parse(path), CancellationToken.None)));
         }
 
-        return Handle.Of(request.Work!(new Context(JobToken)));
+        return Handle.Of(request.Work!(new Context(CancellationToken.None)));
     }
 
     public Task RunAsync(string title, Func<IJobContext, Task> work, JobOptions? options = null)
@@ -84,7 +67,7 @@ internal sealed class InlineJobs : IExtensionJobs
 
         _submissions.Raise();
 
-        return work(new Context(JobToken));
+        return work(new Context(CancellationToken.None));
     }
 
     public void CancelAll()
@@ -115,17 +98,15 @@ internal sealed class InlineJobs : IExtensionJobs
 
     private sealed class Handle : IJobHandle
     {
-        private readonly Task<JobResult> _completion;
+        private Handle(Task<JobResult> completion) => Completion = completion;
 
-        private Handle(Task<JobResult> completion) => _completion = completion;
+        public JobStatus Status => Completion.IsCompleted ? Completion.Result.Status : JobStatus.Running;
 
-        public JobStatus Status => _completion.IsCompleted ? _completion.Result.Status : JobStatus.Running;
-
-        public Task<JobResult> Completion => _completion;
+        public Task<JobResult> Completion { get; }
 
         public event Action<JobResult>? Completed
         {
-            add => _completion.ContinueWith(t => value?.Invoke(t.Result), TaskScheduler.Default);
+            add => Completion.ContinueWith(t => value?.Invoke(t.Result), TaskScheduler.Default);
             remove { }
         }
 

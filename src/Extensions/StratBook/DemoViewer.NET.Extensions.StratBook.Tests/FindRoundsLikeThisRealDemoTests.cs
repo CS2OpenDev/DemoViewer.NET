@@ -2,13 +2,13 @@
 
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Playback2D;
-using DemoViewer.NET.Playback2D.Query;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
+using DemoViewer.NET.Playback2D.Query;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.TestSupport;
 
 #endregion
@@ -34,7 +34,8 @@ public class FindRoundsLikeThisRealDemoTests
         facts.Evaluate(path, parsed);
         RoundFactsRows rows = cache.TryLoadRecord(path)?.RoundFacts ?? throw new InvalidOperationException("no rows");
 
-        RoundIndexDocument document = RoundIndexBuilder.Build(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
+        RoundIndexDocument document =
+            RoundIndexBuilder.Build(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
 
         // A run in the middle of a live round with both sides placed: its first step is the tick the
         // scene is built for. The first step of a round is avoided on purpose: the scene decides alive
@@ -42,7 +43,7 @@ public class FindRoundsLikeThisRealDemoTests
         // tick, which a mid-run step is not by construction.
         RoundIndexRound round = document.Rounds.First(r => r.Runs.Count > 1);
         RoundIndexRun run = round.Runs.First(r =>
-            r.FromStep > 0 && r.Ct.Length > 0 && !r.Ct.Contains('?') && r.T.Length > 0 && !r.T.Contains('?'));
+            r is { FromStep: > 0, Ct.Length: > 0, T.Length: > 0 } && !r.Ct.Contains('?') && !r.T.Contains('?'));
         int tick = round.FreezeEndTick + run.FromStep * document.CadenceTicks;
         int frameIndex = FrameIndexAtTick(parsed.Frames, tick);
         int tickRate = parsed.TickRate > 0 ? (int)Math.Round((double)parsed.TickRate) : 64;
@@ -50,10 +51,7 @@ public class FindRoundsLikeThisRealDemoTests
         // The scene at that tick, through the export pipeline's frame source: the same SceneFrameBuilder
         // the tab's pushes go through, so the markers carry the place the pawn reported.
         using TrackerFrameSource source = new(parsed.Frames, new SceneFrameBuilder(), frameIndex, frameIndex, 60, 1.0,
-            tickRate)
-        {
-            MapName = parsed.MapName
-        };
+            tickRate) { MapName = parsed.MapName };
         source.Prepare(CancellationToken.None);
         Scene2DFrame frame = source.FrameAt(0);
 

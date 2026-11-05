@@ -187,7 +187,7 @@ public partial class TestTierContractTests
                     && !categories.Contains(TestTiers.Integration, StringComparer.Ordinal))
                 {
                     offenders.Add($"{Path.GetFileName(file)}::{name} resolves a demo but carries neither "
-                                  + $"[Category(\"{TestTiers.RealDemo}\")] nor [Category(\"{TestTiers.Integration}\")]");
+                        + $"[Category(\"{TestTiers.RealDemo}\")] nor [Category(\"{TestTiers.Integration}\")]");
                 }
             }
         }
@@ -238,7 +238,7 @@ public partial class TestTierContractTests
                 if (!categories.Intersect(droppedByFast, StringComparer.Ordinal).Any())
                 {
                     offenders.Add($"{Path.GetFileName(file)}::{name} constructs a window but carries no "
-                                  + $"category the fast tier drops — add [Category(\"{TestTiers.Render}\")]");
+                        + $"category the fast tier drops — add [Category(\"{TestTiers.Render}\")]");
                 }
             }
         }
@@ -309,7 +309,7 @@ public partial class TestTierContractTests
                     }
 
                     offenders.Add($"{Path.GetFileName(file)}::{className}.{name} asserts an allocation "
-                                  + $"figure but carries no [Category(\"{TestTiers.Budget}\")]");
+                        + $"figure but carries no [Category(\"{TestTiers.Budget}\")]");
                 }
             }
         }
@@ -333,7 +333,7 @@ public partial class TestTierContractTests
         foreach ((MethodInfo method, _) in DiscoverTests())
         {
             bool explicitly = method.GetCustomAttributes<ExplicitAttribute>(true).Any()
-                              || method.DeclaringType?.GetCustomAttributes<ExplicitAttribute>(true).Any() == true;
+                || method.DeclaringType?.GetCustomAttributes<ExplicitAttribute>(true).Any() == true;
             if (explicitly)
             {
                 offenders.Add($"{method.DeclaringType?.Name}.{method.Name}");
@@ -354,13 +354,19 @@ public partial class TestTierContractTests
     private static IEnumerable<(MethodInfo Method, ImmutableArray<string> Categories)> DiscoverTests()
     {
         SysAssembly assembly = typeof(TestTierContractTests).Assembly;
-        string[] assemblyCategories = assembly.GetCustomAttributes<CategoryAttribute>()
-            .Select(a => a.Category).ToArray();
+        string[] assemblyCategories =
+        [
+            .. assembly.GetCustomAttributes<CategoryAttribute>()
+                .Select(a => a.Category)
+        ];
 
         foreach (Type type in assembly.GetTypes())
         {
-            string[] typeCategories = type.GetCustomAttributes<CategoryAttribute>(true)
-                .Select(a => a.Category).ToArray();
+            string[] typeCategories =
+            [
+                .. type.GetCustomAttributes<CategoryAttribute>(true)
+                    .Select(a => a.Category)
+            ];
 
             foreach (MethodInfo method in type.GetMethods(
                          BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static
@@ -502,7 +508,7 @@ public partial class TestTierContractTests
         }
 
         return measured.Count > 0
-               && AssertionSubjects(body).Any(subject => measured.Any(m => MentionsWord(subject, m)));
+            && AssertionSubjects(body).Any(subject => measured.Any(m => MentionsWord(subject, m)));
     }
 
     /// <summary>The argument of each <c>Assert.That(…)</c> in a body, parens balanced.</summary>
@@ -563,8 +569,8 @@ public partial class TestTierContractTests
         {
             string trimmed = line.TrimStart();
             return !trimmed.StartsWith("//", StringComparison.Ordinal)
-                   && !trimmed.StartsWith("/*", StringComparison.Ordinal)
-                   && !trimmed.StartsWith('*');
+                && !trimmed.StartsWith("/*", StringComparison.Ordinal)
+                && !trimmed.StartsWith('*');
         }));
 
     /// <summary>
@@ -630,7 +636,7 @@ public partial class TestTierContractTests
     ///     a harness by deconstruction or return type, or rasterising a visual tree.
     /// </summary>
     [GeneratedRegex(@"\bnew\s+Window\s*[({]|\bWindow\s+\w+\s*=\s*new\b|\(\s*Window\s+\w+\s*,"
-                    + @"|\bCaptureRenderedFrame\s*\(")]
+        + @"|\bCaptureRenderedFrame\s*\(")]
     private static partial Regex BootsAWindow();
 
     /// <summary>

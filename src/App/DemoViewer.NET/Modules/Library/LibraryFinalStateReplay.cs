@@ -35,8 +35,8 @@ public sealed record ControllerRank(
 public static class LibraryFinalStateReplay
 {
     /// <summary>The only classes the read looks at; the tracker stores nothing else.</summary>
-    public static IReadOnlySet<string> Classes { get; } =
-        new HashSet<string>(StringComparer.Ordinal) { "CCSTeam", "CCSPlayerController", "CCSGameRulesProxy" };
+    private static HashSet<string> Classes { get; } =
+        new(StringComparer.Ordinal) { "CCSTeam", "CCSPlayerController", "CCSGameRulesProxy" };
 
     public static EntityTracker NewTracker() => new() { StoreClassFilter = Classes };
 
@@ -53,7 +53,8 @@ public static class LibraryFinalStateReplay
         DecodeSites.Enter(1);
         EntityTracker tracker = NewTracker();
         tracker.ReplayToIndex(frames.Count - 1, frames);
-        bool matchEnded = parsed.AllGameEvents.Aggregate(false, (ended, e) => LibraryFinalScore.FoldMatchEnded(ended, e.Name));
+        bool matchEnded =
+            parsed.AllGameEvents.Aggregate(false, (ended, e) => LibraryFinalScore.FoldMatchEnded(ended, e.Name));
         return Read(tracker, parsed.Players.Keys, matchEnded, LibraryOvertime.Of(parsed.Frames));
     }
 
@@ -65,7 +66,8 @@ public static class LibraryFinalStateReplay
     /// <param name="playerSlots">The roster's slots.</param>
     /// <param name="matchEnded">Whether the current match ended (<see cref="LibraryFinalScore.FoldMatchEnded" />).</param>
     /// <param name="overtime">The demo's overtime convars.</param>
-    public static LibraryTeamState Read(EntityTracker tracker, IEnumerable<int> playerSlots, bool matchEnded, LibraryOvertime overtime)
+    public static LibraryTeamState Read(EntityTracker tracker, IEnumerable<int> playerSlots, bool matchEnded,
+        LibraryOvertime overtime)
     {
         ArgumentNullException.ThrowIfNull(tracker);
         ArgumentNullException.ThrowIfNull(playerSlots);
@@ -116,7 +118,8 @@ public static class LibraryFinalStateReplay
             }
         }
 
-        return LibraryTeamState.Of(ct, t, ctClan, tClan, coachSlots, matchEnded, overtime, LibraryFinalScore.IsSurrender(winReason));
+        return LibraryTeamState.Of(ct, t, ctClan, tClan, coachSlots, matchEnded, overtime,
+            LibraryFinalScore.IsSurrender(winReason));
     }
 
     /// <summary>
@@ -126,7 +129,8 @@ public static class LibraryFinalStateReplay
     /// <param name="signonPrefix">The reader's signon frames.</param>
     /// <param name="baseline">The full packet carrying the last instance baselines, or null.</param>
     /// <param name="lastFullPacket">The demo's last <c>DEM_FullPacket</c>.</param>
-    public static EntityTracker Checkpoint(IReadOnlyList<DemoFrame> signonPrefix, DemoFrame? baseline, DemoFrame lastFullPacket)
+    public static EntityTracker Checkpoint(IReadOnlyList<DemoFrame> signonPrefix, DemoFrame? baseline,
+        DemoFrame lastFullPacket)
     {
         ArgumentNullException.ThrowIfNull(signonPrefix);
         ArgumentNullException.ThrowIfNull(lastFullPacket);
@@ -175,8 +179,10 @@ public static class LibraryFinalStateReplay
 
             rows.Add(new ControllerRank(steamId, CoerceInt(controller["m_iTeamNum"]),
                 CoerceInt(controller["m_iCompetitiveRanking"]), CoerceInt(controller["m_iCompetitiveWins"]),
-                CoerceInt(controller["m_iCompetitiveRankType"]), CoerceInt(controller["m_iCompetitiveRankingPredicted_Win"]),
-                CoerceInt(controller["m_iCompetitiveRankingPredicted_Loss"]), CoerceInt(controller["m_iCompetitiveRankingPredicted_Tie"])));
+                CoerceInt(controller["m_iCompetitiveRankType"]),
+                CoerceInt(controller["m_iCompetitiveRankingPredicted_Win"]),
+                CoerceInt(controller["m_iCompetitiveRankingPredicted_Loss"]),
+                CoerceInt(controller["m_iCompetitiveRankingPredicted_Tie"])));
         }
 
         return rows;

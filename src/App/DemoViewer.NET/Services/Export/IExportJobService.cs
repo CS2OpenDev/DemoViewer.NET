@@ -61,13 +61,10 @@ public readonly record struct ExportJobStatus(
 {
     /// <summary>The canonical idle status.</summary>
     public static ExportJobStatus Idle { get; } =
-        new(ExportPhase.Completed, 0, 0, 0, TimeSpan.Zero, null, null)
-        {
-            IsIdle = true
-        };
+        new(ExportPhase.Completed, 0, 0, 0, TimeSpan.Zero, null, null) { IsIdle = true };
 
     /// <summary>True before any job has run. Distinguishes "nothing happened" from "finished".</summary>
-    public bool IsIdle { get; init; }
+    public bool IsIdle { get; private init; }
 
     /// <summary>True while the job occupies the machine: the chip is visible and the interlocks hold.</summary>
     public bool IsRunning => !IsIdle && Phase is ExportPhase.Preparing or ExportPhase.Seeking
@@ -82,6 +79,7 @@ public readonly record struct ExportJobStatus(
 ///     user-facing copy: the dialog and the chip show it verbatim, which is the whole point of refusing
 ///     rather than silently queueing.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed class ExportRefusedException : InvalidOperationException
 {
     /// <summary>Creates the exception.</summary>

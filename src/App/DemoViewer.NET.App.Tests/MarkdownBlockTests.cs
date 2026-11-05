@@ -3,8 +3,6 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Media;
-using DemoViewer.NET.Controls;
-using DemoViewer.NET.Extensions.StratBook.Controls;
 
 #endregion
 
@@ -24,7 +22,7 @@ public class MarkdownBlockTests
     {
         await HeadlessSession.RunOnUi(() =>
         {
-            const string body = """
+            const string Body = """
                                 ## What's new in 0.6.0
 
                                 **The notice is a window now.** Hard-wrapped lines
@@ -42,7 +40,7 @@ public class MarkdownBlockTests
                                 </details>
                                 """;
 
-            StackPanel panel = (StackPanel)MarkdownBlock.RenderBlocks(body);
+            StackPanel panel = (StackPanel)MarkdownBlock.RenderBlocks(Body);
 
             // Heading · paragraph · bullet list · quote · details-expander = five blocks.
             if (panel.Children.Count != 5)
@@ -56,7 +54,7 @@ public class MarkdownBlockTests
             // The hard-wrapped source joins to a single paragraph (markdown soft-wrap semantics).
             TextBlock paragraph = (TextBlock)panel.Children[1];
             AssertContains(InlineText(paragraph), "Hard-wrapped lines join into one paragraph.");
-            if (!paragraph.Inlines!.OfType<Run>().Any(r => r.FontWeight == FontWeight.SemiBold))
+            if (paragraph.Inlines!.OfType<Run>().All(r => r.FontWeight != FontWeight.SemiBold))
             {
                 throw new InvalidOperationException("Bold inline lost in paragraph");
             }

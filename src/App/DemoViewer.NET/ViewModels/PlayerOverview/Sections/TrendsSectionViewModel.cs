@@ -19,15 +19,15 @@ namespace DemoViewer.NET.ViewModels.PlayerOverview.Sections;
 public sealed partial class TrendsSectionViewModel : PlayerOverviewSection
 {
     /// <summary>The most matches either side of the form comparison holds.</summary>
-    public const int FormSize = 10;
+    private const int FormSize = 10;
 
     /// <summary>The fewest matches either side of the form comparison holds, so the shortest history it covers is twice this.</summary>
-    public const int MinFormSize = 3;
+    private const int MinFormSize = 3;
 
     /// <summary>The change that fills one arm of a form bar, in percent. Shared, so the three bars compare.</summary>
     public const double FormExtent = 25;
 
-    private static readonly (string Key, string Label, string Format)[] Metrics =
+    private static readonly (string Key, string Label, string Format)[] _metrics =
     [
         ("HLTV", "Rating", "0.00"),
         ("ADR", "ADR", "0.0"),
@@ -35,6 +35,7 @@ public sealed partial class TrendsSectionViewModel : PlayerOverviewSection
     ];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasForm))]
     private string _formText = "";
 
     [ObservableProperty]
@@ -45,8 +46,6 @@ public sealed partial class TrendsSectionViewModel : PlayerOverviewSection
 
     /// <summary>True when the window holds enough matches to compare the last against the previous.</summary>
     public bool HasForm => FormText.Length > 0;
-
-    partial void OnFormTextChanged(string value) => OnPropertyChanged(nameof(HasForm));
 
     /// <inheritdoc />
     public override void Update(PlayerOverviewContext context)
@@ -66,7 +65,11 @@ public sealed partial class TrendsSectionViewModel : PlayerOverviewSection
         PlayerAggregate? recent = form ? PlayerAggregate.Of(played.GetRange(0, size)) : null;
         PlayerAggregate? previous = form ? PlayerAggregate.Of(played.GetRange(size, size)) : null;
 
-        Trends = [.. Metrics.Select(m => new TrendItem(m.Key, m.Label, m.Format, played, recent, previous)).Where(t => t.HasLine)];
+        Trends =
+        [
+            .. _metrics.Select(m => new TrendItem(m.Key, m.Label, m.Format, played, recent, previous))
+                .Where(t => t.HasLine)
+        ];
         FormText = form ? string.Create(CultureInfo.InvariantCulture, $"Last {size} against the {size} before") : "";
         IsVisible = Trends.Count > 0;
     }
@@ -81,7 +84,8 @@ public sealed class TrendItem
     /// <param name="played">The window's demos with stats, newest first.</param>
     /// <param name="recent">The pool of the last matches; null when the history is too short for a form.</param>
     /// <param name="previous">The pool of the matches before them.</param>
-    internal TrendItem(string key, string label, string format, IReadOnlyList<PlayerDemo> played, PlayerAggregate? recent, PlayerAggregate? previous)
+    internal TrendItem(string key, string label, string format, IReadOnlyList<PlayerDemo> played,
+        PlayerAggregate? recent, PlayerAggregate? previous)
     {
         Key = key;
         Label = label;
@@ -96,7 +100,8 @@ public sealed class TrendItem
             }
 
             values.Add(value);
-            tips.Add($"{RankDisplay.DateOf(played[i].Match)} · {DemoEntry.PrettifyMap(played[i].Match.Row.Map)} · {value.ToString(format, CultureInfo.InvariantCulture)}");
+            tips.Add(
+                $"{RankDisplay.DateOf(played[i].Match)} · {DemoEntry.PrettifyMap(played[i].Match.Row.Map)} · {value.ToString(format, CultureInfo.InvariantCulture)}");
         }
 
         Values = values;
@@ -117,7 +122,8 @@ public sealed class TrendItem
             if (before > 0)
             {
                 ChangePercent = (now - before) / before * 100;
-                ChangeText = string.Create(CultureInfo.InvariantCulture, $"{(ChangePercent > 0 ? "+" : "")}{ChangePercent:0.0}%");
+                ChangeText = string.Create(CultureInfo.InvariantCulture,
+                    $"{(ChangePercent > 0 ? "+" : "")}{ChangePercent:0.0}%");
             }
         }
     }

@@ -1,11 +1,10 @@
 #region
 
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 
@@ -31,10 +30,8 @@ public class HeadlessSceneRendererTests
 
         using CpuSurfaceProvider provider = new();
         using SceneCompositor compositor = SceneLayerCatalog.CreateSceneStack();
-        using HeadlessSceneRenderer renderer = new(provider, compositor)
-        {
-            Camera = fixture.Camera
-        };
+        using HeadlessSceneRenderer renderer = new(provider, compositor);
+        renderer.Camera = fixture.Camera;
 
         SceneTime time = fixture.Time;
         byte[] whole = renderer.RenderPng(fixture.Frame, in time, size);
@@ -51,7 +48,9 @@ public class HeadlessSceneRendererTests
     [Test]
     public async Task Catalog_RejectsAnUnknownLayerId()
     {
-        await Assert.That(Throws.Capture<ArgumentException>(() => SceneLayerCatalog.CreateSceneStack(["not-a-layer"]).Dispose())).IsNotNull();
+        await Assert
+            .That(Throws.Capture<ArgumentException>(() =>
+                SceneLayerCatalog.CreateSceneStack(["not-a-layer"]).Dispose())).IsNotNull();
     }
 
     /// <summary>
@@ -62,7 +61,9 @@ public class HeadlessSceneRendererTests
     [Test]
     public async Task Catalog_RejectsAnUnknownExcludeId()
     {
-        await Assert.That(Throws.Capture<ArgumentException>(() => SceneLayerCatalog.CreateSceneStack(null, ["not-a-layer"]).Dispose())).IsNotNull();
+        await Assert
+            .That(Throws.Capture<ArgumentException>(() =>
+                SceneLayerCatalog.CreateSceneStack(null, ["not-a-layer"]).Dispose())).IsNotNull();
     }
 
     /// <summary>
@@ -103,8 +104,8 @@ public class HeadlessSceneRendererTests
         using SceneCompositor scene = SceneLayerCatalog.CreateSceneStack();
 
         string[] expected = [.. SceneLayerCatalog.SceneStackIds.Where(id => !SceneLayerIds.OptIn.Contains(id))];
-        await Assert.That(scene.Layers.Select(l => l.Id).Order().ToArray())
-            .IsEquivalentTo(expected.Order().ToArray(), CollectionOrdering.Matching);
+        await Assert.That([.. scene.Layers.Select(l => l.Id).Order()])
+            .IsEquivalentTo([.. expected.Order()], CollectionOrdering.Matching);
         await Assert.That(expected.Length).IsEqualTo(7);
     }
 
@@ -119,11 +120,8 @@ public class HeadlessSceneRendererTests
         using SceneCompositor starved = SceneLayerCatalog.CreateSceneStack(
             [SceneLayerIds.Markers, SceneLayerIds.HudClock, SceneLayerIds.Annotations]);
 
-        await Assert.That(starved.Layers.Select(l => l.Id).ToArray())
-            .IsEquivalentTo(new[]
-            {
-                SceneLayerIds.Markers
-            }, CollectionOrdering.Matching);
+        await Assert.That([.. starved.Layers.Select(l => l.Id)])
+            .IsEquivalentTo([SceneLayerIds.Markers], CollectionOrdering.Matching);
     }
 
     [Test]

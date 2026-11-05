@@ -25,7 +25,7 @@ csharp_new_line_before_finally = true
 csharp_new_line_before_members_in_object_initializers = true
 csharp_new_line_before_open_brace = all
 csharp_new_line_between_query_expression_clauses = true
-csharp_preferred_modifier_order = protected, public, private, internal, file, required, extern, static, override, virtual, sealed, new, abstract, unsafe, async, volatile, readonly:suggestion
+csharp_preferred_modifier_order = public, private, protected, internal, file, required, extern, static, override, virtual, sealed, new, abstract, unsafe, async, volatile, readonly:suggestion
 csharp_prefer_braces = true:warning
 csharp_preserve_single_line_blocks = true
 csharp_space_after_cast = false
@@ -687,7 +687,7 @@ resharper_cpp_space_around_binary_operator = true
 resharper_cpp_type_declaration_braces = next_line
 resharper_cpp_wrap_lines = true
 resharper_csharp_align_multiline_argument = false
-resharper_csharp_align_multiline_binary_expressions_chain = true
+resharper_csharp_align_multiline_binary_expressions_chain = false
 resharper_csharp_align_multiline_calls_chain = false
 resharper_csharp_align_multiline_expression = false
 resharper_csharp_align_multiline_extends_list = false
@@ -696,10 +696,13 @@ resharper_csharp_align_multiline_parameter = false
 resharper_csharp_align_multiple_declaration = false
 resharper_csharp_allow_far_alignment = false
 resharper_csharp_empty_block_style = multiline
+resharper_csharp_for_built_in_types = use_explicit_type
+resharper_csharp_for_other_types = use_explicit_type
+resharper_csharp_for_simple_types = use_explicit_type
 resharper_csharp_insert_final_newline = true
 resharper_csharp_keep_existing_enum_arrangement = false
 resharper_csharp_keep_nontrivial_alias = false
-resharper_csharp_max_line_length = 389
+resharper_csharp_max_line_length = 120
 resharper_csharp_new_line_before_while = false
 resharper_csharp_prefer_qualified_reference = false
 resharper_csharp_space_after_unary_operator = false
@@ -896,7 +899,7 @@ resharper_place_property_attribute_on_same_line = false
 resharper_place_record_field_attribute_on_same_line = if_owner_is_single_line
 resharper_place_simple_case_statement_on_same_line = false
 resharper_place_simple_embedded_statement_on_same_line = if_owner_is_single_line
-resharper_place_simple_initializer_on_single_line = false
+resharper_place_simple_initializer_on_single_line = true
 resharper_place_simple_list_pattern_on_single_line = true
 resharper_place_simple_property_pattern_on_single_line = true
 resharper_place_simple_switch_expression_on_single_line = false
@@ -1171,7 +1174,7 @@ resharper_wrap_for_stmt_header_style = chop_if_long
 resharper_wrap_list_pattern = chop_if_long
 resharper_wrap_multiple_declaration_style = chop_if_long
 resharper_wrap_multiple_type_parameter_constraints_style = chop_if_long
-resharper_wrap_object_and_collection_initializer_style = chop_always
+resharper_wrap_object_and_collection_initializer_style = chop_if_long
 resharper_wrap_parameters_style = wrap_if_long
 resharper_wrap_primary_constructor_parameters_style = chop_if_long
 resharper_wrap_property_pattern = chop_if_long
@@ -3988,7 +3991,9 @@ resharper_unused_method_return_value_global_highlighting = suggestion
 resharper_unused_method_return_value_local_highlighting = warning
 resharper_unused_nullable_directive_highlighting = warning
 resharper_unused_parameter_global_highlighting = suggestion
-resharper_unused_parameter_in_partial_method_highlighting = warning
+# The only partial methods with bodies here are CommunityToolkit.Mvvm On<X>Changing/Changed hooks, whose
+# parameters the generator fixes; hooks that only raised notifications became [NotifyPropertyChangedFor].
+resharper_unused_parameter_in_partial_method_highlighting = hint
 resharper_unused_parameter_local_highlighting = warning
 resharper_unused_tuple_component_in_return_value_highlighting = warning
 resharper_unused_type_global_highlighting = suggestion
@@ -4863,3 +4868,62 @@ ij_yaml_spaces_within_brackets = true
 indent_style = space
 indent_size = 4
 tab_width = 4
+
+# Extension and fake-extension views are styled by the host app at run time: their classes
+# (ghost, col-label, mono, ...) live in src/App/DemoViewer.NET/Styles, which these projects cannot
+# reference, so ReSharper can never resolve them here.
+[{src/Extensions/**.axaml,src/Sdk/**.axaml,src/Testing/**.axaml,samples/**.axaml}]
+resharper_xaml_style_class_not_found_highlighting = none
+
+# Every key in the palette is a published theme name (ThemeNames in Extensions.Sdk.Ui's
+# PublicAPI.Shipped.txt, and the keys of samples/Themes/*.json). Pb2d* would be renamed Pb2D*.
+[src/App/DemoViewer.NET/Styles/DarkPalette.axaml]
+resharper_inconsistent_naming_highlighting = none
+
+# Test code: closures over a disposed or modified local are how these tests wait on gates and flip
+# seams (awaited inside the using scope, or toggled on purpose), and exact float equality asserts
+# deterministic goldens and parity. All ~330 sites were reviewed one by one in the 2026-11 cleanup.
+[{src/**/*.Tests/**.cs,tools/**/*.Tests/**.cs,src/Testing/**.cs,tests/**.cs}]
+resharper_access_to_disposed_closure_highlighting = hint
+resharper_access_to_modified_closure_highlighting = hint
+resharper_compare_of_floats_by_equality_operator_highlighting = hint
+
+# Sources compiled into more than one project (Extensions.Testing via its .props, StratBookFixtures, the
+# app and SDK files AnalysisBench links, and the App.Tests helpers StratBook.Tests links). ReSharper judges
+# each file from a single project, so these rules miss the other consumer's calls and report live members as
+# unused or narrowable, and a using one project needs looks redundant under the other's global usings.
+[{src/Testing/DemoViewer.NET.Extensions.Testing/**.cs,src/Testing/StratBookFixtures/**.cs,src/App/DemoViewer.NET/Services/CollisionSoup.cs,src/App/DemoViewer.NET/Services/DemoProcessing/ForwardDemoPass.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorSet.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorObserver.cs,src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/ICollectorFaultReporter.cs,src/App/DemoViewer.NET/Modules/Library/LibraryTeamTables.cs,src/App/DemoViewer.NET/Modules/Library/LibraryFinalStateReplay.cs,src/App/DemoViewer.NET/Services/DemoProcessing/DecodeSites.cs,src/App/DemoViewer.NET/Services/DemoProcessing/ServerRankCapture.cs,src/App/DemoViewer.NET.App.Tests/CompiledInPacks.cs,src/App/DemoViewer.NET.App.Tests/Extensions/FakeManifests.cs,src/App/DemoViewer.NET.App.Tests/FakeTimelineData.cs,src/App/DemoViewer.NET.App.Tests/GlobalUsings.cs,src/App/DemoViewer.NET.App.Tests/Playback2DActivation.cs,src/App/DemoViewer.NET.App.Tests/Playback2DTimelineHeadlessSupport.cs,src/App/DemoViewer.NET.App.Tests/QueuedPost.cs,src/App/DemoViewer.NET.App.Tests/SdkSceneHostsInstall.cs,src/App/DemoViewer.NET.App.Tests/SessionIsolation.cs,src/App/DemoViewer.NET.App.Tests/SingleWalkSession.cs,src/App/DemoViewer.NET.App.Tests/SyntheticParsedDemo.cs,src/App/DemoViewer.NET.App.Tests/TestAppBuilder.cs,src/App/DemoViewer.NET.App.Tests/TestLibraries.cs,src/Sdk/DemoViewer.NET.Extensions.Sdk/Collectors.cs}]
+resharper_unused_member_global_highlighting = none
+resharper_member_can_be_private_global_highlighting = none
+resharper_property_can_be_made_init_only_global_highlighting = none
+resharper_auto_property_can_be_made_get_only_global_highlighting = none
+resharper_unused_auto_property_accessor_global_highlighting = none
+resharper_collection_never_queried_global_highlighting = none
+resharper_unused_type_global_highlighting = none
+resharper_class_never_instantiated_global_highlighting = none
+resharper_unused_method_return_value_global_highlighting = none
+resharper_redundant_using_directive_global_highlighting = none
+resharper_redundant_using_directive_highlighting = none
+resharper_collection_never_updated_global_highlighting = none
+resharper_unused_tuple_component_in_return_value_highlighting = none
+
+# The bench's report records are the JSON schema of its output; their positional properties are written,
+# not read back.
+[tools/AnalysisBench/**.cs]
+resharper_not_accessed_positional_property_global_highlighting = none
+resharper_not_accessed_positional_property_local_highlighting = none
+
+# Per-frame render code: foreach over IReadOnlyList<T> boxes an enumerator every frame, so the index
+# loops are deliberate. The app's scene host and ink hit-testing and the icon scale lookup are on the same paths.
+[{src/Playback2D/DemoViewer.NET.Playback2D.Scene/**.cs,src/Playback2D/DemoViewer.NET.Playback2D.Pipeline/**.cs,src/App/DemoViewer.NET/Modules/Playback2D/Scene2DHost.cs,src/App/DemoViewer.NET/Modules/Playback2D/Annotations/SceneHostToolServices.cs,src/GameIcons/DemoViewer.NET.GameIcons/IconCatalogue.cs}]
+resharper_for_can_be_converted_to_foreach_highlighting = none
+
+# UiCapture's variant registry is one partial class spread across feature folders; every part has to
+# share the Variants namespace, so the folder-derived namespace cannot apply.
+[src/App/DemoViewer.NET.UiCapture/**.cs]
+resharper_check_namespace_highlighting = none
+
+# The two contract types in Extensions.Sdk/Modules keep the namespace they were published under
+# (PublicAPI.Shipped.txt), which the folder no longer matches.
+[src/Sdk/DemoViewer.NET.Extensions.Sdk/Modules/*.cs]
+resharper_check_namespace_highlighting = none

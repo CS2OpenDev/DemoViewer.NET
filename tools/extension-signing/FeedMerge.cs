@@ -19,7 +19,7 @@ namespace DemoViewer.NET.Extensions.Updates;
 /// </summary>
 public static class ExtensionFeedMerge
 {
-    private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _writeOptions = new() { WriteIndented = true };
 
     /// <summary>
     ///     Merges <paramref name="entryJson" /> (one feed entry: version, manifest, url, sha256, size,
@@ -70,7 +70,8 @@ public static class ExtensionFeedMerge
         int replaced = 0;
         foreach (JsonNode? node in entries)
         {
-            JsonObject existing = node as JsonObject ?? throw new ExtensionFeedMergeException("an existing entry is not a JSON object.");
+            JsonObject existing = node as JsonObject
+                ?? throw new ExtensionFeedMergeException("an existing entry is not a JSON object.");
             SemVersion existingVersion = RequiredVersion(existing, "version", "an existing entry");
             if (highest is null || existingVersion > highest)
             {
@@ -102,7 +103,7 @@ public static class ExtensionFeedMerge
             entries.Add(node);
         }
 
-        string merged = feed.ToJsonString(WriteOptions);
+        string merged = feed.ToJsonString(_writeOptions);
         try
         {
             ExtensionFeed.Parse(merged);
@@ -134,7 +135,8 @@ public static class ExtensionFeedMerge
 
     private static string RequiredString(JsonObject obj, string member, string subject)
     {
-        if (obj[member] is not JsonValue value || !value.TryGetValue(out string? text) || string.IsNullOrWhiteSpace(text))
+        if (obj[member] is not JsonValue value || !value.TryGetValue(out string? text)
+            || string.IsNullOrWhiteSpace(text))
         {
             throw new ExtensionFeedMergeException($"{subject} has no '{member}'.");
         }
@@ -147,7 +149,8 @@ public static class ExtensionFeedMerge
         string text = RequiredString(obj, member, subject);
         return SemVersion.TryParse(text, out SemVersion? version)
             ? version
-            : throw new ExtensionFeedMergeException($"{subject} has a '{member}' that is not a semantic version: '{text}'.");
+            : throw new ExtensionFeedMergeException(
+                $"{subject} has a '{member}' that is not a semantic version: '{text}'.");
     }
 
     private static string RequiredManifestId(JsonObject entry)
@@ -164,6 +167,7 @@ public static class ExtensionFeedMerge
 /// <summary>A feed merge that was refused: the input did not parse, or the version was a refused downgrade.</summary>
 public sealed class ExtensionFeedMergeException : Exception
 {
+    [UsedImplicitly]
     public ExtensionFeedMergeException()
     {
     }

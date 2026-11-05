@@ -15,6 +15,7 @@ namespace DemoViewer.NET.Playback2D;
 ///         re-selecting a mode clears it.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public struct SliceCamera
 {
     /// <summary>The transform that renders this slice this frame.</summary>
@@ -56,10 +57,7 @@ public struct SliceCamera
             Lerp(c.PanX, target.PanX, k),
             Lerp(c.PanY, target.PanY, k));
 
-        return new SliceCamera(stepped)
-        {
-            ManualOverride = ManualOverride
-        };
+        return new SliceCamera(stepped) { ManualOverride = ManualOverride };
     }
 
     /// <summary>

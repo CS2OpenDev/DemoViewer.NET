@@ -40,8 +40,8 @@ public sealed partial class HarvestFrameRowViewModel : ObservableObject
 
     /// <summary>Other DEM_/CDem rows (orange dim).</summary>
     public bool IsKindDem => !IsKindFullPacket && !IsKindTick && !IsKindSyncTick && !IsKindStop
-                             && (FrameType.StartsWith("DEM_", StringComparison.Ordinal)
-                                 || FrameType.StartsWith("CDem", StringComparison.Ordinal));
+        && (FrameType.StartsWith("DEM_", StringComparison.Ordinal)
+            || FrameType.StartsWith("CDem", StringComparison.Ordinal));
 
     /// <summary>svc_* rows (green dim).</summary>
     public bool IsKindSvc => FrameType.StartsWith("svc_", StringComparison.Ordinal);
@@ -51,7 +51,7 @@ public sealed partial class HarvestFrameRowViewModel : ObservableObject
 
     /// <summary>Fallback rows (slate-blue dim).</summary>
     public bool IsKindDefault => !IsKindFullPacket && !IsKindTick && !IsKindSyncTick && !IsKindStop
-                                 && !IsKindDem && !IsKindSvc && !IsKindNet;
+        && !IsKindDem && !IsKindSvc && !IsKindNet;
 
     /// <summary>Byte size.</summary>
     public int ByteSize { get; init; }

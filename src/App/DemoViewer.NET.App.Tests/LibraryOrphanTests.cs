@@ -38,7 +38,7 @@ public class LibraryOrphanTests
             await svc.AddFoldersAsync([keep, away]);
             await svc.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
             await WaitForAsync(() => library.Store.TryGetByContentId(sha) is { ContentFingerprint: not null }
-                                     && svc.Tier2Backlog().Count == 0 && svc.Entries.Count == 2,
+                    && svc.Tier2Backlog().Count == 0 && svc.Entries.Count == 2,
                 "both demos indexed");
             library.Store.WriteSibling(demo, Facts, "facts");
 
@@ -58,7 +58,8 @@ public class LibraryOrphanTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(library.Parses.GetValueOrDefault(demo)).IsEqualTo(1).Because("nothing is parsed again");
+                await Assert.That(library.Parses.GetValueOrDefault(demo)).IsEqualTo(1)
+                    .Because("nothing is parsed again");
                 await Assert.That(library.Reader.FullReads(demo)).IsEqualTo(1);
                 await Assert.That(library.Store.TryGetOrphan(sha)).IsNull();
                 await Assert.That(library.Store.LocationOf(demo)?.Location.Confirmed).IsTrue();
@@ -92,7 +93,7 @@ public class LibraryOrphanTests
             await svc.AddFoldersAsync([keep, old]);
             await svc.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
             await WaitForAsync(() => library.Store.TryGetByContentId(sha) is { ContentFingerprint: not null }
-                                     && svc.Tier2Backlog().Count == 0 && svc.Entries.Count == 2,
+                    && svc.Tier2Backlog().Count == 0 && svc.Entries.Count == 2,
                 "both demos indexed");
             await svc.RemoveFolderAsync(old);
             await WaitForAsync(() => svc.Entries.Count == 1, "the old folder's card gone");
@@ -113,7 +114,8 @@ public class LibraryOrphanTests
                 await Assert.That(library.Reader.FullReads(after)).IsEqualTo(0);
                 await Assert.That(library.Store.LocationOf(after)?.ContentId).IsEqualTo(sha);
                 await Assert.That(library.Store.IsOrphaned(sha)).IsFalse();
-                await Assert.That(library.Store.TryGetByContentId(sha)).IsNull().Because("only a fingerprint placed it so far");
+                await Assert.That(library.Store.TryGetByContentId(sha)).IsNull()
+                    .Because("only a fingerprint placed it so far");
             }
 
             // With the switch back on, one background full read confirms it: a store joined by hash reaches it.
@@ -152,13 +154,14 @@ public class LibraryOrphanTests
             await svc.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
             await library.Queue.IdleAsync("both demos indexed",
                 () => library.Store.TryGetByContentId(sha) is not null && svc.Tier2Backlog().Count == 0
-                                                                      && svc.Entries.Count == 2, 30000);
+                    && svc.Entries.Count == 2, 30000);
             await svc.RemoveFolderAsync(away);
             await WaitForAsync(() => svc.Entries.Count == 1, "the folder's card gone");
 
             TimeSpan grace = TimeSpan.FromDays(14);
             await Assert.That(library.Store.ExpireOrphans(DateTime.UtcNow, grace)).IsEqualTo(0);
-            await Assert.That(library.Store.ExpireOrphans(DateTime.UtcNow + grace + TimeSpan.FromMinutes(1), grace)).IsEqualTo(1);
+            await Assert.That(library.Store.ExpireOrphans(DateTime.UtcNow + grace + TimeSpan.FromMinutes(1), grace))
+                .IsEqualTo(1);
             await Assert.That(library.Store.HoldsContent(sha)).IsFalse();
 
             await svc.AddFoldersAsync([away]);

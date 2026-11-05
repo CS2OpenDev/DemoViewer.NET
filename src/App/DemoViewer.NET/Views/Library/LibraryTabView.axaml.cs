@@ -53,7 +53,8 @@ public partial class LibraryTabView : UserControl
     // never lands on nothing if one does not. IsReset means "go back to automatic".
     private void OnBadgeLabelPicked(object? sender, RoutedEventArgs e)
     {
-        if (sender is not MenuItem { Tag: LibraryBadgeMenuEntry picked } item || DataContext is not LibraryTabViewModel vm)
+        if (sender is not MenuItem { Tag: LibraryBadgeMenuEntry picked } item
+            || DataContext is not LibraryTabViewModel vm)
         {
             return;
         }
@@ -115,7 +116,7 @@ public partial class LibraryTabView : UserControl
     // now-obsolete e.Data.GetFiles(); TryGetFiles is desktop-only, which suits the desktop drag-drop path.
     private static string? FirstDemoPath(DragEventArgs e)
     {
-        IEnumerable<IStorageItem>? items = e.DataTransfer?.TryGetFiles();
+        IEnumerable<IStorageItem>? items = e.DataTransfer.TryGetFiles();
         if (items is null)
         {
             return null;

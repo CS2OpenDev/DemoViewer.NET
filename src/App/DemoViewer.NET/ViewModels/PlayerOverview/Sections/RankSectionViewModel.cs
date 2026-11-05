@@ -4,7 +4,6 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DemoViewer.NET.GameIcons;
 using DemoViewer.NET.Modules.Library;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.MatchMeta;
 using DemoViewer.NET.Services.Players;
 
@@ -42,14 +41,16 @@ public sealed partial class RankSectionViewModel : PlayerOverviewSection
     {
         ArgumentNullException.ThrowIfNull(context);
         LoadText = context.IsReadingRanks ? "Reading ranks" : "";
-        Charts = context.Player is not null && context.Ranks is { } ranks ? Build([.. context.Window.Select(d => d.Match)], ranks) : [];
+        Charts = context.Player is not null && context.Ranks is { } ranks
+            ? Build([.. context.Window.Select(d => d.Match)], ranks)
+            : [];
         IsVisible = Charts.Count > 0;
     }
 
     /// <summary>One chart per rank system of <paramref name="matches" />: Premier, then Competitive, then Wingman.</summary>
     /// <param name="matches">The demos to chart, newest match first.</param>
     /// <param name="ranks">The subject's rank rows.</param>
-    internal static IReadOnlyList<RankChartItem> Build(IReadOnlyList<PlayerMatch> matches, PlayerRanks ranks)
+    private static IReadOnlyList<RankChartItem> Build(IReadOnlyList<PlayerMatch> matches, PlayerRanks ranks)
     {
         Dictionary<int, List<(PlayerMatch Match, MatchRankRow Rank)>> systems = [];
         foreach (PlayerMatch match in matches)
@@ -140,7 +141,6 @@ public sealed class RankChartItem
     /// <param name="rows">The system's demos, newest match first.</param>
     internal RankChartItem(int rankType, IReadOnlyList<(PlayerMatch Match, MatchRankRow Rank)> rows)
     {
-        RankType = rankType;
         Title = RankDisplay.SystemName(rankType);
 
         List<double> values = [];
@@ -154,7 +154,8 @@ public sealed class RankChartItem
             }
 
             values.Add(value);
-            tips.Add($"{RankDisplay.DateOf(match)} · {DemoEntry.PrettifyMap(match.Row.Map)} · {RankDisplay.Describe(rank)}");
+            tips.Add(
+                $"{RankDisplay.DateOf(match)} · {DemoEntry.PrettifyMap(match.Row.Map)} · {RankDisplay.Describe(rank)}");
         }
 
         Values = values;
@@ -172,23 +173,23 @@ public sealed class RankChartItem
             Maximum = 18;
         }
 
-        string count = rows.Count == 1 ? "1 match" : string.Create(CultureInfo.InvariantCulture, $"{rows.Count} matches");
+        string count = rows.Count == 1
+            ? "1 match"
+            : string.Create(CultureInfo.InvariantCulture, $"{rows.Count} matches");
         if (values.Count == 0)
         {
             SummaryText = $"{count} · unranked";
             return;
         }
 
-        string latest = RankDisplay.Value(rankType, (int) values[^1]);
-        string peak = RankDisplay.Value(rankType, (int) values.Max());
+        string latest = RankDisplay.Value(rankType, (int)values[^1]);
+        string peak = RankDisplay.Value(rankType, (int)values.Max());
         string net = values.Count > 1 && rankType == RankDisplay.Premier
-            ? " · " + (values[^1] - values[0] >= 0 ? "+" : "") + (values[^1] - values[0]).ToString("N0", CultureInfo.InvariantCulture)
+            ? " · " + (values[^1] - values[0] >= 0 ? "+" : "")
+            + (values[^1] - values[0]).ToString("N0", CultureInfo.InvariantCulture)
             : "";
         SummaryText = $"{count} · latest {latest} · peak {peak}{net}";
     }
-
-    /// <summary>The rank system: 11 Premier, 12 Competitive, 7 Wingman.</summary>
-    public int RankType { get; }
 
     /// <summary>"Premier", "Competitive" or "Wingman".</summary>
     public string Title { get; }
@@ -220,18 +221,16 @@ public sealed class RankCardItem
     internal RankCardItem(PlayerMatch match, MatchRankRow rank)
     {
         int? value = RankDisplay.After(rank);
-        RankType = rank.RankType;
+
         Title = RankDisplay.SystemName(rank.RankType).ToUpperInvariant();
         BadgeKey = RankDisplay.BadgeKey(rank.RankType, value, rank.Wins);
         ValueText = value is { } v ? RankDisplay.Value(rank.RankType, v) : "Unranked";
         ChangeText = RankDisplay.Change(rank) ?? "";
         IsUp = rank.RankChange > 0;
         IsDown = rank.RankChange < 0;
-        Tooltip = $"{RankDisplay.Describe(rank)} · {RankDisplay.DateOf(match)} · {DemoEntry.PrettifyMap(match.Row.Map)}";
+        Tooltip =
+            $"{RankDisplay.Describe(rank)} · {RankDisplay.DateOf(match)} · {DemoEntry.PrettifyMap(match.Row.Map)}";
     }
-
-    /// <summary>The rank system.</summary>
-    public int RankType { get; }
 
     /// <summary>"PREMIER" or "COMPETITIVE".</summary>
     public string Title { get; }
@@ -276,14 +275,12 @@ public sealed class MapRankItem
 /// <summary>How the Player Overview words a rank: numbers for Premier, Skill Group names for the rest.</summary>
 internal static class RankDisplay
 {
-    public const int Wingman = 7;
+    private const int Wingman = 7;
     public const int Premier = 11;
     public const int Competitive = 12;
 
     // Placement: an account owes this many wins before CS2 shows a Skill Group.
     private const int PlacementWins = 10;
-
-    public static bool IsPerMap(int rankType) => rankType != Premier;
 
     public static string SystemName(int rankType) => rankType switch
     {
@@ -317,7 +314,9 @@ internal static class RankDisplay
     /// <summary>"+189", "-12" or "0"; null when the change is not known.</summary>
     public static string? Change(MatchRankRow? rank) =>
         rank?.RankChange is { } change
-            ? change > 0 ? string.Create(CultureInfo.InvariantCulture, $"+{change}") : change.ToString(CultureInfo.InvariantCulture)
+            ? change > 0
+                ? string.Create(CultureInfo.InvariantCulture, $"+{change}")
+                : change.ToString(CultureInfo.InvariantCulture)
             : null;
 
     /// <summary>"Premier 14,213 → 14,402 (+189)", "Competitive Gold Nova II", "Premier unranked".</summary>

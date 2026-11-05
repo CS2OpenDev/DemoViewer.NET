@@ -1,12 +1,10 @@
 #region
 
-using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Features;
-using DemoViewer.NET.Services.DemoProcessing;
 using Microsoft.Extensions.DependencyInjection;
 using TUnit.Assertions.Enums;
 
@@ -103,10 +101,12 @@ public class FeaturePacksTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(FeaturePacks.Default.Select(p => p.FeatureId)).IsEquivalentTo([StratBookPack.PackFeatureId], CollectionOrdering.Matching);
+            await Assert.That(FeaturePacks.Default.Select(p => p.FeatureId))
+                .IsEquivalentTo([StratBookPack.PackFeatureId], CollectionOrdering.Matching);
             Assert.Throws<InvalidOperationException>(() => FeaturePacks.Configure([]));
             await Assert.That(FeaturePacks.ConfigureIfUnset([])).IsFalse();
-            await Assert.That(FeaturePacks.Default.Select(p => p.FeatureId)).IsEquivalentTo([StratBookPack.PackFeatureId], CollectionOrdering.Matching);
+            await Assert.That(FeaturePacks.Default.Select(p => p.FeatureId))
+                .IsEquivalentTo([StratBookPack.PackFeatureId], CollectionOrdering.Matching);
         }
     }
 
@@ -118,9 +118,11 @@ public class FeaturePacksTests
         using (Assert.Multiple())
         {
             await Assert.That(FeaturePacks.Statuses.Count).IsEqualTo(1);
-            await Assert.That(FeaturePacks.Statuses[0].IsCompatible).IsTrue().Because(FeaturePacks.Statuses[0].Problem ?? "compatible");
+            await Assert.That(FeaturePacks.Statuses[0].IsCompatible).IsTrue()
+                .Because(FeaturePacks.Statuses[0].Problem ?? "compatible");
             await Assert.That(FeaturePacks.Statuses[0].Manifest!.Id).IsEqualTo(StratBookPack.PackId);
-            await Assert.That(FeaturePacks.Compatible).IsEquivalentTo(FeaturePacks.Default, CollectionOrdering.Matching);
+            await Assert.That(FeaturePacks.Compatible)
+                .IsEquivalentTo(FeaturePacks.Default, CollectionOrdering.Matching);
         }
     }
 
@@ -144,10 +146,12 @@ public class FeaturePacksTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(declared.Select(p => p.Id)).IsEquivalentTo([incompatible.Id, stratBook.Id], CollectionOrdering.Matching);
+            await Assert.That(declared.Select(p => p.Id))
+                .IsEquivalentTo([incompatible.Id, stratBook.Id], CollectionOrdering.Matching);
             await Assert.That(compatible.Select(p => p.Id)).IsEquivalentTo([stratBook.Id], CollectionOrdering.Matching);
             await Assert.That(statuses[0].Compatibility is PackCompatibility.HostContractMismatch).IsTrue();
-            await Assert.That(statuses[0].Problem).IsEqualTo("Incompatible 2.0.0 needs app contract ^3.0; this app provides 2.1.0");
+            await Assert.That(statuses[0].Problem)
+                .IsEqualTo("Incompatible 2.0.0 needs app contract ^3.0; this app provides 2.1.0");
 
             FeatureDescriptor[] catalog = FeatureCatalog.Build(compatible);
             await Assert.That(catalog.Any(d => d.Id == IncompatibleFakePack.PackFeatureId)).IsFalse()
@@ -171,7 +175,8 @@ public class FeaturePacksTests
     {
         ExtensionHostInfo host = new(SemVersion.Parse("1.2.0"), null, SemVersion.Parse("0.14.1"));
         IncompatibleFakePack incompatible = new();
-        PackCompatibilityTests.ManifestPack fine = new("net.demoviewer.pack.fine", FakeManifests.For("net.demoviewer.pack.fine"));
+        PackCompatibilityTests.ManifestPack fine = new("net.demoviewer.pack.fine",
+            FakeManifests.For("net.demoviewer.pack.fine"));
 
         FrozenList<PackStatus> compatibleFirst = new();
         compatibleFirst.Set(PackStatus.Evaluate([incompatible, fine], host));
@@ -199,10 +204,15 @@ public class FeaturePacksTests
     public async Task AStatus_IsBundled_UnlessTheLoaderSaysOtherwise()
     {
         ExtensionHostInfo host = new(SemVersion.Parse("1.0.0"), null, SemVersion.Parse("0.14.1"));
-        PackCompatibilityTests.ManifestPack fine = new("net.demoviewer.pack.fine", FakeManifests.For("net.demoviewer.pack.fine"));
+        PackCompatibilityTests.ManifestPack fine = new("net.demoviewer.pack.fine",
+            FakeManifests.For("net.demoviewer.pack.fine"));
         PackStatus evaluated = PackStatus.Evaluate(fine, host);
-        LoadOutcome refused = new("/extensions/net.demoviewer.pack.fine/1.1.0", FakeManifests.For(fine.Id, "Fine", "1.1.0"), LoadFailure.Untrusted, "unsigned");
-        PackStatus staged = evaluated with { Source = new PackSource.Staged("/extensions/net.demoviewer.pack.fine/1.2.0"), Rejected = [refused] };
+        LoadOutcome refused = new("/extensions/net.demoviewer.pack.fine/1.1.0",
+            FakeManifests.For(fine.Id, "Fine", "1.1.0"), LoadFailure.Untrusted, "unsigned");
+        PackStatus staged = evaluated with
+        {
+            Source = new PackSource.Staged("/extensions/net.demoviewer.pack.fine/1.2.0"), Rejected = [refused]
+        };
 
         using (Assert.Multiple())
         {
@@ -214,7 +224,8 @@ public class FeaturePacksTests
             await Assert.That(staged.Source.Label).IsEqualTo("installed update");
             await Assert.That(staged.Rejected.Single().UserMessage).IsEqualTo("Update 1.1.0 was not loaded: unsigned");
             await Assert.That(staged.IsCompatible).IsTrue().Because("the source changes nothing about the verdict");
-            await Assert.That(FeaturePacks.Statuses.Single().Source).IsEqualTo(PackSource.Bundled).Because("the test assembly compile-links the pack");
+            await Assert.That(FeaturePacks.Statuses.Single().Source).IsEqualTo(PackSource.Bundled)
+                .Because("the test assembly compile-links the pack");
         }
     }
 
@@ -224,8 +235,12 @@ public class FeaturePacksTests
     public async Task ConfiguringFromStatuses_KeepsTheSourcesTheLoaderAssigned()
     {
         ExtensionHostInfo host = new(SemVersion.Parse("1.0.0"), null, SemVersion.Parse("0.14.1"));
-        PackCompatibilityTests.ManifestPack fine = new("net.demoviewer.pack.fine", FakeManifests.For("net.demoviewer.pack.fine"));
-        PackStatus staged = PackStatus.Evaluate(fine, host) with { Source = new PackSource.Staged("/extensions/x/1.2.0") };
+        PackCompatibilityTests.ManifestPack fine = new("net.demoviewer.pack.fine",
+            FakeManifests.For("net.demoviewer.pack.fine"));
+        PackStatus staged = PackStatus.Evaluate(fine, host) with
+        {
+            Source = new PackSource.Staged("/extensions/x/1.2.0")
+        };
 
         FrozenList<PackStatus> list = new();
         list.Set([staged]);
@@ -251,12 +266,15 @@ public class FeaturePacksTests
 
         public IEnumerable<ExtensionFeature> Features =>
         [
-            new(PackFeatureId, ExtensionFeatureKind.Extension, "Incompatible", "d", null, new AudienceDefaults(false, false, false))
+            new(PackFeatureId, ExtensionFeatureKind.Extension, "Incompatible", "d", null,
+                new AudienceDefaults(false, false, false))
         ];
 
-        public IEnumerable<CommandDescriptor> Commands => [new CommandDescriptor("TogglePlay", "Cmd", "playback2d", null, _ => true)];
+        public IEnumerable<CommandDescriptor> Commands =>
+            [new("TogglePlay", "Cmd", "playback2d", null, _ => true)];
 
-        public IEnumerable<ExtensionJobKind> JobKinds => [new ExtensionJobKind(BuiltInJobKinds.Save, "collides", false, 9)];
+        public IEnumerable<ExtensionJobKind> JobKinds =>
+            [new(BuiltInJobKinds.Save, "collides", false, 9)];
 
         public void Register(IServiceCollection services)
         {

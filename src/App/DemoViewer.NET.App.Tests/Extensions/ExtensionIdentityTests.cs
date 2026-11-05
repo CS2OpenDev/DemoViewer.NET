@@ -21,7 +21,7 @@ public class ExtensionIdentityTests
 {
     private const string A = "76561198000000001";
     private const string B = "76561198000000002";
-    private static readonly DateTime Added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime _added = new(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
 
     private static readonly Func<Action, Task> _inline = a =>
     {
@@ -36,7 +36,7 @@ public class ExtensionIdentityTests
         return dir;
     }
 
-    private static IdentityAccount Account(string id) => new(id, null, Added);
+    private static IdentityAccount Account(string id) => new(id, null, _added);
 
     private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct)
     {
@@ -50,7 +50,10 @@ public class ExtensionIdentityTests
         int slot = 0;
         foreach ((string id, int team) in t.Select(id => (id, 2)).Concat(ct.Select(id => (id, 3))))
         {
-            record.Players.Add(new CachedPlayerInfo { Slot = slot++, Name = $"p{id[^4..]}", SteamId64 = id, Team = team });
+            record.Players.Add(new CachedPlayerInfo
+            {
+                Slot = slot++, Name = $"p{id[^4..]}", SteamId64 = id, Team = team
+            });
         }
 
         DemoCacheStore.StampParse(record);
@@ -116,7 +119,8 @@ public class ExtensionIdentityTests
             using IdentityService service = new(new SettingsService(dir));
             HostIdentity identity = new(() => service, ExtensionPassHostTests.StandaloneGuard());
             DemoCacheStore cache = new(null);
-            using TeamIdentityService teams = new(new TeamIdentityFiles(StoredFile.At(teamsPath), null), cache.Library(), run: _inline, identity: identity);
+            using TeamIdentityService teams = new(new TeamIdentityFiles(StoredFile.At(teamsPath), null),
+                cache.Library(), run: _inline, identity: identity);
             await teams.StartAsync();
             string[] mine = [A, .. Five(1)[1..]];
             string[] other = [B, .. Five(11)[1..]];
@@ -131,7 +135,8 @@ public class ExtensionIdentityTests
 
             service.SetAccounts([Account(A), Account(B)]);
             string[] inSettings = [.. new SettingsService(dir).Current.Identity.Accounts.Select(a => a.SteamId64)];
-            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(File.ReadAllText(teamsPath), TeamsFile.JsonOptions)!;
+            TeamsFile file =
+                JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(teamsPath), TeamsFile.JsonOptions)!;
             using (Assert.Multiple())
             {
                 await Assert.That(inSettings).IsEquivalentTo([A, B], CollectionOrdering.Matching);
@@ -142,12 +147,15 @@ public class ExtensionIdentityTests
             }
 
             service.SetAccounts([Account(B)]);
-            file = JsonSerializer.Deserialize<TeamsFile>(File.ReadAllText(teamsPath), TeamsFile.JsonOptions)!;
+            file = JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(teamsPath),
+                TeamsFile.JsonOptions)!;
             using (Assert.Multiple())
             {
                 await Assert.That(file.Me.SteamIds).IsEquivalentTo([B], CollectionOrdering.Matching);
-                await Assert.That(teams.GetAssignment("/d/a.dem")!.OurSide).IsNull().Because("the account that resolved it was removed");
-                await Assert.That(teams.OurDemos().Select(d => d.Path)).IsEquivalentTo(["/d/b.dem"], CollectionOrdering.Matching);
+                await Assert.That(teams.GetAssignment("/d/a.dem")!.OurSide).IsNull()
+                    .Because("the account that resolved it was removed");
+                await Assert.That(teams.OurDemos().Select(d => d.Path))
+                    .IsEquivalentTo(["/d/b.dem"], CollectionOrdering.Matching);
             }
         }
         finally

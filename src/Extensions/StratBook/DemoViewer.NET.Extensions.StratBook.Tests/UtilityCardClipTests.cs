@@ -6,11 +6,11 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Views.UtilityBook;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Core.Exceptions;
-using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 
 #endregion
 
@@ -54,7 +54,8 @@ public class UtilityCardClipTests
                     .Where(x => x.Lineup.Techniques.Count > 0)
                     .OrderByDescending(x => x.Lineup.Throws.Count)
                     .Select(x => (x.Group, x.Lineup, Old: x.Lineup.AliasIds.Append(x.Lineup.Id)
-                        .Select(id => Path.Combine(source, LineupClipPlanner.FileStem("de_mirage", x.Group.Kind, id) + LineupClipPlanner.GifExtension))
+                        .Select(id => Path.Combine(source,
+                            LineupClipPlanner.FileStem("de_mirage", x.Group.Kind, id) + LineupClipPlanner.GifExtension))
                         .FirstOrDefault(File.Exists) ?? ""))
                     .FirstOrDefault(x => x.Old.Length > 0);
                 if (pick is not { } found)
@@ -65,7 +66,8 @@ public class UtilityCardClipTests
                 LineupTechnique first = found.Lineup.Techniques[0];
                 string stem = LineupClipPlanner.FileStem("de_mirage", found.Group.Kind, found.Lineup.Id, first.Key);
                 File.Copy(found.Old, Path.Combine(clips, stem + LineupClipPlanner.GifExtension));
-                File.Copy(LineupClipPlanner.SetposPathFor(found.Old), Path.Combine(clips, stem + LineupClipPlanner.SetposExtension));
+                File.Copy(LineupClipPlanner.SetposPathFor(found.Old),
+                    Path.Combine(clips, stem + LineupClipPlanner.SetposExtension));
 
                 UtilityBookTabView view = new() { DataContext = vm };
                 Window window = new() { Width = 1400, Height = 1000, Content = view };
@@ -85,13 +87,15 @@ public class UtilityCardClipTests
                 Settle();
                 window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "utility-card-clip.png"),
                     new PngBitmapEncoderOptions());
-                Console.WriteLine($"[card-clip] {vm.Detail?.Title} {first.Label}: frames {gif.FrameCount}, on frame {gif.CurrentFrame}");
+                Console.WriteLine(
+                    $"[card-clip] {vm.Detail?.Title} {first.Label}: frames {gif.FrameCount}, on frame {gif.CurrentFrame}");
                 using (Assert.Multiple())
                 {
                     await Assert.That(vm.Detail!.ClipPath).IsNotNull();
                     await Assert.That(gif.FrameCount).IsGreaterThan(1);
                     await Assert.That(gif.CurrentFrame).IsGreaterThan(0).Because("the clip plays");
-                    await Assert.That(vm.Detail.Instances.Count(r => r.PlayerText.Length > 0)).IsGreaterThan(vm.Detail.Instances.Count / 2)
+                    await Assert.That(vm.Detail.Instances.Count(r => r.PlayerText.Length > 0))
+                        .IsGreaterThan(vm.Detail.Instances.Count / 2)
                         .Because("throw rows name the thrower");
                 }
 
@@ -142,11 +146,15 @@ public class UtilityCardClipTests
             using AssetZonePlaceResolverSource zones = new();
             using GrenadeIndex index = new(cache.Library(), zones);
             index.Load();
-            IReadOnlyList<GrenadeCluster> Clusters() => [.. index.Maps().SelectMany(map => index.Query(new GrenadeQuery(map)))];
+
+            IReadOnlyList<GrenadeCluster> Clusters() =>
+                [.. index.Maps().SelectMany(map => index.Query(new GrenadeQuery(map)))];
+
             IReadOnlyList<LineupClipJob> every = LineupClipPlanner.PlanEvery(Clusters(), clips);
             int lineups = every.Select(j => j.LineupId).Distinct().Count();
             NeverRenders renderer = new();
-            using LineupClipService service = new(Clusters, PackStores.At(clips), () => true, renderer, complete: () => false,
+            using LineupClipService service = new(Clusters, PackStores.At(clips), () => true, renderer,
+                complete: () => false,
                 planDebounce: TimeSpan.Zero);
 
             // What an index change costs the thread that raises it, and what the plan costs off it.
@@ -159,8 +167,9 @@ public class UtilityCardClipTests
             await service.PlanSoon();
             long second = watch.ElapsedMilliseconds;
             int adopted = every.Count(j => File.Exists(j.GifPath));
-            Console.WriteLine($"[upgrade-plan] {Directory.GetFiles(source).Length} files, {lineups} lineups, {every.Count} jobs; "
-                              + $"caller {caller:F2} ms; first plan {first} ms off-thread, adopted {adopted}; second plan {second} ms");
+            Console.WriteLine(
+                $"[upgrade-plan] {Directory.GetFiles(source).Length} files, {lineups} lineups, {every.Count} jobs; "
+                + $"caller {caller:F2} ms; first plan {first} ms off-thread, adopted {adopted}; second plan {second} ms");
             await Assert.That(adopted).IsGreaterThan(0);
         }
         finally
@@ -171,7 +180,8 @@ public class UtilityCardClipTests
 
     private sealed class NeverRenders : ILineupClipRenderer
     {
-        public Task<IReadOnlyList<LineupClipJob>> RenderAsync(string demoPath, CS2DemoKit.Parser.ParsedDemo? demo, IReadOnlyList<LineupClipJob> jobs,
+        public Task<IReadOnlyList<LineupClipJob>> RenderAsync(string demoPath, CS2DemoKit.Parser.ParsedDemo? demo,
+            IReadOnlyList<LineupClipJob> jobs,
             CancellationToken ct) => Task.FromResult<IReadOnlyList<LineupClipJob>>([]);
     }
 

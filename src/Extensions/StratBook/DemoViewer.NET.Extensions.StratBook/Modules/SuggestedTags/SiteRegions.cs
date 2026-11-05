@@ -29,9 +29,8 @@ public sealed class SiteRegions
     private readonly Dictionary<string, HashSet<string>> _regions;
     private readonly HashSet<string> _spawn;
 
-    private SiteRegions(string map, Dictionary<string, HashSet<string>> regions, HashSet<string> spawn, string source)
+    private SiteRegions(Dictionary<string, HashSet<string>> regions, HashSet<string> spawn, string source)
     {
-        Map = map;
         _regions = regions;
         _spawn = spawn;
         Source = source;
@@ -40,8 +39,6 @@ public sealed class SiteRegions
     /// <summary>The two sites, A first.</summary>
     public static IReadOnlyList<string> Sites { get; } = [SiteA, SiteB];
 
-    /// <summary>The map.</summary>
-    public string Map { get; }
 
     /// <summary><c>shipped</c>, <c>learned:&lt;demoCount&gt;</c> or <c>site-only</c>, with <c>+profile</c> when an edit applied.</summary>
     public string Source { get; }
@@ -56,19 +53,14 @@ public sealed class SiteRegions
     /// <summary>A site's region; the site alone for a site the table does not know.</summary>
     /// <param name="site">A site place.</param>
     public IReadOnlySet<string> RegionOf(string site) =>
-        _regions.TryGetValue(site, out HashSet<string>? region) ? region : new HashSet<string>(StringComparer.Ordinal) { site };
+        _regions.TryGetValue(site, out HashSet<string>? region)
+            ? region
+            : new HashSet<string>(StringComparer.Ordinal) { site };
 
     /// <summary>The sites whose region holds <paramref name="place" />, A first. Regions can overlap.</summary>
     /// <param name="place">A place.</param>
     public IReadOnlyList<string> SitesContaining(string place) => [.. Sites.Where(s => RegionOf(s).Contains(place))];
 
-    /// <summary>Each site alone, and the T spawn: what a map with no plants to learn from gets.</summary>
-    /// <param name="map">The map.</param>
-    public static SiteRegions SiteOnly(string map) => new(
-        map,
-        Sites.ToDictionary(s => s, s => new HashSet<string>(StringComparer.Ordinal) { s }, StringComparer.Ordinal),
-        new HashSet<string>(StringComparer.Ordinal) { TSpawn },
-        "site-only");
 
     /// <summary>
     ///     Composes the regions in force: the shipped table when there is one, else the learned table,
@@ -78,7 +70,8 @@ public sealed class SiteRegions
     /// <param name="shipped">A shipped table, or null (none ship in the first release).</param>
     /// <param name="learned">The library's learned table, or null.</param>
     /// <param name="profile">The profile whose <see cref="DetectorProfile.SiteRegionOverrides" /> apply.</param>
-    public static SiteRegions Compose(string map, SiteRegionTable? shipped, SiteRegionTable? learned, DetectorProfile profile)
+    public static SiteRegions Compose(string map, SiteRegionTable? shipped, SiteRegionTable? learned,
+        DetectorProfile profile)
     {
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(profile);
@@ -122,7 +115,7 @@ public sealed class SiteRegions
             source += "+profile";
         }
 
-        return new SiteRegions(map, regions, spawn, source);
+        return new SiteRegions(regions, spawn, source);
     }
 }
 
@@ -134,7 +127,7 @@ public sealed class SiteRegions
 public sealed class SiteRegionTable
 {
     /// <summary>The file shape version.</summary>
-    public const int CurrentSchemaVersion = 1;
+    private const int CurrentSchemaVersion = 1;
 
     /// <summary>The map.</summary>
     public string Map { get; init; } = "";
@@ -261,22 +254,22 @@ public sealed class SiteRegionTable
 public static class SiteRegionLearner
 {
     /// <summary>Seconds before a plant whose places count toward the site's region.</summary>
-    public const int LookbackSeconds = 12;
+    private const int LookbackSeconds = 12;
 
     /// <summary>The share of a site's plants a place must precede.</summary>
-    public const double PlantShare = 0.4;
+    private const double PlantShare = 0.4;
 
     /// <summary>Seconds 0 to this, inclusive, are the spawn window.</summary>
-    public const int SpawnSeconds = 10;
+    private const int SpawnSeconds = 10;
 
     /// <summary>T players in one place at once that make it crowded at spawn.</summary>
-    public const int SpawnPlayers = 2;
+    private const int SpawnPlayers = 2;
 
     /// <summary>A place crowded at spawn in more than this share of rounds is spawn-adjacent.</summary>
-    public const double SpawnShare = 0.3;
+    private const double SpawnShare = 0.3;
 
     /// <summary>Plants a site needs before anything is learned for it.</summary>
-    public const int MinPlants = 4;
+    private const int MinPlants = 4;
 
     /// <summary>Learns the table for one map from every demo's rounds on it.</summary>
     /// <param name="map">The map.</param>
@@ -398,7 +391,7 @@ public sealed class SiteRegionStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(map);
         if (map.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || map.Contains('/', StringComparison.Ordinal)
-                                                                 || map.Contains('\\', StringComparison.Ordinal))
+            || map.Contains('\\', StringComparison.Ordinal))
         {
             throw new ArgumentException($"'{map}' cannot name a file", nameof(map));
         }
@@ -411,9 +404,9 @@ public sealed class SiteRegionStore
     public SiteRegionTable? TryLoad(string map)
     {
         string name = FileNameFor(map);
-        lock (_gate)
+        if (_folder is null)
         {
-            if (_folder is null)
+            lock (_gate)
             {
                 return _memory.TryGetValue(name, out string? json) ? SiteRegionTable.TryParse(json) : null;
             }
@@ -440,13 +433,14 @@ public sealed class SiteRegionStore
         ArgumentNullException.ThrowIfNull(table);
         string name = FileNameFor(table.Map);
         string json = table.ToJson();
-        lock (_gate)
+        if (_folder is null)
         {
-            if (_folder is null)
+            lock (_gate)
             {
                 _memory[name] = json;
-                return;
             }
+
+            return;
         }
 
         FolderText.Write(_folder, name, json + "\n");

@@ -74,10 +74,7 @@ public sealed partial class EntityInspectorViewModel : ObservableObject
                 return;
             }
 
-            List<EntityInspectorNode> fields = BuildEntityFields(tracker, focus, new HashSet<int>
-            {
-                focusIndex
-            });
+            List<EntityInspectorNode> fields = BuildEntityFields(tracker, focus, new HashSet<int> { focusIndex });
             EntityInspectorNode root = new(
                 $"{focus.ClassName} #{focusIndex}", "", "root", EntityInspectorNodeKind.Root, fields)
             {
@@ -161,10 +158,7 @@ public sealed partial class EntityInspectorViewModel : ObservableObject
 
         // Capture for the lazy expand: build the target entity's tree with this index added to the
         // ancestor set so a back-reference doesn't recurse forever.
-        HashSet<int> childAncestors = new(ancestors)
-        {
-            idx
-        };
+        HashSet<int> childAncestors = [.. ancestors, idx];
         EntityState capturedTarget = target;
         return new EntityInspectorNode(leafName, summary, typeText, EntityInspectorNodeKind.EntityRef,
             () => BuildEntityFields(tracker, capturedTarget, childAncestors));
@@ -197,7 +191,7 @@ public sealed partial class EntityInspectorViewModel : ObservableObject
     // rendering: an opaque number.
     private static bool IsHandleType(string typeName)
         => typeName.StartsWith("CHandle", StringComparison.Ordinal)
-           || typeName.StartsWith("CEntityHandle", StringComparison.Ordinal);
+            || typeName.StartsWith("CEntityHandle", StringComparison.Ordinal);
 
     // "m_pMovementServices.m_flMaxspeed" → [m_pMovementServices, m_flMaxspeed];
     // "m_hMyWeapons[0]" → [m_hMyWeapons, [0]] so arrays nest under a single group.

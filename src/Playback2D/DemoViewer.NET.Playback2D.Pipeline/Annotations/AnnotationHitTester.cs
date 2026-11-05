@@ -135,9 +135,9 @@ public static class AnnotationHitTester
     {
         float limit = slop * slop;
         return SegmentDistanceSquared(a.X, a.Y, b.X, a.Y, x, y) <= limit
-               || SegmentDistanceSquared(b.X, a.Y, b.X, b.Y, x, y) <= limit
-               || SegmentDistanceSquared(b.X, b.Y, a.X, b.Y, x, y) <= limit
-               || SegmentDistanceSquared(a.X, b.Y, a.X, a.Y, x, y) <= limit;
+            || SegmentDistanceSquared(b.X, a.Y, b.X, b.Y, x, y) <= limit
+            || SegmentDistanceSquared(b.X, b.Y, a.X, b.Y, x, y) <= limit
+            || SegmentDistanceSquared(a.X, b.Y, a.X, a.Y, x, y) <= limit;
     }
 
     // abs(normalized radius - 1) is the test, taken back into world units along the ray from the centre
@@ -180,7 +180,7 @@ public static class AnnotationHitTester
         }
 
         return x >= box.Left - radius && x <= box.Right + radius
-                                      && y >= box.Top - radius && y <= box.Bottom + radius;
+            && y >= box.Top - radius && y <= box.Bottom + radius;
     }
 
     private static bool WithinBounds(IReadOnlyList<InkPoint> points, float x, float y, float slop)

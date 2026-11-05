@@ -30,14 +30,6 @@ public sealed partial class ClassBrowserViewModel : ObservableObject
     /// <summary>Fired when the class filter changes (null = show all classes).</summary>
     public event Action<string?>? ClassFilterChanged;
 
-    /// <summary>Clear.</summary>
-    public void Clear()
-    {
-        _allItems = [];
-        SelectedClass = null;
-        Classes.Clear();
-    }
-
     /// <summary>Repopulates the rail from the tracker's class registry (sorted by name).</summary>
     public void Rebuild(EntityTracker? tracker)
     {
@@ -45,14 +37,12 @@ public sealed partial class ClassBrowserViewModel : ObservableObject
 
         _allItems = tracker is null
             ? []
-            : tracker.ClassIdMap
-                .Select(kv => new ClassBrowserItem
-                {
-                    ClassId = kv.Key,
-                    ClassName = kv.Value
-                })
-                .OrderBy(c => c.ClassName, StringComparer.Ordinal)
-                .ToList();
+            :
+            [
+                .. tracker.ClassIdMap
+                    .Select(kv => new ClassBrowserItem { ClassId = kv.Key, ClassName = kv.Value })
+                    .OrderBy(c => c.ClassName, StringComparer.Ordinal)
+            ];
 
         ApplyFilter();
 

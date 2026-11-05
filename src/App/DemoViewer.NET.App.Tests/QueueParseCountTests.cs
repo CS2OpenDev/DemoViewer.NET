@@ -3,7 +3,6 @@
 using CS2DemoKit.Parser;
 using DemoViewer.NET.AppTests.Extensions;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
@@ -34,7 +33,8 @@ public class QueueParseCountTests
     public async Task AVisit_CountsOneRead_AndAnUnreadDemoCountsNone()
     {
         using DemoProcessingQueue queue = Queue();
-        IDemoQueueHandle handle = queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [new TestPass("library")]));
+        IDemoQueueHandle handle =
+            queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [new TestPass("library")]));
         await handle.Completion;
 
         using (Assert.Multiple())
@@ -47,9 +47,11 @@ public class QueueParseCountTests
     [Test]
     public async Task CopiesOfOneDemo_AreCountedTogether_ByContentHash()
     {
-        using DemoProcessingQueue queue = Queue(path => path.EndsWith("copy.dem", StringComparison.Ordinal) || path == Demo ? "abc" : null);
+        using DemoProcessingQueue queue = Queue(path =>
+            path.EndsWith("copy.dem", StringComparison.Ordinal) || path == Demo ? "abc" : null);
         await queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [new TestPass("library")])).Completion;
-        await queue.SubmitVisit(new DemoVisitRequest("/e/copy.dem", PassLevel.Backlog, [new TestPass("library")])).Completion;
+        await queue.SubmitVisit(new DemoVisitRequest("/e/copy.dem", PassLevel.Backlog, [new TestPass("library")]))
+            .Completion;
 
         using (Assert.Multiple())
         {
@@ -66,7 +68,8 @@ public class QueueParseCountTests
         cache.Upsert(new DemoCacheRecord { Path = "/smb/match.dem", Size = 1, Sha256 = "sha-m" });
         using DemoProcessingQueue queue = Queue(path => cache.TryGetIndex(path)?.Sha256);
         await queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [new TestPass("library")])).Completion;
-        await queue.SubmitVisit(new DemoVisitRequest("/SMB/match.dem", PassLevel.Backlog, [new TestPass("library")])).Completion;
+        await queue.SubmitVisit(new DemoVisitRequest("/SMB/match.dem", PassLevel.Backlog, [new TestPass("library")]))
+            .Completion;
 
         using (Assert.Multiple())
         {
@@ -80,7 +83,8 @@ public class QueueParseCountTests
     {
         using DemoProcessingQueue queue = Queue();
         queue.Pause();
-        IDemoQueueHandle visit = queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [new TestPass("library")]));
+        IDemoQueueHandle visit =
+            queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [new TestPass("library")]));
         using IDemoOpenTicket open = queue.BeginOpen(Demo, "match.dem");
         queue.Resume();
         ParsedDemo parsed = await open.ParseAsync(new byte[] { 1 });
@@ -105,7 +109,8 @@ public class QueueParseCountTests
         queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog,
             [new TestPass("library") { NeedsValue = PassNeeds.ForwardRead(ForwardNeeds.FinalState) }]));
         await started.Task;
-        IDemoQueueHandle retained = queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [new TestPass("grenades")]));
+        IDemoQueueHandle retained =
+            queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [new TestPass("grenades")]));
         await retained.Completion;
 
         await Assert.That(queue.ParseCount(Demo)).IsEqualTo(2).Because("the stopped forward read still read the file");
@@ -146,7 +151,6 @@ internal sealed class TestPass(string id, params string[] after) : IDemoPass
 {
     public List<string> Ran { get; init; } = [];
     public PassNeeds NeedsValue { get; init; } = PassNeeds.RetainedWithoutUserCommands;
-    public PassInterest Answer { get; set; } = PassInterest.Yes;
     public Action<PassInput>? OnRun { get; init; }
 
     public string Id => id;
@@ -154,7 +158,7 @@ internal sealed class TestPass(string id, params string[] after) : IDemoPass
 
     public PassNeeds Needs(VisitedDemo demo) => NeedsValue;
 
-    public PassInterest Interest(VisitedDemo demo, PassLevel level) => Answer;
+    public PassInterest Interest(VisitedDemo demo, PassLevel level) => PassInterest.Yes;
 
     public void Run(PassInput input)
     {

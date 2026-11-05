@@ -1,7 +1,6 @@
 #region
 
 using DemoViewer.NET.Modules.Abstractions;
-using DemoViewer.NET.Playback2D;
 
 #endregion
 
@@ -62,12 +61,10 @@ public readonly ref struct SceneFrameInput
     // Stored biased by one so an unset input means "nobody" (-1) rather than "slot 0". A ref struct
     // cannot carry a field initializer, so without the bias a caller that simply omits FollowSlot would
     // silently follow the first player.
-    private readonly int _followSlotPlusOne;
-
     /// <summary>The followed roster slot, or -1 for none. Omitting it means none.</summary>
     public int FollowSlot
     {
-        get => _followSlotPlusOne - 1;
-        init => _followSlotPlusOne = value + 1;
+        get => field - 1;
+        init => field = value + 1;
     }
 }

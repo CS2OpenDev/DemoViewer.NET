@@ -94,7 +94,7 @@ public class ModuleContextServiceLookupTests
         ServiceCollection services = new();
         services.AddSingleton<IWidget>(new Widget(9));
         services.AddSingleton(new HeavyJobGate());
-        using ServiceProvider provider = services.BuildServiceProvider();
+        await using ServiceProvider provider = services.BuildServiceProvider();
         context.SetServices(provider);
         // The widget is this test assembly's type, which the stub extension owns.
         context.SetFaults(ExtensionFaults.For([new Extensions.StubExtension()], static a => a()));
@@ -102,7 +102,8 @@ public class ModuleContextServiceLookupTests
         using (Assert.Multiple())
         {
             await Assert.That(context.GetService<IWidget>()?.Value).IsEqualTo(9);
-            await Assert.That(context.GetService<HeavyJobGate>()).IsNull().Because("a host type is never reachable through the container");
+            await Assert.That(context.GetService<HeavyJobGate>()).IsNull()
+                .Because("a host type is never reachable through the container");
         }
     }
 
@@ -113,7 +114,7 @@ public class ModuleContextServiceLookupTests
         ServiceCollection services = new();
         services.AddSingleton<IWidget>(new Widget(9));
         services.AddSingleton<Features.IFeatureGate>(new OffGate());
-        using ServiceProvider provider = services.BuildServiceProvider();
+        await using ServiceProvider provider = services.BuildServiceProvider();
         context.SetServices(provider);
         context.SetFaults(ExtensionFaults.For([new Extensions.StubExtension()], static a => a()));
 
@@ -126,7 +127,7 @@ public class ModuleContextServiceLookupTests
         ModuleContext context = NewContext();
         ServiceCollection services = new();
         services.AddSingleton<IWidget>(new Widget(9));
-        using ServiceProvider provider = services.BuildServiceProvider();
+        await using ServiceProvider provider = services.BuildServiceProvider();
         context.SetServices(provider);
 
         await Assert.That(context.GetService<IWidget>()).IsNull();
@@ -138,7 +139,7 @@ public class ModuleContextServiceLookupTests
         ModuleContext context = NewContext();
         ServiceCollection services = new();
         services.AddSingleton<IWidget>(new Widget(9));
-        using ServiceProvider provider = services.BuildServiceProvider();
+        await using ServiceProvider provider = services.BuildServiceProvider();
         context.SetServices(provider);
         context.RegisterService<IWidget>(() => new Widget(99));
 
@@ -152,7 +153,7 @@ public class ModuleContextServiceLookupTests
         FakeSceneExport export = new();
         ServiceCollection services = new();
         services.AddSingleton<IExtensionSceneExport>(export);
-        using ServiceProvider provider = services.BuildServiceProvider();
+        await using ServiceProvider provider = services.BuildServiceProvider();
         context.SetServices(provider);
         context.SetFaults(ExtensionFaults.For([new Extensions.StubExtension()], static a => a()));
 
@@ -168,7 +169,7 @@ public class ModuleContextServiceLookupTests
         ServiceCollection services = new();
         services.AddSingleton<IExtensionSceneExport>(export);
         services.AddSingleton<Features.IFeatureGate>(new OffGate());
-        using ServiceProvider provider = services.BuildServiceProvider();
+        await using ServiceProvider provider = services.BuildServiceProvider();
         context.SetServices(provider);
 
         await Assert.That(context.GetService<IExtensionSceneExport>()).IsSameReferenceAs(export)

@@ -2,7 +2,6 @@
 
 using CS2DemoKit.Analysis;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
 
 #endregion
@@ -149,7 +148,8 @@ public sealed class PassInput
     internal IReadOnlyList<FactRow> Table(string table, IReadOnlyList<string> rulesets)
     {
         AnalysisRun run = (Forward is { } forward ? forward.Run : RetainedRun?.Invoke())
-                          ?? throw new InvalidOperationException($"the visit made no rules run, so table {table} was not recorded");
+            ?? throw new InvalidOperationException(
+                $"the visit made no rules run, so table {table} was not recorded");
         return TableOf is { } read
             ? read(run, table, rulesets)
             : throw new InvalidOperationException($"the visit reads no tables, so table {table} is not served");
@@ -198,12 +198,6 @@ public interface IDemoPass
 
     /// <summary>What this pass needs from the parse of <paramref name="demo" />.</summary>
     PassNeeds Needs(VisitedDemo demo);
-
-    /// <summary>
-    ///     Identifies the configuration the pass's output depends on. A change means every demo is stale for
-    ///     this pass. Empty when the output never goes stale.
-    /// </summary>
-    string Fingerprint => string.Empty;
 
     /// <summary>Whether <paramref name="demo" /> still needs this pass at <paramref name="level" />.</summary>
     PassInterest Interest(VisitedDemo demo, PassLevel level);

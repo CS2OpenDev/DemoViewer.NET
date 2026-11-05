@@ -71,7 +71,7 @@ public class SemanticNavigatorRealDemoTests
         // ── (2) NextRound from start lands on the FIRST round boundary; symmetric back-step. ──
         controller.SeekToFrame(0);
         navigator.NextRound();
-        int firstRound = navigator.RoundBoundaryFrames.First(f => f > 0);
+        _ = navigator.RoundBoundaryFrames.First(f => f > 0);
         // From frame 0, NextRound finds the first boundary strictly > 0. If frame 0 itself is a round
         // boundary it is correctly skipped; assert the landing is a real round boundary > 0.
         await Assert.That(navigator.RoundBoundaryFrames).Contains(controller.CurrentFrameIndex);
@@ -100,7 +100,7 @@ public class SemanticNavigatorRealDemoTests
         // start). Seed a frame that is inside a tick group but is NOT itself a boundary, then assert
         // the landed frame's ServerTick is strictly less than where we started. This is the case the
         // boundary→next→prev round-trip above cannot exercise. ──
-        int[] tickBoundaries = navigator.TickBoundaryFrames.ToArray();
+        int[] tickBoundaries = [.. navigator.TickBoundaryFrames];
         int midGroupFrame = -1;
         for (int b = 0; b < tickBoundaries.Length - 1; b++)
         {
@@ -163,8 +163,9 @@ public class SemanticNavigatorRealDemoTests
             string.Equals(gem.DecodedEvent.Name, omitted, StringComparison.OrdinalIgnoreCase));
 
         Console.WriteLine($"[nav] demo={Path.GetFileName(path)} rounds={navigator.RoundBoundaryFrames.Count} " +
-                          $"ticks={navigator.TickBoundaryFrames.Count} eventNames={navigator.EventBoundaryFramesByName.Count} " +
-                          $"omittedEvent='{omitted}' reachedAtFrame={omittedFrame}");
+            $"ticks={navigator.TickBoundaryFrames.Count} eventNames={navigator.EventBoundaryFramesByName.Count} "
+            +
+            $"omittedEvent='{omitted}' reachedAtFrame={omittedFrame}");
 
         await Assert.That(reachedOmitted).IsTrue();
         // And it was genuinely unreachable under the old list.

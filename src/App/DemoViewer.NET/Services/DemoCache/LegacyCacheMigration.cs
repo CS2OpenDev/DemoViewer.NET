@@ -53,8 +53,8 @@ public static class LegacyCacheMigration
             return new MigrationResult(false, 0, 0);
         }
 
-        int fromLibrary = 0;
-        int fromHighlights = 0;
+        int fromLibrary;
+        int fromHighlights;
 
         // One batch for the whole pass: consumers re-project wholesale per Changed, so an O(library)
         // migration must coalesce or it is an O(n²) storm on the dispatcher.
@@ -129,7 +129,7 @@ public static class LegacyCacheMigration
                     // ScoreComputed=true stops it from recomputing. Carrying a half score across would put
                     // "16 – —" on the score plate, which reads as a scoring bug rather than as missing data.
                     // Dropping it lets the completeness model offer a re-index instead.
-                    if (legacy.CtScore is int ct && legacy.Score is int t)
+                    if (legacy is { CtScore: { } ct, Score: { } t })
                     {
                         record.CtScore = ct;
                         record.TScore = t;
@@ -144,12 +144,7 @@ public static class LegacyCacheMigration
                     [
                         .. (legacy.Players ?? [])
                         .Where(n => !string.IsNullOrWhiteSpace(n))
-                        .Select(n => new CachedPlayerInfo
-                        {
-                            Name = n,
-                            Slot = -1,
-                            Team = 0
-                        })
+                        .Select(n => new CachedPlayerInfo { Name = n, Slot = -1, Team = 0 })
                     ];
 
                     DemoCacheStore.StampParse(record);
@@ -219,10 +214,7 @@ public static class LegacyCacheMigration
                             [
                                 .. legacy.Players.Select(p => new CachedPlayerInfo
                                 {
-                                    Slot = p.Slot,
-                                    Name = p.Name,
-                                    SteamId64 = p.SteamId64,
-                                    Team = p.Team
+                                    Slot = p.Slot, Name = p.Name, SteamId64 = p.SteamId64, Team = p.Team
                                 })
                             ];
                         }
@@ -233,8 +225,7 @@ public static class LegacyCacheMigration
                             [
                                 .. legacy.Rounds.Select(r => new CachedRound
                                 {
-                                    Number = r.Number,
-                                    StartTickFrameClock = r.StartTickFrameClock
+                                    Number = r.Number, StartTickFrameClock = r.StartTickFrameClock
                                 })
                             ];
                         }

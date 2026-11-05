@@ -86,7 +86,7 @@ public class LayerCachePictureTests
         int secondCentre = ColumnOfInk(surface);
 
         Console.WriteLine($"[static-cache] ink column {firstCentre} → {secondCentre}, " +
-                          $"renders={layer.RenderCalls}");
+            $"renders={layer.RenderCalls}");
 
         await Assert.That(layer.RenderCalls).IsEqualTo(1); // world-space recording survives a camera move
         await Assert.That(secondCentre - firstCentre).IsEqualTo(30).Within(1);
@@ -176,10 +176,7 @@ public class LayerCachePictureTests
     [Test]
     public async Task DisabledLayer_IsSkippedInBothAdvanceAndRender()
     {
-        CountingLayer layer = new("test.dynamic", LayerCacheHint.Dynamic)
-        {
-            IsEnabled = false
-        };
+        CountingLayer layer = new("test.dynamic", LayerCacheHint.Dynamic) { IsEnabled = false };
         using SceneCompositor compositor = new();
         compositor.Add(layer);
 
@@ -198,13 +195,7 @@ public class LayerCachePictureTests
         MapLevelId? levelId = null)
     {
         MapLevelId id = levelId ?? new MapLevelId(0);
-        MapLevel level = new()
-        {
-            Id = id,
-            Name = "floor 0",
-            ZMin = -1000,
-            ZMax = 1000
-        };
+        MapLevel level = new() { Id = id, Name = "floor 0", ZMin = -1000, ZMax = 1000 };
 
         LevelPaneSnapshot pane = new(id, 0, level, camera, new SKRect(0, 0, 128, 128), cameraEpoch);
         return new SceneSubmission(1, Scene2DFrame.Empty, default, [pane], ScenePalette.Dark,
@@ -228,21 +219,15 @@ public class LayerCachePictureTests
         return -1;
     }
 
-    private sealed class CountingLayer : ISceneLayer
+    private sealed class CountingLayer(string id, LayerCacheHint cache) : ISceneLayer
     {
-        public CountingLayer(string id, LayerCacheHint cache)
-        {
-            Id = id;
-            Cache = cache;
-        }
-
         public int Version { get; set; }
         public int RenderCalls { get; private set; }
         public int AdvanceCalls { get; private set; }
-        public string Id { get; }
+        public string Id { get; } = id;
         public LayerSlot Slot => LayerSlot.World;
         public int Order => 0;
-        public LayerCacheHint Cache { get; }
+        public LayerCacheHint Cache { get; } = cache;
         public bool IsEnabled { get; set; } = true;
         public int ContentVersion => Version;
 

@@ -5,10 +5,8 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
-using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.TestSupport;
 using DemoViewer.NET.ViewModels.ErrorReport;
 using DemoViewer.NET.Views.ErrorReport;
 
@@ -47,16 +45,8 @@ public class ErrorReportViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             ErrorReportViewModel vm = new();
-            ErrorReportView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 680,
-                Height = 720,
-                Content = view
-            };
+            ErrorReportView view = new() { DataContext = vm };
+            Window window = new() { Width = 680, Height = 720, Content = view };
             window.Show();
             Pump();
 
@@ -100,16 +90,8 @@ public class ErrorReportViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             ErrorReportViewModel vm = new();
-            ErrorReportView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = w,
-                Height = h,
-                Content = view
-            };
+            ErrorReportView view = new() { DataContext = vm };
+            Window window = new() { Width = w, Height = h, Content = view };
             window.Show();
             Pump();
 
@@ -161,16 +143,8 @@ public class ErrorReportViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             ErrorReportViewModel vm = new();
-            ErrorReportView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 680,
-                Height = 720,
-                Content = view
-            };
+            ErrorReportView view = new() { DataContext = vm };
+            Window window = new() { Width = 680, Height = 720, Content = view };
             window.Show();
             Pump();
 
@@ -184,21 +158,10 @@ public class ErrorReportViewTests
             Pump();
 
             // Negative control: the same disabled shape WITHOUT the flag, hovered the same way.
-            Button bare = new()
-            {
-                Content = "control",
-                IsEnabled = false,
-                Width = 80,
-                Height = 24
-            };
+            Button bare = new() { Content = "control", IsEnabled = false, Width = 80, Height = 24 };
             ToolTip.SetTip(bare, "never shown");
             ToolTip.SetShowDelay(bare, 0);
-            Window probe = new()
-            {
-                Width = 200,
-                Height = 100,
-                Content = bare
-            };
+            Window probe = new() { Width = 200, Height = 100, Content = bare };
             probe.Show();
             Pump();
             probe.MouseMove(bare.TranslatePoint(new Point(40, 12), probe)!.Value);
@@ -219,7 +182,7 @@ public class ErrorReportViewTests
                     .Because("a disabled control suppresses its tooltip unless ShowOnDisabled is set");
                 await Assert.That(control).IsFalse()
                     .Because("without the flag the same pointer path opens nothing, which is what makes "
-                             + "the assertion above evidence rather than a tautology");
+                        + "the assertion above evidence rather than a tautology");
             }
         });
     }

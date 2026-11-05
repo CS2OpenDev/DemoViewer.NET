@@ -31,9 +31,6 @@ public abstract partial class DossierSectionViewModel : ObservableObject
     /// <summary>▾ open, ▸ closed.</summary>
     public string Glyph => IsExpanded ? "▾" : "▸";
 
-    /// <summary>The title with its count.</summary>
-    public abstract string Header { get; }
-
     [RelayCommand]
     private void Toggle() => IsExpanded = !IsExpanded;
 }
@@ -47,9 +44,11 @@ public sealed class DossierGeneralSectionViewModel : DossierSectionViewModel
     /// <param name="key">The section's session key.</param>
     /// <param name="title">Its title.</param>
     /// <param name="expanded">Whether it starts open.</param>
-    public DossierGeneralSectionViewModel(string key, string title, bool expanded) : base(key, expanded) => _title = title;
+    public DossierGeneralSectionViewModel(string key, string title, bool expanded) : base(key, expanded) =>
+        _title = title;
 
-    public override string Header => _count.Length == 0 ? _title : $"{_title} · {_count}";
+    /// <summary>The title with its count.</summary>
+    public string Header => _count.Length == 0 ? _title : $"{_title} · {_count}";
 
     /// <summary>Sets the count shown after the title; empty shows the title alone.</summary>
     /// <param name="count">The count text.</param>
@@ -79,13 +78,13 @@ public sealed class DossierMapSectionViewModel : DossierSectionViewModel
 
     public MapPoolRowViewModel? Record { get; private set; }
 
-    public IReadOnlyList<SetupHeatmapViewModel> Heatmaps { get; private set; } = [];
+    private IReadOnlyList<SetupHeatmapViewModel> Heatmaps { get; set; } = [];
 
-    public IReadOnlyList<OpeningBlockViewModel> Openings { get; private set; } = [];
+    private IReadOnlyList<OpeningBlockViewModel> Openings { get; set; } = [];
 
-    public IReadOnlyList<PostPlantBlockViewModel> PostPlant { get; private set; } = [];
+    private IReadOnlyList<PostPlantBlockViewModel> PostPlant { get; set; } = [];
 
-    public IReadOnlyList<SituationalBlockViewModel> Situational { get; private set; } = [];
+    private IReadOnlyList<SituationalBlockViewModel> Situational { get; set; } = [];
 
     public IReadOnlyList<DossierFindingViewModel> Findings { get; private set; } = [];
 
@@ -111,7 +110,7 @@ public sealed class DossierMapSectionViewModel : DossierSectionViewModel
 
     public bool HasFindings => Findings.Count > 0;
 
-    public override string Header
+    public string Header
     {
         get
         {

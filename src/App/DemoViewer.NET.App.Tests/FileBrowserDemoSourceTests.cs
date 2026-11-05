@@ -57,7 +57,10 @@ public class FileBrowserDemoSourceTests
     private static HttpResponseMessage Status(HttpStatusCode code) => new(code);
 
     private static HttpResponseMessage Html() =>
-        new(HttpStatusCode.OK) { Content = new StringContent("<html><body>app</body></html>", Encoding.UTF8, "text/html") };
+        new(HttpStatusCode.OK)
+        {
+            Content = new StringContent("<html><body>app</body></html>", Encoding.UTF8, "text/html")
+        };
 
     private static CorpusDemo Demo(byte[] bytes, string? dir) =>
         CorpusManifest.Parse(
@@ -80,8 +83,8 @@ public class FileBrowserDemoSourceTests
               """);
 
     /// <summary>Constructs a source and discards it, so a ctor-rejection case reads as a call.</summary>
-    private static FileBrowserDemoSource Build(string token) =>
-        new FileBrowserDemoSource(_instance, token, new StubHandler(_ => Status(HttpStatusCode.NotFound)));
+    private static void Build(string token) =>
+        _ = new FileBrowserDemoSource(_instance, token, new StubHandler(_ => Status(HttpStatusCode.NotFound)));
 
     // ── Download ──────────────────────────────────────────────────────────────
 
@@ -97,7 +100,7 @@ public class FileBrowserDemoSourceTests
             using (Assert.Multiple())
             {
                 await Assert.That(source.TryCopyTo(Demo(body, "benchmarks"), dest)).IsTrue();
-                await Assert.That(File.ReadAllBytes(dest)).IsEquivalentTo(body);
+                await Assert.That(await File.ReadAllBytesAsync(dest)).IsEquivalentTo(body);
                 // The dir candidate is tried first and hit, so there is exactly one round trip.
                 await Assert.That(handler.Requests.Count).IsEqualTo(1);
                 await Assert.That(handler.Requests[0]).Contains("source=Demos");
@@ -128,7 +131,7 @@ public class FileBrowserDemoSourceTests
             using (Assert.Multiple())
             {
                 await Assert.That(source.TryCopyTo(Demo(body, "pro-demos"), dest)).IsTrue();
-                await Assert.That(File.ReadAllBytes(dest)).IsEquivalentTo(body);
+                await Assert.That(await File.ReadAllBytesAsync(dest)).IsEquivalentTo(body);
                 await Assert.That(handler.Requests.Count).IsEqualTo(2);
             }
         }
@@ -168,8 +171,8 @@ public class FileBrowserDemoSourceTests
         StubHandler handler = new(_ => Status(HttpStatusCode.NotFound));
         using FileBrowserDemoSource source = new(_instance, "tok", handler);
 
-        DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-            () => source.TryCopyTo(Demo([1], null), TempFile()));
+        DemoCorpusConfigurationException thrown =
+            Assert.Throws<DemoCorpusConfigurationException>(() => source.TryCopyTo(Demo([1], null), TempFile()));
         using (Assert.Multiple())
         {
             await Assert.That(thrown.Message).Contains("is not usable");
@@ -183,8 +186,8 @@ public class FileBrowserDemoSourceTests
         StubHandler handler = new(_ => Status(HttpStatusCode.Unauthorized));
         using FileBrowserDemoSource source = new(_instance, "tok", handler);
 
-        DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-            () => source.TryCopyTo(Demo([1], null), TempFile()));
+        DemoCorpusConfigurationException thrown =
+            Assert.Throws<DemoCorpusConfigurationException>(() => source.TryCopyTo(Demo([1], null), TempFile()));
         await Assert.That(thrown.Message).Contains(DemoTestHelper.DemoSourcesTokenEnvVar);
     }
 
@@ -194,8 +197,7 @@ public class FileBrowserDemoSourceTests
         StubHandler handler = new(_ => Status(HttpStatusCode.Forbidden));
         using FileBrowserDemoSource source = new(_instance, "tok", handler);
 
-        Assert.Throws<DemoCorpusConfigurationException>(
-            () => source.TryCopyTo(Demo([1], null), TempFile()));
+        Assert.Throws<DemoCorpusConfigurationException>(() => source.TryCopyTo(Demo([1], null), TempFile()));
     }
 
     [Test]
@@ -204,8 +206,8 @@ public class FileBrowserDemoSourceTests
         StubHandler handler = new(_ => Html());
         using FileBrowserDemoSource source = new(_instance, "tok", handler);
 
-        DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-            () => source.TryCopyTo(Demo([1], null), TempFile()));
+        DemoCorpusConfigurationException thrown =
+            Assert.Throws<DemoCorpusConfigurationException>(() => source.TryCopyTo(Demo([1], null), TempFile()));
         using (Assert.Multiple())
         {
             await Assert.That(thrown.Message).Contains("text/html");
@@ -224,8 +226,8 @@ public class FileBrowserDemoSourceTests
         {
             // Returning true here would reach Verify and report the manifest's bytes as wrong,
             // which fails the whole run for what is only a dropped socket.
-            DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-                () => source.TryCopyTo(Demo(body, null), dest));
+            DemoCorpusConfigurationException thrown =
+                Assert.Throws<DemoCorpusConfigurationException>(() => source.TryCopyTo(Demo(body, null), dest));
             using (Assert.Multiple())
             {
                 await Assert.That(thrown.Message).Contains("of a declared");
@@ -274,10 +276,10 @@ public class FileBrowserDemoSourceTests
     {
         using (Assert.Multiple())
         {
-            Assert.Throws<DemoCorpusConfigurationException>(
-                () => DemoSources.FromSpecifier("https://demos.example.net/Demos", null));
-            Assert.Throws<DemoCorpusConfigurationException>(
-                () => DemoSources.FromSpecifier("https://demos.example.net/Demos", "   "));
+            Assert.Throws<DemoCorpusConfigurationException>(() =>
+                DemoSources.FromSpecifier("https://demos.example.net/Demos", null));
+            Assert.Throws<DemoCorpusConfigurationException>(() =>
+                DemoSources.FromSpecifier("https://demos.example.net/Demos", "   "));
         }
     }
 
@@ -286,8 +288,8 @@ public class FileBrowserDemoSourceTests
     {
         using (Assert.Multiple())
         {
-            Assert.Throws<DemoCorpusConfigurationException>(
-                () => DemoSources.FromSpecifier("https://demos.example.net", "tok"));
+            Assert.Throws<DemoCorpusConfigurationException>(() =>
+                DemoSources.FromSpecifier("https://demos.example.net", "tok"));
             // Segments after the source name are a path prefix, not an error.
             await Assert.That(DemoSources.FromSpecifier("https://demos.example.net/Demos/TestingDemos", "tok"))
                 .IsTypeOf<FileBrowserDemoSource>();
@@ -299,7 +301,8 @@ public class FileBrowserDemoSourceTests
     {
         byte[] body = [2, 2];
         StubHandler handler = new(request =>
-            request.RequestUri!.Query.Contains(Uri.EscapeDataString("/TestingDemos/benchmarks/subject.dem"), StringComparison.Ordinal)
+            request.RequestUri!.Query.Contains(Uri.EscapeDataString("/TestingDemos/benchmarks/subject.dem"),
+                StringComparison.Ordinal)
                 ? Bytes(body)
                 : Status(HttpStatusCode.NotFound));
         using FileBrowserDemoSource source = new(
@@ -326,7 +329,8 @@ public class FileBrowserDemoSourceTests
     {
         byte[] body = [5];
         StubHandler handler = new(request =>
-            request.RequestUri!.Query.Contains(Uri.EscapeDataString("/TestingDemos/subject.dem"), StringComparison.Ordinal)
+            request.RequestUri!.Query.Contains(Uri.EscapeDataString("/TestingDemos/subject.dem"),
+                StringComparison.Ordinal)
                 ? Bytes(body)
                 : Status(HttpStatusCode.NotFound));
         using FileBrowserDemoSource source = new(
@@ -359,8 +363,8 @@ public class FileBrowserDemoSourceTests
         using FileBrowserDemoSource source = new(
             new Uri("https://demos.example.net/Demos/TestingDemo"), "tok", handler);
 
-        DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-            () => source.TryCopyTo(Demo([1], null), TempFile()));
+        DemoCorpusConfigurationException thrown =
+            Assert.Throws<DemoCorpusConfigurationException>(() => source.TryCopyTo(Demo([1], null), TempFile()));
         using (Assert.Multiple())
         {
             await Assert.That(thrown.Message).Contains("is not usable");
@@ -369,7 +373,8 @@ public class FileBrowserDemoSourceTests
             await Assert.That(thrown.Message).Contains("no such file or directory");
             await Assert.That(thrown.Message).Contains("case-sensitive");
             await Assert.That(handler.Requests.Any(r => r.Contains("/api/resources/items", StringComparison.Ordinal)
-                && r.Contains(Uri.EscapeDataString("/TestingDemo"), StringComparison.Ordinal))).IsTrue();
+                && r.Contains(Uri.EscapeDataString("/TestingDemo"),
+                    StringComparison.Ordinal))).IsTrue();
         }
     }
 
@@ -387,8 +392,8 @@ public class FileBrowserDemoSourceTests
         using FileBrowserDemoSource source = new(
             new Uri("https://demos.example.net/Nope/TestingDemos"), "tok", handler);
 
-        DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-            () => source.TryCopyTo(Demo([1], null), TempFile()));
+        DemoCorpusConfigurationException thrown =
+            Assert.Throws<DemoCorpusConfigurationException>(() => source.TryCopyTo(Demo([1], null), TempFile()));
         using (Assert.Multiple())
         {
             await Assert.That(thrown.Message).Contains(DemoTestHelper.DemoSourcesEnvVar);
@@ -403,13 +408,13 @@ public class FileBrowserDemoSourceTests
         // construction error are printed into skip messages, so neither may carry a secret.
         using (Assert.Multiple())
         {
-            DemoCorpusConfigurationException query = Assert.Throws<DemoCorpusConfigurationException>(
-                () => DemoSources.FromSpecifier("https://demos.example.net/Demos?auth=sup3rs3cr3t", "tok"));
+            DemoCorpusConfigurationException query = Assert.Throws<DemoCorpusConfigurationException>(() =>
+                DemoSources.FromSpecifier("https://demos.example.net/Demos?auth=sup3rs3cr3t", "tok"));
             await Assert.That(query.Message).DoesNotContain("sup3rs3cr3t");
             await Assert.That(query.Message).Contains(DemoTestHelper.DemoSourcesTokenEnvVar);
 
-            DemoCorpusConfigurationException userInfo = Assert.Throws<DemoCorpusConfigurationException>(
-                () => DemoSources.FromSpecifier("https://user:sup3rs3cr3t@demos.example.net/Demos", "tok"));
+            DemoCorpusConfigurationException userInfo = Assert.Throws<DemoCorpusConfigurationException>(() =>
+                DemoSources.FromSpecifier("https://user:sup3rs3cr3t@demos.example.net/Demos", "tok"));
             await Assert.That(userInfo.Message).DoesNotContain("sup3rs3cr3t");
             await Assert.That(userInfo.Message).Contains(DemoTestHelper.DemoSourcesTokenEnvVar);
         }
@@ -420,8 +425,9 @@ public class FileBrowserDemoSourceTests
     {
         using (Assert.Multiple())
         {
-            DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-                () => DemoSources.FromSpecifier("http://demos.example.net/Demos", "tok"));
+            DemoCorpusConfigurationException thrown =
+                Assert.Throws<DemoCorpusConfigurationException>(() =>
+                    DemoSources.FromSpecifier("http://demos.example.net/Demos", "tok"));
             await Assert.That(thrown.Message).Contains("not https");
             // Loopback is exempt so a local instance stays testable.
             await Assert.That(DemoSources.FromSpecifier("http://localhost:8080/Demos", "tok"))
@@ -435,8 +441,8 @@ public class FileBrowserDemoSourceTests
         StubHandler handler = new(_ => Status(HttpStatusCode.Found));
         using FileBrowserDemoSource source = new(_instance, "tok", handler);
 
-        DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-            () => source.TryCopyTo(Demo([1], null), TempFile()));
+        DemoCorpusConfigurationException thrown =
+            Assert.Throws<DemoCorpusConfigurationException>(() => source.TryCopyTo(Demo([1], null), TempFile()));
         await Assert.That(thrown.Message).Contains("Redirects are not followed");
     }
 
@@ -459,7 +465,8 @@ public class FileBrowserDemoSourceTests
     [Test]
     public async Task TheDescription_CarriesTheHostAndSource_AndNeverTheToken()
     {
-        using FileBrowserDemoSource source = new(_instance, "super-secret-token", new StubHandler(_ => Status(HttpStatusCode.NotFound)));
+        using FileBrowserDemoSource source = new(_instance, "super-secret-token",
+            new StubHandler(_ => Status(HttpStatusCode.NotFound)));
         using (Assert.Multiple())
         {
             await Assert.That(source.Description).Contains("demos.example.net");
@@ -509,8 +516,8 @@ public class FileBrowserDemoSourceTests
         string dest = TempFile();
         try
         {
-            DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-                () => source.TryCopyTo(Demo(body, null), dest));
+            DemoCorpusConfigurationException thrown =
+                Assert.Throws<DemoCorpusConfigurationException>(() => source.TryCopyTo(Demo(body, null), dest));
             await Assert.That(thrown.Message).Contains("exceeded");
         }
         finally
@@ -533,8 +540,9 @@ public class FileBrowserDemoSourceTests
         string dest = TempFile();
         try
         {
-            DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-                () => source.TryCopyTo(Demo([1, 2, 3, 4, 5, 6], null), dest));
+            DemoCorpusConfigurationException thrown =
+                Assert.Throws<DemoCorpusConfigurationException>(() =>
+                    source.TryCopyTo(Demo([1, 2, 3, 4, 5, 6], null), dest));
             await Assert.That(thrown.Message).Contains("no Content-Length");
         }
         finally
@@ -555,8 +563,8 @@ public class FileBrowserDemoSourceTests
         });
         using FileBrowserDemoSource source = new(_instance, "tok", handler);
 
-        DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-            () => source.TryCopyTo(Demo([1], null), TempFile()));
+        DemoCorpusConfigurationException thrown =
+            Assert.Throws<DemoCorpusConfigurationException>(() => source.TryCopyTo(Demo([1], null), TempFile()));
         await Assert.That(thrown.Message).Contains("application/json");
     }
 
@@ -577,14 +585,14 @@ public class FileBrowserDemoSourceTests
         {
             foreach (string entry in withSecrets)
             {
-                DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-                    () => DemoSources.FromSpecifier(entry, "tok"));
+                DemoCorpusConfigurationException thrown =
+                    Assert.Throws<DemoCorpusConfigurationException>(() => DemoSources.FromSpecifier(entry, "tok"));
                 await Assert.That(thrown.Message).DoesNotContain("sup3rs3cr3t");
             }
 
             // The unsupported-scheme path is on the same dispatch and reports the scheme only.
-            NotSupportedException scheme = Assert.Throws<NotSupportedException>(
-                () => DemoSources.FromSpecifier("s3://bucket/demos?token=sup3rs3cr3t", "tok"));
+            NotSupportedException scheme = Assert.Throws<NotSupportedException>(() =>
+                DemoSources.FromSpecifier("s3://bucket/demos?token=sup3rs3cr3t", "tok"));
             await Assert.That(scheme.Message).DoesNotContain("sup3rs3cr3t");
             await Assert.That(scheme.Message).Contains("s3");
         }
@@ -600,8 +608,8 @@ public class FileBrowserDemoSourceTests
                 _instance, "tok\n", new StubHandler(_ => Status(HttpStatusCode.NotFound)));
             await Assert.That(trimmed.Description).Contains("demos.example.net");
 
-            DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-                () => Build("to k"));
+            DemoCorpusConfigurationException thrown =
+                Assert.Throws<DemoCorpusConfigurationException>(() => Build("to k"));
             await Assert.That(thrown.Message).Contains(DemoTestHelper.DemoSourcesTokenEnvVar);
         }
     }
@@ -653,8 +661,8 @@ public class FileBrowserDemoSourceTests
                 ManifestOf(body), [], Path.Combine(root, "cache"),
                 [refusing, new DirectoryDemoSource(root)]);
 
-            DemoCorpusConfigurationException thrown = Assert.Throws<DemoCorpusConfigurationException>(
-                () => corpus.TryResolve("subject.dem", out _));
+            DemoCorpusConfigurationException thrown =
+                Assert.Throws<DemoCorpusConfigurationException>(() => corpus.TryResolve("subject.dem", out _));
             await Assert.That(thrown.Message).Contains(DemoTestHelper.DemoSourcesTokenEnvVar);
         }
         finally

@@ -3,7 +3,6 @@
 using System.Collections;
 using System.Globalization;
 using System.Text.Json;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 
@@ -72,18 +71,18 @@ internal static class RoundFactsValues
                 return flag;
             case string text:
                 return bool.TryParse(text, out bool parsed) ? parsed
-                    : ToInt(text) is int fromText ? fromText != 0 : null;
+                    : ToInt(text) is { } fromText ? fromText != 0 : null;
             case JsonElement element:
                 return element.ValueKind switch
                 {
                     JsonValueKind.True => true,
                     JsonValueKind.False => false,
-                    JsonValueKind.Number => ToInt(element) is int number && number != 0,
+                    JsonValueKind.Number => ToInt(element) is { } number && number != 0,
                     JsonValueKind.String => ToBool(element.GetString()),
                     _ => null
                 };
             default:
-                return ToInt(value) is int i ? i != 0 : null;
+                return ToInt(value) is { } i ? i != 0 : null;
         }
     }
 
@@ -97,14 +96,17 @@ internal static class RoundFactsValues
             case string text:
                 return text.Length == 0
                     ? []
-                    : text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                        .Select(ToInt).OfType<int>().ToArray();
+                    :
+                    [
+                        .. text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Select(ToInt).OfType<int>()
+                    ];
             case JsonElement element:
                 return element.ValueKind == JsonValueKind.Array
-                    ? element.EnumerateArray().Select(e => ToInt(e)).OfType<int>().ToArray()
+                    ? [.. element.EnumerateArray().Select(e => ToInt(e)).OfType<int>()]
                     : null;
             case IEnumerable items:
-                return items.Cast<object?>().Select(ToInt).OfType<int>().ToArray();
+                return [.. items.Cast<object?>().Select(ToInt).OfType<int>()];
             default:
                 return null;
         }

@@ -62,7 +62,8 @@ public class SuggestedTagsTuningTests
         using (Assert.Multiple())
         {
             await Assert.That(recall).IsNull().Because("no ground truth for this code exists yet");
-            await Assert.That(precision).IsNull().Because("a fired proposal cannot be judged right or wrong against nothing");
+            await Assert.That(precision).IsNull()
+                .Because("a fired proposal cannot be judged right or wrong against nothing");
         }
     }
 
@@ -189,12 +190,12 @@ public class SuggestedTagsTuningTests
         // Two executes in round 1, one at each site. The hand tag windows are swapped against the sites
         // (the A-labelled hand tag lies on the B execute's window and vice versa), so pairing on window
         // alone scores two perfect matches where there are none.
-        TagProposal atA = Proposal("exec|r1|T|BombsiteA|s=10", "execute", 1, 100, 200, 150, 0.8, "BombsiteA");
+        TagProposal atA = Proposal("exec|r1|T|BombsiteA|s=10", "execute", 1, 100, 200, 150, 0.8);
         TagProposal atB = Proposal("exec|r1|T|BombsiteB|s=40", "execute", 1, 300, 400, 350, 0.7, "BombsiteB");
 
         (double? recall, double? precision) = SuggestedTagsTuning.Score(
             [In(DemoA, atA), In(DemoA, atB)],
-            [Hand(1, 300, 400, "BombsiteA"), Hand(1, 100, 200, "BombsiteB")]);
+            [Hand(1, 300, 400), Hand(1, 100, 200, "BombsiteB")]);
 
         await Assert.That((recall, precision)).IsEqualTo(((double?)0.0, (double?)0.0));
     }
@@ -202,14 +203,14 @@ public class SuggestedTagsTuningTests
     [Test]
     public async Task Score_TwoExecutesAtDifferentSitesInOneRound_EachMatchesItsSite()
     {
-        TagProposal atA = Proposal("exec|r1|T|BombsiteA|s=10", "execute", 1, 100, 200, 150, 0.8, "BombsiteA");
+        TagProposal atA = Proposal("exec|r1|T|BombsiteA|s=10", "execute", 1, 100, 200, 150, 0.8);
         TagProposal atB = Proposal("exec|r1|T|BombsiteB|s=12", "execute", 1, 110, 210, 160, 0.7, "BombsiteB");
 
         // Each hand tag overlaps the other site's execute more (100) than its own (90); with the site
         // compared, each execute still pairs with the tag of its own site.
         (double? recall, double? precision) = SuggestedTagsTuning.Score(
             [In(DemoA, atA), In(DemoA, atB)],
-            [Hand(1, 110, 210, "BombsiteA"), Hand(1, 100, 200, "BombsiteB")]);
+            [Hand(1, 110, 210), Hand(1, 100, 200, "BombsiteB")]);
 
         await Assert.That((recall, precision)).IsEqualTo(((double?)1.0, (double?)1.0));
     }
@@ -241,7 +242,10 @@ public class SuggestedTagsTuningTests
         TagProposal execute = Proposal("exec|r1|T|BombsiteA|s=10", "execute", 1, 100, 200, 150, 0.8);
         TagProposal fake = Proposal("fake|r1|T|BombsiteB>BombsiteA", "fake", 1, 100, 200, 150, 0.5, null) with
         {
-            Labels = new Dictionary<string, string>(StringComparer.Ordinal) { ["fake"] = "BombsiteB", ["real"] = "BombsiteA" }
+            Labels = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["fake"] = "BombsiteB", ["real"] = "BombsiteA"
+            }
         };
         TagProposal opener = Proposal("opener|r1|T", "opener", 1, 100, 200, 150, 0.5, null);
 

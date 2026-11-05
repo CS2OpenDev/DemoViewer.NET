@@ -3,12 +3,12 @@
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Features;
-using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
-using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Features;
+using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Views.Playback2D;
 
 #endregion
@@ -48,17 +48,30 @@ public static partial class Variants
             // A session-only document (no store in this process) with a hand-made label and an accepted one.
             DemoIdentity demo = new("ab", "match730_capture_dust2.dem", 549_715_968);
             ClockIdentity clock = new(ClockIdentity.DvFrameClock, 64, 180_000, 0, 0);
-            session.AttachAsync(demo, clock, ctx.DemoPath!).GetAwaiter().GetResult();
+            session.AttachAsync(demo, clock, ctx.DemoPath).GetAwaiter().GetResult();
             DateTime now = DateTime.UtcNow;
             TagInstance execute = new()
             {
-                Id = Guid.NewGuid(), Code = "A execute", FromTick = 23_600, ToTick = 26_000, Round = 7,
-                Source = TagSources.Human, CreatedUtc = now, ModifiedUtc = now, Labels = [new TagLabel("site", "A")]
+                Id = Guid.NewGuid(),
+                Code = "A execute",
+                FromTick = 23_600,
+                ToTick = 26_000,
+                Round = 7,
+                Source = TagSources.Human,
+                CreatedUtc = now,
+                ModifiedUtc = now,
+                Labels = [new TagLabel("site", "A")]
             };
             TagInstance retake = new()
             {
-                Id = Guid.NewGuid(), Code = "Retake", FromTick = 31_000, ToTick = 32_400, Round = 8,
-                Source = TagSources.Suggested, CreatedUtc = now, ModifiedUtc = now
+                Id = Guid.NewGuid(),
+                Code = "Retake",
+                FromTick = 31_000,
+                ToTick = 32_400,
+                Round = 8,
+                Source = TagSources.Suggested,
+                CreatedUtc = now,
+                ModifiedUtc = now
             };
             session.Apply(new TagDelta.Add(execute));
             session.Apply(new TagDelta.Add(retake));

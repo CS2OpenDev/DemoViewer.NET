@@ -17,7 +17,7 @@ internal static class GroupBoundsPass
 
     internal static void Run(LayoutContext ctx)
     {
-        List<GroupBounds> result = new();
+        List<GroupBounds> result = [];
         if (ctx.Groups is null)
         {
             ctx.GroupBounds = result;

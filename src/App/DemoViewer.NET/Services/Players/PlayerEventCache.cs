@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 
@@ -9,6 +8,7 @@ using DemoViewer.NET.Services.Facts;
 namespace DemoViewer.NET.Services.Players;
 
 /// <summary>How far a read has got: demos read of those it has to read.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public readonly record struct PlayerEventsProgress(int Done, int Total);
 
 /// <summary>
@@ -19,10 +19,10 @@ public readonly record struct PlayerEventsProgress(int Done, int Total);
 /// </summary>
 public sealed class PlayerEventCache
 {
-    private static readonly string FacetStamp = StampedFacts.StampId(PlayerEventFacet.RulesetId);
+    private static readonly string _facetStamp = StampedFacts.StampId(PlayerEventFacet.RulesetId);
 
     private readonly Dictionary<string, Entry> _entries = new(StringComparer.Ordinal);
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Func<string, FactKey, FactTable?> _read;
 
     /// <param name="read">Reads one of a demo's tables by path and key, current or stale; null when none is written.</param>
@@ -34,7 +34,7 @@ public sealed class PlayerEventCache
     /// <summary>True when the demo's facet is written: its stamp is indexed.</summary>
     /// <param name="row">The demo's index row.</param>
     public static bool IsWritten(DemoCacheIndexEntry row) =>
-        row?.Stamp(FacetStamp) is { State: DemoAnalysisState.Indexed };
+        row.Stamp(_facetStamp) is { State: DemoAnalysisState.Indexed };
 
     /// <summary>
     ///     The kills of each demo whose facet is written, by content id, reading off the calling thread every one
@@ -43,11 +43,13 @@ public sealed class PlayerEventCache
     /// <param name="rows">The demos' index rows.</param>
     /// <param name="progress">Told the count of demos to read, then each one read.</param>
     /// <param name="cancellationToken">Stops between reads; what was read is kept.</param>
-    public Task<IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>>> LoadAsync(IReadOnlyList<DemoCacheIndexEntry> rows,
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>>> LoadAsync(
+        IReadOnlyList<DemoCacheIndexEntry> rows,
         IProgress<PlayerEventsProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(rows);
-        return Task.Run<IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>>>(() => Fill(rows, progress, cancellationToken), cancellationToken);
+        return Task.Run<IReadOnlyDictionary<string, IReadOnlyList<PlayerKill>>>(
+            () => Fill(rows, progress, cancellationToken), cancellationToken);
     }
 
     private Dictionary<string, IReadOnlyList<PlayerKill>> Fill(IReadOnlyList<DemoCacheIndexEntry> rows,
@@ -61,7 +63,7 @@ public sealed class PlayerEventCache
             foreach (DemoCacheIndexEntry row in rows)
             {
                 string id = row.ContentId();
-                if (row.Stamp(FacetStamp) is not { State: DemoAnalysisState.Indexed } stamp || !seen.Add(id))
+                if (row.Stamp(_facetStamp) is not { State: DemoAnalysisState.Indexed } stamp || !seen.Add(id))
                 {
                     continue;
                 }

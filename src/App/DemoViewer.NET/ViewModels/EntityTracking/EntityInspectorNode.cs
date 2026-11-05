@@ -99,7 +99,7 @@ public sealed partial class EntityInspectorNode : ObservableObject
     public string TypeText { get; }
 
     /// <summary>Row classification.</summary>
-    public EntityInspectorNodeKind Kind { get; }
+    private EntityInspectorNodeKind Kind { get; }
 
     /// <summary>Child rows. Mutated in place when a lazy node first expands.</summary>
     public ObservableCollection<EntityInspectorNode> Children { get; }

@@ -80,11 +80,11 @@ internal sealed class Playback2DFakeContext : IModuleContext
         return !MapTicksToFrames || frame >= TotalFrames ? -1 : frame;
     }
 
-    public IReadOnlyList<int> EventFrames(string eventName) =>
-        Frames.TryGetValue(eventName, out int[]? frames) ? frames : Array.Empty<int>();
+    public IReadOnlyList<int> EventFrames(string? eventName) =>
+        eventName is not null && Frames.TryGetValue(eventName, out int[]? frames) ? frames : [];
 
     public IReadOnlyCollection<string> AvailableEventNames =>
-        Timelines.Keys.Concat(Frames.Keys).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        [.. Timelines.Keys.Concat(Frames.Keys).Distinct(StringComparer.OrdinalIgnoreCase)];
 
     public IReadOnlyList<GameEventView> GetEventTimeline(string eventName) =>
         Timelines.TryGetValue(eventName, out List<GameEventView>? views)
@@ -141,12 +141,7 @@ internal sealed class Playback2DFakeContext : IModuleContext
     /// <summary>Adds one roster entry plus the matching live player state (team 2 = T, 3 = CT).</summary>
     public void AddPlayer(int slot, string name, int team)
     {
-        Roster.Add(new PlayerRosterEntry
-        {
-            Slot = slot,
-            Name = name,
-            SteamId = (ulong)(slot + 1)
-        });
+        Roster.Add(new PlayerRosterEntry { Slot = slot, Name = name, SteamId = (ulong)(slot + 1) });
         _players.Add(new FakePlayerState(slot, team));
     }
 
@@ -282,13 +277,18 @@ internal sealed class Playback2DFakeContext : IModuleContext
         public static LivePlayerState Alive(int slot, int team, float x, float y, float z, float yaw,
             string? place = null)
         {
-            FieldEntity pawn = new("CCSPlayerPawn");
-            pawn.Fields["m_iHealth"] = 100;
-            pawn.Fields["m_iShotsFired"] = 0;
-            pawn.Fields["m_lifeState"] = 0;
-            pawn.Fields["m_flFlashDuration"] = 0f;
-            pawn.Fields["m_angEyeAngles"] = new Vector3(0, yaw, 0);
-            pawn.Fields["m_ArmorValue"] = 100;
+            FieldEntity pawn = new("CCSPlayerPawn")
+            {
+                Fields =
+                {
+                    ["m_iHealth"] = 100,
+                    ["m_iShotsFired"] = 0,
+                    ["m_lifeState"] = 0,
+                    ["m_flFlashDuration"] = 0f,
+                    ["m_angEyeAngles"] = new Vector3(0, yaw, 0),
+                    ["m_ArmorValue"] = 100
+                }
+            };
             if (place is not null)
             {
                 pawn.Fields["m_szLastPlaceName"] = place;
@@ -322,8 +322,8 @@ internal sealed class Playback2DFakeContext : IModuleContext
 
     private sealed class EmptyEntityView : IReadOnlyEntityView
     {
-        public IEnumerable<IReadOnlyEntity> All() => Array.Empty<IReadOnlyEntity>();
-        public IEnumerable<IReadOnlyEntity> OfClass(string className) => Array.Empty<IReadOnlyEntity>();
+        public IEnumerable<IReadOnlyEntity> All() => [];
+        public IEnumerable<IReadOnlyEntity> OfClass(string className) => [];
         public IReadOnlyEntity? BySerial(int serial) => null;
         public IReadOnlyEntity? ByIndex(int entityIndex) => null;
         public IReadOnlyEntity? ResolveHandle(ulong handle) => null;
@@ -335,7 +335,7 @@ internal sealed class FakeModuleFeatureGate : IModuleFeatureGate
 {
     private readonly HashSet<string> _off = new(StringComparer.Ordinal);
 
-    public bool IsEnabled(string featureId) => !_off.Contains(featureId);
+    public bool IsEnabled(string? featureId) => featureId is null || !_off.Contains(featureId);
 
     public event Action? Changed;
 

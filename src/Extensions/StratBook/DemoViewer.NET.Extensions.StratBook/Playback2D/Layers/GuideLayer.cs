@@ -34,10 +34,17 @@ public sealed class GuideLayer : ISceneLayer
     {
         ArgumentNullException.ThrowIfNull(source);
         _source = source;
-        _solid = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 2f, IsAntialias = true, StrokeJoin = SKStrokeJoin.Round };
+        _solid = new SKPaint
+        {
+            Style = SKPaintStyle.Stroke, StrokeWidth = 2f, IsAntialias = true, StrokeJoin = SKStrokeJoin.Round
+        };
         _dashed = new SKPaint
         {
-            Style = SKPaintStyle.Stroke, StrokeWidth = 2f, IsAntialias = true, StrokeJoin = SKStrokeJoin.Round, PathEffect = _dash
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 2f,
+            IsAntialias = true,
+            StrokeJoin = SKStrokeJoin.Round,
+            PathEffect = _dash
         };
         _fill = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
     }
@@ -145,7 +152,8 @@ public sealed class GuideLayer : ISceneLayer
     }
 
     // Only the legs on this pane: a route across floors is drawn in the pane of each leg's start.
-    private void Line(SKCanvas canvas, IReadOnlyList<GrenadeTrailPoint> points, SKPaint paint, in SceneRenderContext ctx)
+    private void Line(SKCanvas canvas, IReadOnlyList<GrenadeTrailPoint> points, SKPaint paint,
+        in SceneRenderContext ctx)
     {
         _path.Reset();
         bool open = false;

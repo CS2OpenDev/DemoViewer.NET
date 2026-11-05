@@ -50,7 +50,9 @@ public sealed partial class TeammatesSectionViewModel : PlayerOverviewSection
     public override void Update(PlayerOverviewContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        IReadOnlyList<PlayerTeammate> mates = context.Player is { } player ? Teammates.Of(player.SteamId64, context.Window) : [];
+        IReadOnlyList<PlayerTeammate> mates = context.Player is { } player
+            ? Teammates.Of(player.SteamId64, context.Window)
+            : [];
         if (mates.Count == 0)
         {
             IsVisible = false;
@@ -60,7 +62,9 @@ public sealed partial class TeammatesSectionViewModel : PlayerOverviewSection
         }
 
         Rows = [.. mates.Select(m => new TeammateRowItem(m))];
-        CountText = mates.Count == 1 ? "1 player" : string.Create(CultureInfo.InvariantCulture, $"{mates.Count} players");
+        CountText = mates.Count == 1
+            ? "1 player"
+            : string.Create(CultureInfo.InvariantCulture, $"{mates.Count} players");
         int shared = context.Window.Count(d => d.Match.Side is not null);
         int withStats = context.Window.Count(d => d.Match.Side is not null && d.Stats is not null);
         NoteText = context.IsReadingStats
@@ -92,7 +96,9 @@ public sealed class TeammateRowItem
     public TeammateRowItem(PlayerTeammate teammate)
     {
         Teammate = teammate ?? throw new ArgumentNullException(nameof(teammate));
-        Name = teammate.Name.Length > 0 ? DisplayText.Sanitize(teammate.Name) : SteamId64.ToString(CultureInfo.InvariantCulture);
+        Name = teammate.Name.Length > 0
+            ? DisplayText.Sanitize(teammate.Name)
+            : SteamId64.ToString(CultureInfo.InvariantCulture);
         MatchesText = teammate.Matches.ToString(CultureInfo.InvariantCulture);
         RecordText = teammate.WithOutcome == 0
             ? None
@@ -104,7 +110,7 @@ public sealed class TeammateRowItem
     }
 
     /// <summary>The teammate and the matches they shared.</summary>
-    public PlayerTeammate Teammate { get; }
+    private PlayerTeammate Teammate { get; }
 
     /// <summary>The teammate's account.</summary>
     public ulong SteamId64 => Teammate.SteamId64;

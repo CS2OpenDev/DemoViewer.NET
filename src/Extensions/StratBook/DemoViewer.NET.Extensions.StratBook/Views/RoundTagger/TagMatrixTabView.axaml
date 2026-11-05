@@ -124,7 +124,7 @@
             <WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="8">
                 <StackPanel Classes="field" ToolTip.Tip="Rounds to keep: 1-12, 13-24, or a list like 1, 5, 7-9">
                     <TextBlock Text="Rounds" />
-                    <TextBox Text="{Binding RoundsText}" Watermark="every round" FontSize="12" MinWidth="120" />
+                    <TextBox Text="{Binding RoundsText}" PlaceholderText="every round" FontSize="12" MinWidth="120" />
                 </StackPanel>
                 <StackPanel Classes="field" ToolTip.Tip="Hold one label or fact group to one value">
                     <TextBlock Text="{Binding Filter.Label}" />
@@ -175,7 +175,8 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:TagMatrixRowViewModel">
                                 <StackPanel Orientation="Horizontal" Spacing="4" Margin="0 0 0 2">
-                                    <TextBlock Classes="rowKey" Text="{Binding Display}" ToolTip.Tip="{Binding Display}" />
+                                    <TextBlock Classes="rowKey" Text="{Binding Display}"
+                                               ToolTip.Tip="{Binding Display}" />
                                     <ItemsControl ItemsSource="{Binding Cells}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -201,7 +202,8 @@
 
                     <!-- Instances per column, each once, and in the whole table. -->
                     <StackPanel Orientation="Horizontal" Spacing="4" Margin="0 4 0 0">
-                        <TextBlock Classes="rowKey" Text="total" FontWeight="Normal" Foreground="{DynamicResource TextMid}" />
+                        <TextBlock Classes="rowKey" Text="total" FontWeight="Normal"
+                                   Foreground="{DynamicResource TextMid}" />
                         <ItemsControl ItemsSource="{Binding ColumnTotals}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>

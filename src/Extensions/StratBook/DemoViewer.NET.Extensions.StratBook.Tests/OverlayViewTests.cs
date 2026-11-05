@@ -3,13 +3,13 @@
 using CS2DemoKit.Analysis.Clips;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
 using DemoViewer.NET.Playback2D.Overlay;
 using DemoViewer.NET.Playback2D.Query;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.TestSupport;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
 using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 
@@ -30,16 +30,14 @@ public class OverlayViewTests
     private const string DemoB = "/d/b.dem";
 
     private static SituationHit Hit(string path, int round, int freezeEnd, int first, int last) =>
-        new(path, DemoCacheStore.StableKey(path), null, "de_nuke", round, freezeEnd, first, last, (last - first) / 64 + 1);
+        new(path, DemoCacheStore.StableKey(path), null, "de_nuke", round, freezeEnd, first, last,
+            (last - first) / 64 + 1);
 
     /// <summary>Round 3 at 64-tick cadence: steps 2 to 4 sampled with two CT and one T, step 5 empty, step 6 with one CT.</summary>
     private static RoundPositionsDocument Positions(string fingerprint) => new()
     {
         Fingerprint = fingerprint,
-        Demo = new RoundPositionsDemo
-        {
-            StableKey = DemoCacheStore.StableKey(DemoA)
-        },
+        Demo = new RoundPositionsDemo { StableKey = DemoCacheStore.StableKey(DemoA) },
         CadenceTicks = 64,
         Places = ["BombsiteA", "Ramp"],
         Rounds =
@@ -52,9 +50,18 @@ public class OverlayViewTests
                 Pos =
                 [
                     [], [],
-                    [new RoundPosition(0, 620, -420, -416, 0), new RoundPosition(2, 960, -640, -416, 0), new RoundPosition(1, 1420, -760, -700, 1)],
-                    [new RoundPosition(0, 630, -410, -416, 0), new RoundPosition(2, 950, -650, -416, 0), new RoundPosition(1, 1400, -740, -700, 1)],
-                    [new RoundPosition(0, 640, -400, -416, 0), new RoundPosition(2, 940, -660, -416, 0), new RoundPosition(1, 1380, -720, -700, 1)],
+                    [
+                        new RoundPosition(0, 620, -420, -416, 0), new RoundPosition(2, 960, -640, -416, 0),
+                        new RoundPosition(1, 1420, -760, -700, 1)
+                    ],
+                    [
+                        new RoundPosition(0, 630, -410, -416, 0), new RoundPosition(2, 950, -650, -416, 0),
+                        new RoundPosition(1, 1400, -740, -700, 1)
+                    ],
+                    [
+                        new RoundPosition(0, 640, -400, -416, 0), new RoundPosition(2, 940, -660, -416, 0),
+                        new RoundPosition(1, 1380, -720, -700, 1)
+                    ],
                     [],
                     [new RoundPosition(0, 650, -390, -416, 0)]
                 ]
@@ -91,7 +98,8 @@ public class OverlayViewTests
             await Assert.That(h.Vm.IsOverlayShown).IsTrue();
             await Assert.That(h.Vm.IsOverlayBuilding).IsFalse();
             await Assert.That(h.Vm.OverlayLine).IsEqualTo("1 round · 3 states · 9 positions");
-            await Assert.That(h.Vm.Overlay).IsSameReferenceAs(h.Canvas).Because("the results fill the canvas's own document");
+            await Assert.That(h.Vm.Overlay).IsSameReferenceAs(h.Canvas)
+                .Because("the results fill the canvas's own document");
         }
 
         // A hit whose window spans an unsampled step skips it, and the last step is inclusive.
@@ -126,7 +134,8 @@ public class OverlayViewTests
         {
             await Assert.That(h.Vm.Overlay.Count).IsEqualTo(9);
             await Assert.That(h.Vm.OverlayLine).IsEqualTo("4 rounds · 3 states · 9 positions · 3 without positions");
-            await Assert.That(ResultCardsViewModel.OverlayLineFor(40, 0, 312, 2104)).IsEqualTo("40 rounds · 312 states · 2,104 positions");
+            await Assert.That(ResultCardsViewModel.OverlayLineFor(40, 0, 312, 2104))
+                .IsEqualTo("40 rounds · 312 states · 2,104 positions");
         }
 
         // Nothing at all to stack: the note, and no overlay on the canvas.
@@ -190,7 +199,8 @@ public class OverlayViewTests
         index.Load();
         using QueryCanvasViewModel canvas = new(index, new QueryPlaceResolver(index, sources.Zones), cache.Library(),
             _ => null, post: action => action(), countDelay: TimeSpan.Zero);
-        using SituationsTabViewModel tab = new(index, null, cache.Library(), sources, () => RoundIndexTokenSource.Pawn, false,
+        using SituationsTabViewModel tab = new(index, null, cache.Library(), sources, () => RoundIndexTokenSource.Pawn,
+            false,
             canvas, sidecars: sidecars);
 
         await Assert.That(tab.Results.Overlay).IsSameReferenceAs(canvas.Overlay);
@@ -256,7 +266,7 @@ public class OverlayViewTests
         RoundIndexEvaluator evaluator = new(store.Library(), store.RoundFacts(), sidecars, sources, () => true);
         evaluator.Evaluate(path, parsed);
 
-        RoundPositionsDocument positions = sidecars.TryReadPositions(path, sources.FingerprintFor(parsed.MapName!))
+        RoundPositionsDocument positions = sidecars.TryReadPositions(path, sources.FingerprintFor(parsed.MapName))
             ?? throw new InvalidOperationException("the evaluator wrote no positions");
 
         // One hit per round, spanning every step the walk actually sampled.
@@ -276,7 +286,8 @@ public class OverlayViewTests
                 round.FreezeEndTick, firstTick, lastTick, last - first + 1));
         }
 
-        await Assert.That(hits.Count).IsGreaterThan(0).Because("a real demo has at least one live round with sampled steps");
+        await Assert.That(hits.Count).IsGreaterThan(0)
+            .Because("a real demo has at least one live round with sampled steps");
 
         using Harness h = new(store, sidecars, sources);
         h.Vm.Load(hits);
@@ -327,7 +338,8 @@ public class OverlayViewTests
     {
         private readonly bool _ownsSidecars;
 
-        public Harness(DemoCacheStore? cache = null, RoundIndexStore? sidecars = null, RoundIndexPlaceSources? sources = null)
+        public Harness(DemoCacheStore? cache = null, RoundIndexStore? sidecars = null,
+            RoundIndexPlaceSources? sources = null)
         {
             Cache = cache ?? new DemoCacheStore(null);
             _ownsSidecars = sidecars is null;

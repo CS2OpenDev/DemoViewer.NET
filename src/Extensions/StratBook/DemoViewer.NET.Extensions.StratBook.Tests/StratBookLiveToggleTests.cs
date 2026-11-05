@@ -7,17 +7,17 @@ using CS2DemoKit.Parser;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Features;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Features;
 using DemoViewer.NET.Playback2D.Query;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
-using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.ViewModels.Setup;
 using DemoViewer.NET.ViewModels.Shell;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,7 +26,7 @@ using TUnit.Assertions.Enums;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     The live toggle in the real container: off to on runs the startup loads once and queues the
@@ -82,7 +82,8 @@ public class StratBookLiveToggleTests
                 await Assert.That(packs.IsOn(Pack)).IsTrue();
                 await Assert.That(string.Join(", ", PackTitles(queue.Titles).Take(_startupLabels.Length + 1)))
                     .IsEqualTo(string.Join(", ", _startupLabels.Append(ReIndexTitle)))
-                    .Because("the same loads startup runs, once, then the re-check behind them; core's own reactions follow");
+                    .Because(
+                        "the same loads startup runs, once, then the re-check behind them; core's own reactions follow");
                 await Assert.That(queue.Titles.Count(t => t == "Load: situations index")).IsEqualTo(1);
                 await Assert.That(queue.Parses.Select(p => p.Owner)).Contains(RoundIndexEvaluator.EvaluatorId)
                     .Because("the re-check made the scheduler submit the demo the round index now wants");
@@ -127,9 +128,11 @@ public class StratBookLiveToggleTests
             using (Assert.Multiple())
             {
                 await Assert.That(packs.IsOn(Pack)).IsFalse();
-                await Assert.That(queue.CancelledOwners.Skip(cancelsBefore)).IsEquivalentTo([StratBookPack.PackId], CollectionOrdering.Matching)
+                await Assert.That(queue.CancelledOwners.Skip(cancelsBefore))
+                    .IsEquivalentTo([StratBookPack.PackId], CollectionOrdering.Matching)
                     .Because("every job and pass of the pack carries the extension's id, which the host cancels once");
-                await Assert.That(queue.Titles.Skip(before)).IsEquivalentTo([StratBookLifecycle.ReleaseTitle], CollectionOrdering.Matching)
+                await Assert.That(queue.Titles.Skip(before))
+                    .IsEquivalentTo([StratBookLifecycle.ReleaseTitle], CollectionOrdering.Matching)
                     .Because("the release is the one item the switch-off queues");
                 await Assert.That(instances.Situations).IsNull();
                 await Assert.That(instances.Grenades).IsNull();
@@ -183,7 +186,8 @@ public class StratBookLiveToggleTests
             using (Assert.Multiple())
             {
                 await Assert.That(packs.IsOn(Pack)).IsTrue();
-                await Assert.That(string.Join(", ", PackTitles(queue.Titles.Skip(before)).Take(_startupLabels.Length + 1)))
+                await Assert.That(string.Join(", ",
+                        PackTitles(queue.Titles.Skip(before)).Take(_startupLabels.Length + 1)))
                     .IsEqualTo(string.Join(", ", _startupLabels.Append(ReIndexTitle)))
                     .Because("the second enable runs the startup loads again, in the same order");
                 await Assert.That(situations.IsReady).IsTrue();
@@ -230,7 +234,8 @@ public class StratBookLiveToggleTests
             using (Assert.Multiple())
             {
                 await Assert.That(packs.IsOn(Pack)).IsFalse();
-                await Assert.That(situations.IsReady).IsFalse().Because("the late load saw a cancelled token and a stale epoch and did nothing");
+                await Assert.That(situations.IsReady).IsFalse()
+                    .Because("the late load saw a cancelled token and a stale epoch and did nothing");
                 await Assert.That(situations.IndexedDemoCount).IsEqualTo(0);
                 await Assert.That(provider.GetRequiredService<GrenadeIndex>().IsReady).IsFalse();
                 await Assert.That(instances.Situations).IsNull();
@@ -259,7 +264,8 @@ public class StratBookLiveToggleTests
             }
 
             FirstRunWizardViewModel wizard = new(settings);
-            await Assert.That(wizard.PackOptions.Single(p => p.FeatureId == StratBookPack.PackFeatureId).Enabled).IsTrue();
+            await Assert.That(wizard.PackOptions.Single(p => p.FeatureId == StratBookPack.PackFeatureId).Enabled)
+                .IsTrue();
             wizard.FinishCommand.Execute(null);
             await packs.Pending;
             Dispatcher.UIThread.RunJobs();
@@ -290,7 +296,8 @@ public class StratBookLiveToggleTests
             using (Assert.Multiple())
             {
                 await Assert.That(settings.NeedsFirstRun).IsFalse();
-                await Assert.That(provider.GetRequiredService<IFeatureGate>().IsEnabled(StratBookPack.PackFeatureId)).IsFalse();
+                await Assert.That(provider.GetRequiredService<IFeatureGate>().IsEnabled(StratBookPack.PackFeatureId))
+                    .IsFalse();
                 await Assert.That(packs.IsOn(Pack)).IsFalse();
                 await Assert.That(queue.Titles).IsEmpty();
                 await Assert.That(instances.Situations).IsNull();
@@ -321,8 +328,10 @@ public class StratBookLiveToggleTests
             await Assert.That(queue.Titles.Skip(before).First()).IsEqualTo(StratBookLifecycle.ReleaseTitle);
             await Assert.That(queue.Titles.Skip(before).Skip(1).First()).IsEqualTo(StratBookLifecycle.AttachTitle)
                 .Because("the enable's attach item is queued right behind the release, ahead of its loads");
-            await Assert.That(queue.CancelledOwners.Skip(cancelsBefore).Count(o => o == StratBookPack.PackId)).IsEqualTo(1)
-                .Because("the disable cancels the pack's jobs by its id; the enable drops the stale release through its handle");
+            await Assert.That(queue.CancelledOwners.Skip(cancelsBefore).Count(o => o == StratBookPack.PackId))
+                .IsEqualTo(1)
+                .Because(
+                    "the disable cancels the pack's jobs by its id; the enable drops the stale release through its handle");
 
             // The real queue dropped the release through its handle; this double runs it anyway to prove the epoch alone
             // keeps it from tearing down what the enable behind it attaches.
@@ -343,18 +352,21 @@ public class StratBookLiveToggleTests
                 await Assert.That(grenades.DemoCount).IsEqualTo(2);
                 await Assert.That(teams.IsLoaded).IsTrue();
                 await Assert.That(instances.Situations).IsNotNull();
-                await Assert.That(instances.Grenades).IsNotNull().Because("the stale release did not null the live view");
+                await Assert.That(instances.Grenades).IsNotNull()
+                    .Because("the stale release did not null the live view");
                 await Assert.That(instances.Teams).IsNotNull();
                 await Assert.That(instances.Lineups).IsNotNull();
                 await Assert.That(instances.TagFacts).IsNotNull();
             }
 
             // Still live: the lineups the reload minted (their save item is held) reach disk at shutdown.
-            string lineups = Path.Combine(AppPaths.DemoCacheDir!, ExtensionFolders.DataDirectoryName, StratBookPack.PackId,
+            string lineups = Path.Combine(AppPaths.DemoCacheDir!, ExtensionFolders.DataDirectoryName,
+                StratBookPack.PackId,
                 ExtensionFolders.OwnCacheDirectoryName, GrenadeLineupStore.FileName);
             await Assert.That(File.Exists(lineups)).IsFalse().Because("every save item is held; only a flush writes");
             provider.GetRequiredKeyedService<IExtensionLifecycle>(Pack.Id).OnShutdown(TimeSpan.FromSeconds(5));
-            await Assert.That(File.Exists(lineups)).IsTrue().Because("shutdown flushed a live index, not a released one");
+            await Assert.That(File.Exists(lineups)).IsTrue()
+                .Because("shutdown flushed a live index, not a released one");
             queue.HoldSaves = false;
             queue.RunDeferred();
 
@@ -375,7 +387,7 @@ public class StratBookLiveToggleTests
     [Test]
     public async Task Delete_ReEnabledRightAfterTheReleaseWait_AbortsBeforeTheRemoverRuns()
     {
-        await WithContainer(Seed(packOn: true), async (provider, queue, settings) =>
+        await WithContainer(Seed(packOn: true), async (provider, _, settings) =>
         {
             App.StartPacks(provider);
             PackSwitch packs = provider.GetRequiredService<PackSwitch>();
@@ -388,9 +400,11 @@ public class StratBookLiveToggleTests
             string stratsFile = Path.Combine(stratsDir, "index.json");
             await File.WriteAllTextAsync(stratsFile, "{}");
 
-            PackContributions contributions = provider.GetRequiredService<PackContributionSet>().Packs.Single(p => p.Pack.Id == StratBookPack.PackId);
+            PackContributions contributions = provider.GetRequiredService<PackContributionSet>().Packs
+                .Single(p => p.Pack.Id == StratBookPack.PackId);
             HostDataRemoval removal = new(contributions, provider,
-                afterReleaseForTests: () => settings.Write(s => s.Features.Overrides.Remove(StratBookPack.PackFeatureId)));
+                afterReleaseForTests: () =>
+                    settings.Write(s => s.Features.Overrides.Remove(StratBookPack.PackFeatureId)));
 
             ExtensionDataRemovalResult result = await removal.DeleteAsync();
             Dispatcher.UIThread.RunJobs();
@@ -399,8 +413,10 @@ public class StratBookLiveToggleTests
             {
                 await Assert.That(result.Ran).IsFalse();
                 await Assert.That(File.Exists(stratsFile)).IsTrue()
-                    .Because("a re-enable landing right after the release wait must abort the delete before any file is touched");
-                await Assert.That(packs.IsOn(Pack)).IsTrue().Because("the hook's re-enable is real, not undone by the aborted delete");
+                    .Because(
+                        "a re-enable landing right after the release wait must abort the delete before any file is touched");
+                await Assert.That(packs.IsOn(Pack)).IsTrue()
+                    .Because("the hook's re-enable is real, not undone by the aborted delete");
             }
         });
     }
@@ -416,7 +432,8 @@ public class StratBookLiveToggleTests
             await Assert.That(settings.NeedsFirstRun).IsTrue();
             MainViewModel shell = provider.GetRequiredService<MainViewModel>();
             TeamIdentityService teams = provider.GetRequiredService<TeamIdentityService>();
-            await Assert.That(teams.IsLoaded).IsFalse().Because("built for the Library filter, but unread while the wizard has to ask");
+            await Assert.That(teams.IsLoaded).IsFalse()
+                .Because("built for the Library filter, but unread while the wizard has to ask");
 
             FirstRunWizardViewModel wizard = new(settings);
             wizard.PackOptions.Single(p => p.FeatureId == StratBookPack.PackFeatureId).Enabled = false;
@@ -430,7 +447,8 @@ public class StratBookLiveToggleTests
                 await Assert.That(provider.GetRequiredService<PackSwitch>().IsOn(Pack)).IsFalse();
                 await Assert.That(teams.IsLoaded).IsFalse().Because("declined: nothing of the pack's reads its files");
                 await Assert.That(queue.Snapshot().Select(s => s.DisplayName ?? "")).DoesNotContain("Load: teams");
-                await Assert.That(queue.Snapshot().Select(s => s.DisplayName ?? "")).DoesNotContain("Load: situations index");
+                await Assert.That(queue.Snapshot().Select(s => s.DisplayName ?? ""))
+                    .DoesNotContain("Load: situations index");
                 // The shell constructs the indexes for its own surfaces (constructed is not loaded).
                 await Assert.That(provider.GetRequiredService<SituationIndex>().IsReady).IsFalse();
                 await Assert.That(provider.GetRequiredService<GrenadeIndex>().IsReady).IsFalse();
@@ -452,7 +470,8 @@ public class StratBookLiveToggleTests
             await packs.Pending;
             GrenadeIndex grenades = provider.GetRequiredService<GrenadeIndex>();
             IExtensionLifecycle lifecycle = provider.GetRequiredKeyedService<IExtensionLifecycle>(Pack.Id);
-            string lineups = Path.Combine(AppPaths.DemoCacheDir!, ExtensionFolders.DataDirectoryName, StratBookPack.PackId,
+            string lineups = Path.Combine(AppPaths.DemoCacheDir!, ExtensionFolders.DataDirectoryName,
+                StratBookPack.PackId,
                 ExtensionFolders.OwnCacheDirectoryName, GrenadeLineupStore.FileName);
 
             // The user quits right after switching off: the cancel ran, the release is still queued.
@@ -461,7 +480,8 @@ public class StratBookLiveToggleTests
             await Assert.That(queue.CancelledOwners).Contains(StratBookPack.PackId);
             await Assert.That(File.Exists(lineups)).IsFalse();
             lifecycle.OnShutdown(TimeSpan.FromSeconds(5));
-            await Assert.That(File.Exists(lineups)).IsTrue().Because("the index is still live, so shutdown's flush writes the pending lineup");
+            await Assert.That(File.Exists(lineups)).IsTrue()
+                .Because("the index is still live, so shutdown's flush writes the pending lineup");
 
             // The release runs after all (the app did not exit): nothing pending, the live view goes.
             queue.RunDeferred();
@@ -504,7 +524,7 @@ public class StratBookLiveToggleTests
     public async Task OnThenOff_ReturnsTheHeap_ToWhereItWasBeforeTheEnable()
     {
         string? copy = Environment.GetEnvironmentVariable("DV_STRATBOOK_TOGGLE_CONFIG");
-        await WithContainer(Seed(packOn: true), async (provider, queue, settings) =>
+        await WithContainer(Seed(packOn: true), async (provider, _, settings) =>
         {
             if (copy is null)
             {
@@ -515,7 +535,8 @@ public class StratBookLiveToggleTests
                 DemoCacheStore cache = provider.GetRequiredService<DemoCacheStore>();
                 foreach (DemoCacheIndexEntry entry in cache.Index.ToList())
                 {
-                    cache.UpdateExisting(entry.Path, r => r.SetStamp(new PackStamp(RoundFactsRecords.FacetId, RoundFactsRecords.Schema, identity)));
+                    cache.UpdateExisting(entry.Path,
+                        r => r.SetStamp(new PackStamp(RoundFactsRecords.FacetId, RoundFactsRecords.Schema, identity)));
                 }
 
                 cache.SaveIndex();
@@ -531,7 +552,10 @@ public class StratBookLiveToggleTests
             // groups. Both are built now and come back through the attach item on every later enable.
             await provider.GetRequiredService<StratMiningService>().MineAsync();
             provider.GetRequiredService<WatchedSituationsService>().Watch("A hold", "de_nuke",
-                [.. Enumerable.Range(0, 5).Select(i => new QueryToken(QuerySide.Ct, i, 600 + i, -400, -416, "BombsiteA"))],
+                [
+                    .. Enumerable.Range(0, 5)
+                        .Select(i => new QueryToken(QuerySide.Ct, i, 600 + i, -400, -416, "BombsiteA"))
+                ],
                 SituationTolerance.Exact, SearchFilterValues.None);
             Dispatcher.UIThread.RunJobs();
 
@@ -549,17 +573,21 @@ public class StratBookLiveToggleTests
             }
 
             Console.WriteLine($"@TOGGLE_HEAP demos={provider.GetRequiredService<DemoCacheStore>().Index.Count} " +
-                              $"first: enable=+{Mb(first.Built)}MB left=+{Mb(first.Left)}MB; second: enable=+{Mb(second.Built)}MB left=+{Mb(second.Left)}MB; used left=+{Mb(left)}MB");
+                $"first: enable=+{Mb(first.Built)}MB left=+{Mb(first.Left)}MB; second: enable=+{Mb(second.Built)}MB left=+{Mb(second.Left)}MB; used left=+{Mb(left)}MB");
             using (Assert.Multiple())
             {
-                await Assert.That(second.Built).IsGreaterThan(2L * 1024 * 1024).Because("the fixture must cost something or the test proves nothing");
+                await Assert.That(second.Built).IsGreaterThan(2L * 1024 * 1024)
+                    .Because("the fixture must cost something or the test proves nothing");
                 await Assert.That(left).IsLessThan(ReleasedBound)
-                    .Because("after the release the heap is back within 256 KB of where it was, however much the enable cost; " +
-                             "the pack's shells and the queue history leave under 20 KB");
+                    .Because(
+                        "after the release the heap is back within 256 KB of where it was, however much the enable cost; "
+                        +
+                        "the pack's shells and the queue history leave under 20 KB");
                 // GC.GetTotalMemory is process-wide, so an unrelated release between the first cycle's
                 // marks drives first.Left negative, and that must not raise the bar for the second.
                 await Assert.That(left - Math.Max(first.Left, 0)).IsLessThan(512L * 1024)
-                    .Because("a residual that grows per toggle is a leak; one that does not is the process's one-time cost");
+                    .Because(
+                        "a residual that grows per toggle is a leak; one that does not is the process's one-time cost");
             }
         }, configDir: copy);
     }
@@ -581,11 +609,13 @@ public class StratBookLiveToggleTests
         await packs.Pending;
         Dispatcher.UIThread.RunJobs();
         long afterDisable = Settle();
-        Console.WriteLine($"@TOGGLE_HEAP_{label} before={Mb(before)}MB enable=+{Mb(afterEnable - before)}MB after-disable=+{Mb(afterDisable - before)}MB");
+        Console.WriteLine(
+            $"@TOGGLE_HEAP_{label} before={Mb(before)}MB enable=+{Mb(afterEnable - before)}MB after-disable=+{Mb(afterDisable - before)}MB");
         return (afterEnable - before, afterDisable - before);
     }
 
-    private static string Mb(long bytes) => (bytes / 1024.0 / 1024.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+    private static string Mb(long bytes) =>
+        (bytes / 1024.0 / 1024.0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
 
     // The lowest of several readings a moment apart. The heap is process-wide: work an earlier test left
     // running can hold a buffer at any one reading, but what the pack keeps is in every one of them.
@@ -626,7 +656,8 @@ public class StratBookLiveToggleTests
 
     // Parsed records with Round Facts for every demo; a round index sidecar and a grenade sidecar each when
     // asked, stamped the way the evaluators leave them, so the loads have something to hold.
-    private static void SeedLibrary(IServiceProvider provider, int demos, int roundsPerDemo, int grenadesPerDemo, bool indexRounds)
+    private static void SeedLibrary(IServiceProvider provider, int demos, int roundsPerDemo, int grenadesPerDemo,
+        bool indexRounds)
     {
         DemoCacheStore cache = provider.GetRequiredService<DemoCacheStore>();
         RoundIndexStore sidecars = provider.GetRequiredService<RoundIndexStore>();
@@ -637,21 +668,34 @@ public class StratBookLiveToggleTests
         {
             string path = $"/d/{d}.dem";
             string sha = Convert.ToHexString(BitConverter.GetBytes(d)) + new string('0', 56);
-            var facts = Enumerable.Range(1, roundsPerDemo).Select(r => RoundIndexTestData.Round(r, r * 1000, r * 1000 + 600)).ToArray();
+            RoundFacts[] facts =
+            [
+                .. Enumerable.Range(1, roundsPerDemo)
+                    .Select(r => RoundIndexTestData.Round(r, r * 1000, r * 1000 + 600))
+            ];
             if (!indexRounds)
             {
-                cache.Upsert(RoundIndexTestData.ParsedRecord(path, "de_nuke", sha, RoundIndexTestData.Facts(facts), modifiedTicks: 20 + d));
+                cache.Upsert(RoundIndexTestData.ParsedRecord(path, "de_nuke", sha, RoundIndexTestData.Facts(facts),
+                    modifiedTicks: 20 + d));
                 continue;
             }
 
-            var rounds = Enumerable.Range(1, roundsPerDemo).Select(r =>
-            {
-                RoundIndexRun[] runs = Enumerable.Range(0, 6).Select(k => new RoundIndexRun(k * 10, k * 10 + 9,
-                    $"{ctPlaces[(k + d) % ctPlaces.Length]}:{1 + (k + r) % 5}", $"{tPlaces[(k + r) % tPlaces.Length]}:{1 + (k + d) % 5}")).ToArray();
-                return (r, r * 1000, r * 1000 + 600, runs);
-            }).ToArray();
+            (int r, int, int, RoundIndexRun[] runs)[] rounds =
+            [
+                .. Enumerable.Range(1, roundsPerDemo).Select(r =>
+                {
+                    RoundIndexRun[] runs =
+                    [
+                        .. Enumerable.Range(0, 6).Select(k => new RoundIndexRun(k * 10, k * 10 + 9,
+                            $"{ctPlaces[(k + d) % ctPlaces.Length]}:{1 + (k + r) % 5}",
+                            $"{tPlaces[(k + r) % tPlaces.Length]}:{1 + (k + d) % 5}"))
+                    ];
+                    return (r, r * 1000, r * 1000 + 600, runs);
+                })
+            ];
             RoundIndexDocument document = RoundIndexTestData.Document("de_nuke", fingerprint, rounds);
-            RoundIndexTestData.Indexed(cache, sidecars, path, document, computedAt: 100 + d, modifiedTicks: 20 + d, sha: sha);
+            RoundIndexTestData.Indexed(cache, sidecars, path, document, computedAt: 100 + d, modifiedTicks: 20 + d,
+                sha: sha);
             if (grenadesPerDemo > 0)
             {
                 IndexGrenades(cache, provider.GetRequiredService<GrenadeStore>(), path, sha, grenadesPerDemo, d);
@@ -659,7 +703,8 @@ public class StratBookLiveToggleTests
         }
     }
 
-    private static void IndexGrenades(DemoCacheStore cache, GrenadeStore grenades, string path, string sha, int count, int seed)
+    private static void IndexGrenades(DemoCacheStore cache, GrenadeStore grenades, string path, string sha, int count,
+        int seed)
     {
         GrenadeDocument document = new()
         {
@@ -673,8 +718,12 @@ public class StratBookLiveToggleTests
                     ThrowerTeam = i % 2 == 0 ? 3 : 2,
                     ThrowerName = $"player {i % 10}",
                     ReleaseTick = 1000 + i * 37,
-                    ReleasePosition = WorldPoint.From(new Vector3(512 + (i * 97 + seed * 13) % 2000, 288 + (i * 61) % 1500, -160)),
-                    DetonationPosition = WorldPoint.From(new Vector3(-1400 + (i * 131) % 2500, -1400 + (i * 71 + seed) % 2500, -170)),
+                    ReleasePosition =
+                        WorldPoint.From(new Vector3(512 + (i * 97 + seed * 13) % 2000, 288 + (i * 61) % 1500,
+                            -160)),
+                    DetonationPosition =
+                        WorldPoint.From(new Vector3(-1400 + (i * 131) % 2500, -1400 + (i * 71 + seed) % 2500,
+                            -170)),
                     EndKind = GrenadeEndKind.Detonated
                 })
             ]
@@ -692,12 +741,14 @@ public class StratBookLiveToggleTests
     // the fact under test.
     private sealed class InlineQueue : IDemoProcessingQueue
     {
-        private readonly List<(QueueJobKind Kind, Func<IQueueJobContext, Task> Run, TaskCompletionSource Done)> _deferred = [];
+        private readonly List<(QueueJobKind Kind, Func<IQueueJobContext, Task> Run, TaskCompletionSource Done)>
+            _deferred = [];
 
         public List<string> Titles { get; } = [];
 
         /// <summary>Each job's owner, beside <see cref="Titles" />.</summary>
         public List<string> Owners { get; } = [];
+
         public List<string> CancelledOwners { get; } = [];
         public List<(string Owner, string Path)> Parses { get; } = [];
         public bool Defer { get; set; }
@@ -706,9 +757,7 @@ public class StratBookLiveToggleTests
         public bool HoldSaves { get; set; }
 
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; } = new([]);
-        public int MaxConcurrency { get; set; } = 1;
-        public int MaxQueueSize { get; set; } = 200;
-        public bool BackgroundEnabled { get; set; } = true;
+        public bool BackgroundEnabled => true;
         public bool IsPaused => false;
         public int QueuedCount => 0;
         public int RunningCount => 0;
@@ -721,20 +770,8 @@ public class StratBookLiveToggleTests
             remove { }
         }
 
-        public int ActiveCount(QueueJobKind kind) => 0;
-
         public Task<ParsedDemo> RequestForegroundAsync(string? path, ReadOnlyMemory<byte> bytes,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request)
-        {
-            lock (Titles)
-            {
-                Parses.Add((request.OwnerTag, request.Path));
-            }
-
-            return new DoneHandle(Task.CompletedTask);
-        }
 
         public IDemoQueueHandle SubmitVisit(DemoVisitRequest request)
         {
@@ -806,10 +843,6 @@ public class StratBookLiveToggleTests
         {
         }
 
-        public void CancelOwned(string ownerTag, string path)
-        {
-        }
-
         public void CancelOwned(string ownerTag)
         {
             lock (Titles)
@@ -844,7 +877,10 @@ public class StratBookLiveToggleTests
         private sealed class DoneHandle(Task completion) : IDemoQueueHandle
         {
             public Guid Id { get; } = Guid.NewGuid();
-            public DemoQueueItemState State => completion.IsCompleted ? DemoQueueItemState.Completed : DemoQueueItemState.Queued;
+
+            public DemoQueueItemState State =>
+                completion.IsCompleted ? DemoQueueItemState.Completed : DemoQueueItemState.Queued;
+
             public Task Completion => completion;
 
             public void Cancel()
@@ -860,7 +896,7 @@ public class StratBookLiveToggleTests
         Directory.CreateDirectory(dir);
         if (seedSettingsJson is not null)
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), seedSettingsJson);
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), seedSettingsJson);
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
@@ -876,7 +912,7 @@ public class StratBookLiveToggleTests
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }
@@ -896,14 +932,15 @@ public class StratBookLiveToggleTests
 
     // The real composition root (App.ComposeServices) over a throwaway config dir (or the caller's copy), with
     // the processing queue replaced by the inline double. StartPacks is the test's to call.
-    private static async Task WithContainer(string? seedSettingsJson, Func<ServiceProvider, InlineQueue, SettingsService, Task> body,
+    private static async Task WithContainer(string? seedSettingsJson,
+        Func<ServiceProvider, InlineQueue, SettingsService, Task> body,
         string? configDir = null)
     {
         string dir = configDir ?? Path.Combine(Path.GetTempPath(), "dvstrattoggle_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         if (seedSettingsJson is not null && configDir is null)
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), seedSettingsJson);
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), seedSettingsJson);
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
@@ -914,9 +951,11 @@ public class StratBookLiveToggleTests
             {
                 FeatureCatalog.Compose(FeaturePacks.Default);
                 InlineQueue queue = new();
-                ServiceCollection services = App.ComposeServices(new DesktopWindowService(() => null), FeaturePacks.Default);
+                ServiceCollection services =
+                    App.ComposeServices(new DesktopWindowService(() => null), FeaturePacks.Default);
                 services.Replace(ServiceDescriptor.Singleton<IDemoProcessingQueue>(_ => queue));
-                ServiceProvider provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
+                ServiceProvider provider =
+                    services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
                 try
                 {
                     QueueWork.Ambient = provider.GetRequiredService<IDemoProcessingQueue>();
@@ -926,7 +965,7 @@ public class StratBookLiveToggleTests
                 finally
                 {
                     QueueWork.Ambient = null;
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }

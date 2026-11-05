@@ -20,7 +20,7 @@ namespace DemoViewer.NET.Models;
 public sealed class ProtoIndex
 {
     /// <summary>Blob root for the .proto sources these descriptors were generated from.</summary>
-    public const string GitHubBase = "https://github.com/SteamDatabase/GameTracking-CS2/blob/master/Protobufs/";
+    private const string GitHubBase = "https://github.com/SteamDatabase/GameTracking-CS2/blob/master/Protobufs/";
 
     // "{TypeName}.{field or enum value}" → .proto file name
     private readonly Dictionary<string, string> _fields = new(StringComparer.Ordinal);
@@ -37,10 +37,7 @@ public sealed class ProtoIndex
     public static ProtoIndex Build()
     {
         List<FileDescriptor> files = ProtoFileDescriptors();
-        ProtoIndex idx = new()
-        {
-            ProtoFiles = files.Select(f => f.Name).ToList()
-        };
+        ProtoIndex idx = new() { ProtoFiles = [.. files.Select(f => f.Name)] };
 
         foreach (FileDescriptor file in files)
         {
@@ -51,7 +48,7 @@ public sealed class ProtoIndex
     }
 
     /// <summary>Blob URL for one .proto file name. File-level: descriptors carry no line.</summary>
-    public static string SourceUrl(string protoFile) => GitHubBase + protoFile;
+    private static string SourceUrl(string protoFile) => GitHubBase + protoFile;
 
     // ── Lookup ────────────────────────────────────────────────────────────────
 
@@ -75,7 +72,7 @@ public sealed class ProtoIndex
             yield break;
         }
 
-        List<ProtoResult> hits = new();
+        List<ProtoResult> hits = [];
         foreach (KeyValuePair<string, string> kv in _types)
         {
             int idx = kv.Key.IndexOf(query, StringComparison.OrdinalIgnoreCase);

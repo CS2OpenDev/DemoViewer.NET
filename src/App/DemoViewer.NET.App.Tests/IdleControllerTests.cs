@@ -90,14 +90,7 @@ public class IdleControllerTests
     private static DateTime NowAfter(IdleController _, TimeSpan delta) => DateTime.UtcNow + delta;
 
     private static AppSettings WithIdle(bool enabled, TimeSpan wait) =>
-        new()
-        {
-            Idle = new IdleSettings
-            {
-                Enabled = enabled,
-                IdleTimeoutWait = wait
-            }
-        };
+        new() { Idle = new IdleSettings { Enabled = enabled, IdleTimeoutWait = wait } };
 
     private sealed class StubMonitor(AppSettings value) : IOptionsMonitor<AppSettings>
     {

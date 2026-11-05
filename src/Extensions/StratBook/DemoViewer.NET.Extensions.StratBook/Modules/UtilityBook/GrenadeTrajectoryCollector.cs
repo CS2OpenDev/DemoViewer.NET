@@ -37,10 +37,13 @@ public sealed record FlightFacts(
 /// <summary>Every grenade's flight at the configured stride, by projectile, as the frame observer kept it.</summary>
 /// <param name="Flights">The polylines, keyed by entity index and serial.</param>
 /// <param name="Stride">The stride the flights were thinned at.</param>
-public sealed record GrenadeTrajectories(IReadOnlyDictionary<(int Index, int Serial), List<TrajectoryPoint>> Flights, int Stride)
+public sealed record GrenadeTrajectories(
+    IReadOnlyDictionary<(int Index, int Serial), List<TrajectoryPoint>> Flights,
+    int Stride)
 {
     /// <summary>Each flight's projectile fields, by the same key.</summary>
-    public IReadOnlyDictionary<(int Index, int Serial), FlightFacts> Facts { get; init; } = new Dictionary<(int Index, int Serial), FlightFacts>();
+    public IReadOnlyDictionary<(int Index, int Serial), FlightFacts> Facts { get; init; } =
+        new Dictionary<(int Index, int Serial), FlightFacts>();
 
     /// <summary>A projectile's flight, or an empty line when the observer never saw it.</summary>
     /// <param name="index">The entity index.</param>
@@ -66,7 +69,8 @@ public sealed class GrenadeTrajectoryFold
     }
 
     /// <summary>A projectile's first frame: the release point, then its first position, and the fields <see cref="FlightFacts" /> keeps.</summary>
-    public void Created(int index, int serial, string className, int tick, Vector3? initialPosition, Vector3? initialVelocity,
+    public void Created(int index, int serial, string className, int tick, Vector3? initialPosition,
+        Vector3? initialVelocity,
         bool? isIncendiary, Vector3? position, int bounces)
     {
         (int, int) key = (index, serial);
@@ -77,8 +81,14 @@ public sealed class GrenadeTrajectoryFold
 
         Flight flight = new(new TrajectoryBuilder(_stride), tick)
         {
-            ClassName = className, InitialPosition = initialPosition, InitialVelocity = initialVelocity, IsIncendiary = isIncendiary,
-            EndTick = tick, LastPosition = position, LastMovedTick = tick, Bounces = bounces
+            ClassName = className,
+            InitialPosition = initialPosition,
+            InitialVelocity = initialVelocity,
+            IsIncendiary = isIncendiary,
+            EndTick = tick,
+            LastPosition = position,
+            LastMovedTick = tick,
+            Bounces = bounces
         };
         if (initialPosition is { } start)
         {
@@ -144,7 +154,8 @@ public sealed class GrenadeTrajectoryFold
         public int Bounces { get; set; }
 
         public FlightFacts Facts() =>
-            new(ClassName, SpawnTick, InitialPosition, InitialVelocity, IsIncendiary, EndTick, Removed, LastPosition, LastMovedTick, Bounces);
+            new(ClassName, SpawnTick, InitialPosition, InitialVelocity, IsIncendiary, EndTick, Removed, LastPosition,
+                LastMovedTick, Bounces);
     }
 }
 
@@ -170,7 +181,8 @@ public sealed class GrenadeTrajectoryCollector : IFrameCollector
     public static CollectorContribution Contribution(Func<int> trajectoryStride)
     {
         ArgumentNullException.ThrowIfNull(trajectoryStride);
-        return new CollectorContribution(CollectorId, GrenadeIndexEvaluator.EvaluatorId, Version, [], GrenadeProjectileClasses.All,
+        return new CollectorContribution(CollectorId, GrenadeIndexEvaluator.EvaluatorId, Version, [],
+            GrenadeProjectileClasses.All,
             () => new GrenadeTrajectoryCollector(Math.Max(1, trajectoryStride())));
     }
 
@@ -182,7 +194,8 @@ public sealed class GrenadeTrajectoryCollector : IFrameCollector
         IReadOnlyList<ObservedProjectile> created = view.Created;
         foreach (ObservedProjectile row in created.Count > 1 ? [.. created.OrderBy(r => r.EntityIndex)] : created)
         {
-            _fold.Created(row.EntityIndex, row.Serial, row.ClassName, tick, row.InitialPosition, row.InitialVelocity, row.IsIncendiary,
+            _fold.Created(row.EntityIndex, row.Serial, row.ClassName, tick, row.InitialPosition, row.InitialVelocity,
+                row.IsIncendiary,
                 row.Position, row.Bounces);
         }
 
@@ -223,7 +236,8 @@ public sealed class GrenadeTrajectoryObserver : IFrameObserver
         int tick = frame.Tick;
         foreach (ProjectileRow row in frame.Created)
         {
-            _fold.Created(row.EntityIndex, row.Serial, row.ClassName, tick, row.InitialPosition, row.InitialVelocity, row.IsIncendiary,
+            _fold.Created(row.EntityIndex, row.Serial, row.ClassName, tick, row.InitialPosition, row.InitialVelocity,
+                row.IsIncendiary,
                 row.Position, row.Bounces);
         }
 

@@ -90,8 +90,7 @@ public sealed class GoldenCorpus
     // embedded in HTML or a script tag.
     private static readonly JsonSerializerOptions _manifestOptions = new()
     {
-        WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     private GoldenCorpus(string directory, int schemaVersion, IReadOnlyList<GoldenCorpusEntry> entries)
@@ -126,7 +125,7 @@ public sealed class GoldenCorpus
         }
 
         JsonNode manifest = JsonNode.Parse(File.ReadAllText(manifestPath))
-                            ?? throw new JsonException($"{manifestPath} is empty.");
+            ?? throw new JsonException($"{manifestPath} is empty.");
 
         int schemaVersion = manifest["schema_version"]?.GetValue<int>() ?? CurrentSchemaVersion;
         GoldenBudget defaultBudget = ReadBudget(manifest["default_budget"], GoldenBudget.Default);
@@ -154,10 +153,7 @@ public sealed class GoldenCorpus
     /// </summary>
     public static string? FindDefaultCorpusDirectory()
     {
-        foreach (string start in new[]
-                 {
-                     AppContext.BaseDirectory, System.IO.Directory.GetCurrentDirectory()
-                 })
+        foreach (string start in new[] { AppContext.BaseDirectory, System.IO.Directory.GetCurrentDirectory() })
         {
             DirectoryInfo? dir = new(start);
             for (int depth = 0; depth < 10 && dir is not null; depth++, dir = dir.Parent)
@@ -239,7 +235,7 @@ public sealed class GoldenCorpus
     private static GoldenCorpusEntry ReadEntry(JsonNode node, string root, GoldenBudget defaultBudget)
     {
         string name = node["name"]?.GetValue<string>()
-                      ?? throw new JsonException("A manifest entry has no 'name'.");
+            ?? throw new JsonException("A manifest entry has no 'name'.");
         string relative = node["scene"]?.GetValue<string>() ?? $"scenes/{name}.scene.json";
 
         SKSizeI size = new(
@@ -289,11 +285,7 @@ public sealed class GoldenCorpus
             ["scene"] = entry.SceneRelativePath.Length > 0
                 ? entry.SceneRelativePath
                 : $"scenes/{entry.Name}.scene.json",
-            ["size"] = new JsonObject
-            {
-                ["width"] = entry.Size.Width,
-                ["height"] = entry.Size.Height
-            },
+            ["size"] = new JsonObject { ["width"] = entry.Size.Width, ["height"] = entry.Size.Height },
             ["map"] = entry.MapName,
             ["map_version"] = entry.MapVersion,
             ["tolerance"] = entry.Tolerance == GoldenMode.ByteExact ? "byte-exact" : "perceptual",

@@ -6,13 +6,14 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     the projection, so a module never re-derives them, and a module is never handed the shell's
 ///     <c>IFeatureGate</c> itself (it would then see tabs / chrome that are none of its business).
 /// </summary>
+[PublicAPI]
 public interface IModuleFeatureGate
 {
     /// <summary>
     ///     Live answer; re-query on <see cref="Changed" />, never cache for a tab's lifetime.
-    ///     An id the host does not know fails OPEN.
+    ///     An id the host does not know, or a null id, fails OPEN.
     /// </summary>
-    bool IsEnabled(string featureId);
+    bool IsEnabled(string? featureId);
 
     /// <summary>Raised on the UI thread when any gate answer may have changed.</summary>
     event Action? Changed;

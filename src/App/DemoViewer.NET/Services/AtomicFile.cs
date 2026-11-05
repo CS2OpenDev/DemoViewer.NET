@@ -14,10 +14,10 @@ namespace DemoViewer.NET.Services;
 /// </summary>
 public static class AtomicFile
 {
-    private static readonly UTF8Encoding Utf8 = new(false);
+    private static readonly UTF8Encoding _utf8 = new(false);
 
     // Pauses between attempts to replace the target, about 0.4 s in all before the failure surfaces.
-    private static readonly int[] ReplaceRetryDelaysMs = [10, 25, 50, 100, 200];
+    private static readonly int[] _replaceRetryDelaysMs = [10, 25, 50, 100, 200];
 
     /// <summary>Replaces <paramref name="path" /> with <paramref name="content" />. Missing folders are created.</summary>
     /// <param name="path">The file to write.</param>
@@ -34,7 +34,7 @@ public static class AtomicFile
     public static void WriteAllText(string path, string content)
     {
         ArgumentNullException.ThrowIfNull(content);
-        WriteAllBytes(path, Utf8.GetBytes(content));
+        WriteAllBytes(path, _utf8.GetBytes(content));
     }
 
     /// <summary>Replaces <paramref name="path" /> with whatever <paramref name="write" /> puts in the stream it is handed.</summary>
@@ -73,9 +73,10 @@ public static class AtomicFile
                 File.Move(temp, target, overwrite: true);
                 return;
             }
-            catch (Exception ex) when (attempt < ReplaceRetryDelaysMs.Length && OperatingSystem.IsWindows() && IsTransientOnWindows(ex))
+            catch (Exception ex) when (attempt < _replaceRetryDelaysMs.Length && OperatingSystem.IsWindows()
+                                       && IsTransientOnWindows(ex))
             {
-                Thread.Sleep(ReplaceRetryDelaysMs[attempt]);
+                Thread.Sleep(_replaceRetryDelaysMs[attempt]);
             }
         }
     }

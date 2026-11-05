@@ -10,7 +10,8 @@ namespace DemoViewer.NET.Extensions.Loading;
 public static class PublisherKeys
 {
     /// <summary>Generated 2026-10-03, key id dfe4ae3ebb28794fb79a03562ad36eaf252ebe1753292574e752bad4bc1c4cc0.</summary>
-    public const string Primary = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESNpQSAWXkLBpiiAxcMYjd8ABZhPlNjPH5kKh11h7pgFAroGy0GgaQMgZrMb9Weex2kA8+Ft6y9MuHo7uzhmJog==";
+    private const string Primary =
+        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESNpQSAWXkLBpiiAxcMYjd8ABZhPlNjPH5kKh11h7pgFAroGy0GgaQMgZrMb9Weex2kA8+Ft6y9MuHo7uzhmJog==";
 
     /// <summary>Every key a signature may verify against. One entry today; see <see cref="Primary" />.</summary>
     public static IReadOnlyList<string> Current { get; } = [Primary];

@@ -5,7 +5,6 @@ using CS2DemoKit.Analysis.Edges;
 using CS2DemoKit.Parser;
 using CS2DemoKit.Parser.EntityTracking;
 using CS2DemoKit.Parser.GameEvents;
-using CS2OpenSchema.Events;
 using SchemaNames = CS2OpenSchema.SchemaNames;
 
 #endregion
@@ -52,7 +51,7 @@ public static class CounterStrafeAdmissionFold
     ///     the straight line across that hole is not a speed. Mirrors the engine's own default;
     ///     <c>CounterStrafeAdmissionFoldTests</c> pins the pair together.
     /// </summary>
-    public const int MaxSpeedSampleGapTicks = 8;
+    private const int MaxSpeedSampleGapTicks = 8;
 
     /// <summary>
     ///     Implied horizontal speed above which a delta is read as a teleport and reported as zero.
@@ -198,7 +197,8 @@ public static class CounterStrafeAdmissionFold
         // denominator rather than admitting it on zeros that read as a perfectly still player. The
         // fold has to make the same call or its denominator is not the engine's.
         if (!maxSpeedPreFrame.TryGetValue(slot, out float maxSpeed) || maxSpeed <= 0f
-            || !histories.TryGetValue(slot, out SlotSpeedHistory? history))
+            || !histories.TryGetValue(slot,
+                out SlotSpeedHistory? history))
         {
             unmeasurable++;
             return new AdmissionShot(slot, tick, AdmissionShot.NotAdmittedWithinRange, false, 0f, 0f);
@@ -305,7 +305,7 @@ public static class CounterStrafeAdmissionFold
 
             float speed = 0f;
             int gap = tick - _lastTick;
-            if (_hasAnchor && gap > 0 && gap <= MaxSpeedSampleGapTicks)
+            if (_hasAnchor && gap is > 0 and <= MaxSpeedSampleGapTicks)
             {
                 float dx = position.X - _lastPosition.X;
                 float dy = position.Y - _lastPosition.Y;
@@ -383,6 +383,7 @@ public static class CounterStrafeAdmissionFold
 /// </param>
 /// <param name="SpeedAtShot">Derived 2D speed on the shot's own tick, in units per second.</param>
 /// <param name="Threshold"><c>0.34 * m_flMaxspeed</c> at the shot, the line the server charges movement inaccuracy above.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record AdmissionShot(
     int Slot,
     int Tick,
@@ -430,6 +431,7 @@ public sealed record AdmissionShot(
 /// </param>
 /// <param name="NamesBySlot">Slot to display name, for joining against a reference keyed by name.</param>
 /// <param name="Shots">Every admitted-or-not bullet shot from a live round.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record AdmissionFoldResult(
     double TickRate,
     int MaxLookbackTicks,
@@ -447,29 +449,6 @@ public sealed record AdmissionFoldResult(
         foreach (AdmissionShot shot in Shots)
         {
             if (!shot.AdmittedAt(windowTicks) || !NamesBySlot.TryGetValue(shot.Slot, out string? name))
-            {
-                continue;
-            }
-
-            byName[name] = byName.GetValueOrDefault(name) + 1;
-        }
-
-        return byName;
-    }
-
-    /// <summary>
-    ///     Clean counter-strafe counts per player name at one candidate window: admitted, and taken
-    ///     from a standstill. This is the <c>cs_clean</c> numerator.
-    /// </summary>
-    /// <param name="windowTicks">The candidate window, in ticks.</param>
-    /// <returns>Player name to clean count.</returns>
-    public IReadOnlyDictionary<string, int> CleanByName(int windowTicks)
-    {
-        Dictionary<string, int> byName = new(StringComparer.Ordinal);
-        foreach (AdmissionShot shot in Shots)
-        {
-            if (!shot.AdmittedAt(windowTicks) || !shot.CleanAtShot
-                || !NamesBySlot.TryGetValue(shot.Slot, out string? name))
             {
                 continue;
             }

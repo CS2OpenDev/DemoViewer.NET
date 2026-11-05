@@ -50,7 +50,7 @@ public class GameInfoFieldProbeTests
         Console.WriteLine($"  totalRoundsPlayed={rounds}  roundStartTime={startTime}");
 
         // ── CCSTeam (team score: class + field are the impl-time confirmation) ──
-        List<EntityState> teams = tracker.CurrentEntities.OfClass("CCSTeam").ToList();
+        List<EntityState> teams = [.. tracker.CurrentEntities.OfClass("CCSTeam")];
         Console.WriteLine($"== CCSTeam entities: {teams.Count} ==");
         foreach (EntityState team in teams)
         {

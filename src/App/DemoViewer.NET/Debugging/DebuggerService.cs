@@ -42,17 +42,8 @@ public sealed class DebuggerService
     // ── Add / remove ─────────────────────────────────────────────────────────
 
     /// <summary>Add.</summary>
-    public Breakpoint Add(BreakpointKind kind, int intValue = 0, string? stringValue = null)
-    {
-        Breakpoint bp = new()
-        {
-            Kind = kind,
-            IntValue = intValue,
-            StringValue = stringValue
-        };
-        Breakpoints.Add(bp);
-        return bp;
-    }
+    public void Add(BreakpointKind kind, int intValue = 0, string? stringValue = null) =>
+        Breakpoints.Add(new Breakpoint { Kind = kind, IntValue = intValue, StringValue = stringValue });
 
     // ── "Stop here?" predicates ──────────────────────────────────────────────
     //
@@ -84,7 +75,7 @@ public sealed class DebuggerService
                 BreakpointKind.TickNumber => frame.ServerTick == bp.IntValue,
                 BreakpointKind.GameEventName => FrameContainsEvent(frame, bp.StringValue),
                 BreakpointKind.RoundTransition => FrameContainsEvent(frame, "round_start")
-                                                  || FrameContainsEvent(frame, "round_end"),
+                    || FrameContainsEvent(frame, "round_end"),
                 _ => false
             };
 
@@ -107,11 +98,12 @@ public sealed class DebuggerService
     ///     PacketProcessed handler: <paramref name="currentFrameIndex" /> is the frame
     ///     the tracker is currently iterating over (passed so the UI can later jump there).
     /// </summary>
-    public Breakpoint? CheckParserState(int packetCount, bool hasNewDecodeError, int newDeltaUnknownDelta, int currentFrameIndex)
+    public void CheckParserState(int packetCount, bool hasNewDecodeError, int newDeltaUnknownDelta,
+        int currentFrameIndex)
     {
         if (Suppress)
         {
-            return null;
+            return;
         }
 
         foreach (Breakpoint bp in Breakpoints)
@@ -135,11 +127,9 @@ public sealed class DebuggerService
                 LastHit = bp;
                 LastHitFrameIndex = currentFrameIndex;
                 StateChanged?.Invoke();
-                return bp;
+                return;
             }
         }
-
-        return null;
     }
 
     /// <summary>Clear.</summary>
@@ -161,18 +151,16 @@ public sealed class DebuggerService
     }
 
     /// <summary>Remove.</summary>
-    public bool Remove(int id)
+    public void Remove(int id)
     {
         for (int i = 0; i < Breakpoints.Count; i++)
         {
             if (Breakpoints[i].Id == id)
             {
                 Breakpoints.RemoveAt(i);
-                return true;
+                return;
             }
         }
-
-        return false;
     }
 
     /// <summary>Fired after <see cref="LastHit" /> changes (including to null when continued).</summary>
@@ -191,7 +179,8 @@ public sealed class DebuggerService
         {
             // GameEventMessage IS-A NetMessage (enrichment pass 3 replaces the raw slot).
             // Its DecodedEvent.Name carries the event name like "player_death".
-            if (msg is GameEventMessage gem && string.Equals(gem.DecodedEvent.Name, eventName, StringComparison.Ordinal))
+            if (msg is GameEventMessage gem
+                && string.Equals(gem.DecodedEvent.Name, eventName, StringComparison.Ordinal))
             {
                 return true;
             }

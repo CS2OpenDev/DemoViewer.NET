@@ -88,10 +88,7 @@ public sealed partial class Playback2DExportStatusViewModel : ViewModelBase, IDi
         _job = job;
         _openFolder = openFolder;
 
-        Chip = new StatusChipViewModel
-        {
-            FlyoutContent = this
-        };
+        Chip = new StatusChipViewModel { FlyoutContent = this };
 
         _job.StatusChanged += OnStatusChanged;
         Apply(_job.Status);
@@ -237,7 +234,7 @@ public sealed partial class Playback2DExportStatusViewModel : ViewModelBase, IDi
 
     /// <summary>The single status→chip + status→flyout map. Called at construction and per change.</summary>
     /// <param name="status">The job's new status.</param>
-    public void Apply(ExportJobStatus status)
+    private void Apply(ExportJobStatus status)
     {
         _status = status;
         ProgressFraction = status.Fraction;
@@ -332,7 +329,7 @@ public sealed partial class Playback2DExportStatusViewModel : ViewModelBase, IDi
 
         sb.Append(" · ").Append(Duration(status.Elapsed)).Append(" elapsed");
 
-        if (status.Eta is { } eta && status.IsRunning)
+        if (status is { Eta: { } eta, IsRunning: true })
         {
             sb.Append(" · ~").Append(Duration(eta)).Append(" left");
         }

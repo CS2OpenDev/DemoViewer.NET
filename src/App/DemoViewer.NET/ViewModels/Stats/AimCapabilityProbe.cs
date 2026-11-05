@@ -54,7 +54,7 @@ public static class AimCapabilityProbe
     ///     usual shape of a warmup-only or heavily trimmed recording. Five shots per round is roughly
     ///     one player firing one burst, the floor at which a per-player rate stops being noise.
     /// </summary>
-    public const double MinShotsPerRound = 5.0;
+    private const double MinShotsPerRound = 5.0;
 
     /// <summary>Signals carried as game events, paired with the wire name the probe counts.</summary>
     private static readonly (AimSignal Signal, string Wire)[] _gameEventSignals =
@@ -384,7 +384,7 @@ public static class AimCapabilityProbe
                 "weapon_fire never fires, so there is no shot count and nothing to divide any rate by");
         }
 
-        if (shots.PerRound > 0 && shots.PerRound < MinShotsPerRound)
+        if (shots.PerRound is > 0 and < MinShotsPerRound)
         {
             return new MetricVerdict(
                 AimMetric.ShotsFired,

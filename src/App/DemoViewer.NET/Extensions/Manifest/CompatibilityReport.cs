@@ -12,7 +12,9 @@ public static class CompatibilityReport
         ArgumentNullException.ThrowIfNull(manifest);
         ArgumentNullException.ThrowIfNull(host);
         PackCompatibility result = PackCompatibility.Check(manifest, host);
-        string verdict = result.IsCompatible ? "Compatible." : $"Incompatible: {result.Describe(manifest, manifest.Id)}.";
+        string verdict = result.IsCompatible
+            ? "Compatible."
+            : $"Incompatible: {result.Describe(manifest, manifest.Id)}.";
 
         return $"{manifest.Name} {manifest.Version} ({manifest.Id}): requiresHost {manifest.RequiresHost}, "
             + $"requiresCs2DemoKit {manifest.RequiresCs2DemoKit}, minAppVersion {Floor(manifest.MinAppVersion)}; "

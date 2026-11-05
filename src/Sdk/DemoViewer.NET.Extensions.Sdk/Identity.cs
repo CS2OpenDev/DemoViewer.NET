@@ -4,6 +4,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 ///     Who the user is: the accounts they marked as their own under Settings, Identity, one of them active. Read
 ///     only; the user edits it in Settings. Every id is a decimal SteamID64.
 /// </summary>
+[PublicAPI]
 public interface IExtensionIdentity
 {
     /// <summary>Every account that is the user, in the order they were added. Safe to read from any thread.</summary>

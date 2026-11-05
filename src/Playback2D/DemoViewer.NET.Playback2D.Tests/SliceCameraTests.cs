@@ -83,10 +83,7 @@ public class SliceCameraTests
     [Test]
     public async Task StepToward_PreservesManualOverrideFlag()
     {
-        SliceCamera cam = new(Fit(0, 0, 1000))
-        {
-            ManualOverride = true
-        };
+        SliceCamera cam = new(Fit(0, 0, 1000)) { ManualOverride = true };
         SliceCamera stepped = cam.StepToward(Fit(100, 100, 1000), 0.5);
         await Assert.That(stepped.ManualOverride).IsTrue();
     }

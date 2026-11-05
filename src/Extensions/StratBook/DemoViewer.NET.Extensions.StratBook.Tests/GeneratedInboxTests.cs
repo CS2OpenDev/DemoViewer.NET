@@ -3,13 +3,13 @@
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
+using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Teams;
 using DemoViewer.NET.Extensions.StratBook.Views.SuggestedTags;
-using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Services.DemoCache;
 using static DemoViewer.NET.AppTests.SuggestedTagsReviewHarness;
 
 #endregion
@@ -23,18 +23,23 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel(TestLanes.HeadlessUi)]
 public class GeneratedInboxTests
 {
-    internal static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];
+    private static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];
 
     private static int _stranger = 9000;
 
-    private static string[] Strangers() => Ids(Interlocked.Add(ref _stranger, 5) - 4, _stranger - 3, _stranger - 2, _stranger - 1, _stranger);
+    private static string[] Strangers() => Ids(Interlocked.Add(ref _stranger, 5) - 4, _stranger - 3, _stranger - 2,
+        _stranger - 1, _stranger);
 
     private static DemoCacheRecord Record(string path, int day, string[] t, string sourceKind, string? tClan = null)
     {
         DemoCacheRecord record = new()
         {
-            Path = path, Size = 1, ModifiedTicks = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(day).Ticks,
-            Map = "de_mirage", SourceKind = sourceKind, TClan = tClan
+            Path = path,
+            Size = 1,
+            ModifiedTicks = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(day).Ticks,
+            Map = "de_mirage",
+            SourceKind = sourceKind,
+            TClan = tClan
         };
         int slot = 0;
         foreach (string id in t)
@@ -44,7 +49,8 @@ public class GeneratedInboxTests
 
         foreach (string id in Strangers())
         {
-            record.Players.Add(new CachedPlayerInfo { Slot = slot++, Name = $"opp{id[^3..]}", SteamId64 = id, Team = 3 });
+            record.Players.Add(
+                new CachedPlayerInfo { Slot = slot++, Name = $"opp{id[^3..]}", SteamId64 = id, Team = 3 });
         }
 
         DemoCacheStore.StampParse(record);
@@ -52,7 +58,7 @@ public class GeneratedInboxTests
     }
 
     /// <summary>A trio in matchmaking with you (id 0), and a scrim team whose fifth changed from 7 to 9.</summary>
-    internal static async Task<(TeamIdentityService Service, DemoCacheStore Cache)> Teams()
+    private static async Task<(TeamIdentityService Service, DemoCacheStore Cache)> Teams()
     {
         DemoCacheStore cache = new(null);
         FakeExtensionIdentity identity = new();
@@ -67,7 +73,8 @@ public class GeneratedInboxTests
             int day = 0;
             for (int i = 0; i < 24; i++)
             {
-                cache.Upsert(Record($"/mm/trio{i}.dem", day++, [.. Ids(0, 1, 2), .. Ids(20 + (i % 3), 40 + i)], "GotvMatchmaking"));
+                cache.Upsert(Record($"/mm/trio{i}.dem", day++, [.. Ids(0, 1, 2), .. Ids(20 + (i % 3), 40 + i)],
+                    "GotvMatchmaking"));
             }
 
             for (int i = 0; i < 6; i++)
@@ -125,9 +132,11 @@ public class GeneratedInboxTests
             vm.DismissCommand.Execute(opener);
             using (Assert.Multiple())
             {
-                await Assert.That(h.Tags.TryLoad(Sha)!.Instances.Single().Code).IsEqualTo(execute.Item.Entry.Proposal.Code)
+                await Assert.That(h.Tags.TryLoad(Sha)!.Instances.Single().Code)
+                    .IsEqualTo(execute.Item.Entry.Proposal.Code)
                     .Because("Accept writes into that demo's tag document");
-                await Assert.That(vm.Rows.Count).IsEqualTo(pending - 2).Because("settled suggestions leave the default view");
+                await Assert.That(vm.Rows.Count).IsEqualTo(pending - 2)
+                    .Because("settled suggestions leave the default view");
                 await Assert.That(vm.SettledLabel).IsEqualTo("Show settled (2)");
             }
 
@@ -154,7 +163,8 @@ public class GeneratedInboxTests
             Window window = new() { Width = 1100, Height = 700, Content = view };
             window.Show();
             Playback2DTimelineHarness.Pump();
-            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "suggested-section.png"), new PngBitmapEncoderOptions());
+            window.CaptureRenderedFrame()?.Save(Path.Combine(HeadlessSession.ArtifactDir, "suggested-section.png"),
+                new PngBitmapEncoderOptions());
             ItemsControl list = view.FindControl<ItemsControl>("RowsList")!;
             await Assert.That(list.IsEffectivelyVisible).IsTrue();
             window.Close();
@@ -190,7 +200,8 @@ public class GeneratedInboxTests
 
             queue.Selected = queue.Rows.Single(r => r.Proposal.Id == ExecuteId);
             await Assert.That(queue.Execute(StratBookActions.SuggestionAccept)).IsTrue();
-            await Assert.That(h.Tags.TryLoad(Sha)!.Instances.Count).IsEqualTo(1).Because("a settled row takes no second verdict");
+            await Assert.That(h.Tags.TryLoad(Sha)!.Instances.Count).IsEqualTo(1)
+                .Because("a settled row takes no second verdict");
             await Assert.That(queue.StatusText).IsEqualTo("This suggestion is already accepted.");
         });
     }
@@ -215,13 +226,16 @@ public class GeneratedInboxTests
                 await Assert.That(queue.Rows.Single(r => r.Proposal.Id == ExecuteId).IsNew).IsTrue();
                 await Assert.That(h.Tags.LoadVerdicts(Sha)!.Verdicts[ExecuteId].Verdict).IsEqualTo("restored");
                 VerdictCounts counts = SuggestedTagsTuning.Aggregate(h.Service.Load(DemoPath).Entries)["execute"];
-                await Assert.That(counts.Rejected).IsEqualTo(0).Because("tuning treats a restored rejection as not rejected");
+                await Assert.That(counts.Rejected).IsEqualTo(0)
+                    .Because("tuning treats a restored rejection as not rejected");
                 await Assert.That(counts.Pending).IsGreaterThanOrEqualTo(1);
             }
 
-            await Assert.That(h.Service.Accept(DemoPath, ExecuteId)).IsTrue().Because("the next verdict replaces a restored one");
+            await Assert.That(h.Service.Accept(DemoPath, ExecuteId)).IsTrue()
+                .Because("the next verdict replaces a restored one");
             await Assert.That(h.Tags.LoadVerdicts(Sha)!.Verdicts[ExecuteId].Verdict).IsEqualTo("accepted");
-            await Assert.That(h.Service.Restore(DemoPath, ExecuteId)).IsFalse().Because("only a dismissal can be restored");
+            await Assert.That(h.Service.Restore(DemoPath, ExecuteId)).IsFalse()
+                .Because("only a dismissal can be restored");
         });
     }
 
@@ -269,12 +283,16 @@ public class GeneratedInboxTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            TeamsFile teams = new() { Me = new MeAccounts { SteamIds = ["ME"] }, DismissedSuggestions = ["squad:ME,A,B"] };
+            TeamsFile teams = new()
+            {
+                Me = new MeAccounts { SteamIds = ["ME"] }, DismissedSuggestions = ["squad:ME,A,B"]
+            };
             TeamSuggestion Offer(string id) => new() { Id = id, Kind = TeamSuggestionKind.Squad };
 
             using (Assert.Multiple())
             {
-                await Assert.That(TeamSuggestions.IsDismissed(Offer("squad:ME,A,C"), teams)).IsTrue().Because("one hop: A stays");
+                await Assert.That(TeamSuggestions.IsDismissed(Offer("squad:ME,A,C"), teams)).IsTrue()
+                    .Because("one hop: A stays");
                 await Assert.That(TeamSuggestions.IsDismissed(Offer("squad:ME,C,D"), teams)).IsFalse()
                     .Because("two hops share no player with the squad that was dismissed");
             }

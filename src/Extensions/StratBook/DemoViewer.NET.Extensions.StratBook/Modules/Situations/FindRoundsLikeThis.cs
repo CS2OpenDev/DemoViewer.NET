@@ -1,8 +1,8 @@
 #region
 
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
+using DemoViewer.NET.Playback2D;
 
 #endregion
 
@@ -41,7 +41,7 @@ public interface IFindRoundsLikeThis
 public sealed class FindRoundsLikeThis : IFindRoundsLikeThis
 {
     /// <summary>The Situations tab's persisted id, the one <c>SituationsModule</c> contributes.</summary>
-    public const string TabId = "situations.search";
+    private const string TabId = "situations.search";
 
     private readonly Func<string, bool> _selectTab;
     private readonly RoundIndexPlaceSources _sources;

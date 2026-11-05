@@ -41,11 +41,13 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
     private readonly IExtensionLibrary _library;
     private readonly Func<bool> _enabled;
     private readonly HashSet<string> _forcedPaths = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Dictionary<string, List<TrajectoryPoint>>> _flights = new(StringComparer.OrdinalIgnoreCase);
-    private readonly object _gate = new();
+
+    private readonly Dictionary<string, Dictionary<string, List<TrajectoryPoint>>> _flights =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly Lock _gate = new();
     private readonly Func<string?> _openDemo;
     private readonly Action<Action> _post;
-    private readonly GrenadeStore _store;
     private readonly Func<int> _stride;
 
     // Test seam: the walk for a parse. Null is the real fold; a synthetic parse has no entities to walk.
@@ -73,7 +75,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(backgroundIndex);
         _library = library;
-        _store = store;
+        Store = store;
         _backgroundIndex = backgroundIndex;
         _openDemo = openDemo ?? (() => null);
         _stride = stride ?? (() => 4);
@@ -85,13 +87,11 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
     private static ILogger Log => _diagLog ??= DiagnosticsLog.CreateLogger(GrenadeIndexLog.Category);
 
     /// <summary>The grenade rows and their stamps.</summary>
-    public GrenadeStore Store => _store;
+    public GrenadeStore Store { get; }
 
     /// <summary>The scheduling of the extension's passes, so a forced request can ask for the demo again. Null in tests.</summary>
     public IExtensionPasses? Passes { get; set; }
 
-    /// <summary>True while the scheduler has a walk in flight.</summary>
-    public bool IsIndexing => Passes?.IsBusy(EvaluatorId) ?? false;
 
     /// <inheritdoc />
     public string Id => EvaluatorId;
@@ -123,7 +123,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
         {
             if (_forcedPaths.Contains(path))
             {
-                return entry is { State: >= LibraryDemoState.Parsed } && !_store.IsCurrent(path);
+                return entry is { State: >= LibraryDemoState.Parsed } && !Store.IsCurrent(path);
             }
         }
 
@@ -162,7 +162,8 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
 
     /// <inheritdoc />
     public DemoInterest Interest(string demoPath) =>
-        Wants(demoPath) ? DemoInterest.Yes : WantsAfterUpstream(demoPath) ? DemoInterest.AfterUpstream : DemoInterest.No;
+        Wants(demoPath) ? DemoInterest.Yes :
+        WantsAfterUpstream(demoPath) ? DemoInterest.AfterUpstream : DemoInterest.No;
 
     /// <inheritdoc />
     public PassRead Read => PassRead.Forward;
@@ -181,7 +182,8 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
             FirstTick = context.FirstServerTick,
             LastTick = context.LastServerTick
         };
-        Refresh(context.DemoPath, () => GrenadeWalker.Assemble(GrenadeWalkInputs.Read(context), GrenadeWalkInputs.Rounds(context),
+        Refresh(context.DemoPath, () => GrenadeWalker.Assemble(GrenadeWalkInputs.Read(context),
+            GrenadeWalkInputs.Rounds(context),
             demo.Players.Values, tickRate, demo.ServerStartTick), clock, demo.BuildNumber);
     }
 
@@ -214,7 +216,8 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
             }
 
             GrenadeWalkInputs read = inputs ?? Run(parsed, Math.Max(1, _stride()));
-            return GrenadeWalker.Assemble(read, ClipRounds.Derive(parsed), parsed.Players.Values, tickRate, parsed.ServerStartTick);
+            return GrenadeWalker.Assemble(read, ClipRounds.Derive(parsed), parsed.Players.Values, tickRate,
+                parsed.ServerStartTick);
         }, RoundFactsClock.For(parsed), parsed.BuildNumber);
     }
 
@@ -225,12 +228,13 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
     {
         ArgumentNullException.ThrowIfNull(parsed);
         GrenadeTrajectoryObserver observer = new(trajectoryStride);
-        AnalysisRun run = DemoAnalysis.Run(parsed, GrenadeTables.LoadRulesets(), new AnalysisOptions
-        {
-            CaptureSnapshots = false,
-            FrameObserver = observer,
-            ObservedProjectileClasses = GrenadeProjectileClasses.All
-        });
+        AnalysisRun run = DemoAnalysis.Run(parsed, GrenadeTables.LoadRulesets(),
+            new AnalysisOptions
+            {
+                CaptureSnapshots = false,
+                FrameObserver = observer,
+                ObservedProjectileClasses = GrenadeProjectileClasses.All
+            });
         return new GrenadeWalkInputs(GrenadeTables.Read(run, parsed.ServerStartTick), observer.Flights());
     }
 
@@ -264,7 +268,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
         [
             .. _library.Demos
                 .Where(e => forced.Contains(e.FilePath)
-                    ? e.State >= LibraryDemoState.Parsed && !_store.IsCurrent(e.FilePath)
+                    ? e.State >= LibraryDemoState.Parsed && !Store.IsCurrent(e.FilePath)
                     : background && NeedsWalk(e))
                 .OrderByDescending(e => e.Modified.Ticks)
                 .Select(e => e.FilePath)
@@ -273,7 +277,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
 
     /// <summary>Whether a demo's grenades are walked and current: the Match Overview action hides when they are.</summary>
     /// <param name="path">The demo's path.</param>
-    public bool IsCurrent(string path) => _store.IsCurrent(path);
+    public bool IsCurrent(string path) => Store.IsCurrent(path);
 
     /// <summary>
     ///     Walks one demo at user priority regardless of the opt-in and of an earlier failure: Match
@@ -291,7 +295,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
 
         try
         {
-            _store.ClearFailed(path);
+            Store.ClearFailed(path);
         }
         catch (Exception)
         {
@@ -307,7 +311,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
     }
 
     private bool NeedsWalk(LibraryDemo? entry) =>
-        entry is { State: >= LibraryDemoState.Parsed } && _store.Needs(entry.FilePath);
+        entry is { State: >= LibraryDemoState.Parsed } && Store.Needs(entry.FilePath);
 
     private bool IsOpen(string path) =>
         _openDemo() is { } open && string.Equals(open, path, StringComparison.OrdinalIgnoreCase);
@@ -321,7 +325,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
             (GrenadeDocument rows, _) = GrenadeSidecar.Build(path, _library.Find(path), clock, buildNumber, walk);
 
             // The store stamps the rows as it writes them: a crash before the stamp leaves the demo "not walked".
-            _store.Write(path, rows);
+            Store.Write(path, rows);
             lock (_gate)
             {
                 // Nothing takes them when no index listens (a test, a host without the Utility Book).
@@ -342,7 +346,7 @@ public sealed class GrenadeIndexEvaluator : IExtensionPass
             GrenadeIndexLog.WalkFailed(Log, fileName, ex);
             try
             {
-                _store.MarkFailed(path);
+                Store.MarkFailed(path);
             }
             catch (Exception)
             {
@@ -405,7 +409,8 @@ internal static partial class GrenadeIndexLog
         Message = "{fileName}: grenade rows ignored by the index (missing, unreadable or another demo's)")]
     public static partial void RowsIgnored(ILogger logger, string fileName);
 
-    [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "grenade index loaded {demos} demos in {ms} ms")]
+    [LoggerMessage(EventId = 4, Level = LogLevel.Information,
+        Message = "grenade index loaded {demos} demos in {ms} ms")]
     public static partial void Loaded(ILogger logger, int demos, long ms);
 
     [LoggerMessage(EventId = 5, Level = LogLevel.Information, Message = "lineup clips: {line}")]
@@ -418,6 +423,7 @@ internal static partial class GrenadeIndexLog
     [LoggerMessage(EventId = 8, Level = LogLevel.Warning, Message = "the lineup store was not saved")]
     public static partial void LineupsNotSaved(ILogger logger, Exception exception);
 
-    [LoggerMessage(EventId = 9, Level = LogLevel.Warning, Message = "{fileName}: a handler of the walked grenades failed")]
+    [LoggerMessage(EventId = 9, Level = LogLevel.Warning,
+        Message = "{fileName}: a handler of the walked grenades failed")]
     public static partial void WalkedHandlerFailed(ILogger logger, string fileName, Exception exception);
 }

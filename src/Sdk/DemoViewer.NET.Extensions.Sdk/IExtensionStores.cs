@@ -7,6 +7,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 ///     resolves each store from its descriptor, so no path the extension builds reaches another extension's
 ///     files or the app's own.
 /// </summary>
+[PublicAPI]
 public interface IExtensionStores
 {
     /// <summary>
@@ -52,6 +53,7 @@ public interface IExtensionStores
 /// <summary>
 ///     The one file of a declared store. A write replaces it whole or leaves the previous one.
 /// </summary>
+[PublicAPI]
 public interface IExtensionFile
 {
     /// <summary>Where the file is on disk, for handing to a process or the file manager.</summary>
@@ -94,6 +96,7 @@ public interface IExtensionFile
 ///     <see cref="ArgumentException" />. Every write replaces the file whole or leaves the previous one, apart
 ///     from <see cref="Append" />, which adds to the end of a file in place.
 /// </summary>
+[PublicAPI]
 public interface IExtensionFolder
 {
     /// <summary>

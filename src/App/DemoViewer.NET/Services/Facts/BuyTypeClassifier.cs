@@ -1,6 +1,3 @@
-using DemoViewer.NET.Extensions.Sdk;
-
-
 namespace DemoViewer.NET.Services.Facts;
 
 /// <summary>
@@ -57,7 +54,7 @@ public static class BuyTypeClassifier
 
         if (lostPreviousRound
             && moneyReliable
-            && money is int m
+            && money is { } m
             && m < thresholds.ForceMoneyMaxPerPlayer * players)
         {
             return BuyType.Force;
@@ -72,7 +69,7 @@ public static class BuyTypeClassifier
     /// </summary>
     public static bool IsPistolRound(int? matchRound, int regulationRounds)
     {
-        if (matchRound is not int round || round > regulationRounds)
+        if (matchRound is not { } round || round > regulationRounds)
         {
             return false;
         }
@@ -83,7 +80,7 @@ public static class BuyTypeClassifier
     /// <summary>The half a match round falls in under the regulation length in force.</summary>
     public static RoundHalf HalfOf(int? matchRound, int regulationRounds)
     {
-        if (matchRound is not int round || round < 1)
+        if (matchRound is not { } round || round < 1)
         {
             return RoundHalf.Unknown;
         }

@@ -72,7 +72,7 @@ public class VisionLayerSourceTests
         // The fan is copied verbatim into the flat ray buffer the renderer walks: x,y per point, in
         // order, because the polygon is filled in fan order and a transposition would draw a bow tie.
         ConePolygon cone = layer.Solution.Cones[0];
-        float[] rays = cone.RayEndsXY.ToArray();
+        float[] rays = [.. cone.RayEndsXY];
         await Assert.That(cone.RayCount).IsEqualTo(2);
         await Assert.That(rays.Length).IsEqualTo(4);
         await Assert.That(rays[0]).IsEqualTo(-1700f);
@@ -159,23 +159,19 @@ public class VisionLayerSourceTests
     }
 
     // Enough of an IVisionSolver to say "I produced N cones" or "I produced nothing".
-    private sealed class StubSolver : IVisionSolver
+    private sealed class StubSolver(int cones) : IVisionSolver
     {
-        private readonly int _cones;
-
-        public StubSolver(int cones) => _cones = cones;
-
-        public bool IsReady => _cones > 0;
+        public bool IsReady => cones > 0;
 
         public void Solve(Scene2DFrame frame, VisionSolution into)
         {
             into.Clear();
-            if (_cones == 0)
+            if (cones == 0)
             {
                 return;
             }
 
-            for (int i = 0; i < _cones; i++)
+            for (int i = 0; i < cones; i++)
             {
                 ConePolygon cone = into.AddCone(i, 2, i * 10f, 0f, 0f, 2);
                 cone.RayEndsWritable.Clear();

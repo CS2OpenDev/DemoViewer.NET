@@ -202,7 +202,8 @@ internal static class ZoneOverlayApplier
         for (int i = 0; i < state.Baked.Areas.Count; i++)
         {
             ZoneArea area = state.Baked.Areas[i];
-            if (area.Z < minZ || area.Z > maxZ || !ZoneGeometry.PointInPolygon(zone.Polygon, area.CentroidX, area.CentroidY))
+            if (area.Z < minZ || area.Z > maxZ
+                || !ZoneGeometry.PointInPolygon(zone.Polygon, area.CentroidX, area.CentroidY))
             {
                 continue;
             }
@@ -348,9 +349,9 @@ internal static class ZoneOverlayApplier
         public int AreaCount(int placeId)
         {
             int count = 0;
-            for (int i = 0; i < AreaPlace.Length; i++)
+            foreach (int place in AreaPlace)
             {
-                if (AreaPlace[i] == placeId)
+                if (place == placeId)
                 {
                     count++;
                 }

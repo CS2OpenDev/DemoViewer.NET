@@ -2,10 +2,10 @@
 
 using CS2DemoKit.Analysis.Clips;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.TestSupport;
 using static DemoViewer.NET.AppTests.TagTestData;
 
@@ -28,12 +28,13 @@ public class StratEvidenceRealDemoTests
     public async Task EveryTaggedRound_IsWonOrLost_ByTheRoundsWinner()
     {
         string path = DemoTestHelper.RequireDemo();
-        ParsedDemo parsed = DemoParser.Parse(File.ReadAllBytes(path).AsMemory());
+        ParsedDemo parsed = DemoParser.Parse((await File.ReadAllBytesAsync(path)).AsMemory());
         IReadOnlyList<ClipRound> rounds = ClipRounds.Derive(parsed);
         Guid stratId = Guid.NewGuid();
 
         DemoCacheStore cache = new(null);
-        RoundFactsEvaluator evaluator = new(cache, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
+        RoundFactsEvaluator evaluator = new(cache, new EngineRoundFactsRowSource(),
+            new RulesRoundFactsRulesetIdentity());
         RoundFactsSource facts = new(cache, evaluator);
         TagStore tags = new(null);
 
@@ -41,14 +42,16 @@ public class StratEvidenceRealDemoTests
         tags.Save(Document(Sha,
         [
             .. rounds.Select(r => Instance("A execute", r.StartTickFrameClock + 64, r.StartTickFrameClock + 640,
-                (TagStore.StratGroup, stratId.ToString("D")), (StratEvidence.RevisionGroup, "1"), (StratEvidence.OutcomeGroup, StratEvidence.OutcomeWon)))
+                (TagStore.StratGroup, stratId.ToString("D")), (StratEvidence.RevisionGroup, "1"),
+                (StratEvidence.OutcomeGroup, StratEvidence.OutcomeWon)))
         ]));
         using TagFactsRefresher refresher = new(tags, facts, _ => Sha, action => action());
         evaluator.Evaluate(path, parsed);
 
         RoundFactsRows rows = facts.TryGet(path) ?? throw new InvalidOperationException("the evaluator wrote no rows");
-        StratDocument strat = StratDocument.Create(stratId, StratOwner.Me(), parsed.MapName ?? "de_mirage", StratVocabulary.SideT, "execute", "real", Created);
-        StratRecord record = new StratEvidenceService(tags).Compute(strat);
+        StratDocument strat = StratDocument.Create(stratId, StratOwner.Me(), parsed.MapName,
+            StratVocabulary.SideT, "execute", "real", Created);
+        StratRecord record = await new StratEvidenceService(tags).ComputeAsync(strat);
 
         using (Assert.Multiple())
         {

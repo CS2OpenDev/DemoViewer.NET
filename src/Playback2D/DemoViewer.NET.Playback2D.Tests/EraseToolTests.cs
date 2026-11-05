@@ -2,8 +2,8 @@
 
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Input;
-using DemoViewer.NET.Playback2D.Pipeline.Input;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Input;
 using SkiaSharp;
 
 #endregion
@@ -122,10 +122,7 @@ public class EraseToolTests
             new FloorSlice(-448, -384), new FloorSlice(-384, -128));
 
         AnnotationDocument document = new();
-        AnnotationSession session = new(document)
-        {
-            EraserWorldRadius = 20f
-        };
+        AnnotationSession session = new(document) { EraserWorldRadius = 20f };
         FakeToolServices services = new(session, panes);
         EraseTool tool = new();
 
@@ -176,8 +173,7 @@ public class EraseToolTests
     [Test]
     public async Task StrokeOutsideItsEnvelope_IsNotErased()
     {
-        Harness h = new();
-        h.Services.CurrentTick = 5000;
+        Harness h = new() { Services = { CurrentTick = 5000 } };
         h.Document.Reset([
             AnnotationFakes.Stroke(time: new TimeEnvelope(100, 200, 0, 0), x: 0, y: 0)
         ]);
@@ -196,19 +192,16 @@ public class EraseToolTests
         {
             Pane = AnnotationFakes.Pane(600, 400);
             Document = new AnnotationDocument();
-            Session = new AnnotationSession(Document)
-            {
-                EraserWorldRadius = 20f
-            };
+            Session = new AnnotationSession(Document) { EraserWorldRadius = 20f };
             Services = new FakeToolServices(Session, Pane);
             Tool = new EraseTool();
         }
 
-        public LevelPane Pane { get; }
+        private LevelPane Pane { get; }
 
         public AnnotationDocument Document { get; }
 
-        public AnnotationSession Session { get; }
+        private AnnotationSession Session { get; }
 
         public FakeToolServices Services { get; }
 

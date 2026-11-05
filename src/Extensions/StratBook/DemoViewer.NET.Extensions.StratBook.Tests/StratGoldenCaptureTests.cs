@@ -1,21 +1,21 @@
 #region
 
 using System.Text.Json.Nodes;
+using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Hud;
-using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Assets;
 using DemoViewer.NET.Playback2D.Pipeline.Goldens;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.TestSupport;
 using SkiaSharp;
 using TUnit.Core.Exceptions;
@@ -46,9 +46,9 @@ public class StratGoldenCaptureTests
 {
     private const string UpdateEnvVar = "PB2D_GOLDEN_UPDATE";
 
-    // The schema sample's own step ticks (StratSceneProjectionTests): 1:30, 1:16, 1:05 and 1:00 on the
+    // Two of the schema sample's own step ticks (StratSceneProjectionTests): 1:30 and 1:00 on the
     // 115 s clock the sample declares.
-    private const int Smoke = 1600, Molly = 2496, Peek = 3200, All = 3520;
+    private const int Smoke = 1600, All = 3520;
 
     // Between the molotov step and the peek step, while the smoke step's grenade is still up (it goes off
     // after its flight from Smoke and lasts 18 s, 1152 ticks): A is mid-interpolation toward its peek keyframe, B/C/O1 are each held
@@ -60,7 +60,7 @@ public class StratGoldenCaptureTests
     // between two adjacent, non-overlapping windows.
     private const int Mid = 2750;
 
-    private static readonly SKSizeI Square = new(StratExportJob.DefaultWidth, StratExportJob.DefaultHeight);
+    private static readonly SKSizeI _square = new(StratExportJob.DefaultWidth, StratExportJob.DefaultHeight);
 
     private static readonly string[] _layerIds =
     [
@@ -73,7 +73,7 @@ public class StratGoldenCaptureTests
     public async Task Step1_TokensAtKeyframes_StrokesFull_OpponentDrawn()
     {
         StratDocument document = Fixture();
-        await CaptureAndCompare("strat-mirage-exec-step1", document, StratPath.MainLine(document), Smoke, Square,
+        await CaptureAndCompare("strat-mirage-exec-step1", document, StratPath.MainLine(document), Smoke, _square,
             "PENDING for dv2d: this entry names hud.clock, which render/golden/bench refuse outright (a " +
             "fixture carries no clock; dv2d.md, 'Current limitations'), so only StratGoldenCaptureTests can " +
             "verify it. The smoke step's tick: A, B and the opponent O1 at their first keyframes, the " +
@@ -89,7 +89,7 @@ public class StratGoldenCaptureTests
     public async Task Mid_LinearInterpolation_HeldSlot_SmokeDisc()
     {
         StratDocument document = Fixture();
-        await CaptureAndCompare("strat-mirage-exec-mid", document, StratPath.MainLine(document), Mid, Square,
+        await CaptureAndCompare("strat-mirage-exec-mid", document, StratPath.MainLine(document), Mid, _square,
             "PENDING for dv2d: this entry names hud.clock, which render/golden/bench refuse outright (a " +
             "fixture carries no clock; dv2d.md, 'Current limitations'), so only StratGoldenCaptureTests can " +
             "verify it. Between the molotov and peek steps: A linearly interpolating toward its peek " +
@@ -126,7 +126,7 @@ public class StratGoldenCaptureTests
             throw new InvalidOperationException("the sample's branch did not resolve to a path");
         }
 
-        await CaptureAndCompare("strat-mirage-exec-branch", document, path, All, Square,
+        await CaptureAndCompare("strat-mirage-exec-branch", document, path, All, _square,
             "PENDING for dv2d: this entry names hud.clock, which render/golden/bench refuse outright (a " +
             "fixture carries no clock; dv2d.md, 'Current limitations'), so only StratGoldenCaptureTests can " +
             "verify it. The branch's target step (the sample's branch skips the peek step straight to " +
@@ -148,7 +148,8 @@ public class StratGoldenCaptureTests
         document.Steps[1].Strokes =
         [
             JsonNode.Parse(
-                """{ "kind": "arrow", "space": { "kind": "world", "levelMinZ": -256 }, "points": [[380, -1700], [180, -1900]], "color": "#4FC3F7", "width": 3 }""")!
+                    """{ "kind": "arrow", "space": { "kind": "world", "levelMinZ": -256 }, "points": [[380, -1700], [180, -1900]], "color": "#4FC3F7", "width": 3 }""")
+                !
                 .AsObject()
         ];
 
@@ -225,10 +226,7 @@ public class StratGoldenCaptureTests
             }
 
             GoldenCorpus.Upsert(corpus, new GoldenCorpusEntry(name, scenePath, size, document.Map,
-                asset.Bundle.MapVersion, _layerIds, GoldenBudget.Default, true)
-            {
-                Notes = notes
-            });
+                asset.Bundle.MapVersion, _layerIds, GoldenBudget.Default, true) { Notes = notes });
 
             Console.WriteLine($"[golden] wrote {scenePath}");
             Console.WriteLine($"[golden] wrote {goldenPath} ({png.Length} bytes)");
@@ -239,7 +237,8 @@ public class StratGoldenCaptureTests
         {
             throw new InvalidOperationException(
                 $"no golden at {goldenPath}. Regenerate deliberately with " +
-                $"{UpdateEnvVar}=1 dotnet run --project src/Extensions/StratBook/DemoViewer.NET.Extensions.StratBook.Tests -c Release " +
+                $"{UpdateEnvVar}=1 dotnet run --project src/Extensions/StratBook/DemoViewer.NET.Extensions.StratBook.Tests -c Release "
+                +
                 "-- --treenode-filter \"/*/*/StratGoldenCaptureTests/*\".");
         }
 
@@ -291,8 +290,7 @@ public class StratGoldenCaptureTests
         using CpuSurfaceProvider surfaces = new();
         using HeadlessSceneRenderer renderer = new(surfaces, compositor)
         {
-            AutoFitOnFirstMapBounds = true,
-            AdvanceCameras = false
+            AutoFitOnFirstMapBounds = true, AdvanceCameras = false
         };
         renderer.Levels.SetAuthoritativeFloors(asset.Floors);
         renderer.Levels.RadarBinder = new MapRadarBinder(asset);
@@ -308,7 +306,7 @@ public class StratGoldenCaptureTests
     private static string CorpusRoot()
     {
         string repo = DemoTestHelper.FindRepoRoot()
-                      ?? throw new SkipTestException("repo root not found from the test output directory");
+            ?? throw new SkipTestException("repo root not found from the test output directory");
         return Path.Combine(repo, "tests", "fixtures", "playback2d");
     }
 }

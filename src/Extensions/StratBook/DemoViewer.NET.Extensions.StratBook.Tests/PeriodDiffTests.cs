@@ -1,8 +1,8 @@
 #region
 
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -31,7 +31,8 @@ public class PeriodDiffTests
 
     private static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];
 
-    private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string map, int ctScore, int tScore,
+    private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string map, int ctScore,
+        int tScore,
         int ctSideWins, int tSideWins)
     {
         DemoCacheRecord record = new()
@@ -103,9 +104,11 @@ public class PeriodDiffTests
             await Assert.That(set.TotalDemos).IsEqualTo(6);
             await Assert.That(set.HasBothPeriods).IsTrue();
 
-            await Assert.That(set.Recent.Demos.Select(d => d.Map)).IsEquivalentTo(["de_overpass", "de_nuke", "de_dust2"], CollectionOrdering.Matching)
+            await Assert.That(set.Recent.Demos.Select(d => d.Map))
+                .IsEquivalentTo(["de_overpass", "de_nuke", "de_dust2"], CollectionOrdering.Matching)
                 .Because("newest first: day 6, day 5, day 4");
-            await Assert.That(set.Previous.Demos.Select(d => d.Map)).IsEquivalentTo(["de_inferno", "de_mirage", "de_nuke"], CollectionOrdering.Matching)
+            await Assert.That(set.Previous.Demos.Select(d => d.Map))
+                .IsEquivalentTo(["de_inferno", "de_mirage", "de_nuke"], CollectionOrdering.Matching)
                 .Because("newest first within the older window: day 3, day 2, day 1");
 
             await Assert.That(set.Recent.Wins).IsEqualTo(0);
@@ -139,7 +142,8 @@ public class PeriodDiffTests
         using (Assert.Multiple())
         {
             await Assert.That(set.Recent.Count).IsEqualTo(5);
-            await Assert.That(set.Previous.Count).IsEqualTo(1).Because("only one demo is left once the last five are taken");
+            await Assert.That(set.Previous.Count).IsEqualTo(1)
+                .Because("only one demo is left once the last five are taken");
             await Assert.That(set.HasBothPeriods).IsTrue();
         }
 
@@ -190,11 +194,15 @@ public class PeriodDiffTests
             // Team A fixes its five on days 1 and 2, then plays day 3 with two stand-ins (tier 1).
             cache.Upsert(Record("/d/a1.dem", 1, Ids(1, 2, 3, 4, 5), Ids(51, 52, 53, 54, 55), "de_nuke", 5, 13, 5, 13));
             cache.Upsert(Record("/d/a2.dem", 2, Ids(1, 2, 3, 4, 5), Ids(56, 57, 58, 59, 60), "de_nuke", 5, 13, 5, 13));
-            cache.Upsert(Record("/d/a3.dem", 3, Ids(1, 2, 3, 30, 31), Ids(61, 62, 63, 64, 65), "de_nuke", 5, 13, 5, 13));
+            cache.Upsert(Record("/d/a3.dem", 3, Ids(1, 2, 3, 30, 31), Ids(61, 62, 63, 64, 65), "de_nuke", 5, 13, 5,
+                13));
             // Team B never repeats a five, so it only has an extended core; day 6 has a stand-in (tier 2).
-            cache.Upsert(Record("/d/b1.dem", 4, Ids(11, 12, 13, 14, 15), Ids(71, 72, 73, 74, 75), "de_nuke", 5, 13, 5, 13));
-            cache.Upsert(Record("/d/b2.dem", 5, Ids(11, 12, 13, 16, 17), Ids(76, 77, 78, 79, 80), "de_nuke", 5, 13, 5, 13));
-            cache.Upsert(Record("/d/b3.dem", 6, Ids(11, 12, 13, 14, 40), Ids(81, 82, 83, 84, 85), "de_nuke", 5, 13, 5, 13));
+            cache.Upsert(Record("/d/b1.dem", 4, Ids(11, 12, 13, 14, 15), Ids(71, 72, 73, 74, 75), "de_nuke", 5, 13, 5,
+                13));
+            cache.Upsert(Record("/d/b2.dem", 5, Ids(11, 12, 13, 16, 17), Ids(76, 77, 78, 79, 80), "de_nuke", 5, 13, 5,
+                13));
+            cache.Upsert(Record("/d/b3.dem", 6, Ids(11, 12, 13, 14, 40), Ids(81, 82, 83, 84, 85), "de_nuke", 5, 13, 5,
+                13));
         }
 
         await teams.Idle;

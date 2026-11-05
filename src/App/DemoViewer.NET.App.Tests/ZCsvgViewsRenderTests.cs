@@ -80,36 +80,16 @@ public class ZCsvgViewsRenderTests
         TickRate = 64,
         TickCount = 120_000,
         Sha256 = "sha",
-        Analysis = new TierStamp
-        {
-            Schema = DemoCacheRecord.AnalysisSchema,
-            ComputedAtTicks = 1
-        },
+        Analysis = new TierStamp { Schema = DemoCacheRecord.AnalysisSchema, ComputedAtTicks = 1 },
         AnalysisState = DemoAnalysisState.Indexed,
         Players =
         [
-            new CachedPlayerInfo
-            {
-                Slot = 0,
-                Name = "s1mple",
-                SteamId64 = "1",
-                Team = 2
-            },
-            new CachedPlayerInfo
-            {
-                Slot = 1,
-                Name = "ZywOo",
-                SteamId64 = "2",
-                Team = 3
-            }
+            new CachedPlayerInfo { Slot = 0, Name = "s1mple", SteamId64 = "1", Team = 2 },
+            new CachedPlayerInfo { Slot = 1, Name = "ZywOo", SteamId64 = "2", Team = 3 }
         ],
         Rounds =
         [
-            new CachedRound
-            {
-                Number = 1,
-                StartTickFrameClock = 1000
-            }
+            new CachedRound { Number = 1, StartTickFrameClock = 1000 }
         ],
         Highlights =
         [
@@ -158,12 +138,7 @@ public class ZCsvgViewsRenderTests
 
             Window tabWindow = new()
             {
-                Width = 1100,
-                Height = 720,
-                Content = new HighlightsTabView
-                {
-                    DataContext = tabVm
-                }
+                Width = 1100, Height = 720, Content = new HighlightsTabView { DataContext = tabVm }
             };
             tabWindow.Show();
             tabInk = RenderInk(tabWindow, "csvg-highlights-tab.png");
@@ -171,21 +146,13 @@ public class ZCsvgViewsRenderTests
 
             HighlightSelection selection = new(Record(), Record().Highlights[0]);
             HighlightReelDialogViewModel dialogVm = new(
-                [selection], new HighlightsSettings
-                {
-                    ReelOutputDirectory = "/out/reels"
-                },
+                [selection], new HighlightsSettings { ReelOutputDirectory = "/out/reels" },
                 new FakeReelJob(), null,
                 () => false, true,
                 _ => true);
             Window dialogWindow = new()
             {
-                Width = 760,
-                Height = 640,
-                Content = new HighlightReelDialogView
-                {
-                    DataContext = dialogVm
-                }
+                Width = 760, Height = 640, Content = new HighlightReelDialogView { DataContext = dialogVm }
             };
             dialogWindow.Show();
             dialogInk = RenderInk(dialogWindow, "csvg-reel-dialog.png");
@@ -215,12 +182,7 @@ public class ZCsvgViewsRenderTests
 
             Window syncWindow = new()
             {
-                Width = 420,
-                Height = 560,
-                Content = new LiveSyncStatusView
-                {
-                    DataContext = syncVm
-                }
+                Width = 420, Height = 560, Content = new LiveSyncStatusView { DataContext = syncVm }
             };
             syncWindow.Show();
             syncInk = RenderInk(syncWindow, "csvg-livesync-flyout.png");
@@ -236,12 +198,7 @@ public class ZCsvgViewsRenderTests
 
             Window reelWindow = new()
             {
-                Width = 420,
-                Height = 480,
-                Content = new ReelJobStatusView
-                {
-                    DataContext = reelVm
-                }
+                Width = 420, Height = 480, Content = new ReelJobStatusView { DataContext = reelVm }
             };
             reelWindow.Show();
             reelInk = RenderInk(reelWindow, "csvg-reel-chip-flyout.png");
@@ -263,18 +220,14 @@ public class ZCsvgViewsRenderTests
 
         public AnalysisRun RunBareAnalysis(ParsedDemo demo) =>
             throw new NotSupportedException("render smoke never parses");
-
-        public void InvalidateRules()
-        {
-        }
     }
 
     private sealed class FakeLiveSync : ILiveSyncService
     {
         public LiveSyncState State { get; private set; } = LiveSyncState.Disconnected;
-        public long? LastCs2DemoTick { get; set; }
-        public LiveSyncVersionInfo? Versions { get; set; }
-        public LiveSyncCapabilities? Capabilities { get; set; }
+        public long? LastCs2DemoTick => null;
+        public LiveSyncVersionInfo? Versions => null;
+        public LiveSyncCapabilities? Capabilities => null;
 
         public event EventHandler<LiveSyncStateChangedEventArgs>? StateChanged;
 

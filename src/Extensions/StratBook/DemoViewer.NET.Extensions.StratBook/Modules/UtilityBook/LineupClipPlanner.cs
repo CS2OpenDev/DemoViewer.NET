@@ -17,7 +17,6 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 /// <param name="Key">The representative throw's <see cref="IndexedGrenade.Key" />. Changes when an older demo is indexed.</param>
 /// <param name="LineupId">The lineup's <see cref="GrenadeLineup.Id" />: what the pair's file name and the queue entry are keyed by.</param>
 /// <param name="DemoPath">The demo the throw is in.</param>
-/// <param name="Sha256">The demo's content hash, or null.</param>
 /// <param name="Map">The map, as the demo header spells it.</param>
 /// <param name="Title">"Smoke into CTSpawn", or the landing point when no zone placed it.</param>
 /// <param name="FromTick">First tick of the clip, frame clock.</param>
@@ -33,7 +32,6 @@ public sealed record LineupClipJob(
     string Key,
     Guid LineupId,
     string DemoPath,
-    string? Sha256,
     string Map,
     string Title,
     int FromTick,
@@ -71,22 +69,20 @@ public static class LineupClipPlanner
     public const int Side = 480;
 
     /// <summary>Seconds shown before the release, so the throw is seen from its start.</summary>
-    public const double LeadSeconds = 1.0;
+    private const double LeadSeconds = 1.0;
 
     /// <summary>Seconds shown after the grenade goes off.</summary>
-    public const double TailSeconds = 1.5;
+    private const double TailSeconds = 1.5;
 
     /// <summary>The longest clip, so a flight the walk never saw end still renders short.</summary>
-    public const double MaxSeconds = 12.0;
+    private const double MaxSeconds = 12.0;
 
     /// <summary>
     ///     A lineup has to be thrown this often to get a clip, and a technique other than the lineup's most
     ///     thrown one needs this many throws of its own. A throw seen once is a moment rather than a lineup.
     /// </summary>
-    public const int MinThrows = 2;
+    private const int MinThrows = 2;
 
-    /// <summary>The section title earlier builds queued lineup clips under, with the map after it.</summary>
-    public const string SectionPrefix = "Lineup clips";
 
     /// <summary>The sidecar's extension, after the GIF's stem.</summary>
     public const string SetposExtension = ".setpos.txt";
@@ -113,7 +109,8 @@ public static class LineupClipPlanner
     /// <param name="technique">One of its techniques, or null for a lineup without techniques.</param>
     /// <param name="title">The card's cluster title.</param>
     /// <param name="directory">Where clips are written.</param>
-    public static LineupClipJob? Plan(GrenadeLineup lineup, LineupTechnique? technique, string title, string directory) =>
+    public static LineupClipJob? Plan(GrenadeLineup lineup, LineupTechnique? technique, string title,
+        string directory) =>
         Plan(lineup, technique, title, directory, null);
 
     /// <summary>
@@ -131,7 +128,8 @@ public static class LineupClipPlanner
         ArgumentNullException.ThrowIfNull(lineup);
         ArgumentNullException.ThrowIfNull(directory);
 
-        bool first = technique is null || (lineup.Techniques.Count > 0 && ReferenceEquals(lineup.Techniques[0], technique));
+        bool first = technique is null
+            || (lineup.Techniques.Count > 0 && ReferenceEquals(lineup.Techniques[0], technique));
         if (lineup.Throws.Count < MinThrows || (!first && technique!.Throws.Count < MinThrows))
         {
             return null;
@@ -139,9 +137,10 @@ public static class LineupClipPlanner
 
         IndexedGrenade representative = technique?.Representative ?? lineup.Representative;
         IndexedGrenade shown = (sourceDemo is null
-            ? null
-            : (technique?.Throws ?? lineup.Throws).FirstOrDefault(t =>
-                string.Equals(t.Demo.Path, sourceDemo, StringComparison.OrdinalIgnoreCase) && GrenadeConsole.Format(t.Row) is not null))
+                ? null
+                : (technique?.Throws ?? lineup.Throws).FirstOrDefault(t =>
+                    string.Equals(t.Demo.Path, sourceDemo, StringComparison.OrdinalIgnoreCase)
+                    && GrenadeConsole.Format(t.Row) is not null))
             ?? representative;
         GrenadeRow row = shown.Row;
         if (GrenadeConsole.Format(row) is not { } console)
@@ -171,7 +170,7 @@ public static class LineupClipPlanner
             ? id
             : null;
 
-        return new LineupClipJob(representative.Key, lineup.Id, shown.Demo.Path, shown.Demo.Sha256,
+        return new LineupClipJob(representative.Key, lineup.Id, shown.Demo.Path,
             representative.Map, title, from, to, rate, steamId, console,
             Path.Combine(directory, stem + GifExtension), Path.Combine(directory, stem + SetposExtension),
             lineup.AliasIds, former) { Throws = technique?.Throws.Count ?? lineup.Throws.Count, TechniqueKey = key };
@@ -279,15 +278,12 @@ public static class LineupClipPlanner
         int rate = tickRate > 0 ? tickRate : 64;
         int release = row.ReleaseTick;
         int landed = row.DetonationTick
-                     ?? (row.EndTick > release ? row.EndTick : release + Math.Max(0, row.AirTimeTicks));
+            ?? (row.EndTick > release ? row.EndTick : release + Math.Max(0, row.AirTimeTicks));
         int from = Math.Max(0, release - (int)Math.Round(LeadSeconds * rate));
         int to = Math.Max(release, landed) + (int)Math.Round(TailSeconds * rate);
         return (from, Math.Min(to, from + (int)Math.Round(MaxSeconds * rate)));
     }
 
-    /// <summary>The section title earlier builds queued a map's clips under.</summary>
-    /// <param name="map">The map.</param>
-    public static string SectionTitle(string map) => $"{SectionPrefix}, {map}";
 
     /// <summary>The pair a lineup's technique has on disk, or null while either half is missing.</summary>
     /// <param name="directory">Where clips are written.</param>
@@ -295,7 +291,8 @@ public static class LineupClipPlanner
     /// <param name="kind">What is thrown.</param>
     /// <param name="lineupId">The lineup's id.</param>
     /// <param name="techniqueKey">The technique, or null for a lineup without techniques.</param>
-    public static string? FinishedGif(string directory, string map, GrenadeKind kind, Guid lineupId, string? techniqueKey)
+    public static string? FinishedGif(string directory, string map, GrenadeKind kind, Guid lineupId,
+        string? techniqueKey)
     {
         ArgumentNullException.ThrowIfNull(directory);
         string gif = Path.Combine(directory, FileStem(map, kind, lineupId, techniqueKey) + GifExtension);

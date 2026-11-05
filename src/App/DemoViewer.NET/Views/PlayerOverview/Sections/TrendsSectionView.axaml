@@ -25,21 +25,27 @@
                     <DataTemplate x:DataType="sections:TrendItem">
                         <Grid ColumnDefinitions="96,*,168" ColumnSpacing="12">
                             <StackPanel Spacing="1">
-                                <TextBlock Text="{Binding Label}" FontSize="11.5" Foreground="{DynamicResource TextMid}" />
+                                <TextBlock Text="{Binding Label}" FontSize="11.5"
+                                           Foreground="{DynamicResource TextMid}" />
                                 <TextBlock Text="{Binding LatestText}" FontSize="16" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextValue}" />
-                                <TextBlock Text="{Binding AverageText}" FontSize="11" Foreground="{DynamicResource TextDim}" />
+                                <TextBlock Text="{Binding AverageText}" FontSize="11"
+                                           Foreground="{DynamicResource TextDim}" />
                             </StackPanel>
                             <statsCtl:Sparkline Grid.Column="1" Height="40" Mode="Line"
                                                 Values="{Binding Values}" PointTooltips="{Binding PointTips}" />
-                            <StackPanel Grid.Column="2" Spacing="3" IsVisible="{Binding HasForm}" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="2" Spacing="3" IsVisible="{Binding HasForm}"
+                                        VerticalAlignment="Center">
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Right" Text="{Binding ChangeText}" FontSize="12"
-                                               FontFamily="Consolas,Menlo,monospace" Foreground="{DynamicResource TextValue}" />
-                                    <TextBlock Text="{Binding FormDetail}" FontSize="11" Foreground="{DynamicResource TextDim}"
+                                               FontFamily="Consolas,Menlo,monospace"
+                                               Foreground="{DynamicResource TextValue}" />
+                                    <TextBlock Text="{Binding FormDetail}" FontSize="11"
+                                               Foreground="{DynamicResource TextDim}"
                                                TextTrimming="CharacterEllipsis" />
                                 </DockPanel>
-                                <statsCtl:DivergingBar Negative="{Binding FallPercent}" Positive="{Binding RisePercent}"
+                                <statsCtl:DivergingBar Negative="{Binding FallPercent}"
+                                                       Positive="{Binding RisePercent}"
                                                        Extent="{Binding Extent}" />
                             </StackPanel>
                         </Grid>

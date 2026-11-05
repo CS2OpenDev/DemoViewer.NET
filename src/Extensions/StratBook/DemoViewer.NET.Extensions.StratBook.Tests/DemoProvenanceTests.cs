@@ -2,10 +2,10 @@
 
 using System.Text.Json;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Modules.Library;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Provenance;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Modules.Library;
+using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.ViewModels.Library;
 using TUnit.Assertions.Enums;
 
@@ -41,10 +41,12 @@ public class DemoProvenanceTests
     // Opponents that never recur, so only the side under test clusters.
     private static int _stranger = 9000;
 
-    private static string[] Strangers() => Ids(Interlocked.Add(ref _stranger, 5) - 4, _stranger - 3, _stranger - 2, _stranger - 1, _stranger);
+    private static string[] Strangers() => Ids(Interlocked.Add(ref _stranger, 5) - 4, _stranger - 3, _stranger - 2,
+        _stranger - 1, _stranger);
 
     private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct,
-        string? server = ValveServer, string? sourceKind = null, string? tClan = null, string? ctClan = null, string? sha = null)
+        string? server = ValveServer, string? sourceKind = null, string? tClan = null, string? ctClan = null,
+        string? sha = null)
     {
         DemoCacheRecord record = new()
         {
@@ -73,7 +75,8 @@ public class DemoProvenanceTests
         return record;
     }
 
-    private static (DemoCacheStore Cache, TeamIdentityService Teams, DemoProvenanceSource Source) Fresh(string? root = null,
+    private static (DemoCacheStore Cache, TeamIdentityService Teams, DemoProvenanceSource Source) Fresh(
+        string? root = null,
         FakeExtensionIdentity? identity = null)
     {
         DemoCacheStore cache = new(root is null ? null : Path.Combine(root, "cache"));
@@ -105,10 +108,16 @@ public class DemoProvenanceTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(true, DemoSourceKind.HltvPro, OurSideSource.None, false))).IsEqualTo("official");
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(true, DemoSourceKind.GotvMatchmaking, OurSideSource.Me, false))).IsEqualTo("official")
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(true, DemoSourceKind.HltvPro, OurSideSource.None, false)))
+                .IsEqualTo("official");
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(true, DemoSourceKind.GotvMatchmaking, OurSideSource.Me,
+                    false))).IsEqualTo("official")
                 .Because("a tagged match our account played is still an official");
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(true, DemoSourceKind.Unknown, OurSideSource.Team, true))).IsEqualTo("official")
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(true, DemoSourceKind.Unknown, OurSideSource.Team, true)))
+                .IsEqualTo("official")
                 .Because("tags beat the us team against a named team: an official of ours is an official, not a scrim");
         }
     }
@@ -116,8 +125,12 @@ public class DemoProvenanceTests
     [Test]
     public async Task Heuristic_MeResolved_OnMatchmaking_IsMatchmaking()
     {
-        await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.GotvMatchmaking, OurSideSource.Me, false))).IsEqualTo("matchmaking");
-        await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Faceit, OurSideSource.Me, false))).IsEqualTo("matchmaking")
+        await Assert
+            .That(DemoProvenanceHeuristic.Default(
+                Inputs(false, DemoSourceKind.GotvMatchmaking, OurSideSource.Me, false))).IsEqualTo("matchmaking");
+        await Assert
+            .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Faceit, OurSideSource.Me, false)))
+            .IsEqualTo("matchmaking")
             .Because("FACEIT queue play is matchmaking, not a scrim");
     }
 
@@ -126,8 +139,12 @@ public class DemoProvenanceTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.Me, false))).IsEqualTo("scrim");
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.HltvPro, OurSideSource.Me, false))).IsEqualTo("scrim")
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.Me, false)))
+                .IsEqualTo("scrim");
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.HltvPro, OurSideSource.Me, false)))
+                .IsEqualTo("scrim")
                 .Because("an untagged broadcast our account played is a scrim until tags say otherwise");
         }
     }
@@ -137,12 +154,20 @@ public class DemoProvenanceTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.Team, true))).IsEqualTo("our scrim");
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.Override, true))).IsEqualTo("our scrim")
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.Team, true)))
+                .IsEqualTo("our scrim");
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.Override,
+                    true))).IsEqualTo("our scrim")
                 .Because("an override naming the us team is the us team");
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.GotvMatchmaking, OurSideSource.Team, true))).IsEqualTo("our scrim")
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.GotvMatchmaking, OurSideSource.Team,
+                    true))).IsEqualTo("our scrim")
                 .Because("two recurring fives that met in matchmaking are a scrim between teams");
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.Me, true))).IsEqualTo("scrim")
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.Me, true)))
+                .IsEqualTo("scrim")
                 .Because("me on a side is not a team of ours, even against a named team");
         }
     }
@@ -154,9 +179,15 @@ public class DemoProvenanceTests
         // the opponent never recurs. Reading "me-resolved" literally would leave every one of them unlabeled.
         using (Assert.Multiple())
         {
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.GotvMatchmaking, OurSideSource.Team, false))).IsEqualTo("matchmaking");
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.Team, false))).IsEqualTo("scrim");
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.Override, false))).IsEqualTo("scrim");
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.GotvMatchmaking, OurSideSource.Team,
+                    false))).IsEqualTo("matchmaking");
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.Team, false)))
+                .IsEqualTo("scrim");
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.Override,
+                    false))).IsEqualTo("scrim");
         }
     }
 
@@ -165,11 +196,17 @@ public class DemoProvenanceTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.GotvMatchmaking, OurSideSource.None, false))).IsNull()
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.GotvMatchmaking, OurSideSource.None,
+                    false))).IsNull()
                 .Because("a matchmaking demo nobody of ours played says nothing about us");
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.HltvPro, OurSideSource.None, false))).IsNull()
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.HltvPro, OurSideSource.None, false)))
+                .IsNull()
                 .Because("an untagged broadcast is not called a scrim by default");
-            await Assert.That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.None, true))).IsNull()
+            await Assert
+                .That(DemoProvenanceHeuristic.Default(Inputs(false, DemoSourceKind.Unknown, OurSideSource.None, true)))
+                .IsNull()
                 .Because("a named team on one side without ours on the other is still nobody's scrim");
         }
     }
@@ -187,14 +224,17 @@ public class DemoProvenanceTests
             string[] us = Ids(1, 2, 3, 4, 5);
             string[] them = Ids(11, 12, 13, 14, 15);
             await Seed(cache, teams,
-                Record("/d/official.dem", 1, Ids(21, 22, 23, 24, 25), Ids(31, 32, 33, 34, 35), server: "hltv", sourceKind: "HltvPro", tClan: "FURIA", ctClan: "Vitality"),
+                Record("/d/official.dem", 1, Ids(21, 22, 23, 24, 25), Ids(31, 32, 33, 34, 35), server: "hltv",
+                    sourceKind: "HltvPro", tClan: "FURIA", ctClan: "Vitality"),
                 Record("/d/us1.dem", 2, us, them, server: ScrimServer, sourceKind: "Unknown"),
                 Record("/d/us2.dem", 3, us, them, server: ScrimServer, sourceKind: "Unknown"),
                 Record("/d/mm-team.dem", 4, us, Strangers(), sourceKind: "GotvMatchmaking"),
                 Record("/d/mm-me.dem", 5, Ids(1, 41, 42, 43, 44), Strangers(), sourceKind: "GotvMatchmaking"),
-                Record("/d/scrim-me.dem", 6, Ids(1, 51, 52, 53, 54), Strangers(), server: ScrimServer, sourceKind: "Unknown"),
+                Record("/d/scrim-me.dem", 6, Ids(1, 51, 52, 53, 54), Strangers(), server: ScrimServer,
+                    sourceKind: "Unknown"),
                 Record("/d/nobody.dem", 7, Strangers(), Strangers(), sourceKind: "GotvMatchmaking"),
-                Record("/d/one-tag.dem", 8, Strangers(), Strangers(), server: "hltv", sourceKind: "HltvPro", tClan: "FURIA"));
+                Record("/d/one-tag.dem", 8, Strangers(), Strangers(), server: "hltv", sourceKind: "HltvPro",
+                    tClan: "FURIA"));
 
             Guid usId = teams.TeamOnSide("/d/us1.dem", 2)!.Id;
             teams.SetUs(usId);
@@ -203,10 +243,14 @@ public class DemoProvenanceTests
             using (Assert.Multiple())
             {
                 await Assert.That(source.Resolve("/d/official.dem")!.Label).IsEqualTo("official");
-                await Assert.That(source.Resolve("/d/us1.dem")!.Label).IsEqualTo("our scrim").Because("the us roster against a team the library knows");
-                await Assert.That(source.Resolve("/d/mm-team.dem")!.Label).IsEqualTo("matchmaking").Because("the us roster in matchmaking against strangers");
-                await Assert.That(source.Resolve("/d/mm-me.dem")!.Label).IsEqualTo("matchmaking").Because("me on a side, Valve header");
-                await Assert.That(source.Resolve("/d/scrim-me.dem")!.Label).IsEqualTo("scrim").Because("me on a side, no tags, not matchmaking");
+                await Assert.That(source.Resolve("/d/us1.dem")!.Label).IsEqualTo("our scrim")
+                    .Because("the us roster against a team the library knows");
+                await Assert.That(source.Resolve("/d/mm-team.dem")!.Label).IsEqualTo("matchmaking")
+                    .Because("the us roster in matchmaking against strangers");
+                await Assert.That(source.Resolve("/d/mm-me.dem")!.Label).IsEqualTo("matchmaking")
+                    .Because("me on a side, Valve header");
+                await Assert.That(source.Resolve("/d/scrim-me.dem")!.Label).IsEqualTo("scrim")
+                    .Because("me on a side, no tags, not matchmaking");
                 await Assert.That(source.Resolve("/d/nobody.dem")!.Label).IsNull();
                 await Assert.That(source.Resolve("/d/one-tag.dem")!.Label).IsNull().Because("one tag is not both");
                 await Assert.That(source.Resolve("/d/nobody.dem")!.Source).IsEqualTo(ProvenanceOrigin.None);
@@ -252,15 +296,28 @@ public class DemoProvenanceTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(DemoProvenanceSource.SourceKindOf(new DemoCacheIndexEntry { Server = FaceitServer, SourceKind = "GotvMatchmaking" }.AsRow()))
-                .IsEqualTo(DemoSourceKind.GotvMatchmaking).Because("tier 2 saw the client name; the server name alone would not say so");
-            await Assert.That(DemoProvenanceSource.SourceKindOf(new DemoCacheIndexEntry { Server = ValveServer, SourceKind = null }.AsRow()))
-                .IsEqualTo(DemoSourceKind.GotvMatchmaking).Because("a row written before the field: the classifier's own server-name fallback");
-            await Assert.That(DemoProvenanceSource.SourceKindOf(new DemoCacheIndexEntry { Server = FaceitServer, SourceKind = null }.AsRow()))
-                .IsEqualTo(DemoSourceKind.Faceit).Because("the engine reads FACEIT server names as Unknown; the app reads them as FACEIT");
-            await Assert.That(DemoProvenanceSource.SourceKindOf(new DemoCacheIndexEntry { Server = ScrimServer, SourceKind = null }.AsRow()))
+            await Assert
+                .That(DemoProvenanceSource.SourceKindOf(
+                    new DemoCacheIndexEntry { Server = FaceitServer, SourceKind = "GotvMatchmaking" }.AsRow()))
+                .IsEqualTo(DemoSourceKind.GotvMatchmaking)
+                .Because("tier 2 saw the client name; the server name alone would not say so");
+            await Assert
+                .That(DemoProvenanceSource.SourceKindOf(
+                    new DemoCacheIndexEntry { Server = ValveServer, SourceKind = null }.AsRow()))
+                .IsEqualTo(DemoSourceKind.GotvMatchmaking)
+                .Because("a row written before the field: the classifier's own server-name fallback");
+            await Assert
+                .That(DemoProvenanceSource.SourceKindOf(
+                    new DemoCacheIndexEntry { Server = FaceitServer, SourceKind = null }.AsRow()))
+                .IsEqualTo(DemoSourceKind.Faceit)
+                .Because("the engine reads FACEIT server names as Unknown; the app reads them as FACEIT");
+            await Assert
+                .That(DemoProvenanceSource.SourceKindOf(
+                    new DemoCacheIndexEntry { Server = ScrimServer, SourceKind = null }.AsRow()))
                 .IsEqualTo(DemoSourceKind.Unknown);
-            await Assert.That(DemoProvenanceSource.SourceKindOf(new DemoCacheIndexEntry { Server = null, SourceKind = "not a kind" }.AsRow()))
+            await Assert
+                .That(DemoProvenanceSource.SourceKindOf(
+                    new DemoCacheIndexEntry { Server = null, SourceKind = "not a kind" }.AsRow()))
                 .IsEqualTo(DemoSourceKind.Unknown);
         }
     }
@@ -282,7 +339,9 @@ public class DemoProvenanceTests
         {
             FakeExtensionIdentity me = new();
             (DemoCacheStore cache, TeamIdentityService teams, DemoProvenanceSource source) = Fresh(root, me);
-            await Seed(cache, teams, Record("/d/mm.dem", 1, Ids(1, 41, 42, 43, 44), Strangers(), sourceKind: "GotvMatchmaking", sha: "ab12"));
+            await Seed(cache, teams,
+                Record("/d/mm.dem", 1, Ids(1, 41, 42, 43, 44), Strangers(), sourceKind: "GotvMatchmaking",
+                    sha: "ab12"));
             me.Set([Ids(1)[0]]);
             await Assert.That(source.Resolve("/d/mm.dem")!.Label).IsEqualTo("matchmaking");
 
@@ -293,17 +352,21 @@ public class DemoProvenanceTests
             using (Assert.Multiple())
             {
                 await Assert.That(pinned.Label).IsEqualTo("our scrim");
-                await Assert.That(pinned.Default).IsEqualTo("matchmaking").Because("the heuristic's answer is kept beside the pin");
+                await Assert.That(pinned.Default).IsEqualTo("matchmaking")
+                    .Because("the heuristic's answer is kept beside the pin");
                 await Assert.That(pinned.Source).IsEqualTo(ProvenanceOrigin.Override);
                 await Assert.That(pinned.IsOverride).IsTrue();
                 await Assert.That(raised).IsEqualTo(1);
             }
 
-            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(File.ReadAllText(Path.Combine(root, "teams.json")), TeamsFile.JsonOptions)!;
+            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(
+                await File.ReadAllTextAsync(Path.Combine(root, "teams.json")),
+                TeamsFile.JsonOptions)!;
             ProvenanceOverride stored = file.Provenance.Overrides.Single();
             using (Assert.Multiple())
             {
-                await Assert.That(stored.DemoSha256).IsEqualTo("ab12").Because("user truth keys by hash when the demo has one");
+                await Assert.That(stored.DemoSha256).IsEqualTo("ab12")
+                    .Because("user truth keys by hash when the demo has one");
                 await Assert.That(stored.DemoStableKey).IsNull();
                 await Assert.That(stored.Label).IsEqualTo("our scrim");
             }
@@ -318,7 +381,8 @@ public class DemoProvenanceTests
                 await teams2.StartAsync();
                 using (Assert.Multiple())
                 {
-                    await Assert.That(source2.Resolve("/d/mm.dem")!.Label).IsEqualTo("our scrim").Because("the pin survives a restart");
+                    await Assert.That(source2.Resolve("/d/mm.dem")!.Label).IsEqualTo("our scrim")
+                        .Because("the pin survives a restart");
                     await Assert.That(source2.LabelFor("ab12")).IsEqualTo("our scrim");
                     await Assert.That(cache2.TryGetIndex("/d/mm.dem")).IsNotNull();
                 }
@@ -326,12 +390,15 @@ public class DemoProvenanceTests
                 teams2.SetProvenanceOverride("/d/mm.dem", null);
                 using (Assert.Multiple())
                 {
-                    await Assert.That(source2.Resolve("/d/mm.dem")!.Label).IsEqualTo("matchmaking").Because("automatic again");
+                    await Assert.That(source2.Resolve("/d/mm.dem")!.Label).IsEqualTo("matchmaking")
+                        .Because("automatic again");
                     await Assert.That(source2.Resolve("/d/mm.dem")!.IsOverride).IsFalse();
                     await Assert.That(teams2.ProvenanceOverrides).IsEmpty();
                 }
 
-                TeamsFile after = JsonSerializer.Deserialize<TeamsFile>(File.ReadAllText(Path.Combine(root, "teams.json")), TeamsFile.JsonOptions)!;
+                TeamsFile after =
+                    JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(Path.Combine(root, "teams.json")),
+                        TeamsFile.JsonOptions)!;
                 await Assert.That(after.Provenance.Overrides).IsEmpty();
             }
         }
@@ -348,7 +415,8 @@ public class DemoProvenanceTests
         using (teams)
         using (source)
         {
-            await Seed(cache, teams, Record("/d/u.dem", 1, Ids(1, 2, 3, 4, 5), Strangers(), sourceKind: "GotvMatchmaking"));
+            await Seed(cache, teams,
+                Record("/d/u.dem", 1, Ids(1, 2, 3, 4, 5), Strangers(), sourceKind: "GotvMatchmaking"));
             teams.SetProvenanceOverride("/d/u.dem", "official");
             ProvenanceOverride stored = teams.ProvenanceOverrides.Single();
             using (Assert.Multiple())
@@ -359,7 +427,8 @@ public class DemoProvenanceTests
             }
 
             // Tier 2 hashes the demo later: the pin moves onto the hash on the next replay.
-            cache.Upsert(Record("/d/u.dem", 1, Ids(1, 2, 3, 4, 5), Ids(61, 62, 63, 64, 65), sourceKind: "GotvMatchmaking", sha: "cd34"));
+            cache.Upsert(Record("/d/u.dem", 1, Ids(1, 2, 3, 4, 5), Ids(61, 62, 63, 64, 65),
+                sourceKind: "GotvMatchmaking", sha: "cd34"));
             await teams.Idle;
             stored = teams.ProvenanceOverrides.Single();
             using (Assert.Multiple())
@@ -398,7 +467,8 @@ public class DemoProvenanceTests
             await Seed(cache, teams,
                 Record("/d/a.dem", 1, Ids(1, 41, 42, 43, 44), Strangers(), sourceKind: "GotvMatchmaking", sha: "aaaa"),
                 Record("/d/b.dem", 2, Strangers(), Strangers(), sourceKind: "GotvMatchmaking", sha: "bbbb"),
-                Record("/d/c.dem", 3, Ids(21, 22, 23, 24, 25), Ids(31, 32, 33, 34, 35), server: "hltv", sourceKind: "HltvPro", tClan: "NaVi", ctClan: "G2", sha: "cccc"));
+                Record("/d/c.dem", 3, Ids(21, 22, 23, 24, 25), Ids(31, 32, 33, 34, 35), server: "hltv",
+                    sourceKind: "HltvPro", tClan: "NaVi", ctClan: "G2", sha: "cccc"));
             me.Set([Ids(1)[0]]);
             teams.SetProvenanceOverride("/d/b.dem", "scrim");
 
@@ -422,7 +492,8 @@ public class DemoProvenanceTests
             using (Assert.Multiple())
             {
                 await Assert.That(source.Resolve("/d/b.dem")).IsNull().Because("the cache forgot the file");
-                await Assert.That(source.LabelFor("bbbb")).IsEqualTo("scrim").Because("the pin is user truth on the hash, not on the file");
+                await Assert.That(source.LabelFor("bbbb")).IsEqualTo("scrim")
+                    .Because("the pin is user truth on the hash, not on the file");
                 await Assert.That(source.LabelsFor(["bbbb"])["bbbb"]).IsEqualTo("scrim");
             }
         }
@@ -435,7 +506,8 @@ public class DemoProvenanceTests
     {
         FakeExtensionIdentity me = new();
         (DemoCacheStore cache, TeamIdentityService teams, DemoProvenanceSource source) = Fresh(identity: me);
-        using DemoLibraryService library = new(a => a(), Path.Combine(Path.GetTempPath(), "dvlibprov_" + Guid.NewGuid().ToString("N") + ".json"));
+        using DemoLibraryService library = new(a => a(),
+            Path.Combine(Path.GetTempPath(), "dvlibprov_" + Guid.NewGuid().ToString("N") + ".json"));
         using (teams)
         using (source)
         {
@@ -443,7 +515,7 @@ public class DemoProvenanceTests
                 Record("/d/mm.dem", 1, Ids(1, 41, 42, 43, 44), Strangers(), sourceKind: "GotvMatchmaking", sha: "ab12"),
                 Record("/d/nobody.dem", 2, Strangers(), Strangers(), sourceKind: "GotvMatchmaking"));
             me.Set([Ids(1)[0]]);
-            foreach (string path in (string[]) ["/d/mm.dem", "/d/nobody.dem", "/d/unknown.dem"])
+            foreach (string path in (string[])["/d/mm.dem", "/d/nobody.dem", "/d/unknown.dem"])
             {
                 library.Entries.Add(new DemoEntry
                 {
@@ -457,7 +529,8 @@ public class DemoProvenanceTests
             }
 
             ProvenanceLibraryContribution contribution = new(() => source, () => teams);
-            LibraryTabViewModel vm = new(library, _ => Task.CompletedTask, () => Task.FromResult<IReadOnlyList<string>>([]),
+            LibraryTabViewModel vm = new(library, _ => Task.CompletedTask,
+                () => Task.FromResult<IReadOnlyList<string>>([]),
                 contributions: [contribution]);
             DemoEntry mm = library.Entries[0];
             DemoEntry nobody = library.Entries[1];
@@ -467,14 +540,17 @@ public class DemoProvenanceTests
                 await Assert.That(vm.HasBadge).IsTrue();
                 await Assert.That(mm.BadgeLabel).IsEqualTo("matchmaking");
                 await Assert.That(mm.BadgeIsPinned).IsFalse();
-                await Assert.That(nobody.BadgeLabel).IsEqualTo("unlabeled").Because("resolved, but the heuristic had nothing to say");
-                await Assert.That(unknown.BadgeLabel).IsEqualTo("unlabeled").Because("not in the cache yet, but the contribution still answers unlabeled");
+                await Assert.That(nobody.BadgeLabel).IsEqualTo("unlabeled")
+                    .Because("resolved, but the heuristic had nothing to say");
+                await Assert.That(unknown.BadgeLabel).IsEqualTo("unlabeled")
+                    .Because("not in the cache yet, but the contribution still answers unlabeled");
             }
 
             vm.SetBadgeLabel(mm, "our scrim");
             using (Assert.Multiple())
             {
-                await Assert.That(mm.BadgeLabel).IsEqualTo("our scrim").Because("the chip re-reads on the contribution's Changed");
+                await Assert.That(mm.BadgeLabel).IsEqualTo("our scrim")
+                    .Because("the chip re-reads on the contribution's Changed");
                 await Assert.That(mm.BadgeIsPinned).IsTrue();
                 await Assert.That(mm.BadgeTooltip).Contains("set by you");
             }
@@ -487,7 +563,8 @@ public class DemoProvenanceTests
                 await Assert.That(mm.BadgeTooltip).Contains("automatic");
             }
 
-            LibraryTabViewModel bare = new(library, _ => Task.CompletedTask, () => Task.FromResult<IReadOnlyList<string>>([]));
+            LibraryTabViewModel bare = new(library, _ => Task.CompletedTask,
+                () => Task.FromResult<IReadOnlyList<string>>([]));
             await Assert.That(bare.HasBadge).IsFalse().Because("no contribution, no chip");
         }
     }
@@ -497,10 +574,12 @@ public class DemoProvenanceTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(DemoProvenanceLabel.All).IsEquivalentTo(["official", "scrim", "our scrim", "matchmaking"], CollectionOrdering.Matching);
+            await Assert.That(DemoProvenanceLabel.All).IsEquivalentTo(["official", "scrim", "our scrim", "matchmaking"],
+                CollectionOrdering.Matching);
             await Assert.That(DemoProvenanceLabel.IsKnown("our scrim")).IsTrue();
             await Assert.That(DemoProvenanceLabel.IsKnown("Official")).IsFalse();
-            await Assert.That(DemoProvenanceLabel.IsKnown("unlabeled")).IsFalse().Because("unlabeled is the absence of a value");
+            await Assert.That(DemoProvenanceLabel.IsKnown("unlabeled")).IsFalse()
+                .Because("unlabeled is the absence of a value");
         }
     }
 }

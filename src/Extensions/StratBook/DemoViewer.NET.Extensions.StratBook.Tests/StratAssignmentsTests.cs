@@ -19,9 +19,9 @@ public class StratAssignmentsTests
 {
     private const string FixtureName = "schema-v1.assignments.dvstrat.json";
 
-    internal static readonly Guid LinesId = Guid.Parse("5d0c7e1a-2b3c-4d5e-8f60-718293a4b5c6");
+    private static readonly Guid LinesId = Guid.Parse("5d0c7e1a-2b3c-4d5e-8f60-718293a4b5c6");
 
-    private static readonly CalloutResolver Mirage = new(CanonicalPlaces.Embedded("de_mirage"));
+    private static readonly CalloutResolver _mirage = new(CanonicalPlaces.Embedded("de_mirage"));
 
     private static bool Updating => Environment.GetEnvironmentVariable("PB2D_GOLDEN_UPDATE") == "1";
 
@@ -34,12 +34,22 @@ public class StratAssignmentsTests
         StratStep step = Step(3, 65, StratVocabulary.ActorAll, "move", "TRamp");
         step.Assignments =
         [
-            new StepAssignment { Slot = "B", To = Place("PalaceInterior"), Watch = new StepWatch { Places = ["BombsiteA", "CTSpawn"] } },
+            new StepAssignment
+            {
+                Slot = "B",
+                To = Place("PalaceInterior"),
+                Watch = new StepWatch { Places = ["BombsiteA", "CTSpawn"] }
+            },
             new StepAssignment { Slot = "C", To = Place("Connector"), Watch = new StepWatch { Places = ["Stairs"] } },
             new StepAssignment
             {
-                Slot = "D", To = Place("Stairs"), Watch = new StepWatch { Places = ["TRamp"], YawDegrees = 135 },
-                Extra = new Dictionary<string, JsonElement> { ["futureLine"] = JsonDocument.Parse("1").RootElement.Clone() }
+                Slot = "D",
+                To = Place("Stairs"),
+                Watch = new StepWatch { Places = ["TRamp"], YawDegrees = 135 },
+                Extra = new Dictionary<string, JsonElement>
+                {
+                    ["futureLine"] = JsonDocument.Parse("1").RootElement.Clone()
+                }
             }
         ];
         document.Steps.Add(step);
@@ -47,11 +57,11 @@ public class StratAssignmentsTests
     }
 
     private static string Issues(StratDocument document) =>
-        string.Join("; ", StratValidator.Validate(document, Mirage).Select(i => $"{i.Severity} {i.Field}"));
+        string.Join("; ", StratValidator.Validate(document, _mirage).Select(i => $"{i.Severity} {i.Field}"));
 
     private static async Task Expect(StratDocument document, StratIssueSeverity severity, string field)
     {
-        IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, Mirage);
+        IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, _mirage);
         await Assert.That(issues.Any(i => i.Severity == severity && i.Field == field)).IsTrue()
             .Because($"expected a {severity} at '{field}', got: {Issues(document)}");
     }
@@ -81,25 +91,30 @@ public class StratAssignmentsTests
         string path = Path.Combine(repo, "tests", "fixtures", "strats", FixtureName);
         if (Updating)
         {
-            File.WriteAllText(path, StratStore.Serialize(WithLines()) + "\n");
+            await File.WriteAllTextAsync(path, StratStore.Serialize(WithLines()) + "\n");
         }
 
-        string original = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        string original = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
         string root = TempRoot();
         try
         {
-            string file = Path.Combine(StratStore.FolderFor(root, Team, "de_mirage"), LinesId + StratStore.StratExtension);
+            string file = Path.Combine(StratStore.FolderFor(root, Team, "de_mirage"),
+                LinesId + StratStore.StratExtension);
             Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-            File.WriteAllText(file, original);
+            await File.WriteAllTextAsync(file, original);
 
             StratLoadResult loaded = new StratStore(PackStores.At(root)).Load(LinesId);
             StratStep step = loaded.Document!.Steps[2];
             using (Assert.Multiple())
             {
-                await Assert.That(StratStore.Serialize(WithLines()) + "\n").IsEqualTo(original).Because("this build writes the committed shape");
-                await Assert.That(StratStore.Serialize(loaded.Document) + "\n").IsEqualTo(original).Because("load and save is field-identical");
-                await Assert.That(step.Assignments!.Select(a => a.Slot)).IsEquivalentTo(["B", "C", "D"], CollectionOrdering.Matching);
-                await Assert.That(step.Assignments![0].Watch!.Places).IsEquivalentTo(["BombsiteA", "CTSpawn"], CollectionOrdering.Matching);
+                await Assert.That(StratStore.Serialize(WithLines()) + "\n").IsEqualTo(original)
+                    .Because("this build writes the committed shape");
+                await Assert.That(StratStore.Serialize(loaded.Document) + "\n").IsEqualTo(original)
+                    .Because("load and save is field-identical");
+                await Assert.That(step.Assignments!.Select(a => a.Slot))
+                    .IsEquivalentTo(["B", "C", "D"], CollectionOrdering.Matching);
+                await Assert.That(step.Assignments![0].Watch!.Places)
+                    .IsEquivalentTo(["BombsiteA", "CTSpawn"], CollectionOrdering.Matching);
                 await Assert.That(step.Assignments![2].Watch!.YawDegrees).IsEqualTo(135);
                 await Assert.That(step.Assignments![2].Extra!.ContainsKey("futureLine")).IsTrue();
                 await Assert.That(loaded.Issues.Where(i => i.Severity != StratIssueSeverity.Info)).IsEmpty();
@@ -120,7 +135,8 @@ public class StratAssignmentsTests
         StratStep lines = document.Steps[2];
         using (Assert.Multiple())
         {
-            await Assert.That(StratStepLines.Of(plain).Select(l => l.Slot)).IsEquivalentTo(["B"], CollectionOrdering.Matching);
+            await Assert.That(StratStepLines.Of(plain).Select(l => l.Slot))
+                .IsEquivalentTo(["B"], CollectionOrdering.Matching);
             await Assert.That(StratStepLines.ToFor(plain, "B")).IsEqualTo("BombsiteA");
             await Assert.That(StratStepLines.Involves(plain, "C")).IsFalse();
             await Assert.That(StratStepLines.Of(all)).IsEmpty();
@@ -171,17 +187,20 @@ public class StratAssignmentsTests
     {
         StratDocument document = WithLines();
         document.Steps[2].Assignments![1].To = null;
-        IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, Mirage);
+        IReadOnlyList<StratIssue> issues = StratValidator.Validate(document, _mirage);
         using (Assert.Multiple())
         {
-            await Assert.That(issues.Any(i => i is { Severity: StratIssueSeverity.Warning, Field: "/steps/2/assignments/1/to" })).IsTrue();
-            await Assert.That(issues.Any(i => i.Field == "/steps/2/to")).IsFalse().Because("a step with lines has no step-level to");
+            await Assert.That(issues.Any(i => i is
+                { Severity: StratIssueSeverity.Warning, Field: "/steps/2/assignments/1/to" })).IsTrue();
+            await Assert.That(issues.Any(i => i.Field == "/steps/2/to")).IsFalse()
+                .Because("a step with lines has no step-level to");
         }
 
         StratDocument hold = WithLines();
         hold.Steps[2].Verb = "hold";
         hold.Steps[2].Assignments![1].To = null;
-        await Assert.That(StratValidator.Validate(hold, Mirage).Any(i => i.Field.StartsWith("/steps/2/assignments/1/to", StringComparison.Ordinal)))
+        await Assert.That(StratValidator.Validate(hold, _mirage)
+                .Any(i => i.Field.StartsWith("/steps/2/assignments/1/to", StringComparison.Ordinal)))
             .IsFalse().Because("only a move needs a place");
     }
 
@@ -196,7 +215,7 @@ public class StratAssignmentsTests
         single.Steps[2].Assignments!.RemoveRange(1, 2);
         await Expect(single, StratIssueSeverity.Warning, "/steps/2/actor");
         single.Steps[2].Actor = "B";
-        await Assert.That(StratValidator.Validate(single, Mirage).Any(i => i.Field == "/steps/2/actor")).IsFalse();
+        await Assert.That(StratValidator.Validate(single, _mirage).Any(i => i.Field == "/steps/2/actor")).IsFalse();
 
         StratDocument to = WithLines();
         to.Steps[2].To = Place("BombsiteA");
@@ -210,12 +229,13 @@ public class StratAssignmentsTests
         StratStep step = document.Steps[2];
         step.Verb = "throw";
         step.Utility = new UtilityRef { Kind = "smoke", LineupId = Guid.NewGuid() };
-        IReadOnlyList<StratIssue> several = StratValidator.Validate(document, Mirage, lineupExists: (_, _) => true);
-        await Assert.That(several.Any(i => i.Field == "/steps/2/actor" && i.Message.Contains("thrower", StringComparison.Ordinal))).IsTrue();
+        IReadOnlyList<StratIssue> several = StratValidator.Validate(document, _mirage, lineupExists: (_, _) => true);
+        await Assert.That(several.Any(i =>
+            i.Field == "/steps/2/actor" && i.Message.Contains("thrower", StringComparison.Ordinal))).IsTrue();
 
         step.Assignments!.RemoveRange(1, 2);
         step.Actor = "B";
-        IReadOnlyList<StratIssue> one = StratValidator.Validate(document, Mirage, lineupExists: (_, _) => true);
+        IReadOnlyList<StratIssue> one = StratValidator.Validate(document, _mirage, lineupExists: (_, _) => true);
         await Assert.That(one.Any(i => i.Field == "/steps/2/actor")).IsFalse();
     }
 }

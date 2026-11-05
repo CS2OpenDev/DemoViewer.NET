@@ -1,4 +1,8 @@
+#region
+
 using DemoViewer.NET.Services.Players;
+
+#endregion
 
 namespace DemoViewer.NET.AppTests;
 
@@ -10,7 +14,8 @@ public class SteamIdParserTests
     [Arguments(" 76561197960265729 ", SteamIdForm.SteamId64, 76561197960265729UL)]
     [Arguments("https://steamcommunity.com/profiles/76561197960265729", SteamIdForm.ProfileUrl, 76561197960265729UL)]
     [Arguments("steamcommunity.com/profiles/76561197960265729/", SteamIdForm.ProfileUrl, 76561197960265729UL)]
-    [Arguments("http://www.steamcommunity.com/profiles/76561197960265729?x=1", SteamIdForm.ProfileUrl, 76561197960265729UL)]
+    [Arguments("http://www.steamcommunity.com/profiles/76561197960265729?x=1", SteamIdForm.ProfileUrl,
+        76561197960265729UL)]
     [Arguments("http://www.steamcommunity.com/profiles/[U:1:1]?l=english", SteamIdForm.ProfileUrl, 76561197960265729UL)]
     [Arguments("[U:1:1]", SteamIdForm.SteamId3, 76561197960265729UL)]
     [Arguments("U:1:1", SteamIdForm.SteamId3, 76561197960265729UL)]

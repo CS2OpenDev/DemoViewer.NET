@@ -4,16 +4,15 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
-using DemoViewer.NET.AppTests.Extensions.StratBook;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Modules.Playback2D;
-using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Timeline;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
-using DemoViewer.NET.Views.Playback2D;
+using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Playback2D.Timeline;
+using DemoViewer.NET.Views.Playback2D;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.TagTestData;
 
@@ -49,21 +48,22 @@ public class TagTrackTests
         public bool HasEvent(string eventName) => false;
     }
 
-    private static readonly int[] MarkerFrames = [50, 90, 700];
-    private static readonly string[] RoundOnly = ["round"];
+    private static readonly int[] _markerFrames = [50, 90, 700];
+    private static readonly string[] _roundOnly = ["round"];
 
     private static readonly List<LibraryRound> _rounds =
     [
-        new LibraryRound(1, 0),
-        new LibraryRound(2, 1_000)
+        new(1, 0),
+        new(2, 1_000)
     ];
 
     private static async Task<TagSession> Attached(params TagInstance[] instances)
     {
-        TagSession session = new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created)
-        {
-            AutoSaveDelay = TimeSpan.FromHours(1)
-        };
+        TagSession session =
+            new(null, _ => Task.FromResult<IReadOnlyList<LibraryRound>?>(_rounds), () => false, () => Created)
+            {
+                AutoSaveDelay = TimeSpan.FromHours(1)
+            };
         await session.AttachAsync(Demo, Clock, DemoPath);
         foreach (TagInstance instance in instances)
         {
@@ -109,7 +109,8 @@ public class TagTrackTests
                 await Assert.That(bands[1].StartFrameIndex).IsEqualTo(131);
                 await Assert.That(bands[1].Label).IsEqualTo("mid take");
 
-                await Assert.That(bands[2].Label).IsEqualTo("B retake").Because("a run of one is labelled with its code");
+                await Assert.That(bands[2].Label).IsEqualTo("B retake")
+                    .Because("a run of one is labelled with its code");
                 await Assert.That(bands[2].Argb).IsEqualTo(TagTrack.DefaultColour("B retake"));
             }
         });
@@ -129,7 +130,8 @@ public class TagTrackTests
             IReadOnlyList<TimelineMarker> markers = track.BuildMarkers(new HalfTickData(1000));
 
             await Assert.That(markers.Count).IsEqualTo(3).Because("the merge must hide nothing");
-            await Assert.That(markers.Select(m => m.FrameIndex)).IsEquivalentTo(MarkerFrames, CollectionOrdering.Matching);
+            await Assert.That(markers.Select(m => m.FrameIndex))
+                .IsEquivalentTo(_markerFrames, CollectionOrdering.Matching);
 
             using (Assert.Multiple())
             {
@@ -248,10 +250,10 @@ public class TagTrackTests
         {
             using TagSession session = await Attached(Instance("A execute", 100, 1_300));
             using TagTrack track = Track(session);
-            FakeTimelineData data = new(1000);
-            data.EventFrames["round_freeze_end"] = [0, 500];
+            FakeTimelineData data = new(1000) { EventFrames = { ["round_freeze_end"] = [0, 500] } };
 
-            using Playback2DTimelineViewModel timeline = new() { PixelWidth = 1000 };
+            using Playback2DTimelineViewModel timeline = new();
+            timeline.PixelWidth = 1000;
             SdkPlaybackSurface.CoreTrack filed = new(track, ExtensionGuard.Standalone(new StratBookPack()));
             timeline.RegisterTrack(new RoundTrack());
             timeline.RegisterTrack(filed, TimelineBandRow.Lane);
@@ -260,7 +262,8 @@ public class TagTrackTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(timeline.Bands.Select(b => b.TrackId).Distinct()).IsEquivalentTo(RoundOnly, CollectionOrdering.Matching);
+                await Assert.That(timeline.Bands.Select(b => b.TrackId).Distinct())
+                    .IsEquivalentTo(_roundOnly, CollectionOrdering.Matching);
                 await Assert.That(timeline.LaneBands.Count).IsEqualTo(1);
                 await Assert.That(timeline.LaneBands[0].StartFrameIndex).IsEqualTo(50);
                 await Assert.That(timeline.HasLaneBands).IsTrue();
@@ -283,13 +286,14 @@ public class TagTrackTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) = ReviewPanelsHarness.Tab();
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx, ReviewPanelsPlaybackContribution review) =
+                ReviewPanelsHarness.Tab();
             review.ReviewMode!.IsOn = true; // tagging and its lanes live in Review mode
             TagSession tags = review.Session!;
             (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
             TimelineControl control = Playback2DTimelineHarness.Timeline(view);
             ItemsControl lane = control.FindControl<ItemsControl>("TagLane")
-                                ?? throw new InvalidOperationException("tag lane not found");
+                ?? throw new InvalidOperationException("tag lane not found");
             double heightWithoutTags = control.Bounds.Height;
 
             await Assert.That(vm.Timeline.HasLaneBands).IsFalse();
@@ -314,7 +318,7 @@ public class TagTrackTests
             Playback2DTimelineHarness.Pump();
 
             Console.WriteLine($"[tag-lane-click] band=[{band.StartFrameIndex}..{band.EndFrameIndex}] "
-                              + $"x={band.X:F0} w={band.Width:F0} seeks={string.Join(",", ctx.SeekFrames)}");
+                + $"x={band.X:F0} w={band.Width:F0} seeks={string.Join(",", ctx.SeekFrames)}");
             await Assert.That(ctx.SeekFrames).Contains(band.StartFrameIndex);
 
             vm.OnDeactivated();

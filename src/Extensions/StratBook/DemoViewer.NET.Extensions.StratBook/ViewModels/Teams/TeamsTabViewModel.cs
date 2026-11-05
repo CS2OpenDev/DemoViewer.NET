@@ -4,9 +4,9 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Services.Generated;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 
@@ -36,7 +36,7 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
 
     /// <summary>What the tab is waiting on: the teams being read, or a change being applied; empty when idle.</summary>
     [ObservableProperty]
-    private string _busyLine = "";
+    private string _busyLine;
 
     /// <summary>True while a change the user asked for is still being applied.</summary>
     [ObservableProperty]
@@ -95,8 +95,10 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
     /// </param>
     /// <param name="post">Brings a finished command back to the UI thread; inline when null.</param>
     /// <param name="openPlayerOverview">Opens an account in the host's Player Overview; null when the host has none.</param>
-    public TeamsTabViewModel(TeamIdentityService teams, IExtensionLibrary library, Func<string, Task>? openDemo = null, bool? isBrowser = null,
-        Func<string, Action, Task>? command = null, Action<Action>? post = null, Func<ulong, bool>? openPlayerOverview = null)
+    public TeamsTabViewModel(TeamIdentityService teams, IExtensionLibrary library, Func<string, Task>? openDemo = null,
+        bool? isBrowser = null,
+        Func<string, Action, Task>? command = null, Action<Action>? post = null,
+        Func<ulong, bool>? openPlayerOverview = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -374,7 +376,8 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
     }
 
     [RelayCommand]
-    private Task OpenDemo(DemoRow? row) => row is not null && _openDemo is not null ? _openDemo(row.Path) : Task.CompletedTask;
+    private Task OpenDemo(DemoRow? row) =>
+        row is not null && _openDemo is not null ? _openDemo(row.Path) : Task.CompletedTask;
 
     [RelayCommand]
     private void OpenPlayerOverview(MemberRow? row)
@@ -437,7 +440,8 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
 
         IReadOnlyList<SuggestedPlayer> active = _teams.ActiveRoster(row.Id);
         ActiveRosterLine = active.Count > 0
-            ? "plays now (5 or more of the last 10): " + string.Join(", ", active.Select(p => DisplayText.Sanitize(p.Name)))
+            ? "plays now (5 or more of the last 10): "
+            + string.Join(", ", active.Select(p => DisplayText.Sanitize(p.Name)))
             : "plays now: nobody has 5 of the last 10 yet";
 
         foreach (Roster roster in row.Team.Rosters)
@@ -456,12 +460,11 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
             long ticks = entry?.Modified.Ticks ?? 0;
             Demos.Add(new DemoRow(demo.Path, side, ticks)
             {
-                FileName = Path.GetFileName(demo.Path),
                 Map = entry?.MapName ?? "",
                 Date = ticks > 0 ? new DateTime(ticks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : "",
                 Opponent = opponent,
                 // Surfaced at tier 1 only: "with a stand-in" has no referent until a five exists.
-                StandIn = mine.StandIn && mine.Tier == 1,
+                StandIn = mine is { StandIn: true, Tier: 1 },
                 Detail = mine.Tier switch
                 {
                     1 => $"{mine.Overlap} of the five",
@@ -492,9 +495,13 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
         }
 
         IReadOnlyDictionary<string, TeamIndexMember> members = _teams.MembersOf(us.Id, squad.Id);
-        string Name(string id) => members.TryGetValue(id, out TeamIndexMember? m) ? DisplayText.Sanitize(m.LastName) : id;
+
+        string Name(string id) =>
+            members.TryGetValue(id, out TeamIndexMember? m) ? DisplayText.Sanitize(m.LastName) : id;
+
         int games = _teams.DemosOf(us.Id).Count;
-        MyTeamLine = $"{DisplayText.Sanitize(us.Name)} · squad: {string.Join(", ", squad.Squad!.Select(Name))} · {TeamSuggestions.Count(games, "game")}";
+        MyTeamLine =
+            $"{DisplayText.Sanitize(us.Name)} · squad: {string.Join(", ", squad.Squad!.Select(Name))} · {TeamSuggestions.Count(games, "game")}";
         HashSet<string> core = new(squad.Squad!, StringComparer.Ordinal);
         List<string> fills =
         [
@@ -510,7 +517,8 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
     {
         SquadCandidates.Clear();
         (IReadOnlyList<SuggestedPlayer> players, _, _) = _teams.CoPlayers();
-        HashSet<string> current = new(_teams.Us?.Rosters.FirstOrDefault(r => r.IsSquad)?.Squad ?? [], StringComparer.Ordinal);
+        HashSet<string> current = new(_teams.Us?.Rosters.FirstOrDefault(r => r.IsSquad)?.Squad ?? [],
+            StringComparer.Ordinal);
         foreach (SuggestedPlayer player in players.Take(20))
         {
             SquadCandidates.Add(new SquadCandidateRow(player.SteamId64, DisplayText.Sanitize(player.Name), player.Games)
@@ -523,12 +531,14 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
     /// <summary>The Me card's line: the host's accounts, the active one marked, and where to change them.</summary>
     /// <param name="accounts">The user's accounts.</param>
     /// <param name="active">The active one, or null.</param>
-    public static string AccountsLine(IReadOnlyList<string> accounts, string? active) =>
+    private static string AccountsLine(IReadOnlyList<string> accounts, string? active) =>
         accounts.Count == 0
             ? "No accounts yet. Open Settings > Identity to add yours."
             : "Your accounts: "
-              + string.Join(", ", accounts.Select(a => accounts.Count > 1 && string.Equals(a, active, StringComparison.Ordinal) ? a + " (active)" : a))
-              + ". Open Settings > Identity to change them.";
+            + string.Join(", ",
+                accounts.Select(a =>
+                    accounts.Count > 1 && string.Equals(a, active, StringComparison.Ordinal) ? a + " (active)" : a))
+            + ". Open Settings > Identity to change them.";
 
     private void ProjectSuggestions()
     {
@@ -566,10 +576,11 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
         List<string> parts = [];
         if (unclusterable > 0)
         {
-            parts.Add($"{unclusterable} demo{(unclusterable == 1 ? "" : "s")} could not be clustered (team split needs a re-index)");
+            parts.Add(
+                $"{unclusterable} demo{(unclusterable == 1 ? "" : "s")} could not be clustered (team split needs a re-index)");
         }
 
-        if (_teams.DemoCount > 0 && !_teams.HasRecurringOpponent)
+        if (_teams is { DemoCount: > 0, HasRecurringOpponent: false })
         {
             parts.Add("every opponent is unaffiliated: the Dossier has no recurring opponent to describe");
         }
@@ -579,16 +590,9 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
 }
 
 /// <summary>One team in the list.</summary>
-public sealed class TeamRow
+public sealed class TeamRow(Team team, int demoCount, long lastSeenTicks)
 {
-    public TeamRow(Team team, int demoCount, long lastSeenTicks)
-    {
-        Team = team;
-        DemoCount = demoCount;
-        LastSeen = lastSeenTicks > 0 ? new DateTime(lastSeenTicks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : "never";
-    }
-
-    public Team Team { get; }
+    public Team Team { get; } = team;
 
     public Guid Id => Team.Id;
 
@@ -600,9 +604,11 @@ public sealed class TeamRow
 
     public int RosterCount => Team.Rosters.Count;
 
-    public int DemoCount { get; }
+    public int DemoCount { get; } = demoCount;
 
-    public string LastSeen { get; }
+    private string LastSeen { get; } = lastSeenTicks > 0
+        ? new DateTime(lastSeenTicks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+        : "never";
 
     public string Summary =>
         $"{RosterCount} roster{(RosterCount == 1 ? "" : "s")} · {(DemoCount == 0 ? "no demos" : $"{DemoCount} demo{(DemoCount == 1 ? "" : "s")}")} · last {LastSeen}";
@@ -613,13 +619,16 @@ public sealed class RosterRow
 {
     public RosterRow(Roster roster, IReadOnlyDictionary<string, TeamIndexMember> members)
     {
-        string Name(string id) => members.TryGetValue(id, out TeamIndexMember? m) ? DisplayText.Sanitize(m.LastName) : id;
+        string Name(string id) =>
+            members.TryGetValue(id, out TeamIndexMember? m) ? DisplayText.Sanitize(m.LastName) : id;
+
         if (roster.IsSquad)
         {
             Label = "squad · the players you chose";
             FiveLine = "squad: " + string.Join(", ", roster.Squad!.Select(Name));
             CoreLine = "";
-            foreach ((string id, TeamIndexMember m) in members.OrderByDescending(m => m.Value.Count).ThenBy(m => m.Key, StringComparer.Ordinal))
+            foreach ((string id, TeamIndexMember m) in members.OrderByDescending(m => m.Value.Count)
+                         .ThenBy(m => m.Key, StringComparer.Ordinal))
             {
                 Members.Add(new MemberRow(id, m));
             }
@@ -627,14 +636,16 @@ public sealed class RosterRow
             return;
         }
 
-        Label = $"{roster.Id} · since {roster.Since:yyyy-MM-dd}{(roster.Label is null ? "" : $" · {DisplayText.Sanitize(roster.Label)}")}";
+        Label =
+            $"{roster.Id} · since {roster.Since:yyyy-MM-dd}{(roster.Label is null ? "" : $" · {DisplayText.Sanitize(roster.Label)}")}";
         FiveLine = roster.HasCoreLineup
             ? "fixed five: " + string.Join(", ", roster.CoreLineup!.Select(Name))
             : "no fixed five yet";
         CoreLine = roster.ExtendedCore is { Count: > 0 }
             ? "extended core: " + string.Join(", ", roster.ExtendedCore.Select(Name))
             : "";
-        foreach ((string id, TeamIndexMember m) in members.OrderByDescending(m => m.Value.Count).ThenBy(m => m.Key, StringComparer.Ordinal))
+        foreach ((string id, TeamIndexMember m) in members.OrderByDescending(m => m.Value.Count)
+                     .ThenBy(m => m.Key, StringComparer.Ordinal))
         {
             Members.Add(new MemberRow(id, m));
         }
@@ -652,18 +663,19 @@ public sealed class RosterRow
 /// <summary>One member of a roster.</summary>
 public sealed class MemberRow(string steamId, TeamIndexMember member)
 {
-    public string SteamId { get; } = steamId;
-
     /// <summary>The member's SteamID64, or null when the id is not a decimal one.</summary>
-    public ulong? SteamId64 { get; } = ulong.TryParse(steamId, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id) && id != 0 ? id : null;
+    public ulong? SteamId64 { get; } =
+        ulong.TryParse(steamId, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id) && id != 0 ? id : null;
 
     public string Name { get; } = DisplayText.Sanitize(member.LastName);
 
     public int Appearances { get; } = member.Count;
 
-    public string FirstSeen { get; } = new DateTime(member.FirstTicks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    public string FirstSeen { get; } =
+        new DateTime(member.FirstTicks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-    public string LastSeen { get; } = new DateTime(member.LastTicks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    public string LastSeen { get; } =
+        new DateTime(member.LastTicks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     public int StandIns { get; } = member.StandInCount;
 }
@@ -687,9 +699,9 @@ public sealed partial class SquadCandidateRow(string steamId, string name, int g
 
     public string SteamId { get; } = steamId;
 
-    public string Name { get; } = name;
+    private string Name { get; } = name;
 
-    public int Games { get; } = games;
+    private int Games { get; } = games;
 
     public string Label => $"{Name} ({Games} with you)";
 }
@@ -708,8 +720,6 @@ public sealed partial class DemoRow(string path, int side, long orderTicks) : Ob
     public long OrderTicks { get; } = orderTicks;
 
     public string SideLabel => Side == 3 ? "CT" : "T";
-
-    public string FileName { get; init; } = "";
 
     public string Map { get; init; } = "";
 

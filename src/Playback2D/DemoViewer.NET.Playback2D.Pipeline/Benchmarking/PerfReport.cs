@@ -78,9 +78,6 @@ internal sealed record PerfReport(
     IReadOnlyList<PerfRow> Stages,
     IReadOnlyList<PerfRow> Layers)
 {
-    /// <summary>An empty report: what a run with capture off would produce.</summary>
-    public static PerfReport Empty { get; } = new(0, 0, default, [], []);
-
     /// <summary>
     ///     The uncapped render-only ceiling: <c>1000 / p50</c> of the render stage. This is the number
     ///     "how fast could this scene possibly draw" asks for, and it is the same number under
@@ -91,9 +88,6 @@ internal sealed record PerfReport(
 
     /// <summary>The whole captured frame's ceiling: <c>1000 / p50</c> of <see cref="Frame" />.</summary>
     public double MaxFrameFps => Fps(Frame.P50Ms);
-
-    /// <summary>Mean frame time over the capture, in milliseconds.</summary>
-    public double MeanFrameMs => Frames > 0 ? FrameTotalMs / Frames : 0;
 
     /// <summary>
     ///     Stages and layers together, slowest total first: the "what should I go and look at" list.

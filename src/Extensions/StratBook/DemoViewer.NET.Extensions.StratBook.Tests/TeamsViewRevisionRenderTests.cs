@@ -7,10 +7,10 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Teams;
 using DemoViewer.NET.Extensions.StratBook.Views.Teams;
+using DemoViewer.NET.Services.DemoCache;
 
 #endregion
 
@@ -28,26 +28,36 @@ public class TeamsViewRevisionRenderTests
 
     private static int _stranger = 8000;
 
-    private static string[] Strangers() => Ids(Interlocked.Add(ref _stranger, 5) - 4, _stranger - 3, _stranger - 2, _stranger - 1, _stranger);
+    private static string[] Strangers() => Ids(Interlocked.Add(ref _stranger, 5) - 4, _stranger - 3, _stranger - 2,
+        _stranger - 1, _stranger);
 
-    private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string sourceKind, string? tClan = null)
+    private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string sourceKind,
+        string? tClan = null)
     {
         DemoCacheRecord record = new()
         {
-            Path = path, Size = 1, ModifiedTicks = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(day).Ticks,
-            Map = "de_mirage", SourceKind = sourceKind, TClan = tClan
+            Path = path,
+            Size = 1,
+            ModifiedTicks = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(day).Ticks,
+            Map = "de_mirage",
+            SourceKind = sourceKind,
+            TClan = tClan
         };
         string[] names = ["sid", "kappa", "rook", "vex", "mono", "tilt", "zed", "ash", "juno", "pike"];
         int slot = 0;
         foreach (string id in t)
         {
             int n = int.Parse(id[^4..], System.Globalization.CultureInfo.InvariantCulture);
-            record.Players.Add(new CachedPlayerInfo { Slot = slot++, Name = n < names.Length ? names[n] : $"fill{n}", SteamId64 = id, Team = 2 });
+            record.Players.Add(new CachedPlayerInfo
+            {
+                Slot = slot++, Name = n < names.Length ? names[n] : $"fill{n}", SteamId64 = id, Team = 2
+            });
         }
 
         foreach (string id in ct)
         {
-            record.Players.Add(new CachedPlayerInfo { Slot = slot++, Name = $"opp{id[^3..]}", SteamId64 = id, Team = 3 });
+            record.Players.Add(
+                new CachedPlayerInfo { Slot = slot++, Name = $"opp{id[^3..]}", SteamId64 = id, Team = 3 });
         }
 
         DemoCacheStore.StampParse(record);
@@ -77,23 +87,27 @@ public class TeamsViewRevisionRenderTests
                 // Matchmaking: sid, kappa and rook together with rotating fills; sid solo in between.
                 for (int i = 0; i < 12; i++)
                 {
-                    cache.Upsert(Record($"/mm/trio{i}.dem", day++, [.. Ids(0, 1, 2), .. Ids(20 + (i % 3), 40 + i)], Strangers(), nameof(DemoSourceKind.GotvMatchmaking)));
+                    cache.Upsert(Record($"/mm/trio{i}.dem", day++, [.. Ids(0, 1, 2), .. Ids(20 + (i % 3), 40 + i)],
+                        Strangers(), nameof(DemoSourceKind.GotvMatchmaking)));
                 }
 
                 for (int i = 0; i < 6; i++)
                 {
-                    cache.Upsert(Record($"/mm/solo{i}.dem", day++, [.. Ids(0), .. Ids(60 + i, 61 + i, 62 + i, 63 + i)], Strangers(), nameof(DemoSourceKind.GotvMatchmaking)));
+                    cache.Upsert(Record($"/mm/solo{i}.dem", day++, [.. Ids(0), .. Ids(60 + i, 61 + i, 62 + i, 63 + i)],
+                        Strangers(), nameof(DemoSourceKind.GotvMatchmaking)));
                 }
 
                 // A scrim team: vex, mono, tilt, zed, ash, then pike replaces ash.
                 for (int i = 0; i < 6; i++)
                 {
-                    cache.Upsert(Record($"/scrim/a{i}.dem", day++, Ids(3, 4, 5, 6, 7), Strangers(), "Unknown", "Northside"));
+                    cache.Upsert(Record($"/scrim/a{i}.dem", day++, Ids(3, 4, 5, 6, 7), Strangers(), "Unknown",
+                        "Northside"));
                 }
 
                 for (int i = 0; i < 6; i++)
                 {
-                    cache.Upsert(Record($"/scrim/b{i}.dem", day++, Ids(3, 4, 5, 6, 9), Strangers(), "Unknown", "Northside"));
+                    cache.Upsert(Record($"/scrim/b{i}.dem", day++, Ids(3, 4, 5, 6, 9), Strangers(), "Unknown",
+                        "Northside"));
                 }
             }
 
@@ -115,7 +129,8 @@ public class TeamsViewRevisionRenderTests
                 inboxInk = NonBackground(inbox);
             }
 
-            vm.AcceptSuggestionCommand.Execute(vm.Suggestions.First(s => s.Id.StartsWith("squad:", StringComparison.Ordinal)));
+            vm.AcceptSuggestionCommand.Execute(vm.Suggestions.First(s =>
+                s.Id.StartsWith("squad:", StringComparison.Ordinal)));
             vm.SelectedTeam = vm.Teams.FirstOrDefault(t => t.IsUs);
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
@@ -136,7 +151,8 @@ public class TeamsViewRevisionRenderTests
         {
             await Assert.That(suggestions.Count).IsEqualTo(2).Because("the squad and the scrim team's roster change");
             await Assert.That(suggestions.Any(s => s.Contains("kappa, rook", StringComparison.Ordinal))).IsTrue();
-            await Assert.That(suggestions.Any(s => s.Contains("pike", StringComparison.Ordinal) && s.Contains("ash", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(suggestions.Any(s =>
+                s.Contains("pike", StringComparison.Ordinal) && s.Contains("ash", StringComparison.Ordinal))).IsTrue();
             await Assert.That(myTeam).Contains("squad: sid, kappa, rook");
             await Assert.That(myTeam).Contains("12 games");
             await Assert.That(myTeam).Contains("regular fills: fill20 (4), fill21 (4), fill22 (4)");

@@ -1,7 +1,6 @@
 #region
 
 using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
 
 #endregion
 
@@ -18,15 +17,11 @@ internal sealed class PostedActions
     private readonly ConcurrentQueue<Action> _queue = new();
     private readonly ChangeSignal _signal = new();
 
-    public bool IsEmpty => _queue.IsEmpty;
-
     public void Enqueue(Action action)
     {
         _queue.Enqueue(action);
         _signal.Raise();
     }
-
-    public bool TryDequeue([MaybeNullWhen(false)] out Action action) => _queue.TryDequeue(out action);
 
     public void Drain()
     {
@@ -35,9 +30,6 @@ internal sealed class PostedActions
             action();
         }
     }
-
-    /// <summary>Returns once something is queued.</summary>
-    public Task WaitForPostAsync() => _signal.WaitUntilAsync(() => !_queue.IsEmpty, Posted);
 
     /// <summary>Runs each post as it arrives until <paramref name="until" /> holds.</summary>
     public async Task DrainUntilAsync(Func<bool> until)

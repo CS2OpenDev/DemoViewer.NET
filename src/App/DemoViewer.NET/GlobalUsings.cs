@@ -4,6 +4,8 @@
 // Importing them globally keeps every unqualified reference (and every <see cref="..."/> naming
 // one) working without touching call sites.
 
+#region
+
 global using CS2OpenSchema.Protos;
 
 // Typed game-event payload records (PlayerDeathEvent, PlayerTeamEvent, ...) from
@@ -19,3 +21,5 @@ global using DemoViewer.NET.Extensions.Sdk;
 global using DemoViewer.NET.Extensions.Sdk.Ui;
 global using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 global using DemoViewer.NET.Extensions.Sdk.Ui.Theming;
+
+#endregion

@@ -2,7 +2,6 @@
 
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Library;
 
 #endregion
@@ -20,13 +19,13 @@ public sealed partial class LibraryFilterViewModel : ObservableObject
     private Func<LibraryDemo, string, bool> _matches;
     private bool _suppress;
 
-    internal LibraryFilterViewModel(LibraryFilter filter, Action onSelectionChanged, Func<DemoEntry, LibraryDemo>? demoOf = null)
+    internal LibraryFilterViewModel(LibraryFilter filter, Action onSelectionChanged,
+        Func<DemoEntry, LibraryDemo>? demoOf = null)
     {
         _demoOf = demoOf ?? (static e => e.ToLibraryDemo());
         ArgumentNullException.ThrowIfNull(filter);
         ArgumentNullException.ThrowIfNull(onSelectionChanged);
         OnSelectionChanged = onSelectionChanged;
-        Label = filter.Label;
         Tooltip = filter.Tooltip ?? filter.Label;
         _matches = filter.Matches;
         Items = [.. filter.Items];
@@ -35,14 +34,11 @@ public sealed partial class LibraryFilterViewModel : ObservableObject
 
     private Action OnSelectionChanged { get; }
 
-    /// <summary>The filter's own label (e.g. "Team").</summary>
-    public string Label { get; private set; }
-
-    /// <summary>The picker's tooltip; the contribution's own text, or <see cref="Label" /> when it left none.</summary>
+    /// <summary>The picker's tooltip; the contribution's own text, or the filter's label (e.g. "Team") when it left none.</summary>
     public string Tooltip { get; private set; }
 
     /// <summary>The choices, item 0 conventionally the "" (no filter) choice.</summary>
-    public ObservableCollection<LibraryFilterItem> Items { get; } = [];
+    public ObservableCollection<LibraryFilterItem> Items { get; }
 
     [ObservableProperty]
     private LibraryFilterItem _selected;
@@ -68,7 +64,6 @@ public sealed partial class LibraryFilterViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(filter);
         _matches = filter.Matches;
-        Label = filter.Label;
         Tooltip = filter.Tooltip ?? filter.Label;
         string keepKey = Selected.Key;
 
@@ -80,7 +75,8 @@ public sealed partial class LibraryFilterViewModel : ObservableObject
         }
 
         _suppress = false;
-        Selected = Items.FirstOrDefault(i => i.Key == keepKey) ?? Items.FirstOrDefault() ?? new LibraryFilterItem("", "All");
+        Selected = Items.FirstOrDefault(i => i.Key == keepKey)
+            ?? Items.FirstOrDefault() ?? new LibraryFilterItem("", "All");
     }
 
     /// <summary>Resets the selection to the "" (All) choice without firing <see cref="OnSelectionChanged" />.</summary>

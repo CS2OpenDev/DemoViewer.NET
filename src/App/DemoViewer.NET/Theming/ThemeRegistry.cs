@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
-using DemoViewer.NET.Extensions.Sdk.Ui.Theming;
 using DemoViewer.NET.Services;
 
 #endregion
@@ -52,30 +51,13 @@ public sealed class ThemeRegistry
     private bool _installed;
 
     private ResourceDictionary? _previewDict;
-    private ThemeVariant? _previewVariant;
     private int _previewSerial;
 
     public ThemeRegistry()
     {
-        Add(new Theme
-        {
-            Id = "dark",
-            DisplayName = "Dark",
-            Variant = ThemeVariant.Dark
-        });
-        Add(new Theme
-        {
-            Id = "light",
-            DisplayName = "Light",
-            Variant = ThemeVariant.Light
-        });
-        Add(new Theme
-        {
-            Id = "system",
-            DisplayName = "System",
-            Variant = ThemeVariant.Default,
-            CanCustomize = false
-        });
+        Add(new Theme { Id = "dark", DisplayName = "Dark", Variant = ThemeVariant.Dark });
+        Add(new Theme { Id = "light", DisplayName = "Light", Variant = ThemeVariant.Light });
+        Add(new Theme { Id = "system", DisplayName = "System", Variant = ThemeVariant.Default, CanCustomize = false });
 
         // The custom built-ins register only what they set; the rest falls through to Dark exactly as before.
         foreach (ThemeDefinition def in BuiltInThemes.CustomDefinitions)
@@ -85,10 +67,10 @@ public sealed class ThemeRegistry
     }
 
     /// <summary>All registered themes, in registration order (built-ins first, then user drop-ins).</summary>
-    public IReadOnlyList<Theme> Themes => _ordered.ToList();
+    public IReadOnlyList<Theme> Themes => [.. _ordered];
 
     /// <summary>Theme files the last <see cref="Reload" /> skipped, with the reason.</summary>
-    public IReadOnlyList<ThemeLoadProblem> LoadProblems => _problems.ToList();
+    public IReadOnlyList<ThemeLoadProblem> LoadProblems => [.. _problems];
 
     /// <summary>Fires after <see cref="Reload" /> re-scans the drop-in directory, so the app can refresh + repaint.</summary>
     public event EventHandler? Reloaded;
@@ -115,9 +97,10 @@ public sealed class ThemeRegistry
         RegisterCore(new ThemeDefinition(id, displayName, baseVariant, tokens), source, null, []);
 
     /// <summary>Registers a <see cref="ThemeDefinition" /> (parsed JSON, a built-in or a user drop-in).</summary>
-    public Theme Register(ThemeDefinition def, ThemeSource source) => RegisterCore(def, source, null, []);
+    private void Register(ThemeDefinition def, ThemeSource source) => RegisterCore(def, source, null, []);
 
-    private Theme RegisterCore(ThemeDefinition def, ThemeSource source, string? filePath, IReadOnlyList<string> badValues)
+    private Theme RegisterCore(ThemeDefinition def, ThemeSource source, string? filePath,
+        IReadOnlyList<string> badValues)
     {
         ThemeVariant variant = new(def.Id, def.BaseVariant);
         _customDicts.ThemeDictionaries[variant] = BuildDictionary(def.Tokens, def.Gradients);
@@ -225,7 +208,7 @@ public sealed class ThemeRegistry
                 continue;
             }
 
-            ThemeParseResult parsed = ThemeJson.Parse(json, file);
+            ThemeParseResult parsed = ThemeJson.Parse(json);
             if (parsed.Definition is not { } def)
             {
                 _problems.Add(new ThemeLoadProblem(name, parsed.Error ?? "It is not a theme file."));
@@ -237,7 +220,8 @@ public sealed class ThemeRegistry
             // (last write wins), and the earlier file is reported.
             if (def.Id.StartsWith(PreviewId, StringComparison.OrdinalIgnoreCase))
             {
-                _problems.Add(new ThemeLoadProblem(name, $"Its id \"{def.Id}\" is reserved for the editor's preview. Give it a different id."));
+                _problems.Add(new ThemeLoadProblem(name,
+                    $"Its id \"{def.Id}\" is reserved for the editor's preview. Give it a different id."));
                 continue;
             }
 
@@ -307,7 +291,9 @@ public sealed class ThemeRegistry
 
         return theme.Source == ThemeSource.BuiltIn
             ? BuiltInThemes.Find(theme.Id)
-            : _userDefinitions.TryGetValue(theme.Id, out ThemeDefinition? def) ? ThemePalette.Resolve(def) : null;
+            : _userDefinitions.TryGetValue(theme.Id, out ThemeDefinition? def)
+                ? ThemePalette.Resolve(def)
+                : null;
     }
 
     /// <summary>The definition a user theme's file holds, as read. Null for a built-in.</summary>
@@ -317,7 +303,7 @@ public sealed class ThemeRegistry
     // ── Live preview ────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>The preview variant while a preview is running, else null.</summary>
-    public ThemeVariant? PreviewVariant => _previewVariant;
+    public ThemeVariant? PreviewVariant { get; private set; }
 
     /// <summary>
     ///     Starts (or restarts) the editor preview with every token of <paramref name="palette" />, and returns the
@@ -326,7 +312,7 @@ public sealed class ThemeRegistry
     /// </summary>
     public ThemeVariant BeginPreview(ThemePalette palette)
     {
-        if (_previewVariant is { } old)
+        if (PreviewVariant is { } old)
         {
             _customDicts.ThemeDictionaries.Remove(old);
         }
@@ -335,7 +321,7 @@ public sealed class ThemeRegistry
         // on that variant re-resolve, and the base may have changed; a new variant does both.
         ThemeVariant variant = new($"{PreviewId}-{++_previewSerial}", palette.BaseVariant);
         _previewDict = BuildDictionary(palette.Colors, palette.Gradients);
-        _previewVariant = variant;
+        PreviewVariant = variant;
         _customDicts.ThemeDictionaries[variant] = _previewDict;
         return variant;
     }
@@ -370,12 +356,12 @@ public sealed class ThemeRegistry
     /// <summary>Drops the preview variant. Whoever pointed the app at it must point it back first.</summary>
     public void EndPreview()
     {
-        if (_previewVariant is { } variant)
+        if (PreviewVariant is { } variant)
         {
             _customDicts.ThemeDictionaries.Remove(variant);
         }
 
         _previewDict = null;
-        _previewVariant = null;
+        PreviewVariant = null;
     }
 }

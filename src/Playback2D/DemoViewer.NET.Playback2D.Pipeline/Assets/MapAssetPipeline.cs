@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Analysis.Visibility;
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Assets;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Zones;
@@ -25,8 +24,7 @@ public sealed class LoadedMapAsset : IMapAsset, IDisposable
 {
     private readonly Lock _zoneLock = new();
     private bool _disposed;
-    private IReadOnlyList<FloorSlice>? _floors;
-    private Lazy<IReadOnlyDictionary<string, SKImage>> _radarImages;
+    private readonly Lazy<IReadOnlyDictionary<string, SKImage>> _radarImages;
     private OverlayStamp _zoneStamp;
     private ZoneLoadResult? _zones;
 
@@ -67,7 +65,7 @@ public sealed class LoadedMapAsset : IMapAsset, IDisposable
     ///     </para>
     /// </summary>
     public IReadOnlyList<FloorSlice> Floors =>
-        _floors ??= MapAssetPipeline.BuildFloors(Bundle);
+        field ??= MapAssetPipeline.BuildFloors(Bundle);
 
     /// <summary>Absolute path to the baked collision blob, or null when the bundle has no mesh.</summary>
     public string? CollisionTrisPath =>
@@ -98,18 +96,6 @@ public sealed class LoadedMapAsset : IMapAsset, IDisposable
             lock (_zoneLock)
             {
                 return _zones ??= LoadZones();
-            }
-        }
-    }
-
-    /// <summary>True once <see cref="Zones" /> or <see cref="ZoneLoad" /> has been read.</summary>
-    public bool ZonesLoaded
-    {
-        get
-        {
-            lock (_zoneLock)
-            {
-                return _zones is not null;
             }
         }
     }
@@ -295,25 +281,6 @@ public static class MapAssetPipeline
         return MapAssetBundleReader.TryRead(Path.Combine(assetsRoot, mapName))?.MapVersion;
     }
 
-    /// <summary>
-    ///     The walk-up fallback: the first <c>assets/</c> directory at or above the process base
-    ///     directory. Only used when neither <c>--assets</c> nor <c>DV2D_ASSETS</c> was given.
-    /// </summary>
-    public static string? TryLocateAssetsRoot()
-    {
-        DirectoryInfo? dir = new(AppContext.BaseDirectory);
-        for (int depth = 0; depth < 10 && dir is not null; depth++, dir = dir.Parent)
-        {
-            string candidate = Path.Combine(dir.FullName, "assets");
-            if (Directory.Exists(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        return null;
-    }
-
     /// <summary>Loads a bundle from an explicit directory. Null-graceful.</summary>
     /// <param name="dir">The bundle directory.</param>
     /// <param name="zoneOverlayDirectory">
@@ -327,12 +294,7 @@ public static class MapAssetPipeline
             return null;
         }
 
-        return new LoadedMapAsset
-        {
-            Bundle = bundle,
-            BakedDir = dir,
-            ZoneOverlayDirectory = zoneOverlayDirectory
-        };
+        return new LoadedMapAsset { Bundle = bundle, BakedDir = dir, ZoneOverlayDirectory = zoneOverlayDirectory };
     }
 
     /// <summary>Radar decodes since the process started. For tests: the count "one decode per map" means.</summary>
@@ -398,9 +360,7 @@ public static class MapAssetPipeline
             [
                 new MapRadarImage
                 {
-                    Name = images[0],
-                    Image = asset.RadarImages.GetValueOrDefault(images[0]),
-                    Bounds = bounds
+                    Name = images[0], Image = asset.RadarImages.GetValueOrDefault(images[0]), Bounds = bounds
                 }
             ];
         }

@@ -249,16 +249,14 @@ public partial class RuleWorkbenchView : UserControl
         // block-scoped since v0.6.0: the enclosing top-level section picks the key vocabulary).
         WorkbenchCompletionContext context =
             WorkbenchCompletionSource.ContextFor(LineBeforeCaret(), TextBeforeCaret());
-        IReadOnlyList<WorkbenchCompletion> candidates = WorkbenchCompletionSource.Build(_catalog, _editor.Text, context);
+        IReadOnlyList<WorkbenchCompletion>
+            candidates = WorkbenchCompletionSource.Build(_catalog, _editor.Text, context);
         if (candidates.Count == 0)
         {
             return;
         }
 
-        CompletionWindow window = new(_editor.TextArea)
-        {
-            StartOffset = WordStartOffset()
-        };
+        CompletionWindow window = new(_editor.TextArea) { StartOffset = WordStartOffset() };
         foreach (WorkbenchCompletion c in candidates)
         {
             window.CompletionList.CompletionData.Add(new WorkbenchCompletionData(c));

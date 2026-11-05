@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Playback2D;
 using SkiaSharp;
 
 #endregion
@@ -80,7 +79,7 @@ internal static class SceneCameraFit
     {
         // Keep the world centre and the user zoom; re-solve base scale for the new viewport so the same
         // world span still fits. Pan is dropped: it is measured in the OLD viewport's pixels.
-        double ratio = camera.ViewWidth > 0 && camera.ViewHeight > 0
+        double ratio = camera is { ViewWidth: > 0, ViewHeight: > 0 }
             ? Math.Min(size.Width / camera.ViewWidth, size.Height / camera.ViewHeight)
             : 1.0;
         return new ViewportTransform(size.Width, size.Height, camera.CenterX, camera.CenterY,

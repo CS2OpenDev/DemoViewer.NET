@@ -57,7 +57,8 @@ public class UserThemeStoreTests
         Theme second = store.Customize("light", "Dark copy");
         await Assert.That(second.Id).IsEqualTo("user-dark-copy-2");
         await Assert.That(registry.Find(first.Id)!.DisplayName).IsEqualTo("Something else");
-        await Assert.That(store.ValidateName("Something else", first.Id)).IsNull().Because("a theme may keep its own name");
+        await Assert.That(store.ValidateName("Something else", first.Id)).IsNull()
+            .Because("a theme may keep its own name");
 
         // A name with nothing usable for an id still gets one.
         await Assert.That(store.NewId("!!!")).IsEqualTo("user-theme");
@@ -89,14 +90,18 @@ public class UserThemeStoreTests
     public async Task Delete_RemovesEveryFileWithTheId()
     {
         using TempThemesFolder folder = new();
-        string first = folder.Write("a-dup.json", """{ "id": "dup", "name": "Older", "tokens": { "ShellBg": "#010203" } }""");
-        string second = folder.Write("b-dup.json", """{ "id": "dup", "name": "Newer", "tokens": { "ShellBg": "#040506" } }""");
-        string other = folder.Write("other.json", """{ "id": "other", "name": "Other", "tokens": { "ShellBg": "#070809" } }""");
+        string first = folder.Write("a-dup.json",
+            """{ "id": "dup", "name": "Older", "tokens": { "ShellBg": "#010203" } }""");
+        string second = folder.Write("b-dup.json",
+            """{ "id": "dup", "name": "Newer", "tokens": { "ShellBg": "#040506" } }""");
+        string other = folder.Write("other.json",
+            """{ "id": "other", "name": "Other", "tokens": { "ShellBg": "#070809" } }""");
         ThemeRegistry registry = new();
         registry.Reload();
         UserThemeStore store = new(registry);
         await Assert.That(registry.Find("dup")!.DisplayName).IsEqualTo("Newer");
-        await Assert.That(UserThemeStore.FilesFor("dup").Select(f => Path.GetFileName(f))).IsEquivalentTo(["a-dup.json", "b-dup.json"]);
+        await Assert.That(UserThemeStore.FilesFor("dup").Select(f => Path.GetFileName(f)))
+            .IsEquivalentTo(["a-dup.json", "b-dup.json"]);
 
         store.Delete("dup");
 

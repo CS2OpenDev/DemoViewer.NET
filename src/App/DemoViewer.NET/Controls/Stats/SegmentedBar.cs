@@ -63,6 +63,7 @@ public class SegmentedBar : TemplatedControl
         AvaloniaProperty.Register<SegmentedBar, IBrush?>(nameof(TrackBrush));
 
     /// <summary>Label colour. Null uses <c>Foreground</c>.</summary>
+    [UsedImplicitly]
     public static readonly StyledProperty<IBrush?> LabelBrushProperty =
         AvaloniaProperty.Register<SegmentedBar, IBrush?>(nameof(LabelBrush));
 
@@ -231,7 +232,7 @@ public class SegmentedBar : TemplatedControl
         } ?? FillBrush;
 
     /// <summary>Sum of the finite, positive slice values. Zero means there is nothing to draw.</summary>
-    public double Total
+    private double Total
     {
         get
         {

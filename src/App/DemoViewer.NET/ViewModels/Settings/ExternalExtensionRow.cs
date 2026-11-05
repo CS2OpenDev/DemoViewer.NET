@@ -11,18 +11,17 @@ namespace DemoViewer.NET.ViewModels.Settings;
 /// <param name="Name">Its name, or its folder when the manifest did not parse.</param>
 /// <param name="Version">Its version, or empty.</param>
 /// <param name="State">Loaded and how it was trusted, or why it did not load.</param>
-/// <param name="IsLoaded">True when it is running.</param>
-/// <param name="IsUnverified">True when it runs, or would, without a verified signature.</param>
-public sealed record ExternalExtensionRow(string Name, string Version, string State, bool IsLoaded, bool IsUnverified)
+public sealed record ExternalExtensionRow(string Name, string Version, string State)
 {
     /// <summary>Its master switch when it loaded; null for a copy that did not.</summary>
-    public string? FeatureId { get; init; }
+    public string? FeatureId { get; private init; }
 
     /// <summary>Whether it was switched off for this session after errors, and the ways out; null when not tracked.</summary>
     public ExtensionFaultNotice? Fault { get; init; }
 
     /// <summary>The loaded third-party extensions first, then the copies that did not load.</summary>
-    public static IReadOnlyList<ExternalExtensionRow> Build(IReadOnlyList<PackStatus> statuses, IReadOnlyList<LoadOutcome> rejected)
+    public static IReadOnlyList<ExternalExtensionRow> Build(IReadOnlyList<PackStatus> statuses,
+        IReadOnlyList<LoadOutcome> rejected)
     {
         ArgumentNullException.ThrowIfNull(statuses);
         ArgumentNullException.ThrowIfNull(rejected);
@@ -34,16 +33,22 @@ public sealed record ExternalExtensionRow(string Name, string Version, string St
                 continue;
             }
 
-            rows.Add(new ExternalExtensionRow(status.Manifest?.Name ?? status.Pack.Id, status.Manifest?.Version.ToString() ?? "",
-                external.Verified ? "Loaded. Verified." : "Loaded. Unverified: it runs with the same access to your files as the app.",
-                true, !external.Verified) { FeatureId = status.Pack.FeatureId });
+            rows.Add(new ExternalExtensionRow(status.Manifest?.Name ?? status.Pack.Id,
+                status.Manifest?.Version.ToString() ?? "",
+                external.Verified
+                    ? "Loaded. Verified."
+                    : "Loaded. Unverified: it runs with the same access to your files as the app.")
+            {
+                FeatureId = status.Pack.FeatureId
+            });
         }
 
         foreach (LoadOutcome outcome in rejected)
         {
-            string name = outcome.Manifest?.Name ?? Path.GetFileName(Path.TrimEndingDirectorySeparator(outcome.Directory));
-            rows.Add(new ExternalExtensionRow(name, outcome.Manifest?.Version.ToString() ?? "", "Not loaded: " + outcome.Detail,
-                false, outcome.Failure == LoadFailure.Unverified));
+            string name = outcome.Manifest?.Name
+                ?? Path.GetFileName(Path.TrimEndingDirectorySeparator(outcome.Directory));
+            rows.Add(new ExternalExtensionRow(name, outcome.Manifest?.Version.ToString() ?? "",
+                "Not loaded: " + outcome.Detail));
         }
 
         return rows;

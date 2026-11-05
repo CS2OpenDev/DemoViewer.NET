@@ -54,7 +54,7 @@
             <!-- Watch the canvas's query. -->
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                 <TextBox Grid.Column="0" Text="{Binding NameText}" FontSize="12"
-                         Watermark="{Binding SuggestedName}" />
+                         PlaceholderText="{Binding SuggestedName}" />
                 <Button Grid.Column="1" Content="Watch this query" Classes="ghost" FontSize="11" Padding="10 5"
                         Command="{Binding WatchCurrentCommand}"
                         ToolTip.Tip="Save the tokens, tolerance and filters on the canvas; every demo indexed from now on that matches counts as new" />
@@ -87,7 +87,8 @@
                                     <TextBlock Text="{Binding NewLine}" FontSize="10"
                                                Foreground="{DynamicResource TextMid}" />
                                 </StackPanel>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top">
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                            VerticalAlignment="Top">
                                     <Button Content="Run" Classes="ghost" FontSize="11" Padding="10 5"
                                             Command="{Binding RunCommand}"
                                             ToolTip.Tip="Put this query back on the canvas and search it" />

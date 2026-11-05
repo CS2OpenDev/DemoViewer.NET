@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using DemoViewer.NET.Extensions.Sdk.Ui.Theming;
 
 #endregion
 
@@ -46,7 +45,7 @@ public static class ThemeExport
         ("GraphCanvasBg", "Analysis graph")
     ];
 
-    private static readonly Lazy<IReadOnlyList<ThemeSection>> _sections = new(() => BuildSections());
+    private static readonly Lazy<IReadOnlyList<ThemeSection>> _sections = new(BuildSections);
 
     private const int KeyWidth = 31;
     private const int ValueWidth = 13;
@@ -56,7 +55,8 @@ public static class ThemeExport
 
     private static List<ThemeSection> BuildSections()
     {
-        Dictionary<string, string> titles = _starts.ToDictionary(s => s.FirstToken, s => s.Title, StringComparer.Ordinal);
+        Dictionary<string, string> titles =
+            _starts.ToDictionary(s => s.FirstToken, s => s.Title, StringComparer.Ordinal);
         List<ThemeSection> sections = [];
         string title = _starts[0].Title;
         List<string> current = [];
@@ -89,7 +89,8 @@ public static class ThemeExport
     ///     replace the palette's own, for a copy or a sample. With <paramref name="includeInherited" /> false the
     ///     tokens the theme inherits are left out, so they stay missing (and keep following the base) after a save.
     /// </summary>
-    public static string ToJson(ThemePalette palette, string? id = null, string? name = null, bool includeInherited = true,
+    public static string ToJson(ThemePalette palette, string? id = null, string? name = null,
+        bool includeInherited = true,
         string? title = null)
     {
         id ??= palette.Id;
@@ -109,7 +110,8 @@ public static class ThemeExport
         sb.Append("// and stops. Token meanings are listed in docs/ui/theme-token-catalog.md.\n");
         sb.Append("//\n");
         sb.Append("// Install: put this file in the themes folder (Windows %APPDATA%\\DemoViewer.NET\\themes\\,\n");
-        sb.Append("// macOS ~/Library/Application Support/DemoViewer.NET/themes/, Linux ~/.config/DemoViewer.NET/themes/)\n");
+        sb.Append(
+            "// macOS ~/Library/Application Support/DemoViewer.NET/themes/, Linux ~/.config/DemoViewer.NET/themes/)\n");
         sb.Append("// and press Settings > Theme > Reload themes. An id that matches a built-in theme is ignored.\n");
         sb.Append("{\n");
         sb.Append("  \"id\": ").Append(Quote(id)).Append(",\n");
@@ -227,8 +229,8 @@ public static class ThemeExport
         {
             ThemeGradientStop s = g.Stops[i];
             lines.Add("    { \"offset\": " + s.Offset.ToString("0.###", CultureInfo.InvariantCulture)
-                      + ", \"color\": " + Quote(ThemeJson.FormatColor(s.Color)) + " }"
-                      + (i < g.Stops.Count - 1 ? "," : ""));
+                + ", \"color\": " + Quote(ThemeJson.FormatColor(s.Color)) + " }"
+                + (i < g.Stops.Count - 1 ? "," : ""));
         }
 
         lines.Add("  ]");
@@ -238,7 +240,10 @@ public static class ThemeExport
 
     private static string Pad(string s, int width) => s.Length >= width ? s + " " : s.PadRight(width);
 
-    private static readonly JsonSerializerOptions _quote = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    private static readonly JsonSerializerOptions _quote = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
 
     private static string Quote(string s) => JsonSerializer.Serialize(s, _quote);
 }

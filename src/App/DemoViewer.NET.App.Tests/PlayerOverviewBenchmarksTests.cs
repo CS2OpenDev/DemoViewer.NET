@@ -3,7 +3,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Identity;
@@ -28,11 +27,11 @@ public class PlayerOverviewBenchmarksTests
     private const ulong First = 76561190000000100;
     private const int Accounts = 10;
     private const int Demos = 10;
-    private static readonly int[] Others = [0, 1, 2, 4, 5, 6, 7, 8];
-    private static readonly string FacetStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
+    private static readonly int[] _others = [0, 1, 2, 4, 5, 6, 7, 8];
+    private static readonly string _facetStamp = StampedFacts.StampId(PlayerMatchFacet.RulesetId);
 
     // Account k has K/D k+1; the last account is in the first two demos only.
-    private static ulong Account(int k) => First + (ulong) k;
+    private static ulong Account(int k) => First + (ulong)k;
 
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
@@ -50,37 +49,64 @@ public class PlayerOverviewBenchmarksTests
             ModifiedTicks = 1,
             Sha256 = $"sha{i}",
             Map = i % 2 == 0 ? "de_nuke" : "de_inferno",
-            Players = [.. In(i).Select(k => new CachedPlayerInfo { Slot = k, Name = $"p{k}", SteamId64 = Id(Account(k)), Team = k % 2 == 0 ? 3 : 2 })],
-            MatchMeta = new DemoMatchMeta { MatchTimeUtcTicks = (i + 1) * TimeSpan.TicksPerDay, MatchTimeSource = MatchTimeSource.ValveMatchInfo }
+            Players =
+            [
+                .. In(i).Select(k =>
+                    new CachedPlayerInfo
+                    {
+                        Slot = k, Name = $"p{k}", SteamId64 = Id(Account(k)), Team = k % 2 == 0 ? 3 : 2
+                    })
+            ],
+            MatchMeta = new DemoMatchMeta
+            {
+                MatchTimeUtcTicks = (i + 1) * TimeSpan.TicksPerDay, MatchTimeSource = MatchTimeSource.ValveMatchInfo
+            }
         };
         DemoCacheStore.StampHeader(record);
         DemoCacheStore.StampParse(record);
-        record.PackStamps.Add(new PackStamp(FacetStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
-        record.SetStamp(new PackStamp(MatchMetaEvaluator.StampId, DemoMatchMeta.CurrentSchema, MatchMetaEvaluator.Version) { ComputedAtTicks = 1 });
+        record.PackStamps.Add(new PackStamp(_facetStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 1 });
+        record.SetStamp(
+            new PackStamp(MatchMetaEvaluator.StampId, DemoMatchMeta.CurrentSchema, MatchMetaEvaluator.Version)
+            {
+                ComputedAtTicks = 1
+            });
         return record;
     }
 
     private static FactTable Facet(int i) => new(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match",
-        ["player_slot", "steam_id", "team"], ["rounds", "TotalK", "TotalD", "CTW", "CTL"], new Dictionary<string, string>(),
+        ["player_slot", "steam_id", "team"], ["rounds", "TotalK", "TotalD", "CTW", "CTL"],
+        new Dictionary<string, string>(),
         [
             .. In(i).Select(k => new FactRow(
                 new Dictionary<string, FactValue>
                 {
-                    ["player_slot"] = FactValue.Of((long) k), ["steam_id"] = FactValue.Of(Id(Account(k))), ["team"] = FactValue.Of(k % 2 == 0 ? 3L : 2L)
+                    ["player_slot"] = FactValue.Of(k),
+                    ["steam_id"] = FactValue.Of(Id(Account(k))),
+                    ["team"] = FactValue.Of(k % 2 == 0 ? 3L : 2L)
                 },
                 new Dictionary<string, FactValue>
                 {
-                    ["rounds"] = FactValue.Of(20L), ["TotalK"] = FactValue.Of(10L * (k + 1)), ["TotalD"] = FactValue.Of(10L),
-                    ["CTW"] = FactValue.Of(k % 2 == 0 ? 13L : 7L), ["CTL"] = FactValue.Of(k % 2 == 0 ? 7L : 13L)
+                    ["rounds"] = FactValue.Of(20L),
+                    ["TotalK"] = FactValue.Of(10L * (k + 1)),
+                    ["TotalD"] = FactValue.Of(10L),
+                    ["CTW"] = FactValue.Of(k % 2 == 0 ? 13L : 7L),
+                    ["CTL"] = FactValue.Of(k % 2 == 0 ? 7L : 13L)
                 }))
         ]);
 
     private static DemoMatchMeta Meta(int i) => new()
     {
-        Players = [.. In(i).Select(k => new MatchRankRow { SteamId64 = Id(Account(k)), RankType = 11, RankOld = Rating(k), RankNew = Rating(k) })]
+        Players =
+        [
+            .. In(i).Select(k => new MatchRankRow
+            {
+                SteamId64 = Id(Account(k)), RankType = 11, RankOld = Rating(k), RankNew = Rating(k)
+            })
+        ]
     };
 
-    private static int Index(string path) => int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture);
+    private static int Index(string path) =>
+        int.Parse(Path.GetFileNameWithoutExtension(path), CultureInfo.InvariantCulture);
 
     private sealed record Fixture(
         DemoCacheStore Store,
@@ -126,7 +152,8 @@ public class PlayerOverviewBenchmarksTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(library.FacetReads.Count).IsEqualTo(Demos).Because("the subject's fill reuses what the library fill read");
+            await Assert.That(library.FacetReads.Count).IsEqualTo(Demos)
+                .Because("the subject's fill reuses what the library fill read");
             await Assert.That(again).IsSameReferenceAs(rows);
             await Assert.That(rows.Accounts.Count).IsEqualTo(Accounts);
             await Assert.That(rows.Accounts[Account(9)].Count).IsEqualTo(2);
@@ -135,8 +162,8 @@ public class PlayerOverviewBenchmarksTests
         }
 
         DemoCacheRecord rewritten = Demo(4);
-        rewritten.PackStamps.RemoveAll(s => s.Id == FacetStamp);
-        rewritten.PackStamps.Add(new PackStamp(FacetStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 2 });
+        rewritten.PackStamps.RemoveAll(s => s.Id == _facetStamp);
+        rewritten.PackStamps.Add(new PackStamp(_facetStamp, StampedFacts.Schema, "fp") { ComputedAtTicks = 2 });
         library.Store.Upsert(rewritten);
         library.FacetReads.Clear();
         await library.Rows.LoadLibraryAsync();
@@ -148,17 +175,23 @@ public class PlayerOverviewBenchmarksTests
     {
         LibraryRows rows = await Library().Rows.LoadLibraryAsync();
 
-        IReadOnlyList<(ulong SteamId64, PlayerAggregate Pool)> five = PlayerBenchmark.PopulationOf(rows, Account(3), PlayerFilter.All, 5);
-        IReadOnlyList<(ulong SteamId64, PlayerAggregate Pool)> one = PlayerBenchmark.PopulationOf(rows, Account(3), PlayerFilter.All, 1);
-        IReadOnlyList<(ulong SteamId64, PlayerAggregate Pool)> nuke = PlayerBenchmark.PopulationOf(rows, Account(3), new PlayerFilter { Map = "de_nuke" }, 5);
-        IReadOnlyList<(ulong SteamId64, PlayerAggregate Pool)> last = PlayerBenchmark.PopulationOf(rows, Account(3), new PlayerFilter { Last = 3 }, 5);
+        IReadOnlyList<(ulong SteamId64, PlayerAggregate Pool)> five =
+            PlayerBenchmark.PopulationOf(rows, Account(3), PlayerFilter.All, 5);
+        IReadOnlyList<(ulong SteamId64, PlayerAggregate Pool)> one =
+            PlayerBenchmark.PopulationOf(rows, Account(3), PlayerFilter.All, 1);
+        IReadOnlyList<(ulong SteamId64, PlayerAggregate Pool)> nuke =
+            PlayerBenchmark.PopulationOf(rows, Account(3), new PlayerFilter { Map = "de_nuke" }, 5);
+        IReadOnlyList<(ulong SteamId64, PlayerAggregate Pool)> last =
+            PlayerBenchmark.PopulationOf(rows, Account(3), new PlayerFilter { Last = 3 }, 5);
 
         using (Assert.Multiple())
         {
-            await Assert.That(five.Select(p => p.SteamId64)).IsEquivalentTo([.. Others.Select(Account)], CollectionOrdering.Matching);
+            await Assert.That(five.Select(p => p.SteamId64))
+                .IsEquivalentTo([.. _others.Select(Account)], CollectionOrdering.Matching);
             await Assert.That(one.Count).IsEqualTo(9);
             await Assert.That(nuke.Count).IsEqualTo(8);
-            await Assert.That(nuke.All(p => p.Pool.Matches == 5)).IsTrue().Because("each player's own demos pass the subject's filter");
+            await Assert.That(nuke.All(p => p.Pool.Matches == 5)).IsTrue()
+                .Because("each player's own demos pass the subject's filter");
             await Assert.That(last).IsEmpty().Because("three demos each is under the minimum of five");
         }
     }
@@ -172,7 +205,8 @@ public class PlayerOverviewBenchmarksTests
             await Assert.That(PlayerBenchmark.Percentile(10, [1, 5, 5, 9])).IsEqualTo(100);
             await Assert.That(PlayerBenchmark.Percentile(0, [1, 5, 5, 9])).IsEqualTo(0);
             await Assert.That(PlayerBenchmark.Percentile(9, [1, 5, 5, 9])).IsEqualTo(87.5);
-            await Assert.That(BenchmarkRowItem.Ordinal(1) + BenchmarkRowItem.Ordinal(12) + BenchmarkRowItem.Ordinal(23) + BenchmarkRowItem.Ordinal(50))
+            await Assert.That(BenchmarkRowItem.Ordinal(1) + BenchmarkRowItem.Ordinal(12) + BenchmarkRowItem.Ordinal(23)
+                    + BenchmarkRowItem.Ordinal(50))
                 .IsEqualTo("1st12th23rd50th");
         }
     }
@@ -195,14 +229,16 @@ public class PlayerOverviewBenchmarksTests
     public async Task TheSection_NamesItsPopulation_AndTheRankBandNarrowsIt()
     {
         Fixture library = Library();
-        using IdentityService identity = new(new SettingsService((string?) null));
-        PlayerOverviewServices services = new(library.Directory, identity, library.Rows, _ => { }, _ => { }, (_, _) => { }, _ => { }, Ranks: library.Ranks);
+        using IdentityService identity = new(new SettingsService(null));
+        PlayerOverviewServices services = new(library.Directory, identity, library.Rows, _ => { },
+            (_, _) => { }, _ => { }, Ranks: library.Ranks);
         BenchmarksSectionViewModel section = new(services);
         ulong subject = Account(3);
         PlayerEntry player = library.Directory.Get(subject)!;
         PlayerRows rows = await library.Rows.LoadAsync(subject);
         PlayerRanks ranks = await library.Ranks.LoadAsync(subject);
-        PlayerOverviewContext context = new(subject, player, [.. rows.Demos.Select(d => d.Match)], Demos, false, services, rows.Demos,
+        PlayerOverviewContext context = new(subject, player, [.. rows.Demos.Select(d => d.Match)], Demos, false,
+            services, rows.Demos,
             PlayerFilter.All, rows.Demos, false, ranks, false);
 
         section.Update(context);
@@ -227,7 +263,8 @@ public class PlayerOverviewBenchmarksTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(section.PopulationText).IsEqualTo("vs 6 players in your library · 5+ matches each · Premier 15,000-19,999");
+            await Assert.That(section.PopulationText)
+                .IsEqualTo("vs 6 players in your library · 5+ matches each · Premier 15,000-19,999");
             await Assert.That(kd.Stat.Percentile).IsEqualTo(50);
             await Assert.That(library.RecordReads.Count).IsLessThanOrEqualTo(Demos * 2);
         }
@@ -237,7 +274,8 @@ public class PlayerOverviewBenchmarksTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(section.PopulationText).IsEqualTo("vs 0 players in your library · 20+ matches each · Premier 15,000-19,999");
+            await Assert.That(section.PopulationText)
+                .IsEqualTo("vs 0 players in your library · 20+ matches each · Premier 15,000-19,999");
             await Assert.That(section.Rows).IsEmpty();
             await Assert.That(section.HasNote).IsTrue();
         }

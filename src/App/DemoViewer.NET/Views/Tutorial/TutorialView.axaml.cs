@@ -49,7 +49,7 @@ public partial class TutorialView : UserControl
     ///     Animation priority and would otherwise override a static <see cref="SpotlightScrim.Pulse" />).
     ///     Visual-only: the same "presentation derived from bound state" category as the layout code below.
     /// </summary>
-    public bool AnimatePulse { get; set; } = true;
+    public bool AnimatePulse { get; init; } = true;
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
@@ -99,7 +99,7 @@ public partial class TutorialView : UserControl
     private void UpdatePulse()
     {
         bool spotlit = AnimatePulse
-                       && DataContext is TutorialViewModel { IsActive: true, HasSpotlight: true };
+            && DataContext is TutorialViewModel { IsActive: true, HasSpotlight: true };
         Scrim.Classes.Set("pulsing", spotlit);
     }
 

@@ -1,8 +1,6 @@
 #region
 
 using System.Globalization;
-using DemoViewer.NET.Playback2D;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 
 #endregion
 
@@ -204,12 +202,14 @@ public sealed class PackExporter
         {
             ct.ThrowIfCancellationRequested();
             PackClip clip = clips[i];
-            string path = clip.OutputPath ?? PackPlanner.ClipPath(plan.Settings.OutputPath, clip.Number, clip.Section, clip.Entry);
+            string path = clip.OutputPath
+                ?? PackPlanner.ClipPath(plan.Settings.OutputPath, clip.Number, clip.Section, clip.Entry);
             progress?.Report(new PackProgress(i + 1, clips.Count, Label(clip)));
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                await _clips.RenderAsync(clip, plan.Settings, _encoder.Open(path, plan.Settings), ct).ConfigureAwait(false);
+                await _clips.RenderAsync(clip, plan.Settings, _encoder.Open(path, plan.Settings), ct)
+                    .ConfigureAwait(false);
                 outputs.Add(path);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -229,10 +229,11 @@ public sealed class PackExporter
     }
 
     /// <summary>Writes a title card: one drawn frame, repeated for the card's hold.</summary>
-    internal static async Task WriteTitleCardAsync(PackTitleCard card, PackSettings settings, IFrameSink sink,
+    private static async Task WriteTitleCardAsync(PackTitleCard card, PackSettings settings, IFrameSink sink,
         CancellationToken ct, ScenePalette? palette = null)
     {
-        byte[] rgba = PackTitleCardRenderer.Render(card.Title, card.Subtitle, settings.Side, palette ?? ScenePalette.Dark);
+        byte[] rgba =
+            PackTitleCardRenderer.Render(card.Title, card.Subtitle, settings.Side, palette ?? ScenePalette.Dark);
         for (int f = 0; f < card.Frames; f++)
         {
             ct.ThrowIfCancellationRequested();
@@ -242,7 +243,7 @@ public sealed class PackExporter
 
     /// <summary>"Clip 3: smoke into CT", as progress and the failure list name a clip.</summary>
     /// <param name="clip">The clip.</param>
-    public static string Label(PackClip clip)
+    private static string Label(PackClip clip)
     {
         ArgumentNullException.ThrowIfNull(clip);
         string number = string.Create(CultureInfo.InvariantCulture, $"clip {clip.Number}");

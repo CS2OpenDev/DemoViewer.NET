@@ -1,7 +1,7 @@
 #region
 
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.TestSupport;
 using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
@@ -54,7 +54,8 @@ public class RoundIndexStoreTests
                 new PlaceZBucketSum(-384, 1216, 60110.0, -800012.7)
             ]
         };
-        document.Transitions = [new PlaceTransition("CTSpawn", "Outside", 115), new PlaceTransition("Admin", "Ramp", 62)];
+        document.Transitions =
+            [new PlaceTransition("CTSpawn", "Outside", 115), new PlaceTransition("Admin", "Ramp", 62)];
         return document;
     }
 
@@ -68,17 +69,20 @@ public class RoundIndexStoreTests
             cache.Upsert(ParsedRecord(Demo, sha: "abcd"));
             RoundIndexStore store = new(cache.DiskData(root));
             RoundIndexDocument sample = Sample();
-            store.Write(Demo, sample, new RoundPositionsDocument { Fingerprint = sample.Fingerprint }, sample.Fingerprint);
+            store.Write(Demo, sample, new RoundPositionsDocument { Fingerprint = sample.Fingerprint },
+                sample.Fingerprint);
 
             using (Assert.Multiple())
             {
                 await Assert.That(store.IsCurrent(Demo, sample.Fingerprint)).IsTrue();
                 await Assert.That(store.Needs(Demo, sample.Fingerprint)).IsFalse();
-                await Assert.That(store.Needs(Demo, "another")).IsTrue().Because("another fingerprint is another index");
+                await Assert.That(store.Needs(Demo, "another")).IsTrue()
+                    .Because("another fingerprint is another index");
                 await Assert.That(store.Stamp(Demo)!.Count).IsEqualTo(sample.RowCount);
                 await Assert.That(store.TryRead(Demo)!.Rounds.Single().Runs.Count).IsEqualTo(3);
                 await Assert.That(store.TryReadPositions(Demo, sample.Fingerprint)).IsNotNull();
-                await Assert.That(store.TryReadPositions(Demo, "another")).IsNull().Because("positions built under another fingerprint read as absent");
+                await Assert.That(store.TryReadPositions(Demo, "another")).IsNull()
+                    .Because("positions built under another fingerprint read as absent");
                 await Assert.That(Directory.GetFiles(root, "*.tmp", SearchOption.AllDirectories)).IsEmpty()
                     .Because("every file is replaced whole, never left half written");
             }
@@ -179,7 +183,7 @@ public class RoundIndexStoreTests
         if (Environment.GetEnvironmentVariable("RI_GOLDEN_UPDATE") == "1")
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, FixtureDocument().Serialize() + "\n");
+            await File.WriteAllTextAsync(path, FixtureDocument().Serialize() + "\n");
         }
 
         if (!File.Exists(path))
@@ -187,7 +191,7 @@ public class RoundIndexStoreTests
             throw new SkipTestException($"missing {path}; regenerate with RI_GOLDEN_UPDATE=1");
         }
 
-        string original = File.ReadAllText(path);
+        string original = await File.ReadAllTextAsync(path);
         RoundIndexDocument? loaded = RoundIndexDocument.TryDeserialize(original);
 
         using (Assert.Multiple())
@@ -199,9 +203,11 @@ public class RoundIndexStoreTests
             await Assert.That(loaded.RowCount).IsEqualTo(11);
             await Assert.That(loaded.Places["Outside"].Buckets.Count).IsEqualTo(2);
             await Assert.That(loaded.Transitions[0]).IsEqualTo(new PlaceTransition("CTSpawn", "Outside", 115));
-            await Assert.That(loaded.Serialize() + "\n").IsEqualTo(original.Replace("\r\n", "\n", StringComparison.Ordinal))
+            await Assert.That(loaded.Serialize() + "\n")
+                .IsEqualTo(original.Replace("\r\n", "\n", StringComparison.Ordinal))
                 .Because("the v1 sidecar is a published format; a round trip must be field-identical");
-            await Assert.That(FixtureDocument().Serialize() + "\n").IsEqualTo(original.Replace("\r\n", "\n", StringComparison.Ordinal))
+            await Assert.That(FixtureDocument().Serialize() + "\n")
+                .IsEqualTo(original.Replace("\r\n", "\n", StringComparison.Ordinal))
                 .Because("this build still writes the committed shape");
         }
     }

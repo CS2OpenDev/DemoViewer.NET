@@ -26,17 +26,18 @@ internal sealed class ExtensionRecordPassHost(
     private readonly Dictionary<string, DemoDataKey> _dataInputs = DataInputs(dependsOn ?? []);
 
     /// <summary>The extension's pass.</summary>
-    public IExtensionRecordPass Inner { get; } = inner ?? throw new ArgumentNullException(nameof(inner));
+    private IExtensionRecordPass Inner { get; } = inner ?? throw new ArgumentNullException(nameof(inner));
 
     /// <summary>The extension's guard, which faults are reported to.</summary>
     public ExtensionGuard Guard { get; } = guard ?? throw new ArgumentNullException(nameof(guard));
 
     public string Id { get; } = inner.Id;
 
+    /// <summary>The extension the pass belongs to, for fault reports.</summary>
     public string Owner => Guard.Scope.Id;
 
     /// <summary>The inputs the pass named when it registered.</summary>
-    public IReadOnlyList<RecordInput> DependsOn { get; } = dependsOn ?? [];
+    private IReadOnlyList<RecordInput> DependsOn { get; } = dependsOn ?? [];
 
     // Facts stamps are per ruleset: every output of one ruleset is written under one stamp.
     public IReadOnlyList<string> InputStamps { get; } =
@@ -54,7 +55,8 @@ internal sealed class ExtensionRecordPassHost(
         }
 
         // A pending stamp has no write behind it yet. The count is left out: it moves without a write.
-        if (owners?.Invoke(key.Owner)?.Data.Stamp(entry.Path, key.Facet) is not { } stamp || stamp.State == DemoDataState.Pending)
+        if (owners?.Invoke(key.Owner)?.Data.Stamp(entry.Path, key.Facet) is not { } stamp
+            || stamp.State == DemoDataState.Pending)
         {
             return null;
         }
@@ -76,7 +78,8 @@ internal sealed class ExtensionRecordPassHost(
         // A facet name the data store would reject as a path segment can never be written, so it refuses too.
         List<string> unknown =
         [
-            .. _dataInputs.Values.Where(k => !ExtensionFolders.IsSafeName(k.Facet) || owners?.Invoke(k.Owner) is null).Select(k => k.ToString())
+            .. _dataInputs.Values.Where(k => !ExtensionFolders.IsSafeName(k.Facet) || owners?.Invoke(k.Owner) is null)
+                .Select(k => k.ToString())
         ];
         return RefusalOf([.. DependsOn.OfType<FactKey>()], library.Facts.Declared, IsOff(), unknown);
     }
@@ -85,7 +88,7 @@ internal sealed class ExtensionRecordPassHost(
     {
         Func<string, bool> isOff = IsOff();
         return DependsOn.OfType<FactKey>().Any(k => isOff(k.RulesetId))
-               || _dataInputs.Values.Any(k => owners?.Invoke(k.Owner) is { } owner && !owner.IsOn());
+            || _dataInputs.Values.Any(k => owners?.Invoke(k.Owner) is { } owner && !owner.IsOn());
     }
 
     private Func<string, bool> IsOff() =>
@@ -96,7 +99,8 @@ internal sealed class ExtensionRecordPassHost(
     /// <param name="declared">The outputs the host runs now.</param>
     /// <param name="isOff">True for a ruleset that is known but off now; its keys wait instead of refusing.</param>
     /// <param name="unknownData">Facets the pass named whose owner the host does not know.</param>
-    public static string? RefusalOf(IReadOnlyList<FactKey> dependsOn, IReadOnlyList<FactKey> declared, Func<string, bool> isOff,
+    private static string? RefusalOf(IReadOnlyList<FactKey> dependsOn, IReadOnlyList<FactKey> declared,
+        Func<string, bool> isOff,
         IReadOnlyList<string>? unknownData = null)
     {
         ArgumentNullException.ThrowIfNull(dependsOn);
@@ -170,7 +174,8 @@ internal sealed class ExtensionRecordPassHost(
             {
                 if (cached is null || !ReferenceEquals(cached.Inner, pass))
                 {
-                    cached = new ExtensionRecordPassHost(pass, contribution.Guard, library(), contribution.DependsOn, owners);
+                    cached = new ExtensionRecordPassHost(pass, contribution.Guard, library(), contribution.DependsOn,
+                        owners);
                 }
 
                 return cached;

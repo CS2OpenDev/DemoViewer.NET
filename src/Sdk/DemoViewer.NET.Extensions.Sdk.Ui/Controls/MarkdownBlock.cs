@@ -23,6 +23,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///         because the release bodies are authored wrapped at ~100 columns.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed partial class MarkdownBlock : ContentControl
 {
     /// <summary>The Markdown source to render. Null/empty clears the content.</summary>
@@ -56,10 +57,7 @@ public sealed partial class MarkdownBlock : ContentControl
         markdown = HtmlComment().Replace(markdown, string.Empty);
         markdown = ImageSyntax().Replace(markdown, "$1");
 
-        StackPanel panel = new()
-        {
-            Spacing = 10
-        };
+        StackPanel panel = new() { Spacing = 10 };
         string[] lines = markdown.Split('\n');
         int i = 0;
         while (i < lines.Length)
@@ -128,7 +126,7 @@ public sealed partial class MarkdownBlock : ContentControl
     // recursively so bold/paragraph rules apply inside the quote too.
     private static Border RenderQuote(string[] lines, ref int i)
     {
-        List<string> inner = new();
+        List<string> inner = [];
         while (i < lines.Length && lines[i].TrimStart().StartsWith('>'))
         {
             string stripped = lines[i].TrimStart().TrimStart('>');
@@ -147,10 +145,7 @@ public sealed partial class MarkdownBlock : ContentControl
 
     private static StackPanel RenderBulletList(string[] lines, ref int i)
     {
-        StackPanel list = new()
-        {
-            Spacing = 4
-        };
+        StackPanel list = new() { Spacing = 4 };
         while (i < lines.Length && IsBullet(lines[i].Trim()))
         {
             string item = lines[i].Trim()[2..];
@@ -163,18 +158,9 @@ public sealed partial class MarkdownBlock : ContentControl
                 i++;
             }
 
-            Grid row = new()
-            {
-                ColumnDefinitions = new ColumnDefinitions("16,*")
-            };
-            row.Children.Add(new TextBlock
-            {
-                Text = "•"
-            });
-            TextBlock content = new()
-            {
-                TextWrapping = TextWrapping.Wrap
-            };
+            Grid row = new() { ColumnDefinitions = new ColumnDefinitions("16,*") };
+            row.Children.Add(new TextBlock { Text = "•" });
+            TextBlock content = new() { TextWrapping = TextWrapping.Wrap };
             AddInlines(content.Inlines!, item);
             Grid.SetColumn(content, 1);
             row.Children.Add(content);
@@ -194,10 +180,7 @@ public sealed partial class MarkdownBlock : ContentControl
             i++;
         }
 
-        TextBlock tb = new()
-        {
-            TextWrapping = TextWrapping.Wrap
-        };
+        TextBlock tb = new() { TextWrapping = TextWrapping.Wrap };
         AddInlines(tb.Inlines!, text);
         return tb;
     }
@@ -208,7 +191,7 @@ public sealed partial class MarkdownBlock : ContentControl
     private static Expander ParseDetails(string[] lines, ref int i)
     {
         int depth = 0;
-        List<string> body = new();
+        List<string> body = [];
         do
         {
             string line = lines[i];
@@ -234,11 +217,7 @@ public sealed partial class MarkdownBlock : ContentControl
             Header = summary,
             IsExpanded = false,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            Content = new Border
-            {
-                Padding = new Thickness(4, 8, 0, 0),
-                Child = RenderBlocks(joined)
-            }
+            Content = new Border { Padding = new Thickness(4, 8, 0, 0), Child = RenderBlocks(joined) }
         };
     }
 
@@ -258,24 +237,15 @@ public sealed partial class MarkdownBlock : ContentControl
 
             if (m.Groups["b"].Success)
             {
-                inlines.Add(new Run(m.Groups["b"].Value)
-                {
-                    FontWeight = FontWeight.SemiBold
-                });
+                inlines.Add(new Run(m.Groups["b"].Value) { FontWeight = FontWeight.SemiBold });
             }
             else if (m.Groups["c"].Success)
             {
-                inlines.Add(new Run(m.Groups["c"].Value)
-                {
-                    FontFamily = new FontFamily("Consolas, Menlo, monospace")
-                });
+                inlines.Add(new Run(m.Groups["c"].Value) { FontFamily = new FontFamily("Consolas, Menlo, monospace") });
             }
             else
             {
-                inlines.Add(new Run(m.Groups["lt"].Value)
-                {
-                    TextDecorations = TextDecorations.Underline
-                });
+                inlines.Add(new Run(m.Groups["lt"].Value) { TextDecorations = TextDecorations.Underline });
             }
 
             pos = m.Index + m.Length;
@@ -298,11 +268,11 @@ public sealed partial class MarkdownBlock : ContentControl
     {
         string trimmed = line.Trim();
         return trimmed.Length > 0
-               && !IsBullet(trimmed)
-               && !trimmed.StartsWith('>')
-               && !trimmed.StartsWith('#')
-               && !trimmed.StartsWith("<details", StringComparison.OrdinalIgnoreCase)
-               && !trimmed.StartsWith("</details", StringComparison.OrdinalIgnoreCase);
+            && !IsBullet(trimmed)
+            && !trimmed.StartsWith('>')
+            && !trimmed.StartsWith('#')
+            && !trimmed.StartsWith("<details", StringComparison.OrdinalIgnoreCase)
+            && !trimmed.StartsWith("</details", StringComparison.OrdinalIgnoreCase);
     }
 
     private static int CountOccurrences(string line, string token)
@@ -324,15 +294,15 @@ public sealed partial class MarkdownBlock : ContentControl
     [GeneratedRegex(@"(\*\*(?<b>.+?)\*\*)|(`(?<c>[^`]+)`)|(\[(?<lt>[^\]]+)\]\((?<lu>[^)\s]+)\))")]
     private static partial Regex InlineToken();
 
-    [GeneratedRegex(@"<!--.*?-->", RegexOptions.Singleline)]
+    [GeneratedRegex("<!--.*?-->", RegexOptions.Singleline)]
     private static partial Regex HtmlComment();
 
     [GeneratedRegex(@"!\[([^\]]*)\]\([^)]*\)")]
     private static partial Regex ImageSyntax();
 
-    [GeneratedRegex(@"</?details[^>]*>", RegexOptions.IgnoreCase)]
+    [GeneratedRegex("</?details[^>]*>", RegexOptions.IgnoreCase)]
     private static partial Regex OuterDetailsTag();
 
-    [GeneratedRegex(@"<summary>(.*?)</summary>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex("<summary>(.*?)</summary>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex SummaryTag();
 }

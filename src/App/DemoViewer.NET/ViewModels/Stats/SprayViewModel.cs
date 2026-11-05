@@ -2,7 +2,6 @@
 
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CS2DemoKit.Parser;
 
 #endregion
 
@@ -66,6 +65,7 @@ public sealed partial class SprayViewModel : ObservableObject
 
     /// <summary>Selected spray; changing it redraws the plot.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Shots))]
     private SprayRunItem? _selectedRun;
 
     /// <summary>
@@ -93,11 +93,6 @@ public sealed partial class SprayViewModel : ObservableObject
     partial void OnTrackTargetChanged(bool value) => _ = ReloadAsync();
 
     partial void OnSelectedWeaponChanged(string? value) => RebuildRuns();
-
-    partial void OnSelectedRunChanged(SprayRunItem? value)
-    {
-        OnPropertyChanged(nameof(Shots));
-    }
 
     private async Task ReloadAsync()
     {
@@ -184,9 +179,9 @@ public sealed partial class SprayViewModel : ObservableObject
     {
         Runs.Clear();
         Pattern = SelectedWeapon is { } weapon
-                  && _patternsByWeapon.TryGetValue(weapon, out IReadOnlyList<SprayPatternPoint>? pts)
-            ? pts
-            : [];
+            && _patternsByWeapon.TryGetValue(weapon, out IReadOnlyList<SprayPatternPoint>? pts)
+                ? pts
+                : [];
         OnPropertyChanged(nameof(Pattern));
 
         PlayerSprays? group = _forPlayer.FirstOrDefault(p => p.Weapon == SelectedWeapon);

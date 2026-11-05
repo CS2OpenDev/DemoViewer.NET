@@ -70,8 +70,6 @@ internal sealed class PostQueue
 /// <summary>Records what the fault tracker asked of the gate.</summary>
 internal sealed class RecordingSwitch : IFeatureSuspension
 {
-    private readonly HashSet<string> _suspended = new(StringComparer.Ordinal);
-
     public List<string> Suspensions { get; } = [];
     public List<string> Resumptions { get; } = [];
 
@@ -81,21 +79,17 @@ internal sealed class RecordingSwitch : IFeatureSuspension
     public void SuspendForSession(string packFeatureId)
     {
         Suspensions.Add(packFeatureId);
-        _suspended.Add(packFeatureId);
         OnSuspend?.Invoke();
     }
 
     public void ResumeForSession(string packFeatureId)
     {
         Resumptions.Add(packFeatureId);
-        _suspended.Remove(packFeatureId);
     }
-
-    public bool IsSuspended(string packFeatureId) => _suspended.Contains(packFeatureId);
 }
 
 /// <summary>Captures every diagnostics log entry while installed.</summary>
-internal sealed class CapturedLogs : ILoggerProvider, ILogger, IDisposable
+internal sealed class CapturedLogs : ILoggerProvider, ILogger
 {
     private readonly List<(int EventId, string Message, Exception? Exception)> _entries = [];
     private readonly ILoggerFactory _previous;
@@ -106,7 +100,7 @@ internal sealed class CapturedLogs : ILoggerProvider, ILogger, IDisposable
         DiagnosticsLog.LoggerFactory = LoggerFactory.Create(b => b.AddProvider(this).SetMinimumLevel(LogLevel.Trace));
     }
 
-    public IReadOnlyList<(int EventId, string Message, Exception? Exception)> Entries
+    private IReadOnlyList<(int EventId, string Message, Exception? Exception)> Entries
     {
         get
         {
@@ -119,7 +113,8 @@ internal sealed class CapturedLogs : ILoggerProvider, ILogger, IDisposable
 
     public static CapturedLogs Install() => new();
 
-    public IEnumerable<string> WithEvent(int eventId) => Entries.Where(e => e.EventId == eventId).Select(e => e.Message);
+    public IEnumerable<string> WithEvent(int eventId) =>
+        Entries.Where(e => e.EventId == eventId).Select(e => e.Message);
 
     public ILogger CreateLogger(string categoryName) => this;
 
@@ -158,8 +153,8 @@ internal sealed class FaultRig
 
     public void Throw(string site = "site", FaultKind kind = FaultKind.Counted)
     {
-        Action body = () => throw new InvalidOperationException("boom at " + site);
-        Faults.Run(Scope, site, body, kind);
+        void Body() => throw new InvalidOperationException("boom at " + site);
+        Faults.Run(Scope, site, Body, kind);
     }
 }
 

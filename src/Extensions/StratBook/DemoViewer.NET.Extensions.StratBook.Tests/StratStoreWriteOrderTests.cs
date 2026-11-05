@@ -23,7 +23,7 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class StratStoreWriteOrderTests
 {
-    private static readonly string[] EveryCommitInOrder =
+    private static readonly string[] _everyCommitInOrder =
         ["created: strat >= log", "moved: strat >= log", "moved again: strat >= log", "map changed: strat >= log"];
 
     // The folder the app hands the store, not a test double, so the order pinned here is the host's own
@@ -33,16 +33,19 @@ public class StratStoreWriteOrderTests
     private static IExtensionFolder Strats(string root) => PackStores.Folder(root, StratBookStores.Strats);
 
     private static string StratFile(IExtensionFolder strats, StratDocument document) =>
-        Path.Combine(StratStore.FolderFor(strats.Path, document.Owner, document.Map), document.Id + StratStore.StratExtension);
+        Path.Combine(StratStore.FolderFor(strats.Path, document.Owner, document.Map),
+            document.Id + StratStore.StratExtension);
 
     private static string LogFile(IExtensionFolder strats, StratDocument document) =>
-        Path.Combine(StratStore.FolderFor(strats.Path, document.Owner, document.Map), document.Id + StratStore.HistoryExtension);
+        Path.Combine(StratStore.FolderFor(strats.Path, document.Owner, document.Map),
+            document.Id + StratStore.HistoryExtension);
 
     // Named rather than a bool so a failure says which commit inverted the order.
     private static string Order(IExtensionFolder strats, StratDocument document, string stage) =>
-        $"{stage}: " + (File.GetLastWriteTimeUtc(StratFile(strats, document)) >= File.GetLastWriteTimeUtc(LogFile(strats, document))
-            ? "strat >= log"
-            : "LOG AHEAD");
+        $"{stage}: " + (File.GetLastWriteTimeUtc(StratFile(strats, document))
+            >= File.GetLastWriteTimeUtc(LogFile(strats, document))
+                ? "strat >= log"
+                : "LOG AHEAD");
 
     [Test]
     public async Task EveryCommit_LeavesTheStratFileNoOlderThanItsLog()
@@ -70,8 +73,9 @@ public class StratStoreWriteOrderTests
             store.Save(relocated, [remap], null);
             stamps.Add(Order(strats, relocated, "map changed"));
 
-            await Assert.That(stamps).IsEquivalentTo(EveryCommitInOrder, CollectionOrdering.Matching)
-                .Because("the log is appended first, so a strat file older than its log is a commit that never finished");
+            await Assert.That(stamps).IsEquivalentTo(_everyCommitInOrder, CollectionOrdering.Matching)
+                .Because(
+                    "the log is appended first, so a strat file older than its log is a commit that never finished");
         }
         finally
         {
@@ -91,14 +95,14 @@ public class StratStoreWriteOrderTests
             store.Save(document, [], "created");
             store.SaveIndex();
             string file = StratFile(strats, document);
-            string revisionOne = File.ReadAllText(file);
+            string revisionOne = await File.ReadAllTextAsync(file);
 
             (StratDocument moved, PatchOp op) = MoveStep(document, 1, 70);
             store.Save(moved, [op], null);
 
             // Revision 1 back on disk, stamped exactly with the log. Within RowSlack, so WrittenAfter stays
             // out of it and the equal stamps are the only thing under test.
-            File.WriteAllText(file, revisionOne);
+            await File.WriteAllTextAsync(file, revisionOne);
             File.SetLastWriteTimeUtc(file, File.GetLastWriteTimeUtc(LogFile(strats, document)));
 
             StratStore reopened = Store(strats);
@@ -128,12 +132,12 @@ public class StratStoreWriteOrderTests
             store.Save(document, [], "created");
             store.SaveIndex();
             string file = StratFile(strats, document);
-            string revisionOne = File.ReadAllText(file);
+            string revisionOne = await File.ReadAllTextAsync(file);
 
             (StratDocument moved, PatchOp op) = MoveStep(document, 1, 70);
             store.Save(moved, [op], null);
 
-            File.WriteAllText(file, revisionOne);
+            await File.WriteAllTextAsync(file, revisionOne);
             File.SetLastWriteTimeUtc(file, File.GetLastWriteTimeUtc(LogFile(strats, document)).AddSeconds(-1));
 
             StratStore reopened = Store(strats);
@@ -152,7 +156,8 @@ public class StratStoreWriteOrderTests
 
     private static (StratDocument Next, PatchOp Op) MoveStep(StratDocument document, int step, double to)
     {
-        PatchOp op = PatchOp.ReplaceOp($"/steps/{step}/atSeconds", JsonValue.Create(document.Steps[step].AtSeconds), JsonValue.Create(to));
+        PatchOp op = PatchOp.ReplaceOp($"/steps/{step}/atSeconds", JsonValue.Create(document.Steps[step].AtSeconds),
+            JsonValue.Create(to));
         return (StratHistory.Apply(document, [op]), op);
     }
 }

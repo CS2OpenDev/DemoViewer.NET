@@ -4,10 +4,10 @@ using System.Security.Cryptography;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Hud;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline.Hud;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
 #endregion
@@ -90,11 +90,7 @@ public class ExportHudRosterTests
         ];
         IReadOnlyList<HudPlayerRow> fallen =
         [
-            living[0] with
-            {
-                IsAlive = false,
-                Health = 0
-            }
+            living[0] with { IsAlive = false, Health = 0 }
         ];
 
         // A card that vanished on death would take the round's most important fact off the screen, so the
@@ -167,10 +163,7 @@ public class ExportHudRosterTests
     {
         HudSnapshot idle = ExportFixtures.Hud(0, true);
         HudSnapshot winning = ExportFixtures.Hud(0, true, defusing: true);
-        HudSnapshot losing = winning with
-        {
-            CountdownSeconds = 1.0
-        };
+        HudSnapshot losing = winning with { CountdownSeconds = 1.0 };
 
         // DefuseInProgress and DefuseSeconds were in the snapshot and had never been drawn, the two
         // fields that decide the round. Drawn, and drawn in the colour of whoever wins the race, so the
@@ -249,10 +242,7 @@ public class ExportHudRosterTests
 
     // The shipped size renders 14 px glyphs whose only fully-covered pixels are stems; doubling it gives
     // solid glyph cores, so a colour assertion can be exact instead of needing an arbitrary tolerance.
-    private static HudStyle Bigger() => new HudStyle() with
-    {
-        FontSizePx = 28f
-    };
+    private static HudStyle Bigger() => new() { FontSizePx = 28f };
 
     private static KillFeedRow Kill(int attacker, int victim) =>
         new(1000, "neo", null, "smith", "awp", false, false, false, false, false, false, false,
@@ -260,13 +250,7 @@ public class ExportHudRosterTests
 
     private static SKBitmap Feed(KillFeedRow row) =>
         Render(new KillFeedLayer(new StubHudDataSource(
-            ExportFixtures.Hud(0) with
-            {
-                KillRows = new[]
-                {
-                    row
-                }
-            }), Bigger()), default);
+            ExportFixtures.Hud(0) with { KillRows = [row] }), Bigger()), default);
 
     private static string Hash(KillFeedRow row)
     {
@@ -416,13 +400,7 @@ public class ExportHudRosterTests
             RenderPurpose.Export, ScenePalette.Dark, 1f)
         {
             Pane = new LevelPaneSnapshot(default, 0,
-                new MapLevel
-                {
-                    Id = default,
-                    Name = "l",
-                    ZMin = 0,
-                    ZMax = 100
-                },
+                new MapLevel { Id = default, Name = "l", ZMin = 0, ZMax = 100 },
                 ViewportTransform.Fit(size.Width, size.Height, -100, -100, 100, 100), paneRect, 0)
         };
     }

@@ -209,6 +209,7 @@ public readonly record struct GoldenComparison(
 /// <param name="CumulativeAtOrBelow">
 ///     256 entries; entry <c>d</c> is how many pixels differ by at most <c>d</c>.
 /// </param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public readonly record struct GoldenDeltaProfile(
     int Width,
     int Height,
@@ -220,7 +221,7 @@ public readonly record struct GoldenDeltaProfile(
     IReadOnlyList<long> CumulativeAtOrBelow)
 {
     /// <summary>Total pixels compared.</summary>
-    public long TotalPixels => (long)Width * Height;
+    private long TotalPixels => (long)Width * Height;
 
     /// <summary>The fraction of the frame whose per-channel difference is at most <paramref name="delta" />.</summary>
     /// <param name="delta">A per-channel difference, 0-255.</param>

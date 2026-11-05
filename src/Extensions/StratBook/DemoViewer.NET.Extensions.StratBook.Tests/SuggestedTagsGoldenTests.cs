@@ -1,7 +1,6 @@
 #region
 
 using DemoViewer.NET.TestSupport;
-using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
 
 #endregion
@@ -32,7 +31,7 @@ public class SuggestedTagsGoldenTests
 
         foreach (string file in files.Order(StringComparer.Ordinal))
         {
-            string original = File.ReadAllText(file).Replace("\r\n", "\n", StringComparison.Ordinal);
+            string original = (await File.ReadAllTextAsync(file)).Replace("\r\n", "\n", StringComparison.Ordinal);
             SuggestedTagsGolden golden = SuggestedTagsGolden.Load(file);
             golden.Proposals = golden.Detect();
 
@@ -64,6 +63,8 @@ public class SuggestedTagsGoldenTests
                 .SelectMany(f => SuggestedTagsGolden.Load(f).Proposals.Select(p => p.Detector))
         ];
 
-        await Assert.That(detectors).IsEquivalentTo(DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.ProposalDetection.All.Select(d => d.Id), CollectionOrdering.Any);
+        await Assert.That(detectors)
+            .IsEquivalentTo(
+                DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.ProposalDetection.All.Select(d => d.Id));
     }
 }

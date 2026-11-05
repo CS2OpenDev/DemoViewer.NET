@@ -3,23 +3,21 @@
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Hud;
 using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Assets;
 using DemoViewer.NET.Playback2D.Pipeline.Benchmarking;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using DemoViewer.NET.Playback2D.Pipeline.Hud;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
 #endregion
@@ -52,7 +50,7 @@ internal static class ExportCommand
         ct.ThrowIfCancellationRequested();
 
         string demoPath = args.String("demo")
-                          ?? throw new CliUsageException("export requires --demo <path.dem>.");
+            ?? throw new CliUsageException("export requires --demo <path.dem>.");
 
         long started = Stopwatch.GetTimestamp();
         ParsedDemo demo = DemoInput.Load(demoPath, out double parseMs);
@@ -143,16 +141,11 @@ internal static class ExportCommand
             new CameraScript.Fixed(new Dictionary<MapLevelId, ViewportTransform>()));
 
         using TrackerFrameSource source = new(frames, new SceneFrameBuilder(), startFrame, endFrame,
-            fps, speed, tickRate)
-        {
-            MapName = demo.MapName,
-            Radars = mapAssets is null ? null : MapAssetPipeline.DescribeRadars(mapAssets)
-        };
+            fps, speed, tickRate);
+        source.MapName = demo.MapName;
+        source.Radars = mapAssets is null ? null : MapAssetPipeline.DescribeRadars(mapAssets);
 
-        request = request with
-        {
-            EndFrame = Math.Max(0, source.FrameCount - 1)
-        };
+        request = request with { EndFrame = Math.Max(0, source.FrameCount - 1) };
 
         // AFTER the source exists, because the clock reads the source. See BuildHud.
         IHudDataSource? hudData = hud ? BuildHud(source, tickRate) : null;
@@ -267,9 +260,7 @@ internal static class ExportCommand
                 // file's bytes are a function of this machine. Record the machine's answer or two files
                 // cannot be compared later.
                 ["video_encoder"] = encoder?.Encoder.Name,
-                ["video_encoder_kind"] = encoder is null
-                    ? null
-                    : encoder.Encoder.Acceleration.ToString().ToLowerInvariant(),
+                ["video_encoder_kind"] = encoder?.Encoder.Acceleration.ToString().ToLowerInvariant(),
                 ["video_codec"] = encoder?.Encoder.Codec,
                 ["encoder_reason"] = encoder?.Reason,
                 ["encoder_arguments"] = encoder?.Arguments,
@@ -338,9 +329,7 @@ internal static class ExportCommand
         {
             array.Add(new JsonObject
             {
-                ["encoder"] = attempt.Encoder,
-                ["works"] = attempt.Works,
-                ["detail"] = attempt.Detail
+                ["encoder"] = attempt.Encoder, ["works"] = attempt.Works, ["detail"] = attempt.Detail
             });
         }
 

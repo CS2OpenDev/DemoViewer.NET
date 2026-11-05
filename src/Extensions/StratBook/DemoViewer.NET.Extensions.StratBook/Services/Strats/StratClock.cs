@@ -19,9 +19,6 @@ public static class StratClock
     /// <summary>The v1 strat clock: seconds remaining in the round.</summary>
     public const string RoundKind = "round";
 
-    /// <summary>Reserved for post-plant strats counted from <c>bomb_planted</c>; not defined in v1.</summary>
-    public const string PlantKind = "plant";
-
     /// <summary>A strat timed from its trigger: <c>atSeconds</c> counts UP from 0.</summary>
     public const string TriggerKind = "trigger";
 
@@ -35,7 +32,8 @@ public static class StratClock
 
     /// <summary>The round length the strat is authored against: its own, else 115.</summary>
     /// <param name="clock">The strat's clock block.</param>
-    public static double LengthOf(StratClockInfo? clock) => clock is { RoundSeconds: > 0 } ? clock.RoundSeconds : DefaultRoundSeconds;
+    public static double LengthOf(StratClockInfo? clock) =>
+        clock is { RoundSeconds: > 0 } ? clock.RoundSeconds : DefaultRoundSeconds;
 
     /// <summary>The <c>atSeconds</c> of the strat's start: the round length on the round clock, 0 from a trigger.</summary>
     /// <param name="clock">The strat's clock block.</param>
@@ -44,12 +42,14 @@ public static class StratClock
     /// <summary>Seconds from the strat's start to <paramref name="atSeconds" />, on either clock.</summary>
     /// <param name="clock">The strat's clock block.</param>
     /// <param name="atSeconds">A step's time as stored.</param>
-    public static double ElapsedOf(StratClockInfo? clock, double atSeconds) => IsTrigger(clock) ? atSeconds : LengthOf(clock) - atSeconds;
+    public static double ElapsedOf(StratClockInfo? clock, double atSeconds) =>
+        IsTrigger(clock) ? atSeconds : LengthOf(clock) - atSeconds;
 
     /// <summary>The stored time <paramref name="elapsed" /> seconds after the strat's start.</summary>
     /// <param name="clock">The strat's clock block.</param>
     /// <param name="elapsed">Seconds from the start.</param>
-    public static double AtSecondsOf(StratClockInfo? clock, double elapsed) => IsTrigger(clock) ? elapsed : LengthOf(clock) - elapsed;
+    public static double AtSecondsOf(StratClockInfo? clock, double elapsed) =>
+        IsTrigger(clock) ? elapsed : LengthOf(clock) - elapsed;
 
     /// <summary>
     ///     The strat tick of a stored time, never before the start: <c>round(elapsed × 64)</c>, rounded half away from
@@ -95,21 +95,25 @@ public static class StratClock
     {
         ArgumentNullException.ThrowIfNull(document);
         bool toTrigger = string.Equals(kind, TriggerKind, StringComparison.Ordinal);
-        if (toTrigger == IsTrigger(document.Clock) || (!toTrigger && !string.Equals(kind, RoundKind, StringComparison.Ordinal)))
+        if (toTrigger == IsTrigger(document.Clock)
+            || (!toTrigger && !string.Equals(kind, RoundKind, StringComparison.Ordinal)))
         {
             return [];
         }
 
         double length = LengthOf(document.Clock);
-        List<PatchOp> ops = [PatchOp.ReplaceOp("/clock/kind", JsonValue.Create(document.Clock.Kind), JsonValue.Create(kind))];
+        List<PatchOp> ops =
+            [PatchOp.ReplaceOp("/clock/kind", JsonValue.Create(document.Clock.Kind), JsonValue.Create(kind))];
         for (int i = 0; i < document.Steps.Count; i++)
         {
             StratStep step = document.Steps[i];
             string path = string.Create(CultureInfo.InvariantCulture, $"/steps/{i}");
-            ops.Add(PatchOp.ReplaceOp(path + "/atSeconds", JsonValue.Create(step.AtSeconds), JsonValue.Create(Convert(step.AtSeconds, length))));
+            ops.Add(PatchOp.ReplaceOp(path + "/atSeconds", JsonValue.Create(step.AtSeconds),
+                JsonValue.Create(Convert(step.AtSeconds, length))));
             if (step.Lurk?.Rotate?.AtSeconds is { } rotate)
             {
-                ops.Add(PatchOp.ReplaceOp(path + "/lurk/rotate/atSeconds", JsonValue.Create(rotate), JsonValue.Create(Convert(rotate, length))));
+                ops.Add(PatchOp.ReplaceOp(path + "/lurk/rotate/atSeconds", JsonValue.Create(rotate),
+                    JsonValue.Create(Convert(rotate, length))));
             }
         }
 
@@ -119,11 +123,12 @@ public static class StratClock
     /// <summary>A stored time as the strat's clock shows it: <c>1:15</c> on the round clock, <c>+0:08</c> from a trigger.</summary>
     /// <param name="clock">The strat's clock block.</param>
     /// <param name="atSeconds">A stored time.</param>
-    public static string Format(StratClockInfo? clock, double atSeconds) => IsTrigger(clock) ? FormatElapsed(atSeconds) : Format(atSeconds);
+    public static string Format(StratClockInfo? clock, double atSeconds) =>
+        IsTrigger(clock) ? FormatElapsed(atSeconds) : Format(atSeconds);
 
     /// <summary>Seconds after a trigger as <c>+m:ss</c>, a tenth only when there is one; before it, <c>-m:ss</c>.</summary>
     /// <param name="seconds">Seconds after the trigger.</param>
-    public static string FormatElapsed(double seconds)
+    private static string FormatElapsed(double seconds)
     {
         string text = Format(Math.Abs(seconds));
         return (seconds < 0 && text != "0:00" ? "-" : "+") + text;
@@ -264,7 +269,8 @@ public static class StratClock
             }
         }
         else if (int.TryParse(trimmed[..colon], NumberStyles.None, CultureInfo.InvariantCulture, out int minutes)
-                 && double.TryParse(trimmed[(colon + 1)..], NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out double seconds)
+                 && double.TryParse(trimmed[(colon + 1)..], NumberStyles.AllowDecimalPoint,
+                     CultureInfo.InvariantCulture, out double seconds)
                  && seconds < 60)
         {
             value = minutes * 60 + seconds;

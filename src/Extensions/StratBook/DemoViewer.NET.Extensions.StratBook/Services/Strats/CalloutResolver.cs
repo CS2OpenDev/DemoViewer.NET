@@ -3,8 +3,8 @@
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Playback2D.Zones;
 
 #endregion
 
@@ -19,10 +19,9 @@ public sealed class CalloutResolver
 {
     // Case-boundary splitting gets every shipped name right except a glued "of"; a stop-word rule would split
     // "Roof" too, so the exceptions are listed instead.
-    private static readonly Dictionary<string, string> DisplayOverrides = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, string> _displayOverrides = new(StringComparer.Ordinal)
     {
-        ["Topof"] = "Top of",
-        ["Backof"] = "Back of"
+        ["Topof"] = "Top of", ["Backof"] = "Back of"
     };
 
     private readonly Dictionary<string, string> _aliases = new(StringComparer.Ordinal);
@@ -54,7 +53,12 @@ public sealed class CalloutResolver
         // what a hand-edited file shows until it is fixed.
         foreach (CalloutAlias alias in table?.Aliases ?? [])
         {
-            string key = Fold(alias.Alias);
+            if (alias.Alias is not { } text)
+            {
+                continue;
+            }
+
+            string key = Fold(text);
             if (key.Length == 0 || string.IsNullOrWhiteSpace(alias.Place))
             {
                 continue;
@@ -62,12 +66,12 @@ public sealed class CalloutResolver
 
             if (_aliases.TryAdd(key, alias.Place))
             {
-                _aliasList.Add((alias.Alias.Trim(), alias.Place));
+                _aliasList.Add((text.Trim(), alias.Place));
             }
 
             if (alias.Primary)
             {
-                _primary.TryAdd(alias.Place, alias.Alias.Trim());
+                _primary.TryAdd(alias.Place, text.Trim());
             }
         }
     }
@@ -157,13 +161,14 @@ public sealed class CalloutResolver
         for (int i = 1; i <= place.Length; i++)
         {
             bool boundary = i == place.Length
-                            || (char.IsUpper(place[i]) && char.IsLower(place[i - 1]))
-                            || (char.IsUpper(place[i]) && char.IsUpper(place[i - 1]) && i + 1 < place.Length && char.IsLower(place[i + 1]))
-                            || (char.IsDigit(place[i]) != char.IsDigit(place[i - 1]));
+                || (char.IsUpper(place[i]) && char.IsLower(place[i - 1]))
+                || (char.IsUpper(place[i]) && char.IsUpper(place[i - 1]) && i + 1 < place.Length
+                    && char.IsLower(place[i + 1]))
+                || (char.IsDigit(place[i]) != char.IsDigit(place[i - 1]));
             if (boundary)
             {
                 string word = place[start..i];
-                words.Add(DisplayOverrides.GetValueOrDefault(word, word));
+                words.Add(_displayOverrides.GetValueOrDefault(word, word));
                 start = i;
             }
         }
@@ -205,15 +210,15 @@ public static class CanonicalPlaces
 
     private const string ResourceSuffix = ".places.json";
 
-    private static readonly Lazy<Dictionary<string, IReadOnlyList<string>>> Lists = new(Read);
+    private static readonly Lazy<Dictionary<string, IReadOnlyList<string>>> _lists = new(Read);
 
     /// <summary>The maps with an embedded list, ordinal.</summary>
-    public static IReadOnlyList<string> Maps => [.. Lists.Value.Keys.Order(StringComparer.Ordinal)];
+    public static IReadOnlyList<string> Maps => [.. _lists.Value.Keys.Order(StringComparer.Ordinal)];
 
     /// <summary>A map's embedded list, or empty for a map with none.</summary>
     /// <param name="map">The map, in the parser's spelling.</param>
     public static IReadOnlyList<string> Embedded(string map) =>
-        Lists.Value.GetValueOrDefault(map.ToLowerInvariant()) ?? [];
+        _lists.Value.GetValueOrDefault(map.ToLowerInvariant()) ?? [];
 
     private static Dictionary<string, IReadOnlyList<string>> Read()
     {
@@ -233,9 +238,11 @@ public static class CanonicalPlaces
                 using JsonDocument document = JsonDocument.Parse(stream);
                 JsonElement root = document.RootElement;
                 if (root.TryGetProperty("map", out JsonElement map) && map.GetString() is { Length: > 0 } name
-                                                                    && root.TryGetProperty("names", out JsonElement names))
+                    && root.TryGetProperty("names",
+                        out JsonElement names))
                 {
-                    lists[name.ToLowerInvariant()] = [.. names.EnumerateArray().Select(n => n.GetString()).OfType<string>()];
+                    lists[name.ToLowerInvariant()] =
+                        [.. names.EnumerateArray().Select(n => n.GetString()).OfType<string>()];
                 }
             }
             catch (Exception e) when (e is IOException or JsonException or InvalidOperationException)

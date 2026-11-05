@@ -36,10 +36,7 @@ public class ViewLocator : IDataTemplate
             return Create(type, ExtensionFaults.Current);
         }
 
-        return new TextBlock
-        {
-            Text = "Not Found: " + name
-        };
+        return new TextBlock { Text = "Not Found: " + name };
     }
 
     /// <summary>
@@ -54,7 +51,7 @@ public class ViewLocator : IDataTemplate
             return (Control)Activator.CreateInstance(viewType)!;
         }
 
-        return faults.Run<Control>(scope, "view " + viewType.Name, () => (Control)Activator.CreateInstance(viewType)!,
+        return faults.Run(scope, "view " + viewType.Name, () => (Control)Activator.CreateInstance(viewType)!,
             ExtensionPlaceholder.View(scope, "this view"));
     }
 

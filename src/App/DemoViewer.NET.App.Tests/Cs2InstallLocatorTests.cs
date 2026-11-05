@@ -33,12 +33,7 @@ public class Cs2InstallLocatorTests
     public async Task FindsReplays_UnderPrimarySteamLibrary()
     {
         string replays = Replays(SteamRoot);
-        HashSet<string> dirs = new(StringComparer.Ordinal)
-        {
-            SteamRoot,
-            CommonInstall(SteamRoot),
-            replays
-        };
+        HashSet<string> dirs = new(StringComparer.Ordinal) { SteamRoot, CommonInstall(SteamRoot), replays };
 
         await Assert.That(Find(dirs).DemosDirectory).IsEqualTo(replays);
     }
@@ -47,14 +42,14 @@ public class Cs2InstallLocatorTests
     public async Task FindsReplays_OnSecondaryLibrary_FromLibraryFoldersVdf_WithBackslashUnescape()
     {
         // The vdf lists a second library on another drive with escaped backslashes, Windows-style.
-        const string secondLibrary = @"D:\SteamLibrary";
-        string replays = Replays(secondLibrary);
+        const string SecondLibrary = @"D:\SteamLibrary";
+        string replays = Replays(SecondLibrary);
 
         HashSet<string> dirs = new(StringComparer.Ordinal)
         {
             SteamRoot, // the root exists, but CS2 is NOT under it
-            secondLibrary,
-            CommonInstall(secondLibrary),
+            SecondLibrary,
+            CommonInstall(SecondLibrary),
             replays
         };
         Dictionary<string, string> files = new(StringComparer.Ordinal)
@@ -69,10 +64,7 @@ public class Cs2InstallLocatorTests
     [Test]
     public async Task ReturnsNull_WhenNoCs2Install_ButReportsSearchedSteamLibrary()
     {
-        HashSet<string> dirs = new(StringComparer.Ordinal)
-        {
-            SteamRoot
-        };
+        HashSet<string> dirs = new(StringComparer.Ordinal) { SteamRoot };
 
         Cs2DemosLookup result = Find(dirs);
         await Assert.That(result.DemosDirectory).IsNull();
@@ -84,11 +76,7 @@ public class Cs2InstallLocatorTests
     public async Task ReturnsNull_WhenCs2Installed_ButReplaysFolderMissing()
     {
         // CS2 is installed but the user has never downloaded a demo, so replays/ does not exist yet.
-        HashSet<string> dirs = new(StringComparer.Ordinal)
-        {
-            SteamRoot,
-            CommonInstall(SteamRoot)
-        };
+        HashSet<string> dirs = new(StringComparer.Ordinal) { SteamRoot, CommonInstall(SteamRoot) };
 
         await Assert.That(Find(dirs).DemosDirectory).IsNull();
     }

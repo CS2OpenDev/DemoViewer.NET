@@ -21,16 +21,16 @@ namespace DemoViewer.NET.AppTests;
 public class RecordPassDependsOnTests
 {
     private const string Demo = "/d/one.dem";
-    private static readonly FactKey Kast = new("kast", "kast_game_totals");
+    private static readonly FactKey _kast = new("kast", "kast_game_totals");
     private static readonly Action<Action> _inline = a => a();
 
-    private static readonly string[] Refusals =
+    private static readonly string[] _refusals =
     [
         "test.library.scoreboard: depends on kast/scoreboard, which the library does not write.",
         "test.library.unknown: depends on kast/no_such_table, which the library does not write."
     ];
 
-    private static readonly string[] UnknownOwnerRefusal =
+    private static readonly string[] _unknownOwnerRefusal =
         ["test.library.reader: depends on test.nobody:round-index, which the library does not write."];
 
     private static async Task WaitFor(Func<bool> cond, string what, int timeoutMs = 5000)
@@ -51,12 +51,15 @@ public class RecordPassDependsOnTests
         new(new HeavyJobGate(), _inline, _ => throw new InvalidOperationException("a record pass never parses"));
 
     private static void Stamp(DemoCacheStore store, string rulesetId, long computedAt) =>
-        store.UpdateExisting(Demo, r => r.SetStamp(new PackStamp(StampedFacts.StampId(rulesetId), StampedFacts.Schema, "fp")
-        {
-            ComputedAtTicks = computedAt
-        }));
+        store.UpdateExisting(Demo,
+            r => r.SetStamp(
+                new PackStamp(StampedFacts.StampId(rulesetId), StampedFacts.Schema, "fp")
+                {
+                    ComputedAtTicks = computedAt
+                }));
 
-    private static (PackContributions Contributions, HostLibrary Library) Host(DemoCacheStore store, params FactKey[] declared)
+    private static (PackContributions Contributions, HostLibrary Library) Host(DemoCacheStore store,
+        params FactKey[] declared)
     {
         PackContributions contributions = new(new HostLibraryTests.LibraryTestExtension(),
             () => throw new NotSupportedException("record passes read no context"));
@@ -72,10 +75,10 @@ public class RecordPassDependsOnTests
     {
         using DemoProcessingQueue queue = Queue();
         DemoCacheStore store = new(null);
-        (PackContributions contributions, HostLibrary library) = Host(store, Kast);
+        (PackContributions contributions, HostLibrary library) = Host(store, _kast);
         SdkPass reader = new("test.library.reader");
         SdkPass barrier = new("test.library.barrier");
-        contributions.RecordPass(reader.Id, () => reader, Kast);
+        contributions.RecordPass(reader.Id, () => reader, _kast);
         contributions.RecordPass(barrier.Id, () => barrier);
         List<IRecordPass> passes = Resolve(contributions, library);
         using RecordPassRunner runner = new(() => passes, store, queue);
@@ -106,13 +109,13 @@ public class RecordPassDependsOnTests
         DemoCacheStore store = new(null);
         FactKey scoreboard = new("kast", FactKey.ScoreboardOutput);
         FactKey unknown = new("kast", "no_such_table");
-        (PackContributions contributions, HostLibrary library) = Host(store, Kast, scoreboard);
+        (PackContributions contributions, HostLibrary library) = Host(store, _kast, scoreboard);
         SdkPass unknownPass = new("test.library.unknown");
         SdkPass scoreboardPass = new("test.library.scoreboard");
         SdkPass known = new("test.library.known");
-        contributions.RecordPass(unknownPass.Id, () => unknownPass, Kast, unknown);
+        contributions.RecordPass(unknownPass.Id, () => unknownPass, _kast, unknown);
         contributions.RecordPass(scoreboardPass.Id, () => scoreboardPass, scoreboard);
-        contributions.RecordPass(known.Id, () => known, Kast);
+        contributions.RecordPass(known.Id, () => known, _kast);
         List<IRecordPass> passes = Resolve(contributions, library);
         ConcurrentQueue<string> faults = new();
         using RecordPassRunner runner = new(() => passes, store, queue)
@@ -128,7 +131,7 @@ public class RecordPassDependsOnTests
 
         await Assert.That(unknownPass.Seen).IsEmpty();
         await Assert.That(scoreboardPass.Seen).IsEmpty();
-        await Assert.That(faults.Order()).IsEquivalentTo(Refusals, CollectionOrdering.Matching);
+        await Assert.That(faults.Order()).IsEquivalentTo(_refusals, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -186,13 +189,15 @@ public class RecordPassDependsOnTests
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
         await Assert.That(reader.Seen.Count).IsEqualTo(0).Because("no rows are written yet");
 
-        store.UpdateExisting(Demo, r => r.SetStamp(new PackStamp(RoundFactsRows.FacetId, RoundFactsRows.CurrentSchema, "a")));
+        store.UpdateExisting(Demo,
+            r => r.SetStamp(new PackStamp(RoundFactsRows.FacetId, RoundFactsRows.CurrentSchema, "a")));
         await WaitFor(() => reader.Seen.Count == 1, "the rows");
         store.UpdateExisting(Demo, r => r.Map = "de_nuke");
         await WaitFor(() => barrier.Seen.Count == 3, "the unrelated row write");
         await Assert.That(reader.Seen.Count).IsEqualTo(1);
 
-        store.UpdateExisting(Demo, r => r.SetStamp(new PackStamp(RoundFactsRows.FacetId, RoundFactsRows.CurrentSchema, "b")));
+        store.UpdateExisting(Demo,
+            r => r.SetStamp(new PackStamp(RoundFactsRows.FacetId, RoundFactsRows.CurrentSchema, "b")));
         await WaitFor(() => reader.Seen.Count == 2, "the rows written again");
         await Assert.That(faults).IsEmpty();
     }
@@ -224,7 +229,8 @@ public class RecordPassDependsOnTests
 
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
-        store.UpdateExisting(Demo, r => r.SetStamp(new PackStamp(RoundFactsRows.FacetId, RoundFactsRows.CurrentSchema, "a")));
+        store.UpdateExisting(Demo,
+            r => r.SetStamp(new PackStamp(RoundFactsRows.FacetId, RoundFactsRows.CurrentSchema, "a")));
         await WaitFor(() => barrier.Seen.Count == 2, "the rows");
         await Assert.That(reader.Seen.Count).IsEqualTo(0).Because("the facet is not written yet");
 
@@ -269,7 +275,7 @@ public class RecordPassDependsOnTests
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
         await Assert.That(reader.Seen).IsEmpty();
-        await Assert.That(faults.ToArray()).IsEquivalentTo(UnknownOwnerRefusal, CollectionOrdering.Matching);
+        await Assert.That([.. faults]).IsEquivalentTo(_unknownOwnerRefusal, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -297,8 +303,9 @@ public class RecordPassDependsOnTests
         store.Upsert(HostLibraryTests.Parsed(Demo));
         await WaitFor(() => barrier.Seen.Count == 1, "the row");
         await Assert.That(reader.Seen).IsEmpty();
-        await Assert.That(faults.ToArray())
-            .IsEquivalentTo(["test.library.reader: depends on test.owner:bad/facet, which the library does not write."], CollectionOrdering.Matching);
+        await Assert.That([.. faults])
+            .IsEquivalentTo(["test.library.reader: depends on test.owner:bad/facet, which the library does not write."],
+                CollectionOrdering.Matching);
     }
 
     private sealed class FakeData : IExtensionDemoData
@@ -308,17 +315,19 @@ public class RecordPassDependsOnTests
         public bool IsAvailable => true;
 
         public void Set(string path, string facet, string fingerprint, long writtenAt) =>
-            _stamps[(path, facet)] = new DemoDataStamp(path, null, facet, 1, fingerprint, DemoDataState.Written, writtenAt, 0);
+            _stamps[(path, facet)] =
+                new DemoDataStamp(path, null, facet, 1, fingerprint, DemoDataState.Written, writtenAt, 0);
 
         public DemoDataStamp? Stamp(string demoPath, string facet) => _stamps.GetValueOrDefault((demoPath, facet));
 
         public IReadOnlyList<DemoDataStamp> Stamps(string facet) => [.. _stamps.Values.Where(s => s.Facet == facet)];
 
-        public byte[]? Read(string demoPath, string facet, int schema, string? fingerprint, string? part = null) => null;
+        public byte[]? Read(string demoPath, string facet, int schema, string? fingerprint, string? part = null) =>
+            null;
 
         public DemoDataRecord? ReadAny(string demoPath, string facet, string? part = null) => null;
 
-        public DemoDataStamp? Write(string demoPath, DemoDataWrite write) => throw new NotSupportedException();
+        public DemoDataStamp Write(string demoPath, DemoDataWrite write) => throw new NotSupportedException();
 
         public void MarkFailed(string demoPath, string facet) => throw new NotSupportedException();
 

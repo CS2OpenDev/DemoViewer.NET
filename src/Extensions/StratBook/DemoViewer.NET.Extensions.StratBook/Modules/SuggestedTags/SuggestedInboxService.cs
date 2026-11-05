@@ -7,7 +7,13 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 /// <param name="Map">The demo's map, or null when the cache does not know it.</param>
 /// <param name="ModifiedTicks">The demo file's time, newest first in the list.</param>
 /// <param name="Entry">The proposal and its verdict.</param>
-public sealed record SuggestedInboxItem(string DemoPath, string? Sha256, string FileName, string? Map, long ModifiedTicks, ProposalEntry Entry);
+public sealed record SuggestedInboxItem(
+    string DemoPath,
+    string? Sha256,
+    string FileName,
+    string? Map,
+    long ModifiedTicks,
+    ProposalEntry Entry);
 
 /// <summary>
 ///     Every demo's Suggested Tags proposals in one list, for the Strat Book's Suggested section. The first load reads
@@ -17,7 +23,7 @@ public sealed record SuggestedInboxItem(string DemoPath, string? Sha256, string 
 public sealed class SuggestedInboxService : IDisposable
 {
     private readonly IExtensionLibrary _library;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Action<Action> _post;
     private readonly IExtensionJobs? _jobs;
     private readonly Func<Action, Task> _run;
@@ -30,7 +36,8 @@ public sealed class SuggestedInboxService : IDisposable
     /// <param name="jobs">Where the library read runs; null runs it on <paramref name="run" />.</param>
     /// <param name="run">Runs work off the UI thread; defaults to <see cref="Task.Run(Action)" />.</param>
     /// <param name="post">UI-thread marshal for <see cref="Changed" />.</param>
-    public SuggestedInboxService(SuggestedTagsService suggestions, IExtensionLibrary library, IExtensionJobs? jobs = null,
+    public SuggestedInboxService(SuggestedTagsService suggestions, IExtensionLibrary library,
+        IExtensionJobs? jobs = null,
         Func<Action, Task>? run = null, Action<Action>? post = null)
     {
         ArgumentNullException.ThrowIfNull(suggestions);
@@ -78,28 +85,31 @@ public sealed class SuggestedInboxService : IDisposable
                 return running;
             }
 
-            _loading = _jobs is null
-                ? _run(ReadAll)
-                : _jobs.Enqueue(new JobRequest("Suggested tags: library", _ =>
-                {
-                    ReadAll();
-                    return Task.CompletedTask;
-                }, new JobOptions(StratBookJobKinds.SuggestionsInbox, JobPriority.UserRequested, "suggested-inbox"))).Completion;
+            _loading = _jobs?.Enqueue(new JobRequest("Suggested tags: library", _ =>
+                    {
+                        ReadAll();
+                        return Task.CompletedTask;
+                    }, new JobOptions(StratBookJobKinds.SuggestionsInbox, JobPriority.UserRequested, "suggested-inbox")))
+                    .Completion
+                ?? _run(ReadAll);
             return _loading;
         }
     }
 
     /// <summary>Accepts as proposed into that demo's tag document. False when it is not pending or was not written.</summary>
     public Task<bool> AcceptAsync(SuggestedInboxItem item) =>
-        VerdictAsync("Suggested tags: accept", item, () => _suggestions.Accept(item.DemoPath, item.Entry.Proposal.Id, null, item.Sha256));
+        VerdictAsync("Suggested tags: accept", item,
+            () => _suggestions.Accept(item.DemoPath, item.Entry.Proposal.Id, null, item.Sha256));
 
     /// <summary>Dismisses: the proposal is not offered again until restored.</summary>
     public Task<bool> DismissAsync(SuggestedInboxItem item) =>
-        VerdictAsync("Suggested tags: dismiss", item, () => _suggestions.Reject(item.DemoPath, item.Entry.Proposal.Id, item.Sha256));
+        VerdictAsync("Suggested tags: dismiss", item,
+            () => _suggestions.Reject(item.DemoPath, item.Entry.Proposal.Id, item.Sha256));
 
     /// <summary>Offers a dismissed proposal again.</summary>
     public Task<bool> RestoreAsync(SuggestedInboxItem item) =>
-        VerdictAsync("Suggested tags: restore", item, () => _suggestions.Restore(item.DemoPath, item.Entry.Proposal.Id, item.Sha256));
+        VerdictAsync("Suggested tags: restore", item,
+            () => _suggestions.Restore(item.DemoPath, item.Entry.Proposal.Id, item.Sha256));
 
     // A verdict reads and writes the demo's proposals, verdicts and tags, so it runs as a queue item the user
     // asked for, never on the UI thread.
@@ -107,6 +117,7 @@ public sealed class SuggestedInboxService : IDisposable
     {
         ArgumentNullException.ThrowIfNull(item);
         bool written = false;
+
         void Work()
         {
             written = write();
@@ -175,7 +186,11 @@ public sealed class SuggestedInboxService : IDisposable
     {
         ProposalSet set = _suggestions.Load(row.FilePath, row.Sha256);
         string fileName = Path.GetFileName(row.FilePath);
-        return [.. set.Entries.Select(e => new SuggestedInboxItem(row.FilePath, set.Sha256, fileName, row.MapName, row.Modified.Ticks, e))];
+        return
+        [
+            .. set.Entries.Select(e =>
+                new SuggestedInboxItem(row.FilePath, set.Sha256, fileName, row.MapName, row.Modified.Ticks, e))
+        ];
     }
 
     private void Publish()

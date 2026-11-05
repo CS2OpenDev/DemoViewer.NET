@@ -20,7 +20,12 @@ public sealed record PlayerAlias(string Name, long FirstSeenTicks, long LastSeen
 /// <param name="DemoCount">How many demos hold the account, a demo with two copies once.</param>
 /// <param name="FirstSeenTicks">The match time of its oldest demo.</param>
 /// <param name="LastSeenTicks">The match time of its newest demo.</param>
-public sealed record PlayerEntry(ulong SteamId64, IReadOnlyList<PlayerAlias> Aliases, int DemoCount, long FirstSeenTicks, long LastSeenTicks)
+public sealed record PlayerEntry(
+    ulong SteamId64,
+    IReadOnlyList<PlayerAlias> Aliases,
+    int DemoCount,
+    long FirstSeenTicks,
+    long LastSeenTicks)
 {
     /// <summary>The most recently seen name, or empty when no demo named the account.</summary>
     public string Name => Aliases.Count > 0 ? Aliases[0].Name : "";
@@ -35,7 +40,12 @@ public sealed record PlayerEntry(ulong SteamId64, IReadOnlyList<PlayerAlias> Ali
 ///     True when only the <c>player_match</c> facet has the account: it ended the demo as a spectator or on an
 ///     abandoned slot.
 /// </param>
-public sealed record PlayerMatch(DemoCacheIndexEntry Row, int? Side, IReadOnlyList<string> Names, IReadOnlyList<int> Slots, bool LeftEarly)
+public sealed record PlayerMatch(
+    DemoCacheIndexEntry Row,
+    int? Side,
+    IReadOnlyList<string> Names,
+    IReadOnlyList<int> Slots,
+    bool LeftEarly)
 {
     /// <summary>What history sorts by, as UTC ticks: the match time, else the file's write time (<see cref="NewestMatchFirst.UtcTicksOf" />).</summary>
     public long TimeTicks => NewestMatchFirst.UtcTicksOf(Row);

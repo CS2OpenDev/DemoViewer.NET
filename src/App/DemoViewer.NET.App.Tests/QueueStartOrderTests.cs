@@ -57,7 +57,7 @@ public class QueueStartOrderTests
             }, _ => SyntheticDemo(), () => Task.CompletedTask);
         }
 
-        public HeavyJobGate Gate { get; } = new();
+        private HeavyJobGate Gate { get; } = new();
         public DemoProcessingQueue Queue { get; }
 
         public IReadOnlyList<string> Started
@@ -110,14 +110,16 @@ public class QueueStartOrderTests
             }
         }
 
-        public IDemoQueueHandle Parse(string name, long order, DemoJobPriority priority = DemoJobPriority.Background) =>
-            Queue.SubmitBackground(new DemoProcessingRequest("/d/" + name, "library", priority, order, _ => { }, null, name));
+        public void Parse(string name, long order, DemoJobPriority priority = DemoJobPriority.Background) =>
+            Queue.SubmitBackground(new DemoProcessingRequest("/d/" + name, "library", priority, order, _ => { }, null,
+                name));
 
         // A heavy job that runs until the returned source completes; it holds the heavy lane.
         public (IDemoQueueHandle Handle, TaskCompletionSource Release) Blocker(DemoJobPriority priority)
         {
             TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            IDemoQueueHandle handle = Queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration, "blocker", "test",
+            IDemoQueueHandle handle = Queue.SubmitJob(new QueueJobRequest(QueueJobKind.SidecarMigration, "blocker",
+                "test",
                 priority, async job =>
                 {
                     Note("blocker");
@@ -129,11 +131,14 @@ public class QueueStartOrderTests
         public Guid Id(string name) => Queue.Snapshot().Single(s => s.DisplayName == name).Id;
 
         // The queued heavy-lane items by the rank the queue reports.
-        public List<string> Ranked() => Queue.Snapshot()
-            .Where(s => s.State == DemoQueueItemState.Queued && !s.Light && s.Kind != QueueJobKind.HeapCompaction)
-            .OrderBy(s => s.StartRank)
-            .Select(s => s.DisplayName!)
-            .ToList();
+        public List<string> Ranked() =>
+        [
+            .. Queue.Snapshot()
+                .Where(s => s is
+                    { State: DemoQueueItemState.Queued, Light: false, Kind: not QueueJobKind.HeapCompaction })
+                .OrderBy(s => s.StartRank)
+                .Select(s => s.DisplayName!)
+        ];
 
         public DemoQueueItemSnapshot Item(string name) => Queue.Snapshot().Single(s => s.DisplayName == name);
     }
@@ -161,7 +166,8 @@ public class QueueStartOrderTests
 
         release.SetResult();
         await blocker.Completion.WaitAsync(TimeSpan.FromSeconds(5));
-        await WaitForAsync(() => rig.Started.Count == 5 && rig.Queue.QueuedCount + rig.Queue.RunningCount == 0, "drain");
+        await WaitForAsync(() => rig.Started.Count == 5 && rig.Queue.QueuedCount + rig.Queue.RunningCount == 0,
+            "drain");
 
         await Assert.That(string.Join(",", rig.Started.Skip(1))).IsEqualTo(string.Join(",", ranked));
     }
@@ -230,7 +236,8 @@ public class QueueStartOrderTests
         await Task.Delay(50);
         using (Assert.Multiple())
         {
-            await Assert.That(blocker.State).IsEqualTo(DemoQueueItemState.Running).Because("a promotion preempts nothing");
+            await Assert.That(blocker.State).IsEqualTo(DemoQueueItemState.Running)
+                .Because("a promotion preempts nothing");
             await Assert.That(string.Join(",", rig.Started)).IsEqualTo("blocker");
         }
 
@@ -245,7 +252,8 @@ public class QueueStartOrderTests
         }
 
         rig.Release("b.dem");
-        await WaitForAsync(() => rig.Started.Count == 4 && rig.Queue.QueuedCount + rig.Queue.RunningCount == 0, "drain");
+        await WaitForAsync(() => rig.Started.Count == 4 && rig.Queue.QueuedCount + rig.Queue.RunningCount == 0,
+            "drain");
         await Assert.That(string.Join(",", rig.Started)).IsEqualTo("blocker,b.dem,c.dem,a.dem");
     }
 
@@ -263,7 +271,8 @@ public class QueueStartOrderTests
         await Task.Delay(50);
         await Assert.That(blocker.State).IsEqualTo(DemoQueueItemState.Running);
         release.SetResult();
-        await WaitForAsync(() => rig.Started.Count == 3 && rig.Queue.QueuedCount + rig.Queue.RunningCount == 0, "drain");
+        await WaitForAsync(() => rig.Started.Count == 3 && rig.Queue.QueuedCount + rig.Queue.RunningCount == 0,
+            "drain");
         using (Assert.Multiple())
         {
             await Assert.That(blocker.State).IsEqualTo(DemoQueueItemState.Completed);
@@ -295,7 +304,8 @@ public class QueueStartOrderTests
         await Assert.That(string.Join(",", rig.Ranked())).IsEqualTo("a.dem,u.dem");
 
         release.SetResult();
-        await WaitForAsync(() => rig.Started.Count == 3 && rig.Queue.QueuedCount + rig.Queue.RunningCount == 0, "drain");
+        await WaitForAsync(() => rig.Started.Count == 3 && rig.Queue.QueuedCount + rig.Queue.RunningCount == 0,
+            "drain");
         await Assert.That(string.Join(",", rig.Started)).IsEqualTo("blocker,a.dem,u.dem");
     }
 
@@ -349,7 +359,8 @@ public class QueueStartOrderTests
         }
 
         release.SetResult();
-        await WaitForAsync(() => rig.Started.Count == 2 && rig.Queue.QueuedCount + rig.Queue.RunningCount == 0, "drain");
+        await WaitForAsync(() => rig.Started.Count == 2 && rig.Queue.QueuedCount + rig.Queue.RunningCount == 0,
+            "drain");
         await Assert.That(string.Join(",", rig.Started)).IsEqualTo("blocker,a.dem");
     }
 

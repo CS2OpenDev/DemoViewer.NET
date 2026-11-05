@@ -4,12 +4,12 @@ using System.Globalization;
 using DemoViewer.NET.Extensions.Sdk.Export;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Hud;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 
 #endregion
 
@@ -111,7 +111,9 @@ public static class StratExportJob
 
         if (first > 0)
         {
-            ranges.Add(new SceneExportRange(Describe(projection.CountsUp ? "From the start" : "From the round's start", 0, end, projection), 0, end));
+            ranges.Add(new SceneExportRange(
+                Describe(projection.CountsUp ? "From the start" : "From the round's start", 0, end, projection), 0,
+                end));
         }
 
         return ranges;
@@ -132,13 +134,12 @@ public static class StratExportJob
 
         // SectionHeights null and the bundle's bounds, the canvas's own spec: the canvas and the file draw the
         // same frames, and the bundle's floors reach the export through AuthoritativeFloors instead.
-        return new StratSceneSpec(capture.Tracks, projection.Schedule, capture.Ink, projection.Labels,
+        return new StratSceneSpec(capture.Tracks, capture.Ink, projection.Labels,
             capture.MapName, asset is null ? [] : asset.DescribeRadars(),
-            asset is null ? capture.FallbackBounds : asset.RadarBounds, null,
+            asset?.RadarBounds ?? capture.FallbackBounds, null,
             projection.Utility, projection.RoundSeconds, startTick, endTick, fps, speed)
         {
-            Routes = projection.Routed,
-            CountsUp = projection.CountsUp
+            Routes = projection.Routed, CountsUp = projection.CountsUp
         };
     }
 
@@ -161,7 +162,8 @@ public static class StratExportJob
             MapName = capture.MapName,
             Ink = capture.Ink,
             Hud = new StratHudDataSource(capture.Projection.RoundSeconds, capture.Projection.CountsUp),
-            Source = run => new StratFrameSource(BuildSpec(capture, run.Map, run.Start, run.End, run.Fps, run.Speed))
+            Source = run =>
+                new StratFrameSource(BuildSpec(capture, run.Map, run.Start, run.End, run.Fps, run.Speed))
         };
     }
 

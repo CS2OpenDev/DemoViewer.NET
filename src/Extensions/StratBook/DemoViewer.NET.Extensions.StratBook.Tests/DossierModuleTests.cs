@@ -1,13 +1,13 @@
 #region
 
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Features;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.Dossier;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Features;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -89,7 +89,8 @@ public class DossierModuleTests
         }
 
         await teams.Idle;
-        Guid teamA = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup != null && r.CoreLineup.Contains(Ids(1)[0]))).Id;
+        Guid teamA = teams.Teams
+            .First(t => t.Rosters.Any(r => r.CoreLineup != null && r.CoreLineup.Contains(Ids(1)[0]))).Id;
         Guid teamB = teams.Teams.First(t => t.Id != teamA).Id;
         return (cache, teams, teamA, teamB);
     }
@@ -107,7 +108,8 @@ public class DossierModuleTests
             await Assert.That(tab.Header).IsEqualTo("Dossier");
             await Assert.That(tab.HostId).IsEqualTo(HostIds.StratBookHub);
             await Assert.That(tab.Order).IsEqualTo(5).Because("last on the rail, after Review");
-            await Assert.That(tab.ViewModelFactory is not null).IsTrue().Because("lazy and retained, never DataContext");
+            await Assert.That(tab.ViewModelFactory is not null).IsTrue()
+                .Because("lazy and retained, never DataContext");
             await Assert.That(tab.DataContext).IsNull();
         }
     }
@@ -121,7 +123,8 @@ public class DossierModuleTests
         {
             await Assert.That(feature).IsNotNull();
             await Assert.That(feature!.Scope).IsEqualTo(FeatureScope.Tab);
-            await Assert.That(feature.ParentId).IsEqualTo("pack.stratbook").Because("the tab cascades off with the Strat Book extension");
+            await Assert.That(feature.ParentId).IsEqualTo("pack.stratbook")
+                .Because("the tab cascades off with the Strat Book extension");
             await Assert.That(feature.GroupId).IsNull().Because("it must not disturb the leader-lock ordering");
             foreach (UserCategory category in Enum.GetValues<UserCategory>())
             {
@@ -157,7 +160,8 @@ public class DossierModuleTests
             await Assert.That(inferno.Wins).IsEqualTo(1);
             await Assert.That(inferno.WinRate).IsEqualTo(1.0);
 
-            await Assert.That(record.Deciders.Played).IsEqualTo(1).Because("only the day-10 group of three is a recognizable series");
+            await Assert.That(record.Deciders.Played).IsEqualTo(1)
+                .Because("only the day-10 group of three is a recognizable series");
             await Assert.That(record.Deciders.Wins).IsEqualTo(1);
             await Assert.That(record.Deciders.Losses).IsEqualTo(0);
         }
@@ -198,7 +202,8 @@ public class DossierModuleTests
         DossierMapSectionViewModel nuke = vm.MapSections.Single(m => m.Map == "de_nuke");
         using (Assert.Multiple())
         {
-            await Assert.That(vm.MapSections.Select(m => m.Map)).IsEquivalentTo(vm.Maps.Select(m => m.Map), CollectionOrdering.Matching);
+            await Assert.That(vm.MapSections.Select(m => m.Map))
+                .IsEquivalentTo(vm.Maps.Select(m => m.Map), CollectionOrdering.Matching);
             await Assert.That(nuke.Record?.Map).IsEqualTo("de_nuke");
             await Assert.That(nuke.Findings.All(f => f.Map == "de_nuke")).IsTrue();
             await Assert.That(nuke.Findings.Any(f => f.Key == "map|de_nuke")).IsTrue();
@@ -230,7 +235,8 @@ public class DossierModuleTests
         using (Assert.Multiple())
         {
             await Assert.That(goneAfterDismiss).IsTrue();
-            await Assert.That(settled).IsNotNull().Because("the settled toggle lists dismissed lines in their map's section");
+            await Assert.That(settled).IsNotNull()
+                .Because("the settled toggle lists dismissed lines in their map's section");
             await Assert.That(label).IsEqualTo("Restore");
             await Assert.That(nuke.ShownFindings.Any(f => f.Key == line.Key)).IsTrue().Because("restored");
         }
@@ -246,7 +252,8 @@ public class DossierModuleTests
         bool openAtStart = nuke.IsExpanded; // few findings: opens by default
 
         vm.CollapseAllCommand.Execute(null);
-        bool allClosed = vm.MapSections.All(m => !m.IsExpanded) && !vm.RecordSection.IsExpanded && !vm.NotesSection.IsExpanded;
+        bool allClosed = vm.MapSections.All(m => !m.IsExpanded) && !vm.RecordSection.IsExpanded
+            && !vm.NotesSection.IsExpanded;
         int shownWhileClosed = nuke.ShownFindings.Count + nuke.ShownRecord.Count;
 
         // A new projection of the same team keeps what the user closed.
@@ -269,7 +276,8 @@ public class DossierModuleTests
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
         using GrenadeIndex grenades = new(cache.Library());
-        using DossierTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false, grenades: grenades);
+        using DossierTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false,
+            grenades: grenades);
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
         MapPoolRowViewModel before = vm.Maps[0];
         vm.OnActivated(null!);
@@ -278,7 +286,8 @@ public class DossierModuleTests
         using (Assert.Multiple())
         {
             await Assert.That(keptWhileLoading).IsTrue();
-            await Assert.That(vm.Maps[0]).IsNotSameReferenceAs(before).Because("the openings read the index that just loaded");
+            await Assert.That(vm.Maps[0]).IsNotSameReferenceAs(before)
+                .Because("the openings read the index that just loaded");
             await Assert.That(vm.SelectedTeam?.Id).IsEqualTo(teamA);
         }
     }

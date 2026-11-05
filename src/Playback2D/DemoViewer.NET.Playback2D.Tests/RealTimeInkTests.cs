@@ -6,8 +6,8 @@ using System.Security.Cryptography;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
@@ -55,7 +55,7 @@ public class RealTimeInkTests
 
         await Assert.That(Tail(fixture.Render(132))).IsEqualTo(Tail(fixture.Render(228)))
             .Because("the hold outlasts the draw here, so the tail has not moved — this is a prefix, " +
-                     "not a stroke sliding along its own path");
+                "not a stroke sliding along its own path");
 
         await Assert.That(Ink(fixture.Render(99))).IsEqualTo(0)
             .Because("nothing has been drawn before the tick the stroke was authored at");
@@ -79,7 +79,7 @@ public class RealTimeInkTests
         int pausedTo = Head(fixture.Render(170));
 
         Console.WriteLine($"[realtime] 10 ticks while moving {movingFrom}→{movingTo} px, " +
-                          $"10 ticks across the pause {pausedFrom}→{pausedTo} px");
+            $"10 ticks across the pause {pausedFrom}→{pausedTo} px");
 
         await Assert.That(movingTo - movingFrom).IsGreaterThan(0);
         await Assert.That(pausedTo - pausedFrom).IsEqualTo(0)
@@ -99,7 +99,7 @@ public class RealTimeInkTests
     public async Task TheTailFades_WhileTheHeadIsStillAdvancing()
     {
         using Fixture fixture = Fixture.With(RealTimeFakes.RealTime(
-            RealTimeFakes.Steady(RealTimeFakes.SampleCount, 128), 100, 32, 32));
+            RealTimeFakes.Steady(RealTimeFakes.SampleCount, 128), 100, 32));
 
         // Tick 150: sample 0 is 18 ticks past its 32-tick hold, so it sits mid-lead-out; the head is at
         // roughly sample 78 and has not begun to age at all.
@@ -114,7 +114,7 @@ public class RealTimeInkTests
             .Because("sample 0 is dissolving while the head is still full-strength ink");
         await Assert.That(tail).IsGreaterThan(background + 8)
             .Because("mid-lead-out is dim, not gone — a section that vanished at UntilTick would have " +
-                     "no ramp at all");
+                "no ramp at all");
         await Assert.That(head).IsEqualTo(Brightness(fixture.Render(120),
                 RealTimeFakes.WorldXOf(20), RealTimeFakes.WorldXOf(40)))
             .Because("the body is the element's plateau wherever it sits; it does not dim with the tail");
@@ -136,8 +136,8 @@ public class RealTimeInkTests
         SKColor[] chasingPixels = chasing.Render(228);
 
         Console.WriteLine($"[realtime] hold 512: tail={Tail(wholePixels)} head={Head(wholePixels)} " +
-                          $"ink={Ink(wholePixels)} | hold 8: tail={Tail(chasingPixels)} " +
-                          $"head={Head(chasingPixels)} ink={Ink(chasingPixels)}");
+            $"ink={Ink(wholePixels)} | hold 8: tail={Tail(chasingPixels)} " +
+            $"head={Head(chasingPixels)} ink={Ink(chasingPixels)}");
 
         await Assert.That(Head(wholePixels)).IsEqualTo(Head(chasingPixels))
             .Because("the head is the cadence's answer and the hold has no say in it");
@@ -167,32 +167,32 @@ public class RealTimeInkTests
     public async Task Reveal_IsAPureFunctionOfTheTick_HoweverTheTickWasReached()
     {
         StrokeTiming cadence = RealTimeFakes.WithPause(RealTimeFakes.SampleCount, 50, 60);
-        AnnotationElement element = RealTimeFakes.RealTime(cadence, 100, 40, 32);
-        const int target = 196;
+        AnnotationElement element = RealTimeFakes.RealTime(cadence, 100, 40);
+        const int Target = 196;
 
         using Fixture jumped = Fixture.With(element);
-        string reference = Hash(jumped.Render(target));
+        string reference = Hash(jumped.Render(Target));
 
         using Fixture stepped = Fixture.With(element);
-        for (int tick = 100; tick < target; tick++)
+        for (int tick = 100; tick < Target; tick++)
         {
             stepped.Advance(tick);
         }
 
         using Fixture skipping = Fixture.With(element);
         // 64 tick / 30 fps: the export lands on 100, 102, 104, 106, 109, … and never sees most ticks.
-        for (double t = 100; t < target; t += 64.0 / 30)
+        for (double t = 100; t < Target; t += 64.0 / 30)
         {
             skipping.Advance((int)t);
         }
 
         Console.WriteLine($"[realtime] hash jumped={reference[..16]} " +
-                          $"stepped={Hash(stepped.Render(target))[..16]} " +
-                          $"skipped={Hash(skipping.Render(target))[..16]}");
+            $"stepped={Hash(stepped.Render(Target))[..16]} " +
+            $"skipped={Hash(skipping.Render(Target))[..16]}");
 
-        await Assert.That(Hash(stepped.Render(target))).IsEqualTo(reference)
+        await Assert.That(Hash(stepped.Render(Target))).IsEqualTo(reference)
             .Because("the layer holds no replay state, so 96 advances leave it exactly where one does");
-        await Assert.That(Hash(skipping.Render(target))).IsEqualTo(reference)
+        await Assert.That(Hash(skipping.Render(Target))).IsEqualTo(reference)
             .Because("a 30 fps export skips ticks; RevealedCount is continuous in the tick for this");
     }
 
@@ -201,7 +201,7 @@ public class RealTimeInkTests
     public async Task ScrubbingBackwards_UnDrawsTheStroke()
     {
         AnnotationElement element = RealTimeFakes.RealTime(
-            RealTimeFakes.Steady(RealTimeFakes.SampleCount, 128), 100, 40, 32);
+            RealTimeFakes.Steady(RealTimeFakes.SampleCount, 128), 100, 40);
 
         using Fixture scrubbed = Fixture.With(element);
         using Fixture cold = Fixture.With(element);
@@ -214,7 +214,7 @@ public class RealTimeInkTests
         await Assert.That(Head(scrubbed.Render(132))).IsLessThan(atEnd);
         await Assert.That(back).IsEqualTo(Hash(cold.Render(132)))
             .Because("backwards is the same pure function as forwards — TimeEnvelope.OpacityAt and " +
-                     "RevealedCount both read the tick and nothing else");
+                "RevealedCount both read the tick and nothing else");
         await Assert.That(Ink(scrubbed.Render(50))).IsEqualTo(0);
     }
 
@@ -227,11 +227,7 @@ public class RealTimeInkTests
     [Test]
     public async Task RevealOnFadeIn_StillSweepsLinearly_WithNoCadence()
     {
-        AnnotationStyle style = AnnotationStyle.Default with
-        {
-            RevealOnFadeIn = true,
-            WidthWorld = 20f
-        };
+        AnnotationStyle style = AnnotationStyle.Default with { RevealOnFadeIn = true, WidthWorld = 20f };
 
         // A 100-tick lead-in before tick 200. No Timing set: an element authored before the cadence
         // feature existed must still render correctly.
@@ -282,7 +278,7 @@ public class RealTimeInkTests
         long second = MeasureWindow(layer, surface.Canvas, in ctx);
 
         Console.WriteLine($"[realtime] alloc window1={first} B window2={second} B " +
-                          $"({second / 512.0:F2} B/frame), prepared={layer.PreparedCount}");
+            $"({second / 512.0:F2} B/frame), prepared={layer.PreparedCount}");
 
         await Assert.That(layer.PreparedCount).IsEqualTo(3)
             .Because("a fixture that culled its own ink would measure an empty layer");
@@ -305,11 +301,11 @@ public class RealTimeInkTests
     [Category("Budget")]
     public async Task OneRealTimeStroke_CostsAboutWhatSection4Costed()
     {
-        const int samples = 400;
+        const int Samples = 400;
 
-        using Fixture plain = Fixture.With(RealTimeFakes.Untimed(count: samples, width: 24f));
+        using Fixture plain = Fixture.With(RealTimeFakes.Untimed(count: Samples, width: 24f));
         using Fixture live = Fixture.With(RealTimeFakes.RealTime(
-            RealTimeFakes.Steady(samples, 260), 100, 64, 48, samples,
+            RealTimeFakes.Steady(Samples, 260), 100, 64, 48, Samples,
             24f));
 
         // Tick 228: the plain stroke, whole, in one draw. Tick 300: elapsed 200 of 260, so the real-time
@@ -318,7 +314,7 @@ public class RealTimeInkTests
         (double liveUs, long liveBytes) = Cost(live, 300);
 
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"[realtime] one {samples}-sample stroke at {_hd.Width}x{_hd.Height}: " +
+            $"[realtime] one {Samples}-sample stroke at {_hd.Width}x{_hd.Height}: " +
             $"plain {plainUs:F0} µs/frame {plainBytes} B/frame → " +
             $"real-time, body + 8 tail bands {liveUs:F0} µs/frame {liveBytes} B/frame"));
 
@@ -386,21 +382,12 @@ public class RealTimeInkTests
 
     private static SceneRenderContext Context(int tick)
     {
-        MapLevel level = new()
-        {
-            Id = new MapLevelId(0),
-            Name = "floor 0",
-            ZMin = -1000,
-            ZMax = 1000
-        };
+        MapLevel level = new() { Id = new MapLevelId(0), Name = "floor 0", ZMin = -1000, ZMax = 1000 };
 
         ViewportTransform transform = ViewportTransform.Fit(_size.Width, _size.Height,
             -500, -500, 500, 500);
 
-        return new SceneRenderContext(Scene2DFrame.Empty, Scene2DFrame.Empty.Time with
-            {
-                Tick = tick
-            },
+        return new SceneRenderContext(Scene2DFrame.Empty, Scene2DFrame.Empty.Time with { Tick = tick },
             transform, SKRect.Create(_size.Width, _size.Height), -1, level.ZMin, level.ZMax,
             RenderPurpose.Export, ScenePalette.Dark, 1f)
         {
@@ -414,21 +401,12 @@ public class RealTimeInkTests
     // outliner and nothing of the rasterizer.
     private static SceneRenderContext HdContext(int tick)
     {
-        MapLevel level = new()
-        {
-            Id = new MapLevelId(0),
-            Name = "floor 0",
-            ZMin = -1000,
-            ZMax = 1000
-        };
+        MapLevel level = new() { Id = new MapLevelId(0), Name = "floor 0", ZMin = -1000, ZMax = 1000 };
 
         ViewportTransform transform = ViewportTransform.Fit(_hd.Width, _hd.Height,
             -1000, -1000, 1000, 1000);
 
-        return new SceneRenderContext(Scene2DFrame.Empty, Scene2DFrame.Empty.Time with
-            {
-                Tick = tick
-            },
+        return new SceneRenderContext(Scene2DFrame.Empty, Scene2DFrame.Empty.Time with { Tick = tick },
             transform, SKRect.Create(_hd.Width, _hd.Height), -1, level.ZMin, level.ZMax,
             RenderPurpose.Export, ScenePalette.Dark, 1f)
         {
@@ -507,9 +485,8 @@ public class RealTimeInkTests
     {
         SKColor background = ScenePalette.Dark.Background;
         int count = 0;
-        for (int i = 0; i < pixels.Length; i++)
+        foreach (SKColor p in pixels)
         {
-            SKColor p = pixels[i];
             if (p.Red != background.Red || p.Green != background.Green || p.Blue != background.Blue)
             {
                 count++;

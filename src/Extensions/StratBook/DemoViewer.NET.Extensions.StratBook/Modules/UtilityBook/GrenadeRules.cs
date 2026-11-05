@@ -35,41 +35,28 @@ public static class GrenadeRules
     public const int SpeedWindowTicks = 8;
 
     /// <summary>Under this, units per second, the throw is standing.</summary>
-    public const float StationaryMaxSpeed = 10;
+    private const float StationaryMaxSpeed = 10;
 
     /// <summary>Under this the throw is walking; CS2 walks a grenade at 127 u/s and runs it at 245.</summary>
-    public const float WalkingMaxSpeed = 140;
+    private const float WalkingMaxSpeed = 140;
 
     /// <summary>Left click reads 1.00.</summary>
-    public const float FullStrengthMin = 0.95f;
+    private const float FullStrengthMin = 0.95f;
 
     /// <summary>Both buttons read about 0.5.</summary>
-    public const float HalfStrengthMin = 0.35f;
+    private const float HalfStrengthMin = 0.35f;
 
     /// <summary>Both buttons read about 0.5.</summary>
-    public const float HalfStrengthMax = 0.65f;
+    private const float HalfStrengthMax = 0.65f;
 
     /// <summary>Right click reads 0.00.</summary>
-    public const float UnderhandMax = 0.05f;
+    private const float UnderhandMax = 0.05f;
 
     /// <summary>A fire's <c>inferno_startburn</c> falls within this many ticks of the molotov's last sample.</summary>
     public const int InfernoJoinTicks = 4;
 
     /// <summary>Movement below this, world units, is not movement (a resting projectile is not re-sent).</summary>
     public const float MovedEpsilon = 0.1f;
-
-    /// <summary><c>FL_ONGROUND</c> in <c>m_fFlags</c>.</summary>
-    public const uint OnGroundFlag = 1;
-
-    /// <summary>
-    ///     <c>FL_DUCKING</c> in <c>m_fFlags</c>: the crouch read. <c>m_pMovementServices.m_bDucked</c> decodes on
-    ///     GOTV but stayed false on every pawn sample of a real demo, while this bit followed a full
-    ///     <c>m_flDuckAmount</c> on 58 of 59.
-    /// </summary>
-    public const uint DuckingFlag = 2;
-
-    /// <summary><c>IN_JUMP</c> in <c>buttonstate1</c> and in a sub-tick move's <c>button</c>.</summary>
-    public const ulong JumpButton = 1UL << 1;
 
     // weapon_fire's weapon, with or without the weapon_ prefix, to the projectile family it throws.
     private static readonly Dictionary<string, string> _weaponFamilies = new(StringComparer.OrdinalIgnoreCase)
@@ -85,11 +72,13 @@ public static class GrenadeRules
     // The held weapons whose m_flThrowStrength means anything.
     private static readonly HashSet<string> _grenadeWeaponClasses = new(StringComparer.Ordinal)
     {
-        "CSmokeGrenade", "CFlashbang", "CHEGrenade", "CMolotovGrenade", "CIncendiaryGrenade", "CDecoyGrenade"
+        "CSmokeGrenade",
+        "CFlashbang",
+        "CHEGrenade",
+        "CMolotovGrenade",
+        "CIncendiaryGrenade",
+        "CDecoyGrenade"
     };
-
-    /// <summary>The held-weapon classes a throw strength is read from.</summary>
-    public static IReadOnlyCollection<string> GrenadeWeaponClasses => _grenadeWeaponClasses;
 
     /// <summary>The projectile class a grenade <c>weapon_fire</c> produces, or null for any other weapon.</summary>
     /// <param name="weapon"><c>weapon_fire.weapon</c>, e.g. <c>weapon_smokegrenade</c>.</param>
@@ -244,7 +233,8 @@ public static class GrenadeConsole
     public static string? Format(GrenadeRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
-        if (row.ReleasePosition is not { } p || row.ReleaseEyePitch is not { } pitch || row.ReleaseEyeYaw is not { } yaw)
+        if (row.ReleasePosition is not { } p || row.ReleaseEyePitch is not { } pitch
+            || row.ReleaseEyeYaw is not { } yaw)
         {
             return null;
         }

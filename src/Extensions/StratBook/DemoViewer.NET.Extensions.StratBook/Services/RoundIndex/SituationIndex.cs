@@ -32,7 +32,9 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
     private readonly IExtensionLibrary _library;
     private readonly RoundIndexEvaluator? _evaluator;
     private readonly IRoundFacts? _facts;
-    private readonly object _gate = new();
+
+    private readonly Lock _gate = new();
+
     // By demo (DemoKey): two paths of one content are one demo, whichever path merged it.
     private readonly Dictionary<string, LoadedDemo> _loaded = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, MapIndex> _maps = new(StringComparer.OrdinalIgnoreCase);
@@ -127,9 +129,10 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         LibraryDemo? entry = _library.Find(demoPath);
         lock (_gate)
         {
-            return (entry is not null && _loaded.TryGetValue(DemoKey(entry), out LoadedDemo? demo)) || LoadedAtLocked(demoPath, out demo)
-                ? demo.ComputedAtTicks
-                : 0;
+            return (entry is not null && _loaded.TryGetValue(DemoKey(entry), out LoadedDemo? demo))
+                || LoadedAtLocked(demoPath, out demo)
+                    ? demo.ComputedAtTicks
+                    : 0;
         }
     }
 
@@ -215,9 +218,6 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         return true;
     }
 
-    /// <summary>The startup load on a worker: the composition root calls this and never awaits it on the UI thread.</summary>
-    public Task StartLoadAsync() => Task.Run(Load);
-
     /// <summary>
     ///     Sweeps orphan sidecars and loads every sidecar whose index row is stamped Indexed at the
     ///     current schema. Stale fingerprints load too: a stale index is still the best answer available
@@ -228,7 +228,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
     {
         Attach();
         Stopwatch watch = Stopwatch.StartNew();
-        const int orphans = 0;
+        const int Orphans = 0;
         foreach (LibraryDemo entry in _library.Demos)
         {
             if (IsLoadable(entry))
@@ -246,7 +246,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
             postings = _maps.Values.Sum(m => m.PostingCount);
         }
 
-        RoundIndexLog.Loaded(Log, demos, postings, orphans, watch.ElapsedMilliseconds);
+        RoundIndexLog.Loaded(Log, demos, postings, Orphans, watch.ElapsedMilliseconds);
         _post(() => Changed?.Invoke());
     }
 
@@ -278,7 +278,8 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
             }
 
             List<PlaceSummary> summaries = [];
-            foreach ((string place, PlaceAggregate aggregate) in index.Places.OrderBy(p => p.Key, StringComparer.Ordinal))
+            foreach ((string place, PlaceAggregate aggregate) in index.Places.OrderBy(p => p.Key,
+                         StringComparer.Ordinal))
             {
                 List<PlaceZBucket> buckets =
                 [
@@ -309,32 +310,33 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
     // In the library and stamped written at the current schema; the fingerprint is not checked here on
     // purpose (see Load).
     private bool IsLoadable(LibraryDemo? entry) =>
-        entry is not null && _store.Stamp(entry.FilePath) is { State: DemoDataState.Written, Schema: RoundIndexStore.Schema };
+        entry is not null && _store.Stamp(entry.FilePath) is
+            { State: DemoDataState.Written, Schema: RoundIndexStore.Schema };
 
-    // Reads one sidecar and replaces whatever the demo contributed before. Returns the merged event, or
-    // null when the file is missing, unreadable, or belongs to another demo.
-    private RoundIndexedEvent? Merge(LibraryDemo entry, bool raise)
+    // Reads one sidecar and replaces whatever the demo contributed before. Does nothing when the file is
+    // missing, unreadable, or belongs to another demo.
+    private void Merge(LibraryDemo entry, bool raise)
     {
         string fileName = Path.GetFileName(entry.FilePath);
         RoundIndexDocument? document = _store.TryRead(entry.FilePath);
         if (document is null)
         {
             RoundIndexLog.SidecarIgnored(Log, fileName, "missing or unreadable");
-            return null;
+            return;
         }
 
         if (document.SchemaVersion != RoundIndexStore.Schema)
         {
             string reason = $"schema {document.SchemaVersion}";
             RoundIndexLog.SidecarIgnored(Log, fileName, reason);
-            return null;
+            return;
         }
 
         if (!string.Equals(document.Clock.Kind, ClockIdentity.DvFrameClock, StringComparison.Ordinal))
         {
             string reason = $"clock {document.Clock.Kind}";
             RoundIndexLog.SidecarIgnored(Log, fileName, reason);
-            return null;
+            return;
         }
 
         // A reader that has a hash compares it and ignores a mismatching file: the sidecar belongs to a
@@ -343,13 +345,13 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
             && !string.Equals(sha, written, StringComparison.Ordinal))
         {
             RoundIndexLog.SidecarIgnored(Log, fileName, "content hash differs");
-            return null;
+            return;
         }
 
         if (document.CadenceTicks <= 0)
         {
             RoundIndexLog.SidecarIgnored(Log, fileName, "no cadence");
-            return null;
+            return;
         }
 
         RoundIndexedEvent indexed = new(entry.FilePath, DemoKeys.StableKey(entry.FilePath), entry.Sha256,
@@ -359,7 +361,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
             // A merge posted before a release lands after it: released means empty.
             if (!_attached)
             {
-                return null;
+                return;
             }
 
             RemoveLocked(DemoKey(entry));
@@ -381,8 +383,6 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
                 Changed?.Invoke();
             });
         }
-
-        return indexed;
     }
 
     private MapIndex MapFor(string map)
@@ -396,15 +396,12 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         return index;
     }
 
-    private bool RemoveLocked(string key)
+    private void RemoveLocked(string key)
     {
-        if (!_loaded.Remove(key, out LoadedDemo? demo))
+        if (_loaded.Remove(key, out LoadedDemo? demo))
         {
-            return false;
+            demo.Map.Remove(demo);
         }
-
-        demo.Map.Remove(demo);
-        return true;
     }
 
     // A demo is its content once hashed, its path until then.
@@ -442,7 +439,8 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
             }
 
             foreach (LoadedDemo demo in _loaded.Values
-                         .Where(d => path is null || string.Equals(d.Path, path, StringComparison.OrdinalIgnoreCase)).ToList())
+                         .Where(d => path is null || string.Equals(d.Path, path, StringComparison.OrdinalIgnoreCase))
+                         .ToList())
             {
                 if (IsLoadable(_library.Find(demo.Path)))
                 {
@@ -504,7 +502,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
                     continue;
                 }
 
-                if (query.IndexedAfterTicks is long after && demo.ComputedAtTicks <= after)
+                if (query.IndexedAfterTicks is { } after && demo.ComputedAtTicks <= after)
                 {
                     continue;
                 }
@@ -666,7 +664,13 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
 
     private readonly record struct TransitionContribution(string A, string B, int Count);
 
-    private sealed class LoadedDemo(MapIndex map, int id, LibraryDemo entry, int tickRate, int cadenceTicks, long computedAtTicks)
+    private sealed class LoadedDemo(
+        MapIndex map,
+        int id,
+        LibraryDemo entry,
+        int tickRate,
+        int cadenceTicks,
+        long computedAtTicks)
     {
         public MapIndex Map { get; } = map;
 
@@ -748,7 +752,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
 
         public Dictionary<string, PlaceAggregate> Places { get; } = new(StringComparer.Ordinal);
 
-        public Dictionary<(string A, string B), int> Transitions { get; } = [];
+        private Dictionary<(string A, string B), int> Transitions { get; } = [];
 
         public int PostingCount => _postings[0].Sum(p => p.Count) + _postings[1].Sum(p => p.Count);
 
@@ -918,7 +922,8 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         ///     neighbourhood would otherwise count the same players twice and let a tolerant match exceed
         ///     the AnyPlace one, which is the monotonicity the slider promises.
         /// </summary>
-        public bool[] MatchTokens(IReadOnlyList<PlaceQuery> queried, SituationTolerance tolerance, IPlaceAdjacency? adjacency)
+        public bool[] MatchTokens(IReadOnlyList<PlaceQuery> queried, SituationTolerance tolerance,
+            IPlaceAdjacency? adjacency)
         {
             bool[] match = new bool[_tokens.Count];
             Dictionary<string, int> merged = new(StringComparer.Ordinal);
@@ -971,7 +976,8 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
                 match[t] = tolerance switch
                 {
                     SituationTolerance.AnyPlace => token.Alive >= total,
-                    SituationTolerance.Exact => resolved.All(p => p.PlaceId >= 0 && CountOf(token, p.PlaceId) == p.Count),
+                    SituationTolerance.Exact => resolved.All(p =>
+                        p.PlaceId >= 0 && CountOf(token, p.PlaceId) == p.Count),
                     _ => token.Alive >= total && resolved.All(p => SumOver(token, p.Neighbourhood!) >= p.Count)
                 };
             }

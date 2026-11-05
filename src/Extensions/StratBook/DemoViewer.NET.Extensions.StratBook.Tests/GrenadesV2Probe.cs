@@ -7,11 +7,11 @@ using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Views.UtilityBook;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Core.Exceptions;
-using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 
 #endregion
 
@@ -58,17 +58,26 @@ public class GrenadesV2Probe
             using UtilityBookTabViewModel vm = new(index, isBrowser: false);
             vm.SelectedMap = map;
             report.AppendLine(CultureInfo.InvariantCulture, $"{name} {map}: {vm.FooterLine} | {vm.HiddenLine}");
-            IReadOnlyList<IndexedGrenade> smokes = index.Rows(new GrenadeQuery(map, new HashSet<GrenadeKind> { GrenadeKind.Smoke }));
+            IReadOnlyList<IndexedGrenade> smokes =
+                index.Rows(new GrenadeQuery(map, new HashSet<GrenadeKind> { GrenadeKind.Smoke }));
             // What the map showed before the landing group key fix: one group per kind and seed cell, the last one written wins.
-            List<GrenadeCluster> worthy = [.. index.Query(vm.CurrentQuery()!).Where(c => c.Lineups.Any(l => l.Throws.Count >= UtilityBookTabViewModel.LineupMinThrows))];
+            List<GrenadeCluster> worthy =
+            [
+                .. index.Query(vm.CurrentQuery()!).Where(c =>
+                    c.Lineups.Any(l => l.Throws.Count >= UtilityBookTabViewModel.LineupMinThrows))
+            ];
             Dictionary<string, GrenadeCluster> byCell = new(StringComparer.Ordinal);
             foreach (GrenadeCluster c in worthy)
             {
                 byCell[string.Create(CultureInfo.InvariantCulture, $"{c.Kind}:{c.Cell}")] = c;
             }
 
-            int Shown(GrenadeCluster c) => c.Lineups.Where(l => l.Throws.Count >= UtilityBookTabViewModel.LineupMinThrows).Sum(l => l.Throws.Count);
-            GrenadeCluster? lost = worthy.Where(c => !byCell.ContainsValue(c)).OrderByDescending(Shown).FirstOrDefault();
+            int Shown(GrenadeCluster c) =>
+                c.Lineups.Where(l => l.Throws.Count >= UtilityBookTabViewModel.LineupMinThrows)
+                    .Sum(l => l.Throws.Count);
+
+            GrenadeCluster? lost = worthy.Where(c => !byCell.ContainsValue(c)).OrderByDescending(Shown)
+                .FirstOrDefault();
             report.AppendLine(CultureInfo.InvariantCulture,
                 $"  groups with a lineup >= 2: {worthy.Count}, throws {worthy.Sum(Shown)}; vm groups {vm.Groups.Count}; old seed-cell key keeps {byCell.Count} groups, {byCell.Values.Sum(Shown)} throws; largest lost: {(lost is null ? "none" : $"{LineupClipPlanner.Title(lost)} {Shown(lost)} throws at ({lost.Landing.X:0},{lost.Landing.Y:0})")}");
             report.AppendLine(CultureInfo.InvariantCulture,
@@ -87,7 +96,9 @@ public class GrenadesV2Probe
             string? focus = Environment.GetEnvironmentVariable("GV2_FOCUS");
             LandingGroup? target = focus is { Length: > 0 }
                 ? vm.Groups.FirstOrDefault(g => g.Title.Contains(focus, StringComparison.OrdinalIgnoreCase))
-                : vm.Groups.Count > 0 ? vm.Groups[0] : null;
+                : vm.Groups.Count > 0
+                    ? vm.Groups[0]
+                    : null;
             if (target is not null)
             {
                 vm.FocusLanding(target.Id);
@@ -107,7 +118,8 @@ public class GrenadesV2Probe
         });
 
         Console.WriteLine(report.ToString());
-        await File.WriteAllTextAsync(Path.Combine(HeadlessSession.ArtifactDir, $"gv2-{map}-{name}.txt"), report.ToString());
+        await File.WriteAllTextAsync(Path.Combine(HeadlessSession.ArtifactDir, $"gv2-{map}-{name}.txt"),
+            report.ToString());
     }
 
     private static void Capture(Window window, string file)

@@ -1,16 +1,16 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
-using DemoViewer.NET.Playback2D;
+using DemoViewer.NET.Extensions.StratBook.Playback2D.Frames;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Extensions.StratBook.Services.Zones;
+using DemoViewer.NET.Playback2D;
+using DemoViewer.NET.Playback2D.Zones;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.StratTestData;
-using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 
 #endregion
 
@@ -27,10 +27,10 @@ public class StratRoutingTests
 {
     private const int One = 0, Two = 640;
 
-    private static readonly Lazy<ZonePlaceResolverAdapter?> Dust2 = new(() => Load("de_dust2"));
-    private static readonly Lazy<ZonePlaceResolverAdapter?> Nuke = new(() => Load("de_nuke"));
+    private static readonly Lazy<ZonePlaceResolverAdapter?> _dust2 = new(() => Load("de_dust2"));
+    private static readonly Lazy<ZonePlaceResolverAdapter?> _nuke = new(() => Load("de_nuke"));
 
-    internal static ZonePlaceResolverAdapter? Load(string map)
+    private static ZonePlaceResolverAdapter? Load(string map)
     {
         using AssetZonePlaceResolverSource source = new();
         return source.TryGet(map) as ZonePlaceResolverAdapter;
@@ -43,18 +43,22 @@ public class StratRoutingTests
         StratSceneProjection.Build(document, StratPath.MainLine(document), null, map.PlaceCentre, map.PlaceArrival,
             (place, x, y, level) => map.ResolveOnFloor(x, y, level) == place, null, routed ? map.Paths : null);
 
-    private static TokenTrack Track(StratSceneProjection projection, string slot) => projection.Tracks.Single(t => t.Slot == slot);
+    private static TokenTrack Track(StratSceneProjection projection, string slot) =>
+        projection.Tracks.Single(t => t.Slot == slot);
 
     private static TokenKeyframe At(TokenTrack track, int tick) =>
         track.TrySample(tick, out TokenKeyframe k) ? k : throw new InvalidOperationException($"no sample at {tick}");
 
-    private static StepPosition At(string slot, (double X, double Y, double Level) p) => new() { Slot = slot, X = p.X, Y = p.Y, LevelMinZ = p.Level };
+    private static StepPosition At(string slot, (double X, double Y, double Level) p) =>
+        new() { Slot = slot, X = p.X, Y = p.Y, LevelMinZ = p.Level };
 
-    private static (double X, double Y, double Level) Arrival(IZonePlaceResolver map, string place, double level = -99968) =>
+    private static (double X, double Y, double Level) Arrival(IZonePlaceResolver map, string place,
+        double level = -99968) =>
         map.PlaceArrival(place, level) ?? throw new InvalidOperationException($"no {place}");
 
     // A at a place's arrival from 1:55; at 1:45 the step sends A on.
-    private static StratDocument Sent(string map, string from, string verb, string to, double level, IZonePlaceResolver zones)
+    private static StratDocument Sent(string map, string from, string verb, string to, double level,
+        IZonePlaceResolver zones)
     {
         StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, map, "T", "execute", "routing", Created);
         StratStep one = Step(1, 115, "A", "hold");
@@ -86,14 +90,15 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = Sent("de_dust2", "TSpawn", "move", "LongDoors", -99968, map);
             TokenTrack routed = Track(Project(document, map), "A");
             TokenTrack straight = Track(Project(document, map, false), "A");
 
             double off = OffMesh(routed, map.Paths, Two, routed.Keyframes[^1].Tick);
             double offStraight = OffMesh(straight, map.Paths, Two, straight.Keyframes[^1].Tick);
-            Console.WriteLine($"[routing] T spawn to Long Doors: routed {routed.Keyframes.Count} keys, off-mesh {off:P1}; straight off-mesh {offStraight:P1}");
+            Console.WriteLine(
+                $"[routing] T spawn to Long Doors: routed {routed.Keyframes.Count} keys, off-mesh {off:P1}; straight off-mesh {offStraight:P1}");
             await Assert.That(off).IsLessThanOrEqualTo(0.02);
             await Assert.That(offStraight).IsGreaterThan(0.2);
             await Assert.That(routed.Keyframes.Count).IsGreaterThan(straight.Keyframes.Count);
@@ -105,15 +110,17 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = Sent("de_dust2", "TSpawn", "move", "LongDoors", -99968, map);
             TokenTrack a = Track(Project(document, map), "A");
             (double X, double Y, double Level) start = Arrival(map, "TSpawn");
             (double X, double Y, double Level) end = Arrival(map, "LongDoors");
-            IReadOnlyList<NavWaypoint> route = map.Paths.Route((float)start.X, (float)start.Y, start.Level, (float)end.X, (float)end.Y, end.Level, "LongDoors")!;
+            IReadOnlyList<NavWaypoint> route = map.Paths.Route((float)start.X, (float)start.Y, start.Level,
+                (float)end.X, (float)end.Y, end.Level, "LongDoors")!;
             double length = NavPathfinder.Length(route);
             int arrive = Two + (int)Math.Ceiling(length / StratSceneProjection.RunUnitsPerSecond * 64);
-            Console.WriteLine($"[routing] route {length:F0} u, arrives at tick {arrive}; straight would be {Two + StratStepMotionTests.RunTicks(end.X - start.X, end.Y - start.Y)}");
+            Console.WriteLine(
+                $"[routing] route {length:F0} u, arrives at tick {arrive}; straight would be {Two + StratStepMotionTests.RunTicks(end.X - start.X, end.Y - start.Y)}");
 
             TokenKeyframe last = a.Keyframes[^1];
             await Assert.That(last.Tick).IsEqualTo(arrive);
@@ -143,7 +150,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = Sent("de_dust2", "TSpawn", "move", "LongDoors", -99968, map);
             document.Steps[1].Interpolation = "hold";
             TokenTrack a = Track(Project(document, map), "A");
@@ -158,8 +165,9 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
-            StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", "T", "execute", "drag", Created);
+            ZonePlaceResolverAdapter map = Map(_dust2);
+            StratDocument document =
+                StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", "T", "execute", "drag", Created);
             StratStep one = Step(1, 115, "A", "hold");
             one.Positions = [At("A", Arrival(map, "TSpawn"))];
             StratStep two = Step(2, 105, "A", "hold");
@@ -168,10 +176,12 @@ public class StratRoutingTests
 
             TokenTrack bent = Track(Project(document, map), "A");
             TokenTrack straight = Track(Project(document, map, false), "A");
-            Console.WriteLine($"[routing] drag segment: {straight.Keyframes.Count} keys straight, {bent.Keyframes.Count} routed");
+            Console.WriteLine(
+                $"[routing] drag segment: {straight.Keyframes.Count} keys straight, {bent.Keyframes.Count} routed");
             await Assert.That(bent.Keyframes.Count).IsGreaterThan(straight.Keyframes.Count);
             await Assert.That(bent.Keyframes[0]).IsEqualTo(straight.Keyframes[0]);
-            await Assert.That(bent.Keyframes[^1]).IsEqualTo(straight.Keyframes[^1]).Because("it arrives where and when the drag put it");
+            await Assert.That(bent.Keyframes[^1]).IsEqualTo(straight.Keyframes[^1])
+                .Because("it arrives where and when the drag put it");
             await Assert.That(OffMesh(bent, map.Paths, One, Two)).IsLessThanOrEqualTo(0.02);
         });
     }
@@ -183,8 +193,9 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
-            StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", "T", "execute", "short drag", Created);
+            ZonePlaceResolverAdapter map = Map(_dust2);
+            StratDocument document =
+                StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", "T", "execute", "short drag", Created);
             StratStep one = Step(1, from, "A", "hold");
             one.Positions = [At("A", Arrival(map, "TSpawn"))];
             StratStep two = Step(2, to, "A", "hold");
@@ -193,7 +204,8 @@ public class StratRoutingTests
 
             TokenTrack a = Track(Project(document, map), "A");
             int end = a.Keyframes[^1].Tick;
-            int routeCorners = map.Paths.Route(a.Keyframes[0].X, a.Keyframes[0].Y, -99968, a.Keyframes[^1].X, a.Keyframes[^1].Y, -99968, null)!.Count - 2;
+            int routeCorners = map.Paths.Route(a.Keyframes[0].X, a.Keyframes[0].Y, -99968, a.Keyframes[^1].X,
+                a.Keyframes[^1].Y, -99968, null)!.Count - 2;
             int off = 0, segments = 0;
             for (int i = 1; i < a.Keyframes.Count; i++)
             {
@@ -202,12 +214,15 @@ public class StratRoutingTests
                 off += map.Paths.Clear(p.X, p.Y, q.X, q.Y, p.LevelMinZ, 24) ? 0 : 1;
             }
 
-            Console.WriteLine($"[routing] {end} ticks for {routeCorners} bends: {a.Keyframes.Count} keyframes, {off}/{segments} drawn segments off the mesh");
-            await Assert.That(a.Keyframes.Count).IsEqualTo(Math.Min(end + 1, routeCorners + 2)).Because("a bend on every free tick");
+            Console.WriteLine(
+                $"[routing] {end} ticks for {routeCorners} bends: {a.Keyframes.Count} keyframes, {off}/{segments} drawn segments off the mesh");
+            await Assert.That(a.Keyframes.Count).IsEqualTo(Math.Min(end + 1, routeCorners + 2))
+                .Because("a bend on every free tick");
             for (int t = 0; t <= end; t++)
             {
                 TokenKeyframe k = At(a, t);
-                await Assert.That(map.Paths.Snap(k.X, k.Y, k.LevelMinZ, null, 12)).IsNotNull().Because($"tick {t} is on the mesh");
+                await Assert.That(map.Paths.Snap(k.X, k.Y, k.LevelMinZ, null, 12)).IsNotNull()
+                    .Because($"tick {t} is on the mesh");
             }
 
             await Assert.That(off).IsEqualTo(0);
@@ -219,7 +234,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Nuke);
+            ZonePlaceResolverAdapter map = Map(_nuke);
             StratDocument document = Sent("de_nuke", "Outside", "move", "BombsiteB", -512, map);
             document.Steps[1].Via = ["Ramp"];
             TokenTrack a = Track(Project(document, map), "A");
@@ -241,7 +256,8 @@ public class StratRoutingTests
                 await Assert.That(map.Paths.Snap(after.X, after.Y, after.LevelMinZ, null, 12)).IsNotNull();
             }
 
-            Console.WriteLine($"[routing] nuke Outside to B via Ramp: {changes} floor change(s), arrives at {a.Keyframes[^1].Tick}");
+            Console.WriteLine(
+                $"[routing] nuke Outside to B via Ramp: {changes} floor change(s), arrives at {a.Keyframes[^1].Tick}");
             await Assert.That(changes).IsGreaterThanOrEqualTo(1);
             await Assert.That(OffMesh(a, map.Paths, Two, a.Keyframes[^1].Tick)).IsLessThanOrEqualTo(0.03);
         });
@@ -252,21 +268,28 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
-            StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", "T", "execute", "fan", Created);
+            ZonePlaceResolverAdapter map = Map(_dust2);
+            StratDocument document =
+                StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", "T", "execute", "fan", Created);
             StratStep one = Step(1, 115, StratVocabulary.ActorAll, "hold");
-            one.Positions = [.. StratVocabulary.Slots.Select((s, i) => At(s, Arrival(map, "TSpawn") with { X = Arrival(map, "TSpawn").X + 30 * i }))];
+            one.Positions =
+            [
+                .. StratVocabulary.Slots.Select((s, i) =>
+                    At(s, Arrival(map, "TSpawn") with { X = Arrival(map, "TSpawn").X + 30 * i }))
+            ];
             document.Steps = [one, Step(2, 105, StratVocabulary.ActorAll, "move", to: "BombsiteB")];
 
             StratSceneProjection projection = Project(document, map);
             foreach (TokenTrack track in projection.Tracks)
             {
                 TokenKeyframe spot = track.Keyframes[^1];
-                await Assert.That(map.Paths.OnMesh(spot.X, spot.Y, spot.LevelMinZ)).IsTrue().Because($"{track.Slot}'s spot stands on the nav");
+                await Assert.That(map.Paths.OnMesh(spot.X, spot.Y, spot.LevelMinZ)).IsTrue()
+                    .Because($"{track.Slot}'s spot stands on the nav");
                 await Assert.That(map.ResolveOnFloor(spot.X, spot.Y, spot.LevelMinZ)).IsEqualTo("BombsiteB");
             }
 
-            await Assert.That(projection.Tracks.Select(t => (t.Keyframes[^1].X, t.Keyframes[^1].Y)).Distinct().Count()).IsEqualTo(5);
+            await Assert.That(projection.Tracks.Select(t => (t.Keyframes[^1].X, t.Keyframes[^1].Y)).Distinct().Count())
+                .IsEqualTo(5);
         });
     }
 
@@ -275,12 +298,13 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = Sent("de_dust2", "TSpawn", "lurk", "Middle", -99968, map);
             document.Steps[1].To = null;
             document.Steps[1].Lurk = new StepLurk
             {
-                Areas = ["Middle"], Rotate = new LurkRotate { AtSeconds = 60, To = new PlaceRef { Place = "BombsiteB" } }
+                Areas = ["Middle"],
+                Rotate = new LurkRotate { AtSeconds = 60, To = new PlaceRef { Place = "BombsiteB" } }
             };
             TokenTrack a = Track(Project(document, map), "A");
             int rotate = StepSchedule.TickFor(60, 115);
@@ -288,14 +312,18 @@ public class StratRoutingTests
             (double X, double Y, double Level) site = Arrival(map, "BombsiteB");
 
             TokenKeyframe atRotate = At(a, rotate);
-            await Assert.That((double)atRotate.X).IsEqualTo(middle.X).Within(0.01).Because("the walk to the area arrived before the rotate");
+            await Assert.That((double)atRotate.X).IsEqualTo(middle.X).Within(0.01)
+                .Because("the walk to the area arrived before the rotate");
             await Assert.That((double)a.Keyframes[^1].X).IsEqualTo(site.X).Within(0.01);
-            await Assert.That(a.Keyframes.Count(k => k.Tick > Two && k.Tick < rotate)).IsGreaterThan(1).Because("the walk to Middle bends");
+            await Assert.That(a.Keyframes.Count(k => k.Tick > Two && k.Tick < rotate)).IsGreaterThan(1)
+                .Because("the walk to Middle bends");
             await Assert.That(a.Keyframes.Count(k => k.Tick > rotate)).IsGreaterThan(1).Because("the rotate bends too");
             await Assert.That(OffMesh(a, map.Paths, Two, a.Keyframes[^1].Tick)).IsLessThanOrEqualTo(0.02);
 
-            double walk = NavPathfinder.Length(map.Paths.Route(atRotate.X, atRotate.Y, atRotate.LevelMinZ, (float)site.X, (float)site.Y, site.Level, "BombsiteB")!);
-            await Assert.That(a.Keyframes[^1].Tick).IsEqualTo(rotate + (int)Math.Ceiling(walk / StratSceneProjection.WalkUnitsPerSecond * 64))
+            double walk = NavPathfinder.Length(map.Paths.Route(atRotate.X, atRotate.Y, atRotate.LevelMinZ,
+                (float)site.X, (float)site.Y, site.Level, "BombsiteB")!);
+            await Assert.That(a.Keyframes[^1].Tick)
+                .IsEqualTo(rotate + (int)Math.Ceiling(walk / StratSceneProjection.WalkUnitsPerSecond * 64))
                 .Because("the rotate walks its own route from where the lurker stands");
         });
     }
@@ -307,7 +335,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = Sent("de_dust2", "TSpawn", "move", "BombsiteB", -99968, map);
             document.Steps[1].Via = [first, second];
             TokenTrack a = Track(Project(document, map), "A");
@@ -315,7 +343,8 @@ public class StratRoutingTests
             int Closest(string place)
             {
                 (double X, double Y, double Level) p = Arrival(map, place);
-                return a.Keyframes.Select((k, i) => (D: (k.X - p.X) * (k.X - p.X) + (k.Y - p.Y) * (k.Y - p.Y), i)).MinBy(x => x.D).i;
+                return a.Keyframes.Select((k, i) => (D: (k.X - p.X) * (k.X - p.X) + (k.Y - p.Y) * (k.Y - p.Y), i))
+                    .MinBy(x => x.D).i;
             }
 
             int i1 = Closest(first), i2 = Closest(second);
@@ -334,7 +363,8 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
+
             StratDocument Doc(bool via)
             {
                 StratDocument document = Sent("de_dust2", "TSpawn", verb, "LongDoors", -99968, map);
@@ -349,7 +379,8 @@ public class StratRoutingTests
             }
 
             TokenTrack plain = Track(Project(Doc(false), map), "A"), through = Track(Project(Doc(true), map), "A");
-            await Assert.That(through.Keyframes).IsEquivalentTo(plain.Keyframes, CollectionOrdering.Matching).Because("the run ends facing its last leg, not the straight line from spawn");
+            await Assert.That(through.Keyframes).IsEquivalentTo(plain.Keyframes, CollectionOrdering.Matching)
+                .Because("the run ends facing its last leg, not the straight line from spawn");
         });
     }
 
@@ -358,11 +389,12 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = ExecuteB(map);
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
             bool routing = false;
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped,
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped,
                 placesFor: _ => Task.FromResult<IZonePlaceResolver?>(map), post: a => a(), routing: () => routing);
 
             StratSceneProjection off = canvas.Projection!;
@@ -397,11 +429,12 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = ExecuteB(map);
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
             FakeFeatureGate gate = new();
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped,
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped,
                 placesFor: _ => Task.FromResult<IZonePlaceResolver?>(map), post: a => a(),
                 lookups: new StratCanvasServices(gate, null, null));
 
@@ -411,7 +444,8 @@ public class StratRoutingTests
             gate.Enabled = true;
             gate.Raise();
             StratSceneProjection on = canvas.Projection!;
-            await Assert.That(on.Routed).IsTrue().Because("Changed alone, with no Seek or Apply after it, re-reads the gate and reprojects");
+            await Assert.That(on.Routed).IsTrue()
+                .Because("Changed alone, with no Seek or Apply after it, re-reads the gate and reprojects");
         });
     }
 
@@ -420,10 +454,11 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = Sent("de_dust2", "TSpawn", "move", "LongDoors", -99968, map);
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped,
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped,
                 placesFor: _ => Task.FromResult<IZonePlaceResolver?>(map), post: a => a(), routing: () => true);
             TokenTrack a = canvas.Projection!.Tracks.Single(t => t.Slot == "A");
             int arrive = a.Keyframes[^1].Tick;
@@ -435,7 +470,8 @@ public class StratRoutingTests
             await Assert.That(line.Team).IsEqualTo(2);
             await Assert.That(line.Points[0].X).IsEqualTo(now.X);
             await Assert.That(line.Points[^1].X).IsEqualTo(a.Keyframes[^1].X);
-            await Assert.That(line.Points.Count).IsEqualTo(a.Keyframes.Count(k => k.Tick > mid) + 1).Because("every corner still ahead");
+            await Assert.That(line.Points.Count).IsEqualTo(a.Keyframes.Count(k => k.Tick > mid) + 1)
+                .Because("every corner still ahead");
 
             canvas.Transport.Seek(Two - 10);
             await Assert.That(canvas.CurrentFrame.Routes.Count).IsEqualTo(0).Because("standing before the run");
@@ -459,12 +495,17 @@ public class StratRoutingTests
     ///     Execute B on dust2: eight steps, ten tokens, a lurk, two throws, and opponents dragged at three
     ///     steps, so every kind of move is in it: runs, position walks, a lurk's walk and rotate, and fixed-time drags.
     /// </summary>
-    internal static StratDocument ExecuteB(IZonePlaceResolver map)
+    private static StratDocument ExecuteB(IZonePlaceResolver map)
     {
         const double Floor = -99968;
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", "T", "execute", "Execute B", Created);
-        (double X, double Y, double Level) spawn = Arrival(map, "TSpawn"), ct = Arrival(map, "CTSpawn"), site = Arrival(map, "BombsiteB");
-        (double X, double Y, double Level) doors = Arrival(map, "BDoors"), mid = Arrival(map, "Middle"), window = Arrival(map, "BombsiteB");
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, "de_dust2", "T", "execute", "Execute B", Created);
+        (double X, double Y, double Level) spawn = Arrival(map, "TSpawn"),
+            ct = Arrival(map, "CTSpawn"),
+            site = Arrival(map, "BombsiteB");
+        (double X, double Y, double Level) doors = Arrival(map, "BDoors"),
+            mid = Arrival(map, "Middle"),
+            window = Arrival(map, "BombsiteB");
 
         StratStep seed = Step(1, 115, StratVocabulary.ActorAll, "hold");
         seed.Positions =
@@ -482,7 +523,11 @@ public class StratRoutingTests
             new StepAssignment { Slot = "D", To = new PlaceRef { Place = "TopofMid" } }
         ];
         StratStep lurk = Step(3, 108, "E", "lurk");
-        lurk.Lurk = new StepLurk { Areas = ["Middle"], Rotate = new LurkRotate { AtSeconds = 70, To = new PlaceRef { Place = "BombsiteB" } } };
+        lurk.Lurk = new StepLurk
+        {
+            Areas = ["Middle"],
+            Rotate = new LurkRotate { AtSeconds = 70, To = new PlaceRef { Place = "BombsiteB" } }
+        };
         StratStep stack = Step(4, 96, StratVocabulary.ActorAll, "move");
         stack.Assignments =
         [
@@ -490,7 +535,8 @@ public class StratRoutingTests
             new StepAssignment { Slot = "C", To = new PlaceRef { Place = "UpperTunnel" } },
             new StepAssignment { Slot = "D", To = new PlaceRef { Place = "LowerTunnel" } }
         ];
-        stack.Positions = [At("O3", (window.X + 150, window.Y + 80, Floor)), At("O5", (mid.X + 200, mid.Y + 300, Floor))];
+        stack.Positions =
+            [At("O3", (window.X + 150, window.Y + 80, Floor)), At("O5", (mid.X + 200, mid.Y + 300, Floor))];
         StratStep smoke = Step(5, 90, "B", "throw");
         smoke.Utility = new UtilityRef { Kind = "smoke", Landing = new UtilityLanding { Place = "BDoors" } };
         StratStep flash = Step(6, 88, "C", "throw");
@@ -515,7 +561,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument document = ExecuteB(map);
             IReadOnlyList<StratPathStep> path = StratPath.MainLine(document);
             PathResolver fresh = new NavPathResolver(map.Resolver.Zones);
@@ -573,8 +619,10 @@ public class StratRoutingTests
             int keys = projection.Tracks.Sum(t => t.Keyframes.Count);
             int keysStraight = Build(null).Tracks.Sum(t => t.Keyframes.Count);
 
-            Console.WriteLine($"[routing cost] Execute B: {document.Steps.Count} steps, {projection.Tracks.Count} tracks, {keysStraight} keyframes straight, {keys} routed");
-            Console.WriteLine($"[routing cost] build straight {straight:F2} ms, routed cold {cold:F2} ms, routed warm {warm:F2} ms, routed after a one-token edit {edit:F2} ms");
+            Console.WriteLine(
+                $"[routing cost] Execute B: {document.Steps.Count} steps, {projection.Tracks.Count} tracks, {keysStraight} keyframes straight, {keys} routed");
+            Console.WriteLine(
+                $"[routing cost] build straight {straight:F2} ms, routed cold {cold:F2} ms, routed warm {warm:F2} ms, routed after a one-token edit {edit:F2} ms");
             Console.WriteLine($"[routing cost] drag preview (TrackWith) moving {drag:F3} ms, still {dragStill:F3} ms");
             await Assert.That(warm).IsLessThan(50);
             await Assert.That(drag).IsLessThan(16);
@@ -586,7 +634,7 @@ public class StratRoutingTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            ZonePlaceResolverAdapter map = Map(Dust2);
+            ZonePlaceResolverAdapter map = Map(_dust2);
             StratDocument plain = Sent("de_dust2", "TSpawn", "move", "BombsiteB", -99968, map);
             StratDocument via = Sent("de_dust2", "TSpawn", "move", "BombsiteB", -99968, map);
             via.Steps[1].Via = ["Middle"];

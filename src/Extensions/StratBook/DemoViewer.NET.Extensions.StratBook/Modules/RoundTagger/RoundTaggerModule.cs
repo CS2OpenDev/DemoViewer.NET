@@ -1,8 +1,8 @@
 #region
 
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.RoundTagger;
 using DemoViewer.NET.Extensions.StratBook.Views.RoundTagger;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 
@@ -33,7 +33,7 @@ public sealed class RoundTaggerModule : IWorkspaceModule
     public const string PaletteFeatureId = "playback2d.tagger";
 
     /// <summary>The Matrix section's tab id; its descriptor declares <see cref="TabFeatureId" /> directly.</summary>
-    public const string MatrixTabId = "tagger.matrix";
+    private const string MatrixTabId = "tagger.matrix";
 
     private readonly Func<TagMatrixTabViewModel> _viewModelFactory;
 

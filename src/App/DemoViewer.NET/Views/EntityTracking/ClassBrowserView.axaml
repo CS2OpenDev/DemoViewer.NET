@@ -36,7 +36,7 @@
             <!-- filter -->
             <TextBox Grid.Row="1"
                      Text="{Binding Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                     Watermark="filter classes…"
+                     PlaceholderText="filter classes…"
                      FontFamily="Consolas,Menlo,monospace"
                      FontSize="11"
                      Margin="6 4"

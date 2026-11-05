@@ -14,6 +14,7 @@ namespace DemoViewer.NET.Visualization.Tests;
 ///     "good layout" gates from the v2 layout review used to baseline v1 and to
 ///     judge v2 against. All computation is in logical (pre-zoom) coordinates.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record LayoutMetrics(
     int NodeNodeOverlaps,
     int EdgeNodeIntersections,
@@ -41,14 +42,13 @@ public sealed record LayoutMetrics(
         LayoutResult layout = LayoutPipeline.ComputeFullLayout(nodes, edges, groups, tables, style);
         sw.Stop();
 
-        return Compute(nodes, edges, tables, style, layout, sw.Elapsed.TotalMilliseconds);
+        return Compute(nodes, edges, style, layout, sw.Elapsed.TotalMilliseconds);
     }
 
     /// <summary>Computes metrics over an already-computed layout (timing supplied separately).</summary>
-    internal static LayoutMetrics Compute(
+    private static LayoutMetrics Compute(
         IReadOnlyList<IGraphNode> nodes,
         IReadOnlyList<IGraphEdge> edges,
-        IReadOnlyList<INodeTable>? tables,
         GraphStyle style,
         LayoutResult layout,
         double layoutMs)
@@ -61,7 +61,7 @@ public sealed record LayoutMetrics(
             return new Rect(pos.X - w / 2, pos.Y - h / 2, w, h);
         }
 
-        List<IGraphNode> placedNodes = nodes.Where(n => layout.NodePositions.ContainsKey(n)).ToList();
+        List<IGraphNode> placedNodes = [.. nodes.Where(n => layout.NodePositions.ContainsKey(n))];
         Dictionary<IGraphNode, Rect> rects = placedNodes.ToDictionary(n => n, RectFor);
 
         return new LayoutMetrics(
@@ -70,7 +70,7 @@ public sealed record LayoutMetrics(
             CountEdgeCrossings(edges, layout),
             SumEdgeLength(edges, layout),
             CountSharedPortEndpoints(edges, layout),
-            CountLabelOverlaps(edges, rects, layout, style),
+            CountLabelOverlaps(edges, rects, layout),
             CountOutOfBounds(rects, layout),
             CountSelfLoopOverlaps(edges, rects, layout),
             layout.TotalHeight > 0 ? layout.TotalWidth / layout.TotalHeight : 0,
@@ -81,11 +81,13 @@ public sealed record LayoutMetrics(
     // ── Metric 3: edge crossings (segment-segment intersections, distinct edges) ─
     private static int CountEdgeCrossings(IReadOnlyList<IGraphEdge> edges, LayoutResult layout)
     {
-        List<IReadOnlyList<Point>> routed = edges
-            .Where(e => !ReferenceEquals(e.Source, e.Destination)
-                        && layout.EdgeRoutes.TryGetValue(e, out IReadOnlyList<Point>? r) && r.Count >= 2)
-            .Select(e => layout.EdgeRoutes[e])
-            .ToList();
+        List<IReadOnlyList<Point>> routed =
+        [
+            .. edges
+                .Where(e => !ReferenceEquals(e.Source, e.Destination)
+                    && layout.EdgeRoutes.TryGetValue(e, out IReadOnlyList<Point>? r) && r.Count >= 2)
+                .Select(e => layout.EdgeRoutes[e])
+        ];
 
         int count = 0;
         for (int a = 0; a < routed.Count; a++)
@@ -172,10 +174,9 @@ public sealed record LayoutMetrics(
     // Uses the same coarse width estimate the v1 renderer uses (len*6) in logical
     // units; height ~14. Approximate but deterministic and comparable v1↔v2.
     private static int CountLabelOverlaps(
-        IReadOnlyList<IGraphEdge> edges, Dictionary<IGraphNode, Rect> rects, LayoutResult layout,
-        GraphStyle style)
+        IReadOnlyList<IGraphEdge> edges, Dictionary<IGraphNode, Rect> rects, LayoutResult layout)
     {
-        List<Rect> labelRects = new();
+        List<Rect> labelRects = [];
         foreach (IGraphEdge edge in edges)
         {
             if (ReferenceEquals(edge.Source, edge.Destination))
@@ -322,7 +323,7 @@ public sealed record LayoutMetrics(
         Dictionary<IGraphNode, Rect> rects,
         LayoutResult layout)
     {
-        List<(IGraphNode Source, Rect Bbox)> loops = new();
+        List<(IGraphNode Source, Rect Bbox)> loops = [];
         foreach (IGraphEdge edge in edges)
         {
             if (!ReferenceEquals(edge.Source, edge.Destination))

@@ -4,13 +4,11 @@ using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Graphs;
 using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Analysis.Rules;
-using CS2DemoKit.Analysis.RulesetsV2.Compile;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Analysis.Yaml;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
@@ -51,11 +49,12 @@ public class AnalysisFactsTests
                                               - { stat: kills, label: fixture_kills_count }
                                       """;
 
-    private static readonly string Shipped = RuleSetLocator.ResolveShippedRulesDirectory();
-    private static readonly long?[] OneTwo = [1, 2];
-    private static readonly int[] OneTwoCells = [1, 2];
+    private static readonly string _shipped = RuleSetLocator.ResolveShippedRulesDirectory();
+    private static readonly long?[] _oneTwo = [1, 2];
+    private static readonly int[] _oneTwoCells = [1, 2];
 
-    internal static RuleConfigLoadResult WithFixture(string directory) => YamlConfigLoader.LoadWithOverlay(Shipped, directory);
+    internal static RuleConfigLoadResult WithFixture(string directory) =>
+        YamlConfigLoader.LoadWithOverlay(_shipped, directory);
 
     internal static string WriteFixture(params (string Id, string Yaml)[] rulesets)
     {
@@ -98,10 +97,12 @@ public class AnalysisFactsTests
             await Assert.That(read.ColumnClocks["d"]).IsEqualTo("frame");
             await Assert.That(row.Dimensions["slot"]).IsEqualTo(FactValue.Of(3L));
             await Assert.That(row.Values["a"].Kind).IsEqualTo(FactValueKind.Whole);
-            await Assert.That(row.Values["b"].Kind).IsEqualTo(FactValueKind.Number).Because("2.0 is not the whole number 2");
+            await Assert.That(row.Values["b"].Kind).IsEqualTo(FactValueKind.Number)
+                .Because("2.0 is not the whole number 2");
             await Assert.That(row.Values["c"].AsNumber()).IsEqualTo(0.25);
             await Assert.That(row.Values["d"].AsBoolean()).IsTrue();
-            await Assert.That(row.Values["e"]).IsEqualTo(FactValue.Of([FactValue.Of(1L), FactValue.Of("x"), FactValue.Null]));
+            await Assert.That(row.Values["e"])
+                .IsEqualTo(FactValue.Of([FactValue.Of(1L), FactValue.Of("x"), FactValue.Null]));
             await Assert.That(row.Values["f"]).IsEqualTo(FactValue.Null);
         }
     }
@@ -111,8 +112,10 @@ public class AnalysisFactsTests
     {
         MetricTable metric = new("t", ["slot"], ["n"],
         [
-            new MetricRow(new Dictionary<string, object?> { ["slot"] = 4 }, new Dictionary<string, object?> { ["n"] = 1.5f }),
-            new MetricRow(new Dictionary<string, object?> { ["slot"] = 5 }, new Dictionary<string, object?> { ["n"] = OneTwoCells })
+            new MetricRow(new Dictionary<string, object?> { ["slot"] = 4 },
+                new Dictionary<string, object?> { ["n"] = 1.5f }),
+            new MetricRow(new Dictionary<string, object?> { ["slot"] = 5 },
+                new Dictionary<string, object?> { ["n"] = _oneTwoCells })
         ]);
 
         FactTable table = FactsCodec.FromMetric(metric, new FactKey("r", "t"), "fp", 1, "player_match");
@@ -121,7 +124,8 @@ public class AnalysisFactsTests
         {
             await Assert.That(table.Rows[0].Dimensions["slot"].AsInteger()).IsEqualTo(4L);
             await Assert.That(table.Rows[0].Values["n"].AsNumber()).IsEqualTo(1.5);
-            await Assert.That(table.Rows[1].Values["n"].Items.Select(i => i.AsInteger())).IsEquivalentTo(OneTwo, CollectionOrdering.Matching);
+            await Assert.That(table.Rows[1].Values["n"].Items.Select(i => i.AsInteger()))
+                .IsEquivalentTo(_oneTwo, CollectionOrdering.Matching);
         }
     }
 
@@ -133,7 +137,11 @@ public class AnalysisFactsTests
         {
             bool on = true;
             MergedRulesBuild rules = new(() => WithFixture(fixture),
-                () => [StampedRuleset.Core(RoundFactsFingerprint.RulesetId), new StampedRuleset(FactsRuleset, "dev.example.x", () => on)]);
+                () =>
+                [
+                    StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                    new StampedRuleset(FactsRuleset, "dev.example.x", () => on)
+                ]);
 
             IReadOnlySet<string> all = rules.StampedOutputs();
             IReadOnlySet<string> onlyFacts = rules.StampedOutputs(id => id == FactsRuleset);
@@ -142,10 +150,14 @@ public class AnalysisFactsTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(all).IsEquivalentTo(new[] { RoundFactsFingerprint.RulesetId, FactsTable }, CollectionOrdering.Matching);
-                await Assert.That(onlyFacts).IsEquivalentTo(new[] { FactsTable }, CollectionOrdering.Matching);
-                await Assert.That(off).IsEquivalentTo(new[] { RoundFactsFingerprint.RulesetId }, CollectionOrdering.Matching).Because("an owner that is off records nothing");
-                await Assert.That(rules.Fingerprint(64).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64)
+                await Assert.That(all).IsEquivalentTo([RoundFactsFingerprint.RulesetId, FactsTable],
+                    CollectionOrdering.Matching);
+                await Assert.That(onlyFacts).IsEquivalentTo([FactsTable], CollectionOrdering.Matching);
+                await Assert.That(off)
+                    .IsEquivalentTo([RoundFactsFingerprint.RulesetId], CollectionOrdering.Matching)
+                    .Because("an owner that is off records nothing");
+                await Assert.That(rules.Fingerprint(64).Fingerprint)
+                    .IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64)
                     .Because("a stamped ruleset never moves the highlights stamp");
             }
         }
@@ -163,35 +175,59 @@ public class AnalysisFactsTests
         try
         {
             MergedRulesBuild rules = new(() => WithFixture(fixture),
-                () => [StampedRuleset.Core(RoundFactsFingerprint.RulesetId), new StampedRuleset(FactsRuleset, "dev.example.x", static () => true)]);
+                () =>
+                [
+                    StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                    new StampedRuleset(FactsRuleset, "dev.example.x", static () => true)
+                ]);
             StampedFacts stamped = new(rules);
             DemoCacheStore cache = new(null);
-            const string path = "/demos/a.dem";
-            cache.Upsert(new DemoCacheRecord { Path = path, Size = 1, Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 } });
+            const string Path = "/demos/a.dem";
+            cache.Upsert(new DemoCacheRecord
+            {
+                Path = Path,
+                Size = 1,
+                Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+            });
             FactsEvaluator evaluator = new(cache, stamped);
             bool roundFactsStale = true;
-            rules.OutputsFor = p => rules.StampedOutputs(id => id == RoundFactsFingerprint.RulesetId ? roundFactsStale : evaluator.Records(p, id));
+            rules.OutputsFor = p => rules.StampedOutputs(id =>
+                id == RoundFactsFingerprint.RulesetId ? roundFactsStale : evaluator.Records(p, id));
 
             IReadOnlyList<string> Retained() =>
-                [.. (rules.BareRun(MergedRulesBuildTests.TwoFrameDemo(), path).Build.Outputs ?? []).Select(o => o.Id).Order(StringComparer.Ordinal)];
+            [
+                .. (rules.BareRun(MergedRulesBuildTests.TwoFrameDemo(), Path).Build.Outputs ?? []).Select(o => o.Id)
+                .Order(StringComparer.Ordinal)
+            ];
+
             IReadOnlyList<string> Forward() =>
-                [.. (ForwardDemoPass.Build(MergedRulesBuildTests.TwoFrameDemo(), rules.Docs, rules.OutputsFor(path)).Outputs ?? [])
-                    .Select(o => o.Id).Order(StringComparer.Ordinal)];
+            [
+                .. (ForwardDemoPass.Build(MergedRulesBuildTests.TwoFrameDemo(), rules.Docs, rules.OutputsFor(Path))
+                    .Outputs ?? [])
+                .Select(o => o.Id).Order(StringComparer.Ordinal)
+            ];
 
             IReadOnlyList<string> staleRetained = Retained();
             IReadOnlyList<string> staleForward = Forward();
-            evaluator.Evaluate(path, MergedRulesBuildTests.TwoFrameDemo());
+            evaluator.Evaluate(Path, MergedRulesBuildTests.TwoFrameDemo());
             roundFactsStale = false;
             IReadOnlyList<string> currentRetained = Retained();
             IReadOnlyList<string> currentForward = Forward();
 
             using (Assert.Multiple())
             {
-                await Assert.That(staleRetained).IsEquivalentTo(new[] { FactsTable, RoundFactsFingerprint.RulesetId }.Concat(LibraryTeamTables.Tables).Order(StringComparer.Ordinal), CollectionOrdering.Matching);
+                await Assert.That(staleRetained)
+                    .IsEquivalentTo(
+                        new[] { FactsTable, RoundFactsFingerprint.RulesetId }.Concat(LibraryTeamTables.Tables)
+                            .Order(StringComparer.Ordinal), CollectionOrdering.Matching);
                 await Assert.That(staleRetained).IsEquivalentTo(staleForward, CollectionOrdering.Matching);
-                await Assert.That(currentRetained).IsEquivalentTo(new[] { RoundFactsFingerprint.RulesetId }.Concat(LibraryTeamTables.Tables).Order(StringComparer.Ordinal), CollectionOrdering.Matching)
-                    .Because("every stamp is current, so the retained run records round_facts and the library tables alone");
-                await Assert.That(currentForward).IsEquivalentTo(LibraryTeamTables.Tables.Order(StringComparer.Ordinal), CollectionOrdering.Matching);
+                await Assert.That(currentRetained).IsEquivalentTo(
+                        new[] { RoundFactsFingerprint.RulesetId }.Concat(LibraryTeamTables.Tables)
+                            .Order(StringComparer.Ordinal), CollectionOrdering.Matching)
+                    .Because(
+                        "every stamp is current, so the retained run records round_facts and the library tables alone");
+                await Assert.That(currentForward).IsEquivalentTo(LibraryTeamTables.Tables.Order(StringComparer.Ordinal),
+                    CollectionOrdering.Matching);
             }
         }
         finally
@@ -208,22 +244,33 @@ public class AnalysisFactsTests
         {
             bool on = true;
             MergedRulesBuild rules = new(() => WithFixture(fixture),
-                () => [StampedRuleset.Core(RoundFactsFingerprint.RulesetId), new StampedRuleset(FactsRuleset, "dev.example.x", () => on)]);
+                () =>
+                [
+                    StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                    new StampedRuleset(FactsRuleset, "dev.example.x", () => on)
+                ]);
             StampedFacts stamped = new(rules);
             DemoCacheStore cache = new(null);
-            const string path = "/demos/a.dem";
-            cache.Upsert(new DemoCacheRecord { Path = path, Size = 1, Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 } });
+            const string Path = "/demos/a.dem";
+            cache.Upsert(new DemoCacheRecord
+            {
+                Path = Path,
+                Size = 1,
+                Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+            });
             string fingerprint = stamped.Fingerprint(FactsRuleset, 64)!;
             FactKey key = new(FactsRuleset, FactsTable);
-            cache.WriteSiblingBytes(path, StampedFacts.Suffix(key), FactsCodec.Encode(
-                new FactTable(key, fingerprint, StampedFacts.Schema, "player_match", ["slot"], ["k"], new Dictionary<string, string>(), [])));
-            cache.UpdateExisting(path, r => r.SetStamp(new PackStamp(StampedFacts.StampId(FactsRuleset), StampedFacts.Schema, fingerprint)));
+            cache.WriteSiblingBytes(Path, StampedFacts.Suffix(key), FactsCodec.Encode(
+                new FactTable(key, fingerprint, StampedFacts.Schema, "player_match", ["slot"], ["k"],
+                    new Dictionary<string, string>(), [])));
+            cache.UpdateExisting(Path,
+                r => r.SetStamp(new PackStamp(StampedFacts.StampId(FactsRuleset), StampedFacts.Schema, fingerprint)));
             AnalysisFacts facts = new(cache, stamped, new RoundFactsSource(cache));
             FactsEvaluator evaluator = new(cache, stamped);
 
-            FactStatus whileOn = facts.Status(path, key);
-            FactTable? readOn = facts.TryGet(path, key);
-            bool wantedOn = evaluator.Wants(path);
+            FactStatus whileOn = facts.Status(Path, key);
+            FactTable? readOn = facts.TryGet(Path, key);
+            bool wantedOn = evaluator.Wants(Path);
             on = false;
 
             using (Assert.Multiple())
@@ -231,16 +278,19 @@ public class AnalysisFactsTests
                 await Assert.That(whileOn).IsEqualTo(FactStatus.Current);
                 await Assert.That(readOn).IsNotNull();
                 await Assert.That(wantedOn).IsFalse().Because("current facts need no read");
-                await Assert.That(facts.Status(path, new FactKey(FactsRuleset, FactKey.ScoreboardOutput))).IsEqualTo(FactStatus.Absent)
+                await Assert.That(facts.Status(Path, new FactKey(FactsRuleset, FactKey.ScoreboardOutput)))
+                    .IsEqualTo(FactStatus.Absent)
                     .Because("off looks off, the scoreboard included");
                 await Assert.That(facts.Declared).IsEmpty();
-                await Assert.That(facts.Status(path, key)).IsEqualTo(FactStatus.Absent);
-                await Assert.That(facts.TryGet(path, key)).IsNull();
-                await Assert.That(cache.TryReadSiblingBytes(path, StampedFacts.Suffix(key))).IsNotNull().Because("the facts wait for the owner");
+                await Assert.That(facts.Status(Path, key)).IsEqualTo(FactStatus.Absent);
+                await Assert.That(facts.TryGet(Path, key)).IsNull();
+                await Assert.That(cache.TryReadSiblingBytes(Path, StampedFacts.Suffix(key))).IsNotNull()
+                    .Because("the facts wait for the owner");
             }
 
             on = true;
-            await Assert.That(facts.Status(path, new FactKey(FactsRuleset, FactKey.ScoreboardOutput))).IsEqualTo(FactStatus.NeedsFullAnalysis);
+            await Assert.That(facts.Status(Path, new FactKey(FactsRuleset, FactKey.ScoreboardOutput)))
+                .IsEqualTo(FactStatus.NeedsFullAnalysis);
         }
         finally
         {
@@ -256,22 +306,31 @@ public class AnalysisFactsTests
         try
         {
             MergedRulesBuild rules = new(() => WithFixture(fixture),
-                () => [StampedRuleset.Core(RoundFactsFingerprint.RulesetId), new StampedRuleset(FactsRuleset, "dev.example.x", () => true)]);
+                () =>
+                [
+                    StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                    new StampedRuleset(FactsRuleset, "dev.example.x", () => true)
+                ]);
             StampedFacts stamped = new(rules);
-            const string nfs = "/nfs/a.dem";
-            const string smb = "/smb/a.dem";
+            const string Nfs = "/nfs/a.dem";
+            const string Smb = "/smb/a.dem";
             string fingerprint = stamped.Fingerprint(FactsRuleset, 64)!;
             FactKey key = new(FactsRuleset, FactsTable);
 
             DemoCacheStore cache = new(root);
             cache.Upsert(new DemoCacheRecord
             {
-                Path = nfs, Size = 1, Sha256 = "sha-a", Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+                Path = Nfs,
+                Size = 1,
+                Sha256 = "sha-a",
+                Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
             });
-            cache.WriteSiblingBytes(nfs, StampedFacts.Suffix(key), FactsCodec.Encode(
-                new FactTable(key, fingerprint, StampedFacts.Schema, "player_match", ["slot"], ["k"], new Dictionary<string, string>(), [])));
-            cache.UpdateExisting(nfs, r => r.SetStamp(new PackStamp(StampedFacts.StampId(FactsRuleset), StampedFacts.Schema, fingerprint)));
-            cache.Update(smb, 1, 0, r => r.Sha256 = "sha-a");
+            cache.WriteSiblingBytes(Nfs, StampedFacts.Suffix(key), FactsCodec.Encode(
+                new FactTable(key, fingerprint, StampedFacts.Schema, "player_match", ["slot"], ["k"],
+                    new Dictionary<string, string>(), [])));
+            cache.UpdateExisting(Nfs,
+                r => r.SetStamp(new PackStamp(StampedFacts.StampId(FactsRuleset), StampedFacts.Schema, fingerprint)));
+            cache.Update(Smb, 1, 0, r => r.Sha256 = "sha-a");
             cache.SaveIndex();
 
             AnalysisFacts facts = new(cache, stamped, new RoundFactsSource(cache));
@@ -280,14 +339,15 @@ public class AnalysisFactsTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(cache.TryGetIndex(smb)!.Locations).Count().IsEqualTo(2);
-                await Assert.That(Directory.GetFiles(Path.Combine(root, "demos")).Select(Path.GetFileName).All(n => n!.StartsWith("sha-a.", StringComparison.Ordinal)))
+                await Assert.That(cache.TryGetIndex(Smb)!.Locations).Count().IsEqualTo(2);
+                await Assert.That(Directory.GetFiles(Path.Combine(root, "demos")).Select(Path.GetFileName)
+                        .All(n => n!.StartsWith("sha-a.", StringComparison.Ordinal)))
                     .IsTrue().Because("the saved index named the hash, so the files moved to it");
-                await Assert.That(facts.Status(smb, key)).IsEqualTo(FactStatus.Current);
-                await Assert.That(facts.TryGet(smb, key)).IsNotNull();
-                await Assert.That(new FactsEvaluator(cache, stamped).Wants(smb)).IsFalse()
+                await Assert.That(facts.Status(Smb, key)).IsEqualTo(FactStatus.Current);
+                await Assert.That(facts.TryGet(Smb, key)).IsNotNull();
+                await Assert.That(new FactsEvaluator(cache, stamped).Wants(Smb)).IsFalse()
                     .Because("the other path's facts are this demo's");
-                await Assert.That(reread.TryGet(smb, key)).IsNotNull();
+                await Assert.That(reread.TryGet(Smb, key)).IsNotNull();
             }
         }
         finally
@@ -308,18 +368,28 @@ public class AnalysisFactsTests
         {
             bool on = true;
             MergedRulesBuild rules = new(() => WithFixture(fixture),
-                () => [StampedRuleset.Core(RoundFactsFingerprint.RulesetId), new StampedRuleset(FactsRuleset, "dev.example.x", () => on)]);
+                () =>
+                [
+                    StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                    new StampedRuleset(FactsRuleset, "dev.example.x", () => on)
+                ]);
             StampedFacts stamped = new(rules);
             DemoCacheStore cache = new(null);
-            const string path = "/demos/a.dem";
-            cache.Upsert(new DemoCacheRecord { Path = path, Size = 1, Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 } });
+            const string Path = "/demos/a.dem";
+            cache.Upsert(new DemoCacheRecord
+            {
+                Path = Path,
+                Size = 1,
+                Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+            });
             string stampId = StampedFacts.StampId(FactsRuleset);
-            cache.UpdateExisting(path, r => r.SetStamp(new PackStamp(stampId, StampedFacts.Schema, stamped.Fingerprint(FactsRuleset, 64)!)));
+            cache.UpdateExisting(Path,
+                r => r.SetStamp(new PackStamp(stampId, StampedFacts.Schema, stamped.Fingerprint(FactsRuleset, 64)!)));
             AnalysisFacts facts = new(cache, stamped, new RoundFactsSource(cache));
             HostLibrary library = HostLibrary.For(cache, null, () => facts);
             LibraryQuery hasFact = new() { HasFact = stampId };
 
-            bool shownOn = library.Find(path)?.Fact(stampId) is { IsWritten: true };
+            bool shownOn = library.Find(Path)?.Fact(stampId) is { IsWritten: true };
             int matchedOn = library.Query(hasFact).Total;
             List<LibraryChange> changes = [];
             library.Changed += changes.Add;
@@ -330,11 +400,13 @@ public class AnalysisFactsTests
             {
                 await Assert.That(shownOn).IsTrue();
                 await Assert.That(matchedOn).IsEqualTo(1);
-                await Assert.That(changes).IsEquivalentTo(new[] { new LibraryChange(null, LibraryChangeKind.Updated) }, CollectionOrdering.Matching);
-                await Assert.That(library.Find(path)?.Fact(stampId)).IsNull().Because("off looks off on the row");
+                await Assert.That(changes).IsEquivalentTo([new LibraryChange(null, LibraryChangeKind.Updated)],
+                    CollectionOrdering.Matching);
+                await Assert.That(library.Find(Path)?.Fact(stampId)).IsNull().Because("off looks off on the row");
                 await Assert.That(library.Demos.Single().Facts.Select(f => f.Id)).DoesNotContain(stampId);
                 await Assert.That(library.Query(hasFact).Total).IsEqualTo(0);
-                await Assert.That(cache.TryGetIndex(path)?.Stamp(stampId)).IsNotNull().Because("the stamp waits for the owner");
+                await Assert.That(cache.TryGetIndex(Path)?.Stamp(stampId)).IsNotNull()
+                    .Because("the stamp waits for the owner");
             }
 
             on = true;
@@ -353,22 +425,33 @@ public class AnalysisFactsTests
         try
         {
             MergedRulesBuild rules = new(() => WithFixture(fixture),
-                () => [StampedRuleset.Core(RoundFactsFingerprint.RulesetId), new StampedRuleset(FactsRuleset, "dev.example.x", static () => false)]);
+                () =>
+                [
+                    StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                    new StampedRuleset(FactsRuleset, "dev.example.x", static () => false)
+                ]);
             StampedFacts stamped = new(rules);
             DemoCacheStore cache = new(null);
-            const string path = "/demos/a.dem";
+            const string Path = "/demos/a.dem";
             string stampId = StampedFacts.StampId(FactsRuleset);
-            cache.Upsert(new DemoCacheRecord { Path = path, Size = 1, Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 } });
-            cache.UpdateExisting(path, r => r.SetStamp(new PackStamp(stampId, StampedFacts.Schema, "fp")));
-            cache.UpdateExisting(path, r => r.SetStamp(new PackStamp("other", 1, "fp")));
+            cache.Upsert(new DemoCacheRecord
+            {
+                Path = Path,
+                Size = 1,
+                Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+            });
+            cache.UpdateExisting(Path, r => r.SetStamp(new PackStamp(stampId, StampedFacts.Schema, "fp")));
+            cache.UpdateExisting(Path, r => r.SetStamp(new PackStamp("other", 1, "fp")));
             AnalysisFacts facts = new(cache, stamped, new RoundFactsSource(cache));
             List<Action> posted = [];
             HostLibrary library = new(cache, null, static () => true, posted.Add, () => facts);
 
             using (Assert.Multiple())
             {
-                await Assert.That(library.Find(path)?.Fact(stampId)).IsNull().Because("off looks off on the first read, with nothing to wait for");
-                await Assert.That(library.Demos.Single().Facts.Select(f => f.Id)).IsEquivalentTo(["other"], CollectionOrdering.Matching);
+                await Assert.That(library.Find(Path)?.Fact(stampId)).IsNull()
+                    .Because("off looks off on the first read, with nothing to wait for");
+                await Assert.That(library.Demos.Single().Facts.Select(f => f.Id))
+                    .IsEquivalentTo(["other"], CollectionOrdering.Matching);
                 await Assert.That(library.Query(new LibraryQuery { HasFact = stampId }).Total).IsEqualTo(0);
                 await Assert.That(posted).IsEmpty();
             }
@@ -393,10 +476,15 @@ public class AnalysisFactsTests
                     return [new StampedRuleset(FactsRuleset, "dev.example.x", static () => false)];
                 });
             DemoCacheStore cache = new(null);
-            const string path = "/demos/a.dem";
+            const string Path = "/demos/a.dem";
             string stampId = StampedFacts.StampId(FactsRuleset);
-            cache.Upsert(new DemoCacheRecord { Path = path, Size = 1, Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 } });
-            cache.UpdateExisting(path, r => r.SetStamp(new PackStamp(stampId, StampedFacts.Schema, "fp")));
+            cache.Upsert(new DemoCacheRecord
+            {
+                Path = Path,
+                Size = 1,
+                Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+            });
+            cache.UpdateExisting(Path, r => r.SetStamp(new PackStamp(stampId, StampedFacts.Schema, "fp")));
             AnalysisFacts facts = new(cache, new StampedFacts(rules), new RoundFactsSource(cache));
             List<Action> posted = [];
             HostLibrary library = new(cache, null, static () => true, posted.Add, () => facts);
@@ -407,12 +495,12 @@ public class AnalysisFactsTests
             int readsDuring = -1;
             ReadingPack pack = new(() =>
             {
-                during = library.Find(path)?.Fact(stampId);
+                during = library.Find(Path)?.Fact(stampId);
                 readsDuring = reads;
             });
             _ = new PackContributionSet([pack], new ServiceCollection().BuildServiceProvider());
             int postedWhileCollecting = posted.Count;
-            LibraryFactState? afterCollecting = library.Find(path)?.Fact(stampId);
+            LibraryFactState? afterCollecting = library.Find(Path)?.Fact(stampId);
             int readsAfterCollecting = reads;
             int postedAfterCollecting = posted.Count;
             foreach (Action recheck in posted)
@@ -423,15 +511,19 @@ public class AnalysisFactsTests
             using (Assert.Multiple())
             {
                 await Assert.That(pack.Contributed).IsTrue();
-                await Assert.That(readsDuring).IsEqualTo(0).Because("reading the stamped rulesets would collect the contributions again");
-                await Assert.That(during).IsNotNull().Because("a row read while the packs contribute shows every stamp");
+                await Assert.That(readsDuring).IsEqualTo(0)
+                    .Because("reading the stamped rulesets would collect the contributions again");
+                await Assert.That(during).IsNotNull()
+                    .Because("a row read while the packs contribute shows every stamp");
                 await Assert.That(postedWhileCollecting).IsEqualTo(1);
-                await Assert.That(afterCollecting).IsNull().Because("the next read after the packs contributed resolves the rulesets");
+                await Assert.That(afterCollecting).IsNull()
+                    .Because("the next read after the packs contributed resolves the rulesets");
                 await Assert.That(readsAfterCollecting).IsEqualTo(1);
                 await Assert.That(postedAfterCollecting).IsEqualTo(1).Because("one recheck covers every deferred read");
-                await Assert.That(changes).IsEquivalentTo(new[] { new LibraryChange(null, LibraryChangeKind.Updated) }, CollectionOrdering.Matching)
+                await Assert.That(changes).IsEquivalentTo([new LibraryChange(null, LibraryChangeKind.Updated)],
+                        CollectionOrdering.Matching)
                     .Because("the posted recheck tells readers that rows projected while the packs contributed moved");
-                await Assert.That(library.Find(path)?.Fact(stampId)).IsNull();
+                await Assert.That(library.Find(Path)?.Fact(stampId)).IsNull();
                 await Assert.That(reads).IsEqualTo(1);
             }
         }
@@ -448,11 +540,20 @@ public class AnalysisFactsTests
         try
         {
             MergedRulesBuild rules = new(() => WithFixture(fixture),
-                () => [StampedRuleset.Core(RoundFactsFingerprint.RulesetId), new StampedRuleset(FactsRuleset, "dev.example.x", static () => true)]);
+                () =>
+                [
+                    StampedRuleset.Core(RoundFactsFingerprint.RulesetId),
+                    new StampedRuleset(FactsRuleset, "dev.example.x", static () => true)
+                ]);
             StampedFacts stamped = new(rules);
             DemoCacheStore cache = new(null);
-            const string path = "/demos/a.dem";
-            cache.Upsert(new DemoCacheRecord { Path = path, Size = 1, Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 } });
+            const string DemoPath = "/demos/a.dem";
+            cache.Upsert(new DemoCacheRecord
+            {
+                Path = DemoPath,
+                Size = 1,
+                Parse = new TierStamp { Schema = DemoCacheRecord.ParseSchema, ComputedAtTicks = 1 }
+            });
             AnalysisFacts facts = new(cache, stamped, new RoundFactsSource(cache));
             FactsEvaluator evaluator = new(cache, stamped);
             List<string> updated = [];
@@ -460,7 +561,7 @@ public class AnalysisFactsTests
             FactKey key = new(FactsRuleset, FactsTable);
             string stampId = StampedFacts.StampId(FactsRuleset);
             string fingerprint = stamped.Fingerprint(FactsRuleset, 64)!;
-            bool wantedBefore = evaluator.Wants(path);
+            bool wantedBefore = evaluator.Wants(DemoPath);
 
             // The ruleset composes alone, so it has a fingerprint; this demo's build is one the engine dropped it from.
             ParsedDemo demo = MergedRulesBuildTests.TwoFrameDemo();
@@ -470,21 +571,31 @@ public class AnalysisFactsTests
                 [
                     new ExcludedRuleset(FactsRuleset, FactsRuleset + ".rules.yaml",
                     [
-                        new RulesetCompositionDiagnostic(FactsRuleset, DiagnosticSeverity.Error, ResolveDiagnosticCodes.CrossRefCycle,
+                        new RulesetCompositionDiagnostic(FactsRuleset, DiagnosticSeverity.Error,
+                            ResolveDiagnosticCodes.CrossRefCycle,
                             "a cycle through another ruleset", new SourcePosition(FactsRuleset + ".rules.yaml", 1, 1))
                     ])
                 ]
             };
             AnalysisRun run = DemoAnalysis.Evaluate(demo, leftOut, new AnalysisOptions { CaptureSnapshots = false });
-            ForwardDemoResult pass = new() { Demo = run.Demo, Rounds = [], FrameCount = 2, FirstServerTick = 1, LastServerTick = 500, Run = run };
+            ForwardDemoResult pass = new()
+            {
+                Demo = run.Demo,
+                Rounds = [],
+                FrameCount = 2,
+                FirstServerTick = 1,
+                LastServerTick = 500,
+                Run = run
+            };
 
-            evaluator.EvaluateForward(path, pass);
-            PackStamp? stamp = cache.TryGetIndex(path)?.Stamp(stampId);
-            FactStatus failed = facts.Status(path, key);
-            bool wantedAfter = evaluator.Wants(path);
-            evaluator.EvaluateForward(path, pass);
+            evaluator.EvaluateForward(DemoPath, pass);
+            PackStamp? stamp = cache.TryGetIndex(DemoPath)?.Stamp(stampId);
+            FactStatus failed = facts.Status(DemoPath, key);
+            bool wantedAfter = evaluator.Wants(DemoPath);
+            evaluator.EvaluateForward(DemoPath, pass);
 
-            File.WriteAllText(Path.Combine(fixture, FactsRuleset + ".rules.yaml"), FactsYaml.Replace("label: FixtureKills", "label: FixtureKillsChanged"));
+            await File.WriteAllTextAsync(Path.Combine(fixture, FactsRuleset + ".rules.yaml"),
+                FactsYaml.Replace("label: FixtureKills", "label: FixtureKillsChanged"));
             rules.Invalidate();
 
             using (Assert.Multiple())
@@ -493,12 +604,16 @@ public class AnalysisFactsTests
                 await Assert.That(stamp?.State).IsEqualTo(DemoAnalysisState.Failed);
                 await Assert.That(stamp?.Fingerprint).IsEqualTo(fingerprint);
                 await Assert.That(failed).IsEqualTo(FactStatus.Failed);
-                await Assert.That(facts.TryGet(path, key)).IsNull();
-                await Assert.That(cache.TryReadSiblingBytes(path, StampedFacts.Suffix(key))).IsNull().Because("a ruleset left out writes no table");
-                await Assert.That(wantedAfter).IsFalse().Because("a failed write under the same fingerprint is settled");
-                await Assert.That(updated).IsEquivalentTo(new[] { path }, CollectionOrdering.Matching).Because("the second visit records nothing");
-                await Assert.That(facts.Status(path, key)).IsEqualTo(FactStatus.Stale).Because("a changed ruleset is tried again");
-                await Assert.That(evaluator.Wants(path)).IsTrue();
+                await Assert.That(facts.TryGet(DemoPath, key)).IsNull();
+                await Assert.That(cache.TryReadSiblingBytes(DemoPath, StampedFacts.Suffix(key))).IsNull()
+                    .Because("a ruleset left out writes no table");
+                await Assert.That(wantedAfter).IsFalse()
+                    .Because("a failed write under the same fingerprint is settled");
+                await Assert.That(updated).IsEquivalentTo([DemoPath], CollectionOrdering.Matching)
+                    .Because("the second visit records nothing");
+                await Assert.That(facts.Status(DemoPath, key)).IsEqualTo(FactStatus.Stale)
+                    .Because("a changed ruleset is tried again");
+                await Assert.That(evaluator.Wants(DemoPath)).IsTrue();
             }
         }
         finally

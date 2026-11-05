@@ -4,16 +4,15 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Hud;
 using DemoViewer.NET.Playback2D.Layers;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
 using DemoViewer.NET.Playback2D.Pipeline.Hud;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.TestSupport;
 using SkiaSharp;
 
@@ -54,7 +53,7 @@ public class ExportHudClockTests
         HudSnapshot drawn = replay.Hud.At(frame.Time.Tick);
 
         Console.WriteLine($"[hud-clock] round={drawn.RoundNumber} T={drawn.TScore} CT={drawn.CtScore} " +
-                          $"countdown={drawn.CountdownSeconds:F1}s at tick {drawn.Tick}");
+            $"countdown={drawn.CountdownSeconds:F1}s at tick {drawn.Tick}");
 
         // "—" is what ClockReading.Unknown renders, and it is what every CLI export used to show.
         await Assert.That(drawn.RoundNumber).IsNotEqualTo("—")
@@ -100,7 +99,7 @@ public class ExportHudClockTests
         }
 
         Console.WriteLine($"[hud-clock] rounds seen: {string.Join(",", rounds)}; " +
-                          $"countdown {countdowns[0]:F1}s → {countdowns[^1]:F1}s");
+            $"countdown {countdowns[0]:F1}s → {countdowns[^1]:F1}s");
 
         // Something on the clock has to have moved across the sampled span, or the reading is a constant
         // wearing a demo's clothes. NaN-aware: "no countdown running" → "0:43 left" is a change, and
@@ -189,13 +188,7 @@ public class ExportHudClockTests
             RenderPurpose.Export, ScenePalette.Dark, 1f)
         {
             Pane = new LevelPaneSnapshot(default, 0,
-                new MapLevel
-                {
-                    Id = default,
-                    Name = "l",
-                    ZMin = 0,
-                    ZMax = 100
-                },
+                new MapLevel { Id = default, Name = "l", ZMin = 0, ZMax = 100 },
                 ViewportTransform.Fit(400, 120, -100, -100, 100, 100), default, 0)
         };
 

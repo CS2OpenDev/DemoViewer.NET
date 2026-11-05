@@ -1,6 +1,7 @@
 namespace DemoViewer.NET.Playback2D.Levels;
 
 /// <summary>One detected floor slice: a contiguous Z band players are assigned to.</summary>
+[PublicAPI]
 public readonly record struct FloorSlice(double MinZ, double MaxZ)
 {
     /// <summary>The slice's mid Z (for ordering / display).</summary>
@@ -80,7 +81,7 @@ internal sealed class FloorSplitter
 
     // Cached slices, recomputed when the histogram changes. Hysteresis keeps a player from flickering
     // across a boundary on a ramp: assignment uses the LAST slices unless Z clearly enters a new band.
-    private List<FloorSlice> _slices = new();
+    private List<FloorSlice> _slices = [];
 
     /// <summary>Creates a splitter. A non-positive argument takes its default.</summary>
     /// <param name="bucketWidth">The Z histogram bucket width, in world units.</param>
@@ -92,7 +93,7 @@ internal sealed class FloorSplitter
     }
 
     /// <summary>Histogram bucket width in world units (fixed, e.g. 64u).</summary>
-    public double BucketWidth { get; }
+    private double BucketWidth { get; }
 
     /// <summary>Minimum empty-Z gap (world units) that separates two floors (e.g. ~180u).</summary>
     public double GapThreshold { get; }
@@ -148,7 +149,7 @@ internal sealed class FloorSplitter
         _buckets.Clear();
         _minBucket = int.MaxValue;
         _maxBucket = int.MinValue;
-        _slices = new List<FloorSlice>();
+        _slices = [];
         _scratch.Clear();
         _sectionHeights = null;
         _lastSuppliedHeights = null;
@@ -164,7 +165,7 @@ internal sealed class FloorSplitter
     /// </summary>
     public void SetAuthoritativeFloors(IReadOnlyList<FloorSlice>? floors)
     {
-        _authoritativeFloors = floors is { Count: > 0 } ? floors.ToList() : null;
+        _authoritativeFloors = floors is { Count: > 0 } ? [.. floors] : null;
         _dirty = true;
     }
 
@@ -226,7 +227,7 @@ internal sealed class FloorSplitter
         }
 
         // A single boundary describes one section (one floor); nothing to split, so stay histogram-eligible.
-        return kept.Count >= 2 ? kept.ToArray() : null;
+        return kept.Count >= 2 ? [.. kept] : null;
     }
 
     private static bool SameHeights(double[]? a, double[]? b)
@@ -278,15 +279,6 @@ internal sealed class FloorSplitter
         }
 
         _dirty = true;
-    }
-
-    /// <summary>Folds a batch of observed Z values (one push of player positions).</summary>
-    public void Observe(IEnumerable<double> zs)
-    {
-        foreach (double z in zs)
-        {
-            Observe(z);
-        }
     }
 
     /// <summary>

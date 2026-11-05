@@ -115,4 +115,3 @@ public interface IAnnotationSurface
     /// <param name="text">The typed string, or null.</param>
     void CompleteTextEdit(string? text);
 }
-

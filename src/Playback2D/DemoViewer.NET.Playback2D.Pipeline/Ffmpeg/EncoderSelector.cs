@@ -53,6 +53,7 @@ public sealed record EncoderSelection(
 ///     An explicitly requested encoder does not exist on this machine. Distinct from a validation error
 ///     because nothing about the <c>ExportRequest</c> is wrong: the environment is.
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed class EncoderUnavailableException : InvalidOperationException
 {
     /// <summary>Creates the exception.</summary>

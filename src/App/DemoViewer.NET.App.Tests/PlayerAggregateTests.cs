@@ -1,7 +1,6 @@
 #region
 
 using System.Globalization;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Services.Players;
@@ -23,7 +22,7 @@ public class PlayerAggregateTests
 {
     private const ulong Grim = 76561190000000003;
 
-    private static readonly DemoCacheIndexEntry Row = new() { Path = "/d/a.dem", Map = "de_nuke" };
+    private static readonly DemoCacheIndexEntry _row = new() { Path = "/d/a.dem", Map = "de_nuke" };
 
     // HLTV 2.0 as rules/player_stats.rules.yaml computes it, from a row's own columns.
     private static double Hltv(Dictionary<string, double> c)
@@ -31,10 +30,12 @@ public class PlayerAggregateTests
         double rounds = c["rounds"];
         double kpr = c["TotalK"] / rounds;
         return (0.73 * (c["KAST%"] / 100)) + (0.3591 * kpr) - (0.5329 * (c["TotalD"] / rounds))
-               + (0.2372 * ((2.13 * kpr) + (0.42 * (c["TotalA"] / rounds)) - 0.41)) + (0.0032 * (c["EnemyDmg"] / rounds)) + 0.1587;
+            + (0.2372 * ((2.13 * kpr) + (0.42 * (c["TotalA"] / rounds)) - 0.41))
+            + (0.0032 * (c["EnemyDmg"] / rounds)) + 0.1587;
     }
 
-    private static Dictionary<string, double> Cells(double rounds, double kills, double deaths, double assists, double damage, double kastRounds,
+    private static Dictionary<string, double> Cells(double rounds, double kills, double deaths, double assists,
+        double damage, double kastRounds,
         double won = 0, double lost = 0)
     {
         Dictionary<string, double> cells = new(StringComparer.Ordinal)
@@ -56,15 +57,22 @@ public class PlayerAggregateTests
     private static FactRow Facet(int slot, ulong? steamId, int team, IReadOnlyDictionary<string, double> cells) => new(
         new Dictionary<string, FactValue>
         {
-            ["player_slot"] = FactValue.Of((long)slot),
+            ["player_slot"] = FactValue.Of(slot),
             ["steam_id"] = FactValue.Of(steamId?.ToString(CultureInfo.InvariantCulture)),
-            ["team"] = FactValue.Of((long)team)
+            ["team"] = FactValue.Of(team)
         },
-        cells.ToDictionary(c => c.Key, c => c.Value == Math.Floor(c.Value) && c.Key is not ("KAST%" or "HLTV") ? FactValue.Of((long)c.Value) : FactValue.Of(c.Value),
+        cells.ToDictionary(c => c.Key,
+            c => c.Value == Math.Floor(c.Value) && c.Key is not ("KAST%" or "HLTV")
+                ? FactValue.Of((long)c.Value)
+                : FactValue.Of(c.Value),
             StringComparer.Ordinal));
 
-    private static PlayerDemo Demo(IReadOnlyDictionary<string, double>? stats, string map = "de_nuke", int? side = 3, long time = 0) =>
-        new(new PlayerMatch(new DemoCacheIndexEntry { Path = $"/d/{map}{time}.dem", Map = map, MatchTimeUtcTicks = time }, side, [], [], side is null),
+    private static PlayerDemo Demo(IReadOnlyDictionary<string, double>? stats, string map = "de_nuke", int? side = 3,
+        long time = 0) =>
+        new(
+            new PlayerMatch(
+                new DemoCacheIndexEntry { Path = $"/d/{map}{time}.dem", Map = map, MatchTimeUtcTicks = time }, side, [],
+                [], side is null),
             stats is not null, stats);
 
     [Test]
@@ -77,16 +85,23 @@ public class PlayerAggregateTests
             throw new SkipTestException("missing the player_match sample");
         }
 
-        FactTable table = FactsCodec.Decode(PlayerMatchFacetTests.Gzip(File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal)))!;
+        FactTable table =
+            FactsCodec.Decode(
+                PlayerMatchFacetTests.Gzip(
+                    (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal)))!;
         List<string> mismatches = [];
         foreach (FactRow row in table.Rows)
         {
             ulong id = ulong.Parse(row.Dimensions["steam_id"].AsText()!, CultureInfo.InvariantCulture);
-            Dictionary<string, double> cells = row.Values.ToDictionary(c => c.Key, c => c.Value.AsNumber() ?? 0, StringComparer.Ordinal);
+            Dictionary<string, double> cells =
+                row.Values.ToDictionary(c => c.Key, c => c.Value.AsNumber() ?? 0, StringComparer.Ordinal);
             IReadOnlyDictionary<string, double> merged = PlayerAggregate.Merge(table.Rows, id)!;
             bool sight = PlayerMatchFacet.HasSight(table.Rows);
-            PlayerAggregate aggregate = PlayerAggregate.Of([new PlayerDemo(new PlayerMatch(Row, 3, [], [], false), true, merged) { HasSight = sight }]);
-            foreach ((string key, ColumnRule rule) in ColumnRules.All.Where(r => r.Value is not ColumnRule.NotAggregable))
+            PlayerAggregate aggregate = PlayerAggregate.Of([
+                new PlayerDemo(new PlayerMatch(_row, 3, [], [], false), true, merged) { HasSight = sight }
+            ]);
+            foreach ((string key, ColumnRule rule) in
+                     ColumnRules.All.Where(r => r.Value is not ColumnRule.NotAggregable))
             {
                 double? expected = ColumnCatalogue.RequiresVisibility(key) && !sight ? null
                     : rule is ColumnRule.Sum sum ? cells[sum.Column] : rule.Pool([cells]);
@@ -121,7 +136,8 @@ public class PlayerAggregateTests
         {
             await Assert.That(mixed.WithStats).IsEqualTo(2);
             await Assert.That(mixed.WithSight).IsEqualTo(1);
-            await Assert.That(mixed["Preaim"]).IsEqualTo(10.0).Because("the demo without sight measured nothing, so it does not dilute the pool");
+            await Assert.That(mixed["Preaim"]).IsEqualTo(10.0)
+                .Because("the demo without sight measured nothing, so it does not dilute the pool");
             await Assert.That(mixed["TTD"]).IsEqualTo(400.0 / 25 * 15.625);
             await Assert.That(mixed["Spots"]).IsEqualTo(30.0);
             await Assert.That(mixed["TotalK"]).IsEqualTo(40.0).Because("every other column still pools both demos");
@@ -137,7 +153,8 @@ public class PlayerAggregateTests
     public async Task ARatioOfSums_IsNotTheMeanOfRatios()
     {
         // ADR 100 over 10 rounds and 50 over 30: 2500 damage in 40 rounds is 62.5, where the mean says 75.
-        PlayerAggregate aggregate = PlayerAggregate.Of([Demo(Cells(10, 10, 5, 2, 1000, 7)), Demo(Cells(30, 20, 20, 4, 1500, 18))]);
+        PlayerAggregate aggregate =
+            PlayerAggregate.Of([Demo(Cells(10, 10, 5, 2, 1000, 7)), Demo(Cells(30, 20, 20, 4, 1500, 18))]);
         using (Assert.Multiple())
         {
             await Assert.That(aggregate["ADR"]).IsEqualTo(62.5);
@@ -155,12 +172,19 @@ public class PlayerAggregateTests
         PlayerAggregate aggregate = PlayerAggregate.Of([Demo(a), Demo(b)]);
         Dictionary<string, double> pool = new(StringComparer.Ordinal)
         {
-            ["rounds"] = 37, ["TotalK"] = 29, ["TotalD"] = 27, ["TotalA"] = 9, ["EnemyDmg"] = 3322, ["KAST%"] = 26.0 / 37 * 100
+            ["rounds"] = 37,
+            ["TotalK"] = 29,
+            ["TotalD"] = 27,
+            ["TotalA"] = 9,
+            ["EnemyDmg"] = 3322,
+            ["KAST%"] = 26.0 / 37 * 100
         };
         using (Assert.Multiple())
         {
-            await Assert.That(aggregate["HLTV"]!.Value).IsEqualTo(((a["HLTV"] * 13) + (b["HLTV"] * 24)) / 37).Within(1e-9);
-            await Assert.That(aggregate["HLTV"]!.Value).IsEqualTo(Hltv(pool)).Within(1e-9).Because("HLTV 2.0 is linear in its per-round terms");
+            await Assert.That(aggregate["HLTV"]!.Value).IsEqualTo(((a["HLTV"] * 13) + (b["HLTV"] * 24)) / 37)
+                .Within(1e-9);
+            await Assert.That(aggregate["HLTV"]!.Value).IsEqualTo(Hltv(pool)).Within(1e-9)
+                .Because("HLTV 2.0 is linear in its per-round terms");
         }
     }
 
@@ -173,22 +197,33 @@ public class PlayerAggregateTests
         Dictionary<string, double> after = Cells(24, 9, 7, 2, 905, 12);
         Dictionary<string, double> other = Cells(24, 30, 1, 0, 3000, 24);
 
-        IReadOnlyDictionary<string, double> alone = PlayerAggregate.Merge([Facet(3, Grim, 0, ghost), Facet(4, Grim, 3, after), Facet(5, Grim + 1, 3, other)], Grim)!;
-        IReadOnlyDictionary<string, double> folded = PlayerAggregate.Merge([Facet(3, Grim, 0, before), Facet(4, Grim, 3, after), Facet(5, null, 3, other)], Grim)!;
+        IReadOnlyDictionary<string, double> alone =
+            PlayerAggregate.Merge([Facet(3, Grim, 0, ghost), Facet(4, Grim, 3, after), Facet(5, Grim + 1, 3, other)],
+                Grim)!;
+        IReadOnlyDictionary<string, double> folded =
+            PlayerAggregate.Merge([Facet(3, Grim, 0, before), Facet(4, Grim, 3, after), Facet(5, null, 3, other)],
+                Grim)!;
         Dictionary<string, double> expected = new(StringComparer.Ordinal)
         {
-            ["rounds"] = 24, ["TotalK"] = 15, ["TotalD"] = 11, ["TotalA"] = 3, ["EnemyDmg"] = 1515, ["KAST%"] = 100
+            ["rounds"] = 24,
+            ["TotalK"] = 15,
+            ["TotalD"] = 11,
+            ["TotalA"] = 3,
+            ["EnemyDmg"] = 1515,
+            ["KAST%"] = 100
         };
         using (Assert.Multiple())
         {
-            await Assert.That(alone).IsEquivalentTo(after, CollectionOrdering.Matching).Because("a ghost on no side with no shots, deaths or damage is dropped");
+            await Assert.That(alone).IsEquivalentTo(after, CollectionOrdering.Matching)
+                .Because("a ghost on no side with no shots, deaths or damage is dropped");
             await Assert.That(PlayerAggregate.Merge([Facet(3, Grim, 0, ghost)], Grim)).IsNull();
             await Assert.That(PlayerAggregate.Merge([Facet(5, Grim + 1, 3, other)], Grim)).IsNull();
             await Assert.That(folded["rounds"]).IsEqualTo(24).Because("every row carries the match's rounds");
             await Assert.That(folded["TotalK"]).IsEqualTo(15);
             await Assert.That(folded["EnemyDmg"]).IsEqualTo(1515);
             await Assert.That(folded["KAST%"]).IsEqualTo(100).Because("32 KAST rounds of 24 is every round");
-            await Assert.That(folded["HLTV"]).IsEqualTo(Hltv(expected)).Within(1e-9).Because("the folded rating is the rating of the folded row");
+            await Assert.That(folded["HLTV"]).IsEqualTo(Hltv(expected)).Within(1e-9)
+                .Because("the folded rating is the rating of the folded row");
         }
     }
 
@@ -198,7 +233,7 @@ public class PlayerAggregateTests
         // Both slots tallied all 24 rounds: the team's 9 + 4 wins and 2 + 9 losses each.
         Dictionary<string, double> first = Cells(24, 13, 13, 2, 1400, 16, 9, 9);
         Dictionary<string, double> second = Cells(24, 3, 22, 1, 400, 22, 9, 9);
-        foreach (Dictionary<string, double> slot in (Dictionary<string, double>[]) [first, second])
+        foreach (Dictionary<string, double> slot in (Dictionary<string, double>[])[first, second])
         {
             slot["CTL"] = 2;
             slot["TW"] = 4;
@@ -207,16 +242,20 @@ public class PlayerAggregateTests
         first["Survived"] = 13;
         second["Survived"] = 17;
 
-        IReadOnlyDictionary<string, double> both = PlayerAggregate.Merge([Facet(7, Grim, 2, first), Facet(8, Grim, 2, second)], Grim)!;
+        IReadOnlyDictionary<string, double> both =
+            PlayerAggregate.Merge([Facet(7, Grim, 2, first), Facet(8, Grim, 2, second)], Grim)!;
         IReadOnlyDictionary<string, double> halves = PlayerAggregate.Merge(
-            [Facet(7, Grim, 2, Cells(24, 5, 5, 0, 500, 5, 3, 4)), Facet(8, Grim, 2, Cells(24, 9, 9, 0, 900, 9, 9, 8))], Grim)!;
+            [Facet(7, Grim, 2, Cells(24, 5, 5, 0, 500, 5, 3, 4)), Facet(8, Grim, 2, Cells(24, 9, 9, 0, 900, 9, 9, 8))],
+            Grim)!;
         using (Assert.Multiple())
         {
             await Assert.That((both["CTW"], both["CTL"], both["TW"], both["TL"])).IsEqualTo((9d, 2d, 4d, 9d))
                 .Because("a round is won or lost once however many slots tallied it");
             await Assert.That(both["TotalK"]).IsEqualTo(16).Because("kills are the slot's own and still add up");
-            await Assert.That(both["Survived"]).IsEqualTo(24).Because("no account survives more rounds than the match has");
-            await Assert.That((halves["CTW"], halves["TL"])).IsEqualTo((12d, 12d)).Because("slots that split the rounds add up");
+            await Assert.That(both["Survived"]).IsEqualTo(24)
+                .Because("no account survives more rounds than the match has");
+            await Assert.That((halves["CTW"], halves["TL"])).IsEqualTo((12d, 12d))
+                .Because("slots that split the rounds add up");
         }
     }
 
@@ -232,10 +271,14 @@ public class PlayerAggregateTests
         {
             await Assert.That(PlayerAggregate.OutcomeOf(won)).IsEqualTo(MatchOutcome.Win);
             await Assert.That(PlayerAggregate.OutcomeOf(tied)).IsEqualTo(MatchOutcome.Tie);
-            await Assert.That(PlayerAggregate.OutcomeOf(lost)).IsEqualTo(MatchOutcome.Loss).Because("9 wins on both sides against 13 losses");
+            await Assert.That(PlayerAggregate.OutcomeOf(lost)).IsEqualTo(MatchOutcome.Loss)
+                .Because("9 wins on both sides against 13 losses");
             await Assert.That(PlayerAggregate.OutcomeOf(Cells(1, 0, 0, 0, 0, 0))).IsNull();
-            await Assert.That((aggregate.Matches, aggregate.WithStats, aggregate.Wins, aggregate.Losses, aggregate.Ties)).IsEqualTo((4, 3, 1, 1, 1));
-            await Assert.That(PlayerAggregate.Of([Demo(null)]).Values).IsEmpty().Because("no stats is not a row of zeros");
+            await Assert
+                .That((aggregate.Matches, aggregate.WithStats, aggregate.Wins, aggregate.Losses, aggregate.Ties))
+                .IsEqualTo((4, 3, 1, 1, 1));
+            await Assert.That(PlayerAggregate.Of([Demo(null)]).Values).IsEmpty()
+                .Because("no stats is not a row of zeros");
         }
     }
 
@@ -245,15 +288,21 @@ public class PlayerAggregateTests
         Dictionary<string, double> cells = Cells(10, 1, 1, 0, 1, 1);
         IReadOnlyList<PlayerDemo> demos =
         [
-            Demo(cells, "de_nuke", 3, 50), Demo(cells, "de_inferno", 2, 40), Demo(cells, "de_nuke", 2, 30), Demo(cells, "de_nuke", null, 20),
+            Demo(cells, "de_nuke", 3, 50), Demo(cells, "de_inferno", 2, 40), Demo(cells, "de_nuke", 2, 30),
+            Demo(cells, "de_nuke", null, 20),
             Demo(cells, "de_nuke", 3, 10)
         ];
         using (Assert.Multiple())
         {
             await Assert.That(PlayerAggregate.Window(demos, PlayerFilter.All)).IsSameReferenceAs(demos);
-            await Assert.That(PlayerAggregate.Window(demos, new PlayerFilter { Map = "DE_NUKE", Last = 3 }).Select(d => d.Match.TimeTicks)).IsEquivalentTo([50L, 30, 20], CollectionOrdering.Matching);
-            await Assert.That(PlayerAggregate.Window(demos, new PlayerFilter { Side = 3 }).Select(d => d.Match.TimeTicks)).IsEquivalentTo([50L, 10], CollectionOrdering.Matching);
-            await Assert.That(PlayerAggregate.Window(demos, new PlayerFilter { FromTicks = 20, BeforeTicks = 50 }).Select(d => d.Match.TimeTicks))
+            await Assert
+                .That(PlayerAggregate.Window(demos, new PlayerFilter { Map = "DE_NUKE", Last = 3 })
+                    .Select(d => d.Match.TimeTicks)).IsEquivalentTo([50L, 30, 20], CollectionOrdering.Matching);
+            await Assert
+                .That(PlayerAggregate.Window(demos, new PlayerFilter { Side = 3 }).Select(d => d.Match.TimeTicks))
+                .IsEquivalentTo([50L, 10], CollectionOrdering.Matching);
+            await Assert.That(PlayerAggregate.Window(demos, new PlayerFilter { FromTicks = 20, BeforeTicks = 50 })
+                    .Select(d => d.Match.TimeTicks))
                 .IsEquivalentTo([40L, 30, 20], CollectionOrdering.Matching);
             await Assert.That(PlayerAggregate.Window(demos, new PlayerFilter { Last = 0 })).IsEmpty();
         }

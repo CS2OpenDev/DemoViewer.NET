@@ -4,11 +4,10 @@ using System.Globalization;
 using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Abstractions;
 using CS2DemoKit.Analysis.Clips;
-using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.ViewModels.Diagnostics;
 using DemoViewer.NET.Services.DemoProcessing;
+using DemoViewer.NET.ViewModels.Diagnostics;
 
 #endregion
 
@@ -56,7 +55,7 @@ public sealed class HighlightScanService : IDisposable, IDemoEvaluator
     private readonly IHighlightHarvester _harvester;
     private readonly Func<IReadOnlyList<string>> _libraryDemoPaths;
 
-    private readonly object _lifecycle = new();
+    private readonly Lock _lifecycle = new();
     private readonly Action<Action> _post;
 
     // Test seam: yields the harvested events for (path, parsed) instead of running the rules engine.
@@ -643,19 +642,20 @@ public sealed class HighlightScanService : IDisposable, IDemoEvaluator
             // disagree about which firings are moments.
             record.Highlights =
             [
-                .. HighlightSurfacing.Surface(events.Where(e => _harvester.IsHighlightRuleset(e.RulesetId)).ToList()).Select(e => new CachedHighlightEvent
-                {
-                    RulesetId = e.RulesetId,
-                    HighlightId = e.HighlightId,
-                    FrameIndex = e.FrameIndex,
-                    Tick = e.Tick,
-                    ClipStartTick = e.ClipStartTick,
-                    PlayerSlot = e.PlayerSlot,
-                    RoundNumber = e.RoundNumber,
-                    RenderedTitle = e.RenderedTitle,
-                    Score = e.Score,
-                    Kind = e.Kind
-                })
+                .. HighlightSurfacing.Surface([.. events.Where(e => _harvester.IsHighlightRuleset(e.RulesetId))])
+                    .Select(e => new CachedHighlightEvent
+                    {
+                        RulesetId = e.RulesetId,
+                        HighlightId = e.HighlightId,
+                        FrameIndex = e.FrameIndex,
+                        Tick = e.Tick,
+                        ClipStartTick = e.ClipStartTick,
+                        PlayerSlot = e.PlayerSlot,
+                        RoundNumber = e.RoundNumber,
+                        RenderedTitle = e.RenderedTitle,
+                        Score = e.Score,
+                        Kind = e.Kind
+                    })
             ];
 
             // Parse-tier facts this run happens to hold, filled where the record has none: a demo
@@ -673,7 +673,7 @@ public sealed class HighlightScanService : IDisposable, IDemoEvaluator
             List<CachedPlayerInfo> parsedRoster =
             [
                 .. parsed.Players
-                    .Where(pl => !pl.IsBot && pl.Name.Length > 0)
+                    .Where(pl => pl is { IsBot: false, Name.Length: > 0 })
                     .Select(pl => new CachedPlayerInfo
                     {
                         Slot = pl.Slot,
@@ -687,8 +687,8 @@ public sealed class HighlightScanService : IDisposable, IDemoEvaluator
             // Only overwrite a NAMES-ONLY placeholder when this parse actually recovered real slots. Never
             // trade a roster that at least has names for an empty one just because the parse saw no players.
             bool placeholderRepairable = record.Players.Count > 0
-                                         && record.Players.All(p => p.Slot < 0)
-                                         && parsedRoster.Exists(p => p.Slot >= 0);
+                && record.Players.All(p => p.Slot < 0)
+                && parsedRoster.Exists(p => p.Slot >= 0);
             if (rosterMissing || placeholderRepairable)
             {
                 record.Players = parsedRoster;
@@ -749,20 +749,6 @@ public sealed class HighlightScanService : IDisposable, IDemoEvaluator
 
         public static HarvestFacts From(ForwardDemoResult pass) => new(pass.Rounds, pass.Demo.Players.Values,
             pass.Demo.TickRate, pass.Demo.TickCount, pass.Demo.ServerStartTick, pass.Demo.MapName);
-    }
-
-    private static (long Size, long ModifiedTicks) SafeFileIdentity(string path)
-    {
-        try
-        {
-            FileInfo info = new(path);
-            // A missing file reports the 1601 epoch, not zero. Normalize so "unknown" is stable.
-            return info.Exists ? (info.Length, info.LastWriteTime.Ticks) : (0, 0);
-        }
-        catch (Exception)
-        {
-            return (0, 0);
-        }
     }
 
     private void RaiseProgress() => _post(() => ScanProgressChanged?.Invoke());

@@ -52,7 +52,8 @@ internal static class Program
                 _ => Fail($"Unknown command '{args[0]}'.")
             };
         }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException
+                                       or ArgumentException)
         {
             Console.Error.WriteLine($"error: {ex.Message}");
             return 1;
@@ -85,9 +86,12 @@ internal static class Program
     {
         string path = args[1];
         string outDir = StringOption(args, "--out") ?? Fail<string>("--out <dir> is required.");
-        IReadOnlyList<int> roundCounts = (StringOption(args, "--rounds") ?? "1,3")
+        IReadOnlyList<int> roundCounts =
+        [
+            .. (StringOption(args, "--rounds") ?? "1,3")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(s => int.Parse(s, CultureInfo.InvariantCulture)).ToList();
+            .Select(s => int.Parse(s, CultureInfo.InvariantCulture))
+        ];
         IReadOnlyList<TrimVariant> variants = StringOption(args, "--variants") is { } spec
             ? TrimVariant.Parse(spec)
             : TrimVariant.All;
@@ -114,7 +118,7 @@ internal static class Program
             : null;
         Console.WriteLine(teamPacket is null
             ? "WARNING: no player_team synthesis (descriptor or seated controllers missing) — " +
-              "trims ending before halftime will show every player on one team"
+            "trims ending before halftime will show every player on one team"
             : string.Create(CultureInfo.InvariantCulture,
                 $"synthesizing {teamSamples.Count} player_team seatings: {string.Join(", ", teamSamples.Select(s => $"{s.Name}→{(s.Team == 3 ? "CT" : "T")}"))}"));
         Console.WriteLine();

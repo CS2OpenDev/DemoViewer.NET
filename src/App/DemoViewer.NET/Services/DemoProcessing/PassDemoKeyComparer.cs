@@ -13,5 +13,6 @@ internal sealed class PassDemoKeyComparer : IEqualityComparer<(string Pass, stri
         && string.Equals(x.Demo, y.Demo, StringComparison.OrdinalIgnoreCase);
 
     public int GetHashCode((string Pass, string Demo) obj) =>
-        HashCode.Combine(StringComparer.Ordinal.GetHashCode(obj.Pass), StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Demo));
+        HashCode.Combine(StringComparer.Ordinal.GetHashCode(obj.Pass),
+            StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Demo));
 }

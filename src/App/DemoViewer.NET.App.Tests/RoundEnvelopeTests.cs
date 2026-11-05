@@ -35,7 +35,7 @@ public class RoundEnvelopeTests
     private const int Round2 = 700;
     private const int Round3 = 1300;
 
-    private static readonly string[] EnvelopeBoxes =
+    private static readonly string[] _envelopeBoxes =
         ["FadeInBox", "FadeOutBox", "HoldBox", "CustomFromBox", "CustomUntilBox"];
 
     /// <summary>
@@ -62,7 +62,7 @@ public class RoundEnvelopeTests
             await Assert.That(first.FromTick).IsEqualTo(Round1);
             await Assert.That(first.UntilTick).IsEqualTo(Round2 - 1)
                 .Because("freeze-ends are back to back, so a round closes the tick before the next opens "
-                         + "— an inclusive bound of 700 would put one tick in two rounds");
+                    + "— an inclusive bound of 700 would put one tick in two rounds");
 
             TimeEnvelope middle = session.EnvelopeForNewElement(Round2 + 300);
             await Assert.That(middle.FromTick).IsEqualTo(Round2);
@@ -117,10 +117,7 @@ public class RoundEnvelopeTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            Playback2DFakeContext ctx = new()
-            {
-                Gate = new FakeModuleFeatureGate()
-            };
+            Playback2DFakeContext ctx = new() { Gate = new FakeModuleFeatureGate() };
 
             Playback2DTabViewModel vm = new();
             vm.OnActivated(ctx);
@@ -151,13 +148,11 @@ public class RoundEnvelopeTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
+            // The name is indexed (AvailableEventNames unions both maps) but no decoded event exists.
             Playback2DFakeContext ctx = new()
             {
-                Gate = new FakeModuleFeatureGate()
+                Gate = new FakeModuleFeatureGate(), Frames = { [RoundTrack.FreezeEndEvent] = [50, 350] }
             };
-
-            // The name is indexed (AvailableEventNames unions both maps) but no decoded event exists.
-            ctx.Frames[RoundTrack.FreezeEndEvent] = [50, 350];
 
             Playback2DTabViewModel vm = new();
             vm.OnActivated(ctx);
@@ -192,8 +187,8 @@ public class RoundEnvelopeTests
                 .Because("the panel edits the session; a mode that stops here is a decorative picker");
             await Assert.That(panel.VisibilityIndex).IsEqualTo(4)
                 .Because("the ComboBox reads the index straight back; a getter that disagreed with the "
-                         + "setter would snap the picker to the old row. That the XAML's item order IS "
-                         + "the enum's is pinned by RealTimeEnvelopeUiTests, which opens the XAML");
+                    + "setter would snap the picker to the old row. That the XAML's item order IS "
+                    + "the enum's is pinned by RealTimeEnvelopeUiTests, which opens the XAML");
 
             await Assert.That(panel.IsEnvelopeEditorVisible).IsTrue()
                 .Because("in and out still ramp a Round element in and out");
@@ -218,7 +213,7 @@ public class RoundEnvelopeTests
             vm.Annotations.Visibility = EnvelopeMode.Round;
             Playback2DTimelineHarness.Pump();
 
-            foreach (string name in EnvelopeBoxes)
+            foreach (string name in _envelopeBoxes)
             {
                 NumericUpDown? found = window.GetVisualDescendants().OfType<NumericUpDown>()
                     .FirstOrDefault(n => n.Name == name);
@@ -270,13 +265,9 @@ public class RoundEnvelopeTests
     {
         Playback2DFakeContext ctx = new()
         {
-            Gate = new FakeModuleFeatureGate()
+            Gate = new FakeModuleFeatureGate(),
+            Timelines = { [RoundTrack.FreezeEndEvent] = [Freeze(Round1), Freeze(Round2), Freeze(Round3)] }
         };
-
-        ctx.Timelines[RoundTrack.FreezeEndEvent] =
-        [
-            Freeze(Round1), Freeze(Round2), Freeze(Round3)
-        ];
 
         Playback2DTabViewModel vm = new();
         vm.OnActivated(ctx);

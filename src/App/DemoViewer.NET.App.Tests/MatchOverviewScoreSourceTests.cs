@@ -1,10 +1,10 @@
 #region
 
-using DemoViewer.NET.TestSupport;
 using System.Globalization;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Library;
+using DemoViewer.NET.TestSupport;
 using DemoViewer.NET.ViewModels.MatchOverview;
 using DemoViewer.NET.ViewModels.Shell;
 using TUnit.Core.Exceptions;
@@ -78,7 +78,7 @@ public class MatchOverviewScoreSourceTests
     public async Task FinalScore_IsAConsistentCompletedResult_OnEveryAvailableDemo()
     {
         string repoRoot = DemoTestHelper.RequireRepoRoot();
-        List<string> demos = _candidates.Select(c => Path.Combine(repoRoot, c)).Where(File.Exists).ToList();
+        List<string> demos = [.. _candidates.Select(c => Path.Combine(repoRoot, c)).Where(File.Exists)];
 
         if (demos.Count == 0)
         {
@@ -90,7 +90,7 @@ public class MatchOverviewScoreSourceTests
         {
             // The Library card's source, computed directly: CCSTeam.m_iScore replayed to the last frame.
             ParsedDemo parsed = DemoParser.Parse(await File.ReadAllBytesAsync(demo));
-            (int? libCt, int? libT, string? ctClan, string? tClan) = DemoLibraryService.ExtractFinalScore(parsed);
+            (int? libCt, int? libT, string? ctClan, _) = DemoLibraryService.ExtractFinalScore(parsed);
             if (libCt is null || libT is null)
             {
                 continue; // warmup-only / team-less demo: the card omits the score, so there is nothing to match
@@ -146,13 +146,13 @@ public class MatchOverviewScoreSourceTests
                         // line, not the consistency checks above, is what says so.
                         await Assert.That(o.ScoreLooksComplete).IsTrue()
                             .Because($"{name}: {ct}–{t} is not a completed premier result — the round-win "
-                                     + "count is wrong (a silent $round_end candidate shadowing a live one "
-                                     + "is the known failure mode)");
+                                + "count is wrong (a silent $round_end candidate shadowing a live one "
+                                + "is the known failure mode)");
                     }
 
                     Console.WriteLine($"[score-sweep] {name,-46} {libCt}:{libT}  "
-                                      + $"rounds={o.RoundCountDisplay} split={o.HasSideSplit} "
-                                      + $"labels={o.CtTeamLabel}/{o.TTeamLabel}");
+                        + $"rounds={o.RoundCountDisplay} split={o.HasSideSplit} "
+                        + $"labels={o.CtTeamLabel}/{o.TTeamLabel}");
                 }
                 finally
                 {
@@ -166,7 +166,7 @@ public class MatchOverviewScoreSourceTests
             // Not a failure, but say it plainly, because without a pro demo this gate cannot tell the
             // authoritative score from the analysis-derived one that used to be wrong.
             Console.WriteLine("[score-sweep] WARNING: no clan-carrying (pro/HLTV) demo was available — this "
-                              + "run could not discriminate the authoritative score from the analysis-derived one.");
+                + "run could not discriminate the authoritative score from the analysis-derived one.");
         }
     }
 }

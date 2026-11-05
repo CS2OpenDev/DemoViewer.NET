@@ -14,7 +14,10 @@ namespace DemoViewer.NET.ViewModels.Diagnostics;
 /// <param name="Scale">The scale currently in force.</param>
 /// <param name="IsLeader">Whether this cell is the column's best value under the current polarity.</param>
 /// <param name="BarAlignment">Which edge the fill grows from, so the trade can be seen both ways.</param>
-public sealed record GalleryCell(double Value, StatScale Scale, bool IsLeader,
+public sealed record GalleryCell(
+    double Value,
+    StatScale Scale,
+    bool IsLeader,
     StatBarAlignment BarAlignment);
 
 /// <summary>
@@ -130,7 +133,7 @@ public sealed partial class StatsGalleryViewModel : ObservableObject
     public StatBarAlignment BarAlignment => (StatBarAlignment)Math.Clamp(BarAlignmentIndex, 0, 3);
 
     /// <summary>The selected polarity as the enum the controls take.</summary>
-    public StatPolarity Polarity => (StatPolarity)Math.Clamp(PolarityIndex, 0, 2);
+    private StatPolarity Polarity => (StatPolarity)Math.Clamp(PolarityIndex, 0, 2);
 
     /// <summary>Human-readable polarity, for the readout line.</summary>
     public string PolarityName => _polarityNames[Math.Clamp(PolarityIndex, 0, 2)];
@@ -151,10 +154,12 @@ public sealed partial class StatsGalleryViewModel : ObservableObject
             double best = Polarity == StatPolarity.LowerIsBetter
                 ? _columnValues.Min()
                 : _columnValues.Max();
-            return _columnValues
-                .Select(v => new GalleryCell(v, scale,
-                    Polarity != StatPolarity.Neutral && Math.Abs(v - best) < 1e-9, BarAlignment))
-                .ToList();
+            return
+            [
+                .. _columnValues
+                    .Select(v => new GalleryCell(v, scale,
+                        Polarity != StatPolarity.Neutral && Math.Abs(v - best) < 1e-9, BarAlignment))
+            ];
         }
     }
 
@@ -228,7 +233,7 @@ public sealed partial class StatsGalleryViewModel : ObservableObject
     {
         Series = Sample(16, 0, 5);
         DamageSeries = Sample(16, 0, 160);
-        KastSeries = Sample(16, 0, 2).Select(v => v > 0.5 ? 1d : 0d).ToList();
+        KastSeries = [.. Sample(16, 0, 2).Select(v => v > 0.5 ? 1d : 0d)];
     }
 
     private static List<double> Sample(int count, double min, double max)

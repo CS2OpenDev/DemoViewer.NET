@@ -32,7 +32,8 @@ public sealed class ForwardPassRunner
     public DemoFileRead? FileRead { get; init; }
 
     /// <summary>One forward pass over <paramref name="path" />.</summary>
-    public ForwardDemoResult Run(string path, ForwardNeeds needs, Action<double> progress, CancellationToken cancellationToken) =>
+    public ForwardDemoResult Run(string path, ForwardNeeds needs, Action<double> progress,
+        CancellationToken cancellationToken) =>
         Run(path, needs, CollectorSet.Empty, progress, cancellationToken);
 
     /// <summary>One forward pass over <paramref name="path" /> whose rules run declares <paramref name="collectors" />.</summary>

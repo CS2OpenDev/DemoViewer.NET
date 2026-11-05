@@ -1,15 +1,15 @@
 #region
 
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
-using Avalonia;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Teams;
 using DemoViewer.NET.Extensions.StratBook.Views.Teams;
+using DemoViewer.NET.Services.DemoCache;
 
 #endregion
 
@@ -31,7 +31,7 @@ public class UxConsistencyRenderTests
 
     private static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];
 
-    internal static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string map = "de_nuke")
+    private static DemoCacheRecord Record(string path, int day, string[] t, string[] ct, string map = "de_nuke")
     {
         DemoCacheRecord record = new()
         {
@@ -99,10 +99,16 @@ public class UxConsistencyRenderTests
         await HeadlessSession.RunOnUi(async () =>
         {
             (DemoCacheStore cache, TeamIdentityService teams) = await TwoTeams();
-            using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false,
+            using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel vm = new(teams,
+                cache.Library(), new VetoHistoryStore(null), isBrowser: false,
                 notes: new DossierNotesStore(null));
             vm.SelectedTeam = vm.Teams[0];
-            Window window = new() { Width = 1280, Height = 900, Content = new DemoViewer.NET.Extensions.StratBook.Views.Dossier.DossierTabView { DataContext = vm } };
+            Window window = new()
+            {
+                Width = 1280,
+                Height = 900,
+                Content = new DemoViewer.NET.Extensions.StratBook.Views.Dossier.DossierTabView { DataContext = vm }
+            };
             window.Show();
             Settle();
             headers = [.. vm.MapSections.Select(m => m.Header), vm.RecordSection.Header, vm.NotesSection.Header];
@@ -123,8 +129,10 @@ public class UxConsistencyRenderTests
         using (Assert.Multiple())
         {
             await Assert.That(headers).Contains("Overall record · 2 maps");
-            await Assert.That(headers.Any(h => h.StartsWith("de_nuke · 1 played · ", StringComparison.Ordinal))).IsTrue();
-            await Assert.That(headers.Any(h => h.StartsWith("de_mirage · 1 played · ", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(headers.Any(h => h.StartsWith("de_nuke · 1 played · ", StringComparison.Ordinal)))
+                .IsTrue();
+            await Assert.That(headers.Any(h => h.StartsWith("de_mirage · 1 played · ", StringComparison.Ordinal)))
+                .IsTrue();
             await Assert.That(mapClosedHidesItsRows).IsTrue();
         }
     }
@@ -137,7 +145,8 @@ public class UxConsistencyRenderTests
         await HeadlessSession.RunOnUi(async () =>
         {
             (DemoCacheStore cache, TeamIdentityService teams) = await TwoTeams();
-            using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false,
+            using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel vm = new(teams,
+                cache.Library(), new VetoHistoryStore(null), isBrowser: false,
                 notes: new DossierNotesStore(null));
             vm.SelectedTeam = vm.Teams[0];
             for (int i = 0; i < 200; i++)
@@ -147,27 +156,35 @@ public class UxConsistencyRenderTests
             }
 
             vm.NotesSection.IsExpanded = true;
-            Window window = new() { Width = 1280, Height = 800, Content = new DemoViewer.NET.Extensions.StratBook.Views.Dossier.DossierTabView { DataContext = vm } };
+            Window window = new()
+            {
+                Width = 1280,
+                Height = 800,
+                Content = new DemoViewer.NET.Extensions.StratBook.Views.Dossier.DossierTabView { DataContext = vm }
+            };
             window.Show();
             Settle();
-            DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierFindingViewModel row = vm.Editor.GeneralFindings[0];
+            DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierFindingViewModel row =
+                vm.Editor.GeneralFindings[0];
             row.BeginEditCommand.Execute(null);
             Settle();
+
             TextBox? Editing() => window.GetVisualDescendants().OfType<TextBox>()
                 .FirstOrDefault(t => ReferenceEquals(t.DataContext, row) && t.IsEffectivelyVisible);
+
             ScrollViewer page = window.GetVisualDescendants().OfType<ScrollViewer>().Where(v => v.IsEffectivelyVisible)
                 .MaxBy(v => v.Extent.Height)!;
-            page.Offset = new Avalonia.Vector(0, Editing()!.TranslatePoint(default, page)!.Value.Y - 100);
+            page.Offset = new Vector(0, Editing()!.TranslatePoint(default, page)!.Value.Y - 100);
             Settle();
             Editing()!.Focus();
             Editing()!.Text = "draft";
             Settle();
             focusedBefore = Editing()?.IsFocused == true;
-            page.Offset = new Avalonia.Vector(0, page.Extent.Height);
+            page.Offset = new Vector(0, page.Extent.Height);
             Settle();
             page.Offset = default;
             Settle();
-            page.Offset = new Avalonia.Vector(0, Math.Max(0, (Editing()?.TranslatePoint(default, page)?.Y ?? 0) - 100));
+            page.Offset = new Vector(0, Math.Max(0, (Editing()?.TranslatePoint(default, page)?.Y ?? 0) - 100));
             Settle();
             focusedAfter = Editing()?.IsFocused == true;
             text = row.EditText;
@@ -178,7 +195,8 @@ public class UxConsistencyRenderTests
         using (Assert.Multiple())
         {
             await Assert.That(focusedBefore).IsTrue();
-            await Assert.That(focusedAfter).IsTrue().Because("the focused row stays realized while it is scrolled away");
+            await Assert.That(focusedAfter).IsTrue()
+                .Because("the focused row stays realized while it is scrolled away");
             await Assert.That(text).IsEqualTo("draft");
         }
     }
@@ -228,7 +246,8 @@ public class UxConsistencyRenderTests
             vm.RenameCommand.Execute(null);
             Settle();
             busy = Shows(second, "Renaming the team…");
-            actionsDisabled = second.GetVisualDescendants().OfType<Button>().Any(b => b.Content as string == "Rename" && !b.IsEffectivelyEnabled);
+            actionsDisabled = second.GetVisualDescendants().OfType<Button>()
+                .Any(b => b.Content as string == "Rename" && !b.IsEffectivelyEnabled);
             Save(second, "ux-teams-busy.png");
             landed.SetResult();
             second.Close();

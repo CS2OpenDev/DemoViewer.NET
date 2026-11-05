@@ -188,18 +188,14 @@ public class EnvelopeSecondsTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            Playback2DFakeContext ctx = new()
-            {
-                TickRate = 128,
-                Gate = new FakeModuleFeatureGate()
-            };
+            Playback2DFakeContext ctx = new() { TickRate = 128, Gate = new FakeModuleFeatureGate() };
 
             Playback2DTabViewModel vm = new();
             vm.OnActivated(ctx);
 
             await Assert.That(vm.Annotations.Session.TicksPerSecond).IsEqualTo(128)
                 .Because("the rate is a property of the loaded parse, and ClockIdentity already carries "
-                         + "it — inventing a second path to the same number is a second thing to forget");
+                    + "it — inventing a second path to the same number is a second thing to forget");
 
             vm.Annotations.HoldSeconds = 5.0;
             await Assert.That(vm.Annotations.HoldTicks).IsEqualTo(640);

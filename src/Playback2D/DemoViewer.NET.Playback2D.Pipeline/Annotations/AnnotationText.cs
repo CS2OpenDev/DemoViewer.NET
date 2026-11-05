@@ -25,7 +25,7 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Annotations;
 public static class AnnotationText
 {
     /// <summary>World em size per world unit of stroke width.</summary>
-    public const float SizePerWidth = 6f;
+    private const float SizePerWidth = 6f;
 
     /// <summary>The em size strings are shaped at before scaling to world units.</summary>
     public const float ReferenceSizePx = 64f;

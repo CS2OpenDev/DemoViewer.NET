@@ -54,10 +54,7 @@ internal sealed class InboundSync : IDisposable
         _serviceState = serviceState;
         _setApplyingRemote = setApplyingRemote;
 
-        _pump = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(33)
-        };
+        _pump = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
         _pump.Tick += (_, _) => PumpTick();
         _pump.Start();
     }
@@ -86,7 +83,7 @@ internal sealed class InboundSync : IDisposable
         }
 
         long? tick = _latestCs2Tick();
-        if (tick is not long cs2Tick)
+        if (tick is not { } cs2Tick)
         {
             return;
         }
@@ -192,7 +189,7 @@ internal sealed class InboundSync : IDisposable
             return;
         }
 
-        long? tickError = state.DemoTick is int remoteTick && _mapper() is { } errorMapper
+        long? tickError = state.DemoTick is { } remoteTick && _mapper() is { } errorMapper
             ? Math.Abs(errorMapper.DvTick(remoteTick) - _shell.Playback.CurrentTick)
             : null;
 

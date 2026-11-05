@@ -40,7 +40,7 @@ public partial class TagEditorView : UserControl
             return;
         }
 
-        if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.None && e.Source is not AutoCompleteBox)
+        if (e is { Key: Key.Enter, KeyModifiers: KeyModifiers.None, Source: not AutoCompleteBox })
         {
             editor.SaveCommand.Execute(null);
             e.Handled = true;

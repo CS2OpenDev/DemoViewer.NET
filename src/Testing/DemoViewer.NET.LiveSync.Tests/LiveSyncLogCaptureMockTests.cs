@@ -62,10 +62,7 @@ public class LiveSyncLogCaptureMockTests
         CsvgWebHost host;
         try
         {
-            host = await CsvgWebHost.StartAsync(new LiveSyncSettings
-            {
-                MockMode = true
-            }, bridge, cancellationToken);
+            host = await CsvgWebHost.StartAsync(new LiveSyncSettings { MockMode = true }, bridge, cancellationToken);
         }
         catch (LiveSyncPortInUseException ex)
         {
@@ -82,7 +79,8 @@ public class LiveSyncLogCaptureMockTests
             // ASP.NET request that logs at Information), then assert NO framework category surfaced.
             await session.StartWatchAsync(cancellationToken: cancellationToken);
             string demoPath = Path.Combine(Path.GetTempPath(), $"logcap-{Guid.NewGuid():N}.dem");
-            await File.WriteAllBytesAsync(demoPath, [0x50, 0x42, 0x44, 0x45, 0x4D, 0x53, 0x32, 0x00], cancellationToken);
+            await File.WriteAllBytesAsync(demoPath, [.. "PBDEMS2\0"u8],
+                cancellationToken);
             try
             {
                 await session.LoadDemoAsync(demoPath, cancellationToken: cancellationToken);

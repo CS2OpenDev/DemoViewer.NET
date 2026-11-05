@@ -1,12 +1,12 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
-using DemoViewer.NET.Playback2D;
-using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Playback2D;
+using DemoViewer.NET.Playback2D.Input;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratTestData;
@@ -27,20 +27,30 @@ public class StratDragFieldsTests
     private const double Floor = -512;
     private const int S1 = 320, S2 = 960;
 
-    private static StepPosition At(string slot, double x, double y) => new() { Slot = slot, X = x, Y = y, LevelMinZ = Floor };
+    private static StepPosition At(string slot, double x, double y) =>
+        new() { Slot = slot, X = x, Y = y, LevelMinZ = Floor };
 
     private static StratStep Step(double at, string actor, string verb, PlaceRef? to = null) =>
-        new() { Id = Guid.NewGuid(), AtSeconds = at, Actor = actor, Verb = verb, To = to };
+        new()
+        {
+            Id = Guid.NewGuid(),
+            AtSeconds = at,
+            Actor = actor,
+            Verb = verb,
+            To = to
+        };
 
     private static PlaceRef Place(string place) => new() { Place = place };
 
     // Everyone at spawn on a hold at 1:55, then the steps given.
     private static StratDocument Strat(params StratStep[] steps)
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_synthetic", "T", "execute", "drag", Created);
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, "de_synthetic", "T", "execute", "drag", Created);
         document.Canvas = new StratCanvas { DefaultLevelMinZ = Floor };
         StratStep seed = Step(115, StratVocabulary.ActorAll, "hold");
-        seed.Positions = [At("A", 10, 10), At("B", 20, 10), At("C", 30, 10), At("D", 40, 10), At("E", 50, 10), At("O1", 190, 90)];
+        seed.Positions =
+            [At("A", 10, 10), At("B", 20, 10), At("C", 30, 10), At("D", 40, 10), At("E", 50, 10), At("O1", 190, 90)];
         document.Steps = [seed, .. steps];
         return document;
     }
@@ -51,7 +61,8 @@ public class StratDragFieldsTests
 
     private static string Json(StratSession session) => StratHistory.ToNode(session.Document!).ToJsonString();
 
-    private static void Drag(StratCanvasViewModel canvas, string slot, double x, double y, ToolModifiers modifiers = ToolModifiers.None)
+    private static void Drag(StratCanvasViewModel canvas, string slot, double x, double y,
+        ToolModifiers modifiers = ToolModifiers.None)
     {
         canvas.BeginDrag(slot, TokenGrip.Body);
         canvas.MoveTo(slot, new SKPoint((float)x - 5, (float)y - 5), Floor, modifiers);
@@ -60,7 +71,8 @@ public class StratDragFieldsTests
     }
 
     // One entry, and undo and redo give back the document byte for byte.
-    private static async Task OneEntryByteExact(StratCanvasViewModel canvas, StratSession session, string before, int depth)
+    private static async Task OneEntryByteExact(StratCanvasViewModel canvas, StratSession session, string before,
+        int depth)
     {
         string after = Json(session);
         await Assert.That(session.UndoDepth).IsEqualTo(depth + 1);
@@ -93,7 +105,8 @@ public class StratDragFieldsTests
                 await Assert.That(to.X).IsEqualTo(20);
                 await Assert.That(to.Y).IsEqualTo(80);
                 await Assert.That(to.LevelMinZ).IsEqualTo(Floor);
-                await Assert.That(session.Document!.Steps[1].Positions).IsEmpty().Because("a drag never writes a hidden position");
+                await Assert.That(session.Document!.Steps[1].Positions).IsEmpty()
+                    .Because("a drag never writes a hidden position");
                 await Assert.That(canvas.Transport.Tick).IsEqualTo(S1);
             }
 
@@ -128,7 +141,8 @@ public class StratDragFieldsTests
             using (Assert.Multiple())
             {
                 await Assert.That(written.To!.Place).IsEqualTo("Hut");
-                await Assert.That(written.Positions.Select(p => p.Slot)).IsEquivalentTo(["B"], CollectionOrdering.Matching).Because("the entry would beat the field");
+                await Assert.That(written.Positions.Select(p => p.Slot))
+                    .IsEquivalentTo(["B"], CollectionOrdering.Matching).Because("the entry would beat the field");
                 await Assert.That(canvas.StatusLine).Contains($"A's {word} is now Hut");
             }
 
@@ -248,11 +262,13 @@ public class StratDragFieldsTests
             using (Assert.Multiple())
             {
                 await Assert.That(canvas.DragLabel).IsEqualTo("E · lurk area 1: Hut");
-                await Assert.That(canvas.ArmedField).IsEqualTo(new StratLocationField(lurk.Id, null, StratLocationKind.LurkArea));
+                await Assert.That(canvas.ArmedField)
+                    .IsEqualTo(new StratLocationField(lurk.Id, null, StratLocationKind.LurkArea));
             }
 
             canvas.EndDrag();
-            await Assert.That(session.Document!.Steps[1].Lurk!.Areas).IsEquivalentTo(["Hut", "Ramp"], CollectionOrdering.Matching);
+            await Assert.That(session.Document!.Steps[1].Lurk!.Areas)
+                .IsEquivalentTo(["Hut", "Ramp"], CollectionOrdering.Matching);
             await Assert.That(session.Document!.Steps[1].Lurk!.Areas[0]).IsEqualTo("Hut");
             await OneEntryByteExact(canvas, session, before, 0);
 
@@ -268,14 +284,17 @@ public class StratDragFieldsTests
         await HeadlessSession.RunOnUi(async () =>
         {
             StratStep lurk = Step(110, "E", "lurk");
-            lurk.Lurk = new StepLurk { Areas = ["Hut"], Rotate = new LurkRotate { AtSeconds = 105, To = Place("Ramp") } };
+            lurk.Lurk = new StepLurk
+            {
+                Areas = ["Hut"], Rotate = new LurkRotate { AtSeconds = 105, To = Place("Ramp") }
+            };
             StratDocument document = Strat(lurk);
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
             using StratCanvasViewModel canvas = Canvas(session);
 
             // E rotated at 1:45 (tick 640) and is walking to Ramp.
-            const int end = 650;
-            canvas.Timeline.RequestSeek(end);
+            const int End = 650;
+            canvas.Timeline.RequestSeek(End);
             string before = Json(session);
             Drag(canvas, "E", 20, 80);
             StepLurk written = session.Document!.Steps[1].Lurk!;
@@ -284,7 +303,7 @@ public class StratDragFieldsTests
                 await Assert.That(written.Rotate!.To!.Place).IsEqualTo("Hut");
                 await Assert.That(written.Rotate!.To!.X).IsEqualTo(20);
                 await Assert.That(written.Areas).IsEquivalentTo(["Hut"], CollectionOrdering.Matching);
-                await Assert.That(canvas.Transport.Tick).IsEqualTo(end);
+                await Assert.That(canvas.Transport.Tick).IsEqualTo(End);
             }
 
             await OneEntryByteExact(canvas, session, before, 0);
@@ -313,14 +332,16 @@ public class StratDragFieldsTests
 
             canvas.BeginDrag("A", TokenGrip.Body);
             canvas.MoveTo("A", new SKPoint(20, 80), Floor);
-            await Assert.That(canvas.DragLabel).IsEqualTo("step 2 · A · to: Hut").Because("the label names the step it writes");
+            await Assert.That(canvas.DragLabel).IsEqualTo("step 2 · A · to: Hut")
+                .Because("the label names the step it writes");
             canvas.EndDrag();
 
             using (Assert.Multiple())
             {
                 await Assert.That(session.Document!.Steps[1].To!.Place).IsEqualTo("Hut");
                 await Assert.That(session.Document!.Steps[2].Positions).IsEmpty();
-                await Assert.That(canvas.Transport.Tick).IsEqualTo(S2).Because("the step it wrote is on another tick, so the playhead stays");
+                await Assert.That(canvas.Transport.Tick).IsEqualTo(S2)
+                    .Because("the step it wrote is on another tick, so the playhead stays");
             }
 
             await OneEntryByteExact(canvas, session, before, 0);
@@ -403,7 +424,8 @@ public class StratDragFieldsTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratDocument document = Strat(Step(110, "B", "move", Place("Ramp")), Step(100, "A", "move", Place("Ramp")));
+            StratDocument document =
+                Strat(Step(110, "B", "move", Place("Ramp")), Step(100, "A", "move", Place("Ramp")));
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
             using StratCanvasViewModel canvas = Canvas(session);
             canvas.SelectStep(document.Steps[2].Id);
@@ -464,7 +486,8 @@ public class StratDragFieldsTests
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
             using StratCanvasViewModel canvas = Canvas(session);
             canvas.SelectStep(move.Id);
-            await Assert.That(canvas.Projection!.RunsOf(1).Any(r => r.Slot == "A")).IsFalse().Because("the seen spot beats the to");
+            await Assert.That(canvas.Projection!.RunsOf(1).Any(r => r.Slot == "A")).IsFalse()
+                .Because("the seen spot beats the to");
             string before = Json(session);
 
             Drag(canvas, "A", 20, 80);
@@ -474,7 +497,8 @@ public class StratDragFieldsTests
                 await Assert.That(written.To!.Place).IsEqualTo("Hut");
                 await Assert.That(written.Positions).IsEmpty();
                 await Assert.That(canvas.StatusLine).Contains("replaced the seen position");
-                await Assert.That(canvas.Projection!.RunsOf(1).Any(r => r.Slot == "A")).IsTrue().Because("A now runs to the new to");
+                await Assert.That(canvas.Projection!.RunsOf(1).Any(r => r.Slot == "A")).IsTrue()
+                    .Because("A now runs to the new to");
             }
 
             await OneEntryByteExact(canvas, session, before, 0);
@@ -488,7 +512,17 @@ public class StratDragFieldsTests
         {
             StratStep lurk = Step(110, "E", "lurk");
             lurk.Lurk = new StepLurk { Areas = ["Ramp"] };
-            lurk.Positions = [new StepPosition { Slot = "E", X = 160, Y = 40, LevelMinZ = Floor, Observed = true }];
+            lurk.Positions =
+            [
+                new StepPosition
+                {
+                    Slot = "E",
+                    X = 160,
+                    Y = 40,
+                    LevelMinZ = Floor,
+                    Observed = true
+                }
+            ];
             StratDocument document = Strat(lurk);
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
             using StratCanvasViewModel canvas = Canvas(session);
@@ -525,13 +559,15 @@ public class StratDragFieldsTests
             GuidePin earlier = canvas.Guides.Pins.Single(p => p.Earlier);
             using (Assert.Multiple())
             {
-                await Assert.That(session.Document!.Steps[1].Lurk!.Areas).IsEquivalentTo(["Hut", "Ramp"], CollectionOrdering.Matching);
+                await Assert.That(session.Document!.Steps[1].Lurk!.Areas)
+                    .IsEquivalentTo(["Hut", "Ramp"], CollectionOrdering.Matching);
                 await Assert.That(earlier.At.Label).IsEqualTo("E");
                 await Assert.That(earlier.At.X).IsLessThan(100f).Because("the ring is at Hut, the new first area");
             }
 
             canvas.Timeline.RequestSeek(end - 1);
-            await Assert.That(canvas.Guides.Pins.Any(p => p.Earlier)).IsFalse().Because("it goes when the playhead moves");
+            await Assert.That(canvas.Guides.Pins.Any(p => p.Earlier)).IsFalse()
+                .Because("it goes when the playhead moves");
         });
     }
 
@@ -554,7 +590,8 @@ public class StratDragFieldsTests
             {
                 await Assert.That(a.Via).IsEquivalentTo(["Hut"], CollectionOrdering.Matching);
                 await Assert.That(a.ViaPoints!.Single().X).IsEqualTo(300);
-                await Assert.That(session.Document!.Steps[1].Assignments!.Single(l => l.Slot == "B").Via).IsEquivalentTo(["Hut"], CollectionOrdering.Matching);
+                await Assert.That(session.Document!.Steps[1].Assignments!.Single(l => l.Slot == "B").Via)
+                    .IsEquivalentTo(["Hut"], CollectionOrdering.Matching);
                 await Assert.That(session.UndoDepth).IsEqualTo(1);
             }
         });
@@ -565,7 +602,8 @@ public class StratDragFieldsTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratDocument document = Strat(Step(110, "A", "move", Place("Ramp")), Step(100, "B", "move", Place("Ramp")));
+            StratDocument document =
+                Strat(Step(110, "A", "move", Place("Ramp")), Step(100, "B", "move", Place("Ramp")));
             (StratStore _, StratSession session) = StratCanvasTestData.Opened(document);
             using StratCanvasViewModel canvas = Canvas(session);
             canvas.Timeline.RequestSeek(S2 + 20);
@@ -601,13 +639,15 @@ public class StratDragFieldsTests
             {
                 await Assert.That(guides.Ghost!.Value.X).IsEqualTo(10f).Because("hollow where A stood");
                 await Assert.That(guides.GhostRoute.Count).IsGreaterThanOrEqualTo(2);
-                await Assert.That(guides.GhostRoute[^1].X).IsEqualTo(50f).Because("a snapped drop stores the place: the route ends at its arrival");
+                await Assert.That(guides.GhostRoute[^1].X).IsEqualTo(50f)
+                    .Because("a snapped drop stores the place: the route ends at its arrival");
                 await Assert.That(guides.GhostRoute[^1].Y).IsEqualTo(50f);
                 await Assert.That(guides.DropOutline.Count).IsGreaterThan(0);
                 await Assert.That(canvas.DragLabel).IsEqualTo("A · to: Hut");
                 await Assert.That(canvas.DragHint).Contains("Shift: point only");
                 await Assert.That(canvas.DragHint).Contains("Alt: pin A here");
-                await Assert.That(canvas.ArmedField).IsEqualTo(new StratLocationField(document.Steps[1].Id, StratLocationField.AllLines, StratLocationKind.To));
+                await Assert.That(canvas.ArmedField).IsEqualTo(new StratLocationField(document.Steps[1].Id,
+                    StratLocationField.AllLines, StratLocationKind.To));
                 await Assert.That(canvas.CurrentFrame.Markers.Single(m => m.Slot == 0).WorldX).IsEqualTo(52f);
             }
 

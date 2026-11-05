@@ -45,7 +45,7 @@ public class AnnotationSchemaSnapshotTests
         // Load → save through the real store and compare the bytes. Field-identical is the assertion:
         // an unknown field that survives, a known field that changes spelling, and a reordering are all
         // things a third-party reader would notice.
-        string original = File.ReadAllText(path);
+        string original = await File.ReadAllTextAsync(path);
 
         using TempSidecar sidecar = new(original);
         AnnotationStore store = new(sidecar.AppData, _ => TempSidecar.DemoHash);
@@ -61,7 +61,7 @@ public class AnnotationSchemaSnapshotTests
 
         // One element per kind: a shape is two points, text is one point and a
         // string, and each loads back as the kind it was written as.
-        await Assert.That(loaded.Elements.Select(e => e.Kind).ToArray()).IsEquivalentTo([
+        await Assert.That([.. loaded.Elements.Select(e => e.Kind)]).IsEquivalentTo([
             AnnotationKind.Freehand, AnnotationKind.Freehand, AnnotationKind.Line, AnnotationKind.Arrow,
             AnnotationKind.Rect, AnnotationKind.Ellipse, AnnotationKind.Text
         ], CollectionOrdering.Matching);
@@ -75,10 +75,10 @@ public class AnnotationSchemaSnapshotTests
 
         await store.SaveAsync(sidecar.DemoPath, TempSidecar.Demo, TempSidecar.Clock, loaded.Elements);
 
-        string round = File.ReadAllText(sidecar.SidecarPath);
+        string round = await File.ReadAllTextAsync(sidecar.SidecarPath);
         await Assert.That(Normalize(round)).IsEqualTo(Normalize(original))
             .Because("the v1 sidecar is a published format; a round trip through this build must be " +
-                     "field-identical, unknown fields included");
+                "field-identical, unknown fields included");
     }
 
     private static string Normalize(string json) => json.Replace("\r\n", "\n", StringComparison.Ordinal);
@@ -125,13 +125,10 @@ public class AnnotationSchemaSnapshotTests
             [stat, tracked, line, arrow, rect, ellipse, label]);
 
         // Inject the two forward-compatibility fields the sample exists to prove survive a round trip.
-        string text = File.ReadAllText(sidecar.SidecarPath);
+        string text = await File.ReadAllTextAsync(sidecar.SidecarPath);
         using JsonDocument source = JsonDocument.Parse(text);
         using MemoryStream buffer = new();
-        using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions
-               {
-                   Indented = true
-               }))
+        await using (Utf8JsonWriter writer = new(buffer, new JsonWriterOptions { Indented = true }))
         {
             writer.WriteStartObject();
             foreach (JsonProperty property in source.RootElement.EnumerateObject())
@@ -170,7 +167,7 @@ public class AnnotationSchemaSnapshotTests
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, Encoding.UTF8.GetString(buffer.ToArray()));
+        await File.WriteAllTextAsync(path, Encoding.UTF8.GetString(buffer.ToArray()));
         Console.WriteLine($"[schema] wrote {path}");
     }
 
@@ -199,7 +196,7 @@ public class AnnotationSchemaSnapshotTests
             Directory.CreateDirectory(AppData);
 
             DemoPath = Path.Combine(_root, "demos", "sample.dem");
-            File.WriteAllBytes(DemoPath, [0x50, 0x42, 0x44, 0x45, 0x4D, 0x53, 0x32, 0x00]);
+            File.WriteAllBytes(DemoPath, "PBDEMS2\0"u8);
             SidecarPath = DemoPath + AnnotationStore.SidecarExtension;
 
             if (seed is not null)

@@ -21,8 +21,7 @@ public class StratSessionTests
     private static StratSession Session(StratStore store, bool browser = false) =>
         new(store, null, () => browser, () => Created)
         {
-            AutoSaveDelay = TimeSpan.FromHours(1),
-            IdleCommitDelay = TimeSpan.FromHours(1)
+            AutoSaveDelay = TimeSpan.FromHours(1), IdleCommitDelay = TimeSpan.FromHours(1)
         };
 
     private static (StratStore Store, StratDocument Committed) Stored(string? root = null)
@@ -86,7 +85,9 @@ public class StratSessionTests
 
         List<IReadOnlyList<PatchOp>> announced = [];
         session.OpsApplied += announced.Add;
-        session.Apply([PatchOp.AddOp("/steps/-", node), PatchOp.ReplaceOp("/notes", null, JsonValue.Create("peek added"))]);
+        session.Apply([
+            PatchOp.AddOp("/steps/-", node), PatchOp.ReplaceOp("/notes", null, JsonValue.Create("peek added"))
+        ]);
 
         using (Assert.Multiple())
         {
@@ -115,7 +116,8 @@ public class StratSessionTests
             PatchOp.ReplaceOp("/name", null, JsonValue.Create("changed")),
             PatchOp.RemoveOp("/steps/9/note", null)
         ]));
-        Assert.Throws<InvalidOperationException>(() => session.Apply(PatchOp.ReplaceOp("/revision", null, JsonValue.Create(99))));
+        Assert.Throws<InvalidOperationException>(() =>
+            session.Apply(PatchOp.ReplaceOp("/revision", null, JsonValue.Create(99))));
 
         using (Assert.Multiple())
         {
@@ -148,7 +150,8 @@ public class StratSessionTests
             await Assert.That(entry.Ops.Count).IsEqualTo(1);
             await Assert.That(entry.Ops[0].From!.GetValue<double>()).IsEqualTo(82);
             await Assert.That(entry.Ops[0].Value!.GetValue<double>()).IsEqualTo(78).Within(1e-9);
-            await Assert.That(session.UndoDepth).IsEqualTo(40).Because("the log merges; the undo stack keeps each gesture");
+            await Assert.That(session.UndoDepth).IsEqualTo(40)
+                .Because("the log merges; the undo stack keeps each gesture");
         }
     }
 
@@ -282,7 +285,8 @@ public class StratSessionTests
         {
             await Assert.That(session.Document!.Status).IsEqualTo("Active");
             await Assert.That(session.CanUndo).IsTrue().Because("the routed change is one of the session's edits");
-            await Assert.That(store.History(committed.Id).Count).IsEqualTo(1).Because("it commits by the session's rule");
+            await Assert.That(store.History(committed.Id).Count).IsEqualTo(1)
+                .Because("it commits by the session's rule");
         }
     }
 
@@ -298,19 +302,21 @@ public class StratSessionTests
             session.Apply(PatchOp.ReplaceOp("/name", null, JsonValue.Create("working")));
             await session.FlushAsync();
 
-            string file = Path.Combine(StratStore.FolderFor(root, committed.Owner, committed.Map), committed.Id + StratStore.StratExtension);
-            JsonNode onDisk = JsonNode.Parse(File.ReadAllText(file))!;
+            string file = Path.Combine(StratStore.FolderFor(root, committed.Owner, committed.Map),
+                committed.Id + StratStore.StratExtension);
+            JsonNode onDisk = JsonNode.Parse(await File.ReadAllTextAsync(file))!;
 
             using (Assert.Multiple())
             {
                 await Assert.That(onDisk["pending"]!.GetValue<bool>()).IsTrue();
                 await Assert.That(onDisk["revision"]!.GetValue<int>()).IsEqualTo(1);
                 await Assert.That(onDisk["name"]!.GetValue<string>()).IsEqualTo("working");
-                await Assert.That(store.History(committed.Id).Count).IsEqualTo(1).Because("the log moves only at a commit");
+                await Assert.That(store.History(committed.Id).Count).IsEqualTo(1)
+                    .Because("the log moves only at a commit");
             }
 
             session.Commit();
-            JsonNode afterCommit = JsonNode.Parse(File.ReadAllText(file))!;
+            JsonNode afterCommit = JsonNode.Parse(await File.ReadAllTextAsync(file))!;
             using (Assert.Multiple())
             {
                 await Assert.That(afterCommit["pending"]).IsNull();
@@ -356,8 +362,10 @@ public class StratSessionTests
             using (Assert.Multiple())
             {
                 await Assert.That(entry.Revision).IsEqualTo(2);
-                await Assert.That(entry.Ops.Select(o => o.Path)).IsEquivalentTo(["/name", "/steps/1/atSeconds"], CollectionOrdering.Matching);
-                await Assert.That(entry.Ops.Single(o => o.Path == "/name").From!.GetValue<string>()).IsEqualTo("A exec");
+                await Assert.That(entry.Ops.Select(o => o.Path))
+                    .IsEquivalentTo(["/name", "/steps/1/atSeconds"], CollectionOrdering.Matching);
+                await Assert.That(entry.Ops.Single(o => o.Path == "/name").From!.GetValue<string>())
+                    .IsEqualTo("A exec");
                 await Assert.That(reopened.Materialize(committed.Id, 2)!.Name).IsEqualTo("after the crash");
             }
         }
@@ -374,18 +382,21 @@ public class StratSessionTests
         try
         {
             (StratStore store, StratDocument committed) = Stored(root);
-            string file = Path.Combine(StratStore.FolderFor(root, committed.Owner, committed.Map), committed.Id + StratStore.StratExtension);
+            string file = Path.Combine(StratStore.FolderFor(root, committed.Owner, committed.Map),
+                committed.Id + StratStore.StratExtension);
             StratSession session = Session(store);
             session.Open(committed.Id);
-            JsonNode step = System.Text.Json.JsonSerializer.SerializeToNode(Step(3, 70, "A", "peek"), StratJsonContext.Default.StratStep)!;
+            JsonNode step =
+                System.Text.Json.JsonSerializer.SerializeToNode(Step(3, 70, "A", "peek"),
+                    StratJsonContext.Default.StratStep)!;
             session.Apply(PatchOp.AddOp("/steps/-", step));
             await session.FlushAsync();
-            string workingCopy = File.ReadAllText(file);
+            string workingCopy = await File.ReadAllTextAsync(file);
 
             // The commit's line lands; its strat write is lost, leaving the pending working copy in place.
             session.Commit();
             session.Dispose();
-            File.WriteAllText(file, workingCopy);
+            await File.WriteAllTextAsync(file, workingCopy);
 
             StratDocument reopened = new StratStore(PackStores.At(root)).TryLoad(committed.Id)!;
             using (Assert.Multiple())
@@ -407,7 +418,8 @@ public class StratSessionTests
         (StratStore memory, StratDocument committed) = Stored();
         using StratSession browser = Session(memory, browser: true);
         browser.Open(committed.Id);
-        await Assert.That(browser.StatusText).IsEqualTo("session only: this browser tab forgets strats when it reloads");
+        await Assert.That(browser.StatusText)
+            .IsEqualTo("session only: this browser tab forgets strats when it reloads");
 
         string root = TempRoot();
         try

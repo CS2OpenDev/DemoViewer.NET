@@ -11,6 +11,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     Where a strip tab sits in the shell. A descriptor with a <see cref="WorkspaceTabDescriptor.HostId" />
 ///     is a section hosted INSIDE another tab and never appears on the strip, whatever its placement says.
 /// </summary>
+[PublicAPI]
 public enum TabPlacement
 {
     /// <summary>The main tab strip.</summary>
@@ -37,9 +38,9 @@ public enum TabPlacement
 ///         <c>OnActivated</c>/<c>OnDeactivated</c>.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class WorkspaceTabDescriptor : INotifyPropertyChanged
 {
-    private Control? _activeContent;
     private string? _badge;
 
     /// <summary>Unique id within the module (e.g. <c>"builtin.parser"</c>). Session-persistence key.</summary>
@@ -118,15 +119,15 @@ public sealed class WorkspaceTabDescriptor : INotifyPropertyChanged
     /// </summary>
     public Control? ActiveContent
     {
-        get => _activeContent;
+        get;
         private set
         {
-            if (ReferenceEquals(_activeContent, value))
+            if (ReferenceEquals(field, value))
             {
                 return;
             }
 
-            _activeContent = value;
+            field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ActiveContent)));
         }
     }

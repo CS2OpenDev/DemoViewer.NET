@@ -2,9 +2,9 @@
 
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
+using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Pipeline.Rendering;
-using DemoViewer.NET.Playback2D.Pipeline;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 
@@ -55,10 +55,7 @@ public class SceneRendererTests
         using CpuSurfaceProvider provider = new();
         SceneRenderer renderer = new(provider);
         using SceneCompositor compositor = new();
-        compositor.Add(new RecordingLayer("fill")
-        {
-            Fill = SKColors.Magenta
-        });
+        compositor.Add(new RecordingLayer("fill") { Fill = SKColors.Magenta });
 
         SceneTime time = default;
         SceneRenderContext ctx = TestContexts.For(Scene2DFrame.Empty, default, 64, 48);

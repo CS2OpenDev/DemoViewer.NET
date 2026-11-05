@@ -9,7 +9,6 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using DemoViewer.NET.Controls;
 using DemoViewer.NET.ViewModels.Shell;
-using DemoViewer.NET.Extensions.StratBook.Controls;
 
 #endregion
 
@@ -87,21 +86,10 @@ public class NavStripTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            MainViewModel vm = new(library: TestLibraries.Empty())
-            {
-                HasFile = true
-            };
+            MainViewModel vm = new(library: TestLibraries.Empty()) { HasFile = true };
 
-            NavStrip strip = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1280,
-                Height = 48,
-                Content = strip
-            };
+            NavStrip strip = new() { DataContext = vm };
+            Window window = new() { Width = 1280, Height = 48, Content = strip };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();

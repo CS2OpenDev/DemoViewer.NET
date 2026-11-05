@@ -2,8 +2,8 @@
 
 using System.Globalization;
 using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Playback2D.Pipeline.Input;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Input;
 using SkiaSharp;
 
 #endregion
@@ -42,7 +42,7 @@ public class StrokeCadenceTests
         AnnotationElement element = h.Committed;
         StrokeTiming timing = element.Timing!;
         Console.WriteLine($"[cadence] steady: {element.Points.Count} samples, "
-                          + $"k={timing.Runs.Count}, {timing.DurationTicks} ticks");
+            + $"k={timing.Runs.Count}, {timing.DurationTicks} ticks");
 
         await Assert.That(timing).IsNotNull();
         await Assert.That(timing.Runs[0].SampleIndex).IsEqualTo(0);
@@ -91,14 +91,14 @@ public class StrokeCadenceTests
         int samples = element.Points.Count;
 
         Console.WriteLine($"[cadence] pause: {samples} samples, k={timing.Runs.Count}, "
-                          + $"runs={Describe(timing)}");
+            + $"runs={Describe(timing)}");
 
         // The pause is the widest gap between two adjacent boundaries, read off the table rather than
         // assumed at a sample index, so this still means "the stop" whatever the spacing filter kept.
         (int intoThePause, int outOfIt) = WidestGap(timing);
         await Assert.That(outOfIt - intoThePause).IsGreaterThanOrEqualTo(36)
             .Because("600 ms of thinking is 38 ticks; a table that ran a single linear fit through the "
-                     + "whole stroke would place those two neighbours about 3 ticks apart");
+                + "whole stroke would place those two neighbours about 3 ticks apart");
 
         // The stall itself, tick by tick over the whole pause. The reveal is monotone AND continuous in
         // the tick, so this is what a 30 fps export samples too, whichever ticks it happens to hit.
@@ -142,7 +142,7 @@ public class StrokeCadenceTests
         int k = timing.Runs.Count;
 
         Console.WriteLine($"[cadence] telestration: {element.Points.Count} samples, k={k}, "
-                          + $"{timing.DurationTicks} ticks, runs={Describe(timing)}");
+            + $"{timing.DurationTicks} ticks, runs={Describe(timing)}");
 
         await Assert.That(k).IsGreaterThanOrEqualTo(6)
             .Because("three pauses matches the worked example: two entries plus a pair each, so eight");
@@ -162,8 +162,7 @@ public class StrokeCadenceTests
     [Test]
     public async Task AStrokeDrawnWhileThePlayheadIsFrozen_StillRecordsRealCadence()
     {
-        Hand h = new();
-        h.Services.CurrentTick = 4096; // paused: nothing below moves it
+        Hand h = new() { Services = { CurrentTick = 4096 } }; // paused: nothing below moves it
 
         h.Press();
         for (int i = 0; i < 25; i++)
@@ -176,7 +175,7 @@ public class StrokeCadenceTests
         AnnotationElement element = h.Committed;
         StrokeTiming timing = element.Timing!;
         Console.WriteLine($"[cadence] paused: tick={h.Services.CurrentTick}, "
-                          + $"clock={h.Services.NowMilliseconds} ms, {timing.DurationTicks} ticks");
+            + $"clock={h.Services.NowMilliseconds} ms, {timing.DurationTicks} ticks");
 
         await Assert.That(h.Services.CurrentTick).IsEqualTo(4096)
             .Because("the demo was paused for the whole gesture — that is the premise");
@@ -184,7 +183,7 @@ public class StrokeCadenceTests
             .Because("RealTime pins to the playhead exactly as Fade does; each section shifts from it");
         await Assert.That(timing.DurationTicks).IsEqualTo(67)
             .Because("26 samples 40 ms apart is 1040 ms of authoring, or 66.6 ticks — every one of "
-                     + "which came from the authoring clock, because the playhead supplied none");
+                + "which came from the authoring clock, because the playhead supplied none");
     }
 
     /// <summary>
@@ -202,10 +201,7 @@ public class StrokeCadenceTests
         Hand at64 = new();
         Hand at128 = new(ticksPerSecond: 128);
 
-        foreach (Hand h in new[]
-                 {
-                     at64, at128
-                 })
+        foreach (Hand h in new[] { at64, at128 })
         {
             h.Press();
             for (int i = 0; i < 24; i++)
@@ -219,12 +215,12 @@ public class StrokeCadenceTests
         StrokeTiming slow = at64.Committed.Timing!;
         StrokeTiming fast = at128.Committed.Timing!;
         Console.WriteLine($"[cadence] rate: 64 -> {slow.DurationTicks} ticks, "
-                          + $"128 -> {fast.DurationTicks} ticks");
+            + $"128 -> {fast.DurationTicks} ticks");
 
         await Assert.That(slow.DurationTicks).IsEqualTo(64);
         await Assert.That(fast.DurationTicks).IsEqualTo(128)
             .Because("1000 ms is 128 ticks on a 128-tick parse; converted at a literal 64 it would say "
-                     + "64, and the replay would crawl at half the speed the hand actually moved");
+                + "64, and the replay would crawl at half the speed the hand actually moved");
 
         // Ticks back into seconds through each session's own rate: the SAME second of authoring. That is
         // the invariant a rate-blind conversion breaks.
@@ -257,12 +253,12 @@ public class StrokeCadenceTests
         StrokeTiming timing = h.Committed.Timing!;
         int samples = h.Committed.Points.Count;
         Console.WriteLine($"[cadence] coalesced: runs={Describe(timing)}, revealed="
-                          + $"{timing.RevealedCount(16, samples)},{timing.RevealedCount(32, samples)},"
-                          + $"{timing.RevealedCount(48, samples)},{timing.RevealedCount(64, samples)}");
+            + $"{timing.RevealedCount(16, samples)},{timing.RevealedCount(32, samples)},"
+            + $"{timing.RevealedCount(48, samples)},{timing.RevealedCount(64, samples)}");
 
         await Assert.That(timing.RevealedCount(16, samples)).IsEqualTo(2)
             .Because("250 ms into a 1000 ms batch is one sample past the press; stamped at the event "
-                     + "instead the whole batch would land at 64 ticks and this would still be 1");
+                + "instead the whole batch would land at 64 ticks and this would still be 1");
         await Assert.That(timing.RevealedCount(32, samples)).IsEqualTo(3);
         await Assert.That(timing.RevealedCount(48, samples)).IsEqualTo(4);
         await Assert.That(timing.RevealedCount(64, samples)).IsEqualTo(5);
@@ -377,22 +373,21 @@ public class StrokeCadenceTests
             Document = new AnnotationDocument();
             Session = new AnnotationSession(Document)
             {
-                DefaultVisibility = visibility,
-                TicksPerSecond = ticksPerSecond
+                DefaultVisibility = visibility, TicksPerSecond = ticksPerSecond
             };
             Services = new FakeToolServices(Session, Pane);
             Tool = new DrawTool();
         }
 
-        public LevelPane Pane { get; }
+        private LevelPane Pane { get; }
 
-        public AnnotationDocument Document { get; }
+        private AnnotationDocument Document { get; }
 
-        public AnnotationSession Session { get; }
+        private AnnotationSession Session { get; }
 
         public FakeToolServices Services { get; }
 
-        public DrawTool Tool { get; }
+        private DrawTool Tool { get; }
 
         public AnnotationElement Committed => Document.Elements[0];
 

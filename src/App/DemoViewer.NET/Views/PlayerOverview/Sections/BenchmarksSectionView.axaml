@@ -35,7 +35,8 @@
                     <CheckBox x:Name="RankBand" Content="{Binding RankBandText}" FontSize="12"
                               IsVisible="{Binding CanUseRankBand}" IsChecked="{Binding UseRankBand}"
                               ToolTip.Tip="Compare only with players whose latest CS Rating in this library is in your Premier tier" />
-                    <TextBlock Text="MIN MATCHES" FontFamily="Consolas,Menlo,monospace" FontSize="10" FontWeight="SemiBold"
+                    <TextBlock Text="MIN MATCHES" FontFamily="Consolas,Menlo,monospace" FontSize="10"
+                               FontWeight="SemiBold"
                                Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
                     <ComboBox x:Name="MinimumPicker" FontSize="12" MinWidth="64"
                               ItemsSource="{Binding Minimums}" SelectedItem="{Binding SelectedMinimum}"
@@ -54,13 +55,16 @@
             <ItemsControl x:Name="Rows" ItemsSource="{Binding Rows}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="sections:BenchmarkRowItem">
-                        <Grid Classes="benchRow" ColumnDefinitions="110,64,*,52,96" Margin="0 3" ToolTip.Tip="{Binding Tooltip}">
+                        <Grid Classes="benchRow" ColumnDefinitions="110,64,*,52,96" Margin="0 3"
+                              ToolTip.Tip="{Binding Tooltip}">
                             <TextBlock Grid.Column="0" Text="{Binding Label}" Foreground="{DynamicResource TextMid}"
                                        TextTrimming="CharacterEllipsis" />
                             <TextBlock Grid.Column="1" Classes="num" Text="{Binding ValueText}" />
-                            <statsCtl:StatValue Grid.Column="2" Value="{Binding Percentile}" Scale="{Binding Scale}" Text=""
+                            <statsCtl:StatValue Grid.Column="2" Value="{Binding Percentile}" Scale="{Binding Scale}"
+                                                Text=""
                                                 Height="12" Padding="0" CornerRadius="2" TintBar="True"
-                                                VerticalAlignment="Center" BarTrackBrush="{DynamicResource PanelHeaderBg}" />
+                                                VerticalAlignment="Center"
+                                                BarTrackBrush="{DynamicResource PanelHeaderBg}" />
                             <TextBlock Grid.Column="3" Classes="num" Text="{Binding PercentileText}" />
                             <TextBlock Grid.Column="4" Classes="dim" Text="{Binding MedianText}" />
                         </Grid>

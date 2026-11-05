@@ -22,7 +22,8 @@ public static class PeriodDiffService
     /// <param name="library">The library a demo's map, score and side-round totals come from.</param>
     /// <param name="teamId">The team the diff is for.</param>
     /// <param name="windowSize">Demos per period; <see cref="DefaultWindowSize" /> when zero or negative.</param>
-    public static PeriodDiffSet Build(TeamIdentityService teams, IExtensionLibrary library, Guid teamId, int windowSize = DefaultWindowSize)
+    public static PeriodDiffSet Build(TeamIdentityService teams, IExtensionLibrary library, Guid teamId,
+        int windowSize = DefaultWindowSize)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -49,7 +50,7 @@ public static class PeriodDiffService
             string map = entry?.MapName is { Length: > 0 } m ? m : "";
 
             bool? won = null;
-            if (entry?.CtScore is { } ctScore && entry.TScore is { } tScore && ctScore != tScore)
+            if (entry is { CtScore: { } ctScore, TScore: { } tScore } && ctScore != tScore)
             {
                 int teamScore = side == 3 ? ctScore : tScore;
                 int opponentScore = side == 3 ? tScore : ctScore;
@@ -63,21 +64,23 @@ public static class PeriodDiffService
             string? rosterId = sideAssignment.RosterId;
             string rosterLabel = rosterId is null
                 ? ""
-                : team?.Rosters.FirstOrDefault(r => string.Equals(r.Id, rosterId, StringComparison.Ordinal))?.Label ?? rosterId;
+                : team?.Rosters.FirstOrDefault(roster => string.Equals(roster.Id, rosterId, StringComparison.Ordinal))
+                    ?.Label
+                ?? rosterId;
 
-            rows.Add(new PeriodDiffDemoRow(demo.Path, demo.Sha256, map, entry?.Modified.Ticks ?? 0, side,
-                rosterId, rosterLabel, sideAssignment.StandIn && sideAssignment.Tier == 1, won, ctRounds, tRounds));
+            rows.Add(new PeriodDiffDemoRow(map, rosterId, rosterLabel, sideAssignment is { StandIn: true, Tier: 1 },
+                won, ctRounds, tRounds));
         }
 
         PeriodDiffPeriod recent = BuildPeriod("last", [.. rows.Take(windowSize)]);
         PeriodDiffPeriod previous = BuildPeriod("previous", [.. rows.Skip(windowSize).Take(windowSize)]);
 
         bool rosterChanged = recent.DominantRoster is { } r && previous.DominantRoster is { } p
-                              && !string.Equals(r.RosterId, p.RosterId, StringComparison.Ordinal);
+            && !string.Equals(r.RosterId, p.RosterId,
+                StringComparison.Ordinal);
 
         return new PeriodDiffSet
         {
-            TeamId = teamId,
             WindowSize = windowSize,
             TotalDemos = rows.Count,
             Recent = recent,

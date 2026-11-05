@@ -3,8 +3,8 @@
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
@@ -103,7 +103,7 @@ public class AnnotationLayerTests
 
         double anchor = MapSpace.QuantizeZ(space.Levels[0].ZMin);
         Console.WriteLine($"[reminted] pane={space.Levels[0].Id} " +
-                          $"mintingRule={MapSpace.IdForZMin(anchor)}");
+            $"mintingRule={MapSpace.IdForZMin(anchor)}");
         await Assert.That(space.Levels[0].Id).IsNotEqualTo(MapSpace.IdForZMin(anchor))
             .Because("the re-found floor carries a re-minted key — that is the condition under test");
 
@@ -202,11 +202,7 @@ public class AnnotationLayerTests
         AnnotationSession session = new(doc);
         using AnnotationLayer layer = new(session);
 
-        AnnotationStyle style = AnnotationStyle.Default with
-        {
-            RevealOnFadeIn = true,
-            WidthWorld = 24f
-        };
+        AnnotationStyle style = AnnotationStyle.Default with { RevealOnFadeIn = true, WidthWorld = 24f };
 
         AnnotationElement element = new(Guid.NewGuid(), AnnotationKind.Freehand, style,
             new SpaceRef.World(0), new TimeEnvelope(100, 200, 100, 0), LongLine(), null);
@@ -291,10 +287,7 @@ public class AnnotationLayerTests
             AnnotationDocument doc = new();
             using AnnotationLayer layer = new(new AnnotationSession(doc));
             AnnotationElement element = new(Guid.NewGuid(), AnnotationKind.Text,
-                AnnotationStyle.Default with
-                {
-                    WidthWorld = width
-                },
+                AnnotationStyle.Default with { WidthWorld = width },
                 new SpaceRef.World(0), TimeEnvelope.Static, [new InkPoint(-400, 400, 0.5f)], text);
             doc.Apply(new DocDelta.Add(element, 0));
             return Ink(layer, Scene2DFrame.Empty);
@@ -316,10 +309,8 @@ public class AnnotationLayerTests
         AnnotationSession session = new(doc);
         using AnnotationLayer layer = new(session);
 
-        session.Wet.Begin(AnnotationStyle.Default with
-        {
-            WidthWorld = 20
-        }, new SpaceRef.World(0), null, new InkPoint(-300, -300, 0.5f), kind: AnnotationKind.Rect);
+        session.Wet.Begin(AnnotationStyle.Default with { WidthWorld = 20 }, new SpaceRef.World(0), null,
+            new InkPoint(-300, -300, 0.5f), kind: AnnotationKind.Rect);
         session.Wet.ReplaceLast(new InkPoint(300, 300, 0.5f));
 
         SKColor[] pixels = RenderPixels(layer, Scene2DFrame.Empty);
@@ -361,7 +352,7 @@ public class AnnotationLayerTests
 
         await Assert.That(layer.Advance(in time, frame)).IsFalse()
             .Because("a fade needs no animation loop — a tick change already repaints, and an idle " +
-                     "tab that keeps re-arming burns a core in the background");
+                "tab that keeps re-arming burns a core in the background");
 
         session.Wet.Begin(AnnotationStyle.Default, new SpaceRef.World(0), null,
             new InkPoint(0, 0, 0.5f));
@@ -445,11 +436,11 @@ public class AnnotationLayerTests
         long second = Measure(layer, surface.Canvas, frame, in ctx);
 
         Console.WriteLine($"[annotations] alloc window1={first} B window2={second} B " +
-                          $"dry={layer.DryPictureCount} prepared={layer.PreparedCount}");
+            $"dry={layer.DryPictureCount} prepared={layer.PreparedCount}");
 
         await Assert.That(layer.PreparedCount).IsEqualTo(3)
             .Because("entity-anchored, fading and real-time all have to be LIVE, or this window is " +
-                     "measuring a layer that culled its own content");
+                "measuring a layer that culled its own content");
         await Assert.That(second).IsEqualTo(0);
     }
 
@@ -505,21 +496,12 @@ public class AnnotationLayerTests
     {
         MapLevel level = space is not null && levelIndex >= 0
             ? space.Levels[levelIndex]
-            : new MapLevel
-            {
-                Id = new MapLevelId(0),
-                Name = "floor 0",
-                ZMin = -1000,
-                ZMax = 1000
-            };
+            : new MapLevel { Id = new MapLevelId(0), Name = "floor 0", ZMin = -1000, ZMax = 1000 };
 
         ViewportTransform transform = ViewportTransform.Fit(_size.Width, _size.Height,
             -500, -500, 500, 500);
 
-        SceneTime time = frame.Time with
-        {
-            Tick = tick
-        };
+        SceneTime time = frame.Time with { Tick = tick };
 
         return new SceneRenderContext(frame, time, transform, SKRect.Create(_size.Width, _size.Height),
             levelIndex, level.ZMin, level.ZMax, RenderPurpose.Export, ScenePalette.Dark, 1f)
@@ -540,10 +522,7 @@ public class AnnotationLayerTests
     // pixel; text is a short label anchored there.
     private static AnnotationElement Shape(AnnotationKind kind, TimeEnvelope time) =>
         new(Guid.NewGuid(), kind,
-            AnnotationStyle.Default with
-            {
-                WidthWorld = 20
-            },
+            AnnotationStyle.Default with { WidthWorld = 20 },
             new SpaceRef.World(0), time,
             kind == AnnotationKind.Text
                 ? [new InkPoint(-300, 100, 0.5f)]
@@ -554,9 +533,8 @@ public class AnnotationLayerTests
     {
         SKColor background = ScenePalette.Dark.Background;
         int count = 0;
-        for (int i = 0; i < pixels.Length; i++)
+        foreach (SKColor p in pixels)
         {
-            SKColor p = pixels[i];
             if (p.Red != background.Red || p.Green != background.Green || p.Blue != background.Blue)
             {
                 count++;
@@ -595,13 +573,13 @@ public class AnnotationLayerTests
     {
         SKColor best = default;
         int bestSum = -1;
-        for (int i = 0; i < pixels.Length; i++)
+        foreach (SKColor pixel in pixels)
         {
-            int sum = pixels[i].Red + pixels[i].Green + pixels[i].Blue;
+            int sum = pixel.Red + pixel.Green + pixel.Blue;
             if (sum > bestSum)
             {
                 bestSum = sum;
-                best = pixels[i];
+                best = pixel;
             }
         }
 

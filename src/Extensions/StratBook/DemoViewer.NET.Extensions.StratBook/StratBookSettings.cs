@@ -19,28 +19,28 @@ public sealed class StratBookSettings
     public const string TokenSourceKey = "situations.tokenSource";
 
     /// <summary>Grenades: walk the whole library in the background.</summary>
-    public const string GrenadesBackgroundIndexKey = "grenades.backgroundIndex";
+    private const string GrenadesBackgroundIndexKey = "grenades.backgroundIndex";
 
     /// <summary>Grenades: keep every n-th moved sample of a flight.</summary>
-    public const string TrajectoryStrideKey = "grenades.trajectoryStride";
+    private const string TrajectoryStrideKey = "grenades.trajectoryStride";
 
     /// <summary>Grenades: render a clip of each repeated lineup.</summary>
-    public const string RenderLineupClipsKey = "grenades.renderLineupClips";
+    private const string RenderLineupClipsKey = "grenades.renderLineupClips";
 
     /// <summary>Grenades: the most the lineup clips may take on disk, in MB.</summary>
-    public const string LineupClipsMaxMegabytesKey = "grenades.lineupClipsMaxMegabytes";
+    private const string LineupClipsMaxMegabytesKey = "grenades.lineupClipsMaxMegabytes";
 
     /// <summary>The tag palette 2D Playback tags with.</summary>
-    public const string TagPaletteIdKey = "tagPalette.id";
+    private const string TagPaletteIdKey = "tagPalette.id";
 
     /// <summary>Whether 2D Playback is in Review mode.</summary>
-    public const string ReviewModeKey = "review.mode";
+    private const string ReviewModeKey = "review.mode";
 
     /// <summary>Suggested Tags: sweep the whole library in the background.</summary>
-    public const string SuggestedTagsBackgroundKey = "suggestedTags.background";
+    private const string SuggestedTagsBackgroundKey = "suggestedTags.background";
 
     /// <summary>The palette an unknown or missing id falls back to.</summary>
-    public const string DefaultTagPaletteId = "cs2-default";
+    private const string DefaultTagPaletteId = "cs2-default";
 
     private readonly IExtensionSettings _store;
 
@@ -113,7 +113,8 @@ public sealed class StratBookSettings
     /// <summary>True when a change to <paramref name="key" /> can change what a pass wants, so the library is asked again.</summary>
     /// <param name="key">The key that changed.</param>
     public static bool WidensPasses(string key) =>
-        key is SituationsBackgroundIndexKey or TokenSourceKey or GrenadesBackgroundIndexKey or SuggestedTagsBackgroundKey;
+        key is SituationsBackgroundIndexKey or TokenSourceKey or GrenadesBackgroundIndexKey
+            or SuggestedTagsBackgroundKey;
 
     /// <summary>The Grenade Index settings page, drawn by the host.</summary>
     public static SettingsSchema GrenadeIndexSchema { get; } = new("stratbook.grenade-index", "GRENADE INDEX",
@@ -126,9 +127,5 @@ public sealed class StratBookSettings
             "Past it the least recently used clips are deleted after a render. 0 caps nothing."),
         SettingDescriptor.Number(TrajectoryStrideKey, "Flight sample stride", 4, 1, 64, 1,
             "Keep every n-th moved sample of a flight. Read when a demo is walked.")
-    ])
-    {
-        Order = 1,
-        Keywords = "grenade index utility book lineup clip render walk background"
-    };
+    ]) { Order = 1, Keywords = "grenade index utility book lineup clip render walk background" };
 }

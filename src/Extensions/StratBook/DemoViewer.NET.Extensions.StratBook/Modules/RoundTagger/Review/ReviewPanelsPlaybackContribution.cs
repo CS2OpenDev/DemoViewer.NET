@@ -6,14 +6,14 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DemoViewer.NET.Extensions.Sdk.Playback;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Palette;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Timeline;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
-using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Extensions.StratBook.Views.RoundTagger;
 using DemoViewer.NET.Extensions.StratBook.Views.SuggestedTags;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Levels;
 
 #endregion
@@ -32,20 +32,22 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
 /// <param name="post">Marshals change notifications onto the UI thread; synchronous when omitted (tests).</param>
 /// <param name="identity">Resolves a demo's identity for the session's attach; <see cref="TagSession.IdentityForAsync" /> when omitted (tests).</param>
 /// <param name="library">The library a tag's round bounds come from; none when omitted (tests).</param>
-public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null,
-    Func<string, string?, Task<DemoIdentity?>>? identity = null, IExtensionLibrary? library = null) : Sdk.Playback.IPlaybackContribution, IDisposable
+public sealed class ReviewPanelsPlaybackContribution(
+    Action<Action>? post = null,
+    Func<string, string?, Task<DemoIdentity?>>? identity = null,
+    IExtensionLibrary? library = null) : IPlaybackContribution, IDisposable
 {
     /// <summary>The Review mode toggle's id.</summary>
     public const string ReviewModeId = "stratbook.review";
 
     /// <summary>The palette's order in the column.</summary>
-    public const int PaletteOrder = 0;
+    private const int PaletteOrder = 0;
 
     /// <summary>The review panel's order in the column.</summary>
-    public const int ReviewOrder = 1;
+    private const int ReviewOrder = 1;
 
     /// <summary>The queue's order in the column.</summary>
-    public const int QueueOrder = 2;
+    private const int QueueOrder = 2;
 
     // The tab's own undo and redo, which reach the palette first while it has the keyboard.
     private const string UndoAction = "Undo";
@@ -56,15 +58,11 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     private readonly List<IDisposable> _registrations = [];
     private string? _attachingPath;
     private IModuleContext? _context;
-    private ILaneHandle? _proposalLane;
     private ProposalTrack? _proposalTrack;
     private SuggestionQueueView? _queueView;
-    private TagSession? _session;
     private StratBookSettings? _settings;
     private TagEditorViewModel? _spanEditor;
-    private Sdk.Playback.IPlaybackSurface? _surface;
-    private ILaneHandle? _tagLane;
-    private TagTrack? _tagTrack;
+    private IPlaybackSurface? _surface;
 
     /// <summary>The palette while attached. For tests.</summary>
     public TagPaletteViewModel? Palette { get; private set; }
@@ -88,16 +86,16 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     public ModeToggle? ReviewMode { get; private set; }
 
     /// <summary>The tag lane's track while attached. For tests.</summary>
-    public TagTrack? Tags => _tagTrack;
+    public TagTrack? Tags { get; private set; }
 
     /// <summary>The tag lane while attached, whose TrackId is the id its bands carry. For tests.</summary>
-    internal ILaneHandle? TagLane => _tagLane;
+    internal ILaneHandle? TagLane { get; private set; }
 
     /// <summary>The suggestion lane while attached. For tests.</summary>
-    internal ILaneHandle? ProposalLane => _proposalLane;
+    internal ILaneHandle? ProposalLane { get; private set; }
 
     /// <summary>The open demo's tag session while attached.</summary>
-    public TagSession? Session => _session;
+    public TagSession? Session { get; private set; }
 
     /// <summary>The palette has the keyboard: it is on screen and focused.</summary>
     public bool IsPaletteFocused => PalettePanel is { IsShown: true } && Palette is { IsFocused: true };
@@ -109,7 +107,7 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     private bool SuggestionsOn => _context?.Features?.IsEnabled(SuggestedTagsService.FeatureId) ?? true;
 
     /// <inheritdoc />
-    public void Attach(Sdk.Playback.IPlaybackSurface surface, IModuleContext context)
+    public void Attach(IPlaybackSurface surface, IModuleContext context)
     {
         ArgumentNullException.ThrowIfNull(surface);
         ArgumentNullException.ThrowIfNull(context);
@@ -124,20 +122,21 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
         TagSession session = new(context.GetService<TagStore>(),
             async path => library is null ? null : (await library.GetDetailAsync(path).ConfigureAwait(true))?.Rounds,
             library?.Facts.RoundFacts);
-        _session = session;
-        _tagTrack = new TagTrack(session, _post);
+        Session = session;
+        Tags = new TagTrack(session, _post);
 
         // The Suggested track sits on the tag lane after the tags, so an accepted proposal moves from one
         // band to the other in place. Its three confidence steps take theme tokens, never literals.
         _proposalTrack = new ProposalTrack { StepColour = ProposalStepColour };
 
         // Review mode starts as the user left it (off on a first run). The lanes and the panels follow it.
-        ModeToggle mode = new(ReviewModeId, "Review", "Review mode (Shift+R): label rounds and review the suggested labels",
+        ModeToggle mode = new(ReviewModeId, "Review",
+            "Review mode (Shift+R): label rounds and review the suggested labels",
             StratBookActions.ToggleReviewMode) { IsOn = _settings?.ReviewMode ?? false };
         ReviewMode = mode;
         _registrations.Add(surface.AddModeToggle(mode));
-        _tagLane = surface.AddLane(_tagTrack, new TagLaneBehaviour(this));
-        _proposalLane = surface.AddLane(_proposalTrack, new ProposalLaneBehaviour(this));
+        TagLane = surface.AddLane(Tags, new TagLaneBehaviour(this));
+        ProposalLane = surface.AddLane(_proposalTrack, new ProposalLaneBehaviour(this));
 
         // The palette edits through the session. The playhead it tags at is the shared clock's tick; its
         // button colours become the track's.
@@ -146,10 +145,11 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
         palette.PaletteChosen += SavePaletteSetting;
         palette.PropertyChanged += OnPaletteChanged;
         palette.ApplyKeymap(PaletteKeys(surface));
-        _tagTrack.CodeColour = code => palette.Palette.ColourOf(code);
+        Tags.CodeColour = code => palette.Palette.ColourOf(code);
         Palette = palette;
 
-        Queue = new SuggestionQueueViewModel(context.GetService<SuggestedTagsService>(), _proposalTrack, Seek, TickRate, _post,
+        Queue = new SuggestionQueueViewModel(context.GetService<SuggestedTagsService>(), _proposalTrack, Seek, TickRate,
+            _post,
             () => _settings?.SuggestedTagsBackground ?? false, SaveBackgroundSetting);
 
         PalettePanel = surface.AddPanel(PaletteOrder, () => palette,
@@ -204,7 +204,7 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
             mode.Changed -= OnReviewModeChanged;
         }
 
-        if (_session is { } session)
+        if (Session is { } session)
         {
             session.Changed -= OnSessionChanged;
             session.Detaching -= LeavePalette;
@@ -246,10 +246,10 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
             panel.PropertyChanged -= OnReviewChanged;
         }
 
-        _tagLane?.Dispose();
-        _proposalLane?.Dispose();
-        _tagTrack?.Dispose();
-        _session?.Dispose(); // detaches, which flushes
+        TagLane?.Dispose();
+        ProposalLane?.Dispose();
+        Tags?.Dispose();
+        Session?.Dispose(); // detaches, which flushes
 
         Review = null;
         Palette = null;
@@ -258,11 +258,11 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
         ReviewPanel = null;
         QueuePanel = null;
         ReviewMode = null;
-        _tagLane = null;
-        _proposalLane = null;
-        _tagTrack = null;
+        TagLane = null;
+        ProposalLane = null;
+        Tags = null;
         _proposalTrack = null;
-        _session = null;
+        Session = null;
         _attachingPath = null;
         _settings = null;
         _surface = null;
@@ -286,7 +286,7 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     // only after AttachAsync's first await.
     private void AttachTagsToCurrentDemo()
     {
-        if (_context is not { } ctx || _session is not { } session || string.IsNullOrEmpty(ctx.DemoPath)
+        if (_context is not { } ctx || Session is not { } session || string.IsNullOrEmpty(ctx.DemoPath)
             || string.Equals(session.DemoPath, ctx.DemoPath, StringComparison.OrdinalIgnoreCase)
             || string.Equals(_attachingPath, ctx.DemoPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -303,8 +303,8 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
         {
             // Resumes on the calling (UI) context: the session is UI-thread affine.
             DemoIdentity? demo = await _identity(demoPath, ctx.DemoSha256);
-            if (demo is null || !ReferenceEquals(_session, session)
-                             || !string.Equals(ctx.DemoPath, demoPath, StringComparison.OrdinalIgnoreCase))
+            if (demo is null || !ReferenceEquals(Session, session)
+                || !string.Equals(ctx.DemoPath, demoPath, StringComparison.OrdinalIgnoreCase))
             {
                 return; // unreadable, detached, or the user moved on while it hashed
             }
@@ -325,10 +325,9 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
 
     private object BuildReview()
     {
-        ReviewPanelViewModel panel = new(_session!, Queue!, Palette!, Playhead, TickRate, Seek)
+        ReviewPanelViewModel panel = new(Session!, Queue!, Palette!, Playhead, TickRate, Seek)
         {
-            IsSuggestedAvailable = SuggestionsOn,
-            IsLabelsAvailable = TaggerOn
+            IsSuggestedAvailable = SuggestionsOn, IsLabelsAvailable = TaggerOn
         };
         panel.PropertyChanged += OnReviewChanged;
         Review = panel;
@@ -398,7 +397,7 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     // The queue shows the demo the tag session holds, or nothing while its gate is off.
     private void AttachQueue()
     {
-        if (Queue is { } queue && _session is { } session)
+        if (Queue is { } queue && Session is { } session)
         {
             queue.Attach(SuggestionsOn ? session.DemoPath : null, session.Document?.Demo.Sha256);
         }
@@ -432,7 +431,7 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     private void OnDeactivated()
     {
         LeavePalette();
-        _session?.Flush();
+        Session?.Flush();
     }
 
     private void OnKeymapChanged()
@@ -447,12 +446,12 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     private void ApplyReviewMode()
     {
         bool on = IsReviewOn;
-        if (_tagLane is { } tagLane)
+        if (TagLane is { } tagLane)
         {
             tagLane.IsSuppressed = !on;
         }
 
-        if (_proposalLane is { } proposalLane)
+        if (ProposalLane is { } proposalLane)
         {
             proposalLane.IsSuppressed = !on;
         }
@@ -488,7 +487,8 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
 
     private void OnPaletteChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(TagPaletteViewModel.IsFocused) && PalettePanel is { } panel && Palette is { } palette)
+        if (e.PropertyName == nameof(TagPaletteViewModel.IsFocused) && PalettePanel is { } panel
+            && Palette is { } palette)
         {
             panel.HasKeyboard = palette.IsFocused;
         }
@@ -505,8 +505,8 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
         }
 
         return QueuePanel is { IsShown: true } && Queue is { HasSelection: true } queue && _surface is { } surface
-               && surface.ActionFor(StratBookActions.SuggestionScope, key, modifiers) is { } action
-               && queue.Execute(action);
+            && surface.ActionFor(StratBookActions.SuggestionScope, key, modifiers) is { } action
+            && queue.Execute(action);
     }
 
     // The pack's keymap actions. Undo and redo reach here first while the palette has the keyboard, so one
@@ -519,11 +519,11 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
         {
             case UndoAction when focused:
                 Palette!.Finish();
-                _session!.Undo();
+                Session!.Undo();
                 return true;
 
             case RedoAction when focused:
-                _session!.Redo();
+                Session!.Redo();
                 return true;
 
             case StratBookActions.FocusTagPalette:
@@ -597,7 +597,7 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     // editor's span drawn with handles.
     private void RefreshLaneEditing()
     {
-        if (_tagLane is { } lane && _session is { } session)
+        if (TagLane is { } lane && Session is { } session)
         {
             lane.IsEditable = IsReviewOn && TaggerOn && session.Document is not null;
         }
@@ -644,7 +644,7 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
 
     private void UpdateEditSpan()
     {
-        if (_tagLane is not { } lane || _context is not { } ctx)
+        if (TagLane is not { } lane || _context is not { } ctx)
         {
             return;
         }
@@ -684,7 +684,7 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     // happens, so the pick is also on screen. A second press on a merged band walks to its next member.
     private void OnTagBandPressed(PlaybackBand band)
     {
-        if (_tagTrack is { LastData: { } data } track && TaggerOn && Palette is { IsLabelMode: true } palette)
+        if (Tags is { LastData: { } data } track && TaggerOn && Palette is { IsLabelMode: true } palette)
         {
             palette.SelectForLabels(track.InstancesInRun(data, band.StartFrameIndex));
         }
@@ -703,7 +703,7 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     private List<MenuEntry> TagMenuFor(PlaybackBand band)
     {
         List<MenuEntry> entries = [];
-        if (!IsReviewOn || _tagTrack is not { LastData: { } data } track || _session?.Document is not { } document)
+        if (!IsReviewOn || Tags is not { LastData: { } data } track || Session?.Document is not { } document)
         {
             return entries;
         }
@@ -753,7 +753,7 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     {
         try
         {
-            _session?.Apply(new TagDelta.Remove(id));
+            Session?.Apply(new TagDelta.Remove(id));
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
@@ -806,7 +806,7 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
     }
 
     // The palette's keys through the tab's keymap: its own scope's rows, and the gestures its hint line names.
-    private static PaletteKeymap PaletteKeys(Sdk.Playback.IPlaybackSurface surface) => new(
+    private static PaletteKeymap PaletteKeys(IPlaybackSurface surface) => new(
         (key, modifiers) => surface.ActionFor(StratBookActions.PaletteScope, key, modifiers),
         action => surface.GestureHint(action) is { Length: > 3 } hint ? hint[2..^1] : "");
 
@@ -819,7 +819,10 @@ public sealed class ReviewPanelsPlaybackContribution(Action<Action>? post = null
             : levels.FirstOrDefault(l => string.Equals(l.Name, name, StringComparison.Ordinal));
         return floor is null
             ? null
-            : new MapLevel { Id = MapSpace.IdForZMin(floor.ZMin), Name = floor.Name, ZMin = floor.ZMin, ZMax = floor.ZMax };
+            : new MapLevel
+            {
+                Id = MapSpace.IdForZMin(floor.ZMin), Name = floor.Name, ZMin = floor.ZMin, ZMax = floor.ZMax
+            };
     }
 
     // The first tick at or after a frame: a binary search over the context's tick-to-frame map.

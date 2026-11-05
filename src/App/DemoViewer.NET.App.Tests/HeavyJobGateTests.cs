@@ -203,10 +203,8 @@ public class HeavyJobGateTests
     [Test]
     public async Task Resize_ShrinkWhileIdle_TakesEffectImmediately()
     {
-        using HeavyJobGate gate = new()
-        {
-            MaxConcurrency = 3
-        };
+        using HeavyJobGate gate = new();
+        gate.MaxConcurrency = 3;
 
         // Idle, then shrink to 1: the very next acquire pair must serialize (only one holder).
         gate.MaxConcurrency = 1;
@@ -224,10 +222,8 @@ public class HeavyJobGateTests
     [Test]
     public async Task Resize_ShrinkWhileRunning_DrainsExcessBeforeAdmittingNew()
     {
-        using HeavyJobGate gate = new()
-        {
-            MaxConcurrency = 3
-        };
+        using HeavyJobGate gate = new();
+        gate.MaxConcurrency = 3;
 
         IDisposable a = await gate.AcquireBackgroundAsync();
         IDisposable b = await gate.AcquireBackgroundAsync();
@@ -248,22 +244,22 @@ public class HeavyJobGateTests
     }
 
     [Test]
-    public async Task CancelledInteractiveWaiter_ClearsPending_SoBackgroundResumes()
+    public async Task CancelledInteractiveWaiter_ClearsPending_SoBackgroundResumes(CancellationToken cancellationToken)
     {
         using HeavyJobGate gate = new();
 
-        IDisposable bg = await gate.AcquireBackgroundAsync();
+        IDisposable bg = await gate.AcquireBackgroundAsync(cancellationToken);
 
         using CancellationTokenSource cts = new();
         Task<IDisposable> interactive = gate.AcquireInteractiveAsync(cts.Token);
         await WaitForAsync(() => gate.IsInteractivePending, "interactive pending");
 
         // A background that arrived is yielding behind the pending interactive.
-        Task<IDisposable> bg2 = gate.AcquireBackgroundAsync();
+        Task<IDisposable> bg2 = gate.AcquireBackgroundAsync(cancellationToken);
         await AssertStaysBlockedAsync(bg2, "background yielding to the pending interactive");
 
         // Cancel the interactive: its pending flag must clear so the yielded background can proceed.
-        cts.Cancel();
+        await cts.CancelAsync();
         await AssertThrowsAsync<OperationCanceledException>(async () => await interactive);
         await WaitForAsync(() => !gate.IsInteractivePending, "pending cleared after cancel");
 
@@ -300,7 +296,7 @@ public class HeavyJobGateTests
     public async Task Export_PausesBackground_ButNeverBlocksAnInteractiveLoad()
     {
         using HeavyJobGate gate = new();
-        using IDisposable export = await gate.EnterExportSessionAsync();
+        IDisposable export = await gate.EnterExportSessionAsync();
 
         await Assert.That(gate.IsExportActive).IsTrue();
         await Assert.That(gate.CanStartBackground).IsFalse();

@@ -43,7 +43,8 @@ public class QueuePreemptionTests
     }
 
     [Test]
-    public async Task AUserItem_StopsTheRunningBackgroundJob_RunsNext_AndTheStoppedJobResumesWhereItWas_BeforeOtherBackgroundWork()
+    public async Task
+        AUserItem_StopsTheRunningBackgroundJob_RunsNext_AndTheStoppedJobResumesWhereItWas_BeforeOtherBackgroundWork()
     {
         using HeavyJobGate gate = new();
         using DemoProcessingQueue queue = NewQueue(gate);
@@ -97,7 +98,8 @@ public class QueuePreemptionTests
             await Assert.That(clips.State).IsEqualTo(DemoQueueItemState.Completed);
             await Assert.That(seen.Count(s => s.StartsWith("chunk", StringComparison.Ordinal))).IsEqualTo(10)
                 .Because("the job resumed where it stopped, no chunk twice");
-            await Assert.That(user).IsGreaterThan(0).Because("the user item ran after the stop, not before the job began");
+            await Assert.That(user).IsGreaterThan(0)
+                .Because("the user item ran after the stop, not before the job began");
             await Assert.That(resumedAt).IsGreaterThan(user);
             await Assert.That(seen.IndexOf("other")).IsGreaterThan(seen.LastIndexOf("chunk9"))
                 .Because("the stopped job goes back ahead of other background work");
@@ -118,7 +120,8 @@ public class QueuePreemptionTests
         }));
         await started.WaitAsync(TimeSpan.FromSeconds(5));
         queue.SubmitJob(Job(QueueJobKind.PackExport, "user", _ => userGate.WaitAsync(), DemoJobPriority.UserRequested));
-        await WaitForAsync(() => queue.Snapshot().Any(s => s.Id == clips.Id && s.State == DemoQueueItemState.Queued), "requeue");
+        await WaitForAsync(() => queue.Snapshot().Any(s => s.Id == clips.Id && s.State == DemoQueueItemState.Queued),
+            "requeue");
         bool completedEarly = clips.Completion.IsCompleted;
         queue.RemoveByUser(clips.Id);
         userGate.Release();
@@ -148,8 +151,10 @@ public class QueuePreemptionTests
 
             return SyntheticDemo();
         });
-        queue.SubmitBackground(new DemoProcessingRequest("/d/a.dem", "library", DemoJobPriority.Background, 1, _ => { }));
-        queue.SubmitBackground(new DemoProcessingRequest("/d/b.dem", "library", DemoJobPriority.Background, 0, _ => { }));
+        queue.SubmitBackground(
+            new DemoProcessingRequest("/d/a.dem", "library", DemoJobPriority.Background, 1, _ => { }));
+        queue.SubmitBackground(
+            new DemoProcessingRequest("/d/b.dem", "library", DemoJobPriority.Background, 0, _ => { }));
         // Awaited, not blocked on: a blocked test thread on a starved pool can hold off the worker that would
         // start the parse, and a user item submitted before it starts rightly runs first.
         await WaitForAsync(() => parsing.IsSet, "the first parse to start", 30000);
@@ -182,7 +187,8 @@ public class QueuePreemptionTests
             finishParse.Wait(TimeSpan.FromSeconds(10));
             return SyntheticDemo();
         });
-        queue.SubmitBackground(new DemoProcessingRequest("/d/a.dem", "library", DemoJobPriority.Background, 1, _ => { }));
+        queue.SubmitBackground(
+            new DemoProcessingRequest("/d/a.dem", "library", DemoJobPriority.Background, 1, _ => { }));
         parsing.Wait(TimeSpan.FromSeconds(5));
         queue.BackgroundEnabled = false;
         bool saved = false;
@@ -222,16 +228,20 @@ public class QueuePreemptionTests
         List<Task> sections;
         using (QueueWork.UserAction())
         {
-            sections = [.. Enumerable.Range(0, 4).Select(i => QueueWork.Run(queue, QueueJobKind.SectionCompute, "section", "t", _ =>
-            {
-                int now = Interlocked.Increment(ref concurrent);
-                InterlockedMax(ref peak, now);
-                started.Signal();
-                // Each section holds a pool thread until all four meet, so the fourth needs the pool to grow:
-                // on one CPU under load that takes longer than 5 s, and the first three gave up at peak 3.
-                started.Wait(TimeSpan.FromSeconds(30), CancellationToken.None);
-                Interlocked.Decrement(ref concurrent);
-            }, key: "s" + i))];
+            sections =
+            [
+                .. Enumerable.Range(0, 4).Select(i => QueueWork.Run(queue, QueueJobKind.SectionCompute, "section", "t",
+                    _ =>
+                    {
+                        int now = Interlocked.Increment(ref concurrent);
+                        InterlockedMax(ref peak, now);
+                        started.Signal();
+                        // Each section holds a pool thread until all four meet, so the fourth needs the pool to grow:
+                        // on one CPU under load that takes longer than 5 s, and the first three gave up at peak 3.
+                        started.Wait(TimeSpan.FromSeconds(30), CancellationToken.None);
+                        Interlocked.Decrement(ref concurrent);
+                    }, key: "s" + i))
+            ];
         }
 
         Task background = QueueWork.Run(queue, QueueJobKind.SectionCompute, "background", "t", _ => { });
@@ -318,10 +328,12 @@ public class QueuePreemptionTests
         await Task.WhenAll(background, user).WaitAsync(TimeSpan.FromSeconds(10));
         using (Assert.Multiple())
         {
-            await Assert.That(firstRunEndedAt).IsEqualTo(6).Because("it finished the demo in flight and stopped at the next checkpoint");
+            await Assert.That(firstRunEndedAt).IsEqualTo(6)
+                .Because("it finished the demo in flight and stopped at the next checkpoint");
             await Assert.That(runs).IsEqualTo(2).Because("it stopped and ran again");
             await Assert.That(nextDemo).IsEqualTo(20).Because("it resumed where it stopped");
-            await Assert.That(rerunBesideUser).IsEqualTo(0).Because("the stopped item runs again only after the user's item");
+            await Assert.That(rerunBesideUser).IsEqualTo(0)
+                .Because("the stopped item runs again only after the user's item");
         }
     }
 
@@ -340,7 +352,8 @@ public class QueuePreemptionTests
             finish.Wait(TimeSpan.FromSeconds(5), CancellationToken.None);
         });
         started.Wait(TimeSpan.FromSeconds(5));
-        Task user = QueueWork.Run(queue, QueueJobKind.SectionCompute, "user", "t", _ => { }, DemoJobPriority.UserRequested);
+        Task user = QueueWork.Run(queue, QueueJobKind.SectionCompute, "user", "t", _ => { },
+            DemoJobPriority.UserRequested);
         await user.WaitAsync(TimeSpan.FromSeconds(5));
         finish.Set();
         await save.WaitAsync(TimeSpan.FromSeconds(5));
@@ -364,8 +377,10 @@ public class QueuePreemptionTests
         List<Task> all =
         [
             QueueWork.Run(queue, QueueJobKind.SectionCompute, "replay", "t", Body, serial: "teams"),
-            QueueWork.Run(queue, QueueJobKind.SectionCompute, "rename", "t", Body, DemoJobPriority.UserRequested, serial: "teams"),
-            QueueWork.Run(queue, QueueJobKind.SectionCompute, "merge", "t", Body, DemoJobPriority.UserRequested, serial: "teams"),
+            QueueWork.Run(queue, QueueJobKind.SectionCompute, "rename", "t", Body, DemoJobPriority.UserRequested,
+                serial: "teams"),
+            QueueWork.Run(queue, QueueJobKind.SectionCompute, "merge", "t", Body, DemoJobPriority.UserRequested,
+                serial: "teams"),
             QueueWork.Run(queue, QueueJobKind.SectionCompute, "replay", "t", Body, serial: "teams")
         ];
         await Task.WhenAll(all).WaitAsync(TimeSpan.FromSeconds(10));
@@ -390,10 +405,13 @@ public class QueuePreemptionTests
             Interlocked.Decrement(ref inside);
         }
 
-        Task first = QueueWork.Run(queue, QueueJobKind.SectionCompute, "s", "t", Body, DemoJobPriority.UserRequested, "k");
+        Task first = QueueWork.Run(queue, QueueJobKind.SectionCompute, "s", "t", Body, DemoJobPriority.UserRequested,
+            "k");
         started.Wait(TimeSpan.FromSeconds(5));
-        Task second = QueueWork.Run(queue, QueueJobKind.SectionCompute, "s", "t", Body, DemoJobPriority.UserRequested, "k");
-        Task third = QueueWork.Run(queue, QueueJobKind.SectionCompute, "s", "t", Body, DemoJobPriority.UserRequested, "k");
+        Task second = QueueWork.Run(queue, QueueJobKind.SectionCompute, "s", "t", Body, DemoJobPriority.UserRequested,
+            "k");
+        Task third = QueueWork.Run(queue, QueueJobKind.SectionCompute, "s", "t", Body, DemoJobPriority.UserRequested,
+            "k");
         await Task.Delay(100);
         int queuedWhileRunning = queue.Snapshot().Count(s => s.State == DemoQueueItemState.Queued);
         finish.Set();
@@ -409,7 +427,8 @@ public class QueuePreemptionTests
     private static void InterlockedMax(ref int target, int value)
     {
         int seen;
-        while ((seen = Volatile.Read(ref target)) < value && Interlocked.CompareExchange(ref target, value, seen) != seen)
+        while ((seen = Volatile.Read(ref target)) < value
+               && Interlocked.CompareExchange(ref target, value, seen) != seen)
         {
         }
     }
@@ -427,7 +446,8 @@ public class QueuePreemptionTests
                 ran = "old";
                 return Task.CompletedTask;
             }, "section:x", ReplacePending: true));
-        IDemoQueueHandle h = queue.SubmitJob(new QueueJobRequest(QueueJobKind.SectionCompute, "s", "t", DemoJobPriority.Background,
+        IDemoQueueHandle h = queue.SubmitJob(new QueueJobRequest(QueueJobKind.SectionCompute, "s", "t",
+            DemoJobPriority.Background,
             _ =>
             {
                 ran = "new";

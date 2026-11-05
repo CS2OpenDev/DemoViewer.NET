@@ -30,7 +30,11 @@ public enum SafeModeReason
 /// <param name="Reason">Why, when active.</param>
 /// <param name="ExtensionName">The extension the previous crash was in, when one was found on its stack.</param>
 /// <param name="ExtensionFeatureId">That extension's master switch, so the banner can offer to turn it off.</param>
-public sealed record SafeModeState(bool IsActive, SafeModeReason? Reason, string? ExtensionName = null, string? ExtensionFeatureId = null)
+public sealed record SafeModeState(
+    bool IsActive,
+    SafeModeReason? Reason,
+    string? ExtensionName = null,
+    string? ExtensionFeatureId = null)
 {
     /// <summary>A normal launch.</summary>
     public static SafeModeState Off { get; } = new(false, null);
@@ -41,9 +45,12 @@ public sealed record SafeModeState(bool IsActive, SafeModeReason? Reason, string
         SafeModeReason.Requested => "Safe mode: extensions are off because the app was started with --safe-mode.",
         SafeModeReason.StartupFailed when ExtensionName is not null =>
             $"Safe mode: extensions are off because the last launch did not finish starting. It failed in {ExtensionName}.",
-        SafeModeReason.StartupFailed => "Safe mode: extensions are off because the last launch did not finish starting.",
-        SafeModeReason.ExtensionCrashed => $"Safe mode: extensions are off because the last session crashed in {ExtensionName}.",
-        SafeModeReason.StoppedResponding => "Safe mode: extensions are off because the last session stopped responding.",
+        SafeModeReason.StartupFailed =>
+            "Safe mode: extensions are off because the last launch did not finish starting.",
+        SafeModeReason.ExtensionCrashed =>
+            $"Safe mode: extensions are off because the last session crashed in {ExtensionName}.",
+        SafeModeReason.StoppedResponding =>
+            "Safe mode: extensions are off because the last session stopped responding.",
         _ => ""
     };
 }
@@ -56,13 +63,17 @@ public sealed record SafeModeState(bool IsActive, SafeModeReason? Reason, string
 ///     Its own load context, whose every assembly (its private dependencies too) is its code; null when it
 ///     shares the app's default context and only its entry assembly is.
 /// </param>
-public sealed record ExtensionIdentity(Assembly Assembly, string Name, string FeatureId, AssemblyLoadContext? LoadContext = null)
+public sealed record ExtensionIdentity(
+    Assembly Assembly,
+    string Name,
+    string FeatureId,
+    AssemblyLoadContext? LoadContext = null)
 {
     /// <summary>True when <paramref name="assembly" /> is this extension's code.</summary>
     public bool Owns(Assembly assembly) =>
         ReferenceEquals(assembly, Assembly)
         || (LoadContext is not null && !ReferenceEquals(LoadContext, AssemblyLoadContext.Default)
-                                    && ReferenceEquals(AssemblyLoadContext.GetLoadContext(assembly), LoadContext));
+            && ReferenceEquals(AssemblyLoadContext.GetLoadContext(assembly), LoadContext));
 }
 
 /// <summary>
@@ -164,7 +175,8 @@ public sealed class LaunchGuard
     }
 
     /// <summary>The app finished starting and its UI answered: a later failure is no longer a failed start.</summary>
-    public void MarkRunning() => Update(s => s.Phase == LaunchPhase.Starting ? s with { Phase = LaunchPhase.Running } : s);
+    public void MarkRunning() =>
+        Update(s => s.Phase == LaunchPhase.Starting ? s with { Phase = LaunchPhase.Running } : s);
 
     /// <summary>The app is closing normally.</summary>
     public void MarkExited() => Update(s => s with { Phase = LaunchPhase.Exited, Hung = false });
@@ -204,7 +216,7 @@ public sealed class LaunchGuard
         ExtensionIdentity[] known = [.. extensions];
         return known.Length == 0
             ? null
-            : DemoViewer.NET.Extensions.StackAttribution.Find(exception, a => known.FirstOrDefault(k => k.Owns(a)));
+            : Extensions.StackAttribution.Find(exception, a => known.FirstOrDefault(k => k.Owns(a)));
     }
 
     /// <summary>Reads a state file; null when it is missing or unreadable.</summary>
@@ -289,4 +301,8 @@ public sealed record LaunchState(
 /// <param name="ExceptionType">Its type.</param>
 /// <param name="ExtensionName">The extension found on its stack, or null.</param>
 /// <param name="ExtensionFeatureId">That extension's master switch.</param>
-public sealed record CrashRecord(DateTimeOffset AtUtc, string ExceptionType, string? ExtensionName, string? ExtensionFeatureId);
+public sealed record CrashRecord(
+    DateTimeOffset AtUtc,
+    string ExceptionType,
+    string? ExtensionName,
+    string? ExtensionFeatureId);

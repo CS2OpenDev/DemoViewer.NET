@@ -35,10 +35,10 @@ public sealed class AnnotationSessionController : IDisposable
     public const string FeatureId = "playback2d.annotations";
 
     /// <summary>The persisted spelling of "the right button does what the left one does".</summary>
-    public const string SecondaryToolSame = "Same";
+    private const string SecondaryToolSame = "Same";
 
     /// <summary>How many swatches the strip keeps. Eight fits one toolbar line at 820 px.</summary>
-    public const int MaxRecentColors = 8;
+    private const int MaxRecentColors = 8;
 
     // Injected so the browser branch of DescribeLocation is testable on a desktop runner:
     // OperatingSystem.IsBrowser() is a JIT-folded intrinsic and cannot be faked from outside.
@@ -105,7 +105,7 @@ public sealed class AnnotationSessionController : IDisposable
     public AnnotationDocument Document => Session.Document;
 
     /// <summary>How long changes coalesce before a save. 750 ms in the app; shortened by tests.</summary>
-    public TimeSpan AutoSaveDelay { get; set; } = TimeSpan.FromMilliseconds(750);
+    public TimeSpan AutoSaveDelay { get; init; } = TimeSpan.FromMilliseconds(750);
 
     /// <summary>
     ///     Whether the document is written to its sidecar automatically: the live face of
@@ -154,7 +154,7 @@ public sealed class AnnotationSessionController : IDisposable
     ///     How long preference changes coalesce before <c>settings.json</c> is rewritten. 250 ms in the
     ///     app; shortened (or zeroed, which writes inline) by tests.
     /// </summary>
-    public TimeSpan StylePersistDelay { get; set; } = TimeSpan.FromMilliseconds(250);
+    public TimeSpan StylePersistDelay { get; init; } = TimeSpan.FromMilliseconds(250);
 
     /// <summary>Recently used ink colours, newest first, as <c>#AARRGGBB</c>. Capped at eight.</summary>
     public IReadOnlyList<string> RecentColors => _recentColors;
@@ -245,7 +245,7 @@ public sealed class AnnotationSessionController : IDisposable
 
         string? normalized = string.IsNullOrWhiteSpace(demoPath) ? null : demoPath;
         if (!force && _attached
-                   && string.Equals(_demoPath, normalized, StringComparison.OrdinalIgnoreCase))
+            && string.Equals(_demoPath, normalized, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -341,7 +341,7 @@ public sealed class AnnotationSessionController : IDisposable
     }
 
     /// <summary>Reads the ink style, envelope defaults and tool from settings into the session.</summary>
-    public void ApplySettings()
+    private void ApplySettings()
     {
         Playback2DSettings prefs = _settings?.Current.Playback2D ?? new Playback2DSettings();
 

@@ -51,7 +51,8 @@ internal static class StratTestData
 
     public static Guid StepId(int n) => Guid.Parse($"9a0b0000-0000-4000-8000-{n:D12}");
 
-    public static StratStep Step(int n, double atSeconds, string actor, string verb, string? from = null, string? to = null) => new()
+    public static StratStep
+        Step(int n, double atSeconds, string actor, string verb, string? from = null, string? to = null) => new()
     {
         Id = StepId(n),
         AtSeconds = atSeconds,
@@ -64,7 +65,8 @@ internal static class StratTestData
     /// <summary>A valid strat with no unknown fields: the base most store tests edit.</summary>
     public static StratDocument Minimal(Guid? id = null, StratOwner? owner = null, string map = "de_mirage")
     {
-        StratDocument document = StratDocument.Create(id ?? Guid.NewGuid(), owner ?? Team, map, "T", "execute", "A exec", Created);
+        StratDocument document =
+            StratDocument.Create(id ?? Guid.NewGuid(), owner ?? Team, map, "T", "execute", "A exec", Created);
         document.TargetSite = "A";
         document.Steps.Add(Step(1, 90, "B", "throw", "TRamp", "BombsiteA"));
         document.Steps.Add(Step(2, 82, "C", "throw", "TRamp", "BombsiteA"));
@@ -80,7 +82,8 @@ internal static class StratTestData
     /// </summary>
     public static StratDocument SchemaSample()
     {
-        StratDocument document = StratDocument.Create(SampleId, Team, "de_mirage", "T", "execute", "A exec, double smoke", Created);
+        StratDocument document =
+            StratDocument.Create(SampleId, Team, "de_mirage", "T", "execute", "A exec, double smoke", Created);
         document.TargetSite = "A";
         document.Economy = "full";
         document.Tempo = "slow";
@@ -106,27 +109,60 @@ internal static class StratTestData
         document.Extra = new Dictionary<string, JsonElement> { ["futureRoot"] = Element("""{ "kept": true }""") };
 
         StratStep smoke = Step(1, 90, "B", "throw", "TRamp", "BombsiteA");
-        smoke.Utility = new UtilityRef { Kind = "smoke", Landing = new UtilityLanding { Place = "Stairs", X = -1024.5, Y = -1616, LevelMinZ = -256 } };
+        smoke.Utility = new UtilityRef
+        {
+            Kind = "smoke",
+            Landing = new UtilityLanding { Place = "Stairs", X = -1024.5, Y = -1616, LevelMinZ = -256 }
+        };
         smoke.Note = "throw on the 1:30 call, not before";
         smoke.Positions =
         [
-            new StepPosition { Slot = "A", X = 400, Y = -1800, LevelMinZ = -256, YawDegrees = 180 },
-            new StepPosition { Slot = "B", X = 420, Y = -1750, LevelMinZ = -256, Extra = new Dictionary<string, JsonElement> { ["futurePosition"] = Element("3") } },
+            new StepPosition
+            {
+                Slot = "A",
+                X = 400,
+                Y = -1800,
+                LevelMinZ = -256,
+                YawDegrees = 180
+            },
+            new StepPosition
+            {
+                Slot = "B",
+                X = 420,
+                Y = -1750,
+                LevelMinZ = -256,
+                Extra = new Dictionary<string, JsonElement> { ["futurePosition"] = Element("3") }
+            },
             new StepPosition { Slot = "O1", X = -1300, Y = -2100, LevelMinZ = -256 }
         ];
-        smoke.Strokes = [JsonNode.Parse("""{ "kind": "arrow", "space": { "kind": "world", "levelMinZ": -256 }, "points": [[420, -1750], [-900, -1600]], "color": "#FFC107", "width": 3 }""")!.AsObject()];
+        smoke.Strokes =
+        [
+            JsonNode.Parse(
+                    """{ "kind": "arrow", "space": { "kind": "world", "levelMinZ": -256 }, "points": [[420, -1750], [-900, -1600]], "color": "#FFC107", "width": 3 }""")
+                !.AsObject()
+        ];
         smoke.Interpolation = "linear";
         smoke.Extra = new Dictionary<string, JsonElement> { ["futureStep"] = Element("\"kept\"") };
 
         StratStep molly = Step(2, 76, "C", "throw", "TRamp", "BombsiteA");
-        molly.Utility = new UtilityRef { Kind = "molotov", LineupId = Guid.Parse("e4f5a6b7-c8d9-4e0f-9a1b-2c3d4e5f6a7b"), Landing = new UtilityLanding { Place = "Jungle" } };
+        molly.Utility = new UtilityRef
+        {
+            Kind = "molotov",
+            LineupId = Guid.Parse("e4f5a6b7-c8d9-4e0f-9a1b-2c3d4e5f6a7b"),
+            Landing = new UtilityLanding { Place = "Jungle" }
+        };
         molly.Positions = [new StepPosition { Slot = "C", X = 380, Y = -1700, LevelMinZ = -256 }];
         molly.HoldSeconds = 2.5;
         molly.Interpolation = "hold";
 
         StratStep peek = Step(3, 65, "A", "peek", "TRamp", "Connector");
         peek.Positions = [new StepPosition { Slot = "A", X = -600, Y = -1400, LevelMinZ = -256 }];
-        peek.Strokes = [JsonNode.Parse("""{ "kind": "text", "space": { "kind": "world", "levelMinZ": -256 }, "points": [[-600, -1400]], "text": "swing wide" }""")!.AsObject()];
+        peek.Strokes =
+        [
+            JsonNode.Parse(
+                    """{ "kind": "text", "space": { "kind": "world", "levelMinZ": -256 }, "points": [[-600, -1400]], "text": "swing wide" }""")
+                !.AsObject()
+        ];
 
         StratStep all = Step(4, 60, "all", "move", "TRamp", "BombsiteA");
 
@@ -155,7 +191,8 @@ internal static class StratTestData
         StratDocument document = Minimal(HistoryId);
         document.Economy = "full";
         document.Steps[0].Note = "stairs first";
-        document.Steps[1].Utility = new UtilityRef { Kind = "molotov", Landing = new UtilityLanding { Place = "Jungle" } };
+        document.Steps[1].Utility =
+            new UtilityRef { Kind = "molotov", Landing = new UtilityLanding { Place = "Jungle" } };
         Commit(store, document, [], "created");
 
         StratCommitBuffer drag = new();
@@ -163,7 +200,8 @@ internal static class StratTestData
         {
             double from = 82 - (i - 1) * 0.15;
             double to = i == 40 ? 76 : 82 - i * 0.15;
-            drag.Record(PatchOp.ReplaceOp("/steps/1/atSeconds", JsonValue.Create(from), JsonValue.Create(to)), Created.AddSeconds(i));
+            drag.Record(PatchOp.ReplaceOp("/steps/1/atSeconds", JsonValue.Create(from), JsonValue.Create(to)),
+                Created.AddSeconds(i));
         }
 
         document = Commit(store, document, drag.Drain(), "molotov moved from 1:22 to 1:16");
@@ -185,7 +223,8 @@ internal static class StratTestData
         document = Commit(store, document,
         [
             PatchOp.AddOp("/branches/0", JsonSerializer.SerializeToNode(branch, StratJsonContext.Default.StratBranch)),
-            PatchOp.ReplaceOp("/status", JsonValue.Create(document.Status), JsonValue.Create(nameof(StratStatus.Active)))
+            PatchOp.ReplaceOp("/status", JsonValue.Create(document.Status),
+                JsonValue.Create(nameof(StratStatus.Active)))
         ], "branch added; status Theory → Active");
 
         Commit(store, document,
@@ -198,7 +237,8 @@ internal static class StratTestData
 
     public const int HistoryRevisions = 5;
 
-    private static StratDocument Commit(StratStore store, StratDocument document, IReadOnlyList<PatchOp> ops, string summary)
+    private static StratDocument Commit(StratStore store, StratDocument document, IReadOnlyList<PatchOp> ops,
+        string summary)
     {
         StratDocument next = ops.Count == 0 ? document : StratHistory.Apply(document, ops);
         StratSaveResult result = store.Save(next, ops, summary);
@@ -242,7 +282,7 @@ public class StratSchemaSnapshotTests
         if (Updating)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, StratStore.Serialize(StratTestData.SchemaSample()) + "\n");
+            await File.WriteAllTextAsync(path, StratStore.Serialize(StratTestData.SchemaSample()) + "\n");
         }
 
         if (!File.Exists(path))
@@ -250,14 +290,15 @@ public class StratSchemaSnapshotTests
             throw new SkipTestException($"missing {path}; regenerate with PB2D_GOLDEN_UPDATE=1");
         }
 
-        string original = File.ReadAllText(path).Replace("\r\n", "\n", StringComparison.Ordinal);
+        string original = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
         string root = StratTestData.TempRoot();
         try
         {
             // Through the real store, not the serializer alone: the bytes a user's file goes through are the store's.
-            string file = Path.Combine(StratStore.FolderFor(root, StratTestData.Team, "de_mirage"), StratTestData.SampleId + StratStore.StratExtension);
+            string file = Path.Combine(StratStore.FolderFor(root, StratTestData.Team, "de_mirage"),
+                StratTestData.SampleId + StratStore.StratExtension);
             Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-            File.WriteAllText(file, original);
+            await File.WriteAllTextAsync(file, original);
 
             StratStore store = new(PackStores.At(root));
             StratLoadResult loaded = store.Load(StratTestData.SampleId);
@@ -276,24 +317,27 @@ public class StratSchemaSnapshotTests
                 await Assert.That(document.Steps[0].Positions[1].Extra!.ContainsKey("futurePosition")).IsTrue();
                 await Assert.That(document.Branches[0].Extra!.ContainsKey("futureBranch")).IsTrue();
                 await Assert.That(loaded.Issues.Any(i => i.Severity == StratIssueSeverity.Refusal)).IsFalse();
-                await Assert.That(loaded.Issues.Any(i => i.Message.Contains("futureRoot", StringComparison.Ordinal))).IsTrue()
+                await Assert.That(loaded.Issues.Any(i => i.Message.Contains("futureRoot", StringComparison.Ordinal)))
+                    .IsTrue()
                     .Because("unknown fields are listed as info on load");
             }
 
             await Assert.That(StratStore.Serialize(document) + "\n").IsEqualTo(original)
-                .Because("the v1 strat is a published format; a round trip must be field-identical, unknown fields included");
+                .Because(
+                    "the v1 strat is a published format; a round trip must be field-identical, unknown fields included");
             await Assert.That(StratStore.Serialize(StratTestData.SchemaSample()) + "\n").IsEqualTo(original)
                 .Because("this build still writes the committed shape");
 
             // A commit with nothing in it writes nothing, so a stored file is never churned by a no-op save.
             await Assert.That(store.Save(document, [], null).Saved).IsTrue();
-            await Assert.That(File.ReadAllText(file)).IsEqualTo(original).Because("the file is not touched at all");
+            await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(original)
+                .Because("the file is not touched at all");
 
             // A real commit keeps every unknown field.
             PatchOp op = PatchOp.ReplaceOp("/tempo", JsonValue.Create("slow"), JsonValue.Create("mid"));
             StratDocument edited = StratHistory.Apply(document, [op]);
             StratSaveResult saved = store.Save(edited, [op], "tempo slow → mid");
-            string written = File.ReadAllText(file);
+            string written = await File.ReadAllTextAsync(file);
             using (Assert.Multiple())
             {
                 await Assert.That(saved.Saved).IsTrue();
@@ -323,15 +367,18 @@ public class StratSchemaSnapshotTests
             StratStore writer = new(PackStores.At(scratch), utcNow: StratTestData.SteppingClock(StratTestData.Created));
             StratTestData.RunHistoryScript(writer);
             string folder = StratStore.FolderFor(scratch, StratTestData.Team, "de_mirage");
-            string writtenLog = File.ReadAllText(Path.Combine(folder, StratTestData.HistoryId + StratStore.HistoryExtension));
+            string writtenLog =
+                await File.ReadAllTextAsync(Path.Combine(folder,
+                    StratTestData.HistoryId + StratStore.HistoryExtension));
 
             if (Updating)
             {
                 Directory.CreateDirectory(dir);
-                File.WriteAllText(historyPath, writtenLog);
+                await File.WriteAllTextAsync(historyPath, writtenLog);
                 for (int n = 1; n <= StratTestData.HistoryRevisions; n++)
                 {
-                    File.WriteAllText(Path.Combine(dir, SnapshotName(n)), StratStore.Serialize(writer.Materialize(StratTestData.HistoryId, n)!) + "\n");
+                    await File.WriteAllTextAsync(Path.Combine(dir, SnapshotName(n)),
+                        StratStore.Serialize(writer.Materialize(StratTestData.HistoryId, n)!) + "\n");
                 }
             }
 
@@ -340,8 +387,10 @@ public class StratSchemaSnapshotTests
                 throw new SkipTestException($"missing {historyPath}; regenerate with PB2D_GOLDEN_UPDATE=1");
             }
 
-            string committedLog = File.ReadAllText(historyPath).Replace("\r\n", "\n", StringComparison.Ordinal);
-            await Assert.That(writtenLog).IsEqualTo(committedLog).Because("this build still writes the committed log, one line per commit");
+            string committedLog =
+                (await File.ReadAllTextAsync(historyPath)).Replace("\r\n", "\n", StringComparison.Ordinal);
+            await Assert.That(writtenLog).IsEqualTo(committedLog)
+                .Because("this build still writes the committed log, one line per commit");
 
             string[] lines = committedLog.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             await Assert.That(lines.Length).IsEqualTo(StratTestData.HistoryRevisions);
@@ -354,25 +403,32 @@ public class StratSchemaSnapshotTests
             {
                 string readerFolder = StratStore.FolderFor(reader, StratTestData.Team, "de_mirage");
                 Directory.CreateDirectory(readerFolder);
-                File.WriteAllText(Path.Combine(readerFolder, StratTestData.HistoryId + StratStore.HistoryExtension), committedLog);
+                await File.WriteAllTextAsync(
+                    Path.Combine(readerFolder, StratTestData.HistoryId + StratStore.HistoryExtension),
+                    committedLog);
                 StratStore store = new(PackStores.At(reader));
-                await Assert.That(store.TryLoad(StratTestData.HistoryId)?.Revision).IsEqualTo(StratTestData.HistoryRevisions)
+                await Assert.That(store.TryLoad(StratTestData.HistoryId)?.Revision)
+                    .IsEqualTo(StratTestData.HistoryRevisions)
                     .Because("a log with no strat file is a first commit that crashed; the store recovers the file");
 
                 string[] snapshots = new string[StratTestData.HistoryRevisions + 1];
                 for (int n = 1; n <= StratTestData.HistoryRevisions; n++)
                 {
                     string snapshotPath = Path.Combine(dir, SnapshotName(n));
-                    snapshots[n] = File.ReadAllText(snapshotPath).Replace("\r\n", "\n", StringComparison.Ordinal);
-                    await Assert.That(StratStore.Serialize(store.Materialize(StratTestData.HistoryId, n)!) + "\n").IsEqualTo(snapshots[n])
+                    snapshots[n] =
+                        (await File.ReadAllTextAsync(snapshotPath)).Replace("\r\n", "\n", StringComparison.Ordinal);
+                    await Assert.That(StratStore.Serialize(store.Materialize(StratTestData.HistoryId, n)!) + "\n")
+                        .IsEqualTo(snapshots[n])
                         .Because($"Materialize({n}) must equal the committed snapshot");
                 }
 
-                await Assert.That(StratStore.Serialize(store.TryLoad(StratTestData.HistoryId)!) + "\n").IsEqualTo(snapshots[^1]);
+                await Assert.That(StratStore.Serialize(store.TryLoad(StratTestData.HistoryId)!) + "\n")
+                    .IsEqualTo(snapshots[^1]);
 
                 // Every entry's inverse, applied newest first, walks the latest state back to revision 1.
                 IReadOnlyList<HistoryEntry> log = store.History(StratTestData.HistoryId);
-                JsonNode? node = StratHistory.ToNode(store.Materialize(StratTestData.HistoryId, StratTestData.HistoryRevisions)!);
+                JsonNode? node =
+                    StratHistory.ToNode(store.Materialize(StratTestData.HistoryId, StratTestData.HistoryRevisions)!);
                 for (int i = log.Count - 1; i >= 1; i--)
                 {
                     node = StratHistory.ApplyAll(node, log[i].Inverse().Ops);
@@ -401,7 +457,11 @@ public class StratSchemaSnapshotTests
         CalloutTable table = new()
         {
             Map = "de_mirage",
-            Aliases = [new CalloutAlias { Alias = "palace", Place = "PalaceInterior", Primary = true }, new CalloutAlias { Alias = "con", Place = "Connector" }]
+            Aliases =
+            [
+                new CalloutAlias { Alias = "palace", Place = "PalaceInterior", Primary = true },
+                new CalloutAlias { Alias = "con", Place = "Connector" }
+            ]
         };
         string callouts = JsonSerializer.Serialize(table, StratJsonContext.Default.CalloutTable);
 

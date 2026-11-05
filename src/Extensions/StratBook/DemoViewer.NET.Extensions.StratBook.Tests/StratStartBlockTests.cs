@@ -2,17 +2,17 @@
 
 using System.Text.Json;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
-using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Extensions.StratBook.Services.Zones;
+using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.TestSupport;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 using TUnit.Core.Exceptions;
 using static DemoViewer.NET.AppTests.StratStepMotionTests;
 using static DemoViewer.NET.AppTests.StratTestData;
-using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 
 #endregion
 
@@ -27,20 +27,22 @@ namespace DemoViewer.NET.AppTests;
 [NotInParallel]
 public class StratStartBlockTests
 {
-    private static readonly int[] StartTicks = [0, 64, 448, 2000, 4000];
+    private static readonly int[] _startTicks = [0, 64, 448, 2000, 4000];
 
     private const double Level = -99968;
 
     private const string LegacyName = "legacy.seed-move.dvstrat.json";
 
     // A to D's spawn spots as the lurk's copies hold them; E's and the opponents' are still on the move step.
-    private static readonly (string Slot, float X, float Y)[] Spawn =
+    private static readonly (string Slot, float X, float Y)[] _spawn =
         [("A", -750, -791), ("B", -736, -912), ("C", -777, -690), ("D", -864, -737), ("E", -608, -800)];
 
     private static string LegacyText()
     {
-        string repo = DemoTestHelper.FindRepoRoot() ?? throw new SkipTestException("repo root not found from the test output directory");
-        return File.ReadAllText(Path.Combine(repo, "tests", "fixtures", "strats", LegacyName)).Replace("\r\n", "\n", StringComparison.Ordinal);
+        string repo = DemoTestHelper.FindRepoRoot()
+            ?? throw new SkipTestException("repo root not found from the test output directory");
+        return File.ReadAllText(Path.Combine(repo, "tests", "fixtures", "strats", LegacyName))
+            .Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
     internal static StratDocument Legacy() =>
@@ -50,19 +52,23 @@ public class StratStartBlockTests
     {
         using AssetZonePlaceResolverSource source = new();
         return source.TryGet("de_dust2")
-               ?? throw new SkipTestException("de_dust2's zones are not in assets/");
+            ?? throw new SkipTestException("de_dust2's zones are not in assets/");
     }
 
     private static StratSceneProjection Project(StratDocument document, IZonePlaceResolver? map) =>
         map is null
             ? StratSceneProjection.Build(document, StratPath.MainLine(document))
-            : StratSceneProjection.Build(document, StratPath.MainLine(document), null, map.PlaceCentre, map.PlaceArrival,
+            : StratSceneProjection.Build(document, StratPath.MainLine(document), null, map.PlaceCentre,
+                map.PlaceArrival,
                 (place, x, y, level) => map.ResolveOnFloor(x, y, level) == place);
 
     private static TokenKeyframe Sample(StratSceneProjection projection, string slot, int tick) =>
-        projection.Tracks.Single(t => t.Slot == slot).TrySample(tick, out TokenKeyframe k) ? k : throw new InvalidOperationException($"no {slot} at {tick}");
+        projection.Tracks.Single(t => t.Slot == slot).TrySample(tick, out TokenKeyframe k)
+            ? k
+            : throw new InvalidOperationException($"no {slot} at {tick}");
 
-    private static double Distance(TokenKeyframe k, float x, float y) => Math.Sqrt((k.X - x) * (double)(k.X - x) + (k.Y - y) * (double)(k.Y - y));
+    private static double Distance(TokenKeyframe k, float x, float y) =>
+        Math.Sqrt((k.X - x) * (double)(k.X - x) + (k.Y - y) * (double)(k.Y - y));
 
     [Test]
     public async Task TheOwnersFile_LoadsAndSavesByteForByte_AndReadsItsStartFromTheSeedAndTheLurksCopies()
@@ -77,10 +83,13 @@ public class StratStartBlockTests
                 await Assert.That(StratStore.Serialize(document)).IsEqualTo(text).Because("nothing is written on open");
                 await Assert.That(document.Start).IsNull();
                 await Assert.That(start).IsNotNull();
-                await Assert.That(start!.Positions.Select(p => p.Slot)).IsEquivalentTo(["A", "B", "C", "D", "E", "O1", "O2", "O3", "O4", "O5"], CollectionOrdering.Matching);
-                await Assert.That(sources.Where(s => s.Step == 1).Count()).IsEqualTo(4).Because("A to D's only spawn entries are the lurk's copies");
-                await Assert.That(sources.Where(s => s.Step == 0).Count()).IsEqualTo(6);
-                foreach ((string slot, float x, float y) in Spawn)
+                await Assert.That(start!.Positions.Select(p => p.Slot))
+                    .IsEquivalentTo(["A", "B", "C", "D", "E", "O1", "O2", "O3", "O4", "O5"],
+                        CollectionOrdering.Matching);
+                await Assert.That(sources.Count(s => s.Step == 1)).IsEqualTo(4)
+                    .Because("A to D's only spawn entries are the lurk's copies");
+                await Assert.That(sources.Count(s => s.Step == 0)).IsEqualTo(6);
+                foreach ((string slot, float x, float y) in _spawn)
                 {
                     StartPosition entry = StratStartBlock.For(start, slot)!;
                     await Assert.That((entry.X, entry.Y)).IsEqualTo(((double?)x, (double?)y));
@@ -102,7 +111,7 @@ public class StratStartBlockTests
             using (Assert.Multiple())
             {
                 await Assert.That(projection.HasStart).IsTrue();
-                foreach ((string slot, float x, float y) in Spawn)
+                foreach ((string slot, float x, float y) in _spawn)
                 {
                     TokenKeyframe at = Sample(projection, slot, 0);
                     await Assert.That((at.X, at.Y)).IsEqualTo((x, y)).Because($"{slot} stands in spawn at 1:55");
@@ -110,13 +119,15 @@ public class StratStartBlockTests
 
                 foreach ((string slot, float x, float y) in destinations)
                 {
-                    (string _, float sx, float sy) = Spawn.Single(s => s.Slot == slot);
+                    (string _, float sx, float sy) = _spawn.Single(s => s.Slot == slot);
                     TokenKeyframe second = Sample(projection, slot, 64);
-                    await Assert.That(Distance(second, x, y)).IsLessThan(Math.Sqrt((x - sx) * (double)(x - sx) + (y - sy) * (double)(y - sy)))
+                    await Assert.That(Distance(second, x, y))
+                        .IsLessThan(Math.Sqrt((x - sx) * (double)(x - sx) + (y - sy) * (double)(y - sy)))
                         .Because($"{slot} is on its way a second in");
                     await Assert.That(Distance(second, sx, sy)).IsGreaterThan(100).Because($"{slot} has left spawn");
                     TokenKeyframe atLurk = Sample(projection, slot, lurk);
-                    await Assert.That(Distance(atLurk, sx, sy)).IsGreaterThan(300).Because($"the lurk's copy does not pull {slot} back to spawn");
+                    await Assert.That(Distance(atLurk, sx, sy)).IsGreaterThan(300)
+                        .Because($"the lurk's copy does not pull {slot} back to spawn");
                 }
 
                 TokenKeyframe a = Sample(projection, "A", lurk);
@@ -130,7 +141,8 @@ public class StratStartBlockTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_motion", "T", "execute", "start", Created);
+            StratDocument document =
+                StratDocument.Create(Guid.NewGuid(), Team, "de_motion", "T", "execute", "start", Created);
             document.Start = new StratStart
             {
                 Positions = [new StartPosition { Slot = "A", X = 0, Y = 0, LevelMinZ = 0 }]
@@ -140,12 +152,15 @@ public class StratStartBlockTests
             StratSceneProjection projection = Project(document, null);
             StratSceneProjection routed = StratSceneProjection.Build(document, StratPath.MainLine(document), null,
                 (place, _) => place == "Mid" ? (1075, 0) : null);
-            TokenKeyframe start = Sample(routed, "A", 0), later = Sample(routed, "A", 64), end = Sample(routed, "A", RunTicks(1075, 0));
+            TokenKeyframe start = Sample(routed, "A", 0),
+                later = Sample(routed, "A", 64),
+                end = Sample(routed, "A", RunTicks(1075, 0));
             using (Assert.Multiple())
             {
                 await Assert.That(projection.HasStart).IsTrue();
                 await Assert.That((start.X, start.Y)).IsEqualTo((0f, 0f));
-                await Assert.That(later.X).IsEqualTo(215f).Within(1f).Because("it runs from the start at 215 units a second");
+                await Assert.That(later.X).IsEqualTo(215f).Within(1f)
+                    .Because("it runs from the start at 215 units a second");
                 await Assert.That((end.X, end.Y)).IsEqualTo((1075f, 0f));
             }
         });
@@ -156,8 +171,12 @@ public class StratStartBlockTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_motion", "T", "execute", "start", Created);
-            document.Start = new StratStart { Positions = [new StartPosition { Slot = "A", X = 0, Y = 0, LevelMinZ = 0 }] };
+            StratDocument document =
+                StratDocument.Create(Guid.NewGuid(), Team, "de_motion", "T", "execute", "start", Created);
+            document.Start = new StratStart
+            {
+                Positions = [new StartPosition { Slot = "A", X = 0, Y = 0, LevelMinZ = 0 }]
+            };
             document.Steps = [Step(1, 115, "A", "hold", to: "Mid")];
             StratSceneProjection projection = StratSceneProjection.Build(document, StratPath.MainLine(document), null,
                 (place, _) => place == "Mid" ? (430, 0) : null);
@@ -175,7 +194,8 @@ public class StratStartBlockTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_motion", "T", "execute", "start", Created);
+            StratDocument document =
+                StratDocument.Create(Guid.NewGuid(), Team, "de_motion", "T", "execute", "start", Created);
             document.Steps = [Step(1, 90, "A", "move", to: "Mid")];
             StratSceneProjection projection = StratSceneProjection.Build(document, StratPath.MainLine(document), null,
                 (place, _) => place == "Mid" ? (430, 0) : null);
@@ -192,7 +212,8 @@ public class StratStartBlockTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_motion", "T", "execute", "start", Created);
+            StratDocument document =
+                StratDocument.Create(Guid.NewGuid(), Team, "de_motion", "T", "execute", "start", Created);
             document.Start = new StratStart
             {
                 Kind = StratStart.CustomKind,
@@ -201,7 +222,8 @@ public class StratStartBlockTests
             document.Steps = [Step(1, 90, StratVocabulary.ActorAll, "wait")];
             StratSceneProjection projection = StratSceneProjection.Build(document, StratPath.MainLine(document), null,
                 (place, _) => place == "TSpawn" ? (1000, 1000) : null);
-            List<(float X, float Y)> spots = [.. StratVocabulary.Slots.Select(s => (Sample(projection, s, 0).X, Sample(projection, s, 0).Y))];
+            List<(float X, float Y)> spots =
+                [.. StratVocabulary.Slots.Select(s => (Sample(projection, s, 0).X, Sample(projection, s, 0).Y))];
             await Assert.That(spots.Distinct().Count()).IsEqualTo(5).Because("five tokens at one place stand apart");
         });
     }
@@ -225,11 +247,13 @@ public class StratStartBlockTests
                 await Assert.That(after.Start!.Kind).IsEqualTo(StratStart.CustomKind);
                 await Assert.That(after.Start.Positions.Count).IsEqualTo(10);
                 await Assert.That(after.Steps[0].Positions).IsEmpty().Because("the start replaces the seed's entries");
-                await Assert.That(after.Steps[1].Positions.Select(p => p.Slot)).IsEquivalentTo(["E"], CollectionOrdering.Matching).Because("the lurk's spawn copies became the start");
+                await Assert.That(after.Steps[1].Positions.Select(p => p.Slot))
+                    .IsEquivalentTo(["E"], CollectionOrdering.Matching)
+                    .Because("the lurk's spawn copies became the start");
                 await Assert.That(Sample(now, "O1", 0).X).IsEqualTo(300f);
                 foreach (string slot in StratVocabulary.Slots)
                 {
-                    foreach (int tick in StartTicks)
+                    foreach (int tick in _startTicks)
                     {
                         TokenKeyframe a = Sample(was, slot, tick), b = Sample(now, slot, tick);
                         await Assert.That((b.X, b.Y)).IsEqualTo((a.X, a.Y)).Because($"{slot} plays the same at {tick}");
@@ -247,17 +271,23 @@ public class StratStartBlockTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            const int freeze = 6400;
-            List<CapturedPawn> start = [.. Enumerable.Range(0, 10).Select(s => new CapturedPawn(s, s < 5 ? 2 : 3, (ulong)(100 + s), "p" + s, s * 400, 0, 0, 90, "TSpawn"))];
-            List<CapturedPawn> later = [.. start.Select(p => p with { X = p.X + 900, Y = 300, Place = "Mid" })];
-            RoundCapture capture = new(7, freeze, freeze + 64 * 100, 64,
+            const int Freeze = 6400;
+            List<CapturedPawn> start =
             [
-                new CaptureMoment(freeze, CaptureTrigger.FreezeEnd, start),
-                new CaptureMoment(freeze + 64 * 10, CaptureTrigger.Sweep, later)
+                .. Enumerable.Range(0, 10).Select(s =>
+                    new CapturedPawn(s, s < 5 ? 2 : 3, (ulong)(100 + s), "p" + s, s * 400, 0, 0, 90, "TSpawn"))
+            ];
+            List<CapturedPawn> later = [.. start.Select(p => p with { X = p.X + 900, Y = 300, Place = "Mid" })];
+            RoundCapture capture = new(7, Freeze, Freeze + 64 * 100, 64,
+            [
+                new CaptureMoment(Freeze, CaptureTrigger.FreezeEnd, start),
+                new CaptureMoment(Freeze + 64 * 10, CaptureTrigger.Sweep, later)
             ]);
-            StratCaptureOptions options = new(2, StratFromRound.Tokens(start, 2, StratFromRound.SlotMap(start.Where(p => p.Team == 2), null, null)),
+            StratCaptureOptions options = new(2,
+                StratFromRound.Tokens(start, 2, StratFromRound.SlotMap(start.Where(p => p.Team == 2), null, null)),
                 StratClock.DefaultRoundSeconds, false, StratFromRound.QuantizedLevel);
-            StratDocument captured = StratFromRound.Document(capture, options, Team, "de_mirage", "r7", new StratOrigin { DemoSha256 = "ab", Round = 7 }, null, Created);
+            StratDocument captured = StratFromRound.Document(capture, options, Team, "de_mirage", "r7",
+                new StratOrigin { DemoSha256 = "ab", Round = 7 }, null, Created);
             StratDocument without = captured.Clone();
             without.Start = null;
 
@@ -265,32 +295,40 @@ public class StratStartBlockTests
             using (Assert.Multiple())
             {
                 await Assert.That(captured.Start!.Kind).IsEqualTo(StratStart.CapturedKind);
-                await Assert.That(captured.Start.Positions.All(p => p.Observed == true && p.Place == "TSpawn")).IsTrue();
+                await Assert.That(captured.Start.Positions.All(p => p is { Observed: true, Place: "TSpawn" }))
+                    .IsTrue();
                 await Assert.That(captured.Steps[0].Verb).IsEqualTo("hold").Because("the freeze-end step stays");
-                await Assert.That(with.Tracks.Select(t => t.Slot)).IsEquivalentTo(plain.Tracks.Select(t => t.Slot), CollectionOrdering.Matching);
+                await Assert.That(with.Tracks.Select(t => t.Slot))
+                    .IsEquivalentTo(plain.Tracks.Select(t => t.Slot), CollectionOrdering.Matching);
                 foreach (TokenTrack track in plain.Tracks)
                 {
                     for (int tick = 0; tick <= plain.ContentEndTick; tick += 7)
                     {
                         TokenKeyframe a = Sample(plain, track.Slot, tick), b = Sample(with, track.Slot, tick);
-                        await Assert.That((b.X, b.Y, b.YawDegrees)).IsEqualTo((a.X, a.Y, a.YawDegrees)).Because($"{track.Slot} at {tick}");
+                        await Assert.That((b.X, b.Y, b.YawDegrees)).IsEqualTo((a.X, a.Y, a.YawDegrees))
+                            .Because($"{track.Slot} at {tick}");
                     }
                 }
             }
         });
     }
 
-    private static readonly StratSpawns FixedSpawns = new(
+    private static readonly StratSpawns _fixedSpawns = new(
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(1000 + 100 * i, 0, 0, "TSpawn"))],
         [.. Enumerable.Range(0, 5).Select(i => new SpawnSpot(-1000 - 100 * i, 0, 0, "CTSpawn"))]);
 
     // Rush A as it was left: the seed turned into a throw at 1:55 holding only the opponents, our five gone from it.
     private static StratDocument SeedWithoutOurFive()
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "rush", "Rush A", Created);
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, "de_mirage", "T", "rush", "Rush A", Created);
         StratStep smoke = Step(1, 115, "C", "throw");
         smoke.Utility = new UtilityRef { Kind = "smoke" };
-        smoke.Positions = [.. StratVocabulary.OpponentSlots.Select((s, i) => new StepPosition { Slot = s, X = -1000 - 100 * i, Y = 50 })];
+        smoke.Positions =
+        [
+            .. StratVocabulary.OpponentSlots.Select((s, i) =>
+                new StepPosition { Slot = s, X = -1000 - 100 * i, Y = 50 })
+        ];
         document.Steps = [smoke, Step(2, 106, StratVocabulary.ActorAll, "move", to: "BombsiteA")];
         return document;
     }
@@ -302,18 +340,24 @@ public class StratStartBlockTests
         {
             StratDocument document = SeedWithoutOurFive();
             PlaceCentreResolver centres = (place, _) => place == "BombsiteA" ? (1000, 2150) : null;
-            StratSceneProjection without = StratSceneProjection.Build(document, StratPath.MainLine(document), null, centres);
-            StratSceneProjection with = StratSceneProjection.Build(document, StratPath.MainLine(document), null, centres, spawns: FixedSpawns);
+            StratSceneProjection without =
+                StratSceneProjection.Build(document, StratPath.MainLine(document), null, centres);
+            StratSceneProjection with = StratSceneProjection.Build(document, StratPath.MainLine(document), null,
+                centres, spawns: _fixedSpawns);
             int move = StepSchedule.TickFor(106, 115);
             using (Assert.Multiple())
             {
-                await Assert.That(StratStartBlock.Effective(document)!.Positions.Select(p => p.Slot)).IsEquivalentTo(StratVocabulary.OpponentSlots, CollectionOrdering.Matching);
-                await Assert.That(StratStartBlock.Effective(document, FixedSpawns)!.Positions.Count).IsEqualTo(10);
-                await Assert.That(without.Tracks.Single(t => t.Slot == "A").TrySample(0, out _)).IsFalse().Because("no spawns, no start for A");
+                await Assert.That(StratStartBlock.Effective(document)!.Positions.Select(p => p.Slot))
+                    .IsEquivalentTo(StratVocabulary.OpponentSlots, CollectionOrdering.Matching);
+                await Assert.That(StratStartBlock.Effective(document, _fixedSpawns)!.Positions.Count).IsEqualTo(10);
+                await Assert.That(without.Tracks.Single(t => t.Slot == "A").TrySample(0, out _)).IsFalse()
+                    .Because("no spawns, no start for A");
                 await Assert.That(Sample(with, "A", 0).X).IsEqualTo(1000f);
-                await Assert.That(Sample(with, "A", move + 64).Y).IsGreaterThan(100f).Because("A runs from spawn at 1:46");
+                await Assert.That(Sample(with, "A", move + 64).Y).IsGreaterThan(100f)
+                    .Because("A runs from spawn at 1:46");
                 await Assert.That(Sample(with, "A", move + 64).Y).IsLessThan(2150f);
-                await Assert.That(StratStore.Serialize(document)).DoesNotContain("\"start\"").Because("reading the spawns writes nothing");
+                await Assert.That(StratStore.Serialize(document)).DoesNotContain("\"start\"")
+                    .Because("reading the spawns writes nothing");
             }
         });
     }
@@ -322,7 +366,8 @@ public class StratStartBlockTests
         new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped,
             placesFor: _ => Task.FromResult<IZonePlaceResolver?>(StratMapFirstTests.SyntheticZones()), post: a => a());
 
-    private static void Drag(StratCanvasViewModel canvas, string slot, double x, double y, TokenGrip grip = TokenGrip.Body)
+    private static void Drag(StratCanvasViewModel canvas, string slot, double x, double y,
+        TokenGrip grip = TokenGrip.Body)
     {
         canvas.BeginDrag(slot, grip);
         canvas.MoveTo(slot, new SKPoint((float)x - 5, (float)y - 5), -512);
@@ -332,11 +377,16 @@ public class StratStartBlockTests
 
     private static StratDocument WithStart(params StratStep[] steps)
     {
-        StratDocument document = StratDocument.Create(Guid.NewGuid(), Team, "de_synthetic", "T", "execute", "start", Created);
+        StratDocument document =
+            StratDocument.Create(Guid.NewGuid(), Team, "de_synthetic", "T", "execute", "start", Created);
         document.Canvas = new StratCanvas { DefaultLevelMinZ = -512 };
         document.Start = new StratStart
         {
-            Positions = [.. StratVocabulary.Slots.Select((s, i) => new StartPosition { Slot = s, X = 10 + 10 * i, Y = 10, LevelMinZ = -512 })]
+            Positions =
+            [
+                .. StratVocabulary.Slots.Select((s, i) =>
+                    new StartPosition { Slot = s, X = 10 + 10 * i, Y = 10, LevelMinZ = -512 })
+            ]
         };
         document.Steps = [.. steps];
         return document;
@@ -364,7 +414,8 @@ public class StratStartBlockTests
             {
                 await Assert.That((a.Place, a.X, a.Y)).IsEqualTo(("Hut", (double?)25, (double?)75));
                 await Assert.That(session.Document!.Start!.Kind).IsEqualTo(StratStart.CustomKind);
-                await Assert.That(session.Document!.Steps[0].To!.Place).IsEqualTo("Ramp").Because("the step is not touched");
+                await Assert.That(session.Document!.Steps[0].To!.Place).IsEqualTo("Ramp")
+                    .Because("the step is not touched");
                 await Assert.That(session.UndoDepth).IsEqualTo(1);
                 await Assert.That(canvas.IsStartSelected).IsTrue();
                 await Assert.That(canvas.StatusLine).Contains("A now starts at Hut");
@@ -386,7 +437,8 @@ public class StratStartBlockTests
             canvas.SelectStep(document.Steps[0].Id);
 
             Drag(canvas, "A", 25, 75);
-            await Assert.That(session.Document!.Steps[0].To!.Place).IsEqualTo("Hut").Because("a move at the start time takes the drop as its to");
+            await Assert.That(session.Document!.Steps[0].To!.Place).IsEqualTo("Hut")
+                .Because("a move at the start time takes the drop as its to");
             await Assert.That(StratStartBlock.For(session.Document!.Start, "A")!.X).IsEqualTo(10);
 
             // At a wait no one moves, and nothing has placed B since it started: the drag moves its start.
@@ -472,7 +524,8 @@ public class StratStartBlockTests
                 await Assert.That(session.UndoDepth).IsEqualTo(0);
                 await Assert.That(session.Document!.Start!.Kind).IsEqualTo(StratStart.CapturedKind);
                 await Assert.That(StratHistory.ToNode(session.Document!).ToJsonString()).IsEqualTo(before);
-                await Assert.That(StratStartBlock.WriteLocation(session.Document!, "A", StratStartBlock.LocationOf(session.Document!, "A"))).IsEmpty();
+                await Assert.That(StratStartBlock.WriteLocation(session.Document!, "A",
+                    StratStartBlock.LocationOf(session.Document!, "A"))).IsEmpty();
             }
         });
     }
@@ -488,11 +541,14 @@ public class StratStartBlockTests
             near.Positions = [new StepPosition { Slot = "A", X = 200, Y = 10, LevelMinZ = -512 }];
             using (Assert.Multiple())
             {
-                await Assert.That(StratDepartureCheck.Check(WithStart(far)).Select(i => i.Field)).IsEquivalentTo(["/steps/0/positions/0"], CollectionOrdering.Matching)
+                await Assert.That(StratDepartureCheck.Check(WithStart(far)).Select(i => i.Field))
+                    .IsEquivalentTo(["/steps/0/positions/0"], CollectionOrdering.Matching)
                     .Because("3000 units from the start in 5 s is faster than a run");
                 await Assert.That(StratDepartureCheck.Check(WithStart(near))).IsEmpty();
-                await Assert.That(StratDepartureCheck.Check(Legacy()).Select(i => i.Field)).IsEquivalentTo(["/steps/1/positions/4"], CollectionOrdering.Matching)
-                    .Because("the seed's own entries are its start; E's dragged lurk departure was already too far for a run");
+                await Assert.That(StratDepartureCheck.Check(Legacy()).Select(i => i.Field))
+                    .IsEquivalentTo(["/steps/1/positions/4"], CollectionOrdering.Matching)
+                    .Because(
+                        "the seed's own entries are its start; E's dragged lurk departure was already too far for a run");
             }
         });
     }

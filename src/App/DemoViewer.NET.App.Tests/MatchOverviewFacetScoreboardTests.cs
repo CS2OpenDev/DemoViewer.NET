@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -58,12 +57,13 @@ public class MatchOverviewFacetScoreboardTests
         return r;
     }
 
-    private static FactRow Row(int slot, int team, long kills, long enemyDmg, double hltv, long ctw, long tw, long rounds = 22) => new(
+    private static FactRow Row(int slot, int team, long kills, long enemyDmg, double hltv, long ctw, long tw,
+        long rounds = 22) => new(
         new Dictionary<string, FactValue>
         {
-            ["player_slot"] = FactValue.Of((long)slot),
+            ["player_slot"] = FactValue.Of(slot),
             ["steam_id"] = FactValue.Of("7656119800000000" + slot),
-            ["team"] = FactValue.Of((long)team)
+            ["team"] = FactValue.Of(team)
         },
         new Dictionary<string, FactValue>
         {
@@ -79,7 +79,8 @@ public class MatchOverviewFacetScoreboardTests
 
     private static FactTable Facet(params FactRow[] rows) =>
         new(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match", ["player_slot", "steam_id", "team"],
-            ["rounds", "TotalK", "TotalD", "TotalA", "EnemyDmg", "HLTV", "CTW", "TW"], new Dictionary<string, string>(), rows);
+            ["rounds", "TotalK", "TotalD", "TotalA", "EnemyDmg", "HLTV", "CTW", "TW"], new Dictionary<string, string>(),
+            rows);
 
     // Ten players: the CT side won 7 rounds on CT and 6 on T, the T side 5 and 4, so the sides split 12:10.
     private static FactTable Match() => Facet(
@@ -125,7 +126,8 @@ public class MatchOverviewFacetScoreboardTests
         {
             await Assert.That(vm.PlayerStats.Count).IsEqualTo(10);
             await Assert.That(vm.PlayerStats.First().Kills).IsEqualTo("20");
-            await Assert.That(vm.CtSideWinsDisplay).IsEqualTo("12").Because("the side split comes from the same source as the rows");
+            await Assert.That(vm.CtSideWinsDisplay).IsEqualTo("12")
+                .Because("the side split comes from the same source as the rows");
         }
     }
 
@@ -133,7 +135,17 @@ public class MatchOverviewFacetScoreboardTests
     public async Task WithNoFacet_TheStoredScoreboardIsRead_AndWithNeitherTheStatsNeedAPass()
     {
         DemoCacheRecord stored = Scanned();
-        stored.Scoreboard = [new CachedStatRow { Slot = 0, Team = 3, Kills = 21, Adr = 80, Rating = 1.1 }];
+        stored.Scoreboard =
+        [
+            new CachedStatRow
+            {
+                Slot = 0,
+                Team = 3,
+                Kills = 21,
+                Adr = 80,
+                Rating = 1.1
+            }
+        ];
         MatchOverviewTabViewModel vm = new(computeFullStats: _ => { });
         vm.SetCachedRecord(stored);
         int storedRows = vm.PlayerStats.Count;
@@ -205,7 +217,8 @@ public class MatchOverviewFacetScoreboardTests
     {
         FactRow slotless = new(new Dictionary<string, FactValue> { ["team"] = FactValue.Of(3L) },
             new Dictionary<string, FactValue> { ["TotalK"] = FactValue.Of(100L) });
-        List<CachedStatRow> rows = DemoCacheAnalysisProjector.ProjectScoreboard(Facet(Row(1, 3, 24, 0, 1.005, 7, 6, 0), slotless));
+        List<CachedStatRow> rows =
+            DemoCacheAnalysisProjector.ProjectScoreboard(Facet(Row(1, 3, 24, 0, 1.005, 7, 6, 0), slotless));
         (int? ct, int? t) = DemoCacheAnalysisProjector.ComputeSideWins(rows);
         (int? splitCt, int? splitT) = DemoCacheAnalysisProjector.ComputeSideWins(
             DemoCacheAnalysisProjector.ProjectScoreboard(Facet(Row(1, 3, 1, 0, 1, 7, 6), Row(2, 3, 1, 0, 1, 5, 6))));
@@ -232,7 +245,8 @@ public class MatchOverviewFacetScoreboardTests
 
         public IRoundFacts RoundFacts => throw new NotSupportedException();
 
-        public FactStatus Status(string demoPath, FactKey key) => TryGet(demoPath, key) is null ? FactStatus.Absent : FactStatus.Current;
+        public FactStatus Status(string demoPath, FactKey key) =>
+            TryGet(demoPath, key) is null ? FactStatus.Absent : FactStatus.Current;
 
         public bool IsCurrent(string demoPath, FactKey key) => Status(demoPath, key) == FactStatus.Current;
 

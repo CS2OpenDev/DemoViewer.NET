@@ -21,7 +21,8 @@ public class ThrowerCollectorTests
         new(frame, frame * 2, 20 + slot, 1, className, slot, position, null, null, 0, false, removed);
 
     private static ObservedProjectile Row(ProjectileSample sample) =>
-        new(sample.EntityIndex, sample.Serial, sample.ClassName, sample.ThrowerSlot, 2, sample.Position, null, null, 0, 0, null, null);
+        new(sample.EntityIndex, sample.Serial, sample.ClassName, sample.ThrowerSlot, 2, sample.Position, null, null, 0,
+            0, null, null);
 
     private static List<RemovedProjectile> Collect(IEnumerable<ProjectileSample> samples)
     {
@@ -63,7 +64,8 @@ public class ThrowerCollectorTests
         }
 
         await Assert.That(rows).IsEquivalentTo(samples
-            .Where(s => s.Removed && s.ClassName is GrenadeProjectileClasses.Molotov or GrenadeProjectileClasses.Decoy)
+            .Where(s => s is
+                { Removed: true, ClassName: GrenadeProjectileClasses.Molotov or GrenadeProjectileClasses.Decoy })
             .Select(RemovedProjectile.From), CollectionOrdering.Matching);
     }
 
@@ -77,7 +79,8 @@ public class ThrowerCollectorTests
             await Assert.That(contribution.PassId).IsEqualTo(SuggestedTagsService.EvaluatorId);
             await Assert.That(contribution.Providers).IsEmpty();
             await Assert.That(contribution.ProjectileClasses)
-                .IsEquivalentTo([GrenadeProjectileClasses.Molotov, GrenadeProjectileClasses.Decoy], CollectionOrdering.Matching);
+                .IsEquivalentTo([GrenadeProjectileClasses.Molotov, GrenadeProjectileClasses.Decoy],
+                    CollectionOrdering.Matching);
         }
     }
 
@@ -104,16 +107,19 @@ public class ThrowerCollectorTests
 
         public ObservedRead Provider(string providerName) => throw new NotSupportedException();
 
-        public object? Read(string providerName, int playerSlot) => throw new NotSupportedException();
+        public object Read(string providerName, int playerSlot) => throw new NotSupportedException();
 
-        public bool TryReadInt(ObservedRead provider, int playerSlot, out int value) => throw new NotSupportedException();
+        public bool TryReadInt(ObservedRead provider, int playerSlot, out int value) =>
+            throw new NotSupportedException();
 
-        public bool TryReadFloat(ObservedRead provider, int playerSlot, out float value) => throw new NotSupportedException();
+        public bool TryReadFloat(ObservedRead provider, int playerSlot, out float value) =>
+            throw new NotSupportedException();
 
-        public bool TryReadString(ObservedRead provider, int playerSlot, out string? value) => throw new NotSupportedException();
+        public bool TryReadString(ObservedRead provider, int playerSlot, out string? value) =>
+            throw new NotSupportedException();
 
         public int Team(int playerSlot) => throw new NotSupportedException();
 
-        public CSGOUserCmdPB? Command(int playerSlot) => throw new NotSupportedException();
+        public CSGOUserCmdPB Command(int playerSlot) => throw new NotSupportedException();
     }
 }

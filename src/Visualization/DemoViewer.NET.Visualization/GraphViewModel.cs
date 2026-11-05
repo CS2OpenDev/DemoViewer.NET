@@ -17,8 +17,6 @@ namespace DemoViewer.NET.Visualization;
 /// </summary>
 public sealed class GraphViewModel : INotifyPropertyChanged
 {
-    private IReadOnlyList<INodeGroup>? _groups;
-    private bool _isLayoutComplete;
     private GraphStyle _style = new();
 
     /// <summary>Current layout result (used internally by GraphView).</summary>
@@ -49,10 +47,10 @@ public sealed class GraphViewModel : INotifyPropertyChanged
     /// <summary>True after layout computation completes.</summary>
     public bool IsLayoutComplete
     {
-        get => _isLayoutComplete;
+        get;
         private set
         {
-            _isLayoutComplete = value;
+            field = value;
             OnPropertyChanged(nameof(IsLayoutComplete));
         }
     }
@@ -98,7 +96,6 @@ public sealed class GraphViewModel : INotifyPropertyChanged
     {
         Nodes = nodes;
         Edges = edges;
-        _groups = groups;
         Tables = tables;
         IsLayoutComplete = false;
 

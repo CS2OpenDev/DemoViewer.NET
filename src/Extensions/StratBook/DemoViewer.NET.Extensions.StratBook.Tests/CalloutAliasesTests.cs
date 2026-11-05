@@ -1,15 +1,14 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
-using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Playback2D.Query;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
-using static DemoViewer.NET.AppTests.RoundIndexTestData;
 using static DemoViewer.NET.AppTests.TagTestData;
 
 #endregion
@@ -30,11 +29,8 @@ public class CalloutAliasesTests
     [Test]
     public async Task FilterFor_ResolvesATeamsWord_IntoAPositionPredicate_ThatTagQueryMatchesOn()
     {
-        CalloutResolver resolver = new(["TRamp", "Jungle"], new CalloutTable
-        {
-            Map = "de_mirage",
-            Aliases = [new CalloutAlias { Alias = "popdog", Place = "TRamp" }]
-        });
+        CalloutResolver resolver = new(["TRamp", "Jungle"],
+            new CalloutTable { Map = "de_mirage", Aliases = [new CalloutAlias { Alias = "popdog", Place = "TRamp" }] });
 
         TagInstance atRamp = Instance("kill", 100, 200);
         atRamp.Positions.Add(new TagPosition { X = 1, Y = 1, Place = "TRamp" });
@@ -42,17 +38,26 @@ public class CalloutAliasesTests
         elsewhere.Positions.Add(new TagPosition { X = 2, Y = 2, Place = "Jungle" });
         List<TagDocument> docs = [Document(instances: [atRamp, elsewhere])];
 
-        IReadOnlyList<TagInstanceRef> byAlias = TagQuery.Find(docs, TagSlice.Everything with { Positions = [resolver.FilterFor("popdog")] });
-        IReadOnlyList<TagInstanceRef> byCase = TagQuery.Find(docs, TagSlice.Everything with { Positions = [resolver.FilterFor("  POP DOG ")] });
-        IReadOnlyList<TagInstanceRef> byCanonical = TagQuery.Find(docs, TagSlice.Everything with { Positions = [resolver.FilterFor("TRamp")] });
-        IReadOnlyList<TagInstanceRef> byUnknown = TagQuery.Find(docs, TagSlice.Everything with { Positions = [resolver.FilterFor("nonsense")] });
+        IReadOnlyList<TagInstanceRef> byAlias =
+            TagQuery.Find(docs, TagSlice.Everything with { Positions = [resolver.FilterFor("popdog")] });
+        IReadOnlyList<TagInstanceRef> byCase = TagQuery.Find(docs,
+            TagSlice.Everything with { Positions = [resolver.FilterFor("  POP DOG ")] });
+        IReadOnlyList<TagInstanceRef> byCanonical =
+            TagQuery.Find(docs, TagSlice.Everything with { Positions = [resolver.FilterFor("TRamp")] });
+        IReadOnlyList<TagInstanceRef> byUnknown = TagQuery.Find(docs,
+            TagSlice.Everything with { Positions = [resolver.FilterFor("nonsense")] });
 
         using (Assert.Multiple())
         {
-            await Assert.That(byAlias.Select(r => r.Id)).IsEquivalentTo(new[] { atRamp.Id }, CollectionOrdering.Matching);
-            await Assert.That(byCase.Select(r => r.Id)).IsEquivalentTo(new[] { atRamp.Id }, CollectionOrdering.Matching).Because("case and spacing fold the same as any other alias lookup");
-            await Assert.That(byCanonical.Select(r => r.Id)).IsEquivalentTo(new[] { atRamp.Id }, CollectionOrdering.Matching).Because("the canonical spelling still matches its own place");
-            await Assert.That(byUnknown).IsEmpty().Because("a word with no place resolves to a filter that matches nothing, not to no filter at all");
+            await Assert.That(byAlias.Select(r => r.Id))
+                .IsEquivalentTo([atRamp.Id], CollectionOrdering.Matching);
+            await Assert.That(byCase.Select(r => r.Id)).IsEquivalentTo([atRamp.Id], CollectionOrdering.Matching)
+                .Because("case and spacing fold the same as any other alias lookup");
+            await Assert.That(byCanonical.Select(r => r.Id))
+                .IsEquivalentTo([atRamp.Id], CollectionOrdering.Matching)
+                .Because("the canonical spelling still matches its own place");
+            await Assert.That(byUnknown).IsEmpty()
+                .Because("a word with no place resolves to a filter that matches nothing, not to no filter at all");
         }
     }
 
@@ -72,7 +77,8 @@ public class CalloutAliasesTests
         {
             await Assert.That(resolver.Resolve("popdog")).IsEqualTo("TRamp");
             await Assert.That(resolver.Display("TRamp")).IsEqualTo("popdog");
-            await Assert.That(resolver.Source).IsEqualTo(CanonicalPlaces.EmbeddedSource).Because("no bundle directory in this harness, so the embedded list stands in for the map's zones");
+            await Assert.That(resolver.Source).IsEqualTo(CanonicalPlaces.EmbeddedSource)
+                .Because("no bundle directory in this harness, so the embedded list stands in for the map's zones");
         }
     }
 
@@ -104,7 +110,8 @@ public class CalloutAliasesTests
         using (Assert.Multiple())
         {
             await Assert.That(editor.IssueLine).IsEqualTo("");
-            await Assert.That(editor.Aliases.Select(a => a.Alias)).IsEquivalentTo(["popdog"], CollectionOrdering.Matching);
+            await Assert.That(editor.Aliases.Select(a => a.Alias))
+                .IsEquivalentTo(["popdog"], CollectionOrdering.Matching);
             await Assert.That(store.LoadCallouts(owner, "de_mirage").Aliases.Single().Place).IsEqualTo("TRamp");
         }
     }
@@ -128,7 +135,8 @@ public class CalloutAliasesTests
         using (Assert.Multiple())
         {
             await Assert.That(editor.IssueLine).IsNotEqualTo("");
-            await Assert.That(editor.Aliases.Select(a => a.Alias)).IsEquivalentTo(["popdog"], CollectionOrdering.Matching);
+            await Assert.That(editor.Aliases.Select(a => a.Alias))
+                .IsEquivalentTo(["popdog"], CollectionOrdering.Matching);
             await Assert.That(store.LoadCallouts(owner, "de_mirage").Aliases.Single().Place).IsEqualTo("TRamp");
         }
     }
@@ -171,7 +179,8 @@ public class CalloutAliasesTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(editor.Aliases.Select(a => a.Alias)).IsEquivalentTo(["popdog"], CollectionOrdering.Matching);
+            await Assert.That(editor.Aliases.Select(a => a.Alias))
+                .IsEquivalentTo(["popdog"], CollectionOrdering.Matching);
             await Assert.That(store.LoadCallouts(target, "de_mirage").Aliases.Single().Place).IsEqualTo("TRamp");
         }
     }
@@ -179,32 +188,33 @@ public class CalloutAliasesTests
     [Test]
     public async Task QueryCanvas_ShowsTheDefaultOwnersWord_ForAResolvedPlace()
     {
-        CalloutResolver resolver = new(["Ramp"], new CalloutTable
-        {
-            Map = "de_nuke",
-            Aliases = [new CalloutAlias { Alias = "popdog", Place = "Ramp", Primary = true }]
-        });
+        CalloutResolver resolver = new(["Ramp"],
+            new CalloutTable
+            {
+                Map = "de_nuke", Aliases = [new CalloutAlias { Alias = "popdog", Place = "Ramp", Primary = true }]
+            });
 
         DemoCacheStore cache = new(null);
         RoundIndexStore sidecars = new(cache.Data());
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
         using SituationIndex index = new(cache.Library(), sidecars, sources);
 
-        using QueryCanvasViewModel vm = new(index, new QueryPlaceResolver(index, sources.Zones), cache.Library(), _ => null,
+        using QueryCanvasViewModel vm = new(index, new QueryPlaceResolver(index, sources.Zones), cache.Library(),
+            _ => null,
             calloutResolverFor: _ => resolver);
         vm.Map = "de_nuke";
 
         // Bypassing the pointer tool: what a resolved drop leaves behind is a placed token, which is
         // exactly what QueryRailSlotViewModel.Status and the resolver's Display both read from.
         vm.Document.Place(new QueryToken(QuerySide.Ct, 0, 1300, -1000, -416, "Ramp"));
-        QueryRailSlotViewModel slot = vm.Slots.First(s => s.Side == QuerySide.Ct && s.Slot == 0);
+        QueryRailSlotViewModel slot = vm.Slots.First(s => s is { Side: QuerySide.Ct, Slot: 0 });
         slot.Refresh();
 
         using (Assert.Multiple())
         {
-            await Assert.That(slot.Status).IsEqualTo("popdog").Because("the default owner's word for the resolved canonical place");
+            await Assert.That(slot.Status).IsEqualTo("popdog")
+                .Because("the default owner's word for the resolved canonical place");
             await Assert.That(vm.DisplayPlace("Ramp")).IsEqualTo("popdog");
         }
-
     }
 }

@@ -4,7 +4,6 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.ViewModels.Library;
 using DemoViewer.NET.Views.Library;
@@ -16,7 +15,7 @@ namespace DemoViewer.NET.AppTests;
 /// <summary>
 ///     A real <see cref="LibraryTabView" />'s card badge chip, over a fake <see cref="ILibraryContribution" />
 ///     that only tracks calls (the real Team/Provenance contributions are
-///     <c>DemoViewer.NET.AppTests.Extensions.StratBook.LibraryContributionsTests</c>'s job). Opens the
+///     <c>DemoViewer.NET.AppTests.LibraryContributionsTests</c>'s job). Opens the
 ///     real <c>MenuFlyout</c> and clicks a realized <c>MenuItem</c>, so <c>LibraryTabView.OnBadgeLabelPicked</c>'s
 ///     walk-up from the item (inside the flyout's popup) back to the card's <see cref="DemoEntry" /> is
 ///     actually exercised, not just the view-model's own <see cref="LibraryTabViewModel.SetBadgeLabel" />.
@@ -36,10 +35,10 @@ public class LibraryBadgeMenuRenderTests
 
         public LibraryFilter? Filter => null;
         public bool HasBadge => true;
-        public LibraryBadge? BadgeFor(LibraryDemo demo) => new(_pinned ?? "unlabeled", null, _pinned is not null);
+        public LibraryBadge BadgeFor(LibraryDemo demo) => new(_pinned ?? "unlabeled", null, _pinned is not null);
         public IReadOnlyList<string> BadgeLabels => ["official", "scrim", "our scrim", "matchmaking"];
-        public string? BadgeResetLabel => "Automatic";
-        public string? BadgeResetTooltip => "Let the clan tags, the header and Team Identity decide";
+        public string BadgeResetLabel => "Automatic";
+        public string BadgeResetTooltip => "Let the clan tags, the header and Team Identity decide";
 
         public void SetLabel(LibraryDemo demo, string? label)
         {
@@ -49,9 +48,11 @@ public class LibraryBadgeMenuRenderTests
         }
     }
 
-    private static (DemoLibraryService Library, DemoEntry Entry, LibraryTabView View, Window Window, Button Chip) Attach(TrackingContribution contribution)
+    private static (DemoLibraryService Library, DemoEntry Entry, LibraryTabView View, Window Window, Button Chip)
+        Attach(TrackingContribution contribution)
     {
-        DemoLibraryService lib = new(a => a(), Path.Combine(Path.GetTempPath(), "dvlibbadgemenu_" + Guid.NewGuid().ToString("N") + ".json"));
+        DemoLibraryService lib = new(a => a(),
+            Path.Combine(Path.GetTempPath(), "dvlibbadgemenu_" + Guid.NewGuid().ToString("N") + ".json"));
         DemoEntry entry = new()
         {
             FilePath = "/d/a.dem",
@@ -111,14 +112,16 @@ public class LibraryBadgeMenuRenderTests
 
             contribution.SetLabel(entry.ToLibraryDemo(), "scrim");
             Dispatcher.UIThread.RunJobs();
-            await Assert.That(entry.BadgeIsPinned).IsTrue().Because("pinned before the menu is opened, so the reset has something to undo");
+            await Assert.That(entry.BadgeIsPinned).IsTrue()
+                .Because("pinned before the menu is opened, so the reset has something to undo");
 
             chip.Flyout!.ShowAt(chip);
             Dispatcher.UIThread.RunJobs();
 
             MenuItem reset = window.GetVisualDescendants().OfType<MenuItem>()
                 .Single(i => i.Tag is LibraryBadgeMenuEntry { IsReset: true });
-            await Assert.That(reset.Classes.Contains("reset")).IsTrue().Because("the divider style marks the reset row");
+            await Assert.That(reset.Classes.Contains("reset")).IsTrue()
+                .Because("the divider style marks the reset row");
 
             reset.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             Dispatcher.UIThread.RunJobs();

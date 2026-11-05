@@ -10,10 +10,6 @@ namespace DemoViewer.NET.Visualization.Tests.SampleGraphs;
 /// <summary>Sample node.</summary>
 public class SampleNode : IGraphNode, INotifyPropertyChanged
 {
-    private string? _displayValue;
-
-    private bool _isActive;
-
     /// <summary>Initializes a sample node with the given visual properties.</summary>
     public SampleNode(string name, bool isRoot = false, bool isActive = false,
         string? displayValue = null, string? subtitle = null, NodeStyle? style = null)
@@ -29,10 +25,10 @@ public class SampleNode : IGraphNode, INotifyPropertyChanged
     /// <summary>The node's current display value; setter raises <see cref="PropertyChanged" />.</summary>
     public string? DisplayValue
     {
-        get => _displayValue;
-        set
+        get;
+        init
         {
-            _displayValue = value;
+            field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DisplayValue)));
         }
     }
@@ -40,10 +36,10 @@ public class SampleNode : IGraphNode, INotifyPropertyChanged
     /// <summary>Whether the node is currently active; setter raises <see cref="PropertyChanged" />.</summary>
     public bool IsActive
     {
-        get => _isActive;
-        set
+        get;
+        init
         {
-            _isActive = value;
+            field = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsActive)));
         }
     }
@@ -58,7 +54,7 @@ public class SampleNode : IGraphNode, INotifyPropertyChanged
     public string Key => Name;
 
     /// <summary>Style.</summary>
-    public NodeStyle? Style { get; init; }
+    public NodeStyle? Style { get; }
 
     /// <summary>Subtitle.</summary>
     public string? Subtitle { get; }
@@ -78,9 +74,5 @@ public record ConjunctionSampleEdge(
     public VisualEdgeEffect Effect => VisualEdgeEffect.Conjunction;
 
     /// <summary>Style.</summary>
-    public EdgeStyle? Style => new()
-    {
-        Color = Color.Parse("#7986CB"),
-        IsDashed = true
-    };
+    public EdgeStyle Style => new() { Color = Color.Parse("#7986CB"), IsDashed = true };
 }

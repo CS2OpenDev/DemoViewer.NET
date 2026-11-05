@@ -34,7 +34,8 @@ public static class OrphanSweep
             return null;
         }
 
-        return queue.SubmitJob(new QueueJobRequest(QueueJobKind.CacheSweep, "Demo cache: drop demos gone past the grace period",
+        return queue.SubmitJob(new QueueJobRequest(QueueJobKind.CacheSweep,
+            "Demo cache: drop demos gone past the grace period",
             "demo-cache", DemoJobPriority.Background,
             _ =>
             {
@@ -48,8 +49,7 @@ public static class OrphanSweep
     /// <param name="cache">The demo cache.</param>
     /// <param name="grace">How long an orphaned demo is kept.</param>
     /// <param name="nowUtc">The current time, UTC.</param>
-    /// <returns>How many demos went.</returns>
-    internal static int Run(DemoCacheStore cache, TimeSpan grace, DateTime nowUtc)
+    private static void Run(DemoCacheStore cache, TimeSpan grace, DateTime nowUtc)
     {
         int expired = cache.ExpireOrphans(nowUtc, grace < TimeSpan.Zero ? TimeSpan.Zero : grace);
         if (expired > 0)
@@ -57,8 +57,6 @@ public static class OrphanSweep
             cache.SaveIndex();
             OrphanSweepLog.Swept(Log, expired);
         }
-
-        return expired;
     }
 }
 

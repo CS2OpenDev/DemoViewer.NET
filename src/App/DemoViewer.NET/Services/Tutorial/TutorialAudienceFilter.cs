@@ -35,7 +35,7 @@ public sealed class TutorialAudienceFilter
     public static TutorialAudienceFilter Everyone { get; } = new(null, false);
 
     /// <summary>Whether <paramref name="item" /> is for the current user.</summary>
-    public bool Admits(ITutorialAudience item)
+    private bool Admits(ITutorialAudience item)
     {
         ArgumentNullException.ThrowIfNull(item);
 

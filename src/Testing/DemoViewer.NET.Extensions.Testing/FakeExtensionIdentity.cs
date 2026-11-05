@@ -1,9 +1,3 @@
-#region
-
-using DemoViewer.NET.Extensions.Sdk;
-
-#endregion
-
 namespace DemoViewer.NET.Extensions.Testing;
 
 /// <summary>
@@ -25,7 +19,8 @@ internal sealed class FakeExtensionIdentity : IExtensionIdentity
 
     public string? ActiveAccount { get; private set; }
 
-    public bool IsMine(string? steamId64) => steamId64 is not null && _accounts.Contains(steamId64, StringComparer.Ordinal);
+    public bool IsMine(string? steamId64) =>
+        steamId64 is not null && _accounts.Contains(steamId64, StringComparer.Ordinal);
 
     public event Action? Changed;
 
@@ -38,7 +33,9 @@ internal sealed class FakeExtensionIdentity : IExtensionIdentity
     public void Set(IReadOnlyList<string> accounts, string? active = null)
     {
         _accounts = [.. accounts.Distinct(StringComparer.Ordinal)];
-        ActiveAccount = active is not null && _accounts.Contains(active, StringComparer.Ordinal) ? active : _accounts.FirstOrDefault();
+        ActiveAccount = active is not null && _accounts.Contains(active, StringComparer.Ordinal)
+            ? active
+            : _accounts.FirstOrDefault();
         Changed?.Invoke();
     }
 }

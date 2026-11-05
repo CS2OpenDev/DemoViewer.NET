@@ -8,6 +8,7 @@ using SkiaSharp;
 namespace DemoViewer.NET.Playback2D.Input;
 
 /// <summary>Which part of a token a press landed on.</summary>
+[PublicAPI]
 public enum TokenGrip
 {
     /// <summary>The disc: a drag moves the token.</summary>
@@ -27,6 +28,7 @@ public enum TokenGrip
 ///         <see cref="BeginDrag" />; forty moves and an end are one edit, never forty.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface ITokenEditor
 {
     /// <summary>The strat frame-clock tick of the active step: where a drag writes its keyframe.</summary>
@@ -61,7 +63,8 @@ public interface ITokenEditor
     /// </param>
     /// <param name="modifiers">The keys held at this sample: Shift and Alt change what the drop stores.</param>
     /// <param name="worldUnitsPerPixel">The pane's scale, for screen-sized snaps; 0 when unknown.</param>
-    void MoveTo(string slot, SKPoint world, double levelMinZ, ToolModifiers modifiers = ToolModifiers.None, double worldUnitsPerPixel = 0);
+    void MoveTo(string slot, SKPoint world, double levelMinZ, ToolModifiers modifiers = ToolModifiers.None,
+        double worldUnitsPerPixel = 0);
 
     /// <summary>Closes the drag as one edit.</summary>
     /// <param name="modifiers">The keys held at the release.</param>
@@ -77,6 +80,7 @@ public interface ITokenEditor
 ///     <see cref="SceneDefaults.MarkerHeadingLength" /> pixels beyond it. Shared so the canvas's
 ///     <see cref="ITokenEditor.TryHitToken" /> and the drawn marker cannot disagree.
 /// </summary>
+[PublicAPI]
 public static class TokenHitTest
 {
     // A third of the radius either side: 3 px at the default size, the shape tools' tap slop.
@@ -97,7 +101,8 @@ public static class TokenHitTest
     /// <param name="world">The point, world space.</param>
     /// <param name="worldRadius">The marker radius in world units (<see cref="WorldRadius" />).</param>
     /// <param name="cone">Whether the marker draws a view cone, whose whole wedge turns the token.</param>
-    public static TokenGrip? Classify(float tokenX, float tokenY, float yawDegrees, SKPoint world, float worldRadius, bool cone = false)
+    public static TokenGrip? Classify(float tokenX, float tokenY, float yawDegrees, SKPoint world, float worldRadius,
+        bool cone = false)
     {
         double dx = world.X - (double)tokenX;
         double dy = world.Y - (double)tokenY;

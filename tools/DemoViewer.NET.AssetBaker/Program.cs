@@ -29,8 +29,8 @@ if (args.Any(a => a.StartsWith("--list-icons", StringComparison.Ordinal)))
         .FirstOrDefault(a => a.StartsWith("--cs2=", StringComparison.Ordinal))?["--cs2=".Length..];
 
     string listPak = SteamLibrary.FindCs2Pak(listCs2)
-                     ?? throw new DirectoryNotFoundException(
-                         "Counter-Strike 2 not found. Pass --cs2=<path to pak01_dir.vpk or install root>.");
+        ?? throw new DirectoryNotFoundException(
+            "Counter-Strike 2 not found. Pass --cs2=<path to pak01_dir.vpk or install root>.");
 
     string listFilter = args
         .FirstOrDefault(a => a.StartsWith("--list-icons=", StringComparison.Ordinal))
@@ -49,8 +49,8 @@ if (args.FirstOrDefault(a => a.StartsWith("--export-svg=", StringComparison.Ordi
         .FirstOrDefault(a => a.StartsWith("--cs2=", StringComparison.Ordinal))?["--cs2=".Length..];
 
     string exportPak = SteamLibrary.FindCs2Pak(exportCs2)
-                       ?? throw new DirectoryNotFoundException(
-                           "Counter-Strike 2 not found. Pass --cs2=<path to pak01_dir.vpk or install root>.");
+        ?? throw new DirectoryNotFoundException(
+            "Counter-Strike 2 not found. Pass --cs2=<path to pak01_dir.vpk or install root>.");
 
     string exportOut = args
         .FirstOrDefault(a => a.StartsWith("--out=", StringComparison.Ordinal))?["--out=".Length..] ?? "icon-svg";
@@ -72,8 +72,8 @@ if (args.Contains("--icons"))
         .FirstOrDefault(a => a.StartsWith("--cs2=", StringComparison.Ordinal))?["--cs2=".Length..];
 
     string pak = SteamLibrary.FindCs2Pak(explicitCs2)
-                 ?? throw new DirectoryNotFoundException(
-                     "Counter-Strike 2 not found. Pass --cs2=<path to pak01_dir.vpk or install root>.");
+        ?? throw new DirectoryNotFoundException(
+            "Counter-Strike 2 not found. Pass --cs2=<path to pak01_dir.vpk or install root>.");
 
     string iconsOut = Path.Combine(FindRepoRoot(), "assets", "icons");
     Console.WriteLine($"cs2 pak:  {pak}");
@@ -103,12 +103,12 @@ if (args.Contains("--collision"))
         .FirstOrDefault(a => a.StartsWith("--cs2=", StringComparison.Ordinal))?["--cs2=".Length..];
 
     string mapsSource = SteamLibrary.FindCs2MapsDir(collisionCs2)
-                        ?? throw new DirectoryNotFoundException(
-                            "Counter-Strike 2 map archives not found. Pass --cs2=<install root, pak01_dir.vpk, "
-                            + "or the game/csgo/maps directory>.");
+        ?? throw new DirectoryNotFoundException(
+            "Counter-Strike 2 map archives not found. Pass --cs2=<install root, pak01_dir.vpk, "
+            + "or the game/csgo/maps directory>.");
 
     string soupRoot = Path.Combine(FindRepoRoot(), "assets");
-    string[] soupMaps = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+    string[] soupMaps = [.. args.Where(a => !a.StartsWith("--", StringComparison.Ordinal))];
     if (soupMaps.Length == 0)
     {
         // Discovered, NOT the hardcoded list the full bake defaults to further down. The two resolve
@@ -122,12 +122,14 @@ if (args.Contains("--collision"))
         //
         // A bundle.json is what makes a directory a baked map rather than a stray folder.
         soupMaps = Directory.Exists(soupRoot)
-            ? Directory.GetDirectories(soupRoot)
-                .Where(d => File.Exists(Path.Combine(d, "bundle.json")))
-                .Select(Path.GetFileName)
-                .OfType<string>()
-                .OrderBy(m => m, StringComparer.Ordinal)
-                .ToArray()
+            ?
+            [
+                .. Directory.GetDirectories(soupRoot)
+                    .Where(d => File.Exists(Path.Combine(d, "bundle.json")))
+                    .Select(Path.GetFileName)
+                    .OfType<string>()
+                    .OrderBy(m => m, StringComparer.Ordinal)
+            ]
             : [];
     }
 
@@ -185,21 +187,23 @@ if (args.Contains("--zones"))
         .FirstOrDefault(a => a.StartsWith("--cs2=", StringComparison.Ordinal))?["--cs2=".Length..];
 
     string zonesMapsSource = SteamLibrary.FindCs2MapsDir(zonesCs2)
-                             ?? throw new DirectoryNotFoundException(
-                                 "Counter-Strike 2 map archives not found. Pass --cs2=<install root, pak01_dir.vpk, "
-                                 + "or the game/csgo/maps directory>.");
+        ?? throw new DirectoryNotFoundException(
+            "Counter-Strike 2 map archives not found. Pass --cs2=<install root, pak01_dir.vpk, "
+            + "or the game/csgo/maps directory>.");
 
     string zonesRoot = Path.Combine(FindRepoRoot(), "assets");
-    string[] zoneMaps = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+    string[] zoneMaps = [.. args.Where(a => !a.StartsWith("--", StringComparison.Ordinal))];
     if (zoneMaps.Length == 0)
     {
         zoneMaps = Directory.Exists(zonesRoot)
-            ? Directory.GetDirectories(zonesRoot)
-                .Where(d => File.Exists(Path.Combine(d, "bundle.json")))
-                .Select(Path.GetFileName)
-                .OfType<string>()
-                .OrderBy(m => m, StringComparer.Ordinal)
-                .ToArray()
+            ?
+            [
+                .. Directory.GetDirectories(zonesRoot)
+                    .Where(d => File.Exists(Path.Combine(d, "bundle.json")))
+                    .Select(Path.GetFileName)
+                    .OfType<string>()
+                    .OrderBy(m => m, StringComparer.Ordinal)
+            ]
             : [];
     }
 
@@ -207,8 +211,8 @@ if (args.Contains("--zones"))
     Console.WriteLine($"zones ->   {zonesRoot}");
     Console.WriteLine($"baking zones for {zoneMaps.Length} map(s): {string.Join(", ", zoneMaps)}\n");
 
-    List<Zones.Coverage> coverage = new();
-    List<string> zoneFailures = new();
+    List<Zones.Coverage> coverage = [];
+    List<string> zoneFailures = [];
     foreach (string map in zoneMaps)
     {
         string mapVpk = Path.Combine(zonesMapsSource, map + ".vpk");
@@ -277,7 +281,7 @@ if (args.Contains("--zones"))
     return;
 }
 
-string[] maps = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+string[] maps = [.. args.Where(a => !a.StartsWith("--", StringComparison.Ordinal))];
 if (maps.Length == 0)
 {
     // A map earns a place here by being bakeable AND demoed. Bakeable is a hard filter, not a
@@ -336,7 +340,7 @@ void BakeMap(string map)
     Console.WriteLine($"  transform: pos=({t.PosX},{t.PosY}) scale={t.Scale} rotate={t.Rotate} zoom={t.Zoom}");
 
     // 2. radar vtex_c → PNG (default + optional _lower), and remember source bytes for the version hash.
-    List<string> radarImages = new();
+    List<string> radarImages = [];
     Crc32 crc = new();
 
     (string vtex, string png)? def = ResolveRadar(map, false);
@@ -368,7 +372,7 @@ void BakeMap(string map)
     crc.Append(navBytes);
     NavFloors.Result floors = NavFloors.ComputeFloors(navBytes);
     Console.WriteLine($"  floors: {floors.Floors.Count}  " +
-                      string.Join(" ", floors.Floors.Select(f => $"[{f.MinZ:F0}..{f.MaxZ:F0}]")));
+        string.Join(" ", floors.Floors.Select(f => $"[{f.MinZ:F0}..{f.MaxZ:F0}]")));
     if (diag)
     {
         Console.WriteLine(floors.Diagnostic);
@@ -472,10 +476,7 @@ void BakeMap(string map)
 {
     string suffix = lower ? "_lower_radar" : "_radar";
     string png = lower ? $"{map}_lower.png" : $"{map}.png";
-    foreach (string kind in new[]
-             {
-                 "psd", "tga"
-             })
+    foreach (string kind in new[] { "psd", "tga" })
     {
         string candidate = Path.Combine(radarDir, $"{map}{suffix}_{kind}.vtex_c");
         if (File.Exists(candidate))
@@ -489,7 +490,7 @@ void BakeMap(string map)
 
 List<RadarLayer> BuildRadarLayers(string map, OverviewTxt.Parsed ov, List<string> images)
 {
-    List<RadarLayer> layers = new();
+    List<RadarLayer> layers = [];
     if (ov.VerticalSections.Count == 0)
     {
         // Single-image map: one layer covering all Z with the default image (if any).

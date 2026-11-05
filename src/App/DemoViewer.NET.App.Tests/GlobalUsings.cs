@@ -3,10 +3,13 @@
 // transitively through CS2DemoKit.Parser. Imported globally so unqualified references read the way
 // they did when the parser generated these types itself.
 
+#region
+
 global using CS2OpenSchema.Protos;
 global using CS2OpenSchema.Events;
-
 global using DemoViewer.NET.Extensions.Sdk.Ui;
 global using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 global using DemoViewer.NET.Extensions.Sdk.Ui.Theming;
 global using DemoViewer.NET.Extensions.Testing;
+
+#endregion

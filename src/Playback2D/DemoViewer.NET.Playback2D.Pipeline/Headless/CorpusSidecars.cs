@@ -1,12 +1,12 @@
 #region
 
 using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Playback2D.Overlay;
-using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Playback2D.Pipeline.Annotations;
 using DemoViewer.NET.Playback2D.Assets;
+using DemoViewer.NET.Playback2D.Overlay;
+using DemoViewer.NET.Playback2D.Pipeline.Annotations;
 using DemoViewer.NET.Playback2D.Pipeline.Overlay;
 using DemoViewer.NET.Playback2D.Pipeline.Query;
+using DemoViewer.NET.Playback2D.Query;
 
 #endregion
 
@@ -29,10 +29,10 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Headless;
 internal static class CorpusSidecars
 {
     /// <summary>The subdirectory holding <c>.dvann.json</c> ink sidecars.</summary>
-    public const string AnnotationsDirectory = "annotations";
+    private const string AnnotationsDirectory = "annotations";
 
     /// <summary>The subdirectory holding <c>.zones.json</c> overlays.</summary>
-    public const string ZonesDirectory = "zones";
+    private const string ZonesDirectory = "zones";
 
     /// <summary>The subdirectory holding <c>.dvquery.json</c> fixtures.</summary>
     public const string QueriesDirectory = "queries";

@@ -12,7 +12,7 @@ namespace AnalysisBench;
 /// </summary>
 internal static class BackgroundPlans
 {
-    public static DecodePlan Resolve(string name) => name switch
+    private static DecodePlan Resolve(string name) => name switch
     {
         "everything" => DecodePlan.Everything,
         "events" => DecodePlan.GameEventsOnly,
@@ -28,10 +28,7 @@ internal static class BackgroundPlans
 
     public static ParsedDemo Parse(string path, string read, string name)
     {
-        ParseOptions options = new()
-        {
-            Plan = Resolve(name)
-        };
+        ParseOptions options = new() { Plan = Resolve(name) };
         return read == "bytes"
             ? DemoParser.Parse(File.ReadAllBytes(path), options)
             : MemoryMappedDemoSource.ParseFile(path, options);

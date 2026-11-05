@@ -18,7 +18,6 @@ public class SuggestedTagsRecordPassTests
 {
     private sealed record Wired(
         SuggestedTagsReviewHarness Harness,
-        MemoryDemoData Data,
         RoundIndexStore Index,
         RoundIndexPlaceSources Sources,
         DetonationStore Detonations)
@@ -39,7 +38,8 @@ public class SuggestedTagsRecordPassTests
         public void Visit(SuggestedTagsService service)
         {
             CS2DemoKit.Parser.ParsedDemo parsed = Parse();
-            new RoundIndexEvaluator(Harness.Cache.Library(), Harness.Cache.RoundFacts(), Index, Sources, () => true, walk: _ => Walk())
+            new RoundIndexEvaluator(Harness.Cache.Library(), Harness.Cache.RoundFacts(), Index, Sources, () => true,
+                    walk: _ => Walk())
                 .Evaluate(DemoPath, parsed);
             service.Evaluate(DemoPath, parsed, []);
         }
@@ -64,7 +64,8 @@ public class SuggestedTagsRecordPassTests
         SuggestedTagsReviewHarness h = new();
         h.Seed();
         MemoryDemoData data = h.Cache.Data();
-        return new Wired(h, data, new RoundIndexStore(data), new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn),
+        return new Wired(h, new RoundIndexStore(data),
+            new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn),
             new DetonationStore(data));
     }
 
@@ -78,7 +79,8 @@ public class SuggestedTagsRecordPassTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(w.Detonations.IsCurrent(DemoPath)).IsTrue().Because("the visit stored what it read off the parse");
+            await Assert.That(w.Detonations.IsCurrent(DemoPath)).IsTrue()
+                .Because("the visit stored what it read off the parse");
             await Assert.That(fresh.RecordPass.Wants(w.Row)).IsFalse();
             await Assert.That(fresh.RecordPass.Wants(w.Row)).IsFalse().Because("asking again changes nothing");
         }
@@ -97,14 +99,16 @@ public class SuggestedTagsRecordPassTests
         await Assert.That(session.RecordPass.Wants(w.Row)).IsTrue();
         int walks = 0;
         SuggestedTagsService rebuilder = w.Session(() => walks++);
-        await Assert.That(rebuilder.RecordPass.Wants(w.Row)).IsTrue().Because("a fresh session sees the index newer than the proposals");
+        await Assert.That(rebuilder.RecordPass.Wants(w.Row)).IsTrue()
+            .Because("a fresh session sees the index newer than the proposals");
         long before = w.Harness.Proposals.Stamp(DemoPath)!.WrittenAtTicks;
         rebuilder.RecordPass.Run(new LibraryDemoDetail(w.Row, 64, 20000, 0, [], []), CancellationToken.None);
 
         using (Assert.Multiple())
         {
             await Assert.That(w.Harness.Proposals.Stamp(DemoPath)!.WrittenAtTicks).IsGreaterThan(before);
-            await Assert.That(Proposals(w)).IsEqualTo(visitProposals).Because("the same inputs, read back from storage");
+            await Assert.That(Proposals(w)).IsEqualTo(visitProposals)
+                .Because("the same inputs, read back from storage");
             await Assert.That(walks).IsEqualTo(0).Because("the index is current, so nothing walks");
             await Assert.That(rebuilder.RecordPass.Wants(w.Row)).IsFalse();
         }
@@ -131,7 +135,8 @@ public class SuggestedTagsRecordPassTests
         {
             await Assert.That(w.Harness.Proposals.Stamp(DemoPath)!.WrittenAtTicks).IsGreaterThan(built);
             await Assert.That(fresh.RecordPass.Wants(w.Row)).IsFalse();
-            await Assert.That(w.Session().RecordPass.Wants(w.Row)).IsFalse().Because("the rebuilt proposals are newer than every input");
+            await Assert.That(w.Session().RecordPass.Wants(w.Row)).IsFalse()
+                .Because("the rebuilt proposals are newer than every input");
         }
     }
 
@@ -148,5 +153,7 @@ public class SuggestedTagsRecordPassTests
     }
 
     private static string Proposals(Wired w) =>
-        string.Join('\n', w.Harness.Proposals.TryRead(DemoPath)!.Proposals.Select(p => $"{p.Id} {p.FromTick} {p.ToTick} {p.Confidence}"));
+        string.Join('\n',
+            w.Harness.Proposals.TryRead(DemoPath)!.Proposals.Select(p =>
+                $"{p.Id} {p.FromTick} {p.ToTick} {p.Confidence}"));
 }

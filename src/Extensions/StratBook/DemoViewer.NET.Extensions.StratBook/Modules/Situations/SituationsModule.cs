@@ -1,8 +1,8 @@
 #region
 
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
 using DemoViewer.NET.Extensions.StratBook.Views.Situations;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 
@@ -52,7 +52,8 @@ public sealed class SituationsModule : IWorkspaceModule
     ///     a live toggle clears the badge going off and recomputes it going on, instead of leaving the last
     ///     value stale until the next unrelated <c>watched.Changed</c>. Null skips that push.
     /// </param>
-    public SituationsModule(Func<SituationsTabViewModel> viewModelFactory, Func<bool> enabled, WatchedSituationsService? watched = null,
+    public SituationsModule(Func<SituationsTabViewModel> viewModelFactory, Func<bool> enabled,
+        WatchedSituationsService? watched = null,
         IExtensionFeatures? gate = null)
     {
         ArgumentNullException.ThrowIfNull(viewModelFactory);
@@ -65,7 +66,7 @@ public sealed class SituationsModule : IWorkspaceModule
 
     /// <summary>"3 new", or null when nothing is new.</summary>
     /// <param name="newCount">New hits over every watch.</param>
-    public static string? BadgeFor(int newCount) => newCount > 0 ? $"{newCount} new" : null;
+    private static string? BadgeFor(int newCount) => newCount > 0 ? $"{newCount} new" : null;
 
     public string Id => "net.demoviewer.situations";
     public string DisplayName => "Situations";

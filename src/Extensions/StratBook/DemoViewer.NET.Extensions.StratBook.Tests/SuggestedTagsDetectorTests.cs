@@ -28,19 +28,22 @@ public class SuggestedTagsDetectorTests
         TagProposal execute = executes[0];
         using (Assert.Multiple())
         {
-            await Assert.That(execute.Id).IsEqualTo("exec|r1|T|BombsiteA|s=10").Because("second 12 quantised down to 10");
+            await Assert.That(execute.Id).IsEqualTo("exec|r1|T|BombsiteA|s=10")
+                .Because("second 12 quantised down to 10");
             await Assert.That(execute.Side).IsEqualTo(2);
             await Assert.That(execute.TriggerTick).IsEqualTo(At(12));
             await Assert.That(execute.FromTick).IsEqualTo(At(12 - 6)).Because("the four arrived at 12; lead is 6 s");
             await Assert.That(execute.ToTick).IsEqualTo(At(12 + 4 + 8)).Because("trigger plus T plus lag");
             await Assert.That(execute.Factors["count"]).IsEqualTo(0.8).Because("four of five");
-            await Assert.That(execute.Factors["touch"]).IsEqualTo(0.7).Because("the site was touched six seconds in, after T");
+            await Assert.That(execute.Factors["touch"]).IsEqualTo(0.7)
+                .Because("the site was touched six seconds in, after T");
             await Assert.That(execute.Factors["utility"]).IsEqualTo(0.7).Because("one T smoke into the region");
             await Assert.That(execute.Confidence).IsEqualTo(0.392);
             await Assert.That(execute.Labels["site"]).IsEqualTo(SiteRegions.SiteA);
             await Assert.That(execute.Labels["count"]).IsEqualTo("4");
             await Assert.That(execute.Labels["tempo"]).IsEqualTo("rush").Because("second 12 is a rush");
-            await Assert.That(execute.Labels["plant"]).IsEqualTo("true").Because("the bomb went down at A after the trigger");
+            await Assert.That(execute.Labels["plant"]).IsEqualTo("true")
+                .Because("the bomb went down at A after the trigger");
             await Assert.That(execute.Evidence.Select(e => e.Tick)).IsOrderedBy(t => t);
             await Assert.That(execute.Evidence.Any(e => e.Text == "4 T in BombsiteA+ALong+ASmall")).IsTrue();
         }
@@ -74,7 +77,8 @@ public class SuggestedTagsDetectorTests
         List<TagProposal> window = Detect(perSide, profile: DetectorProfile.Default.With("execute", "window", 1))
             .Of(ExecuteDetector.DetectorId);
 
-        await Assert.That(window).IsEmpty().Because("the per-side token cannot tell four players from one player seen four times");
+        await Assert.That(window).IsEmpty()
+            .Because("the per-side token cannot tell four players from one player seen four times");
     }
 
     [Test]
@@ -121,7 +125,8 @@ public class SuggestedTagsDetectorTests
             await Assert.That(@default.Labels["places"]).IsEqualTo("ALong,BTunnel,Middle");
             await Assert.That(@default.FromTick).IsEqualTo(Start);
             await Assert.That(@default.ToTick).IsEqualTo(execute.TriggerTick);
-            await Assert.That(@default.Confidence).IsEqualTo(0.6).Because("three places at the threshold plus smokes into both regions");
+            await Assert.That(@default.Confidence).IsEqualTo(0.6)
+                .Because("three places at the threshold plus smokes into both regions");
         }
     }
 
@@ -139,7 +144,8 @@ public class SuggestedTagsDetectorTests
             await Assert.That(@default.Labels["places"]).IsEqualTo("ALong,BTunnel,Connector,Middle");
             await Assert.That(@default.Labels.ContainsKey("then")).IsFalse();
             await Assert.That(@default.ToTick).IsEqualTo(At(40 + 10));
-            await Assert.That(@default.Confidence).IsEqualTo(0.7).Because("0.5, one place over the threshold, smokes into both regions");
+            await Assert.That(@default.Confidence).IsEqualTo(0.7)
+                .Because("0.5, one place over the threshold, smokes into both regions");
         }
     }
 
@@ -153,7 +159,8 @@ public class SuggestedTagsDetectorTests
         using (Assert.Multiple())
         {
             await Assert.That(proposals.Of(ExecuteDetector.DetectorId).Count).IsEqualTo(1);
-            await Assert.That(proposals.Of(DefaultDetector.DetectorId)).IsEmpty().Because("a round gets one or the other");
+            await Assert.That(proposals.Of(DefaultDetector.DetectorId)).IsEmpty()
+                .Because("a round gets one or the other");
         }
     }
 
@@ -271,12 +278,13 @@ public class SuggestedTagsDetectorTests
     public async Task ARoundShortOfFourASide_IsSkipped()
     {
         (RoundOccupancy full, List<PlacedEvent> events) = LateTouchExecute();
-        RoundOccupancy threeT = Round(tSlots: [6, 7, 8], t: new Dictionary<int, string?[]>
-        {
-            [6] = Path(90, "TSpawn", (12, 30, "ALong")),
-            [7] = Path(90, "TSpawn", (12, 30, "ALong")),
-            [8] = Path(90, "TSpawn", (12, 30, "ALong"))
-        });
+        RoundOccupancy threeT = Round(tSlots: [6, 7, 8],
+            t: new Dictionary<int, string?[]>
+            {
+                [6] = Path(90, "TSpawn", (12, 30, "ALong")),
+                [7] = Path(90, "TSpawn", (12, 30, "ALong")),
+                [8] = Path(90, "TSpawn", (12, 30, "ALong"))
+            });
 
         using (Assert.Multiple())
         {
@@ -358,7 +366,8 @@ public class SuggestedTagsDetectorTests
 
     [Test]
     [MethodDataSource(nameof(Moves))]
-    public async Task MovingAParameter_ChangesWhatItsDetectorProposes(string detector, string parameter, double moved, string scenario)
+    public async Task MovingAParameter_ChangesWhatItsDetectorProposes(string detector, string parameter, double moved,
+        string scenario)
     {
         (RoundOccupancy round, List<PlacedEvent> events) = Scenario(scenario);
         DetectorProfile shipped = DetectorProfile.Default;
@@ -370,7 +379,8 @@ public class SuggestedTagsDetectorTests
         using (Assert.Multiple())
         {
             await Assert.That(shipped.Get(detector, parameter)).IsNotEqualTo(moved);
-            await Assert.That(before.Count + after.Count).IsGreaterThan(0).Because("the scenario must exercise the detector");
+            await Assert.That(before.Count + after.Count).IsGreaterThan(0)
+                .Because("the scenario must exercise the detector");
             await Assert.That(string.Join('\n', after)).IsNotEqualTo(string.Join('\n', before))
                 .Because($"{detector}.{parameter} = {moved} must change {detector}'s proposals in '{scenario}'");
         }
@@ -379,7 +389,8 @@ public class SuggestedTagsDetectorTests
     [Test]
     public async Task TheMoveTable_CoversEveryParameterInTheProfile()
     {
-        HashSet<string> declared = [.. ProposalDetection.All.SelectMany(d => d.Parameters.Select(p => $"{d.Id}.{p.Name}"))];
+        HashSet<string> declared =
+            [.. ProposalDetection.All.SelectMany(d => d.Parameters.Select(p => $"{d.Id}.{p.Name}"))];
         HashSet<string> moved = [.. _moves.Select(m => $"{m.Detector}.{m.Parameter}")];
 
         await Assert.That(moved).IsEquivalentTo(declared, CollectionOrdering.Matching);
@@ -401,7 +412,8 @@ public class SuggestedTagsDetectorTests
     // The same round as the Round Index would carry it: per-side counts only.
     private static RoundOccupancy ToPerSide(RoundOccupancy round)
     {
-        Dictionary<int, (IReadOnlyList<(string Place, int Count)> Ct, IReadOnlyList<(string Place, int Count)> T)> bySecond = [];
+        Dictionary<int, (IReadOnlyList<(string Place, int Count)> Ct, IReadOnlyList<(string Place, int Count)> T)>
+            bySecond = [];
         for (int s = 0; s < round.Seconds; s++)
         {
             bySecond[s] = (Pairs(3, s), Pairs(2, s));
@@ -416,7 +428,8 @@ public class SuggestedTagsDetectorTests
             }
         }
 
-        return RoundOccupancy.FromSideCounts(round.Round, round.StartTick, round.EndTick, round.TickRate, sides, bySecond,
+        return RoundOccupancy.FromSideCounts(round.Round, round.StartTick, round.EndTick, round.TickRate, sides,
+            bySecond,
             round.Bomb);
 
         List<(string Place, int Count)> Pairs(int side, int second)

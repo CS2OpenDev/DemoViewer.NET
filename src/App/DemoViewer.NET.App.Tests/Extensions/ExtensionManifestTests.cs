@@ -18,17 +18,17 @@ namespace DemoViewer.NET.AppTests.Extensions;
 public class ExtensionManifestTests
 {
     private const string Good = """
-        {
-          "id": "net.demoviewer.pack.example",
-          "name": "Example",
-          "version": "1.2.3",
-          "assembly": "Example.dll",
-          "entryType": "Example.ExamplePack",
-          "requiresHost": "^1.0",
-          "requiresCs2DemoKit": "0.14.0",
-          "minAppVersion": "0.9.0"
-        }
-        """;
+                                {
+                                  "id": "net.demoviewer.pack.example",
+                                  "name": "Example",
+                                  "version": "1.2.3",
+                                  "assembly": "Example.dll",
+                                  "entryType": "Example.ExamplePack",
+                                  "requiresHost": "^1.0",
+                                  "requiresCs2DemoKit": "0.14.0",
+                                  "minAppVersion": "0.9.0"
+                                }
+                                """;
 
     [Test]
     public async Task Parse_ReadsEveryMember()
@@ -50,15 +50,18 @@ public class ExtensionManifestTests
     [Test]
     public async Task Parse_RulesetsAreOptional_AndMustBeRulesetNames()
     {
-        string with = Good.Replace("\"minAppVersion\": \"0.9.0\"", "\"minAppVersion\": \"0.9.0\", \"rulesets\": [\"kills\", \"economy_2\"]",
+        string with = Good.Replace("\"minAppVersion\": \"0.9.0\"",
+            "\"minAppVersion\": \"0.9.0\", \"rulesets\": [\"kills\", \"economy_2\"]",
             StringComparison.Ordinal);
-        string bad = Good.Replace("\"minAppVersion\": \"0.9.0\"", "\"minAppVersion\": \"0.9.0\", \"rulesets\": [\"My.Kills\"]",
+        string bad = Good.Replace("\"minAppVersion\": \"0.9.0\"",
+            "\"minAppVersion\": \"0.9.0\", \"rulesets\": [\"My.Kills\"]",
             StringComparison.Ordinal);
 
         using (Assert.Multiple())
         {
             await Assert.That(ExtensionManifest.Parse(Good).Rulesets).IsEmpty();
-            await Assert.That(ExtensionManifest.Parse(with).Rulesets).IsEquivalentTo(["kills", "economy_2"], CollectionOrdering.Matching);
+            await Assert.That(ExtensionManifest.Parse(with).Rulesets)
+                .IsEquivalentTo(["kills", "economy_2"], CollectionOrdering.Matching);
         }
 
         Assert.Throws<ExtensionManifestException>(() => ExtensionManifest.Parse(bad));
@@ -68,19 +71,19 @@ public class ExtensionManifestTests
     public async Task Parse_MinAppVersionIsOptional_UnknownMembersAreIgnored_CommentsAndTrailingCommasAllowed()
     {
         ExtensionManifest m = ExtensionManifest.Parse("""
-            {
-              // a newer manifest may carry members this app does not know
-              "id": "net.demoviewer.pack.example",
-              "name": "Example",
-              "version": "1.0.0",
-              "assembly": "Example.dll",
-              "entryType": "Example.ExamplePack",
-              "requiresHost": ">=1.0.0 <2.0.0",
-              "requiresCs2DemoKit": "*",
-              "signature": "abc",
-              "feed": { "url": "https://example.invalid" },
-            }
-            """);
+                                                      {
+                                                        // a newer manifest may carry members this app does not know
+                                                        "id": "net.demoviewer.pack.example",
+                                                        "name": "Example",
+                                                        "version": "1.0.0",
+                                                        "assembly": "Example.dll",
+                                                        "entryType": "Example.ExamplePack",
+                                                        "requiresHost": ">=1.0.0 <2.0.0",
+                                                        "requiresCs2DemoKit": "*",
+                                                        "signature": "abc",
+                                                        "feed": { "url": "https://example.invalid" },
+                                                      }
+                                                      """);
         using (Assert.Multiple())
         {
             await Assert.That(m.MinAppVersion).IsNull();
@@ -98,7 +101,8 @@ public class ExtensionManifestTests
     [Arguments("requiresCs2DemoKit")]
     public async Task Parse_FailsWhenARequiredMemberIsMissing(string member)
     {
-        string json = string.Join('\n', Good.Split('\n').Where(line => !line.Contains($"\"{member}\"", StringComparison.Ordinal)));
+        string json = string.Join('\n',
+            Good.Split('\n').Where(line => !line.Contains($"\"{member}\"", StringComparison.Ordinal)));
         ExtensionManifestException ex = Assert.Throws<ExtensionManifestException>(() => ExtensionManifest.Parse(json));
         await Assert.That(ex.Message).Contains(member);
     }
@@ -134,7 +138,8 @@ public class ExtensionManifestTests
             Assert.Throws<ExtensionManifestException>(() => ExtensionManifest.Parse("{ not json"));
             Assert.Throws<ExtensionManifestException>(() => ExtensionManifest.Parse("null"));
             Assert.Throws<ExtensionManifestException>(() => ExtensionManifest.Parse("[]"));
-            await Assert.That(Assert.Throws<ExtensionManifestException>(() => ExtensionManifest.Parse("{}")).Message).Contains("required");
+            await Assert.That(Assert.Throws<ExtensionManifestException>(() => ExtensionManifest.Parse("{}")).Message)
+                .Contains("required");
         }
     }
 
@@ -144,10 +149,12 @@ public class ExtensionManifestTests
     public async Task TheManifestTemplate_InTheRepo_DescribesStratBookPack()
     {
         string repoRoot = DemoTestHelper.FindRepoRoot()
-            ?? throw new SkipTestException("repo root not found (no DemoViewer.NET.slnx above the test binary)");
+            ?? throw new SkipTestException(
+                "repo root not found (no DemoViewer.NET.slnx above the test binary)");
         string path = Path.Combine(repoRoot, "src", "Extensions", "StratBook", ExtensionManifest.FileName);
         string template = await File.ReadAllTextAsync(path);
-        ExtensionManifest m = ExtensionManifest.Parse(template.Replace("\"{version}\"", "\"0.0.0\"", StringComparison.Ordinal));
+        ExtensionManifest m =
+            ExtensionManifest.Parse(template.Replace("\"{version}\"", "\"0.0.0\"", StringComparison.Ordinal));
         await AssertIsStratBook(m);
     }
 
@@ -175,7 +182,8 @@ public class ExtensionManifestTests
     [Test]
     public async Task ReadEmbedded_FailsForAnAssemblyWithoutOne()
     {
-        ExtensionManifestException ex = Assert.Throws<ExtensionManifestException>(() => ExtensionManifest.ReadEmbedded(typeof(ExtensionManifestTests).Assembly));
+        ExtensionManifestException ex = Assert.Throws<ExtensionManifestException>(() =>
+            ExtensionManifest.ReadEmbedded(typeof(ExtensionManifestTests).Assembly));
         await Assert.That(ex.Message).Contains(ExtensionManifest.FileName);
     }
 
@@ -187,7 +195,8 @@ public class ExtensionManifestTests
             await Assert.That(m.Name).IsEqualTo("Strat Book");
             await Assert.That(m.Assembly).IsEqualTo(typeof(StratBookPack).Assembly.GetName().Name + ".dll");
             await Assert.That(m.EntryType).IsEqualTo(typeof(StratBookPack).FullName);
-            await Assert.That(Type.GetType(m.EntryType + ", " + typeof(StratBookPack).Assembly.GetName().Name)).IsEqualTo(typeof(StratBookPack))
+            await Assert.That(Type.GetType(m.EntryType + ", " + typeof(StratBookPack).Assembly.GetName().Name))
+                .IsEqualTo(typeof(StratBookPack))
                 .Because("a loader instantiates the entry type by name");
         }
     }

@@ -8,14 +8,15 @@ namespace DemoViewer.NET.Extensions.StratBook;
 /// <param name="library">The library whose removals the data follows; null follows nothing.</param>
 public sealed class MemoryDemoData(IExtensionLibrary? library = null) : IExtensionDemoData, IDisposable
 {
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IExtensionLibrary, MemoryDemoData> Shared = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IExtensionLibrary, MemoryDemoData>
+        _shared = new();
 
     /// <summary>The one in-memory data of <paramref name="library" />, so every store over that library shares it.</summary>
     /// <param name="library">The library.</param>
     public static MemoryDemoData For(IExtensionLibrary library)
     {
         ArgumentNullException.ThrowIfNull(library);
-        return Shared.GetValue(library, static l => new MemoryDemoData(l));
+        return _shared.GetValue(library, static l => new MemoryDemoData(l));
     }
 
     private readonly Dictionary<(string Path, string Facet), Item> _items = new(Comparer.Instance);
@@ -51,14 +52,19 @@ public sealed class MemoryDemoData(IExtensionLibrary? library = null) : IExtensi
     {
         lock (_gate)
         {
-            return [.. _items.Where(kv => string.Equals(kv.Key.Facet, facet, StringComparison.Ordinal)).Select(kv => kv.Value.Stamp)];
+            return
+            [
+                .. _items.Where(kv => string.Equals(kv.Key.Facet, facet, StringComparison.Ordinal))
+                    .Select(kv => kv.Value.Stamp)
+            ];
         }
     }
 
     /// <inheritdoc />
     public byte[]? Read(string demoPath, string facet, int schema, string? fingerprint, string? part = null) =>
         ReadAny(demoPath, facet, part) is { } record && record.Schema == schema
-                                                     && string.Equals(record.Fingerprint, fingerprint, StringComparison.Ordinal)
+        && string.Equals(record.Fingerprint, fingerprint,
+            StringComparison.Ordinal)
             ? record.Content
             : null;
 
@@ -73,18 +79,21 @@ public sealed class MemoryDemoData(IExtensionLibrary? library = null) : IExtensi
             }
 
             byte[]? content = part is null ? written.Payload : written.Parts.GetValueOrDefault(part);
-            return content is null ? null : new DemoDataRecord(written.Schema, written.Fingerprint, null, written.WrittenAtTicks, content);
+            return content is null
+                ? null
+                : new DemoDataRecord(written.Schema, written.Fingerprint, null, written.WrittenAtTicks, content);
         }
     }
 
     /// <inheritdoc />
-    public DemoDataStamp? Write(string demoPath, DemoDataWrite write)
+    public DemoDataStamp Write(string demoPath, DemoDataWrite write)
     {
         ArgumentNullException.ThrowIfNull(write);
         long now = DateTime.UtcNow.Ticks;
         Written written = new(write.Schema, write.Fingerprint, now, write.Payload.ToArray(),
             write.Parts.ToDictionary(p => p.Key, p => p.Value.ToArray(), StringComparer.Ordinal));
-        DemoDataStamp stamp = new(demoPath, Sha256Of(demoPath), write.Facet, write.Schema, write.Fingerprint, DemoDataState.Written, now,
+        DemoDataStamp stamp = new(demoPath, Sha256Of(demoPath), write.Facet, write.Schema, write.Fingerprint,
+            DemoDataState.Written, now,
             write.Count);
         lock (_gate)
         {
@@ -97,14 +106,17 @@ public sealed class MemoryDemoData(IExtensionLibrary? library = null) : IExtensi
     }
 
     /// <inheritdoc />
-    public void MarkFailed(string demoPath, string facet) => Mutate(demoPath, facet, s => s with { State = DemoDataState.Failed }, true);
+    public void MarkFailed(string demoPath, string facet) =>
+        Mutate(demoPath, facet, s => s with { State = DemoDataState.Failed }, true);
 
     /// <inheritdoc />
     public void ClearFailed(string demoPath, string facet) =>
-        Mutate(demoPath, facet, s => s.State == DemoDataState.Failed ? s with { State = DemoDataState.Pending } : s, false);
+        Mutate(demoPath, facet, s => s.State == DemoDataState.Failed ? s with { State = DemoDataState.Pending } : s,
+            false);
 
     /// <inheritdoc />
-    public void SetCount(string demoPath, string facet, int count) => Mutate(demoPath, facet, s => s with { Count = count }, true);
+    public void SetCount(string demoPath, string facet, int count) =>
+        Mutate(demoPath, facet, s => s with { Count = count }, true);
 
     /// <inheritdoc />
     public void Invalidate(string facet, string? demoPath = null)
@@ -121,7 +133,9 @@ public sealed class MemoryDemoData(IExtensionLibrary? library = null) : IExtensi
                         Stamp = item.Stamp with
                         {
                             Fingerprint = null,
-                            State = item.Stamp.State == DemoDataState.Failed ? DemoDataState.Pending : item.Stamp.State
+                            State = item.Stamp.State == DemoDataState.Failed
+                                ? DemoDataState.Pending
+                                : item.Stamp.State
                         }
                     };
                 }
@@ -156,7 +170,8 @@ public sealed class MemoryDemoData(IExtensionLibrary? library = null) : IExtensi
         Written? written = payload is null
             ? null
             : new Written(stamp.Schema, stamp.Fingerprint, stamp.WrittenAtTicks, payload,
-                parts?.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal) ?? new Dictionary<string, byte[]>(StringComparer.Ordinal));
+                parts?.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal)
+                ?? new Dictionary<string, byte[]>(StringComparer.Ordinal));
         lock (_gate)
         {
             Follow();
@@ -178,7 +193,8 @@ public sealed class MemoryDemoData(IExtensionLibrary? library = null) : IExtensi
                     return;
                 }
 
-                item = new Item(new DemoDataStamp(demoPath, Sha256Of(demoPath), facet, 0, null, DemoDataState.Pending, 0, 0), null);
+                item = new Item(
+                    new DemoDataStamp(demoPath, Sha256Of(demoPath), facet, 0, null, DemoDataState.Pending, 0, 0), null);
             }
 
             _items[(demoPath, facet)] = item with { Stamp = change(item.Stamp) };
@@ -224,7 +240,12 @@ public sealed class MemoryDemoData(IExtensionLibrary? library = null) : IExtensi
         }
     }
 
-    private sealed record Written(int Schema, string? Fingerprint, long WrittenAtTicks, byte[] Payload, Dictionary<string, byte[]> Parts);
+    private sealed record Written(
+        int Schema,
+        string? Fingerprint,
+        long WrittenAtTicks,
+        byte[] Payload,
+        Dictionary<string, byte[]> Parts);
 
     private sealed record Item(DemoDataStamp Stamp, Written? Written);
 
@@ -233,9 +254,11 @@ public sealed class MemoryDemoData(IExtensionLibrary? library = null) : IExtensi
         public static Comparer Instance { get; } = new();
 
         public bool Equals((string Path, string Facet) x, (string Path, string Facet) y) =>
-            string.Equals(x.Path, y.Path, StringComparison.OrdinalIgnoreCase) && string.Equals(x.Facet, y.Facet, StringComparison.Ordinal);
+            string.Equals(x.Path, y.Path, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(x.Facet, y.Facet, StringComparison.Ordinal);
 
         public int GetHashCode((string Path, string Facet) obj) =>
-            HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Path), StringComparer.Ordinal.GetHashCode(obj.Facet));
+            HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Path),
+                StringComparer.Ordinal.GetHashCode(obj.Facet));
     }
 }

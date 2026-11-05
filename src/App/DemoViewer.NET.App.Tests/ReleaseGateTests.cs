@@ -105,11 +105,13 @@ public class ReleaseGateTests
             // to end users; it now lives at docs/tour-sample-demo.md. Asserted over the whole
             // published assets/ tree, not just tour/, because the next one won't be in tour/.
             string publishedAssets = Path.Combine(publishDir, "assets");
-            string[] strayDocs = Directory
-                .EnumerateFiles(publishedAssets, "*.md", SearchOption.AllDirectories)
-                .Concat(Directory.EnumerateFiles(publishedAssets, "*.txt", SearchOption.AllDirectories))
-                .Select(p => Path.GetRelativePath(publishedAssets, p))
-                .ToArray();
+            string[] strayDocs =
+            [
+                .. Directory
+                    .EnumerateFiles(publishedAssets, "*.md", SearchOption.AllDirectories)
+                    .Concat(Directory.EnumerateFiles(publishedAssets, "*.txt", SearchOption.AllDirectories))
+                    .Select(p => Path.GetRelativePath(publishedAssets, p))
+            ];
             await Assert.That(strayDocs).IsEmpty()
                 .Because($"maintainer docs must not ship inside assets/ — found: {string.Join(", ", strayDocs)}");
         }
@@ -147,36 +149,36 @@ public class ReleaseGateTests
             // The user tier: two additive v2 rulesets with constant compute stats (deterministic
             // assertions), plus a leftover retired-v1 `chains:` file (the containment case: it
             // must error loudly and legibly without breaking the rest of the tier).
-            File.WriteAllText(Path.Combine(userDir, "journey-check.rules.yaml"), """
-                                                                                 ruleset: journey_check_rs
-                                                                                 for: each_player
-                                                                                 stats:
-                                                                                   journey_check:
-                                                                                     compute: "777"
-                                                                                     per: match
-                                                                                     format: F0
-                                                                                 show:
-                                                                                   scoreboard:
-                                                                                     - { stat: journey_check, label: JourneyCheck }
-                                                                                 """);
-            File.WriteAllText(Path.Combine(userDir, "journey-new.rules.yaml"), """
-                                                                               ruleset: journey_new
-                                                                               for: each_player
-                                                                               stats:
-                                                                                 journey_new_stat:
-                                                                                   compute: "888"
-                                                                                   per: match
-                                                                                   format: F0
-                                                                               show:
-                                                                                 scoreboard:
-                                                                                   - { stat: journey_new_stat, label: JourneyNew }
-                                                                                 tables:
-                                                                                   journey_output:
-                                                                                     per: player_match
-                                                                                     columns:
-                                                                                       - { stat: journey_new_stat, label: JourneyOut }
-                                                                               """);
-            File.WriteAllText(Path.Combine(userDir, "broken.yaml"),
+            await File.WriteAllTextAsync(Path.Combine(userDir, "journey-check.rules.yaml"), """
+                ruleset: journey_check_rs
+                for: each_player
+                stats:
+                  journey_check:
+                    compute: "777"
+                    per: match
+                    format: F0
+                show:
+                  scoreboard:
+                    - { stat: journey_check, label: JourneyCheck }
+                """);
+            await File.WriteAllTextAsync(Path.Combine(userDir, "journey-new.rules.yaml"), """
+                ruleset: journey_new
+                for: each_player
+                stats:
+                  journey_new_stat:
+                    compute: "888"
+                    per: match
+                    format: F0
+                show:
+                  scoreboard:
+                    - { stat: journey_new_stat, label: JourneyNew }
+                  tables:
+                    journey_output:
+                      per: player_match
+                      columns:
+                        - { stat: journey_new_stat, label: JourneyOut }
+                """);
+            await File.WriteAllTextAsync(Path.Combine(userDir, "broken.yaml"),
                 "chains:\n  - id: journey_broken\n    scope: per_player\n    rules:\n      - id: r1\n        type: bool\n");
 
             // Resolution plumbing: with both env overrides set, the locator points at exactly
@@ -222,7 +224,7 @@ public class ReleaseGateTests
             // exercising the category rail as part of the journey.
             await Assert.That(vm.Categories.Select(c => c.Group)).Contains(StatGroup.Other);
             vm.SelectedCategory = StatGroup.Other;
-            IReadOnlyList<string> labels = vm.Columns.Select(c => c.Label).ToList();
+            IReadOnlyList<string> labels = [.. vm.Columns.Select(c => c.Label)];
             await Assert.That(labels).Contains("JourneyCheck");
             await Assert.That(labels).Contains("JourneyNew");
 
@@ -236,7 +238,7 @@ public class ReleaseGateTests
 
             // Table picker: the declared output and the shipped keyed tables are selectable, and
             // the generic renderer produces aligned rows for the declared output.
-            IReadOnlyList<string> extraNames = vm.ExtraTables.Select(t => t.Name).ToList();
+            IReadOnlyList<string> extraNames = [.. vm.ExtraTables.Select(t => t.Name)];
             await Assert.That(extraNames).Contains("journey_output");
             await Assert.That(extraNames).Contains("player_kills_by_weapon");
             vm.SelectedExtraTable = vm.ExtraTables.Single(t => t.Name == "journey_output");

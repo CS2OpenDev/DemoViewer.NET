@@ -29,8 +29,8 @@ public class ShellOpenSupersedeTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 using HeavyJobGate gate = new();
-                using DemoProcessingQueue queue = new(gate, a => a(),
-                    parseBytes: bytes => throw new InvalidDataException("not a demo"),
+                using DemoProcessingQueue queue = new(gate, run => run(),
+                    parseBytes: _ => throw new InvalidDataException("not a demo"),
                     compactHeap: () => Task.CompletedTask);
                 MainViewModel vm = new(library: TestLibraries.Empty(), heavyJobGate: gate, processingQueue: queue);
                 TaskCompletionSource<byte[]> slowA = new(TaskCreationOptions.RunContinuationsAsynchronously);

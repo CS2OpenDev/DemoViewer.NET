@@ -17,10 +17,14 @@ namespace DemoViewer.NET.Extensions.Sdk;
 /// <param name="MapName">The map, once the demo is indexed.</param>
 /// <param name="Modified">The file's last write time, local.</param>
 /// <param name="FileSizeBytes">The file's size.</param>
-public sealed record LibraryDemo(string FilePath, string FileName, string? MapName, DateTime Modified, long FileSizeBytes)
+[PublicAPI]
+public sealed record LibraryDemo(
+    string FilePath,
+    string FileName,
+    string? MapName,
+    DateTime Modified,
+    long FileSizeBytes)
 {
-    private readonly IReadOnlyList<string>? _locations;
-
     /// <summary>
     ///     Lowercase hex SHA-256 of the file: the demo's identity, the key the library and
     ///     <see cref="IExtensionDemoData" /> keep its data under. Null until the library has read the file at
@@ -37,8 +41,8 @@ public sealed record LibraryDemo(string FilePath, string FileName, string? MapNa
     /// </summary>
     public IReadOnlyList<string> Locations
     {
-        get => _locations ?? [FilePath];
-        init => _locations = value is { Count: > 0 } ? value : null;
+        get => field ?? [FilePath];
+        init => field = value is { Count: > 0 } ? value : null;
     }
 
     /// <summary>The server name from the demo's header, or null.</summary>
@@ -120,6 +124,7 @@ public sealed record LibraryDemo(string FilePath, string FileName, string? MapNa
 }
 
 /// <summary>How far the library has read a demo.</summary>
+[PublicAPI]
 public enum LibraryDemoState
 {
     /// <summary>Only the file is known: path, size, write time.</summary>
@@ -138,6 +143,7 @@ public enum LibraryDemoState
 /// <summary>A player on one side at the end of a demo, as the library's row carries it.</summary>
 /// <param name="SteamId64">The player's SteamID64.</param>
 /// <param name="Name">The name the demo carried, unsanitized.</param>
+[PublicAPI]
 public sealed record LibrarySidePlayer(ulong SteamId64, string Name)
 {
     /// <summary>Every slot the player held in the demo: one, or more after a reconnect.</summary>
@@ -150,6 +156,7 @@ public sealed record LibrarySidePlayer(ulong SteamId64, string Name)
 /// <param name="Fingerprint">What it was computed under, or null when it was marked for a rebuild.</param>
 /// <param name="State">How its last write ended.</param>
 /// <param name="Count">The writer's own count (rows, items), or 0.</param>
+[PublicAPI]
 public sealed record LibraryFactState(string Id, int Schema, string? Fingerprint, DemoDataState State, int Count)
 {
     /// <summary>When it was last written, in UTC ticks, or 0 when the host did not record it.</summary>
@@ -159,7 +166,8 @@ public sealed record LibraryFactState(string Id, int Schema, string? Fingerprint
     /// <param name="schema">The shape the reader expects.</param>
     /// <param name="fingerprint">The fingerprint the reader expects.</param>
     public bool IsCurrent(int schema, string? fingerprint) =>
-        State == DemoDataState.Written && Schema == schema && string.Equals(Fingerprint, fingerprint, StringComparison.Ordinal);
+        State == DemoDataState.Written && Schema == schema
+        && string.Equals(Fingerprint, fingerprint, StringComparison.Ordinal);
 
     /// <summary>True when rows were written at any schema under some fingerprint.</summary>
     public bool IsWritten => Schema > 0 && Fingerprint is not null;
@@ -172,6 +180,7 @@ public sealed record LibraryFactState(string Id, int Schema, string? Fingerprint
 /// <param name="Team">The side at the end of the demo: 3 for CT, 2 for T, anything else for a spectator.</param>
 /// <param name="IsBot">True for a bot.</param>
 /// <param name="IsCoach">True for a registered coach, who sits on a side without playing.</param>
+[PublicAPI]
 public sealed record LibraryPlayer(int Slot, string Name, ulong SteamId64, int Team, bool IsBot, bool IsCoach);
 
 /// <summary>Where a round starts.</summary>
@@ -186,6 +195,7 @@ public sealed record LibraryRound(int Number, int StartTick);
 /// <param name="ServerStartTick">The server tick of the demo's first frame.</param>
 /// <param name="Players">Every player, spectators and coaches included.</param>
 /// <param name="Rounds">Where each round starts, in order.</param>
+[PublicAPI]
 public sealed record LibraryDemoDetail(
     LibraryDemo Demo,
     int TickRate,
@@ -195,6 +205,7 @@ public sealed record LibraryDemoDetail(
     IReadOnlyList<LibraryRound> Rounds);
 
 /// <summary>How <see cref="IExtensionLibrary.Query" /> orders its results.</summary>
+[PublicAPI]
 public enum LibrarySort
 {
     /// <summary>Newest file first.</summary>
@@ -211,6 +222,7 @@ public enum LibrarySort
 }
 
 /// <summary>A filter and a page over the library. Every criterion left null matches every demo.</summary>
+[PublicAPI]
 public sealed record LibraryQuery
 {
     /// <summary>The map, compared ignoring case.</summary>
@@ -250,6 +262,7 @@ public sealed record LibraryQuery
 /// <summary>One page of a <see cref="IExtensionLibrary.Query" />.</summary>
 /// <param name="Demos">The page.</param>
 /// <param name="Total">How many demos matched, across every page.</param>
+[PublicAPI]
 public sealed record LibraryPage(IReadOnlyList<LibraryDemo> Demos, int Total);
 
 /// <summary>What changed in the library.</summary>
@@ -275,6 +288,7 @@ public enum LibraryChangeKind
 ///     way too, as it can change which path the demo is shown at.
 /// </param>
 /// <param name="Kind">What changed.</param>
+[PublicAPI]
 public sealed record LibraryChange(string? Path, LibraryChangeKind Kind);
 
 /// <summary>
@@ -284,6 +298,7 @@ public sealed record LibraryChange(string? Path, LibraryChangeKind Kind);
 ///     pass (<see cref="IExtensionContributions.RecordPass" />) or a queued job, not a loop over
 ///     <see cref="GetDetailAsync" /> from the UI.
 /// </summary>
+[PublicAPI]
 public interface IExtensionLibrary
 {
     /// <summary>
@@ -339,6 +354,7 @@ public interface IExtensionLibrary
 /// <summary>One choice in a <see cref="LibraryFilter" />.</summary>
 /// <param name="Key">What <see cref="LibraryFilter.Matches" /> receives.</param>
 /// <param name="Display">What the list shows.</param>
+[PublicAPI]
 public sealed record LibraryFilterItem(string Key, string Display);
 
 /// <summary>A drop-down filter in the Library's filter bar.</summary>
@@ -346,13 +362,18 @@ public sealed record LibraryFilterItem(string Key, string Display);
 /// <param name="Items">Its choices.</param>
 /// <param name="Matches">Whether a demo passes for the chosen key.</param>
 /// <param name="Tooltip">The drop-down's tooltip.</param>
+[PublicAPI]
 public sealed record LibraryFilter(
-    string Label, IReadOnlyList<LibraryFilterItem> Items, Func<LibraryDemo, string, bool> Matches, string? Tooltip = null);
+    string Label,
+    IReadOnlyList<LibraryFilterItem> Items,
+    Func<LibraryDemo, string, bool> Matches,
+    string? Tooltip = null);
 
 /// <summary>A chip on a Library row.</summary>
 /// <param name="Label">The chip text.</param>
 /// <param name="Tooltip">The chip tooltip.</param>
 /// <param name="IsPinned">True when the user chose it rather than a heuristic.</param>
+[PublicAPI]
 public sealed record LibraryBadge(string Label, string? Tooltip, bool IsPinned);
 
 /// <summary>A Library filter, a per-row badge, or both. Raise <see cref="Changed" /> when either may have changed.</summary>

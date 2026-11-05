@@ -66,29 +66,23 @@ internal sealed class EverythingOff : IExtensionFeatures
 }
 
 /// <summary>
-///     A host with no processing queue, the browser's posture. Work is recorded and never run, so a
-///     factory that queues during composition shows up as a recorded title instead of as side effects.
+///     A host with no processing queue, the browser's posture. Work is never run, so a factory that
+///     queues during composition has no side effects.
 /// </summary>
 internal sealed class NoQueue : IExtensionJobs
 {
-    private readonly List<string> _titles = [];
-
-    public IReadOnlyList<string> Titles => _titles;
-
     public IJobHandle Enqueue(JobRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        _titles.Add(request.Title);
         return new RejectedJob();
     }
 
-    public Task RunAsync(string title, Func<IJobContext, Task> work, JobOptions? options = null)
-    {
-        _titles.Add(title);
-        return Task.CompletedTask;
-    }
+    public Task RunAsync(string title, Func<IJobContext, Task> work, JobOptions? options = null) =>
+        Task.CompletedTask;
 
-    public void CancelAll() { }
+    public void CancelAll()
+    {
+    }
 }
 
 internal sealed class RejectedJob : IJobHandle
@@ -103,20 +97,20 @@ internal sealed class RejectedJob : IJobHandle
         remove { }
     }
 
-    public void Cancel() { }
+    public void Cancel()
+    {
+    }
 }
 
 internal sealed class NoPasses : IExtensionPasses
 {
-    private readonly List<string> _requested = [];
+    public void Request(string demoPath)
+    {
+    }
 
-    public IReadOnlyList<string> Requested => _requested;
-
-    public int RecheckCount { get; private set; }
-
-    public void Request(string demoPath) => _requested.Add(demoPath);
-
-    public void RecheckAll() => RecheckCount++;
+    public void RecheckAll()
+    {
+    }
 
     public bool IsBusy(string passId) => false;
 
@@ -141,11 +135,15 @@ internal sealed class NoShell : IExtensionShell
 
     public Task<bool> OpenDemoAsync(string path) => Task.FromResult(false);
 
-    public void SeekToTick(int tick) { }
+    public void SeekToTick(int tick)
+    {
+    }
 
     public bool SelectTab(string tabId) => false;
 
-    public void RevealInFileManager(string path) { }
+    public void RevealInFileManager(string path)
+    {
+    }
 
     public event Action? CurrentDemoChanged
     {
@@ -209,15 +207,25 @@ internal sealed class NoDemoData : IExtensionDemoData
 
     public DemoDataStamp? Write(string demoPath, DemoDataWrite write) => null;
 
-    public void MarkFailed(string demoPath, string facet) { }
+    public void MarkFailed(string demoPath, string facet)
+    {
+    }
 
-    public void ClearFailed(string demoPath, string facet) { }
+    public void ClearFailed(string demoPath, string facet)
+    {
+    }
 
-    public void Invalidate(string facet, string? demoPath = null) { }
+    public void Invalidate(string facet, string? demoPath = null)
+    {
+    }
 
-    public void SetCount(string demoPath, string facet, int count) { }
+    public void SetCount(string demoPath, string facet, int count)
+    {
+    }
 
-    public void Delete(string demoPath, string facet) { }
+    public void Delete(string demoPath, string facet)
+    {
+    }
 
     public event Action<string?>? Changed
     {
@@ -282,17 +290,11 @@ internal sealed class NoRoundFacts : IRoundFacts
 
 internal sealed class NoNotifications : IExtensionNotifications
 {
-    private readonly List<string> _posted = [];
+    public void Post(Notification? notification) => ArgumentNullException.ThrowIfNull(notification);
 
-    public IReadOnlyList<string> Posted => _posted;
-
-    public void Post(Notification notification)
+    public void Dismiss(string id)
     {
-        ArgumentNullException.ThrowIfNull(notification);
-        _posted.Add(notification.Id);
     }
-
-    public void Dismiss(string id) { }
 }
 
 internal sealed class NoKeymap : IExtensionKeymap
@@ -305,7 +307,7 @@ internal sealed class NoKeymap : IExtensionKeymap
 
     public string? ActionFor(string scope, Key key, KeyModifiers modifiers) => null;
 
-    public string GestureText(string actionId) => "";
+    public string GestureText(string? actionId) => "";
 
     public event Action? Changed
     {
@@ -339,15 +341,21 @@ internal sealed class EmptyReviewQueue : IExtensionReviewQueue
 
     public string? FileProblem => null;
 
-    public int Add(IEnumerable<ReviewClip> clips, string? sectionTitle = null, string sectionSubtitle = "") => 0;
+    public int Add(IEnumerable<ReviewClip> clips, string? sectionTitle = null, string? sectionSubtitle = "") => 0;
 
-    public void AddSection(string title) { }
+    public void AddSection(string title)
+    {
+    }
 
     public int Remove(IEnumerable<Guid> ids) => 0;
 
-    public void MoveBy(Guid id, int delta) { }
+    public void MoveBy(Guid id, int delta)
+    {
+    }
 
-    public void Clear() { }
+    public void Clear()
+    {
+    }
 
     public int SetReviewed(IEnumerable<Guid> ids, bool reviewed) => 0;
 

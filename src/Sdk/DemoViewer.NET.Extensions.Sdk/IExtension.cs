@@ -1,4 +1,8 @@
+#region
+
 using Microsoft.Extensions.DependencyInjection;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk;
 
@@ -7,6 +11,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 ///     public parameterless constructor, reads the DI-free members, calls <see cref="Register" /> while it
 ///     builds its container, and calls <see cref="Contribute" /> once the container exists.
 /// </summary>
+[PublicAPI]
 public interface IExtension
 {
     /// <summary>Reverse-DNS id, equal to the manifest's <c>id</c>. A persisted key: never rename it.</summary>
@@ -25,13 +30,13 @@ public interface IExtension
     IEnumerable<ExtensionFeature> Features { get; }
 
     /// <summary>Commands with default key gestures. Read without DI, so the keybind settings can list them.</summary>
-    IEnumerable<CommandDescriptor> Commands => Array.Empty<CommandDescriptor>();
+    IEnumerable<CommandDescriptor> Commands => [];
 
     /// <summary>The focus scopes <see cref="Commands" /> name beyond the tab's own two. Read without DI.</summary>
-    IEnumerable<CommandScope> CommandScopes => Array.Empty<CommandScope>();
+    IEnumerable<CommandScope> CommandScopes => [];
 
     /// <summary>The processing-queue job kinds the extension submits work under. Read without DI.</summary>
-    IEnumerable<ExtensionJobKind> JobKinds => Array.Empty<ExtensionJobKind>();
+    IEnumerable<ExtensionJobKind> JobKinds => [];
 
     /// <summary>
     ///     Folders and files the extension owns outside its own folders: where it keeps data a user is meant to
@@ -40,9 +45,10 @@ public interface IExtension
     ///     rest. For a third-party extension, each path's first segment must be the extension's id, the id and
     ///     ".json", or start with the id and '-'; a store that names anything else is dropped and logged against
     ///     the extension. The extensions the app ships are exempt from that naming; the folders the host keeps
-    ///     for itself, and the demo cache's own records under the cache root, refuse every extension alike.
+    ///     for itself, and the demo cache's own records under the cache root, refuse every extension alike. A null
+    ///     entry is dropped and logged the same way.
     /// </summary>
-    IEnumerable<StoreDescriptor> Stores => Array.Empty<StoreDescriptor>();
+    IEnumerable<StoreDescriptor?> Stores => [];
 
     /// <summary>
     ///     Adds the extension's services. Runs whether the extension is on or off, so register factories

@@ -24,14 +24,14 @@ internal static class RuleCorpus
     }
 
     /// <summary>The repository's <c>rules/</c> directory.</summary>
-    internal static string RulesDirectory()
+    private static string RulesDirectory()
     {
         DirectoryInfo? dir = new(AppContext.BaseDirectory);
         while (dir is not null)
         {
             string candidate = Path.Combine(dir.FullName, "rules");
-            if (System.IO.Directory.Exists(candidate)
-                && System.IO.Directory.GetFiles(candidate, "*.rules.yaml").Length > 0)
+            if (Directory.Exists(candidate)
+                && Directory.GetFiles(candidate, "*.rules.yaml").Length > 0)
             {
                 return candidate;
             }

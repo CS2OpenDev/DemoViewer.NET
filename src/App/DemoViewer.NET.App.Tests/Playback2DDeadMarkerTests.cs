@@ -23,27 +23,16 @@ public class Playback2DDeadMarkerTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = Playback2DFakeContext.Bare();
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
         vm.OnActivated(ctx);
 
         // Frame 1: slot 0 ALIVE at a known spot → populates the last-known-position cache + draws a marker.
-        ctx.Push(new FakeSnap(1, new[]
-        {
-            Alive(0, 2, 1200, -800, 64, 100)
-        }));
+        ctx.Push(new FakeSnap(1, [Alive(0, 2, 1200, -800, 64, 100)]));
         await Assert.That(vm.Markers.Count).IsEqualTo(1);
         await Assert.That(vm.Markers[0].IsAlive).IsTrue();
 
         // Frame 2: slot 0's pawn has orphaned, no live pawn, no position (HasLivePawn=false).
-        ctx.Push(new FakeSnap(2, new[]
-        {
-            Dead(0, 2)
-        }));
+        ctx.Push(new FakeSnap(2, [Dead(0, 2)]));
 
         await Assert.That(vm.Markers.Count).IsEqualTo(1);
         PlayerMarker held = vm.Markers[0];
@@ -73,38 +62,21 @@ public class Playback2DDeadMarkerTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = Playback2DFakeContext.Bare();
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
         vm.OnActivated(ctx);
 
         // Frames 1→2 ALIVE and MOVING (spot A then spot B). The last-known-position cache must end on B.
-        ctx.Push(new FakeSnap(1, new[]
-        {
-            Alive(0, 2, 100, 100, 64, 100)
-        }));
-        ctx.Push(new FakeSnap(2, new[]
-        {
-            Alive(0, 2, 500, -300, 64, 100)
-        }));
+        ctx.Push(new FakeSnap(1, [Alive(0, 2, 100, 100, 64, 100)]));
+        ctx.Push(new FakeSnap(2, [Alive(0, 2, 500, -300, 64, 100)]));
         await Assert.That(vm.Markers.Single().IsAlive).IsTrue();
         await Assert.That(vm.Markers.Single().WorldX).IsEqualTo(500f);
         await Assert.That(vm.Markers.Single().WorldY).IsEqualTo(-300f);
 
         // Frames 3→5 DEAD/orphaned (no live pawn, no position). The gray marker must hold at spot B on
         // EVERY frame, not just the first dead frame, and never drift back to the stale A.
-        foreach (int f in new[]
-                 {
-                     3, 4, 5
-                 })
+        foreach (int f in new[] { 3, 4, 5 })
         {
-            ctx.Push(new FakeSnap(f, new[]
-            {
-                Dead(0, 2)
-            }));
+            ctx.Push(new FakeSnap(f, [Dead(0, 2)]));
             PlayerMarker held = vm.Markers.Single(); // exactly one: no vanish, no duplicate
             await Assert.That(held.IsAlive).IsFalse();
             await Assert.That(held.Ring).IsEqualTo(RingState.Dead);
@@ -116,10 +88,7 @@ public class Playback2DDeadMarkerTests
 
         // Frame 6 RESPAWN at a fresh spot C → live marker there, ring back to the team colour (the death
         // gap must not leak a stale flash), cache re-armed to C.
-        ctx.Push(new FakeSnap(6, new[]
-        {
-            Alive(0, 2, -900, 1200, 64, 100)
-        }));
+        ctx.Push(new FakeSnap(6, [Alive(0, 2, -900, 1200, 64, 100)]));
         PlayerMarker live = vm.Markers.Single();
         await Assert.That(live.IsAlive).IsTrue();
         await Assert.That(live.Ring).IsEqualTo(RingState.Team);
@@ -128,10 +97,7 @@ public class Playback2DDeadMarkerTests
 
         // Frame 7 DEAD again → now held at the RESPAWN spot C, proving the cache refreshed on respawn
         // rather than reverting to the pre-death spot B.
-        ctx.Push(new FakeSnap(7, new[]
-        {
-            Dead(0, 2)
-        }));
+        ctx.Push(new FakeSnap(7, [Dead(0, 2)]));
         PlayerMarker held2 = vm.Markers.Single();
         await Assert.That(held2.IsAlive).IsFalse();
         await Assert.That(held2.Ring).IsEqualTo(RingState.Dead);
@@ -141,9 +107,7 @@ public class Playback2DDeadMarkerTests
 
     private static DeadCapablePlayer Alive(int slot, int team, float x, float y, float z, int hp)
     {
-        Ent pawn = new("CCSPlayerPawn");
-        pawn.F["m_iHealth"] = hp;
-        pawn.F["m_lifeState"] = 0;
+        Ent pawn = new("CCSPlayerPawn") { F = { ["m_iHealth"] = hp, ["m_lifeState"] = 0 } };
         Ent ctrl = new("CCSPlayerController");
         return new DeadCapablePlayer(slot, team, pawn, ctrl, (x, y, z));
     }
@@ -203,8 +167,8 @@ public class Playback2DDeadMarkerTests
 
     private sealed class View : IReadOnlyEntityView
     {
-        public IEnumerable<IReadOnlyEntity> All() => Array.Empty<IReadOnlyEntity>();
-        public IEnumerable<IReadOnlyEntity> OfClass(string className) => Array.Empty<IReadOnlyEntity>();
+        public IEnumerable<IReadOnlyEntity> All() => [];
+        public IEnumerable<IReadOnlyEntity> OfClass(string className) => [];
         public IReadOnlyEntity? BySerial(int serial) => null;
         public IReadOnlyEntity? ByIndex(int entityIndex) => null;
         public IReadOnlyEntity? ResolveHandle(ulong handle) => null;

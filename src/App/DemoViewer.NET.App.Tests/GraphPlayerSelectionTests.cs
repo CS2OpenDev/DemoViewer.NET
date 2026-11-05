@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Analysis;
-using CS2DemoKit.Analysis.Abstractions;
 using DemoViewer.NET.ViewModels;
 using TUnit.Assertions.Enums;
 
@@ -71,7 +70,8 @@ public sealed class GraphPlayerSelectionTests
                 [Player(3, "x", 0), Player(3, "x", 1), Player(7, "y", 0)], 3);
 
         await Assert.That(chosen.Count).IsEqualTo(2);
-        await Assert.That(chosen.Select(p => p.TemplateIndex).Order().ToList()).IsEquivalentTo([0, 1], CollectionOrdering.Matching);
+        await Assert.That(chosen.Select(p => p.TemplateIndex).Order().ToList())
+            .IsEquivalentTo([0, 1], CollectionOrdering.Matching);
     }
 
     [Test]

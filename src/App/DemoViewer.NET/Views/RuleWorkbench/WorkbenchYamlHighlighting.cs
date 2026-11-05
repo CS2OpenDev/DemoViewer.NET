@@ -70,7 +70,7 @@ internal static class WorkbenchYamlHighlighting
     // Guarded: the app only touches this from the UI thread, but the test suite exercises
     // Definition/DefinitionFor from parallel test threads: an unguarded Dictionary corrupts.
     private static readonly Dictionary<ThemeVariant, IHighlightingDefinition> _byVariant = new();
-    private static readonly object _cacheGate = new();
+    private static readonly Lock _cacheGate = new();
 
     // ── role vocabularies (schema-derived; see rules/cs2demokit-rules.schema.json) ────────────────────────
     private static readonly string[] _sections =

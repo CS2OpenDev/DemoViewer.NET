@@ -1,14 +1,14 @@
 #region
 
-using DemoViewer.NET.Extensions;
 using CS2DemoKit.Analysis.Clips;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Services.Review;
-using DemoViewer.NET.Services.Facts;
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
-using DemoViewer.NET.TestSupport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.RoundTagger;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
+using DemoViewer.NET.Services.Review;
+using DemoViewer.NET.TestSupport;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.TagTestData;
 
@@ -30,7 +30,7 @@ public class TagMatrixRealDemoTests
     public async Task TheRealDemosTaggedRounds_PivotOnTheParsersBuy_AndACellQueuesItsClips()
     {
         string path = DemoTestHelper.RequireDemo();
-        ParsedDemo parsed = DemoParser.Parse(File.ReadAllBytes(path).AsMemory());
+        ParsedDemo parsed = DemoParser.Parse((await File.ReadAllBytesAsync(path)).AsMemory());
         IReadOnlyList<ClipRound> rounds = ClipRounds.Derive(parsed);
 
         DemoCacheStore cache = new(null);
@@ -45,7 +45,8 @@ public class TagMatrixRealDemoTests
         DemoCacheStore.StampParse(record);
         cache.Upsert(record);
 
-        RoundFactsEvaluator evaluator = new(cache, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
+        RoundFactsEvaluator evaluator = new(cache, new EngineRoundFactsRowSource(),
+            new RulesRoundFactsRulesetIdentity());
         RoundFactsSource facts = new(cache, evaluator);
         TagStore tags = new(null);
         tags.Save(Document(Sha,
@@ -55,7 +56,8 @@ public class TagMatrixRealDemoTests
         RoundFactsRows rows = facts.TryGet(path) ?? throw new InvalidOperationException("the evaluator wrote no rows");
 
         ReviewQueue queue = new(null);
-        using TagMatrixTabViewModel matrix = new(tags, new ExtensionReviewQueue(queue), cache.Library().FindBySha256, debounce: TimeSpan.Zero, isBrowser: false);
+        using TagMatrixTabViewModel matrix = new(tags, new ExtensionReviewQueue(queue), cache.Library().FindBySha256,
+            debounce: TimeSpan.Zero, isBrowser: false);
         matrix.ColumnAxis = TagMatrixAxis.Label(LabelNamespace.Fact, "buy.t");
         await matrix.Pending;
 

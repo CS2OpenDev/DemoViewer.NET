@@ -21,6 +21,7 @@ namespace DemoViewer.NET.Playback2D.Hud;
 ///         act with a re-baseline attached, not a side effect of this type existing.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface IIconSource
 {
     /// <summary>

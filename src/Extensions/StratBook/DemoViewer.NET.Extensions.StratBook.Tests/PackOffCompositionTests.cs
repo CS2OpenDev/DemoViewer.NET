@@ -11,7 +11,7 @@ using TUnit.Assertions.Enums;
 
 #endregion
 
-namespace DemoViewer.NET.AppTests.Extensions.StratBook;
+namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     Boots the real composition root with the pack disabled (pack.stratbook = false) and asserts
@@ -34,13 +34,13 @@ public class PackOffCompositionTests
             }
             finally
             {
-                provider.Dispose();
+                await provider.DisposeAsync();
             }
         }), seedSettingsJson: """
-                                {
-                                  "Features": { "Overrides": { "pack.stratbook": false } }
-                                }
-                                """);
+                              {
+                                "Features": { "Overrides": { "pack.stratbook": false } }
+                              }
+                              """);
 
     [Test]
     public async Task PackOff_PackGateIsOff()
@@ -119,7 +119,9 @@ public class PackOffCompositionTests
         {
             DemoScheduler coordinator = provider.GetRequiredService<DemoScheduler>();
 
-            await Assert.That(coordinator.PassIds).IsEquivalentTo(["library", "highlights", "roundfacts", "facts", "matchrank"], CollectionOrdering.Matching)
+            await Assert.That(coordinator.PassIds)
+                .IsEquivalentTo(["library", "highlights", "roundfacts", "facts", "matchrank"],
+                    CollectionOrdering.Matching)
                 .Because("the pack is off: its three evaluators are never in the fan-out");
 
             StratBookPackInstances instances = provider.GetRequiredService<StratBookPackInstances>();
@@ -152,24 +154,33 @@ public class PackOffCompositionTests
     {
         await WithProvider(async provider =>
         {
-            const string demoPath = "/test/demo.dem";
+            const string DemoPath = "/test/demo.dem";
 
             // When the pack is off, these evaluators want nothing because their Wants() predicate
             // gates on the feature flag; Round Facts is the host's, gated on the pack's claim of its ruleset.
-            DemoViewer.NET.Services.Facts.RoundFactsEvaluator roundFacts = provider.GetRequiredService<DemoViewer.NET.Services.Facts.RoundFactsEvaluator>();
-            DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator roundIndex = provider.GetRequiredService<DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator>();
-            DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedTagsService suggestedTags = provider.GetRequiredService<DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedTagsService>();
-            DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator grenades = provider.GetRequiredService<DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator>();
+            Services.Facts.RoundFactsEvaluator roundFacts =
+                provider.GetRequiredService<Services.Facts.RoundFactsEvaluator>();
+            DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator roundIndex =
+                provider
+                    .GetRequiredService<DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator>();
+            DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedTagsService suggestedTags =
+                provider
+                    .GetRequiredService<
+                        DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedTagsService>();
+            DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator grenades =
+                provider
+                    .GetRequiredService<
+                        DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator>();
 
             using (Assert.Multiple())
             {
-                await Assert.That(roundFacts.Wants(demoPath)).IsFalse()
+                await Assert.That(roundFacts.Wants(DemoPath)).IsFalse()
                     .Because("the pack is off: Round Facts evaluator wants nothing");
-                await Assert.That(roundIndex.Wants(demoPath)).IsFalse()
+                await Assert.That(roundIndex.Wants(DemoPath)).IsFalse()
                     .Because("the pack is off: Round Index evaluator wants nothing");
-                await Assert.That(suggestedTags.Wants(demoPath)).IsFalse()
+                await Assert.That(suggestedTags.Wants(DemoPath)).IsFalse()
                     .Because("the pack is off: Suggested Tags service wants nothing");
-                await Assert.That(grenades.Wants(demoPath)).IsFalse()
+                await Assert.That(grenades.Wants(DemoPath)).IsFalse()
                     .Because("the pack is off: Grenade Index evaluator wants nothing");
             }
         });
@@ -183,10 +194,11 @@ public class PackOffCompositionTests
             IDemoProcessingQueue queue = provider.GetRequiredService<IDemoProcessingQueue>();
 
             // These are the pack job kinds from QueueJobKind. Only core kinds should be in the queue.
-            string[] packKinds = ["StratMining", "StratPreview", "LineupClips", "SuggestionsInbox", "SectionCompute", "TeamsCommand"];
+            string[] packKinds =
+                ["StratMining", "StratPreview", "LineupClips", "SuggestionsInbox", "SectionCompute", "TeamsCommand"];
 
-            var queuedItems = queue.Items.ToList();
-            foreach (var item in queuedItems)
+            List<DemoQueueItem> queuedItems = [.. queue.Items];
+            foreach (DemoQueueItem item in queuedItems)
             {
                 string kindString = item.Kind.ToString();
                 await Assert.That(packKinds.Contains(kindString)).IsFalse()
@@ -202,7 +214,7 @@ public class PackOffCompositionTests
         string dir = NewTempDir();
         if (seedSettingsJson is not null)
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), seedSettingsJson);
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), seedSettingsJson);
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);

@@ -31,7 +31,6 @@ namespace DemoViewer.NET.ViewModels.ErrorReport;
 public sealed partial class ErrorReportViewModel : ViewModelBase
 {
     private readonly DemoCacheStore? _cache;
-    private readonly string _demoPath;
     private readonly Func<DateTime> _now;
     private readonly Func<(ParsedDemo? Demo, string? Path)>? _openDemo;
     private readonly MergedRulesBuild? _rules;
@@ -47,7 +46,7 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
     /// </summary>
     public ErrorReportViewModel()
     {
-        _demoPath = "";
+        DemoPath = "";
         _now = () => DateTime.UtcNow;
         DemoFileName = "match730_pug_de_mirage_2024_11_02.dem";
         DemoFilePath =
@@ -77,17 +76,17 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
         Func<DateTime>? now = null)
     {
         ArgumentNullException.ThrowIfNull(openDemo);
-        _demoPath = demoPath ?? "";
+        DemoPath = demoPath;
         _cache = cache;
         _rules = rules;
         _openDemo = openDemo;
         _now = now ?? (() => DateTime.UtcNow);
 
-        DemoFilePath = _demoPath;
-        DemoFileName = _demoPath.Length > 0 ? Path.GetFileName(_demoPath) : "(no demo)";
+        DemoFilePath = DemoPath;
+        DemoFileName = DemoPath.Length > 0 ? Path.GetFileName(DemoPath) : "(no demo)";
 
-        DemoCacheRecord? record = _cache is not null && _demoPath.Length > 0
-            ? _cache.TryLoadRecord(_demoPath, false)
+        DemoCacheRecord? record = _cache is not null && DemoPath.Length > 0
+            ? _cache.TryLoadRecord(DemoPath, false)
             : null;
         MapDisplay = record?.Map is { Length: > 0 } map ? DemoEntry.PrettifyMap(map) : "";
 
@@ -151,7 +150,7 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
     ///     The demo this report is about. The window host compares it before replacing a live window's data
     ///     context, since a second open on the SAME demo must keep the notes the user is part-way through.
     /// </summary>
-    public string DemoPath => _demoPath;
+    public string DemoPath { get; }
 
     /// <summary>Raised when the view-model wants its window closed.</summary>
     public event EventHandler? CloseRequested;
@@ -163,7 +162,7 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
     [RelayCommand]
     private void Save()
     {
-        if (_cache is null || _demoPath.Length == 0)
+        if (_cache is null || DemoPath.Length == 0)
         {
             StatusText = "There is no demo to attach this report to.";
             return;
@@ -172,13 +171,13 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
         try
         {
             DateTime now = _now();
-            Recapture(_cache.TryLoadRecord(_demoPath, false));
-            if (!DemoErrorReportStore.Save(_cache, _demoPath, Notes, _snapshot, now))
+            Recapture(_cache.TryLoadRecord(DemoPath, false));
+            if (!DemoErrorReportStore.Save(_cache, DemoPath, Notes, _snapshot, now))
             {
                 // Refused, not failed: a newer build owns this demo's report. The notes stay on screen,
                 // because this window is holding the only copy of them.
                 StatusText = "Not saved: a newer version of the app wrote this demo's report, and "
-                             + "overwriting it is not this build's call. Copy your notes before closing.";
+                    + "overwriting it is not this build's call. Copy your notes before closing.";
                 return;
             }
 
@@ -232,7 +231,7 @@ public sealed partial class ErrorReportViewModel : ViewModelBase
         }
 
         (ParsedDemo? demo, string? path) = _openDemo();
-        _snapshot = ErrorReportSnapshotBuilder.Build(_demoPath, record, _rules, demo, path, _now());
+        _snapshot = ErrorReportSnapshotBuilder.Build(DemoPath, record, _rules, demo, path, _now());
         DiagnosticGroups = ErrorReportSnapshotBuilder.Groups(_snapshot);
         OnPropertyChanged(nameof(CopyDiagnosticsText));
     }

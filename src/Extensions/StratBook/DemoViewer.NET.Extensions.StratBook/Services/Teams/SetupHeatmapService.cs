@@ -1,8 +1,8 @@
 #region
 
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Playback2D.Overlay;
 using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 
 #endregion
 
@@ -28,7 +28,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 public sealed class SetupHeatmapService
 {
     /// <summary>Seconds after freeze end the setup window opens: players are on their spots by then.</summary>
-    public const int SetupFromSeconds = 15;
+    private const int SetupFromSeconds = 15;
 
     /// <summary>Seconds after freeze end the setup window closes when nothing cut it short.</summary>
     public const int SetupToSeconds = 35;
@@ -53,7 +53,8 @@ public sealed class SetupHeatmapService
     /// <param name="roundFacts">The Round Facts rows per demo.</param>
     /// <param name="positions">The round positions files.</param>
     /// <param name="fingerprintFor">The fingerprint current positions carry per map; a file under another is stale.</param>
-    public SetupHeatmapService(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts, RoundIndexStore positions,
+    public SetupHeatmapService(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts,
+        RoundIndexStore positions,
         Func<string?, string> fingerprintFor)
     {
         ArgumentNullException.ThrowIfNull(teams);
@@ -87,7 +88,8 @@ public sealed class SetupHeatmapService
                 continue;
             }
 
-            RoundPositionsDocument? positions = _positions.TryReadPositions(demo.Path, _fingerprintFor(map), record.Sha256);
+            RoundPositionsDocument? positions =
+                _positions.TryReadPositions(demo.Path, _fingerprintFor(map), record.Sha256);
             if (positions is null)
             {
                 without++;
@@ -132,13 +134,7 @@ public sealed class SetupHeatmapService
                     .Select(c => c.Value.ToHeatmap(c.Key.Map, c.Key.Buy)))
         ];
 
-        return new SetupHeatmapSet
-        {
-            TeamId = teamId,
-            Heatmaps = heatmaps,
-            DemosRead = read,
-            DemosWithoutPositions = without
-        };
+        return new SetupHeatmapSet { Heatmaps = heatmaps, DemosRead = read, DemosWithoutPositions = without };
     }
 
     /// <summary>The setup window of a round in frame-clock ticks, inclusive; empty when <c>to &lt; from</c>.</summary>
@@ -149,7 +145,7 @@ public sealed class SetupHeatmapService
         ArgumentNullException.ThrowIfNull(round);
         int from = round.FreezeEndTick + SetupFromSeconds * tickRate;
         int to = round.FreezeEndTick + SetupToSeconds * tickRate;
-        foreach (int? cut in (int?[]) [round.FirstContactTick, round.PlantTick, round.EndTick])
+        foreach (int? cut in (int?[])[round.FirstContactTick, round.PlantTick, round.EndTick])
         {
             if (cut is { } tick)
             {

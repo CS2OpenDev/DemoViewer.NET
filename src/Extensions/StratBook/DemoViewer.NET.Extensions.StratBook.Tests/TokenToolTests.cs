@@ -4,8 +4,8 @@ using DemoViewer.NET.Extensions.StratBook.Playback2D.Input;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Cameras;
 using DemoViewer.NET.Playback2D.Input;
-using DemoViewer.NET.Playback2D.Pipeline.Input;
 using DemoViewer.NET.Playback2D.Levels;
+using DemoViewer.NET.Playback2D.Pipeline.Input;
 using SkiaSharp;
 
 #endregion
@@ -125,14 +125,14 @@ public class TokenToolTests
     [Test]
     public async Task HitTest_SplitsTheDiscFromTheHeadingStub()
     {
-        const float radius = 9f;
+        const float Radius = 9f;
 
-        await Assert.That(TokenHitTest.Classify(0, 0, 0, new SKPoint(4, 3), radius)).IsEqualTo(TokenGrip.Body);
-        await Assert.That(TokenHitTest.Classify(0, 0, 0, new SKPoint(14, 0), radius)).IsEqualTo(TokenGrip.Heading);
-        await Assert.That(TokenHitTest.Classify(0, 0, 90, new SKPoint(0, 15), radius)).IsEqualTo(TokenGrip.Heading)
+        await Assert.That(TokenHitTest.Classify(0, 0, 0, new SKPoint(4, 3), Radius)).IsEqualTo(TokenGrip.Body);
+        await Assert.That(TokenHitTest.Classify(0, 0, 0, new SKPoint(14, 0), Radius)).IsEqualTo(TokenGrip.Heading);
+        await Assert.That(TokenHitTest.Classify(0, 0, 90, new SKPoint(0, 15), Radius)).IsEqualTo(TokenGrip.Heading)
             .Because("the stub follows the yaw, world yaw 90 pointing +Y");
-        await Assert.That(TokenHitTest.Classify(0, 0, 90, new SKPoint(15, 0), radius)).IsNull();
-        await Assert.That(TokenHitTest.Classify(0, 0, 0, new SKPoint(-14, 0), radius)).IsNull()
+        await Assert.That(TokenHitTest.Classify(0, 0, 90, new SKPoint(15, 0), Radius)).IsNull();
+        await Assert.That(TokenHitTest.Classify(0, 0, 0, new SKPoint(-14, 0), Radius)).IsNull()
             .Because("behind the token there is no stub");
         await Assert.That(TokenHitTest.WorldRadius(2)).IsEqualTo(SceneDefaults.MarkerRadius * 2);
     }
@@ -262,14 +262,17 @@ public class TokenToolTests
 
         public void BeginDrag(string slot, TokenGrip grip) => Calls.Add($"begin {slot} {grip}");
 
-        public void MoveTo(string slot, SKPoint world, double levelMinZ, ToolModifiers modifiers = ToolModifiers.None, double worldUnitsPerPixel = 0) =>
-            Calls.Add(FormattableString.Invariant($"move {slot} {world.X},{world.Y} @{levelMinZ}") + (modifiers == ToolModifiers.None ? "" : " " + modifiers));
+        public void MoveTo(string slot, SKPoint world, double levelMinZ, ToolModifiers modifiers = ToolModifiers.None,
+            double worldUnitsPerPixel = 0) =>
+            Calls.Add(FormattableString.Invariant($"move {slot} {world.X},{world.Y} @{levelMinZ}")
+                + (modifiers == ToolModifiers.None ? "" : " " + modifiers));
 
         public void EndDrag(ToolModifiers modifiers = ToolModifiers.None) => Calls.Add($"end {Active} {modifiers}");
 
         public void CancelDrag() => Calls.Add($"cancel {Active}");
 
-        private string Active => Calls.FirstOrDefault(c => c.StartsWith("begin ", StringComparison.Ordinal))?.Split(' ')[1] ?? "?";
+        private string Active =>
+            Calls.FirstOrDefault(c => c.StartsWith("begin ", StringComparison.Ordinal))?.Split(' ')[1] ?? "?";
     }
 
     // A direct-execution IToolServices and the two pane builders this suite needs, local rather than
@@ -284,7 +287,7 @@ public class TokenToolTests
 
         public FakeToolServices(PaneSet panes) => _panes = panes;
 
-        public int CurrentTick { get; set; }
+        public int CurrentTick => 0;
 
         public LevelPane? PaneAt(SKPoint screen) =>
             _panes is not null ? _panes.PaneAt(screen.X, screen.Y) : _single;
@@ -334,20 +337,11 @@ public class TokenToolTests
         /// <summary>A pane framing a world rectangle, with no level set behind it.</summary>
         public static LevelPane Pane(float width, float height, double zMin = 0, double zMax = 64)
         {
-            MapLevel level = new()
-            {
-                Id = MapSpace.IdForZMin(zMin),
-                Name = "floor 0",
-                ZMin = zMin,
-                ZMax = zMax
-            };
+            MapLevel level = new() { Id = MapSpace.IdForZMin(zMin), Name = "floor 0", ZMin = zMin, ZMax = zMax };
 
             return new LevelPane(level,
                 new SliceCamera(ViewportTransform.Fit(width, height, -1000, -1000, 1000, 1000)),
-                ManualRig.Instance)
-            {
-                ViewportRect = SKRect.Create(width, height)
-            };
+                ManualRig.Instance) { ViewportRect = SKRect.Create(width, height) };
         }
     }
 }

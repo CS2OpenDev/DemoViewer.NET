@@ -15,6 +15,7 @@ namespace DemoViewer.NET.Playback2D.Compositing;
 ///         only the immutable frame plus the camera snapshot captured at submission.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public interface ISceneLayer : IDisposable
 {
     /// <summary>Stable key: feature gates, settings and the layer panel all persist it. Never renamed.</summary>

@@ -45,7 +45,7 @@ public static class FirstPartySceneExport
     public static string? ManagedFfmpegDirectory => FfmpegDependency.ManagedDirectory;
 
     /// <summary>The scene palette for the app's current theme. Off the UI thread the theme is unreadable: dark.</summary>
-    public static ScenePalette ThemePalette() =>
+    private static ScenePalette ThemePalette() =>
         Dispatcher.UIThread.CheckAccess()
             ? ScenePaletteFactory.Build(Application.Current?.ActualThemeVariant)
             : ScenePalette.Dark;
@@ -63,7 +63,8 @@ public static class FirstPartySceneExport
     /// <param name="captureInk">The ink to burn in, taken at Start on the UI thread.</param>
     /// <param name="scene">The dialog's title, file stem, sizes and layers.</param>
     public static Playback2DExportDialogViewModel NewDialog(FirstPartyExports? exports, SceneExportDefaults defaults,
-        IReadOnlyList<ExportRangeOption> ranges, IExportJobService job, Func<int, int, int, double, int> outputFrameCount,
+        IReadOnlyList<ExportRangeOption> ranges, IExportJobService job,
+        Func<int, int, int, double, int> outputFrameCount,
         Func<bool>? isLiveSyncBusy, Func<AnnotationSession?> captureInk, ExportDialogScene scene)
     {
         ArgumentNullException.ThrowIfNull(defaults);

@@ -21,10 +21,10 @@ public static class MinedStratBuilder
     public const string ExtraKey = "mined";
 
     /// <summary>An execute taken this soon after freeze end is fast (the Execute detector's rush line).</summary>
-    public const double FastTakeSeconds = 25;
+    private const double FastTakeSeconds = 25;
 
     /// <summary>An execute taken this late is slow.</summary>
-    public const double SlowTakeSeconds = 60;
+    private const double SlowTakeSeconds = 60;
 
     /// <summary>Seconds of a setup a strat covers when first contact does not cut it short.</summary>
     public const int SetupSeconds = 35;
@@ -46,7 +46,7 @@ public static class MinedStratBuilder
             return facts.FirstContactTick is { } contact ? Math.Min(end, contact) : end;
         }
 
-        return facts.PlantTick is { } plant ? plant : m.AnchorTick + ExecuteTailSeconds * m.TickRate;
+        return facts.PlantTick ?? m.AnchorTick + ExecuteTailSeconds * m.TickRate;
     }
 
     /// <summary>The strat.</summary>
@@ -69,9 +69,13 @@ public static class MinedStratBuilder
         IReadOnlyDictionary<char, ulong> slots = StratFromRound.SlotMap(ours, null, null);
         StratCaptureOptions options = new(side, StratFromRound.Tokens(capture.FreezeEnd.Pawns, side, slots),
             StratClock.RoundSecondsFor(facts.RoundTimeSeconds, null), true, StratFromRound.QuantizedLevel);
-        StratOrigin origin = new() { DemoSha256 = pattern.Medoid.Sha256 ?? "", Round = pattern.Medoid.Round, FileName = fileName };
+        StratOrigin origin = new()
+        {
+            DemoSha256 = pattern.Medoid.Sha256 ?? "", Round = pattern.Medoid.Round, FileName = fileName
+        };
 
-        StratDocument doc = StratFromRound.Document(capture, options, owner, pattern.Map, Name(pattern), origin, facts, nowUtc);
+        StratDocument doc =
+            StratFromRound.Document(capture, options, owner, pattern.Map, Name(pattern), origin, facts, nowUtc);
         doc.Type = TypeOf(pattern);
         doc.TargetSite = pattern.Kind == PatternKind.Execute ? pattern.Site : null;
         doc.Economy = Economy(pattern);
@@ -84,13 +88,16 @@ public static class MinedStratBuilder
             pattern.Support,
             Math.Round(pattern.Spread, 3),
             pattern.UtilityCompared,
-            [.. pattern.Members.Select(m => new MinedExtraMember(m.Sha256, Path.GetFileName(m.DemoPath), m.Round, m.Won))]));
+            [
+                .. pattern.Members.Select(m =>
+                    new MinedExtraMember(m.Sha256, Path.GetFileName(m.DemoPath), m.Round, m.Won))
+            ]));
         return doc;
     }
 
     /// <summary><c>execute</c>, <c>default</c> for a T setup, <c>setup</c> for a CT one.</summary>
     /// <param name="pattern">The pattern.</param>
-    public static string TypeOf(MinedPattern pattern) =>
+    private static string TypeOf(MinedPattern pattern) =>
         pattern.Kind == PatternKind.Execute ? "execute" : pattern.Side == 2 ? "default" : "setup";
 
     /// <summary>
@@ -106,7 +113,7 @@ public static class MinedStratBuilder
         List<string> smokes =
         [
             .. pattern.CommonThrows
-                .Where(c => c.Throw.Kind == Modules.UtilityBook.GrenadeKind.Smoke && c.Throw.LandingPlace is not null)
+                .Where(c => c.Throw is { Kind: Modules.UtilityBook.GrenadeKind.Smoke, LandingPlace: not null })
                 .Select(c => c.Throw.LandingPlace!)
                 .Distinct(StringComparer.Ordinal)
                 .Take(2)
@@ -119,12 +126,12 @@ public static class MinedStratBuilder
         List<string> places =
         [
             .. (pattern.Medoid.Anchors.FirstOrDefault(a => a.Count > 0) ?? [])
-                .Where(p => p.Place is not null)
-                .GroupBy(p => p.Place!, StringComparer.Ordinal)
-                .OrderByDescending(g => g.Count())
-                .ThenBy(g => g.Key, StringComparer.Ordinal)
-                .Select(g => g.Count() > 1 ? $"{g.Count()} {g.Key}" : g.Key)
-                .Take(3)
+            .Where(p => p.Place is not null)
+            .GroupBy(p => p.Place!, StringComparer.Ordinal)
+            .OrderByDescending(g => g.Count())
+            .ThenBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => g.Count() > 1 ? $"{g.Count()} {g.Key}" : g.Key)
+            .Take(3)
         ];
         return places.Count > 0 ? $"{head}: {string.Join(", ", places)}" : head;
     }
@@ -144,7 +151,8 @@ public static class MinedStratBuilder
             return null;
         }
 
-        double take = pattern.Members.Select(m => (m.AnchorTick - m.FreezeEndTick) / (double)Math.Max(1, m.TickRate)).Order()
+        double take = pattern.Members.Select(m => (m.AnchorTick - m.FreezeEndTick) / (double)Math.Max(1, m.TickRate))
+            .Order()
             .ElementAt(pattern.Support / 2);
         return take <= FastTakeSeconds ? "fast" : take >= SlowTakeSeconds ? "slow" : "mid";
     }
@@ -165,7 +173,14 @@ public static class MinedStratBuilder
 }
 
 /// <summary>What <c>extra.mined</c> holds.</summary>
-public sealed record MinedExtra(string Key, int Support, double Spread, bool UtilityCompared, IReadOnlyList<MinedExtraMember> Members);
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
+public sealed record MinedExtra(
+    string Key,
+    int Support,
+    double Spread,
+    bool UtilityCompared,
+    IReadOnlyList<MinedExtraMember> Members);
 
 /// <summary>A member round in <c>extra.mined</c>.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record MinedExtraMember(string? Sha256, string FileName, int Round, bool? Won);

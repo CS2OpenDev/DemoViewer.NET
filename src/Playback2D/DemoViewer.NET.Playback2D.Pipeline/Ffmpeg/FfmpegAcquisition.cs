@@ -28,10 +28,10 @@ namespace DemoViewer.NET.Playback2D.Pipeline.Ffmpeg;
 public static class FfmpegAcquisition
 {
     /// <summary>The BtbN build project: source, build scripts and the release the pin points at.</summary>
-    public const string SourceUrl = "https://github.com/BtbN/FFmpeg-Builds";
+    private const string SourceUrl = "https://github.com/BtbN/FFmpeg-Builds";
 
     /// <summary>The licence every offered build carries.</summary>
-    public const string LicenseName = "LGPL-2.1";
+    private const string LicenseName = "LGPL-2.1";
 
     /// <summary>
     ///     The dated, immutable release tag the pins below belong to. Re-check it each release:

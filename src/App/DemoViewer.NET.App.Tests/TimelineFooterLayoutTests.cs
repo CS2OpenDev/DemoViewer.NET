@@ -70,17 +70,17 @@ public class TimelineFooterLayoutTests
 
                 IInputElement? hit = window.InputHitTest(centre);
                 bool reachable = hit is Visual v
-                                 && (ReferenceEquals(v, toggle) || v.GetVisualAncestors().Contains(toggle));
+                    && (ReferenceEquals(v, toggle) || v.GetVisualAncestors().Contains(toggle));
 
                 Console.WriteLine($"[footer] window={windowWidth} '{toggle.Content}' painted={painted} "
-                                  + $"in={bounds} centre={centre} hit={hit?.GetType().Name} ok={reachable}");
+                    + $"in={bounds} centre={centre} hit={hit?.GetType().Name} ok={reachable}");
 
                 await Assert.That(painted.Right).IsLessThanOrEqualTo(bounds.Right)
                     .Because("the toggles are the trailing group; nothing clips, so overflow is a click "
-                             + "the roster panel silently takes");
+                        + "the roster panel silently takes");
                 await Assert.That(painted.Bottom).IsLessThanOrEqualTo(bounds.Bottom)
                     .Because("the Fluent check box is a 20 px square pinned to y=6..26 of a hard-coded "
-                             + "32 px band, so the footer row has to be at least 26 px to hold it");
+                        + "32 px band, so the footer row has to be at least 26 px to hold it");
                 await Assert.That(painted.Left).IsGreaterThanOrEqualTo(bounds.Left);
                 await Assert.That(painted.Top).IsGreaterThanOrEqualTo(bounds.Top);
                 await Assert.That(reachable).IsTrue();

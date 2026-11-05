@@ -3,9 +3,13 @@
 // transitively through CS2DemoKit.Parser. Imported globally so unqualified references read the way
 // they did when the parser generated these types itself.
 
+#region
+
 global using CS2OpenSchema.Protos;
 global using CS2OpenSchema.Events;
 
 // CollectorSet.cs and CollectorObserver.cs (linked by source, not referenced) rely on the app's
 // own global using of this namespace for CollectorContribution, IFrameCollector and ICollectorSink.
 global using DemoViewer.NET.Extensions.Sdk;
+
+#endregion

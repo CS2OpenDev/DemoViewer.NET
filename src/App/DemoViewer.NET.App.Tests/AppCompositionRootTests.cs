@@ -54,7 +54,7 @@ public class AppCompositionRootTests
         // eagerly constructs the shell, so a persisted session has to already be on disk to influence it.
         if (seedSettingsJson is not null)
         {
-            File.WriteAllText(Path.Combine(dir, "settings.json"), seedSettingsJson);
+            await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), seedSettingsJson);
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
@@ -70,7 +70,7 @@ public class AppCompositionRootTests
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }
@@ -93,33 +93,38 @@ public class AppCompositionRootTests
     [Test]
     public async Task TheTeamsJsonMe_IsImported_BeforeAnyPackStarts()
     {
-        const string teamsJson = """{ "schemaVersion": 1, "me": { "steamIds": ["76561198000000002", "76561198000000001"] }, "teams": [] }""";
+        const string TeamsJson =
+            """{ "schemaVersion": 1, "me": { "steamIds": ["76561198000000002", "76561198000000001"] }, "teams": [] }""";
         string dir = Path.Combine(Path.GetTempPath(), "dvcomproot_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "teams.json"), teamsJson);
+        await File.WriteAllTextAsync(Path.Combine(dir, "teams.json"), TeamsJson);
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
         Environment.SetEnvironmentVariable(AppPaths.ConfigDirEnvVar, dir);
         try
         {
-            ServiceCollection composed = App.ComposeServices(new DesktopWindowService(() => null), FeaturePacks.Compatible);
-            SettingsService settings = (SettingsService) composed.Single(d => d.ServiceType == typeof(SettingsService)).ImplementationInstance!;
+            ServiceCollection composed =
+                App.ComposeServices(new DesktopWindowService(() => null), FeaturePacks.Compatible);
+            SettingsService settings = (SettingsService)composed.Single(d => d.ServiceType == typeof(SettingsService))
+                .ImplementationInstance!;
             using (Assert.Multiple())
             {
                 await Assert.That(settings.Current.Identity.Accounts.Select(a => a.SteamId64))
-                    .IsEquivalentTo(["76561198000000002", "76561198000000001"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                    .IsEquivalentTo(["76561198000000002", "76561198000000001"],
+                        TUnit.Assertions.Enums.CollectionOrdering.Matching);
                 await Assert.That(settings.Current.Identity.ActiveSteamId64).IsEqualTo("76561198000000002");
                 await Assert.That(settings.Current.Identity.MigratedFromTeamsJson).IsTrue();
             }
 
             await HeadlessSession.RunOnUi(async () =>
             {
-                using ServiceProvider provider = App.BuildServices(new DesktopWindowService(() => null));
+                await using ServiceProvider provider = App.BuildServices(new DesktopWindowService(() => null));
                 IdentityService identity = provider.GetRequiredService<IdentityService>();
                 using (Assert.Multiple())
                 {
                     await Assert.That(identity.ActiveSteamId64).IsEqualTo("76561198000000002");
                     await Assert.That(identity.IsMine("76561198000000001")).IsTrue();
-                    await Assert.That(File.ReadAllText(Path.Combine(dir, "teams.json"))).IsEqualTo(teamsJson).Because("the import only reads");
+                    await Assert.That(await File.ReadAllTextAsync(Path.Combine(dir, "teams.json"))).IsEqualTo(TeamsJson)
+                        .Because("the import only reads");
                 }
             });
         }
@@ -147,8 +152,10 @@ public class AppCompositionRootTests
             MergedRulesBuild rules = provider.GetRequiredService<MergedRulesBuild>();
             using (Assert.Multiple())
             {
-                await Assert.That(rules.Fingerprint(64).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
-                await Assert.That(rules.Fingerprint(128).Fingerprint).IsEqualTo(MergedRulesBuildTests.ShippedFingerprint128);
+                await Assert.That(rules.Fingerprint(64).Fingerprint)
+                    .IsEqualTo(MergedRulesBuildTests.ShippedFingerprint64);
+                await Assert.That(rules.Fingerprint(128).Fingerprint)
+                    .IsEqualTo(MergedRulesBuildTests.ShippedFingerprint128);
             }
         });
     }
@@ -197,7 +204,7 @@ public class AppCompositionRootTests
         // gated-out id silently falls back to Tabs[0], which would make the SelectedTab assertion vacuous
         // on this platform rather than fail. An override is read before any default, so this pins the tab
         // present everywhere.
-        const string seed = """
+        const string Seed = """
                             {
                               "Session": {
                                 "ActiveTabIndex": 3,
@@ -230,7 +237,7 @@ public class AppCompositionRootTests
             await Assert.That(ReferenceEquals(vm, provider.GetRequiredService<MainViewModel>()))
                 .IsTrue()
                 .Because("tab activation must resolve the SAME shell; a second instance is the recursion");
-        }, seed);
+        }, Seed);
     }
 
     // (b) ModuleRegistry is a singleton: BuildRegistry runs exactly once, so both resolves are the SAME
@@ -331,8 +338,8 @@ public class AppCompositionRootTests
             ThemeRegistry registry = provider.GetRequiredService<ThemeRegistry>();
             SettingsService settings = provider.GetRequiredService<SettingsService>();
 
-            Color? atLaunch = null;
-            Color? afterReload = null;
+            Color? atLaunch;
+            Color? afterReload;
             try
             {
                 // A drop-in persisted as the active theme, present before WireTheme runs.

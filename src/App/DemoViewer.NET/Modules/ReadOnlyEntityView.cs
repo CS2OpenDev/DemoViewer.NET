@@ -15,12 +15,10 @@ namespace DemoViewer.NET.Modules;
 ///     fresh facade per element (on-demand module reads, not the per-tick hot path, the pilot reads
 ///     positions off the pooled <c>PlayerState</c> list).
 /// </summary>
-internal sealed class ReadOnlyEntityView : IReadOnlyEntityView
+internal sealed class ReadOnlyEntityView(EntitySet set) : IReadOnlyEntityView
 {
     private readonly ReadOnlyEntityFacade _scratch = new();
-    private EntitySet _set;
-
-    public ReadOnlyEntityView(EntitySet set) => _set = set;
+    private EntitySet _set = set;
 
     public IEnumerable<IReadOnlyEntity> All()
     {

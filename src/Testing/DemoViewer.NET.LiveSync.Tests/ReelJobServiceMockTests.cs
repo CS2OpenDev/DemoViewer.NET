@@ -48,10 +48,7 @@ public class ReelJobServiceMockTests
         try
         {
             CsvgWebHost probe = await CsvgWebHost.StartAsync(
-                new LiveSyncSettings
-                {
-                    MockMode = true
-                }, null, cancellationToken);
+                new LiveSyncSettings { MockMode = true }, null, cancellationToken);
             await probe.DisposeAsync();
         }
         catch (LiveSyncPortInUseException ex)
@@ -60,20 +57,12 @@ public class ReelJobServiceMockTests
         }
 
         string demoPath = Path.Combine(Path.GetTempPath(), $"reel-dryrun-{Guid.NewGuid():N}.dem");
-        await File.WriteAllBytesAsync(demoPath, [0x50, 0x42, 0x44, 0x45, 0x4D, 0x53, 0x32, 0x00],
+        await File.WriteAllBytesAsync(demoPath, [.. "PBDEMS2\0"u8],
             cancellationToken);
         string missingDemo = Path.Combine(Path.GetTempPath(), $"reel-missing-{Guid.NewGuid():N}.dem");
 
         using HeavyJobGate gate = new();
-        List<string> logLines = [];
-        ReelJobService reel = new(null, gate, null,
-            line =>
-            {
-                lock (logLines)
-                {
-                    logLines.Add(line);
-                }
-            });
+        ReelJobService reel = new(null, gate, null);
         List<ReelJobStatus> statuses = [];
         reel.StatusChanged += (_, status) =>
         {
@@ -138,7 +127,7 @@ public class ReelJobServiceMockTests
             }
 
             await Assert.That(snapshot.Any(s =>
-                    s.Phase == ReelJobPhase.Capturing && s.CurrentClipLabel == "double kill")).IsTrue()
+                    s is { Phase: ReelJobPhase.Capturing, CurrentClipLabel: "double kill" })).IsTrue()
                 .Because("per-clip progress reaches subscribers");
         }
         finally

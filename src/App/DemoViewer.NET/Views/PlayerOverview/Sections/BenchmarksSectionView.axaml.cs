@@ -6,6 +6,7 @@ using Avalonia.Controls;
 
 namespace DemoViewer.NET.Views.PlayerOverview.Sections;
 
+[UsedImplicitly]
 public partial class BenchmarksSectionView : UserControl
 {
     public BenchmarksSectionView()

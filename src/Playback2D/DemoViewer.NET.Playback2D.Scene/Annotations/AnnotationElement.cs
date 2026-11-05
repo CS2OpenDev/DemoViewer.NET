@@ -12,6 +12,7 @@ namespace DemoViewer.NET.Playback2D.Annotations;
 ///     as additive branches rather than a schema migration: a shape is its first and last point, and text
 ///     is one point and a string.
 /// </summary>
+[PublicAPI]
 public enum AnnotationKind
 {
     /// <summary>A pressure-varying ink stroke through its raw samples.</summary>
@@ -37,6 +38,7 @@ public enum AnnotationKind
 ///     Envelope authoring mode. Drives what the UI writes into <see cref="TimeEnvelope" />. Persisted as a
 ///     string in <c>Playback2DSettings.AnnotationDefaultVisibility</c>, so the member NAMES are a contract.
 /// </summary>
+[PublicAPI]
 public enum EnvelopeMode
 {
     /// <summary>Always visible: <see cref="TimeEnvelope.Static" />.</summary>
@@ -84,6 +86,7 @@ public enum EnvelopeMode
 /// </summary>
 /// <param name="SampleIndex">Index into <see cref="AnnotationElement.Points" />.</param>
 /// <param name="TickOffset">Ticks elapsed since the first sample. Monotonically non-decreasing.</param>
+[PublicAPI]
 public readonly record struct TimingRun(int SampleIndex, int TickOffset);
 
 /// <summary>
@@ -104,6 +107,7 @@ public readonly record struct TimingRun(int SampleIndex, int TickOffset);
 /// </summary>
 /// <param name="Runs">Boundaries, ordered by <see cref="TimingRun.SampleIndex" />. May be empty.</param>
 /// <param name="DurationTicks">Ticks from the first sample to the last. 0 for an instant stroke.</param>
+[PublicAPI]
 public sealed record StrokeTiming(IReadOnlyList<TimingRun> Runs, int DurationTicks)
 {
     /// <summary>No cadence recorded; the whole stroke appears at once. What a non-RealTime element has.</summary>
@@ -174,7 +178,7 @@ public sealed record StrokeTiming(IReadOnlyList<TimingRun> Runs, int DurationTic
             int revealed = span <= 0
                 ? hi.SampleIndex
                 : lo.SampleIndex
-                  + (int)((long)(hi.SampleIndex - lo.SampleIndex) * (elapsedTicks - lo.TickOffset) / span);
+                + (int)((long)(hi.SampleIndex - lo.SampleIndex) * (elapsedTicks - lo.TickOffset) / span);
 
             return Math.Clamp(revealed + 1, 1, sampleCount);
         }
@@ -190,6 +194,7 @@ public sealed record StrokeTiming(IReadOnlyList<TimingRun> Runs, int DurationTic
 /// <param name="X">World X.</param>
 /// <param name="Y">World Y.</param>
 /// <param name="Pressure">Stylus pressure 0..1, or 0.5 for a device without one.</param>
+[PublicAPI]
 public readonly record struct InkPoint(float X, float Y, float Pressure);
 
 /// <summary>
@@ -203,6 +208,7 @@ public readonly record struct InkPoint(float X, float Y, float Pressure);
 ///     When true a mid-fade-in <see cref="AnnotationKind.Freehand" /> draws only its leading fraction of
 ///     points, giving the "draw-on reveal" animation for free.
 /// </param>
+[PublicAPI]
 public readonly record struct AnnotationStyle(
     uint ColorArgb,
     float WidthWorld,
@@ -217,6 +223,7 @@ public readonly record struct AnnotationStyle(
 ///     Where an element lives in space. A closed discriminated union: exactly two cases, and adding a
 ///     third is a schema change, not an extension point.
 /// </summary>
+[PublicAPI]
 public abstract record SpaceRef
 {
     /// <summary>
@@ -227,6 +234,7 @@ public abstract record SpaceRef
     /// <param name="LevelMinZ">The quantized lower world Z of the level this element belongs to.</param>
     [SuppressMessage("Design", "CA1034:Nested types should not be visible",
         Justification = "Closed discriminated union; the nesting is the contract.")]
+    [PublicAPI]
     public sealed record World(double LevelMinZ) : SpaceRef;
 
     /// <summary>
@@ -244,6 +252,7 @@ public abstract record SpaceRef
     /// <param name="Dy">World Y offset from the player to the stroke's first point, at authoring time.</param>
     [SuppressMessage("Design", "CA1034:Nested types should not be visible",
         Justification = "Closed discriminated union; the nesting is the contract.")]
+    [PublicAPI]
     public sealed record Entity(ulong SteamId, float Dx, float Dy) : SpaceRef;
 }
 
@@ -265,6 +274,7 @@ public abstract record SpaceRef
 /// <param name="UntilTick">Last fully-opaque tick, or null for "until the end".</param>
 /// <param name="FadeInTicks">Length of the 0→1 lead-in before <paramref name="FromTick" />.</param>
 /// <param name="FadeOutTicks">Length of the 1→0 lead-out after <paramref name="UntilTick" />.</param>
+[PublicAPI]
 public readonly record struct TimeEnvelope(int? FromTick, int? UntilTick, int FadeInTicks, int FadeOutTicks)
 {
     /// <summary>
@@ -326,7 +336,7 @@ public readonly record struct TimeEnvelope(int? FromTick, int? UntilTick, int Fa
     /// <param name="fadeOut">Lead-out length in ticks.</param>
     [SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Instance by contract the UI calls it on the element's existing " +
-                        "envelope, and it becomes stateful the day 'pin' starts preserving custom fades.")]
+            "envelope, and it becomes stateful the day 'pin' starts preserving custom fades.")]
     public TimeEnvelope PinnedTo(int tick, int holdTicks, int fadeIn, int fadeOut) =>
         new(tick, tick + Math.Max(0, holdTicks), Math.Max(0, fadeIn), Math.Max(0, fadeOut));
 }
@@ -349,6 +359,7 @@ public readonly record struct TimeEnvelope(int? FromTick, int? UntilTick, int Fa
 ///     property keeps the persisted v1 schema byte-identical. The DTO writes with
 ///     <c>DefaultIgnoreCondition = WhenWritingNull</c>, so an element without a cadence emits no field.
 /// </param>
+[PublicAPI]
 public sealed record AnnotationElement(
     Guid Id,
     AnnotationKind Kind,

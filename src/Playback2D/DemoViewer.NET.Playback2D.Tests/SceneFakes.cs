@@ -7,17 +7,11 @@ using DemoViewer.NET.Modules.Abstractions;
 namespace DemoViewer.NET.Playback2DTests;
 
 /// <summary>An in-memory entity: a class name, a serial, and a bag of networked field values.</summary>
-internal sealed class FakeEntity : IReadOnlyEntity
+internal sealed class FakeEntity(string className, int serial = 1) : IReadOnlyEntity
 {
-    public FakeEntity(string className, int serial = 1)
-    {
-        ClassName = className;
-        Serial = serial;
-    }
-
-    public Dictionary<string, object?> Fields { get; } = [];
-    public string ClassName { get; }
-    public int Serial { get; }
+    private Dictionary<string, object?> Fields { get; } = [];
+    public string ClassName { get; } = className;
+    public int Serial { get; } = serial;
     public bool IsInPvs => true;
     public object? this[string fieldPath] => Fields.GetValueOrDefault(fieldPath);
 
@@ -49,12 +43,11 @@ internal sealed class FakeEntity : IReadOnlyEntity
     /// <param name="x">Target world X.</param>
     /// <param name="y">Target world Y.</param>
     /// <param name="z">Target world Z.</param>
-    public FakeEntity AtWorld(float x, float y, float z)
+    public void AtWorld(float x, float y, float z)
     {
         SetAxis("X", x);
         SetAxis("Y", y);
         SetAxis("Z", z);
-        return this;
 
         void SetAxis(string axis, float world)
         {

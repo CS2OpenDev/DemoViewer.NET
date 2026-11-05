@@ -81,7 +81,7 @@ public sealed class GraphNodeKeyTests
         await Assert.That(parsed).IsEqualTo(original);
         await Assert.That(parsed.Name).IsEqualTo(name)
             .Because("the occurrence rides in the slot segment, which holds digits only, so no "
-                     + "spelling of a name can be read as one");
+                + "spelling of a name can be read as one");
         await Assert.That(parsed.Occurrence).IsEqualTo(occurrence);
     }
 
@@ -197,10 +197,7 @@ public sealed class GraphNodeKeyTests
     [Test]
     public async Task NodeViewModel_ExposesTheKeyAsIGraphNodeKey()
     {
-        GraphNodeViewModel vm = new("Alive")
-        {
-            NodeKey = GraphNodeKey.ForPlayer(0, 3, "Alive")
-        };
+        GraphNodeViewModel vm = new("Alive") { NodeKey = GraphNodeKey.ForPlayer(0, 3, "Alive") };
 
         await Assert.That(((IGraphNode)vm).Key).IsEqualTo(GraphNodeKey.ForPlayer(0, 3, "Alive").ToString());
         await Assert.That(vm.Name).IsEqualTo("Alive")

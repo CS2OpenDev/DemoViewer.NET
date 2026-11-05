@@ -1,9 +1,9 @@
 #region
 
 using System.Numerics;
-using DemoViewer.NET.Playback2D.Zones;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Zones;
 
 #endregion
 
@@ -200,20 +200,22 @@ public sealed class ZonePlaceResolverAdapter : IZonePlaceResolver
 
     /// <inheritdoc />
     public IReadOnlySet<string> Adjacent(string place) =>
-        place is not null && _adjacent.TryGetValue(place, out IReadOnlySet<string>? names) ? names : _none;
+        _adjacent.GetValueOrDefault(place, _none);
 
     /// <inheritdoc />
     public (double X, double Y)? PlaceCentre(string place, double floorKey) => _centres.Centre(place, floorKey);
 
     /// <inheritdoc />
-    public (double X, double Y, double FloorKey)? PlaceArrival(string place, double floorKey) => _centres.Arrival(place, floorKey);
+    public (double X, double Y, double FloorKey)? PlaceArrival(string place, double floorKey) =>
+        _centres.Arrival(place, floorKey);
 
     /// <inheritdoc />
     public IReadOnlyList<string> PlaceNames => [.. Resolver.Zones.Places.Select(p => p.Name)];
 
     /// <inheritdoc />
     public IReadOnlyList<(Vector2 A, Vector2 B)>? OutlineOf(string place, double floorKey) =>
-        Resolver.OutlinesFor(floorKey).FirstOrDefault(o => string.Equals(o.Name, place, StringComparison.Ordinal))?.Edges;
+        Resolver.OutlinesFor(floorKey).FirstOrDefault(o => string.Equals(o.Name, place, StringComparison.Ordinal))
+            ?.Edges;
 
     /// <summary>
     ///     The nav graph over the effective zones, built with this adapter inside the queued zones read. A new overlay

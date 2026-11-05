@@ -4,12 +4,12 @@ using System.Globalization;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Benchmarking;
 using DemoViewer.NET.Playback2D.Pipeline.Frames;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using SkiaSharp;
 
 #endregion
@@ -73,8 +73,8 @@ public class BudgetTests
         long steady = MeasureWindow(stage, fixture, time);
 
         Console.WriteLine($"[budget] 512 full-scene frames at {_size.Width}x{_size.Height}: " +
-                          $"warm window {first} B, steady window {steady} B " +
-                          $"({steady / 512.0:F2} B/frame)");
+            $"warm window {first} B, steady window {steady} B " +
+            $"({steady / 512.0:F2} B/frame)");
 
         if (steady != 0)
         {
@@ -133,8 +133,8 @@ public class BudgetTests
         long steady = MeasureWindow(stage, fixture, time);
 
         Console.WriteLine($"[budget] 512 full-scene frames on the HISTOGRAM path at " +
-                          $"{_size.Width}x{_size.Height}: warm window {first} B, steady window " +
-                          $"{steady} B ({steady / 512.0:F2} B/frame)");
+            $"{_size.Width}x{_size.Height}: warm window {first} B, steady window " +
+            $"{steady} B ({steady / 512.0:F2} B/frame)");
 
         await Assert.That(steady).IsEqualTo(0);
     }
@@ -146,10 +146,7 @@ public class BudgetTests
         {
             // The animation-frame timestamp jitters in reality, so a varying dt matches the real steady
             // state, and it also stops MarkerSmoother.AdvanceOnce from de-duplicating the loop away.
-            SceneTime frameTime = time with
-            {
-                DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6
-            };
+            SceneTime frameTime = time with { DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6 };
             stage.Renderer.Advance(fixture.Frame, in frameTime);
             stage.Renderer.Render();
         }
@@ -167,8 +164,7 @@ public class BudgetTests
         ScenePipelineBenchmark benchmark = new(stage.Compositor, provider, new StackedLayout(),
             ScenePalette.Dark)
         {
-            Id = SyntheticScenes.FullSceneBudgetName,
-            AuthoritativeFloors = SyntheticScenes.BudgetFloors
+            Id = SyntheticScenes.FullSceneBudgetName, AuthoritativeFloors = SyntheticScenes.BudgetFloors
         };
 
         BenchmarkReport report = benchmark.Run(new FixtureFrameSource(fixture),
@@ -245,8 +241,7 @@ public class BudgetTests
         ScenePipelineBenchmark benchmark = new(stage.Compositor, provider, new StackedLayout(),
             ScenePalette.Dark)
         {
-            Id = SyntheticScenes.FullSceneBudgetName + "-ink",
-            AuthoritativeFloors = SyntheticScenes.BudgetFloors
+            Id = SyntheticScenes.FullSceneBudgetName + "-ink", AuthoritativeFloors = SyntheticScenes.BudgetFloors
         };
 
         FixtureFrameSource source = new(fixture);
@@ -285,7 +280,7 @@ public class BudgetTests
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"[budget-ink] total   p99={with.Total.P99Ms:F3} ms, frame floor 15.625 ms at 64 fps"));
         Console.WriteLine($"[budget-ink] allocation {with.AllocatedBytesPerFrame} B/frame " +
-                          $"({without.AllocatedBytesPerFrame} B/frame with the ink layer off)");
+            $"({without.AllocatedBytesPerFrame} B/frame with the ink layer off)");
 
         Console.WriteLine($"[budget-ink] report {with.WriteToBenchReports(BenchReportDirectory())}");
 
@@ -357,10 +352,7 @@ public class BudgetTests
     }
 
     private static AnnotationStyle InkStyle(float width) =>
-        AnnotationStyle.Default with
-        {
-            WidthWorld = width
-        };
+        AnnotationStyle.Default with { WidthWorld = width };
 
     // A doubling-back arc across the map, which is the case a gradient shader gets wrong and the case a
     // straight line would let through: the outliner emits its 13-point corner sweeps here.
@@ -392,9 +384,9 @@ public class BudgetTests
 
         foreach (string id in ids)
         {
-            for (int i = 0; i < layers.Count; i++)
+            foreach (ISceneLayer layer in layers)
             {
-                layers[i].IsEnabled = string.Equals(layers[i].Id, id, StringComparison.Ordinal);
+                layer.IsEnabled = string.Equals(layer.Id, id, StringComparison.Ordinal);
             }
 
             SceneTime time = fixture.Time;
@@ -407,10 +399,7 @@ public class BudgetTests
             long before = GC.GetAllocatedBytesForCurrentThread();
             for (int i = 0; i < 128; i++)
             {
-                SceneTime frameTime = time with
-                {
-                    DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6
-                };
+                SceneTime frameTime = time with { DeltaSeconds = 1.0 / 64 + i % 7 * 1e-6 };
                 probe.Renderer.Advance(fixture.Frame, in frameTime);
                 probe.Renderer.Render();
             }

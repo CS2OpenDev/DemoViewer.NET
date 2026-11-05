@@ -46,7 +46,7 @@ public class GoldenParityTests
     // numbers is a second thing to keep in step. Judge through Evaluate for the same reason: sharing
     // the numbers but re-deciding the pass locally leaves two gates to keep in step instead of two
     // constants.
-    private static readonly GoldenDistribution Gate = GoldenDistribution.PreV2Capture;
+    private static readonly GoldenDistribution _gate = GoldenDistribution.PreV2Capture;
 
     /// <summary>
     ///     The palette the corpus was captured under. The headless app resolves the <b>Light</b> theme
@@ -70,17 +70,17 @@ public class GoldenParityTests
         byte[] actual = stage.RenderFixturePng(fixture);
 
         GoldenDeltaProfile profile = GoldenImageComparer.Analyze(expected, actual)
-                                     ?? throw new InvalidOperationException("images are not comparable");
+            ?? throw new InvalidOperationException("images are not comparable");
 
         Console.WriteLine($"[parity] {name} map={fixture.MapName} bundle={bound} " +
-                          $"levels={stage.Renderer.Levels.Space.Levels.Count} " +
-                          $"radar={stage.Renderer.Levels.Space.RadarBinding}");
+            $"levels={stage.Renderer.Levels.Space.Levels.Count} " +
+            $"radar={stage.Renderer.Levels.Space.RadarBinding}");
         Console.WriteLine($"[parity] {name} {profile.Describe()}");
 
         await WriteArtifacts(name, expected, actual);
 
         await Assert.That(profile.Width).IsEqualTo(fixture.Size.Width);
-        await Assert.That(Gate.Evaluate(profile)).IsNull();
+        await Assert.That(_gate.Evaluate(profile)).IsNull();
     }
 
     /// <summary>
@@ -129,9 +129,9 @@ public class GoldenParityTests
         {
             bool underInk = PixelChanged(withTextPng, noTextPng, geometry.MaxDeltaX, geometry.MaxDeltaY);
             Console.WriteLine($"[parity] {name} geometry's worst pixel " +
-                              $"({geometry.MaxDeltaX},{geometry.MaxDeltaY}) rose to " +
-                              $"{geometry.MaxChannelDelta} from {full.MaxChannelDelta}; " +
-                              $"under glyph ink: {underInk}");
+                $"({geometry.MaxDeltaX},{geometry.MaxDeltaY}) rose to " +
+                $"{geometry.MaxChannelDelta} from {full.MaxChannelDelta}; " +
+                $"under glyph ink: {underInk}");
             await Assert.That(underInk).IsTrue();
         }
     }

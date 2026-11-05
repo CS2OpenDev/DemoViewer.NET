@@ -49,11 +49,9 @@ public class ExtensionPassHostTests
         LastServerTick = 1000
     };
 
-    private static DemoScheduler Scheduler(IDemoProcessingQueue queue, ExtensionGuard guard, params IDemoPass[] passes) =>
-        new(() => passes, queue, () => [])
-        {
-            Faulted = (_, _, ex) => guard.Report("pass", ex)
-        };
+    private static DemoScheduler
+        Scheduler(IDemoProcessingQueue queue, ExtensionGuard guard, params IDemoPass[] passes) =>
+        new(() => passes, queue, () => []) { Faulted = (_, _, ex) => guard.Report("pass", ex) };
 
     private static async Task WaitForAsync(Func<bool> condition, string what, int timeoutMs = 5000)
     {
@@ -81,7 +79,9 @@ public class ExtensionPassHostTests
         scheduler.DemoChanged(Demo);
         await WaitForAsync(() => scheduler.IsFaulted(host.Id, Demo), "the skip");
         scheduler.DemoChanged(Demo);
-        await WaitForAsync(() => queue.ActiveCount(QueueJobKind.Scheduling) == 0 && queue.ActiveCount(QueueJobKind.DemoProcessing) == 0,
+        await WaitForAsync(
+            () => queue.ActiveCount(QueueJobKind.Scheduling) == 0
+                && queue.ActiveCount(QueueJobKind.DemoProcessing) == 0,
             "the second plan");
 
         using (Assert.Multiple())
@@ -96,8 +96,10 @@ public class ExtensionPassHostTests
     {
         (ExtensionFaults faults, ExtensionGuard guard) = Guard();
         FakePass inner = new() { RunFor = TimeSpan.FromMilliseconds(20) };
-        ExtensionPassHost host = new(inner, [], guard, static () => false, TimeSpan.FromMilliseconds(1), maxOverruns: 2);
-        PassInput input = new(new VisitedDemo(Demo), PassLevel.Background, SyntheticParsedDemo.Create(), null, CancellationToken.None);
+        ExtensionPassHost host = new(inner, [], guard, static () => false, TimeSpan.FromMilliseconds(1),
+            maxOverruns: 2);
+        PassInput input = new(new VisitedDemo(Demo), PassLevel.Background, SyntheticParsedDemo.Create(), null,
+            CancellationToken.None);
 
         host.Run(input);
         await Assert.That(host.IsQuarantined).IsFalse();
@@ -129,9 +131,11 @@ public class ExtensionPassHostTests
     public async Task AfterUpstream_MapsToTheVisitsWaitOnUpstream()
     {
         (_, ExtensionGuard guard) = Guard();
-        ExtensionPassHost host = new(new FakePass { Answer = DemoInterest.AfterUpstream }, ["library"], guard, static () => false);
+        ExtensionPassHost host = new(new FakePass { Answer = DemoInterest.AfterUpstream }, ["library"], guard,
+            static () => false);
 
-        await Assert.That(host.Interest(new VisitedDemo(Demo), PassLevel.Background)).IsEqualTo(PassInterest.IfUpstreamRuns);
+        await Assert.That(host.Interest(new VisitedDemo(Demo), PassLevel.Background))
+            .IsEqualTo(PassInterest.IfUpstreamRuns);
     }
 
     [Test]
@@ -140,7 +144,8 @@ public class ExtensionPassHostTests
         (_, ExtensionGuard guard) = Guard();
         FakePass inner = new();
         ExtensionPassHost host = new(inner, [], guard, static () => false);
-        host.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, SyntheticParsedDemo.Create(), null, CancellationToken.None));
+        host.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, SyntheticParsedDemo.Create(), null,
+            CancellationToken.None));
 
         Assert.Throws<ObjectDisposedException>(() => _ = inner.Kept!.Parsed);
         await Assert.That(inner.Kept!.DemoPath).IsEqualTo(Demo);
@@ -157,7 +162,9 @@ public class ExtensionPassHostTests
         using DemoScheduler scheduler = Scheduler(queue, guard, host);
 
         scheduler.DemoChanged(Demo);
-        await WaitForAsync(() => inner.Runs == 1 && queue.Snapshot().Any(s => s.Kind == QueueJobKind.DemoProcessing && s.State == DemoQueueItemState.Completed),
+        await WaitForAsync(
+            () => inner.Runs == 1 && queue.Snapshot().Any(s =>
+                s is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Completed }),
             "the visit");
 
         await Assert.That(host.LevelFor(new VisitedDemo(Demo))).IsEqualTo(PassLevel.Backlog);
@@ -178,7 +185,8 @@ public class ExtensionPassHostTests
         ExtensionPassHost host = new(inner, [], guard, static () => false);
         using DemoProcessingQueue queue = Queue();
         queue.Pause();
-        IDemoQueueHandle visit = queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [host, new TestPass("library")]));
+        IDemoQueueHandle visit =
+            queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog, [host, new TestPass("library")]));
         queue.CancelOwned(Pack.ExtensionId);
         queue.Resume();
         await visit.Completion;
@@ -193,7 +201,8 @@ public class ExtensionPassHostTests
     [Test]
     public async Task AForwardPass_DeclaresAForwardNeed()
     {
-        ExtensionPassHost forward = new(new FakePass { Reads = PassRead.Forward }, [], StandaloneGuard(), static () => false);
+        ExtensionPassHost forward = new(new FakePass { Reads = PassRead.Forward }, [], StandaloneGuard(),
+            static () => false);
         ExtensionPassHost retained = new(new FakePass(), [], StandaloneGuard(), static () => false);
 
         using (Assert.Multiple())
@@ -208,13 +217,16 @@ public class ExtensionPassHostTests
     public async Task APassThatReadsATable_MakesTheRulesRun_AndReadsItOffTheVisitsRun()
     {
         TableReader inner = new();
-        ExtensionPassHost reader = new(inner, [], StandaloneGuard(), static () => false, tableRulesets: ["ext_sample__rows"]);
+        ExtensionPassHost reader = new(inner, [], StandaloneGuard(), static () => false,
+            tableRulesets: ["ext_sample__rows"]);
         ExtensionPassHost plain = new(new TableReader(), [], StandaloneGuard(), static () => false);
         AnalysisRun run = DemoAnalysis.Run(SyntheticParsedDemo.Create(), []);
         List<(AnalysisRun Run, string Table, IReadOnlyList<string> Rulesets)> asked = [];
-        FactRow row = new(new Dictionary<string, FactValue>(), new Dictionary<string, FactValue> { ["x"] = FactValue.Of(1L) });
+        FactRow row = new(new Dictionary<string, FactValue>(),
+            new Dictionary<string, FactValue> { ["x"] = FactValue.Of(1L) });
 
-        reader.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, SyntheticParsedDemo.Create(), null, CancellationToken.None)
+        reader.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, SyntheticParsedDemo.Create(), null,
+            CancellationToken.None)
         {
             RetainedRun = () => run,
             TableOf = (r, table, rulesets) =>
@@ -223,11 +235,13 @@ public class ExtensionPassHostTests
                 return [row];
             }
         });
-        plain.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, SyntheticParsedDemo.Create(), null, CancellationToken.None));
+        plain.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, SyntheticParsedDemo.Create(), null,
+            CancellationToken.None));
 
         using (Assert.Multiple())
         {
-            await Assert.That(reader.Needs(new VisitedDemo(Demo))).IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules, false));
+            await Assert.That(reader.Needs(new VisitedDemo(Demo)))
+                .IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules));
             await Assert.That(plain.Needs(new VisitedDemo(Demo))).IsEqualTo(new PassNeeds(ParseMode.Forward));
             await Assert.That(inner.Rows).IsEquivalentTo([row], CollectionOrdering.Matching);
             await Assert.That(asked.Count).IsEqualTo(1);
@@ -243,7 +257,8 @@ public class ExtensionPassHostTests
         TableReader inner = new();
         ExtensionPassHost host = new(inner, [], StandaloneGuard(), static () => false);
 
-        host.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, SyntheticParsedDemo.Create(), null, CancellationToken.None));
+        host.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, SyntheticParsedDemo.Create(), null,
+            CancellationToken.None));
 
         await Assert.That(inner.Failure).IsTypeOf<InvalidOperationException>();
     }
@@ -278,7 +293,8 @@ public class ExtensionPassHostTests
         FakePass inner = new() { Reads = PassRead.Forward };
         ExtensionPassHost host = new(inner, [], StandaloneGuard(), static () => false);
 
-        host.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, null, ForwardResult(), CancellationToken.None));
+        host.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, null, ForwardResult(),
+            CancellationToken.None));
 
         using (Assert.Multiple())
         {
@@ -288,7 +304,7 @@ public class ExtensionPassHostTests
             await Assert.That(inner.Seen.LastServerTick).IsEqualTo(1000);
             await Assert.That(inner.Seen.Map).IsEqualTo("de_test");
             await Assert.That(inner.Seen.Rounds).IsEquivalentTo([new PassRound(1, 300), new PassRound(2, 700)],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
         }
 
         Assert.Throws<ObjectDisposedException>(() => _ = inner.Kept!.FrameCount);
@@ -300,7 +316,8 @@ public class ExtensionPassHostTests
         FakePass inner = new() { Reads = PassRead.Forward };
         ExtensionPassHost host = new(inner, [], StandaloneGuard(), static () => false);
 
-        host.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, SyntheticParsedDemo.Create(), null, CancellationToken.None));
+        host.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, SyntheticParsedDemo.Create(), null,
+            CancellationToken.None));
 
         using (Assert.Multiple())
         {
@@ -329,26 +346,34 @@ public class ExtensionPassHostTests
             });
 
         await queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Backlog,
-            [host, new TestPass("library") { NeedsValue = PassNeeds.ForwardRead(ForwardNeeds.FinalState) }])).Completion;
+                [host, new TestPass("library") { NeedsValue = PassNeeds.ForwardRead(ForwardNeeds.FinalState) }]))
+            .Completion;
 
         using (Assert.Multiple())
         {
-            await Assert.That(forwardReads).IsEqualTo(0).Because("one retained pass puts the visit on the retained parse");
+            await Assert.That(forwardReads).IsEqualTo(0)
+                .Because("one retained pass puts the visit on the retained parse");
             await Assert.That(inner.Seen!.Parsed).IsNotNull();
         }
 
         Assert.Throws<InvalidOperationException>(() =>
-            host.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, null, ForwardResult(), CancellationToken.None)));
+            host.Run(new PassInput(new VisitedDemo(Demo), PassLevel.Background, null, ForwardResult(),
+                CancellationToken.None)));
     }
 
     [Test]
     public async Task AForwardPass_ReadsUserCommandsOnlyThroughACollectorThatDeclaresThem()
     {
         ExtensionGuard guard = StandaloneGuard();
-        CollectorContribution reading = CollectorKit.Counting("reads.cmds", FakePass.PassId) with { ReadsUserCommands = true };
+        CollectorContribution reading = CollectorKit.Counting("reads.cmds", FakePass.PassId) with
+        {
+            ReadsUserCommands = true
+        };
         CollectorContribution silent = CollectorKit.Counting("no.cmds", FakePass.PassId);
-        ExtensionPassHost alone = new(new FakePass { Reads = PassRead.Forward, UserCommands = true }, [], guard, static () => false);
-        ExtensionPassHost withSilent = new(new FakePass { Reads = PassRead.Forward, UserCommands = true }, [], guard, static () => false,
+        ExtensionPassHost alone = new(new FakePass { Reads = PassRead.Forward, UserCommands = true }, [], guard,
+            static () => false);
+        ExtensionPassHost withSilent = new(new FakePass { Reads = PassRead.Forward, UserCommands = true }, [], guard,
+            static () => false,
             collectors: CollectorSet.Of([new RegisteredCollector(silent, guard)]));
         ExtensionPassHost withReading = new(new FakePass { Reads = PassRead.Forward }, [], guard, static () => false,
             collectors: CollectorSet.Of([new RegisteredCollector(reading, guard)]));
@@ -359,11 +384,13 @@ public class ExtensionPassHostTests
         {
             await Assert.That(alone.Needs(new VisitedDemo(Demo))).IsEqualTo(new PassNeeds(ParseMode.Forward))
                 .Because("a forward pass sees no commands itself, so its own answer declares nothing");
-            await Assert.That(withSilent.Needs(new VisitedDemo(Demo))).IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules));
+            await Assert.That(withSilent.Needs(new VisitedDemo(Demo)))
+                .IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules));
             await Assert.That(withReading.Needs(new VisitedDemo(Demo)))
                 .IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules | ForwardNeeds.UserCommands, true))
                 .Because("the collector reads them on the rules run, so the forward read decodes them");
-            await Assert.That(retained.Needs(new VisitedDemo(Demo))).IsEqualTo(new PassNeeds(ParseMode.Retained, ForwardNeeds.None, true))
+            await Assert.That(retained.Needs(new VisitedDemo(Demo)))
+                .IsEqualTo(new PassNeeds(ParseMode.Retained, ForwardNeeds.None, true))
                 .Because("a retained visit's parse keeps them for the run's lane");
         }
     }
@@ -386,15 +413,22 @@ public class ExtensionPassHostTests
             await Assert.That(forward.Needs(new VisitedDemo(Demo)))
                 .IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules | ForwardNeeds.UserCommands, true))
                 .Because("the ruleset reads them on the rules run, so a retained visit's parse must keep them");
-            await Assert.That(retained.Needs(new VisitedDemo(Demo))).IsEqualTo(new PassNeeds(ParseMode.Retained, ForwardNeeds.None, true));
-            await Assert.That(silent.Needs(new VisitedDemo(Demo))).IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules));
+            await Assert.That(retained.Needs(new VisitedDemo(Demo)))
+                .IsEqualTo(new PassNeeds(ParseMode.Retained, ForwardNeeds.None, true));
+            await Assert.That(silent.Needs(new VisitedDemo(Demo)))
+                .IsEqualTo(new PassNeeds(ParseMode.Forward, ForwardNeeds.Rules));
             await Assert.That(noTables.Needs(new VisitedDemo(Demo))).IsEqualTo(new PassNeeds(ParseMode.Forward))
                 .Because("the flag declares nothing without a ruleset to read");
         }
     }
 
     /// <summary>What a pass read from its context during its turn.</summary>
-    internal sealed record SeenContext(ParsedDemo? Parsed, int FrameCount, int FirstServerTick, int LastServerTick, string Map,
+    internal sealed record SeenContext(
+        ParsedDemo? Parsed,
+        int FrameCount,
+        int FirstServerTick,
+        int LastServerTick,
+        string Map,
         IReadOnlyList<PassRound> Rounds);
 
     internal sealed class FakePass : IExtensionPass
@@ -439,6 +473,7 @@ public class ExtensionPassHostTests
                     ran.Add(Id);
                 }
             }
+
             if (RunFor > TimeSpan.Zero)
             {
                 Thread.Sleep(RunFor);

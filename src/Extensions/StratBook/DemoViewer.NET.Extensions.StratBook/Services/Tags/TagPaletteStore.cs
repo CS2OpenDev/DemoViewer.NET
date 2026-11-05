@@ -67,7 +67,7 @@ public sealed class TagPaletteStore
         ?? new TagPaletteDefinition { Id = DefaultId, Name = "Empty" };
 
     /// <summary>One line per file skipped or warned about at the last load, newest scan only.</summary>
-    public IReadOnlyList<string> Diagnostics => _diagnostics.ToList();
+    public IReadOnlyList<string> Diagnostics => [.. _diagnostics];
 
     /// <summary>Raised after <see cref="Reload" /> re-scans the directory.</summary>
     public event Action? Reloaded;
@@ -95,7 +95,8 @@ public sealed class TagPaletteStore
     {
         try
         {
-            TagPaletteDefinition? palette = JsonSerializer.Deserialize(json, TagPaletteJsonContext.Default.TagPaletteDefinition);
+            TagPaletteDefinition? palette =
+                JsonSerializer.Deserialize(json, TagPaletteJsonContext.Default.TagPaletteDefinition);
             error = palette is null ? "the file is empty" : "";
             return palette;
         }
@@ -249,7 +250,7 @@ public sealed record TagPaletteValidation(IReadOnlyList<string> Errors, IReadOnl
 public static class TagPaletteValidator
 {
     /// <summary>The human label groups the Strat Model reserves.</summary>
-    public static readonly IReadOnlyList<string> StratGroups =
+    private static readonly IReadOnlyList<string> _stratGroups =
         [TagStore.StratGroup, "strat.rev", "strat.result", "strat.failure"];
 
     // Claimed by Suggested Tags for the proposal queue and not in the shipped table yet, so the
@@ -263,7 +264,7 @@ public static class TagPaletteValidator
     ];
 
     /// <summary>
-    ///     Round Facts' fact names plus <see cref="StratGroups" />. The fact names
+    ///     Round Facts' fact names plus <see cref="_stratGroups" />. The fact names
     ///     are read from <see cref="RoundFactsRules.Labels" /> over a round with every optional fact
     ///     present, so a fact Round Facts adds is refused here without a second list to keep in step.
     /// </summary>
@@ -282,7 +283,8 @@ public static class TagPaletteValidator
     ///     The keymap hotkeys are checked against. Null checks them against the pack's own commands, with no
     ///     reserved gestures.
     /// </param>
-    public static TagPaletteValidation Validate(TagPaletteDefinition palette, IReadOnlyCollection<string> reservedGroups,
+    public static TagPaletteValidation Validate(TagPaletteDefinition palette,
+        IReadOnlyCollection<string> reservedGroups,
         IExtensionKeymap? keymap = null)
     {
         ArgumentNullException.ThrowIfNull(palette);
@@ -337,7 +339,8 @@ public static class TagPaletteValidator
     }
 
     private static void CheckPanel(TagPaletteDefinition palette, TagPalettePanel panel,
-        IReadOnlyCollection<string> reservedGroups, IExtensionKeymap? keymap, List<string> errors, List<string> warnings)
+        IReadOnlyCollection<string> reservedGroups, IExtensionKeymap? keymap, List<string> errors,
+        List<string> warnings)
     {
         if (panel.IsLabels)
         {
@@ -446,7 +449,8 @@ public static class TagPaletteValidator
         {
             if (claimedKey == key && claimedModifiers == modifiers)
             {
-                warnings.Add($"{name}: {gesture} shadows \"{what}\" (claimed by Suggested Tags) while the palette has focus");
+                warnings.Add(
+                    $"{name}: {gesture} shadows \"{what}\" (claimed by Suggested Tags) while the palette has focus");
             }
         }
     }
@@ -495,7 +499,7 @@ public static class TagPaletteValidator
 
     private static HashSet<string> BuildReservedGroups()
     {
-        HashSet<string> groups = new(StratGroups, StringComparer.Ordinal);
+        HashSet<string> groups = new(_stratGroups, StringComparer.Ordinal);
 
         // Every optional fact present, so Labels emits every name it can; the values are irrelevant.
         RoundFacts probe = new()

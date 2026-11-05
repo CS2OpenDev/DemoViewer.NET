@@ -2,8 +2,6 @@
 
 using System.Globalization;
 using DemoViewer.NET.Playback2D.Timeline;
-using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 
@@ -25,7 +23,7 @@ public sealed class RoundTrack : ITimelineTrack
     ///     The event carrying the winning team, used only for the band tint when no round facts are
     ///     loaded. A Valve matchmaking demo never carries it, which is why <see cref="Facts" /> exists.
     /// </summary>
-    public const string RoundEndEvent = "round_end";
+    private const string RoundEndEvent = "round_end";
 
     private IReadOnlyList<RoundFacts>? _facts;
 
@@ -59,21 +57,16 @@ public sealed class RoundTrack : ITimelineTrack
     public string DisplayName => "Rounds";
 
     /// <inheritdoc />
-    public bool IsAvailable(ITimelineData data) => data is not null && data.HasEvent(FreezeEndEvent);
+    public bool IsAvailable(ITimelineData data) => data.HasEvent(FreezeEndEvent);
 
     /// <inheritdoc />
     public IReadOnlyList<TimelineBand> BuildBands(ITimelineData data)
     {
-        if (data is null)
-        {
-            return Array.Empty<TimelineBand>();
-        }
-
         int total = data.TotalFrames;
         IReadOnlyList<int> freeze = data.FramesForEvent(FreezeEndEvent);
         if (total <= 0 || freeze.Count == 0)
         {
-            return Array.Empty<TimelineBand>();
+            return [];
         }
 
         List<TimelineBand> bands = new(freeze.Count + 1);
@@ -107,7 +100,7 @@ public sealed class RoundTrack : ITimelineTrack
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => Array.Empty<TimelineMarker>();
+    public IReadOnlyList<TimelineMarker> BuildMarkers(ITimelineData data) => [];
 
     /// <inheritdoc />
     // Raised only by RefreshTints: the band LAYOUT is fixed after parse, but the tint can arrive later,
@@ -170,11 +163,7 @@ public sealed class RoundTrack : ITimelineTrack
         }
 
         TimelineBand band = bands[index];
-        bands[index] = band with
-        {
-            Argb = tint,
-            Tooltip = $"{band.Tooltip} · won by {(team == TeamT ? "T" : "CT")}"
-        };
+        bands[index] = band with { Argb = tint, Tooltip = $"{band.Tooltip} · won by {(team == TeamT ? "T" : "CT")}" };
     }
 
     private static int IndexOfBandLabelled(List<TimelineBand> bands, int roundNumber)

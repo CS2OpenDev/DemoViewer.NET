@@ -21,11 +21,7 @@ internal static class Playback2DActivation
     /// </param>
     internal static (Playback2DTabViewModel Vm, Playback2DFakeContext Ctx) Activated(string? demoPath = null)
     {
-        Playback2DFakeContext ctx = new()
-        {
-            Gate = new FakeModuleFeatureGate(),
-            DemoPath = demoPath
-        };
+        Playback2DFakeContext ctx = new() { Gate = new FakeModuleFeatureGate(), DemoPath = demoPath };
         ctx.AddPlayer(0, "Alpha", 2);
         ctx.AddPlayer(1, "Bravo", 2);
         ctx.AddPlayer(2, "Charlie", 3);

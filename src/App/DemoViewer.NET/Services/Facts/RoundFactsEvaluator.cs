@@ -8,7 +8,6 @@ using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using Microsoft.Extensions.Logging;
-using DemoViewer.NET.Extensions.Sdk;
 
 #endregion
 
@@ -52,7 +51,7 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
     // tried again. Nothing is written (an empty payload would read as current), so without this the scheduler
     // re-parses them forever.
     private readonly HashSet<string> _noRows = new(StringComparer.OrdinalIgnoreCase);
-    private readonly object _noRowsGate = new();
+    private readonly Lock _noRowsGate = new();
 
     /// <param name="demoCache">The unified demo cache the rows ride.</param>
     /// <param name="rows">The engine seam that evaluates the ruleset on a held parse.</param>
@@ -91,7 +90,8 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
     {
         DemoCacheIndexEntry? entry = _demoCache.TryGetIndex(path);
         string? fingerprint = TryFingerprint(BacklogTickRate);
-        return entry is { ParseSchema: > 0 } && entry.NeedsRoundFacts(fingerprint) && !TriedWithoutRows(path, fingerprint);
+        return entry is { ParseSchema: > 0 } && entry.NeedsRoundFacts(fingerprint)
+            && !TriedWithoutRows(path, fingerprint);
     }
 
     /// <summary>Whether the demo will need this pass once the pass it runs after has written.</summary>
@@ -108,7 +108,8 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
     {
         string? fingerprint = TryFingerprint(BacklogTickRate);
         return fingerprint is not null
-               && (_demoCache.TryGetIndex(path) is not { ParseSchema: > 0 } entry || entry.NeedsRoundFacts(fingerprint));
+            && (_demoCache.TryGetIndex(path) is not { ParseSchema: > 0 } entry
+                || entry.NeedsRoundFacts(fingerprint));
     }
 
     /// <inheritdoc />
@@ -122,21 +123,8 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
 
     /// <inheritdoc />
     public void EvaluateForward(string path, ForwardDemoResult pass) =>
-        Refresh(path, pass.Demo.TickRate, () => _rows.Rows(pass), () => pass.Rounds, () => FrameClock.IdentityFor(pass));
-
-    /// <summary>
-    ///     Rewrites a demo's index row from its record: for a row whose stamp claims rows the record does not
-    ///     hold, so the stamp goes and the demo is wanted again. Nothing happens for a demo with no record.
-    /// </summary>
-    /// <param name="path">The demo's path.</param>
-    public void ReprojectRow(string path)
-    {
-        if (_demoCache.TryLoadRecord(path) is { } record)
-        {
-            _demoCache.Upsert(record);
-            _demoCache.SaveIndex();
-        }
-    }
+        Refresh(path, pass.Demo.TickRate, () => _rows.Rows(pass), () => pass.Rounds,
+            () => FrameClock.IdentityFor(pass));
 
     /// <summary>
     ///     The demos whose rows are missing or stale under the current fingerprint, for the pending counts: one
@@ -153,7 +141,8 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
         return
         [
             .. _demoCache.Contents
-                .Where(e => e.ParseSchema > 0 && e.NeedsRoundFacts(fingerprint) && !TriedWithoutRows(e.Path, fingerprint))
+                .Where(e => e.ParseSchema > 0 && e.NeedsRoundFacts(fingerprint)
+                    && !TriedWithoutRows(e.Path, fingerprint))
                 .OrderByDescending(e => e.ModifiedTicks)
                 .Select(e => e.Path)
         ];

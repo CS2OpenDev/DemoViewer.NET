@@ -3,10 +3,10 @@
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Playback2D.Query;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.TestSupport;
 
 #endregion
@@ -31,7 +31,8 @@ public class WatchedSituationsRealDemoTests
         try
         {
             DemoCacheStore cache = new(null);
-            RoundFactsEvaluator facts = new(cache, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
+            RoundFactsEvaluator facts = new(cache, new EngineRoundFactsRowSource(),
+                new RulesRoundFactsRulesetIdentity());
             facts.Evaluate(path, parsed);
             RoundIndexStore sidecars = new(cache.Data());
             RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
@@ -43,7 +44,8 @@ public class WatchedSituationsRealDemoTests
             // document and the hook is driven by indexing the demo a second time.
             evaluator.Evaluate(path, parsed);
             RoundIndexDocument document = sidecars.TryRead(path) ?? throw new InvalidOperationException("no index");
-            RoundIndexRun run = document.Rounds.SelectMany(r => r.Runs).First(r => r.Ct.Length > 0 && !r.Ct.Contains('?'));
+            RoundIndexRun run = document.Rounds.SelectMany(r => r.Runs)
+                .First(r => r.Ct.Length > 0 && !r.Ct.Contains('?'));
             int slot = 0;
             List<QueryToken> tokens = [];
             foreach ((string place, int count) in PlaceCountToken.Decode(run.Ct))
@@ -54,13 +56,18 @@ public class WatchedSituationsRealDemoTests
                 }
             }
 
-            using WatchedSituationsService service = new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), index, cache.Library(), now: () => 1000);
-            WatchedSituation watch = service.Watch("", document.Map, tokens, SituationTolerance.Exact, SearchFilterValues.None);
+            using WatchedSituationsService service =
+                new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), index, cache.Library(),
+                    now: () => 1000);
+            WatchedSituation watch = service.Watch("", document.Map, tokens, SituationTolerance.Exact,
+                SearchFilterValues.None);
             evaluator.RebuildAll();
             evaluator.Evaluate(path, parsed);
             await Assert.That(service.NewCountOf(watch.Id)).IsGreaterThanOrEqualTo(1);
 
-            using WatchedSituationsService restarted = new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), index, cache.Library(), now: () => 1000);
+            using WatchedSituationsService restarted =
+                new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), index, cache.Library(),
+                    now: () => 1000);
             await Assert.That(restarted.NewCountOf(watch.Id)).IsEqualTo(service.NewCountOf(watch.Id));
         }
         finally

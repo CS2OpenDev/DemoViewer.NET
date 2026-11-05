@@ -23,13 +23,13 @@ public static class FeaturePacks
     // The heads configure in Main, before Avalonia starts. The XAML previewer bypasses Main and calls the
     // head's BuildAvaloniaApp directly, so that method calls ConfigureIfUnset with the same list. The
     // check runs inside Set, so no reader can see a pack before its verdict exists.
-    private static readonly FrozenList<PackStatus> List = new();
+    private static readonly FrozenList<PackStatus> _list = new();
 
     private static readonly Lazy<IReadOnlyList<IExtension>> _default =
-        new(() => [.. List.Value.Select(s => s.Pack)]);
+        new(() => [.. _list.Value.Select(s => s.Pack)]);
 
     private static readonly Lazy<IReadOnlyList<IExtension>> _compatible =
-        new(() => [.. List.Value.Where(s => s.IsCompatible).Select(s => s.Pack)]);
+        new(() => [.. _list.Value.Where(s => s.IsCompatible).Select(s => s.Pack)]);
 
     /// <summary>Every pack the head declared, compatible or not; empty until <see cref="Configure(IReadOnlyList{IExtension})" /> runs.</summary>
     public static IReadOnlyList<IExtension> Default => _default.Value;
@@ -38,7 +38,7 @@ public static class FeaturePacks
     public static IReadOnlyList<IExtension> Compatible => _compatible.Value;
 
     /// <summary>One verdict per declared pack, in declaration order.</summary>
-    public static IReadOnlyList<PackStatus> Statuses => List.Value;
+    public static IReadOnlyList<PackStatus> Statuses => _list.Value;
 
     /// <summary>
     ///     Declares the compiled-in packs, once, and judges each against <see cref="ExtensionHost.Current" />.
@@ -48,7 +48,8 @@ public static class FeaturePacks
     /// </summary>
     /// <param name="packs">The packs, in composition order.</param>
     /// <exception cref="InvalidOperationException">Already configured, or the list was already read.</exception>
-    public static void Configure(IReadOnlyList<IExtension> packs) => List.Set(PackStatus.Evaluate(packs, ExtensionHost.Current));
+    public static void Configure(IReadOnlyList<IExtension> packs) =>
+        _list.Set(PackStatus.Evaluate(packs, ExtensionHost.Current));
 
     /// <summary>
     ///     <see cref="Configure(IReadOnlyList{IExtension})" /> with the verdicts already made: what the
@@ -58,7 +59,7 @@ public static class FeaturePacks
     /// </summary>
     /// <param name="statuses">One per pack, in composition order, judged against <see cref="ExtensionHost.Current" />.</param>
     /// <exception cref="InvalidOperationException">Already configured, or the list was already read.</exception>
-    public static void ConfigureResolved(IReadOnlyList<PackStatus> statuses) => List.Set(statuses);
+    public static void ConfigureResolved(IReadOnlyList<PackStatus> statuses) => _list.Set(statuses);
 
     /// <summary>
     ///     <see cref="ConfigureResolved(IReadOnlyList{PackStatus})" /> plus the third-party copies the loader
@@ -67,11 +68,12 @@ public static class FeaturePacks
     /// <param name="statuses">One per pack, in composition order.</param>
     /// <param name="externalRejected">The third-party copies that did not load.</param>
     /// <param name="claimedRulesets">The qualified ruleset ids every extension's manifest claims, loaded or not.</param>
-    public static void ConfigureResolved(IReadOnlyList<PackStatus> statuses, IReadOnlyList<LoadOutcome> externalRejected,
+    public static void ConfigureResolved(IReadOnlyList<PackStatus> statuses,
+        IReadOnlyList<LoadOutcome> externalRejected,
         IReadOnlyList<string>? claimedRulesets = null)
     {
         ArgumentNullException.ThrowIfNull(externalRejected);
-        List.Set(statuses);
+        _list.Set(statuses);
         _externalRejected = externalRejected;
         _claimedRulesets = claimedRulesets ?? [];
     }
@@ -95,7 +97,7 @@ public static class FeaturePacks
     public static bool ConfigureIfUnset(IReadOnlyList<IExtension> packs)
     {
         ArgumentNullException.ThrowIfNull(packs);
-        return !List.IsSet && List.SetIfUnset(PackStatus.Evaluate(packs, ExtensionHost.Current));
+        return !_list.IsSet && _list.SetIfUnset(PackStatus.Evaluate(packs, ExtensionHost.Current));
     }
 
     /// <summary>
@@ -104,10 +106,12 @@ public static class FeaturePacks
     ///     a pack uses this so its previewer path never constructs the shipped copy beside it.
     /// </summary>
     /// <param name="packs">Builds the packs, in composition order.</param>
-    /// <returns>True when this call configured the list.</returns>
-    public static bool ConfigureIfUnset(Func<IReadOnlyList<IExtension>> packs)
+    public static void ConfigureIfUnset(Func<IReadOnlyList<IExtension>> packs)
     {
         ArgumentNullException.ThrowIfNull(packs);
-        return !List.IsSet && List.SetIfUnset(PackStatus.Evaluate(packs(), ExtensionHost.Current));
+        if (!_list.IsSet)
+        {
+            _list.SetIfUnset(PackStatus.Evaluate(packs(), ExtensionHost.Current));
+        }
     }
 }

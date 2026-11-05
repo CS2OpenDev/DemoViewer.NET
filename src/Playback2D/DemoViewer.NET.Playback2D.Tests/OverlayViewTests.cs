@@ -5,10 +5,10 @@ using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Overlay;
-using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
 using DemoViewer.NET.Playback2D.Pipeline.Overlay;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
+using DemoViewer.NET.Playback2D.Query;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 
@@ -23,7 +23,7 @@ namespace DemoViewer.NET.Playback2DTests;
 /// </summary>
 public class OverlayViewTests
 {
-    private static readonly WorldBounds Bounds = new(-2000, -2000, 2000, 2000);
+    private static readonly WorldBounds _bounds = new(-2000, -2000, 2000, 2000);
 
     [Test]
     public async Task TheDocument_IsReplacedWhole_AndBumpsOnEveryChange()
@@ -38,7 +38,8 @@ public class OverlayViewTests
             await Assert.That(document.Version).IsEqualTo(0);
         }
 
-        document.Replace("de_nuke", [new OverlayPoint(1, 2, 3, QuerySide.Ct), new OverlayPoint(4, 5, 6, QuerySide.T)], 7);
+        document.Replace("de_nuke", [new OverlayPoint(1, 2, 3, QuerySide.Ct), new OverlayPoint(4, 5, 6, QuerySide.T)],
+            7);
         using (Assert.Multiple())
         {
             await Assert.That(document.Count).IsEqualTo(2);
@@ -86,7 +87,8 @@ public class OverlayViewTests
 
         byte[] first = Render(document, out IReadOnlyList<LevelPaneSnapshot> panes, out ScenePalette palette);
         byte[] second = Render(document, out _, out _);
-        await Assert.That(second).IsEquivalentTo(first, CollectionOrdering.Matching).Because("one document under one camera is one set of bytes");
+        await Assert.That(second).IsEquivalentTo(first, CollectionOrdering.Matching)
+            .Because("one document under one camera is one set of bytes");
 
         using SKBitmap bitmap = SKBitmap.Decode(first);
         await Assert.That(panes.Count).IsEqualTo(2);
@@ -97,7 +99,8 @@ public class OverlayViewTests
         SKColor tSpot = Probe(bitmap, lower, 900, 900);
         using (Assert.Multiple())
         {
-            await Assert.That(Near(ctSpot, palette.Background)).IsFalse().Because("the CT cluster warms the upper pane");
+            await Assert.That(Near(ctSpot, palette.Background)).IsFalse()
+                .Because("the CT cluster warms the upper pane");
             await Assert.That(Distance(ctSpot, palette.TeamCt)).IsLessThan(Distance(ctSpot, palette.TeamT))
                 .Because("and in the CT colour");
             await Assert.That(Near(tSpot, palette.Background)).IsFalse().Because("the T cluster warms the lower pane");
@@ -159,21 +162,24 @@ public class OverlayViewTests
 
         using MemoryStream second = new();
         OverlayFixtureStore.Write(again, second);
-        await Assert.That(second.ToArray()).IsEquivalentTo(first.ToArray(), CollectionOrdering.Matching).Because("a fixture round-trips byte for byte");
+        await Assert.That(second.ToArray()).IsEquivalentTo(first.ToArray(), CollectionOrdering.Matching)
+            .Because("a fixture round-trips byte for byte");
         string text = System.Text.Encoding.UTF8.GetString(first.ToArray());
         await Assert.That(text).DoesNotContain("\r\n");
-        await Assert.That(text).Contains("    [620, -420, -416]").Because("one point per line, the shape a diff can read");
+        await Assert.That(text).Contains("    [620, -420, -416]")
+            .Because("one point per line, the shape a diff can read");
 
-        const string partial = """
+        const string Partial = """
                                {"schemaVersion":"dvoverlay/1","map":"de_nuke","states":3,
                                 "ct":[[1,2,3],[4,5]],"t":[[7,8,9,10]]}
                                """;
-        using MemoryStream stream = new(System.Text.Encoding.UTF8.GetBytes(partial));
+        using MemoryStream stream = new(System.Text.Encoding.UTF8.GetBytes(Partial));
         OverlayDocument tolerant = OverlayFixtureStore.Read(stream);
         await Assert.That(tolerant.Count).IsEqualTo(2).Because("a tuple short of three numbers is dropped, not fatal");
         await Assert.That(tolerant.Points[1]).IsEqualTo(new OverlayPoint(7, 8, 9, QuerySide.T));
 
-        using MemoryStream empty = new(System.Text.Encoding.UTF8.GetBytes("""{"schemaVersion":"dvoverlay/1","map":"de_nuke","states":0}"""));
+        using MemoryStream empty =
+            new([.. """{"schemaVersion":"dvoverlay/1","map":"de_nuke","states":0}"""u8]);
         await Assert.That(OverlayFixtureStore.Read(empty).IsEmpty).IsTrue();
     }
 
@@ -192,8 +198,10 @@ public class OverlayViewTests
         {
             await Assert.That(byDefault.Find(SceneLayerIds.Overlay)).IsNull().Because("opt-in: absent unless named");
             await Assert.That(named.Find(SceneLayerIds.Overlay)).IsTypeOf<OverlayHeatmapLayer>();
-            await Assert.That(((OverlayHeatmapLayer)named.Find(SceneLayerIds.Overlay)!).Document).IsSameReferenceAs(document);
-            await Assert.That(starved.Find(SceneLayerIds.Overlay)).IsNull().Because("named with nothing to draw is skipped, like the ink");
+            await Assert.That(((OverlayHeatmapLayer)named.Find(SceneLayerIds.Overlay)!).Document)
+                .IsSameReferenceAs(document);
+            await Assert.That(starved.Find(SceneLayerIds.Overlay)).IsNull()
+                .Because("named with nothing to draw is skipped, like the ink");
         }
 
         // Under the tokens and over the ink, so a token being placed sits on the heat rather than under it.
@@ -222,22 +230,14 @@ public class OverlayViewTests
 
     private static HeadlessSceneRenderer Renderer(CpuSurfaceProvider provider, SceneCompositor compositor)
     {
-        HeadlessSceneRenderer renderer = new(provider, compositor)
-        {
-            Size = new SKSizeI(400, 400)
-        };
+        HeadlessSceneRenderer renderer = new(provider, compositor) { Size = new SKSizeI(400, 400) };
         renderer.Levels.SetAuthoritativeFloors([new FloorSlice(-1000, -300), new FloorSlice(-300, 500)]);
         return renderer;
     }
 
     private static Scene2DFrame Frame() => new()
     {
-        Map = new SceneMapInfo
-        {
-            MapName = "synthetic",
-            NetworkedBounds = Bounds,
-            ObservedBounds = Bounds
-        }
+        Map = new SceneMapInfo { MapName = "synthetic", NetworkedBounds = _bounds, ObservedBounds = _bounds }
     };
 
     private static SKColor Probe(SKBitmap bitmap, LevelPaneSnapshot pane, float worldX, float worldY)

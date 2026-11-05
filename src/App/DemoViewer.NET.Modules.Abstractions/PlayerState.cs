@@ -22,6 +22,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 // I-prefix convention is deliberately overridden so the as-built signature matches the spec exactly.
 [SuppressMessage("Naming", "CA1715:Identifiers should have correct prefix",
     Justification = "The module contract binds the name to 'PlayerState'.")]
+[PublicAPI]
 public interface IPlayerState
 {
     /// <summary>Stable 0-based player slot (also the join key into the roster).</summary>

@@ -21,7 +21,7 @@ public sealed record RoundIndexOptions
     ///     and the coarsest that loses nothing the consumers ask for; stated in seconds so a 128-tick
     ///     demo samples at 128 ticks and rows mean the same thing across sources.
     /// </summary>
-    public double CadenceSeconds { get; init; } = 1;
+    public double CadenceSeconds { get; } = 1;
 
     /// <summary>The cadence in ticks at a demo's rate.</summary>
     /// <param name="tickRate">The demo's tick rate; 64 when unknown.</param>
@@ -50,13 +50,11 @@ public sealed class RoundIndexDocument
         WriteIndented = false,
         Converters =
         {
-            new RoundIndexRunConverter(),
-            new PlaceZBucketSumConverter(),
-            new PlaceTransitionConverter()
+            new RoundIndexRunConverter(), new PlaceZBucketSumConverter(), new PlaceTransitionConverter()
         }
     };
 
-    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
+    public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
     /// <summary>The <see cref="RoundIndexFingerprint" /> the rows were built under; a mismatch means rebuild, never reinterpret.</summary>
     public string Fingerprint { get; set; } = "";
@@ -64,14 +62,14 @@ public sealed class RoundIndexDocument
     public RoundIndexDemo Demo { get; set; } = new();
 
     /// <summary>The <c>dv-frame-clock</c> header, the annotation sidecar's block verbatim.</summary>
-    public RoundFactsClock Clock { get; set; } = new();
+    public RoundFactsClock Clock { get; init; } = new();
 
-    public string Map { get; set; } = "";
+    public string Map { get; init; } = "";
 
     /// <summary>Ticks between sampled steps: <c>tick = freezeEndTick + step * cadenceTicks</c>.</summary>
-    public int CadenceTicks { get; set; }
+    public int CadenceTicks { get; init; }
 
-    public List<RoundIndexRound> Rounds { get; set; } = [];
+    public List<RoundIndexRound> Rounds { get; init; } = [];
 
     /// <summary>Alive samples with a non-null place, summed per place and per 64-unit Z bucket, for the Query Canvas snap.</summary>
     public Dictionary<string, PlaceSampleSummary> Places { get; set; } = new(StringComparer.Ordinal);
@@ -116,15 +114,16 @@ public sealed class RoundIndexDocument
 }
 
 /// <summary>The demo block: the join key and what a human needs to recognise the file.</summary>
+[UsedImplicitly(ImplicitUseKindFlags.Access | ImplicitUseKindFlags.Assign, ImplicitUseTargetFlags.WithMembers)]
 public sealed class RoundIndexDemo
 {
     /// <summary>Null until Content Identity has hashed the demo; a reader with a hash ignores a mismatching file.</summary>
     public string? Sha256 { get; set; }
 
     /// <summary><c>DemoKeys.StableKey</c> of the path: the join key until the hash exists, the file name afterwards.</summary>
-    public string StableKey { get; set; } = "";
+    public string StableKey { get; init; } = "";
 
-    public string FileName { get; set; } = "";
+    public string FileName { get; init; } = "";
 
     public long SizeBytes { get; set; }
 }
@@ -133,19 +132,19 @@ public sealed class RoundIndexDemo
 public sealed class RoundIndexRound
 {
     /// <summary>== <c>RoundFacts.Number</c>: the foreign key.</summary>
-    public int Number { get; set; }
+    public int Number { get; init; }
 
     /// <summary>Frame clock. Step 0 is sampled here.</summary>
-    public int FreezeEndTick { get; set; }
+    public int FreezeEndTick { get; init; }
 
     /// <summary>Frame clock. The first tick not sampled.</summary>
-    public int EndTick { get; set; }
+    public int EndTick { get; init; }
 
     /// <summary>
     ///     Runs tile the steps: run <i>i</i> ends at its <c>ToStep</c> and run <i>i+1</i> starts at
     ///     <c>ToStep + 1</c>. A run is one (CT, T) token pair held over consecutive samples.
     /// </summary>
-    public List<RoundIndexRun> Runs { get; set; } = [];
+    public List<RoundIndexRun> Runs { get; init; } = [];
 }
 
 /// <summary>A (CT, T) pair held from <see cref="FromStep" /> to <see cref="ToStep" /> inclusive. Stored as <c>[from, to, ct, t]</c>.</summary>
@@ -162,7 +161,7 @@ public sealed class PlaceSampleSummary
 
     /// <summary>Per <c>MapSpace.QuantizeZ</c> bucket of the sample Z (never a level key): <c>[bucket, n, sumX, sumY]</c>.</summary>
     [JsonPropertyName("z")]
-    public List<PlaceZBucketSum> Buckets { get; set; } = [];
+    public List<PlaceZBucketSum> Buckets { get; init; } = [];
 }
 
 /// <summary>The partial sums for one place on one Z bucket; per-map folding is plain addition.</summary>

@@ -1,5 +1,9 @@
+#region
+
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
+#endregion
 
 namespace DemoViewer.NET.Models;
 

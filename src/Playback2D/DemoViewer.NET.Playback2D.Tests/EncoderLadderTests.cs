@@ -64,13 +64,8 @@ public class EncoderLadderTests
         // go in a WebM at all, while AV1 has been legal in it since 2018. That is what lets the hardware
         // rung keep the .webm extension, the format id and every persisted default exactly as they were.
         await Assert.That(rungs.Select(r => r.Name).ToList())
-            .IsEquivalentTo(new List<string>
-            {
-                "av1_nvenc",
-                "av1_qsv",
-                "av1_amf",
-                "libvpx-vp9"
-            }, CollectionOrdering.Matching);
+            .IsEquivalentTo(new List<string> { "av1_nvenc", "av1_qsv", "av1_amf", "libvpx-vp9" },
+                CollectionOrdering.Matching);
 
         foreach (VideoEncoder rung in rungs)
         {
@@ -82,13 +77,8 @@ public class EncoderLadderTests
     public async Task Mp4_PrefersH264Hardware_ThenX264()
     {
         await Assert.That(EncoderLadder.For(ExportFormats.Mp4).Select(r => r.Name).ToList())
-            .IsEquivalentTo(new List<string>
-            {
-                "h264_nvenc",
-                "h264_qsv",
-                "h264_amf",
-                "libx264"
-            }, CollectionOrdering.Matching);
+            .IsEquivalentTo(new List<string> { "h264_nvenc", "h264_qsv", "h264_amf", "libx264" },
+                CollectionOrdering.Matching);
     }
 
     [Test]
@@ -96,21 +86,20 @@ public class EncoderLadderTests
     {
         // NVENC, then QSV, then AMF, on both ladders. Not a quality claim: on a box with a discrete
         // NVIDIA card AND an iGPU, the discrete card is the one that is not also drawing the desktop.
-        foreach (string format in new[]
-                 {
-                     ExportFormats.WebM, ExportFormats.Mp4
-                 })
+        foreach (string format in new[] { ExportFormats.WebM, ExportFormats.Mp4 })
         {
             List<EncoderAcceleration> order =
                 [.. EncoderLadder.For(format).Select(r => r.Acceleration)];
 
-            await Assert.That(order).IsEquivalentTo(new List<EncoderAcceleration>
-            {
-                EncoderAcceleration.Nvenc,
-                EncoderAcceleration.QuickSync,
-                EncoderAcceleration.Amf,
-                EncoderAcceleration.Software
-            }, CollectionOrdering.Matching);
+            await Assert.That(order)
+                .IsEquivalentTo(
+                    new List<EncoderAcceleration>
+                    {
+                        EncoderAcceleration.Nvenc,
+                        EncoderAcceleration.QuickSync,
+                        EncoderAcceleration.Amf,
+                        EncoderAcceleration.Software
+                    }, CollectionOrdering.Matching);
         }
     }
 
@@ -132,7 +121,8 @@ public class EncoderLadderTests
     {
         // Matching SceneExportSession.SupportedFps's treatment of the same case: WebM is the default
         // format, so it is also the default answer to a question about a format nobody has heard of.
-        await Assert.That(EncoderLadder.For("qt-anim")).IsEquivalentTo(EncoderLadder.For(ExportFormats.WebM), CollectionOrdering.Matching);
+        await Assert.That(EncoderLadder.For("qt-anim"))
+            .IsEquivalentTo(EncoderLadder.For(ExportFormats.WebM), CollectionOrdering.Matching);
     }
 
     [Test]
@@ -156,10 +146,7 @@ public class EncoderQualityTests
     [Test]
     public async Task EveryVideoRung_MapsAllThreeQualities_ToSomethingDifferent()
     {
-        foreach (string format in new[]
-                 {
-                     ExportFormats.WebM, ExportFormats.Mp4
-                 })
+        foreach (string format in new[] { ExportFormats.WebM, ExportFormats.Mp4 })
         {
             foreach (VideoEncoder rung in EncoderLadder.For(format))
             {
@@ -181,10 +168,7 @@ public class EncoderQualityTests
     [Test]
     public async Task Nvenc_UsesConstantQualityVbr_WithAZeroBitrate()
     {
-        foreach (VideoEncoder rung in new[]
-                 {
-                     EncoderLadder.Av1Nvenc, EncoderLadder.H264Nvenc
-                 })
+        foreach (VideoEncoder rung in new[] { EncoderLadder.Av1Nvenc, EncoderLadder.H264Nvenc })
         {
             foreach (ExportQuality quality in Enum.GetValues<ExportQuality>())
             {
@@ -283,12 +267,7 @@ public class EncoderSelectorTests
 
         await Assert.That(selection.Encoder).IsEqualTo(EncoderLadder.H264Amf);
         await Assert.That(probe.Calls.Select(c => c.Encoder).ToList())
-            .IsEquivalentTo(new List<string>
-            {
-                "h264_nvenc",
-                "h264_qsv",
-                "h264_amf"
-            }, CollectionOrdering.Matching);
+            .IsEquivalentTo(new List<string> { "h264_nvenc", "h264_qsv", "h264_amf" }, CollectionOrdering.Matching);
         await Assert.That(selection.Reason).Contains("rung 3 of 4");
     }
 
@@ -296,10 +275,7 @@ public class EncoderSelectorTests
     public async Task NullRequest_MeansAuto()
     {
         // The settings file, the dialog and the CLI all have their own way of spelling "nothing chosen".
-        foreach (string? request in new[]
-                 {
-                     null, "", "   ", "auto", "AUTO"
-                 })
+        foreach (string? request in new[] { null, "", "   ", "auto", "AUTO" })
         {
             EncoderSelection selection = new EncoderSelector(new FakeEncoderProbe("av1_nvenc"))
                 .Select(ExportFormats.WebM, request, ExportQuality.Standard, null);
@@ -345,7 +321,8 @@ public class EncoderSelectorTests
 
         // A user who asked for av1_nvenc and quietly got libvpx has been told a lie about what their
         // file is, and goes on believing their GPU did the work.
-        EncoderUnavailableException thrown = Assert.Throws<EncoderUnavailableException>(() => selector.Select(ExportFormats.WebM, "av1_nvenc", ExportQuality.Standard, null));
+        EncoderUnavailableException thrown = Assert.Throws<EncoderUnavailableException>(() =>
+            selector.Select(ExportFormats.WebM, "av1_nvenc", ExportQuality.Standard, null));
 
         await Assert.That(thrown.Message).Contains("av1_nvenc");
         await Assert.That(thrown.Message).Contains("no device (fake)");
@@ -357,7 +334,8 @@ public class EncoderSelectorTests
     {
         EncoderSelector selector = new(new FakeEncoderProbe());
 
-        ExportValidationException thrown = Assert.Throws<ExportValidationException>(() => selector.Select(ExportFormats.Mp4, "libaom-av1", ExportQuality.Standard, null));
+        ExportValidationException thrown = Assert.Throws<ExportValidationException>(() =>
+            selector.Select(ExportFormats.Mp4, "libaom-av1", ExportQuality.Standard, null));
 
         await Assert.That(thrown.Message).Contains("auto");
         await Assert.That(thrown.Message).Contains("software");
@@ -518,7 +496,7 @@ public class FfmpegEncoderProbeTests
         FfmpegEncoderProbe probe = new();
 
         using CancellationTokenSource cancelled = new();
-        cancelled.Cancel();
+        await cancelled.CancelAsync();
 
         // A cancelled walk says so. It does NOT come back with an empty listing, which is
         // indistinguishable from "this build carries no encoders". EncoderProbeCache refuses to cache a
@@ -646,10 +624,7 @@ public class EncoderArgumentTests
     {
         // A caller that never ran a probe (a test, a headless tool, a path not yet wired) gets a
         // working sink rather than a null reference.
-        foreach (string format in new[]
-                 {
-                     ExportFormats.WebM, ExportFormats.Mp4
-                 })
+        foreach (string format in new[] { ExportFormats.WebM, ExportFormats.Mp4 })
         {
             FfmpegSinkOptions options = new("out." + format, format, 1280, 720, 60);
 

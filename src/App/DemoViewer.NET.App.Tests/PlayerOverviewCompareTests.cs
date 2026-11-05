@@ -33,21 +33,30 @@ public class PlayerOverviewCompareTests
 
     private static string Id(ulong steamId) => steamId.ToString(CultureInfo.InvariantCulture);
 
-    private static FactRow Row(long slot, ulong steamId, long team, long kills, long deaths, long openingKills, long openingDeaths, bool won) =>
-        new(new Dictionary<string, FactValue>
+    private static FactRow Row(long slot, ulong steamId, long team, long kills, long deaths, long openingKills,
+        long openingDeaths, bool won) =>
+        new(
+            new Dictionary<string, FactValue>
             {
-                ["player_slot"] = FactValue.Of(slot), ["steam_id"] = FactValue.Of(Id(steamId)), ["team"] = FactValue.Of(team)
+                ["player_slot"] = FactValue.Of(slot),
+                ["steam_id"] = FactValue.Of(Id(steamId)),
+                ["team"] = FactValue.Of(team)
             },
             new Dictionary<string, FactValue>
             {
-                ["rounds"] = FactValue.Of(22L), ["TotalK"] = FactValue.Of(kills), ["TotalD"] = FactValue.Of(deaths),
-                ["CTW"] = FactValue.Of(won ? 13L : 9L), ["CTL"] = FactValue.Of(won ? 9L : 13L),
-                ["TotalFK"] = FactValue.Of(openingKills), ["TotalFD"] = FactValue.Of(openingDeaths),
-                ["CTFK"] = FactValue.Of(openingKills), ["TrdK"] = FactValue.Of(2L)
+                ["rounds"] = FactValue.Of(22L),
+                ["TotalK"] = FactValue.Of(kills),
+                ["TotalD"] = FactValue.Of(deaths),
+                ["CTW"] = FactValue.Of(won ? 13L : 9L),
+                ["CTL"] = FactValue.Of(won ? 9L : 13L),
+                ["TotalFK"] = FactValue.Of(openingKills),
+                ["TotalFD"] = FactValue.Of(openingDeaths),
+                ["CTFK"] = FactValue.Of(openingKills),
+                ["TrdK"] = FactValue.Of(2L)
             });
 
     // Grim wins even demos; Rival, on the other side, wins odd ones.
-    internal static FactTable Facet(int i) => new(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match",
+    private static FactTable Facet(int i) => new(PlayerMatchFacet.Key, "fp", StampedFacts.Schema, "player_match",
         ["player_slot", "steam_id", "team"], [], new Dictionary<string, string>(),
         [
             Row(2, Grim, 3, 20, 15, 4, 2, i % 2 == 0),
@@ -63,19 +72,17 @@ public class PlayerOverviewCompareTests
         {
             DemoCacheStore store = HeadToHeadTests.Library();
             Directory = new PlayerDirectory(store, _ => true);
-            Identity = new IdentityService(new SettingsService((string?)null));
+            Identity = new IdentityService(new SettingsService(null));
             Rows = Cache(store, Directory);
-            Services = new PlayerOverviewServices(Directory, Identity, Rows, _ => { }, _ => { }, (_, _) => { }, _ => { })
-            {
-                OpenPlayer = id => Opened.Add(id)
-            };
+            Services = new PlayerOverviewServices(Directory, Identity, Rows, _ => { }, (_, _) => { },
+                _ => { }) { OpenPlayer = id => Opened.Add(id) };
             Section = new CompareSectionViewModel(Services);
         }
 
-        public PlayerDirectory Directory { get; }
-        public IdentityService Identity { get; }
-        public PlayerRowCache Rows { get; }
-        public PlayerOverviewServices Services { get; }
+        private PlayerDirectory Directory { get; }
+        private IdentityService Identity { get; }
+        private PlayerRowCache Rows { get; }
+        private PlayerOverviewServices Services { get; }
         public CompareSectionViewModel Section { get; }
         public List<ulong> Opened { get; } = [];
 
@@ -84,14 +91,16 @@ public class PlayerOverviewCompareTests
             PlayerRows rows = await Rows.LoadAsync(subject);
             filter ??= PlayerFilter.All;
             IReadOnlyList<PlayerMatch> matches = Directory.Matches(subject);
-            return new PlayerOverviewContext(subject, Directory.Get(subject), matches, matches.Count, false, Services, rows.Demos, filter,
+            return new PlayerOverviewContext(subject, Directory.Get(subject), matches, matches.Count, false, Services,
+                rows.Demos, filter,
                 PlayerAggregate.Window(rows.Demos, filter), false, null, false);
         }
 
         public void Dispose() => Identity.Dispose();
     }
 
-    private static CompareStatItem Tile(CompareSectionViewModel section, string key) => section.Tiles.Single(t => t.Key == key);
+    private static CompareStatItem Tile(CompareSectionViewModel section, string key) =>
+        section.Tiles.Single(t => t.Key == key);
 
     private static CompareStatItem Stat(CompareSectionViewModel section, string key) =>
         section.Categories.SelectMany(c => c.Stats).Single(s => s.Key == key);
@@ -108,7 +117,8 @@ public class PlayerOverviewCompareTests
             await Assert.That(rig.Section.HasOther).IsFalse();
             await Assert.That(rig.Section.Tiles).IsEmpty();
             await Assert.That(rig.Section.Categories).IsEmpty();
-            await Assert.That(rig.Section.NoteText).IsEqualTo("Search a player to compare them with this one over the same filter.");
+            await Assert.That(rig.Section.NoteText)
+                .IsEqualTo("Search a player to compare them with this one over the same filter.");
         }
     }
 
@@ -132,11 +142,15 @@ public class PlayerOverviewCompareTests
             await Assert.That((rig.Section.SubjectName, rig.Section.OtherName)).IsEqualTo(("grim", "rival"));
             await Assert.That((rig.Section.SubjectScope, rig.Section.OtherScope)).IsEqualTo(("5 matches", "4 matches"));
             await Assert.That(rig.Section.Tiles.Select(t => t.Key)).IsEquivalentTo(
-                SummarySectionViewModel.Build(PlayerAggregate.Of([]), null).Select(t => t.Key), CollectionOrdering.Matching);
-            await Assert.That((Tile(rig.Section, "KD").Subject.Text, Tile(rig.Section, "KD").Other.Text)).IsEqualTo(("1.33", "0.50"));
+                SummarySectionViewModel.Build(PlayerAggregate.Of([]), null).Select(t => t.Key),
+                CollectionOrdering.Matching);
+            await Assert.That((Tile(rig.Section, "KD").Subject.Text, Tile(rig.Section, "KD").Other.Text))
+                .IsEqualTo(("1.33", "0.50"));
             await Assert.That(Tile(rig.Section, "KD").SubjectLeads).IsTrue();
-            await Assert.That((Tile(rig.Section, "Win%").Subject.Text, Tile(rig.Section, "Win%").Other.Text)).IsEqualTo(("60%", "50%"));
-            await Assert.That(Tile(rig.Section, "Matches").Lead).IsEqualTo(0).Because("a count over two sample sizes is not judged");
+            await Assert.That((Tile(rig.Section, "Win%").Subject.Text, Tile(rig.Section, "Win%").Other.Text))
+                .IsEqualTo(("60%", "50%"));
+            await Assert.That(Tile(rig.Section, "Matches").Lead).IsEqualTo(0)
+                .Because("a count over two sample sizes is not judged");
             await Assert.That(rig.Section.NoteText).IsEqualTo("");
         }
     }
@@ -156,7 +170,8 @@ public class PlayerOverviewCompareTests
         using (Assert.Multiple())
         {
             await Assert.That((rig.Section.SubjectScope, rig.Section.OtherScope)).IsEqualTo(("2 matches", "2 matches"));
-            await Assert.That((Tile(rig.Section, "Win%").Subject.Text, Tile(rig.Section, "Win%").Other.Text)).IsEqualTo(("0%", "100%"));
+            await Assert.That((Tile(rig.Section, "Win%").Subject.Text, Tile(rig.Section, "Win%").Other.Text))
+                .IsEqualTo(("0%", "100%"));
             await Assert.That(Tile(rig.Section, "Win%").OtherLeads).IsTrue();
         }
 
@@ -176,14 +191,18 @@ public class PlayerOverviewCompareTests
         CompareStatItem openingDeaths = Stat(rig.Section, "TotalFD");
         using (Assert.Multiple())
         {
-            await Assert.That(rig.Section.Categories.Select(c => c.Title)).IsEquivalentTo(CategoriesSectionViewModel.All.Select(c => c.Title),
+            await Assert.That(rig.Section.Categories.Select(c => c.Title)).IsEquivalentTo(
+                CategoriesSectionViewModel.All.Select(c => c.Title),
                 CollectionOrdering.Matching);
             await Assert.That((openingKills.Subject.Text, openingKills.Other.Text)).IsEqualTo(("20", "4"));
-            await Assert.That((openingKills.Subject.Detail, openingKills.Other.Detail)).IsEqualTo(("0.18 per round", "0.05 per round"));
+            await Assert.That((openingKills.Subject.Detail, openingKills.Other.Detail))
+                .IsEqualTo(("0.18 per round", "0.05 per round"));
             await Assert.That(openingKills.SubjectLeads).IsTrue();
-            await Assert.That(openingDeaths.SubjectLeads).IsTrue().Because("fewer opening deaths per round is the better");
+            await Assert.That(openingDeaths.SubjectLeads).IsTrue()
+                .Because("fewer opening deaths per round is the better");
             await Assert.That(Stat(rig.Section, "CTFK").Lead).IsEqualTo(0);
-            await Assert.That(Stat(rig.Section, "TrdK").Lead).IsEqualTo(0).Because("the catalogue gives trade kills no direction");
+            await Assert.That(Stat(rig.Section, "TrdK").Lead).IsEqualTo(0)
+                .Because("the catalogue gives trade kills no direction");
         }
     }
 
@@ -205,7 +224,8 @@ public class PlayerOverviewCompareTests
         using (Assert.Multiple())
         {
             await Assert.That(pickedSelf).IsFalse();
-            await Assert.That(pickedById).IsTrue().Because("a SteamID picks at once, as the tab's own search opens one");
+            await Assert.That(pickedById).IsTrue()
+                .Because("a SteamID picks at once, as the tab's own search opens one");
             await Assert.That(rig.Opened).IsEquivalentTo([Rival], CollectionOrdering.Matching);
             await Assert.That(rig.Section.HasOther).IsFalse();
             await Assert.That(rig.Section.Tiles).IsEmpty();
@@ -225,10 +245,11 @@ public class PlayerOverviewCompareRenderTests
         {
             DemoCacheStore store = HeadToHeadTests.Library();
             PlayerDirectory directory = new(store, _ => true);
-            using IdentityService identity = new(new SettingsService((string?)null));
+            using IdentityService identity = new(new SettingsService(null));
             PlayerRowCache rows = PlayerOverviewCompareTests.Cache(store, directory);
             await rows.LoadAsync(PlayerOverviewCompareTests.Grim);
-            using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows, _ => { }, _ => { }, (_, _) => { }, _ => { }));
+            using PlayerOverviewTabViewModel vm = new(new PlayerOverviewServices(directory, identity, rows, _ => { },
+                (_, _) => { }, _ => { }));
             vm.OnActivated(null!);
             vm.OpenPlayer(PlayerOverviewCompareTests.Grim);
             await vm.Loading;
@@ -238,14 +259,18 @@ public class PlayerOverviewCompareRenderTests
 
             vm.ShowPage(PlayerOverviewPageKind.Stats);
 
-            Window window = new() { Width = 1300, Height = 6000, Content = new PlayerOverviewTabView { DataContext = vm } };
+            Window window = new()
+            {
+                Width = 1300, Height = 6000, Content = new PlayerOverviewTabView { DataContext = vm }
+            };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             Dispatcher.UIThread.RunJobs();
 
             CompareSectionView view = window.GetVisualDescendants().OfType<CompareSectionView>().Single();
-            ItemsControl tiles = view.GetVisualDescendants().OfType<ItemsControl>().Single(c => c.Name == "CompareTiles");
+            ItemsControl tiles = view.GetVisualDescendants().OfType<ItemsControl>()
+                .Single(c => c.Name == "CompareTiles");
             string[] texts = [.. view.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text ?? "")];
             using (Assert.Multiple())
             {

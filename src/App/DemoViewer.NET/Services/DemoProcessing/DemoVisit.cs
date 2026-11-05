@@ -1,4 +1,8 @@
+#region
+
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
+
+#endregion
 
 namespace DemoViewer.NET.Services.DemoProcessing;
 
@@ -7,30 +11,25 @@ namespace DemoViewer.NET.Services.DemoProcessing;
 ///     for, and the read they need. Owned by <see cref="DemoProcessingQueue" /> and mutated under its lock;
 ///     the ordering and the mode choice here are pure.
 /// </summary>
-internal sealed class DemoVisit
+internal sealed class DemoVisit(VisitedDemo demo, PassLevel level)
 {
     private readonly List<VisitPass> _passes = [];
     private long _arrival;
 
-    public DemoVisit(VisitedDemo demo, PassLevel level)
-    {
-        Demo = demo;
-        Level = level;
-    }
-
-    public VisitedDemo Demo { get; }
+    public VisitedDemo Demo { get; } = demo;
 
     /// <summary>The highest level any joiner asked for.</summary>
-    public PassLevel Level { get; private set; }
+    public PassLevel Level { get; private set; } = level;
 
     public int Count => _passes.Count;
 
     /// <summary>The pass ids, each once, in arrival order.</summary>
     public IReadOnlyList<string> OwnerIds =>
-        _passes.Select(p => p.Pass.Id).Distinct(StringComparer.Ordinal).ToList();
+        [.. _passes.Select(p => p.Pass.Id).Distinct(StringComparer.Ordinal)];
 
     /// <summary>Adds a pass with the needs it declared for this demo; the same instance is not added twice.</summary>
-    public bool Add(IDemoPass pass, PassNeeds needs, Action<IDemoPass, PassOutcome, Exception?>? ended, bool rider = false)
+    public bool Add(IDemoPass pass, PassNeeds needs, Action<IDemoPass, PassOutcome, Exception?>? ended,
+        bool rider = false)
     {
         if (_passes.Any(p => ReferenceEquals(p.Pass, pass)))
         {
@@ -114,7 +113,8 @@ internal sealed class DemoVisit
     /// </summary>
     public (bool Forward, ForwardNeeds Needs, bool UserCommands) ChooseMode(bool forwardAvailable)
     {
-        bool forward = forwardAvailable && _passes.Count > 0 && _passes.TrueForAll(p => p.Needs.Mode == ParseMode.Forward);
+        bool forward = forwardAvailable && _passes.Count > 0
+            && _passes.TrueForAll(p => p.Needs.Mode == ParseMode.Forward);
         ForwardNeeds needs = ForwardNeeds.None;
         bool userCommands = false;
         foreach (VisitPass p in _passes)
@@ -148,14 +148,15 @@ internal sealed class DemoVisit
     /// </summary>
     public IReadOnlyList<VisitPass> Ordered()
     {
-        List<VisitPass> pending = _passes.OrderBy(p => p.Arrival).ToList();
+        List<VisitPass> pending = [.. _passes.OrderBy(p => p.Arrival)];
         HashSet<string> present = new(pending.Select(p => p.Pass.Id), StringComparer.Ordinal);
         HashSet<string> emitted = new(StringComparer.Ordinal);
         List<VisitPass> ordered = new(pending.Count);
         while (pending.Count > 0)
         {
             int pick = pending.FindIndex(p => p.Pass.After.All(dep =>
-                !present.Contains(dep) || emitted.Contains(dep) || string.Equals(dep, p.Pass.Id, StringComparison.Ordinal)));
+                !present.Contains(dep) || emitted.Contains(dep)
+                || string.Equals(dep, p.Pass.Id, StringComparison.Ordinal)));
             if (pick < 0)
             {
                 // A cycle the registry did not see (a visit mixes registered and one-shot passes): arrival
@@ -178,7 +179,11 @@ internal sealed class DemoVisit
 ///     A pass on a visit, with the needs it declared when it joined, the submitter's completion callback, and
 ///     whether it only rides another pass's rules run.
 /// </summary>
-internal sealed record VisitPass(IDemoPass Pass, PassNeeds Needs, Action<IDemoPass, PassOutcome, Exception?>? Ended, long Arrival,
+internal sealed record VisitPass(
+    IDemoPass Pass,
+    PassNeeds Needs,
+    Action<IDemoPass, PassOutcome, Exception?>? Ended,
+    long Arrival,
     bool Rider = false);
 
 /// <summary>
@@ -237,7 +242,7 @@ internal static class VisitPlanner
         {
             added = false;
             bool rulesRun = passes.Any(p => chosen.Contains(p.Id) && answers[p] != PassInterest.IfRulesRun
-                                            && NeedsRules(p, demo, faulted));
+                && NeedsRules(p, demo, faulted));
             foreach (IDemoPass pass in passes)
             {
                 if (chosen.Contains(pass.Id))
@@ -256,7 +261,7 @@ internal static class VisitPlanner
 
         riders = new HashSet<string>(passes.Where(p => chosen.Contains(p.Id) && answers[p] == PassInterest.IfRulesRun)
             .Select(p => p.Id), StringComparer.Ordinal);
-        return passes.Where(p => chosen.Contains(p.Id)).ToList();
+        return [.. passes.Where(p => chosen.Contains(p.Id))];
     }
 
     private static bool NeedsRules(IDemoPass pass, VisitedDemo demo, Action<IDemoPass, Exception>? faulted)

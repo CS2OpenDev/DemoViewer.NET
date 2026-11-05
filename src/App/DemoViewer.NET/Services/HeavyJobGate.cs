@@ -44,7 +44,7 @@ public sealed class HeavyJobGate : IDisposable
 
     private const int PollIntervalMs = 100;
 
-    private readonly object _sync = new();
+    private readonly Lock _sync = new();
     private bool _disposed;
     private int _exportSessions;
     private int _held;
@@ -143,7 +143,7 @@ public sealed class HeavyJobGate : IDisposable
             lock (_sync)
             {
                 return !_disposed && _reelSessions == 0 && _exportSessions == 0 &&
-                       _interactivePending == 0 && _held < _maxConcurrency;
+                    _interactivePending == 0 && _held < _maxConcurrency;
             }
         }
     }
@@ -231,7 +231,8 @@ public sealed class HeavyJobGate : IDisposable
     /// </summary>
     /// <param name="duringExport">True for an item the running export reads its demos through.</param>
     /// <param name="cancellationToken">Stops the wait.</param>
-    public async Task<IDisposable> AcquireBackgroundAsync(bool duringExport, CancellationToken cancellationToken = default)
+    public async Task<IDisposable> AcquireBackgroundAsync(bool duringExport,
+        CancellationToken cancellationToken = default)
     {
         while (true)
         {

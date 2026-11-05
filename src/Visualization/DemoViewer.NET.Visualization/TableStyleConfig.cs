@@ -21,22 +21,22 @@ public sealed record TableStyleConfig
     public Color CellForeground { get; init; } = Color.Parse("#8090B0");
 
     /// <summary>Cell height.</summary>
-    public double CellHeight { get; init; } = 28;
+    public double CellHeight { get; } = 28;
 
     /// <summary>Cell width.</summary>
-    public double CellWidth { get; init; } = 110;
+    public double CellWidth { get; } = 110;
 
     /// <summary>Vertical spacing between consecutive column-edge channels above a table.</summary>
-    public double ChannelSpacing { get; init; } = 28;
+    public double ChannelSpacing { get; } = 28;
 
     /// <summary>Vertical gap between the topmost channel and the table's top edge.</summary>
-    public double ChannelTopGap { get; init; } = 20;
+    public double ChannelTopGap { get; } = 20;
 
     /// <summary>Dim foreground.</summary>
     public Color DimForeground { get; init; } = Color.Parse("#404060");
 
     /// <summary>Gap above table.</summary>
-    public double GapAboveTable { get; init; } = 160;
+    public double GapAboveTable { get; } = 160;
 
     /// <summary>Grid line.</summary>
     public Color GridLine { get; init; } = Color.Parse("#1A1A3A");
@@ -48,8 +48,8 @@ public sealed record TableStyleConfig
     public Color HeaderForeground { get; init; } = Color.Parse("#A0C8FF");
 
     /// <summary>Header height.</summary>
-    public double HeaderHeight { get; init; } = 32;
+    public double HeaderHeight { get; } = 32;
 
     /// <summary>Row header width.</summary>
-    public double RowHeaderWidth { get; init; } = 160;
+    public double RowHeaderWidth { get; } = 160;
 }

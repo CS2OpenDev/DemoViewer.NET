@@ -37,13 +37,14 @@ public sealed partial record ExtensionManifest(
     ///     The rulesets the extension contributes, by its own names (<see cref="RulesetContribution.Id" />). Read
     ///     without loading the extension, so its rulesets stay apart from the highlights in safe mode too.
     /// </summary>
-    public IReadOnlyList<string> Rulesets { get; init; } = [];
+    public IReadOnlyList<string> Rulesets { get; private init; } = [];
 
     /// <summary>Equal when every member is, <see cref="Rulesets" /> compared item by item.</summary>
     public bool Equals(ExtensionManifest? other) =>
         other is not null
         && Id == other.Id && Name == other.Name && Version == other.Version && Assembly == other.Assembly
-        && EntryType == other.EntryType && Equals(RequiresHost, other.RequiresHost) && Equals(RequiresCs2DemoKit, other.RequiresCs2DemoKit)
+        && EntryType == other.EntryType && Equals(RequiresHost, other.RequiresHost)
+        && Equals(RequiresCs2DemoKit, other.RequiresCs2DemoKit)
         && Equals(MinAppVersion, other.MinAppVersion) && Rulesets.SequenceEqual(other.Rulesets, StringComparer.Ordinal);
 
     /// <inheritdoc />
@@ -68,7 +69,8 @@ public sealed partial record ExtensionManifest(
         Dto dto;
         try
         {
-            dto = JsonSerializer.Deserialize<Dto>(json, _json) ?? throw new ExtensionManifestException("The manifest is empty.");
+            dto = JsonSerializer.Deserialize<Dto>(json, _json)
+                ?? throw new ExtensionManifestException("The manifest is empty.");
         }
         catch (JsonException ex)
         {
@@ -80,7 +82,7 @@ public sealed partial record ExtensionManifest(
 
     /// <summary>Parses manifest JSON from <paramref name="stream" />.</summary>
     /// <exception cref="ExtensionManifestException">Malformed JSON, a missing required member, or a bad value.</exception>
-    public static ExtensionManifest Parse(Stream stream)
+    private static ExtensionManifest Parse(Stream stream)
     {
         ArgumentNullException.ThrowIfNull(stream);
         using StreamReader reader = new(stream);
@@ -93,7 +95,8 @@ public sealed partial record ExtensionManifest(
     {
         ArgumentNullException.ThrowIfNull(assembly);
         using Stream stream = assembly.GetManifestResourceStream(FileName)
-            ?? throw new ExtensionManifestException($"{assembly.GetName().Name} embeds no {FileName}.");
+            ?? throw new ExtensionManifestException(
+                $"{assembly.GetName().Name} embeds no {FileName}.");
         return Parse(stream);
     }
 
@@ -124,7 +127,8 @@ public sealed partial record ExtensionManifest(
 
         if (!VersionRange.TryParse(Required(dto.RequiresCs2DemoKit, "requiresCs2DemoKit"), out VersionRange? kit))
         {
-            throw new ExtensionManifestException($"'requiresCs2DemoKit' is not a version range: '{dto.RequiresCs2DemoKit}'.");
+            throw new ExtensionManifestException(
+                $"'requiresCs2DemoKit' is not a version range: '{dto.RequiresCs2DemoKit}'.");
         }
 
         SemVersion? minApp = null;
@@ -144,10 +148,8 @@ public sealed partial record ExtensionManifest(
             rulesets.Add(ruleset!);
         }
 
-        return new ExtensionManifest(id, Required(dto.Name, "name"), version, assembly, Required(dto.EntryType, "entryType"), host, kit, minApp)
-        {
-            Rulesets = rulesets
-        };
+        return new ExtensionManifest(id, Required(dto.Name, "name"), version, assembly,
+            Required(dto.EntryType, "entryType"), host, kit, minApp) { Rulesets = rulesets };
     }
 
     /// <summary>
@@ -163,46 +165,44 @@ public sealed partial record ExtensionManifest(
     private static partial Regex IdPattern();
 
     private static string Required(string? value, string member) =>
-        string.IsNullOrWhiteSpace(value) ? throw new ExtensionManifestException($"'{member}' is required.") : value.Trim();
+        string.IsNullOrWhiteSpace(value)
+            ? throw new ExtensionManifestException($"'{member}' is required.")
+            : value.Trim();
 
     // [JsonRequired] fails the deserialization when a member is absent; a present null or blank fails in
     // Required above, so both read as "missing".
     private sealed class Dto
     {
         [JsonRequired]
-        public string? Id { get; set; }
+        public string? Id { get; init; }
 
         [JsonRequired]
-        public string? Name { get; set; }
+        public string? Name { get; init; }
 
         [JsonRequired]
-        public string? Version { get; set; }
+        public string? Version { get; init; }
 
         [JsonRequired]
-        public string? Assembly { get; set; }
+        public string? Assembly { get; init; }
 
         [JsonRequired]
-        public string? EntryType { get; set; }
+        public string? EntryType { get; init; }
 
         [JsonRequired]
-        public string? RequiresHost { get; set; }
+        public string? RequiresHost { get; init; }
 
         [JsonRequired]
-        public string? RequiresCs2DemoKit { get; set; }
+        public string? RequiresCs2DemoKit { get; init; }
 
-        public string? MinAppVersion { get; set; }
+        public string? MinAppVersion { get; init; }
 
-        public List<string?>? Rulesets { get; set; }
+        public List<string?>? Rulesets { get; init; }
     }
 }
 
 /// <summary>A manifest that could not be read or did not validate.</summary>
 public sealed class ExtensionManifestException : Exception
 {
-    public ExtensionManifestException()
-    {
-    }
-
     public ExtensionManifestException(string message) : base(message)
     {
     }

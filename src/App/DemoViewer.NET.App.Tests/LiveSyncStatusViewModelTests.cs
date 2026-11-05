@@ -3,7 +3,6 @@
 using System.Globalization;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Services.LiveSync;
-using DemoViewer.NET.ViewModels;
 using DemoViewer.NET.ViewModels.LiveSync;
 using DemoViewer.NET.ViewModels.Playback;
 using DemoViewer.NET.Views.LiveSync;
@@ -164,10 +163,7 @@ public class LiveSyncStatusViewModelTests
     [Test]
     public async Task LeftoverInstallModifications_SurfaceOfferedRestore_AndRestoreClearsIt()
     {
-        FakeLiveSync svc = new()
-        {
-            LeftoverModifications = true
-        };
+        FakeLiveSync svc = new() { LeftoverModifications = true };
         PlaybackController playback = new();
         LiveSyncStatusViewModel vm = new(svc, null, playback, () => { });
 
@@ -375,7 +371,7 @@ public class LiveSyncStatusViewModelTests
 
         public LiveSyncState State { get; private set; } = LiveSyncState.Disconnected;
         public long? LastCs2DemoTick { get; set; }
-        public LiveSyncVersionInfo? Versions { get; set; }
+        public LiveSyncVersionInfo? Versions => null;
         public LiveSyncCapabilities? Capabilities { get; set; }
 
         public event EventHandler<LiveSyncStateChangedEventArgs>? StateChanged;

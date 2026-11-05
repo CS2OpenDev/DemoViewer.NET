@@ -104,7 +104,7 @@ internal static class ZoneGeometry
     }
 
     /// <summary>Distance from <c>(px, py)</c> to the segment <c>(ax, ay)-(bx, by)</c>.</summary>
-    public static double DistanceToSegment(double ax, double ay, double bx, double by, double px, double py)
+    private static double DistanceToSegment(double ax, double ay, double bx, double by, double px, double py)
     {
         double dx = bx - ax;
         double dy = by - ay;

@@ -12,7 +12,8 @@ namespace DemoViewer.NET.AppTests;
 internal static class PaletteKeymaps
 {
     public static PaletteKeymap From(Playback2DKeymapProfile keymap) => new(
-        (key, modifiers) => keymap.TryResolveInScope(new Playback2DBindingScope(StratBookActions.PaletteScope), key, modifiers,
+        (key, modifiers) => keymap.TryResolveInScope(new Playback2DBindingScope(StratBookActions.PaletteScope), key,
+            modifiers,
             out string? action)
             ? action
             : null,

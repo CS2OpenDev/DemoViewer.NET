@@ -29,18 +29,12 @@ public readonly record struct MinedPawn(int Slot, float X, float Y, float Z, str
 /// <param name="Seconds">Seconds from the signature's anchor; negative before it.</param>
 /// <param name="Landing">Where it went off.</param>
 /// <param name="LandingPlace">The zone it landed in, or null.</param>
-/// <param name="Origin">Where it was thrown from.</param>
-/// <param name="ThrowerSteamId">The thrower's SteamID64, or 0 when the walk did not read one.</param>
-/// <param name="ThrowerName">The thrower's name at the time, or null.</param>
 /// <param name="LineupId">The Grenade Index lineup, or null when the throw is in no lineup.</param>
 public sealed record MinedThrow(
     GrenadeKind Kind,
     double Seconds,
     WorldPoint Landing,
     string? LandingPlace,
-    WorldPoint Origin,
-    ulong ThrowerSteamId,
-    string? ThrowerName,
     Guid? LineupId);
 
 /// <summary>
@@ -84,8 +78,8 @@ public sealed class RoundSignature
     public double AnchorSeconds => TickRate > 0 ? (AnchorTick - FreezeEndTick) / (double)TickRate : 0;
 
     /// <summary>
-    ///     The side's alive players at each anchor offset (<see cref="StratMiner.AnchorsFor" />), in order. An
-    ///     empty list is an anchor with no sample.
+    ///     The side's alive players at each anchor offset (<see cref="StratMiner.SetupAnchors" /> or
+    ///     <see cref="StratMiner.ExecuteAnchors" />), in order. An empty list is an anchor with no sample.
     /// </summary>
     public required IReadOnlyList<IReadOnlyList<MinedPawn>> Anchors { get; init; }
 
@@ -145,7 +139,8 @@ public sealed class MinedPattern
 
     public IReadOnlyList<MinedCommonThrow> CommonThrows { get; init; } = [];
 
-    public IReadOnlyList<Guid> Teams => [.. Members.Where(m => m.TeamId is not null).Select(m => m.TeamId!.Value).Distinct()];
+    public IReadOnlyList<Guid> Teams =>
+        [.. Members.Where(m => m.TeamId is not null).Select(m => m.TeamId!.Value).Distinct()];
 
     public int Support => Members.Count;
 

@@ -6,7 +6,6 @@ using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CS2DemoKit.Analysis.Diagnostics;
-using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.LiveSync;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -85,10 +84,7 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
         _reelJob = reelJob;
         _openFolder = openFolder;
 
-        Chip = new StatusChipViewModel
-        {
-            FlyoutContent = this
-        };
+        Chip = new StatusChipViewModel { FlyoutContent = this };
         _reelJob.StatusChanged += OnStatusChanged;
         Apply(_reelJob.Status);
     }
@@ -219,14 +215,14 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
                 SetChip(StatusChipDotState.Working, true, $"Reel · {current} of {total}");
                 ShowSection(true);
                 Headline = $"Rendering clip {current} of {total}"
-                           + (clipLabel is not null ? $" — {clipLabel}" : "");
+                    + (clipLabel is not null ? $" — {clipLabel}" : "");
                 break;
 
             case ReelJobPhase.Completed:
                 SetChip(StatusChipDotState.Good, false, "Reel · done");
                 ShowSection(completed: true);
                 Headline = $"Reel complete — {status.ClipsCompleted} clip"
-                           + (status.ClipsCompleted == 1 ? "" : "s") + " rendered.";
+                    + (status.ClipsCompleted == 1 ? "" : "s") + " rendered.";
                 break;
 
             case ReelJobPhase.Failed:
@@ -254,7 +250,7 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
         OutputPath = status.OutputPath;
         ErrorText = status.Error;
         CanOpenFolder = status.Phase == ReelJobPhase.Completed
-                        && !string.IsNullOrEmpty(status.OutputPath) && _openFolder is not null;
+            && !string.IsNullOrEmpty(status.OutputPath) && _openFolder is not null;
         CanRetry = status.HasRetryableClips;
 
         RebuildClipRows(status, total, clipLabel);
@@ -262,8 +258,8 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
         // A failed job is a user-visible fault worth persisting: mirror it to the diagnostics pillar
         // (Diagnostics tab + rolling log file) so the report survives dismissing the chip. Deduped on the
         // message, because Apply also runs at construction and on unrelated re-applies of the same status.
-        if (status.Phase == ReelJobPhase.Failed && status.Error is { Length: > 0 } err
-                                                && !string.Equals(err, _loggedError, StringComparison.Ordinal))
+        if (status is { Phase: ReelJobPhase.Failed, Error: { Length: > 0 } err }
+            && !string.Equals(err, _loggedError, StringComparison.Ordinal))
         {
             _loggedError = err;
             ILogger reelsLog = DiagnosticsLog.CreateLogger(AppLog.ReelsCategory);
@@ -291,7 +287,7 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
     private void RebuildClipRows(ReelJobStatus status, int total, string? clipLabel)
     {
         Clips.Clear();
-        HashSet<int> failed = new(status.FailedClipIndices);
+        HashSet<int> failed = [.. status.FailedClipIndices];
         for (int i = 0; i < total; i++)
         {
             ReelClipRowState state;
@@ -315,7 +311,7 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
             string label = state == ReelClipRowState.Current && clipLabel is not null
                 ? clipLabel
                 : "Clip " + (i + 1).ToString(CultureInfo.InvariantCulture);
-            Clips.Add(new ReelClipStatusRow(i + 1, label, state));
+            Clips.Add(new ReelClipStatusRow(label, state));
         }
     }
 
@@ -337,10 +333,8 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
 }
 
 /// <summary>One row of the reel chip flyout's per-clip status list.</summary>
-public sealed class ReelClipStatusRow(int number, string label, ReelClipRowState state)
+public sealed class ReelClipStatusRow(string label, ReelClipRowState state)
 {
-    public int Number { get; } = number;
-
     /// <summary>The clip label: the live <c>CurrentClipLabel</c> for the active clip, else "Clip k".</summary>
     public string Label { get; } = label;
 

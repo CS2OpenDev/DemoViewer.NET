@@ -6,10 +6,10 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Services;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
-using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.Services;
+using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Views;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -41,7 +41,8 @@ public class StratNewStratButtonsTests
             await Settle();
             using (Assert.Multiple())
             {
-                await Assert.That(hint.IsEffectivelyVisible).IsTrue().Because("the click says why nothing was made yet");
+                await Assert.That(hint.IsEffectivelyVisible).IsTrue()
+                    .Because("the click says why nothing was made yet");
                 await Assert.That(maps.IsDropDownOpen).IsTrue().Because("the click asks for the map");
                 await Assert.That(vm.Strats.Count).IsEqualTo(0);
             }
@@ -50,7 +51,8 @@ public class StratNewStratButtonsTests
             await Settle();
             using (Assert.Multiple())
             {
-                await Assert.That(vm.Session.Document?.Map).IsEqualTo("de_mirage").Because("the pick finishes the create");
+                await Assert.That(vm.Session.Document?.Map).IsEqualTo("de_mirage")
+                    .Because("the pick finishes the create");
                 await Assert.That(vm.Session.Document?.Name).IsEqualTo("New strat");
                 await Assert.That(hint.IsEffectivelyVisible).IsFalse();
                 await Assert.That(vm.CanApplyTemplate).IsTrue();
@@ -134,7 +136,7 @@ public class StratNewStratButtonsTests
                 finally
                 {
                     window?.Close();
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }

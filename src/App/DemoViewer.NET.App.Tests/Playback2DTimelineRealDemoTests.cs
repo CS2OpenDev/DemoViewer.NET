@@ -112,7 +112,7 @@ public class Playback2DTimelineRealDemoTests
         IReadOnlyList<TimelineMarker> markers = new KillTrack().BuildMarkers(data);
 
         Console.WriteLine($"[kill-markers] deaths(host)={context.GetEventTimeline(KillTrack.DeathEvent).Count} "
-                          + $"placed={records.Count} markers={markers.Count}");
+            + $"placed={records.Count} markers={markers.Count}");
 
         await Assert.That(markers.Count).IsEqualTo(records.Count);
         await Assert.That(markers.Count).IsGreaterThan(0);
@@ -158,9 +158,7 @@ public class Playback2DTimelineRealDemoTests
         context.SetGameEvents(demo.AllGameEvents);
         context.SetRoster(demo.Players.Values.Select(p => new PlayerRosterEntry
         {
-            Slot = p.Slot,
-            Name = p.Name,
-            SteamId = p.SteamId64
+            Slot = p.Slot, Name = p.Name, SteamId = p.SteamId64
         }));
 
         return (demo, controller, context);

@@ -42,7 +42,15 @@ public enum CaptureTrigger
 /// <param name="Yaw"><c>m_angEyeAngles.Y</c>.</param>
 /// <param name="Place"><c>m_szLastPlaceName</c>, with the wire's empty string as null.</param>
 public readonly record struct CapturedPawn(
-    int PlayerSlot, int Team, ulong SteamId, string? Name, float X, float Y, float Z, float Yaw, string? Place);
+    int PlayerSlot,
+    int Team,
+    ulong SteamId,
+    string? Name,
+    float X,
+    float Y,
+    float Z,
+    float Yaw,
+    string? Place);
 
 /// <summary>One tick the capture stopped at and the live pawns there.</summary>
 /// <param name="Tick">Frame clock: the trigger's own tick, not the frame's.</param>
@@ -111,7 +119,12 @@ public sealed record CaptureMoment(
 /// <param name="LiveEndTick">The tick the round was decided at (exclusive); nothing at or after it is captured.</param>
 /// <param name="TickRate">The demo's tick rate.</param>
 /// <param name="Moments">Every stop, tick order, freeze-end first.</param>
-public sealed record RoundCapture(int Round, int FreezeEndTick, int LiveEndTick, int TickRate, IReadOnlyList<CaptureMoment> Moments)
+public sealed record RoundCapture(
+    int Round,
+    int FreezeEndTick,
+    int LiveEndTick,
+    int TickRate,
+    IReadOnlyList<CaptureMoment> Moments)
 {
     /// <summary>The freeze-end stop.</summary>
     public CaptureMoment FreezeEnd => Moments[0];
@@ -154,7 +167,8 @@ public static class RoundCaptureWalker
     /// <param name="knownEndTick">Round Facts' <c>EndTick</c> when the demo has rows; the walk's own end otherwise.</param>
     /// <param name="progress">Fraction of the walk done, for the review's progress line.</param>
     /// <param name="ct">Cancels between frames.</param>
-    public static RoundCapture Walk(ParsedDemo demo, int round, int freezeEndTick, int? windowEndTick, int? knownEndTick = null,
+    public static RoundCapture Walk(ParsedDemo demo, int round, int freezeEndTick, int? windowEndTick,
+        int? knownEndTick = null,
         IProgress<double>? progress = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(demo);
@@ -174,8 +188,8 @@ public static class RoundCaptureWalker
             }
         }
 
-        List<Stop> stops = [new(freezeEndTick, CaptureTrigger.FreezeEnd, null)];
-        stops.AddRange(EventStops(demo, freezeEndTick, end));
+        List<Stop> stops =
+            [new(freezeEndTick, CaptureTrigger.FreezeEnd, null), .. EventStops(demo, freezeEndTick, end)];
         stops.AddRange(SweepStops(stops, freezeEndTick, end, tickRate));
         stops.Sort((a, b) => a.Tick != b.Tick ? a.Tick.CompareTo(b.Tick) : a.Trigger.CompareTo(b.Trigger));
 
@@ -183,10 +197,12 @@ public static class RoundCaptureWalker
         int firstFrame = FrameAtOrAfter(frames, freezeEndTick);
         if (firstFrame < 0)
         {
-            return new RoundCapture(round, freezeEndTick, end, tickRate, [new CaptureMoment(freezeEndTick, CaptureTrigger.FreezeEnd, [])]);
+            return new RoundCapture(round, freezeEndTick, end, tickRate,
+                [new CaptureMoment(freezeEndTick, CaptureTrigger.FreezeEnd, [])]);
         }
 
-        EntityTracker tracker = new EntitySeekService(static () => new EntityTracker()).SeekToFrameNoSnapshot(firstFrame, frames).Tracker;
+        EntityTracker tracker = new EntitySeekService(static () => new EntityTracker())
+            .SeekToFrameNoSnapshot(firstFrame, frames).Tracker;
         Dictionary<int, ulong> steamIds = [];
         int cursor = firstFrame;
         int lastStopFrame = FrameAtOrAfter(frames, stops[^1].Tick);
@@ -207,10 +223,6 @@ public static class RoundCaptureWalker
             }
 
             int frame = Math.Max(firstFrame, FrameAtOrAfter(frames, stop.Tick));
-            if (frame < 0)
-            {
-                break;
-            }
 
             bool decided = false;
             while (cursor < frame)
@@ -251,7 +263,7 @@ public static class RoundCaptureWalker
     /// <summary>The first frame whose tick is at or after <paramref name="tick" />, or -1 past the last.</summary>
     /// <param name="frames">The frame list, tick-ordered.</param>
     /// <param name="tick">Frame clock.</param>
-    public static int FrameAtOrAfter(IReadOnlyList<DemoFrame> frames, int tick)
+    private static int FrameAtOrAfter(IReadOnlyList<DemoFrame> frames, int tick)
     {
         ArgumentNullException.ThrowIfNull(frames);
         int lo = 0, hi = frames.Count - 1, found = -1;
@@ -280,7 +292,8 @@ public static class RoundCaptureWalker
     /// <param name="freezeEndTick">The round's zero.</param>
     /// <param name="endTick">Exclusive.</param>
     /// <param name="tickRate">Ticks per second.</param>
-    public static IReadOnlyList<int> SweepTicks(IEnumerable<int> otherTicks, int freezeEndTick, int endTick, int tickRate)
+    public static IReadOnlyList<int> SweepTicks(IEnumerable<int> otherTicks, int freezeEndTick, int endTick,
+        int tickRate)
     {
         ArgumentNullException.ThrowIfNull(otherTicks);
         int[] others = [.. otherTicks];
@@ -298,7 +311,8 @@ public static class RoundCaptureWalker
     }
 
     private static IEnumerable<Stop> SweepStops(List<Stop> stops, int freezeEndTick, int end, int tickRate) =>
-        SweepTicks(stops.Select(s => s.Tick), freezeEndTick, end, tickRate).Select(t => new Stop(t, CaptureTrigger.Sweep, null));
+        SweepTicks(stops.Select(s => s.Tick), freezeEndTick, end, tickRate)
+            .Select(t => new Stop(t, CaptureTrigger.Sweep, null));
 
     // Every smoke, flash, HE, fire and decoy, and the plant, inside the live window. Both sides: the review
     // picks ours afterwards.
@@ -315,12 +329,16 @@ public static class RoundCaptureWalker
 
             Stop? stop = fire.Payload switch
             {
-                SmokeGrenadeDetonateEvent e => new Stop(tick, CaptureTrigger.Utility, new Source("smoke", e.UserId, -1, -1, new Vector3(e.X, e.Y, e.Z))),
-                FlashbangDetonateEvent e => new Stop(tick, CaptureTrigger.Utility, new Source("flash", e.UserId, -1, -1, new Vector3(e.X, e.Y, e.Z))),
-                HegrenadeDetonateEvent e => new Stop(tick, CaptureTrigger.Utility, new Source("he", e.UserId, -1, -1, new Vector3(e.X, e.Y, e.Z))),
+                SmokeGrenadeDetonateEvent e => new Stop(tick, CaptureTrigger.Utility,
+                    new Source("smoke", e.UserId, -1, -1, new Vector3(e.X, e.Y, e.Z))),
+                FlashbangDetonateEvent e => new Stop(tick, CaptureTrigger.Utility,
+                    new Source("flash", e.UserId, -1, -1, new Vector3(e.X, e.Y, e.Z))),
+                HegrenadeDetonateEvent e => new Stop(tick, CaptureTrigger.Utility,
+                    new Source("he", e.UserId, -1, -1, new Vector3(e.X, e.Y, e.Z))),
 
                 // No thrower on the wire; the inferno entity's owner may still name one (resolved at the stop).
-                InfernoStartburnEvent e => new Stop(tick, CaptureTrigger.Utility, new Source("molotov", -1, e.EntityId, -1, new Vector3(e.X, e.Y, e.Z))),
+                InfernoStartburnEvent e => new Stop(tick, CaptureTrigger.Utility,
+                    new Source("molotov", -1, e.EntityId, -1, new Vector3(e.X, e.Y, e.Z))),
 
                 // UserId here is a pawn handle rather than a slot (DetonationEvents); resolved at the stop. A
                 // value small enough to be a slot is read as one, should a build ever send it that way.
@@ -342,7 +360,8 @@ public static class RoundCaptureWalker
     // The actor's slot and team at the stop: the projectile sampler's match first (#56, #59, survives the
     // thrower's death), else the event's own slot, else the inferno's owner or the decoy's pawn handle joined
     // to a slot through the live pawns. The same match also names the release point for the throw arrow.
-    private static CaptureMoment Resolve(Stop stop, EntityTracker tracker, List<CapturedPawn> pawns, IReadOnlyList<ProjectileSample> projectiles)
+    private static CaptureMoment Resolve(Stop stop, EntityTracker tracker, List<CapturedPawn> pawns,
+        IReadOnlyList<ProjectileSample> projectiles)
     {
         Source source = stop.Source!;
         int slot = source.Slot;
@@ -391,7 +410,8 @@ public static class RoundCaptureWalker
             }
         }
 
-        return new CaptureMoment(stop.Tick, stop.Trigger, pawns, source.Kind, slot, team, source.Position, matched?.InitialPosition, steamId);
+        return new CaptureMoment(stop.Tick, stop.Trigger, pawns, source.Kind, slot, team, source.Position,
+            matched?.InitialPosition, steamId);
     }
 
     // The strat's utility spelling (Source.Kind) to the projectile class it flies as, or null for a plant.
@@ -439,15 +459,16 @@ public static class RoundCaptureWalker
         {
             int team = CoerceInt(pawn["m_iTeamNum"]);
             if (team is not (2 or 3) || PositionUtil.CellToWorld(pawn) is not { } world
-                || PawnLookup.ResolvePawn(tracker, slot) is not { } resolved || !PawnLookup.IsAlive(resolved))
+                || PawnLookup.ResolvePawn(tracker, slot) is not { } resolved
+                || !PawnLookup.IsAlive(resolved))
             {
                 continue;
             }
 
             EntityState? controller = set[slot + 1] is { } c
-                                      && c.ClassName.Contains("PlayerController", StringComparison.OrdinalIgnoreCase)
-                ? c
-                : null;
+                && c.ClassName.Contains("PlayerController", StringComparison.OrdinalIgnoreCase)
+                    ? c
+                    : null;
             float yaw = pawn["m_angEyeAngles"] is Vector3 eye ? eye.Y : 0;
             string? place = pawn["m_szLastPlaceName"] is string name && !string.IsNullOrEmpty(name) ? name : null;
             string? playerName = controller?["m_iszPlayerName"] as string;

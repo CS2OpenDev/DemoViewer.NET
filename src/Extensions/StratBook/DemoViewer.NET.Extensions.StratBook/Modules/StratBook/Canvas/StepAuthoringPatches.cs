@@ -3,9 +3,9 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Playback2D.Annotations;
 
 #endregion
 
@@ -24,7 +24,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
 public static class StepAuthoringPatches
 {
     /// <summary>How far after the active step <see cref="DuplicateStep" /> puts the copy.</summary>
-    public const double DuplicateOffsetSeconds = 5;
+    private const double DuplicateOffsetSeconds = 5;
 
     /// <summary>
     ///     A token drag as one op: a <c>replace</c> of the slot's entry at the step, or an <c>add</c> when the
@@ -94,7 +94,7 @@ public static class StepAuthoringPatches
             if (before.TryGetValue(element.Id, out AnnotationElement? was))
             {
                 if (was.Equals(element) || !projection.TryFindStroke(element.Id, out StrokeRef at)
-                                        || !projection.Path[at.PathIndex].Editable)
+                    || !projection.Path[at.PathIndex].Editable)
                 {
                     continue;
                 }
@@ -119,7 +119,7 @@ public static class StepAuthoringPatches
         foreach (AnnotationElement element in projection.Elements)
         {
             if (!present.Contains(element.Id) && projection.TryFindStroke(element.Id, out StrokeRef at)
-                                              && projection.Path[at.PathIndex].Editable)
+                && projection.Path[at.PathIndex].Editable)
             {
                 removes.Add((projection.Path[at.PathIndex].StepIndex, at.StrokeIndex));
             }
@@ -130,7 +130,7 @@ public static class StepAuthoringPatches
 
     /// <summary>One <c>remove</c> per stroke, highest index first within a step so each pointer still names its stroke.</summary>
     /// <param name="strokes">Step index and stroke index pairs.</param>
-    public static IReadOnlyList<PatchOp> RemoveStrokes(IEnumerable<(int Step, int Stroke)> strokes)
+    private static IReadOnlyList<PatchOp> RemoveStrokes(IEnumerable<(int Step, int Stroke)> strokes)
     {
         ArgumentNullException.ThrowIfNull(strokes);
         return
@@ -160,7 +160,7 @@ public static class StepAuthoringPatches
     /// <param name="afterIndex">The step it follows, or -1 to insert first.</param>
     /// <param name="atSeconds">The wanted time; clamped between the neighbours.</param>
     /// <param name="id">The new step's id.</param>
-    public static PatchOp AddStep(StratDocument document, int afterIndex, double atSeconds, Guid id)
+    private static PatchOp AddStep(StratDocument document, int afterIndex, double atSeconds, Guid id)
     {
         ArgumentNullException.ThrowIfNull(document);
         StratStep step = new()
@@ -213,7 +213,8 @@ public static class StepAuthoringPatches
         JsonObject node = JsonSerializer.SerializeToNode(source, StratJsonContext.Default.StratStep)!.AsObject();
         node["id"] = id.ToString("D", CultureInfo.InvariantCulture);
         node["atSeconds"] = ClampBetween(document, index,
-            StratClock.AtSecondsOf(document.Clock, StratClock.ElapsedOf(document.Clock, source.AtSeconds) + DuplicateOffsetSeconds));
+            StratClock.AtSecondsOf(document.Clock,
+                StratClock.ElapsedOf(document.Clock, source.AtSeconds) + DuplicateOffsetSeconds));
 
         if (node["strokes"] is JsonArray strokes)
         {
@@ -258,17 +259,15 @@ public static class StepAuthoringPatches
     ///     active step: without a keyframe a token is not drawn, so there is nothing to drag. The strat's own
     ///     five sit left of centre, the opponents right. One gesture, so one undo entry.
     /// </summary>
-    /// <param name="document">The strat.</param>
     /// <param name="stepIndex">The step the entries land on.</param>
     /// <param name="slots">The slots with no track.</param>
     /// <param name="centreX">World X of the map's middle.</param>
     /// <param name="centreY">World Y of the map's middle.</param>
     /// <param name="spacing">World distance between tokens.</param>
     /// <param name="levelMinZ">The level to place them on.</param>
-    public static IReadOnlyList<PatchOp> PlaceTokens(StratDocument document, int stepIndex, IReadOnlyList<string> slots,
-        double centreX, double centreY, double spacing, double levelMinZ)
+    public static IReadOnlyList<PatchOp> PlaceTokens(int stepIndex, IReadOnlyList<string> slots, double centreX,
+        double centreY, double spacing, double levelMinZ)
     {
-        ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(slots);
         List<PatchOp> ops = [];
         int own = 0, other = 0;
@@ -307,7 +306,8 @@ public static class StepAuthoringPatches
         }
 
         double clamped = Math.Max(from, Math.Min(until, StratClock.ElapsedOf(clock, atSeconds)));
-        double rounded = Math.Round(clamped * StepSchedule.TicksPerSecond, MidpointRounding.AwayFromZero) / StepSchedule.TicksPerSecond;
+        double rounded = Math.Round(clamped * StepSchedule.TicksPerSecond, MidpointRounding.AwayFromZero)
+            / StepSchedule.TicksPerSecond;
         return StratClock.AtSecondsOf(clock, rounded > until || rounded < from ? clamped : rounded);
     }
 

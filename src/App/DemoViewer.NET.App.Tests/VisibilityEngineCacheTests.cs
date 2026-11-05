@@ -129,7 +129,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
 
         VisibilityEngine before = await cache.GetOrLoadAsync(bake);
         DateTime originalWrite = File.GetLastWriteTimeUtc(bake);
-        File.WriteAllBytes(bake, new byte[64]);
+        await File.WriteAllBytesAsync(bake, new byte[64]);
         File.SetLastWriteTimeUtc(bake, originalWrite.AddMinutes(1));
         VisibilityEngine after = await cache.GetOrLoadAsync(bake);
 
@@ -147,7 +147,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
 
         VisibilityEngine before = await cache.GetOrLoadAsync(bake);
         DateTime originalWrite = File.GetLastWriteTimeUtc(bake);
-        File.WriteAllBytes(bake, new byte[128]);
+        await File.WriteAllBytesAsync(bake, new byte[128]);
         File.SetLastWriteTimeUtc(bake, originalWrite);
         VisibilityEngine after = await cache.GetOrLoadAsync(bake);
 
@@ -195,11 +195,11 @@ public sealed class VisibilityEngineCacheTests : IDisposable
     [Test]
     public async Task CollisionOverride_ResolvesOnePathForBothSurfaces_SoTheyShareOneKey()
     {
-        const string map = "de_viscache_fixture";
+        const string Map = "de_viscache_fixture";
         string overrideDir = Path.Combine(_dir, "override");
-        Directory.CreateDirectory(Path.Combine(overrideDir, map));
-        string overridden = Path.Combine(overrideDir, map, "collision.tris" + CollisionSoup.CompressedSuffix);
-        File.WriteAllBytes(overridden, new byte[64]);
+        Directory.CreateDirectory(Path.Combine(overrideDir, Map));
+        string overridden = Path.Combine(overrideDir, Map, "collision.tris" + CollisionSoup.CompressedSuffix);
+        await File.WriteAllBytesAsync(overridden, new byte[64]);
 
         // Stands in for what a loaded bundle names: a different directory entirely, which is exactly
         // the disagreement an override used to produce.
@@ -209,8 +209,8 @@ public sealed class VisibilityEngineCacheTests : IDisposable
         Environment.SetEnvironmentVariable(CollisionAssetLocator.EnvVar, overrideDir);
         try
         {
-            string? stats = CollisionSoup.Find(map);
-            string? overlay = CollisionSoup.Resolve(map, fromBundle);
+            string? stats = CollisionSoup.Find(Map);
+            string? overlay = CollisionSoup.Resolve(Map, fromBundle);
 
             await Assert.That(stats).IsEqualTo(overridden)
                 .Because("the override directory holds the only bake for this map");
@@ -377,7 +377,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
     }
 
     [Test]
-    public async Task CancelledWaiter_DoesNotAbandonTheBuild()
+    public async Task CancelledWaiter_DoesNotAbandonTheBuild(CancellationToken cancellationToken)
     {
         string bake = WriteBake("collision.tris", 64);
         using ManualResetEventSlim gate = new(false);
@@ -385,14 +385,14 @@ public sealed class VisibilityEngineCacheTests : IDisposable
         VisibilityEngineCache cache = new(loader: _ =>
         {
             Interlocked.Increment(ref entered);
-            gate.Wait();
+            gate.Wait(cancellationToken);
             return OneTriangle();
         });
 
         using CancellationTokenSource cts = new();
         Task<VisibilityEngine> abandoned = cache.GetOrLoadAsync(bake, cts.Token);
         await WaitForAsync(() => Volatile.Read(ref entered) >= 1, "the build to start");
-        cts.Cancel();
+        await cts.CancelAsync();
         try
         {
             await abandoned;
@@ -404,7 +404,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
         }
 
         gate.Set();
-        VisibilityEngine engine = await cache.GetOrLoadAsync(bake);
+        VisibilityEngine engine = await cache.GetOrLoadAsync(bake, cancellationToken);
         await Assert.That(engine).IsNotNull();
         await Assert.That(entered).IsEqualTo(1).Because("the cancelled ask's build was reused, not repeated");
     }
@@ -416,7 +416,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
     ///     (Builds reads 1 the moment the cancelled ask throws), run, and serve the next ask.
     /// </summary>
     [Test]
-    public async Task PreCancelledWaiter_StillLandsTheBuild_ForTheNextAsk()
+    public async Task PreCancelledWaiter_StillLandsTheBuild_ForTheNextAsk(CancellationToken cancellationToken)
     {
         string bake = WriteBake("collision.tris", 64);
         using ManualResetEventSlim gate = new(false);
@@ -424,7 +424,7 @@ public sealed class VisibilityEngineCacheTests : IDisposable
         VisibilityEngineCache cache = new(loader: _ =>
         {
             Interlocked.Increment(ref entered);
-            gate.Wait();
+            gate.Wait(cancellationToken);
             return OneTriangle();
         });
 
@@ -441,12 +441,14 @@ public sealed class VisibilityEngineCacheTests : IDisposable
         }
 
         await Assert.That(cache.Builds).IsEqualTo(1).Because("the ask registered a build before honouring its token");
-        await WaitForAsync(() => Volatile.Read(ref entered) >= 1, "the build to be entered despite the cancelled waiter");
+        await WaitForAsync(() => Volatile.Read(ref entered) >= 1,
+            "the build to be entered despite the cancelled waiter");
         gate.Set();
 
-        VisibilityEngine engine = await cache.GetOrLoadAsync(bake);
+        VisibilityEngine engine = await cache.GetOrLoadAsync(bake, cancellationToken);
         await Assert.That(engine).IsNotNull();
-        await Assert.That(cache.Builds).IsEqualTo(1).Because("the next ask is a hit on the build the cancelled ask started");
+        await Assert.That(cache.Builds).IsEqualTo(1)
+            .Because("the next ask is a hit on the build the cancelled ask started");
         await Assert.That(entered).IsEqualTo(1);
     }
 

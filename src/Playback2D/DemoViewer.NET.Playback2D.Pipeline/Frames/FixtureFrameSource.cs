@@ -1,6 +1,5 @@
 #region
 
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Pipeline.Export;
 
 #endregion
@@ -37,12 +36,6 @@ public sealed class FixtureFrameSource : ISceneFrameSource
 
         _fixtures = fixtures;
     }
-
-    /// <summary>The camera the first fixture was captured with: what a golden re-render must use.</summary>
-    public ViewportTransform Camera => _fixtures[0].Camera;
-
-    /// <summary>The map name the first fixture carries, or null.</summary>
-    public string? MapName => _fixtures[0].MapName;
 
     /// <inheritdoc />
     public int FrameCount => _fixtures.Length;

@@ -39,12 +39,7 @@ public class HighlightReelDialogViewModelTests
             Sha256 = sha,
             Players =
             [
-                new CachedPlayerInfo
-                {
-                    Slot = round,
-                    Name = name,
-                    SteamId64 = steam
-                }
+                new CachedPlayerInfo { Slot = round, Name = name, SteamId64 = steam }
             ]
         };
         CachedHighlightEvent h = new()
@@ -70,10 +65,7 @@ public class HighlightReelDialogViewModelTests
         bool noticeAcknowledged = true)
     {
         job = new FakeReelJob();
-        HighlightsSettings d = defaults ?? new HighlightsSettings
-        {
-            ReelOutputDirectory = "/out/reels"
-        };
+        HighlightsSettings d = defaults ?? new HighlightsSettings { ReelOutputDirectory = "/out/reels" };
         return new HighlightReelDialogViewModel(
             selections, d, job, persist,
             () => liveSyncActive, dryRunOnly,
@@ -86,10 +78,10 @@ public class HighlightReelDialogViewModelTests
     [Test]
     public async Task Coalesces_OverlappingSamePlayerRound_IntoOneVisibleMergedClip()
     {
-        HighlightSelection[] sels = new[]
-        {
+        HighlightSelection[] sels =
+        [
             Sel("/d/a.dem", "10", "s1mple", 7, 5000, "kill A"), Sel("/d/a.dem", "10", "s1mple", 7, 6000, "kill B")
-        };
+        ];
         HighlightReelDialogViewModel vm = New(sels, out FakeReelJob job); // default lead-in 15 → windows overlap
 
         await Assert.That(vm.ClipGroups.Count).IsEqualTo(1);
@@ -108,10 +100,10 @@ public class HighlightReelDialogViewModelTests
     [Test]
     public async Task DistinctRounds_DoNotCoalesce()
     {
-        HighlightSelection[] sels = new[]
-        {
+        HighlightSelection[] sels =
+        [
             Sel("/d/a.dem", "10", "s1mple", 7, 5000, "r7"), Sel("/d/a.dem", "10", "s1mple", 8, 5100, "r8")
-        };
+        ];
         HighlightReelDialogViewModel vm = New(sels, out _);
 
         await Assert.That(vm.ClipsHeader).IsEqualTo("CLIPS (2 staged · 2 after merge)");
@@ -124,10 +116,10 @@ public class HighlightReelDialogViewModelTests
     [Test]
     public async Task EditingLeadIn_RecomputesPlanLive()
     {
-        HighlightSelection[] sels = new[]
-        {
+        HighlightSelection[] sels =
+        [
             Sel("/d/a.dem", "10", "s1mple", 7, 5000, "A"), Sel("/d/a.dem", "10", "s1mple", 7, 6000, "B")
-        };
+        ];
         HighlightReelDialogViewModel vm = New(sels, out _);
 
         vm.LeadInSeconds = 5; // windows [4680,5320] & [5680,6320], no overlap → 2 clips
@@ -162,10 +154,7 @@ public class HighlightReelDialogViewModelTests
     [Test]
     public async Task HandedOffClips_AreFrameClock_NotCs2DemoTicks()
     {
-        HighlightSelection[] sels = new[]
-        {
-            Sel("/d/a.dem", "10", "s1mple", 7, 5000, "A")
-        };
+        HighlightSelection[] sels = [Sel("/d/a.dem", "10", "s1mple", 7, 5000, "A")];
         HighlightReelDialogViewModel vm = New(sels, out FakeReelJob job);
 
         vm.GenerateCommand.Execute(null);
@@ -178,18 +167,12 @@ public class HighlightReelDialogViewModelTests
     [Test]
     public async Task SteamId_ParsedOrZero()
     {
-        HighlightSelection[] ok = new[]
-        {
-            Sel("/d/a.dem", "76561198000000010", "s1mple", 7, 5000, "A")
-        };
+        HighlightSelection[] ok = [Sel("/d/a.dem", "76561198000000010", "s1mple", 7, 5000, "A")];
         HighlightReelDialogViewModel vmOk = New(ok, out FakeReelJob jobOk);
         vmOk.GenerateCommand.Execute(null);
         await Assert.That(jobOk.LastRequest!.Clips[0].PlayerSteamId64).IsEqualTo(76561198000000010L);
 
-        HighlightSelection[] empty = new[]
-        {
-            Sel("/d/a.dem", "", "s1mple", 7, 5000, "A")
-        };
+        HighlightSelection[] empty = [Sel("/d/a.dem", "", "s1mple", 7, 5000, "A")];
         HighlightReelDialogViewModel vmEmpty = New(empty, out FakeReelJob jobEmpty);
         vmEmpty.GenerateCommand.Execute(null);
         await Assert.That(jobEmpty.LastRequest!.Clips[0].PlayerSteamId64).IsEqualTo(0L);
@@ -240,10 +223,7 @@ public class HighlightReelDialogViewModelTests
 
         // Empty output folder.
         HighlightReelDialogViewModel noOut = New([Sel("/d/a.dem", "10", "p", 7, 5000, "A")], out _,
-            new HighlightsSettings
-            {
-                ReelOutputDirectory = null
-            });
+            new HighlightsSettings { ReelOutputDirectory = null });
         await Assert.That(noOut.GenerateCommand.CanExecute(null)).IsFalse();
 
         // Clean plan enables Generate.
@@ -269,12 +249,7 @@ public class HighlightReelDialogViewModelTests
             // Placeholder slot (-1): the exact shape LegacyCacheMigration writes for a names-only record.
             Players =
             [
-                new CachedPlayerInfo
-                {
-                    Slot = -1,
-                    Name = "Vernon",
-                    SteamId64 = ""
-                }
+                new CachedPlayerInfo { Slot = -1, Name = "Vernon", SteamId64 = "" }
             ]
         };
         CachedHighlightEvent h = new()
@@ -356,12 +331,7 @@ public class HighlightReelDialogViewModelTests
     {
         // Seed: a persisted 1280×720 matches the 720p preset (not Custom).
         HighlightReelDialogViewModel seeded = New([Sel("/d/a.dem", "10", "p", 7, 5000, "A")], out _,
-            new HighlightsSettings
-            {
-                ReelOutputDirectory = "/out",
-                ReelWidth = 1280,
-                ReelHeight = 720
-            });
+            new HighlightsSettings { ReelOutputDirectory = "/out", ReelWidth = 1280, ReelHeight = 720 });
         await Assert.That(seeded.SelectedResolution!.IsCustom).IsFalse();
         await Assert.That(seeded.SelectedResolution.Width).IsEqualTo(1280);
         await Assert.That(seeded.IsCustomResolution).IsFalse();
@@ -578,20 +548,12 @@ public class HighlightReelDialogViewModelTests
         HighlightReelDialogViewModel forward = New([a, b], out FakeReelJob jf);
         forward.GenerateCommand.Execute(null);
         await Assert.That(jf.LastRequest!.Clips.Select(c => c.DemoPath).ToList())
-            .IsEquivalentTo(new List<string>
-            {
-                "/d/a.dem",
-                "/d/b.dem"
-            }, CollectionOrdering.Matching);
+            .IsEquivalentTo(new List<string> { "/d/a.dem", "/d/b.dem" }, CollectionOrdering.Matching);
 
         HighlightReelDialogViewModel reversed = New([b, a], out FakeReelJob jr);
         reversed.GenerateCommand.Execute(null);
         await Assert.That(jr.LastRequest!.Clips.Select(c => c.DemoPath).ToList())
-            .IsEquivalentTo(new List<string>
-            {
-                "/d/b.dem",
-                "/d/a.dem"
-            }, CollectionOrdering.Matching);
+            .IsEquivalentTo(new List<string> { "/d/b.dem", "/d/a.dem" }, CollectionOrdering.Matching);
 
         await Assert.That(reversed.ClipsHeader).IsEqualTo(forward.ClipsHeader)
             .Because("order must not reach ClipWindows.Coalesce");

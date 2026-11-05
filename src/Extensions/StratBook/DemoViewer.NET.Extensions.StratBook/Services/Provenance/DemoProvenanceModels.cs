@@ -47,12 +47,15 @@ public enum ProvenanceOrigin
 }
 
 /// <summary>One demo's resolved provenance: the label in force, the default it would carry without a pin, and which won.</summary>
-/// <param name="DemoPath">The demo.</param>
-/// <param name="Sha256">Its content hash, or null before tier 2 hashed it.</param>
+/// <param name="Sha256">The demo's content hash, or null before tier 2 hashed it.</param>
 /// <param name="Label">The label in force, or null for unlabeled.</param>
 /// <param name="Default">The heuristic's answer, or null; equal to <paramref name="Label" /> unless overridden.</param>
 /// <param name="Source">Which of the two the label came from.</param>
-public sealed record DemoProvenance(string DemoPath, string? Sha256, string? Label, string? Default, ProvenanceOrigin Source)
+public sealed record DemoProvenance(
+    string? Sha256,
+    string? Label,
+    string? Default,
+    ProvenanceOrigin Source)
 {
     public bool IsOverride => Source == ProvenanceOrigin.Override;
 }
@@ -62,7 +65,11 @@ public sealed record DemoProvenance(string DemoPath, string? Sha256, string? Lab
 /// <param name="SourceKind">The engine classifier's verdict on the demo header.</param>
 /// <param name="OurSideSource">Which rule resolved our side, <see cref="Teams.OurSideSource.None" /> when none did.</param>
 /// <param name="OpponentAssigned">The side that is not ours belongs to a team in <c>teams.json</c>.</param>
-public sealed record ProvenanceInputs(bool BothClanTags, DemoSourceKind SourceKind, OurSideSource OurSideSource, bool OpponentAssigned)
+public sealed record ProvenanceInputs(
+    bool BothClanTags,
+    DemoSourceKind SourceKind,
+    OurSideSource OurSideSource,
+    bool OpponentAssigned)
 {
     public bool OurSideResolved => OurSideSource != OurSideSource.None;
 }
@@ -105,6 +112,8 @@ public static class DemoProvenanceHeuristic
             return null;
         }
 
-        return TeamSourcePolicy.IsMatchmaking(inputs.SourceKind) ? DemoProvenanceLabel.Matchmaking : DemoProvenanceLabel.Scrim;
+        return TeamSourcePolicy.IsMatchmaking(inputs.SourceKind)
+            ? DemoProvenanceLabel.Matchmaking
+            : DemoProvenanceLabel.Scrim;
     }
 }

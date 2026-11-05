@@ -44,7 +44,7 @@ public class SceneDeterminismTests
         }
 
         Console.WriteLine("[determinism] 96 frames, first divergence: " +
-                          (firstDifference < 0 ? "none" : firstDifference.ToString(CultureInfo.InvariantCulture)));
+            (firstDifference < 0 ? "none" : firstDifference.ToString(CultureInfo.InvariantCulture)));
         await Assert.That(firstDifference).IsEqualTo(-1);
     }
 
@@ -117,10 +117,7 @@ public class SceneDeterminismTests
         SceneTime time = fixture.Time;
         for (int i = 0; i < frames; i++)
         {
-            SceneTime frameTime = time with
-            {
-                DeltaSeconds = 1.0 / 64
-            };
+            SceneTime frameTime = time with { DeltaSeconds = 1.0 / 64 };
             stage.Renderer.Advance(fixture.Frame, in frameTime);
             if (i == 0)
             {

@@ -40,7 +40,7 @@ public static class EncoderLadder
     ///     bisect, a bitrate comparison or a "why does this file look different on my laptop" wants.
     /// </summary>
     public const string Software = "software";
-    
+
     /// <summary>
     ///     AV1 on NVENC. Ada's AV1 block; on Turing and older the probe fails and the ladder moves on.
     ///     <para>
@@ -57,7 +57,7 @@ public static class EncoderLadder
         "-preset p6 -rc vbr -cq 28 -b:v 0 -bf 3 -rc-lookahead 20");
 
     /// <summary>AV1 on Intel Quick Sync. Shipped unprobed on the development hardware.</summary>
-    public static VideoEncoder Av1Qsv { get; } = new(
+    private static VideoEncoder Av1Qsv { get; } = new(
         "av1_qsv", "av1", EncoderAcceleration.QuickSync,
         "-preset veryfast -global_quality 40",
         "-preset medium -global_quality 34",
@@ -67,7 +67,7 @@ public static class EncoderLadder
     ///     AV1 on AMD AMF. Listed by ffmpeg on any AMF-capable machine, including ones whose GPU has no
     ///     AV1 encode block at all, which is precisely the case the probe caught on the development box.
     /// </summary>
-    public static VideoEncoder Av1Amf { get; } = new(
+    private static VideoEncoder Av1Amf { get; } = new(
         "av1_amf", "av1", EncoderAcceleration.Amf,
         "-quality speed -rc cqp -qp_i 40 -qp_p 40",
         "-quality balanced -rc cqp -qp_i 32 -qp_p 34",
@@ -102,7 +102,7 @@ public static class EncoderLadder
         "-preset p6 -rc vbr -cq 21 -b:v 0 -bf 3 -rc-lookahead 20");
 
     /// <summary>H.264 on Intel Quick Sync.</summary>
-    public static VideoEncoder H264Qsv { get; } = new(
+    private static VideoEncoder H264Qsv { get; } = new(
         "h264_qsv", "h264", EncoderAcceleration.QuickSync,
         "-preset veryfast -global_quality 32",
         "-preset medium -global_quality 26",
@@ -141,7 +141,7 @@ public static class EncoderLadder
     private static readonly VideoEncoder[] _webm = [Av1Nvenc, Av1Qsv, Av1Amf, Vp9];
     private static readonly VideoEncoder[] _mp4 = [H264Nvenc, H264Qsv, H264Amf, X264];
     private static readonly VideoEncoder[] _gif = [Gif];
-    
+
     /// <summary>
     ///     The rungs for a format, the best first. An unknown format id gets the WebM ladder, matching
     ///     <c>SceneExportSession.SupportedFps</c>'s treatment of the same case.
@@ -156,7 +156,7 @@ public static class EncoderLadder
             _ => _webm
         };
     }
-    
+
     /// <summary>
     ///     The software rung of a format's ladder, always its last entry. What
     ///     <c>--encoder software</c> resolves to, and the sink's default when no selection was made.

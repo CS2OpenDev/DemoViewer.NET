@@ -33,10 +33,7 @@ public class BenchCommandTests
         await Assert.That(payload["budget"]).IsNotNull();
         await Assert.That(payload["metadata"]).IsNotNull();
 
-        foreach (string phase in new[]
-                 {
-                     "advance_ms", "render_ms", "frame_ms"
-                 })
+        foreach (string phase in new[] { "advance_ms", "render_ms", "frame_ms" })
         {
             JsonObject stats = (JsonObject)payload[phase]!;
             double p50 = stats["p50"]!.GetValue<double>();
@@ -167,8 +164,8 @@ public class BenchAllocationTests
 
         JsonObject payload = run.Json();
         Console.WriteLine($"[budget] full-scene-budget render p99 " +
-                          $"{payload["render_ms"]!["p99"]!.GetValue<double>():F3} ms, " +
-                          $"{payload["allocated_bytes_per_frame"]!.GetValue<long>()} B/frame");
+            $"{payload["render_ms"]!["p99"]!.GetValue<double>():F3} ms, " +
+            $"{payload["allocated_bytes_per_frame"]!.GetValue<long>()} B/frame");
 
         await Assert.That(run.ExitCode).IsEqualTo(0);
         await Assert.That(((JsonObject)payload["gate"]!)["passed"]!.GetValue<bool>()).IsTrue();

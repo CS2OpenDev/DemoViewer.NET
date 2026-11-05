@@ -63,7 +63,11 @@ public sealed class PlayerTableViewModel(
 
 /// <summary>Table row view model.</summary>
 /// <remarks>Initializes a new <see cref="TableRowViewModel" /> instance.</remarks>
-public sealed class TableRowViewModel(string playerName, int playerSlot, string filterAnnotation, IReadOnlyList<TableCellViewModel> cells) : ITableRow
+public sealed class TableRowViewModel(
+    string playerName,
+    int playerSlot,
+    string filterAnnotation,
+    IReadOnlyList<TableCellViewModel> cells) : ITableRow
 {
     /// <summary>Cells.</summary>
     public IReadOnlyList<TableCellViewModel> Cells { get; } = cells;
@@ -78,7 +82,7 @@ public sealed class TableRowViewModel(string playerName, int playerSlot, string 
     public int PlayerSlot { get; } = playerSlot;
 
     IReadOnlyList<ITableCell> ITableRow.Cells => Cells;
-    string? ITableRow.FilterAnnotation => FilterAnnotation;
+    string ITableRow.FilterAnnotation => FilterAnnotation;
 
     string ITableRow.Label => PlayerName;
 }

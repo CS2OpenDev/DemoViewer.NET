@@ -80,7 +80,7 @@ public static class FfmpegLocator
 
     /// <summary>The first <c>PATH</c> directory containing this executable, or null.</summary>
     /// <param name="exeName">The file name to look for.</param>
-    public static string? FindOnPath(string exeName)
+    private static string? FindOnPath(string exeName)
     {
         string? path = Environment.GetEnvironmentVariable("PATH");
         if (string.IsNullOrEmpty(path))

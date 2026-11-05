@@ -58,15 +58,15 @@ public class Playback2DContractVersionTests
         Playback2DModule module = new();
         await Assert.That(module.Id).IsEqualTo("net.demoviewer.playback2d");
 
-        WorkspaceTabDescriptor[] tabs = module.CreateTabs(new NoCapabilityHost()).ToArray();
+        WorkspaceTabDescriptor[] tabs = [.. module.CreateTabs(new NoCapabilityHost())];
         await Assert.That(tabs.Length).IsEqualTo(1);
         await Assert.That(tabs[0].TabId).IsEqualTo("playback2d.viewport");
 
         // MainViewModel maps TabId → feature id. Reflection because the map is a private implementation
         // detail whose CONTENT is nonetheless a persisted-key contract.
         FieldInfo field = typeof(MainViewModel).GetField("_tabFeatureIds",
-                              BindingFlags.NonPublic | BindingFlags.Static)
-                          ?? throw new InvalidOperationException("MainViewModel._tabFeatureIds is gone");
+                BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("MainViewModel._tabFeatureIds is gone");
 
         Dictionary<string, string> map = (Dictionary<string, string>)field.GetValue(null)!;
         await Assert.That(map["playback2d.viewport"]).IsEqualTo("tab.playback2d");

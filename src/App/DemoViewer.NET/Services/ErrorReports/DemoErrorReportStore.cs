@@ -73,7 +73,7 @@ public static class DemoErrorReportStore
         bool written = false;
         store.UpdateExisting(path, r =>
         {
-            if (r.ErrorReport is { } existing && existing.Schema > DemoErrorReport.CurrentSchema)
+            if (r.ErrorReport is { Schema: > DemoErrorReport.CurrentSchema })
             {
                 return;
             }

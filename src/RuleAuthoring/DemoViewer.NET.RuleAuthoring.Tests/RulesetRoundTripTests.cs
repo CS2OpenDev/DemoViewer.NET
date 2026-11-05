@@ -1,9 +1,3 @@
-#region
-
-using DemoViewer.NET.RuleAuthoring;
-
-#endregion
-
 namespace DemoViewer.NET.RuleAuthoring.Tests;
 
 /// <summary>
@@ -185,6 +179,7 @@ public class RulesetRoundTripTests
         {
             case YamlDotNet.RepresentationModel.YamlScalarNode:
                 yield return at;
+
                 break;
 
             case YamlDotNet.RepresentationModel.YamlMappingNode map:

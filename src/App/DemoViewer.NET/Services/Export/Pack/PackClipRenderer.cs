@@ -1,7 +1,6 @@
 #region
 
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
@@ -86,7 +85,7 @@ public sealed class PackClipRenderer : IPackClipRenderer, IDisposable
         {
             Loaded demo = await LoadAsync(clip.Entry.DemoPath, ct).ConfigureAwait(false);
             request = PackPlanner.BuildClipRequest(clip, settings, demo.Parsed.Frames, demo.Parsed.TickRate)
-                      ?? throw new ExportValidationException("the clip's range lies outside its demo");
+                ?? throw new ExportValidationException("the clip's range lies outside its demo");
             setup = new ExportSceneSetup(demo.Parsed.Frames, demo.Parsed.TickRate, demo.Parsed.MapName,
                 ScenePalette.Dark, LevelDisplayMode.Stacked, null, null, demo.Asset, demo.Ink);
             SceneExportSession.Validate(request.Core);
@@ -119,7 +118,9 @@ public sealed class PackClipRenderer : IPackClipRenderer, IDisposable
         }
         else
         {
-            lease = await (_lease ?? throw new InvalidOperationException("A pack renders on a demo's visit, and none was given."))
+            lease = await (_lease
+                    ?? throw new InvalidOperationException(
+                        "A pack renders on a demo's visit, and none was given."))
                 (path, ct).ConfigureAwait(false);
             parsed = lease.Parsed;
         }
@@ -169,7 +170,12 @@ public sealed class PackClipRenderer : IPackClipRenderer, IDisposable
         return new AnnotationSession(document) { TicksPerSecond = clock.TickRate };
     }
 
-    private sealed record Loaded(string Path, ParsedDemo Parsed, IMapAssetLease? Asset, AnnotationSession? Ink, DemoLease? Lease);
+    private sealed record Loaded(
+        string Path,
+        ParsedDemo Parsed,
+        IMapAssetLease? Asset,
+        AnnotationSession? Ink,
+        DemoLease? Lease);
 }
 
 /// <summary>
@@ -215,7 +221,8 @@ public sealed class PackEncoder : IPackEncoder
 
     private static Scene2DExportRequest Request(string outputPath, PackSettings settings) => new(
         new ExportRequest(0, 0, settings.Fps, new SkiaSharp.SKSizeI(settings.Side, settings.Side), 1.0,
-            settings.FormatId, PackPlanner.LayerIds, new CameraScript.Fixed(new Dictionary<MapLevelId, ViewportTransform>())),
+            settings.FormatId, PackPlanner.LayerIds,
+            new CameraScript.Fixed(new Dictionary<MapLevelId, ViewportTransform>())),
         outputPath, string.Empty, EncoderOverride: settings.EncoderOverride, Quality: settings.Quality);
 }
 

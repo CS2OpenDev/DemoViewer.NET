@@ -1,9 +1,9 @@
 #region
 
 using DemoViewer.NET.Configuration;
+using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Abstractions;
-using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger;
 
 #endregion
 
@@ -43,7 +43,8 @@ public class RoundTaggerModuleTests
         {
             await Assert.That(feature).IsNotNull();
             await Assert.That(feature!.Scope).IsEqualTo(FeatureScope.Tab);
-            await Assert.That(feature.ParentId).IsEqualTo("pack.stratbook").Because("the tab cascades off with the Strat Book extension");
+            await Assert.That(feature.ParentId).IsEqualTo("pack.stratbook")
+                .Because("the tab cascades off with the Strat Book extension");
             await Assert.That(feature.GroupId).IsNull().Because("it must not disturb the leader-lock ordering");
             foreach (UserCategory category in Enum.GetValues<UserCategory>())
             {

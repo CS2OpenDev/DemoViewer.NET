@@ -44,7 +44,7 @@ public sealed record ExtensionFaultState(int Count, string? LastSite, bool Suspe
 ///     Contains a defective extension: every host call into extension code that can throw goes through
 ///     <see cref="Run" /> (or a guard built from it), which logs the throw against the extension, counts it,
 ///     and returns a fallback so the host carries on. An extension that faults
-///     <see cref="WindowLimit" /> times inside <see cref="Window" />, or <see cref="SessionLimit" /> times in
+///     <see cref="WindowLimit" /> times inside <see cref="_window" />, or <see cref="SessionLimit" /> times in
 ///     a session, is switched off for the rest of the session through <see cref="IFeatureSuspension" />.
 ///     The switch-off is always posted to the UI thread, never applied inline: faults arrive while the
 ///     host iterates handler lists, on queue threads and inside the gate's own change event. Faults the
@@ -56,7 +56,7 @@ public sealed record ExtensionFaultState(int Count, string? LastSite, bool Suspe
 /// </summary>
 public sealed class ExtensionFaults
 {
-    /// <summary>Faults inside <see cref="Window" /> that switch an extension off.</summary>
+    /// <summary>Faults inside <see cref="_window" /> that switch an extension off.</summary>
     public const int WindowLimit = 3;
 
     /// <summary>Faults in one session that switch an extension off.</summary>
@@ -66,7 +66,7 @@ public sealed class ExtensionFaults
     public const int LoggedPerSite = 3;
 
     /// <summary>The sliding window <see cref="WindowLimit" /> counts in.</summary>
-    public static readonly TimeSpan Window = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan _window = TimeSpan.FromSeconds(60);
 
     private readonly TimeProvider _clock;
     private readonly Lock _lock = new();
@@ -148,10 +148,10 @@ public sealed class ExtensionFaults
     }
 
     /// <summary>The extension with this id, or null.</summary>
-    public ExtensionScope? ScopeOf(string extensionId) => _scopes.FirstOrDefault(s => s.Id == extensionId);
+    private ExtensionScope? ScopeOf(string extensionId) => _scopes.FirstOrDefault(s => s.Id == extensionId);
 
     /// <summary>The extension whose master switch this is, or null.</summary>
-    public ExtensionScope? ScopeOfFeature(string featureId) => _scopes.FirstOrDefault(s => s.FeatureId == featureId);
+    private ExtensionScope? ScopeOfFeature(string featureId) => _scopes.FirstOrDefault(s => s.FeatureId == featureId);
 
     /// <summary>The extension <paramref name="assembly" /> belongs to, or null for the app's own code.</summary>
     public ExtensionScope? Owner(Assembly? assembly)
@@ -512,7 +512,7 @@ public sealed class ExtensionFaults
             }
 
             (string, Type) key = (site, exception.GetType());
-            if (_recurring.TryGetValue(key, out DateTimeOffset last) && now - last < Window)
+            if (_recurring.TryGetValue(key, out DateTimeOffset last) && now - last < _window)
             {
                 return false;
             }
@@ -526,7 +526,7 @@ public sealed class ExtensionFaults
             Total++;
             LastSite = site;
             Recent.Enqueue(now);
-            while (Recent.Count > 0 && now - Recent.Peek() >= Window)
+            while (Recent.Count > 0 && now - Recent.Peek() >= _window)
             {
                 Recent.Dequeue();
             }
@@ -535,7 +535,7 @@ public sealed class ExtensionFaults
         public bool ShouldLog(string site, DateTimeOffset now)
         {
             _logged.TryGetValue(site, out (int Logged, DateTimeOffset Last) entry);
-            if (entry.Logged >= LoggedPerSite && now - entry.Last < Window)
+            if (entry.Logged >= LoggedPerSite && now - entry.Last < _window)
             {
                 return false;
             }

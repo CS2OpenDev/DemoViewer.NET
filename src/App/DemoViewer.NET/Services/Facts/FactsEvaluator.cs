@@ -6,7 +6,6 @@ using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Analysis.Output;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using Microsoft.Extensions.Logging;
@@ -37,7 +36,7 @@ namespace DemoViewer.NET.Services.Facts;
 public sealed class FactsEvaluator : IDemoEvaluator
 {
     /// <summary>The pass id, and the queue owner tag.</summary>
-    public const string EvaluatorId = HostIds.FactsPass;
+    private const string EvaluatorId = HostIds.FactsPass;
 
     // The rules fingerprint depends on the tick rate; the backlog asks at the rate every supported demo records at.
     private const int BacklogTickRate = 64;
@@ -74,7 +73,7 @@ public sealed class FactsEvaluator : IDemoEvaluator
     public bool Wants(string path) =>
         _cache.TryGetIndex(path) is { ParseSchema: > 0 } entry
         && (_facts.Facets().Any(f => _facts.Fingerprint(f.RulesetId, BacklogTickRate) is { } fp
-                                     && StampedFacts.NeedsWrite(entry, f.RulesetId, fp))
+                && StampedFacts.NeedsWrite(entry, f.RulesetId, fp))
             || UpgradesSight(path, entry));
 
     /// <summary>
@@ -92,7 +91,8 @@ public sealed class FactsEvaluator : IDemoEvaluator
         && _facts.Facet(PlayerMatchFacet.RulesetId) is not null
         && _facts.Fingerprint(PlayerMatchFacet.RulesetId, BacklogTickRate) is { } fingerprint
         && !StampedFacts.NeedsWrite(entry, PlayerMatchFacet.RulesetId, fingerprint)
-        && entry.Stamp(StampedFacts.StampId(PlayerMatchFacet.RulesetId)) is { State: DemoAnalysisState.Indexed, HasVisibility: false };
+        && entry.Stamp(StampedFacts.StampId(PlayerMatchFacet.RulesetId)) is
+            { State: DemoAnalysisState.Indexed, HasVisibility: false };
 
     /// <summary>A demo the library has not parsed yet, while any facet is on: its facts follow the library's write.</summary>
     public bool WantsAfterUpstream(string path) =>
@@ -105,7 +105,8 @@ public sealed class FactsEvaluator : IDemoEvaluator
     public ForwardNeeds? ForwardFor(string path) => ForwardNeeds.Rules;
 
     /// <inheritdoc />
-    public void Evaluate(string path, ParsedDemo parsed) => Record(path, _facts.Rules.BareRun(parsed, path), parsed.TickRate);
+    public void Evaluate(string path, ParsedDemo parsed) =>
+        Record(path, _facts.Rules.BareRun(parsed, path), parsed.TickRate);
 
     /// <inheritdoc />
     public void EvaluateForward(string path, ForwardDemoResult pass)
@@ -130,8 +131,9 @@ public sealed class FactsEvaluator : IDemoEvaluator
         }
 
         return _cache.TryGetIndex(path) is not { ParseSchema: > 0 } entry
-               || StampedFacts.NeedsWrite(entry, rulesetId, fingerprint)
-               || (string.Equals(rulesetId, PlayerMatchFacet.RulesetId, StringComparison.Ordinal) && UpgradesSight(path, entry));
+            || StampedFacts.NeedsWrite(entry, rulesetId, fingerprint)
+            || (string.Equals(rulesetId, PlayerMatchFacet.RulesetId, StringComparison.Ordinal)
+                && UpgradesSight(path, entry));
     }
 
     private void Record(string path, AnalysisRun run, int tickRate)
@@ -154,27 +156,29 @@ public sealed class FactsEvaluator : IDemoEvaluator
 
             // A current facet is written again only to give player_match the sight an open brings.
             bool upgrade = entry is not null && !StampedFacts.NeedsWrite(entry, facet.RulesetId, fingerprint);
-            if (upgrade && !(sightOpen && string.Equals(facet.RulesetId, PlayerMatchFacet.RulesetId, StringComparison.Ordinal)))
+            if (upgrade && !(sightOpen
+                    && string.Equals(facet.RulesetId, PlayerMatchFacet.RulesetId, StringComparison.Ordinal)))
             {
                 continue;
             }
 
             try
             {
-                if (run.Build.ExcludedRulesets.FirstOrDefault(r => string.Equals(r.Id, facet.RulesetId, StringComparison.Ordinal)) is { } excluded)
+                if (run.Build.ExcludedRulesets.FirstOrDefault(r =>
+                        string.Equals(r.Id, facet.RulesetId, StringComparison.Ordinal)) is { } excluded)
                 {
                     if (upgrade)
                     {
                         continue;
                     }
 
-                    string detail = string.Join("; ", excluded.Diagnostics.Take(5).Select(d => $"[{d.Code}] {d.Message}"));
+                    string detail = string.Join("; ",
+                        excluded.Diagnostics.Take(5).Select(d => $"[{d.Code}] {d.Message}"));
                     FactsLog.Excluded(Log, facet.RulesetId, fileName, detail);
 
                     stamps.Add(new PackStamp(StampedFacts.StampId(facet.RulesetId), StampedFacts.Schema, fingerprint)
                     {
-                        State = DemoAnalysisState.Failed,
-                        ComputedAtTicks = DateTime.UtcNow.Ticks
+                        State = DemoAnalysisState.Failed, ComputedAtTicks = DateTime.UtcNow.Ticks
                     });
                     continue;
                 }
@@ -192,7 +196,8 @@ public sealed class FactsEvaluator : IDemoEvaluator
                     FactKey key = new(facet.RulesetId, table.Name);
                     tables.Add(projected.TryGetValue(table.Name, out MetricTable? metric)
                         ? FactsCodec.FromMetric(metric, key, fingerprint, StampedFacts.Schema, table.Per ?? "")
-                        : new FactTable(key, fingerprint, StampedFacts.Schema, table.Per ?? "", [], [], new Dictionary<string, string>(), []));
+                        : new FactTable(key, fingerprint, StampedFacts.Schema, table.Per ?? "", [], [],
+                            new Dictionary<string, string>(), []));
                 }
 
                 FactTable? match = tables.FirstOrDefault(t => t.Key == PlayerMatchFacet.Key);
@@ -239,7 +244,9 @@ public sealed class FactsEvaluator : IDemoEvaluator
             if (playerMatch is not null)
             {
                 record.FacetPlayers = PlayerMatchFacet.Players(playerMatch.Rows, record.Players);
-                (record.CtSideWins, record.TSideWins) = DemoCacheAnalysisProjector.ComputeSideWins(DemoCacheAnalysisProjector.ProjectScoreboard(playerMatch));
+                (record.CtSideWins, record.TSideWins) =
+                    DemoCacheAnalysisProjector.ComputeSideWins(
+                        DemoCacheAnalysisProjector.ProjectScoreboard(playerMatch));
             }
         });
         _cache.SaveIndex();

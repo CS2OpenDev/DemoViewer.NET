@@ -10,7 +10,6 @@ using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.ViewModels.Diagnostics;
 using SkiaSharp;
 
 #endregion
@@ -53,8 +52,7 @@ public static class ErrorReportSnapshotBuilder
     {
         DemoErrorReportSnapshot snapshot = new()
         {
-            CapturedAtUtcTicks = nowUtc.ToUniversalTime().Ticks,
-            DemoPath = demoPath
+            CapturedAtUtcTicks = nowUtc.ToUniversalTime().Ticks, DemoPath = demoPath
         };
 
         AddDemo(snapshot, record);
@@ -139,7 +137,7 @@ public static class ErrorReportSnapshotBuilder
                         {
                             r.Title(), r.CatalogVersion is { Length: > 0 } cv ? "catalog " + cv : null,
                             r.Hash is { Length: > 0 } h ? h : null, r.Origin
-                        }.Where(x => !string.IsNullOrEmpty(x))!)))
+                        }.Where(x => !string.IsNullOrEmpty(x)))))
             ]));
         }
 
@@ -148,8 +146,10 @@ public static class ErrorReportSnapshotBuilder
         if (snapshot.Packs.Count > 0)
         {
             groups.Add(new ErrorReportDiagnosticsGroup("Extension packs",
-                [.. snapshot.Packs.Select((p, i) => Row(
-                    i.ToString(CultureInfo.InvariantCulture), p))]));
+            [
+                .. snapshot.Packs.Select((p, i) => Row(
+                    i.ToString(CultureInfo.InvariantCulture), p))
+            ]));
         }
 
         groups.Add(new ErrorReportDiagnosticsGroup("Runtime",
@@ -214,6 +214,7 @@ public static class ErrorReportSnapshotBuilder
                 rows.Add(Row("excluded rulesets (now)", excluded));
             }
         }
+
         foreach ((string id, string hash) in snapshot.HighlightHashes.OrderBy(k => k.Key, StringComparer.Ordinal))
         {
             rows.Add(Row("highlight hash · " + id, hash));
@@ -268,6 +269,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
     }
 
@@ -318,6 +320,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
 
         if (tickRate is { } rate)
@@ -389,14 +392,13 @@ public static class ErrorReportSnapshotBuilder
 
                 snapshot.Rulesets.Add(new DemoErrorReportRuleset
                 {
-                    Id = stamped.RulesetId,
-                    Name = stamped.Owner,
-                    Enabled = false
+                    Id = stamped.RulesetId, Name = stamped.Owner, Enabled = false
                 });
             }
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
     }
 
@@ -452,6 +454,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
     }
 
@@ -471,6 +474,7 @@ public static class ErrorReportSnapshotBuilder
             }
             catch (Exception)
             {
+                // Best effort: a section that fails stays empty.
             }
         }
     }
@@ -489,6 +493,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
     }
 
@@ -503,6 +508,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
 
         try
@@ -515,6 +521,7 @@ public static class ErrorReportSnapshotBuilder
         }
         catch (Exception)
         {
+            // Best effort: a section that fails stays empty.
         }
     }
 
@@ -534,5 +541,5 @@ public sealed record ErrorReportDiagnosticsGroup(string Title, IReadOnlyList<Kvp
 internal static class RulesetRowExtensions
 {
     internal static string? Title(this DemoErrorReportRuleset row) =>
-        string.IsNullOrEmpty(row?.Name) ? null : row.Name;
+        string.IsNullOrEmpty(row.Name) ? null : row.Name;
 }

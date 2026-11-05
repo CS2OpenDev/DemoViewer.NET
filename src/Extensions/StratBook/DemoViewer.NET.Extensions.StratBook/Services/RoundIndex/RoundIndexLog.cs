@@ -24,14 +24,18 @@ internal static partial class RoundIndexLog
     public static partial void SidecarIgnored(ILogger logger, string fileName, string reason);
 
     [LoggerMessage(EventId = 3, Level = LogLevel.Information,
-        Message = "situation index loaded: {demos} demos, {postings} postings, {orphans} orphan sidecars removed, {elapsedMs} ms")]
+        Message =
+            "situation index loaded: {demos} demos, {postings} postings, {orphans} orphan sidecars removed, {elapsedMs} ms")]
     public static partial void Loaded(ILogger logger, int demos, int postings, int orphans, long elapsedMs);
 
     [LoggerMessage(EventId = 4, Level = LogLevel.Warning,
-        Message = "{fileName}: round {round} sample alive/team disagreed with round facts ({sideMismatches} side, {aliveMismatches} alive)")]
-    public static partial void SampleDisagreedWithFacts(ILogger logger, string fileName, int round, int sideMismatches, int aliveMismatches);
+        Message =
+            "{fileName}: round {round} sample alive/team disagreed with round facts ({sideMismatches} side, {aliveMismatches} alive)")]
+    public static partial void SampleDisagreedWithFacts(ILogger logger, string fileName, int round, int sideMismatches,
+        int aliveMismatches);
 
     [LoggerMessage(EventId = 5, Level = LogLevel.Warning,
-        Message = "{fileName}: the index row claimed Round Facts the cache record does not carry; realigned the row so Round Facts runs again")]
+        Message =
+            "{fileName}: the index row claimed Round Facts the cache record does not carry; realigned the row so Round Facts runs again")]
     public static partial void RowClaimedMissingFacts(ILogger logger, string fileName);
 }

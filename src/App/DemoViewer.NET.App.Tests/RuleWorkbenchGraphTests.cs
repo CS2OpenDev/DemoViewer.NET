@@ -9,10 +9,7 @@ using CS2DemoKit.Analysis.Graphs;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.Yaml;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Modules;
-using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.RuleWorkbench;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.TestSupport;
 using DemoViewer.NET.ViewModels;
 using DemoViewer.NET.Views.RuleWorkbench;
@@ -43,7 +40,7 @@ public class RuleWorkbenchGraphTests
         RuleGraphSkeleton.Skeleton skeleton = RuleGraphSkeleton.Build(build);
 
         Console.WriteLine($"[authoring-graph] nodes={skeleton.Nodes.Count} edges={skeleton.Edges.Count} " +
-                          $"groups={skeleton.Groups?.Count ?? 0}");
+            $"groups={skeleton.Groups?.Count ?? 0}");
 
         await Assert.That(skeleton.Nodes.Count).IsGreaterThan(0)
             .Because("a built ruleset graph has state nodes");
@@ -62,10 +59,10 @@ public class RuleWorkbenchGraphTests
         // those rows did not exist, so they are the one kind of row it leaves out; any other row
         // missing is still the silent loss this guards.
         int graphRows = build.Edges.Count(e => e.Source is not ExternalStateNode
-                                               && e.Destination is not ExternalStateNode);
+            && e.Destination is not ExternalStateNode);
         await Assert.That(skeleton.Edges.Count).IsEqualTo(graphRows)
             .Because("an edge whose endpoint misses the node map is dropped silently, and a node the "
-                     + "conversion fails to map takes its edges down with it");
+                + "conversion fails to map takes its edges down with it");
 
         // Endpoint identity, not just arity: every edge has to be wired to the view models this same
         // conversion produced. A second view model minted for one node keeps both counts right and
@@ -78,7 +75,7 @@ public class RuleWorkbenchGraphTests
         }
 
         await Assert.That(skeleton.Edges.All(e => converted.Contains(e.Source)
-                                                  && converted.Contains(e.Destination))).IsTrue()
+                && converted.Contains(e.Destination))).IsTrue()
             .Because("an edge endpoint that is not one of these nodes is a duplicate view model");
 
         // The skeleton is the PRE-evaluation graph, which is the one thing separating it from the
@@ -99,11 +96,16 @@ public class RuleWorkbenchGraphTests
         // A `for: each_team` ruleset builds each of its states, and the per-team aggregates it reads,
         // once per side under one name. A repeated name is exactly that: one copy per side, of a
         // node the each_team rulesets build on their own.
-        List<IGrouping<string, GraphNodeViewModel>> repeated = [.. concrete.GroupBy(n => n.Name).Where(g => g.Count() > 1)];
-        HashSet<string> perTeam = [.. DemoAnalysis.Build(demo, [.. docs.Where(d => d.For == RulesetScope.EachTeam)])
-            .Nodes.Where(n => n is not CS2DemoKit.Analysis.Abstractions.RootNode).Select(n => n.Name)];
+        List<IGrouping<string, GraphNodeViewModel>> repeated =
+            [.. concrete.GroupBy(n => n.Name).Where(g => g.Count() > 1)];
+        HashSet<string> perTeam =
+        [
+            .. DemoAnalysis.Build(demo, [.. docs.Where(d => d.For == RulesetScope.EachTeam)])
+                .Nodes.Where(n => n is not CS2DemoKit.Analysis.Abstractions.RootNode).Select(n => n.Name)
+        ];
         await Assert.That(repeated.All(g => g.Count() == 2)).IsTrue()
-            .Because("game-scope names are unique; it is only per-player copies, and a per-team state's one copy per side, that repeat a name");
+            .Because(
+                "game-scope names are unique; it is only per-player copies, and a per-team state's one copy per side, that repeat a name");
         await Assert.That(repeated.All(g => perTeam.Contains(g.Key))).IsTrue()
             .Because("every repeated name is one the each_team rulesets build on their own");
         await Assert.That(skeleton.Edges.Count).IsGreaterThan(0)
@@ -131,7 +133,7 @@ public class RuleWorkbenchGraphTests
                 .Because("the graph builds structurally from the open ruleset without a demo");
             await Assert.That(vm.GraphNodeCount).IsLessThanOrEqualTo(6)
                 .Because("a bare kill stat reduces to its declared output + upstream inputs (a handful of "
-                         + "nodes), NOT the 61 shared-scaffolding nodes of the full engine graph");
+                    + "nodes), NOT the 61 shared-scaffolding nodes of the full engine graph");
             await Assert.That(vm.GraphSupported).IsTrue();
         });
     }
@@ -205,16 +207,8 @@ public class RuleWorkbenchGraphTests
             await HeadlessSession.RunOnUi(async () =>
             {
                 const int Width = 1100, Height = 620;
-                RuleWorkbenchView view = new()
-                {
-                    DataContext = vm
-                };
-                Window window = new()
-                {
-                    Width = Width,
-                    Height = Height,
-                    Content = view
-                };
+                RuleWorkbenchView view = new() { DataContext = vm };
+                Window window = new() { Width = Width, Height = Height, Content = view };
                 window.Show();
                 vm.ShowGraph = true;
 
@@ -229,10 +223,12 @@ public class RuleWorkbenchGraphTests
                 WriteableBitmap? bmp = window.CaptureRenderedFrame();
                 await Assert.That(bmp).IsNotNull()
                     .Because("the graph overlay + GraphView render without crashing when toggled on");
-                bmp!.Save(Path.Combine(HeadlessSession.ArtifactDir, "ruleworkbench-graph.png"), new PngBitmapEncoderOptions());
+                bmp!.Save(Path.Combine(HeadlessSession.ArtifactDir, "ruleworkbench-graph.png"),
+                    new PngBitmapEncoderOptions());
 
                 await Assert.That(skeleton.Nodes.Count).IsGreaterThan(0);
-                Console.WriteLine($"[authoring-graph-render] skeleton nodes={skeleton.Nodes.Count} edges={skeleton.Edges.Count}");
+                Console.WriteLine(
+                    $"[authoring-graph-render] skeleton nodes={skeleton.Nodes.Count} edges={skeleton.Edges.Count}");
 
                 window.Close();
             });

@@ -289,12 +289,8 @@ public sealed class AnnotationStore
         AnnotationDocumentDto dto = new()
         {
             SchemaVersion = SchemaVersion,
-            Demo = new DemoIdentityDto
-            {
-                Sha256 = demo.Sha256,
-                FileName = demo.FileName,
-                SizeBytes = demo.SizeBytes
-            },
+            Demo =
+                new DemoIdentityDto { Sha256 = demo.Sha256, FileName = demo.FileName, SizeBytes = demo.SizeBytes },
             Clock = new ClockIdentityDto
             {
                 Kind = clock.Kind,
@@ -362,6 +358,7 @@ public sealed class AnnotationStore
     /// <param name="ct">Cancellation.</param>
     public Task<bool> DeleteAsync(string demoPath, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         string? path = ResolvePath(demoPath);
         if (path is null || !File.Exists(path))
         {
@@ -535,11 +532,7 @@ public sealed class AnnotationStore
                 runs.Add(run.TickOffset);
             }
 
-            dto.Timing = new AnnotationTimingDto
-            {
-                Runs = runs,
-                DurationTicks = timing.DurationTicks
-            };
+            dto.Timing = new AnnotationTimingDto { Runs = runs, DurationTicks = timing.DurationTicks };
         }
 
         return dto;
@@ -568,7 +561,7 @@ public sealed class AnnotationStore
         return new StrokeTiming(runs, dto.DurationTicks);
     }
 
-    private static AnnotationElement? ToElement(AnnotationElementDto dto)
+    private static AnnotationElement? ToElement(AnnotationElementDto? dto)
     {
         if (dto is null || !Guid.TryParse(dto.Id, out Guid id))
         {

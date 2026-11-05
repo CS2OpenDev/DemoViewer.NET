@@ -7,6 +7,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     <see cref="OnActivated" /> when the descriptor becomes the selected tab and
 ///     <see cref="OnDeactivated" /> when it stops being so.
 /// </summary>
+[PublicAPI]
 public interface IWorkspaceTabViewModel
 {
     /// <summary>Called when the tab becomes selected. Subscribe to clock pushes here.</summary>

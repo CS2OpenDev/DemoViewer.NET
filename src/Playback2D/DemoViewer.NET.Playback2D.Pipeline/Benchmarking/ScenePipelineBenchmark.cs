@@ -1,12 +1,11 @@
 #region
 
 using System.Diagnostics;
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Levels;
-using DemoViewer.NET.Playback2D.Pipeline.Rendering;
+using DemoViewer.NET.Playback2D.Pipeline.Export;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Rendering;
 
 #endregion
 
@@ -53,13 +52,13 @@ public sealed class ScenePipelineBenchmark
     }
 
     /// <summary>Run identity, stamped into the report and its file name.</summary>
-    public string Id { get; set; } = "scene";
+    public string Id { get; init; } = "scene";
 
     /// <summary>The binder that gives levels their radar images, when the run should draw them.</summary>
-    public ILevelRadarBinder? RadarBinder { get; set; }
+    public ILevelRadarBinder? RadarBinder { get; init; }
 
     /// <summary>Authoritative floor bands for the run's map, when it has them.</summary>
-    public IReadOnlyList<FloorSlice>? AuthoritativeFloors { get; set; }
+    public IReadOnlyList<FloorSlice>? AuthoritativeFloors { get; init; }
 
     /// <summary>
     ///     A camera to pin every pane to, instead of fitting the first frame's observed extent.
@@ -69,7 +68,7 @@ public sealed class ScenePipelineBenchmark
     ///         framings of one scene, and a "bench is slower" report could just be a wider camera.
     ///     </para>
     /// </summary>
-    public ViewportTransform? Camera { get; set; }
+    public ViewportTransform? Camera { get; init; }
 
     /// <summary>
     ///     Optional per-layer / per-stage capture. Null (the
@@ -82,7 +81,7 @@ public sealed class ScenePipelineBenchmark
     ///         into arrays that already exist. Zero stays zero with capture on.
     ///     </para>
     /// </summary>
-    internal ScenePerfRecorder? Perf { get; set; }
+    internal ScenePerfRecorder? Perf { get; init; }
 
     /// <summary>Runs the benchmark.</summary>
     /// <param name="source">Frames to replay; wrapped modulo its length when the request wants more.</param>
@@ -101,15 +100,13 @@ public sealed class ScenePipelineBenchmark
 
         ApplyLayerFilter(request.LayerIds);
 
-        using HeadlessSceneRenderer renderer = new(_compositor, _surfaces, _layout, _palette)
-        {
-            Size = request.Size,
-            Purpose = RenderPurpose.Export,
-            // A pinned camera is data, not a target: advancing rigs on top of it would drift the framing
-            // across the measured window and make the render times depend on where the lerp got to.
-            AdvanceCameras = Camera is null,
-            Camera = Camera
-        };
+        using HeadlessSceneRenderer renderer = new(_compositor, _surfaces, _layout, _palette);
+        renderer.Size = request.Size;
+        renderer.Purpose = RenderPurpose.Export;
+        // A pinned camera is data, not a target: advancing rigs on top of it would drift the framing
+        // across the measured window and make the render times depend on where the lerp got to.
+        renderer.AdvanceCameras = Camera is null;
+        renderer.Camera = Camera;
         renderer.Levels.SetAuthoritativeFloors(AuthoritativeFloors);
         renderer.Levels.RadarBinder = RadarBinder;
 
@@ -173,10 +170,7 @@ public sealed class ScenePipelineBenchmark
             // whole capture exists to undo.
             perf?.BeginStage(PerfStage.Source);
             Scene2DFrame frame = source.FrameAt(index);
-            SceneTime time = source.TimeAt(index) with
-            {
-                DeltaSeconds = dt
-            };
+            SceneTime time = source.TimeAt(index) with { DeltaSeconds = dt };
             perf?.EndStage(PerfStage.Source);
 
             clock.Restart();
@@ -229,10 +223,7 @@ public sealed class ScenePipelineBenchmark
 
         perf?.BeginStage(PerfStage.Source);
         Scene2DFrame frame = source.FrameAt(index);
-        SceneTime time = source.TimeAt(index) with
-        {
-            DeltaSeconds = dt
-        };
+        SceneTime time = source.TimeAt(index) with { DeltaSeconds = dt };
         perf?.EndStage(PerfStage.Source);
 
         perf?.BeginStage(PerfStage.Advance);

@@ -3,7 +3,6 @@
 using Avalonia.Media;
 using Avalonia.Styling;
 using DemoViewer.NET.Playback2D;
-using DemoViewer.NET.Theming;
 using SkiaSharp;
 
 #endregion
@@ -80,5 +79,5 @@ public static class ScenePaletteFactory
 
     /// <summary>Converts an Avalonia colour to a Skia one.</summary>
     /// <param name="colour">The Avalonia colour.</param>
-    public static SKColor ToSkia(Color colour) => new(colour.R, colour.G, colour.B, colour.A);
+    private static SKColor ToSkia(Color colour) => new(colour.R, colour.G, colour.B, colour.A);
 }

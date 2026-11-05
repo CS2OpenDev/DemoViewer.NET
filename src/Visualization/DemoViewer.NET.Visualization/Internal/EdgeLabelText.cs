@@ -31,7 +31,7 @@ internal static class EdgeLabelText
     ///     What a collapsed condition draws as. Three characters, so its contribution to the label
     ///     rect is bounded no matter what the author wrote.
     /// </summary>
-    internal const string Chip = "[…]";
+    private const string Chip = "[…]";
 
     /// <summary>
     ///     A predicate that fits within this many characters stays on the edge, because the chip
@@ -59,7 +59,9 @@ internal static class EdgeLabelText
         string full = Expanded(edge);
         return full.Length <= InlineBudget
             ? full
-            : edge.Label.Length == 0 ? Chip : edge.Label + Gap + Chip;
+            : edge.Label.Length == 0
+                ? Chip
+                : edge.Label + Gap + Chip;
     }
 
     /// <summary>The full text, chip expanded to the predicate. Render-only: layout never reserves it.</summary>
@@ -79,7 +81,4 @@ internal static class EdgeLabelText
     /// <summary>Whether this edge's predicate is actually hidden behind a chip, so a reveal has work to do.</summary>
     internal static bool IsCollapsed(IGraphEdge edge) =>
         HasCondition(edge) && Expanded(edge).Length > InlineBudget;
-
-    /// <summary>Width of the collapsed label rect, in logical units.</summary>
-    internal static double Width(IGraphEdge edge) => Collapsed(edge).Length * CharWidth;
 }

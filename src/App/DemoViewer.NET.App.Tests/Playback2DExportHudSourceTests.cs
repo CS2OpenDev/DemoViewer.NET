@@ -65,8 +65,8 @@ public class Playback2DExportHudSourceTests
         HudSnapshot drawn = hud.At(exported.Time.Tick);
 
         Console.WriteLine($"[export-hud] live panel round={vm.GameInfo.RoundNumber} " +
-                          $"{vm.GameInfo.TScore}:{vm.GameInfo.CtScore} — exported round={drawn.RoundNumber} " +
-                          $"{drawn.TScore}:{drawn.CtScore} at tick {drawn.Tick}");
+            $"{vm.GameInfo.TScore}:{vm.GameInfo.CtScore} — exported round={drawn.RoundNumber} " +
+            $"{drawn.TScore}:{drawn.CtScore} at tick {drawn.Tick}");
 
         // Fails on the old capture, which answered the live panel's "—" for every tick of the video.
         await Assert.That(drawn.RoundNumber).IsNotEqualTo(vm.GameInfo.RoundNumber);
@@ -171,7 +171,7 @@ public class Playback2DExportHudSourceTests
         }
 
         Console.WriteLine($"[export-hud] roster={drawn.Roster.Count} alive={alive} armed={armed} " +
-                          $"sides={string.Join(",", sides.Order())} at tick {drawn.Tick}");
+            $"sides={string.Join(",", sides.Order())} at tick {drawn.Tick}");
 
         await Assert.That(drawn.Roster.Count).IsGreaterThanOrEqualTo(10);
         await Assert.That(sides.Contains(2)).IsTrue();
@@ -220,18 +220,8 @@ public class Playback2DExportHudSourceTests
     {
         Playback2DTabViewModel vm = new();
         Playback2DFakeContext ctx = new();
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 0,
-            Name = "Neo",
-            SteamId = 1
-        });
-        ctx.Roster.Add(new PlayerRosterEntry
-        {
-            Slot = 1,
-            Name = "Smith",
-            SteamId = 2
-        });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 0, Name = "Neo", SteamId = 1 });
+        ctx.Roster.Add(new PlayerRosterEntry { Slot = 1, Name = "Smith", SteamId = 2 });
         vm.OnActivated(ctx);
         return (vm, ctx);
     }
@@ -249,10 +239,11 @@ public class Playback2DExportHudSourceTests
 
     private static string ResolveNuke()
     {
-        string bundled = Path.Combine(DemoTestHelper.RequireRepoRoot(), NukeSample.Replace('/', Path.DirectorySeparatorChar));
+        string bundled = Path.Combine(DemoTestHelper.RequireRepoRoot(),
+            NukeSample.Replace('/', Path.DirectorySeparatorChar));
         return File.Exists(bundled)
             ? bundled
             : DemoTestHelper.FindDemoPath()
-              ?? throw new SkipTestException($"no demo (tried {NukeSample} and the staged locations)");
+            ?? throw new SkipTestException($"no demo (tried {NukeSample} and the staged locations)");
     }
 }

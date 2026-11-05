@@ -58,20 +58,13 @@ public partial class AnalysisTabView : UserControl
             return;
         }
 
-        ContextMenu menu = new()
-        {
-            Placement = PlacementMode.Pointer
-        };
+        ContextMenu menu = new() { Placement = PlacementMode.Pointer };
 
         // Un-backed edges (logic / conjunction) can't carry a breakpoint: show a disabled note rather
         // than arming one that could never fire. Nodes are always breakpointable.
         if (!vm.IsBreakpointable(target))
         {
-            menu.Items.Add(new MenuItem
-            {
-                Header = "Can't break here — edge has no fire event",
-                IsEnabled = false
-            });
+            menu.Items.Add(new MenuItem { Header = "Can't break here — edge has no fire event", IsEnabled = false });
             menu.Open(GraphCanvas);
             return;
         }
@@ -94,10 +87,7 @@ public partial class AnalysisTabView : UserControl
         // their event exposes typed fields: entity-change edges are default-only).
         if (vm.SupportsCondition(target))
         {
-            MenuItem condition = new()
-            {
-                Header = has ? "Edit condition…" : "Add conditional breakpoint…"
-            };
+            MenuItem condition = new() { Header = has ? "Edit condition…" : "Add conditional breakpoint…" };
             condition.Click += (_, _) => vm.BeginEdit(target);
             menu.Items.Add(condition);
         }
@@ -105,10 +95,7 @@ public partial class AnalysisTabView : UserControl
         if (has)
         {
             menu.Items.Add(new Separator());
-            MenuItem remove = new()
-            {
-                Header = "Remove breakpoint"
-            };
+            MenuItem remove = new() { Header = "Remove breakpoint" };
             remove.Click += (_, _) => vm.RemoveBreakpoint(target);
             menu.Items.Add(remove);
         }
@@ -147,9 +134,7 @@ public partial class AnalysisTabView : UserControl
         {
             menu.Items.Add(new MenuItem
             {
-                Header = "Verify in CS2",
-                Command = vm.VerifyInCs2Command,
-                CommandParameter = target
+                Header = "Verify in CS2", Command = vm.VerifyInCs2Command, CommandParameter = target
             });
             return;
         }
@@ -161,8 +146,7 @@ public partial class AnalysisTabView : UserControl
         bool notSynced = !(vm.CanVerifyMoment?.Invoke() ?? false);
         MenuItem disabled = new()
         {
-            Header = notSynced ? "Verify in CS2  —  enable Live Sync first" : "Verify in CS2",
-            IsEnabled = false
+            Header = notSynced ? "Verify in CS2  —  enable Live Sync first" : "Verify in CS2", IsEnabled = false
         };
         if (notSynced)
         {
@@ -190,7 +174,8 @@ public partial class AnalysisTabView : UserControl
             return;
         }
 
-        (_tokenStart, _tokenEnd, string prefix) = TokenAtCaret(ConditionTextBox.Text ?? "", ConditionTextBox.CaretIndex);
+        (_tokenStart, _tokenEnd, string prefix) =
+            TokenAtCaret(ConditionTextBox.Text ?? "", ConditionTextBox.CaretIndex);
         vm.UpdateConditionSuggestions(prefix);
     }
 

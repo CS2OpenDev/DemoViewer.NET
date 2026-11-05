@@ -7,14 +7,13 @@ using Avalonia.Input;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
-using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Modules.Playback2D.Timeline;
 using DemoViewer.NET.Views.Playback2D;
 using Microsoft.Extensions.DependencyInjection;
-using MenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
 using TUnit.Assertions.Enums;
+using MenuEntry = DemoViewer.NET.Extensions.Sdk.Playback.MenuEntry;
 
 #endregion
 
@@ -41,7 +40,7 @@ public class PlaybackBandMenuWindowTests
 
             Border band = timeline.GetVisualDescendants().OfType<Border>()
                 .First(b => b.DataContext is TimelineBandViewModel band && Playback2DTimelineViewModel.IsRoundBand(band)
-                                                                        && b.Bounds.Width > 0);
+                    && b.Bounds.Width > 0);
             Point at = Playback2DTimelineHarness.ToWindow(band, window, band.Bounds.Width / 2, band.Bounds.Height / 2);
             int seeks = ctx.SeekFrames.Count;
 
@@ -79,8 +78,12 @@ public class PlaybackBandMenuWindowTests
             TimelineControl timeline = Playback2DTimelineHarness.Timeline(view);
 
             Border warmup = timeline.GetVisualDescendants().OfType<Border>()
-                .First(b => b.DataContext is TimelineBandViewModel { TrackId: "round", Label: "wu" } && b.Bounds.Width > 0);
-            Point at = Playback2DTimelineHarness.ToWindow(warmup, window, warmup.Bounds.Width / 2, warmup.Bounds.Height / 2);
+                .First(b => b is
+                {
+                    DataContext: TimelineBandViewModel { TrackId: "round", Label: "wu" }, Bounds.Width: > 0
+                });
+            Point at = Playback2DTimelineHarness.ToWindow(warmup, window, warmup.Bounds.Width / 2,
+                warmup.Bounds.Height / 2);
             int seeks = ctx.SeekFrames.Count;
 
             window.MouseDown(at, MouseButton.Right);

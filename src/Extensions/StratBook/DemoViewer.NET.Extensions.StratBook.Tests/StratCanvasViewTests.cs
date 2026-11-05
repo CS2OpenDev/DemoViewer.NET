@@ -7,12 +7,12 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
-using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Views.StratBook;
+using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Playback2D.Input;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
 
 #endregion
@@ -43,7 +43,8 @@ public class StratCanvasViewTests
             Playback2DTimelineHarness.Pump();
 
             Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
-            await Assert.That(view.GetVisualDescendants().OfType<SceneView>().Single().Source).IsSameReferenceAs(canvas);
+            await Assert.That(view.GetVisualDescendants().OfType<SceneView>().Single().Source)
+                .IsSameReferenceAs(canvas);
 
             // ] then V: the first step is shown, and the token tool is on the host's router.
             window.KeyPressQwerty(PhysicalKey.BracketRight, RawInputModifiers.None);
@@ -82,7 +83,8 @@ public class StratCanvasViewTests
             (StratStore store, StratSession parked) = Opened(document);
             parked.Dispose();
 
-            using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook.StratBookTabViewModel tab = new(store, null, null, false, null, _ => null);
+            using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook.StratBookTabViewModel tab = new(store, null,
+                null, false, null, _ => null);
             tab.SelectedStrat = tab.Strats.Single();
 
             StratBookTabView view = new() { DataContext = tab };
@@ -113,8 +115,10 @@ public class StratCanvasViewTests
         await HeadlessSession.RunOnUi(async () =>
         {
             (StratStore _, StratSession session) = Opened(FiveSteps());
-            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null, StratTestKeymap.Shipped,
-                placesFor: _ => Task.FromResult<IZonePlaceResolver?>(new StratMapFirstTests.EverywhereIs("Hut")), post: a => a());
+            using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
+                StratTestKeymap.Shipped,
+                placesFor: _ => Task.FromResult<IZonePlaceResolver?>(new StratMapFirstTests.EverywhereIs("Hut")),
+                post: a => a());
 
             StratCanvasView view = new() { DataContext = canvas };
             Window window = new() { Width = 1100, Height = 800, Content = view };
@@ -142,7 +146,8 @@ public class StratCanvasViewTests
 
             canvas.BeginSetPlace();
             Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
-            Point centre = Playback2DTimelineHarness.ToWindow(host, window, host.Bounds.Width / 2, host.Bounds.Height / 2);
+            Point centre =
+                Playback2DTimelineHarness.ToWindow(host, window, host.Bounds.Width / 2, host.Bounds.Height / 2);
             window.MouseDown(centre, MouseButton.Left);
             window.MouseUp(centre, MouseButton.Left);
             Playback2DTimelineHarness.Pump();
@@ -172,7 +177,8 @@ public class StratCanvasViewTests
             (StratStore store, StratSession parked) = Opened(document);
             parked.Dispose();
 
-            using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook.StratBookTabViewModel tab = new(store, null, a => a(), false, null, _ => null);
+            using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook.StratBookTabViewModel tab = new(store, null,
+                a => a(), false, null, _ => null);
             StratBookTabView view = new() { DataContext = tab };
 
             // Short enough that the first step row is below the fold, and the strat opens with the view up.
@@ -199,7 +205,9 @@ public class StratCanvasViewTests
                 await Assert.That(tab.Canvas.ActiveStepIndex).IsEqualTo(2);
                 await Assert.That(tab.Canvas.Transport.Tick).IsEqualTo(1600);
                 await Assert.That(tab.Editor.Steps[2].IsSelected).IsTrue();
-                await Assert.That(rows.GetVisualDescendants().OfType<Border>().Count(b => b.Classes.Contains("selected"))).IsEqualTo(1);
+                await Assert
+                    .That(rows.GetVisualDescendants().OfType<Border>().Count(b => b.Classes.Contains("selected")))
+                    .IsEqualTo(1);
             }
 
             tab.Canvas.ExecuteAction(StratBookActions.NextStep);
@@ -234,6 +242,7 @@ public class StratCanvasViewTests
             await Assert.That(canvas.Tools.ActiveTool).IsEqualTo(ToolKind.PanZoom);
 
             Scene2DHost host = view.GetVisualDescendants().OfType<Scene2DHost>().Single();
+
             Point Screen(double x, double y)
             {
                 (double sx, double sy) = host.PrimaryCameraTransform.WorldToScreen(x, y);

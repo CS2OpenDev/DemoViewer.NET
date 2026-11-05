@@ -28,7 +28,7 @@ public class PlaybackSeekPushTests
         await HeadlessSession.RunOnUi(async () =>
         {
             PlaybackController controller = NewWiredController(frames);
-            List<int> pushed = new();
+            List<int> pushed = [];
             controller.Advanced += pf => pushed.Add(pf.FrameIndex);
 
             // (a) a single discrete seek pushes Advanced at the NEW frame.
@@ -63,7 +63,7 @@ public class PlaybackSeekPushTests
             controller.SeekToFrame(start); // establish the authoritative tracker at `start`
             Dispatcher.UIThread.RunJobs();
 
-            List<int> pushed = new();
+            List<int> pushed = [];
             controller.Advanced += pf => pushed.Add(pf.FrameIndex);
 
             controller.StepForward(); // a paused frame-step must push too (in-place or re-seek path)

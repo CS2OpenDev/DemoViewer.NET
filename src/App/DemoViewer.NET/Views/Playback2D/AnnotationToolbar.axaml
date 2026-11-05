@@ -114,7 +114,7 @@
                         <DataTemplate x:DataType="vm:AnnotationSwatch">
                             <Button Width="16" Height="16" Padding="0" Background="{Binding Brush}"
                                     BorderBrush="{DynamicResource Pb2dHudDivider}" BorderThickness="1"
-                                    Command="{Binding $parent[ItemsControl].((vm:AnnotationsPanelViewModel)DataContext).ApplyRecentColorCommand}"
+                                    Command="{Binding $parent[ItemsControl].((vm:AnnotationsPanelViewModel)DataContext).ApplyRecentColorCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding}"
                                     ToolTip.Tip="{Binding Hex}" />
                         </DataTemplate>

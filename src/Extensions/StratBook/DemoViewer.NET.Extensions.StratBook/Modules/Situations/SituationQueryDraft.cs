@@ -1,7 +1,7 @@
 #region
 
-using DemoViewer.NET.Playback2D.Query;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Playback2D.Query;
 
 #endregion
 
@@ -34,10 +34,10 @@ public sealed class SituationQueryDraft
     }
 
     /// <summary>The ten slots.</summary>
-    public QueryCanvasDocument Document { get; }
+    private QueryCanvasDocument Document { get; }
 
     /// <summary>The map the query runs over.</summary>
-    public string Map => Document.MapName;
+    private string Map => Document.MapName;
 
     /// <summary>How loosely the pairs match; the canvas's tolerance slider writes it.</summary>
     public SituationTolerance Tolerance { get; set; } = SituationTolerance.Exact;
@@ -62,7 +62,7 @@ public sealed class SituationQueryDraft
 
     /// <summary>One side's pairs, in the index's canonical order: the decoded token.</summary>
     /// <param name="side">The rail row.</param>
-    public IReadOnlyList<PlaceQuery> PairsFor(QuerySide side) =>
+    private IReadOnlyList<PlaceQuery> PairsFor(QuerySide side) =>
         [.. PlaceCountToken.Decode(TokenFor(side)).Select(p => new PlaceQuery(p.Place, p.Count))];
 
     /// <summary>The query the index answers, over the current map, tokens, tolerance and filters.</summary>

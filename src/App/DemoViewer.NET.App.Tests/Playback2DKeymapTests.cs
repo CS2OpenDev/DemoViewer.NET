@@ -176,7 +176,8 @@ public class Playback2DKeymapTests
             await Assert.That(binding.Scope.IsCore).IsTrue();
         }
 
-        await Assert.That(Playback2DActionIds.TryCore("nextround", out _)).IsFalse().Because("ids are exact at the edge");
+        await Assert.That(Playback2DActionIds.TryCore("nextround", out _)).IsFalse()
+            .Because("ids are exact at the edge");
         await Assert.That(Playback2DActionIds.TryCore("None", out _)).IsFalse();
         await Assert.That(Playback2DActionIds.TryCore("7", out _)).IsFalse();
     }

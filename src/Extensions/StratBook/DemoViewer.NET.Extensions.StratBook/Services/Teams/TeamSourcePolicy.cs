@@ -39,7 +39,8 @@ public static class TeamSourcePolicy
 
     /// <summary>Queue play: Valve matchmaking and FACEIT.</summary>
     /// <param name="kind">The effective kind.</param>
-    public static bool IsMatchmaking(DemoSourceKind kind) => kind is DemoSourceKind.GotvMatchmaking or DemoSourceKind.Faceit;
+    public static bool IsMatchmaking(DemoSourceKind kind) =>
+        kind is DemoSourceKind.GotvMatchmaking or DemoSourceKind.Faceit;
 
     /// <summary>
     ///     Whether clustering may found and grow teams from this demo. A provenance pin decides when the

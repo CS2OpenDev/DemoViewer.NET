@@ -24,7 +24,6 @@ public sealed class TuningDetectorRow
         Accepted = row.Accepted;
         Edited = row.Edited;
         Rejected = row.Rejected;
-        Pending = row.Pending;
         RecallText = row.Recall is { } r ? Percent(r) : "no data";
         PrecisionText = row.Precision is { } p ? Percent(p) : "no data";
     }
@@ -34,7 +33,6 @@ public sealed class TuningDetectorRow
     public int Accepted { get; }
     public int Edited { get; }
     public int Rejected { get; }
-    public int Pending { get; }
 
     /// <summary>"no data" rather than 0% when nothing exists to score against (the Sight-columns rule).</summary>
     public string RecallText { get; }
@@ -119,7 +117,8 @@ public sealed partial class SuggestedTagsTuningViewModel : ExtensionViewModel
     /// <param name="profiles">Where a save lands; null hides the section.</param>
     /// <param name="isBrowser">Whether the host is the WASM head (no tuning view there either way).</param>
     /// <param name="profileFolderPath">The folder holding the profile, for the "open folder" link; null hides it.</param>
-    public SuggestedTagsTuningViewModel(SuggestedTagsTuningService? tuning, ProfileStore? profiles, bool isBrowser = false,
+    public SuggestedTagsTuningViewModel(SuggestedTagsTuningService? tuning, ProfileStore? profiles,
+        bool isBrowser = false,
         string? profileFolderPath = null)
     {
         ProfileFolderPath = profileFolderPath;

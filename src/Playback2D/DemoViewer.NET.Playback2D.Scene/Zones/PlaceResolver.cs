@@ -23,6 +23,7 @@ namespace DemoViewer.NET.Playback2D.Zones;
 ///         anything outside it, and two overlapping baked volumes resolve to the first.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class PlaceResolver
 {
     /// <summary>The XY grid cell edge, in world units.</summary>
@@ -124,7 +125,9 @@ public sealed class PlaceResolver
     /// </summary>
     /// <param name="mapName">The map, e.g. <c>de_mirage</c>.</param>
     internal static VolumeTieRule TieRuleFor(string? mapName) =>
-        mapName is not null && _tieRules.TryGetValue(mapName, out VolumeTieRule rule) ? rule : VolumeTieRule.FirstInLump;
+        mapName is not null && _tieRules.TryGetValue(mapName, out VolumeTieRule rule)
+            ? rule
+            : VolumeTieRule.FirstInLump;
 
     /// <summary>
     ///     The place at a world point: a place volume at the point or 32 units above it, else the nearest
@@ -258,9 +261,9 @@ public sealed class PlaceResolver
     /// <summary>Whether two places share a nav connection. Symmetric; a place is not adjacent to itself.</summary>
     public bool AreAdjacent(int a, int b) => a != b && _adjacentPairs.Contains(Pair(a, b));
 
-    /// <summary>The id of a place by its raw name, ordinal. Null when the vocabulary has no such name.</summary>
+    /// <summary>The id of a place by its raw name, ordinal. Null for a null name or one the vocabulary lacks.</summary>
     /// <param name="name">The raw name.</param>
-    public int? PlaceId(string name) =>
+    public int? PlaceId(string? name) =>
         name is not null && _placeByName.TryGetValue(name, out int id) ? id : null;
 
     /// <summary>
@@ -366,8 +369,9 @@ public sealed class PlaceResolver
                     double dz = z is { } worldZ ? Math.Abs(area.Z - worldZ) : 0;
                     if (d < best - 1e-6 ||
                         (Math.Abs(d - best) <= 1e-6 &&
-                         (dz < bestDz - 1e-6 ||
-                          (Math.Abs(dz - bestDz) <= 1e-6 && bestIndex >= 0 && area.Id < Zones.Areas[bestIndex].Id))))
+                            (dz < bestDz - 1e-6 ||
+                                (Math.Abs(dz - bestDz) <= 1e-6 && bestIndex >= 0
+                                    && area.Id < Zones.Areas[bestIndex].Id))))
                     {
                         best = d;
                         bestDz = dz;
@@ -421,7 +425,7 @@ public sealed class PlaceResolver
     }
 
     private static List<int>? CellList(Dictionary<long, List<int>> cells, double x, double y) =>
-        cells.TryGetValue(Key(Cell(x), Cell(y)), out List<int>? list) ? list : null;
+        cells.GetValueOrDefault(Key(Cell(x), Cell(y)));
 
     private static int Cell(double v) => (int)Math.Floor(v / GridCell);
 

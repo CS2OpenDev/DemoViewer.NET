@@ -69,9 +69,11 @@
                                Foreground="{DynamicResource TextDim}" FontSize="10" TextWrapping="Wrap" />
                     <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
                         <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{Binding Shown}"
-                                   Foreground="{DynamicResource TextValue}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                   Foreground="{DynamicResource TextValue}" FontSize="11"
+                                   TextTrimming="CharacterEllipsis" />
                         <Button Grid.Column="1" Content="Choose…" Click="OnChooseFolder" />
-                        <Button Grid.Column="2" Content="Clear" Command="{Binding ClearCommand}" IsVisible="{Binding HasPath}" />
+                        <Button Grid.Column="2" Content="Clear" Command="{Binding ClearCommand}"
+                                IsVisible="{Binding HasPath}" />
                     </Grid>
                 </StackPanel>
             </DataTemplate>

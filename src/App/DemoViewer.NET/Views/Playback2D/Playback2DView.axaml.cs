@@ -160,12 +160,12 @@ public partial class Playback2DView : UserControl
         {
             int players = _boundViewModel.Attributes.Count(a => a.InMatch);
             double height = Math.Min(StripMaxHeight, 12 + Math.Max(1, players) * StripRowHeight);
-            column.RowDefinitions = new RowDefinitions
-            {
+            column.RowDefinitions =
+            [
                 new RowDefinition(GridLength.Auto),
                 new RowDefinition(height, GridUnitType.Pixel),
                 new RowDefinition(1, GridUnitType.Star)
-            };
+            ];
         }
         else
         {
@@ -297,7 +297,7 @@ public partial class Playback2DView : UserControl
 
     private bool IsInsideTextEditor(object? source) =>
         _textEditor is not null && source is Visual visual
-                                && (ReferenceEquals(visual, _textEditor) || _textEditor.IsVisualAncestorOf(visual));
+        && (ReferenceEquals(visual, _textEditor) || _textEditor.IsVisualAncestorOf(visual));
 
     // The surface placed a label: open the editor over it, sized to the label's em at this zoom so what is
     // typed reads roughly the size it will draw. Focus is POSTED: the press that placed the label is still
@@ -390,7 +390,7 @@ public partial class Playback2DView : UserControl
 
         // A drawing tool being active is what makes the keymap's tool-scoped rows shadow the always-scoped
         // ones: the mechanism by which Space and Esc change meaning without a second table.
-        bool toolActive = vm.IsAnnotationsEnabled && vm.Annotations.IsDrawingToolActive;
+        bool toolActive = vm is { IsAnnotationsEnabled: true, Annotations.IsDrawingToolActive: true };
 
         // The VM's RESOLVED profile, not the shipped static table: the table is the default this composes
         // over, and routing through it directly would ignore every user override.
@@ -456,14 +456,14 @@ public partial class Playback2DView : UserControl
 
     private bool IsTextInputFocused()
     {
-        object? focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
+        object? focused = TopLevel.GetTopLevel(this)?.FocusManager.GetFocusedElement();
         return focused is TextBox or AutoCompleteBox;
     }
 
     private void OnModeButtonPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (e.InitialPressMouseButton != MouseButton.Right || _modeMenuFlyout is null
-                                                           || sender is not Control anchor)
+            || sender is not Control anchor)
         {
             return;
         }
@@ -540,13 +540,10 @@ public partial class Playback2DView : UserControl
             return;
         }
 
-        List<MenuItem> items = new();
+        List<MenuItem> items = [];
         foreach (FollowablePlayer p in vm.FollowablePlayers)
         {
-            MenuItem item = new()
-            {
-                Header = p.Display
-            };
+            MenuItem item = new() { Header = p.Display };
             int slot = p.Slot;
             item.Click += (_, _) => FollowSlot(slot);
             items.Add(item);
@@ -554,11 +551,7 @@ public partial class Playback2DView : UserControl
 
         if (items.Count == 0)
         {
-            items.Add(new MenuItem
-            {
-                Header = "(no players)",
-                IsEnabled = false
-            });
+            items.Add(new MenuItem { Header = "(no players)", IsEnabled = false });
         }
 
         _followMenuItem.ItemsSource = items;
@@ -575,16 +568,12 @@ public partial class Playback2DView : UserControl
         }
 
         bool offers = false;
-        List<MenuItem> items = new();
+        List<MenuItem> items = [];
         foreach (FollowablePlayer p in vm.FollowablePlayers)
         {
             PlayerOverviewEntry entry = p.PlayerOverview;
             offers |= entry.Offers;
-            MenuItem item = new()
-            {
-                Header = p.Display,
-                IsEnabled = entry.CanOpen
-            };
+            MenuItem item = new() { Header = p.Display, IsEnabled = entry.CanOpen };
             ToolTip.SetTip(item, entry.Tip);
             ToolTip.SetShowOnDisabled(item, true);
             item.Click += (_, _) => entry.Open();

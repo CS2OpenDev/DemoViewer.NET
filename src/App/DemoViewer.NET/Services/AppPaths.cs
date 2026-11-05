@@ -45,7 +45,7 @@ public static class AppPaths
     // one-time per file rather than re-stat-ing the old location on every path access. File.Exists(target)
     // already makes the move idempotent; this set is purely the re-stat optimization on top of that.
     private static readonly HashSet<string> _migrationAttempted = new(StringComparer.Ordinal);
-    private static readonly object _migrationLock = new();
+    private static readonly Lock _migrationLock = new();
 
     /// <summary>
     ///     The app-data root, or <c>null</c> on WASM (no filesystem). The <see cref="ConfigDirEnvVar" />
@@ -200,11 +200,11 @@ public static class AppPaths
     [ModuleInitializer]
     [SuppressMessage("Usage", "CA2255",
         Justification = "This assembly is application code; it is a class library only because the "
-                        + "Desktop, Browser and capture heads each reference it. The rule targets "
-                        + "general-purpose libraries, where a module initializer surprises the "
-                        + "consumer. Here the consumer is our own entry point, and running before "
-                        + "it is the entire point — the library's rules loading can resolve the "
-                        + "user-rules directory without going through AppPaths first.")]
+            + "Desktop, Browser and capture heads each reference it. The rule targets "
+            + "general-purpose libraries, where a module initializer surprises the "
+            + "consumer. Here the consumer is our own entry point, and running before "
+            + "it is the entire point — the library's rules loading can resolve the "
+            + "user-rules directory without going through AppPaths first.")]
     public static void ClaimConfigDirectoryName() => RuleSetLocator.AppConfigDirName = AppConfigDirName;
 
     /// <summary>

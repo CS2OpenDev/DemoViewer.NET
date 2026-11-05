@@ -12,6 +12,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 ///     <see cref="ActionFor" /> and <see cref="GestureText" /> read the user's keymap, their rebinds applied, for a
 ///     surface of your own that resolves keys itself; a 2D Playback contribution asks its surface instead.
 /// </summary>
+[PublicAPI]
 public interface IExtensionKeymap
 {
     /// <summary>
@@ -37,8 +38,8 @@ public interface IExtensionKeymap
     string? ActionFor(string scope, Key key, KeyModifiers modifiers);
 
     /// <summary>The user's gesture for an action as display text, such as <c>"Ctrl+Z"</c>, or an empty string when unbound.</summary>
-    /// <param name="actionId">The action's id.</param>
-    string GestureText(string actionId);
+    /// <param name="actionId">The action's id; null answers an empty string.</param>
+    string GestureText(string? actionId);
 
     /// <summary>Raised on the UI thread after the user rebinds a key. Refresh labels that show gestures.</summary>
     event Action? Changed;
@@ -52,6 +53,7 @@ public interface IExtensionKeymap
 ///     declared.
 /// </param>
 /// <param name="Gesture">The bound gesture.</param>
+[PublicAPI]
 public sealed record KeymapBinding(string ActionId, string Label, string Scope, KeyGesture Gesture);
 
 /// <summary>Gesture text the way the app shows it everywhere, such as <c>"Ctrl+Shift+F"</c> or <c>"Esc"</c>.</summary>

@@ -66,10 +66,12 @@ public class CoalescedWriterTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(queued).IsEqualTo(1).Because("the first drain was dropped, so the next Post schedules again");
+            await Assert.That(queued).IsEqualTo(1)
+                .Because("the first drain was dropped, so the next Post schedules again");
             await Assert.That(pendingBeforeFlush).IsTrue();
             await Assert.That(flushed).IsTrue();
-            await Assert.That(written).IsEquivalentTo(["c"], CollectionOrdering.Matching).Because("the newest snapshot wins and nothing is written twice");
+            await Assert.That(written).IsEquivalentTo(["c"], CollectionOrdering.Matching)
+                .Because("the newest snapshot wins and nothing is written twice");
         }
     }
 
@@ -82,7 +84,7 @@ public class CoalescedWriterTests
         {
             entered.Set();
             release.Wait();
-        }, _ => { }, drain => Task.Run(drain));
+        }, _ => { }, Task.Run);
 
         writer.Post("slow");
         entered.Wait(TimeSpan.FromSeconds(5));

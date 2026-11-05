@@ -32,22 +32,19 @@ public sealed record ProposalEntry(TagProposal Proposal, string? VerdictKey, Sug
 ///     A demo's proposals merged with its verdicts: what <see cref="SuggestedTagsService.Load" /> hands
 ///     the track and the queue.
 /// </summary>
-/// <param name="DemoPath">The demo.</param>
 /// <param name="Sha256">The content hash the verdicts are keyed by; null when the demo has none yet.</param>
 /// <param name="Entries">Every proposal in round order, then trigger order.</param>
 /// <param name="IsPersistent">False on the browser host: the queue says "session only".</param>
 /// <param name="VerdictsUnreadable">The verdicts file exists and cannot be read, so nothing is offered.</param>
 public sealed record ProposalSet(
-    string DemoPath,
     string? Sha256,
     IReadOnlyList<ProposalEntry> Entries,
     bool IsPersistent,
     bool VerdictsUnreadable)
 {
     /// <summary>The set for a demo with no proposals.</summary>
-    /// <param name="demoPath">The demo.</param>
     /// <param name="isPersistent">Whether anything here outlives the process.</param>
-    public static ProposalSet Empty(string demoPath, bool isPersistent) => new(demoPath, null, [], isPersistent, false);
+    public static ProposalSet Empty(bool isPersistent) => new(null, [], isPersistent, false);
 
     /// <summary>The proposals still waiting for a verdict.</summary>
     public IReadOnlyList<ProposalEntry> Pending => [.. Entries.Where(e => e.IsPending)];
@@ -63,7 +60,7 @@ public sealed record ProposalSet(
 public static class ProposalVerdictMatch
 {
     /// <summary>How far a re-parsed trigger may move and still be the same proposal.</summary>
-    public const int WindowSeconds = ProposalIds.Quantum;
+    private const int WindowSeconds = ProposalIds.Quantum;
 
     /// <summary>The entries, in the proposals' order.</summary>
     /// <param name="proposals">The proposals.</param>
@@ -78,7 +75,7 @@ public static class ProposalVerdictMatch
     {
         ArgumentNullException.ThrowIfNull(proposals);
         ArgumentNullException.ThrowIfNull(verdicts);
-        ProposalEntry[] entries = new ProposalEntry[proposals.Count];
+        ProposalEntry?[] entries = new ProposalEntry?[proposals.Count];
         HashSet<string> used = new(StringComparer.Ordinal);
 
         // Same parse, same key: the ordinary case. A verdict with no frame count predates nothing and is
@@ -108,8 +105,8 @@ public static class ProposalVerdictMatch
             foreach ((string key, SuggestionVerdict v) in verdicts)
             {
                 if (used.Contains(key) || SameParse(v, frameCount)
-                                       || !string.Equals(v.Detector, p.Detector, StringComparison.Ordinal)
-                                       || v.Side != p.Side)
+                    || !string.Equals(v.Detector, p.Detector, StringComparison.Ordinal)
+                    || v.Side != p.Side)
                 {
                     continue;
                 }
@@ -133,12 +130,13 @@ public static class ProposalVerdictMatch
             entries[index] = new ProposalEntry(proposals[index], key, verdicts[key]);
         }
 
+        ProposalEntry[] matched = new ProposalEntry[proposals.Count];
         for (int i = 0; i < proposals.Count; i++)
         {
-            entries[i] ??= new ProposalEntry(proposals[i], null, null);
+            matched[i] = entries[i] ?? new ProposalEntry(proposals[i], null, null);
         }
 
-        return entries;
+        return matched;
     }
 
     private static bool SameParse(SuggestionVerdict verdict, int frameCount) =>

@@ -46,7 +46,8 @@ public class Playback2DCompositionTests
     ///     composition of <c>SceneExportRunner</c> names all three of <c>surfaces</c>,
     ///     <c>managedFfmpegDirectory</c> and <c>encoderProbe</c>.
     /// </summary>
-    private static readonly Dictionary<string, string> _omittedByDesign = new(StringComparer.Ordinal);
+    private static readonly IReadOnlyDictionary<string, string> _omittedByDesign =
+        new Dictionary<string, string>(StringComparer.Ordinal);
 
     [Test]
     public async Task EveryProductionCompositionSite_NamesEverySeamTheServiceOffers()
@@ -62,18 +63,20 @@ public class Playback2DCompositionTests
         // an unreadable site is where the next SceneExportRunner would hide.
         await Assert.That(string.Join("; ", unreadable)).IsEqualTo("")
             .Because("production constructs this type somewhere the argument reader could not parse — a "
-                     + "target-typed `new(...)`, or a call list this parser needs to grow for");
+                + "target-typed `new(...)`, or a call list this parser needs to grow for");
 
-        List<string> gaps = sites
-            .SelectMany(s => s.Omitted.Select(p => (Site: s, Parameter: p)))
-            .Where(g => !_omittedByDesign.ContainsKey($"{g.Site.Type}.{g.Parameter}"))
-            .Select(g => $"{g.Site.Type}.{g.Parameter} omitted at {g.Site.Site}")
-            .OrderBy(s => s, StringComparer.Ordinal)
-            .ToList();
+        List<string> gaps =
+        [
+            .. sites
+                .SelectMany(s => s.Omitted.Select(p => (Site: s, Parameter: p)))
+                .Where(g => !_omittedByDesign.ContainsKey($"{g.Site.Type}.{g.Parameter}"))
+                .Select(g => $"{g.Site.Type}.{g.Parameter} omitted at {g.Site.Site}")
+                .OrderBy(s => s, StringComparer.Ordinal)
+        ];
 
         await Assert.That(string.Join("; ", gaps)).IsEqualTo("")
             .Because("an optional seam the shipped composition never mentions is a feature only the "
-                     + "tests have ever exercised — pass it, name it null, or make it required");
+                + "tests have ever exercised — pass it, name it null, or make it required");
     }
 
     /// <summary>The allow-list must be load-bearing, and each entry must say why.</summary>
@@ -98,7 +101,7 @@ public class Playback2DCompositionTests
 
         await Assert.That(classified).IsNotEmpty()
             .Because("if no site has a seam to classify, the reader has stopped reading argument lists "
-                     + "and every 'ok' above is a rubber stamp");
+                + "and every 'ok' above is a rubber stamp");
         await Assert.That(string.Join(", ", _omittedByDesign.Keys.Where(k => !failing.Contains(k))))
             .IsEqualTo("")
             .Because("an entry for a seam that IS passed now is dead weight");
@@ -152,7 +155,7 @@ public class Playback2DCompositionTests
         (List<CompositionSite> sites, List<string> _) = Analyse();
 
         Console.WriteLine($"[composition] production sources={Playback2DWholeGraph.ProductionSources.Count} "
-                          + $"call sites={sites.Count}");
+            + $"call sites={sites.Count}");
 
         await Assert.That(Playback2DWholeGraph.ProductionSources.Count).IsGreaterThan(200);
         await Assert.That(sites.Count).IsGreaterThanOrEqualTo(3);
@@ -163,7 +166,7 @@ public class Playback2DCompositionTests
         await Assert.That(sites.Any(s => s.Type == "SceneExportRunner")).IsTrue();
         await Assert.That(sites.Any(s => s.Type == "Playback2DExportDialogViewModel")).IsTrue()
             .Because("a namespace-qualified `new` must be found, or the richest composition in the module "
-                     + "is silently unguarded");
+                + "is silently unguarded");
     }
 
     // ── The analysis ────────────────────────────────────────────────────────────────────────────────
@@ -172,17 +175,19 @@ public class Playback2DCompositionTests
     {
         // The App head's own module services and view-models. The scene contract and Pipeline are
         // excluded deliberately; see the class doc.
-        Type[] candidates = typeof(AppSettings).Assembly.GetTypes()
-            .Where(t => Playback2DWholeGraph.IsModuleNamespace(t.Namespace))
-            .Where(t => Seams(t).Length > 0)
-            .OrderBy(t => t.Name, StringComparer.Ordinal)
-            .ToArray();
+        Type[] candidates =
+        [
+            .. typeof(AppSettings).Assembly.GetTypes()
+                .Where(t => Playback2DWholeGraph.IsModuleNamespace(t.Namespace))
+                .Where(t => Seams(t).Length > 0)
+                .OrderBy(t => t.Name, StringComparer.Ordinal)
+        ];
 
         // Which of them production actually builds. IL, because it cannot be spelled around.
         HashSet<string> constructed = Playback2DWholeGraph
             .Scan(Playback2DWholeGraph.ProductionAssemblies,
                 (type, member) => member == ".ctor"
-                                  && candidates.Any(c => string.Equals(c.FullName, type, StringComparison.Ordinal)))
+                    && candidates.Any(c => string.Equals(c.FullName, type, StringComparison.Ordinal)))
             .Where(s => s.Access == IlAccess.New)
             .Select(s => s.TargetType)
             .ToHashSet(StringComparer.Ordinal);
@@ -251,7 +256,7 @@ public class Playback2DCompositionTests
             if (found == 0)
             {
                 unreadable.Add($"{type.Name} — IL says production constructs it, no `new {type.Name}(` "
-                               + "found in source");
+                    + "found in source");
             }
         }
 
@@ -280,9 +285,11 @@ public class Playback2DCompositionTests
             return [];
         }
 
-        return ctors[0].GetParameters()
-            .Where(p => p is { IsOptional: true, HasDefaultValue: true } && p.DefaultValue is null)
-            .ToArray();
+        return
+        [
+            .. ctors[0].GetParameters()
+                .Where(p => p is { IsOptional: true, HasDefaultValue: true, DefaultValue: null })
+        ];
     }
 
     private static (int Positional, HashSet<string> Named)? Read(string text) =>

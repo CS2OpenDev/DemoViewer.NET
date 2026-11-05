@@ -92,7 +92,7 @@ public partial class StratBookTabView : UserControl
     // The Start row selects the start: the playhead goes to tick 0, where a drag writes a token's start.
     private void OnStartRowActivated(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is StratBookTabViewModel vm && !vm.Editor.Start.IsSelected)
+        if (DataContext is StratBookTabViewModel { Editor.Start.IsSelected: false } vm)
         {
             vm.StepSelection.SelectStart();
         }
@@ -200,7 +200,8 @@ public partial class StratBookTabView : UserControl
     {
         if (DataContext is StratBookTabViewModel vm)
         {
-            vm.Editor.AddStepCommand.Execute(_lastRow is { } id ? vm.Editor.Steps.FirstOrDefault(r => r.Id == id) : null);
+            vm.Editor.AddStepCommand.Execute(
+                _lastRow is { } id ? vm.Editor.Steps.FirstOrDefault(r => r.Id == id) : null);
         }
     }
 
@@ -218,7 +219,8 @@ public partial class StratBookTabView : UserControl
         bool inOpenCombo = e.Source is ComboBox { IsDropDownOpen: true };
 
         // An open suggestion list owns Enter and Escape: they pick or dismiss a callout.
-        if (e.Key is Key.Enter or Key.Escape && (e.Source as Visual)?.FindAncestorOfType<AutoCompleteBox>(true) is { IsDropDownOpen: true })
+        if (e.Key is Key.Enter or Key.Escape && (e.Source as Visual)?.FindAncestorOfType<AutoCompleteBox>(true) is
+            { IsDropDownOpen: true })
         {
             return;
         }
@@ -242,7 +244,7 @@ public partial class StratBookTabView : UserControl
                 }
 
                 break;
-            case Key.Escape when e.KeyModifiers == KeyModifiers.None && e.Source is TextBox:
+            case Key.Escape when e is { KeyModifiers: KeyModifiers.None, Source: TextBox }:
                 container.Focus();
                 break;
             case Key.Up or Key.Down when e.KeyModifiers == KeyModifiers.Alt && (onRow || inLine):
@@ -269,16 +271,21 @@ public partial class StratBookTabView : UserControl
             return;
         }
 
-        Control target = firstField ? container.GetVisualDescendants().OfType<TextBox>().FirstOrDefault() ?? container : container;
+        Control target = firstField
+            ? container.GetVisualDescendants().OfType<TextBox>().FirstOrDefault() ?? container
+            : container;
         target.Focus(NavigationMethod.Tab);
     }, DispatcherPriority.Loaded);
 
     // The row a focus or key event came from: the item container, not a presenter inside the row template.
     private (ContentPresenter Container, StratStepRow Row)? RowOf(object? source)
     {
-        for (Visual? visual = source as Visual; visual is not null && !ReferenceEquals(visual, StepRows); visual = visual.GetVisualParent())
+        for (Visual? visual = source as Visual;
+             visual is not null && !ReferenceEquals(visual, StepRows);
+             visual = visual.GetVisualParent())
         {
-            if (visual is ContentPresenter { DataContext: StratStepRow row } presenter && StepRows.IndexFromContainer(presenter) >= 0)
+            if (visual is ContentPresenter { DataContext: StratStepRow row } presenter
+                && StepRows.IndexFromContainer(presenter) >= 0)
             {
                 return (presenter, row);
             }
@@ -321,7 +328,8 @@ public partial class StratBookTabView : UserControl
     }
 
     /// <summary>One entry per template group; a group with site variants opens a submenu of them.</summary>
-    internal static void FillTemplateMenu(FlyoutBase? flyout, IEnumerable<StratTemplate> templates, ICommand command, bool blank)
+    private static void FillTemplateMenu(FlyoutBase? flyout, IEnumerable<StratTemplate> templates, ICommand command,
+        bool blank)
     {
         if (flyout is not MenuFlyout menu)
         {
@@ -348,7 +356,10 @@ public partial class StratBookTabView : UserControl
             MenuItem parent = new() { Header = header };
             foreach (StratTemplate template in group)
             {
-                parent.Items.Add(new MenuItem { Header = template.Label, Command = command, CommandParameter = template.Id });
+                parent.Items.Add(new MenuItem
+                {
+                    Header = template.Label, Command = command, CommandParameter = template.Id
+                });
             }
 
             menu.Items.Add(parent);

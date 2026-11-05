@@ -8,14 +8,13 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Layers;
+using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Pipeline.Input;
 using DemoViewer.NET.Playback2D.Pipeline.Layers;
-using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Tools;
 using SkiaSharp;
 
@@ -55,23 +54,18 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     private readonly MapSpaceFactory _levels = new();
     private readonly PaneSet _panes = new(new StackedLayout());
     private readonly List<LevelPaneSnapshot> _snapshots = new(4);
-    private readonly Lock _submissionLock = new();
-    private readonly HostToolServices _toolServices;
 
     private MapBundleLease? _boundAsset;
     private string _boundMap = "";
     private SceneCompositor _compositor;
     private WriteableBitmap? _fallbackBitmap;
     private Scene2DFrame _frame = Scene2DFrame.Empty;
-    private SceneSubmission? _lastSubmission;
     private ScenePalette _palette = ScenePalette.Dark;
     private bool _panFallback;
     private RadarLayer _radarLayer;
     private bool _released;
     private long _submissionId;
     private TextBlobCache _text;
-
-    private readonly ExtensionFaults? _faults;
 
     /// <summary>Creates the host and its base layer stack.</summary>
     /// <param name="faults">
@@ -80,28 +74,27 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     /// </param>
     public HostedMapView(ExtensionFaults? faults = null)
     {
-        _faults = faults;
+        Faults = faults;
         Focusable = true;
         ClipToBounds = true;
 
-        _toolServices = new HostToolServices(this);
-        Router = new InputToolRouter(_toolServices, new PanZoomTool());
+        Router = new InputToolRouter(new HostToolServices(this), new PanZoomTool());
 
         BuildScene();
     }
 
     /// <summary>The pointer router: pan and zoom, plus whatever tool a derived host registers.</summary>
-    internal InputToolRouter Router { get; }
+    private InputToolRouter Router { get; }
 
     /// <summary>True once the platform refused a Skia lease; every later frame takes the CPU path.</summary>
-    internal bool LeaseUnavailable { get; private set; }
+    private bool LeaseUnavailable { get; set; }
 
     // The tool a plain left press goes to.
     private ToolKind PrimaryKind => _primary is null ? ToolKind.PanZoom : ToolKind.Map;
 
     // Read per add, not cached: the desktop head installs the process's tracker before the first view is
     // built, but a host built in a test or a designer may outlive one being installed.
-    private ExtensionFaults? Faults => _faults ?? ExtensionFaults.Current;
+    private ExtensionFaults? Faults => field ?? ExtensionFaults.Current;
 
     /// <inheritdoc />
     public Control View => this;
@@ -109,7 +102,6 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     /// <inheritdoc />
     public string? MapName
     {
-        get => _mapName;
         set
         {
             if (string.Equals(_mapName, value, StringComparison.Ordinal))
@@ -144,26 +136,26 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     public void Dispose()
     {
         ReleaseResources();
-        GC.SuppressFinalize(this);
     }
 
-    /// <inheritdoc />
     // The two layers this view builds for itself in Compose. A contributed layer may not take either id.
-    private static readonly HashSet<string> OwnLayerIds = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _ownLayerIds = new(StringComparer.Ordinal)
     {
         SceneLayerIds.Radar, SceneLayerIds.FloorLabel
     };
 
+    /// <inheritdoc />
     public string AddLayer(string id, Func<ISceneLayer> layer)
     {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(layer);
-        (string filed, Func<ISceneLayer> build) = ContributedSceneLayer.File(id, layer, "map view layer factory", Faults);
+        (string filed, Func<ISceneLayer> build) =
+            ContributedSceneLayer.File(id, layer, "map view layer factory", Faults);
 
         // On the FILED id, not the local one: an owner's layer is composed to ext.<owner>.<local> and can
         // never collide, so only an unowned caller can reach these two. The SDK side used to refuse the
         // local id instead, which made both names reserved words for every extension.
-        if (OwnLayerIds.Contains(filed))
+        if (_ownLayerIds.Contains(filed))
         {
             throw new ArgumentException($"'{filed}' is one of this view's own layers.", nameof(id));
         }
@@ -207,7 +199,8 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     /// <inheritdoc />
     public void SetPrimaryTool(IMapTool? tool)
     {
-        if (ReferenceEquals(_primary?.Tool, tool) || (tool is not null && ReferenceEquals(Unwrap(_primary?.Tool), tool)))
+        if (ReferenceEquals(_primary?.Tool, tool)
+            || (tool is not null && ReferenceEquals(Unwrap(_primary?.Tool), tool)))
         {
             return;
         }
@@ -255,7 +248,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     public void Invalidate() => InvalidateVisual();
 
     /// <summary>Repaint request from a pointer tool.</summary>
-    internal void RequestToolRender() => InvalidateVisual();
+    private void RequestToolRender() => InvalidateVisual();
 
     /// <inheritdoc />
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -304,7 +297,8 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
         // The primary tool refused a left press: nothing armed, nothing under the pointer. That drag is a
         // pan, and the router only diverts on Space, middle and Ctrl, so the diversion is made here and
         // undone at the release.
-        if (sample.Button == ToolPointerButton.Left && PrimaryKind != ToolKind.PanZoom && Router.ActiveKind == PrimaryKind)
+        if (sample.Button == ToolPointerButton.Left && PrimaryKind != ToolKind.PanZoom
+            && Router.ActiveKind == PrimaryKind)
         {
             Router.SetActive(ToolKind.PanZoom);
             if (Router.OnPressed(in sample))
@@ -476,11 +470,6 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
             (float)(TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0),
             _levels.Space);
 
-        lock (_submissionLock)
-        {
-            _lastSubmission = submission;
-        }
-
         return submission;
     }
 
@@ -536,10 +525,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     {
         _text = new TextBlobCache();
         _radarLayer = new RadarLayer();
-        _compositor = new SceneCompositor
-        {
-            Gate = _gate
-        };
+        _compositor = new SceneCompositor { Gate = _gate };
         _compositor.Add(_radarLayer);
         _compositor.Add(new FloorLabelLayer(_text));
         foreach (Func<ISceneLayer> layer in _layers.Values)
@@ -661,13 +647,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     {
         if (asset is null)
         {
-            return new Scene2DFrame
-            {
-                Map = new SceneMapInfo
-                {
-                    MapName = map
-                }
-            };
+            return new Scene2DFrame { Map = new SceneMapInfo { MapName = map } };
         }
 
         WorldBounds bounds = asset.RadarBounds;

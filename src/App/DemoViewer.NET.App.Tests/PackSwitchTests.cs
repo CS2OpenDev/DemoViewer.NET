@@ -37,10 +37,12 @@ public class PackSwitchTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(lifecycle.Enabled).IsEquivalentTo([ExtensionStartReason.Startup], CollectionOrdering.Matching);
+            await Assert.That(lifecycle.Enabled)
+                .IsEquivalentTo([ExtensionStartReason.Startup], CollectionOrdering.Matching);
             await Assert.That(lifecycle.Disabled).IsEqualTo(0);
             await Assert.That(packs.IsOn(pack)).IsTrue();
-            await Assert.That(reconsidered).IsEqualTo(0).Because("startup re-polls through the library rescan, not here");
+            await Assert.That(reconsidered).IsEqualTo(0)
+                .Because("startup re-polls through the library rescan, not here");
         }
     }
 
@@ -60,7 +62,8 @@ public class PackSwitchTests
         await packs.Pending;
         using (Assert.Multiple())
         {
-            await Assert.That(lifecycle.Enabled).IsEquivalentTo([ExtensionStartReason.EnabledInSession], CollectionOrdering.Matching);
+            await Assert.That(lifecycle.Enabled)
+                .IsEquivalentTo([ExtensionStartReason.EnabledInSession], CollectionOrdering.Matching);
             await Assert.That(reconsidered).IsEqualTo(1).Because("the library is re-polled once the loads are queued");
             await Assert.That(lifecycle.LastToken.IsCancellationRequested).IsFalse();
             await Assert.That(packs.IsOn(pack)).IsTrue();
@@ -72,8 +75,10 @@ public class PackSwitchTests
         await packs.Pending;
         using (Assert.Multiple())
         {
-            await Assert.That(lifecycle.Disabled).IsEqualTo(1).Because("one transition, one release, however many Changed arrive");
-            await Assert.That(lifecycle.LastToken.IsCancellationRequested).IsTrue().Because("the enable in flight is cancelled through its token");
+            await Assert.That(lifecycle.Disabled).IsEqualTo(1)
+                .Because("one transition, one release, however many Changed arrive");
+            await Assert.That(lifecycle.LastToken.IsCancellationRequested).IsTrue()
+                .Because("the enable in flight is cancelled through its token");
             await Assert.That(packs.IsOn(pack)).IsFalse();
         }
 
@@ -99,7 +104,8 @@ public class PackSwitchTests
         waiting = false;
         gate.Raise(); // the wizard's Finish writes settings
         await packs.Pending;
-        await Assert.That(lifecycle.Enabled).IsEquivalentTo([ExtensionStartReason.EnabledInSession], CollectionOrdering.Matching);
+        await Assert.That(lifecycle.Enabled)
+            .IsEquivalentTo([ExtensionStartReason.EnabledInSession], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -171,7 +177,8 @@ public class PackSwitchTests
         SuspendingGate gate = new() { On = true };
         rig.Faults.AttachSwitch(gate);
         FakePack pack = new();
-        using PackSwitch packs = new([pack], gate, _ => throw new InvalidOperationException("lifecycle ctor"), null, () => { },
+        using PackSwitch packs = new([pack], gate, _ => throw new InvalidOperationException("lifecycle ctor"), null,
+            () => { },
             faults: rig.Faults);
 
         packs.Start();
@@ -212,7 +219,8 @@ public class PackSwitchTests
         using (Assert.Multiple())
         {
             await Assert.That(rig.Faults.StateOf("pack.fake").Suspended).IsTrue();
-            await Assert.That(lifecycle.Disabled).IsEqualTo(disabledBefore + 1).Because("the suspension ran the release");
+            await Assert.That(lifecycle.Disabled).IsEqualTo(disabledBefore + 1)
+                .Because("the suspension ran the release");
             await Assert.That(packs.IsOn(pack)).IsFalse();
         }
     }

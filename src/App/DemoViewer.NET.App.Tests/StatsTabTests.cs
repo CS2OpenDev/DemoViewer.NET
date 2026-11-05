@@ -49,13 +49,13 @@ public class StatsTabTests
         (int Slot, string Name)[] players = [(0, "Alice"), (1, "Bob")];
         (string Label, bool RoundScoped)[] columns = [("TotalK", false), ("ADR", false), ("Kills", true)];
 
-        List<PerPlayerNodeTemplate.MaterializedPlayer> materialized = new();
-        List<List<int>> colIdx = new();
+        List<PerPlayerNodeTemplate.MaterializedPlayer> materialized = [];
+        List<List<int>> colIdx = [];
         foreach ((int slot, string name) in players)
         {
-            List<PerPlayerColumnAssignment> assignments = new();
-            List<int> indices = new();
-            List<StateNode> nodes = new();
+            List<PerPlayerColumnAssignment> assignments = [];
+            List<int> indices = [];
+            List<StateNode> nodes = [];
             foreach ((string column, bool roundScoped) in columns)
             {
                 StateNode node = roundScoped
@@ -125,7 +125,8 @@ public class StatsTabTests
 
         await Assert.That(vm.HasStats).IsTrue();
         // Columns are in catalogue display order now: assert membership, then index by label.
-        await Assert.That(vm.Columns.Select(c => c.Label).Order()).IsEquivalentTo(_expectedColumns.Order(), CollectionOrdering.Matching);
+        await Assert.That(vm.Columns.Select(c => c.Label).Order())
+            .IsEquivalentTo(_expectedColumns.Order(), CollectionOrdering.Matching);
         await Assert.That(vm.GameRows.Count).IsEqualTo(2);
         // Final snapshot kills: Alice 20, Bob 21 → Bob first under kills-desc.
         int killsIdx = vm.Columns.Single(c => c.Label == "TotalK").Index;
@@ -211,16 +212,8 @@ public class StatsTabTests
         {
             StatsTabViewModel vm = BuildUpdatedVm();
 
-            StatsTabView view = new()
-            {
-                DataContext = vm
-            };
-            Window window = new()
-            {
-                Width = 1100,
-                Height = 600,
-                Content = view
-            };
+            StatsTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 1100, Height = 600, Content = view };
             window.Show();
 
             Dispatcher.UIThread.RunJobs();
@@ -264,7 +257,7 @@ public class StatsTabTests
             Marshal.Copy(fb.Address, buffer, 0, buffer.Length);
         }
 
-        HashSet<int> colors = new();
+        HashSet<int> colors = [];
         for (int i = 0; i + 3 < buffer.Length; i += 4)
         {
             colors.Add(buffer[i] | buffer[i + 1] << 8 | buffer[i + 2] << 16);

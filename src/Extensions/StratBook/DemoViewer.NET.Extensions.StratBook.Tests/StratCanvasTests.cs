@@ -2,14 +2,14 @@
 
 using System.Text.Json.Nodes;
 using Avalonia.Input;
-using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Modules.Playback2D;
+using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.StratBook.Canvas;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats;
+using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
 using DemoViewer.NET.Playback2D.Input;
-using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using SkiaSharp;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.StratCanvasTestData;
@@ -49,7 +49,8 @@ public class StratCanvasTests
             StratSceneProjection projection = canvas.Projection!;
             using (Assert.Multiple())
             {
-                await Assert.That(projection.Ticks).IsEquivalentTo(new[] { Step1, Step2, Step3, Step4, Step5 }, CollectionOrdering.Matching);
+                await Assert.That(projection.Ticks).IsEquivalentTo([Step1, Step2, Step3, Step4, Step5],
+                    CollectionOrdering.Matching);
                 await Assert.That(canvas.Timeline.TotalFrames).IsEqualTo(Step5 + 1);
                 await Assert.That(canvas.Timeline.Markers.Count(m => m.TrackId == StepTrack.TrackId)).IsEqualTo(5);
                 await Assert.That(canvas.Transport.StartTick).IsEqualTo(Step1);
@@ -66,9 +67,11 @@ public class StratCanvasTests
                 await Assert.That(canvas.Transport.Tick).IsEqualTo(Step1);
                 await Assert.That(canvas.ActiveStepIndex).IsEqualTo(0);
                 await Assert.That(canvas.CurrentFrame.Time.IsDiscontinuity).IsTrue();
-                await Assert.That(canvas.CurrentFrame.Markers.Count).IsEqualTo(6).Because("A to E and O1 are placed at step 1");
+                await Assert.That(canvas.CurrentFrame.Markers.Count).IsEqualTo(6)
+                    .Because("A to E and O1 are placed at step 1");
                 await Assert.That(Marker(canvas, "A").WorldX).IsEqualTo(0f);
-                await Assert.That(Marker(canvas, "1").Team).IsEqualTo(3).Because("an opponent draws in the other side's colour");
+                await Assert.That(Marker(canvas, "1").Team).IsEqualTo(3)
+                    .Because("an opponent draws in the other side's colour");
                 await Assert.That(canvas.CurrentFrame.GameInfo.RoundTime).IsEqualTo("1:50");
                 await Assert.That(Ink(canvas, ArrowId).Time.OpacityAt(Step1)).IsEqualTo(1.0);
                 await Assert.That(Ink(canvas, TextId).Time.OpacityAt(Step1)).IsEqualTo(0.0);
@@ -81,7 +84,8 @@ public class StratCanvasTests
                 await Assert.That(Marker(canvas, "A").WorldX).IsEqualTo(600f * i);
             }
 
-            await Assert.That(canvas.ExecuteAction(StratBookActions.NextStep)).IsFalse().Because("the last step has no next");
+            await Assert.That(canvas.ExecuteAction(StratBookActions.NextStep)).IsFalse()
+                .Because("the last step has no next");
             await Assert.That(Ink(canvas, TextId).Time.OpacityAt(Step3)).IsEqualTo(1.0);
 
             // Scrub back to the middle of step 1's window: A halfway along its move, B and C still where step 1
@@ -169,7 +173,8 @@ public class StratCanvasTests
             string before = StratHistory.ToNode(session.Document!).ToJsonString();
 
             canvas.BeginDrag("A", TokenGrip.Body);
-            await Assert.That(canvas.Transport.Tick).IsEqualTo(Step2 + 10).Because("a drag edits the moment it grabbed, with no seek");
+            await Assert.That(canvas.Transport.Tick).IsEqualTo(Step2 + 10)
+                .Because("a drag edits the moment it grabbed, with no seek");
             for (int i = 1; i <= 40; i++)
             {
                 canvas.MoveTo("A", new SKPoint(600 + i * 5, i * 10), 0);
@@ -185,7 +190,8 @@ public class StratCanvasTests
             using (Assert.Multiple())
             {
                 await Assert.That(session.UndoDepth).IsEqualTo(depth + 1);
-                await Assert.That(op.Op).IsEqualTo(PatchOp.Replace).Because("the lines writer replaces an absent member, as the applier allows");
+                await Assert.That(op.Op).IsEqualTo(PatchOp.Replace)
+                    .Because("the lines writer replaces an absent member, as the applier allows");
                 await Assert.That(op.Path).IsEqualTo("/steps/1/to");
                 await Assert.That(op.Value!["x"]!.GetValue<double>()).IsEqualTo(800);
                 await Assert.That(op.Value!["y"]!.GetValue<double>()).IsEqualTo(400);
@@ -227,7 +233,8 @@ public class StratCanvasTests
             StratStep joined = session.Document!.Steps[1];
             using (Assert.Multiple())
             {
-                await Assert.That(joined.Assignments!.Select(l => l.Slot)).IsEquivalentTo(["A", "D"], CollectionOrdering.Matching);
+                await Assert.That(joined.Assignments!.Select(l => l.Slot))
+                    .IsEquivalentTo(["A", "D"], CollectionOrdering.Matching);
                 await Assert.That(joined.Assignments![1].To!.X).IsEqualTo(350);
                 await Assert.That(joined.Positions.Any(p => p.Slot == "D")).IsFalse();
                 await Assert.That(session.UndoDepth).IsEqualTo(1);
@@ -242,7 +249,8 @@ public class StratCanvasTests
             {
                 await Assert.That(pinned.X).IsEqualTo(360);
                 await Assert.That(pinned.Carried).IsNull();
-                await Assert.That(session.Document!.Steps[1].Assignments![1].To!.X).IsEqualTo(350).Because("a pin leaves the field alone");
+                await Assert.That(session.Document!.Steps[1].Assignments![1].To!.X).IsEqualTo(350)
+                    .Because("a pin leaves the field alone");
                 await Assert.That(session.UndoDepth).IsEqualTo(2);
             }
 
@@ -282,12 +290,15 @@ public class StratCanvasTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(arrow.Time.FromTick).IsEqualTo(Step2).Because("the tool stamps the active step's window");
+                await Assert.That(arrow.Time.FromTick).IsEqualTo(Step2)
+                    .Because("the tool stamps the active step's window");
                 await Assert.That(session.UndoDepth).IsEqualTo(1);
                 await Assert.That(session.Document!.Steps[1].Strokes.Count).IsEqualTo(1);
-                await Assert.That(session.Document.Steps[1].Strokes[0]["id"]!.GetValue<string>()).IsEqualTo(arrow.Id.ToString());
+                await Assert.That(session.Document.Steps[1].Strokes[0]["id"]!.GetValue<string>())
+                    .IsEqualTo(arrow.Id.ToString());
                 await Assert.That(session.Document.Steps[1].Strokes[0].ContainsKey("fromTick")).IsFalse();
-                await Assert.That(ink.Document.UndoDepth).IsEqualTo(0).Because("the session holds the history, not the ink");
+                await Assert.That(ink.Document.UndoDepth).IsEqualTo(0)
+                    .Because("the session holds the history, not the ink");
                 await Assert.That(Ink(canvas, arrow.Id).Time.UntilTick).IsEqualTo(Step3 - 1);
             }
 
@@ -311,7 +322,8 @@ public class StratCanvasTests
             document.Steps[3].Strokes =
             [
                 .. Enumerable.Range(0, 3).Select(i => JsonNode.Parse(
-                    $$"""{ "id": "{{Guid.NewGuid()}}", "kind": "Line", "space": "world", "levelMinZ": 0, "points": [{{i}}, 0, 0.5, {{i}}, 100, 0.5] }""")!.AsObject())
+                        $$"""{ "id": "{{Guid.NewGuid()}}", "kind": "Line", "space": "world", "levelMinZ": 0, "points": [{{i}}, 0, 0.5, {{i}}, 100, 0.5] }""")
+                    !.AsObject())
             ];
             (StratStore _, StratSession session) = Opened(document);
             using StratCanvasViewModel canvas = Canvas(session, new ManualTicker());
@@ -332,7 +344,7 @@ public class StratCanvasTests
             using (Assert.Multiple())
             {
                 await Assert.That(ops.Count).IsEqualTo(3);
-                await Assert.That(ops.All(o => o.Op == PatchOp.Remove && o.From is JsonObject)).IsTrue();
+                await Assert.That(ops.All(o => o is { Op: PatchOp.Remove, From: JsonObject })).IsTrue();
                 await Assert.That(ops.Select(o => o.Path)).IsEquivalentTo(_erasedPaths, CollectionOrdering.Matching);
                 await Assert.That(session.Document!.Steps[3].Strokes.Count).IsEqualTo(0);
                 await Assert.That(session.UndoDepth).IsEqualTo(1);
@@ -419,9 +431,14 @@ public class StratCanvasTests
             using (Assert.Multiple())
             {
                 await Assert.That(projection.Path.Select(p => p.Step.Id))
-                    .IsEquivalentTo(new[] { StratTestData.StepId(1), StratTestData.StepId(2), StratTestData.StepId(4), StratTestData.StepId(5) }, CollectionOrdering.Matching);
+                    .IsEquivalentTo(
+                    [
+                        StratTestData.StepId(1), StratTestData.StepId(2), StratTestData.StepId(4),
+                        StratTestData.StepId(5)
+                    ], CollectionOrdering.Matching);
                 await Assert.That(session.UndoDepth).IsEqualTo(undo).Because("a path is view state, not an edit");
-                await Assert.That(canvas.Timeline.Markers.Single(m => m.TrackId == StepTrack.TrackId && m.Tick == Step2).Glyph)
+                await Assert.That(canvas.Timeline.Markers.Single(m => m is { TrackId: StepTrack.TrackId, Tick: Step2 })
+                        .Glyph)
                     .IsEqualTo("2" + StepTrack.ForkGlyph);
             }
 
@@ -481,7 +498,8 @@ public class StratCanvasTests
             await Assert.That(idle).IsEqualTo(expected);
             await Assert.That(keymap.TryResolve(key, modifiers, true, out string? drawing)).IsTrue();
             await Assert.That(drawing).IsEqualTo(expected);
-            await Assert.That(Playback2DKeymap.FindConflicts(CommandRegistry.Default.EffectiveBindings, Playback2DKeymap.ShellReservedGestures)).IsEmpty();
+            await Assert.That(Playback2DKeymap.FindConflicts(CommandRegistry.Default.EffectiveBindings,
+                Playback2DKeymap.ShellReservedGestures)).IsEmpty();
         });
     }
 
@@ -522,14 +540,16 @@ public class StratCanvasTests
         {
             (StratStore _, StratSession session) = Opened(FiveSteps());
             using StratCanvasViewModel canvas = new(session, _ => null, new ManualTicker(), null,
-                StratTestKeymap.WithOverrides(Playback2DKeymapProfile.Row(StratBookActions.ToolToken, Key.U, KeyModifiers.None)));
+                StratTestKeymap.WithOverrides(Playback2DKeymapProfile.Row(StratBookActions.ToolToken, Key.U,
+                    KeyModifiers.None)));
 
             string? action = canvas.ResolveKey(Key.U, KeyModifiers.None);
             await Assert.That(action).IsEqualTo(StratBookActions.ToolToken);
             await Assert.That(canvas.Tools.TokenToolTip).Contains("(U)").Because("the hint names the user's key");
             await Assert.That(canvas.ExecuteAction(action!)).IsTrue();
             await Assert.That(canvas.IsTokenToolSelected).IsTrue();
-            await Assert.That(canvas.IsToolActive).IsTrue().Because("the token tool shadows Space and Esc like any tool");
+            await Assert.That(canvas.IsToolActive).IsTrue()
+                .Because("the token tool shadows Space and Esc like any tool");
         });
     }
 
@@ -545,10 +565,12 @@ public class StratCanvasTests
             using (Assert.Multiple())
             {
                 await Assert.That(canvas.TokenEditor).IsSameReferenceAs(canvas);
-                await Assert.That(((ISceneSource)canvas).Ink).IsSameReferenceAs(canvas.Ink).Because("the strat's ink is always drawn");
+                await Assert.That(((ISceneSource)canvas).Ink).IsSameReferenceAs(canvas.Ink)
+                    .Because("the strat's ink is always drawn");
                 await Assert.That(canvas.ShowViewCones).IsTrue();
                 await Assert.That(canvas.CurrentFrame.Map.NetworkedBounds).IsNotNull();
-                await Assert.That(canvas.CurrentFrame.Map.ObservedBounds).IsEqualTo(canvas.CurrentFrame.Map.NetworkedBounds!.Value);
+                await Assert.That(canvas.CurrentFrame.Map.ObservedBounds)
+                    .IsEqualTo(canvas.CurrentFrame.Map.NetworkedBounds!.Value);
                 await Assert.That(canvas.CurrentFrame.Map.MapName).IsEqualTo("de_mirage");
             }
 

@@ -11,10 +11,10 @@ using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Highlights;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Dependencies;
 using DemoViewer.NET.Services.LiveSync;
-using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.Review;
 using Microsoft.Extensions.Options;
 
@@ -67,10 +67,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     // one `JsonSerializerDefaults.Web` added anywhere on the write path silently renames every property to
     // camelCase, this binds nothing, and the tray restores to empty with no error anywhere: the exact silent
     // loss this whole path exists to prevent. One flag makes the read immune to that.
-    private static readonly JsonSerializerOptions _restoreOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
+    private static readonly JsonSerializerOptions _restoreOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly DemoCacheStore _demoCache;
 
@@ -126,6 +123,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     private bool _showConfigPane;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStatusMessage))]
     private string _statusMessage = "";
 
     /// <summary>Tray column star weight: the CONTENT-DENSE pane here, so the weights invert.</summary>
@@ -181,7 +179,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         AppSettings current = settings?.CurrentValue ?? new AppSettings();
         ReelConfig = new HighlightReelDialogViewModel(
             [], current.Highlights, reelJob,
-            settingsService is null ? null : mutate => settingsService.Write(mutate),
+            settingsService is null ? null : settingsService.Write,
             isLiveSyncSessionActive, dryRunOnly, fileExists,
             ffmpegLocator,
             settings is null ? null : () => Cs2LaunchNotice.IsAcknowledged(settings.CurrentValue.LiveSync))
@@ -292,7 +290,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     /// <summary>The backlog notice: desktop only, since the browser host cannot scan.</summary>
     public bool ShowBacklogNotice => CanScan && _backlog?.IsRelevant == true;
 
-    private void OnBacklogChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnBacklogChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(HighlightBacklogViewModel.IsRelevant))
         {
@@ -324,7 +322,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     public bool CanScan { get; } = !OperatingSystem.IsBrowser();
 
     /// <summary>WASM: the tab is registered-but-degraded. An explanatory body replaces the dashboard.</summary>
-    public bool IsBrowser { get; } = OperatingSystem.IsBrowser();
+    private bool IsBrowser { get; } = OperatingSystem.IsBrowser();
 
     /// <summary>The dashboard is the authoring surface: hidden only on the browser host.</summary>
     public bool ShowBrowseSurface => !IsBrowser;
@@ -343,7 +341,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     public bool ShowLibraryNotIndexedLine => ShowEmptyTray && CanScan && !AnyHighlightsIndexed;
 
     /// <summary>The "Scan my library" CTA is offered only when nothing is already scanning.</summary>
-    public bool ShowScanCta => CanScan && !_scanner.IsScanning && _scanner.QueueLength == 0;
+    public bool ShowScanCta => CanScan && _scanner is { IsScanning: false, QueueLength: 0 };
 
     /// <summary>Any demo in the cache carries at least one harvested highlight (a usable T3 record).</summary>
     public bool AnyHighlightsIndexed => _rows.Any(r => r.HighlightCount > 0);
@@ -422,7 +420,9 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>Moves one group to an absolute tray position (the drag-and-drop path).</summary>
+    /// <param name="groupKey">The group's stable key (see <see cref="ClipTrayKeys.Group" />).</param>
+    /// <param name="targetIndex">Zero-based destination; clamped to the tray bounds.</param>
     public void MoveGroupTo(string groupKey, int targetIndex)
     {
         List<string> groups = GroupOrder();
@@ -498,7 +498,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     }
 
     /// <inheritdoc />
-    public object? SnapshotState() => new HighlightsSessionState
+    public object SnapshotState() => new HighlightsSessionState
     {
         StagedClips =
         [
@@ -575,7 +575,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         StatusMessage = dropped == 0
             ? ""
             : $"{dropped} staged clip{(dropped == 1 ? "" : "s")} could not be restored — the demo or its " +
-              "highlights are no longer in the cache.";
+            "highlights are no longer in the cache.";
     }
 
     /// <summary>O(1) staged test: Match Overview's <c>[ + ]</c> buttons call this per row build.</summary>
@@ -599,7 +599,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
     ///     the tray's containers down twenty times under the user's pointer.
     /// </summary>
     /// <param name="selections">The highlights to stage, in the order they should appear.</param>
-    public void StageRange(IReadOnlyList<HighlightSelection> selections)
+    private void StageRange(IReadOnlyList<HighlightSelection> selections)
     {
         ArgumentNullException.ThrowIfNull(selections);
 
@@ -674,12 +674,6 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         return true;
     }
 
-    /// <summary>
-    ///     Re-raises <see cref="HasEnrichments" />. The constructor already subscribes to the collection, so
-    ///     callers do not have to remember this. It stays public only as an explicit escape hatch.
-    /// </summary>
-    public void NotifyEnrichmentsChanged() => OnPropertyChanged(nameof(HasEnrichments));
-
     // A session file is user-writable, survives app versions, and predates any field this DTO grows later,
     // so a shape that no longer matches must degrade to "restore nothing", not throw. Activate() wraps this
     // in a try/catch as a backstop; relying on that would cost the user their whole tab restore for one bad
@@ -701,8 +695,6 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
             return null;
         }
     }
-
-    partial void OnStatusMessageChanged(string value) => OnPropertyChanged(nameof(HasStatusMessage));
 
     // ── Feature gate (highlights.encoding) ────────────────────────────────────
 
@@ -832,7 +824,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
 
     /// <summary>Sets narrow/wide from the tab's measured width (responsive collapse).</summary>
     /// <param name="width">Measured viewport width in DIPs.</param>
-    public void SetViewportWidth(double width) => IsNarrow = width > 0 && width < NarrowBreakpoint;
+    public void SetViewportWidth(double width) => IsNarrow = width is > 0 and < NarrowBreakpoint;
 
     partial void OnIsNarrowChanged(bool value)
     {
@@ -957,8 +949,8 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         // Changed (i.e. repeatedly through a long backfill), and rebuilding ClipGroups each time would tear
         // the tray's containers down under the user's pointer mid-drag.
         bool unchanged = order.SequenceEqual(_order)
-                         && order.All(k => _selection.TryGetValue(k, out HighlightSelection? old)
-                                           && WindowInputs(selection[k].Record) == WindowInputs(old.Record));
+            && order.All(k => _selection.TryGetValue(k, out HighlightSelection? old)
+                && WindowInputs(selection[k].Record) == WindowInputs(old.Record));
 
         _selection.Clear();
         foreach (KeyValuePair<HighlightKey, HighlightSelection> pair in selection)
@@ -978,7 +970,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         if (gone > 0)
         {
             StatusMessage = $"{gone} staged clip{(gone == 1 ? " is" : "s are")} no longer in the " +
-                            "highlights cache and " + (gone == 1 ? "was" : "were") + " removed.";
+                "highlights cache and " + (gone == 1 ? "was" : "were") + " removed.";
         }
 
         if (lost.Count > 0)
@@ -1022,7 +1014,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         DemoCacheRecord? record = _demoCache.TryLoadRecord(key.FilePath);
         CachedHighlightEvent? highlight = record?.Highlights.FirstOrDefault(e =>
             e.RulesetId == key.RulesetId && e.HighlightId == key.HighlightId
-                                         && e.Tick == key.Tick && e.PlayerSlot == key.PlayerSlot);
+            && e.Tick == key.Tick && e.PlayerSlot == key.PlayerSlot);
         return record is null || highlight is null ? null : new HighlightSelection(record, highlight);
     }
 

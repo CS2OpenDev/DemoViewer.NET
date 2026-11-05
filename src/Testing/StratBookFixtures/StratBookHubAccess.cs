@@ -2,8 +2,8 @@
 
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook;
-using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
+using DemoViewer.NET.ViewModels.Shell;
 
 #endregion
 
@@ -21,10 +21,12 @@ internal static class StratBookHubAccess
         vm.HostViewModel(HostIds.StratBookHub)
         ?? throw new InvalidOperationException("the shell was built without the Strat Book hub tab");
 
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<MainViewModel, StratBookLayout> _layouts = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<MainViewModel, StratBookLayout>
+        _layouts = new();
 
     /// <summary>Records the Strats list state a test built the shell's hub with.</summary>
-    public static void HoldsStratBookLayout(this MainViewModel vm, StratBookLayout layout) => _layouts.AddOrUpdate(vm, layout);
+    public static void HoldsStratBookLayout(this MainViewModel vm, StratBookLayout layout) =>
+        _layouts.AddOrUpdate(vm, layout);
 
     /// <summary>The Strats list state the shell's hub keeps in the session, as recorded by <see cref="HoldsStratBookLayout" />.</summary>
     public static StratBookLayout StratsLayout(this MainViewModel vm) =>

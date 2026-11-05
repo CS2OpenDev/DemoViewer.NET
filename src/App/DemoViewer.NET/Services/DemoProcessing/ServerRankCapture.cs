@@ -2,7 +2,6 @@
 
 using System.Collections.Concurrent;
 using CS2DemoKit.Parser;
-using CS2OpenSchema.Protos;
 
 #endregion
 
@@ -15,7 +14,14 @@ namespace DemoViewer.NET.Services.DemoProcessing;
 /// <param name="RankChange">What the update says moved.</param>
 /// <param name="Wins">Wins after the match.</param>
 /// <param name="RankType">The rank system: 11 premier, 12 competitive.</param>
-public sealed record ServerRankUpdate(ulong SteamId64, int RankOld, int RankNew, float RankChange, int Wins, int RankType);
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
+public sealed record ServerRankUpdate(
+    ulong SteamId64,
+    int RankOld,
+    int RankNew,
+    float RankChange,
+    int Wins,
+    int RankType);
 
 /// <summary>
 ///     The rank update a Valve server sends once at the end of a matchmaking demo (net message 352). The engine
@@ -42,7 +48,8 @@ public sealed class ServerRankCapture
     }
 
     /// <summary>A capture reading payloads back out of the demo's bytes.</summary>
-    public static ServerRankCapture Over(byte[] demo) => new(frame => DownstreamUtilities.GetDecompressedPayload(frame, demo));
+    public static ServerRankCapture Over(byte[] demo) =>
+        new(frame => DownstreamUtilities.GetDecompressedPayload(frame, demo));
 
     /// <summary>
     ///     <see cref="Over(byte[])" /> over bytes held as memory. The closure keeps those bytes alive, so
@@ -117,7 +124,8 @@ public sealed class ServerRankCapture
         List<ServerRankUpdate> rows = [];
         foreach (DemoFrame frame in _held)
         {
-            foreach (DownstreamUtilities.InnerMessageSlice slice in DownstreamUtilities.ExtractInnerMessageSlices(frame, _payloadOf(frame)))
+            foreach (DownstreamUtilities.InnerMessageSlice slice in DownstreamUtilities.ExtractInnerMessageSlices(frame,
+                         _payloadOf(frame)))
             {
                 if (slice.TypeId == MessageType)
                 {
@@ -133,7 +141,8 @@ public sealed class ServerRankCapture
     public static IEnumerable<ServerRankUpdate> Rows(CCSUsrMsg_ServerRankUpdate message)
     {
         ArgumentNullException.ThrowIfNull(message);
-        return message.RankUpdate.Select(u => new ServerRankUpdate(SteamId64Base + (uint)u.AccountId, u.RankOld, u.RankNew,
+        return message.RankUpdate.Select(u => new ServerRankUpdate(SteamId64Base + (uint)u.AccountId, u.RankOld,
+            u.RankNew,
             u.RankChange, u.NumWins, u.RankTypeId));
     }
 }

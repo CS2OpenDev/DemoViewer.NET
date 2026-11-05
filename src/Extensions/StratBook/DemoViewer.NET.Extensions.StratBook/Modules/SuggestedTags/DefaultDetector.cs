@@ -50,7 +50,8 @@ public sealed class DefaultDetector : IProposalDetector
             yield break; // the round did not last long enough to be defaulting
         }
 
-        TagProposal? execute = ctx.EarlierProposalsThisRound.FirstOrDefault(p => p.Detector == ExecuteDetector.DetectorId);
+        TagProposal? execute =
+            ctx.EarlierProposalsThisRound.FirstOrDefault(p => p.Detector == ExecuteDetector.DetectorId);
         if (execute is not null && round.SecondAt(execute.TriggerTick) <= defaultSecond)
         {
             yield break;
@@ -91,13 +92,8 @@ public sealed class DefaultDetector : IProposalDetector
 
         // The default runs until the execute starts, which is its trigger: the execute's own band can
         // reach back to a lurker's first arrival, long before the round stopped defaulting.
-        int to = execute is not null
-            ? execute.TriggerTick
-            : DetectorMath.Lag(round, defaultTick, profile.Get(Id, "lag"));
-        Dictionary<string, string> labels = new(StringComparer.Ordinal)
-        {
-            ["places"] = string.Join(',', places)
-        };
+        int to = execute?.TriggerTick ?? DetectorMath.Lag(round, defaultTick, profile.Get(Id, "lag"));
+        Dictionary<string, string> labels = new(StringComparer.Ordinal) { ["places"] = string.Join(',', places) };
         if (execute is not null && execute.Labels.TryGetValue("site", out string? site))
         {
             labels["then"] = $"execute@{site}";
@@ -107,9 +103,10 @@ public sealed class DefaultDetector : IProposalDetector
         List<ProposalEvidence> evidence =
         [
             new("occupancy", spreadTick,
-                string.Create(CultureInfo.InvariantCulture, $"T in {places.Count} places: {string.Join(", ", places)}"))
+                string.Create(CultureInfo.InvariantCulture,
+                    $"T in {places.Count} places: {string.Join(", ", places)}")),
+            .. utility.Select(DetectorMath.Evidence)
         ];
-        evidence.AddRange(utility.Select(DetectorMath.Evidence));
         evidence.Sort((a, b) => a.Tick.CompareTo(b.Tick));
 
         yield return new TagProposal(
@@ -124,9 +121,7 @@ public sealed class DefaultDetector : IProposalDetector
             DetectorMath.Confidence(confidence),
             new Dictionary<string, double>(StringComparer.Ordinal)
             {
-                ["base"] = 0.5,
-                ["spread"] = DetectorMath.Round(fSpread),
-                ["utility"] = DetectorMath.Round(fUtility)
+                ["base"] = 0.5, ["spread"] = DetectorMath.Round(fSpread), ["utility"] = DetectorMath.Round(fUtility)
             },
             labels,
             evidence);

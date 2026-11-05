@@ -35,7 +35,7 @@ namespace DemoViewer.NET.AppTests;
 [Category("RealDemo")]
 public partial class SingleWalkOracleTests
 {
-    private static readonly JsonSerializerOptions Fields = new() { IncludeFields = true };
+    private static readonly JsonSerializerOptions _fields = new() { IncludeFields = true };
 
     private const string DumpDirEnvVar = "SINGLE_WALK_DUMP_DIR";
 
@@ -59,10 +59,12 @@ public partial class SingleWalkOracleTests
             string openPending = "not read", openFaulted = "not read";
 
             string sweepDir = Path.Combine(root, "sweep");
-            await SingleWalkSession.WithAppAsync(sweepDir, SingleWalkSession.Settings(Path.GetDirectoryName(demo)!, true),
+            await SingleWalkSession.WithAppAsync(sweepDir,
+                SingleWalkSession.Settings(Path.GetDirectoryName(demo)!, true),
                 async provider =>
                 {
-                    SingleWalkSession.Visit visit = sweep = await SingleWalkSession.RunAsync(provider, SingleWalkSession.Sweep, demo);
+                    SingleWalkSession.Visit visit =
+                        sweep = await SingleWalkSession.RunAsync(provider, SingleWalkSession.Sweep, demo);
                     Console.WriteLine($"{name} sweep: reads {visit.Reads}, sites {Sites(visit)}, meter {Meter(visit)}");
                     SortedDictionary<string, string> swept = Canonical(sweepDir, demo);
                     foreach ((string key, string value) in swept)
@@ -71,7 +73,8 @@ public partial class SingleWalkOracleTests
                     }
 
                     // The forced scan, the Compute full stats press, on a row the sweep already stamped current.
-                    provider.GetRequiredService<DemoCacheStore>().UpdateExisting(demo, r => r.AnalysisState = DemoAnalysisState.Pending);
+                    provider.GetRequiredService<DemoCacheStore>()
+                        .UpdateExisting(demo, r => r.AnalysisState = DemoAnalysisState.Pending);
                     provider.GetRequiredService<HighlightScanService>().RequestScan(demo);
                     await SingleWalkSession.SettleAsync(provider);
                     foreach ((string key, string value) in Canonical(sweepDir, demo))
@@ -86,10 +89,12 @@ public partial class SingleWalkOracleTests
                 });
 
             string openDir = Path.Combine(root, "open");
-            await SingleWalkSession.WithAppAsync(openDir, SingleWalkSession.Settings(Path.GetDirectoryName(demo)!, false),
+            await SingleWalkSession.WithAppAsync(openDir,
+                SingleWalkSession.Settings(Path.GetDirectoryName(demo)!, false),
                 async provider =>
                 {
-                    SingleWalkSession.Visit visit = opened = await SingleWalkSession.RunAsync(provider, SingleWalkSession.Open, demo);
+                    SingleWalkSession.Visit visit =
+                        opened = await SingleWalkSession.RunAsync(provider, SingleWalkSession.Open, demo);
                     Console.WriteLine($"{name} open: reads {visit.Reads}, sites {Sites(visit)}, meter {Meter(visit)}");
                     foreach ((string key, string value) in Canonical(openDir, demo))
                     {
@@ -105,7 +110,7 @@ public partial class SingleWalkOracleTests
 
             string digest = string.Concat(dump.Select(kv => $"{kv.Key} {Sha(kv.Value)}\n"));
             string why = $"open passes {Ran(opened!)}; sweep passes {Ran(sweep!)}; "
-                         + $"open queue at capture {openPending}; faulted on the open {openFaulted}";
+                + $"open queue at capture {openPending}; faulted on the open {openFaulted}";
             if (Environment.GetEnvironmentVariable(DumpDirEnvVar) is { Length: > 0 } dumpRoot)
             {
                 WriteDump(Path.Combine(dumpRoot, name), dump, digest, why);
@@ -121,15 +126,18 @@ public partial class SingleWalkOracleTests
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(fixture)!);
-                File.WriteAllText(fixture, digest);
+                await File.WriteAllTextAsync(fixture, digest);
                 Console.WriteLine($"wrote {fixture}");
                 return;
             }
 
-            Dictionary<string, string> expected = Lines(File.ReadAllText(fixture));
+            Dictionary<string, string> expected = Lines(await File.ReadAllTextAsync(fixture));
             Dictionary<string, string> actual = Lines(digest);
-            string[] moved = [.. expected.Keys.Union(actual.Keys).Order(StringComparer.Ordinal)
-                .Where(k => expected.GetValueOrDefault(k) != actual.GetValueOrDefault(k))];
+            string[] moved =
+            [
+                .. expected.Keys.Union(actual.Keys).Order(StringComparer.Ordinal)
+                    .Where(k => expected.GetValueOrDefault(k) != actual.GetValueOrDefault(k))
+            ];
             using (Assert.Multiple())
             {
                 // The digest names keys, not causes: a pass absent from the outcomes was never planned, one
@@ -160,7 +168,8 @@ public partial class SingleWalkOracleTests
         string.Join(",", visit.Sites.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}x{kv.Value}"));
 
     private static string Meter(SingleWalkSession.Visit visit) =>
-        string.Join(",", visit.Meter.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}x{kv.Value}"));
+        string.Join(",",
+            visit.Meter.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}x{kv.Value}"));
 
     // Every pass the visit ended, with its outcome. The queue ends a planned pass whatever it did, a skip
     // included, so absent here means the plan never carried it.
@@ -169,8 +178,8 @@ public partial class SingleWalkOracleTests
 
     private static string Pending(DemoProcessingQueue queue) =>
         queue.Snapshot().Where(s => s.State is DemoQueueItemState.Queued or DemoQueueItemState.Running)
-                .Select(s => $"{s.Kind}/{string.Join("+", s.Owners)} {s.State}")
-                .ToList() is { Count: > 0 } busy
+            .Select(s => $"{s.Kind}/{string.Join("+", s.Owners)} {s.State}")
+            .ToList() is { Count: > 0 } busy
             ? string.Join(",", busy)
             : "empty";
 
@@ -196,7 +205,8 @@ public partial class SingleWalkOracleTests
     private static string BenchmarkDemo(int which) => DemoTestHelper.RequireSetDemo("benchmarks", which);
 
     private static string FixtureDir() =>
-        Path.Combine(DemoTestHelper.FindRepoRoot() ?? throw new SkipTestException("no repo root"), "tests", "fixtures", "single-walk");
+        Path.Combine(DemoTestHelper.FindRepoRoot() ?? throw new SkipTestException("no repo root"), "tests", "fixtures",
+            "single-walk");
 
     private static Dictionary<string, string> Lines(string digest) =>
         digest.Split('\n', StringSplitOptions.RemoveEmptyEntries)
@@ -225,7 +235,11 @@ public partial class SingleWalkOracleTests
     // ── Canonical form ──────────────────────────────────────────────────────────────────────────────
 
     // Written by the session itself, not by a pass: settings, logs, seeded defaults.
-    private static readonly string[] Skipped = ["settings.json", "logs/", "crash.log", "themes/", "palettes/", "launch-state.json", "SessionState.json", "extension-settings/"];
+    private static readonly string[] _skipped =
+    [
+        "settings.json", "logs/", "crash.log", "themes/", "palettes/", "launch-state.json", "SessionState.json",
+        "extension-settings/"
+    ];
 
     /// <summary>
     ///     Every file the session wrote under <paramref name="configDir" />, one entry per file, or per
@@ -239,7 +253,7 @@ public partial class SingleWalkOracleTests
         foreach (string file in Directory.EnumerateFiles(configDir, "*", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(configDir, file).Replace('\\', '/');
-            if (Skipped.Any(s => s.EndsWith('/') ? rel.StartsWith(s, StringComparison.Ordinal) : rel == s))
+            if (_skipped.Any(s => s.EndsWith('/') ? rel.StartsWith(s, StringComparison.Ordinal) : rel == s))
             {
                 continue;
             }
@@ -254,7 +268,8 @@ public partial class SingleWalkOracleTests
 
             // An extension demo-data file is a JSON header line, then the payload.
             int newline = Array.IndexOf(bytes, (byte)'\n');
-            if (newline > 0 && TryParse(bytes[..newline]) is JsonObject header && (header.ContainsKey("facet") || header.ContainsKey("Facet")))
+            if (newline > 0 && TryParse(bytes[..newline]) is JsonObject header
+                && (header.ContainsKey("facet") || header.ContainsKey("Facet")))
             {
                 Add(result, key + "@header", header, demo, configDir);
                 bytes = bytes[(newline + 1)..];
@@ -268,9 +283,9 @@ public partial class SingleWalkOracleTests
             // The grenade sidecar is binary; its decoded rows and header are compared, Engine masked.
             // TryDecode reads the gzip stream as written, not the inflated bytes.
             JsonNode? json = bytes is [(byte)'D', (byte)'V', (byte)'G', (byte)'L', ..]
-                             && GrenadeThrowLog.TryDecode(stored) is { } grenades
-                ? JsonSerializer.SerializeToNode(grenades, Fields)
-                : TryParse(bytes);
+                && GrenadeThrowLog.TryDecode(stored) is { } grenades
+                    ? JsonSerializer.SerializeToNode(grenades, _fields)
+                    : TryParse(bytes);
             Add(result, key, json, demo, configDir, bytes);
         }
 
@@ -301,18 +316,20 @@ public partial class SingleWalkOracleTests
     }
 
     // Not JSON: the raw bytes' hash. A JSON object: one entry per top-level property.
-    private static void Add(SortedDictionary<string, string> result, string key, JsonNode? json, string demo, string configDir,
+    private static void Add(SortedDictionary<string, string> result, string key, JsonNode? json, string demo,
+        string configDir,
         byte[]? raw = null)
     {
         if (json is null)
         {
             result[key] = raw is null
                 ? "null"
-                : Convert.ToHexStringLower(SHA256.HashData(Encoding.Latin1.GetBytes(Mask(Encoding.Latin1.GetString(raw), demo, configDir))));
+                : Convert.ToHexStringLower(
+                    SHA256.HashData(Encoding.Latin1.GetBytes(Mask(Encoding.Latin1.GetString(raw), demo, configDir))));
             return;
         }
 
-        JsonNode? canonical = Normalize(json, demo, configDir, null);
+        JsonNode? canonical = Normalize(json, demo, configDir);
         if (canonical is JsonObject obj)
         {
             foreach ((string prop, JsonNode? value) in obj)
@@ -329,20 +346,24 @@ public partial class SingleWalkOracleTests
     // Wall-clock stamps, the demo file's mtime (differs per copy of the corpus), and the engine and
     // extension builds, which move with any local build.
     private static bool Masked(string key) =>
-        key.EndsWith("AtTicks", StringComparison.OrdinalIgnoreCase) || key.EndsWith("UtcTicks", StringComparison.OrdinalIgnoreCase)
+        key.EndsWith("AtTicks", StringComparison.OrdinalIgnoreCase)
+        || key.EndsWith("UtcTicks", StringComparison.OrdinalIgnoreCase)
         || key.Equals("ModifiedTicks", StringComparison.OrdinalIgnoreCase)
-        || key.EndsWith("AtUtc", StringComparison.OrdinalIgnoreCase) || key.Equals("Engine", StringComparison.OrdinalIgnoreCase) || key.Equals("ExtensionVersion", StringComparison.OrdinalIgnoreCase);
+        || key.EndsWith("AtUtc", StringComparison.OrdinalIgnoreCase)
+        || key.Equals("Engine", StringComparison.OrdinalIgnoreCase)
+        || key.Equals("ExtensionVersion", StringComparison.OrdinalIgnoreCase);
 
-    private static JsonNode? Normalize(JsonNode? node, string demo, string configDir, string? key)
+    private static JsonNode? Normalize(JsonNode? node, string demo, string configDir)
     {
         switch (node)
         {
             case JsonObject obj:
                 JsonObject sorted = [];
-                foreach ((string name, string k, JsonNode? v) in obj.Select(kv => (Mask(kv.Key, demo, configDir), kv.Key, kv.Value))
+                foreach ((string name, string k, JsonNode? v) in obj
+                             .Select(kv => (Mask(kv.Key, demo, configDir), kv.Key, kv.Value))
                              .OrderBy(e => e.Item1, StringComparer.Ordinal))
                 {
-                    sorted[name] = Masked(k) ? JsonValue.Create("<masked>") : Normalize(v, demo, configDir, k);
+                    sorted[name] = Masked(k) ? JsonValue.Create("<masked>") : Normalize(v, demo, configDir);
                 }
 
                 return sorted;
@@ -350,7 +371,7 @@ public partial class SingleWalkOracleTests
                 JsonArray copy = [];
                 foreach (JsonNode? item in array)
                 {
-                    copy.Add(Normalize(item, demo, configDir, key));
+                    copy.Add(Normalize(item, demo, configDir));
                 }
 
                 return copy;

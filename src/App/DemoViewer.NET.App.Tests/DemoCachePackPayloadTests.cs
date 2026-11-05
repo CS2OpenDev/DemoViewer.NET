@@ -9,12 +9,11 @@ using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.Sdk;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 
@@ -35,11 +34,14 @@ public class DemoCachePackPayloadTests
     private const string FakePack = "net.demoviewer.pack.fake";
     private const string FakeFacet = "fake-facet";
 
-    private static readonly string[] LegacyMembers =
+    private static readonly string[] _legacyMembers =
     [
-        "\"RoundFacts\":", "\"RoundFactsFingerprint\":", "\"RoundFactsSchema\":", "\"RoundIndex\":", "\"RoundIndexSchema\":",
-        "\"RoundIndexComputedAtTicks\":", "\"RoundIndexState\":", "\"RoundIndexFingerprint\":", "\"RoundIndexRowCount\":",
-        "\"SuggestionsFingerprint\":", "\"SuggestionCount\":", "\"Grenades\":", "\"GrenadeSchema\":", "\"GrenadeState\":",
+        "\"RoundFacts\":", "\"RoundFactsFingerprint\":", "\"RoundFactsSchema\":", "\"RoundIndex\":",
+        "\"RoundIndexSchema\":",
+        "\"RoundIndexComputedAtTicks\":", "\"RoundIndexState\":", "\"RoundIndexFingerprint\":",
+        "\"RoundIndexRowCount\":",
+        "\"SuggestionsFingerprint\":", "\"SuggestionCount\":", "\"Grenades\":", "\"GrenadeSchema\":",
+        "\"GrenadeState\":",
         "\"GrenadeCount\":", "\"GrenadeWalker\":", "\"GrenadeInputCoverage\":"
     ];
 
@@ -76,15 +78,18 @@ public class DemoCachePackPayloadTests
                 await Assert.That(loaded.PackStamps).IsEquivalentTo(record.PackStamps, CollectionOrdering.Matching);
                 await Assert.That(entry.PackStamps).IsEquivalentTo(record.PackStamps, CollectionOrdering.Matching);
                 await Assert.That(entry.IsPackCurrent(FakeFacet, 2, "fp-1")).IsTrue();
-                await Assert.That(entry.IsPackCurrent(FakeFacet, 1, "fp-1")).IsFalse().Because("another schema is stale");
+                await Assert.That(entry.IsPackCurrent(FakeFacet, 1, "fp-1")).IsFalse()
+                    .Because("another schema is stale");
                 await Assert.That(entry.NeedsPack(FakeFacet, 2, "fp-2")).IsTrue();
-                await Assert.That(entry.NeedsPack("other", 1, null)).IsFalse().Because("a failed facet waits for the user");
+                await Assert.That(entry.NeedsPack("other", 1, null)).IsFalse()
+                    .Because("a failed facet waits for the user");
                 await Assert.That(entry.NeedsPack("never", 1, "x")).IsTrue();
                 await Assert.That(loaded.Packs.Keys).IsEquivalentTo([FakePack], CollectionOrdering.Matching);
                 await Assert.That(loaded.UnknownMembers).IsNull();
                 await Assert.That(indexJson).Contains("\"PackStamps\":[{\"Id\":\"fake-facet\"");
-                await Assert.That(indexJson).DoesNotContain("\"Packs\"").Because("the index carries stamps, never payloads");
-                foreach (string legacy in LegacyMembers)
+                await Assert.That(indexJson).DoesNotContain("\"Packs\"")
+                    .Because("the index carries stamps, never payloads");
+                foreach (string legacy in _legacyMembers)
                 {
                     await Assert.That(indexJson).DoesNotContain(legacy);
                 }
@@ -111,7 +116,8 @@ public class DemoCachePackPayloadTests
         await Assert.That(store.Payloads("another").Read<FakePayload>(Demo)).IsNull().Because("keyed by pack id");
 
         store.UpdateExisting(Demo, r => r.Packs[FakePack] = JsonSerializer.SerializeToElement(42));
-        await Assert.That(payloads.Read<FakePayload>(Demo)).IsNull().Because("a payload the pack cannot read is not cached");
+        await Assert.That(payloads.Read<FakePayload>(Demo)).IsNull()
+            .Because("a payload the pack cannot read is not cached");
 
         payloads.Write<FakePayload>(Demo, null);
         await Assert.That(store.TryLoadRecord(Demo)!.Packs).IsEmpty();
@@ -122,7 +128,8 @@ public class DemoCachePackPayloadTests
     {
         DemoCacheRecord record = ParsedRecord(Demo);
         record.MarkFailed(FakeFacet);
-        await Assert.That(record.Stamp(FakeFacet)).IsEqualTo(new PackStamp(FakeFacet, 0, null) { State = DemoAnalysisState.Failed });
+        await Assert.That(record.Stamp(FakeFacet))
+            .IsEqualTo(new PackStamp(FakeFacet, 0, null) { State = DemoAnalysisState.Failed });
 
         record.SetStamp(new PackStamp(FakeFacet, 3, "fp") { Count = 9, ComputedAtTicks = 5 });
         record.MarkFailed(FakeFacet);
@@ -153,7 +160,8 @@ public class DemoCachePackPayloadTests
             RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
             string roundIndexFingerprint = sources.FingerprintFor("de_nuke");
             DemoCacheStore probe = new(null);
-            SuggestedTagsService probeService = new(probe.Library(), probe.RoundFacts(), new ProposalStore(probe.Data()), null, new SiteRegionStore(null),
+            SuggestedTagsService probeService = new(probe.Library(), probe.RoundFacts(),
+                new ProposalStore(probe.Data()), null, new SiteRegionStore(null),
                 () => DetectorProfile.Default, () => true, () => true);
             string suggestionsFingerprint = probeService.FingerprintFor("de_nuke");
 
@@ -162,7 +170,8 @@ public class DemoCachePackPayloadTests
             string key = DemoCacheStore.StableKey(Demo);
             Directory.CreateDirectory(Path.Combine(root, "demos"));
             await File.WriteAllBytesAsync(Path.Combine(root, "demos", key + ".json.gz"),
-                SidecarJson.Gzip(Encoding.UTF8.GetBytes(OldRecordJson(rows, roundIndexFingerprint, suggestionsFingerprint))));
+                SidecarJson.Gzip(
+                    Encoding.UTF8.GetBytes(OldRecordJson(rows, roundIndexFingerprint, suggestionsFingerprint))));
             await File.WriteAllTextAsync(Path.Combine(root, "index.json"),
                 OldIndexJson(roundIndexFingerprint, suggestionsFingerprint));
 
@@ -171,8 +180,10 @@ public class DemoCachePackPayloadTests
             DemoCacheRecord record = cache.TryLoadRecord(Demo)!;
 
             RoundFactsEvaluator roundFacts = new(cache, new NoRows(), new FixedIdentity("rf-A"));
-            RoundIndexEvaluator roundIndex = new(cache.Library(), cache.RoundFacts(), new RoundIndexStore(cache.Data()), sources, () => true, walk: _ => []);
-            SuggestedTagsService suggestions = new(cache.Library(), cache.RoundFacts(), new ProposalStore(cache.Data()), null, new SiteRegionStore(null),
+            RoundIndexEvaluator roundIndex = new(cache.Library(), cache.RoundFacts(), new RoundIndexStore(cache.Data()),
+                sources, () => true, walk: _ => []);
+            SuggestedTagsService suggestions = new(cache.Library(), cache.RoundFacts(), new ProposalStore(cache.Data()),
+                null, new SiteRegionStore(null),
                 () => DetectorProfile.Default, () => true, () => true);
             GrenadeIndexEvaluator grenades = new(cache.Library(), cache.Grenades(), () => true);
 
@@ -181,20 +192,36 @@ public class DemoCachePackPayloadTests
                 // Folded: the payload and every stamp, from both the sidecar and the index row. The old row never
                 // mirrored the grenade write time, so that one tick count differs until the next save re-projects it.
                 await Assert.That(entry.PackStamps.Select(s => s with { ComputedAtTicks = 0 }))
-                    .IsEquivalentTo(record.PackStamps.Select(s => s with { ComputedAtTicks = 0 }), CollectionOrdering.Matching);
+                    .IsEquivalentTo(record.PackStamps.Select(s => s with { ComputedAtTicks = 0 }),
+                        CollectionOrdering.Matching);
                 await Assert.That(record.PackStamps.Select(s => s.Id)).IsEquivalentTo(
-                    [RoundFactsEvaluator.EvaluatorId, RoundIndexEvaluator.EvaluatorId, SuggestedTagsService.EvaluatorId, GrenadeIndexEvaluator.EvaluatorId], CollectionOrdering.Matching);
-                await Assert.That(record.RoundFacts!.Rounds.Count).IsEqualTo(2).Because("the rows are the record's own member");
-                await Assert.That(record.Packs[StratBookPack.PackId].GetProperty("GrenadeInputCoverage").GetDouble()).IsEqualTo(0.5);
+                [
+                    RoundFactsEvaluator.EvaluatorId, RoundIndexEvaluator.EvaluatorId, SuggestedTagsService.EvaluatorId,
+                    GrenadeIndexEvaluator.EvaluatorId
+                ], CollectionOrdering.Matching);
+                await Assert.That(record.RoundFacts!.Rounds.Count).IsEqualTo(2)
+                    .Because("the rows are the record's own member");
+                await Assert.That(record.Packs[StratBookPack.PackId].GetProperty("GrenadeInputCoverage").GetDouble())
+                    .IsEqualTo(0.5);
                 await Assert.That(record.Packs[StratBookPack.PackId].TryGetProperty("RoundFacts", out _)).IsFalse()
                     .Because("only the rows leave the payload");
-                await Assert.That(record.RoundFactsStamp()).IsEqualTo(new PackStamp(RoundFactsEvaluator.EvaluatorId, RoundFactsRecords.Schema, "rf-A"));
+                await Assert.That(record.RoundFactsStamp()).IsEqualTo(new PackStamp(RoundFactsEvaluator.EvaluatorId,
+                    RoundFactsRecords.Schema, "rf-A"));
                 await Assert.That(record.Stamp(RoundIndexEvaluator.EvaluatorId)).IsEqualTo(
-                    new PackStamp(RoundIndexEvaluator.EvaluatorId, RoundIndexStore.Schema, roundIndexFingerprint) { ComputedAtTicks = 100, Count = 12 });
+                    new PackStamp(RoundIndexEvaluator.EvaluatorId, RoundIndexStore.Schema, roundIndexFingerprint)
+                    {
+                        ComputedAtTicks = 100, Count = 12
+                    });
                 await Assert.That(record.Stamp(SuggestedTagsService.EvaluatorId)).IsEqualTo(
-                    new PackStamp(SuggestedTagsService.EvaluatorId, ProposalStore.Schema, suggestionsFingerprint) { Count = 3 });
+                    new PackStamp(SuggestedTagsService.EvaluatorId, ProposalStore.Schema, suggestionsFingerprint)
+                    {
+                        Count = 3
+                    });
                 await Assert.That(record.Stamp(GrenadeIndexEvaluator.EvaluatorId)).IsEqualTo(
-                    new PackStamp(GrenadeIndexEvaluator.EvaluatorId, GrenadeStore.Schema, GrenadeWalker.Version) { ComputedAtTicks = 200, Count = 60 });
+                    new PackStamp(GrenadeIndexEvaluator.EvaluatorId, GrenadeStore.Schema, GrenadeWalker.Version)
+                    {
+                        ComputedAtTicks = 200, Count = 60
+                    });
                 await Assert.That(record.UnknownMembers).IsNull();
                 await Assert.That(entry.UnknownMembers).IsNull();
 
@@ -212,22 +239,25 @@ public class DemoCachePackPayloadTests
                 await Assert.That(grenades.IsCurrent(Demo)).IsFalse();
 
                 // The same fixture under another ruleset is stale, so the "nothing pending" above is a decision, not a blind spot.
-                await Assert.That(new RoundFactsEvaluator(cache, new NoRows(), new FixedIdentity("rf-B")).Wants(Demo)).IsTrue();
+                await Assert.That(new RoundFactsEvaluator(cache, new NoRows(), new FixedIdentity("rf-B")).Wants(Demo))
+                    .IsTrue();
             }
 
             // The next save writes the new shape and drops the flat members.
             cache.UpdateExisting(Demo, _ => { });
             cache.SaveIndex();
-            string sidecar = Encoding.UTF8.GetString(Inflate(await File.ReadAllBytesAsync(cache.SidecarPathFor(Demo)!)));
+            string sidecar =
+                Encoding.UTF8.GetString(Inflate(await File.ReadAllBytesAsync(cache.SidecarPathFor(Demo)!)));
             string index = await File.ReadAllTextAsync(Path.Combine(root, "index.json"));
             DemoCacheStore reopened = new(root);
 
             using (Assert.Multiple())
             {
-                await Assert.That(sidecar).Contains("\"Packs\":{\"net.demoviewer.pack.stratbook\":{\"GrenadeInputCoverage\":0.5}}");
+                await Assert.That(sidecar)
+                    .Contains("\"Packs\":{\"net.demoviewer.pack.stratbook\":{\"GrenadeInputCoverage\":0.5}}");
                 await Assert.That(sidecar).Contains("\"PackStamps\":[");
                 await Assert.That(index).Contains("\"PackStamps\":[");
-                foreach (string legacy in LegacyMembers)
+                foreach (string legacy in _legacyMembers)
                 {
                     await Assert.That(index).DoesNotContain(legacy);
 
@@ -240,10 +270,13 @@ public class DemoCachePackPayloadTests
 
                 await Assert.That(sidecar).DoesNotContain("\"RoundFactsFingerprint\"");
                 await Assert.That(sidecar.IndexOf("\"RoundFacts\":", StringComparison.Ordinal))
-                    .IsLessThan(sidecar.IndexOf("\"Packs\":", StringComparison.Ordinal)).Because("the rows sit on the record, outside the payload");
+                    .IsLessThan(sidecar.IndexOf("\"Packs\":", StringComparison.Ordinal))
+                    .Because("the rows sit on the record, outside the payload");
 
-                await Assert.That(reopened.TryGetIndex(Demo)!.PackStamps).IsEquivalentTo(record.PackStamps, CollectionOrdering.Matching);
-                await Assert.That(reopened.TryLoadRecord(Demo)!.PackStamps).IsEquivalentTo(record.PackStamps, CollectionOrdering.Matching);
+                await Assert.That(reopened.TryGetIndex(Demo)!.PackStamps)
+                    .IsEquivalentTo(record.PackStamps, CollectionOrdering.Matching);
+                await Assert.That(reopened.TryLoadRecord(Demo)!.PackStamps)
+                    .IsEquivalentTo(record.PackStamps, CollectionOrdering.Matching);
                 await Assert.That(reopened.RoundFactsOf(Demo)!.Rounds.Count).IsEqualTo(2);
             }
         }
@@ -259,6 +292,7 @@ public class DemoCachePackPayloadTests
     public async Task PayloadShape_RoundFactsLiftOntoTheRecord_AndOnlyThatMemberLeavesThePayload()
     {
         RoundFactsRows rows = Facts(Round(1, 1000, 2000), Round(2, 3000, 4000));
+
         JsonObject Record(string path, bool coverage)
         {
             JsonObject payload = new() { ["RoundFacts"] = JsonSerializer.SerializeToNode(rows) };
@@ -271,7 +305,10 @@ public class DemoCachePackPayloadTests
             {
                 ["Path"] = path,
                 ["Packs"] = new JsonObject { [StratBookPack.PackId] = payload },
-                ["PackStamps"] = new JsonArray(new JsonObject { ["Id"] = "roundfacts", ["Schema"] = 1, ["Fingerprint"] = "rf-A", ["State"] = 1 })
+                ["PackStamps"] = new JsonArray(new JsonObject
+                {
+                    ["Id"] = "roundfacts", ["Schema"] = 1, ["Fingerprint"] = "rf-A", ["State"] = 1
+                })
             };
         }
 
@@ -285,8 +322,10 @@ public class DemoCachePackPayloadTests
         {
             await Assert.That(a.RoundFacts?.Rounds.Count).IsEqualTo(2);
             await Assert.That(a.Packs[StratBookPack.PackId].TryGetProperty("RoundFacts", out _)).IsFalse();
-            await Assert.That(a.Packs[StratBookPack.PackId].GetProperty("GrenadeInputCoverage").GetDouble()).IsEqualTo(0.5);
-            await Assert.That(a.IsRoundFactsCurrent("rf-A")).IsTrue().Because("the stamp rides the record, untouched by the lift");
+            await Assert.That(a.Packs[StratBookPack.PackId].GetProperty("GrenadeInputCoverage").GetDouble())
+                .IsEqualTo(0.5);
+            await Assert.That(a.IsRoundFactsCurrent("rf-A")).IsTrue()
+                .Because("the stamp rides the record, untouched by the lift");
             await Assert.That(b.RoundFacts?.Rounds.Count).IsEqualTo(2);
             await Assert.That(b.Packs).IsEmpty().Because("nothing else rode the payload");
             await Assert.That(JsonSerializer.Serialize(b)).DoesNotContain("net.demoviewer.pack.stratbook")
@@ -298,24 +337,29 @@ public class DemoCachePackPayloadTests
     public async Task OldShape_WithUntouchedFacets_FoldsOnlyWhatWasWritten()
     {
         // A record indexed while the pack was off: the flat fields are present at their defaults.
-        const string json = """
-            {"Path":"/d/off.dem","Size":10,"ModifiedTicks":20,"Parse":{"Schema":1,"ComputedAtTicks":5},
-             "RoundFacts":null,"RoundFactsFingerprint":null,
-             "RoundIndex":{"Schema":0,"ComputedAtTicks":0},"RoundIndexState":0,"RoundIndexFingerprint":null,"RoundIndexRowCount":0,
-             "SuggestionsFingerprint":null,"SuggestionCount":0,
-             "Grenades":{"Schema":0,"ComputedAtTicks":0},"GrenadeState":2,"GrenadeCount":0,"GrenadeWalker":null,"GrenadeInputCoverage":0}
-            """;
-        DemoCacheRecord record = JsonSerializer.Deserialize<DemoCacheRecord>(json)!;
+        const string Json = """
+                            {"Path":"/d/off.dem","Size":10,"ModifiedTicks":20,"Parse":{"Schema":1,"ComputedAtTicks":5},
+                             "RoundFacts":null,"RoundFactsFingerprint":null,
+                             "RoundIndex":{"Schema":0,"ComputedAtTicks":0},"RoundIndexState":0,"RoundIndexFingerprint":null,"RoundIndexRowCount":0,
+                             "SuggestionsFingerprint":null,"SuggestionCount":0,
+                             "Grenades":{"Schema":0,"ComputedAtTicks":0},"GrenadeState":2,"GrenadeCount":0,"GrenadeWalker":null,"GrenadeInputCoverage":0}
+                            """;
+        DemoCacheRecord record = JsonSerializer.Deserialize<DemoCacheRecord>(Json)!;
         DemoCacheIndexEntry entry = JsonSerializer.Deserialize<DemoCacheIndexEntry>(
-            """{"Path":"/d/off.dem","ParseSchema":1,"RoundFactsSchema":0,"RoundIndexSchema":0,"RoundIndexState":0,"SuggestionCount":0,"GrenadeSchema":0,"GrenadeState":2}""")!;
+                """{"Path":"/d/off.dem","ParseSchema":1,"RoundFactsSchema":0,"RoundIndexSchema":0,"RoundIndexState":0,"SuggestionCount":0,"GrenadeSchema":0,"GrenadeState":2}""")
+            !;
 
         using (Assert.Multiple())
         {
             await Assert.That(record.Packs).IsEmpty().Because("no rows and no coverage: no payload");
-            await Assert.That(record.PackStamps.Select(s => s.Id)).IsEquivalentTo([GrenadeIndexEvaluator.EvaluatorId], CollectionOrdering.Matching)
+            await Assert.That(record.PackStamps.Select(s => s.Id))
+                .IsEquivalentTo([GrenadeIndexEvaluator.EvaluatorId], CollectionOrdering.Matching)
                 .Because("only the failed grenade walk left a mark");
-            await Assert.That(record.Stamp(GrenadeIndexEvaluator.EvaluatorId)!.State).IsEqualTo(DemoAnalysisState.Failed);
-            await Assert.That(record.NeedsPack(GrenadeIndexEvaluator.EvaluatorId, GrenadeStore.Schema, GrenadeWalker.Version)).IsFalse()
+            await Assert.That(record.Stamp(GrenadeIndexEvaluator.EvaluatorId)!.State)
+                .IsEqualTo(DemoAnalysisState.Failed);
+            await Assert
+                .That(record.NeedsPack(GrenadeIndexEvaluator.EvaluatorId, GrenadeStore.Schema, GrenadeWalker.Version))
+                .IsFalse()
                 .Because("a failure stays excluded across the fold");
             await Assert.That(record.NeedsRoundFacts("rf-A")).IsTrue();
             await Assert.That(entry.PackStamps).IsEquivalentTo(record.PackStamps, CollectionOrdering.Matching);
@@ -338,7 +382,8 @@ public class DemoCachePackPayloadTests
         DemoProcessingQueue queue = new(new HeavyJobGate(), a => a(), _ =>
         {
             Interlocked.Increment(ref parses);
-            return SyntheticParsedDemo.Create([], [], new Dictionary<int, PlayerInfo>(), null, "de_test", 0, 1f / 64, "s", "c",
+            return SyntheticParsedDemo.Create([], [], new Dictionary<int, PlayerInfo>(), null, "de_test", 0, 1f / 64,
+                "s", "c",
                 "csgo", 0, 0, 0, "v", "", "", DemoProfile.Unknown);
         });
         StampedFake evaluator = new(cache, FakeFacet, 1, "fp-1");
@@ -361,8 +406,10 @@ public class DemoCachePackPayloadTests
         {
             await Assert.That(evaluator.Evaluated).IsEqualTo(1).Because("a stale stamp is submitted once");
             await Assert.That(parses).IsEqualTo(1);
-            await Assert.That(cache.TryGetIndex(Demo)!.IsPackCurrent(FakeFacet, 1, "fp-1")).IsTrue().Because("the evaluator stamped on its own write");
-            await Assert.That(cache.TryLoadRecord(Demo)!.Packs[FakePack].GetString()).IsEqualTo("opaque").Because("the payload went untouched");
+            await Assert.That(cache.TryGetIndex(Demo)!.IsPackCurrent(FakeFacet, 1, "fp-1")).IsTrue()
+                .Because("the evaluator stamped on its own write");
+            await Assert.That(cache.TryLoadRecord(Demo)!.Packs[FakePack].GetString()).IsEqualTo("opaque")
+                .Because("the payload went untouched");
         }
     }
 
@@ -371,27 +418,33 @@ public class DemoCachePackPayloadTests
     [Test]
     public async Task IndexAndRecord_DoNotGrow_AgainstTheOldShape()
     {
-        const int demos = 400;
-        string roundIndexFingerprint = new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn).FingerprintFor("de_nuke");
+        const int Demos = 400;
+        string roundIndexFingerprint =
+            new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn).FingerprintFor("de_nuke");
         string suggestionsFingerprint = Convert.ToHexStringLower(SHA256.HashData("detector set"u8));
         string roundFactsFingerprint = Convert.ToHexStringLower(SHA256.HashData("round facts"u8));
 
-        (long oldAll, long newAll) = IndexBytes(demos, i => AllFacets(i, roundFactsFingerprint, roundIndexFingerprint, suggestionsFingerprint));
-        (long oldTypical, long newTypical) = IndexBytes(demos, i => TypicalFacets(i, roundFactsFingerprint, roundIndexFingerprint));
-        (long oldRecord, long newRecord) = RecordBytes(roundFactsFingerprint, roundIndexFingerprint, suggestionsFingerprint);
+        (long oldAll, long newAll) = IndexBytes(Demos,
+            i => AllFacets(i, roundFactsFingerprint, roundIndexFingerprint, suggestionsFingerprint));
+        (long oldTypical, long newTypical) =
+            IndexBytes(Demos, i => TypicalFacets(i, roundFactsFingerprint, roundIndexFingerprint));
+        (long oldRecord, long newRecord) =
+            RecordBytes(roundFactsFingerprint, roundIndexFingerprint, suggestionsFingerprint);
 
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"[index size] {demos} rows, all four facets: old {oldAll} B, new {newAll} B ({(newAll - oldAll) / (double)demos:+0.0;-0.0} B/row)"));
+            $"[index size] {Demos} rows, all four facets: old {oldAll} B, new {newAll} B ({(newAll - oldAll) / (double)Demos:+0.0;-0.0} B/row)"));
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"[index size] {demos} rows, round facts + round index: old {oldTypical} B, new {newTypical} B ({(newTypical - oldTypical) / (double)demos:+0.0;-0.0} B/row)"));
+            $"[index size] {Demos} rows, round facts + round index: old {oldTypical} B, new {newTypical} B ({(newTypical - oldTypical) / (double)Demos:+0.0;-0.0} B/row)"));
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"[record size] one record with rows, gzipped: old {oldRecord} B, new {newRecord} B"));
 
         using (Assert.Multiple())
         {
-            await Assert.That(newAll).IsLessThanOrEqualTo(oldAll + 60 * demos).Because("the four stamps cost at most ~60 B more per row than the flat mirrors");
+            await Assert.That(newAll).IsLessThanOrEqualTo(oldAll + 60 * Demos)
+                .Because("the four stamps cost at most ~60 B more per row than the flat mirrors");
             await Assert.That(newTypical).IsLessThan(oldTypical).Because("facets never written cost nothing");
-            await Assert.That(newRecord).IsLessThanOrEqualTo(oldRecord + 64).Because("the record wraps the same members");
+            await Assert.That(newRecord).IsLessThanOrEqualTo(oldRecord + 64)
+                .Because("the record wraps the same members");
         }
     }
 
@@ -414,9 +467,9 @@ public class DemoCachePackPayloadTests
     {
         DemoCacheRecord record = AllFacets(1, roundFacts, roundIndex, suggestions);
         JsonObject json = JsonSerializer.SerializeToNode(record)!.AsObject();
-        JsonNode? payload = json["Packs"]!["net.demoviewer.pack.stratbook"]!.DeepClone();
+        JsonNode payload = json["Packs"]!["net.demoviewer.pack.stratbook"]!.DeepClone();
         json.Remove("Packs");
-        JsonObject old = OldShape(json, record.PackStamps, payload!.AsObject());
+        JsonObject old = OldShape(json, record.PackStamps, payload.AsObject());
         return (Gzip(old.ToJsonString()), Gzip(JsonSerializer.Serialize(record)));
     }
 
@@ -456,7 +509,10 @@ public class DemoCachePackPayloadTests
         }
         else
         {
-            json["RoundIndex"] = new JsonObject { ["Schema"] = ri?.Schema ?? 0, ["ComputedAtTicks"] = ri?.ComputedAtTicks ?? 0 };
+            json["RoundIndex"] = new JsonObject
+            {
+                ["Schema"] = ri?.Schema ?? 0, ["ComputedAtTicks"] = ri?.ComputedAtTicks ?? 0
+            };
         }
 
         json["RoundIndexState"] = (int)(ri?.State ?? DemoAnalysisState.Pending);
@@ -470,7 +526,10 @@ public class DemoCachePackPayloadTests
         }
         else
         {
-            json["Grenades"] = new JsonObject { ["Schema"] = gr?.Schema ?? 0, ["ComputedAtTicks"] = gr?.ComputedAtTicks ?? 0 };
+            json["Grenades"] = new JsonObject
+            {
+                ["Schema"] = gr?.Schema ?? 0, ["ComputedAtTicks"] = gr?.ComputedAtTicks ?? 0
+            };
         }
 
         json["GrenadeState"] = (int)(gr?.State ?? DemoAnalysisState.Pending);
@@ -487,11 +546,11 @@ public class DemoCachePackPayloadTests
     private static DemoCacheRecord AllFacets(int i, string roundFacts, string roundIndex, string suggestions)
     {
         DemoCacheRecord record = TypicalFacets(i, roundFacts, roundIndex);
-        record.SetStamp(new PackStamp(SuggestedTagsService.EvaluatorId, ProposalStore.Schema, suggestions) { Count = 3 });
+        record.SetStamp(
+            new PackStamp(SuggestedTagsService.EvaluatorId, ProposalStore.Schema, suggestions) { Count = 3 });
         record.SetStamp(new PackStamp(GrenadeIndexEvaluator.EvaluatorId, GrenadeStore.Schema, GrenadeWalker.Version)
         {
-            ComputedAtTicks = 638_000_000_000_000_000 + i,
-            Count = 60
+            ComputedAtTicks = 638_000_000_000_000_000 + i, Count = 60
         });
         record.Packs[StratBookPack.PackId] = JsonSerializer.SerializeToElement(new { GrenadeInputCoverage = 0.998 });
         return record;
@@ -499,23 +558,27 @@ public class DemoCachePackPayloadTests
 
     private static DemoCacheRecord TypicalFacets(int i, string roundFacts, string roundIndex)
     {
-        DemoCacheRecord record = ParsedRecord($"/demos/match-{i:D4}.dem", sha: Convert.ToHexStringLower(SHA256.HashData(BitConverter.GetBytes(i))),
+        DemoCacheRecord record = ParsedRecord($"/demos/match-{i:D4}.dem",
+            sha: Convert.ToHexStringLower(SHA256.HashData(BitConverter.GetBytes(i))),
             facts: Facts(Round(1, 1000, 2000), Round(2, 3000, 4000)));
         record.SetRoundFacts(record.RoundFacts!, roundFacts);
         record.SetStamp(new PackStamp(RoundIndexEvaluator.EvaluatorId, RoundIndexStore.Schema, roundIndex)
         {
-            ComputedAtTicks = 638_000_000_000_000_000 + i,
-            Count = 1500
+            ComputedAtTicks = 638_000_000_000_000_000 + i, Count = 1500
         });
         for (int slot = 0; slot < 10; slot++)
         {
-            record.Players.Add(new CachedPlayerInfo { Slot = slot, Name = $"player {slot}", SteamId64 = $"7656119800000{slot:D4}", Team = slot < 5 ? 2 : 3 });
+            record.Players.Add(new CachedPlayerInfo
+            {
+                Slot = slot, Name = $"player {slot}", SteamId64 = $"7656119800000{slot:D4}", Team = slot < 5 ? 2 : 3
+            });
         }
 
         return record;
     }
 
-    private static string OldRecordJson(RoundFactsRows rows, string roundIndexFingerprint, string suggestionsFingerprint)
+    private static string OldRecordJson(RoundFactsRows rows, string roundIndexFingerprint,
+        string suggestionsFingerprint)
     {
         JsonObject json = new()
         {
@@ -566,13 +629,15 @@ public class DemoCachePackPayloadTests
             ["GrenadeCount"] = 60,
             ["GrenadeWalker"] = GrenadeWalker.Version
         };
-        return new JsonObject { ["Version"] = 2, ["LegacyMigrationVersion"] = 1, ["Entries"] = new JsonArray(row) }.ToJsonString();
+        return new JsonObject { ["Version"] = 2, ["LegacyMigrationVersion"] = 1, ["Entries"] = new JsonArray(row) }
+            .ToJsonString();
     }
 
     private static long Gzip(string json)
     {
         using MemoryStream buffer = new();
-        using (System.IO.Compression.GZipStream gzip = new(buffer, System.IO.Compression.CompressionLevel.Optimal, true))
+        using (System.IO.Compression.GZipStream
+               gzip = new(buffer, System.IO.Compression.CompressionLevel.Optimal, true))
         {
             gzip.Write(Encoding.UTF8.GetBytes(json));
         }
@@ -591,8 +656,8 @@ public class DemoCachePackPayloadTests
 
     private sealed class FakePayload
     {
-        public string Name { get; set; } = "";
-        public List<int> Values { get; set; } = [];
+        public string Name { get; init; } = "";
+        public List<int> Values { get; init; } = [];
     }
 
     private sealed class NoRows : IRoundFactsRowSource
@@ -602,11 +667,12 @@ public class DemoCachePackPayloadTests
 
     private sealed class FixedIdentity(string value) : IRoundFactsRulesetIdentity
     {
-        public string? Fingerprint(int tickRate) => value;
+        public string Fingerprint(int tickRate) => value;
     }
 
     // A pack evaluator as core sees one: it wants a demo from the index row's stamp and stamps on its write.
-    private sealed class StampedFake(DemoCacheStore cache, string facet, int schema, string fingerprint) : IDemoEvaluator
+    private sealed class StampedFake(DemoCacheStore cache, string facet, int schema, string fingerprint)
+        : IDemoEvaluator
     {
         private int _evaluated;
 
@@ -614,7 +680,8 @@ public class DemoCachePackPayloadTests
 
         public string Id => "fake";
 
-        public bool Wants(string path) => cache.TryGetIndex(path) is { } entry && entry.NeedsPack(facet, schema, fingerprint);
+        public bool Wants(string path) =>
+            cache.TryGetIndex(path) is { } entry && entry.NeedsPack(facet, schema, fingerprint);
 
         public void Evaluate(string path, ParsedDemo parsed)
         {

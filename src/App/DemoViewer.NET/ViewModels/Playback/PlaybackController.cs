@@ -17,7 +17,7 @@ namespace DemoViewer.NET.ViewModels.Playback;
 ///     the controller raises <c>Advanced&lt;PlaybackFrame&gt;</c>; the module context raises
 ///     <c>Advanced&lt;IPlaybackSnapshot&gt;</c>.
 /// </summary>
-public readonly record struct PlaybackFrame(int FrameIndex, int Tick);
+public readonly record struct PlaybackFrame(int FrameIndex);
 
 /// <summary>
 ///     The single authoritative owner of "current position" and of the authoritative
@@ -221,7 +221,7 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
     }
 
     /// <summary>Clears playback state on demo unload / reparse.</summary>
-    public void Reset()
+    private void Reset()
     {
         StopTimer();
         CurrentFrameIndex = -1;
@@ -364,7 +364,7 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
         CancelInFlightSeek?.Invoke();
 
         // Snapshot the current fields BEFORE stepping so EntityTab's delta highlighting survives.
-        Dictionary<int, Dictionary<string, object?>>? prevSnapshot = tracker.SnapshotCurrentFields();
+        Dictionary<int, Dictionary<string, object?>> prevSnapshot = tracker.SnapshotCurrentFields();
 
         _applying = true;
         try
@@ -392,15 +392,6 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
 
     /// <summary>Discrete backward step (always a discrete re-seek).</summary>
     public void StepBack() => SeekToFrame(CurrentFrameIndex - 1);
-
-    /// <summary>Seeks to the last frame.</summary>
-    public void SeekToEnd()
-    {
-        if (TotalFrames > 0)
-        {
-            SeekToFrame(TotalFrames - 1);
-        }
-    }
 
     // ── Play loop ─────────────────────────────────────────────────────────────
 
@@ -434,10 +425,7 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
 
         IsPlaying = true;
         _frameAccumulator = 0;
-        _timer = new DispatcherTimer
-        {
-            Interval = TimerInterval()
-        };
+        _timer = new DispatcherTimer { Interval = TimerInterval() };
         _timer.Tick += OnTimerTick;
         _timer.Start();
     }
@@ -483,7 +471,7 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
 
     /// <summary>Toggles between <see cref="Play" /> and <see cref="Pause" />.</summary>
     [RelayCommand]
-    public void TogglePlay()
+    private void TogglePlay()
     {
         if (IsPlaying)
         {
@@ -603,7 +591,7 @@ public sealed partial class PlaybackController : ObservableObject, IDisposable
         Dispatcher.UIThread.Post(() =>
         {
             _advancePending = false;
-            Advanced?.Invoke(new PlaybackFrame(CurrentFrameIndex, CurrentTick));
+            Advanced?.Invoke(new PlaybackFrame(CurrentFrameIndex));
         }, DispatcherPriority.Render);
     }
 

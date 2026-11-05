@@ -6,6 +6,7 @@ namespace DemoViewer.NET.Modules.Abstractions;
 ///     <c>EntityTracker</c>, the raw byte buffer, the <c>DemoParser</c>, or any mutator. A module
 ///     simply has no API to corrupt state (the primary, real guardrail).
 /// </summary>
+[PublicAPI]
 public interface IModuleContext
 {
     // ── Identity / lifecycle ──
@@ -81,7 +82,7 @@ public interface IModuleContext
     ///     A module builds its own forward-nav filter from this set so it only offers jumps the demo can
     ///     actually satisfy (asset/demo-independent). Empty when no navigator is exposed.
     /// </summary>
-    IReadOnlyCollection<string> AvailableEventNames => Array.Empty<string>();
+    IReadOnlyCollection<string> AvailableEventNames => [];
 
     // ── Timeline / transport seams (Playback2D v2) ──
     // All additive with default implementations, so every existing host and hand-rolled test double keeps
@@ -199,7 +200,7 @@ public interface IModuleContext
     ///     Sort by <see cref="GameEventView.Tick" /> before display if order matters. Empty default for hosts
     ///     / test doubles that don't expose a demo.
     /// </summary>
-    IReadOnlyList<GameEventView> GetEventTimeline(string eventName) => Array.Empty<GameEventView>();
+    IReadOnlyList<GameEventView> GetEventTimeline(string eventName) => [];
 
     /// <summary>
     ///     First frame index at/after <paramref name="tick" />, or -1 when unknown / past the end.
@@ -211,9 +212,9 @@ public interface IModuleContext
     /// <summary>
     ///     Sorted, de-duplicated FRAME indices carrying <paramref name="eventName" />, the module-facing
     ///     projection of the shell's SemanticNavigator index (the same array its Next/Prev use). Empty
-    ///     when the demo lacks the event or the host exposes no navigator.
+    ///     when the demo lacks the event, the name is null, or the host exposes no navigator.
     /// </summary>
-    IReadOnlyList<int> EventFrames(string eventName) => Array.Empty<int>();
+    IReadOnlyList<int> EventFrames(string? eventName) => [];
 
     /// <summary>
     ///     Requests a playback-speed change (clamped host-side to [0.25, 8]).

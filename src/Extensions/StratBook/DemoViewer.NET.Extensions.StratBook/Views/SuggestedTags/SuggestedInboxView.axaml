@@ -12,19 +12,24 @@
 
     <DockPanel Margin="16">
         <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0 0 0 12">
-            <TextBlock Text="{Binding StatusLine}" FontSize="12" Foreground="{DynamicResource TextValue}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding StatusLine}" FontSize="12" Foreground="{DynamicResource TextValue}"
+                       TextWrapping="Wrap" />
             <WrapPanel Orientation="Horizontal">
                 <ComboBox ItemsSource="{Binding Maps}" SelectedItem="{Binding MapFilter}" FontSize="11" MinWidth="120"
                           Margin="0 0 8 6" ToolTip.Tip="Show one map's suggestions" />
-                <ComboBox ItemsSource="{Binding Sides}" SelectedItem="{Binding SideFilter}" FontSize="11" MinWidth="100"
+                <ComboBox ItemsSource="{Binding Sides}" SelectedItem="{Binding SideFilter}" FontSize="11"
+                          MinWidth="100"
                           Margin="0 0 8 6" ToolTip.Tip="Show one side's suggestions" />
-                <ComboBox ItemsSource="{Binding Detectors}" SelectedItem="{Binding DetectorFilter}" FontSize="11" MinWidth="120"
+                <ComboBox ItemsSource="{Binding Detectors}" SelectedItem="{Binding DetectorFilter}" FontSize="11"
+                          MinWidth="120"
                           Margin="0 0 8 6" ToolTip.Tip="Show one detector's suggestions" />
                 <TextBlock Text="min confidence" FontSize="11" VerticalAlignment="Center" Margin="0 0 6 6"
                            Foreground="{DynamicResource TextMid}" />
-                <Slider Width="110" Minimum="0" Maximum="0.95" SmallChange="0.05" LargeChange="0.1" TickFrequency="0.05"
+                <Slider Width="110" Minimum="0" Maximum="0.95" SmallChange="0.05" LargeChange="0.1"
+                        TickFrequency="0.05"
                         IsSnapToTickEnabled="True" Value="{Binding MinConfidence}" Margin="0 0 12 6" />
-                <CheckBox Content="{Binding SettledLabel}" IsChecked="{Binding ShowSettled}" FontSize="11" Margin="0 0 0 6"
+                <CheckBox Content="{Binding SettledLabel}" IsChecked="{Binding ShowSettled}" FontSize="11"
+                          Margin="0 0 0 6"
                           ToolTip.Tip="Also list the suggestions you accepted or dismissed" />
             </WrapPanel>
         </StackPanel>
@@ -48,7 +53,8 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:SuggestedInboxRow">
-                    <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                    <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderSubtle}"
+                            BorderThickness="1"
                             CornerRadius="6" Padding="10 6" Margin="0 0 0 6">
                         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10">
                             <TextBlock Grid.Row="0" Grid.Column="0" FontSize="12" TextTrimming="CharacterEllipsis">
@@ -58,21 +64,28 @@
                             </TextBlock>
                             <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding WhereText}" FontSize="10"
                                        Foreground="{DynamicResource TextMid}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding ReasonText}" FontSize="10" TextWrapping="Wrap"
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding ReasonText}" FontSize="10"
+                                       TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextMid}" />
-                            <StackPanel Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                            <StackPanel Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Orientation="Horizontal"
+                                        Spacing="6"
                                         VerticalAlignment="Center">
                                 <Button Content="Open" Classes="ghost" FontSize="11" Padding="10 4"
-                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).OpenCommand}"
-                                        CommandParameter="{Binding}" ToolTip.Tip="Open the demo in 2D Playback at this suggestion" />
-                                <Button Content="Accept" Classes="ghost" FontSize="11" Padding="10 4" IsVisible="{Binding IsNew}"
-                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).AcceptCommand}"
-                                        CommandParameter="{Binding}" ToolTip.Tip="Write this tag into the demo's tags as proposed" />
-                                <Button Content="Dismiss" Classes="ghost" FontSize="11" Padding="10 4" IsVisible="{Binding IsNew}"
-                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).DismissCommand}"
+                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).OpenCommand, FallbackValue={x:Null}}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip.Tip="Open the demo in 2D Playback at this suggestion" />
+                                <Button Content="Accept" Classes="ghost" FontSize="11" Padding="10 4"
+                                        IsVisible="{Binding IsNew}"
+                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).AcceptCommand, FallbackValue={x:Null}}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip.Tip="Write this tag into the demo's tags as proposed" />
+                                <Button Content="Dismiss" Classes="ghost" FontSize="11" Padding="10 4"
+                                        IsVisible="{Binding IsNew}"
+                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).DismissCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" />
-                                <Button Content="Restore" Classes="ghost" FontSize="11" Padding="10 4" IsVisible="{Binding IsDismissed}"
-                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).RestoreCommand}"
+                                <Button Content="Restore" Classes="ghost" FontSize="11" Padding="10 4"
+                                        IsVisible="{Binding IsDismissed}"
+                                        Command="{Binding $parent[ItemsControl].((vm:SuggestedInboxViewModel)DataContext).RestoreCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" />
                             </StackPanel>
                         </Grid>

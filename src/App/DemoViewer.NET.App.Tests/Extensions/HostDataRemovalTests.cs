@@ -1,6 +1,5 @@
 #region
 
-using System.Text;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Services;
@@ -28,7 +27,8 @@ public class HostDataRemovalTests
         string otherId = id + ".other";
         string configRoot = AppPaths.ConfigRoot!;
         string cacheRoot = AppPaths.DemoCacheDir!;
-        Pack pack = new(id, [new StoreDescriptor("legacy", "Legacy", StoreRoot.Config, [id + "-legacy.json"], IsUserWork: true)]);
+        Pack pack = new(id,
+            [new StoreDescriptor("legacy", "Legacy", StoreRoot.Config, [id + "-legacy.json"], IsUserWork: true)]);
         ServiceCollection services = new();
         services.AddSingleton<ExtensionShellHub>();
         services.AddSingleton(new DemoCacheStore(null));
@@ -36,8 +36,8 @@ public class HostDataRemovalTests
         ExtensionContext context = new(pack, sp);
         sp.GetRequiredService<DemoCacheStore>().Update("/demos/a.dem", 1, 1, r => r.Sha256 = "aaaa");
 
-        context.Stores.Own(StoreRoot.Config)!.WriteAtomic("notes.json", Encoding.UTF8.GetBytes("{}"));
-        context.Stores.Own(StoreRoot.Cache)!.WriteAtomic("index.bin", new byte[] { 1 });
+        context.Stores.Own(StoreRoot.Config)!.WriteAtomic("notes.json", "{}"u8);
+        context.Stores.Own(StoreRoot.Cache)!.WriteAtomic("index.bin", [1]);
         context.Data.Write("/demos/a.dem", new DemoDataWrite("rounds", 1, "fp", new byte[] { 1, 2 }));
         string declared = Path.Combine(configRoot, id + "-legacy.json");
         await File.WriteAllTextAsync(declared, "{}");
@@ -61,10 +61,13 @@ public class HostDataRemovalTests
             using (Assert.Multiple())
             {
                 await Assert.That(result.Ran).IsTrue();
-                await Assert.That(Directory.Exists(Path.Combine(configRoot, ExtensionFolders.DataDirectoryName, id))).IsFalse();
-                await Assert.That(Directory.Exists(Path.Combine(cacheRoot, ExtensionFolders.DataDirectoryName, id))).IsFalse();
+                await Assert.That(Directory.Exists(Path.Combine(configRoot, ExtensionFolders.DataDirectoryName, id)))
+                    .IsFalse();
+                await Assert.That(Directory.Exists(Path.Combine(cacheRoot, ExtensionFolders.DataDirectoryName, id)))
+                    .IsFalse();
                 await Assert.That(File.Exists(declared)).IsFalse();
-                await Assert.That(context.Data.Stamp("/demos/a.dem", "rounds")).IsNull().Because("the index was forgotten with the files");
+                await Assert.That(context.Data.Stamp("/demos/a.dem", "rounds")).IsNull()
+                    .Because("the index was forgotten with the files");
                 await Assert.That(File.Exists(Path.Combine(otherFolder, "keep.json"))).IsTrue();
                 await Assert.That(deleted).IsEqualTo(1);
             }
@@ -91,7 +94,9 @@ public class HostDataRemovalTests
             .FirstOrDefault(s => s.Id == "facts:" + RulesetContribution.QualifiedId(id, "kills"));
 
         await Assert.That(facts).IsNotNull();
-        await Assert.That(facts!.Paths).IsEquivalentTo([$"demos/*.facts.{RulesetContribution.QualifiedId(id, "kills")}.json.gz"], CollectionOrdering.Matching);
+        await Assert.That(facts!.Paths)
+            .IsEquivalentTo([$"demos/*.facts.{RulesetContribution.QualifiedId(id, "kills")}.json.gz"],
+                CollectionOrdering.Matching);
     }
 
     /// <summary>
@@ -135,7 +140,11 @@ public class HostDataRemovalTests
         await using ServiceProvider sp = services.BuildServiceProvider();
         PackContributions contributions = new(pack, () => new ExtensionContext(pack, sp));
         contributions.Pass(id + ".reader", () => new ExtensionPassHostTests.FakePass { PassName = id + ".reader" });
-        contributions.Ruleset(new RulesetContribution("kills", () => new MemoryStream()) { ReadBy = id + ".reader", ReadsUserCommands = true });
+        contributions.Ruleset(
+            new RulesetContribution("kills", () => new MemoryStream())
+            {
+                ReadBy = id + ".reader", ReadsUserCommands = true
+            });
 
         IReadOnlyList<StoreDescriptor> stores = new HostDataRemoval(contributions, sp).Stores;
         ExtensionPassHost host = (ExtensionPassHost)contributions.Passes.Single().Factory();
@@ -145,7 +154,8 @@ public class HostDataRemovalTests
             await Assert.That(stores.Any(s => s.Id.StartsWith("facts:", StringComparison.Ordinal))).IsFalse();
             await Assert.That(contributions.Rulesets.Single().ReadBy).IsEqualTo(id + ".reader");
             await Assert.That(contributions.Rulesets.Single().ReadsUserCommands).IsTrue();
-            await Assert.That(host.TableRulesets).IsEquivalentTo([RulesetContribution.QualifiedId(id, "kills")], CollectionOrdering.Matching);
+            await Assert.That(host.TableRulesets).IsEquivalentTo([RulesetContribution.QualifiedId(id, "kills")],
+                CollectionOrdering.Matching);
             await Assert.That(host.Needs(new VisitedDemo("/d/match.dem")).UserCommands).IsTrue()
                 .Because("the ruleset's declaration reaches the pass's needs");
         }
@@ -176,11 +186,11 @@ public class HostDataRemovalTests
     private sealed class Pack(string id, IEnumerable<StoreDescriptor>? stores = null) : IExtension, IManifestSource
     {
         public ExtensionManifest Manifest { get; } = ExtensionManifest.Parse($$"""
-            {
-              "id": "{{id}}", "name": "Remove", "version": "1.0.0", "assembly": "Remove.dll", "entryType": "Remove.Pack",
-              "requiresHost": "^1.0", "requiresCs2DemoKit": "0.14.0", "rulesets": ["kills"]
-            }
-            """);
+                                                                               {
+                                                                                 "id": "{{id}}", "name": "Remove", "version": "1.0.0", "assembly": "Remove.dll", "entryType": "Remove.Pack",
+                                                                                 "requiresHost": "^1.0", "requiresCs2DemoKit": "0.14.0", "rulesets": ["kills"]
+                                                                               }
+                                                                               """);
 
         public string Id => id;
         public string FeatureId => "pack." + id;

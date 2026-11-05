@@ -1,14 +1,14 @@
 #region
 
-using DemoViewer.NET.Extensions.StratBook;
 using System.Text.Json;
 using CS2DemoKit.Parser.EntityTracking;
-using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
-using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
+using DemoViewer.NET.Modules.Abstractions;
+using DemoViewer.NET.Playback2D.Query;
+using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 
@@ -59,20 +59,25 @@ public class WatchedSituationsTests
             QueryToken[] tokens =
             [
                 .. FiveOnA().Take(2),
-                new QueryToken(QuerySide.T, 0, -900.5f, 200.25f, -512, "Lobby"),
-                new QueryToken(QuerySide.T, 1, 10, 20, 0, null)
+                new(QuerySide.T, 0, -900.5f, 200.25f, -512, "Lobby"),
+                new(QuerySide.T, 1, 10, 20, 0, null)
             ];
 
             WatchedSituation saved;
-            using (WatchedSituationsService first = new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(), now: () => 5000))
+            using (WatchedSituationsService first =
+                   new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(),
+                       now: () => 5000))
             {
                 saved = first.Watch("  their A hold  ", "de_nuke", tokens, SituationTolerance.Adjacent, filters);
                 first.Watch("", "de_dust2", FiveOnA(), SituationTolerance.Exact, SearchFilterValues.None);
             }
 
-            using WatchedSituationsService second = new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(), now: () => 9000);
+            using WatchedSituationsService second =
+                new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(),
+                    now: () => 9000);
             WatchedSituation loaded = second.Watches[0];
-            JsonDocument json = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(root, WatchedSituationsService.FileName)));
+            JsonDocument json =
+                JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(root, WatchedSituationsService.FileName)));
 
             using (Assert.Multiple())
             {
@@ -84,22 +89,31 @@ public class WatchedSituationsTests
                 await Assert.That(loaded.Map).IsEqualTo("de_nuke");
                 await Assert.That(loaded.Tolerance).IsEqualTo(SituationTolerance.Adjacent);
                 await Assert.That(loaded.CreatedTicks).IsEqualTo(5000);
-                await Assert.That(loaded.WatermarkTicks).IsEqualTo(5000).Because("a new watch has seen what it matches today");
-                await Assert.That(loaded.Tokens).IsEquivalentTo(tokens.Select(WatchedToken.From), CollectionOrdering.Matching);
+                await Assert.That(loaded.WatermarkTicks).IsEqualTo(5000)
+                    .Because("a new watch has seen what it matches today");
+                await Assert.That(loaded.Tokens)
+                    .IsEquivalentTo(tokens.Select(WatchedToken.From), CollectionOrdering.Matching);
                 await Assert.That(loaded.Filters).IsEqualTo(filters);
                 await Assert.That(loaded.TokenFor(QuerySide.Ct)).IsEqualTo("BombsiteA:2");
-                await Assert.That(loaded.TokenFor(QuerySide.T)).IsEqualTo("Lobby:1").Because("the unresolved token is kept on the canvas and left out of the query");
-                await Assert.That(second.Watches[1].Name).IsEqualTo("CT BombsiteA:5 vs T any").Because("an empty name takes the query's own line");
-                await Assert.That(json.RootElement.GetProperty("schemaVersion").GetInt32()).IsEqualTo(WatchedSituationsFile.CurrentSchema);
-                await Assert.That(json.RootElement.GetProperty("watches")[0].GetProperty("filters").GetProperty("buyCt").GetString())
-                    .IsEqualTo("Full").Because("enums are written by name, so a reordered enum cannot move a saved filter");
+                await Assert.That(loaded.TokenFor(QuerySide.T)).IsEqualTo("Lobby:1")
+                    .Because("the unresolved token is kept on the canvas and left out of the query");
+                await Assert.That(second.Watches[1].Name).IsEqualTo("CT BombsiteA:5 vs T any")
+                    .Because("an empty name takes the query's own line");
+                await Assert.That(json.RootElement.GetProperty("schemaVersion").GetInt32())
+                    .IsEqualTo(WatchedSituationsFile.CurrentSchema);
+                await Assert.That(json.RootElement.GetProperty("watches")[0].GetProperty("filters").GetProperty("buyCt")
+                        .GetString())
+                    .IsEqualTo("Full")
+                    .Because("enums are written by name, so a reordered enum cannot move a saved filter");
                 await Assert.That(await File.ReadAllTextAsync(Path.Combine(root, WatchedSituationsService.FileName)))
                     .DoesNotContain(Seeded).Because("a watch names no demo; the set is derived per evaluation");
             }
 
             second.Remove(saved.Id);
-            using WatchedSituationsService third = new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library());
-            await Assert.That(third.Watches.Select(w => w.Map)).IsEquivalentTo(["de_dust2"], CollectionOrdering.Matching);
+            using WatchedSituationsService third =
+                new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library());
+            await Assert.That(third.Watches.Select(w => w.Map))
+                .IsEquivalentTo(["de_dust2"], CollectionOrdering.Matching);
         }
         finally
         {
@@ -121,14 +135,17 @@ public class WatchedSituationsTests
             await File.WriteAllTextAsync(path, "{ not json");
             using Harness h = new();
 
-            using WatchedSituationsService service = new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library());
-            service.Watch("kept for the session", "de_nuke", FiveOnA(), SituationTolerance.Exact, SearchFilterValues.None);
+            using WatchedSituationsService service =
+                new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library());
+            service.Watch("kept for the session", "de_nuke", FiveOnA(), SituationTolerance.Exact,
+                SearchFilterValues.None);
 
             using (Assert.Multiple())
             {
                 await Assert.That(service.FileProblem).IsNotNull();
                 await Assert.That(service.Watches.Count).IsEqualTo(1).Because("the session still works");
-                await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("{ not json").Because("the user's file is not replaced by what one session holds");
+                await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("{ not json")
+                    .Because("the user's file is not replaced by what one session holds");
             }
         }
         finally
@@ -147,21 +164,26 @@ public class WatchedSituationsTests
         try
         {
             using Harness h = new();
-            using WatchedSituationsService service = new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(), now: () => Before);
+            using WatchedSituationsService service =
+                new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(),
+                    now: () => Before);
             int raised = 0;
             service.Changed += () => raised++;
 
             // The tab header's badge, before the tab's VM exists: the module drives it from the service.
-            WorkspaceTabDescriptor tab = new SituationsModule(() => throw new InvalidOperationException("never built here"), () => true,
+            WorkspaceTabDescriptor tab = new SituationsModule(
+                    () => throw new InvalidOperationException("never built here"), () => true,
                     service)
                 .CreateTabs(null!).Single();
 
-            WatchedSituation watch = service.Watch("A hold", "de_nuke", FiveOnA(), SituationTolerance.Exact, SearchFilterValues.None);
+            WatchedSituation watch = service.Watch("A hold", "de_nuke", FiveOnA(), SituationTolerance.Exact,
+                SearchFilterValues.None);
             int afterWatch = raised;
 
             using (Assert.Multiple())
             {
-                await Assert.That(h.Index.Count(service.ToQuery(watch))).IsEqualTo(1).Because("the seeded demo matches");
+                await Assert.That(h.Index.Count(service.ToQuery(watch))).IsEqualTo(1)
+                    .Because("the seeded demo matches");
                 await Assert.That(service.NewCount).IsEqualTo(0).Because("it was indexed before the watch was saved");
                 await Assert.That(tab.Badge).IsNull();
                 await Assert.That(tab.HasBadge).IsFalse();
@@ -199,7 +221,9 @@ public class WatchedSituationsTests
 
             // The restart path: a fresh service reads the same file and counts at the watermark through
             // the index stamps, with no Indexed event, and lands on the same number.
-            using (WatchedSituationsService restarted = new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(), now: () => Before))
+            using (WatchedSituationsService restarted =
+                   new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(),
+                       now: () => Before))
             {
                 using (Assert.Multiple())
                 {
@@ -219,7 +243,9 @@ public class WatchedSituationsTests
                 await Assert.That(service.Watches.Single().WatermarkTicks).IsGreaterThanOrEqualTo(newest);
             }
 
-            using (WatchedSituationsService restarted = new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(), now: () => Before))
+            using (WatchedSituationsService restarted =
+                   new(StoredFile.At(Path.Combine(root, WatchedSituationsService.FileName)), h.Index, h.Cache.Library(),
+                       now: () => Before))
             {
                 await Assert.That(restarted.NewCount).IsEqualTo(0).Because("the seen watermark survives a restart");
             }
@@ -251,10 +277,12 @@ public class WatchedSituationsTests
     {
         using Harness h = new();
         using WatchedSituationsService service = new(null, h.Index, h.Cache.Library(), now: () => Before);
-        WatchedSituation watch = service.Watch("A hold", "de_nuke", FiveOnA(), SituationTolerance.Exact, SearchFilterValues.None);
+        WatchedSituation watch = service.Watch("A hold", "de_nuke", FiveOnA(), SituationTolerance.Exact,
+            SearchFilterValues.None);
         h.Evaluate("/d/b.dem", "de_nuke", 1000); // a matching demo, so NewCount would be nonzero if read
 
-        WorkspaceTabDescriptor tab = new SituationsModule(() => throw new InvalidOperationException("never built here"), () => false,
+        WorkspaceTabDescriptor tab = new SituationsModule(() => throw new InvalidOperationException("never built here"),
+                () => false,
                 service)
             .CreateTabs(null!).Single();
 
@@ -271,11 +299,7 @@ public class WatchedSituationsTests
     {
         using Harness h = new();
         using WatchedSituationsService service = new(null, h.Index, h.Cache.Library(), now: () => Before);
-        SearchFilterValues september = new()
-        {
-            From = new DateTime(2026, 9, 1),
-            To = new DateTime(2026, 9, 30)
-        };
+        SearchFilterValues september = new() { From = new DateTime(2026, 9, 1), To = new DateTime(2026, 9, 30) };
         WatchedSituation watch = service.Watch("", "de_nuke", FiveOnA(), SituationTolerance.Exact, september);
 
         // Neither demo existed when the watch was saved; only the one whose date falls in the range counts.
@@ -297,7 +321,8 @@ public class WatchedSituationsTests
         using Harness h = new();
         // The real clock here: a demo indexed before the watch is seen, one indexed after it is new.
         using WatchedSituationsService service = new(null, h.Index, h.Cache.Library());
-        using QueryCanvasViewModel canvas = new(h.Index, new QueryPlaceResolver(h.Index, h.Sources.Zones), h.Cache.Library(), _ => null);
+        using QueryCanvasViewModel canvas = new(h.Index, new QueryPlaceResolver(h.Index, h.Sources.Zones),
+            h.Cache.Library(), _ => null);
         using WatchedSituationsViewModel list = new(service, canvas);
         List<SituationHit> searched = [];
         canvas.Searched += searched.AddRange;
@@ -322,11 +347,13 @@ public class WatchedSituationsTests
         using (Assert.Multiple())
         {
             await Assert.That(canvas.Map).IsEqualTo("de_nuke");
-            await Assert.That(canvas.Document.Placed.Select(WatchedToken.From)).IsEquivalentTo(watch.Tokens, CollectionOrdering.Matching);
+            await Assert.That(canvas.Document.Placed.Select(WatchedToken.From))
+                .IsEquivalentTo(watch.Tokens, CollectionOrdering.Matching);
             await Assert.That(canvas.Draft.Tolerance).IsEqualTo(SituationTolerance.AnyPlace);
             await Assert.That(canvas.Filters.Values).IsEqualTo(watch.Filters);
             await Assert.That(searched.Count).IsEqualTo(3)
-                .Because("the re-run searches every demo in the date range, the seen one included; the seeded demo's date is before it");
+                .Because(
+                    "the re-run searches every demo in the date range, the seen one included; the seeded demo's date is before it");
             await Assert.That(list.CanWatch).IsTrue().Because("the re-run query is on the canvas");
         }
 
@@ -363,7 +390,8 @@ public class WatchedSituationsTests
             Cache = new DemoCacheStore(null);
             Sidecars = new RoundIndexStore(Cache.Data());
             Sources = new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn);
-            Evaluator = new RoundIndexEvaluator(Cache.Library(), Cache.RoundFacts(), Sidecars, Sources, () => true, walk: _ => _samples);
+            Evaluator = new RoundIndexEvaluator(Cache.Library(), Cache.RoundFacts(), Sidecars, Sources, () => true,
+                walk: _ => _samples);
             Index = new SituationIndex(Cache.Library(), Sidecars, Sources, evaluator: Evaluator);
 
             RoundIndexDocument seeded = Document("de_nuke", Sources.FingerprintFor("de_nuke"),
@@ -373,9 +401,9 @@ public class WatchedSituationsTests
         }
 
         public DemoCacheStore Cache { get; }
-        public RoundIndexStore Sidecars { get; }
+        private RoundIndexStore Sidecars { get; }
         public RoundIndexPlaceSources Sources { get; }
-        public RoundIndexEvaluator Evaluator { get; }
+        private RoundIndexEvaluator Evaluator { get; }
         public SituationIndex Index { get; }
 
         public void Dispose()
@@ -384,7 +412,8 @@ public class WatchedSituationsTests
         }
 
         /// <summary>Indexes a demo with a round per freeze end; null puts every CT in Outside instead of on A.</summary>
-        public void Evaluate(string path, string map, params int[]? freezeEnds) => EvaluateDated(path, map, 20, freezeEnds);
+        public void Evaluate(string path, string map, params int[]? freezeEnds) =>
+            EvaluateDated(path, map, 20, freezeEnds);
 
         /// <summary>The same, with the cache row's modified time, which the date filter reads.</summary>
         public void EvaluateDated(string path, string map, long modifiedTicks, params int[]? freezeEnds)
@@ -395,7 +424,10 @@ public class WatchedSituationsTests
             Cache.Upsert(ParsedRecord(path, map, facts: Facts(facts), modifiedTicks: modifiedTicks));
 
             // The walk is the one seam the evaluator takes; it reads what this call set up.
-            _samples = [.. rounds.SelectMany(r => Everyone(r, ctPlace, "Ramp").Concat(Everyone(r + 64, ctPlace, "Ramp")))];
+            _samples =
+            [
+                .. rounds.SelectMany(r => Everyone(r, ctPlace, "Ramp").Concat(Everyone(r + 64, ctPlace, "Ramp")))
+            ];
             Evaluator.Evaluate(path, Demo(lastTick: 5000, map: map));
         }
     }

@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.Controls;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Input;
-using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
 
 #endregion
@@ -29,6 +28,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui.Controls;
 ///         app (a designer, a bare test) there is no host to draw the scene and the control is empty.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class SceneView : Control
 {
     /// <summary>Defines the <see cref="Source" /> property.</summary>
@@ -233,6 +233,7 @@ public sealed class SceneView : Control
 }
 
 /// <summary>A pointer tool added to a <see cref="SceneView" />: the id it was filed under, and its removal.</summary>
+[PublicAPI]
 public interface IToolHandle : IDisposable
 {
     /// <summary>
@@ -250,7 +251,7 @@ internal interface ISceneViewBackend
     Control View { get; }
 
     /// <summary>What to draw.</summary>
-    ISceneSource? Source { get; set; }
+    ISceneSource? Source { set; }
 
     /// <summary>The panes as last arranged.</summary>
     IReadOnlyList<LevelPane> Panes { get; }
@@ -301,7 +302,6 @@ internal interface ISceneViewBackend
 /// <summary>Where the app installs the scene renderer every <see cref="SceneView" /> is built over.</summary>
 internal static class SceneViewHost
 {
-
     /// <summary>Builds a renderer; null before the app installs one.</summary>
     internal static Func<ISceneViewBackend>? Factory { get; set; }
 

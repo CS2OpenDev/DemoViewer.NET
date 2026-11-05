@@ -23,7 +23,8 @@ public abstract class PathResolver
     /// <param name="toY">End Y.</param>
     /// <param name="toLevel">The end's level key.</param>
     /// <param name="toPlace">The place the end is in, which picks the level where two overlap; null for a bare point.</param>
-    public abstract IReadOnlyList<NavWaypoint>? Route(double fromX, double fromY, double fromLevel, double toX, double toY,
+    public abstract IReadOnlyList<NavWaypoint>? Route(double fromX, double fromY, double fromLevel, double toX,
+        double toY,
         double toLevel, string? toPlace);
 
     /// <summary>
@@ -64,7 +65,8 @@ public abstract class PathResolver
     /// <param name="x">World X.</param>
     /// <param name="y">World Y.</param>
     /// <param name="level">The level key.</param>
-    public bool OnMesh(double x, double y, double level) => Snap(x, y, level, null, 0) is { } at && at.X == x && at.Y == y;
+    public bool OnMesh(double x, double y, double level) =>
+        Snap(x, y, level, null, 0) is { } at && at.X.Equals(x) && at.Y.Equals(y);
 }
 
 /// <summary>
@@ -73,7 +75,6 @@ public abstract class PathResolver
 /// </summary>
 public sealed class NavPathResolver : PathResolver
 {
-    private readonly NavPathfinder _nav;
     private readonly Dictionary<string, int> _places;
 
     /// <summary>Builds the graph for a zone set.</summary>
@@ -81,7 +82,7 @@ public sealed class NavPathResolver : PathResolver
     public NavPathResolver(ZoneSet zones)
     {
         ArgumentNullException.ThrowIfNull(zones);
-        _nav = NavPathfinder.Build(zones);
+        Graph = NavPathfinder.Build(zones);
         _places = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (ZonePlace place in zones.Places)
         {
@@ -90,15 +91,16 @@ public sealed class NavPathResolver : PathResolver
     }
 
     /// <summary>The graph.</summary>
-    public NavPathfinder Graph => _nav;
+    private NavPathfinder Graph { get; }
 
     /// <inheritdoc />
-    public override IReadOnlyList<NavWaypoint>? Route(double fromX, double fromY, double fromLevel, double toX, double toY, double toLevel,
+    public override IReadOnlyList<NavWaypoint>? Route(double fromX, double fromY, double fromLevel, double toX,
+        double toY, double toLevel,
         string? toPlace)
     {
         int start = Area(fromX, fromY, fromLevel, null);
         int end = Area(toX, toY, toLevel, toPlace);
-        return _nav.FindPath(fromX, fromY, start, toX, toY, end);
+        return Graph.FindPath(fromX, fromY, start, toX, toY, end);
     }
 
     /// <inheritdoc />
@@ -107,7 +109,9 @@ public sealed class NavPathResolver : PathResolver
         int? id = place is not null && _places.TryGetValue(place, out int known) ? known : null;
         return place is not null && id is null
             ? null
-            : _nav.Snap(x, y, level, id, maxDistance) is { } at ? (at.X, at.Y) : null;
+            : Graph.Snap(x, y, level, id, maxDistance) is { } at
+                ? (at.X, at.Y)
+                : null;
     }
 
     // On the level, in the place when there is one; then on the level; then anywhere, since a level key that is not a
@@ -116,20 +120,20 @@ public sealed class NavPathResolver : PathResolver
     {
         if (place is not null && _places.TryGetValue(place, out int id))
         {
-            int inPlace = _nav.Locate(x, y, level, id);
+            int inPlace = Graph.Locate(x, y, level, id);
             if (inPlace >= 0)
             {
                 return inPlace;
             }
 
-            inPlace = _nav.Locate(x, y, null, id);
+            inPlace = Graph.Locate(x, y, null, id);
             if (inPlace >= 0)
             {
                 return inPlace;
             }
         }
 
-        int onLevel = _nav.Locate(x, y, level);
-        return onLevel >= 0 ? onLevel : _nav.Locate(x, y);
+        int onLevel = Graph.Locate(x, y, level);
+        return onLevel >= 0 ? onLevel : Graph.Locate(x, y);
     }
 }

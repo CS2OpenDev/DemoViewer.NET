@@ -8,7 +8,6 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using DemoViewer.NET.Theming;
 using DemoViewer.NET.ViewModels;
 
 #endregion
@@ -123,7 +122,7 @@ public partial class BinaryPane : UserControl
         double topRow = sv.Offset.Y / rowHeight;
         double bottomRow = (sv.Offset.Y + sv.Viewport.Height) / rowHeight;
 
-        if (bottomRow >= HarvestHexViewModel.WindowRows - HarvestHexViewModel.ChunkRows / 2
+        if (bottomRow >= HarvestHexViewModel.WindowRows - HarvestHexViewModel.ChunkRows / 2.0
             && _vm.CanScrollForward)
         {
             ShiftWindow(true, sv);

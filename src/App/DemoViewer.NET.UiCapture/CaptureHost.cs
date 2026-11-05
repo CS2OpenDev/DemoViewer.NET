@@ -45,7 +45,7 @@ public static class CaptureHost
     private static bool _tracking;
 
     /// <summary>Where capture PNGs land by default (matches the App.Tests convention).</summary>
-    public static string ArtifactDir
+    private static string ArtifactDir
     {
         get
         {
@@ -59,10 +59,7 @@ public static class CaptureHost
     public static AppBuilder BuildAvaloniaApp() =>
         AppBuilder.Configure<App>()
             .UseSkia()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions
-            {
-                UseHeadlessDrawing = false
-            })
+            .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
             .WithInterFont();
 
     /// <summary>
@@ -174,11 +171,7 @@ public static class CaptureHost
     {
         static Control Column(string label, Control body, double w, double h)
         {
-            StackPanel stack = new()
-            {
-                Spacing = 6,
-                Margin = new Thickness(10)
-            };
+            StackPanel stack = new() { Spacing = 6, Margin = new Thickness(10) };
             stack.Children.Add(new TextBlock
             {
                 Text = label,
@@ -197,10 +190,7 @@ public static class CaptureHost
             return stack;
         }
 
-        Grid grid = new()
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto,*")
-        };
+        Grid grid = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto,*") };
         Control colA = Column(labelA, a, half.Width, half.Height);
         Control colB = Column(labelB, b, half.Width, half.Height);
         Border divider = new()
@@ -220,12 +210,7 @@ public static class CaptureHost
 
     private static void Render(Control content, Size size, string outPng, ThemeVariant? theme = null)
     {
-        Window window = new()
-        {
-            Width = size.Width,
-            Height = size.Height,
-            Content = content
-        };
+        Window window = new() { Width = size.Width, Height = size.Height, Content = content };
         if (theme is not null)
         {
             window.RequestedThemeVariant = theme; // drives ThemeDictionaries + DynamicResource resolution
@@ -241,23 +226,44 @@ public static class CaptureHost
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
         Dispatcher.UIThread.RunJobs();
 
-        WriteableBitmap? frame = window.CaptureRenderedFrame()
-                                 ?? throw new InvalidOperationException("CaptureRenderedFrame returned null.");
+        WriteableBitmap frame = window.CaptureRenderedFrame()
+            ?? throw new InvalidOperationException("CaptureRenderedFrame returned null.");
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPng))!);
         frame.Save(outPng, new PngBitmapEncoderOptions());
         window.Close();
     }
 
-    /// <summary>Runs <paramref name="body" /> on the shared headless UI thread and returns its result.</summary>
-    private static async Task<string> RunOnUi(Func<string> body)
+    /// <summary>
+    ///     Renders <paramref name="content" /> to <paramref name="outPng" />. Must already be on the headless
+    ///     UI thread, inside <see cref="RunOnUiAsync{T}" />; for callers that render several frames in one
+    ///     session.
+    /// </summary>
+    public static void RenderOnUi(Control content, Size size, string outPng, ThemeVariant? theme = null)
     {
-        Task<string> dispatched = _session.Value.Dispatch(() =>
+        if (theme is not null)
+        {
+            EnsureThemesInstalled();
+        }
+
+        Render(content, size, outPng, theme);
+    }
+
+    /// <summary>Runs <paramref name="body" /> on the shared headless UI thread and returns its result.</summary>
+    private static Task<string> RunOnUi(Func<string> body) =>
+        RunOnUiAsync(() => Task.FromResult(body()), TimeSpan.FromSeconds(120));
+
+    /// <summary>
+    ///     Runs an asynchronous <paramref name="body" /> on the shared headless UI thread, closes any window
+    ///     it leaked, and gives up after <paramref name="budget" />.
+    /// </summary>
+    public static async Task<T> RunOnUiAsync<T>(Func<Task<T>> body, TimeSpan budget)
+    {
+        Task<T> dispatched = _session.Value.Dispatch(async () =>
         {
             EnsureTracking();
-            string result;
             try
             {
-                result = body();
+                return await body();
             }
             finally
             {
@@ -284,10 +290,8 @@ public static class CaptureHost
                     /* post-body flush of any leaked animating content; ignore */
                 }
             }
-
-            return Task.FromResult(result);
         }, CancellationToken.None);
 
-        return await dispatched.WaitAsync(TimeSpan.FromSeconds(120));
+        return await dispatched.WaitAsync(budget);
     }
 }

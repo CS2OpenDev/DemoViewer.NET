@@ -9,15 +9,8 @@ using SkiaSharp;
 namespace DemoViewer.NET.Playback2DTests;
 
 /// <summary>A scriptable layer: records what the compositor asked of it, draws one flat rectangle.</summary>
-internal sealed class RecordingLayer : ISceneLayer
+internal sealed class RecordingLayer(string id, LayerSlot slot = LayerSlot.World, int order = 0) : ISceneLayer
 {
-    public RecordingLayer(string id, LayerSlot slot = LayerSlot.World, int order = 0)
-    {
-        Id = id;
-        Slot = slot;
-        Order = order;
-    }
-
     public SKColor? Fill { get; init; }
     public bool AdvanceResult { get; set; }
     public int AdvanceCount { get; private set; }
@@ -27,9 +20,9 @@ internal sealed class RecordingLayer : ISceneLayer
     /// <summary>Called on <see cref="Dispose" />, for a test that cares about teardown ORDER.</summary>
     public Action? OnDispose { get; init; }
 
-    public string Id { get; }
-    public LayerSlot Slot { get; }
-    public int Order { get; }
+    public string Id { get; } = id;
+    public LayerSlot Slot { get; } = slot;
+    public int Order { get; } = order;
     public LayerCacheHint Cache => LayerCacheHint.Dynamic;
     public bool IsEnabled { get; set; } = true;
     public int ContentVersion => 0;

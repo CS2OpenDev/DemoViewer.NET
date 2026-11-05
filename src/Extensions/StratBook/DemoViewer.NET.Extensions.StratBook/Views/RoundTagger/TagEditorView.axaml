@@ -54,8 +54,9 @@
                             <StackPanel Orientation="Horizontal" Spacing="2">
                                 <TextBlock Text="{Binding Text}" FontSize="10" VerticalAlignment="Center"
                                            Foreground="{DynamicResource Pb2dTextBright}" />
-                                <Button Content="✕" Padding="3,0" FontSize="9" Focusable="False" Background="Transparent"
-                                        Command="{Binding $parent[UserControl].((vm:TagEditorViewModel)DataContext).RemoveLabelCommand}"
+                                <Button Content="✕" Padding="3,0" FontSize="9" Focusable="False"
+                                        Background="Transparent"
+                                        Command="{Binding $parent[UserControl].((vm:TagEditorViewModel)DataContext).RemoveLabelCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" ToolTip.Tip="Remove this label" />
                             </StackPanel>
                         </Border>
@@ -65,23 +66,24 @@
 
             <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="4">
                 <AutoCompleteBox Grid.Column="0" Text="{Binding NewGroup}" ItemsSource="{Binding Groups}"
-                                 FontSize="11" Watermark="group" MinimumPrefixLength="0" FilterMode="StartsWith" />
+                                 FontSize="11" PlaceholderText="group" MinimumPrefixLength="0" FilterMode="StartsWith" />
                 <AutoCompleteBox Grid.Column="1" Text="{Binding NewValue}" ItemsSource="{Binding ValuesForGroup}"
-                                 FontSize="11" Watermark="value" MinimumPrefixLength="0" FilterMode="StartsWith" />
+                                 FontSize="11" PlaceholderText="value" MinimumPrefixLength="0" FilterMode="StartsWith" />
                 <Button Grid.Column="2" Content="Add" Padding="6,0" FontSize="10" Focusable="False"
                         Command="{Binding AddLabelCommand}" ToolTip.Tip="Add this label" />
             </Grid>
 
-            <TextBox Text="{Binding Note}" FontSize="11" Watermark="note (optional)" TextWrapping="Wrap" />
+            <TextBox Text="{Binding Note}" FontSize="11" PlaceholderText="note (optional)" TextWrapping="Wrap" />
 
             <StackPanel Spacing="2" IsVisible="{Binding HasPositions}">
-                <TextBlock Text="positions (click the map to add)" FontSize="9" Foreground="{DynamicResource Pb2dTextDim}" />
+                <TextBlock Text="positions (click the map to add)" FontSize="9"
+                           Foreground="{DynamicResource Pb2dTextDim}" />
                 <ItemsControl ItemsSource="{Binding Positions}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:TagPositionRow">
                             <DockPanel>
                                 <Button DockPanel.Dock="Right" Content="✕" Padding="3,0" FontSize="9" Focusable="False"
-                                        Command="{Binding $parent[UserControl].((vm:TagEditorViewModel)DataContext).RemovePositionCommand}"
+                                        Command="{Binding $parent[UserControl].((vm:TagEditorViewModel)DataContext).RemovePositionCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}" ToolTip.Tip="Remove this position" />
                                 <TextBlock Text="{Binding Text}" FontSize="10" VerticalAlignment="Center"
                                            Foreground="{DynamicResource Pb2dTextBright}" />

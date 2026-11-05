@@ -2,9 +2,9 @@
 
 using System.Text.Json;
 using CS2DemoKit.Parser;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 
 #endregion
@@ -35,7 +35,8 @@ public class RoundIndexEvaluatorTests
         cache.Upsert(ParsedRecord(Demo, sha: "abc", facts: withFacts ? facts ?? TwoRounds() : null));
         RoundIndexStore store = new(cache.Data());
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
-        RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), store, sources, () => background, walk: _ => []);
+        RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), store, sources, () => background,
+            walk: _ => []);
         return (cache, store, evaluator);
     }
 
@@ -47,7 +48,8 @@ public class RoundIndexEvaluatorTests
         evaluator.Written += _ => written++;
 
         await Assert.That(evaluator.Wants(Demo)).IsFalse();
-        await Assert.That(evaluator.WantsAfterUpstream(Demo)).IsTrue().Because("the index follows Round Facts on the same visit");
+        await Assert.That(evaluator.WantsAfterUpstream(Demo)).IsTrue()
+            .Because("the index follows Round Facts on the same visit");
         await Assert.That(Wire(background: false, withFacts: false).Evaluator.WantsAfterUpstream(Demo)).IsFalse()
             .Because("with the sweep off nothing follows");
         await Assert.That(evaluator.PendingPaths()).IsEmpty();
@@ -62,9 +64,10 @@ public class RoundIndexEvaluatorTests
         }
 
         // Round Facts lands: the same pass's next fan-out reaches this one.
-        cache.UpdateExisting(Demo, r => r.SetRoundFacts(TwoRounds(), "rf-A"));
+        cache.UpdateExisting(Demo, r => r.SetRoundFacts(TwoRounds()));
         await Assert.That(evaluator.Wants(Demo)).IsTrue();
-        await Assert.That(evaluator.WantsAfterUpstream(Demo)).IsFalse().Because("Wants answers once the rows are there");
+        await Assert.That(evaluator.WantsAfterUpstream(Demo)).IsFalse()
+            .Because("Wants answers once the rows are there");
         await Assert.That(evaluator.PendingPaths()).Contains(Demo);
     }
 
@@ -128,7 +131,8 @@ public class RoundIndexEvaluatorTests
             await Assert.That(document.Demo.StableKey).IsEqualTo(DemoCacheStore.StableKey(Demo));
             await Assert.That(document.Demo.FileName).IsEqualTo("match.dem");
             await Assert.That(document.Rounds.Count).IsEqualTo(2);
-            await Assert.That(document.Fingerprint).IsEqualTo("ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + SamplerTerm);
+            await Assert.That(document.Fingerprint)
+                .IsEqualTo("ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + SamplerTerm);
             await Assert.That(cache.RoundIndexSchema(Demo)).IsEqualTo(RoundIndexStore.Schema);
             await Assert.That(cache.RoundIndexState(Demo)).IsEqualTo(DemoDataState.Written);
             await Assert.That(cache.RoundIndexFingerprint(Demo)).IsEqualTo(document.Fingerprint);
@@ -187,7 +191,8 @@ public class RoundIndexEvaluatorTests
         cache.Upsert(ParsedRecord(Demo, sha: "abc", facts: TwoRounds()));
         RoundIndexStore store = new(cache.Data());
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
-        RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), store, sources, () => true, walk: _ => [], enabled: () => false);
+        RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), store, sources, () => true,
+            walk: _ => [], enabled: () => false);
 
         using (Assert.Multiple())
         {
@@ -233,15 +238,18 @@ public class RoundIndexEvaluatorTests
         RoundIndexStore store = new(cache.Data());
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
         bool downstream = false;
-        RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), store, sources, () => false, walk: _ => [],
+        RoundIndexEvaluator evaluator = new(cache.Library(), cache.RoundFacts(), store, sources, () => false,
+            walk: _ => [],
             wantedDownstream: path => downstream && path == Demo);
 
-        await Assert.That(evaluator.WantsAfterUpstream(Demo)).IsFalse().Because("the sweep is off and nothing reads the index");
+        await Assert.That(evaluator.WantsAfterUpstream(Demo)).IsFalse()
+            .Because("the sweep is off and nothing reads the index");
 
         downstream = true;
-        await Assert.That(evaluator.WantsAfterUpstream(Demo)).IsTrue().Because("the index follows Round Facts for its reader");
+        await Assert.That(evaluator.WantsAfterUpstream(Demo)).IsTrue()
+            .Because("the index follows Round Facts for its reader");
 
-        cache.UpdateExisting(Demo, r => r.SetRoundFacts(TwoRounds(), "rf-A"));
+        cache.UpdateExisting(Demo, r => r.SetRoundFacts(TwoRounds()));
         using (Assert.Multiple())
         {
             await Assert.That(evaluator.Wants(Demo)).IsTrue();
@@ -250,7 +258,8 @@ public class RoundIndexEvaluatorTests
         }
 
         evaluator.Evaluate(Demo, Parse());
-        await Assert.That(evaluator.Wants(Demo)).IsFalse().Because("a current index is not wanted again, whoever reads it");
+        await Assert.That(evaluator.Wants(Demo)).IsFalse()
+            .Because("a current index is not wanted again, whoever reads it");
     }
 
     [Test]
@@ -290,7 +299,8 @@ public class RoundIndexEvaluatorTests
         using (Assert.Multiple())
         {
             await Assert.That(pawnNuke).IsEqualTo("ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + SamplerTerm);
-            await Assert.That(zonesNuke).IsEqualTo("ri1;cadence=1;token=1;rf=1;src=zones;zv=zv-nuke;pos=5" + SamplerTerm);
+            await Assert.That(zonesNuke)
+                .IsEqualTo("ri1;cadence=1;token=1;rf=1;src=zones;zv=zv-nuke;pos=5" + SamplerTerm);
             await Assert.That(zonesDust).IsEqualTo(pawnNuke).Because("a map without zones falls back to the pawn");
             await Assert.That(sources.IsZoneFallback("de_dust2")).IsTrue();
             await Assert.That(sources.IsZoneFallback("de_nuke")).IsFalse();

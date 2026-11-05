@@ -1,8 +1,8 @@
 #region
 
 using System.Globalization;
-using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Keyframes;
+using DemoViewer.NET.Playback2D;
 
 #endregion
 
@@ -31,22 +31,22 @@ public sealed class StratFrameSource : ISceneFrames
     public const double SmokeSeconds = 18;
 
     /// <summary>How long a molotov burns: the nominal CS2 duration.</summary>
-    public const double FireSeconds = 7;
+    private const double FireSeconds = 7;
 
     /// <summary>How long a decoy's marker stays: the nominal CS2 duration.</summary>
-    public const double DecoySeconds = 15;
+    private const double DecoySeconds = 15;
 
     /// <summary>How long a flashbang's pop shows.</summary>
-    public const double FlashSeconds = 0.5;
+    private const double FlashSeconds = 0.5;
 
     /// <summary>How long an HE's burst shows.</summary>
-    public const double HeSeconds = 0.6;
+    private const double HeSeconds = 0.6;
 
     /// <summary>How long a smoke takes to bloom to its full radius.</summary>
-    public const double SmokeBloomSeconds = 1;
+    private const double SmokeBloomSeconds = 1;
 
     /// <summary>A flight line fades over this long after the projectile stops: <c>SceneFrameBuilder</c>'s.</summary>
-    public const double TrailFadeSeconds = 2;
+    private const double TrailFadeSeconds = 2;
 
     // SceneFrameBuilder's own sizes, so a strat smoke reads the same as a demo one.
     private const float SmokeRadiusWorld = 144;
@@ -244,7 +244,8 @@ public sealed class StratFrameSource : ISceneFrames
     /// <summary>The first tick a cue draws nothing: past its effect and its faded flight line.</summary>
     /// <param name="cue">A throw.</param>
     public static int EndTickOf(UtilityCue cue) =>
-        Math.Max(cue.Tick + EffectTicks(cue.Kind), cue.Flight is { Count: > 0 } flight ? flight[^1].Tick + TrailFadeTicks : 0);
+        Math.Max(cue.Tick + EffectTicks(cue.Kind),
+            cue.Flight is { Count: > 0 } flight ? flight[^1].Tick + TrailFadeTicks : 0);
 
     private void AddAreaEffects(int tick, List<AreaEffect> into)
     {
@@ -261,7 +262,8 @@ public sealed class StratFrameSource : ISceneFrames
             switch (cue.Kind)
             {
                 case GrenadeKind.Smoke:
-                    into.Add(new AreaEffect(AreaEffectKind.Smoke, cue.X, cue.Y, cue.Z, SmokeRadiusWorld * Bloom(seconds)));
+                    into.Add(new AreaEffect(AreaEffectKind.Smoke, cue.X, cue.Y, cue.Z,
+                        SmokeRadiusWorld * Bloom(seconds)));
                     continue;
                 case GrenadeKind.Flash:
                     into.Add(new AreaEffect(AreaEffectKind.Flash, cue.X, cue.Y, cue.Z,
@@ -387,7 +389,8 @@ public sealed class StratFrameSource : ISceneFrames
 
     private static bool Moving(TokenTrack track, int k) =>
         track.Segments[k] == TokenInterpolation.Linear
-        && (track.Keyframes[k].X != track.Keyframes[k + 1].X || track.Keyframes[k].Y != track.Keyframes[k + 1].Y);
+        && (!track.Keyframes[k].X.Equals(track.Keyframes[k + 1].X)
+            || !track.Keyframes[k].Y.Equals(track.Keyframes[k + 1].Y));
 
     // SceneFrameBuilder's m:ss cache: the text changes once a second, so a steady frame allocates nothing.
     private string FormatClock(double seconds)

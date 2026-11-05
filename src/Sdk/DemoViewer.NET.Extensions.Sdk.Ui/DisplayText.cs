@@ -15,6 +15,7 @@ namespace DemoViewer.NET.Extensions.Sdk.Ui;
 ///     wild via a player named "ุ⁧⁧Vetxed"). Stripping the Format category is proven sufficient
 ///     to make such strings measurable at every width, and removes nothing visible.
 /// </summary>
+[PublicAPI]
 public static class DisplayText
 {
     /// <summary>Returns <paramref name="text" /> with all Unicode Format-category chars removed.</summary>

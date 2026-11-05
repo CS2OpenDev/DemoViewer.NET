@@ -3,7 +3,6 @@
 using CS2DemoKit.Parser;
 using DemoViewer.NET.AppTests.Extensions;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
@@ -58,7 +57,8 @@ public class DemoVisitTests
         }
     }
 
-    private static DemoVisitRequest Visit(PassLevel level, Action<IDemoPass, PassOutcome, Exception?>? ended, params IDemoPass[] passes) =>
+    private static DemoVisitRequest Visit(PassLevel level, Action<IDemoPass, PassOutcome, Exception?>? ended,
+        params IDemoPass[] passes) =>
         new(Demo, level, passes, 0, "match.dem", ended);
 
     [Test]
@@ -81,7 +81,7 @@ public class DemoVisitTests
         using (Assert.Multiple())
         {
             await Assert.That(parses).IsEqualTo(1).Because("three submits for one demo join one visit");
-            await Assert.That(ran).IsEquivalentTo(["a", "b", "c"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(ran).IsEquivalentTo(["a", "b", "c"], CollectionOrdering.Matching);
             await Assert.That(last.State).IsEqualTo(DemoQueueItemState.Completed);
         }
     }
@@ -109,8 +109,9 @@ public class DemoVisitTests
         using (Assert.Multiple())
         {
             await Assert.That(ran).IsEquivalentTo(["upstream"], CollectionOrdering.Matching);
-            await Assert.That(ended).IsEquivalentTo([("upstream", PassOutcome.Ran), ("downstream", PassOutcome.Skipped)],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(ended).IsEquivalentTo(
+                [("upstream", PassOutcome.Ran), ("downstream", PassOutcome.Skipped)],
+                CollectionOrdering.Matching);
         }
     }
 
@@ -151,7 +152,8 @@ public class DemoVisitTests
             return ForwardResult();
         });
         FakePass rules = new("rules") { NeedsValue = PassNeeds.ForwardRead(ForwardNeeds.Rules), OnRun = Record };
-        FakePass finalState = new("final") { NeedsValue = PassNeeds.ForwardRead(ForwardNeeds.FinalState), OnRun = Record };
+        FakePass finalState =
+            new("final") { NeedsValue = PassNeeds.ForwardRead(ForwardNeeds.FinalState), OnRun = Record };
         FakePass walk = new("walk") { NeedsValue = PassNeeds.RetainedParse, OnRun = Record };
 
         void Record(PassInput input)
@@ -173,11 +175,15 @@ public class DemoVisitTests
         using (Assert.Multiple())
         {
             await Assert.That(forwardReads).IsEqualTo(1).Because("the all-forward visit reads forward once");
-            await Assert.That(parses).IsEqualTo(1).Because("one retained pass puts the mixed visit on the retained parse");
-            await Assert.That(inputs.Where(i => i.Demo.Path == "/d/forward.dem").All(i => i.Forward is not null && i.Retained is null)).IsTrue();
-            await Assert.That(inputs.Where(i => i.Demo.Path == "/d/mixed.dem").All(i => i.Retained is not null && i.Forward is null)).IsTrue()
+            await Assert.That(parses).IsEqualTo(1)
+                .Because("one retained pass puts the mixed visit on the retained parse");
+            await Assert.That(inputs.Where(i => i.Demo.Path == "/d/forward.dem")
+                .All(i => i.Forward is not null && i.Retained is null)).IsTrue();
+            await Assert.That(inputs.Where(i => i.Demo.Path == "/d/mixed.dem")
+                    .All(i => i.Retained is not null && i.Forward is null)).IsTrue()
                 .Because("a forward pass on a retained visit runs on the retained parse");
-            await Assert.That(inputs.Where(i => i.Demo.Path == "/d/mixed.dem").All(i => i.Retained!.Plan.DecodesEverything)).IsTrue()
+            await Assert.That(inputs.Where(i => i.Demo.Path == "/d/mixed.dem")
+                    .All(i => i.Retained!.Plan.DecodesEverything)).IsTrue()
                 .Because("the retained pass reads player inputs");
         }
     }
@@ -204,7 +210,8 @@ public class DemoVisitTests
         {
             await Assert.That(forwardReads).IsEqualTo(1);
             await Assert.That(parses).IsEqualTo(0).Because("no pass on the visit needs the retained parse");
-            await Assert.That(ran).IsEquivalentTo(["ext.a", "ext.b"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(ran)
+                .IsEquivalentTo(["ext.a", "ext.b"], CollectionOrdering.Matching);
             await Assert.That(a.Seen!.Parsed).IsNull();
             await Assert.That(b.Seen!.FrameCount).IsEqualTo(10);
         }
@@ -218,9 +225,11 @@ public class DemoVisitTests
         ExtensionGuard guard = ExtensionPassHostTests.StandaloneGuard();
         // A host pass that runs first and reads the rules run, as the highlights scan does.
         FakePass first = new("host.rules") { OnRun = _ => seen = queue.CollectorsFor(Demo) };
-        ExtensionPassHost a = new(new ExtensionPassHostTests.FakePass { PassName = "ext.a" }, ["host.rules"], guard, static () => false,
+        ExtensionPassHost a = new(new ExtensionPassHostTests.FakePass { PassName = "ext.a" }, ["host.rules"], guard,
+            static () => false,
             collectors: CollectorSet.Of([new RegisteredCollector(CollectorKit.Counting("c.a", "ext.a"), guard)]));
-        ExtensionPassHost b = new(new ExtensionPassHostTests.FakePass { PassName = "ext.b" }, ["host.rules"], guard, static () => false,
+        ExtensionPassHost b = new(new ExtensionPassHostTests.FakePass { PassName = "ext.b" }, ["host.rules"], guard,
+            static () => false,
             collectors: CollectorSet.Of([new RegisteredCollector(CollectorKit.Counting("c.b", "ext.b"), guard)]));
 
         await queue.SubmitVisit(Visit(PassLevel.Background, null, b, first, a)).Completion;
@@ -255,8 +264,12 @@ public class DemoVisitTests
             ForwardDemoResult plain = ForwardResult();
             return new ForwardDemoResult
             {
-                Demo = plain.Demo, Rounds = plain.Rounds, FrameCount = plain.FrameCount,
-                FirstServerTick = plain.FirstServerTick, LastServerTick = plain.LastServerTick, Collected = results
+                Demo = plain.Demo,
+                Rounds = plain.Rounds,
+                FrameCount = plain.FrameCount,
+                FirstServerTick = plain.FirstServerTick,
+                LastServerTick = plain.LastServerTick,
+                Collected = results
             };
         };
         ExtensionGuard guard = ExtensionPassHostTests.StandaloneGuard();
@@ -271,10 +284,12 @@ public class DemoVisitTests
             }
         };
 
-        IDemoQueueHandle first = queue.SubmitVisit(Visit(PassLevel.Background, ended, new ExtensionPassHost(a, [], guard, static () => false,
+        IDemoQueueHandle first = queue.SubmitVisit(Visit(PassLevel.Background, ended, new ExtensionPassHost(a, [],
+            guard, static () => false,
             collectors: CollectorSet.Of([new RegisteredCollector(CollectorKit.Counting("c.a", "ext.a"), guard)]))));
         await WaitForAsync(() => Volatile.Read(ref reads) == 1, "the first forward read");
-        IDemoQueueHandle second = queue.SubmitVisit(Visit(PassLevel.Background, ended, new ExtensionPassHost(b, [], guard, static () => false,
+        IDemoQueueHandle second = queue.SubmitVisit(Visit(PassLevel.Background, ended, new ExtensionPassHost(b, [],
+            guard, static () => false,
             collectors: CollectorSet.Of([new RegisteredCollector(CollectorKit.Counting("c.b", "ext.b"), guard)]))));
         firstRead.Release();
         await first.Completion;
@@ -282,7 +297,8 @@ public class DemoVisitTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(reads).IsEqualTo(2).Because("the running read never declared c.b, so ext.b needs a read of its own");
+            await Assert.That(reads).IsEqualTo(2)
+                .Because("the running read never declared c.b, so ext.b needs a read of its own");
             await Assert.That(outcomes["ext.a"]).IsEqualTo(PassOutcome.Ran);
             await Assert.That(outcomes["ext.b"]).IsEqualTo(PassOutcome.Ran);
             await Assert.That(b.Frames).IsEqualTo(7);
@@ -302,13 +318,15 @@ public class DemoVisitTests
 
         public DemoInterest Interest(string demoPath) => DemoInterest.Yes;
 
-        public void Run(IPassContext context) => Frames = context.Collected<CollectorKit.Count>(collectorId)?.Frames ?? -1;
+        public void Run(IPassContext context) =>
+            Frames = context.Collected<CollectorKit.Count>(collectorId)?.Frames ?? -1;
     }
 
     [Test]
     public async Task EachSubmitter_HearsHowItsPassEnded()
     {
         List<(string, PassOutcome, string?)> ended = [];
+
         void Ended(IDemoPass p, PassOutcome outcome, Exception? error)
         {
             lock (ended)
@@ -330,18 +348,20 @@ public class DemoVisitTests
         FakePass onBad = new("onbad");
 
         IDemoQueueHandle good = queue.SubmitVisit(Visit(PassLevel.Background, Ended, thrower, stopped, fine));
-        IDemoQueueHandle bad = queue.SubmitVisit(new DemoVisitRequest("/d/bad.dem", PassLevel.Background, [onBad], 0, null, Ended));
+        IDemoQueueHandle bad =
+            queue.SubmitVisit(new DemoVisitRequest("/d/bad.dem", PassLevel.Background, [onBad], 0, null, Ended));
         await good.Completion;
         await bad.Completion;
 
         using (Assert.Multiple())
         {
             await Assert.That(ended).Contains(("thrower", PassOutcome.Failed, "boom"));
-            await Assert.That(ended.Any(e => e.Item1 == "stopped" && e.Item2 == PassOutcome.Cancelled)).IsTrue();
-            await Assert.That(ended).Contains(("fine", PassOutcome.Ran, (string?)null));
+            await Assert.That(ended.Any(e => e is { Item1: "stopped", Item2: PassOutcome.Cancelled })).IsTrue();
+            await Assert.That(ended).Contains(("fine", PassOutcome.Ran, null));
             await Assert.That(ended).Contains(("onbad", PassOutcome.ParseFailed, "corrupt"));
             await Assert.That(onBad.Failed).IsEquivalentTo(["corrupt"], CollectionOrdering.Matching);
-            await Assert.That(good.State).IsEqualTo(DemoQueueItemState.Completed).Because("one pass's throw never fails the visit");
+            await Assert.That(good.State).IsEqualTo(DemoQueueItemState.Completed)
+                .Because("one pass's throw never fails the visit");
             await Assert.That(bad.State).IsEqualTo(DemoQueueItemState.Failed);
         }
     }
@@ -351,7 +371,8 @@ public class DemoVisitTests
     {
         using DemoProcessingQueue queue = Queue();
         queue.Pause();
-        IDemoQueueHandle handle = queue.SubmitVisit(Visit(PassLevel.UserRequested, null, new FakePass("a"), new FakePass("b")));
+        IDemoQueueHandle handle =
+            queue.SubmitVisit(Visit(PassLevel.UserRequested, null, new FakePass("a"), new FakePass("b")));
 
         DemoQueueItemSnapshot row = queue.Snapshot().Single(s => s.Id == handle.Id);
 
@@ -380,7 +401,7 @@ public class DemoVisitTests
         {
             await Assert.That(visit.Count).IsEqualTo(2);
             await Assert.That(visit.Ordered().Select(p => p.Pass.Id)).IsEquivalentTo(["first", "late"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
         }
     }
 
@@ -398,7 +419,7 @@ public class DemoVisitTests
         List<IDemoPass> plan = VisitPlanner.Plan(all, new VisitedDemo(Demo), PassLevel.Backlog);
 
         await Assert.That(plan.Select(p => p.Id)).IsEquivalentTo(["library", "facts", "index", "tags"],
-            TUnit.Assertions.Enums.CollectionOrdering.Matching)
+                CollectionOrdering.Matching)
             .Because("the chain joins link by link; a pass waiting on one that is not running stays out");
     }
 
@@ -450,7 +471,7 @@ public class DemoVisitTests
         using (Assert.Multiple())
         {
             await Assert.That(withRules.Select(p => p.Id)).IsEquivalentTo(["library", "highlights", "grenades"],
-                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+                CollectionOrdering.Matching);
             await Assert.That(riders).IsEquivalentTo(["highlights"], CollectionOrdering.Matching);
             await Assert.That(withoutRules.Select(p => p.Id)).IsEquivalentTo(["library"], CollectionOrdering.Matching)
                 .Because("a read without rules would have to be upgraded for the rider");
@@ -466,7 +487,8 @@ public class DemoVisitTests
         queue.Pause();
         FakePass grenades = new("grenades") { NeedsValue = PassNeeds.ForwardRead(ForwardNeeds.Rules) };
         FakePass highlights = new("highlights") { NeedsValue = PassNeeds.ForwardRead(ForwardNeeds.Rules) };
-        IDemoQueueHandle handle = queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Background, [grenades, highlights], 0,
+        IDemoQueueHandle handle = queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Background,
+            [grenades, highlights], 0,
             "match.dem", (p, outcome, _) => ended.Add((p.Id, outcome)), new HashSet<string> { "highlights" }));
 
         queue.CancelOwned("grenades");
@@ -474,7 +496,9 @@ public class DemoVisitTests
         using (Assert.Multiple())
         {
             await Assert.That(handle.State).IsEqualTo(DemoQueueItemState.Cancelled);
-            await Assert.That(ended).IsEquivalentTo([("grenades", PassOutcome.Cancelled), ("highlights", PassOutcome.Cancelled)], CollectionOrdering.Matching);
+            await Assert.That(ended)
+                .IsEquivalentTo([("grenades", PassOutcome.Cancelled), ("highlights", PassOutcome.Cancelled)],
+                    CollectionOrdering.Matching);
             await Assert.That(highlights.Ran).IsEmpty();
         }
 
@@ -490,11 +514,13 @@ public class DemoVisitTests
         FakePass library = new("library") { Ran = ran, NeedsValue = PassNeeds.ForwardRead(ForwardNeeds.FinalState) };
         FakePass grenades = new("grenades") { Ran = ran, NeedsValue = PassNeeds.ForwardRead(ForwardNeeds.Rules) };
         FakePass highlights = new("highlights") { Ran = ran, NeedsValue = PassNeeds.ForwardRead(ForwardNeeds.Rules) };
-        IDemoQueueHandle handle = queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Background, [library, grenades, highlights], 0,
+        IDemoQueueHandle handle = queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Background,
+            [library, grenades, highlights], 0,
             "match.dem", null, new HashSet<string> { "highlights" }));
 
         queue.CancelOwned("grenades");
-        await Assert.That(queue.Snapshot().Single(s => s.Id == handle.Id).Owners).IsEquivalentTo(["library"], CollectionOrdering.Matching)
+        await Assert.That(queue.Snapshot().Single(s => s.Id == handle.Id).Owners)
+            .IsEquivalentTo(["library"], CollectionOrdering.Matching)
             .Because("the rider would turn the library's read into a rules run");
         queue.Resume();
         await handle.Completion;
@@ -510,7 +536,8 @@ public class DemoVisitTests
         FakePass grenades = new("grenades") { Ran = ran };
         FakePass highlights = new("highlights") { Ran = ran, Answer = PassInterest.IfRulesRun };
 
-        IDemoQueueHandle handle = queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Background, [grenades, highlights], 0,
+        IDemoQueueHandle handle = queue.SubmitVisit(new DemoVisitRequest(Demo, PassLevel.Background,
+            [grenades, highlights], 0,
             "match.dem", null, new HashSet<string> { "highlights" }));
         await handle.Completion;
 

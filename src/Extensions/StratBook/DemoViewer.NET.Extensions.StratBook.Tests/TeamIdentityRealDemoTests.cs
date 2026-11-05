@@ -2,10 +2,10 @@
 
 using CS2DemoKit.Analysis.Clips;
 using CS2DemoKit.Parser;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.TestSupport;
 using TUnit.Core.Exceptions;
 
@@ -34,8 +34,10 @@ public class TeamIdentityRealDemoTests
 
     private static DemoCacheRecord Tier2Record(string path, ParsedDemo parsed)
     {
-        (int? ct, int? t, string? ctClan, string? tClan, HashSet<int> coachSlots) = DemoLibraryService.ExtractFinalState(parsed);
-        (List<CachedPlayerInfo> players, List<CachedRound> rounds) = DemoLibraryService.ProjectTier2(parsed, coachSlots);
+        (int? ct, int? t, string? ctClan, string? tClan, HashSet<int> coachSlots) =
+            DemoLibraryService.ExtractFinalState(parsed);
+        (List<CachedPlayerInfo> players, List<CachedRound> rounds) =
+            DemoLibraryService.ProjectTier2(parsed, coachSlots);
         FileInfo info = new(path);
         DemoCacheRecord record = new()
         {
@@ -63,16 +65,19 @@ public class TeamIdentityRealDemoTests
         DemoCacheRecord record = Tier2Record(path, parsed);
         SideInput t = SideKeys.Side(record.AsDetail(), 2);
         SideInput ct = SideKeys.Side(record.AsDetail(), 3);
-        Console.WriteLine($"{Path.GetFileName(path)}: T key {t.Key.Count}, CT key {ct.Key.Count}, coaches {record.Players.Count(p => p.IsCoach)}");
+        Console.WriteLine(
+            $"{Path.GetFileName(path)}: T key {t.Key.Count}, CT key {ct.Key.Count}, coaches {record.Players.Count(p => p.IsCoach)}");
 
         using (Assert.Multiple())
         {
-            await Assert.That(record.Players.Any(p => p.IsCoach)).IsFalse().Because("a matchmaking replay registers no coach");
+            await Assert.That(record.Players.Any(p => p.IsCoach)).IsFalse()
+                .Because("a matchmaking replay registers no coach");
             await Assert.That(t.Key.Count).IsGreaterThan(0);
             await Assert.That(t.Key.Count).IsLessThanOrEqualTo(5);
             await Assert.That(ct.Key.Count).IsGreaterThan(0);
             await Assert.That(ct.Key.Count).IsLessThanOrEqualTo(5);
-            await Assert.That(t.Key.Intersect(ct.Key, StringComparer.Ordinal)).IsEmpty().Because("an account finishes on one side");
+            await Assert.That(t.Key.Intersect(ct.Key, StringComparer.Ordinal)).IsEmpty()
+                .Because("an account finishes on one side");
             await Assert.That(t.Key.All(id => id.Length > 10)).IsTrue().Because("SteamID64s, never zero");
         }
     }
@@ -104,11 +109,13 @@ public class TeamIdentityRealDemoTests
 
         await teams.Idle;
 
-        Console.WriteLine($"team identity over {paths.Count} of {Directory.GetFiles(folder, "*.dem").Length} demos in {folder}: " +
-                          $"{teams.Teams.Count} teams, {teams.UnaffiliatedCount} unaffiliated sides, {teams.UnclusterableCount} unclusterable demos");
+        Console.WriteLine(
+            $"team identity over {paths.Count} of {Directory.GetFiles(folder, "*.dem").Length} demos in {folder}: " +
+            $"{teams.Teams.Count} teams, {teams.UnaffiliatedCount} unaffiliated sides, {teams.UnclusterableCount} unclusterable demos");
         foreach (Team team in teams.Teams)
         {
-            Console.WriteLine($"  {team.Name} ({team.NameSource}): {team.Rosters.Count} roster(s), {teams.DemosOf(team.Id).Count} demos");
+            Console.WriteLine(
+                $"  {team.Name} ({team.NameSource}): {team.Rosters.Count} roster(s), {teams.DemosOf(team.Id).Count} demos");
         }
 
         using (Assert.Multiple())
@@ -145,7 +152,8 @@ public class TeamIdentityRealDemoTests
         }
 
         DemoCacheStore cache = new(null);
-        RoundFactsEvaluator evaluator = new(cache, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
+        RoundFactsEvaluator evaluator = new(cache, new EngineRoundFactsRowSource(),
+            new RulesRoundFactsRulesetIdentity());
         RoundFactsSource roundFacts = new(cache, evaluator);
         using TeamIdentityService teams = new(null, cache.Library(), roundFacts, run: _inline);
         await teams.StartAsync();

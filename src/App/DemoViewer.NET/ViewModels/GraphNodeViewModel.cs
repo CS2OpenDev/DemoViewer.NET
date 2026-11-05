@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
-using DemoViewer.NET.Theming;
 using DemoViewer.NET.Visualization;
 
 #endregion
@@ -13,7 +12,8 @@ namespace DemoViewer.NET.ViewModels;
 
 /// <summary>Graph node view model.</summary>
 /// <remarks>Initializes a new <see cref="GraphNodeViewModel" /> instance.</remarks>
-public sealed partial class GraphNodeViewModel(string name, bool isRoot = false, string? subtitle = null) : ObservableObject, IGraphNode
+public sealed partial class GraphNodeViewModel(string name, bool isRoot = false, string? subtitle = null)
+    : ObservableObject, IGraphNode
 {
     [ObservableProperty]
     private string? _displayValue;
@@ -78,18 +78,13 @@ public sealed partial class GraphNodeViewModel(string name, bool isRoot = false,
     /// </summary>
     public GraphNodeKey NodeKey { get; init; } = GraphNodeKey.ForGameScope(name);
 
-    // The wire form, materialized once. IGraphNode.Key is read per node and twice per edge by the
-    // breakpoint-marker refresh, and once per edge by the input-event scan, so re-serializing the
-    // struct on each access was a string allocation per probe across hundreds of nodes.
-    private string? _keyText;
-
     /// <summary>
     ///     The wire form of <see cref="NodeKey" />, materialized once. Call sites holding the concrete
     ///     type use this rather than <c>NodeKey.ToString()</c>: the breakpoint-marker refresh probes it
     ///     once per node and twice per edge, which is a four-figure count of string allocations per
     ///     pass once the graph carries per-player nodes.
     /// </summary>
-    public string KeyText => _keyText ??= NodeKey.ToString();
+    public string KeyText => field ??= NodeKey.ToString();
 
     string IGraphNode.Key => KeyText;
 
@@ -142,9 +137,5 @@ public sealed partial class GraphNodeViewModel(string name, bool isRoot = false,
         }
     }
 
-    private static NodeStyle BorderStyle(Color border) => new()
-    {
-        ActiveBorder = border,
-        InactiveBorder = border
-    };
+    private static NodeStyle BorderStyle(Color border) => new() { ActiveBorder = border, InactiveBorder = border };
 }

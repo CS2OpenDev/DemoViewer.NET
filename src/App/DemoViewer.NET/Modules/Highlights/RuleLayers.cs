@@ -33,14 +33,15 @@ public sealed record ContributedRuleset(string RulesetId, string Owner, string F
 /// </summary>
 public static class RuleLayers
 {
-    private static readonly ConditionalWeakTable<RulesetDoc, string> Sources = new();
+    private static readonly ConditionalWeakTable<RulesetDoc, string> _sources = new();
 
     /// <summary>Reads the shipped folder with the user's overlay, and places the extension rulesets between them.</summary>
     /// <param name="shippedDir">The shipped rules folder.</param>
     /// <param name="userDir">The user's rules folder, or null for none.</param>
     /// <param name="extensions">The contributed rulesets.</param>
     /// <param name="log">Where a left-out ruleset is reported.</param>
-    public static RuleConfigLoadResult Load(string shippedDir, string? userDir, IReadOnlyList<ContributedRuleset> extensions, ILogger log)
+    public static RuleConfigLoadResult Load(string shippedDir, string? userDir,
+        IReadOnlyList<ContributedRuleset> extensions, ILogger log)
     {
         ArgumentNullException.ThrowIfNull(extensions);
         ArgumentNullException.ThrowIfNull(log);
@@ -50,9 +51,11 @@ public static class RuleLayers
             return merged;
         }
 
-        HashSet<string> shippedIds = new(YamlConfigLoader.TryLoadDirectory(shippedDir).Rulesets.Select(r => r.Id), StringComparer.Ordinal);
+        HashSet<string> shippedIds = new(YamlConfigLoader.TryLoadDirectory(shippedDir).Rulesets.Select(r => r.Id),
+            StringComparer.Ordinal);
         HashSet<string> userIds = userDir is not null && Directory.Exists(userDir)
-            ? new HashSet<string>(YamlConfigLoader.TryLoadDirectory(userDir).Rulesets.Select(r => r.Id), StringComparer.Ordinal)
+            ? new HashSet<string>(YamlConfigLoader.TryLoadDirectory(userDir).Rulesets.Select(r => r.Id),
+                StringComparer.Ordinal)
             : [];
         return WithExtensions(merged, shippedIds, userIds, extensions, log);
     }
@@ -73,7 +76,8 @@ public static class RuleLayers
         {
             if (shippedIds.Contains(contributed.RulesetId))
             {
-                RuleLayersLog.LeftOut(log, contributed.RulesetId, contributed.Owner, "it takes the id of a shipped ruleset");
+                RuleLayersLog.LeftOut(log, contributed.RulesetId, contributed.Owner,
+                    "it takes the id of a shipped ruleset");
                 continue;
             }
 
@@ -89,7 +93,9 @@ public static class RuleLayers
                 continue;
             }
 
-            RuleConfigLoadResult read = YamlConfigLoader.LoadDocuments([(contributed.Owner + "/" + contributed.RulesetId + ".rules.yaml", yaml)]);
+            RuleConfigLoadResult read = YamlConfigLoader.LoadDocuments([
+                (contributed.Owner + "/" + contributed.RulesetId + ".rules.yaml", yaml)
+            ]);
             if (!read.Success || read.Rulesets.Count != 1)
             {
                 string why = read.Errors.Count > 0
@@ -126,7 +132,7 @@ public static class RuleLayers
                 continue;
             }
 
-            Sources.AddOrUpdate(doc, Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(yaml))));
+            _sources.AddOrUpdate(doc, Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(yaml))));
             docs.Add(doc);
             taken.Add(doc.Id);
             tables.UnionWith(TablesOf(doc));
@@ -137,7 +143,7 @@ public static class RuleLayers
 
     /// <summary>The SHA-256 of the YAML an extension ruleset was read from, or null for a ruleset read from a file.</summary>
     /// <param name="doc">The ruleset.</param>
-    public static string? SourceOf(RulesetDoc doc) => Sources.TryGetValue(doc, out string? source) ? source : null;
+    public static string? SourceOf(RulesetDoc doc) => _sources.TryGetValue(doc, out string? source) ? source : null;
 
     private static IEnumerable<string> TablesOf(RulesetDoc doc) => doc.Show?.Tables.Select(t => t.Name) ?? [];
 }
@@ -145,6 +151,7 @@ public static class RuleLayers
 /// <summary>The rule layers' log seams.</summary>
 internal static partial class RuleLayersLog
 {
-    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "rules: ruleset {rulesetId} of {extension} was left out: {reason}")]
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning,
+        Message = "rules: ruleset {rulesetId} of {extension} was left out: {reason}")]
     public static partial void LeftOut(ILogger logger, string rulesetId, string extension, string reason);
 }

@@ -153,7 +153,7 @@ public class PlaceResolverTests
         await Assert.That(resolver.AreAdjacent(1, 0)).IsTrue();
         await Assert.That(resolver.AreAdjacent(1, 2)).IsFalse();
         await Assert.That(resolver.AreAdjacent(0, 0)).IsFalse();
-        await Assert.That(resolver.Adjacent(0).ToArray()).IsEquivalentTo(Ids(1, 2), CollectionOrdering.Matching);
+        await Assert.That([.. resolver.Adjacent(0)]).IsEquivalentTo(Ids(1, 2), CollectionOrdering.Matching);
         await Assert.That(resolver.Adjacent(3).Count).IsEqualTo(0);
         await Assert.That(resolver.Adjacent(99).Count).IsEqualTo(0);
 

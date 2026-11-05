@@ -1,4 +1,8 @@
+#region
+
 using System.Diagnostics.CodeAnalysis;
+
+#endregion
 
 namespace DemoViewer.NET.Extensions.Sdk;
 
@@ -7,6 +11,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 ///     this extension reads and writes. Safe to call from any thread. A write lands on disk before
 ///     <see cref="Set{T}" /> returns; the browser build keeps the values for the session.
 /// </summary>
+[PublicAPI]
 public interface IExtensionSettings
 {
     /// <summary>
@@ -16,7 +21,9 @@ public interface IExtensionSettings
     /// </summary>
     /// <param name="key">The setting's key.</param>
     /// <param name="fallback">What to answer when nothing usable is stored: the setting's default.</param>
-    [SuppressMessage("Naming", "CA1716", Justification = "Get and Set read naturally in C#; a Visual Basic extension would implement them with escaped names.")]
+    [SuppressMessage("Naming", "CA1716",
+        Justification =
+            "Get and Set read naturally in C#; a Visual Basic extension would implement them with escaped names.")]
     T Get<T>(string key, T fallback);
 
     /// <summary>
@@ -37,6 +44,7 @@ public interface IExtensionSettings
 }
 
 /// <summary>How the host renders one setting.</summary>
+[PublicAPI]
 public enum SettingKind
 {
     /// <summary>On or off, stored as a bool.</summary>
@@ -58,6 +66,7 @@ public enum SettingKind
 /// <summary>One value a <see cref="SettingKind.Choice" /> setting offers.</summary>
 /// <param name="Value">What is stored.</param>
 /// <param name="Label">What the user sees.</param>
+[PublicAPI]
 public sealed record SettingChoice(string Value, string Label);
 
 /// <summary>
@@ -69,6 +78,7 @@ public sealed record SettingChoice(string Value, string Label);
 /// <param name="Label">The row's title.</param>
 /// <param name="Kind">How the row is rendered and what it stores.</param>
 /// <param name="Default">What the row shows while nothing is stored: a bool, a double or a string, by kind; null for no folder.</param>
+[PublicAPI]
 public sealed record SettingDescriptor(string Key, string Label, SettingKind Kind, object? Default)
 {
     /// <summary>A line under the title saying what the setting does.</summary>
@@ -84,7 +94,7 @@ public sealed record SettingDescriptor(string Key, string Label, SettingKind Kin
     public double Step { get; init; } = 1;
 
     /// <summary>What a <see cref="SettingKind.Choice" /> row offers.</summary>
-    public IReadOnlyList<SettingChoice> Choices { get; init; } = Array.Empty<SettingChoice>();
+    public IReadOnlyList<SettingChoice> Choices { get; init; } = [];
 
     /// <summary>An on-off setting.</summary>
     /// <param name="key">The settings key.</param>
@@ -102,9 +112,13 @@ public sealed record SettingDescriptor(string Key, string Label, SettingKind Kin
     /// <param name="maximum">The largest value accepted.</param>
     /// <param name="step">How far one step moves; a whole step stores whole numbers.</param>
     /// <param name="help">A line saying what it does.</param>
-    public static SettingDescriptor Number(string key, string label, double defaultValue, double minimum, double maximum,
+    public static SettingDescriptor Number(string key, string label, double defaultValue, double minimum,
+        double maximum,
         double step = 1, string? help = null) =>
-        new(key, label, SettingKind.Number, defaultValue) { Minimum = minimum, Maximum = maximum, Step = step, Help = help };
+        new(key, label, SettingKind.Number, defaultValue)
+        {
+            Minimum = minimum, Maximum = maximum, Step = step, Help = help
+        };
 
     /// <summary>One of <paramref name="choices" />.</summary>
     /// <param name="key">The settings key.</param>
@@ -112,7 +126,8 @@ public sealed record SettingDescriptor(string Key, string Label, SettingKind Kin
     /// <param name="defaultValue">The value while nothing is stored; one of the choices' values.</param>
     /// <param name="choices">What the row offers.</param>
     /// <param name="help">A line saying what it does.</param>
-    public static SettingDescriptor Choice(string key, string label, string defaultValue, IReadOnlyList<SettingChoice> choices,
+    public static SettingDescriptor Choice(string key, string label, string defaultValue,
+        IReadOnlyList<SettingChoice> choices,
         string? help = null) =>
         new(key, label, SettingKind.Choice, defaultValue) { Choices = choices, Help = help };
 
@@ -140,6 +155,7 @@ public sealed record SettingDescriptor(string Key, string Label, SettingKind Kin
 /// <param name="Id">Unique across the app.</param>
 /// <param name="Header">The page's heading under Settings, Extensions.</param>
 /// <param name="Settings">The rows, in order.</param>
+[PublicAPI]
 public sealed record SettingsSchema(string Id, string Header, IReadOnlyList<SettingDescriptor> Settings)
 {
     /// <summary>Position among pages; the host's pages use 0 to 99.</summary>

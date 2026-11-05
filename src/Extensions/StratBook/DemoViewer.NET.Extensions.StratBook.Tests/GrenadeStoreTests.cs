@@ -66,7 +66,11 @@ public class GrenadeStoreTests
         GrenadeDocument document = new()
         {
             Demo = new GrenadeDemoHeader { Sha256 = "abc", StableKey = "k", FileName = "a.dem", SizeBytes = 9 },
-            Grenades = [Full("g1-2"), new GrenadeRow { Id = "g3-4" }, .. Enumerable.Range(0, 200).Select(i => Full($"g{i}-1"))]
+            Grenades =
+            [
+                Full("g1-2"), new GrenadeRow { Id = "g3-4" },
+                .. Enumerable.Range(0, 200).Select(i => Full($"g{i}-1"))
+            ]
         };
 
         byte[] log = GrenadeThrowLog.Encode(document);
@@ -75,7 +79,8 @@ public class GrenadeStoreTests
         using (Assert.Multiple())
         {
             await Assert.That(GrenadeThrowLog.SameRows(document.Grenades, back.Grenades)).IsTrue();
-            await Assert.That(back.Grenades[0].ReleaseEyePitch).IsEqualTo(-42.44123f).Because("floats keep full precision");
+            await Assert.That(back.Grenades[0].ReleaseEyePitch).IsEqualTo(-42.44123f)
+                .Because("floats keep full precision");
             await Assert.That(back.Grenades[1].ReleasePosition).IsNull();
             await Assert.That(back.Grenades[1].ReleaseOnGround).IsNull();
             await Assert.That(back.Demo.Sha256).IsEqualTo("abc");
@@ -117,7 +122,8 @@ public class GrenadeStoreTests
             await Assert.That(store.IsCurrent("/d/a.dem")).IsTrue();
             await Assert.That(store.Stamp("/d/a.dem")!.Count).IsEqualTo(2);
             await Assert.That(store.TryReadRows("/d/a.dem", "abc")!.Grenades.Count).IsEqualTo(2);
-            await Assert.That(store.TryReadRows("/d/a.dem", "def")).IsNull().Because("rows naming another demo's hash are ignored");
+            await Assert.That(store.TryReadRows("/d/a.dem", "def")).IsNull()
+                .Because("rows naming another demo's hash are ignored");
         }
 
         store.MarkFailed("/d/a.dem");
@@ -134,13 +140,14 @@ public class GrenadeStoreTests
         {
             string legacy = Path.Combine(root, "cache", GrenadeLineupStore.FileName);
             GrenadeLineupStore old = new(Path.Combine(root, "cache"));
-            LineupAnchor anchor = new(Guid.NewGuid(), GrenadeKind.Smoke, new WorldPoint(1, 2, 3), new WorldPoint(4, 5, 6), "seed");
+            LineupAnchor anchor = new(Guid.NewGuid(), GrenadeKind.Smoke, new WorldPoint(1, 2, 3),
+                new WorldPoint(4, 5, 6), "seed");
             old.For(Map).Anchors.Add(anchor);
             old.Save();
 
-            DemoViewer.NET.Extensions.ExtensionStores stores = new("dev.example.lineups", Path.Combine(root, "config"),
+            ExtensionStores stores = new("dev.example.lineups", Path.Combine(root, "config"),
                 Path.Combine(root, "cache"), []);
-            IExtensionFolder folder = stores.Own(DemoViewer.NET.Extensions.Sdk.StoreRoot.Cache)!;
+            IExtensionFolder folder = stores.Own(StoreRoot.Cache)!;
             GrenadeLineupStore copied = GrenadeLineupStore.In(folder, () => File.ReadAllBytes(legacy));
             using (Assert.Multiple())
             {
@@ -175,16 +182,19 @@ public class GrenadeStoreTests
             string own = Path.Combine(oldest, ExtensionFolders.DataDirectoryName, "dev.example.lineups");
             Directory.CreateDirectory(own);
             GrenadeLineupStore oldestStore = new(oldest);
-            oldestStore.For(Map).Anchors.Add(new LineupAnchor(Guid.NewGuid(), GrenadeKind.Smoke, new WorldPoint(1, 2, 3),
+            oldestStore.For(Map).Anchors.Add(new LineupAnchor(Guid.NewGuid(), GrenadeKind.Smoke,
+                new WorldPoint(1, 2, 3),
                 new WorldPoint(4, 5, 6), "oldest"));
             oldestStore.Save();
-            LineupAnchor current = new(Guid.NewGuid(), GrenadeKind.Smoke, new WorldPoint(7, 8, 9), new WorldPoint(10, 11, 12), "current");
+            LineupAnchor current = new(Guid.NewGuid(), GrenadeKind.Smoke, new WorldPoint(7, 8, 9),
+                new WorldPoint(10, 11, 12), "current");
             GrenadeLineupStore currentStore = new(own);
             currentStore.For(Map).Anchors.Add(current);
             currentStore.Save();
 
-            DemoViewer.NET.Extensions.ExtensionStores stores = new("dev.example.lineups", Path.Combine(root, "config"), oldest, []);
-            GrenadeLineupStore opened = GrenadeLineupStore.In(stores.Own(DemoViewer.NET.Extensions.Sdk.StoreRoot.Cache),
+            ExtensionStores stores = new("dev.example.lineups", Path.Combine(root, "config"),
+                oldest, []);
+            GrenadeLineupStore opened = GrenadeLineupStore.In(stores.Own(StoreRoot.Cache),
                 () => File.ReadAllBytes(Path.Combine(oldest, GrenadeLineupStore.FileName)));
 
             await Assert.That(opened.For(Map).Anchors.Single()).IsEqualTo(current)
@@ -202,13 +212,15 @@ public class GrenadeStoreTests
         DemoCacheStore cache = new(null);
         int n = 0;
         GrenadeIndexEvaluator evaluator = new(cache.Library(), cache.Grenades(), () => true, () => null,
-            walk: _ => new GrenadeWalk([Smoke("g1-1", 1300 + 5 * n++, 3, "76561198000000003")], 1, GrenadeWalker.InputDecoderName, 4));
+            walk: _ => new GrenadeWalk([Smoke("g1-1", 1300 + 5 * n++, 3, "76561198000000003")], 1,
+                GrenadeWalker.InputDecoderName, 4));
         using GrenadeIndex index = new(cache.Library(), evaluator: evaluator);
         index.Load();
         foreach (string path in new[] { "/d/a.dem", "/d/b.dem" })
         {
             DemoCacheRecord record = RoundIndexTestData.ParsedRecord(path, Map, "sha" + path);
-            record.Players = [new CachedPlayerInfo { Slot = 3, Name = "window guy", SteamId64 = "76561198000000003", Team = 2 }];
+            record.Players =
+                [new CachedPlayerInfo { Slot = 3, Name = "window guy", SteamId64 = "76561198000000003", Team = 2 }];
             cache.Upsert(record);
             evaluator.Evaluate(path, RoundIndexTestData.Demo(lastTick: 5000));
         }
@@ -225,7 +237,8 @@ public class GrenadeStoreTests
     private static byte[] Gzip(byte[] bytes)
     {
         using MemoryStream buffer = new();
-        using (System.IO.Compression.GZipStream gzip = new(buffer, System.IO.Compression.CompressionLevel.Optimal, true))
+        using (System.IO.Compression.GZipStream
+               gzip = new(buffer, System.IO.Compression.CompressionLevel.Optimal, true))
         {
             gzip.Write(bytes);
         }

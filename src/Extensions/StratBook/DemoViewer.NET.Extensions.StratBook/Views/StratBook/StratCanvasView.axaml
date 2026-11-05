@@ -90,19 +90,24 @@
 
         <!-- The step transport and the path. -->
         <WrapPanel Grid.Row="1" Orientation="Horizontal" ItemSpacing="6" LineSpacing="4" Margin="0 0 0 6">
-            <Button Content="⏮" Classes="ghost" Padding="8 3" Command="{Binding PrevStepCommand}" ToolTip.Tip="Previous step ([)" />
+            <Button Content="⏮" Classes="ghost" Padding="8 3" Command="{Binding PrevStepCommand}"
+                    ToolTip.Tip="Previous step ([)" />
             <Button Content="{Binding PlayGlyph}" Classes="ghost" Padding="8 3" Command="{Binding TogglePlayCommand}"
                     ToolTip.Tip="Play / pause (Space)" />
-            <Button Content="⏭" Classes="ghost" Padding="8 3" Command="{Binding NextStepCommand}" ToolTip.Tip="Next step (])" />
+            <Button Content="⏭" Classes="ghost" Padding="8 3" Command="{Binding NextStepCommand}"
+                    ToolTip.Tip="Next step (])" />
             <TextBlock Text="{Binding ClockText}" FontSize="12" VerticalAlignment="Center" MinWidth="120"
                        Foreground="{DynamicResource TextValue}" />
             <TextBlock Text="{Binding SpeedText}" FontSize="11" VerticalAlignment="Center"
                        Foreground="{DynamicResource TextMid}" ToolTip.Tip="Speed (↑ / ↓)" />
-            <Button Content="Add step" Classes="ghost" FontSize="11" Padding="8 3" IsVisible="{Binding !IsReadOnly}" Command="{Binding AddStepCommand}"
+            <Button Content="Add step" Classes="ghost" FontSize="11" Padding="8 3" IsVisible="{Binding !IsReadOnly}"
+                    Command="{Binding AddStepCommand}"
                     ToolTip.Tip="Insert a step after the active one at the playhead's time (Shift+N)" />
-            <Button Content="Duplicate" Classes="ghost" FontSize="11" Padding="8 3" IsVisible="{Binding !IsReadOnly}" Command="{Binding DuplicateStepCommand}"
+            <Button Content="Duplicate" Classes="ghost" FontSize="11" Padding="8 3" IsVisible="{Binding !IsReadOnly}"
+                    Command="{Binding DuplicateStepCommand}"
                     ToolTip.Tip="Copy the active step's positions and strokes into a new step 5 s later (Ctrl+D)" />
-            <Button Content="Delete step" Classes="ghost" FontSize="11" Padding="8 3" IsVisible="{Binding !IsReadOnly}" Command="{Binding DeleteStepCommand}"
+            <Button Content="Delete step" Classes="ghost" FontSize="11" Padding="8 3" IsVisible="{Binding !IsReadOnly}"
+                    Command="{Binding DeleteStepCommand}"
                     ToolTip.Tip="Delete the active step and the branches that name it (Ctrl+Delete)" />
             <ComboBox ItemsSource="{Binding PathOptions}" SelectedItem="{Binding SelectedPath}" FontSize="11"
                       MinWidth="160" IsVisible="{Binding HasBranches}"
@@ -124,10 +129,14 @@
 
                 <!-- A token drag's label beside the pointer: who, the field it writes and what it becomes, then the keys. -->
                 <Canvas x:Name="DragLabelLayer" IsHitTestVisible="False">
-                    <Border x:Name="DragLabel" IsVisible="{Binding DragLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Padding="8 4" CornerRadius="3"
-                            Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource Pb2dCanvasDropTarget}" BorderThickness="1">
+                    <Border x:Name="DragLabel"
+                            IsVisible="{Binding DragLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                            Padding="8 4" CornerRadius="3"
+                            Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource Pb2dCanvasDropTarget}"
+                            BorderThickness="1">
                         <StackPanel Spacing="1">
-                            <TextBlock Text="{Binding DragLabel}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextValue}" />
+                            <TextBlock Text="{Binding DragLabel}" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextValue}" />
                             <TextBlock Text="{Binding DragHint}" FontSize="10" Foreground="{DynamicResource TextMid}"
                                        IsVisible="{Binding DragHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                         </StackPanel>

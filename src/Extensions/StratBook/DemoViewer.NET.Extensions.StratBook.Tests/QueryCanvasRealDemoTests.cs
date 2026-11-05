@@ -2,10 +2,10 @@
 
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Playback2D.Query;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.TestSupport;
 
 #endregion
@@ -33,7 +33,8 @@ public class QueryCanvasRealDemoTests
 
         RoundIndexStore sidecars = new(cache.Data());
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
-        RoundIndexDocument document = RoundIndexBuilder.Build(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
+        RoundIndexDocument document =
+            RoundIndexBuilder.Build(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
         RoundIndexTestData.Indexed(cache, sidecars, path, document);
         using SituationIndex index = new(cache.Library(), sidecars, sources);
         index.Load();
@@ -43,10 +44,7 @@ public class QueryCanvasRealDemoTests
             .First(r => r.Ct.Length > 0 && !r.Ct.Contains('?') && r.T.Length > 0 && !r.T.Contains('?'));
         IReadOnlyList<PlaceSummary> places = index.Places(document.Map);
         QueryPlaceResolver resolver = new(index, sources.Zones);
-        QueryCanvasDocument canvas = new()
-        {
-            MapName = document.Map
-        };
+        QueryCanvasDocument canvas = new() { MapName = document.Map };
 
         // One token per alive player on each side, dropped on the folded centroid of its place over
         // the whole Z range, so the snap's nearest answer is that place by construction.

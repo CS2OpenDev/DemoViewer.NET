@@ -9,7 +9,6 @@ using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.TestSupport;
-using TUnit.Core.Exceptions;
 using SysAssembly = System.Reflection.Assembly;
 
 #endregion
@@ -41,6 +40,7 @@ internal enum IlAccess
 /// <param name="TargetType">The referenced member's declaring type, fully qualified.</param>
 /// <param name="TargetMember">The referenced member's name.</param>
 /// <param name="Access">Which instruction reached it.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal readonly record struct IlSite(
     string Assembly,
     string Type,
@@ -78,7 +78,7 @@ internal static class Playback2DWholeGraph
         typeof(AppSettings).Assembly,
         typeof(Scene2DFrame).Assembly,
         typeof(SceneFrameBuilder).Assembly,
-        typeof(DemoViewer.NET.Extensions.Sdk.Ui.Controls.MapView).Assembly,
+        typeof(MapView).Assembly,
         .. FeaturePacks.Default.Select(pack => pack.GetType().Assembly).Distinct()
     ]);
 
@@ -114,7 +114,8 @@ internal static class Playback2DWholeGraph
     /// </summary>
     public static IEnumerable<Type> EventContractTypes =>
         ProductionAssemblies.SelectMany(SafeTypes)
-            .Where(t => IsModuleNamespace(t.Namespace) || string.Equals(t.Namespace, "DemoViewer.NET.Extensions", StringComparison.Ordinal));
+            .Where(t => IsModuleNamespace(t.Namespace)
+                || string.Equals(t.Namespace, "DemoViewer.NET.Extensions", StringComparison.Ordinal));
 
     /// <summary>Whether a namespace belongs to the Playback2D module. See <see cref="ModuleTypes" />.</summary>
     public static bool IsModuleNamespace(string? ns) =>
@@ -307,10 +308,7 @@ internal static class Playback2DWholeGraph
         string root = DemoTestHelper.RequireRepoRoot();
         List<SourceFile> files = [];
 
-        foreach (string top in new[]
-                 {
-                     "src", "tools"
-                 })
+        foreach (string top in new[] { "src", "tools" })
         {
             string dir = Path.Combine(root, top);
             if (!Directory.Exists(dir))

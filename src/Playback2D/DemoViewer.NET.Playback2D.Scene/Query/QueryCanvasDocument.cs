@@ -13,33 +13,33 @@ namespace DemoViewer.NET.Playback2D.Query;
 ///         a fixture can carry one and <c>dv2d</c> can draw it with no window.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class QueryCanvasDocument
 {
     /// <summary>Rail slots per side: a full five-stack.</summary>
     public const int SlotsPerSide = 5;
 
     private readonly QueryToken?[] _slots = new QueryToken?[2 * SlotsPerSide];
-    private string _mapName = "";
 
     /// <summary>The map the tokens were placed on, as the demo header spells it. Empty before one is chosen.</summary>
     public string MapName
     {
-        get => _mapName;
+        get;
         set
         {
             ArgumentNullException.ThrowIfNull(value);
-            if (string.Equals(_mapName, value, StringComparison.Ordinal))
+            if (string.Equals(field, value, StringComparison.Ordinal))
             {
                 return;
             }
 
             // A token placed on one map means nothing on another: the drop point is that map's world
             // and the place is that map's vocabulary.
-            _mapName = value;
+            field = value;
             Array.Clear(_slots);
             Bump();
         }
-    }
+    } = "";
 
     /// <summary>Bumped on every change; a cheap way for a layer or a view to notice one.</summary>
     public int Version { get; private set; }
@@ -53,9 +53,9 @@ public sealed class QueryCanvasDocument
         get
         {
             int count = 0;
-            for (int i = 0; i < _slots.Length; i++)
+            foreach (QueryToken? slot in _slots)
             {
-                if (_slots[i] is not null)
+                if (slot is not null)
                 {
                     count++;
                 }
@@ -71,9 +71,9 @@ public sealed class QueryCanvasDocument
         get
         {
             List<QueryToken> placed = [];
-            for (int i = 0; i < _slots.Length; i++)
+            foreach (QueryToken? slot in _slots)
             {
-                if (_slots[i] is { } token)
+                if (slot is { } token)
                 {
                     placed.Add(token);
                 }

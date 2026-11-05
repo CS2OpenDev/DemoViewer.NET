@@ -96,11 +96,8 @@ public class FfmpegArgumentTests
     [Test]
     public async Task BuildingArguments_DoesNotTouchGlobalFfOptions()
     {
-        string? before = GlobalFFOptions.Current.BinaryFolder;
-        FfmpegFrameSink.DescribeArguments(Options(ExportFormats.WebM) with
-        {
-            BinaryFolder = "/somewhere/else"
-        });
+        string before = GlobalFFOptions.Current.BinaryFolder;
+        FfmpegFrameSink.DescribeArguments(Options(ExportFormats.WebM) with { BinaryFolder = "/somewhere/else" });
 
         // The binary folder is passed per invocation on purpose: GlobalFFOptions is process-global
         // mutable state, and an in-app export and a dv2d export must be able to disagree about it.
@@ -147,7 +144,7 @@ public class ChannelVideoFrameSourceTests
         // until the process runs out of room, and at 1080p each one is 8 MB.
         await Assert.That(third.IsCompleted).IsFalse();
 
-        IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
+        using IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
         await Assert.That(reader.MoveNext()).IsTrue();
         await third;
     }
@@ -162,7 +159,7 @@ public class ChannelVideoFrameSourceTests
         await bridge.WriteAsync(payload, 2, 2, CancellationToken.None);
         bridge.Complete();
 
-        IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
+        using IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
         int read = 0;
         while (reader.MoveNext())
         {
@@ -183,7 +180,7 @@ public class ChannelVideoFrameSourceTests
         await bridge.WriteAsync(payload, 2, 2, CancellationToken.None);
         bridge.Complete();
 
-        IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
+        using IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
         await Assert.That(reader.MoveNext()).IsTrue();
 
         IVideoFrame frame = reader.Current;
@@ -204,19 +201,20 @@ public class ChannelVideoFrameSourceTests
     {
         // The pool has no public census, so this measures the proxy that matters: renting the same size
         // after a full drain must not allocate a new array.
-        using ChannelVideoFrameSource bridge = new();
         byte[] payload = new byte[4096];
 
-        for (int i = 0; i < 32; i++)
+        using (ChannelVideoFrameSource bridge = new())
         {
-            await bridge.WriteAsync(payload, 32, 32, CancellationToken.None);
+            // The source is its own enumerator, so disposing either one returns the buffers.
+            using IEnumerator<IVideoFrame> reader = bridge.GetEnumerator();
+            for (int i = 0; i < 32; i++)
+            {
+                await bridge.WriteAsync(payload, 32, 32, CancellationToken.None);
+                reader.MoveNext();
+            }
 
-            IEnumerator<IVideoFrame> reader = i == 0 ? bridge.GetEnumerator() : bridge;
-            reader.MoveNext();
+            bridge.Complete();
         }
-
-        bridge.Complete();
-        bridge.Dispose();
 
         byte[] rented = ArrayPool<byte>.Shared.Rent(4096);
         ArrayPool<byte>.Shared.Return(rented);
@@ -227,11 +225,13 @@ public class ChannelVideoFrameSourceTests
     public async Task EnumeratingTwice_IsRefused()
     {
         using ChannelVideoFrameSource bridge = new();
-        bridge.GetEnumerator();
+        using IEnumerator<IVideoFrame> first = bridge.GetEnumerator();
 
         // A second pass would silently produce an empty stream, a video file with no frames and no
         // error, which is a much worse failure than saying so.
-        await Assert.That(SceneExportSessionLoopTests.Throws<InvalidOperationException>(() => bridge.GetEnumerator())).IsNotNull();
+        await Assert
+            .That(SceneExportSessionLoopTests.Throws<InvalidOperationException>(() => bridge.GetEnumerator().Dispose()))
+            .IsNotNull();
     }
 }
 
@@ -308,7 +308,8 @@ public class ManagedGifSinkTests
             for (int i = 0; i < 6; i++)
             {
                 await Assert.That(gif.Frames[i].DelayCentiseconds).IsEqualTo(5);
-                await Assert.That(gif.Frames[i].Rgb).IsEquivalentTo(Rgb(Frame(8, 8, (byte)(i * 40))), CollectionOrdering.Matching);
+                await Assert.That(gif.Frames[i].Rgb)
+                    .IsEquivalentTo(Rgb(Frame(8, 8, (byte)(i * 40))), CollectionOrdering.Matching);
             }
         }
         finally
@@ -325,15 +326,15 @@ public class ManagedGifSinkTests
     [Test]
     public async Task NoiseThatOverflowsTheCodeTable_RoundTripsExactly()
     {
-        const int size = 128;
-        byte[] first = Noise(size, size, 1);
+        const int Size = 128;
+        byte[] first = Noise(Size, Size, 1);
         byte[] second = (byte[])first.Clone();
         // A colour the noise never uses, so every pixel in the block changes.
-        Paint(second, size, 30, 20, 50, 40, (250, 250, 250));
-        byte[] fourth = Noise(size, size, 2);
+        Paint(second, Size, 30, 20, 50, 40, (250, 250, 250));
+        byte[] fourth = Noise(Size, Size, 2);
         byte[][] frames = [first, second, second, fourth];
 
-        byte[] file = await Encode(frames, size, size);
+        byte[] file = await Encode(frames, Size, Size);
         DecodedGif gif = GifTestDecoder.Decode(file);
 
         await Assert.That(gif.Frames.Count).IsEqualTo(4);
@@ -355,13 +356,13 @@ public class ManagedGifSinkTests
     [Test]
     public async Task MoreColoursThanThePaletteHolds_AreQuantizedClosely()
     {
-        const int width = 256, height = 64;
-        byte[] rgba = new byte[width * height * 4];
-        for (int y = 0; y < height; y++)
+        const int Width = 256, Height = 64;
+        byte[] rgba = new byte[Width * Height * 4];
+        for (int y = 0; y < Height; y++)
         {
-            for (int x = 0; x < width; x++)
+            for (int x = 0; x < Width; x++)
             {
-                int i = ((y * width) + x) * 4;
+                int i = ((y * Width) + x) * 4;
                 rgba[i] = (byte)x;
                 rgba[i + 1] = (byte)(y * 4);
                 rgba[i + 2] = (byte)(255 - x);
@@ -369,7 +370,7 @@ public class ManagedGifSinkTests
             }
         }
 
-        DecodedGif gif = GifTestDecoder.Decode(await Encode([rgba], width, height));
+        DecodedGif gif = GifTestDecoder.Decode(await Encode([rgba], Width, Height));
         byte[] expected = Rgb(rgba);
         byte[] actual = gif.Frames[0].Rgb;
 
@@ -427,7 +428,8 @@ public class ManagedGifSinkTests
     {
         // 30 fps is 3.33 centiseconds. Accepting it would export a 30 fps request at 33.3 fps and say
         // nothing, which is the kind of quiet wrongness a user only notices after uploading it.
-        await Assert.That(SceneExportSessionLoopTests.Throws<ExportValidationException>(() => new ManagedGifSink("x.gif", 30).DisposeAsync().AsTask().GetAwaiter().GetResult()))
+        await Assert.That(SceneExportSessionLoopTests.Throws<ExportValidationException>(() =>
+                new ManagedGifSink("x.gif", 30).DisposeAsync().AsTask().GetAwaiter().GetResult()))
             .IsNotNull();
     }
 
@@ -570,18 +572,9 @@ public class HashingFrameSinkTests
         RecordingFrameSink inner = new();
         HashingFrameSink hashing = new(inner);
 
-        await hashing.WriteAsync(new byte[]
-        {
-            1, 2, 3, 4
-        }, 1, 1, CancellationToken.None);
-        await hashing.WriteAsync(new byte[]
-        {
-            1, 2, 3, 4
-        }, 1, 1, CancellationToken.None);
-        await hashing.WriteAsync(new byte[]
-        {
-            9, 9, 9, 9
-        }, 1, 1, CancellationToken.None);
+        await hashing.WriteAsync(new byte[] { 1, 2, 3, 4 }, 1, 1, CancellationToken.None);
+        await hashing.WriteAsync(new byte[] { 1, 2, 3, 4 }, 1, 1, CancellationToken.None);
+        await hashing.WriteAsync(new byte[] { 9, 9, 9, 9 }, 1, 1, CancellationToken.None);
         await hashing.DisposeAsync();
 
         await Assert.That(inner.Frames.Count).IsEqualTo(3);

@@ -24,7 +24,7 @@ public sealed record PlaceOption(string Place, string Display, IReadOnlyList<str
 /// </summary>
 public sealed class PlaceFieldOptions
 {
-    private static readonly ConditionalWeakTable<CalloutResolver, PlaceFieldOptions> Cache = new();
+    private static readonly ConditionalWeakTable<CalloutResolver, PlaceFieldOptions> _cache = new();
 
     private PlaceFieldOptions(CalloutResolver resolver)
     {
@@ -44,7 +44,10 @@ public sealed class PlaceFieldOptions
         [
             .. resolver.CanonicalNames
                 .Select(p => new PlaceOption(p, resolver.Display(p),
-                    [CalloutResolver.Fold(resolver.Display(p)), CalloutResolver.Fold(p), .. aliases.GetValueOrDefault(p) ?? []]))
+                [
+                    CalloutResolver.Fold(resolver.Display(p)), CalloutResolver.Fold(p),
+                    .. aliases.GetValueOrDefault(p) ?? []
+                ]))
                 .OrderBy(o => o.Display, StringComparer.OrdinalIgnoreCase)
         ];
     }
@@ -60,7 +63,7 @@ public sealed class PlaceFieldOptions
     public static PlaceFieldOptions For(CalloutResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
-        return Cache.GetValue(resolver, r => new PlaceFieldOptions(r));
+        return _cache.GetValue(resolver, r => new PlaceFieldOptions(r));
     }
 
     /// <summary>
@@ -107,13 +110,12 @@ public sealed class PlaceFieldOptions
 public sealed class PlaceFieldModel
 {
     private List<PlaceRef> _value = [];
-    private bool _typed;
     private bool _moved;
 
     /// <param name="isMulti">A list of locations (watching, via, lurk areas) rather than one.</param>
     public PlaceFieldModel(bool isMulti = false) => IsMulti = isMulti;
 
-    public bool IsMulti { get; }
+    private bool IsMulti { get; }
 
     /// <summary>The map's callouts; null offers no list and stores typed text as written.</summary>
     public PlaceFieldOptions? Options { get; set; }
@@ -136,10 +138,10 @@ public sealed class PlaceFieldModel
     ///     Whether the user has typed or moved the highlight since the list opened: only then does Enter pick from it.
     ///     Otherwise Enter is the host's, as it is with no list.
     /// </summary>
-    public bool HasChoice => _typed || _moved;
+    public bool HasChoice => HasPendingEdit || _moved;
 
     /// <summary>Whether the text holds an edit not yet committed: a value pushed from outside then waits.</summary>
-    public bool HasPendingEdit => _typed;
+    public bool HasPendingEdit { get; private set; }
 
     /// <summary>The level key a typed coordinate takes when the field holds no point to take it from; null for none.</summary>
     public double? CurrentLevelMinZ { get; set; }
@@ -169,7 +171,7 @@ public sealed class PlaceFieldModel
     public void Load(IReadOnlyList<PlaceRef>? value)
     {
         _value = [.. (value ?? []).Where(StratLocations.IsSet)];
-        _typed = false;
+        HasPendingEdit = false;
         Text = IsMulti ? "" : DisplayOf(_value, Options?.Resolver);
         Raise();
     }
@@ -221,7 +223,7 @@ public sealed class PlaceFieldModel
     public void Type(string? text)
     {
         Text = text ?? "";
-        _typed = true;
+        HasPendingEdit = true;
         if (Options is not null)
         {
             IsOpen = true;
@@ -233,26 +235,27 @@ public sealed class PlaceFieldModel
         }
     }
 
-    /// <summary>Moves the highlight, stopping at either end. True when the list is open, so the key is consumed.</summary>
+    /// <summary>Moves the highlight, stopping at either end. Does nothing while the list is closed or empty.</summary>
     /// <param name="delta">-1 for up, 1 for down.</param>
-    public bool Move(int delta)
+    public void Move(int delta)
     {
         if (!IsOpen || Items.Count == 0)
         {
-            return IsOpen;
+            return;
         }
 
         _moved = true;
-        Highlight = Math.Clamp(Highlight < 0 ? (delta > 0 ? 0 : Items.Count - 1) : Highlight + delta, 0, Items.Count - 1);
+        Highlight = Math.Clamp(Highlight < 0 ? (delta > 0 ? 0 : Items.Count - 1) : Highlight + delta, 0,
+            Items.Count - 1);
         Raise();
-        return true;
     }
 
     /// <summary>
     ///     Enter on the open list: the highlighted callout is stored (a multi field appends it), the list closes, and
     ///     the new value is returned. Null when the list is closed or nothing is highlighted.
     /// </summary>
-    public IReadOnlyList<PlaceRef>? Accept() => IsOpen && Highlight >= 0 && Highlight < Items.Count ? Choose(Items[Highlight]) : null;
+    public IReadOnlyList<PlaceRef>? Accept() =>
+        IsOpen && Highlight >= 0 && Highlight < Items.Count ? Choose(Items[Highlight]) : null;
 
     /// <summary>A click on a list row: as <see cref="Accept" /> for that row.</summary>
     /// <param name="option">The row.</param>
@@ -260,7 +263,7 @@ public sealed class PlaceFieldModel
     {
         ArgumentNullException.ThrowIfNull(option);
         IsOpen = false;
-        _typed = false;
+        HasPendingEdit = false;
         if (IsMulti)
         {
             Text = "";
@@ -285,9 +288,9 @@ public sealed class PlaceFieldModel
         IsOpen = false;
         if (IsMulti)
         {
-            PlaceRef? entry = _typed ? ParseEntry(Text, _value, Options?.Resolver, CurrentLevelMinZ) : null;
+            PlaceRef? entry = HasPendingEdit ? ParseEntry(Text, _value, Options?.Resolver, CurrentLevelMinZ) : null;
             Text = "";
-            _typed = false;
+            HasPendingEdit = false;
             bool added = entry is not null && Append(entry);
             Raise();
             return added ? _value : null;
@@ -295,7 +298,7 @@ public sealed class PlaceFieldModel
 
         List<PlaceRef> value = Parse(Text);
         bool same = value.Count == _value.Count && value.Zip(_value).All(p => StratLocations.Same(p.First, p.Second));
-        _typed = false;
+        HasPendingEdit = false;
         if (!same)
         {
             _value = value;
@@ -311,7 +314,7 @@ public sealed class PlaceFieldModel
     {
         _value = [];
         Text = "";
-        _typed = false;
+        HasPendingEdit = false;
         IsOpen = false;
         Raise();
         return [];
@@ -357,27 +360,27 @@ public sealed class PlaceFieldModel
     {
         int to = index + delta;
         return index >= 0 && index < _value.Count && to >= 0 && to < _value.Count
-               && StratLocations.HasPlace(_value[index]) == StratLocations.HasPlace(_value[to]);
+            && StratLocations.HasPlace(_value[index]) == StratLocations.HasPlace(_value[to]);
     }
 
     // "(1234, -560)", "1234, -560", "1234 -560": two numbers, optional parentheses, a comma or spaces between.
-    private static readonly Regex PointPattern = new(
+    private static readonly Regex _pointPattern = new(
         @"^\(?\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*|\s+)(-?\d+(?:\.\d+)?)\s*\)?$", RegexOptions.CultureInvariant);
 
-    private static readonly Regex NumberOnly = new(@"^[\s()\-+.,\d]+$", RegexOptions.CultureInvariant);
+    private static readonly Regex _numberOnly = new(@"^[\s()\-+.,\d]+$", RegexOptions.CultureInvariant);
 
     /// <summary>Typed text as a world point: two numbers, with optional parentheses and a comma or spaces between.</summary>
     /// <param name="text">The text.</param>
     /// <param name="x">World X.</param>
     /// <param name="y">World Y.</param>
-    public static bool TryParsePoint(string text, out double x, out double y)
+    private static bool TryParsePoint(string text, out double x, out double y)
     {
         ArgumentNullException.ThrowIfNull(text);
-        Match match = PointPattern.Match(text.Trim());
+        Match match = _pointPattern.Match(text.Trim());
         x = y = 0;
         return match.Success
-               && double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out x)
-               && double.TryParse(match.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out y);
+            && double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out x)
+            && double.TryParse(match.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out y);
     }
 
     /// <summary>
@@ -389,7 +392,8 @@ public sealed class PlaceFieldModel
     /// <param name="current">The stored value.</param>
     /// <param name="callouts">The owner's words, or null.</param>
     /// <param name="levelMinZ">The level key a typed coordinate takes when no stored point gives one; null for none.</param>
-    public static List<PlaceRef> Parse(string text, IReadOnlyList<PlaceRef> current, CalloutResolver? callouts, double? levelMinZ = null)
+    public static List<PlaceRef> Parse(string text, IReadOnlyList<PlaceRef> current, CalloutResolver? callouts,
+        double? levelMinZ = null)
     {
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(current);
@@ -417,7 +421,9 @@ public sealed class PlaceFieldModel
         }
 
         // Numbers that are not a point are never a place.
-        return !NumberOnly.IsMatch(part) && StratLocations.Typed(stored, callouts?.Resolve(part) ?? part) is { } typed ? [typed] : [];
+        return !_numberOnly.IsMatch(part) && StratLocations.Typed(stored, callouts?.Resolve(part) ?? part) is { } typed
+            ? [typed]
+            : [];
     }
 
     /// <summary>
@@ -429,17 +435,23 @@ public sealed class PlaceFieldModel
     /// <param name="current">The list it joins.</param>
     /// <param name="callouts">The owner's words, or null.</param>
     /// <param name="levelMinZ">The level key a coordinate takes when the list holds no point; null for none.</param>
-    public static PlaceRef? ParseEntry(string text, IReadOnlyList<PlaceRef> current, CalloutResolver? callouts, double? levelMinZ = null)
+    public static PlaceRef? ParseEntry(string text, IReadOnlyList<PlaceRef> current, CalloutResolver? callouts,
+        double? levelMinZ = null)
     {
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(current);
         string part = text.Trim();
         if (TryParsePoint(part, out double x, out double y))
         {
-            return new PlaceRef { X = x, Y = y, LevelMinZ = current.FirstOrDefault(StratLocations.HasPoint)?.LevelMinZ ?? levelMinZ };
+            return new PlaceRef
+            {
+                X = x, Y = y, LevelMinZ = current.FirstOrDefault(StratLocations.HasPoint)?.LevelMinZ ?? levelMinZ
+            };
         }
 
-        return part.Length == 0 || NumberOnly.IsMatch(part) ? null : new PlaceRef { Place = callouts?.Resolve(part) ?? part };
+        return part.Length == 0 || _numberOnly.IsMatch(part)
+            ? null
+            : new PlaceRef { Place = callouts?.Resolve(part) ?? part };
     }
 
     private static string BeforeComma(string text)
@@ -487,14 +499,16 @@ public sealed class PlaceFieldModel
             return;
         }
 
-        IReadOnlyList<PlaceOption> items = Options.Filter(_typed ? Text : "");
+        IReadOnlyList<PlaceOption> items = Options.Filter(HasPendingEdit ? Text : "");
         Items = IsMulti ? [.. items.Where(o => !IsChosen(o.Place))] : items;
-        string? current = !_typed && !IsMulti && _value.Count > 0 ? _value[0].Place : null;
-        int index = current is null ? -1 : Items.ToList().FindIndex(o => string.Equals(o.Place, current, StringComparison.Ordinal));
+        string? current = !HasPendingEdit && !IsMulti && _value.Count > 0 ? _value[0].Place : null;
+        int index = current is null
+            ? -1
+            : Items.ToList().FindIndex(o => string.Equals(o.Place, current, StringComparison.Ordinal));
 
         // Text naming a callout already chosen highlights nothing, so Enter refuses it instead of adding a neighbour.
-        bool namesChosen = IsMulti && _typed && IsChosen(Options.Resolver.Resolve(Text));
-        Highlight = index >= 0 ? index : _typed && Items.Count > 0 && !namesChosen ? 0 : -1;
+        bool namesChosen = IsMulti && HasPendingEdit && IsChosen(Options.Resolver.Resolve(Text));
+        Highlight = index >= 0 ? index : HasPendingEdit && Items.Count > 0 && !namesChosen ? 0 : -1;
         Raise();
     }
 

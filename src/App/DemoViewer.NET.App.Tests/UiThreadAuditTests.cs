@@ -1,7 +1,7 @@
 #region
 
-using System.Runtime.CompilerServices;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using Avalonia;
 using Avalonia.Controls;
@@ -43,7 +43,8 @@ public class UiThreadAuditTests
     [Test]
     public async Task EverySection_OverTheOwnersLibrary()
     {
-        if (Environment.GetEnvironmentVariable("DV_AUDIT_CONFIG") is not { Length: > 0 } source || !Directory.Exists(source))
+        if (Environment.GetEnvironmentVariable("DV_AUDIT_CONFIG") is not { Length: > 0 } source
+            || !Directory.Exists(source))
         {
             throw new SkipTestException("DV_AUDIT_CONFIG is not set");
         }
@@ -51,11 +52,15 @@ public class UiThreadAuditTests
         string dir = Path.Combine(Path.GetTempPath(), $"dv-ui-audit-{Guid.NewGuid():N}");
         CopyTree(source, dir);
         string settingsFile = Path.Combine(dir, "settings.json");
-        if (File.Exists(settingsFile) && JsonNode.Parse(File.ReadAllText(settingsFile)) is JsonObject settings)
+        if (File.Exists(settingsFile)
+            && JsonNode.Parse(await File.ReadAllTextAsync(settingsFile)) is JsonObject settings)
         {
-            settings["ProcessingQueue"] = new JsonObject { ["BackgroundProcessingEnabled"] = false, ["MaxQueueSize"] = 500, ["MaxConcurrency"] = 1 };
+            settings["ProcessingQueue"] = new JsonObject
+            {
+                ["BackgroundProcessingEnabled"] = false, ["MaxQueueSize"] = 500, ["MaxConcurrency"] = 1
+            };
             settings["Idle"] = new JsonObject { ["Enabled"] = false };
-            File.WriteAllText(settingsFile, settings.ToJsonString());
+            await File.WriteAllTextAsync(settingsFile, settings.ToJsonString());
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
@@ -77,19 +82,27 @@ public class UiThreadAuditTests
                     Settle();
                     Report("startup", build, sw.Elapsed.TotalMilliseconds, await Watch(TimeSpan.FromSeconds(8)));
 
-                    Console.WriteLine($"[ui-audit] library entries={provider.GetRequiredService<Modules.Library.DemoLibraryService>().Entries.Count} "
-                                      + $"cache index={provider.GetRequiredService<Services.DemoCache.DemoCacheStore>().Index.Count}");
-                    await Bursts(provider, vm, "library");
+                    Console.WriteLine(
+                        $"[ui-audit] library entries={provider.GetRequiredService<Modules.Library.DemoLibraryService>().Entries.Count} "
+                        + $"cache index={provider.GetRequiredService<Services.DemoCache.DemoCacheStore>().Index.Count}");
+                    await Bursts(provider, "library");
                     vm.TrySelectTab("stratbook.browser");
                     Settle();
-                    await Bursts(provider, vm, "strats");
+                    await Bursts(provider, "strats");
 
                     await GrenadeMerges(provider, vm);
 
-                    List<string> ids = [.. vm.Tabs.Select(t => t.TabId)];
-                    ids.AddRange(vm.StratBookHub().Sections.Sections.Select(s => s.TabId));
-                    ids.AddRange(vm.LibraryTab.Sections.Sections.Select(s => s.TabId));
-                    string[] skip = ["builtin.parser", "builtin.entity", "builtin.analysis", "builtin.diagnostics", "ruleworkbench.editor"];
+                    List<string> ids =
+                    [
+                        .. vm.Tabs.Select(t => t.TabId),
+                        .. vm.StratBookHub().Sections.Sections.Select(s => s.TabId),
+                        .. vm.LibraryTab.Sections.Sections.Select(s => s.TabId)
+                    ];
+                    string[] skip =
+                    [
+                        "builtin.parser", "builtin.entity", "builtin.analysis", "builtin.diagnostics",
+                        "ruleworkbench.editor"
+                    ];
                     foreach (string id in ids.Distinct().Where(i => !skip.Contains(i)))
                     {
                         // Twice: the first open pays first-use costs, the second is what a user sees on every switch.
@@ -106,7 +119,8 @@ public class UiThreadAuditTests
                             Report($"{id} open#{pass}{(selected ? "" : " (absent)")}", 0, open, stall);
                         }
 
-                        if (ids.Contains(id) && vm.StratBookHub().Sections.Sections.Concat(vm.LibraryTab.Sections.Sections).Concat(vm.Tabs)
+                        if (ids.Contains(id) && vm.StratBookHub().Sections.Sections
+                                .Concat(vm.LibraryTab.Sections.Sections).Concat(vm.Tabs)
                                 .FirstOrDefault(t => t.TabId == id)?.TabViewModel is { } tabVm)
                         {
                             await Interact(id, tabVm);
@@ -132,13 +146,14 @@ public class UiThreadAuditTests
                                          .Select(c => (Control: c, Count: c.GetVisualDescendants().Count()))
                                          .OrderByDescending(c => c.Count).Take(6).Select(c => c.Control))
                             {
-                                Console.WriteLine($"[ui-audit]   {id} list {heavy.GetType().Name} items={heavy.ItemCount} "
-                                                  + $"visuals={heavy.GetVisualDescendants().Count()} first={heavy.Items.Cast<object?>().FirstOrDefault()?.GetType().Name}");
+                                Console.WriteLine(
+                                    $"[ui-audit]   {id} list {heavy.GetType().Name} items={heavy.ItemCount} "
+                                    + $"visuals={heavy.GetVisualDescendants().Count()} first={(heavy.Items.Count > 0 ? heavy.Items[0] : null)?.GetType().Name}");
                             }
 
                             Console.WriteLine($"[ui-audit] {id} scroll: extent={scroller.Extent.Height:F0}px "
-                                              + $"avg={total.Elapsed.TotalMilliseconds / 20:F1}ms worst={worst:F0}ms "
-                                              + $"visuals={window.GetVisualDescendants().Count()}");
+                                + $"avg={total.Elapsed.TotalMilliseconds / 20:F1}ms worst={worst:F0}ms "
+                                + $"visuals={window.GetVisualDescendants().Count()}");
                             double worstJump = 0;
                             for (int step = 1; step <= 10; step++)
                             {
@@ -148,8 +163,9 @@ public class UiThreadAuditTests
                                 worstJump = Math.Max(worstJump, one.Elapsed.TotalMilliseconds);
                             }
 
-                            Console.WriteLine($"[ui-audit] {id} jump through the whole extent in tenths: worst={worstJump:F0}ms "
-                                              + $"visuals={window.GetVisualDescendants().Count()}");
+                            Console.WriteLine(
+                                $"[ui-audit] {id} jump through the whole extent in tenths: worst={worstJump:F0}ms "
+                                + $"visuals={window.GetVisualDescendants().Count()}");
                             scroller.Offset = default;
                             Settle();
                         }
@@ -157,7 +173,10 @@ public class UiThreadAuditTests
 
                     sw.Restart();
                     SettingsViewModel settingsVm = provider.GetRequiredService<Func<SettingsViewModel>>()();
-                    Window settingsWindow = new() { Width = 900, Height = 800, Content = new SettingsView { DataContext = settingsVm } };
+                    Window settingsWindow = new()
+                    {
+                        Width = 900, Height = 800, Content = new SettingsView { DataContext = settingsVm }
+                    };
                     settingsWindow.Show();
                     Settle();
                     Report("settings open", 0, sw.Elapsed.TotalMilliseconds, await Watch(TimeSpan.FromSeconds(2)));
@@ -176,23 +195,32 @@ public class UiThreadAuditTests
                         totalSelect += one.Elapsed.TotalMilliseconds;
                     }
 
-                    Console.WriteLine($"[ui-audit] library select x20 (Match Overview preview): avg={totalSelect / 20:F0}ms worst={worstSelect:F0}ms");
+                    Console.WriteLine(
+                        $"[ui-audit] library select x20 (Match Overview preview): avg={totalSelect / 20:F0}ms worst={worstSelect:F0}ms");
 
                     // Last, since it changes the copy: a rescan that finds 100 demos gone (a folder removed).
-                    Modules.Library.DemoLibraryService library = provider.GetRequiredService<Modules.Library.DemoLibraryService>();
-                    List<(string, long, DateTime)> primaries = [.. library.Entries.SkipLast(100).Select(e => (e.FilePath, e.FileSizeBytes, e.Modified))];
+                    Modules.Library.DemoLibraryService library =
+                        provider.GetRequiredService<Modules.Library.DemoLibraryService>();
+                    List<(string, long, DateTime)> primaries =
+                        [.. library.Entries.SkipLast(100).Select(e => (e.FilePath, e.FileSizeBytes, e.Modified))];
                     System.Reflection.MethodInfo reconcile = typeof(Modules.Library.DemoLibraryService)
-                        .GetMethod("Reconcile", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+                        .GetMethod("Reconcile",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
                     sw.Restart();
-                    reconcile.Invoke(library, [primaries, new Dictionary<string, IReadOnlyList<string>>(), new List<Modules.Library.DemoEntry>(), new List<Modules.Library.DemoEntry>()]);
+                    reconcile.Invoke(library,
+                    [
+                        primaries, new Dictionary<string, IReadOnlyList<string>>(),
+                        new List<Modules.Library.DemoEntry>(), new List<Modules.Library.DemoEntry>()
+                    ]);
                     double removeSync = sw.Elapsed.TotalMilliseconds;
                     Settle();
-                    Report($"library rescan drops 100 of {primaries.Count + 100}", removeSync, sw.Elapsed.TotalMilliseconds, await Watch(TimeSpan.FromSeconds(1)));
+                    Report($"library rescan drops 100 of {primaries.Count + 100}", removeSync,
+                        sw.Elapsed.TotalMilliseconds, await Watch(TimeSpan.FromSeconds(1)));
                     window.Close();
                 }
                 finally
                 {
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }
@@ -257,7 +285,8 @@ public class UiThreadAuditTests
 
                 break;
             case DemoViewer.NET.Extensions.StratBook.ViewModels.Teams.TeamsTabViewModel teamsTab:
-                DemoViewer.NET.Extensions.StratBook.ViewModels.Teams.TeamRow? most = teamsTab.Teams.MaxBy(t => t.DemoCount);
+                DemoViewer.NET.Extensions.StratBook.ViewModels.Teams.TeamRow? most =
+                    teamsTab.Teams.MaxBy(t => t.DemoCount);
                 Console.WriteLine($"[ui-audit] teams rows={teamsTab.Teams.Count} most={most?.DemoCount}");
                 await Step("select the team with most demos", () => teamsTab.SelectedTeam = most);
                 Console.WriteLine($"[ui-audit] teams demo rows={teamsTab.Demos.Count}");
@@ -268,27 +297,40 @@ public class UiThreadAuditTests
 
                 if (most is not null)
                 {
-                    DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService identity = (DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService)typeof(DemoViewer.NET.Extensions.StratBook.ViewModels.Teams.TeamsTabViewModel)
-                        .GetField("_teams", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(teamsTab)!;
+                    DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService identity =
+                        (DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService)
+                        typeof(DemoViewer.NET.Extensions.StratBook.ViewModels.Teams.TeamsTabViewModel)
+                            .GetField("_teams",
+                                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                            .GetValue(teamsTab)!;
                     string name = most.Team.Name;
-                    await Step("rename (a UI command: recompute and both saves)", () => identity.Rename(most.Team.Id, name + " audit"));
+                    await Step("rename (a UI command: recompute and both saves)",
+                        () => identity.Rename(most.Team.Id, name + " audit"));
                     await Step("rename back", () => identity.Rename(most.Team.Id, name));
                 }
 
                 break;
             case DemoViewer.NET.Extensions.StratBook.ViewModels.RoundTagger.TagMatrixTabViewModel matrix:
-                await Step("rows by demo", () => matrix.RowAxis = DemoViewer.NET.Extensions.StratBook.Services.Tags.TagMatrixAxis.Demo);
+                await Step("rows by demo",
+                    () => matrix.RowAxis = DemoViewer.NET.Extensions.StratBook.Services.Tags.TagMatrixAxis.Demo);
                 await Watch(TimeSpan.FromSeconds(3));
                 Console.WriteLine($"[ui-audit] tag matrix status: {matrix.StatusLine}");
                 break;
             case DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel dossier:
                 // The team with the most demos is the costliest to project.
-                DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService teams = (DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService)typeof(DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel)
-                    .GetField("_teams", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(dossier)!;
-                DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTeamRow? biggest = dossier.Teams.MaxBy(t => teams.SidesOf(t.Id).Count);
-                Console.WriteLine($"[ui-audit] dossier teams={dossier.Teams.Count} biggest={biggest?.Name} demos={(biggest is null ? 0 : teams.SidesOf(biggest.Id).Count)}");
+                DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService teams =
+                    (DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService)typeof(
+                            DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel)
+                        .GetField("_teams",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                        .GetValue(dossier)!;
+                DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTeamRow? biggest =
+                    dossier.Teams.MaxBy(t => teams.SidesOf(t.Id).Count);
+                Console.WriteLine(
+                    $"[ui-audit] dossier teams={dossier.Teams.Count} biggest={biggest?.Name} demos={(biggest is null ? 0 : teams.SidesOf(biggest.Id).Count)}");
                 await Step("select biggest team", () => dossier.SelectedTeam = biggest);
-                Console.WriteLine($"[ui-audit] dossier sections: {string.Join(" | ", dossier.MapSections.Select(m => m.Header + (m.IsExpanded ? " (open)" : "")))}; notes: {dossier.NotesSection.Header}");
+                Console.WriteLine(
+                    $"[ui-audit] dossier sections: {string.Join(" | ", dossier.MapSections.Select(m => m.Header + (m.IsExpanded ? " (open)" : "")))}; notes: {dossier.NotesSection.Header}");
                 Capture("ui-audit-dossier.png");
                 await Step("expand all", () => dossier.ExpandAllCommand.Execute(null));
                 await Step("collapse all", () => dossier.CollapseAllCommand.Execute(null));
@@ -301,7 +343,8 @@ public class UiThreadAuditTests
             case DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook.StratBookTabViewModel s:
                 await Step("detected view", () => s.IsDetectedView = true);
                 await Step("book view", () => s.IsDetectedView = false);
-                foreach (DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook.StratOwnerOption owner in s.Owners.ToList())
+                foreach (DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook.StratOwnerOption owner in s.Owners
+                             .ToList())
                 {
                     s.SelectedOwner = owner;
                     Settle();
@@ -310,7 +353,7 @@ public class UiThreadAuditTests
                         await Step($"open strat {row}", () => s.SelectedStrat = row);
                         for (int i = 0; i < 3; i++)
                         {
-                            await Step($"session Changed #{i + 1}", () => Raise(s, "Session", "Changed"));
+                            await Step($"session Changed #{i + 1}", () => Raise(s, "Session"));
                         }
 
                         s.SelectedStrat = null;
@@ -324,7 +367,7 @@ public class UiThreadAuditTests
 
     // Store Changed events the way an indexing pass raises them: one per demo, each run as its own
     // dispatcher job. Prints the UI cost per event.
-    private static async Task Bursts(ServiceProvider provider, MainViewModel vm, string label)
+    private static async Task Bursts(ServiceProvider provider, string label)
     {
         Services.DemoCache.DemoCacheStore cache = provider.GetRequiredService<Services.DemoCache.DemoCacheStore>();
         string[] paths = [.. cache.Index.Take(40).Select(e => e.Path)];
@@ -339,7 +382,9 @@ public class UiThreadAuditTests
         ];
         foreach (object store in stores)
         {
-            if (store.GetType().GetField("Changed", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(store) is not Delegate d)
+            if (store.GetType().GetField("Changed",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    ?.GetValue(store) is not Delegate d)
             {
                 continue;
             }
@@ -357,8 +402,9 @@ public class UiThreadAuditTests
 
             double ms = total.Elapsed.TotalMilliseconds;
             Stall after = await Watch(TimeSpan.FromSeconds(1));
-            Console.WriteLine($"[ui-audit] burst {label} {store.GetType().Name}.Changed x{n}: per-event={ms / n:F1}ms worst={worst:F0}ms "
-                              + $"total={ms:F0}ms handlers={d.GetInvocationList().Length} tail-stall={after.WorstMs:F0}ms");
+            Console.WriteLine(
+                $"[ui-audit] burst {label} {store.GetType().Name}.Changed x{n}: per-event={ms / n:F1}ms worst={worst:F0}ms "
+                + $"total={ms:F0}ms handlers={d.GetInvocationList().Length} tail-stall={after.WorstMs:F0}ms");
             foreach (Delegate handler in d.GetInvocationList())
             {
                 Stopwatch h = Stopwatch.StartNew();
@@ -372,8 +418,9 @@ public class UiThreadAuditTests
                 double withJobs = h.Elapsed.TotalMilliseconds / 5;
                 if (withJobs >= 1)
                 {
-                    Console.WriteLine($"[ui-audit]   handler {handler.Method.DeclaringType?.FullName}.{handler.Method.Name}: "
-                                      + $"direct={direct:F1}ms withPosted={withJobs:F1}ms");
+                    Console.WriteLine(
+                        $"[ui-audit]   handler {handler.Method.DeclaringType?.FullName}.{handler.Method.Name}: "
+                        + $"direct={direct:F1}ms withPosted={withJobs:F1}ms");
                 }
             }
         }
@@ -383,19 +430,25 @@ public class UiThreadAuditTests
     // marshal the composition root gave it. The Utility Book is open on the demo's map.
     private static async Task GrenadeMerges(ServiceProvider provider, MainViewModel vm)
     {
-        DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndex grenades = provider.GetRequiredService<DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndex>();
-        DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator evaluator = provider.GetRequiredService<DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator>();
+        DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndex grenades =
+            provider.GetRequiredService<DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndex>();
+        DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator evaluator =
+            provider
+                .GetRequiredService<DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator>();
         Stopwatch wait = Stopwatch.StartNew();
         while (!grenades.WhenLoaded.IsCompleted && wait.Elapsed < TimeSpan.FromSeconds(60))
         {
             await Watch(TimeSpan.FromMilliseconds(200));
         }
 
-        Console.WriteLine($"[ui-audit] grenade index ready after {wait.ElapsedMilliseconds}ms more; demos={grenades.DemoCount}");
+        Console.WriteLine(
+            $"[ui-audit] grenade index ready after {wait.ElapsedMilliseconds}ms more; demos={grenades.DemoCount}");
         vm.TrySelectTab("utilitybook.browser");
         Settle();
-        DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook.UtilityBookTabViewModel? utility = vm.StratBookHub().Sections.Sections
-            .First(s => s.TabId == "utilitybook.browser").TabViewModel as DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook.UtilityBookTabViewModel;
+        DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook.UtilityBookTabViewModel? utility = vm.StratBookHub()
+            .Sections.Sections
+            .First(s => s.TabId == "utilitybook.browser")
+            .TabViewModel as DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook.UtilityBookTabViewModel;
         for (int i = 0; i < 50 && utility?.Maps.Count == 0; i++)
         {
             await Watch(TimeSpan.FromMilliseconds(100));
@@ -410,10 +463,19 @@ public class UiThreadAuditTests
         Settle();
         await Watch(TimeSpan.FromMilliseconds(500));
         Services.DemoCache.DemoCacheStore cache = provider.GetRequiredService<Services.DemoCache.DemoCacheStore>();
-        string[] paths = [.. cache.Index.Where(e => string.Equals(e.Map, map, StringComparison.OrdinalIgnoreCase)).Take(10).Select(e => e.Path)];
-        const System.Reflection.BindingFlags Private = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
-        Action<Action> post = (Action<Action>)typeof(DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator).GetField("_post", Private)!.GetValue(evaluator)!;
-        Delegate? indexed = (Delegate?)typeof(DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator).GetField("Indexed", Private)!.GetValue(evaluator);
+        string[] paths =
+        [
+            .. cache.Index.Where(e => string.Equals(e.Map, map, StringComparison.OrdinalIgnoreCase)).Take(10)
+                .Select(e => e.Path)
+        ];
+        const System.Reflection.BindingFlags Private =
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        Action<Action> post =
+            (Action<Action>)typeof(DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator)
+                .GetField("_post", Private)!.GetValue(evaluator)!;
+        Delegate? indexed =
+            (Delegate?)typeof(DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator).GetField(
+                "Indexed", Private)!.GetValue(evaluator);
         double worst = 0, blocked = 0;
         foreach (string path in paths)
         {
@@ -423,7 +485,8 @@ public class UiThreadAuditTests
             blocked += stall.TotalBlockedMs;
         }
 
-        Console.WriteLine($"[ui-audit] grenade walk finished x{paths.Length} on {map}, Utility open: worstStall={worst:F0}ms blocked={blocked:F0}ms");
+        Console.WriteLine(
+            $"[ui-audit] grenade walk finished x{paths.Length} on {map}, Utility open: worstStall={worst:F0}ms blocked={blocked:F0}ms");
         vm.TrySelectTab("builtin.library");
         Settle();
         worst = 0;
@@ -436,11 +499,13 @@ public class UiThreadAuditTests
             blocked += stall.TotalBlockedMs;
         }
 
-        Console.WriteLine($"[ui-audit] grenade walk finished x{paths.Length} on {map}, Utility hidden: worstStall={worst:F0}ms blocked={blocked:F0}ms");
+        Console.WriteLine(
+            $"[ui-audit] grenade walk finished x{paths.Length} on {map}, Utility hidden: worstStall={worst:F0}ms blocked={blocked:F0}ms");
 
         Stopwatch save = Stopwatch.StartNew();
         grenades.LineupStore.Save();
-        Console.WriteLine($"[ui-audit] lineup store save (what a minted anchor costs whoever queries): {save.ElapsedMilliseconds}ms");
+        Console.WriteLine(
+            $"[ui-audit] lineup store save (what a minted anchor costs whoever queries): {save.ElapsedMilliseconds}ms");
     }
 
     private static void Capture(string name)
@@ -456,9 +521,14 @@ public class UiThreadAuditTests
     // Fires a store's Changed event the way a background write would.
     private static void Raise(object owner, string field, string evt = "Changed")
     {
-        const System.Reflection.BindingFlags Any = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance;
-        object? store = owner.GetType().GetField(field, Any)?.GetValue(owner) ?? owner.GetType().GetProperty(field, Any)?.GetValue(owner);
-        if (store?.GetType().GetField(evt, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(store) is Delegate d)
+        const System.Reflection.BindingFlags Any = System.Reflection.BindingFlags.NonPublic
+            | System.Reflection.BindingFlags.Public
+            | System.Reflection.BindingFlags.Instance;
+        object? store = owner.GetType().GetField(field, Any)?.GetValue(owner)
+            ?? owner.GetType().GetProperty(field, Any)?.GetValue(owner);
+        if (store?.GetType()
+                .GetField(evt, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.GetValue(store) is Delegate d)
         {
             d.DynamicInvoke(d.Method.GetParameters().Length == 0 ? [] : new object?[d.Method.GetParameters().Length]);
         }
@@ -470,7 +540,8 @@ public class UiThreadAuditTests
     [Test]
     public async Task TimeToResult_PoolAgainstQueue_OverTheOwnersLibrary()
     {
-        if (Environment.GetEnvironmentVariable("DV_AUDIT_CONFIG") is not { Length: > 0 } source || !Directory.Exists(source))
+        if (Environment.GetEnvironmentVariable("DV_AUDIT_CONFIG") is not { Length: > 0 } source
+            || !Directory.Exists(source))
         {
             throw new SkipTestException("DV_AUDIT_CONFIG is not set");
         }
@@ -478,11 +549,14 @@ public class UiThreadAuditTests
         string dir = Path.Combine(Path.GetTempPath(), $"dv-ui-ttr-{Guid.NewGuid():N}");
         CopyTree(source, dir);
         string settingsFile = Path.Combine(dir, "settings.json");
-        if (JsonNode.Parse(File.ReadAllText(settingsFile)) is JsonObject settings)
+        if (JsonNode.Parse(await File.ReadAllTextAsync(settingsFile)) is JsonObject settings)
         {
-            settings["ProcessingQueue"] = new JsonObject { ["BackgroundProcessingEnabled"] = false, ["MaxQueueSize"] = 500, ["MaxConcurrency"] = 1 };
+            settings["ProcessingQueue"] = new JsonObject
+            {
+                ["BackgroundProcessingEnabled"] = false, ["MaxQueueSize"] = 500, ["MaxConcurrency"] = 1
+            };
             settings["Idle"] = new JsonObject { ["Enabled"] = false };
-            File.WriteAllText(settingsFile, settings.ToJsonString());
+            await File.WriteAllTextAsync(settingsFile, settings.ToJsonString());
         }
 
         string? prev = Environment.GetEnvironmentVariable(AppPaths.ConfigDirEnvVar);
@@ -497,10 +571,13 @@ public class UiThreadAuditTests
                     MainViewModel vm = provider.GetRequiredService<MainViewModel>();
                     Window window = new() { Width = 1440, Height = 900, Content = new MainView(), DataContext = vm };
                     window.Show();
-                    DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndex grenades = provider.GetRequiredService<DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndex>();
+                    DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndex grenades =
+                        provider
+                            .GetRequiredService<DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndex>();
                     await Until(() => grenades.WhenLoaded.IsCompleted, 60_000);
                     await Watch(TimeSpan.FromSeconds(3));
-                    Services.DemoProcessing.IDemoProcessingQueue queue = provider.GetRequiredService<Services.DemoProcessing.IDemoProcessingQueue>();
+                    Services.DemoProcessing.IDemoProcessingQueue queue =
+                        provider.GetRequiredService<Services.DemoProcessing.IDemoProcessingQueue>();
 
                     foreach (bool bypass in (bool[])[true, false, true, false])
                     {
@@ -509,20 +586,26 @@ public class UiThreadAuditTests
 
                         vm.TrySelectTab("dossier.browser");
                         Settle();
-                        DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel dossier = (DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel)vm.StratBookHub().Sections.Sections
-                            .First(s => s.TabId == "dossier.browser").TabViewModel!;
+                        DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel dossier =
+                            (DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel)vm
+                                .StratBookHub().Sections.Sections
+                                .First(s => s.TabId == "dossier.browser").TabViewModel!;
                         DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTeamRow team = dossier.Teams[0];
                         dossier.SelectedTeam = dossier.Teams.First(t => t != team);
-                        await Until(() => !dossier.Openings.IsBuilding && !dossier.PostPlant.IsBuilding && !dossier.Situational.IsBuilding
-                                          && dossier.HeatmapTask.IsCompleted, 30_000);
+                        await Until(() => !dossier.Openings.IsBuilding && !dossier.PostPlant.IsBuilding
+                            && !dossier.Situational.IsBuilding
+                            && dossier.HeatmapTask.IsCompleted, 30_000);
                         double dossierMs = await Timed(() => dossier.SelectedTeam = team,
-                            () => !dossier.Openings.IsBuilding && !dossier.PostPlant.IsBuilding && !dossier.Situational.IsBuilding
-                                  && dossier.HeatmapTask.IsCompleted);
+                            () => !dossier.Openings.IsBuilding && !dossier.PostPlant.IsBuilding
+                                && !dossier.Situational.IsBuilding
+                                && dossier.HeatmapTask.IsCompleted);
 
                         vm.TrySelectTab("utilitybook.browser");
                         Settle();
-                        DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook.UtilityBookTabViewModel utility = (DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook.UtilityBookTabViewModel)vm.StratBookHub().Sections.Sections
-                            .First(s => s.TabId == "utilitybook.browser").TabViewModel!;
+                        DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook.UtilityBookTabViewModel utility =
+                            (DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook.UtilityBookTabViewModel)vm
+                                .StratBookHub().Sections.Sections
+                                .First(s => s.TabId == "utilitybook.browser").TabViewModel!;
                         await Until(() => utility.Maps.Count > 1, 10_000);
                         int applied = 0;
                         utility.PropertyChanged += (_, e) =>
@@ -538,8 +621,10 @@ public class UiThreadAuditTests
                         await Watch(TimeSpan.FromMilliseconds(300));
                         int before = applied;
                         double mapMs = await Timed(() => utility.SelectedMap = b, () => applied > before);
-                        Task save = Services.DemoProcessing.QueueWork.Run(bypass ? null : queue, Services.DemoProcessing.QueueJobKind.StoreSave,
-                            "Save: grenade lineups", "audit", _ => grenades.LineupStore.Save(), key: "save:grenade-lineups");
+                        Task save = Services.DemoProcessing.QueueWork.Run(bypass ? null : queue,
+                            Services.DemoProcessing.QueueJobKind.StoreSave,
+                            "Save: grenade lineups", "audit", _ => grenades.LineupStore.Save(),
+                            key: "save:grenade-lineups");
                         await Task.Delay(30);
                         before = applied;
                         double mapWithSaveMs = await Timed(() => utility.SelectedMap = a, () => applied > before);
@@ -547,16 +632,20 @@ public class UiThreadAuditTests
 
                         vm.TrySelectTab("situations.search");
                         Settle();
-                        DemoViewer.NET.Extensions.StratBook.ViewModels.Situations.SituationsTabViewModel situations = (DemoViewer.NET.Extensions.StratBook.ViewModels.Situations.SituationsTabViewModel)vm.StratBookHub().Sections.Sections
-                            .First(s => s.TabId == "situations.search").TabViewModel!;
-                        situations.Canvas.Map = situations.Canvas.Maps.Contains("de_ancient") ? "de_ancient" : situations.Canvas.Maps[0];
+                        DemoViewer.NET.Extensions.StratBook.ViewModels.Situations.SituationsTabViewModel situations =
+                            (DemoViewer.NET.Extensions.StratBook.ViewModels.Situations.SituationsTabViewModel)vm
+                                .StratBookHub().Sections.Sections
+                                .First(s => s.TabId == "situations.search").TabViewModel!;
+                        situations.Canvas.Map = situations.Canvas.Maps.Contains("de_ancient")
+                            ? "de_ancient"
+                            : situations.Canvas.Maps[0];
                         Settle();
                         double searchMs = await Timed(() => situations.Canvas.SearchCommand.Execute(null),
                             () => situations.Results.BatchTask.IsCompleted && situations.Results.Count > 0);
 
                         Console.WriteLine($"[ui-audit] time to result ({mode}): dossier select={dossierMs:F0}ms "
-                                          + $"utility map={mapMs:F0}ms, with a lineup save running={mapWithSaveMs:F0}ms "
-                                          + $"situations search to filled={searchMs:F0}ms ({situations.Results.Count} cards)");
+                            + $"utility map={mapMs:F0}ms, with a lineup save running={mapWithSaveMs:F0}ms "
+                            + $"situations search to filled={searchMs:F0}ms ({situations.Results.Count} cards)");
                     }
 
                     Services.DemoProcessing.QueueWork.Bypass = false;
@@ -565,7 +654,7 @@ public class UiThreadAuditTests
                 finally
                 {
                     Services.DemoProcessing.QueueWork.Bypass = false;
-                    provider.Dispose();
+                    await provider.DisposeAsync();
                 }
             });
         }
@@ -583,7 +672,8 @@ public class UiThreadAuditTests
     }
 
     private static async Task Until(Func<bool> done, int timeoutMs,
-        [CallerArgumentExpression(nameof(done))] string? expression = null)
+        [CallerArgumentExpression(nameof(done))]
+        string? expression = null)
     {
         Stopwatch sw = Stopwatch.StartNew();
         while (!done() && sw.ElapsedMilliseconds < timeoutMs)
@@ -614,7 +704,7 @@ public class UiThreadAuditTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            using Services.HeavyJobGate gate = new();
+            using HeavyJobGate gate = new();
             using ManualResetEventSlim release = new();
             using Services.DemoProcessing.DemoProcessingQueue queue = new(gate, a => Dispatcher.UIThread.Post(a), _ =>
             {
@@ -622,10 +712,12 @@ public class UiThreadAuditTests
                 return SyntheticParsedDemo.Create();
             }, _ => SyntheticParsedDemo.Create(), () => Task.CompletedTask);
 
-            async Task<double> Build(Services.DemoProcessing.DemoJobPriority priority = Services.DemoProcessing.DemoJobPriority.Background)
+            async Task<double> Build(
+                Services.DemoProcessing.DemoJobPriority priority = Services.DemoProcessing.DemoJobPriority.Background)
             {
                 Stopwatch sw = Stopwatch.StartNew();
-                Task done = Services.DemoProcessing.QueueWork.Run(queue, Services.DemoProcessing.QueueJobKind.SectionCompute,
+                Task done = Services.DemoProcessing.QueueWork.Run(queue,
+                    Services.DemoProcessing.QueueJobKind.SectionCompute,
                     "probe", "audit", _ => Thread.Sleep(5), priority);
                 while (!done.IsCompleted)
                 {
@@ -633,7 +725,8 @@ public class UiThreadAuditTests
                     // budget. A wedged item fails here, or it wedges the session for every later UI test.
                     if (sw.Elapsed > TimeSpan.FromSeconds(30))
                     {
-                        throw new System.TimeoutException($"waited 30s for a {priority} queue job to finish and it never did.");
+                        throw new System.TimeoutException(
+                            $"waited 30s for a {priority} queue job to finish and it never did.");
                     }
 
                     Settle();
@@ -645,7 +738,8 @@ public class UiThreadAuditTests
 
             double idle = await Build();
             using SemaphoreSlim jobGate = new(0);
-            Task job = Services.DemoProcessing.QueueWork.Run(queue, Services.DemoProcessing.QueueJobKind.Extension, "clips", "audit",
+            Task job = Services.DemoProcessing.QueueWork.Run(queue, Services.DemoProcessing.QueueJobKind.Extension,
+                "clips", "audit",
                 _ => jobGate.Wait(TimeSpan.FromSeconds(20), CancellationToken.None));
             double besideJob = await Build();
             jobGate.Release();
@@ -656,7 +750,8 @@ public class UiThreadAuditTests
             double besideParse = await Build();
             release.Set();
             using SemaphoreSlim lightGate = new(0);
-            Task slowLight = Services.DemoProcessing.QueueWork.Run(queue, Services.DemoProcessing.QueueJobKind.SectionCompute, "slow",
+            Task slowLight = Services.DemoProcessing.QueueWork.Run(queue,
+                Services.DemoProcessing.QueueJobKind.SectionCompute, "slow",
                 "audit", ct =>
                 {
                     lightGate.Wait(TimeSpan.FromSeconds(1), ct);
@@ -669,8 +764,12 @@ public class UiThreadAuditTests
 
             Stopwatch burst = Stopwatch.StartNew();
             double worst = 0;
-            List<Task> builds = [.. Enumerable.Range(0, 40).Select(i => Services.DemoProcessing.QueueWork.Run(queue,
-                Services.DemoProcessing.QueueJobKind.SectionCompute, "burst", "audit", _ => Thread.Sleep(2), key: "burst:" + (i % 8)))];
+            List<Task> builds =
+            [
+                .. Enumerable.Range(0, 40).Select(i => Services.DemoProcessing.QueueWork.Run(queue,
+                    Services.DemoProcessing.QueueJobKind.SectionCompute, "burst", "audit", _ => Thread.Sleep(2),
+                    key: "burst:" + (i % 8)))
+            ];
             while (builds.Any(b => !b.IsCompleted))
             {
                 Stopwatch one = Stopwatch.StartNew();
@@ -680,15 +779,16 @@ public class UiThreadAuditTests
             }
 
             Console.WriteLine($"[ui-audit] queue time-to-result: idle={idle:F0}ms besideBackgroundJob={besideJob:F0}ms "
-                              + $"besideParse={besideParse:F0}ms userBehindSlowLightItem={userBehindLight:F0}ms; "
-                              + $"burst of 40 section builds: {burst.ElapsedMilliseconds}ms, worst UI pump {worst:F1}ms");
+                + $"besideParse={besideParse:F0}ms userBehindSlowLightItem={userBehindLight:F0}ms; "
+                + $"burst of 40 section builds: {burst.ElapsedMilliseconds}ms, worst UI pump {worst:F1}ms");
         });
     }
 
     [Test]
     public async Task StoreLoadCosts_OverTheOwnersLibrary()
     {
-        if (Environment.GetEnvironmentVariable("DV_AUDIT_CONFIG") is not { Length: > 0 } source || !Directory.Exists(source))
+        if (Environment.GetEnvironmentVariable("DV_AUDIT_CONFIG") is not { Length: > 0 } source
+            || !Directory.Exists(source))
         {
             throw new SkipTestException("DV_AUDIT_CONFIG is not set");
         }
@@ -704,9 +804,10 @@ public class UiThreadAuditTests
         string teamsRoot = Path.Combine(Path.GetTempPath(), $"dv-teams-load-{Guid.NewGuid():N}");
         Directory.CreateDirectory(Path.Combine(teamsRoot, "cache"));
         File.Copy(Path.Combine(source, "teams.json"), Path.Combine(teamsRoot, "teams.json"));
-        File.Copy(Path.Combine(source, "cache", "team-index.json"), Path.Combine(teamsRoot, "cache", "team-index.json"));
+        File.Copy(Path.Combine(source, "cache", "team-index.json"),
+            Path.Combine(teamsRoot, "cache", "team-index.json"));
         sw.Restart();
-        DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService teams = new(
+        _ = new DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService(
             new DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityFiles(
                 DemoViewer.NET.Extensions.StratBook.StoredFile.At(Path.Combine(teamsRoot, "teams.json")),
                 DemoViewer.NET.Extensions.StratBook.StoredFile.At(Path.Combine(teamsRoot, "cache", "team-index.json"))),
@@ -714,7 +815,7 @@ public class UiThreadAuditTests
         double teamsCtor = sw.Elapsed.TotalMilliseconds;
         Directory.Delete(teamsRoot, true);
         Console.WriteLine($"[ui-audit] store loads: cache index={cacheMs:F0}ms ({cache.Index.Count} rows) "
-                          + $"library.json={libraryMs:F0}ms ({library.Entries.Count}) teams={teamsCtor:F0}ms");
+            + $"library.json={libraryMs:F0}ms ({library.Entries.Count}) teams={teamsCtor:F0}ms");
         await Task.CompletedTask;
     }
 
@@ -756,7 +857,7 @@ public class UiThreadAuditTests
 
     private static void Report(string step, double build, double open, Stall stall) =>
         Console.WriteLine($"[ui-audit] {step}: sync={build:F0}ms open={open:F0}ms worstStall={stall.WorstMs:F0}ms "
-                          + $"stalls>50ms={stall.Over50} blocked={stall.TotalBlockedMs:F0}ms");
+            + $"stalls>50ms={stall.Over50} blocked={stall.TotalBlockedMs:F0}ms");
 
     private static void CopyTree(string from, string to)
     {
@@ -764,7 +865,8 @@ public class UiThreadAuditTests
         foreach (string file in Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
         {
             string rel = Path.GetRelativePath(from, file);
-            if (rel.StartsWith("logs", StringComparison.Ordinal) || rel.StartsWith("lineup-clips", StringComparison.Ordinal))
+            if (rel.StartsWith("logs", StringComparison.Ordinal)
+                || rel.StartsWith("lineup-clips", StringComparison.Ordinal))
             {
                 continue;
             }

@@ -30,9 +30,11 @@
                     <DataTemplate x:DataType="sections:RankChartItem">
                         <StackPanel Spacing="4">
                             <DockPanel>
-                                <TextBlock DockPanel.Dock="Left" Text="{Binding Title}" FontSize="12" FontWeight="SemiBold"
+                                <TextBlock DockPanel.Dock="Left" Text="{Binding Title}" FontSize="12"
+                                           FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextValue}" Margin="0 0 10 0" />
-                                <TextBlock Text="{Binding SummaryText}" FontSize="11" Foreground="{DynamicResource TextDim}"
+                                <TextBlock Text="{Binding SummaryText}" FontSize="11"
+                                           Foreground="{DynamicResource TextDim}"
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                             </DockPanel>
                             <statsCtl:Sparkline Mode="Bars" Height="56" Gap="2" IsVisible="{Binding HasBars}"

@@ -29,8 +29,10 @@ public class PlaceAdjacencyAndSnapTests
         {
             await Assert.That(graph.Source).IsEqualTo("index:18");
             await Assert.That(graph.Neighbours("Admin")).IsEquivalentTo(["Ramp"], CollectionOrdering.Matching);
-            await Assert.That(graph.Neighbours("Ramp")).IsEquivalentTo(["Admin"], CollectionOrdering.Matching).Because("edges are undirected");
-            await Assert.That(graph.Neighbours("Rafters")).IsEquivalentTo(["Heaven"], CollectionOrdering.Matching).Because("a skip-through seen once is not an edge; three is");
+            await Assert.That(graph.Neighbours("Ramp")).IsEquivalentTo(["Admin"], CollectionOrdering.Matching)
+                .Because("edges are undirected");
+            await Assert.That(graph.Neighbours("Rafters")).IsEquivalentTo(["Heaven"], CollectionOrdering.Matching)
+                .Because("a skip-through seen once is not an edge; three is");
             await Assert.That(graph.Neighbours("Crane")).IsEmpty();
             await Assert.That(graph.Neighbours("Silo")).IsEmpty().Because("a place is not its own neighbour");
             await Assert.That(graph.Neighbours("Nowhere")).IsEmpty();
@@ -51,7 +53,8 @@ public class PlaceAdjacencyAndSnapTests
             folded[key] = folded.GetValueOrDefault(key) + transition.Count;
         }
 
-        EmpiricalPlaceAdjacency graph = new(folded.Select(f => new PlaceTransition(f.Key.Item1, f.Key.Item2, f.Value)), 2);
+        EmpiricalPlaceAdjacency graph = new(folded.Select(f => new PlaceTransition(f.Key.Item1, f.Key.Item2, f.Value)),
+            2);
         await Assert.That(graph.Neighbours("Lobby")).Contains("Outside");
     }
 
@@ -78,12 +81,16 @@ public class PlaceAdjacencyAndSnapTests
         {
             await Assert.That(lower!.Value.Place).IsEqualTo("Ramp");
             await Assert.That(lower.Value.Distance).IsEqualTo(Math.Sqrt(800)).Within(1e-9);
-            await Assert.That(upper!.Value.Place).IsEqualTo("Ramp").Because("the same place, the other storey's centroid");
-            await Assert.That(upper.Value.Distance).IsEqualTo(Math.Sqrt(800)).Within(1e-9).Because("the upper storey's centroid is (900, 900)");
+            await Assert.That(upper!.Value.Place).IsEqualTo("Ramp")
+                .Because("the same place, the other storey's centroid");
+            await Assert.That(upper.Value.Distance).IsEqualTo(Math.Sqrt(800)).Within(1e-9)
+                .Because("the upper storey's centroid is (900, 900)");
             await Assert.That(nearHell!.Value.Place).IsEqualTo("Hell");
             await Assert.That(tooFar).IsNull().Because("beyond the 512-unit default");
-            await Assert.That(PlaceSnap.Nearest(places, 5000, 5000, -512, 0, maxDistance: 10000)!.Value.Place).IsEqualTo("Hell")
-                .Because("with the cap lifted the nearest centroid on the band wins, and (300, 300) is nearer than (100, 100)");
+            await Assert.That(PlaceSnap.Nearest(places, 5000, 5000, -512, 0, maxDistance: 10000)!.Value.Place)
+                .IsEqualTo("Hell")
+                .Because(
+                    "with the cap lifted the nearest centroid on the band wins, and (300, 300) is nearer than (100, 100)");
             await Assert.That(emptyBand).IsNull();
         }
     }

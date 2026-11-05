@@ -52,6 +52,7 @@ public sealed record PersistedGraphBreakpoint(
 ///     is exact for every record such a file can contain (see
 ///     <see cref="GraphBreakpointStore.MigrateLegacyFile" />).
 /// </summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 internal sealed record LegacyGraphBreakpoint(
     GraphBreakpointTarget TargetKind,
     string? NodeName,
@@ -96,11 +97,7 @@ public sealed class GraphBreakpointStore
     // converter on only one side would write a file the other side can't parse (→ silent empty load).
     private static readonly JsonSerializerOptions _options = new()
     {
-        WriteIndented = true,
-        Converters =
-        {
-            new JsonStringEnumConverter()
-        }
+        WriteIndented = true, Converters = { new JsonStringEnumConverter() }
     };
 
     private readonly string? _path;
@@ -219,7 +216,7 @@ public sealed class GraphBreakpointStore
         }
 
         Dictionary<string, List<PersistedGraphBreakpoint>> merged = Merge(
-            ReadAll(), demoKey, breakpoints.Select(PersistedGraphBreakpoint.From).ToList());
+            ReadAll(), demoKey, [.. breakpoints.Select(PersistedGraphBreakpoint.From)]);
 
         try
         {
@@ -254,7 +251,7 @@ public sealed class GraphBreakpointStore
 
         if (entries.Count > 0)
         {
-            result[demoKey] = entries.ToList();
+            result[demoKey] = [.. entries];
         }
 
         return result;
@@ -272,12 +269,13 @@ public sealed class GraphBreakpointStore
         try
         {
             return JsonSerializer.Deserialize<Dictionary<string, List<PersistedGraphBreakpoint>>>(
-                       File.ReadAllText(path), _options)
-                   ?? new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer.Ordinal);
+                    File.ReadAllText(path), _options)
+                ?? new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer.Ordinal);
         }
         catch
         {
-            return new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer.Ordinal); // best-effort restore
+            return new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer
+                .Ordinal); // best-effort restore
         }
     }
 }

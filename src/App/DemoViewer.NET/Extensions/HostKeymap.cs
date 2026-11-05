@@ -58,7 +58,7 @@ internal sealed class HostKeymap : IExtensionKeymap
             : null;
 
     /// <inheritdoc />
-    public string GestureText(string actionId) => actionId is null ? "" : Profile.GestureText(actionId);
+    public string GestureText(string? actionId) => actionId is null ? "" : Profile.GestureText(actionId);
 
     /// <summary>
     ///     Re-reads the override rows. Raises <see cref="Changed" /> only when they differ from the rows last

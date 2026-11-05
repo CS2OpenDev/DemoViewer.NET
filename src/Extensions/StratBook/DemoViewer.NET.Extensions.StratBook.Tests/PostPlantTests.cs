@@ -1,13 +1,13 @@
 #region
 
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Playback2D.Pipeline.Review;
-using DemoViewer.NET.Services.Review;
-using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
+using DemoViewer.NET.Services.Review;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -34,8 +34,8 @@ public class PostPlantTests
         return Task.CompletedTask;
     };
 
-    private static readonly int[] TeamASlots = [0, 1, 2, 3, 4];
-    private static readonly int[] TeamBSlots = [5, 6, 7, 8, 9];
+    private static readonly int[] _teamASlots = [0, 1, 2, 3, 4];
+    private static readonly int[] _teamBSlots = [5, 6, 7, 8, 9];
 
     private static string Id(int n) => $"7656{n:D4}";
 
@@ -43,8 +43,10 @@ public class PostPlantTests
 
     private static int Freeze(int number) => number * 10000;
 
-    private static RoundFacts Round(int number, int[] ctSlots, int[] tSlots, int? plant = null, BombSite site = BombSite.Unknown,
-        int? planter = null, int winner = 0, RoundEndReason reason = RoundEndReason.Unknown, int end = 90, params KillStep[] kills)
+    private static RoundFacts Round(int number, int[] ctSlots, int[] tSlots, int? plant = null,
+        BombSite site = BombSite.Unknown,
+        int? planter = null, int winner = 0, RoundEndReason reason = RoundEndReason.Unknown, int end = 90,
+        params KillStep[] kills)
     {
         int freeze = Freeze(number);
         return new RoundFacts
@@ -76,21 +78,42 @@ public class PostPlantTests
         Clock = new RoundFactsClock { TickRate = Rate },
         Rounds =
         [
-            Round(1, TeamBSlots, TeamASlots, 40, BombSite.A, 0, 2, RoundEndReason.TargetBombed,
-                kills: new KillStep { Tick = At(Freeze(1), 20), AttackerSlot = 0, VictimSlot = 5, CtAlive = 4, TAlive = 5 }),
-            Round(2, TeamBSlots, TeamASlots, 50, BombSite.A, 1, 3, RoundEndReason.BombDefused, 55),
-            Round(3, TeamBSlots, TeamASlots, 45, BombSite.B, 2, 3, RoundEndReason.CTWin),
-            Round(4, TeamBSlots, TeamASlots, 45, BombSite.B, null, 2, RoundEndReason.TargetBombed),
-            Round(5, TeamBSlots, TeamASlots, winner: 3, reason: RoundEndReason.TargetSaved),
-            Round(6, TeamASlots, TeamBSlots, 40, BombSite.A, 5, 3, RoundEndReason.BombDefused,
+            Round(1, _teamBSlots, _teamASlots, 40, BombSite.A, 0, 2, RoundEndReason.TargetBombed,
+                kills: new KillStep
+                {
+                    Tick = At(Freeze(1), 20),
+                    AttackerSlot = 0,
+                    VictimSlot = 5,
+                    CtAlive = 4,
+                    TAlive = 5
+                }),
+            Round(2, _teamBSlots, _teamASlots, 50, BombSite.A, 1, 3, RoundEndReason.BombDefused, 55),
+            Round(3, _teamBSlots, _teamASlots, 45, BombSite.B, 2, 3, RoundEndReason.CTWin),
+            Round(4, _teamBSlots, _teamASlots, 45, BombSite.B, null, 2, RoundEndReason.TargetBombed),
+            Round(5, _teamBSlots, _teamASlots, winner: 3, reason: RoundEndReason.TargetSaved),
+            Round(6, _teamASlots, _teamBSlots, 40, BombSite.A, 5, 3, RoundEndReason.BombDefused,
                 kills:
                 [
-                    new KillStep { Tick = At(Freeze(6), 20), AttackerSlot = 5, VictimSlot = 3, CtAlive = 4, TAlive = 5 },
-                    new KillStep { Tick = At(Freeze(6), 25), AttackerSlot = 5, VictimSlot = 4, CtAlive = 3, TAlive = 5 }
+                    new KillStep
+                    {
+                        Tick = At(Freeze(6), 20),
+                        AttackerSlot = 5,
+                        VictimSlot = 3,
+                        CtAlive = 4,
+                        TAlive = 5
+                    },
+                    new KillStep
+                    {
+                        Tick = At(Freeze(6), 25),
+                        AttackerSlot = 5,
+                        VictimSlot = 4,
+                        CtAlive = 3,
+                        TAlive = 5
+                    }
                 ]),
-            Round(7, TeamASlots, TeamBSlots, 40, BombSite.A, 5, 2, RoundEndReason.TargetBombed),
-            Round(8, TeamASlots, TeamBSlots, 40, BombSite.A, 5, 2, RoundEndReason.TerroristsWin),
-            Round(9, TeamASlots, TeamBSlots, winner: 3, reason: RoundEndReason.CTWin)
+            Round(7, _teamASlots, _teamBSlots, 40, BombSite.A, 5, 2, RoundEndReason.TargetBombed),
+            Round(8, _teamASlots, _teamBSlots, 40, BombSite.A, 5, 2, RoundEndReason.TerroristsWin),
+            Round(9, _teamASlots, _teamBSlots, winner: 3, reason: RoundEndReason.CTWin)
         ]
     };
 
@@ -106,7 +129,7 @@ public class PostPlantTests
         };
         if (rows is not null)
         {
-            record.SetRoundFacts(rows, "rf-A");
+            record.SetRoundFacts(rows);
         }
 
         for (int slot = 0; slot < 10; slot++)
@@ -148,7 +171,7 @@ public class PostPlantTests
         ];
 
         IEnumerable<RoundPosition> SiteB(int s) =>
-            [.. TeamASlots.Select(slot => P(slot, -2000, 0, 1)), P(5, -5000, 0)];
+            [.. _teamASlots.Select(slot => P(slot, -2000, 0, 1)), P(5, -5000, 0)];
 
         IEnumerable<RoundPosition> Retake(int s, params int[] arrivals)
         {
@@ -168,14 +191,14 @@ public class PostPlantTests
             Places = ["BombsiteA", "Palace"],
             Rounds =
             [
-                Stored(1, TeamBSlots, SiteA),
-                Stored(2, TeamBSlots, SiteA),
-                Stored(3, TeamBSlots, SiteB),
-                Stored(4, TeamBSlots, SiteB),
-                Stored(5, TeamBSlots, SiteB),
-                Stored(6, TeamASlots, s => Retake(s, 45, 46, 47)),
-                Stored(7, TeamASlots, s => Retake(s, 42, 55)),
-                Stored(8, TeamASlots, s => Retake(s, 999, 999, 999))
+                Stored(1, _teamBSlots, SiteA),
+                Stored(2, _teamBSlots, SiteA),
+                Stored(3, _teamBSlots, SiteB),
+                Stored(4, _teamBSlots, SiteB),
+                Stored(5, _teamBSlots, SiteB),
+                Stored(6, _teamASlots, s => Retake(s, 45, 46, 47)),
+                Stored(7, _teamASlots, s => Retake(s, 42, 55)),
+                Stored(8, _teamASlots, s => Retake(s, 999, 999, 999))
             ]
         };
     }
@@ -197,24 +220,33 @@ public class PostPlantTests
 
             await Assert.That(t.Map).IsEqualTo("de_nuke");
             await Assert.That(t.Side).IsEqualTo(2);
-            await Assert.That(t.SideRounds.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([1, 2, 3, 4, 5], CollectionOrdering.Matching);
-            await Assert.That(t.Planted.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([1, 2, 3, 4], CollectionOrdering.Matching);
+            await Assert.That(t.SideRounds.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([1, 2, 3, 4, 5], CollectionOrdering.Matching);
+            await Assert.That(t.Planted.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([1, 2, 3, 4], CollectionOrdering.Matching);
             await Assert.That(Shape(t.ManCount)).IsEqualTo(Joined("5v5:3", "5v4:1"));
-            await Assert.That(Shape(t.Outcomes)).IsEqualTo(Joined("won: exploded:2", "lost: defused:1", "lost: elimination:1"));
+            await Assert.That(Shape(t.Outcomes))
+                .IsEqualTo(Joined("won: exploded:2", "lost: defused:1", "lost: elimination:1"));
             await Assert.That(t.PositionRounds).IsEqualTo(4);
-            await Assert.That(Shape(t.PlantClusters)).IsEqualTo(Joined("A spot 1 (1050, 1000):2", "B spot 1 (-2000, 0):1", "B spot unread:1"))
-                .Because("p1's plant a hundred units from p0's joins its cluster, and a plant with no planter has no spot");
+            await Assert.That(Shape(t.PlantClusters))
+                .IsEqualTo(Joined("A spot 1 (1050, 1000):2", "B spot 1 (-2000, 0):1", "B spot unread:1"))
+                .Because(
+                    "p1's plant a hundred units from p0's joins its cluster, and a plant with no planter has no spot");
             await Assert.That(Shape(t.HoldShapes))
-                .IsEqualTo(Joined("2 near the bomb, 3 away:1", "3 near the bomb, 2 away:1", "5 near the bomb, 0 away:1", "spot unread:1"));
+                .IsEqualTo(Joined("2 near the bomb, 3 away:1", "3 near the bomb, 2 away:1", "5 near the bomb, 0 away:1",
+                    "spot unread:1"));
             await Assert.That(Shape(t.HoldPlaces)).IsEqualTo(Joined("Palace:4", "BombsiteA:2"));
             await Assert.That(t.RetakeGroups.Count).IsEqualTo(0).Because("on T the team holds, it does not retake");
 
             await Assert.That(ct.Side).IsEqualTo(3);
             await Assert.That(ct.SideRounds.Count).IsEqualTo(4);
-            await Assert.That(ct.Planted.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([6, 7, 8], CollectionOrdering.Matching);
+            await Assert.That(ct.Planted.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([6, 7, 8], CollectionOrdering.Matching);
             await Assert.That(Shape(ct.ManCount)).IsEqualTo(Joined("5v5:2", "3v5:1"));
-            await Assert.That(Shape(ct.Outcomes)).IsEqualTo(Joined("lost: elimination:1", "lost: exploded:1", "won: defused:1"));
-            await Assert.That(Shape(ct.RetakeGroups)).IsEqualTo(Joined("nobody reached the bomb:1", "together:1", "trickled:1"));
+            await Assert.That(Shape(ct.Outcomes))
+                .IsEqualTo(Joined("lost: elimination:1", "lost: exploded:1", "won: defused:1"));
+            await Assert.That(Shape(ct.RetakeGroups))
+                .IsEqualTo(Joined("nobody reached the bomb:1", "together:1", "trickled:1"));
             await Assert.That(ct.PlantClusters.Count + ct.HoldShapes.Count + ct.HoldPlaces.Count).IsEqualTo(0)
                 .Because("on CT the opponent plants and holds");
         }
@@ -244,7 +276,8 @@ public class PostPlantTests
             await Assert.That(set.Blocks[0].PositionRounds).IsEqualTo(0);
             await Assert.That(set.Blocks[0].PlantClusters.Count + set.Blocks[0].HoldShapes.Count).IsEqualTo(0);
             await Assert.That(set.Blocks[1].RetakeGroups.Count).IsEqualTo(0);
-            await Assert.That(set.Blocks[0].ManCount.Count).IsGreaterThan(0).Because("the man count is Round Facts alone");
+            await Assert.That(set.Blocks[0].ManCount.Count).IsGreaterThan(0)
+                .Because("the man count is Round Facts alone");
             await Assert.That(PostPlantSectionViewModel.LineFor(set))
                 .IsEqualTo("7 plants over 1 map · 1 demo without positions; rebuild the index");
         }
@@ -258,23 +291,28 @@ public class PostPlantTests
         RoundFacts round = Rows().Rounds[6];
 
         // Arrivals exactly the gap apart are one group; a second more is two.
-        positions.Rounds[6] = Stored(7, TeamASlots, s =>
+        positions.Rounds[6] = Stored(7, _teamASlots, s =>
             [P(0, s >= 42 ? 500 : 5000, 0), P(1, s >= 42 + PostPlantService.RetakeGapSeconds ? 500 : 5000, 0)]);
-        await Assert.That(PostPlantService.RetakeGroup(positions, round, bomb, Rate)).IsEqualTo(PostPlantService.Together);
-        positions.Rounds[6] = Stored(7, TeamASlots, s =>
+        await Assert.That(PostPlantService.RetakeGroup(positions, round, bomb, Rate))
+            .IsEqualTo(PostPlantService.Together);
+        positions.Rounds[6] = Stored(7, _teamASlots, s =>
             [P(0, s >= 42 ? 500 : 5000, 0), P(1, s >= 43 + PostPlantService.RetakeGapSeconds ? 500 : 5000, 0)]);
-        await Assert.That(PostPlantService.RetakeGroup(positions, round, bomb, Rate)).IsEqualTo(PostPlantService.Trickled);
+        await Assert.That(PostPlantService.RetakeGroup(positions, round, bomb, Rate))
+            .IsEqualTo(PostPlantService.Trickled);
 
         // One CT alive who reaches the bomb, and no CT alive at all.
-        positions.Rounds[6] = Stored(7, TeamASlots, s => [P(0, 500, 0), P(5, 0, 0)]);
-        await Assert.That(PostPlantService.RetakeGroup(positions, round, bomb, Rate)).IsEqualTo(PostPlantService.OnePlayer);
-        positions.Rounds[6] = Stored(7, TeamASlots, s => [P(5, 0, 0)]);
-        await Assert.That(PostPlantService.RetakeGroup(positions, round, bomb, Rate)).IsEqualTo(PostPlantService.NoCtAlive);
+        positions.Rounds[6] = Stored(7, _teamASlots, _ => [P(0, 500, 0), P(5, 0, 0)]);
+        await Assert.That(PostPlantService.RetakeGroup(positions, round, bomb, Rate))
+            .IsEqualTo(PostPlantService.OnePlayer);
+        positions.Rounds[6] = Stored(7, _teamASlots, _ => [P(5, 0, 0)]);
+        await Assert.That(PostPlantService.RetakeGroup(positions, round, bomb, Rate))
+            .IsEqualTo(PostPlantService.NoCtAlive);
 
         using (Assert.Multiple())
         {
             await Assert.That(PostPlantService.PlantSpot(Positions("fp"), Rows().Rounds[3])).IsNull();
-            await Assert.That(PostPlantService.PlantSpot(Positions("fp"), Rows().Rounds[0])).IsEqualTo(P(0, 1000, 1000));
+            await Assert.That(PostPlantService.PlantSpot(Positions("fp"), Rows().Rounds[0]))
+                .IsEqualTo(P(0, 1000, 1000));
             await Assert.That(PostPlantService.OutcomeLabel(Rows().Rounds[1], 2)).IsEqualTo("lost: defused");
             await Assert.That(PostPlantService.OutcomeLabel(Rows().Rounds[1], 3)).IsEqualTo("won: defused");
             await Assert.That(PostPlantService.OutcomeLabel(new RoundFacts(), 2)).IsEqualTo("no result");
@@ -338,7 +376,8 @@ public class PostPlantTests
         using (Assert.Multiple())
         {
             await Assert.That(queue.ClipCount).IsEqualTo(2);
-            await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue().Because("a Dossier clip carries its team");
+            await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue()
+                .Because("a Dossier clip carries its team");
             await Assert.That(queue.Clips.All(c => c.Source == ReviewSources.Dossier)).IsTrue();
             await Assert.That(queue.Clips[0].Note).IsEqualTo("de_nuke T · plant A spot 1 (1050, 1000) · round 1");
             await Assert.That(queue.Clips[1].Note).IsEqualTo("de_nuke T · plant A spot 1 (1050, 1000) · round 2");
@@ -367,18 +406,17 @@ public class PostPlantTests
 
     private sealed class Harness : IDisposable
     {
-        private Harness(DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store, PostPlantService service, Guid teamA)
+        private Harness(DemoCacheStore cache, TeamIdentityService teams, PostPlantService service, Guid teamA)
         {
             Cache = cache;
             Teams = teams;
-            Store = store;
             Service = service;
             TeamA = teamA;
         }
 
         public DemoCacheStore Cache { get; }
         public TeamIdentityService Teams { get; }
-        public RoundIndexStore Store { get; }
+
         public PostPlantService Service { get; }
         public Guid TeamA { get; }
 
@@ -410,7 +448,7 @@ public class PostPlantTests
 
             PostPlantService service = new(teams, cache.Library(), cache.RoundFacts(), store, sources.FingerprintFor);
             Guid teamA = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(1)) == true)).Id;
-            return new Harness(cache, teams, store, service, teamA);
+            return new Harness(cache, teams, service, teamA);
         }
     }
 }

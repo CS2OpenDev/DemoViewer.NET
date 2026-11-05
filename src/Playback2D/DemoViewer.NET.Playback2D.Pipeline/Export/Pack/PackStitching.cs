@@ -1,8 +1,6 @@
 #region
 
 using System.Runtime.InteropServices;
-using DemoViewer.NET.Playback2D;
-using DemoViewer.NET.Playback2D.Pipeline.Export;
 using SkiaSharp;
 
 #endregion
@@ -75,13 +73,18 @@ internal static class PackTitleCardRenderer
 
         // Drawn premultiplied (a raster surface cannot be anything else) and read back unpremultiplied, the
         // session's own pair; the card is opaque, so the two agree byte for byte.
-        using SKSurface surface = SKSurface.Create(new SKImageInfo(side, side, SKColorType.Rgba8888, SKAlphaType.Premul));
+        using SKSurface surface =
+            SKSurface.Create(new SKImageInfo(side, side, SKColorType.Rgba8888, SKAlphaType.Premul));
         SKCanvas canvas = surface.Canvas;
         canvas.Clear(palette.Background.WithAlpha(255));
 
         using TextBlobCache text = new();
-        using SKPaint titlePaint = new() { Color = SKColors.White, IsAntialias = true };
-        using SKPaint subtitlePaint = new() { Color = palette.Label.WithAlpha(255), IsAntialias = true };
+        using SKPaint titlePaint = new();
+        titlePaint.Color = SKColors.White;
+        titlePaint.IsAntialias = true;
+        using SKPaint subtitlePaint = new();
+        subtitlePaint.Color = palette.Label.WithAlpha(255);
+        subtitlePaint.IsAntialias = true;
         float margin = side * 0.08f;
         float width = side - 2 * margin;
         float titleSize = side * 0.075f;
@@ -94,7 +97,8 @@ internal static class PackTitleCardRenderer
 
         float titleLine = titleSize * 1.25f;
         float subtitleLine = subtitleSize * 1.35f;
-        float block = titleLines.Count * titleLine + (subtitleLines.Count > 0 ? subtitleSize + subtitleLines.Count * subtitleLine : 0);
+        float block = titleLines.Count * titleLine
+            + (subtitleLines.Count > 0 ? subtitleSize + subtitleLines.Count * subtitleLine : 0);
         float y = (side - block) / 2 + titleSize;
         foreach (string line in titleLines)
         {

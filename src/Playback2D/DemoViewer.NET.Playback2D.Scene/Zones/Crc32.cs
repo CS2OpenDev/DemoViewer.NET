@@ -36,9 +36,9 @@ internal static class Crc32
 
     private static uint Append(uint crc, ReadOnlySpan<byte> bytes)
     {
-        for (int i = 0; i < bytes.Length; i++)
+        foreach (byte b in bytes)
         {
-            crc = _table[(crc ^ bytes[i]) & 0xFF] ^ (crc >> 8);
+            crc = _table[(crc ^ b) & 0xFF] ^ (crc >> 8);
         }
 
         return crc;

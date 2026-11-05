@@ -40,11 +40,14 @@ public class TimelineContractTests
     {
         // Accessor methods (get_/add_/remove_) are the same six members seen through reflection's
         // lower-level view, so they are filtered out rather than enumerated.
-        string[] declared = typeof(ITimelineTrack).GetMembers()
-            .Where(m => !m.Name.StartsWith("get_", StringComparison.Ordinal)
-                        && !m.Name.StartsWith("add_", StringComparison.Ordinal)
-                        && !m.Name.StartsWith("remove_", StringComparison.Ordinal))
-            .Select(m => m.Name).OrderBy(n => n, StringComparer.Ordinal).ToArray();
+        string[] declared =
+        [
+            .. typeof(ITimelineTrack).GetMembers()
+                .Where(m => !m.Name.StartsWith("get_", StringComparison.Ordinal)
+                    && !m.Name.StartsWith("add_", StringComparison.Ordinal)
+                    && !m.Name.StartsWith("remove_", StringComparison.Ordinal))
+                .Select(m => m.Name).OrderBy(n => n, StringComparer.Ordinal)
+        ];
 
         await Assert.That(declared).IsEquivalentTo(
         [

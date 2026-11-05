@@ -1,8 +1,8 @@
 #region
 
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using TUnit.Assertions.Enums;
 using static DemoViewer.NET.AppTests.RoundIndexTestData;
 
@@ -19,14 +19,16 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class SituationQueryTests
 {
-    private static readonly string Fingerprint = "ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + RoundIndexTestData.SamplerTerm;
+    private static readonly string _fingerprint =
+        "ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + SamplerTerm;
+
     private const string DemoA = "/d/a.dem";
     private const string DemoB = "/d/b.dem";
     private const string DemoC = "/d/c.dem";
 
     private static RoundIndexDocument DocA()
     {
-        RoundIndexDocument document = Document("de_nuke", Fingerprint,
+        RoundIndexDocument document = Document("de_nuke", _fingerprint,
             (1, 10746, 17138,
             [
                 new RoundIndexRun(0, 4, "CTSpawn:5", "TSpawn:5"),
@@ -34,30 +36,32 @@ public class SituationQueryTests
                 new RoundIndexRun(10, 12, "BombsiteA:2|Outside:2", "Lobby:3|Ramp:1")
             ]),
             (2, 20000, 24000, [new RoundIndexRun(0, 3, "BombsiteA:3|Hell:2", "Ramp:5")]));
-        document.Transitions = [new PlaceTransition("BombsiteA", "Hell", 4), new PlaceTransition("Hell", "Ramp", 3), new PlaceTransition("Outside", "Ramp", 1)];
+        document.Transitions =
+        [
+            new PlaceTransition("BombsiteA", "Hell", 4), new PlaceTransition("Hell", "Ramp", 3),
+            new PlaceTransition("Outside", "Ramp", 1)
+        ];
         document.Places["BombsiteA"] = new PlaceSampleSummary
         {
-            Count = 4,
-            Buckets = [new PlaceZBucketSum(0, 4, 400, 800)]
+            Count = 4, Buckets = [new PlaceZBucketSum(0, 4, 400, 800)]
         };
         return document;
     }
 
     private static RoundIndexDocument DocB()
     {
-        RoundIndexDocument document = Document("de_nuke", Fingerprint,
+        RoundIndexDocument document = Document("de_nuke", _fingerprint,
             (1, 5000, 9000, [new RoundIndexRun(0, 2, "BombsiteA:4|Outside:1", "Lobby:3|Ramp:2")]));
         document.Transitions = [new PlaceTransition("Outside", "Ramp", 2)];
         document.Places["BombsiteA"] = new PlaceSampleSummary
         {
-            Count = 2,
-            Buckets = [new PlaceZBucketSum(0, 2, 100, 200), new PlaceZBucketSum(-512, 0, 0, 0)]
+            Count = 2, Buckets = [new PlaceZBucketSum(0, 2, 100, 200), new PlaceZBucketSum(-512, 0, 0, 0)]
         };
         return document;
     }
 
     private static RoundIndexDocument DocC() =>
-        Document("de_dust2", Fingerprint, (1, 3000, 6000, [new RoundIndexRun(0, 1, "BombsiteA:2", "Ramp:3")]));
+        Document("de_dust2", _fingerprint, (1, 3000, 6000, [new RoundIndexRun(0, 1, "BombsiteA:2", "Ramp:3")]));
 
     private static Harness Load(IZonePlaceResolverSource? zones = null, IRoundFactsSource? facts = null)
     {
@@ -76,7 +80,8 @@ public class SituationQueryTests
     private static async Task<int> CountAndCheck(SituationIndex index, SituationQuery query)
     {
         IReadOnlyList<SituationHit> hits = index.Query(query);
-        await Assert.That(index.Count(query)).IsEqualTo(hits.Count).Because("Count is Query with the materialisation skipped");
+        await Assert.That(index.Count(query)).IsEqualTo(hits.Count)
+            .Because("Count is Query with the materialisation skipped");
         return hits.Count;
     }
 
@@ -90,7 +95,8 @@ public class SituationQueryTests
         using (Assert.Multiple())
         {
             await Assert.That(h.Index.IsReady).IsTrue();
-            await Assert.That(await CountAndCheck(h.Index, query)).IsEqualTo(1).Because("B has four in A and C is another map");
+            await Assert.That(await CountAndCheck(h.Index, query)).IsEqualTo(1)
+                .Because("B has four in A and C is another map");
             await Assert.That(hits[0].DemoPath).IsEqualTo(DemoA);
             await Assert.That(hits[0].DemoStableKey).IsEqualTo(DemoCacheStore.StableKey(DemoA));
             await Assert.That(hits[0].RoundNumber).IsEqualTo(1);
@@ -124,7 +130,7 @@ public class SituationQueryTests
     public async Task TheCountNeverFalls_AsTheSliderLoosens()
     {
         using Harness h = Load();
-        PlaceQuery[] three = [new PlaceQuery("BombsiteA", 3)];
+        PlaceQuery[] three = [new("BombsiteA", 3)];
         int exact = await CountAndCheck(h.Index, Q("de_nuke", three));
         int adjacent = await CountAndCheck(h.Index, Q("de_nuke", three, tolerance: SituationTolerance.Adjacent));
         int twoHops = await CountAndCheck(h.Index, Q("de_nuke", three, tolerance: SituationTolerance.TwoHops));
@@ -133,7 +139,8 @@ public class SituationQueryTests
         using (Assert.Multiple())
         {
             await Assert.That(exact).IsEqualTo(1).Because("only A round 2 has exactly three in A");
-            await Assert.That(adjacent).IsEqualTo(2).Because("A round 2 sums five over A and Hell; B round 1 has four in A");
+            await Assert.That(adjacent).IsEqualTo(2)
+                .Because("A round 2 sums five over A and Hell; B round 1 has four in A");
             await Assert.That(twoHops).IsEqualTo(2).Because("Ramp joins the neighbourhood but no CT stands there");
             await Assert.That(any).IsEqualTo(3).Because("every nuke round has at least three CTs alive");
             await Assert.That(h.Index.Adjacency("de_nuke")!.Source).IsEqualTo("index:2");
@@ -147,7 +154,7 @@ public class SituationQueryTests
     {
         using Harness h = Load();
         // dust2 has one demo with no transitions: an empirical graph with no edges, so Adjacent equals Exact.
-        PlaceQuery[] two = [new PlaceQuery("BombsiteA", 2)];
+        PlaceQuery[] two = [new("BombsiteA", 2)];
         int exact = await CountAndCheck(h.Index, Q("de_dust2", two));
         int adjacent = await CountAndCheck(h.Index, Q("de_dust2", two, tolerance: SituationTolerance.Adjacent));
 
@@ -172,14 +179,15 @@ public class SituationQueryTests
                 while (step < 20)
                 {
                     int length = random.Next(1, 6);
-                    runs.Add(new RoundIndexRun(step, step + length - 1, RandomToken(random, places), RandomToken(random, places)));
+                    runs.Add(new RoundIndexRun(step, step + length - 1, RandomToken(random, places),
+                        RandomToken(random, places)));
                     step += length;
                 }
 
                 rounds.Add((r, 1000 * r, 1000 * r + 900, [.. runs]));
             }
 
-            RoundIndexDocument document = Document("de_rand", Fingerprint, [.. rounds]);
+            RoundIndexDocument document = Document("de_rand", _fingerprint, [.. rounds]);
             for (int i = 0; i < places.Length - 1; i++)
             {
                 document.Transitions.Add(new PlaceTransition(places[i], places[i + 1], 3));
@@ -200,16 +208,20 @@ public class SituationQueryTests
                 int twoHops = await CountAndCheck(h.Index, Q("de_rand", ct, t, SituationTolerance.TwoHops));
                 int any = await CountAndCheck(h.Index, Q("de_rand", ct, t, SituationTolerance.AnyPlace));
 
-                await Assert.That(exact).IsLessThanOrEqualTo(adjacent).Because($"trial {trial}: exact implies adjacent");
-                await Assert.That(adjacent).IsLessThanOrEqualTo(twoHops).Because($"trial {trial}: adjacent implies two hops");
-                await Assert.That(twoHops).IsLessThanOrEqualTo(any).Because($"trial {trial}: two hops implies any place");
+                await Assert.That(exact).IsLessThanOrEqualTo(adjacent)
+                    .Because($"trial {trial}: exact implies adjacent");
+                await Assert.That(adjacent).IsLessThanOrEqualTo(twoHops)
+                    .Because($"trial {trial}: adjacent implies two hops");
+                await Assert.That(twoHops).IsLessThanOrEqualTo(any)
+                    .Because($"trial {trial}: two hops implies any place");
 
-                PlaceQuery[] more = [.. ct, new PlaceQuery(places[random.Next(places.Length)], random.Next(1, 3))];
+                PlaceQuery[] more = [.. ct, new(places[random.Next(places.Length)], random.Next(1, 3))];
                 foreach (SituationTolerance level in Enum.GetValues<SituationTolerance>())
                 {
                     int before = await CountAndCheck(h.Index, Q("de_rand", ct, t, level));
                     int after = await CountAndCheck(h.Index, Q("de_rand", more, t, level));
-                    await Assert.That(after).IsLessThanOrEqualTo(before).Because($"trial {trial} at {level}: a pair added never widens the set");
+                    await Assert.That(after).IsLessThanOrEqualTo(before)
+                        .Because($"trial {trial} at {level}: a pair added never widens the set");
                 }
             }
         }
@@ -219,23 +231,21 @@ public class SituationQueryTests
     public async Task TheDemoAndWatermarkFilters_NarrowTheSameHitSet()
     {
         using Harness h = Load();
-        PlaceQuery[] anyA = [new PlaceQuery("BombsiteA", 1)];
+        PlaceQuery[] anyA = [new("BombsiteA", 1)];
         SituationQuery all = Q("de_nuke", anyA, tolerance: SituationTolerance.AnyPlace);
         SituationQuery onlyB = all with
         {
             Demos = new HashSet<string>([DemoCacheStore.StableKey(DemoB)], StringComparer.Ordinal)
         };
-        SituationQuery after150 = all with
-        {
-            IndexedAfterTicks = 150
-        };
+        SituationQuery after150 = all with { IndexedAfterTicks = 150 };
 
         using (Assert.Multiple())
         {
             await Assert.That(await CountAndCheck(h.Index, all)).IsEqualTo(3);
             await Assert.That(await CountAndCheck(h.Index, onlyB)).IsEqualTo(1);
             await Assert.That(h.Index.Query(onlyB)[0].DemoPath).IsEqualTo(DemoB);
-            await Assert.That(await CountAndCheck(h.Index, after150)).IsEqualTo(1).Because("only B was stamped after the watermark");
+            await Assert.That(await CountAndCheck(h.Index, after150)).IsEqualTo(1)
+                .Because("only B was stamped after the watermark");
             await Assert.That(h.Index.Query(after150)[0].DemoPath).IsEqualTo(DemoB);
         }
     }
@@ -243,16 +253,12 @@ public class SituationQueryTests
     [Test]
     public async Task ARoundFactsFilter_JoinsByPathAndRoundNumber()
     {
-        FakeFacts facts = new();
-        facts.Rows[DemoA] = Facts(Round(1, 10746, 17138), Round(2, 20000, 24000));
+        FakeFacts facts = new() { Rows = { [DemoA] = Facts(Round(1, 10746, 17138), Round(2, 20000, 24000)) } };
         facts.Rows[DemoA].Rounds[1].WinnerSide = 2;
         using Harness h = Load(facts: facts);
         SituationQuery tWins = Q("de_nuke", tolerance: SituationTolerance.AnyPlace) with
         {
-            Facts = new RoundFactsFilter
-            {
-                WinnerSide = 2
-            }
+            Facts = new RoundFactsFilter { WinnerSide = 2 }
         };
         SituationQuery anyFacts = Q("de_nuke", tolerance: SituationTolerance.AnyPlace) with
         {
@@ -261,8 +267,10 @@ public class SituationQueryTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(await CountAndCheck(h.Index, Q("de_nuke"))).IsEqualTo(3).Because("both sides free matches every round");
-            await Assert.That(await CountAndCheck(h.Index, anyFacts)).IsEqualTo(2).Because("B has no rows, so a facts filter excludes it");
+            await Assert.That(await CountAndCheck(h.Index, Q("de_nuke"))).IsEqualTo(3)
+                .Because("both sides free matches every round");
+            await Assert.That(await CountAndCheck(h.Index, anyFacts)).IsEqualTo(2)
+                .Because("B has no rows, so a facts filter excludes it");
             await Assert.That(await CountAndCheck(h.Index, tWins)).IsEqualTo(1);
             await Assert.That(h.Index.Query(tWins)[0].RoundNumber).IsEqualTo(2);
         }
@@ -310,7 +318,8 @@ public class SituationQueryTests
         Harness h = new(null, null);
         Indexed(h.Cache, h.Sidecars, DemoA, DocA());
         h.Index.Load();
-        RoundIndexEvaluator evaluator = new(h.Cache.Library(), h.Cache.RoundFacts(), h.Sidecars, h.Sources, () => true, walk: _ => []);
+        RoundIndexEvaluator evaluator = new(h.Cache.Library(), h.Cache.RoundFacts(), h.Sidecars, h.Sources, () => true,
+            walk: _ => []);
         using SituationIndex index = new(h.Cache.Library(), h.Sidecars, h.Sources, evaluator: evaluator);
         index.Load();
         List<RoundIndexedEvent> merged = [];
@@ -326,7 +335,8 @@ public class SituationQueryTests
             await Assert.That(index.IndexedDemoCount).IsEqualTo(2);
             await Assert.That(merged.Count).IsEqualTo(1);
             await Assert.That(merged[0].DemoPath).IsEqualTo(DemoB);
-            await Assert.That(index.Count(Q("de_nuke"))).IsEqualTo(2).Because("A's two rounds; B's round has no sampled step");
+            await Assert.That(index.Count(Q("de_nuke"))).IsEqualTo(2)
+                .Because("A's two rounds; B's round has no sampled step");
         }
 
         h.Cache.Remove(DemoA);
@@ -368,8 +378,7 @@ public class SituationQueryTests
         RoundIndexBuilderTests.FakeZoneResolver nuke = new("zv-1", _ => null,
             new Dictionary<string, string[]>(StringComparer.Ordinal)
             {
-                ["BombsiteA"] = ["Heaven"],
-                ["Heaven"] = ["BombsiteA"]
+                ["BombsiteA"] = ["Heaven"], ["Heaven"] = ["BombsiteA"]
             });
         using Harness h = Load(new RoundIndexEvaluatorTests.MapZones(("de_nuke", nuke)));
 
@@ -381,11 +390,13 @@ public class SituationQueryTests
             await Assert.That(nukeGraph).IsTypeOf<ZonePlaceAdjacency>();
             await Assert.That(nukeGraph!.Source).IsEqualTo("zones:zv-1");
             await Assert.That(nukeGraph.Neighbours("BombsiteA")).Contains("Heaven");
-            await Assert.That(nukeGraph.Neighbours("BombsiteA")).DoesNotContain("Hell").Because("the empirical edge is not consulted");
+            await Assert.That(nukeGraph.Neighbours("BombsiteA")).DoesNotContain("Hell")
+                .Because("the empirical edge is not consulted");
             await Assert.That(dustGraph).IsTypeOf<EmpiricalPlaceAdjacency>();
             await Assert.That(dustGraph!.Source).IsEqualTo("index:1");
             // Under the zone graph, three in A widens over Heaven only: A round 2 (3 in A) and B (4 in A).
-            await Assert.That(await CountAndCheck(h.Index, Q("de_nuke", [new PlaceQuery("BombsiteA", 3)], tolerance: SituationTolerance.Adjacent)))
+            await Assert.That(await CountAndCheck(h.Index,
+                    Q("de_nuke", [new PlaceQuery("BombsiteA", 3)], tolerance: SituationTolerance.Adjacent)))
                 .IsEqualTo(2);
         }
     }
@@ -419,7 +430,8 @@ public class SituationQueryTests
         {
             DemoCacheStore cache = new(null);
             RoundIndexStore sidecars = new(cache.DiskData(root));
-            using SituationIndex index = new(cache.Library(), sidecars, new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn));
+            using SituationIndex index = new(cache.Library(), sidecars,
+                new RoundIndexPlaceSources(() => RoundIndexTokenSource.Pawn));
             RoundIndexDocument document = DocB();
             document.Demo.Sha256 = "x";
             Indexed(cache, sidecars, DemoB, document, sha: "x");
@@ -432,7 +444,8 @@ public class SituationQueryTests
             using (Assert.Multiple())
             {
                 await Assert.That(index.IndexedDemoCount).IsEqualTo(1);
-                await Assert.That(index.Query(Q("de_nuke")).Select(hit => hit.DemoPath)).IsEquivalentTo([DemoA], CollectionOrdering.Matching);
+                await Assert.That(index.Query(Q("de_nuke")).Select(hit => hit.DemoPath))
+                    .IsEquivalentTo([DemoA], CollectionOrdering.Matching);
                 await Assert.That(index.IndexedAtTicks(DemoA)).IsGreaterThan(0);
             }
         }
@@ -461,7 +474,8 @@ public class SituationQueryTests
         using (h)
         {
             await Assert.That(h.Index.IndexedDemoCount).IsEqualTo(2);
-            await Assert.That(h.Index.Count(Q("de_nuke"))).IsEqualTo(1).Because("B loads (no hash in the file); A is another demo's file");
+            await Assert.That(h.Index.Count(Q("de_nuke"))).IsEqualTo(1)
+                .Because("B loads (no hash in the file); A is another demo's file");
         }
     }
 
@@ -474,7 +488,11 @@ public class SituationQueryTests
     private static PlaceQuery[] RandomPairs(Random random, string[] places)
     {
         int count = random.Next(1, 3);
-        return [.. Enumerable.Range(0, count).Select(_ => new PlaceQuery(places[random.Next(places.Length)], random.Next(1, 4)))];
+        return
+        [
+            .. Enumerable.Range(0, count)
+                .Select(_ => new PlaceQuery(places[random.Next(places.Length)], random.Next(1, 4)))
+        ];
     }
 
     private sealed class Harness : IDisposable

@@ -119,8 +119,8 @@ public class FirstRunWizardLibraryTests
 
             await library.AddFoldersAsync([other]);
 
-            await Assert.That(settings.Current.Library.Folders).IsEquivalentTo(new[] { replays, other });
-            await Assert.That(library.Folders).IsEquivalentTo(new[] { replays, other });
+            await Assert.That(settings.Current.Library.Folders).IsEquivalentTo([replays, other]);
+            await Assert.That(library.Folders).IsEquivalentTo([replays, other]);
         }
         finally
         {

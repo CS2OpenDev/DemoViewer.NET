@@ -20,10 +20,7 @@ namespace DemoViewer.NET.LiveSync.Tests;
 [NotInParallel("csvg-port-50051")]
 public class CsvgWebHostMockTests
 {
-    private static LiveSyncSettings MockSettings() => new()
-    {
-        MockMode = true
-    };
+    private static LiveSyncSettings MockSettings() => new() { MockMode = true };
 
     private static async Task<CsvgWebHost> StartHostOrSkipAsync(CancellationToken cancellationToken)
     {
@@ -59,7 +56,7 @@ public class CsvgWebHostMockTests
 
             // v1.1 load validation requires an existing file (A-P4) — mock included.
             string demoPath = Path.Combine(Path.GetTempPath(), $"livesync-webhost-{Guid.NewGuid():N}.dem");
-            await File.WriteAllBytesAsync(demoPath, [0x50, 0x42, 0x44, 0x45, 0x4D, 0x53, 0x32, 0x00],
+            await File.WriteAllBytesAsync(demoPath, [.. "PBDEMS2\0"u8],
                 cancellationToken);
             try
             {

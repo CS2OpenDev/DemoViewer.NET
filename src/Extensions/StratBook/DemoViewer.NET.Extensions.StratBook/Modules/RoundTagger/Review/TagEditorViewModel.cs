@@ -13,7 +13,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger.Review;
 /// <summary>What a tag or a suggestion is while it is being edited: every field the editor can change.</summary>
 public sealed class TagEditorDraft
 {
-    public string Code { get; set; } = "";
+    public string Code { get; init; } = "";
 
     /// <summary>Frame-clock start, inclusive.</summary>
     public int FromTick { get; set; }
@@ -22,11 +22,11 @@ public sealed class TagEditorDraft
     public int ToTick { get; set; }
 
     /// <summary>Human labels, in order; a group may repeat.</summary>
-    public List<TagLabel> Labels { get; set; } = [];
+    public List<TagLabel> Labels { get; init; } = [];
 
-    public string? Note { get; set; }
+    public string? Note { get; init; }
 
-    public List<TagPosition> Positions { get; set; } = [];
+    public List<TagPosition> Positions { get; init; } = [];
 
     /// <summary>A deep copy, so an editor never writes through to what it was opened on.</summary>
     public TagEditorDraft Clone() => new()
@@ -36,7 +36,18 @@ public sealed class TagEditorDraft
         ToTick = ToTick,
         Labels = [.. Labels.Select(l => new TagLabel(l.Group, l.Value))],
         Note = Note,
-        Positions = [.. Positions.Select(p => new TagPosition { X = p.X, Y = p.Y, LevelMinZ = p.LevelMinZ, Tick = p.Tick, Place = p.Place, PlaceSource = p.PlaceSource })]
+        Positions =
+        [
+            .. Positions.Select(p => new TagPosition
+            {
+                X = p.X,
+                Y = p.Y,
+                LevelMinZ = p.LevelMinZ,
+                Tick = p.Tick,
+                Place = p.Place,
+                PlaceSource = p.PlaceSource
+            })
+        ]
     };
 
     /// <summary>The draft of a written tag.</summary>
@@ -59,7 +70,9 @@ public sealed class TagEditorDraft
 /// <summary>A palette's words: the codes a tag can carry, and the label groups with their values.</summary>
 /// <param name="Codes">Every code the palette's code panels offer, in palette order.</param>
 /// <param name="Groups">Each label panel's group with the values its buttons offer.</param>
-public sealed record TagVocabulary(IReadOnlyList<string> Codes, IReadOnlyList<(string Group, IReadOnlyList<string> Values)> Groups)
+public sealed record TagVocabulary(
+    IReadOnlyList<string> Codes,
+    IReadOnlyList<(string Group, IReadOnlyList<string> Values)> Groups)
 {
     public static TagVocabulary Empty { get; } = new([], []);
 
@@ -74,10 +87,15 @@ public sealed record TagVocabulary(IReadOnlyList<string> Codes, IReadOnlyList<(s
                 .OfType<string>().Where(c => c.Length > 0).Distinct(StringComparer.Ordinal)
         ];
         List<(string, IReadOnlyList<string>)> groups = [];
-        foreach (IGrouping<string, TagPalettePanel> panel in palette.Panels.Where(p => p.IsLabels && p.Group is { Length: > 0 })
+        foreach (IGrouping<string, TagPalettePanel> panel in palette.Panels
+                     .Where(p => p is { IsLabels: true, Group.Length: > 0 })
                      .GroupBy(p => p.Group!, StringComparer.Ordinal))
         {
-            groups.Add((panel.Key, [.. panel.SelectMany(p => p.Buttons).Select(b => b.Value).OfType<string>().Distinct(StringComparer.Ordinal)]));
+            groups.Add((panel.Key,
+            [
+                .. panel.SelectMany(p => p.Buttons).Select(b => b.Value).OfType<string>()
+                    .Distinct(StringComparer.Ordinal)
+            ]));
         }
 
         return new TagVocabulary(codes, groups);
@@ -116,9 +134,6 @@ public sealed class TagPositionRow(TagPosition position)
 /// </summary>
 public sealed partial class TagEditorViewModel : ObservableObject
 {
-    /// <summary>Any value, when the chosen group is one the palette does not list.</summary>
-    public const string AnyValue = "";
-
     private readonly Func<TagEditorDraft, int, int, (int From, int To)> _bounds;
     private readonly Action? _cancel;
     private readonly Action? _delete;
@@ -129,25 +144,29 @@ public sealed partial class TagEditorViewModel : ObservableObject
     private readonly TagVocabulary _vocabulary;
 
     [ObservableProperty]
-    private string _fromText = "";
+    [NotifyPropertyChangedFor(nameof(CurrentSpan))]
+    private string _fromText;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ValuesForGroup))]
     private string _newGroup = "";
 
     [ObservableProperty]
     private string _newValue = "";
 
     [ObservableProperty]
-    private string _note = "";
+    private string _note;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProblem))]
     private string _problem = "";
 
     [ObservableProperty]
     private string? _selectedCode;
 
     [ObservableProperty]
-    private string _toText = "";
+    [NotifyPropertyChangedFor(nameof(CurrentSpan))]
+    private string _toText;
 
     /// <param name="title">What is being edited ("Suggested: execute", "Tag: A execute", "New round label").</param>
     /// <param name="draft">The starting values; copied, never written through.</param>
@@ -159,7 +178,8 @@ public sealed partial class TagEditorViewModel : ObservableObject
     /// <param name="save">Writes the draft; false keeps the editor open with a problem line.</param>
     /// <param name="delete">Deletes the tag; null when there is nothing written to delete.</param>
     /// <param name="cancel">Closes the editor without writing.</param>
-    public TagEditorViewModel(string title, TagEditorDraft draft, TagVocabulary vocabulary, int tickRate, int originTick,
+    public TagEditorViewModel(string title, TagEditorDraft draft, TagVocabulary vocabulary, int tickRate,
+        int originTick,
         Func<int> playhead, Func<TagEditorDraft, int, int, (int From, int To)>? bounds, Func<TagEditorDraft, bool> save,
         Action? delete, Action? cancel)
     {
@@ -197,7 +217,11 @@ public sealed partial class TagEditorViewModel : ObservableObject
             Positions.Add(new TagPositionRow(position));
         }
 
-        Groups = [.. vocabulary.Groups.Select(g => g.Group).Concat(draft.Labels.Select(l => l.Group)).Distinct(StringComparer.Ordinal)];
+        Groups =
+        [
+            .. vocabulary.Groups.Select(g => g.Group).Concat(draft.Labels.Select(l => l.Group))
+                .Distinct(StringComparer.Ordinal)
+        ];
     }
 
     public string Title { get; }
@@ -338,11 +362,6 @@ public sealed partial class TagEditorViewModel : ObservableObject
     [RelayCommand]
     private void Cancel() => _cancel?.Invoke();
 
-    partial void OnNewGroupChanged(string value) => OnPropertyChanged(nameof(ValuesForGroup));
-
-    partial void OnFromTextChanged(string value) => OnPropertyChanged(nameof(CurrentSpan));
-
-    partial void OnToTextChanged(string value) => OnPropertyChanged(nameof(CurrentSpan));
 
     /// <summary>The span as the boxes stand, in ticks, or null while either box does not parse. The timeline draws it.</summary>
     public (int From, int To)? CurrentSpan =>
@@ -359,7 +378,6 @@ public sealed partial class TagEditorViewModel : ObservableObject
         ToText = Seconds(Math.Max(fromTick, toTick));
     }
 
-    partial void OnProblemChanged(string value) => OnPropertyChanged(nameof(HasProblem));
 
     /// <summary>
     ///     The span a tag may take: inside the parse and, when <paramref name="clampToRound" />, inside the
@@ -418,7 +436,7 @@ public sealed partial class TagEditorViewModel : ObservableObject
             }
         }
 
-        return current is null ? null : (current.Number, current.StartTick, next is null ? null : next.StartTick - 1);
+        return current is null ? null : (current.Number, current.StartTick, next?.StartTick - 1);
     }
 
     private string Seconds(int tick) =>

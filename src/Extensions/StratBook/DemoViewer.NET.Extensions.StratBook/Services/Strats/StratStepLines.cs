@@ -55,7 +55,7 @@ public static class StratStepLines
         }
 
         return string.Equals(step.Actor, slot, StringComparison.Ordinal)
-               || string.Equals(step.Actor, StratVocabulary.ActorAll, StringComparison.Ordinal);
+            || string.Equals(step.Actor, StratVocabulary.ActorAll, StringComparison.Ordinal);
     }
 
     /// <summary>The slot's line, stored or implicit; null when it has none, which a step for <c>all</c> without lines never gives.</summary>
@@ -157,9 +157,4 @@ public static class StratStepLines
             Lurk = step.Lurk
         };
     }
-
-    /// <summary>The line's watched places, first first; empty with no watch.</summary>
-    /// <param name="line">A line, or null.</param>
-    public static IReadOnlyList<string> Watching(StepAssignment? line) =>
-        line?.Watch?.Places is { } places ? [.. places.Where(p => !string.IsNullOrEmpty(p))] : [];
 }

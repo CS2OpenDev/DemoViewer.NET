@@ -25,12 +25,12 @@ namespace DemoViewer.NET.Playback2D.Layers;
 ///         a Z band test: a token stores the level key it was dropped on and has no world Z of its own.
 ///     </para>
 /// </summary>
+[PublicAPI]
 public sealed class QueryTokenLayer : ISceneLayer
 {
     /// <summary>Disc radius in screen pixels: a little larger than a player marker so the two never read as one.</summary>
     public const float Radius = SceneDefaults.MarkerRadius + 3f;
 
-    private readonly QueryCanvasDocument _document;
     private readonly SKPaint _fill;
     private readonly SKPaint _mark;
     private readonly SKPaint _ring;
@@ -40,30 +40,18 @@ public sealed class QueryTokenLayer : ISceneLayer
     public QueryTokenLayer(QueryCanvasDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
-        _document = document;
+        Document = document;
 
-        _fill = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            IsAntialias = true
-        };
-        _ring = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2f,
-            IsAntialias = true
-        };
+        _fill = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
+        _ring = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 2f, IsAntialias = true };
         _mark = new SKPaint
         {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1.5f,
-            StrokeCap = SKStrokeCap.Round,
-            IsAntialias = true
+            Style = SKPaintStyle.Stroke, StrokeWidth = 1.5f, StrokeCap = SKStrokeCap.Round, IsAntialias = true
         };
     }
 
     /// <summary>The document being drawn.</summary>
-    public QueryCanvasDocument Document => _document;
+    public QueryCanvasDocument Document { get; }
 
     /// <inheritdoc />
     public string Id => SceneLayerIds.Query;
@@ -83,7 +71,7 @@ public sealed class QueryTokenLayer : ISceneLayer
     public bool IsEnabled { get; set; } = true;
 
     /// <inheritdoc />
-    public int ContentVersion => _document.Version;
+    public int ContentVersion => Document.Version;
 
     /// <inheritdoc />
     public bool Advance(in SceneTime time, Scene2DFrame frame) => false;
@@ -93,7 +81,7 @@ public sealed class QueryTokenLayer : ISceneLayer
     {
         ArgumentNullException.ThrowIfNull(canvas);
 
-        IReadOnlyList<QueryToken> tokens = _document.Placed;
+        IReadOnlyList<QueryToken> tokens = Document.Placed;
         for (int i = 0; i < tokens.Count; i++)
         {
             QueryToken token = tokens[i];
@@ -152,18 +140,18 @@ public sealed class QueryTokenLayer : ISceneLayer
         _mark.Color = token.IsResolved ? SKColors.Black : team;
         int count = token.Slot + 1;
         int uprights = Math.Min(count, 4);
-        const float step = 3.5f;
-        const float half = 4.5f;
-        float left = at.X - (uprights - 1) * step / 2f;
+        const float Step = 3.5f;
+        const float Half = 4.5f;
+        float left = at.X - (uprights - 1) * Step / 2f;
         for (int i = 0; i < uprights; i++)
         {
-            float x = left + i * step;
-            canvas.DrawLine(x, at.Y - half, x, at.Y + half, _mark);
+            float x = left + i * Step;
+            canvas.DrawLine(x, at.Y - Half, x, at.Y + Half, _mark);
         }
 
         if (count == 5)
         {
-            canvas.DrawLine(left - step / 2f, at.Y + half, left + 3 * step + step / 2f, at.Y - half, _mark);
+            canvas.DrawLine(left - Step / 2f, at.Y + Half, left + 3 * Step + Step / 2f, at.Y - Half, _mark);
         }
     }
 }

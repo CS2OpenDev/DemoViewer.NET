@@ -16,20 +16,22 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 /// <param name="Origin">The members' mean release point when it was minted.</param>
 /// <param name="Landing">The members' mean landing when it was minted.</param>
 /// <param name="Seed">The key of the throw it was seeded from.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record LineupAnchor(Guid Id, GrenadeKind Kind, WorldPoint Origin, WorldPoint Landing, string Seed);
 
 /// <summary>One position's representative flight: the throw it came from and its trajectory.</summary>
 /// <param name="Throw">The throw's <see cref="IndexedGrenade.Key" />.</param>
 /// <param name="Points">The flight at the walk's stride.</param>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public sealed record LineupPath(string Throw, IReadOnlyList<TrajectoryPoint> Points);
 
 /// <summary>One map's lineups.</summary>
 public sealed class MapLineups
 {
-    public List<LineupAnchor> Anchors { get; set; } = [];
+    public List<LineupAnchor> Anchors { get; init; } = [];
 
     /// <summary>Old (grid) lineup id to the one lineup that took most of its throws. Built once per map, then frozen.</summary>
-    public Dictionary<Guid, Guid> Aliases { get; set; } = [];
+    public Dictionary<Guid, Guid> Aliases { get; init; } = [];
 
     /// <summary>True once <see cref="Aliases" /> has been built from this map's rows.</summary>
     public bool AliasesBuilt { get; set; }
@@ -43,7 +45,7 @@ public sealed class GrenadeLineupDocument
 {
     public const int CurrentSchema = 1;
 
-    public int SchemaVersion { get; set; } = CurrentSchema;
+    public int SchemaVersion { get; init; } = CurrentSchema;
 
     public Dictionary<string, MapLineups> Maps { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
@@ -173,10 +175,10 @@ public sealed class GrenadeLineupStore
 
         GrenadeLineupDocument? back = Read();
         return back is not null && back.Maps.Count == Doc.Maps.Count
-                                && back.Maps.All(m => Doc.Maps.TryGetValue(m.Key, out MapLineups? mine)
-                                                      && mine.Anchors.Count == m.Value.Anchors.Count
-                                                      && mine.Paths.Count == m.Value.Paths.Count
-                                                      && mine.Aliases.Count == m.Value.Aliases.Count);
+            && back.Maps.All(m => Doc.Maps.TryGetValue(m.Key, out MapLineups? mine)
+                && mine.Anchors.Count == m.Value.Anchors.Count
+                && mine.Paths.Count == m.Value.Paths.Count
+                && mine.Aliases.Count == m.Value.Aliases.Count);
     }
 
     private GrenadeLineupDocument? Read()
@@ -221,7 +223,7 @@ public sealed class GrenadeLineupStore
         try
         {
             GrenadeLineupDocument? document;
-            if (bytes.Length >= 2 && bytes[0] == 0x1F && bytes[1] == 0x8B)
+            if (bytes is [0x1F, 0x8B, ..])
             {
                 using GZipStream gzip = new(new MemoryStream(bytes), CompressionMode.Decompress);
                 document = JsonSerializer.Deserialize<GrenadeLineupDocument>(gzip, GrenadeSidecar.JsonOptions);

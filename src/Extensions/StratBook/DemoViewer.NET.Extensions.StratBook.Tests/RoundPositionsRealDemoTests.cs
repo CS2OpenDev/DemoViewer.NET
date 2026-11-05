@@ -3,13 +3,13 @@
 using System.Diagnostics;
 using CS2DemoKit.Analysis.Clips;
 using CS2DemoKit.Parser;
-using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
+using DemoViewer.NET.Modules.Library;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.TestSupport;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
 using TUnit.Core.Exceptions;
 
 #endregion
@@ -63,7 +63,7 @@ public class RoundPositionsRealDemoTests
         RoundPositionsDocument positions = build.Positions;
         byte[] gz = Gzip(positions.SerializeUtf8());
         Console.WriteLine($"positions: {positions.Serialize().Length / 1024} KB json, {gz.Length / 1024} KB gz, " +
-                          $"{positions.Rounds.Sum(r => r.Pos.Count)} steps, {positions.Places.Count} places");
+            $"{positions.Rounds.Sum(r => r.Pos.Count)} steps, {positions.Places.Count} places");
 
         int checkedSteps = 0;
         foreach (RoundIndexRound indexRound in build.Index.Rounds)
@@ -74,8 +74,10 @@ public class RoundPositionsRealDemoTests
             foreach (RoundIndexRow row in build.Index.ExpandRows(indexRound))
             {
                 IReadOnlyList<RoundPosition> tuples = round.At(row.Step);
-                string ctToken = PlaceCountToken.EncodePlaces(tuples.Where(p => ct.Contains(p.Slot)).Select(p => positions.PlaceOf(p.PlaceId)));
-                string tToken = PlaceCountToken.EncodePlaces(tuples.Where(p => !ct.Contains(p.Slot)).Select(p => positions.PlaceOf(p.PlaceId)));
+                string ctToken = PlaceCountToken.EncodePlaces(tuples.Where(p => ct.Contains(p.Slot))
+                    .Select(p => positions.PlaceOf(p.PlaceId)));
+                string tToken = PlaceCountToken.EncodePlaces(tuples.Where(p => !ct.Contains(p.Slot))
+                    .Select(p => positions.PlaceOf(p.PlaceId)));
                 await Assert.That(ctToken).IsEqualTo(row.Ct).Because($"round {row.Step} step {row.Step} CT");
                 await Assert.That(tToken).IsEqualTo(row.T).Because($"round {indexRound.Number} step {row.Step} T");
                 await Assert.That(positions.StepFor(round, row.Tick)).IsEqualTo(row.Step);
@@ -86,8 +88,10 @@ public class RoundPositionsRealDemoTests
         using (Assert.Multiple())
         {
             await Assert.That(checkedSteps).IsEqualTo(build.Index.RowCount);
-            await Assert.That(gz.Length).IsLessThan(160 * 1024).Because("measured 56 to 60 KB gzipped on the three demos");
-            await Assert.That(RoundPositionsDocument.TryDeserialize(Gunzip(gz))!.Rounds.Count).IsEqualTo(positions.Rounds.Count);
+            await Assert.That(gz.Length).IsLessThan(160 * 1024)
+                .Because("measured 56 to 60 KB gzipped on the three demos");
+            await Assert.That(RoundPositionsDocument.TryDeserialize(Gunzip(gz))!.Rounds.Count)
+                .IsEqualTo(positions.Rounds.Count);
         }
     }
 
@@ -169,11 +173,13 @@ public class RoundPositionsRealDemoTests
         });
         RoundFactsEvaluator facts = new(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
         facts.Evaluate(path, parsed);
-        RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts ?? throw new InvalidOperationException("the evaluator wrote no rows");
+        RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts
+            ?? throw new InvalidOperationException("the evaluator wrote no rows");
 
         List<SituationHit> hits =
         [
-            .. rows.Rounds.Select(r => new SituationHit(path, DemoCacheStore.StableKey(path), null, parsed.MapName ?? "",
+            .. rows.Rounds.Select(r => new SituationHit(path, DemoCacheStore.StableKey(path), null,
+                parsed.MapName,
                 r.Number, r.FreezeEndTick, r.FreezeEndTick, r.FreezeEndTick, 1))
         ];
 
@@ -181,7 +187,8 @@ public class RoundPositionsRealDemoTests
         RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
         // Only the facts matter here, so the renderer and the decoder are stubs, the same convention
         // ResultCardTests' Harness uses: no bundle load, no bitmap decode.
-        ResultCardsViewModel vm = new(store.Library(), sidecars, sources, () => null, renderer: () => new SituationThumbnailRenderer(_ => null),
+        ResultCardsViewModel vm = new(store.Library(), sidecars, sources, () => null,
+            renderer: () => new SituationThumbnailRenderer(_ => null),
             post: action => action(), decode: _ => null, roundFacts: store.RoundFacts());
         vm.Load(hits);
         await vm.BatchTask;
@@ -204,7 +211,8 @@ public class RoundPositionsRealDemoTests
     private static byte[] Gzip(byte[] bytes)
     {
         using MemoryStream buffer = new();
-        using (System.IO.Compression.GZipStream gzip = new(buffer, System.IO.Compression.CompressionLevel.Optimal, true))
+        using (System.IO.Compression.GZipStream
+               gzip = new(buffer, System.IO.Compression.CompressionLevel.Optimal, true))
         {
             gzip.Write(bytes);
         }
@@ -214,7 +222,8 @@ public class RoundPositionsRealDemoTests
 
     private static byte[] Gunzip(byte[] bytes)
     {
-        using System.IO.Compression.GZipStream gzip = new(new MemoryStream(bytes), System.IO.Compression.CompressionMode.Decompress);
+        using System.IO.Compression.GZipStream gzip = new(new MemoryStream(bytes),
+            System.IO.Compression.CompressionMode.Decompress);
         using MemoryStream all = new();
         gzip.CopyTo(all);
         return all.ToArray();

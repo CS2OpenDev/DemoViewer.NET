@@ -39,10 +39,10 @@ public sealed record StratCaptureOptions(
 public static class StratFromRound
 {
     /// <summary>World units a token has to move since its last keyframe to get a new one.</summary>
-    public const double MoveThreshold = 200;
+    private const double MoveThreshold = 200;
 
     /// <summary>The generated arrows' width: the ink default, so they read like hand-drawn ones.</summary>
-    private static readonly AnnotationStyle ArrowStyle = AnnotationStyle.Default;
+    private static readonly AnnotationStyle _arrowStyle = AnnotationStyle.Default;
 
     /// <summary>
     ///     The level key of a world Z with no map levels to ask: the Z itself, quantized. A token is drawn at the
@@ -94,7 +94,8 @@ public static class StratFromRound
     /// </summary>
     /// <param name="floors">The bundle's floor bands (<c>LoadedMapAsset.Floors</c>), or null.</param>
     public static Func<double, double> FloorLevelKeys(IEnumerable<FloorSlice>? floors) =>
-        LevelKeys(floors?.Select(f => new MapLevel { Id = MapSpace.IdForZMin(f.MinZ), Name = "", ZMin = f.MinZ, ZMax = f.MaxZ })
+        LevelKeys(floors
+            ?.Select(f => new MapLevel { Id = MapSpace.IdForZMin(f.MinZ), Name = "", ZMin = f.MinZ, ZMax = f.MaxZ })
             .ToList());
 
     /// <summary>The steps of a captured round, in tick order, which is <c>atSeconds</c> non-increasing.</summary>
@@ -122,8 +123,9 @@ public static class StratFromRound
             }
 
             step.Id = Guid.NewGuid();
-            step.AtSeconds = StratClock.AtSecondsFor(moment.Tick, capture.FreezeEndTick, capture.TickRate, options.RoundSeconds)
-                             ?? options.RoundSeconds;
+            step.AtSeconds = StratClock.AtSecondsFor(moment.Tick, capture.FreezeEndTick, capture.TickRate,
+                    options.RoundSeconds)
+                ?? options.RoundSeconds;
             steps.Add(step);
         }
 
@@ -138,7 +140,8 @@ public static class StratFromRound
     /// <param name="ours">Our side's live pawns at the freeze-end.</param>
     /// <param name="pins">The strat's pinned slots, or null for a new strat.</param>
     /// <param name="bookDefaults">The book's slot defaults for the demo's epoch, slot letter to SteamID64 text.</param>
-    public static IReadOnlyDictionary<char, ulong> SlotMap(IEnumerable<CapturedPawn> ours, IReadOnlyList<StratSlot>? pins,
+    public static IReadOnlyDictionary<char, ulong> SlotMap(IEnumerable<CapturedPawn> ours,
+        IReadOnlyList<StratSlot>? pins,
         IReadOnlyDictionary<string, string>? bookDefaults)
     {
         ArgumentNullException.ThrowIfNull(ours);
@@ -147,8 +150,9 @@ public static class StratFromRound
 
         void Claim(string slot, string? steamText)
         {
-            if (map.ContainsKey(slot[0]) || !ulong.TryParse(steamText, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
-                                         || id == 0)
+            if (map.ContainsKey(slot[0])
+                || !ulong.TryParse(steamText, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
+                || id == 0)
             {
                 return;
             }
@@ -190,7 +194,8 @@ public static class StratFromRound
     /// <param name="freezeEnd">The freeze-end's live pawns.</param>
     /// <param name="ourSide">2 or 3.</param>
     /// <param name="slotMap">The reviewed map.</param>
-    public static Dictionary<int, string> Tokens(IEnumerable<CapturedPawn> freezeEnd, int ourSide, IReadOnlyDictionary<char, ulong> slotMap)
+    public static Dictionary<int, string> Tokens(IEnumerable<CapturedPawn> freezeEnd, int ourSide,
+        IReadOnlyDictionary<char, ulong> slotMap)
     {
         ArgumentNullException.ThrowIfNull(freezeEnd);
         ArgumentNullException.ThrowIfNull(slotMap);
@@ -205,8 +210,9 @@ public static class StratFromRound
             }
 
             CapturedPawn? pawn = ours.Where(p => !tokens.ContainsKey(p.PlayerSlot)).Select(p => (CapturedPawn?)p)
-                .FirstOrDefault(p => id != 0 && p!.Value.SteamId == id)
-                ?? ours.Where(p => !tokens.ContainsKey(p.PlayerSlot) && p.SteamId == 0).Select(p => (CapturedPawn?)p).FirstOrDefault();
+                    .FirstOrDefault(p => id != 0 && p!.Value.SteamId == id)
+                ?? ours.Where(p => !tokens.ContainsKey(p.PlayerSlot) && p.SteamId == 0)
+                    .Select(p => (CapturedPawn?)p).FirstOrDefault();
             if (pawn is { } found)
             {
                 tokens[found.PlayerSlot] = slot;
@@ -238,7 +244,8 @@ public static class StratFromRound
     /// <param name="origin">The demo and round it came from.</param>
     /// <param name="facts">The round's Round Facts row, when the demo has one.</param>
     /// <param name="nowUtc">The creation time.</param>
-    public static StratDocument Document(RoundCapture capture, StratCaptureOptions options, StratOwner owner, string map, string name,
+    public static StratDocument Document(RoundCapture capture, StratCaptureOptions options, StratOwner owner,
+        string map, string name,
         StratOrigin origin, RoundFacts? facts, DateTime nowUtc)
     {
         ArgumentNullException.ThrowIfNull(capture);
@@ -319,7 +326,8 @@ public static class StratFromRound
         return positions.Count > 0 ? new StratStart { Kind = StratStart.CapturedKind, Positions = positions } : null;
     }
 
-    private static StratStep FreezeEnd(CaptureMoment moment, StratCaptureOptions options, Dictionary<string, Keyed> last)
+    private static StratStep FreezeEnd(CaptureMoment moment, StratCaptureOptions options,
+        Dictionary<string, Keyed> last)
     {
         StratStep step = new() { Actor = StratVocabulary.ActorAll, Verb = "hold" };
         foreach (CapturedPawn pawn in moment.Pawns)
@@ -362,9 +370,7 @@ public static class StratFromRound
                 Kind = moment.UtilityKind ?? "smoke",
                 Landing = new UtilityLanding
                 {
-                    X = Round(moment.Position.X),
-                    Y = Round(moment.Position.Y),
-                    LevelMinZ = landingLevel
+                    X = Round(moment.Position.X), Y = Round(moment.Position.Y), LevelMinZ = landingLevel
                 }
             }
         };
@@ -384,7 +390,7 @@ public static class StratFromRound
         return step;
     }
 
-    private static StratStep? Plant(CaptureMoment moment, StratCaptureOptions options, Dictionary<string, Keyed> last)
+    private static StratStep Plant(CaptureMoment moment, StratCaptureOptions options, Dictionary<string, Keyed> last)
     {
         string? actor = options.Tokens.GetValueOrDefault(moment.ActorSlot);
         CapturedPawn? planter = moment.PawnIn(moment.ActorSlot);
@@ -417,7 +423,8 @@ public static class StratFromRound
         List<StepPosition> own = [.. step.Positions.Where(p => StratVocabulary.Slots.Contains(p.Slot))];
         step.Actor = own.Count == 1 ? own[0].Slot : StratVocabulary.ActorAll;
         string? to = own
-            .Select(p => moment.Pawns.FirstOrDefault(c => options.Tokens.GetValueOrDefault(c.PlayerSlot) == p.Slot).Place)
+            .Select(p => moment.Pawns.FirstOrDefault(c => options.Tokens.GetValueOrDefault(c.PlayerSlot) == p.Slot)
+                .Place)
             .Where(p => !string.IsNullOrEmpty(p))
             .GroupBy(p => p, StringComparer.Ordinal)
             .OrderByDescending(g => g.Count())
@@ -427,7 +434,8 @@ public static class StratFromRound
         return step;
     }
 
-    private static void AddMovers(StratStep step, CaptureMoment moment, StratCaptureOptions options, Dictionary<string, Keyed> last)
+    private static void AddMovers(StratStep step, CaptureMoment moment, StratCaptureOptions options,
+        Dictionary<string, Keyed> last)
     {
         foreach (CapturedPawn pawn in moment.Pawns)
         {
@@ -454,10 +462,12 @@ public static class StratFromRound
         }
 
         double dx = pawn.X - from.X, dy = pawn.Y - from.Y;
-        return dx * dx + dy * dy > MoveThreshold * MoveThreshold || options.LevelMinZFor(pawn.Z) != from.LevelMinZ;
+        return dx * dx + dy * dy > MoveThreshold * MoveThreshold
+            || !options.LevelMinZFor(pawn.Z).Equals(from.LevelMinZ);
     }
 
-    private static void Add(StratStep step, string token, CapturedPawn pawn, StratCaptureOptions options, Dictionary<string, Keyed> last)
+    private static void Add(StratStep step, string token, CapturedPawn pawn, StratCaptureOptions options,
+        Dictionary<string, Keyed> last)
     {
         double level = options.LevelMinZFor(pawn.Z);
         step.Positions.Add(new StepPosition
@@ -478,7 +488,7 @@ public static class StratFromRound
     private static JsonObject Arrow(CapturedPawn thrower, CaptureMoment moment, StratCaptureOptions options)
     {
         Vector3 origin = moment.ThrowOrigin ?? new Vector3(thrower.X, thrower.Y, thrower.Z);
-        AnnotationElement arrow = new(Guid.NewGuid(), AnnotationKind.Arrow, ArrowStyle,
+        AnnotationElement arrow = new(Guid.NewGuid(), AnnotationKind.Arrow, _arrowStyle,
             new SpaceRef.World(options.LevelMinZFor(thrower.Z)), TimeEnvelope.Static,
             [new InkPoint(origin.X, origin.Y, 0.5f), new InkPoint(moment.Position.X, moment.Position.Y, 0.5f)], null);
         return StratStrokes.ToJson(arrow);

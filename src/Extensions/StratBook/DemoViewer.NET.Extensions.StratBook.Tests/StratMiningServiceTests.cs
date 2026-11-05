@@ -1,13 +1,13 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Services.Facts;
+using DemoViewer.NET.Extensions.StratBook.Services.Generated;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
-using DemoViewer.NET.Extensions.StratBook.Services.Generated;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -32,9 +32,9 @@ public class StratMiningServiceTests
         return Task.CompletedTask;
     };
 
-    internal static readonly RoundIndexPlaceSources _sources = new(() => RoundIndexTokenSource.Pawn);
+    internal static readonly RoundIndexPlaceSources Sources = new(() => RoundIndexTokenSource.Pawn);
 
-    private static string Sha(int n) => new string((char)('a' + n), 64);
+    private static string Sha(int n) => new((char)('a' + n), 64);
 
     // Places: 0 TSpawn, 1 Palace, 2 BombsiteA, 3 BombsiteB, 4 CTSpawn.
     private static int Place(float x, float y) => x >= 900 ? y >= 0 ? 2 : 3 : x > 300 ? 1 : 0;
@@ -50,29 +50,32 @@ public class StratMiningServiceTests
             Sha256 = Sha(n)
         };
         record.SetRoundFacts(new RoundFactsRows
-            {
-                Schema = RoundFactsRecords.Schema,
-                Clock = new RoundFactsClock { TickRate = Rate, FrameCount = 100_000, LastTick = 100_000 },
-                Rounds =
-                [
-                    new RoundFacts
-                    {
-                        Number = 1,
-                        IsLive = true,
-                        FreezeEndTick = FreezeEnd,
-                        PlantTick = FreezeEnd + 50 * Rate,
-                        PlantSite = site,
-                        PlanterSlot = 0,
-                        EndTick = FreezeEnd + 80 * Rate,
-                        WinnerSide = 2,
-                        Ct = new SideFacts { Side = 3, Slots = [5, 6, 7, 8, 9], BuyType = BuyType.Full },
-                        T = new SideFacts { Side = 2, Slots = [0, 1, 2, 3, 4], BuyType = BuyType.Full }
-                    }
-                ]
-            }, "rf-A");
+        {
+            Schema = RoundFactsRecords.Schema,
+            Clock = new RoundFactsClock { TickRate = Rate, FrameCount = 100_000, LastTick = 100_000 },
+            Rounds =
+            [
+                new RoundFacts
+                {
+                    Number = 1,
+                    IsLive = true,
+                    FreezeEndTick = FreezeEnd,
+                    PlantTick = FreezeEnd + 50 * Rate,
+                    PlantSite = site,
+                    PlanterSlot = 0,
+                    EndTick = FreezeEnd + 80 * Rate,
+                    WinnerSide = 2,
+                    Ct = new SideFacts { Side = 3, Slots = [5, 6, 7, 8, 9], BuyType = BuyType.Full },
+                    T = new SideFacts { Side = 2, Slots = [0, 1, 2, 3, 4], BuyType = BuyType.Full }
+                }
+            ]
+        });
         for (int slot = 0; slot < 10; slot++)
         {
-            record.Players.Add(new CachedPlayerInfo { Slot = slot, Name = $"p{slot}", SteamId64 = $"7656{n}{slot:D3}", Team = slot < 5 ? 2 : 3 });
+            record.Players.Add(new CachedPlayerInfo
+            {
+                Slot = slot, Name = $"p{slot}", SteamId64 = $"7656{n}{slot:D3}", Team = slot < 5 ? 2 : 3
+            });
         }
 
         DemoCacheStore.StampParse(record);
@@ -81,9 +84,9 @@ public class StratMiningServiceTests
     }
 
     // The Ts walk from spawn to the site over 45 s and stay; the CTs hold. `jitter` moves one demo's walk a little.
-    internal static RoundPositionsDocument Positions(int n, BombSite site, float jitter) => new()
+    internal static RoundPositionsDocument PositionsOf(int n, BombSite site, float jitter) => new()
     {
-        Fingerprint = _sources.FingerprintFor(Map),
+        Fingerprint = Sources.FingerprintFor(Map),
         Demo = new RoundPositionsDemo { StableKey = DemoCacheStore.StableKey($"/d/m{n}.dem"), Sha256 = Sha(n) },
         CadenceTicks = Rate,
         Places = ["TSpawn", "Palace", "BombsiteA", "BombsiteB", "CTSpawn"],
@@ -128,9 +131,11 @@ public class StratMiningServiceTests
         public required string Root { get; init; }
 
         public StratMiningService Service(Func<Action, Task>? run = null, Func<bool>? enabled = null) =>
-            new(Cache.Library(), Cache.RoundFacts(), Positions, _sources.FingerprintFor, null, null, Strats, Tags,
+            new(Cache.Library(), Cache.RoundFacts(), Positions, Sources.FingerprintFor, null, null, Strats, Tags,
                 TestFiles.Mining(Path.Combine(Root, "cache"), Root), run: run ?? _inline, enabled: enabled)
-            { QuietDelay = Timeout.InfiniteTimeSpan };
+            {
+                QuietDelay = Timeout.InfiniteTimeSpan
+            };
 
         public void Dispose()
         {
@@ -157,7 +162,7 @@ public class StratMiningServiceTests
 
             for (int n = 1; n <= 4; n++)
             {
-                positions.WritePositions($"/d/m{n}.dem", Positions(n, n == 4 ? BombSite.B : BombSite.A, n * 40));
+                positions.WritePositions($"/d/m{n}.dem", PositionsOf(n, n == 4 ? BombSite.B : BombSite.A, n * 40));
             }
 
             return new Library
@@ -182,13 +187,15 @@ public class StratMiningServiceTests
         using (Assert.Multiple())
         {
             await Assert.That(execute.Site).IsEqualTo("A");
-            await Assert.That(execute.Members.Select(m => m.DemoPath).Order()).IsEquivalentTo(["/d/m1.dem", "/d/m2.dem", "/d/m3.dem"], CollectionOrdering.Matching)
+            await Assert.That(execute.Members.Select(m => m.DemoPath).Order())
+                .IsEquivalentTo(["/d/m1.dem", "/d/m2.dem", "/d/m3.dem"], CollectionOrdering.Matching)
                 .Because("the B take is another site");
             await Assert.That(execute.UtilityCompared).IsFalse().Because("no grenade rows were indexed");
             await Assert.That(service.LastRead.Demos).IsEqualTo(4);
         }
 
-        StratDocument doc = service.Promote(execute.Key, StratOwner.Me(), new DateTime(2026, 9, 27, 0, 0, 0, DateTimeKind.Utc))!;
+        StratDocument doc = service.Promote(execute.Key, StratOwner.Me(),
+            new DateTime(2026, 9, 27, 0, 0, 0, DateTimeKind.Utc))!;
         using (Assert.Multiple())
         {
             await Assert.That(doc).IsNotNull();
@@ -202,15 +209,17 @@ public class StratMiningServiceTests
             await Assert.That(doc.Steps.Select(s => s.Verb)).Contains("plant");
             await Assert.That(doc.Steps.Select(s => s.Verb)).Contains("move");
             await Assert.That(doc.Notes).Contains("Mined from 3 rounds in 3 demos. Won 3 of 3.");
-            await Assert.That(StratValidator.Validate(doc).Where(i => i.Severity == StratIssueSeverity.Refusal)).IsEmpty();
-            await Assert.That(doc.Extra![MinedStratBuilder.ExtraKey].GetProperty("Members").GetArrayLength()).IsEqualTo(3);
+            await Assert.That(StratValidator.Validate(doc).Where(i => i.Severity == StratIssueSeverity.Refusal))
+                .IsEmpty();
+            await Assert.That(doc.Extra![MinedStratBuilder.ExtraKey].GetProperty("Members").GetArrayLength())
+                .IsEqualTo(3);
             await Assert.That(service.Patterns.Single(p => p.Pattern.Key == execute.Key).StratId).IsEqualTo(doc.Id);
         }
 
         StratRecord record = StratEvidence.Build(doc.Id, doc.Revision, doc.Side,
             [.. Enumerable.Range(1, 3).Select(n => library.Tags.TryLoad(Sha(n))!)]);
         await Assert.That(record.Total.Run).IsEqualTo(3).Because("each member round is a run of the new strat");
-        await Assert.That(new StratEvidenceService(library.Tags).Compute(doc).Total.Run).IsEqualTo(3)
+        await Assert.That((await new StratEvidenceService(library.Tags).ComputeAsync(doc)).Total.Run).IsEqualTo(3)
             .Because("the record panel finds the runs through the tag index");
     }
 
@@ -236,7 +245,8 @@ public class StratMiningServiceTests
         service.OnQuiet();
 
         await Assert.That(runs).IsEqualTo(1)
-            .Because("the quiet hook must not re-mine while the pack is off, even for a timer armed before it went off");
+            .Because(
+                "the quiet hook must not re-mine while the pack is off, even for a timer armed before it went off");
     }
 
     [Test]
@@ -249,14 +259,15 @@ public class StratMiningServiceTests
         using CancellationTokenSource cancel = new();
         await cancel.CancelAsync();
 
-        Assert.Throws<OperationCanceledException>(() => service.Build(execute, StratOwner.Me(), DateTime.UtcNow, cancel.Token));
+        Assert.Throws<OperationCanceledException>(() =>
+            service.Build(execute, StratOwner.Me(), DateTime.UtcNow, cancel.Token));
         await Assert.That(await service.PreviewAsync(execute, StratOwner.Me(), DateTime.UtcNow, cancel.Token)).IsNull();
     }
 
     [Test]
     public async Task ACachedGrenade_BecomesAThrowStep_WithItsLandingAndAnArrow()
     {
-        RoundPositionsDocument positions = Positions(1, BombSite.A, 0);
+        RoundPositionsDocument positions = PositionsOf(1, BombSite.A, 0);
         RoundFacts facts = Record(1, BombSite.A).RoundFacts!.Rounds[0];
         GrenadeRow incendiary = new()
         {
@@ -270,17 +281,22 @@ public class StratMiningServiceTests
             DetonationTick = FreezeEnd + 7 * Rate,
             DetonationPosition = new WorldPoint(1200, 400, 0)
         };
-        Dictionary<int, (ulong, string)> players = Enumerable.Range(0, 10).ToDictionary(s => s, s => ((ulong)(100 + s), $"p{s}"));
+        Dictionary<int, (ulong, string)> players =
+            Enumerable.Range(0, 10).ToDictionary(s => s, s => ((ulong)(100 + s), $"p{s}"));
 
-        RoundCapture capture = CachedRoundCapture.Build(positions, positions.Rounds[0], facts, [incendiary], players, Rate, FreezeEnd + 60 * Rate);
-        IReadOnlyDictionary<char, ulong> slots = StratFromRound.SlotMap(capture.FreezeEnd.Pawns.Where(p => p.Team == 2), null, null);
-        StratCaptureOptions options = new(2, StratFromRound.Tokens(capture.FreezeEnd.Pawns, 2, slots), 115, true, StratFromRound.QuantizedLevel);
+        RoundCapture capture = CachedRoundCapture.Build(positions, positions.Rounds[0], facts, [incendiary], players,
+            Rate, FreezeEnd + 60 * Rate);
+        IReadOnlyDictionary<char, ulong> slots =
+            StratFromRound.SlotMap(capture.FreezeEnd.Pawns.Where(p => p.Team == 2), null, null);
+        StratCaptureOptions options = new(2, StratFromRound.Tokens(capture.FreezeEnd.Pawns, 2, slots), 115, true,
+            StratFromRound.QuantizedLevel);
         StratStep thrown = StratFromRound.Steps(capture, options).Single(s => s.Verb == "throw");
 
         using (Assert.Multiple())
         {
             await Assert.That(capture.Moments.Select(m => m.Trigger)).Contains(CaptureTrigger.Plant);
-            await Assert.That(thrown.Utility!.Kind).IsEqualTo("molotov").Because("a fire is a molotov whichever side threw it");
+            await Assert.That(thrown.Utility!.Kind).IsEqualTo("molotov")
+                .Because("a fire is a molotov whichever side threw it");
             await Assert.That(thrown.Utility.Landing!.X).IsEqualTo(1200);
             await Assert.That(thrown.Actor).IsEqualTo("C").Because("slot 2 is the third T in slot order");
             await Assert.That(thrown.Strokes).Count().IsEqualTo(1).Because("the arrow from the release point");
@@ -290,7 +306,11 @@ public class StratMiningServiceTests
 
     internal static MinedPattern Pattern(string key, params int[] rounds)
     {
-        List<MinedMember> members = [.. rounds.Select(r => new MinedMember($"/d/m{r}.dem", Sha(r % 20), r, null, true, BuyType.Full, 0, 0, Rate, 0))];
+        List<MinedMember> members =
+        [
+            .. rounds.Select(r =>
+                new MinedMember($"/d/m{r}.dem", Sha(r % 20), r, null, true, BuyType.Full, 0, 0, Rate, 0))
+        ];
         return new MinedPattern
         {
             Key = key,
@@ -298,7 +318,15 @@ public class StratMiningServiceTests
             Map = Map,
             Side = 2,
             Members = members,
-            Medoid = new RoundSignature { DemoPath = "/d/m1.dem", Round = 1, Map = Map, Side = 2, Kind = PatternKind.Setup, Anchors = [] }
+            Medoid = new RoundSignature
+            {
+                DemoPath = "/d/m1.dem",
+                Round = 1,
+                Map = Map,
+                Side = 2,
+                Kind = PatternKind.Setup,
+                Anchors = []
+            }
         };
     }
 
@@ -310,7 +338,8 @@ public class StratMiningServiceTests
 
         Dictionary<string, string> moves = StratMiningService.KeyMoves(before, after, k => k is "old" or "kept");
 
-        await Assert.That(moves).IsEquivalentTo(new Dictionary<string, string> { ["old"] = "new" }, CollectionOrdering.Matching)
+        await Assert.That(moves)
+            .IsEquivalentTo(new Dictionary<string, string> { ["old"] = "new" }, CollectionOrdering.Matching)
             .Because("two of old's three rounds are in new; kept kept its key; quiet had no state to carry");
     }
 
@@ -369,7 +398,8 @@ public class StratMiningServiceTests
         }
 
         using StratMiningService second = library.Service();
-        await Assert.That(second.Patterns.Single(p => p.Pattern.Key == key).Dismissed).IsTrue().Because("read back from disk");
+        await Assert.That(second.Patterns.Single(p => p.Pattern.Key == key).Dismissed).IsTrue()
+            .Because("read back from disk");
         await second.MineAsync();
         await Assert.That(second.Patterns.Single(p => p.Pattern.Key == key).Dismissed).IsTrue();
         second.Restore(key);
@@ -409,7 +439,8 @@ public class StratMiningServiceTests
     {
         using Library library = Library.Create();
         Directory.CreateDirectory(library.Root);
-        await File.WriteAllTextAsync(Path.Combine(library.Root, "strat-mining.json"), "{\"Dismissed\":[\"k\"],\"Promoted\":{}}");
+        await File.WriteAllTextAsync(Path.Combine(library.Root, "strat-mining.json"),
+            "{\"Dismissed\":[\"k\"],\"Promoted\":{}}");
 
         using StratMiningService service = library.Service();
         await service.MineAsync();
@@ -476,11 +507,16 @@ public class StratMiningServiceTests
         StratDocument doc = service.Promote(execute.Key, StratOwner.Me())!;
 
         // A hand-made label of the same strat is the user's and stays.
-        library.Tags.Update(Sha(1), d => d.Instances.Add(new TagInstance
-        {
-            Id = Guid.NewGuid(), Code = "A execute", FromTick = 1, ToTick = 2, Source = TagSources.Human,
-            Labels = [new TagLabel(TagStore.StratGroup, doc.Id.ToString())]
-        }));
+        library.Tags.Update(Sha(1),
+            d => d.Instances.Add(new TagInstance
+            {
+                Id = Guid.NewGuid(),
+                Code = "A execute",
+                FromTick = 1,
+                ToTick = 2,
+                Source = TagSources.Human,
+                Labels = [new TagLabel(TagStore.StratGroup, doc.Id.ToString())]
+            }));
 
         await Assert.That(library.Strats.Delete(doc.Id)).IsTrue();
         await service.LastRunRemoval;
@@ -489,13 +525,15 @@ public class StratMiningServiceTests
             DetectedPattern pattern = service.Patterns.Single(p => p.Pattern.Key == execute.Key);
             await Assert.That(pattern.StratId).IsNull();
             await Assert.That(pattern.State).IsEqualTo(GeneratedState.New);
-            await Assert.That(Enumerable.Range(1, 3).Sum(n => library.Tags.TryLoad(Sha(n))!.Instances.Count(i => i.Source == TagSources.Suggested)))
+            await Assert.That(Enumerable.Range(1, 3).Sum(n =>
+                    library.Tags.TryLoad(Sha(n))!.Instances.Count(i => i.Source == TagSources.Suggested)))
                 .IsEqualTo(0).Because("the three runs the promotion wrote are gone");
             await Assert.That(library.Tags.TryLoad(Sha(1))!.Instances.Single().Source).IsEqualTo(TagSources.Human);
         }
 
         using StratMiningService again = library.Service();
-        await Assert.That(again.Patterns.Single(p => p.Pattern.Key == execute.Key).StratId).IsNull().Because("the file forgot the promotion");
+        await Assert.That(again.Patterns.Single(p => p.Pattern.Key == execute.Key).StratId).IsNull()
+            .Because("the file forgot the promotion");
     }
 
     [Test]
@@ -530,7 +568,8 @@ public class StratMiningServiceTests
             a();
         }
 
-        await Assert.That(Enumerable.Range(1, 3).Sum(n => library.Tags.TryLoad(Sha(n))!.Instances.Count)).IsEqualTo(runs)
+        await Assert.That(Enumerable.Range(1, 3).Sum(n => library.Tags.TryLoad(Sha(n))!.Instances.Count))
+            .IsEqualTo(runs)
             .Because("the strat was back in the store when the removal ran");
     }
 }

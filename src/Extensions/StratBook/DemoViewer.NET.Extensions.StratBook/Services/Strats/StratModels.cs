@@ -42,7 +42,8 @@ public static class StratVocabulary
         ["move", "push", "rotate", "hold", "peek", "lurk", "throw", "fake", "plant", "defuse", "wait", "call", "other"];
 
     /// <summary>The rotate conditions a lurk's row suggests. The file stores free text; these are not a vocabulary.</summary>
-    public static readonly IReadOnlyList<string> RotateConditions = ["on the call", "on contact", "bomb planted", "after first kill"];
+    public static readonly IReadOnlyList<string> RotateConditions =
+        ["on the call", "on contact", "bomb planted", "after first kill"];
 
     /// <summary>Grenade kinds a step's utility may name.</summary>
     public static readonly IReadOnlyList<string> UtilityKinds = ["smoke", "molotov", "he", "flash", "decoy"];
@@ -68,8 +69,6 @@ public static class StratVocabulary
 
     public static readonly IReadOnlyList<string> Tempos = ["slow", "mid", "fast"];
 
-    public static readonly IReadOnlyList<string> TriggerKinds = ["time", "contact", "utility", "call"];
-
     /// <summary>The motion kinds Step Authoring defines. <c>path</c> is reserved and warns.</summary>
     public static readonly IReadOnlyList<string> Interpolations = ["linear", "hold"];
 
@@ -79,6 +78,7 @@ public static class StratVocabulary
 }
 
 /// <summary>The four lifecycle states. The file spells them as the enum names.</summary>
+[UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
 public enum StratStatus
 {
     Theory,
@@ -90,7 +90,7 @@ public enum StratStatus
 /// <summary>Who a book belongs to: a Team Identity team, or the user alone (<c>me</c>).</summary>
 public sealed class StratOwner : IEquatable<StratOwner>
 {
-    public const string TeamKind = "team";
+    private const string TeamKind = "team";
     public const string MeKind = "me";
 
     /// <summary><c>team</c> or <c>me</c>.</summary>
@@ -107,7 +107,8 @@ public sealed class StratOwner : IEquatable<StratOwner>
     ///     <c>team-&lt;guid&gt;</c> or <c>me</c>.
     /// </summary>
     [JsonIgnore]
-    public string FolderName => IsTeam ? TeamKind + "-" + TeamId!.Value.ToString("D", CultureInfo.InvariantCulture) : MeKind;
+    public string FolderName =>
+        IsTeam ? TeamKind + "-" + TeamId!.Value.ToString("D", CultureInfo.InvariantCulture) : MeKind;
 
     [JsonIgnore]
     public bool IsTeam => string.Equals(Kind, TeamKind, StringComparison.Ordinal) && TeamId is not null;
@@ -132,9 +133,9 @@ public sealed class StratOwner : IEquatable<StratOwner>
         }
 
         return folderName.StartsWith(TeamKind + "-", StringComparison.Ordinal)
-               && Guid.TryParse(folderName.AsSpan(TeamKind.Length + 1), out Guid id)
-            ? Team(id)
-            : null;
+            && Guid.TryParse(folderName.AsSpan(TeamKind.Length + 1), out Guid id)
+                ? Team(id)
+                : null;
     }
 
     public StratOwner Clone() => new() { Kind = Kind, TeamId = TeamId, Extra = Extra };
@@ -309,7 +310,7 @@ public sealed class StratTrigger
 {
     public string Text { get; set; } = "";
 
-    /// <summary>One of <see cref="StratVocabulary.TriggerKinds" />, or null.</summary>
+    /// <summary>One of <c>time</c>, <c>contact</c>, <c>utility</c> or <c>call</c>, or null.</summary>
     public string? Kind { get; set; }
 
     /// <summary>Round clock remaining, for a <c>time</c> trigger.</summary>
@@ -701,7 +702,8 @@ public sealed class CalloutCanonicalSnapshot
 /// <summary>One word for one place. Several aliases may share a place; one alias names one place.</summary>
 public sealed class CalloutAlias
 {
-    public string Alias { get; set; } = "";
+    /// <summary>The word. Null when a hand-edited file says <c>"alias": null</c>; the validator refuses that.</summary>
+    public string? Alias { get; set; } = "";
 
     public string Place { get; set; } = "";
 

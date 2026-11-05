@@ -8,12 +8,12 @@ using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using DemoViewer.NET.Extensions;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.Review;
+using DemoViewer.NET.Extensions.StratBook.Views.Review;
 using DemoViewer.NET.Playback2D.Pipeline.Export.Pack;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.Review;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Review;
-using DemoViewer.NET.Extensions.StratBook.Views.Review;
-using DemoViewer.NET.Extensions;
 
 #endregion
 
@@ -29,8 +29,6 @@ namespace DemoViewer.NET.AppTests;
 [Category("Integration")]
 public class ReviewQueuePerfTests
 {
-    private const int SyntheticClips = 5000;
-
     [Test]
     public async Task OpenScrollAndABatch_OverAThousandsOfEntriesQueue()
     {
@@ -64,7 +62,10 @@ public class ReviewQueuePerfTests
                 // The app has its shell up before the section opens; pay the controls' first-use cost here.
                 using (ReviewQueueTabViewModel warm = new(new ExtensionReviewQueue(new ReviewQueue(null))))
                 {
-                    Window first = new() { Width = 400, Height = 300, Content = new ReviewQueueTabView { DataContext = warm } };
+                    Window first = new()
+                    {
+                        Width = 400, Height = 300, Content = new ReviewQueueTabView { DataContext = warm }
+                    };
                     first.Show();
                     warm.AddSectionCommand.Execute(null);
                     Settle();
@@ -100,7 +101,10 @@ public class ReviewQueuePerfTests
 
                 // The same section opened again in a second window: open without first-use costs.
                 sw.Restart();
-                Window again = new() { Width = 1280, Height = 900, Content = new ReviewQueueTabView { DataContext = vm } };
+                Window again = new()
+                {
+                    Width = 1280, Height = 900, Content = new ReviewQueueTabView { DataContext = vm }
+                };
                 again.Show();
                 Settle();
                 double reopen = sw.Elapsed.TotalMilliseconds;
@@ -157,8 +161,9 @@ public class ReviewQueuePerfTests
                 double bare = sw.Elapsed.TotalMilliseconds;
                 Guid? topAfter = TopRow(view, scroller);
                 Console.WriteLine($"[review-perf] reading position across a batch: offset {offsetBefore.Y:F0} to "
-                                  + $"{scroller?.Offset.Y ?? 0:F0}, top row kept={topBefore == topAfter}");
-                await Assert.That(topAfter).IsEqualTo(topBefore).Because("a batch landing must not move what the reviewer is reading");
+                    + $"{scroller?.Offset.Y ?? 0:F0}, top row kept={topBefore == topAfter}");
+                await Assert.That(topAfter).IsEqualTo(topBefore)
+                    .Because("a batch landing must not move what the reviewer is reading");
                 sw.Restart();
                 using (queue.Defer())
                 {
@@ -173,10 +178,10 @@ public class ReviewQueuePerfTests
                 queue.Flush();
 
                 Console.WriteLine($"[review-perf] {label}: entries={queue.Entries.Count} load={load:F0}ms "
-                                  + $"vm={build:F0}ms show={open:F0}ms expandAll={expand:F0}ms reopenExpanded={reopen:F0}ms idleFrame={idle:F0}ms "
-                                  + $"textboxes open/expanded/scrolled={realized}/{realizedExpanded}/{realizedScrolled} "
-                                  + $"scroll40={scroll:F0}ms worstStep={worstStep:F0}ms wheelStep={wheel:F1}ms worstWheel={worstWheel:F0}ms batch bare={bare:F0}ms deferred={deferred:F0}ms "
-                                  + $"file={new FileInfo(file).Length / 1024}KiB");
+                    + $"vm={build:F0}ms show={open:F0}ms expandAll={expand:F0}ms reopenExpanded={reopen:F0}ms idleFrame={idle:F0}ms "
+                    + $"textboxes open/expanded/scrolled={realized}/{realizedExpanded}/{realizedScrolled} "
+                    + $"scroll40={scroll:F0}ms worstStep={worstStep:F0}ms wheelStep={wheel:F1}ms worstWheel={worstWheel:F0}ms batch bare={bare:F0}ms deferred={deferred:F0}ms "
+                    + $"file={new FileInfo(file).Length / 1024}KiB");
                 window.Close();
                 await Assert.That(realizedExpanded).IsLessThan(200)
                     .Because("only the rows on screen are realized; the StackPanel realized 19,245 text boxes");
@@ -199,7 +204,8 @@ public class ReviewQueuePerfTests
         }
 
         return view.GetVisualDescendants().OfType<ContentPresenter>()
-            .Where(c => c.DataContext is ReviewRowViewModel && c.IsVisible && c.TranslatePoint(default, scroller) is { Y: >= -1 })
+            .Where(c => c is { DataContext: ReviewRowViewModel, IsVisible: true }
+                && c.TranslatePoint(default, scroller) is { Y: >= -1 })
             .OrderBy(c => c.TranslatePoint(default, scroller)!.Value.Y)
             .Select(c => ((ReviewRowViewModel)c.DataContext!).Entry.Id)
             .Cast<Guid?>()

@@ -15,8 +15,11 @@ namespace DemoViewer.NET.DemoTrimmer;
 internal static class DemoInspector
 {
     /// <summary>Round-lifecycle events worth listing before picking a cut point.</summary>
-    private static readonly string[] RoundEventNames =
-        ["begin_new_match", "round_announce_match_start", "round_start", "round_freeze_end", "round_end", "round_officially_ended"];
+    private static readonly string[] _roundEventNames =
+    [
+        "begin_new_match", "round_announce_match_start", "round_start", "round_freeze_end", "round_end",
+        "round_officially_ended"
+    ];
 
     public static void Inspect(ParsedDemo demo, byte[] raw, string path, int listBoundaries)
     {
@@ -61,10 +64,13 @@ internal static class DemoInspector
 
         Console.WriteLine();
         Console.WriteLine("-- round-lifecycle events --");
-        foreach (string name in RoundEventNames)
+        foreach (string name in _roundEventNames)
         {
-            List<GameEvent> events = demo.AllGameEvents
-                .Where(e => string.Equals(e.Name, name, StringComparison.Ordinal)).ToList();
+            List<GameEvent> events =
+            [
+                .. demo.AllGameEvents
+                    .Where(e => string.Equals(e.Name, name, StringComparison.Ordinal))
+            ];
             string ticks = string.Join(", ", events.Take(listBoundaries).Select(e => e.GameTick));
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
                 $"  {name,-28} {events.Count,4}  first {listBoundaries}: {ticks}"));
@@ -75,9 +81,12 @@ internal static class DemoInspector
 
         Console.WriteLine();
         Console.WriteLine("-- DEM_FullPacket checkpoints --");
-        List<int> fullPacketTicks = demo.Frames
-            .Where(f => string.Equals(f.Command, "DEM_FullPacket", StringComparison.Ordinal))
-            .Select(f => f.ServerTick).ToList();
+        List<int> fullPacketTicks =
+        [
+            .. demo.Frames
+                .Where(f => string.Equals(f.Command, "DEM_FullPacket", StringComparison.Ordinal))
+                .Select(f => f.ServerTick)
+        ];
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"  {fullPacketTicks.Count} checkpoints, ticks: {string.Join(", ", fullPacketTicks.Take(12))}{(fullPacketTicks.Count > 12 ? ", ..." : "")}"));
         Console.WriteLine();

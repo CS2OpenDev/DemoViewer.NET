@@ -8,7 +8,6 @@ using CS2DemoKit.Analysis;
 using CS2DemoKit.Analysis.Diagnostics;
 using CS2DemoKit.Parser;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -47,7 +46,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     private const int TerminalHistoryCap = 30;
 
     // Throttles the drain compaction after non-parse jobs only; a finished parse compacts at once.
-    private static readonly TimeSpan MinDrainCompactInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _minDrainCompactInterval = TimeSpan.FromSeconds(30);
 
     /// <summary>The shared background plan when no owner on the entry reads user commands.</summary>
     public static DecodePlan WithoutUserCommands { get; } =
@@ -185,7 +184,11 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     ///     The forward read with the collectors its rules run declares; wins over the constructor's
     ///     <c>forwardPass</c>, which declares none.
     /// </summary>
-    internal Func<string, ForwardNeeds, CollectorSet, Action<double>, CancellationToken, ForwardDemoResult>? ForwardRead { get; set; }
+    internal Func<string, ForwardNeeds, CollectorSet, Action<double>, CancellationToken, ForwardDemoResult>? ForwardRead
+    {
+        get;
+        set;
+    }
 
     /// <summary>The collectors of the retained visits of <paramref name="path" /> in flight; none between visits.</summary>
     internal CollectorSet CollectorsFor(string path) => _visitCollectors.For(path);
@@ -259,23 +262,11 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
     public ReadOnlyObservableCollection<DemoQueueItem> Items { get; }
 
-    // Test seam: a worker decrements this only after its last drain check.
-    internal int ActiveWorkerCount
-    {
-        get
-        {
-            lock (_sync)
-            {
-                return _activeWorkers;
-            }
-        }
-    }
-
     // Completed and replaced each time the last worker, heavy or light, exits. Under _sync.
     private TaskCompletionSource _idleSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
-    /// Completes when no worker is running. Idle means no worker, as <see cref="ActiveWorkerCount"/> does:
+    /// Completes when no worker is running. Idle means no worker:
     /// queued entries a paused or full queue is holding back do not count.
     /// <para>
     /// A queue that is already idle satisfies the call at once. Otherwise it completes at the next moment the
@@ -357,21 +348,12 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
     }
 
+    /// <summary>Queued plus running items of one kind.</summary>
     public int ActiveCount(QueueJobKind kind)
     {
         lock (_sync)
         {
             return _entries.Count(e => e.Kind == kind && IsActive(e));
-        }
-    }
-
-    public int ActiveCount(string extensionKind)
-    {
-        lock (_sync)
-        {
-            return _entries.Count(e => e.Kind == QueueJobKind.Extension
-                                       && string.Equals(e.ExtensionKind, extensionKind, StringComparison.Ordinal)
-                                       && IsActive(e));
         }
     }
 
@@ -431,11 +413,15 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             _parsesByPath[path] = _parsesByPath.GetValueOrDefault(path) + 1;
         }
 
-        string name = System.IO.Path.GetFileName(path);
+        string name = Path.GetFileName(path);
         int count = ParseCount(path);
         AppLog.DemoRead(DiagLog, name, read, count);
     }
 
+    /// <summary>
+    ///     Max concurrent heavy parses (forwards to <see cref="HeavyJobGate" />). DEFAULT 1: the
+    ///     safe one-at-a-time invariant; &gt; 1 can exhaust RAM.
+    /// </summary>
     public int MaxConcurrency
     {
         get
@@ -457,6 +443,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
     }
 
+    /// <summary>Max background-tier items held at once (Foreground/UserRequested bypass it).</summary>
     public int MaxQueueSize
     {
         get
@@ -566,13 +553,20 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
     // A running retained parse of this demo that decodes user commands: an open can take its result.
     private Entry? JoinableParseLocked(string path) => _entries.FirstOrDefault(e =>
-        e.Kind == QueueJobKind.DemoProcessing && e.State == DemoQueueItemState.Running && !e.Finalizing
-        && !e.Forward && e.UserCommands && PathEquals(e.Path, path));
+        e is
+        {
+            Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Running, Finalizing: false, Forward: false,
+            UserCommands: true
+        }
+        && PathEquals(e.Path, path));
 
     // A running retained parse of this demo, passes included, that an open cannot take: it skips user commands.
     private Entry? UnjoinableParseLocked(string path) => _entries.FirstOrDefault(e =>
-        e.Kind == QueueJobKind.DemoProcessing && e.State == DemoQueueItemState.Running
-        && !e.Forward && !e.UserCommands && PathEquals(e.Path, path));
+        e is
+        {
+            Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Running, Forward: false, UserCommands: false
+        }
+        && PathEquals(e.Path, path));
 
     // ── User opens ───────────────────────────────────────────────────────
 
@@ -626,7 +620,8 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             if (entry.Path.Length > 0)
             {
                 foreach (Entry visit in _entries.Where(e =>
-                             e.Kind == QueueJobKind.DemoProcessing && e.State == DemoQueueItemState.Queued && PathEquals(e.Path, entry.Path)))
+                             e is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Queued }
+                             && PathEquals(e.Path, entry.Path)))
                 {
                     visit.ParkedBehind = entry;
                 }
@@ -731,7 +726,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             {
                 // The parser takes no token: a replaced open still runs to the end of its parse.
                 NoteParse(entry.Path, "open");
-                parsed = await Task.Run(() => _parseBytes(bytes)).ConfigureAwait(false);
+                parsed = await Task.Run(() => _parseBytes(bytes), CancellationToken.None).ConfigureAwait(false);
             }
             finally
             {
@@ -803,22 +798,23 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             return "Waiting for the parse slot";
         }
 
-        string name = holder.DisplayName ?? System.IO.Path.GetFileName(holder.Path);
-        if (holder.Kind == QueueJobKind.DemoProcessing && !holder.Forward)
+        string name = holder.DisplayName ?? Path.GetFileName(holder.Path);
+        if (holder is { Kind: QueueJobKind.DemoProcessing, Forward: false })
         {
             return $"Waiting for {name} to finish parsing";
         }
 
-        return holder.Preempted || holder.CancelRequested ? $"Waiting for {name} to stop" : $"Waiting for {name} to finish";
+        return holder.Preempted || holder.CancelRequested
+            ? $"Waiting for {name} to stop"
+            : $"Waiting for {name} to finish";
     }
 
     private sealed class OpenTicket(DemoProcessingQueue queue, Entry entry, CancellationTokenSource cancel)
         : IDemoOpenTicket
     {
-        private readonly CancellationToken _token = cancel.Token;
         private int _ended;
 
-        public CancellationToken CancellationToken => _token;
+        public CancellationToken CancellationToken { get; } = cancel.Token;
 
         public bool IsSuperseded
         {
@@ -831,13 +827,14 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             }
         }
 
-        public Task<ParsedDemo> ParseAsync(ReadOnlyMemory<byte> bytes) => queue.ParseForOpenAsync(entry, bytes, _token);
+        public Task<ParsedDemo> ParseAsync(ReadOnlyMemory<byte> bytes) =>
+            queue.ParseForOpenAsync(entry, bytes, CancellationToken);
 
         public void Report(double progress, string stage) =>
             queue.ReportProgress(entry, (int)(Math.Clamp(progress, 0, 1) * 100), 100, stage);
 
         public Task RunPassesAsync(ParsedDemo parsed, Action? plan = null) =>
-            queue.RunOpenPassesAsync(entry, parsed, plan, _token);
+            queue.RunOpenPassesAsync(entry, parsed, plan, CancellationToken);
 
         public void Complete() => End(DemoQueueItemState.Completed, null);
 
@@ -859,6 +856,13 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
     // ── Background submit + coalescing ───────────────────────────────────
 
+    /// <summary>
+    ///     Submits background work, coalesced BY PATH across owners (one parse, every owner's
+    ///     <see cref="DemoProcessingRequest.OnParsed" /> runs). Returns a handle whose
+    ///     <see cref="IDemoQueueHandle.State" /> is <see cref="DemoQueueItemState.Rejected" /> ONLY when
+    ///     the background tier is at <see cref="MaxQueueSize" /> and this path is not already
+    ///     queued/running (Foreground/UserRequested never rejected).
+    /// </summary>
     public IDemoQueueHandle SubmitBackground(DemoProcessingRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -882,12 +886,13 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         priority >= DemoJobPriority.UserRequested ? PassLevel.UserRequested : PassLevel.Background;
 
     private Handle Submit(string path, PassLevel level, DemoJobPriority priority, long orderHint, string? displayName,
-        IReadOnlyList<IDemoPass> passes, Action<IDemoPass, PassOutcome, Exception?>? ended, IReadOnlySet<string>? riders)
+        IReadOnlyList<IDemoPass> passes, Action<IDemoPass, PassOutcome, Exception?>? ended,
+        IReadOnlySet<string>? riders)
     {
         VisitedDemo demo = new(path);
         // Asked once, outside the lock: the answer fixes how this pass may join and what the visit reads.
-        List<(IDemoPass Pass, PassNeeds Needs)> joining = passes.Select(p => (p, SafeNeeds(p, demo))).ToList();
-        List<string> owners = passes.Select(p => p.Id).Distinct(StringComparer.Ordinal).ToList();
+        List<(IDemoPass Pass, PassNeeds Needs)> joining = [.. passes.Select(p => (p, SafeNeeds(p, demo)))];
+        List<string> owners = [.. passes.Select(p => p.Id).Distinct(StringComparer.Ordinal)];
 
         Handle handle;
         CancellationTokenSource? supersededCancel = null;
@@ -905,7 +910,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                 e.Kind == QueueJobKind.DemoProcessing && IsActive(e) && !e.Finalizing && PathEquals(e.Path, path)
                 && (e.State == DemoQueueItemState.Queued
                     || joining.TrueForAll(j => DemoVisit.CanJoinRunning(j.Needs, e.Forward, e.Needs, e.UserCommands)
-                                               && (!e.Forward || CarriesCollectorsLocked(e, j.Pass)))));
+                        && (!e.Forward || CarriesCollectorsLocked(e, j.Pass)))));
             if (existing is not null)
             {
                 // Coalesce: one read, every pass; bump level, priority and order to the max seen.
@@ -936,8 +941,12 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                 handle = new Handle(this, existing.Id, owners, path, existing.Completion.Task, entry: existing);
             }
             else if (_entries.FirstOrDefault(e =>
-                         e.Kind == QueueJobKind.DemoProcessing && e.State == DemoQueueItemState.Running && e.Forward
-                         && !e.Finalizing && !e.CancelRequested && PathEquals(e.Path, path)) is { } forward)
+                         e is
+                         {
+                             Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Running, Forward: true,
+                             Finalizing: false, CancelRequested: false
+                         }
+                         && PathEquals(e.Path, path)) is { } forward)
             {
                 // The running forward read cannot serve this pass: stop it and move its passes onto one entry
                 // that runs next, so the demo is still read once and no pass waits behind other demos.
@@ -1006,12 +1015,13 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         path.Length == 0
             ? null
             : _entries.FirstOrDefault(e =>
-                e.Kind == QueueJobKind.DemoOpen && IsActive(e) && !e.Superseded && !e.PassesStarted && PathEquals(e.Path, path));
+                e is { Kind: QueueJobKind.DemoOpen, Superseded: false, PassesStarted: false } && IsActive(e)
+                && PathEquals(e.Path, path));
 
     // Under _sync. A visit waits while the open it is parked behind is active and has not run its passes; an
     // open that ended or was replaced releases it without a separate step.
     private static bool ParkedLocked(Entry e) =>
-        e.ParkedBehind is { } open && IsActive(open) && !open.Superseded && !open.PassesStarted;
+        e.ParkedBehind is { Superseded: false, PassesStarted: false } open && IsActive(open);
 
     // A pass that cannot say what it needs gets the widest read, which serves whatever it turns out to do.
     private static PassNeeds SafeNeeds(IDemoPass pass, VisitedDemo demo)
@@ -1036,7 +1046,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         Handle handle;
-        CancellationTokenSource? preempted = null;
+        CancellationTokenSource? preempted;
         lock (_sync)
         {
             if (_disposed)
@@ -1047,8 +1057,10 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             Entry? existing = request.Key is null
                 ? null
                 : _entries.FirstOrDefault(e => e.Kind == request.Kind && e.State == DemoQueueItemState.Queued
-                                               && string.Equals(e.Key, request.Key, StringComparison.Ordinal)
-                                               && string.Equals(e.JobOwner, request.OwnerTag, StringComparison.Ordinal));
+                    && string.Equals(e.Key, request.Key,
+                        StringComparison.Ordinal)
+                    && string.Equals(e.JobOwner, request.OwnerTag,
+                        StringComparison.Ordinal));
             if (existing is not null)
             {
                 existing.DisplayName = request.Title;
@@ -1062,13 +1074,15 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
                 preempted = PreemptForLocked(existing);
                 PumpLocked();
-                handle = new Handle(this, existing.Id, [request.OwnerTag], existing.Path, existing.Completion.Task, entry: existing);
+                handle = new Handle(this, existing.Id, [request.OwnerTag], existing.Path, existing.Completion.Task,
+                    entry: existing);
             }
             else
             {
                 Entry entry = SubmitJobLocked(request);
                 preempted = PreemptForLocked(entry);
-                handle = new Handle(this, entry.Id, [request.OwnerTag], entry.Path, entry.Completion.Task, entry: entry);
+                handle = new Handle(this, entry.Id, [request.OwnerTag], entry.Path, entry.Completion.Task,
+                    entry: entry);
             }
         }
 
@@ -1078,7 +1092,9 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     }
 
     private static PassLevel JobLevelOf(QueueJobRequest request) =>
-        request.Level ?? (request.Priority >= DemoJobPriority.UserRequested ? PassLevel.UserRequested : PassLevel.Background);
+        request.Level ?? (request.Priority >= DemoJobPriority.UserRequested
+            ? PassLevel.UserRequested
+            : PassLevel.Background);
 
     private Entry SubmitJobLocked(QueueJobRequest request)
     {
@@ -1158,6 +1174,10 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
     }
 
+    /// <summary>
+    ///     A module cancels ITS OWN submission for <paramref name="path" />; a coalesced co-owner
+    ///     keeps the item alive.
+    /// </summary>
     public void CancelOwned(string ownerTag, string path)
     {
         bool freedQueueSlot = false;
@@ -1366,20 +1386,23 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         lock (_sync)
         {
             Dictionary<Entry, int> ranks = StartRanksLocked();
-            return _entries.Select(e =>
-            {
-                DemoQueueItemSnapshot s = ToSnapshot(e) with
+            return
+            [
+                .. _entries.Select(e =>
                 {
-                    StartRank = ranks.TryGetValue(e, out int rank) ? rank : null,
-                    Light = IsLight(e),
-                    Hold = e.State == DemoQueueItemState.Queued ? HoldLocked(e) : DemoQueueHold.None
-                };
-                return e.Kind == QueueJobKind.DemoOpen && e.WaitingForSlot
-                    ? s with { Detail = OpenWaitDetailLocked(e) }
-                    : ParkedLocked(e)
-                        ? s with { Detail = "Runs on the open of this demo" }
-                        : s;
-            }).ToList();
+                    DemoQueueItemSnapshot s = ToSnapshot(e) with
+                    {
+                        StartRank = ranks.TryGetValue(e, out int rank) ? rank : null,
+                        Light = IsLight(e),
+                        Hold = e.State == DemoQueueItemState.Queued ? HoldLocked(e) : DemoQueueHold.None
+                    };
+                    return e is { Kind: QueueJobKind.DemoOpen, WaitingForSlot: true }
+                        ? s with { Detail = OpenWaitDetailLocked(e) }
+                        : ParkedLocked(e)
+                            ? s with { Detail = "Runs on the open of this demo" }
+                            : s;
+                })
+            ];
         }
     }
 
@@ -1394,7 +1417,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         foreach (Entry e in _entries)
         {
             // An open never goes through Compare: it runs as soon as the slot is free.
-            if (e.Kind == QueueJobKind.DemoOpen && e.State == DemoQueueItemState.Queued)
+            if (e is { Kind: QueueJobKind.DemoOpen, State: DemoQueueItemState.Queued })
             {
                 ranks[e] = heavy++;
             }
@@ -1407,10 +1430,13 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
     private void RankLaneLocked(bool light, int first, string? resident, Dictionary<Entry, int> ranks)
     {
-        List<(Entry Entry, bool Ready)> pending = _entries
-            .Where(e => e.State == DemoQueueItemState.Queued && e.Kind != QueueJobKind.DemoOpen && IsLight(e) == light)
-            .Select(e => (e, HoldLocked(e) == DemoQueueHold.None))
-            .ToList();
+        List<(Entry Entry, bool Ready)> pending =
+        [
+            .. _entries
+                .Where(e => e.State == DemoQueueItemState.Queued && e.Kind != QueueJobKind.DemoOpen
+                    && IsLight(e) == light)
+                .Select(e => (e, HoldLocked(e) == DemoQueueHold.None))
+        ];
         pending.Sort((a, b) => a.Ready != b.Ready ? (a.Ready ? -1 : 1)
             : CompareTier(a.Entry, b.Entry, resident) is var tier and not 0 ? tier
             : CompareWithinGroup(a.Entry, b.Entry));
@@ -1423,7 +1449,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         {
             end = start + 1;
             while (end < pending.Count && pending[end].Ready == pending[start].Ready
-                                       && CompareTier(pending[end].Entry, pending[start].Entry, resident) == 0)
+                   && CompareTier(pending[end].Entry, pending[start].Entry, resident) == 0)
             {
                 end++;
             }
@@ -1512,7 +1538,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
         // An open runs on its caller, not a worker; counting it would respawn idle workers forever.
         int running = _entries.Count(e => e.State == DemoQueueItemState.Running && !IsLight(e)
-                                          && e.Kind != QueueJobKind.DemoOpen);
+            && e.Kind != QueueJobKind.DemoOpen);
         // A job that gave its slot up keeps its worker busy without holding a slot: its own reads need another.
         int yielded = _entries.Count(e => e.State == DemoQueueItemState.Running && !IsLight(e) && e.SlotReleased);
         running -= yielded;
@@ -1520,15 +1546,17 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         if (NextStartableLocked(false) is { } next)
         {
             want = next.Kind == QueueJobKind.DemoProcessing
-                ? Math.Min(_maxConcurrency, running + _entries.Count(e => e.Kind == QueueJobKind.DemoProcessing && IsStartableLocked(e)))
+                ? Math.Min(_maxConcurrency,
+                    running + _entries.Count(e => e.Kind == QueueJobKind.DemoProcessing && IsStartableLocked(e)))
                 : 1;
         }
 
         want += yielded;
         while (_activeWorkers < want)
         {
+            // Never cancelled: the count above is only given back by a loop that ran.
             _activeWorkers++;
-            _ = Task.Run(() => WorkerLoopAsync());
+            _ = Task.Run(WorkerLoopAsync, CancellationToken.None);
         }
 
         int lightRunning = _entries.Count(e => e.State == DemoQueueItemState.Running && IsLight(e));
@@ -1536,7 +1564,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         while (_activeLightWorkers < wantLight)
         {
             _activeLightWorkers++;
-            _ = Task.Run(() => LightWorkerLoopAsync());
+            _ = Task.Run(LightWorkerLoopAsync, CancellationToken.None);
         }
     }
 
@@ -1595,11 +1623,15 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
         // An open stops the forward read of its own demo first, at any lane width: that read comes back as the
         // open's visit instead of reading the file beside the open's parse.
-        if (incoming.Kind == QueueJobKind.DemoOpen && incoming.Path.Length > 0
+        if (incoming is { Kind: QueueJobKind.DemoOpen, Path.Length: > 0 }
             && _entries.FirstOrDefault(e =>
-                e.State == DemoQueueItemState.Running && e.Kind == QueueJobKind.DemoProcessing && e.Forward
-                && e.Preemptible && !e.Preempted && !e.CancelRequested && !e.Finalizing
-                && e.Priority < DemoJobPriority.Foreground && PathEquals(e.Path, incoming.Path)) is { } sameDemo)
+                e is
+                {
+                    State: DemoQueueItemState.Running, Kind: QueueJobKind.DemoProcessing, Forward: true,
+                    Preemptible: true, Preempted: false, CancelRequested: false, Finalizing: false,
+                    Priority: < DemoJobPriority.Foreground
+                }
+                && PathEquals(e.Path, incoming.Path)) is { } sameDemo)
         {
             sameDemo.Preempted = true;
             return sameDemo.Cancel;
@@ -1614,8 +1646,13 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
 
         Entry? victim = _entries.FirstOrDefault(e =>
-            e.State == DemoQueueItemState.Running && IsLight(e) == light && e.Priority == DemoJobPriority.Background
-            && e.Preemptible && !e.Preempted && !e.CancelRequested && !e.Finalizing && e.Kind != QueueJobKind.HeapCompaction
+            e is
+            {
+                State: DemoQueueItemState.Running, Priority: DemoJobPriority.Background, Preemptible: true,
+                Preempted: false, CancelRequested: false, Finalizing: false
+            }
+            && IsLight(e) == light
+            && e.Kind != QueueJobKind.HeapCompaction
             && (e.Kind != QueueJobKind.DemoProcessing || e.Forward));
         if (victim is null)
         {
@@ -1664,7 +1701,8 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                 // demos the worker re-acquires, so it steps aside at each demo boundary, exactly like
                 // the historical per-consumer loops. An export session holds everything back except the
                 // demo reads of the job that runs it (a pack export's clips).
-                using SlotLease slot = new(_gate, await _gate.AcquireBackgroundAsync(ownRead, _shutdownToken).ConfigureAwait(false));
+                using SlotLease slot = new(_gate,
+                    await _gate.AcquireBackgroundAsync(ownRead, _shutdownToken).ConfigureAwait(false));
 
                 Entry? entry;
                 lock (_sync)
@@ -1723,7 +1761,8 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         lock (_sync)
         {
             // The visit's read is decided now, from every pass that joined, and fixed for later joiners.
-            (forward, entry.Needs, entry.UserCommands) = entry.Visit!.ChooseMode(_forwardPass is not null || ForwardRead is not null);
+            (forward, entry.Needs, entry.UserCommands) =
+                entry.Visit!.ChooseMode(_forwardPass is not null || ForwardRead is not null);
             entry.Forward = forward;
         }
 
@@ -1851,8 +1890,11 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             cancelled = ct.IsCancellationRequested || !IsActive(open);
             visits = cancelled
                 ? []
-                : _entries.Where(e => e.Kind == QueueJobKind.DemoProcessing && e.State == DemoQueueItemState.Queued
-                                      && ReferenceEquals(e.ParkedBehind, open)).ToList();
+                :
+                [
+                    .. _entries.Where(e => e is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Queued }
+                        && ReferenceEquals(e.ParkedBehind, open))
+                ];
             foreach (Entry visit in visits)
             {
                 visit.State = DemoQueueItemState.Running;
@@ -1869,16 +1911,18 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         RaiseChanged();
         if (!cancelled)
         {
-            using IDisposable collecting = _visitCollectors.Begin(open.Path, merged.Collectors(), merged.ChooseMode(false).Needs);
+            using IDisposable collecting =
+                _visitCollectors.Begin(open.Path, merged.Collectors(), merged.ChooseMode(false).Needs);
             foreach (VisitPass p in merged.Ordered())
             {
-                RunPass(p, new PassInput(merged.Demo, PassLevel.OpenDemo, parsed, null, ct)
-                {
-                    RetainedCollected = RetainedCollected(parsed, open.Path),
-                    RetainedRun = RetainedRun(parsed, open.Path),
-                    RetainedRanks = RanksOf(parsed),
-                    TableOf = TableOf
-                });
+                RunPass(p,
+                    new PassInput(merged.Demo, PassLevel.OpenDemo, parsed, null, ct)
+                    {
+                        RetainedCollected = RetainedCollected(parsed, open.Path),
+                        RetainedRun = RetainedRun(parsed, open.Path),
+                        RetainedRanks = RanksOf(parsed),
+                        TableOf = TableOf
+                    });
             }
         }
 
@@ -1964,7 +2008,8 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     }
 
     // A cancelled read calls no pass: OnFailed would mark a demo that is fine as failed.
-    private void FinishForward(Entry entry, ForwardDemoResult? pass, Exception? failure, bool cancelled, CancellationToken token)
+    private void FinishForward(Entry entry, ForwardDemoResult? pass, Exception? failure, bool cancelled,
+        CancellationToken token)
     {
         IReadOnlyList<VisitPass> passes;
         VisitedDemo demo;
@@ -1973,7 +2018,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         {
             demo = entry.Visit!.Demo;
             level = entry.Visit.Level;
-            if (cancelled && entry.Preempted && !entry.CancelRequested)
+            if (cancelled && entry is { Preempted: true, CancelRequested: false })
             {
                 RequeueLocked(entry);
                 passes = [];
@@ -1986,7 +2031,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             }
         }
 
-        if (entry.Requeued && entry.State == DemoQueueItemState.Queued)
+        if (entry is { Requeued: true, State: DemoQueueItemState.Queued })
         {
             RaiseChanged();
             return;
@@ -2148,13 +2193,14 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
             // Stopped for a user's item, not by anyone asking it to stop: it runs again later. A job that
             // returned normally despite the stop is taken at its word and completes.
-            if (state == DemoQueueItemState.Cancelled && entry.Preempted && !entry.CancelRequested)
+            if (state == DemoQueueItemState.Cancelled && entry is { Preempted: true, CancelRequested: false })
             {
                 // A newer build of the same key is already waiting and replaces this one's work.
-                bool replaced = entry.ReplacePending && entry.Key is not null && _entries.Any(e =>
+                bool replaced = entry is { ReplacePending: true, Key: not null } && _entries.Any(e =>
                     e.State == DemoQueueItemState.Queued && e.Kind == entry.Kind
                     && string.Equals(e.Key, entry.Key, StringComparison.Ordinal)
-                    && string.Equals(e.JobOwner, entry.JobOwner, StringComparison.Ordinal));
+                    && string.Equals(e.JobOwner, entry.JobOwner,
+                        StringComparison.Ordinal));
                 if (!replaced)
                 {
                     RequeueLocked(entry);
@@ -2175,7 +2221,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
 
     // Never call from inside RunEntry or FinishEntry: the finished demo must be off every stack frame.
     // After a parse: at once, ahead of the next queued item. Otherwise only on a drain, at most once per
-    // MinDrainCompactInterval; a drain inside the window schedules one compaction, a job start cancels it.
+    // _minDrainCompactInterval; a drain inside the window schedules one compaction, a job start cancels it.
     private void CompactIfDue(long? deferredGeneration = null)
     {
         DateTimeOffset startedAt;
@@ -2205,13 +2251,13 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             }
 
             DateTimeOffset now = _time.GetUtcNow();
-            if (!afterParse && !deferredDue && _lastCompact is { } last && now - last < MinDrainCompactInterval)
+            if (!afterParse && !deferredDue && _lastCompact is { } last && now - last < _minDrainCompactInterval)
             {
                 if (_deferredCompact is null)
                 {
                     long generation = ++_deferredGeneration;
                     _deferredCompact = _time.CreateTimer(_ => CompactIfDue(generation), null,
-                        last + MinDrainCompactInterval - now, Timeout.InfiniteTimeSpan);
+                        last + _minDrainCompactInterval - now, Timeout.InfiniteTimeSpan);
                 }
 
                 return;
@@ -2283,7 +2329,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                 anyRunning = true;
                 userRunning += e.Priority >= DemoJobPriority.UserRequested ? 1 : 0;
                 jobRunning |= e.Kind != QueueJobKind.DemoProcessing;
-                if (e.SlotReleased && e.JobOwner is { } owner)
+                if (e is { SlotReleased: true, JobOwner: { } owner })
                 {
                     (yielding ??= new HashSet<string>(StringComparer.Ordinal)).Add(owner);
                 }
@@ -2298,7 +2344,9 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         {
             // Background light items run one at a time. Items a user is waiting on run beside them, up to
             // MaxUserLight at once: a save cannot stop mid-write, and a Dossier team builds four sections.
-            return !anyRunning || best is { Priority: >= DemoJobPriority.UserRequested } && userRunning < MaxUserLight ? best : null;
+            return !anyRunning || best is { Priority: >= DemoJobPriority.UserRequested } && userRunning < MaxUserLight
+                ? best
+                : null;
         }
 
         if (jobRunning && !opening && yielding is not null)
@@ -2306,7 +2354,9 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             return OwnReadLocked(yielding, resident);
         }
 
-        return best is null || opening || jobRunning || (best.Kind != QueueJobKind.DemoProcessing && anyRunning) ? null : best;
+        return best is null || opening || jobRunning || (best.Kind != QueueJobKind.DemoProcessing && anyRunning)
+            ? null
+            : best;
     }
 
     // Under _sync. True for a visit carrying a job of a running job's owner that gave its slot up: that job's
@@ -2321,7 +2371,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         HashSet<string> owners = new(StringComparer.Ordinal);
         foreach (Entry r in _entries)
         {
-            if (r.State == DemoQueueItemState.Running && r.SlotReleased && r.JobOwner is { } owner)
+            if (r is { State: DemoQueueItemState.Running, SlotReleased: true, JobOwner: { } owner })
             {
                 owners.Add(owner);
             }
@@ -2334,7 +2384,8 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     // own visits (a pack export's clips) start beside it, one heavy read at a time as ever.
     private Entry? OwnReadLocked(HashSet<string> owners, string? resident)
     {
-        if (_entries.Any(e => e.State == DemoQueueItemState.Running && e.Kind == QueueJobKind.DemoProcessing && !IsLight(e)))
+        if (_entries.Any(e =>
+                e is { State: DemoQueueItemState.Running, Kind: QueueJobKind.DemoProcessing } && !IsLight(e)))
         {
             return null;
         }
@@ -2343,7 +2394,9 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         foreach (Entry e in _entries)
         {
             if (e.Kind == QueueJobKind.DemoProcessing && IsStartableLocked(e)
-                && e.Visit!.HasJobOwnedBy(owners) && (best is null || Compare(e, best, resident, _lastStartedPath) < 0))
+                && e.Visit!.HasJobOwnedBy(owners)
+                && (best is null || Compare(e, best, resident, _lastStartedPath)
+                    < 0))
             {
                 best = e;
             }
@@ -2428,13 +2481,14 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             using IDisposable collecting = _visitCollectors.Begin(demo.Path, collectors, needs);
             foreach (VisitPass p in passes)
             {
-                RunPass(p, new PassInput(demo, level, parsed!, null, token)
-                {
-                    RetainedCollected = RetainedCollected(parsed!, demo.Path),
-                    RetainedRun = RetainedRun(parsed!, demo.Path),
-                    RetainedRanks = RanksOf(parsed!),
-                    TableOf = TableOf
-                });
+                RunPass(p,
+                    new PassInput(demo, level, parsed!, null, token)
+                    {
+                        RetainedCollected = RetainedCollected(parsed!, demo.Path),
+                        RetainedRun = RetainedRun(parsed!, demo.Path),
+                        RetainedRanks = RanksOf(parsed!),
+                        TableOf = TableOf
+                    });
             }
         }
 
@@ -2488,7 +2542,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
     // Keep the mirror bounded: drop the entries that ended longest ago beyond the history cap.
     private void PruneTerminalHistoryLocked()
     {
-        List<Entry> terminal = _entries.Where(e => !IsActive(e)).OrderBy(e => e.EndedSeq).ToList();
+        List<Entry> terminal = [.. _entries.Where(e => !IsActive(e)).OrderBy(e => e.EndedSeq)];
         int excess = terminal.Count - TerminalHistoryCap;
         for (int i = 0; i < excess; i++)
         {
@@ -2599,27 +2653,28 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                 }
                 else
                 {
-                    _items.Insert(Math.Min(index, _items.Count), new DemoQueueItem
-                    {
-                        Id = s.Id,
-                        Path = s.Path,
-                        DisplayName = s.DisplayName,
-                        Owners = string.Join(", ", s.Owners),
-                        Priority = s.Priority,
-                        State = s.State,
-                        Error = s.Error,
-                        Kind = s.Kind,
-                        ExtensionKind = s.ExtensionKind,
-                        Progress = s.Progress,
-                        Detail = s.Detail,
-                        StartRank = s.StartRank,
-                        Light = s.Light,
-                        Promoted = s.Promoted,
-                        Hold = s.Hold,
-                        EndedSeq = s.EndedSeq,
-                        RidesRead = s.RidesRead,
-                        Superseded = s.Superseded
-                    });
+                    _items.Insert(Math.Min(index, _items.Count),
+                        new DemoQueueItem
+                        {
+                            Id = s.Id,
+                            Path = s.Path,
+                            DisplayName = s.DisplayName,
+                            Owners = string.Join(", ", s.Owners),
+                            Priority = s.Priority,
+                            State = s.State,
+                            Error = s.Error,
+                            Kind = s.Kind,
+                            ExtensionKind = s.ExtensionKind,
+                            Progress = s.Progress,
+                            Detail = s.Detail,
+                            StartRank = s.StartRank,
+                            Light = s.Light,
+                            Promoted = s.Promoted,
+                            Hold = s.Hold,
+                            EndedSeq = s.EndedSeq,
+                            RidesRead = s.RidesRead,
+                            Superseded = s.Superseded
+                        });
                 }
             }
         }
@@ -2642,7 +2697,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         ParkedLocked(e) ? DemoQueueHold.OnOpen
         : _paused && e.Priority < DemoJobPriority.UserRequested ? DemoQueueHold.Paused
         : !_backgroundEnabled && e.Priority < DemoJobPriority.UserRequested && e.Kind != QueueJobKind.HeapCompaction
-          && !IsLight(e) ? DemoQueueHold.BackgroundOff
+        && !IsLight(e) ? DemoQueueHold.BackgroundOff
         : DemoQueueHold.None;
 
     // A keyed item waits while one with its key runs (a same-key submit then reruns once, never beside
@@ -2657,9 +2712,13 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         foreach (Entry r in _entries)
         {
             if (r.State == DemoQueueItemState.Running && !ReferenceEquals(r, e)
-                && ((e.Key is not null && r.Kind == e.Kind && string.Equals(r.Key, e.Key, StringComparison.Ordinal)
-                     && string.Equals(r.JobOwner, e.JobOwner, StringComparison.Ordinal))
-                    || (e.Serial is not null && string.Equals(r.Serial, e.Serial, StringComparison.Ordinal))))
+                && ((e.Key is not null && r.Kind == e.Kind
+                        && string.Equals(r.Key, e.Key,
+                            StringComparison.Ordinal)
+                        && string.Equals(r.JobOwner, e.JobOwner,
+                            StringComparison.Ordinal))
+                    || (e.Serial is not null && string.Equals(r.Serial, e.Serial,
+                        StringComparison.Ordinal))))
             {
                 return true;
             }
@@ -2811,6 +2870,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         // Read from the entry itself: a finished light item leaves the list, and is still completed.
         public DemoQueueItemState State => rejected ? DemoQueueItemState.Rejected
             : entry is null ? queue.GetState(id) : queue.StateOf(entry);
+
         public void Cancel()
         {
             if (queue.KindOf(id) is { } kind && kind != QueueJobKind.DemoProcessing)

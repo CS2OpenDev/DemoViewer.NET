@@ -18,10 +18,11 @@ public class StoredFileTests
         string root = Path.Combine(Path.GetTempPath(), $"dv-stored-file-{Guid.NewGuid():N}");
         try
         {
-            ExtensionStores stores = new("dev.example.stored", Path.Combine(root, "config"), Path.Combine(root, "cache"), []);
+            ExtensionStores stores = new("dev.example.stored", Path.Combine(root, "config"),
+                Path.Combine(root, "cache"), []);
             IExtensionFolder folder = stores.Own(StoreRoot.Config)!;
             int legacyReads = 0;
-            byte[] legacy = Encoding.UTF8.GetBytes("{\"Dismissed\":[\"k\"]}");
+            byte[] legacy = [.. "{\"Dismissed\":[\"k\"]}"u8];
             StoredFile file = StoredFile.In(folder, StratMiningFiles.StatePath, () =>
             {
                 legacyReads++;
@@ -30,12 +31,13 @@ public class StoredFileTests
 
             byte[]? first = file.Read();
             byte[]? copied = folder.Read(StratMiningFiles.StatePath);
-            file.Write(Encoding.UTF8.GetBytes("{}"));
+            file.Write([.. "{}"u8]);
             byte[]? afterWrite = file.Read();
             using (Assert.Multiple())
             {
                 await Assert.That(first).IsEquivalentTo(legacy, CollectionOrdering.Matching);
-                await Assert.That(copied).IsEquivalentTo(legacy, CollectionOrdering.Matching).Because("the copy lands in the extension's own folder");
+                await Assert.That(copied).IsEquivalentTo(legacy, CollectionOrdering.Matching)
+                    .Because("the copy lands in the extension's own folder");
                 await Assert.That(Encoding.UTF8.GetString(afterWrite!)).IsEqualTo("{}")
                     .Because("once copied, the extension's file is the store, not the old one");
                 await Assert.That(legacyReads).IsEqualTo(1);
@@ -60,14 +62,15 @@ public class StoredFileTests
             StoredFile file = StoredFile.In(new ExtensionFile(Path.Combine(root, "teams.json")))!;
 
             byte[]? before = file.Read();
-            file.Write(Encoding.UTF8.GetBytes("{}"));
+            file.Write([.. "{}"u8]);
             using (Assert.Multiple())
             {
                 await Assert.That(before).IsNull();
                 await Assert.That(await File.ReadAllTextAsync(Path.Combine(root, "teams.json"))).IsEqualTo("{}");
                 await Assert.That(Encoding.UTF8.GetString(file.Read()!)).IsEqualTo("{}");
                 await Assert.That(file.Name).IsEqualTo("teams.json");
-                await Assert.That(StoredFile.In(null)).IsNull().Because("no store (the browser) is a session-only file");
+                await Assert.That(StoredFile.In(null)).IsNull()
+                    .Because("no store (the browser) is a session-only file");
             }
         }
         finally
@@ -85,7 +88,8 @@ public class StoredFileTests
         string root = Path.Combine(Path.GetTempPath(), $"dv-stored-file-{Guid.NewGuid():N}");
         try
         {
-            ExtensionStores stores = new("dev.example.stored", Path.Combine(root, "config"), Path.Combine(root, "cache"), []);
+            ExtensionStores stores = new("dev.example.stored", Path.Combine(root, "config"),
+                Path.Combine(root, "cache"), []);
             StoredFile file = StoredFile.In(stores.Own(StoreRoot.Cache), StratMiningFiles.DetectedPath, () => null)!;
             using (Assert.Multiple())
             {

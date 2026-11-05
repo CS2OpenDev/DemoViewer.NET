@@ -1,15 +1,15 @@
 #region
 
-using DemoViewer.NET.Extensions;
 using System.Numerics;
+using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
-using DemoViewer.NET.Services.DemoCache;
-using DemoViewer.NET.Playback2D.Pipeline.Review;
-using DemoViewer.NET.Services.Review;
-using DemoViewer.NET.Services.Facts;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Playback2D.Pipeline.Review;
+using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
+using DemoViewer.NET.Services.Review;
 using TUnit.Assertions.Enums;
 
 #endregion
@@ -36,8 +36,8 @@ public class OpeningTendenciesTests
         return Task.CompletedTask;
     };
 
-    private static readonly int[] TeamASlots = [0, 1, 2, 3, 4];
-    private static readonly int[] TeamBSlots = [5, 6, 7, 8, 9];
+    private static readonly int[] _teamASlots = [0, 1, 2, 3, 4];
+    private static readonly int[] _teamBSlots = [5, 6, 7, 8, 9];
 
     private static string Id(int n) => $"7656{n:D4}";
 
@@ -60,9 +60,7 @@ public class OpeningTendenciesTests
 
     private static KillStep Kill(int freezeEnd, int seconds, int attacker, int victim) => new()
     {
-        Tick = At(freezeEnd, seconds),
-        AttackerSlot = attacker,
-        VictimSlot = victim
+        Tick = At(freezeEnd, seconds), AttackerSlot = attacker, VictimSlot = victim
     };
 
     // Team A (slots 0..4) is T for rounds 1 to 3 and CT for 4 and 5.
@@ -75,27 +73,28 @@ public class OpeningTendenciesTests
         Clock = new RoundFactsClock { TickRate = Rate },
         Rounds =
         [
-            Round(1, 1000, TeamBSlots, TeamASlots, 12, 40, BombSite.A, Kill(1000, 13, 0, 5)),
-            Round(2, 10000, TeamBSlots, TeamASlots, 22, 50, BombSite.B, Kill(10000, 20, 1, 2), Kill(10000, 22, 6, 0)),
-            Round(3, 20000, TeamBSlots, TeamASlots),
-            Round(4, 30000, TeamASlots, TeamBSlots, 31),
-            Round(5, 40000, TeamASlots, TeamBSlots, 61)
+            Round(1, 1000, _teamBSlots, _teamASlots, 12, 40, BombSite.A, Kill(1000, 13, 0, 5)),
+            Round(2, 10000, _teamBSlots, _teamASlots, 22, 50, BombSite.B, Kill(10000, 20, 1, 2), Kill(10000, 22, 6, 0)),
+            Round(3, 20000, _teamBSlots, _teamASlots),
+            Round(4, 30000, _teamASlots, _teamBSlots, 31),
+            Round(5, 40000, _teamASlots, _teamBSlots, 61)
         ]
     };
 
     // Landing east of x = 0 is Ramp, west of it Outside.
-    private static GrenadeRow Grenade(string id, GrenadeKind kind, int round, int team, int release, float landingX) => new()
-    {
-        Id = id,
-        Kind = kind,
-        RoundNumber = round,
-        ThrowerTeam = team,
-        ReleaseTick = release,
-        ReleasePosition = WorldPoint.From(new Vector3(0, 0, 0)),
-        DetonationTick = release + 128,
-        DetonationPosition = WorldPoint.From(new Vector3(landingX, 0, 0)),
-        EndKind = GrenadeEndKind.Detonated
-    };
+    private static GrenadeRow Grenade(string id, GrenadeKind kind, int round, int team, int release, float landingX) =>
+        new()
+        {
+            Id = id,
+            Kind = kind,
+            RoundNumber = round,
+            ThrowerTeam = team,
+            ReleaseTick = release,
+            ReleasePosition = WorldPoint.From(new Vector3(0, 0, 0)),
+            DetonationTick = release + 128,
+            DetonationPosition = WorldPoint.From(new Vector3(landingX, 0, 0)),
+            EndKind = GrenadeEndKind.Detonated
+        };
 
     private static List<GrenadeRow> Grenades() =>
     [
@@ -119,7 +118,7 @@ public class OpeningTendenciesTests
         };
         if (rows is not null)
         {
-            record.SetRoundFacts(rows, "rf-A");
+            record.SetRoundFacts(rows);
         }
 
         for (int slot = 0; slot < 10; slot++)
@@ -162,11 +161,19 @@ public class OpeningTendenciesTests
             Places = ["Ramp"],
             Rounds =
             [
-                new RoundPositionsRound { Number = 1, FreezeEndTick = 1000, Ct = TeamBSlots, Pos = Steps(s => Together(true, s)) },
-                new RoundPositionsRound { Number = 2, FreezeEndTick = 10000, Ct = TeamBSlots, Pos = Steps(s => Together(false, s)) },
                 new RoundPositionsRound
                 {
-                    Number = 3, FreezeEndTick = 20000, Ct = TeamBSlots,
+                    Number = 1, FreezeEndTick = 1000, Ct = _teamBSlots, Pos = Steps(s => Together(true, s))
+                },
+                new RoundPositionsRound
+                {
+                    Number = 2, FreezeEndTick = 10000, Ct = _teamBSlots, Pos = Steps(s => Together(false, s))
+                },
+                new RoundPositionsRound
+                {
+                    Number = 3,
+                    FreezeEndTick = 20000,
+                    Ct = _teamBSlots,
                     Pos = Steps(_ => [new RoundPosition(0, 0, 0, 0, 0), new RoundPosition(3, 3000, 0, 0, 0)])
                 }
             ]
@@ -191,7 +198,8 @@ public class OpeningTendenciesTests
 
             await Assert.That(t.Map).IsEqualTo("de_nuke");
             await Assert.That(t.Side).IsEqualTo(2);
-            await Assert.That(t.Rounds.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([1, 2, 3], CollectionOrdering.Matching);
+            await Assert.That(t.Rounds.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([1, 2, 3], CollectionOrdering.Matching);
             await Assert.That(t.UtilityRounds).IsEqualTo(3);
             await Assert.That(Shape(t.FirstUtilityClock)).IsEqualTo(Joined("0-5 s:0", "5-10 s:2", "none:1"))
                 .Because("the CT smoke at 3 s is the other side's, and the empty bar keeps the clock");
@@ -202,14 +210,17 @@ public class OpeningTendenciesTests
             await Assert.That(Shape(t.EntryBySite)).IsEqualTo(Joined("p0 at A:1", "p0 at B:1"))
                 .Because("the round 2 teamkill is no duel, and a lost duel is still the entry");
             await Assert.That(t.LurkRounds).IsEqualTo(3);
-            await Assert.That(Shape(t.LurkClock)).IsEqualTo(Joined("0-5 s:0", "5-10 s:0", "10-15 s:0", "15-20 s:1", "no lurk:2"));
+            await Assert.That(Shape(t.LurkClock))
+                .IsEqualTo(Joined("0-5 s:0", "5-10 s:0", "10-15 s:0", "15-20 s:1", "no lurk:2"));
             await Assert.That(Shape(t.Lurkers)).IsEqualTo(Joined("p3:1"));
 
             await Assert.That(ct.Side).IsEqualTo(3);
-            await Assert.That(ct.Rounds.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([4, 5], CollectionOrdering.Matching);
+            await Assert.That(ct.Rounds.Rounds.Select(r => r.RoundNumber))
+                .IsEquivalentTo([4, 5], CollectionOrdering.Matching);
             await Assert.That(Shape(ct.FirstUtilityClock)).IsEqualTo(Joined("0-5 s:1", "none:1"));
             await Assert.That(Shape(ct.FirstUtilityPlaces)).IsEqualTo(Joined("smoke at Ramp:1"));
-            await Assert.That(ct.FirstContactClock.Count).IsEqualTo(13).Because("thirteen bars to 60 s+, and both rounds had contact");
+            await Assert.That(ct.FirstContactClock.Count).IsEqualTo(13)
+                .Because("thirteen bars to 60 s+, and both rounds had contact");
             await Assert.That(ct.FirstContactClock[^1].Label).IsEqualTo("60 s+");
             await Assert.That(ct.SiteSplit.Count + ct.EntryBySite.Count + ct.LurkClock.Count).IsEqualTo(0)
                 .Because("on CT the opponent picks the site");
@@ -221,8 +232,10 @@ public class OpeningTendenciesTests
         using (Assert.Multiple())
         {
             await Assert.That(utility.RoundNumber).IsEqualTo(1);
-            await Assert.That(utility.FromTick).IsEqualTo(At(1000, 8) - OpeningTendenciesService.ClipLeadSeconds * Rate);
-            await Assert.That(utility.ToTick).IsEqualTo(At(1000, 8) + 128 + OpeningTendenciesService.ClipTailSeconds * Rate);
+            await Assert.That(utility.FromTick)
+                .IsEqualTo(At(1000, 8) - OpeningTendenciesService.ClipLeadSeconds * Rate);
+            await Assert.That(utility.ToTick)
+                .IsEqualTo(At(1000, 8) + 128 + OpeningTendenciesService.ClipTailSeconds * Rate);
             await Assert.That(utility.Sha256).IsEqualTo("abc123");
             await Assert.That(lurk.FromTick).IsEqualTo(At(1000, 15) - 2 * Rate);
             await Assert.That(t.FirstContactClock[^1].Rounds[0].FromTick).IsEqualTo(20000);
@@ -327,7 +340,8 @@ public class OpeningTendenciesTests
             await Assert.That(queue.Clips.All(c => c.Source == ReviewSources.Dossier)).IsTrue();
             await Assert.That(queue.Clips[0].Note).IsEqualTo("de_nuke T · first utility 5-10 s · round 1");
             await Assert.That(queue.Clips[1].Note).IsEqualTo("de_nuke T · first utility 5-10 s · round 2");
-            await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue().Because("a Dossier clip carries its team");
+            await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue()
+                .Because("a Dossier clip carries its team");
             await Assert.That(queue.SectionOf(queue.Clips[0].Id)).IsNotNull();
             await Assert.That(vm.Openings.ReviewLine).IsEqualTo("2 rounds sent to Review");
             await Assert.That(shown).IsEquivalentTo(["review.queue"], CollectionOrdering.Matching);
@@ -353,27 +367,26 @@ public class OpeningTendenciesTests
 
     private sealed class Harness : IDisposable
     {
-        private Harness(DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store, GrenadeIndex grenades,
+        private readonly GrenadeIndex _grenades;
+
+        private Harness(DemoCacheStore cache, TeamIdentityService teams, GrenadeIndex grenades,
             OpeningTendenciesService service, Guid teamA)
         {
             Cache = cache;
             Teams = teams;
-            Store = store;
-            Grenades = grenades;
+            _grenades = grenades;
             Service = service;
             TeamA = teamA;
         }
 
         public DemoCacheStore Cache { get; }
         public TeamIdentityService Teams { get; }
-        public RoundIndexStore Store { get; }
-        public GrenadeIndex Grenades { get; }
         public OpeningTendenciesService Service { get; }
         public Guid TeamA { get; }
 
         public void Dispose()
         {
-            Grenades.Dispose();
+            _grenades.Dispose();
             Teams.Dispose();
         }
 
@@ -407,12 +420,14 @@ public class OpeningTendenciesTests
             store.WritePositions(Demo, Positions(sources.FingerprintFor("de_nuke")));
 
             GrenadeIndex grenades = new(cache.Library(), new RoundIndexEvaluatorTests.MapZones(
-                ("de_nuke", new RoundIndexBuilderTests.FakeZoneResolver("zv-nuke", v => v.X < 0 ? "Outside" : "Ramp"))));
+                ("de_nuke",
+                    new RoundIndexBuilderTests.FakeZoneResolver("zv-nuke", v => v.X < 0 ? "Outside" : "Ramp"))));
             grenades.Load();
 
-            OpeningTendenciesService service = new(teams, cache.Library(), cache.RoundFacts(), grenades, store, sources.FingerprintFor);
+            OpeningTendenciesService service = new(teams, cache.Library(), cache.RoundFacts(), grenades, store,
+                sources.FingerprintFor);
             Guid teamA = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(1)) == true)).Id;
-            return new Harness(cache, teams, store, grenades, service, teamA);
+            return new Harness(cache, teams, grenades, service, teamA);
         }
     }
 }

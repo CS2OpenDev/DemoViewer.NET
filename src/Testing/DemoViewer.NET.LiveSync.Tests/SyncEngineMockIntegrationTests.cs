@@ -67,10 +67,7 @@ public class SyncEngineMockIntegrationTests
         CsvgWebHost host;
         try
         {
-            host = await CsvgWebHost.StartAsync(new LiveSyncSettings
-                {
-                    MockMode = true
-                }, null,
+            host = await CsvgWebHost.StartAsync(new LiveSyncSettings { MockMode = true }, null,
                 cancellationToken);
         }
         catch (LiveSyncPortInUseException ex)
@@ -84,7 +81,7 @@ public class SyncEngineMockIntegrationTests
             await session.StartWatchAsync(cancellationToken: cancellationToken);
 
             string demoPath = Path.Combine(Path.GetTempPath(), $"livesync-engine-e2e-{Guid.NewGuid():N}.dem");
-            await File.WriteAllBytesAsync(demoPath, [0x50, 0x42, 0x44, 0x45, 0x4D, 0x53, 0x32, 0x00],
+            await File.WriteAllBytesAsync(demoPath, [.. "PBDEMS2\0"u8],
                 cancellationToken);
             try
             {
@@ -131,7 +128,7 @@ public class SyncEngineMockIntegrationTests
                     engine.SetDesiredTick(3000);
                     await WaitForAsync(
                         () => session.Engine.LastTick is { } tick
-                              && Math.Abs(tick - 3000) <= SyncEngine.SeekConfirmTolerance,
+                            && Math.Abs(tick - 3000) <= SyncEngine.SeekConfirmTolerance,
                         "the mock's tick stream to reach the seek target (3000)", 30_000, cancellationToken);
                     await WaitForKindAsync(probe, LiveSyncStateKind.SyncedHolding,
                         "Holding after confirmed discrete seek", 30_000, cancellationToken);

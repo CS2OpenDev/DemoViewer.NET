@@ -6,11 +6,11 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DemoViewer.NET.Extensions.Sdk.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Playback2D.Overlay;
 using DemoViewer.NET.Playback2D.Query;
-using DemoViewer.NET.Extensions.Sdk.Review;
-using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 
 #endregion
 
@@ -63,7 +63,6 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     /// <summary>How far past the last matched tick a clip sent to the Review Queue runs.</summary>
     public const int ReviewTailSeconds = 5;
 
-    private readonly SituationThumbnailCache _cache;
     private readonly Func<string, Func<Action, Task>> _run;
     private readonly Func<byte[], Bitmap?> _decode;
     private readonly IExtensionLibrary _library;
@@ -82,6 +81,8 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
 
     /// <summary>True while the overlay worker is reading and stacking; the button is disabled meanwhile.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanOverlay))]
+    [NotifyCanExecuteChangedFor(nameof(OverlayAllCommand))]
     private bool _isOverlayBuilding;
 
     /// <summary>"40 rounds · 312 states · 2,104 positions", or why there is no overlay; empty with none asked for.</summary>
@@ -126,7 +127,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         Func<string, Func<Action, Task>>? run = null,
         IRoundFacts? roundFacts = null)
     {
-        _run = run ?? (_ => work => Task.Run(work));
+        _run = run ?? (_ => Task.Run);
         _roundFacts = roundFacts;
         ArgumentNullException.ThrowIfNull(library);
         ArgumentNullException.ThrowIfNull(store);
@@ -136,7 +137,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         _store = store;
         _sources = sources;
         _playback = playback;
-        _cache = cache ?? new SituationThumbnailCache();
+        Cache = cache ?? new SituationThumbnailCache();
         _renderer = renderer ?? (() => new SituationThumbnailRenderer());
         _post = post ?? (action => Dispatcher.UIThread.Post(action));
         _decode = decode ?? DecodePng;
@@ -190,7 +191,8 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         get
         {
             int rest = Cards.Count - ShownCount;
-            return string.Create(CultureInfo.InvariantCulture, $"Show {Math.Min(PageSize, rest)} more ({rest} not shown)");
+            return string.Create(CultureInfo.InvariantCulture,
+                $"Show {Math.Min(PageSize, rest)} more ({rest} not shown)");
         }
     }
 
@@ -231,10 +233,10 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     public string HeaderLine => Cards.Count == 0
         ? ""
         : $"{(Cards.Count == 1 ? "1 round" : $"{Cards.Count} rounds")} · click a card to open it "
-          + $"{ResultCardViewModel.SeekOffsetSeconds} s before the match; J / K walk them in playback";
+        + $"{ResultCardViewModel.SeekOffsetSeconds} s before the match; J / K walk them in playback";
 
     /// <summary>The thumbnail cache, so a rebuild can drop every picture of the old rows.</summary>
-    public SituationThumbnailCache Cache => _cache;
+    public SituationThumbnailCache Cache { get; }
 
     /// <summary>The Overlay View's points: the canvas's document, filled by <see cref="OverlayAllCommand" />.</summary>
     public OverlayDocument Overlay { get; }
@@ -358,8 +360,8 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         }
         catch (Exception ex)
         {
-            shown = false;
-            WalkLine = $"{SelectedIndex} of {Cards.Count} · could not open {Path.GetFileName(card.Hit.DemoPath)}: {ex.Message}";
+            WalkLine =
+                $"{SelectedIndex} of {Cards.Count} · could not open {Path.GetFileName(card.Hit.DemoPath)}: {ex.Message}";
             return;
         }
 
@@ -405,7 +407,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     /// </summary>
     /// <param name="card">The card.</param>
     /// <param name="teamId">The search's single opponent, or null.</param>
-    public static ReviewClip ReviewClipFor(ResultCardViewModel card, Guid? teamId = null)
+    private static ReviewClip ReviewClipFor(ResultCardViewModel card, Guid? teamId = null)
     {
         ArgumentNullException.ThrowIfNull(card);
         SituationHit hit = card.Hit;
@@ -448,8 +450,9 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     /// <param name="points">How many positions were stacked.</param>
     public static string OverlayLineFor(int rounds, int withoutPositions, int states, int points)
     {
-        string line = $"{rounds} {(rounds == 1 ? "round" : "rounds")} · {states} {(states == 1 ? "state" : "states")} · "
-                      + $"{points.ToString("N0", CultureInfo.InvariantCulture)} positions";
+        string line =
+            $"{rounds} {(rounds == 1 ? "round" : "rounds")} · {states} {(states == 1 ? "state" : "states")} · "
+            + $"{points.ToString("N0", CultureInfo.InvariantCulture)} positions";
         return withoutPositions > 0 ? $"{line} · {withoutPositions} without positions" : line;
     }
 
@@ -474,12 +477,6 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     /// <summary>Takes the heatmap off the canvas. The cards stay.</summary>
     [RelayCommand]
     private void ClearOverlay() => DropOverlay();
-
-    partial void OnIsOverlayBuildingChanged(bool value)
-    {
-        OnPropertyChanged(nameof(CanOverlay));
-        OverlayAllCommand.NotifyCanExecuteChanged();
-    }
 
     private void OnOverlayChanged() => OnPropertyChanged(nameof(IsOverlayShown));
 
@@ -516,7 +513,8 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
             if (!string.Equals(currentPath, hit.DemoPath, StringComparison.Ordinal))
             {
                 currentPath = hit.DemoPath;
-                positions = _store.TryReadPositions(hit.DemoPath, _sources.FingerprintFor(hit.Map), _library.Find(hit.DemoPath)?.Sha256);
+                positions = _store.TryReadPositions(hit.DemoPath, _sources.FingerprintFor(hit.Map),
+                    _library.Find(hit.DemoPath)?.Sha256);
             }
 
             if (positions?.Round(hit.RoundNumber) is not { } round)
@@ -602,7 +600,9 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
                 positions = _store.TryReadPositions(hit.DemoPath, fingerprint, record?.Demo.Sha256);
             }
 
-            RoundFacts? round = record is null ? null : _roundFacts?.TryGet(hit.DemoPath)?.Rounds.FirstOrDefault(r => r.Number == hit.RoundNumber);
+            RoundFacts? round = record is null
+                ? null
+                : _roundFacts?.TryGet(hit.DemoPath)?.Rounds.FirstOrDefault(r => r.Number == hit.RoundNumber);
             int tickRate = record?.TickRate ?? 0;
 
             byte[]? png = null;
@@ -610,13 +610,13 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
             if (positions is not null)
             {
                 SituationThumbnailKey key = new(hit.DemoStableKey, hit.RoundNumber, hit.FirstMatchTick, fingerprint);
-                png = _cache.TryGet(key);
+                png = Cache.TryGet(key);
                 if (png is null)
                 {
                     png = TryRender(renderer, hit, positions);
                     if (png is not null)
                     {
-                        _cache.Put(key, png);
+                        Cache.Put(key, png);
                     }
                 }
 
@@ -649,7 +649,8 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
         }
     }
 
-    private static byte[]? TryRender(SituationThumbnailRenderer renderer, SituationHit hit, RoundPositionsDocument positions)
+    private static byte[]? TryRender(SituationThumbnailRenderer renderer, SituationHit hit,
+        RoundPositionsDocument positions)
     {
         try
         {

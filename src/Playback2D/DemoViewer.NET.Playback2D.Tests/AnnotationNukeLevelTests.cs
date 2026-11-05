@@ -2,10 +2,10 @@
 
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Playback2D.Annotations;
-using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Pipeline;
 using DemoViewer.NET.Playback2D.Pipeline.Headless;
+using DemoViewer.NET.Playback2D.Pipeline.Layers;
 using SkiaSharp;
 using TUnit.Core.Exceptions;
 
@@ -56,7 +56,7 @@ public class AnnotationNukeLevelTests
         }
 
         Console.WriteLine($"[nuke-ink] levels={levels.Count} " +
-                          string.Join(" ", levels.Select(l => $"{l.Id.Key}:[{l.ZMin:F0}..{l.ZMax:F0}]")));
+            string.Join(" ", levels.Select(l => $"{l.Id.Key}:[{l.ZMin:F0}..{l.ZMax:F0}]")));
 
         renderer.SetAllCameras(fixture.Camera);
         SKColor[] baseline = Draw(renderer, fixture);
@@ -80,7 +80,7 @@ public class AnnotationNukeLevelTests
         int upperRed = Added(inked, baseline, upperBand, IsRed);
 
         Console.WriteLine($"[nuke-ink] added lower red={lowerRed} green={lowerGreen} | " +
-                          $"upper red={upperRed} green={upperGreen}");
+            $"upper red={upperRed} green={upperGreen}");
 
         await Assert.That(lowerRed).IsGreaterThan(50);
         await Assert.That(upperGreen).IsGreaterThan(50);
@@ -132,10 +132,7 @@ public class AnnotationNukeLevelTests
         await Assert.That(Added(beforeRemap, baseline, lowerBand, IsRed)).IsGreaterThan(50);
 
         int undoBefore = document.UndoDepth;
-        document.RemapWorldLevels(new Dictionary<double, double>
-        {
-            [lower] = upper
-        });
+        document.RemapWorldLevels(new Dictionary<double, double> { [lower] = upper });
         layer.InvalidateLevels();
 
         await Assert.That(((SpaceRef.World)document.Elements[0].Space).LevelMinZ).IsEqualTo(upper);
@@ -211,7 +208,7 @@ public class AnnotationNukeLevelTests
         return count;
     }
 
-    private static bool IsRed(SKColor p) => p.Red > 150 && p.Green < 90 && p.Blue < 90;
+    private static bool IsRed(SKColor p) => p is { Red: > 150, Green: < 90, Blue: < 90 };
 
-    private static bool IsGreen(SKColor p) => p.Green > 150 && p.Red < 90 && p.Blue < 90;
+    private static bool IsGreen(SKColor p) => p is { Green: > 150, Red: < 90, Blue: < 90 };
 }
