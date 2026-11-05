@@ -241,8 +241,8 @@ public sealed class UtilityMapLayer : ISceneLayer
             for (int j = discs.Count - 1; j > i; j--)
             {
                 if (!hidden[j] && discs[j].Radius >= discs[i].Radius
-                               && Square(discs[i].X - discs[j].X) + Square(discs[i].Y - discs[j].Y)
-                               <= Square(discs[j].Radius))
+                    && Square(discs[i].X - discs[j].X) + Square(discs[i].Y - discs[j].Y)
+                    <= Square(discs[j].Radius))
                 {
                     hidden[i] = true;
                     counts[j] += counts[i];

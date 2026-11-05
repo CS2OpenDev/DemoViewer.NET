@@ -24,10 +24,7 @@ public class TimelineTrackTests
     [Test]
     public async Task RoundTrack_BuildsOneBandPerFreezeEnd()
     {
-        FakeTimelineData data = new(300)
-        {
-            EventFrames = { ["round_freeze_end"] = [0, 100, 200] }
-        };
+        FakeTimelineData data = new(300) { EventFrames = { ["round_freeze_end"] = [0, 100, 200] } };
 
         IReadOnlyList<TimelineBand> bands = new RoundTrack().BuildBands(data);
 
@@ -42,10 +39,7 @@ public class TimelineTrackTests
     [Test]
     public async Task RoundTrack_PrependsWarmupBandWhenFirstFreezeEndIsNotFrameZero()
     {
-        FakeTimelineData data = new(300)
-        {
-            EventFrames = { ["round_freeze_end"] = [50, 200] }
-        };
+        FakeTimelineData data = new(300) { EventFrames = { ["round_freeze_end"] = [50, 200] } };
 
         IReadOnlyList<TimelineBand> bands = new RoundTrack().BuildBands(data);
 
@@ -61,10 +55,7 @@ public class TimelineTrackTests
     [Test]
     public async Task RoundTrack_LastBandEndsAtLastFrame()
     {
-        FakeTimelineData data = new(500)
-        {
-            EventFrames = { ["round_freeze_end"] = [0, 100] }
-        };
+        FakeTimelineData data = new(500) { EventFrames = { ["round_freeze_end"] = [0, 100] } };
 
         IReadOnlyList<TimelineBand> bands = new RoundTrack().BuildBands(data);
 
@@ -159,11 +150,7 @@ public class TimelineTrackTests
     {
         // The DROP happens in the adapter (an unresolvable tick yields no record at all), the track then
         // simply never sees it, which is what keeps a -1 frame index out of the layout.
-        FakeTimelineData data = new(100)
-        {
-            Events = { ["player_death"] = [Record(64, 10)] },
-            Ticks = { [9999] = -1 }
-        };
+        FakeTimelineData data = new(100) { Events = { ["player_death"] = [Record(64, 10)] }, Ticks = { [9999] = -1 } };
 
         IReadOnlyList<TimelineMarker> markers = new KillTrack().BuildMarkers(data);
 
@@ -298,10 +285,7 @@ public class TimelineTrackTests
     [Test]
     public async Task BombTrack_UnavailableWithoutBombEvents()
     {
-        FakeTimelineData data = new(1000)
-        {
-            Events = { ["player_death"] = [Record(64, 10)] }
-        };
+        FakeTimelineData data = new(1000) { Events = { ["player_death"] = [Record(64, 10)] } };
 
         await Assert.That(new BombTrack().IsAvailable(data)).IsFalse();
     }

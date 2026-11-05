@@ -246,7 +246,7 @@ public class CompatibilityMatrixTests
         [
             .. props.Descendants("PackageVersion")
                 .Where(e => ((string?)e.Attribute("Include"))?.StartsWith("CS2DemoKit.", StringComparison.Ordinal)
-                            == true)
+                    == true)
                 .Select(e => e.Attribute("Version")!.Value)
         ];
 
@@ -274,7 +274,7 @@ public class CompatibilityMatrixTests
             await Assert.That(manifest.RequiresHost.Satisfies(ExtensionHost.ContractVersion)).IsTrue();
             await Assert.That(manifest.RequiresHost.Satisfies(nextMajor)).IsFalse()
                 .Because($"requiresHost {manifest.RequiresHost} must be bounded below the next major {nextMajor}; " +
-                         "a contract bump must fail this test before it can ship an unloadable pair");
+                    "a contract bump must fail this test before it can ship an unloadable pair");
         }
     }
 

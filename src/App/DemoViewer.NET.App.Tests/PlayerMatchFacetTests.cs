@@ -29,7 +29,8 @@ public class PlayerMatchFacetTests
 
     private static readonly string _shipped = RuleSetLocator.ResolveShippedRulesDirectory();
 
-    private static readonly string[] _dimensions = ["match_id", "map", "player_slot", "player_name", "steam_id", "team"];
+    private static readonly string[] _dimensions =
+        ["match_id", "map", "player_slot", "player_name", "steam_id", "team"];
 
     internal static string SamplePath(string repo) =>
         Path.Combine(repo, "tests", "fixtures", "player-match", "player_match.sample.facts.json");

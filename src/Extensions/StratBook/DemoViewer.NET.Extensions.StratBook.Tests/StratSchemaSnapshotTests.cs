@@ -330,7 +330,8 @@ public class StratSchemaSnapshotTests
 
             // A commit with nothing in it writes nothing, so a stored file is never churned by a no-op save.
             await Assert.That(store.Save(document, [], null).Saved).IsTrue();
-            await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(original).Because("the file is not touched at all");
+            await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(original)
+                .Because("the file is not touched at all");
 
             // A real commit keeps every unknown field.
             PatchOp op = PatchOp.ReplaceOp("/tempo", JsonValue.Create("slow"), JsonValue.Create("mid"));
@@ -367,7 +368,8 @@ public class StratSchemaSnapshotTests
             StratTestData.RunHistoryScript(writer);
             string folder = StratStore.FolderFor(scratch, StratTestData.Team, "de_mirage");
             string writtenLog =
-                await File.ReadAllTextAsync(Path.Combine(folder, StratTestData.HistoryId + StratStore.HistoryExtension));
+                await File.ReadAllTextAsync(Path.Combine(folder,
+                    StratTestData.HistoryId + StratStore.HistoryExtension));
 
             if (Updating)
             {
@@ -385,7 +387,8 @@ public class StratSchemaSnapshotTests
                 throw new SkipTestException($"missing {historyPath}; regenerate with PB2D_GOLDEN_UPDATE=1");
             }
 
-            string committedLog = (await File.ReadAllTextAsync(historyPath)).Replace("\r\n", "\n", StringComparison.Ordinal);
+            string committedLog =
+                (await File.ReadAllTextAsync(historyPath)).Replace("\r\n", "\n", StringComparison.Ordinal);
             await Assert.That(writtenLog).IsEqualTo(committedLog)
                 .Because("this build still writes the committed log, one line per commit");
 
@@ -400,7 +403,8 @@ public class StratSchemaSnapshotTests
             {
                 string readerFolder = StratStore.FolderFor(reader, StratTestData.Team, "de_mirage");
                 Directory.CreateDirectory(readerFolder);
-                await File.WriteAllTextAsync(Path.Combine(readerFolder, StratTestData.HistoryId + StratStore.HistoryExtension),
+                await File.WriteAllTextAsync(
+                    Path.Combine(readerFolder, StratTestData.HistoryId + StratStore.HistoryExtension),
                     committedLog);
                 StratStore store = new(PackStores.At(reader));
                 await Assert.That(store.TryLoad(StratTestData.HistoryId)?.Revision)
@@ -411,7 +415,8 @@ public class StratSchemaSnapshotTests
                 for (int n = 1; n <= StratTestData.HistoryRevisions; n++)
                 {
                     string snapshotPath = Path.Combine(dir, SnapshotName(n));
-                    snapshots[n] = (await File.ReadAllTextAsync(snapshotPath)).Replace("\r\n", "\n", StringComparison.Ordinal);
+                    snapshots[n] =
+                        (await File.ReadAllTextAsync(snapshotPath)).Replace("\r\n", "\n", StringComparison.Ordinal);
                     await Assert.That(StratStore.Serialize(store.Materialize(StratTestData.HistoryId, n)!) + "\n")
                         .IsEqualTo(snapshots[n])
                         .Because($"Materialize({n}) must equal the committed snapshot");

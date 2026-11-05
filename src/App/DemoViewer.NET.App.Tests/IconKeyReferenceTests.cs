@@ -99,7 +99,7 @@ public class IconKeyReferenceTests
         foreach (string f in Directory.EnumerateFiles(src, "*.*", SearchOption.AllDirectories))
         {
             if (f.Contains(obj, StringComparison.Ordinal) || f.Contains(bin, StringComparison.Ordinal)
-                                                          || f.Contains(tests, StringComparison.Ordinal))
+                || f.Contains(tests, StringComparison.Ordinal))
             {
                 continue;
             }

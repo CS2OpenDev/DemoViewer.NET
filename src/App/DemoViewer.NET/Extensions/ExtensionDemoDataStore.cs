@@ -126,8 +126,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
             [
                 .. _entries!.Values
                     .Where(e => string.Equals(e.Facet, facet, StringComparison.Ordinal)
-                                && _library.LocationOf(e.DemoPath) is not { Location.Confirmed: false }
-                                && !IsOrphaned(e))
+                        && _library.LocationOf(e.DemoPath) is not { Location.Confirmed: false }
+                        && !IsOrphaned(e))
                     .Select(e => e.ToStamp())
             ];
         }
@@ -204,13 +204,15 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
             (Header header, byte[] content) = ReadFile(file);
             string? sha = Sha256Of(demoPath);
             bool sameDemo = header.Sha256 is null || sha is null
-                                                  || string.Equals(header.Sha256, sha,
-                                                      StringComparison.OrdinalIgnoreCase);
-            return header.Format == CurrentFormat && sameDemo && string.Equals(header.Facet, facet, StringComparison.Ordinal)
-                   && string.Equals(header.Part, part, StringComparison.Ordinal)
-                ? new DemoDataRecord(header.Schema, header.Fingerprint, header.ExtensionVersion, header.WrittenAtTicks,
-                    content)
-                : null;
+                || string.Equals(header.Sha256, sha,
+                    StringComparison.OrdinalIgnoreCase);
+            return header.Format == CurrentFormat && sameDemo
+                && string.Equals(header.Facet, facet, StringComparison.Ordinal)
+                && string.Equals(header.Part, part, StringComparison.Ordinal)
+                    ? new DemoDataRecord(header.Schema, header.Fingerprint, header.ExtensionVersion,
+                        header.WrittenAtTicks,
+                        content)
+                    : null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
                                        or JsonException)
@@ -463,8 +465,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         {
             FileInfo file = new(demoPath);
             if (file.Exists && (file.Length != row.Size
-                                || (row.ModifiedTicks != file.LastWriteTime.Ticks
-                                    && row.ModifiedTicks != file.LastWriteTimeUtc.Ticks)))
+                    || (row.ModifiedTicks != file.LastWriteTime.Ticks
+                        && row.ModifiedTicks != file.LastWriteTimeUtc.Ticks)))
             {
                 return null;
             }
@@ -494,7 +496,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
 
         return Directory.EnumerateFiles(folder, key + "*" + Suffix)
             .Where(f => Path.GetFileName(f) is var name
-                        && (name == key + Suffix || name.StartsWith(key + ".", StringComparison.Ordinal)))
+                && (name == key + Suffix || name.StartsWith(key + ".", StringComparison.Ordinal)))
             .ToList();
     }
 
@@ -564,8 +566,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
             // the next hash of the file finds the entry again.
             if (_library.TryGetIndex(entry.DemoPath) is { } row
                 && (entry.Sha256 is null || string.IsNullOrEmpty(row.Sha256)
-                                         || string.Equals(row.Sha256, entry.Sha256,
-                                             StringComparison.OrdinalIgnoreCase)))
+                    || string.Equals(row.Sha256, entry.Sha256,
+                        StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
@@ -718,7 +720,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
                 {
                     Header header = ReadHeader(file);
                     if (header.Format == CurrentFormat && string.Equals(header.Facet, facet, StringComparison.Ordinal)
-                                                && header.DemoPath is { } path)
+                        && header.DemoPath is { } path)
                     {
                         entries[(key, facet)] = new Entry(key, facet, path, header.Sha256, header.Schema,
                             header.Fingerprint,
@@ -803,7 +805,7 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         }
 
         Header header = JsonSerializer.Deserialize<Header>(bytes.AsSpan(0, newline), _jsonOptions)
-                        ?? throw new InvalidDataException("Empty header.");
+            ?? throw new InvalidDataException("Empty header.");
         return (header, bytes[(newline + 1)..]);
     }
 
@@ -813,7 +815,8 @@ internal sealed class ExtensionDemoDataStore : IExtensionDemoData
         using GZipStream gzip = new(stream, CompressionMode.Decompress);
         using StreamReader reader = new(gzip, Encoding.UTF8);
         string line = reader.ReadLine() ?? throw new InvalidDataException("No header line.");
-        return JsonSerializer.Deserialize<Header>(line, _jsonOptions) ?? throw new InvalidDataException("Empty header.");
+        return JsonSerializer.Deserialize<Header>(line, _jsonOptions)
+            ?? throw new InvalidDataException("Empty header.");
     }
 
     private sealed record Header(

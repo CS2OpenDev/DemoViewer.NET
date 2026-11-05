@@ -1418,9 +1418,9 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
             ? "Zones: this map has no zones.json"
             : load.Diagnostics.Count == 0
                 ? $"Zones reloaded ({load.Resolver.Zones.Places.Count} places" +
-                  (load.OverlayApplied ? ", overlay applied)" : ")")
+                (load.OverlayApplied ? ", overlay applied)" : ")")
                 : $"Zones reloaded with {load.Diagnostics.Count} skipped overlay entr" +
-                  (load.Diagnostics.Count == 1 ? "y" : "ies") + "; see the Rule Workbench";
+                (load.Diagnostics.Count == 1 ? "y" : "ies") + "; see the Rule Workbench";
         FrameUpdated?.Invoke();
     }
 
@@ -1891,7 +1891,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
 
         ReadOnlySpan<char> span = hex.AsSpan().TrimStart('#');
         return span.Length == 8
-               && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out argb);
+            && uint.TryParse(span, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out argb);
     }
 
     // Settings reach the tab through the container rather than the constructor, because the module
@@ -2416,7 +2416,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         // live-accumulated trails) lives in SceneFrameBuilder, which owns the frame delta.
         BuildFrame(snapshot.Players, snapshot.Entities, snapshot.FrameIndex, snapshot.Tick);
         Status = $"2D Playback — active · frame {snapshot.FrameIndex} · " +
-                 $"{CurrentFrame.Markers.Count} players · {PushCount} pushes";
+            $"{CurrentFrame.Markers.Count} players · {PushCount} pushes";
 
         // The playhead follows the shared clock's push, never a private timer, so it tracks play, step,
         // NavStrip nav, palette jumps and LiveSync-driven seeks alike. A binary search and two sets.
@@ -2653,8 +2653,8 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         a.Kda = ctrl is null
             ? "—"
             : $"{ReadIntOr(ctrl, "m_pActionTrackingServices.m_iKills", 0)}/" +
-              $"{ReadIntOr(ctrl, "m_pActionTrackingServices.m_iDeaths", 0)}/" +
-              $"{ReadIntOr(ctrl, "m_pActionTrackingServices.m_iAssists", 0)}";
+            $"{ReadIntOr(ctrl, "m_pActionTrackingServices.m_iDeaths", 0)}/" +
+            $"{ReadIntOr(ctrl, "m_pActionTrackingServices.m_iAssists", 0)}";
 
         // Match-total damage + ADR (average damage per round). m_iDamage is networked alongside K/D/A under
         // the action-tracking service. ADR = total damage / rounds played, denominator = m_totalRoundsPlayed
@@ -2681,7 +2681,7 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         // Active weapon (one-hop): resolve the handle, read the class name IMMEDIATELY (clobber rule).
         a.ActiveWeapon = "—";
         if (pawn is not null && pawn.TryGet("m_pWeaponServices.m_hActiveWeapon", out ulong activeHandle)
-                             && activeHandle != 0)
+            && activeHandle != 0)
         {
             IReadOnlyEntity? weapon = entities.ResolveHandle(activeHandle);
             if (weapon is not null)

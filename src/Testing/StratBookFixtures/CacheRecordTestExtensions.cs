@@ -100,9 +100,9 @@ internal static class CacheRecordTestExtensions
     {
         MemoryDemoData data = (MemoryDemoData)store.Data;
         DemoDataStamp stamp = data.Stamp(path, RoundIndexStore.Facet)
-                              ?? new DemoDataStamp(path, null, RoundIndexStore.Facet, RoundIndexStore.Schema,
-                                  document.Fingerprint,
-                                  DemoDataState.Written, DateTime.UtcNow.Ticks, document.RowCount);
+            ?? new DemoDataStamp(path, null, RoundIndexStore.Facet, RoundIndexStore.Schema,
+                document.Fingerprint,
+                DemoDataState.Written, DateTime.UtcNow.Ticks, document.RowCount);
         data.Put(stamp with { Schema = RoundIndexStore.Schema },
             System.Text.Encoding.UTF8.GetBytes(document.Serialize()), Parts(data, path));
     }
@@ -112,9 +112,9 @@ internal static class CacheRecordTestExtensions
     {
         MemoryDemoData data = (MemoryDemoData)store.Data;
         DemoDataStamp stamp = data.Stamp(path, RoundIndexStore.Facet)
-                              ?? new DemoDataStamp(path, null, RoundIndexStore.Facet, RoundIndexStore.Schema,
-                                  positions.Fingerprint,
-                                  DemoDataState.Written, DateTime.UtcNow.Ticks, 0);
+            ?? new DemoDataStamp(path, null, RoundIndexStore.Facet, RoundIndexStore.Schema,
+                positions.Fingerprint,
+                DemoDataState.Written, DateTime.UtcNow.Ticks, 0);
         data.Put(stamp with { Schema = RoundIndexStore.Schema },
             data.ReadAny(path, RoundIndexStore.Facet)?.Content ?? [],
             new Dictionary<string, byte[]> { [RoundIndexStore.PositionsPart] = positions.SerializeUtf8() });

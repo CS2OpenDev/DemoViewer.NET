@@ -86,7 +86,7 @@ public sealed class HubLoggerProvider(
 
             // Rolling file mirror carries a full date so a copied report is self-dating.
             file?.Write($"{now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture)} " +
-                        $"{label,-5} {source}/{category}: {message}");
+                $"{label,-5} {source}/{category}: {message}");
         }
     }
 }

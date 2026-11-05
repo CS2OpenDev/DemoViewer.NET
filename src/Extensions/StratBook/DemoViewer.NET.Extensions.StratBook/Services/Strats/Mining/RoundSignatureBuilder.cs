@@ -230,8 +230,8 @@ public sealed class RoundSignatureBuilder
     private DemoSignatures? Read(string path, string map)
     {
         if (_library.Find(path) is not { } record || _roundFacts.TryGet(path) is not { } rows
-                                                  || _positions.TryReadPositions(path, _fingerprintFor(map),
-                                                      record.Sha256) is not { } positions)
+            || _positions.TryReadPositions(path, _fingerprintFor(map),
+                record.Sha256) is not { } positions)
         {
             return null;
         }
@@ -302,8 +302,8 @@ public sealed class RoundSignatureBuilder
     [
         .. grenades
             .Where(g => g.Grenade.Row.RoundNumber == s.Round && g.Grenade.Row.ThrowerTeam == s.Side
-                                                             && g.Grenade.Row.ReleaseTick >= s.ThrowFrom
-                                                             && g.Grenade.Row.ReleaseTick <= s.ThrowTo)
+                && g.Grenade.Row.ReleaseTick >= s.ThrowFrom
+                && g.Grenade.Row.ReleaseTick <= s.ThrowTo)
             .OrderBy(g => g.Grenade.Row.ReleaseTick)
             .ThenBy(g => g.Grenade.Row.Id, StringComparer.Ordinal)
             .Select(g => new MinedThrow(g.Grenade.Kind, (g.Grenade.Row.ReleaseTick - s.AnchorTick) / (double)s.TickRate,

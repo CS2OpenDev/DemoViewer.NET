@@ -203,7 +203,7 @@ public sealed class PackExporter
             ct.ThrowIfCancellationRequested();
             PackClip clip = clips[i];
             string path = clip.OutputPath
-                          ?? PackPlanner.ClipPath(plan.Settings.OutputPath, clip.Number, clip.Section, clip.Entry);
+                ?? PackPlanner.ClipPath(plan.Settings.OutputPath, clip.Number, clip.Section, clip.Entry);
             progress?.Report(new PackProgress(i + 1, clips.Count, Label(clip)));
             try
             {

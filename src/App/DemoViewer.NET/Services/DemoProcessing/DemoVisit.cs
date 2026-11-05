@@ -114,7 +114,7 @@ internal sealed class DemoVisit(VisitedDemo demo, PassLevel level)
     public (bool Forward, ForwardNeeds Needs, bool UserCommands) ChooseMode(bool forwardAvailable)
     {
         bool forward = forwardAvailable && _passes.Count > 0
-                                        && _passes.TrueForAll(p => p.Needs.Mode == ParseMode.Forward);
+            && _passes.TrueForAll(p => p.Needs.Mode == ParseMode.Forward);
         ForwardNeeds needs = ForwardNeeds.None;
         bool userCommands = false;
         foreach (VisitPass p in _passes)
@@ -156,7 +156,7 @@ internal sealed class DemoVisit(VisitedDemo demo, PassLevel level)
         {
             int pick = pending.FindIndex(p => p.Pass.After.All(dep =>
                 !present.Contains(dep) || emitted.Contains(dep)
-                                       || string.Equals(dep, p.Pass.Id, StringComparison.Ordinal)));
+                || string.Equals(dep, p.Pass.Id, StringComparison.Ordinal)));
             if (pick < 0)
             {
                 // A cycle the registry did not see (a visit mixes registered and one-shot passes): arrival
@@ -242,7 +242,7 @@ internal static class VisitPlanner
         {
             added = false;
             bool rulesRun = passes.Any(p => chosen.Contains(p.Id) && answers[p] != PassInterest.IfRulesRun
-                                                                  && NeedsRules(p, demo, faulted));
+                && NeedsRules(p, demo, faulted));
             foreach (IDemoPass pass in passes)
             {
                 if (chosen.Contains(pass.Id))

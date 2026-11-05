@@ -67,7 +67,7 @@ public class Playback2DCommandBindingTests
 
         await Assert.That(string.Join("; ", unbound)).IsEqualTo("")
             .Because("a command bound nowhere is either dead surface or — the AUTO toggle's case — a "
-                     + "control that reaches the property and skips the work the command also does");
+                + "control that reaches the property and skips the work the command also does");
     }
 
     /// <summary>
@@ -95,7 +95,7 @@ public class Playback2DCommandBindingTests
 
         await Assert.That(bound.IsReachable).IsTrue()
             .Because("Playback2DView.axaml binds it — a matcher that could not find this would make every "
-                     + "assertion above a false alarm");
+                + "assertion above a false alarm");
         await Assert.That(bound.Sites.Any(s => s.EndsWith(".axaml", StringComparison.Ordinal))).IsTrue();
     }
 

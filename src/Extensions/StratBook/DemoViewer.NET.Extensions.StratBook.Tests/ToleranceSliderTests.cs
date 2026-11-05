@@ -15,8 +15,6 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class ToleranceSliderTests
 {
-
-
     private static readonly string[] _nukePlaces = ["BombsiteA", "Hell", "Ramp", "Outside", "Lobby", "Heaven"];
 
     [Test]

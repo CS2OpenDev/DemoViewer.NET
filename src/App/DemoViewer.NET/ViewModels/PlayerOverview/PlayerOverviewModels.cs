@@ -157,7 +157,7 @@ public sealed class MeAccountItem(string steamId64, string title, bool isActive)
         string title = account.Label is { Length: > 0 } label
             ? label
             : ulong.TryParse(account.SteamId64, NumberStyles.None, CultureInfo.InvariantCulture, out ulong id)
-              && directory.Get(id) is { Name.Length: > 0 } entry
+            && directory.Get(id) is { Name.Length: > 0 } entry
                 ? DisplayText.Sanitize(entry.Name)
                 : account.SteamId64;
         return new MeAccountItem(account.SteamId64, title,
@@ -206,7 +206,7 @@ public sealed class PlayerCandidateItem
             : string.Create(CultureInfo.InvariantCulture, $"{entry.DemoCount} demos");
         string lastSeen = entry.LastSeenTicks > 0 && entry.LastSeenTicks <= DateTime.MaxValue.Ticks
             ? "last seen "
-              + new DateTime(entry.LastSeenTicks, DateTimeKind.Utc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            + new DateTime(entry.LastSeenTicks, DateTimeKind.Utc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : "";
         string aliases = string.Join(", ", entry.Aliases.Skip(1).Take(3).Select(a => DisplayText.Sanitize(a.Name)));
         return new PlayerCandidateItem(entry.SteamId64, name, demos, lastSeen, aliases);

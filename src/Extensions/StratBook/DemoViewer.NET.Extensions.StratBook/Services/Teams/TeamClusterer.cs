@@ -320,8 +320,8 @@ public sealed class TeamClusterer
             if (best is null
                 || overlap > best.Overlap
                 || (overlap == best.Overlap && (tier < best.Tier
-                                                || (tier == best.Tier
-                                                    && state.FoundedOrder < best.Roster.FoundedOrder))))
+                    || (tier == best.Tier
+                        && state.FoundedOrder < best.Roster.FoundedOrder))))
             {
                 best = new Match(state, overlap, tier);
             }
@@ -582,7 +582,7 @@ public sealed class TeamClusterer
         state.Roster = roster;
 
         if (state.Founder is { } founder && _rows.TryGetValue(founder.StableKey, out TeamIndexDemo? row)
-                                         && row.Side(founder.Side) is { } founderSide)
+            && row.Side(founder.Side) is { } founderSide)
         {
             founderSide.TeamId = team.Id;
             founderSide.RosterId = roster.Id;

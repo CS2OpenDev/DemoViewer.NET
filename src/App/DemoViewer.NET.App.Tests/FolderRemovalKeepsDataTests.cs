@@ -48,7 +48,7 @@ public class FolderRemovalKeepsDataTests
             await svc.AddFoldersAsync([keep, away]);
             await svc.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
             await WaitForAsync(() => cache.TryGetByContentId(sha) is not null && svc.Tier2Backlog().Count == 0
-                                                                              && svc.Entries.Count == 2,
+                    && svc.Entries.Count == 2,
                 "both demos indexed");
 
             ClockIdentity clock = new(ClockIdentity.DvFrameClock, 64, 1000, 0, 0);

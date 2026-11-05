@@ -203,13 +203,13 @@ public sealed record PlayerAggregate(
     {
         DemoCacheIndexEntry row = match.Row;
         return (filter.Map is null || string.Equals(row.Map, filter.Map, StringComparison.OrdinalIgnoreCase))
-               && (filter.FromTicks is not { } from || match.TimeTicks >= from)
-               && (filter.BeforeTicks is not { } before || match.TimeTicks < before)
-               && (filter.Side is null || match.Side == filter.Side)
-               && (filter.Source is null || string.Equals(row.MatchSource ?? row.SourceKind, filter.Source,
-                   StringComparison.OrdinalIgnoreCase))
-               && (filter.GameMode is null
-                   || string.Equals(row.GameMode, filter.GameMode, StringComparison.OrdinalIgnoreCase));
+            && (filter.FromTicks is not { } from || match.TimeTicks >= from)
+            && (filter.BeforeTicks is not { } before || match.TimeTicks < before)
+            && (filter.Side is null || match.Side == filter.Side)
+            && (filter.Source is null || string.Equals(row.MatchSource ?? row.SourceKind, filter.Source,
+                StringComparison.OrdinalIgnoreCase))
+            && (filter.GameMode is null
+                || string.Equals(row.GameMode, filter.GameMode, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Win when the account's side won more rounds than it lost (<c>CTW + TW</c> against <c>CTL + TL</c>).</summary>
@@ -334,7 +334,7 @@ public sealed record PlayerAggregate(
         double kastPercent = rounds == 0 ? 0 : Math.Min(kastRounds, rounds) / rounds * 100;
         merged["KAST%"] = kastPercent;
         merged["HLTV"] = merged.GetValueOrDefault("HLTV") - ((slots - 1) * HltvConstant)
-                                                          - ((kastPercents - kastPercent) * HltvPerKastPercent);
+            - ((kastPercents - kastPercent) * HltvPerKastPercent);
         return merged;
     }
 

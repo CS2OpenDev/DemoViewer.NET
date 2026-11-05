@@ -154,7 +154,7 @@ public class ZoneOverlayTests
 
         string[] codes = [.. result.Diagnostics.Select(d => d.Code)];
         Console.WriteLine("[overlay] "
-                          + string.Join("\n[overlay] ", result.Diagnostics.Select(d => $"{d.Code}: {d.Message}")));
+            + string.Join("\n[overlay] ", result.Diagnostics.Select(d => $"{d.Code}: {d.Message}")));
 
         await Assert.That(codes).Contains("zones.overlay.unknown-floor");
         await Assert.That(codes).Contains("zones.overlay.bad-polygon");

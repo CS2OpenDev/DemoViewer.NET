@@ -1216,8 +1216,8 @@ public sealed partial class ParserTabViewModel : ObservableObject
         }
 
         int shift = _selectedCard?.NormalizedPayloadOffset
-                    ?? SelectedMessage?.DecompressedStart
-                    ?? 0;
+            ?? SelectedMessage?.DecompressedStart
+            ?? 0;
 
         int nodeOffset = frameDetailsOffset - shift;
         if (nodeOffset < 0)
@@ -1348,8 +1348,8 @@ public sealed partial class ParserTabViewModel : ObservableObject
         // (= normalized entry start + 8-byte header).  For direct-payload frames it is 0.
         // Fall back to the approximate DecompressedStart only for the legacy non-card path.
         int shift = _selectedCard?.NormalizedPayloadOffset
-                    ?? SelectedMessage?.DecompressedStart
-                    ?? 0;
+            ?? SelectedMessage?.DecompressedStart
+            ?? 0;
 
         // Walk the ancestor chain (root → selected node).
         List<PayloadNode> path = new();
@@ -1446,9 +1446,9 @@ public sealed partial class ParserTabViewModel : ObservableObject
             Decoded = frame.Command + (isCompressed ? "  |  DemIsCompressed" : ""),
             OffsetText = $"@ 0x{cmdAbsOffset:X}",
             Tooltip = "ULEB128 varint — EDemoCommands enum value. "
-                      + "Bit 6 (0x40) encodes the DemIsCompressed flag; "
-                      + "the remaining bits are the actual command.\n"
-                      + "Click to highlight these bytes in the RAW tab.",
+                + "Bit 6 (0x40) encodes the DemIsCompressed flag; "
+                + "the remaining bits are the actual command.\n"
+                + "Click to highlight these bytes in the RAW tab.",
             HighlightInRawCommand = new RelayCommand(() =>
             {
                 HexViewRaw.SetSelection(cmdAbsOffset, cmdLen,
@@ -1469,7 +1469,7 @@ public sealed partial class ParserTabViewModel : ObservableObject
             Decoded = (frame.GameTick ?? frame.ServerTick).ToString(CultureInfo.InvariantCulture),
             OffsetText = $"@ 0x{tickAbsOffset:X}",
             Tooltip = "ULEB128 varint — Simulation tick at which this frame was recorded.\n"
-                      + "Click to highlight these bytes in the RAW tab.",
+                + "Click to highlight these bytes in the RAW tab.",
             HighlightInRawCommand = new RelayCommand(() =>
             {
                 HexViewRaw.SetSelection(tickAbsOffset, tickLen,
@@ -1493,9 +1493,9 @@ public sealed partial class ParserTabViewModel : ObservableObject
             Decoded = sizeDecoded,
             OffsetText = $"@ 0x{sizeAbsOffset:X}",
             Tooltip = "ULEB128 varint — Payload length as stored in the .dem file. "
-                      + "For compressed frames this is the Snappy-compressed size; "
-                      + "the hex view below shows the fully decompressed payload.\n"
-                      + "Click to highlight these bytes in the RAW tab.",
+                + "For compressed frames this is the Snappy-compressed size; "
+                + "the hex view below shows the fully decompressed payload.\n"
+                + "Click to highlight these bytes in the RAW tab.",
             HighlightInRawCommand = new RelayCommand(() =>
             {
                 HexViewRaw.SetSelection(sizeAbsOffset, sizeLen,

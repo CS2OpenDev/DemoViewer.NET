@@ -62,7 +62,7 @@ public class RoundEnvelopeTests
             await Assert.That(first.FromTick).IsEqualTo(Round1);
             await Assert.That(first.UntilTick).IsEqualTo(Round2 - 1)
                 .Because("freeze-ends are back to back, so a round closes the tick before the next opens "
-                         + "— an inclusive bound of 700 would put one tick in two rounds");
+                    + "— an inclusive bound of 700 would put one tick in two rounds");
 
             TimeEnvelope middle = session.EnvelopeForNewElement(Round2 + 300);
             await Assert.That(middle.FromTick).IsEqualTo(Round2);
@@ -187,8 +187,8 @@ public class RoundEnvelopeTests
                 .Because("the panel edits the session; a mode that stops here is a decorative picker");
             await Assert.That(panel.VisibilityIndex).IsEqualTo(4)
                 .Because("the ComboBox reads the index straight back; a getter that disagreed with the "
-                         + "setter would snap the picker to the old row. That the XAML's item order IS "
-                         + "the enum's is pinned by RealTimeEnvelopeUiTests, which opens the XAML");
+                    + "setter would snap the picker to the old row. That the XAML's item order IS "
+                    + "the enum's is pinned by RealTimeEnvelopeUiTests, which opens the XAML");
 
             await Assert.That(panel.IsEnvelopeEditorVisible).IsTrue()
                 .Because("in and out still ramp a Round element in and out");

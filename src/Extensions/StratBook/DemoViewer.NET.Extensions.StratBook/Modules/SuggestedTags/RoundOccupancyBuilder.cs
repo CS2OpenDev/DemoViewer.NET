@@ -279,7 +279,7 @@ public static class RoundOccupancyBuilder
             }
 
             int end = round.EndTick
-                      ?? (i + 1 < rounds.Count ? rounds[i + 1].FreezeEndTick : lastFrameTick + 1);
+                ?? (i + 1 < rounds.Count ? rounds[i + 1].FreezeEndTick : lastFrameTick + 1);
             if (end <= round.FreezeEndTick)
             {
                 continue;

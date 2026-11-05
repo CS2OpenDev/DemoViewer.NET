@@ -185,12 +185,12 @@ public static class StratTemplates
 
         StratStep first = document.Steps[0];
         return document.Steps.Count == 1
-               && StratClock.StratTickOf(document.Clock, first.AtSeconds) == 0
-               && string.Equals(first.Actor, All, StringComparison.Ordinal)
-               && string.Equals(first.Verb, "hold", StringComparison.Ordinal)
-               && first.From is null && first.To is null && first.Utility is null && first.Lurk is null
-               && !StratStepLines.HasLines(first)
-               && string.IsNullOrEmpty(first.Note);
+            && StratClock.StratTickOf(document.Clock, first.AtSeconds) == 0
+            && string.Equals(first.Actor, All, StringComparison.Ordinal)
+            && string.Equals(first.Verb, "hold", StringComparison.Ordinal)
+            && first.From is null && first.To is null && first.Utility is null && first.Lurk is null
+            && !StratStepLines.HasLines(first)
+            && string.IsNullOrEmpty(first.Note);
     }
 
     /// <summary>

@@ -135,8 +135,8 @@ public sealed class GameIcon : Control
     {
         base.OnPropertyChanged(change);
         if (change.Property == FallbackProperty || change.Property == FontFamilyProperty
-                                                || change.Property == FontSizeProperty
-                                                || change.Property == ForegroundProperty)
+            || change.Property == FontSizeProperty
+            || change.Property == ForegroundProperty)
         {
             _fallbackText = null;
         }

@@ -179,9 +179,9 @@ public sealed partial class SprayViewModel : ObservableObject
     {
         Runs.Clear();
         Pattern = SelectedWeapon is { } weapon
-                  && _patternsByWeapon.TryGetValue(weapon, out IReadOnlyList<SprayPatternPoint>? pts)
-            ? pts
-            : [];
+            && _patternsByWeapon.TryGetValue(weapon, out IReadOnlyList<SprayPatternPoint>? pts)
+                ? pts
+                : [];
         OnPropertyChanged(nameof(Pattern));
 
         PlayerSprays? group = _forPlayer.FirstOrDefault(p => p.Weapon == SelectedWeapon);

@@ -571,8 +571,8 @@ public sealed partial class UtilityBookTabViewModel : ExtensionViewModel, IWorks
         FooterLine = _groups.Count == 0
             ? ""
             : string.Create(CultureInfo.InvariantCulture,
-                  $"{_groups.Count} landing {(_groups.Count == 1 ? "spot" : "spots")}, {lineups} {(lineups == 1 ? "lineup" : "lineups")}, {throws} {(throws == 1 ? "throw" : "throws")}. ")
-              + "Click an icon to see where it is thrown from; click a position for its details.";
+                $"{_groups.Count} landing {(_groups.Count == 1 ? "spot" : "spots")}, {lineups} {(lineups == 1 ? "lineup" : "lineups")}, {throws} {(throws == 1 ? "throw" : "throws")}. ")
+            + "Click an icon to see where it is thrown from; click a position for its details.";
         OnPropertyChanged(nameof(HasGroups));
         OnPropertyChanged(nameof(Groups));
         Project();

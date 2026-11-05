@@ -154,7 +154,7 @@ internal sealed class HostLibrary : IExtensionLibrary
         lock (_gate)
         {
             bool moved = _deferred
-                         || (_shownKey is not null && !string.Equals(key, _shownKey, StringComparison.Ordinal));
+                || (_shownKey is not null && !string.Equals(key, _shownKey, StringComparison.Ordinal));
             _deferred = false;
             if (!moved)
             {
@@ -259,9 +259,9 @@ internal sealed class HostLibrary : IExtensionLibrary
         IFactsVisibility? visibility = Revalidate();
         DemoCacheIndexEntry? entry = _store.TryGetIndex(record.Path);
         LibraryDemo demo = entry is not null && entry.MatchesFile(record.Size, record.ModifiedTicks)
-                                             && _store.TryGetPrimary(record.Path) is { } primary
-            ? Project(primary, visibility)
-            : ProjectRow(record.ToIndexEntry(), visibility);
+            && _store.TryGetPrimary(record.Path) is { } primary
+                ? Project(primary, visibility)
+                : ProjectRow(record.ToIndexEntry(), visibility);
         return new LibraryDemoDetail(demo, record.TickRate, record.TickCount, record.ServerStartTick,
             [
                 .. record.Players.Select(p =>
@@ -351,11 +351,11 @@ internal sealed class HostLibrary : IExtensionLibrary
         && (query.ModifiedFrom is not { } from || demo.Modified >= from)
         && (query.ModifiedBefore is not { } before || demo.Modified < before)
         && (query.Clan is null || string.Equals(demo.CtClan, query.Clan, StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(demo.TClan, query.Clan, StringComparison.OrdinalIgnoreCase))
+            || string.Equals(demo.TClan, query.Clan, StringComparison.OrdinalIgnoreCase))
         && (query.PlayerName is null
             || demo.PlayerNames.Any(n => n.Contains(query.PlayerName, StringComparison.OrdinalIgnoreCase)))
         && (query.SteamId64 is not { } id || (demo.CtPlayers?.Any(p => p.SteamId64 == id) ?? false)
-                                          || (demo.TPlayers?.Any(p => p.SteamId64 == id) ?? false))
+            || (demo.TPlayers?.Any(p => p.SteamId64 == id) ?? false))
         && (query.AtLeast is not { } state || demo.State >= state)
         && (query.HasFact is null || demo.Fact(query.HasFact) is { IsWritten: true });
 
@@ -426,8 +426,8 @@ internal sealed class HostLibrary : IExtensionLibrary
             (null, _) => after.Locations.Count <= 1,
             (_, null) => before.Locations.Count <= 1,
             _ => string.Equals(before.Path, after.Path, StringComparison.OrdinalIgnoreCase)
-                 && before.Locations.Select(l => l.Path).SequenceEqual(after.Locations.Select(l => l.Path),
-                     StringComparer.OrdinalIgnoreCase)
+                && before.Locations.Select(l => l.Path).SequenceEqual(after.Locations.Select(l => l.Path),
+                    StringComparer.OrdinalIgnoreCase)
         };
 
     // Under _gate.
@@ -471,9 +471,9 @@ internal sealed class HostLibrary : IExtensionLibrary
         a is null
             ? b is null
             : b is not null && a.Count == b.Count && a.Zip(b).All(p => p.First.SteamId64 == p.Second.SteamId64
-                                                                       && string.Equals(p.First.Name, p.Second.Name,
-                                                                           StringComparison.Ordinal)
-                                                                       && p.First.Slots.SequenceEqual(p.Second.Slots));
+                && string.Equals(p.First.Name, p.Second.Name,
+                    StringComparison.Ordinal)
+                && p.First.Slots.SequenceEqual(p.Second.Slots));
 }
 
 /// <summary>

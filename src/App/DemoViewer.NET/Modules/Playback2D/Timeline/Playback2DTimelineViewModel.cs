@@ -509,7 +509,7 @@ public sealed partial class Playback2DTimelineViewModel : ObservableObject, IDis
     {
         ArgumentNullException.ThrowIfNull(band);
         return band.TrackId == "round"
-               && int.TryParse(band.Label, NumberStyles.None, CultureInfo.InvariantCulture, out _);
+            && int.TryParse(band.Label, NumberStyles.None, CultureInfo.InvariantCulture, out _);
     }
 
     /// <summary>

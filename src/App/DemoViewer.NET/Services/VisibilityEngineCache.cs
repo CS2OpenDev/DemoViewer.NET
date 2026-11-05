@@ -275,8 +275,8 @@ public sealed class VisibilityEngineCache
         public bool Equals(BakeKey other)
         {
             return Length == other.Length
-                   && LastWriteUtc == other.LastWriteUtc
-                   && _pathComparer.Equals(FullPath, other.FullPath);
+                && LastWriteUtc == other.LastWriteUtc
+                && _pathComparer.Equals(FullPath, other.FullPath);
         }
 
         public override bool Equals(object? obj)

@@ -71,8 +71,8 @@ public class GraphNodePlacementTests
             for (int j = i + 1; j < boxes.Count; j++)
             {
                 bool overlap = boxes[i].L < boxes[j].R && boxes[i].R > boxes[j].L
-                                                       && boxes[i].T < boxes[j].B
-                                                       && boxes[i].B > boxes[j].T;
+                    && boxes[i].T < boxes[j].B
+                    && boxes[i].B > boxes[j].T;
                 await Assert.That(overlap).IsFalse()
                     .Because("boxes reconstructed from placements should not overlap, as the gate asserts");
             }

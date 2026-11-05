@@ -107,7 +107,7 @@ public static class InboundLogic
         }
 
         if (demoIdentity && !string.IsNullOrEmpty(state.DemoFilePath)
-                         && !BasenamesMatch(state.DemoFilePath, dvDemoPath))
+            && !BasenamesMatch(state.DemoFilePath, dvDemoPath))
         {
             return new Decision(state.DemoFilePath, null, null);
         }

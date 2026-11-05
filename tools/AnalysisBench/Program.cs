@@ -689,9 +689,9 @@ static void WriteRoundExport(string format, string? outPath, string demoPath, An
     }
 
     IOutputFormatter formatter = OutputFormatterRegistry.Get(format)
-                                 ?? throw new ArgumentException(
-                                     $"Unknown --export format '{format}'. Expected one of: {string.Join(", ", OutputFormatterRegistry.Ids)}.",
-                                     nameof(format));
+        ?? throw new ArgumentException(
+            $"Unknown --export format '{format}'. Expected one of: {string.Join(", ", OutputFormatterRegistry.Ids)}.",
+            nameof(format));
 
     PlayerRoundStatsProjector projector = new() { MatchId = Path.GetFileName(demoPath) };
     IReadOnlyList<MetricTable> tables = projector.Project(result, run.Demo);
@@ -728,9 +728,9 @@ static void PrintGraphSize(AnalysisRun run)
     int materializedNodes = run.MaterializedPlayers.Sum(p => p.Nodes.Count);
     int lowestSlot = run.MaterializedPlayers.Count > 0 ? run.MaterializedPlayers.Min(p => p.PlayerSlot) : -1;
     int drawnNodes = run.Build.Nodes.Count
-                     + run.MaterializedPlayers.Where(p => p.PlayerSlot == lowestSlot).Sum(p => p.Nodes.Count);
+        + run.MaterializedPlayers.Where(p => p.PlayerSlot == lowestSlot).Sum(p => p.Nodes.Count);
     Console.WriteLine($"Graph:  {drawnNodes,8} nodes drawn (scaffolding + slot {lowestSlot})  |  "
-                      + $"{run.Build.Nodes.Count + materializedNodes} if every player expanded");
+        + $"{run.Build.Nodes.Count + materializedNodes} if every player expanded");
 }
 
 static void PrintPlayerTables(List<PlayerReport> playerReports)

@@ -105,8 +105,8 @@ public static class ProposalVerdictMatch
             foreach ((string key, SuggestionVerdict v) in verdicts)
             {
                 if (used.Contains(key) || SameParse(v, frameCount)
-                                       || !string.Equals(v.Detector, p.Detector, StringComparison.Ordinal)
-                                       || v.Side != p.Side)
+                    || !string.Equals(v.Detector, p.Detector, StringComparison.Ordinal)
+                    || v.Side != p.Side)
                 {
                     continue;
                 }

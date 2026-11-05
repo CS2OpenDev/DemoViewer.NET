@@ -569,7 +569,7 @@ public sealed partial class DiagnosticsTabViewModel : ObservableObject, IDisposa
         LogSummary = total == 0
             ? "no logs captured yet — internal logs appear on load/analysis; CSVG logs when Live Sync runs"
             : $"{LogRows.Count.ToString("N0", CultureInfo.InvariantCulture)} shown / " +
-              $"{total.ToString("N0", CultureInfo.InvariantCulture)} captured";
+            $"{total.ToString("N0", CultureInfo.InvariantCulture)} captured";
     }
 
     /// <summary>Clears the captured diagnostics logs (hub + this view).</summary>

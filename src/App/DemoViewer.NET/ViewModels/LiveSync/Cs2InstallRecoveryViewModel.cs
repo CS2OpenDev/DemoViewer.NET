@@ -243,6 +243,6 @@ public sealed partial class Cs2InstallRecoveryViewModel : ViewModelBase, IDispos
         };
 
         return $"Couldn't restore your CS2 install: {reason}. Close CS2 and try again. If it still fails, "
-               + "use Verify integrity of game files on Counter-Strike 2 in Steam.";
+            + "use Verify integrity of game files on Counter-Strike 2 in Steam.";
     }
 }

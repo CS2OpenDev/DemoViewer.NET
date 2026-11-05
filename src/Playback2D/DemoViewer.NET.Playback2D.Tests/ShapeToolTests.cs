@@ -149,8 +149,7 @@ public class ShapeToolTests
     {
         Harness h = new(ToolKind.Rect)
         {
-            Session = { DefaultVisibility = EnvelopeMode.Fade, HoldTicks = 100 },
-            Services = { CurrentTick = 500 }
+            Session = { DefaultVisibility = EnvelopeMode.Fade, HoldTicks = 100 }, Services = { CurrentTick = 500 }
         };
 
         h.Press(0, 0, button: ToolPointerButton.Right);

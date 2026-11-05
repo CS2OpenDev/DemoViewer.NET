@@ -125,7 +125,7 @@ public class KillFeedTimelineTests
         long steady = MeasureWindow(all, window);
 
         Console.WriteLine($"[alloc] killfeed window: warm {warm} B, steady {steady} B "
-                          + $"({steady / 512.0:F2} B/call)");
+            + $"({steady / 512.0:F2} B/call)");
         await Assert.That(steady).IsEqualTo(0L);
     }
 

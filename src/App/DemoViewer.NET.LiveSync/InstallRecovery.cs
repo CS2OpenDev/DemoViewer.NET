@@ -171,8 +171,8 @@ internal static class InstallRecovery
                     + (state.Cs2Running
                         ? "CS2 is running. Close it, then try again."
                         : "Its backup of gameinfo.gi no longer matches your install, so DemoViewer won't restore it "
-                          + "on its own. Use Restore my CS2 install on the banner, or Verify integrity of game "
-                          + "files on Counter-Strike 2 in Steam."));
+                        + "on its own. Use Restore my CS2 install on the banner, or Verify integrity of game "
+                        + "files on Counter-Strike 2 in Steam."));
             }
 
             log?.Invoke("An earlier session left CSVG changes in the CS2 install; restoring them before launch.");
@@ -235,8 +235,8 @@ internal static class InstallRecovery
         int lineStart = patched.LastIndexOf('\n', at) + 1;
         int lineEnd = patched.IndexOf('\n', at);
         return lineEnd >= 0
-               && string.Equals(patched.Remove(lineStart, lineEnd + 1 - lineStart), original,
-                   StringComparison.Ordinal);
+            && string.Equals(patched.Remove(lineStart, lineEnd + 1 - lineStart), original,
+                StringComparison.Ordinal);
     }
 
     private static bool IsCs2Running()

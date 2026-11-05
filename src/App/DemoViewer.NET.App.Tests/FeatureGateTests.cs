@@ -219,7 +219,8 @@ public class FeatureGateTests
 
             svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
 
-            int expected = FeatureCatalog.All.Count(d => d is { OwnerPackId: StratBookPack.PackFeatureId, Required: false });
+            int expected =
+                FeatureCatalog.All.Count(d => d is { OwnerPackId: StratBookPack.PackFeatureId, Required: false });
             await Assert.That(expected).IsGreaterThan(0).Because("the catalog pins at least one pack-owned row");
             await Assert.That(gate.HiddenCount).IsEqualTo(expected)
                 .Because("the pack row itself is excluded; only its cascaded children count");

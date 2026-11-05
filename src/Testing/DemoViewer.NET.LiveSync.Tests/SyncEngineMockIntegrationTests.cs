@@ -128,7 +128,7 @@ public class SyncEngineMockIntegrationTests
                     engine.SetDesiredTick(3000);
                     await WaitForAsync(
                         () => session.Engine.LastTick is { } tick
-                              && Math.Abs(tick - 3000) <= SyncEngine.SeekConfirmTolerance,
+                            && Math.Abs(tick - 3000) <= SyncEngine.SeekConfirmTolerance,
                         "the mock's tick stream to reach the seek target (3000)", 30_000, cancellationToken);
                     await WaitForKindAsync(probe, LiveSyncStateKind.SyncedHolding,
                         "Holding after confirmed discrete seek", 30_000, cancellationToken);

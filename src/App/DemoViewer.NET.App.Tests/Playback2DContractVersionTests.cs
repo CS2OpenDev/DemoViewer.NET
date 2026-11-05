@@ -65,8 +65,8 @@ public class Playback2DContractVersionTests
         // MainViewModel maps TabId → feature id. Reflection because the map is a private implementation
         // detail whose CONTENT is nonetheless a persisted-key contract.
         FieldInfo field = typeof(MainViewModel).GetField("_tabFeatureIds",
-                              BindingFlags.NonPublic | BindingFlags.Static)
-                          ?? throw new InvalidOperationException("MainViewModel._tabFeatureIds is gone");
+                BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("MainViewModel._tabFeatureIds is gone");
 
         Dictionary<string, string> map = (Dictionary<string, string>)field.GetValue(null)!;
         await Assert.That(map["playback2d.viewport"]).IsEqualTo("tab.playback2d");

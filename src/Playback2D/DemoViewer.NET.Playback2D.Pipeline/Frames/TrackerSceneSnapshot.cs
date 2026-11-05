@@ -104,9 +104,9 @@ public sealed class TrackerSceneSnapshot
     {
         EntityState? controller = set[slot + 1];
         return controller is not null &&
-               controller.ClassName.Contains("PlayerController", StringComparison.OrdinalIgnoreCase)
-            ? controller
-            : null;
+            controller.ClassName.Contains("PlayerController", StringComparison.OrdinalIgnoreCase)
+                ? controller
+                : null;
     }
 
     private void CacheIdentity(int slot, EntityState? controller)

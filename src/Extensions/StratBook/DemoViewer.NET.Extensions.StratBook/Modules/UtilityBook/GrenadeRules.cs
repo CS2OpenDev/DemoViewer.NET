@@ -234,7 +234,7 @@ public static class GrenadeConsole
     {
         ArgumentNullException.ThrowIfNull(row);
         if (row.ReleasePosition is not { } p || row.ReleaseEyePitch is not { } pitch
-                                             || row.ReleaseEyeYaw is not { } yaw)
+            || row.ReleaseEyeYaw is not { } yaw)
         {
             return null;
         }

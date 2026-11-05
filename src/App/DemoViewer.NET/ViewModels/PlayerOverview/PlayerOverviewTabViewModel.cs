@@ -395,10 +395,10 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
             SteamIdForm.SteamId64 => true,
             SteamIdForm.SteamId3 => input.EndsWith(']'),
             SteamIdForm.ProfileUrl => input.IndexOfAny(['/', '?', '#'],
-                                          input.IndexOf("/profiles/", StringComparison.OrdinalIgnoreCase) + 10) >= 0
-                                      || input.EndsWith(']')
-                                      || input.EndsWith(id.ToString(CultureInfo.InvariantCulture),
-                                          StringComparison.Ordinal),
+                    input.IndexOf("/profiles/", StringComparison.OrdinalIgnoreCase) + 10) >= 0
+                || input.EndsWith(']')
+                || input.EndsWith(id.ToString(CultureInfo.InvariantCulture),
+                    StringComparison.Ordinal),
             _ => false
         };
     }
@@ -625,12 +625,12 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         foreach (PlayerMatch match in context.Matches)
         {
             demos.Add(read is not null
-                      && read.TryGetValue(match.Row.ContentId(), out PlayerDemo? held)
-                      && held.HasFacet
-                      && match.Row.Stamp(_facetStamp) is { State: DemoAnalysisState.Indexed } stamp
-                      && held.Match.Row.Stamp(_facetStamp) == stamp
-                ? held with { Match = match }
-                : new PlayerDemo(match, false, null));
+                && read.TryGetValue(match.Row.ContentId(), out PlayerDemo? held)
+                && held.HasFacet
+                && match.Row.Stamp(_facetStamp) is { State: DemoAnalysisState.Indexed } stamp
+                && held.Match.Row.Stamp(_facetStamp) == stamp
+                    ? held with { Match = match }
+                    : new PlayerDemo(match, false, null));
         }
 
         return context with { Demos = demos, Window = PlayerAggregate.Window(demos, context.Filter) };

@@ -237,7 +237,7 @@ public sealed partial class SituationsTabViewModel : ExtensionViewModel, IWorksp
     private void OnCanvasPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(QueryCanvasViewModel.ResultCount) && Canvas.ResultCount is null
-                                                                       && Results.HasCards)
+            && Results.HasCards)
         {
             Results.Clear();
         }

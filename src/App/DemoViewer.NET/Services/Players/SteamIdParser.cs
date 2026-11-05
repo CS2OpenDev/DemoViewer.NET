@@ -74,9 +74,9 @@ public static partial class SteamIdParser
             }
 
             return SteamId3Pattern().Match(value) is { Success: true } inUrl
-                   && FromAccountId(inUrl.Groups["n"].Value, SteamIdForm.ProfileUrl) is { } parsed
-                ? parsed
-                : null;
+                && FromAccountId(inUrl.Groups["n"].Value, SteamIdForm.ProfileUrl) is { } parsed
+                    ? parsed
+                    : null;
         }
 
         if (SteamId3Pattern().Match(input) is { Success: true } id3)

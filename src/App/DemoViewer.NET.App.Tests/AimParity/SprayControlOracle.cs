@@ -114,7 +114,7 @@ public static class SprayControlOracle
             double? punchPitch = PlausiblePunch(shot.PunchPitch);
             double? punchYaw = PlausiblePunch(shot.PunchYaw);
             bool haveAim = shot is { ShotPitch: not null, ShotYaw: not null }
-                           && punchPitch.HasValue && punchYaw.HasValue;
+                && punchPitch.HasValue && punchYaw.HasValue;
 
             double shotPitch = haveAim ? shot.ShotPitch!.Value : 0.0;
             double shotYaw = haveAim ? shot.ShotYaw!.Value : 0.0;
@@ -232,9 +232,9 @@ public static class SprayControlOracle
         // an absent column as "recoil dropped" would split every spray into single-shot runs and
         // make every shot look like a first bullet.
         bool continues = state is { ShotsInRun: > 0, LastShotTick: >= 0 }
-                         && gap >= 0
-                         && gap <= gapBound
-                         && (recoil is null || recoil.Value >= state.LastRecoil - SprayRecoilEpsilon);
+            && gap >= 0
+            && gap <= gapBound
+            && (recoil is null || recoil.Value >= state.LastRecoil - SprayRecoilEpsilon);
 
         if (continues)
         {

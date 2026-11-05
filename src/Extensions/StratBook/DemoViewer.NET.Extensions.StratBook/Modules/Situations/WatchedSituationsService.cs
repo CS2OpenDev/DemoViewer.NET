@@ -566,7 +566,7 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
         foreach ((string key, NewGroup group) in a)
         {
             if (!b.TryGetValue(key, out NewGroup? other) || other.Hits.Count != group.Hits.Count
-                                                         || other.ComputedAtTicks != group.ComputedAtTicks)
+                || other.ComputedAtTicks != group.ComputedAtTicks)
             {
                 return false;
             }
@@ -584,7 +584,7 @@ public sealed class WatchedSituationsService : IExtensionResident, IDisposable
         }
 
         bool same = groups.TryGetValue(key, out NewGroup? previous) && previous.Hits.Count == hits.Count
-                                                                    && previous.ComputedAtTicks == stamp;
+            && previous.ComputedAtTicks == stamp;
         groups[key] = new NewGroup(stamp, hits);
         return !same;
     }

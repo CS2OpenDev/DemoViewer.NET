@@ -216,8 +216,8 @@ public static class GrenadeSidecar
     /// <summary>A file with no hash is path-keyed only and is accepted; two hashes must agree.</summary>
     public static bool SameDemo(string? recordSha256, string? fileSha256) =>
         string.IsNullOrEmpty(recordSha256) || string.IsNullOrEmpty(fileSha256)
-                                           || string.Equals(recordSha256, fileSha256,
-                                               StringComparison.OrdinalIgnoreCase);
+        || string.Equals(recordSha256, fileSha256,
+            StringComparison.OrdinalIgnoreCase);
 
     private static GrenadeDemoHeader DemoHeader(string path, LibraryDemo? record) => new()
     {

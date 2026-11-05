@@ -144,7 +144,7 @@ public sealed partial class StratRecordPanelViewModel : ObservableObject, IDispo
         }
 
         if (document.Id != _lastId || !string.Equals(document.Side, _lastSide, StringComparison.Ordinal)
-                                   || document.Revision != _lastRevision)
+            || document.Revision != _lastRevision)
         {
             Schedule(document);
         }

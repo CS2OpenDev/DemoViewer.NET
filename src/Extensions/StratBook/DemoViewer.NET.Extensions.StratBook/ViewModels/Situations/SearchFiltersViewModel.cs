@@ -363,7 +363,7 @@ public sealed partial class SearchFiltersViewModel : ExtensionViewModel, IDispos
 
     private static void Select<T>(SearchFilterField<T> field, T value) =>
         field.Selected = field.Options.FirstOrDefault(o => EqualityComparer<T>.Default.Equals(o.Value, value))
-                         ?? field.Options[0];
+            ?? field.Options[0];
 
     /// <summary>Every field back to any.</summary>
     [RelayCommand]

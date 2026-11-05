@@ -115,7 +115,7 @@ internal static class Program
             : null;
         Console.WriteLine(teamPacket is null
             ? "WARNING: no player_team synthesis (descriptor or seated controllers missing) — " +
-              "trims ending before halftime will show every player on one team"
+            "trims ending before halftime will show every player on one team"
             : string.Create(CultureInfo.InvariantCulture,
                 $"synthesizing {teamSamples.Count} player_team seatings: {string.Join(", ", teamSamples.Select(s => $"{s.Name}→{(s.Team == 3 ? "CT" : "T")}"))}"));
         Console.WriteLine();

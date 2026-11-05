@@ -474,7 +474,7 @@ public class TagPaletteTests
 
             TagInstance tag = tags.Document!.Instances.Single();
             Console.WriteLine($"[palette-view] {tag.Code} [{tag.FromTick}..{tag.ToTick}] "
-                              + $"{string.Join(",", tag.Labels.Select(l => l.Value))} note='{tag.Note}'");
+                + $"{string.Join(",", tag.Labels.Select(l => l.Value))} note='{tag.Note}'");
             using (Assert.Multiple())
             {
                 await Assert.That(tag.Code).IsEqualTo("B execute");

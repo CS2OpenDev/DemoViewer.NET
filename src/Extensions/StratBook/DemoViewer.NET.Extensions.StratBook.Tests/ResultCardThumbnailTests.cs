@@ -149,10 +149,10 @@ public class ResultCardThumbnailTests
                 MapName = "de_nuke",
                 MapVersion = asset.Bundle.MapVersion,
                 Notes = "A Result Card thumbnail: SituationThumbnailRenderer.BuildFrame over one sampled step of a " +
-                        "positions file (ResultCardThumbnailTests.FixturePositions), eight alive markers with no label "
-                        +
-                        "over de_nuke's two floors at the card's 320x180. Written by ResultCardThumbnailTests with " +
-                        "RI_GOLDEN_UPDATE=1; the golden is dv2d golden update --name result-card-nuke."
+                    "positions file (ResultCardThumbnailTests.FixturePositions), eight alive markers with no label "
+                    +
+                    "over de_nuke's two floors at the card's 320x180. Written by ResultCardThumbnailTests with " +
+                    "RI_GOLDEN_UPDATE=1; the golden is dv2d golden update --name result-card-nuke."
             }.Save(scenePath);
             Console.WriteLine($"[fixture] wrote {scenePath}");
         }

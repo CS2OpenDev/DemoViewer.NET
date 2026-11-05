@@ -48,6 +48,6 @@ public sealed partial class PlaceholderTabViewModel : ObservableObject, IWorkspa
     {
         PushCount++;
         Status = $"Module Sandbox — active · frame {snapshot.FrameIndex} · " +
-                 $"{snapshot.Players.Count} players · {PushCount} pushes";
+            $"{snapshot.Players.Count} players · {PushCount} pushes";
     }
 }

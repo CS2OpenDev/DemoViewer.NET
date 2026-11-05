@@ -515,8 +515,8 @@ public class SettingsViewModelTests
                     Dispatcher.UIThread.RunJobs();
 
                     ScrollViewer scroll = view.FindControl<ScrollViewer>("SectionsScroll")
-                                          ?? throw new InvalidOperationException(
-                                              "SectionsScroll is gone from the view.");
+                        ?? throw new InvalidOperationException(
+                            "SectionsScroll is gone from the view.");
 
                     Console.WriteLine($"[extensions-width] extent={scroll.Extent} viewport={scroll.Viewport}");
                     await Assert.That(scroll.Extent.Width).IsLessThanOrEqualTo(scroll.Viewport.Width)
@@ -573,8 +573,8 @@ public class SettingsViewModelTests
                         Dispatcher.UIThread.RunJobs();
 
                         ScrollViewer scroll = view.FindControl<ScrollViewer>("SectionsScroll")
-                                              ?? throw new InvalidOperationException(
-                                                  "SectionsScroll is gone from the view.");
+                            ?? throw new InvalidOperationException(
+                                "SectionsScroll is gone from the view.");
                         Console.WriteLine(
                             $"[contributed-pages-width] extent={scroll.Extent} viewport={scroll.Viewport}");
                         await Assert.That(scroll.Extent.Width).IsLessThanOrEqualTo(scroll.Viewport.Width)
@@ -1664,7 +1664,7 @@ public class SettingsViewModelTests
             {
                 FeatureToggleRow master = Row(vm, StratBookPack.PackFeatureId);
                 ExtensionUpdateRow line = master.Update
-                                          ?? throw new InvalidOperationException("the master row has no update line");
+                    ?? throw new InvalidOperationException("the master row has no update line");
                 FeatureToggleRow child =
                     vm.ExtensionsFeatureRows.First(r => r.OwnerPackId == StratBookPack.PackFeatureId);
                 DateTimeOffset? before = svc.Current.Extensions.LastUpdateCheckUtc;
@@ -1730,7 +1730,11 @@ public class SettingsViewModelTests
             byte[] zip = UpdateFixtures.ExtensionZip(StratBookPack.PackId, next);
             UpdateFixtures.FakeFeedClient client = new()
             {
-                Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(future, RequiresHost: "^9.0")) }
+                Feeds =
+                {
+                    [UpdateFixtures.FeedUrl(StratBookPack.PackId)] =
+                        StratBookFeed(new FakeFeeds.Entry(future, RequiresHost: "^9.0"))
+                }
             };
             ExtensionUpdateService updater = NewUpdater(dir, client);
 
@@ -1795,7 +1799,11 @@ public class SettingsViewModelTests
             SemVersion running = FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId).Manifest!.Version;
             UpdateFixtures.FakeFeedClient client = new()
             {
-                Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(running.ToString())) }
+                Feeds =
+                {
+                    [UpdateFixtures.FeedUrl(StratBookPack.PackId)] =
+                        StratBookFeed(new FakeFeeds.Entry(running.ToString()))
+                }
             };
             ExtensionUpdateService updater = NewUpdater(dir, client);
 
@@ -1873,7 +1881,11 @@ public class SettingsViewModelTests
             SemVersion running = FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId).Manifest!.Version;
             UpdateFixtures.FakeFeedClient client = new()
             {
-                Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(running.ToString())) }
+                Feeds =
+                {
+                    [UpdateFixtures.FeedUrl(StratBookPack.PackId)] =
+                        StratBookFeed(new FakeFeeds.Entry(running.ToString()))
+                }
             };
             ExtensionUpdateService updater = NewUpdater(dir, client);
 
@@ -1960,7 +1972,10 @@ public class SettingsViewModelTests
             string next = new SemVersion(running.Major, running.Minor, running.Patch + 1).ToString();
             UpdateFixtures.FakeFeedClient client = new()
             {
-                Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(next)) }
+                Feeds =
+                {
+                    [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(new FakeFeeds.Entry(next))
+                }
             };
             ExtensionUpdateService updater = NewUpdater(dir, client);
             await updater.CheckAsync();
@@ -1981,8 +1996,8 @@ public class SettingsViewModelTests
                     Dispatcher.UIThread.RunJobs();
 
                     ScrollViewer scroll = view.FindControl<ScrollViewer>("SectionsScroll")
-                                          ?? throw new InvalidOperationException(
-                                              "SectionsScroll is gone from the view.");
+                        ?? throw new InvalidOperationException(
+                            "SectionsScroll is gone from the view.");
                     Button? update = view.GetVisualDescendants().OfType<Button>()
                         .FirstOrDefault(b => b.Content as string == "Update" && b.IsVisible);
                     TextBlock? message = view.GetVisualDescendants().OfType<TextBlock>()
@@ -2133,8 +2148,8 @@ public class SettingsViewModelTests
                     Console.WriteLine($"[settings-identity] {outPath} nonBg={nonBg}");
 
                     ScrollViewer scroll = view.FindControl<ScrollViewer>("SectionsScroll")
-                                          ?? throw new InvalidOperationException(
-                                              "SectionsScroll is gone from the view.");
+                        ?? throw new InvalidOperationException(
+                            "SectionsScroll is gone from the view.");
                     RadioButton[] radios =
                     [
                         .. view.GetVisualDescendants().OfType<RadioButton>().Where(r => r.GroupName == "identityActive")

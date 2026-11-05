@@ -103,7 +103,8 @@ public sealed class DefaultDetector : IProposalDetector
         List<ProposalEvidence> evidence =
         [
             new("occupancy", spreadTick,
-                string.Create(CultureInfo.InvariantCulture, $"T in {places.Count} places: {string.Join(", ", places)}")),
+                string.Create(CultureInfo.InvariantCulture,
+                    $"T in {places.Count} places: {string.Join(", ", places)}")),
             .. utility.Select(DetectorMath.Evidence)
         ];
         evidence.Sort((a, b) => a.Tick.CompareTo(b.Tick));

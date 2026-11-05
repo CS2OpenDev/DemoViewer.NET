@@ -155,7 +155,7 @@ public class CounterStrafeAdmissionFoldTests
             .Because("an agreement check that compared no player validates nothing");
         await Assert.That(divergences).IsEmpty()
             .Because("the fold must reproduce the engine at the shipped window before its curve is "
-                     + "trusted at any other one");
+                + "trusted at any other one");
     }
 
     /// <summary>
@@ -221,7 +221,7 @@ public class CounterStrafeAdmissionFoldTests
             .Because("an agreement check that compared no player validates nothing");
         await Assert.That(divergences).IsEmpty()
             .Because("the fold must reproduce the engine at the shipped window before its curve is "
-                     + "trusted at any other one");
+                + "trusted at any other one");
     }
 
     /// <summary>

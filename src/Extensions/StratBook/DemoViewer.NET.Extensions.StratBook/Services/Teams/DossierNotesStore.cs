@@ -161,7 +161,7 @@ public sealed class DossierNotesStore
         string value = text?.Trim() ?? "";
         DossierTeamNotes notes = Ensure(teamId);
         if (value.Length == 0 || notes.Notes.FirstOrDefault(n => NoteKey(n.Id) == key) is not { } note
-                              || string.Equals(note.Text, value, StringComparison.Ordinal))
+            || string.Equals(note.Text, value, StringComparison.Ordinal))
         {
             return;
         }

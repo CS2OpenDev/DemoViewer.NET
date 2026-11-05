@@ -298,7 +298,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
         // pan, and the router only diverts on Space, middle and Ctrl, so the diversion is made here and
         // undone at the release.
         if (sample.Button == ToolPointerButton.Left && PrimaryKind != ToolKind.PanZoom
-                                                    && Router.ActiveKind == PrimaryKind)
+            && Router.ActiveKind == PrimaryKind)
         {
             Router.SetActive(ToolKind.PanZoom);
             if (Router.OnPressed(in sample))
@@ -617,7 +617,7 @@ internal sealed class HostedMapView : Control, IMapViewBackend, IDisposable
     private void BindMap(string map, MapBundleLease? asset)
     {
         if (ReferenceEquals(asset, _boundAsset) && string.Equals(_boundMap, map, StringComparison.Ordinal)
-                                                && _frame.Map.MapName == map)
+            && _frame.Map.MapName == map)
         {
             InvalidateVisual();
             return;

@@ -182,7 +182,7 @@ public class SprayControlOracleRealDemoTests
         await Assert.That(violations).IsEmpty();
         await Assert.That(wired).IsGreaterThan(0)
             .Because("this demo carries bullet_damage, so a Spray of 0.0 over an empty SprayN on EVERY player means "
-                     + "the column reads a stat the ruleset does not declare, or an arm that never fires");
+                + "the column reads a stat the ruleset does not declare, or an arm that never fires");
     }
 
     /// <summary>
@@ -213,7 +213,7 @@ public class SprayControlOracleRealDemoTests
                     continue;
                 case BulletDamageEvent landed:
                     if (!matchStarted || landed.Attacker < 0
-                                      || gameEvent.FrameNumber < 0 || gameEvent.FrameNumber >= demo.Frames.Count)
+                        || gameEvent.FrameNumber < 0 || gameEvent.FrameNumber >= demo.Frames.Count)
                     {
                         continue;
                     }

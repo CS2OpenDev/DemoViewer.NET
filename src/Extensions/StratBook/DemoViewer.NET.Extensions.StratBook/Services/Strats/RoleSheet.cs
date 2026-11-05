@@ -363,7 +363,7 @@ public sealed record RoleSheet(
                 }
 
                 if (StratStepLines.Destinations(other).Any(p => string.Equals(p, myFrom, StringComparison.Ordinal)
-                                                                || string.Equals(p, myTo, StringComparison.Ordinal)))
+                        || string.Equals(p, myTo, StringComparison.Ordinal)))
                 {
                     contextStepIds.Add(other.Id);
                 }

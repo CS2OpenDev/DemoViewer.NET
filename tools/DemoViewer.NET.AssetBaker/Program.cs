@@ -29,8 +29,8 @@ if (args.Any(a => a.StartsWith("--list-icons", StringComparison.Ordinal)))
         .FirstOrDefault(a => a.StartsWith("--cs2=", StringComparison.Ordinal))?["--cs2=".Length..];
 
     string listPak = SteamLibrary.FindCs2Pak(listCs2)
-                     ?? throw new DirectoryNotFoundException(
-                         "Counter-Strike 2 not found. Pass --cs2=<path to pak01_dir.vpk or install root>.");
+        ?? throw new DirectoryNotFoundException(
+            "Counter-Strike 2 not found. Pass --cs2=<path to pak01_dir.vpk or install root>.");
 
     string listFilter = args
         .FirstOrDefault(a => a.StartsWith("--list-icons=", StringComparison.Ordinal))
@@ -49,8 +49,8 @@ if (args.FirstOrDefault(a => a.StartsWith("--export-svg=", StringComparison.Ordi
         .FirstOrDefault(a => a.StartsWith("--cs2=", StringComparison.Ordinal))?["--cs2=".Length..];
 
     string exportPak = SteamLibrary.FindCs2Pak(exportCs2)
-                       ?? throw new DirectoryNotFoundException(
-                           "Counter-Strike 2 not found. Pass --cs2=<path to pak01_dir.vpk or install root>.");
+        ?? throw new DirectoryNotFoundException(
+            "Counter-Strike 2 not found. Pass --cs2=<path to pak01_dir.vpk or install root>.");
 
     string exportOut = args
         .FirstOrDefault(a => a.StartsWith("--out=", StringComparison.Ordinal))?["--out=".Length..] ?? "icon-svg";
@@ -72,8 +72,8 @@ if (args.Contains("--icons"))
         .FirstOrDefault(a => a.StartsWith("--cs2=", StringComparison.Ordinal))?["--cs2=".Length..];
 
     string pak = SteamLibrary.FindCs2Pak(explicitCs2)
-                 ?? throw new DirectoryNotFoundException(
-                     "Counter-Strike 2 not found. Pass --cs2=<path to pak01_dir.vpk or install root>.");
+        ?? throw new DirectoryNotFoundException(
+            "Counter-Strike 2 not found. Pass --cs2=<path to pak01_dir.vpk or install root>.");
 
     string iconsOut = Path.Combine(FindRepoRoot(), "assets", "icons");
     Console.WriteLine($"cs2 pak:  {pak}");
@@ -103,9 +103,9 @@ if (args.Contains("--collision"))
         .FirstOrDefault(a => a.StartsWith("--cs2=", StringComparison.Ordinal))?["--cs2=".Length..];
 
     string mapsSource = SteamLibrary.FindCs2MapsDir(collisionCs2)
-                        ?? throw new DirectoryNotFoundException(
-                            "Counter-Strike 2 map archives not found. Pass --cs2=<install root, pak01_dir.vpk, "
-                            + "or the game/csgo/maps directory>.");
+        ?? throw new DirectoryNotFoundException(
+            "Counter-Strike 2 map archives not found. Pass --cs2=<install root, pak01_dir.vpk, "
+            + "or the game/csgo/maps directory>.");
 
     string soupRoot = Path.Combine(FindRepoRoot(), "assets");
     string[] soupMaps = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
@@ -185,9 +185,9 @@ if (args.Contains("--zones"))
         .FirstOrDefault(a => a.StartsWith("--cs2=", StringComparison.Ordinal))?["--cs2=".Length..];
 
     string zonesMapsSource = SteamLibrary.FindCs2MapsDir(zonesCs2)
-                             ?? throw new DirectoryNotFoundException(
-                                 "Counter-Strike 2 map archives not found. Pass --cs2=<install root, pak01_dir.vpk, "
-                                 + "or the game/csgo/maps directory>.");
+        ?? throw new DirectoryNotFoundException(
+            "Counter-Strike 2 map archives not found. Pass --cs2=<install root, pak01_dir.vpk, "
+            + "or the game/csgo/maps directory>.");
 
     string zonesRoot = Path.Combine(FindRepoRoot(), "assets");
     string[] zoneMaps = args.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
@@ -368,7 +368,7 @@ void BakeMap(string map)
     crc.Append(navBytes);
     NavFloors.Result floors = NavFloors.ComputeFloors(navBytes);
     Console.WriteLine($"  floors: {floors.Floors.Count}  " +
-                      string.Join(" ", floors.Floors.Select(f => $"[{f.MinZ:F0}..{f.MaxZ:F0}]")));
+        string.Join(" ", floors.Floors.Select(f => $"[{f.MinZ:F0}..{f.MaxZ:F0}]")));
     if (diag)
     {
         Console.WriteLine(floors.Diagnostic);

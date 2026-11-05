@@ -55,5 +55,5 @@ public sealed class SceneGuides
 
     /// <summary>Whether there is anything to draw.</summary>
     public bool IsEmpty => Ghost is null && GhostRoute.Count == 0 && DropOutline.Count == 0 && Pins.Count == 0
-                           && ViaMarks.Count == 0;
+        && ViaMarks.Count == 0;
 }

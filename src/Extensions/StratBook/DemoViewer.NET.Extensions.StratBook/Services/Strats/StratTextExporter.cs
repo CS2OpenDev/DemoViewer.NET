@@ -148,7 +148,7 @@ public static class RoleSheetHtmlWriter
                                .status { font-size: 12px; color: #777; margin-top: 16px; }
                                @media print { body { margin: 0; } }
                                """
-                               + "\n";
+        + "\n";
 
     private static string SheetHtml(RoleSheet sheet)
     {
@@ -259,8 +259,8 @@ public static class RoleSheetHtmlWriter
             {
                 (double x, double y) = Project(p);
                 return x.ToString("0.#", CultureInfo.InvariantCulture) + ","
-                                                                       + y.ToString("0.#",
-                                                                           CultureInfo.InvariantCulture);
+                    + y.ToString("0.#",
+                        CultureInfo.InvariantCulture);
             })));
             svg.Append("\"/>\n");
         }

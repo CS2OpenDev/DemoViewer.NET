@@ -149,8 +149,8 @@ public class ExtensionManifestTests
     public async Task TheManifestTemplate_InTheRepo_DescribesStratBookPack()
     {
         string repoRoot = DemoTestHelper.FindRepoRoot()
-                          ?? throw new SkipTestException(
-                              "repo root not found (no DemoViewer.NET.slnx above the test binary)");
+            ?? throw new SkipTestException(
+                "repo root not found (no DemoViewer.NET.slnx above the test binary)");
         string path = Path.Combine(repoRoot, "src", "Extensions", "StratBook", ExtensionManifest.FileName);
         string template = await File.ReadAllTextAsync(path);
         ExtensionManifest m =

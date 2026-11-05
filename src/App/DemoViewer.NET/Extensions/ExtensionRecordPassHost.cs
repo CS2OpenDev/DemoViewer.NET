@@ -88,7 +88,7 @@ internal sealed class ExtensionRecordPassHost(
     {
         Func<string, bool> isOff = IsOff();
         return DependsOn.OfType<FactKey>().Any(k => isOff(k.RulesetId))
-               || _dataInputs.Values.Any(k => owners?.Invoke(k.Owner) is { } owner && !owner.IsOn());
+            || _dataInputs.Values.Any(k => owners?.Invoke(k.Owner) is { } owner && !owner.IsOn());
     }
 
     private Func<string, bool> IsOff() =>

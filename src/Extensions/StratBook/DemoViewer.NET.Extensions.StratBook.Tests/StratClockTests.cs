@@ -64,7 +64,8 @@ public class StratClockTests
     {
         int tick = StratClock.TickFor(atSeconds, _round, tickRate, 115);
         await Assert
-            .That(StratClock.TickFor(StratClock.AtSecondsFor(tick, _round, tickRate, 115)!.Value, _round, tickRate, 115))
+            .That(StratClock.TickFor(StratClock.AtSecondsFor(tick, _round, tickRate, 115)!.Value, _round, tickRate,
+                115))
             .IsEqualTo(tick);
     }
 

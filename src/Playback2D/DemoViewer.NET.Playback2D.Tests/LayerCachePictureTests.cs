@@ -86,7 +86,7 @@ public class LayerCachePictureTests
         int secondCentre = ColumnOfInk(surface);
 
         Console.WriteLine($"[static-cache] ink column {firstCentre} → {secondCentre}, " +
-                          $"renders={layer.RenderCalls}");
+            $"renders={layer.RenderCalls}");
 
         await Assert.That(layer.RenderCalls).IsEqualTo(1); // world-space recording survives a camera move
         await Assert.That(secondCentre - firstCentre).IsEqualTo(30).Within(1);
@@ -221,7 +221,6 @@ public class LayerCachePictureTests
 
     private sealed class CountingLayer(string id, LayerCacheHint cache) : ISceneLayer
     {
-
         public int Version { get; set; }
         public int RenderCalls { get; private set; }
         public int AdvanceCalls { get; private set; }

@@ -253,7 +253,7 @@ public class DossierModuleTests
 
         vm.CollapseAllCommand.Execute(null);
         bool allClosed = vm.MapSections.All(m => !m.IsExpanded) && !vm.RecordSection.IsExpanded
-                                                                && !vm.NotesSection.IsExpanded;
+            && !vm.NotesSection.IsExpanded;
         int shownWhileClosed = nuke.ShownFindings.Count + nuke.ShownRecord.Count;
 
         // A new projection of the same team keeps what the user closed.

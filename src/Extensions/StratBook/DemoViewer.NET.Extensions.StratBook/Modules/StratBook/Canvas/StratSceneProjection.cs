@@ -466,8 +466,8 @@ public sealed class StratSceneProjection
     internal static int? RotateTickOf(StratStep step, int stepTick, StratClockInfo clock)
     {
         if (step.Lurk?.Rotate is not { AtSeconds: { } at, To: { } to } || !StratLocations.IsSet(to)
-                                                                       || !StratLurkPatches.IsLater(at, step.AtSeconds,
-                                                                           clock))
+            || !StratLurkPatches.IsLater(at, step.AtSeconds,
+                clock))
         {
             return null;
         }
@@ -586,9 +586,9 @@ public sealed class StratSceneProjection
         {
             StepMotion.None => null,
             StepMotion.Lurk => StratStepLines.Involves(step, slot)
-                               && StratLocations.LurkAreas(step.Lurk) is { Count: > 0 } areas
-                ? areas[0]
-                : null,
+                && StratLocations.LurkAreas(step.Lurk) is { Count: > 0 } areas
+                    ? areas[0]
+                    : null,
             _ => StratStepLines.LocationFor(step, slot)
         };
         return StratLocations.IsSet(to) ? to : null;
@@ -693,7 +693,7 @@ public sealed class StratSceneProjection
             PlaceRef? to = motion == StepMotion.Lurk
                 ? firstArea >= 0 ? areas[firstArea] : null
                 : DestinationOf(step, slot) is { } d && places.Arrivals is { } arrivals
-                                                     && ArrivalAt(d, level, arrivals) is not null
+                && ArrivalAt(d, level, arrivals) is not null
                     ? d
                     : null;
             TokenPlacement? placement = null;
@@ -720,8 +720,8 @@ public sealed class StratSceneProjection
             // leaves from, unless it is an exact spot (a lineup, or the entry of a step naming the slot whose verb does not
             // travel), which as the later step cancels the send. An earlier exact spot stays where a later send leaves from.
             if (placement is not null && (departed != tick || fromOrigin
-                                                           || (names && motion is StepMotion.Position
-                                                               or StepMotion.None)))
+                    || (names && motion is StepMotion.Position
+                        or StepMotion.None)))
             {
                 if (departed == tick)
                 {
@@ -736,8 +736,8 @@ public sealed class StratSceneProjection
             // observed entry is where the player was seen, so it is the spot on every verb.
             bool seen = observed && placement is not null && i != overrideIndex;
             if (to is not null && !fromOrigin && (placement is null
-                                                  || (!seen && !places.Observed
-                                                            && motion is StepMotion.Travel or StepMotion.Lurk)))
+                    || (!seen && !places.Observed
+                        && motion is StepMotion.Travel or StepMotion.Lurk)))
             {
                 SendTo(events, tick, i, motion, to, watch,
                     motion is StepMotion.Travel or StepMotion.Lurk && StratStepLines.ViaFor(step, slot) is
@@ -774,7 +774,7 @@ public sealed class StratSceneProjection
             last = placement ?? last;
 
             if (names && RotateTickOf(step, tick, places.ClockOrRound) is { } rotateTick
-                      && places.Arrivals is not null)
+                && places.Arrivals is not null)
             {
                 PlaceRef rotateTo = step.Lurk!.Rotate!.To!;
                 events.Add(new SlotEvent(rotateTick, i, SlotEventKind.Travel, rotateTo, null, false, false, true));
@@ -840,7 +840,7 @@ public sealed class StratSceneProjection
                 }
 
                 int until = plan.Events.Skip(k + 1).FirstOrDefault(x => x.To is not null && x.Tick > e.Tick)?.Tick
-                            ?? int.MaxValue;
+                    ?? int.MaxValue;
                 for (int i = 0; i < plan.Placements.Length; i++)
                 {
                     if (plan.Placements[i] is not null && plan.Ticks[i] > e.Tick)
@@ -998,10 +998,10 @@ public sealed class StratSceneProjection
         double distance = route is not null
             ? NavPathfinder.Length(route)
             : Math.Sqrt((target.X - start.X) * (double)(target.X - start.X)
-                        + (target.Y - start.Y) * (double)(target.Y - start.Y));
+                + (target.Y - start.Y) * (double)(target.Y - start.Y));
         double speed = e.Walk ? WalkUnitsPerSecond : RunUnitsPerSecond;
         int arrive = tick + shape.HoldTicks
-                          + Math.Max(1, (int)Math.Ceiling(distance / speed * StepSchedule.TicksPerSecond));
+            + Math.Max(1, (int)Math.Ceiling(distance / speed * StepSchedule.TicksPerSecond));
         float leaveYaw = route is not null && Heading(route, 0) is { } first ? first : runYaw;
         float arriveYaw = watched ?? (route is not null && Heading(route, route.Count - 2) is { } last ? last : runYaw);
 
@@ -1053,7 +1053,7 @@ public sealed class StratSceneProjection
         }
 
         int limit = queue.Skip(index + 1).FirstOrDefault(x => x.To is not null && x.Tick > e.Tick)?.Tick
-                    ?? int.MaxValue;
+            ?? int.MaxValue;
         if (entries.FirstOrDefault(x => x is { Arrival: false, Placement: not null } && x.Step.Tick > e.Tick) is
             { Placement: not null } placed)
         {
@@ -1241,7 +1241,7 @@ public sealed class StratSceneProjection
             foreach (RunSpan run in runs)
             {
                 if (run.StartTick < tick && tick < run.ArriveTick
-                                         && (found is null || run.StartTick >= found.StartTick))
+                    && (found is null || run.StartTick >= found.StartTick))
                 {
                     found = run;
                 }
@@ -1288,9 +1288,9 @@ public sealed class StratSceneProjection
         }
 
         return best > int.MinValue && Tracks.FirstOrDefault(t => t.Slot == slot) is { } track
-                                   && track.TrySample(best, out TokenKeyframe at)
-            ? (best, at)
-            : null;
+            && track.TrySample(best, out TokenKeyframe at)
+                ? (best, at)
+                : null;
     }
 
     /// <summary>The runs one path step sends: its destinations', or its lurk's rotate walks.</summary>
@@ -1334,7 +1334,7 @@ public sealed class StratSceneProjection
         void Offer(int at, int order, bool rotate)
         {
             if (at <= tick && (accept is null || accept(order))
-                           && (best is not { } b || at > b.Tick || (at == b.Tick && order >= b.Order)))
+                && (best is not { } b || at > b.Tick || (at == b.Tick && order >= b.Order)))
             {
                 best = (at, order, rotate);
             }
@@ -1534,7 +1534,8 @@ public sealed class StratSceneProjection
             return null;
         }
 
-        List<TokenKeyframe> keys = [a, .. corners.Select(c => new TokenKeyframe(c.Tick, c.X, c.Y, c.LevelMinZ, c.YawDegrees)), b];
+        List<TokenKeyframe> keys =
+            [a, .. corners.Select(c => new TokenKeyframe(c.Tick, c.X, c.Y, c.LevelMinZ, c.YawDegrees)), b];
         return keys;
     }
 
@@ -1624,7 +1625,7 @@ public sealed class StratSceneProjection
     private static TokenPlacement? Target(SlotEvent e, string slot, double levelMinZ, PlaceSet places)
     {
         if (places.Arrivals is not { } arrivals || e.To is null
-                                                || ArrivalAt(e.To, levelMinZ, arrivals) is not { } centre)
+            || ArrivalAt(e.To, levelMinZ, arrivals) is not { } centre)
         {
             return null;
         }
@@ -1826,8 +1827,8 @@ public sealed class StratSceneProjection
     {
         ArgumentNullException.ThrowIfNull(document);
         return (document.Origin is not null || document.Tags.Contains(MinedStratBuilder.Tag, StringComparer.Ordinal))
-               && !document.Steps.Any(s => s.Positions.Any(p => p.Observed is not null))
-               && document.Start?.Positions.Any(p => p.Observed is not null) != true;
+            && !document.Steps.Any(s => s.Positions.Any(p => p.Observed is not null))
+            && document.Start?.Positions.Any(p => p.Observed is not null) != true;
     }
 
     /// <summary>
@@ -1840,7 +1841,7 @@ public sealed class StratSceneProjection
     {
         ArgumentNullException.ThrowIfNull(document);
         return document.Origin is null && !document.Tags.Contains(MinedStratBuilder.Tag, StringComparer.Ordinal)
-                                       && !document.Steps.Any(s => s.Positions.Any(p => p.Carried is not null));
+            && !document.Steps.Any(s => s.Positions.Any(p => p.Carried is not null));
     }
 
     /// <summary>
@@ -2104,7 +2105,7 @@ public static class StratStrokes
             ? (uint)argb
             : ParseHex(String(stroke["color"])) ?? AnnotationStyle.Default.ColorArgb;
         float width = (float)(Number(stroke["widthWorld"])
-                              ?? Number(stroke["width"]) ?? AnnotationStyle.Default.WidthWorld);
+            ?? Number(stroke["width"]) ?? AnnotationStyle.Default.WidthWorld);
         float opacity = (float)(Number(stroke["opacity"]) ?? 1);
         bool reveal = stroke["revealOnFadeIn"] is JsonValue r && r.TryGetValue(out bool b) && b;
 

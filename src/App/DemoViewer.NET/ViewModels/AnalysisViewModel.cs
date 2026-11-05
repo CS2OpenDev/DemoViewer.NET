@@ -1347,7 +1347,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         OpenSeed? seed = _openSeed;
         _openSeed = null;
         if (seed is null || !ReferenceEquals(seed.Demo, parsed)
-                         || !string.Equals(seed.Path, path, StringComparison.OrdinalIgnoreCase))
+            || !string.Equals(seed.Path, path, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -2275,8 +2275,11 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             // the scope-aware rows below author (includeEntityReads: false).
             _activeConditionIdentifiers = inputs.Count == 0
                 ? _availableConditionIdentifiers
-                : [.. _availableConditionIdentifiers
-                    .Concat(NodeBreakpointConditions.InputFieldIdentifiers(inputs, _perPlayerProviders, false))];
+                :
+                [
+                    .. _availableConditionIdentifiers
+                        .Concat(NodeBreakpointConditions.InputFieldIdentifiers(inputs, _perPlayerProviders, false))
+                ];
             EditingValueHint = NodeValueHint(kind, inputs);
             SetupStructuredScope(inputs, null, target.Find(GraphBreakpoints)?.Condition);
         }
@@ -2305,7 +2308,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         // resolves to the filter's selected slot; entity reads (health/armor/…) are authored via the rows
         // below, so the free-text box no longer advertises that grammar.
         string inputHint = $"inputs: {string.Join(", ", events)} — e.g.  input.{ev0}.<field> == …"
-                           + $"  ·  input.{ev0}.<Slot> == player   (entity checks: use the rows below)";
+            + $"  ·  input.{ev0}.<Slot> == player   (entity checks: use the rows below)";
         return string.IsNullOrEmpty(baseHint) ? inputHint : $"{baseHint}   ·   {inputHint}";
     }
 
@@ -2466,7 +2469,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         _editSubjectOptions = BuildSubjectOptions(_editSlotFields);
         EditingScopeLegend = EditingRowsApplicable
             ? "in scope:  " + string.Join("  ·  ", _editSubjectOptions.Select(o => o.Label))
-                            + "      (entities read pre-frame)"
+            + "      (entities read pre-frame)"
             : "";
     }
 

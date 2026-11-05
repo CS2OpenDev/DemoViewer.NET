@@ -29,8 +29,6 @@ namespace DemoViewer.NET.AppTests;
 [Category("Integration")]
 public class ReviewQueuePerfTests
 {
-
-
     [Test]
     public async Task OpenScrollAndABatch_OverAThousandsOfEntriesQueue()
     {
@@ -163,7 +161,7 @@ public class ReviewQueuePerfTests
                 double bare = sw.Elapsed.TotalMilliseconds;
                 Guid? topAfter = TopRow(view, scroller);
                 Console.WriteLine($"[review-perf] reading position across a batch: offset {offsetBefore.Y:F0} to "
-                                  + $"{scroller?.Offset.Y ?? 0:F0}, top row kept={topBefore == topAfter}");
+                    + $"{scroller?.Offset.Y ?? 0:F0}, top row kept={topBefore == topAfter}");
                 await Assert.That(topAfter).IsEqualTo(topBefore)
                     .Because("a batch landing must not move what the reviewer is reading");
                 sw.Restart();
@@ -180,10 +178,10 @@ public class ReviewQueuePerfTests
                 queue.Flush();
 
                 Console.WriteLine($"[review-perf] {label}: entries={queue.Entries.Count} load={load:F0}ms "
-                                  + $"vm={build:F0}ms show={open:F0}ms expandAll={expand:F0}ms reopenExpanded={reopen:F0}ms idleFrame={idle:F0}ms "
-                                  + $"textboxes open/expanded/scrolled={realized}/{realizedExpanded}/{realizedScrolled} "
-                                  + $"scroll40={scroll:F0}ms worstStep={worstStep:F0}ms wheelStep={wheel:F1}ms worstWheel={worstWheel:F0}ms batch bare={bare:F0}ms deferred={deferred:F0}ms "
-                                  + $"file={new FileInfo(file).Length / 1024}KiB");
+                    + $"vm={build:F0}ms show={open:F0}ms expandAll={expand:F0}ms reopenExpanded={reopen:F0}ms idleFrame={idle:F0}ms "
+                    + $"textboxes open/expanded/scrolled={realized}/{realizedExpanded}/{realizedScrolled} "
+                    + $"scroll40={scroll:F0}ms worstStep={worstStep:F0}ms wheelStep={wheel:F1}ms worstWheel={worstWheel:F0}ms batch bare={bare:F0}ms deferred={deferred:F0}ms "
+                    + $"file={new FileInfo(file).Length / 1024}KiB");
                 window.Close();
                 await Assert.That(realizedExpanded).IsLessThan(200)
                     .Because("only the rows on screen are realized; the StackPanel realized 19,245 text boxes");
@@ -207,7 +205,7 @@ public class ReviewQueuePerfTests
 
         return view.GetVisualDescendants().OfType<ContentPresenter>()
             .Where(c => c is { DataContext: ReviewRowViewModel, IsVisible: true }
-                        && c.TranslatePoint(default, scroller) is { Y: >= -1 })
+                && c.TranslatePoint(default, scroller) is { Y: >= -1 })
             .OrderBy(c => c.TranslatePoint(default, scroller)!.Value.Y)
             .Select(c => ((ReviewRowViewModel)c.DataContext!).Entry.Id)
             .Cast<Guid?>()

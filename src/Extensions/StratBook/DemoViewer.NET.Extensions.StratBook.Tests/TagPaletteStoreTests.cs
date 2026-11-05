@@ -114,10 +114,12 @@ public class TagPaletteStoreTests
         string dir = folder.Path;
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(dir, "1-broken.tagpalette.json"), "{ \"id\": \"broken\", \"panels\": [ ");
+            await File.WriteAllTextAsync(Path.Combine(dir, "1-broken.tagpalette.json"),
+                "{ \"id\": \"broken\", \"panels\": [ ");
             await File.WriteAllTextAsync(Path.Combine(dir, "2-refused.tagpalette.json"), Palette("refused", "Ctrl+1"));
             await File.WriteAllTextAsync(Path.Combine(dir, "3-good.tagpalette.json"), Palette("good"));
-            await File.WriteAllTextAsync(Path.Combine(dir, "4-builtin.tagpalette.json"), Palette(TagPaletteStore.DefaultId));
+            await File.WriteAllTextAsync(Path.Combine(dir, "4-builtin.tagpalette.json"),
+                Palette(TagPaletteStore.DefaultId));
 
             TagPaletteStore store = new(folder, keymap: HostKeymap.Instance);
             store.Reload();

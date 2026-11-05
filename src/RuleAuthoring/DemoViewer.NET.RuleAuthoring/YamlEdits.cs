@@ -283,11 +283,11 @@ public static class YamlEdits
             // A single-quoted scalar cannot hold a line break without folding it to a space, so a
             // multi-line value has to change style rather than silently lose its newlines.
             ScalarStyle.SingleQuoted when !multiline
-                                          && !value.Contains('\'', StringComparison.Ordinal) =>
+                && !value.Contains('\'', StringComparison.Ordinal) =>
                 $"'{value}'",
             ScalarStyle.SingleQuoted or ScalarStyle.DoubleQuoted => DoubleQuote(value),
             ScalarStyle.Plain when CanBePlain(value, inFlow)
-                                   && (wasNonString || !LooksNonString(value)) => value,
+                && (wasNonString || !LooksNonString(value)) => value,
             ScalarStyle.Plain => DoubleQuote(value),
             _ => CanBePlain(value, inFlow) && !LooksNonString(value) ? value : DoubleQuote(value)
         };
@@ -301,7 +301,7 @@ public static class YamlEdits
     private static bool CanBePlain(string value, bool inFlow)
     {
         if (value.Length == 0 || value != value.Trim()
-                              || value.AsSpan().ContainsAny('\n', '\r', '\t'))
+            || value.AsSpan().ContainsAny('\n', '\r', '\t'))
         {
             return false;
         }
@@ -322,7 +322,7 @@ public static class YamlEdits
         for (int i = 0; i < value.Length; i++)
         {
             if (value[i] == ':' && (i == value.Length - 1 || value[i + 1] == ' '
-                                                          || (inFlow && value[i + 1] is ',' or ']' or '}')))
+                    || (inFlow && value[i + 1] is ',' or ']' or '}')))
             {
                 return false;
             }

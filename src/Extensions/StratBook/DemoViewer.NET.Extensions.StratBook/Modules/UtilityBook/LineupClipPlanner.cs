@@ -129,7 +129,7 @@ public static class LineupClipPlanner
         ArgumentNullException.ThrowIfNull(directory);
 
         bool first = technique is null
-                     || (lineup.Techniques.Count > 0 && ReferenceEquals(lineup.Techniques[0], technique));
+            || (lineup.Techniques.Count > 0 && ReferenceEquals(lineup.Techniques[0], technique));
         if (lineup.Throws.Count < MinThrows || (!first && technique!.Throws.Count < MinThrows))
         {
             return null;
@@ -137,11 +137,11 @@ public static class LineupClipPlanner
 
         IndexedGrenade representative = technique?.Representative ?? lineup.Representative;
         IndexedGrenade shown = (sourceDemo is null
-                                   ? null
-                                   : (technique?.Throws ?? lineup.Throws).FirstOrDefault(t =>
-                                       string.Equals(t.Demo.Path, sourceDemo, StringComparison.OrdinalIgnoreCase)
-                                       && GrenadeConsole.Format(t.Row) is not null))
-                               ?? representative;
+                ? null
+                : (technique?.Throws ?? lineup.Throws).FirstOrDefault(t =>
+                    string.Equals(t.Demo.Path, sourceDemo, StringComparison.OrdinalIgnoreCase)
+                    && GrenadeConsole.Format(t.Row) is not null))
+            ?? representative;
         GrenadeRow row = shown.Row;
         if (GrenadeConsole.Format(row) is not { } console)
         {
@@ -278,7 +278,7 @@ public static class LineupClipPlanner
         int rate = tickRate > 0 ? tickRate : 64;
         int release = row.ReleaseTick;
         int landed = row.DetonationTick
-                     ?? (row.EndTick > release ? row.EndTick : release + Math.Max(0, row.AirTimeTicks));
+            ?? (row.EndTick > release ? row.EndTick : release + Math.Max(0, row.AirTimeTicks));
         int from = Math.Max(0, release - (int)Math.Round(LeadSeconds * rate));
         int to = Math.Max(release, landed) + (int)Math.Round(TailSeconds * rate);
         return (from, Math.Min(to, from + (int)Math.Round(MaxSeconds * rate)));

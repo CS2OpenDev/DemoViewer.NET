@@ -182,9 +182,9 @@ public class ZoneResolverAgreementTests
         foreach (string path in all)
         {
             string map = DownstreamUtilities.TryReadQuickInfo(path, out DownstreamUtilities.DemoQuickInfo info) &&
-                         !string.IsNullOrEmpty(info.MapName)
-                ? info.MapName
-                : "?";
+                !string.IsNullOrEmpty(info.MapName)
+                    ? info.MapName
+                    : "?";
             int count = taken.GetValueOrDefault(map);
             if (count >= perMap)
             {
@@ -196,9 +196,9 @@ public class ZoneResolverAgreementTests
         }
 
         Console.WriteLine($"[agreement] {chosen.Count} of {all.Length} demos selected " +
-                          $"({(perMap == int.MaxValue ? "no" : perMap.ToString(CultureInfo.InvariantCulture))} per-map cap): "
-                          +
-                          string.Join(", ", taken.OrderBy(t => t.Key).Select(t => $"{t.Key} x{t.Value}")));
+            $"({(perMap == int.MaxValue ? "no" : perMap.ToString(CultureInfo.InvariantCulture))} per-map cap): "
+            +
+            string.Join(", ", taken.OrderBy(t => t.Key).Select(t => $"{t.Key} x{t.Value}")));
         return [.. chosen];
     }
 

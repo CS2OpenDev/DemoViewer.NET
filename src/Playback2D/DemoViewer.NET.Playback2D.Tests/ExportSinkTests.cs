@@ -229,7 +229,8 @@ public class ChannelVideoFrameSourceTests
 
         // A second pass would silently produce an empty stream, a video file with no frames and no
         // error, which is a much worse failure than saying so.
-        await Assert.That(SceneExportSessionLoopTests.Throws<InvalidOperationException>(() => bridge.GetEnumerator().Dispose()))
+        await Assert
+            .That(SceneExportSessionLoopTests.Throws<InvalidOperationException>(() => bridge.GetEnumerator().Dispose()))
             .IsNotNull();
     }
 }

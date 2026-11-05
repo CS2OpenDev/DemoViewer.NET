@@ -396,7 +396,7 @@ public sealed class ExtensionFaults
                 trip = tally.SuspendPending;
             }
             else if (counts && !tally.SuspendPending
-                            && (tally.Recent.Count >= WindowLimit || tally.Total >= SessionLimit))
+                     && (tally.Recent.Count >= WindowLimit || tally.Total >= SessionLimit))
             {
                 tally.SuspendPending = true;
                 trip = true;

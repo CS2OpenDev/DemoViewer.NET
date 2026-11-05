@@ -86,7 +86,7 @@ public class SuggestedTagsRealDemoTests
         RoundFactsEvaluator facts = new(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
         facts.Evaluate(path, parsed);
         RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts
-                              ?? throw new InvalidOperationException("the evaluator wrote no rows");
+            ?? throw new InvalidOperationException("the evaluator wrote no rows");
 
         List<PositionSample> samples = [.. PositionSampler.Walk(parsed, RoundOccupancyBuilder.FrameStride)];
         OccupancyBuild build = RoundOccupancyBuilder.FromWalk(parsed, rows, samples: samples);
@@ -205,13 +205,13 @@ public class SuggestedTagsRealDemoTests
             int noPlantRounds = scored - planted.Count;
             int noPlantFires = executes.Count(p => !planted.Contains(p.Round));
             Console.WriteLine($"{map}: {scored} rounds, {planted.Count} planted, regions {regions.Source}: " +
-                              string.Join("; ",
-                                  SiteRegions.Sites.Select(s => DetectorMath.RegionText(s, regions.RegionOf(s)))));
+                string.Join("; ",
+                    SiteRegions.Sites.Select(s => DetectorMath.RegionText(s, regions.RegionOf(s)))));
             Console.WriteLine($"  executes {executes.Count} (no-plant {noPlantFires} of {noPlantRounds}), " +
-                              string.Join(", ",
-                                  ProposalDetection.All.Skip(1).Select(d =>
-                                      $"{d.Id} {proposals.Count(p => p.Detector == d.Id)}")) +
-                              $"; {watch.ElapsedMilliseconds} ms parse, walk and detect");
+                string.Join(", ",
+                    ProposalDetection.All.Skip(1).Select(d =>
+                        $"{d.Id} {proposals.Count(p => p.Detector == d.Id)}")) +
+                $"; {watch.ElapsedMilliseconds} ms parse, walk and detect");
             foreach (TagProposal p in proposals)
             {
                 Console.WriteLine(

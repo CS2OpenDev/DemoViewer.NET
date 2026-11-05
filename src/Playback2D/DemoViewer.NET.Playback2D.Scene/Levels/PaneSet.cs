@@ -88,11 +88,11 @@ public sealed class PaneSet
         ArgumentNullException.ThrowIfNull(space);
 
         bool sameShape = _lastVersion == space.Version
-                         && _mode == mode
-                         && _lastPolicyRevision == _policy.Revision
-                         && Math.Abs(_host.Width - host.Width) <= 0.5f
-                         && Math.Abs(_host.Height - host.Height) <= 0.5f
-                         && _panes.Count == _lastArrangedCount;
+            && _mode == mode
+            && _lastPolicyRevision == _policy.Revision
+            && Math.Abs(_host.Width - host.Width) <= 0.5f
+            && Math.Abs(_host.Height - host.Height) <= 0.5f
+            && _panes.Count == _lastArrangedCount;
         if (sameShape)
         {
             return false;

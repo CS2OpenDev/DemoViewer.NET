@@ -74,7 +74,7 @@ public sealed record StatScale(
     /// </summary>
     public bool HasColourDomain =>
         double.IsFinite(EffectiveColourMin) && double.IsFinite(EffectiveColourMax)
-                                            && EffectiveColourMax > EffectiveColourMin;
+        && EffectiveColourMax > EffectiveColourMin;
 
     /// <summary>
     ///     The bar channel: where <paramref name="value" /> sits in <see cref="Min" />..<see cref="Max" />,

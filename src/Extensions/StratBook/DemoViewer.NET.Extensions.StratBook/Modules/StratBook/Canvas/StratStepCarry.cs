@@ -57,7 +57,7 @@ public static class StratStepCarry
         {
             StratSceneProjection.SlotPlan plan = StratSceneProjection.PlanOf(path, ticks, origins, slot, places);
             if (plan.Moved || (atSeconds is { } at && placeCentres is not null
-                                                   && HasRotated(document, last, slot, at, placeCentres)))
+                    && HasRotated(document, last, slot, at, placeCentres)))
             {
                 continue;
             }
@@ -113,7 +113,7 @@ public static class StratStepCarry
                 && StratSceneProjection.RotateTickOf(step, StratClock.StratTickOf(clock, step.AtSeconds), clock) is
                     { } tick
                 && tick <= at && (StratLocations.HasPoint(step.Lurk!.Rotate!.To)
-                                  || centres(step.Lurk.Rotate.To!.Place!, 0) is not null))
+                    || centres(step.Lurk.Rotate.To!.Place!, 0) is not null))
             {
                 return true;
             }
@@ -124,8 +124,8 @@ public static class StratStepCarry
 
     private static bool Same(StepPosition stored, TokenPlacement placement) =>
         ((float)stored.X).Equals(placement.X) && ((float)stored.Y).Equals(placement.Y)
-                                              && Nullable.Equals(stored.YawDegrees is { } yaw ? (float?)yaw : null,
-                                                  placement.YawDegrees);
+        && Nullable.Equals(stored.YawDegrees is { } yaw ? (float?)yaw : null,
+            placement.YawDegrees);
 
     private static StepPosition Clone(StepPosition position) =>
         JsonSerializer.Deserialize(JsonSerializer.Serialize(position, StratJsonContext.Default.StepPosition),

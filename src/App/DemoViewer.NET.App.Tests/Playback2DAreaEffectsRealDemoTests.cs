@@ -66,7 +66,7 @@ public class Playback2DAreaEffectsRealDemoTests
 
         int matching = vm.AreaEffects.Count(a => a.Kind == kind);
         Console.WriteLine($"[area-fx] {eventName} @frame {target}: {kind}={matching} " +
-                          $"(total {vm.AreaEffects.Count})");
+            $"(total {vm.AreaEffects.Count})");
         await Assert.That(matching).IsGreaterThan(0);
 
         // The effect is at a sane in-world position (not the (0,0) failure spot, inside the world extent).
@@ -80,8 +80,8 @@ public class Playback2DAreaEffectsRealDemoTests
         for (int i = 0; i < frames.Count; i++)
         {
             if (frames[i].InnerMessages.Any(m => m is GameEventMessage gem &&
-                                                 gem.DecodedEvent.Name.Equals(name,
-                                                     StringComparison.OrdinalIgnoreCase)))
+                    gem.DecodedEvent.Name.Equals(name,
+                        StringComparison.OrdinalIgnoreCase)))
             {
                 return i;
             }

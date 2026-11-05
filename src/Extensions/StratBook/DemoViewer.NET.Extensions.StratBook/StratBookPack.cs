@@ -235,11 +235,8 @@ public sealed class StratBookPack : IExtension
                 // Suggested Tags reads occupancy from the index, so the index is built wherever it wants a
                 // demo. Resolved per call: the service is not built while its feature is off.
                 wantedDownstream: path => features.IsEnabled(SuggestedTagsService.FeatureId)
-                                          && sp.GetRequiredService<SuggestedTagsService>().Interest(path)
-                                          != DemoInterest.No)
-            {
-                Passes = Host(sp).Passes
-            };
+                    && sp.GetRequiredService<SuggestedTagsService>().Interest(path)
+                    != DemoInterest.No) { Passes = Host(sp).Passes };
             return built;
         });
         services.AddSingleton(sp => new SituationIndex(
@@ -401,7 +398,7 @@ public sealed class StratBookPack : IExtension
                 sp.GetService<ISituationPlayback>,
                 packExport: Host(sp).PackExport,
                 mapOf: clip => (clip.Sha256 is { } sha ? library.FindBySha256(sha) : null)?.MapName
-                               ?? library.Find(clip.DemoPath)?.MapName,
+                    ?? library.Find(clip.DemoPath)?.MapName,
                 teamName: id => teams.AllTeams.FirstOrDefault(t => t.Id == id || t.MergedFrom.Contains(id))?.Name);
         });
 
@@ -800,8 +797,8 @@ public sealed class StratBookPack : IExtension
     {
         ServiceDescriptor original = services.First(d => d.ServiceType == typeof(T));
         Func<IServiceProvider, object> factory = original.ImplementationFactory
-                                                 ?? throw new InvalidOperationException(
-                                                     $"{typeof(T)} must be registered with a factory to track it.");
+            ?? throw new InvalidOperationException(
+                $"{typeof(T)} must be registered with a factory to track it.");
         services.Replace(ServiceDescriptor.Singleton(typeof(T), sp =>
         {
             T built = (T)factory(sp);
@@ -817,8 +814,8 @@ public sealed class StratBookPack : IExtension
     {
         ServiceDescriptor original = services.First(d => d.ServiceType == typeof(T));
         Func<IServiceProvider, object> factory = original.ImplementationFactory
-                                                 ?? throw new InvalidOperationException(
-                                                     $"{typeof(T)} must be registered with a factory to track it.");
+            ?? throw new InvalidOperationException(
+                $"{typeof(T)} must be registered with a factory to track it.");
         services.Replace(ServiceDescriptor.Singleton(typeof(T), sp =>
         {
             T built = (T)factory(sp);
@@ -870,7 +867,7 @@ public sealed class StratBookPack : IExtension
             DemoAction indexGrenades = new("stratbook.index-grenades", "Index grenades",
                 "Queue this demo's grenade walk: every throw with its lineup and landing point. It runs in the background and never opens the demo",
                 path => !string.Equals(path, context.Shell.CurrentDemoPath, StringComparison.OrdinalIgnoreCase)
-                        && !sp.GetRequiredService<GrenadeIndexEvaluator>().IsCurrent(path),
+                    && !sp.GetRequiredService<GrenadeIndexEvaluator>().IsCurrent(path),
                 // Lifting a failed stamp writes the per-demo index, so the press runs as a queue item.
                 path => _ = context.Jobs.RunAsync("Index grenades: " + Path.GetFileName(path), _ =>
                 {

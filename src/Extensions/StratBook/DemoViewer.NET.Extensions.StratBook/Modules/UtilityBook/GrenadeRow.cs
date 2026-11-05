@@ -145,7 +145,6 @@ public readonly record struct TrajectoryPoint(int Tick, float X, float Y, float 
 /// </summary>
 public sealed class GrenadeRow
 {
-
     /// <summary><c>g{index}-{serial}</c>: unique within a demo; the cross-demo key is the demo's hash plus this.</summary>
     public string Id { get; init; } = "";
 

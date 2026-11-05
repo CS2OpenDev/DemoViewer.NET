@@ -45,7 +45,7 @@ public static class PlayerEventFacet
         foreach (FactRow death in deaths)
         {
             if (Whole(death.Dimensions, "tick") is { } tick && Whole(death.Dimensions, "player_slot") is { } victim
-                                                            && Whole(death.Values, "attacker_slot") is { } killer)
+                && Whole(death.Values, "attacker_slot") is { } killer)
             {
                 victims.TryAdd((tick, killer, victim), SteamId(death.Dimensions));
             }

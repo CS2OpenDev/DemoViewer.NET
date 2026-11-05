@@ -19,9 +19,10 @@ public sealed record PaletteKeymap(Func<Key, KeyModifiers, string?> ActionFor, F
 {
     /// <summary>The palette keys at the pack's shipped gestures, before the 2D tab hands over the user's keymap.</summary>
     public static PaletteKeymap Default { get; } = new(
-        (key, modifiers) => StratBookCommands.All.FirstOrDefault(c => c is { Scope: StratBookActions.PaletteScope, DefaultChord: { } chord }
-                                                                      && chord.Key == key
-                                                                      && chord.KeyModifiers == modifiers)?.Id,
+        (key, modifiers) => StratBookCommands.All.FirstOrDefault(c =>
+            c is { Scope: StratBookActions.PaletteScope, DefaultChord: { } chord }
+            && chord.Key == key
+            && chord.KeyModifiers == modifiers)?.Id,
         id => StratBookCommands.All.FirstOrDefault(c => c.Id == id)?.DefaultChord is { } chord
             ? KeyGestureText.Format(chord.Key, chord.KeyModifiers)
             : "");
@@ -234,13 +235,13 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
     /// <summary>The palette's keys from the resolved keymap, so a rebind shows the user's gesture.</summary>
     public string HintText => IsLabelMode
         ? $"{Gesture(StratBookActions.TagLabelMode)} back to tagging · "
-          + $"{Gesture(StratBookActions.TagLabelGroupNext)} next group · "
-          + $"{Gesture(StratBookActions.TagPaletteBack)} drop the pick, then leave · "
-          + $"{Gesture("Undo")} undo · click a tag's band: label it, again: the next one there"
+        + $"{Gesture(StratBookActions.TagLabelGroupNext)} next group · "
+        + $"{Gesture(StratBookActions.TagPaletteBack)} drop the pick, then leave · "
+        + $"{Gesture("Undo")} undo · click a tag's band: label it, again: the next one there"
         : $"{Gesture(StratBookActions.FocusTagPalette)} focus · {Gesture(StratBookActions.TagPaletteBack)} back · "
-          + $"{Gesture(StratBookActions.TagNote)} note · {Gesture(StratBookActions.TagClearSticky)} clear sticky · "
-          + $"{Gesture(StratBookActions.TagLabelMode)} label mode · "
-          + $"{Gesture("Undo")} undo · click map: point, again: movement";
+        + $"{Gesture(StratBookActions.TagNote)} note · {Gesture(StratBookActions.TagClearSticky)} clear sticky · "
+        + $"{Gesture(StratBookActions.TagLabelMode)} label mode · "
+        + $"{Gesture("Undo")} undo · click map: point, again: movement";
 
     /// <summary>Raised when the user picks a palette, with its id, so the tab can persist the choice.</summary>
     public event Action<string>? PaletteChosen;
@@ -893,7 +894,7 @@ public sealed partial class TagPaletteViewModel : ObservableObject, IDisposable
     private static void AddLabel(TagInstance instance, string group, string value)
     {
         if (!instance.Labels.Any(l => string.Equals(l.Group, group, StringComparison.Ordinal)
-                                      && string.Equals(l.Value, value, StringComparison.Ordinal)))
+                && string.Equals(l.Value, value, StringComparison.Ordinal)))
         {
             instance.Labels.Add(new TagLabel(group, value));
         }

@@ -126,7 +126,7 @@ public class Playback2DWasmBudgetTests
         long steady = MeasureWindow(stage, fixture, time);
 
         Console.WriteLine($"[wasm-budget] 256 frames at {_size.Width}x{_size.Height}: " +
-                          $"warm window {warm} B, steady window {steady} B");
+            $"warm window {warm} B, steady window {steady} B");
 
         await Assert.That(steady).IsEqualTo(0)
             .Because("WASM is single-threaded — a gen-0 pause there is worse, not more forgivable");

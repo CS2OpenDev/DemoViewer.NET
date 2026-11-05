@@ -125,9 +125,9 @@ public sealed class HelloExtension : IExtension
                     bool read = result.Status == JobStatus.Completed;
                     services.GetRequiredService<HelloTabViewModel>().Greeted =
                         context.Settings.Get(GreetingKey, "Hello") + " "
-                                                                   + (read
-                                                                       ? $"{Path.GetFileName(path)} ({frames} frames)"
-                                                                       : Path.GetFileName(path));
+                        + (read
+                            ? $"{Path.GetFileName(path)} ({frames} frames)"
+                            : Path.GetFileName(path));
                     chip.Greeted(Path.GetFileName(path));
 
                     // One id, so greeting again replaces the card rather than stacking another.
@@ -201,9 +201,9 @@ public sealed class HelloTabViewModel : IWorkspaceTabViewModel
         {
             string? open = _context.Shell.CurrentDemoPath;
             string frames = open is not null && _context.Settings.Get(HelloExtension.ShowFramesKey, true)
-                                             && FrameCountPass.Count(_context.Data, open) is { } count
-                ? $" ({count} frames)"
-                : "";
+                && FrameCountPass.Count(_context.Data, open) is { } count
+                    ? $" ({count} frames)"
+                    : "";
             string kills = _kills is { } total ? $" {total} kills." : "";
             string demos = You is { } you && _context.Library.Players.Account(you) is { } account
                 ? $" ({account.DemoCount} demos)"

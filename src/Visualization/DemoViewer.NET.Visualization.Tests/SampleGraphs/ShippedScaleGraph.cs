@@ -155,9 +155,9 @@ public static class ShippedScaleGraph
     private static IEnumerable<string> ReadLines()
     {
         using Stream stream = typeof(ShippedScaleGraph).GetTypeInfo().Assembly
-                                  .GetManifestResourceStream(ResourceName)
-                              ?? throw new InvalidOperationException(
-                                  $"embedded resource missing: {ResourceName}");
+                .GetManifestResourceStream(ResourceName)
+            ?? throw new InvalidOperationException(
+                $"embedded resource missing: {ResourceName}");
         using StreamReader reader = new(stream);
         while (reader.ReadLine() is { } line)
         {

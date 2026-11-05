@@ -336,7 +336,7 @@ public sealed class RecordPassRunner : IDisposable
 
         bool refreshed = false;
         if ((entry.CtPlayers is null || entry.TPlayers is null) && record.Parse.IsPresent
-                                                                && _store.RefreshIndexRow(record))
+            && _store.RefreshIndexRow(record))
         {
             refreshed = true;
             entry = _store.TryGetPrimary(path) ?? entry;
@@ -416,9 +416,9 @@ public sealed class RecordPassRunner : IDisposable
                 {
                     if (inputs is null
                             ? _ranOn.TryGetValue((pass.Id, demo), out DemoCacheIndexEntry? ran)
-                              && ReferenceEquals(ran, entry)
+                            && ReferenceEquals(ran, entry)
                             : _ranOnInputs.TryGetValue((pass.Id, demo), out PackStamp[]? ranInputs)
-                              && ranInputs.SequenceEqual(inputs))
+                            && ranInputs.SequenceEqual(inputs))
                     {
                         continue;
                     }
@@ -499,7 +499,7 @@ public sealed class RecordPassRunner : IDisposable
                 else
                 {
                     report = !(_refused.TryGetValue(pass.Id, out string? last)
-                               && string.Equals(last, refusal.Message, StringComparison.Ordinal));
+                        && string.Equals(last, refusal.Message, StringComparison.Ordinal));
                     _refused[pass.Id] = refusal.Message;
                 }
             }

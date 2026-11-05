@@ -80,7 +80,7 @@ public class SdkPlaybackSurfaceSceneTests
             await Assert.That(built.Id).IsEqualTo(filed)
                 .Because("the layer's own id is never used, so it cannot claim a host id");
             await Assert.That(filed.StartsWith("playback2d.", StringComparison.Ordinal)
-                              || filed.StartsWith("hud.", StringComparison.Ordinal))
+                    || filed.StartsWith("hud.", StringComparison.Ordinal))
                 .IsFalse();
         }
 

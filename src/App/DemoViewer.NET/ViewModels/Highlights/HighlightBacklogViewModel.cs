@@ -103,7 +103,7 @@ public sealed partial class HighlightBacklogViewModel : ViewModelBase, IDisposab
             parts.Add(backgroundScan
                 ? $"{demos} highlights from older rules or none yet. They are refreshing in the background."
                 : $"{demos} highlights from older rules or none yet. They refresh as demos are processed, "
-                  + "or turn on the background scan in Settings to refresh them all.");
+                + "or turn on the background scan in Settings to refresh them all.");
         }
 
         if (failed > 0)

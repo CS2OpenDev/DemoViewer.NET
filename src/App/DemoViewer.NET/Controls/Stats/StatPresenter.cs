@@ -249,7 +249,7 @@ public abstract class StatPresenter : TemplatedControl
         // the control has to publish its own name. On change rather than in Render, so it is correct even
         // for a control that never paints.
         if (change.Property == ValueProperty || change.Property == TextProperty
-                                             || change.Property == FormatProperty)
+            || change.Property == FormatProperty)
         {
             AutomationProperties.SetName(this, DisplayText);
         }

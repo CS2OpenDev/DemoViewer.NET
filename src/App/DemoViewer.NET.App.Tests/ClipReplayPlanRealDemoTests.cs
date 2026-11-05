@@ -61,7 +61,7 @@ public class ClipReplayPlanRealDemoTests
                 .IsEquivalentTo(full.Frames, TUnit.Assertions.Enums.CollectionOrdering.Matching);
 
             Console.WriteLine($"{Path.GetFileName(path)}: {full.Gifs.Count} GIFs identical, " +
-                              $"pack clip {full.Frames.Count} frames identical");
+                $"pack clip {full.Frames.Count} frames identical");
         }
         finally
         {

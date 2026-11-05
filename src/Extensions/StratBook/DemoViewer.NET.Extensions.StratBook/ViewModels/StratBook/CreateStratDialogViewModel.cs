@@ -334,7 +334,7 @@ public sealed partial class CreateStratDialogViewModel : ExtensionViewModel, IDi
             foreach (SlotChoiceViewModel other in Slots)
             {
                 if (!ReferenceEquals(other, row) && row.Selected is { } player
-                                                 && other.Selected?.PlayerSlot == player.PlayerSlot)
+                    && other.Selected?.PlayerSlot == player.PlayerSlot)
                 {
                     other.Selected = previous;
                 }

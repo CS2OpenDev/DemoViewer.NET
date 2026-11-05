@@ -866,9 +866,9 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         lock (_gate)
         {
             return _index.Demos.TryGetValue(DemoKeys.StableKey(demoPath), out TeamIndexDemo? row)
-                   && row.Side(endSide)?.TeamId is { } id
-                ? _teams.Find(id)
-                : null;
+                && row.Side(endSide)?.TeamId is { } id
+                    ? _teams.Find(id)
+                    : null;
         }
     }
 
@@ -933,7 +933,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         lock (_joinGate)
         {
             JoinSlot? slot = _joins.Find(j => ReferenceEquals(j.Entry, entry)
-                                              && string.Equals(j.Path, demoPath, StringComparison.OrdinalIgnoreCase));
+                && string.Equals(j.Path, demoPath, StringComparison.OrdinalIgnoreCase));
             if (slot is null)
             {
                 if (_joins.Count >= SideJoinCapacity)
@@ -992,10 +992,10 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         lock (_gate)
         {
             return _index.Members.TryGetValue(teamId.ToString(),
-                       out Dictionary<string, Dictionary<string, TeamIndexMember>>? perRoster)
-                   && perRoster.TryGetValue(rosterId, out Dictionary<string, TeamIndexMember>? members)
-                ? new Dictionary<string, TeamIndexMember>(members, StringComparer.Ordinal)
-                : new Dictionary<string, TeamIndexMember>(StringComparer.Ordinal);
+                    out Dictionary<string, Dictionary<string, TeamIndexMember>>? perRoster)
+                && perRoster.TryGetValue(rosterId, out Dictionary<string, TeamIndexMember>? members)
+                    ? new Dictionary<string, TeamIndexMember>(members, StringComparer.Ordinal)
+                    : new Dictionary<string, TeamIndexMember>(StringComparer.Ordinal);
         }
     }
 
@@ -1442,8 +1442,8 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
                  _teams.Overrides.Cast<IDemoKeyedOverride>().Concat(_teams.Provenance.Overrides))
         {
             if (o.DemoSha256 is null && o.DemoStableKey is not null
-                                     && _index.Demos.TryGetValue(o.DemoStableKey, out TeamIndexDemo? row)
-                                     && row.Sha256 is not null)
+                && _index.Demos.TryGetValue(o.DemoStableKey, out TeamIndexDemo? row)
+                && row.Sha256 is not null)
             {
                 o.DemoSha256 = row.Sha256;
                 o.DemoStableKey = null;

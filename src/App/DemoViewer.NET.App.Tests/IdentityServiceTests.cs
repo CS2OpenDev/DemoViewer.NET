@@ -137,13 +137,13 @@ public class IdentityServiceTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), $$"""
-                                                                    {
-                                                                      "Identity": {
-                                                                        "Accounts": [ { "SteamId64": "{{A}}" }, { "SteamId64": "{{A}}" }, { "SteamId64": "junk" }, { "SteamId64": "{{B}}", "Label": "" } ],
-                                                                        "ActiveSteamId64": "{{C}}"
-                                                                      }
-                                                                    }
-                                                                    """);
+                                                                               {
+                                                                                 "Identity": {
+                                                                                   "Accounts": [ { "SteamId64": "{{A}}" }, { "SteamId64": "{{A}}" }, { "SteamId64": "junk" }, { "SteamId64": "{{B}}", "Label": "" } ],
+                                                                                   "ActiveSteamId64": "{{C}}"
+                                                                                 }
+                                                                               }
+                                                                               """);
             SettingsService settings = new(dir);
             using IdentityService identity = new(settings);
             using (Assert.Multiple())

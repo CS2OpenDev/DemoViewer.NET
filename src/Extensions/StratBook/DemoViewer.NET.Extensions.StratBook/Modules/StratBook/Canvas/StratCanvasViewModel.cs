@@ -319,11 +319,11 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             : PlaceTarget switch
             {
                 StratPlaceTarget.To => "Set " + (SelectedLineSlot is { } slot && ActiveStep is { } step
-                                                                              && WritesOneLine(step)
-                                                                              && !WritesAllLines(step)
-                                                  ? slot + "'s "
-                                                  : "")
-                                              + "“" + StratStepFields.ToLabel(ActiveStep?.Verb) + "” on map",
+                        && WritesOneLine(step)
+                        && !WritesAllLines(step)
+                            ? slot + "'s "
+                            : "")
+                    + "“" + StratStepFields.ToLabel(ActiveStep?.Verb) + "” on map",
                 StratPlaceTarget.Landing => "Set landing on map",
                 StratPlaceTarget.LurkArea => "Set “lurk area” on map",
                 _ => ""
@@ -556,9 +556,9 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
         // Only a step that is not already active is selected: the toolbar's pick leaves the playhead inside its window.
         if ((ActiveStep?.Id != field.StepId && !SelectStep(field.StepId)) || EditableActiveStep() is null
-                                                                          || ActiveStep is not { } step
-                                                                          || step.Id != field.StepId
-                                                                          || !StratLocationPatches.Applies(step, field))
+            || ActiveStep is not { } step
+            || step.Id != field.StepId
+            || !StratLocationPatches.Applies(step, field))
         {
             return false;
         }
@@ -662,7 +662,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         }
 
         return (IsToolActive ? keymap.ActionFor(CoreActions.ToolScope, key, modifiers) : null)
-               ?? keymap.ActionFor(CoreActions.Scope, key, modifiers);
+            ?? keymap.ActionFor(CoreActions.Scope, key, modifiers);
     }
 
     // ── Keymap executor ──────────────────────────────────────────────────────────────────────────
@@ -881,7 +881,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             {
                 double dx = world.X - pin.At.X, dy = world.Y - pin.At.Y;
                 if (pane.Level.Contains(pin.At.Z) && dx * dx + dy * dy <= worldRadius * worldRadius * 2
-                                                  && dx * dx + dy * dy < best)
+                    && dx * dx + dy * dy < best)
                 {
                     best = dx * dx + dy * dy;
                     slot = pin.At.Label;
@@ -948,7 +948,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
         // A step edit while the drag is open moves the indices it writes by.
         if (!drag.Target.IsRefused && _session.Document is { } document
-                                   && !StratDragPatches.Holds(document, drag.Target))
+            && !StratDragPatches.Holds(document, drag.Target))
         {
             drag.Target = drag.Target with { Action = StratDragAction.Refused, Refusal = StepsChangedNote };
         }
@@ -1052,11 +1052,11 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
                 StratDragAction.Start when drop.YawDegrees is not null =>
                     $"{target.Slot}'s start facing is set. Ctrl+Z undoes",
                 StratDragAction.Start => $"{target.Slot} now starts at {now}"
-                                         + (before.Length > 0 && before != now ? $" (was {before})" : "")
-                                         + ". Ctrl+Z undoes",
+                    + (before.Length > 0 && before != now ? $" (was {before})" : "")
+                    + ". Ctrl+Z undoes",
                 _ => $"{StepName(target)}{target.Slot}'s {FieldWord(after, target)} is now {now}"
-                     + (before.Length > 0 && before != now ? $" (was {before})" : "")
-                     + (seen ? "; replaced the seen position" : "") + ". Ctrl+Z undoes"
+                    + (before.Length > 0 && before != now ? $" (was {before})" : "")
+                    + (seen ? "; replaced the seen position" : "") + ". Ctrl+Z undoes"
             };
             MarkEarlier(target);
         }
@@ -1091,7 +1091,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         StratSceneProjection.RunSpan? first = projection.RunsOf(target.PathIndex, rotate)
             .Where(r => r.Slot == target.Slot).Select(r => r.Run).OrderBy(r => r.StartTick).FirstOrDefault();
         if (first is null || first.ArriveTick > Transport.Tick
-                          || !track.TrySample(first.ArriveTick, out TokenKeyframe at))
+            || !track.TrySample(first.ArriveTick, out TokenKeyframe at))
         {
             return;
         }
@@ -1212,10 +1212,10 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     {
         string? map = _session.Document?.Map;
         IZonePlaceResolver? zones = map is not null && _places is { IsCompletedSuccessfully: true, Result: { } loaded }
-                                                    && string.Equals(_placesMap, map,
-                                                        StringComparison.OrdinalIgnoreCase)
-            ? loaded
-            : null;
+            && string.Equals(_placesMap, map,
+                StringComparison.OrdinalIgnoreCase)
+                ? loaded
+                : null;
         bool pointOnly = (drag.Modifiers & ToolModifiers.Shift) != 0;
         string? place = zones?.ResolveOnFloor(drag.X, drag.Y, drag.LevelMinZ);
         bool snapped = false;
@@ -1270,9 +1270,9 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         drag.Preview = preview;
 
         drag.Outline = drop is { Place: { } place, PointOnly: false }
-                       && _places is { IsCompletedSuccessfully: true, Result: { } zones }
-            ? zones.OutlineOf(place, drag.LevelMinZ)
-            : null;
+            && _places is { IsCompletedSuccessfully: true, Result: { } zones }
+                ? zones.OutlineOf(place, drag.LevelMinZ)
+                : null;
         string value = FieldText(shown, drag.Target, drop);
         DragLabel = drag.Target.Action switch
         {
@@ -1470,9 +1470,9 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         foreach ((string slot, StratSceneProjection.RunSpan run) in projection.RunsOf(pathIndex))
         {
             if ((only is not null && slot != only) || run.ArriveTick <= tick
-                                                   || projection.Tracks.FirstOrDefault(t => t.Slot == slot) is not
-                                                       { } track
-                                                   || !track.TrySample(run.ArriveTick, out TokenKeyframe arrive))
+                || projection.Tracks.FirstOrDefault(t => t.Slot == slot) is not
+                    { } track
+                || !track.TrySample(run.ArriveTick, out TokenKeyframe arrive))
             {
                 continue;
             }
@@ -1696,10 +1696,10 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
             }
         }
         else if (_armed is { } armed && (ActiveStep is not { } armedStep || armedStep.Id != armed.StepId
-                                                                         || (armed.FromToolbar
-                                                                             ? ToolbarField(armedStep) != armed.Field
-                                                                             : !StratLocationPatches.Applies(armedStep,
-                                                                                 armed.Field))))
+                     || (armed.FromToolbar
+                         ? ToolbarField(armedStep) != armed.Field
+                         : !StratLocationPatches.Applies(armedStep,
+                             armed.Field))))
         {
             _armed = null;
         }
@@ -1865,7 +1865,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
         }
 
         if (ActiveStepIndex >= 0 && ActiveStepIndex < projection.Ticks.Count
-                                 && projection.Ticks[ActiveStepIndex] == from)
+            && projection.Ticks[ActiveStepIndex] == from)
         {
             return ActiveStepIndex;
         }
@@ -1977,7 +1977,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     private bool ClearActiveStepStrokes()
     {
         if (_session.Document is not { } document || EditableActiveStep() is not { } index
-                                                  || document.Steps[index].Strokes.Count == 0)
+            || document.Steps[index].Strokes.Count == 0)
         {
             return false;
         }
@@ -2343,8 +2343,8 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     // A strat whose start the spawns can fill: an older file, not a capture, beginning at the start.
     private static bool NeedsSpawns(StratDocument document) =>
         document is { Start: null, Steps.Count: > 0 } && !StratSceneProjection.IsCaptured(document)
-                                                      && StratClock.StratTickOf(document.Clock,
-                                                          document.Steps[0].AtSeconds) == 0;
+        && StratClock.StratTickOf(document.Clock,
+            document.Steps[0].AtSeconds) == 0;
 
     /// <summary>
     ///     Whether the open strat's start waits on the map's spawns, which are still being read: its first start write
@@ -2375,10 +2375,10 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     private static string FieldLabel(StratLocationField field, StratStep step)
     {
         string who = field.Slot is { } slot && slot != StratLocationField.AllLines
-                                            && (field.Kind is StratLocationKind.Watch or StratLocationKind.Via
-                                                || StratStepLines.HasLines(step))
-            ? slot + "'s "
-            : "";
+            && (field.Kind is StratLocationKind.Watch or StratLocationKind.Via
+                || StratStepLines.HasLines(step))
+                ? slot + "'s "
+                : "";
         return who + field.Kind switch
         {
             StratLocationKind.From => "“from”",
@@ -2397,7 +2397,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     /// </summary>
     private bool WritesAllLines(StratStep step) =>
         step.Assignments is { Count: > 1 } lines && StratLinePatches.Agree(lines)
-                                                 && LinesShownApart?.Invoke(step.Id) != true;
+        && LinesShownApart?.Invoke(step.Id) != true;
 
     // A map click sets one player's place: the step stores lines, or the editor shows a step for everyone split.
     private bool WritesOneLine(StratStep step) =>
@@ -2422,7 +2422,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
 
     private IZonePlaceResolver? LoadedZones() =>
         _session.Document is { } document && _places is { IsCompletedSuccessfully: true, Result: { } zones }
-                                          && string.Equals(_placesMap, document.Map, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(_placesMap, document.Map, StringComparison.OrdinalIgnoreCase)
             ? zones
             : null;
 
@@ -2467,7 +2467,7 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     private void OnPlacesLoaded(string map)
     {
         if (!_disposed && string.Equals(_placesMap, map, StringComparison.OrdinalIgnoreCase)
-                       && string.Equals(_session.Document?.Map, map, StringComparison.OrdinalIgnoreCase))
+            && string.Equals(_session.Document?.Map, map, StringComparison.OrdinalIgnoreCase))
         {
             OnProjectionInputChanged();
             PlacesLoaded?.Invoke();
@@ -2512,8 +2512,8 @@ public sealed partial class StratCanvasViewModel : ObservableObject, ISceneSourc
     private Task<IZonePlaceResolver?> PlacesFor(string map, bool retryEmpty)
     {
         bool stale = _places is null || !string.Equals(_placesMap, map, StringComparison.OrdinalIgnoreCase)
-                                     || _places.IsFaulted || _places.IsCanceled
-                                     || (retryEmpty && _places.IsCompletedSuccessfully && _places.Result is null);
+            || _places.IsFaulted || _places.IsCanceled
+            || (retryEmpty && _places.IsCompletedSuccessfully && _places.Result is null);
         if (stale)
         {
             _placesMap = map;

@@ -827,10 +827,10 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     private bool TryPrimaryPress(in ToolPointerEvent sample)
     {
         if (sample.Button != ToolPointerButton.Left || sample.Pane is not { } pane
-                                                    || Router.IsSpaceHeld || (sample.Modifiers
-                                                                              & (ToolModifiers.Space
-                                                                                  | ToolModifiers.Control)) != 0
-                                                    || FrameHost is not { } vm)
+            || Router.IsSpaceHeld || (sample.Modifiers
+                & (ToolModifiers.Space
+                    | ToolModifiers.Control)) != 0
+            || FrameHost is not { } vm)
         {
             return false;
         }
@@ -845,11 +845,11 @@ public sealed class Scene2DHost : Control, IPlayback2DSurface, ILevelSurface, IA
     private bool TryContributedTool(in ToolPointerEvent sample)
     {
         if (sample.Button != ToolPointerButton.Left || sample.Pane is null
-                                                    || Router.IsSpaceHeld || (sample.Modifiers
-                                                                              & (ToolModifiers.Space
-                                                                                  | ToolModifiers.Control)) != 0
-                                                    || FrameHost is not { } vm || vm.ContributedTools is not
-                                                        { Count: > 0 } tools)
+            || Router.IsSpaceHeld || (sample.Modifiers
+                & (ToolModifiers.Space
+                    | ToolModifiers.Control)) != 0
+            || FrameHost is not { } vm || vm.ContributedTools is not
+                { Count: > 0 } tools)
         {
             return false;
         }

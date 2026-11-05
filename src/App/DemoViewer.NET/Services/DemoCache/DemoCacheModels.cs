@@ -910,9 +910,9 @@ public sealed class DemoCacheIndexEntry : IJsonOnDeserialized
     public bool NeedsAnalysis(string? currentFingerprint) =>
         AnalysisState != DemoAnalysisState.Failed
         && !(AnalysisSchema > 0
-             && AnalysisState == DemoAnalysisState.Indexed
-             && (currentFingerprint is null
-                 || string.Equals(ConfigFingerprint, currentFingerprint, StringComparison.Ordinal)));
+            && AnalysisState == DemoAnalysisState.Indexed
+            && (currentFingerprint is null
+                || string.Equals(ConfigFingerprint, currentFingerprint, StringComparison.Ordinal)));
 
     public bool MatchesFile(long size, long modifiedTicks) =>
         Size == size && ModifiedTicks == modifiedTicks;

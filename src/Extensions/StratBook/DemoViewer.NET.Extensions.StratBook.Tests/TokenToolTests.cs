@@ -265,7 +265,7 @@ public class TokenToolTests
         public void MoveTo(string slot, SKPoint world, double levelMinZ, ToolModifiers modifiers = ToolModifiers.None,
             double worldUnitsPerPixel = 0) =>
             Calls.Add(FormattableString.Invariant($"move {slot} {world.X},{world.Y} @{levelMinZ}")
-                      + (modifiers == ToolModifiers.None ? "" : " " + modifiers));
+                + (modifiers == ToolModifiers.None ? "" : " " + modifiers));
 
         public void EndDrag(ToolModifiers modifiers = ToolModifiers.None) => Calls.Add($"end {Active} {modifiers}");
 

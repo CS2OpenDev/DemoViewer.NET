@@ -32,6 +32,7 @@ public sealed class FeatureGate : IFeatureGate, IFeatureSuspension, IDisposable
 {
     private static readonly IReadOnlyDictionary<string, bool> _emptyOverrides =
         new Dictionary<string, bool>(StringComparer.Ordinal);
+
     private static readonly HashSet<string> _noneSuspended = new(StringComparer.Ordinal);
 
     // Replaced, never mutated: IsEnabled runs on queue threads while the UI thread suspends or resumes.

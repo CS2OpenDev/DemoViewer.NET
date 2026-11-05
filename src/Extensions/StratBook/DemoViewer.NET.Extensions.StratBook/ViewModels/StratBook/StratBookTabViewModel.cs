@@ -565,7 +565,7 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
     private void OpenExport()
     {
         if (!CanExport || _sceneExport?.Invoke() is not { } export
-                       || Canvas.Projection is not { } projection || Session.Document is not { } document)
+            || Canvas.Projection is not { } projection || Session.Document is not { } document)
         {
             return;
         }
@@ -704,8 +704,8 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
 
             // Opened only if the user is still where they clicked; otherwise it is made but the open strat stays.
             bool stillHere = SelectedOwner == atClick.Owner && SelectedMap == atClick.Map
-                                                            && SelectedSide == atClick.Side
-                                                            && Session.Document?.Id == atClick.Open;
+                && SelectedSide == atClick.Side
+                && Session.Document?.Id == atClick.Open;
             CreateNew(owner.Owner, map, side, t.IsCompletedSuccessfully ? t.Result : null, template, stillHere);
         }), TaskScheduler.Default);
     }
@@ -978,7 +978,7 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
         // Another strat, none, or the picker's step deleted: there is nothing left for it to write to.
         if (_pickerTarget is { } target
             && (Session.Document is not { } open || open.Id != target.Strat
-                                                 || open.Steps.All(st => st.Id != target.Step)))
+                || open.Steps.All(st => st.Id != target.Step)))
         {
             CancelLineupPicker();
         }
@@ -1031,8 +1031,8 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
 
             StratOwner fallback = _teams?.Us is { } us ? StratOwner.Team(us.Id) : StratOwner.Me();
             SelectedOwner = Owners.FirstOrDefault(o => keep is not null && o.Owner.Equals(keep))
-                            ?? Owners.FirstOrDefault(o => o.Owner.Equals(fallback))
-                            ?? Owners[0];
+                ?? Owners.FirstOrDefault(o => o.Owner.Equals(fallback))
+                ?? Owners[0];
         }
         finally
         {
@@ -1139,8 +1139,8 @@ public sealed partial class StratBookTabViewModel : ExtensionViewModel, IWorkspa
             : (StratOwner.Me(), "");
 
         if (_calloutsConfiguredFor is { } current && current.Owner.Equals(target.Owner)
-                                                  && string.Equals(current.Map, target.Map, StringComparison.Ordinal)
-                                                  && Callouts.CopySources.Count == Owners.Count - 1)
+            && string.Equals(current.Map, target.Map, StringComparison.Ordinal)
+            && Callouts.CopySources.Count == Owners.Count - 1)
         {
             return;
         }

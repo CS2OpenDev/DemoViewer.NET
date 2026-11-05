@@ -123,7 +123,7 @@ public class Playback2DAnnotationHostTests
             await Assert.That(f.Document.Elements[0].Points).IsEquivalentTo(element.Points, CollectionOrdering.Matching)
                 .Because("ink is stored in WORLD units; a camera move must not touch a single sample");
             await Assert.That(Math.Abs(screenAfter.X - screenBefore.X)
-                              + Math.Abs(screenAfter.Y - screenBefore.Y)).IsGreaterThan(1)
+                    + Math.Abs(screenAfter.Y - screenBefore.Y)).IsGreaterThan(1)
                 .Because("...but it must land somewhere else on screen, or the camera did nothing");
         });
     }
@@ -432,8 +432,8 @@ public class Playback2DAnnotationHostTests
 
         ConstructorInfo ctor = typeof(PointerEventArgs)
             .GetConstructors(BindingFlags.Public
-                             | BindingFlags.NonPublic
-                             | BindingFlags.Instance)
+                | BindingFlags.NonPublic
+                | BindingFlags.Instance)
             .Single(c => c.GetParameters().Any(p => p.Name == "previousPoints"));
 
         // Positional up to previousPoints, then defaults for whatever the version appends after it.
@@ -721,7 +721,7 @@ public class Playback2DAnnotationHostTests
             using Fixture f = Fixture.Create();
             AnnotationToolbar toolbar = f.View.GetVisualDescendants().OfType<AnnotationToolbar>().Single();
             ItemsControl strip = toolbar.FindControl<ItemsControl>("RecentColorsStrip")
-                                 ?? throw new InvalidOperationException("RecentColorsStrip not found");
+                ?? throw new InvalidOperationException("RecentColorsStrip not found");
 
             await Assert.That(f.Vm.Annotations.HasRecentColors).IsFalse();
             await Assert.That(strip.IsEffectivelyVisible).IsFalse()

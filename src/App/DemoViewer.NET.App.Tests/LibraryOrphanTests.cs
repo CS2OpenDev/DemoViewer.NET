@@ -38,7 +38,7 @@ public class LibraryOrphanTests
             await svc.AddFoldersAsync([keep, away]);
             await svc.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
             await WaitForAsync(() => library.Store.TryGetByContentId(sha) is { ContentFingerprint: not null }
-                                     && svc.Tier2Backlog().Count == 0 && svc.Entries.Count == 2,
+                    && svc.Tier2Backlog().Count == 0 && svc.Entries.Count == 2,
                 "both demos indexed");
             library.Store.WriteSibling(demo, Facts, "facts");
 
@@ -93,7 +93,7 @@ public class LibraryOrphanTests
             await svc.AddFoldersAsync([keep, old]);
             await svc.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
             await WaitForAsync(() => library.Store.TryGetByContentId(sha) is { ContentFingerprint: not null }
-                                     && svc.Tier2Backlog().Count == 0 && svc.Entries.Count == 2,
+                    && svc.Tier2Backlog().Count == 0 && svc.Entries.Count == 2,
                 "both demos indexed");
             await svc.RemoveFolderAsync(old);
             await WaitForAsync(() => svc.Entries.Count == 1, "the old folder's card gone");
@@ -154,7 +154,7 @@ public class LibraryOrphanTests
             await svc.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
             await library.Queue.IdleAsync("both demos indexed",
                 () => library.Store.TryGetByContentId(sha) is not null && svc.Tier2Backlog().Count == 0
-                                                                       && svc.Entries.Count == 2, 30000);
+                    && svc.Entries.Count == 2, 30000);
             await svc.RemoveFolderAsync(away);
             await WaitForAsync(() => svc.Entries.Count == 1, "the folder's card gone");
 

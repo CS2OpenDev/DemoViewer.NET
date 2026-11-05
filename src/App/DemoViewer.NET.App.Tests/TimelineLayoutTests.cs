@@ -104,9 +104,12 @@ public class TimelineLayoutTests
 
         FakeTimelineData data = new(90000)
         {
-            Events = { ["player_death"] = Enumerable.Range(0, 10)
-                .Select(i => TimelineTrackTests.Record(1000 + i, 40000 + i))
-                .ToArray() }
+            Events =
+            {
+                ["player_death"] = Enumerable.Range(0, 10)
+                    .Select(i => TimelineTrackTests.Record(1000 + i, 40000 + i))
+                    .ToArray()
+            }
         };
         vm.Rebuild(data);
 
@@ -123,11 +126,15 @@ public class TimelineLayoutTests
 
         FakeTimelineData data = new(1000)
         {
-            Events = { ["player_death"] = [
-                TimelineTrackTests.Record(10, 0),
-                TimelineTrackTests.Record(20, 400),
-                TimelineTrackTests.Record(30, 900)
-            ] }
+            Events =
+            {
+                ["player_death"] =
+                [
+                    TimelineTrackTests.Record(10, 0),
+                    TimelineTrackTests.Record(20, 400),
+                    TimelineTrackTests.Record(30, 900)
+                ]
+            }
         };
         vm.Rebuild(data);
 
@@ -162,11 +169,15 @@ public class TimelineLayoutTests
 
         FakeTimelineData data = new(1000)
         {
-            Events = { ["player_death"] = [
-                TimelineTrackTests.Record(10, 0, ("team", "2")),
-                TimelineTrackTests.Record(20, 400, ("team", "3")),
-                TimelineTrackTests.Record(30, 900)
-            ] }
+            Events =
+            {
+                ["player_death"] =
+                [
+                    TimelineTrackTests.Record(10, 0, ("team", "2")),
+                    TimelineTrackTests.Record(20, 400, ("team", "3")),
+                    TimelineTrackTests.Record(30, 900)
+                ]
+            }
         };
         vm.Rebuild(data);
 
@@ -185,19 +196,16 @@ public class TimelineLayoutTests
         Playback2DTimelineViewModel bombs = new();
         bombs.RegisterTrack(new BombTrack());
         bombs.PixelWidth = 600;
-        FakeTimelineData bombData = new(1000)
-        {
-            Events = { ["bomb_exploded"] = [TimelineTrackTests.Record(40, 500)] }
-        };
+        FakeTimelineData bombData = new(1000) { Events = { ["bomb_exploded"] = [TimelineTrackTests.Record(40, 500)] } };
         bombs.Rebuild(bombData);
 
         Console.WriteLine($"[marker-brush] t={t} ct={ct} unknown={unknown} "
-                          + $"explode={Colour(bombs.Markers[0])}");
+            + $"explode={Colour(bombs.Markers[0])}");
 
         await Assert.That(unknown).IsEqualTo(Colour(bombs.Markers[0]))
             .Because("an uncolourable kill takes the Kill KIND's default, which is the same Pb2dHeadshot "
-                     + "token a bomb explosion takes — that is the claim, and it does not depend on "
-                     + "whether a headless Application happens to exist in this process");
+                + "token a bomb explosion takes — that is the claim, and it does not depend on "
+                + "whether a headless Application happens to exist in this process");
     }
 
     private static Color Colour(TimelineMarkerViewModel marker) =>
@@ -210,10 +218,7 @@ public class TimelineLayoutTests
         vm.RegisterTrack(new RoundTrack());
         vm.PixelWidth = 600;
 
-        FakeTimelineData data = new(300)
-        {
-            EventFrames = { ["round_freeze_end"] = [50, 200] }
-        };
+        FakeTimelineData data = new(300) { EventFrames = { ["round_freeze_end"] = [50, 200] } };
         vm.Rebuild(data);
 
         vm.UpdatePlayhead(10, 10);
@@ -234,10 +239,7 @@ public class TimelineLayoutTests
         vm.RegisterTrack(new RoundTrack());
         vm.PixelWidth = 600;
 
-        FakeTimelineData data = new(1201)
-        {
-            EventFrames = { ["round_freeze_end"] = [0] }
-        };
+        FakeTimelineData data = new(1201) { EventFrames = { ["round_freeze_end"] = [0] } };
         vm.Rebuild(data);
 
         List<int> seeks = [];
@@ -311,10 +313,7 @@ public class TimelineLayoutTests
         int announced = 0;
         vm.TrackVisibilityChanged += () => announced++;
 
-        FakeTimelineData withBomb = new(1000)
-        {
-            Events = { ["bomb_planted"] = [TimelineTrackTests.Record(10, 100)] }
-        };
+        FakeTimelineData withBomb = new(1000) { Events = { ["bomb_planted"] = [TimelineTrackTests.Record(10, 100)] } };
         vm.Rebuild(withBomb);
         await Assert.That(vm.Tracks[0].IsAvailable).IsTrue();
 

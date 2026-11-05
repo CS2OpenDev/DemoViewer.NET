@@ -160,7 +160,7 @@ public class PackThroughTheSdkTests
             .. services.Select(d => d.ServiceType)
                 .Select(t => (Type: t, Assembly: t.Assembly.GetName().Name ?? ""))
                 .Where(x => x.Assembly.StartsWith("DemoViewer.NET", StringComparison.Ordinal)
-                            && !_packAndPublishedLibraries.Contains(x.Assembly, StringComparer.Ordinal))
+                    && !_packAndPublishedLibraries.Contains(x.Assembly, StringComparer.Ordinal))
                 .Select(x => $"{x.Type.FullName} from {x.Assembly}")
                 .Distinct(StringComparer.Ordinal)
         ];

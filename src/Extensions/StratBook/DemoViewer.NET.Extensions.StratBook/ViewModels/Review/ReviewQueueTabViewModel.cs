@@ -548,7 +548,7 @@ public sealed partial class ReviewQueueTabViewModel : ExtensionViewModel, IWorks
 
             int total = i - start;
             bool titleMatches = card is not null && search.Length > 0
-                                                 && card.Title.Contains(search, StringComparison.OrdinalIgnoreCase);
+                && card.Title.Contains(search, StringComparison.OrdinalIgnoreCase);
             if (card is not null)
             {
                 sections++;
@@ -790,7 +790,7 @@ public sealed partial class ReviewRowViewModel : ObservableObject
         get
         {
             string range = $"{ReviewQueueTabViewModel.Clock(Entry.FromTick, Entry.TickRate)} to "
-                           + ReviewQueueTabViewModel.Clock(Entry.ToTick, Entry.TickRate);
+                + ReviewQueueTabViewModel.Clock(Entry.ToTick, Entry.TickRate);
             return Entry.Seconds is { } seconds
                 ? string.Create(CultureInfo.InvariantCulture, $"{range} · {Math.Round(seconds)} s")
                 : range;

@@ -125,7 +125,7 @@ public sealed class GoldenCorpus
         }
 
         JsonNode manifest = JsonNode.Parse(File.ReadAllText(manifestPath))
-                            ?? throw new JsonException($"{manifestPath} is empty.");
+            ?? throw new JsonException($"{manifestPath} is empty.");
 
         int schemaVersion = manifest["schema_version"]?.GetValue<int>() ?? CurrentSchemaVersion;
         GoldenBudget defaultBudget = ReadBudget(manifest["default_budget"], GoldenBudget.Default);
@@ -235,7 +235,7 @@ public sealed class GoldenCorpus
     private static GoldenCorpusEntry ReadEntry(JsonNode node, string root, GoldenBudget defaultBudget)
     {
         string name = node["name"]?.GetValue<string>()
-                      ?? throw new JsonException("A manifest entry has no 'name'.");
+            ?? throw new JsonException("A manifest entry has no 'name'.");
         string relative = node["scene"]?.GetValue<string>() ?? $"scenes/{name}.scene.json";
 
         SKSizeI size = new(

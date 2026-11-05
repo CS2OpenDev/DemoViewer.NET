@@ -106,14 +106,14 @@ public class Playback2DHudLayoutTests
             foreach (string name in _toolButtons)
             {
                 ToggleButton button = toolbar.FindControl<ToggleButton>(name)
-                                      ?? throw new InvalidOperationException($"{name} not found");
+                    ?? throw new InvalidOperationException($"{name} not found");
 
                 Point centre = Playback2DTimelineHarness.ToWindow(
                     button, window, button.Bounds.Width / 2, button.Bounds.Height / 2);
 
                 IInputElement? hit = window.InputHitTest(centre);
                 bool reachable = hit is Visual v
-                                 && (ReferenceEquals(v, button) || v.GetVisualAncestors().Contains(button));
+                    && (ReferenceEquals(v, button) || v.GetVisualAncestors().Contains(button));
 
                 Console.WriteLine($"[chrome-hit] {name} centre={centre} hit={hit?.GetType().Name} ok={reachable}");
                 await Assert.That(reachable).IsTrue();
@@ -155,10 +155,10 @@ public class Playback2DHudLayoutTests
 
             Control column = Column(view);
             Border toolbar = view.FindControl<Border>("ViewportToolbar")
-                             ?? throw new InvalidOperationException("ViewportToolbar not found");
+                ?? throw new InvalidOperationException("ViewportToolbar not found");
 
             Button export = view.FindControl<Button>("ExportButton")
-                            ?? throw new InvalidOperationException("ExportButton not found");
+                ?? throw new InvalidOperationException("ExportButton not found");
             export.IsVisible = true;
             Playback2DTimelineHarness.Pump();
 
@@ -193,8 +193,8 @@ public class Playback2DHudLayoutTests
 
                 IInputElement? hit = window.InputHitTest(centre);
                 bool reachable = hit is Visual v
-                                 && (ReferenceEquals(v, control)
-                                     || v.GetVisualAncestors().Contains(control));
+                    && (ReferenceEquals(v, control)
+                        || v.GetVisualAncestors().Contains(control));
 
                 Console.WriteLine(
                     $"[chrome-width] window={windowWidth} column={column.Bounds.Width:F0} "
@@ -202,7 +202,7 @@ public class Playback2DHudLayoutTests
 
                 await Assert.That(box.Right).IsLessThanOrEqualTo(column.Bounds.Width)
                     .Because("nothing in this column clips, so overflow is a click the roster panel "
-                             + "silently takes");
+                        + "silently takes");
                 await Assert.That(box.Left).IsGreaterThanOrEqualTo(0d);
 
                 // Reachability is asserted only where it MEANS something. A disabled control (undo and
@@ -215,12 +215,12 @@ public class Playback2DHudLayoutTests
             }
 
             Console.WriteLine($"[chrome-width] window={windowWidth} probed={probed} "
-                              + $"unmeasured={unmeasured.Count}");
+                + $"unmeasured={unmeasured.Count}");
 
             await Assert.That(string.Join(", ", unmeasured)).IsEqualTo("")
                 .Because("a visible control measuring 0x0 has no control theme — it is present in the "
-                         + "tree, absent from the screen, and invisible to every geometric assertion "
-                         + "below unless this one refuses to skip it");
+                    + "tree, absent from the screen, and invisible to every geometric assertion "
+                    + "below unless this one refuses to skip it");
 
             // 3 tools + 2 pickers + R⌫ + 2 sliders + combo + Pin + Track + 3 undo/redo/clear + 4 envelope
             // boxes + ⌖now + 6 overlays + Overlays▾ + Export + collapse. A floor, not an exact count,
@@ -258,7 +258,7 @@ public class Playback2DHudLayoutTests
             Playback2DTimelineHarness.Pump();
 
             Console.WriteLine($"[chrome-zero] themed={themed.Bounds} themeless={themeless.Bounds} "
-                              + $"visible={themeless.IsEffectivelyVisible}");
+                + $"visible={themeless.IsEffectivelyVisible}");
 
             await Assert.That(themed.Bounds.Width).IsGreaterThan(0d)
                 .Because("the positive control: a normally themed Button does measure");
@@ -298,7 +298,7 @@ public class Playback2DHudLayoutTests
             Rect? restore = Box(view, "ChromeRestoreButton");
 
             Console.WriteLine($"[chrome-collapse] surface {expanded:F0} → {collapsed:F0} "
-                              + $"(toolbar was {toolbarHeight:F0}) ghost={ghost} restore={restore}");
+                + $"(toolbar was {toolbarHeight:F0}) ghost={ghost} restore={restore}");
 
             await Assert.That(vm.IsViewportToolbarOpen).IsFalse();
             await Assert.That(collapsed).IsEqualTo(expanded + toolbarHeight).Within(0.5)
@@ -344,7 +344,7 @@ public class Playback2DHudLayoutTests
             Rect? toolbar = Box(view, "AnnotationToolbarHost");
 
             Console.WriteLine($"[chrome-gate] header on={headerOn} off={headerOff} "
-                              + $"overlays on={overlaysOn} off={overlaysOff} toolbar={toolbar}");
+                + $"overlays on={overlaysOn} off={overlaysOff} toolbar={toolbar}");
 
             // The docked stack is ordered always-present → optional → gated, precisely so a gate flip can
             // only ever move what is BELOW it. Both of the members above the toolbar must be unmoved.
@@ -405,7 +405,7 @@ public class Playback2DHudLayoutTests
         vm.ApplyKeymapOverrides(["ToolDraw=G", "ClearAnnotations=Ctrl+Shift+Delete"]);
 
         Console.WriteLine($"[chrome-gesture] draw='{vm.Annotations.DrawToolTip}' "
-                          + $"clear='{vm.Annotations.ClearAllToolTip}'");
+            + $"clear='{vm.Annotations.ClearAllToolTip}'");
 
         await Assert.That(vm.Annotations.DrawToolTip).Contains("(G)");
         await Assert.That(vm.Annotations.DrawToolTip).DoesNotContain("(D)");
@@ -450,7 +450,7 @@ public class Playback2DHudLayoutTests
             .FirstOrDefault(c => c.Name == name);
 
         if (control is null || !control.IsEffectivelyVisible
-                            || control.Bounds.Width <= 0 || control.Bounds.Height <= 0)
+            || control.Bounds.Width <= 0 || control.Bounds.Height <= 0)
         {
             return null;
         }

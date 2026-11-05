@@ -64,7 +64,8 @@ public class ThrowerCollectorTests
         }
 
         await Assert.That(rows).IsEquivalentTo(samples
-            .Where(s => s is { Removed: true, ClassName: GrenadeProjectileClasses.Molotov or GrenadeProjectileClasses.Decoy })
+            .Where(s => s is
+                { Removed: true, ClassName: GrenadeProjectileClasses.Molotov or GrenadeProjectileClasses.Decoy })
             .Select(RemovedProjectile.From), CollectionOrdering.Matching);
     }
 

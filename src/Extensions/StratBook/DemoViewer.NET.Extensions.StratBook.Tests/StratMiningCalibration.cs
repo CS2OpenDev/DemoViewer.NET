@@ -43,7 +43,7 @@ public class StratMiningCalibration
         await teams.StartAsync();
 
         Console.WriteLine($"[mine] teams={teams.AllTeams.Count} "
-                          + string.Join(", ", teams.AllTeams.Select(t => $"{t.Name}:{teams.DemosOf(t.Id).Count}")));
+            + string.Join(", ", teams.AllTeams.Select(t => $"{t.Name}:{teams.DemosOf(t.Id).Count}")));
         Stopwatch watch = Stopwatch.StartNew();
         RoundSignatureBuilder builder = new(demoCache.Library(), demoCache.RoundFacts(), positions,
             sources.FingerprintFor, RoundSignatureBuilder.FromIndex(grenades), teams);

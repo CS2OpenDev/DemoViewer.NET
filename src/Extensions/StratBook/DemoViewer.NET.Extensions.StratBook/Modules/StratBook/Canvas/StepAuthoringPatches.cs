@@ -94,7 +94,7 @@ public static class StepAuthoringPatches
             if (before.TryGetValue(element.Id, out AnnotationElement? was))
             {
                 if (was.Equals(element) || !projection.TryFindStroke(element.Id, out StrokeRef at)
-                                        || !projection.Path[at.PathIndex].Editable)
+                    || !projection.Path[at.PathIndex].Editable)
                 {
                     continue;
                 }
@@ -119,7 +119,7 @@ public static class StepAuthoringPatches
         foreach (AnnotationElement element in projection.Elements)
         {
             if (!present.Contains(element.Id) && projection.TryFindStroke(element.Id, out StrokeRef at)
-                                              && projection.Path[at.PathIndex].Editable)
+                && projection.Path[at.PathIndex].Editable)
             {
                 removes.Add((projection.Path[at.PathIndex].StepIndex, at.StrokeIndex));
             }
@@ -307,7 +307,7 @@ public static class StepAuthoringPatches
 
         double clamped = Math.Max(from, Math.Min(until, StratClock.ElapsedOf(clock, atSeconds)));
         double rounded = Math.Round(clamped * StepSchedule.TicksPerSecond, MidpointRounding.AwayFromZero)
-                         / StepSchedule.TicksPerSecond;
+            / StepSchedule.TicksPerSecond;
         return StratClock.AtSecondsOf(clock, rounded > until || rounded < from ? clamped : rounded);
     }
 

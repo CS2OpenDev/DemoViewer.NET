@@ -454,7 +454,7 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
     // its base, which the base comparison in IsDirty covers.
     private void CountEdits() =>
         EditCount = _rows.Count(r => _savedRows.TryGetValue(r, out (ThemeTokenValue Value, bool IsSet) saved)
-                                     && (r.IsSet != saved.IsSet || (r.IsSet && !r.Value.Equals(saved.Value))));
+            && (r.IsSet != saved.IsSet || (r.IsSet && !r.Value.Equals(saved.Value))));
 
     private void UpdateMissing() => MissingCount = CanEdit ? _rows.Count(r => r.IsMissing) : 0;
 
@@ -506,11 +506,11 @@ public sealed partial class ThemeEditorViewModel : ObservableObject, IDisposable
             foreach (ThemeTokenRowViewModel row in section.Rows)
             {
                 bool matches = search.Length == 0
-                               || row.Key.Contains(search, StringComparison.OrdinalIgnoreCase)
-                               || (row.Family?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
-                               || (row.Description?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
-                               || section.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
-                               || row.Hex.Contains(search, StringComparison.OrdinalIgnoreCase);
+                    || row.Key.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || (row.Family?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (row.Description?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || section.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || row.Hex.Contains(search, StringComparison.OrdinalIgnoreCase);
                 if (matches && (!MissingOnly || row.IsMissing))
                 {
                     section.VisibleRows.Add(row);

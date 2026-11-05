@@ -205,7 +205,7 @@ public class Playback2DFollowFunnelTests
             ctx.RaiseDemoReset();
 
             Console.WriteLine($"[follow-swap] slot={vm.FollowedSlot} status='{vm.FollowStatus}' "
-                              + $"selected='{vm.SelectedPlayer?.Name}' mirrored=[{string.Join(",", mirrored)}]");
+                + $"selected='{vm.SelectedPlayer?.Name}' mirrored=[{string.Join(",", mirrored)}]");
 
             await Assert.That(vm.FollowedSlot).IsEqualTo(-1)
                 .Because("slot 1 in the new demo is Echo, not the Bravo the user chose");
@@ -217,7 +217,7 @@ public class Playback2DFollowFunnelTests
             await Assert.That(vm.Attributes.Any(a => a.IsFollowed)).IsFalse();
             await Assert.That(mirrored).Contains(-1)
                 .Because("the View mirrors the follow ring off this event; without it the surface keeps "
-                         + "following slot 1 whatever the VM says");
+                    + "following slot 1 whatever the VM says");
         });
 
     /// <summary>

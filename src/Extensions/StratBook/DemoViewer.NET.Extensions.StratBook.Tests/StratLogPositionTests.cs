@@ -141,7 +141,8 @@ public class StratLogPositionTests
                     .IsEquivalentTo(states[^1].Steps.Select(s => s.Id), CollectionOrdering.Matching);
                 await Assert.That(loaded.Steps.Select(s => s.Id).Distinct().Count()).IsEqualTo(loaded.Steps.Count);
                 await Assert.That(Committed(loaded)).IsEqualTo(Committed(states[^1]));
-                await Assert.That(await File.ReadAllTextAsync(StratFile(root, states[^1]))).IsEqualTo(Committed(states[^1]));
+                await Assert.That(await File.ReadAllTextAsync(StratFile(root, states[^1])))
+                    .IsEqualTo(Committed(states[^1]));
                 await Assert.That(store.TakeNote(states[^1].Id)).Contains("re-applied");
             }
         }
@@ -237,11 +238,13 @@ public class StratLogPositionTests
             using (Assert.Multiple())
             {
                 await Assert.That(Committed(session.Document!)).IsEqualTo(Committed(states[^1]));
-                await Assert.That(await File.ReadAllTextAsync(StratFile(root, working))).IsEqualTo(Committed(states[^1]));
+                await Assert.That(await File.ReadAllTextAsync(StratFile(root, working)))
+                    .IsEqualTo(Committed(states[^1]));
                 await Assert.That(session.RecoveryNote).Contains("more than once");
                 await Assert.That(SetAsideFiles(root, working).Length).IsEqualTo(1);
-                await Assert.That(JsonNode.Parse(await File.ReadAllTextAsync(SetAsideFiles(root, working)[0]))!["notes"]!
-                        .GetValue<string>())
+                await Assert.That(
+                        JsonNode.Parse(await File.ReadAllTextAsync(SetAsideFiles(root, working)[0]))!["notes"]!
+                            .GetValue<string>())
                     .IsEqualTo("uncommitted");
             }
         }
@@ -270,7 +273,8 @@ public class StratLogPositionTests
             using (Assert.Multiple())
             {
                 await Assert.That(Committed(loaded)).IsEqualTo(Committed(states[^1]));
-                await Assert.That(await File.ReadAllTextAsync(StratFile(root, working))).IsEqualTo(Committed(states[^1]));
+                await Assert.That(await File.ReadAllTextAsync(StratFile(root, working)))
+                    .IsEqualTo(Committed(states[^1]));
                 await Assert.That(store.TakeNote(working.Id)).Contains("more than once");
                 await Assert.That(kept.Length).IsEqualTo(1);
                 await Assert.That(JsonNode.Parse(await File.ReadAllTextAsync(kept[0]))!["notes"]!.GetValue<string>())
@@ -317,7 +321,8 @@ public class StratLogPositionTests
                 await Assert.That(restarted.TakeNote(document.Id)).Contains("conflict with revision 2");
                 await Assert.That(kept.Length).IsEqualTo(1);
                 await Assert
-                    .That(JsonNode.Parse(await File.ReadAllTextAsync(kept[0]))!["steps"]![0]!["atSeconds"]!.GetValue<double>())
+                    .That(JsonNode.Parse(await File.ReadAllTextAsync(kept[0]))!["steps"]![0]!["atSeconds"]!
+                        .GetValue<double>())
                     .IsEqualTo(100);
             }
         }

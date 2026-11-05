@@ -74,7 +74,8 @@ public static partial class Variants
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         for (int column = 0; column < treatments.Length; column++)
         {
-            grid.Children.Add(GridCell(new TextBlock { Text = treatments[column], Classes = { StyleClasses.ColLabel } }, 0,
+            grid.Children.Add(GridCell(new TextBlock { Text = treatments[column], Classes = { StyleClasses.ColLabel } },
+                0,
                 column + 1));
         }
 

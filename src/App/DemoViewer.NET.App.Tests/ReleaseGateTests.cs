@@ -160,22 +160,22 @@ public class ReleaseGateTests
                     - { stat: journey_check, label: JourneyCheck }
                 """);
             await File.WriteAllTextAsync(Path.Combine(userDir, "journey-new.rules.yaml"), """
-                                                                               ruleset: journey_new
-                                                                               for: each_player
-                                                                               stats:
-                                                                                 journey_new_stat:
-                                                                                   compute: "888"
-                                                                                   per: match
-                                                                                   format: F0
-                                                                               show:
-                                                                                 scoreboard:
-                                                                                   - { stat: journey_new_stat, label: JourneyNew }
-                                                                                 tables:
-                                                                                   journey_output:
-                                                                                     per: player_match
-                                                                                     columns:
-                                                                                       - { stat: journey_new_stat, label: JourneyOut }
-                                                                               """);
+                ruleset: journey_new
+                for: each_player
+                stats:
+                  journey_new_stat:
+                    compute: "888"
+                    per: match
+                    format: F0
+                show:
+                  scoreboard:
+                    - { stat: journey_new_stat, label: JourneyNew }
+                  tables:
+                    journey_output:
+                      per: player_match
+                      columns:
+                        - { stat: journey_new_stat, label: JourneyOut }
+                """);
             await File.WriteAllTextAsync(Path.Combine(userDir, "broken.yaml"),
                 "chains:\n  - id: journey_broken\n    scope: per_player\n    rules:\n      - id: r1\n        type: bool\n");
 

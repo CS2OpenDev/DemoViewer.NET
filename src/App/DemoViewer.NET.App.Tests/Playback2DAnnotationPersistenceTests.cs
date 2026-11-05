@@ -150,7 +150,7 @@ public class Playback2DAnnotationPersistenceTests
 
         await Assert.That(File.Exists(demo.SidecarPath)).IsTrue()
             .Because("a debounced autosave that had not fired yet is the difference between a stroke " +
-                     "surviving a tab switch and vanishing");
+                "surviving a tab switch and vanishing");
     }
 
     [Test]
@@ -284,11 +284,11 @@ public class Playback2DAnnotationPersistenceTests
         await controller.FlushAsync();
 
         Console.WriteLine($"[autosave-off] saves={controller.SaveCount} "
-                          + $"sidecar={File.Exists(demo.SidecarPath)} status='{controller.StatusText}'");
+            + $"sidecar={File.Exists(demo.SidecarPath)} status='{controller.StatusText}'");
 
         await Assert.That(File.Exists(demo.SidecarPath)).IsFalse()
             .Because("the flush path — demo swap, deactivate, shutdown — has to honour it too, or the "
-                     + "setting only delays the write it was asked to prevent");
+                + "setting only delays the write it was asked to prevent");
         await Assert.That(controller.SaveCount).IsEqualTo(0);
 
         // And the status line stops promising a destination nothing is going to.
@@ -316,7 +316,7 @@ public class Playback2DAnnotationPersistenceTests
         controller.PersistSettings();
 
         Console.WriteLine("[autosave-write] persisted="
-                          + settings.Current.Playback2D.AnnotationAutoSave);
+            + settings.Current.Playback2D.AnnotationAutoSave);
 
         await Assert.That(settings.Current.Playback2D.AnnotationAutoSave).IsFalse()
             .Because("the key shipped with a reader, a WriteInMemory row, and no writer anywhere");

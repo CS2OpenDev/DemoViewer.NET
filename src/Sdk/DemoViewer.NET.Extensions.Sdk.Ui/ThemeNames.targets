@@ -11,25 +11,26 @@
     <ItemGroup>
         <!-- The shared class layer. Stats.axaml is left out: its classes only style the app's own stats
              controls, which an extension cannot use. -->
-        <ThemeNamesStyleFile Include="$(ThemeNamesStylesDirectory)Primitives.axaml"/>
-        <ThemeNamesStyleFile Include="$(ThemeNamesStylesDirectory)Cards.axaml"/>
-        <ThemeNamesStyleFile Include="$(ThemeNamesStylesDirectory)Tables.axaml"/>
-        <ThemeNamesStyleFile Include="$(ThemeNamesStylesDirectory)Chrome.axaml"/>
+        <ThemeNamesStyleFile Include="$(ThemeNamesStylesDirectory)Primitives.axaml" />
+        <ThemeNamesStyleFile Include="$(ThemeNamesStylesDirectory)Cards.axaml" />
+        <ThemeNamesStyleFile Include="$(ThemeNamesStylesDirectory)Tables.axaml" />
+        <ThemeNamesStyleFile Include="$(ThemeNamesStylesDirectory)Chrome.axaml" />
     </ItemGroup>
 
-    <UsingTask TaskName="GenerateThemeNames" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <UsingTask TaskName="GenerateThemeNames" TaskFactory="RoslynCodeTaskFactory"
+               AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
         <ParameterGroup>
-            <Palette ParameterType="System.String" Required="true"/>
-            <StyleFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true"/>
-            <Namespace ParameterType="System.String" Required="true"/>
-            <OutputPath ParameterType="System.String" Required="true"/>
+            <Palette ParameterType="System.String" Required="true" />
+            <StyleFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+            <Namespace ParameterType="System.String" Required="true" />
+            <OutputPath ParameterType="System.String" Required="true" />
         </ParameterGroup>
         <Task>
-            <Using Namespace="System.Collections.Generic"/>
-            <Using Namespace="System.Linq"/>
-            <Using Namespace="System.Text"/>
-            <Using Namespace="System.Text.RegularExpressions"/>
-            <Using Namespace="System.Xml.Linq"/>
+            <Using Namespace="System.Collections.Generic" />
+            <Using Namespace="System.Linq" />
+            <Using Namespace="System.Text" />
+            <Using Namespace="System.Text.RegularExpressions" />
+            <Using Namespace="System.Xml.Linq" />
             <Code Type="Fragment" Language="cs"><![CDATA[
 XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
 Regex identifier = new Regex("^[A-Za-z_][A-Za-z0-9_]*$");
@@ -183,7 +184,8 @@ if (!File.Exists(OutputPath) || File.ReadAllText(OutputPath) != text)
     </UsingTask>
 
     <Target Name="GenerateThemeNames" BeforeTargets="BeforeCompile;CoreCompile">
-        <Error Condition="!Exists('$(ThemeNamesPalette)')" Text="The host palette $(ThemeNamesPalette) is missing; ThemeTokens cannot be generated."/>
+        <Error Condition="!Exists('$(ThemeNamesPalette)')"
+               Text="The host palette $(ThemeNamesPalette) is missing; ThemeTokens cannot be generated." />
 
         <PropertyGroup>
             <ThemeNamesOutput>$(IntermediateOutputPath)ThemeNames.g.cs</ThemeNamesOutput>
@@ -192,12 +194,12 @@ if (!File.Exists(OutputPath) || File.ReadAllText(OutputPath) != text)
         <GenerateThemeNames Palette="$(ThemeNamesPalette)"
                             StyleFiles="@(ThemeNamesStyleFile)"
                             Namespace="$(RootNamespace).Theming"
-                            OutputPath="$(ThemeNamesOutput)"/>
+                            OutputPath="$(ThemeNamesOutput)" />
 
         <ItemGroup>
-            <Compile Remove="$(ThemeNamesOutput)"/>
-            <Compile Include="$(ThemeNamesOutput)"/>
-            <FileWrites Include="$(ThemeNamesOutput)"/>
+            <Compile Remove="$(ThemeNamesOutput)" />
+            <Compile Include="$(ThemeNamesOutput)" />
+            <FileWrites Include="$(ThemeNamesOutput)" />
         </ItemGroup>
     </Target>
 </Project>

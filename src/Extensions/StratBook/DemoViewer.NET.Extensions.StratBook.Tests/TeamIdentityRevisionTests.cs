@@ -33,7 +33,7 @@ public class TeamIdentityRevisionTests
     private static List<DemoSideInput> Corpus(string kind, string? sourceKind)
     {
         string repo = DemoTestHelper.FindRepoRoot()
-                      ?? throw new SkipTestException("repo root not found from the test output directory");
+            ?? throw new SkipTestException("repo root not found from the test output directory");
         Fixture fixture = JsonSerializer.Deserialize<Fixture>(
             File.ReadAllText(Path.Combine(repo, "tests", "fixtures", "team-identity", "side-keys.v1.json")),
             _readOptions)!;
@@ -206,7 +206,8 @@ public class TeamIdentityRevisionTests
             await Assert.That(accepted.Teams.Count).IsEqualTo(1).Because("still no auto team");
             await Assert.That(ours.Count).IsEqualTo(squad.GamesTogether)
                 .Because("a trio squad needs all three on the side");
-            await Assert.That(ours.All(s => s is { Tier: 3, StandIn: false })).IsTrue().Because("fills are not stand-ins");
+            await Assert.That(ours.All(s => s is { Tier: 3, StandIn: false })).IsTrue()
+                .Because("fills are not stand-ins");
             await Assert.That(accepted.Teams[0].Rosters[0].HasCoreLineup).IsFalse()
                 .Because("a squad never becomes a fixed five");
             await Assert.That(TeamSuggestions.Compute(accepted, after).Any(s => s.Kind == TeamSuggestionKind.Squad))

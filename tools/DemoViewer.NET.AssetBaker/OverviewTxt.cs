@@ -20,7 +20,7 @@ public static class OverviewTxt
 
         // Root wraps one map block, e.g. { "de_nuke": { ...fields... } }. Take the first (only) block.
         KvNode map = root.Children.Values.OfType<KvNode>().FirstOrDefault()
-                     ?? throw new InvalidDataException($"{path}: no map block found");
+            ?? throw new InvalidDataException($"{path}: no map block found");
 
         double posX = map.GetDouble("pos_x");
         double posY = map.GetDouble("pos_y");
@@ -196,8 +196,8 @@ public static class OverviewTxt
 
         public double GetDoubleOrDefault(string key, double fallback) =>
             Children.TryGetValue(key, out object? v) && v is string s
-                                                     && double.TryParse(s, NumberStyles.Float,
-                                                         CultureInfo.InvariantCulture, out double d)
+            && double.TryParse(s, NumberStyles.Float,
+                CultureInfo.InvariantCulture, out double d)
                 ? d
                 : fallback;
     }

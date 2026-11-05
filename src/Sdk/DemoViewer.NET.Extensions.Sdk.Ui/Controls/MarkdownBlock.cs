@@ -268,11 +268,11 @@ public sealed partial class MarkdownBlock : ContentControl
     {
         string trimmed = line.Trim();
         return trimmed.Length > 0
-               && !IsBullet(trimmed)
-               && !trimmed.StartsWith('>')
-               && !trimmed.StartsWith('#')
-               && !trimmed.StartsWith("<details", StringComparison.OrdinalIgnoreCase)
-               && !trimmed.StartsWith("</details", StringComparison.OrdinalIgnoreCase);
+            && !IsBullet(trimmed)
+            && !trimmed.StartsWith('>')
+            && !trimmed.StartsWith('#')
+            && !trimmed.StartsWith("<details", StringComparison.OrdinalIgnoreCase)
+            && !trimmed.StartsWith("</details", StringComparison.OrdinalIgnoreCase);
     }
 
     private static int CountOccurrences(string line, string token)

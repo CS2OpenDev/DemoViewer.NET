@@ -156,8 +156,8 @@ public static class SpraySampler
             }
 
             bool continues = run.Count > 0
-                             && s.Tick - run[^1].Tick <= MaxRunGapTicks
-                             && s.RecoilIndex >= run[^1].RecoilIndex;
+                && s.Tick - run[^1].Tick <= MaxRunGapTicks
+                && s.RecoilIndex >= run[^1].RecoilIndex;
 
             if (!continues && run.Count > 0)
             {

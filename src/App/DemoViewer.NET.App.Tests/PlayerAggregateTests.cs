@@ -30,8 +30,8 @@ public class PlayerAggregateTests
         double rounds = c["rounds"];
         double kpr = c["TotalK"] / rounds;
         return (0.73 * (c["KAST%"] / 100)) + (0.3591 * kpr) - (0.5329 * (c["TotalD"] / rounds))
-               + (0.2372 * ((2.13 * kpr) + (0.42 * (c["TotalA"] / rounds)) - 0.41))
-               + (0.0032 * (c["EnemyDmg"] / rounds)) + 0.1587;
+            + (0.2372 * ((2.13 * kpr) + (0.42 * (c["TotalA"] / rounds)) - 0.41))
+            + (0.0032 * (c["EnemyDmg"] / rounds)) + 0.1587;
     }
 
     private static Dictionary<string, double> Cells(double rounds, double kills, double deaths, double assists,
@@ -87,7 +87,8 @@ public class PlayerAggregateTests
 
         FactTable table =
             FactsCodec.Decode(
-                PlayerMatchFacetTests.Gzip((await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal)))!;
+                PlayerMatchFacetTests.Gzip(
+                    (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n", StringComparison.Ordinal)))!;
         List<string> mismatches = [];
         foreach (FactRow row in table.Rows)
         {

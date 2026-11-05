@@ -40,7 +40,7 @@ public class PlaybackBandMenuWindowTests
 
             Border band = timeline.GetVisualDescendants().OfType<Border>()
                 .First(b => b.DataContext is TimelineBandViewModel band && Playback2DTimelineViewModel.IsRoundBand(band)
-                                                                        && b.Bounds.Width > 0);
+                    && b.Bounds.Width > 0);
             Point at = Playback2DTimelineHarness.ToWindow(band, window, band.Bounds.Width / 2, band.Bounds.Height / 2);
             int seeks = ctx.SeekFrames.Count;
 

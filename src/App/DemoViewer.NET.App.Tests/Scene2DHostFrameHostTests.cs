@@ -70,7 +70,7 @@ public class Scene2DHostFrameHostTests
             await Assert.That(captured).IsNotNull();
             (int nonBg, bool team) = ScanPixels(captured!);
             Console.WriteLine($"[frame-host] nonBg={nonBg} team={team} " +
-                              $"panes={host.Compositor.Stats.PanesRendered}");
+                $"panes={host.Compositor.Stats.PanesRendered}");
 
             await Assert.That(nonBg).IsGreaterThan(100);
             await Assert.That(team).IsTrue();
@@ -475,8 +475,8 @@ public class Scene2DHostFrameHostTests
 
             double after = host.Levels.Levels[1].ZMin;
             Console.WriteLine($"[levels] upper ZMin {before} -> {after} rebuilds=" +
-                              string.Join(" | ", fake.Rebuilds.Select(m =>
-                                  string.Join(", ", m.Select(p => $"{p.Key}->{p.Value}")))));
+                string.Join(" | ", fake.Rebuilds.Select(m =>
+                    string.Join(", ", m.Select(p => $"{p.Key}->{p.Value}")))));
 
             await Assert.That(fake.Rebuilds.Count).IsGreaterThanOrEqualTo(1);
             IReadOnlyDictionary<double, double> moved = fake.Rebuilds[0];

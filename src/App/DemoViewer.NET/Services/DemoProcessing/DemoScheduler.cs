@@ -233,7 +233,7 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
         lock (_lock)
         {
             _faulted.RemoveWhere(k => string.Equals(k.Demo, demo, StringComparison.OrdinalIgnoreCase)
-                                      || string.Equals(k.Demo, path, StringComparison.OrdinalIgnoreCase));
+                || string.Equals(k.Demo, path, StringComparison.OrdinalIgnoreCase));
         }
     }
 

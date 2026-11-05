@@ -319,7 +319,7 @@ public class TagSessionTests
 
             await File.WriteAllTextAsync(TagStore.SidecarPathFor(root, Sha),
                 (await File.ReadAllTextAsync(TagStore.SidecarPathFor(root, Sha)))
-                    .Replace(Sha, new string('e', 64), StringComparison.Ordinal));
+                .Replace(Sha, new string('e', 64), StringComparison.Ordinal));
             using TagSession foreign = await Attached(new TagStore(PackStores.At(root)));
             foreign.Apply(new TagDelta.Add(Instance("Default", 1, 2)));
             await foreign.FlushAsync();
@@ -327,7 +327,8 @@ public class TagSessionTests
             await Assert.That(foreign.DemoMismatch).IsTrue();
             await Assert.That(foreign.StatusText)
                 .IsEqualTo("an existing tag file belongs to a different demo: it will not be touched");
-            await Assert.That(await File.ReadAllTextAsync(TagStore.SidecarPathFor(root, Sha))).DoesNotContain("Default");
+            await Assert.That(await File.ReadAllTextAsync(TagStore.SidecarPathFor(root, Sha)))
+                .DoesNotContain("Default");
         }
         finally
         {

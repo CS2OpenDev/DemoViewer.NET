@@ -42,8 +42,8 @@ public sealed class GraphBreakpointService
     /// <summary>Returns the edge breakpoint for the given source/dest/label/condition, or <c>null</c>.</summary>
     public GraphBreakpoint? FindEdge(string source, string dest, string label, string? conditionLabel) =>
         Breakpoints.FirstOrDefault(b => b.TargetKind == GraphBreakpointTarget.Edge
-                                        && b.EdgeSourceKey == source && b.EdgeDestKey == dest
-                                        && b.EdgeLabel == label && b.EdgeConditionLabel == conditionLabel);
+            && b.EdgeSourceKey == source && b.EdgeDestKey == dest
+            && b.EdgeLabel == label && b.EdgeConditionLabel == conditionLabel);
 
     /// <summary>Adds (or returns the existing) breakpoint on <paramref name="node" />.</summary>
     public GraphBreakpoint AddNode(IGraphNode node, string? condition = null)

@@ -80,7 +80,8 @@ public class PlayerDirectoryTests
             await Assert.That((officer.FirstSeenTicks, officer.LastSeenTicks, officer.Demos))
                 .IsEqualTo((10 * _day, 20 * _day, 2))
                 .Because("the reconnect's first slot still carries the old name");
-            await Assert.That((grim.FirstSeenTicks, grim.LastSeenTicks, grim.Demos)).IsEqualTo((20 * _day, 20 * _day, 1));
+            await Assert.That((grim.FirstSeenTicks, grim.LastSeenTicks, grim.Demos))
+                .IsEqualTo((20 * _day, 20 * _day, 1));
             await Assert.That((entry.FirstSeenTicks, entry.LastSeenTicks)).IsEqualTo((10 * _day, 20 * _day));
         }
     }
@@ -136,7 +137,8 @@ public class PlayerDirectoryTests
 
         CachedPlayerInfo[] roster = [Player(1, "grim", Grim, 3), Player(3, "coach", 76561190000000009, 3, coach: true)];
 
-        List<FacetPlayer> players = PlayerMatchFacet.Players([FacetRow(1, Id(Grim)), FacetRow(3, "76561190000000009")], roster);
+        List<FacetPlayer> players =
+            PlayerMatchFacet.Players([FacetRow(1, Id(Grim)), FacetRow(3, "76561190000000009")], roster);
 
         await Assert.That(players.Select(p => p.SteamId64)).IsEquivalentTo([Id(Grim)], CollectionOrdering.Matching);
     }

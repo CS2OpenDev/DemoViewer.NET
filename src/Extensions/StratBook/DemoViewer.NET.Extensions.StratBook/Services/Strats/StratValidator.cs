@@ -474,8 +474,8 @@ public static class StratValidator
             }
             else if (index is not null
                      && !index.Any(e => e.Id == branch.Target.StratId && e.Owner.Equals(document.Owner)
-                                                                      && string.Equals(e.Map, document.Map,
-                                                                          StringComparison.OrdinalIgnoreCase)))
+                         && string.Equals(e.Map, document.Map,
+                             StringComparison.OrdinalIgnoreCase)))
             {
                 issues.Add(Warn(pointer + "/target/stratId",
                     "the branch continues at a strat that is not in this book on this map"));

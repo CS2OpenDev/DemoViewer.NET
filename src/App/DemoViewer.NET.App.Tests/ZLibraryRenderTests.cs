@@ -313,7 +313,7 @@ public class ZLibraryRenderTests
         });
 
         Console.WriteLine($"[libvirt] entries={totalEntries} cardRows={cardRows} "
-                          + $"realizedCardRows={realizedCardRows} realizedListRows={realizedListRows}");
+            + $"realizedCardRows={realizedCardRows} realizedListRows={realizedListRows}");
         await Assert.That(totalEntries).IsEqualTo(400);
         await Assert.That(cardRows).IsGreaterThanOrEqualTo(100); // 400 entries / 4 columns
         // Viewport is ~640px: ~4 card rows (160px) / ~22 list rows (29px) + recycle buffer. The bound

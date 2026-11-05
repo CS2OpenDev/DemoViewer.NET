@@ -717,8 +717,8 @@ public class App : Application
         try
         {
             return packs.Packs.FirstOrDefault(c => string.Equals(c.Pack.Id, owner, StringComparison.Ordinal))?.Passes
-                       .FirstOrDefault(p => string.Equals(p.Id, passId, StringComparison.Ordinal)) is { } pass
-                   && pass.Factory().Interest(new VisitedDemo(path), PassLevel.Background) != PassInterest.No;
+                    .FirstOrDefault(p => string.Equals(p.Id, passId, StringComparison.Ordinal)) is { } pass
+                && pass.Factory().Interest(new VisitedDemo(path), PassLevel.Background) != PassInterest.No;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -1010,7 +1010,7 @@ public class App : Application
                         string.Equals(r.RulesetId, id, StringComparison.Ordinal)) is { ReadBy: { } reader } read
                         ? PassWants(sp.GetRequiredService<PackContributionSet>(), read.Owner, reader, path)
                         : !LibraryTeamTables.IsLibraryRuleset(id)
-                          && sp.GetRequiredService<FactsEvaluator>().Records(path, id));
+                        && sp.GetRequiredService<FactsEvaluator>().Records(path, id));
             rules.GuardOf = owner => sp.GetRequiredService<PackContributionSet>().Packs
                 .FirstOrDefault(c => string.Equals(c.Pack.Id, owner, StringComparison.Ordinal))?.Guard;
             // The visit in flight answers which collectors its rules run carries; resolved per call, like the cut.

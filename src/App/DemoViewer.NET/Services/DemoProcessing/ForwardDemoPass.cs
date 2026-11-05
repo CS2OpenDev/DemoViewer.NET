@@ -136,8 +136,8 @@ public static class ForwardDemoPass
     private static BuildResult CutOutputs(BuildResult build, IReadOnlySet<string>? outputs) => build with
     {
         Outputs = build.Outputs?.Where(o => LibraryTeamTables.Tables.Contains(o.Id)
-                                            || (outputs?.Contains(o.Id) ?? string.Equals(o.Id, RoundFactsTable,
-                                                StringComparison.Ordinal))).ToList()
+            || (outputs?.Contains(o.Id) ?? string.Equals(o.Id, RoundFactsTable,
+                StringComparison.Ordinal))).ToList()
     };
 
     /// <summary>The build's own plan, widened to what the tap reads.</summary>
@@ -267,10 +267,10 @@ public static class ForwardDemoPass
         // A rules run replays no entities in the tap; the rank fields come off the last full packet instead,
         // a few ms against a replay that would cost the visit a sixth of its time.
         EntityTracker? rankState = tap.Tracker
-                                   ?? (finalState && tap.LastFullPacket is { } full
-                                       ? LibraryFinalStateReplay.Checkpoint(reader.SignonPrefix,
-                                           reader.LastInstanceBaselineFullPacket, full)
-                                       : null);
+            ?? (finalState && tap.LastFullPacket is { } full
+                ? LibraryFinalStateReplay.Checkpoint(reader.SignonPrefix,
+                    reader.LastInstanceBaselineFullPacket, full)
+                : null);
         return new ForwardDemoResult
         {
             Demo = demo,

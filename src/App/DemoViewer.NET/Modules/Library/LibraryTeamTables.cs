@@ -286,8 +286,8 @@ public static class LibraryTeamTables
             {
                 bool same = steamId is { Length: > 0 }
                     ? string.Equals(p.SteamId64.ToString(CultureInfo.InvariantCulture), steamId,
-                          StringComparison.Ordinal)
-                      && string.Equals(p.Name, name, StringComparison.Ordinal)
+                        StringComparison.Ordinal)
+                    && string.Equals(p.Name, name, StringComparison.Ordinal)
                     : p.Slot == slot;
                 if (same)
                 {

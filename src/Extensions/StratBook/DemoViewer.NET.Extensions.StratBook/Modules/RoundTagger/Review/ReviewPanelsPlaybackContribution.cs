@@ -304,7 +304,7 @@ public sealed class ReviewPanelsPlaybackContribution(
             // Resumes on the calling (UI) context: the session is UI-thread affine.
             DemoIdentity? demo = await _identity(demoPath, ctx.DemoSha256);
             if (demo is null || !ReferenceEquals(Session, session)
-                             || !string.Equals(ctx.DemoPath, demoPath, StringComparison.OrdinalIgnoreCase))
+                || !string.Equals(ctx.DemoPath, demoPath, StringComparison.OrdinalIgnoreCase))
             {
                 return; // unreadable, detached, or the user moved on while it hashed
             }
@@ -488,7 +488,7 @@ public sealed class ReviewPanelsPlaybackContribution(
     private void OnPaletteChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(TagPaletteViewModel.IsFocused) && PalettePanel is { } panel
-                                                                    && Palette is { } palette)
+            && Palette is { } palette)
         {
             panel.HasKeyboard = palette.IsFocused;
         }
@@ -505,8 +505,8 @@ public sealed class ReviewPanelsPlaybackContribution(
         }
 
         return QueuePanel is { IsShown: true } && Queue is { HasSelection: true } queue && _surface is { } surface
-               && surface.ActionFor(StratBookActions.SuggestionScope, key, modifiers) is { } action
-               && queue.Execute(action);
+            && surface.ActionFor(StratBookActions.SuggestionScope, key, modifiers) is { } action
+            && queue.Execute(action);
     }
 
     // The pack's keymap actions. Undo and redo reach here first while the palette has the keyboard, so one

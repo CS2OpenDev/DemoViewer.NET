@@ -189,6 +189,6 @@ internal static class PerfOutput
     private static bool IsTruthy(string? raw) =>
         raw is not null &&
         (string.Equals(raw, "1", StringComparison.Ordinal) ||
-         string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase) ||
-         string.Equals(raw, "yes", StringComparison.OrdinalIgnoreCase));
+            string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(raw, "yes", StringComparison.OrdinalIgnoreCase));
 }

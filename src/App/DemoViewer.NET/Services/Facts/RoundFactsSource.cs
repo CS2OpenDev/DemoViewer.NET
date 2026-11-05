@@ -42,7 +42,7 @@ public sealed class RoundFactsSource : IRoundFactsSource
         }
 
         if (record.RoundFacts is null && _demoCache.TryGetIndex(demoPath)?.RoundFactsStamp() is { Schema: > 0 }
-                                      && record.RoundFactsStamp() is not { Schema: > 0 })
+            && record.RoundFactsStamp() is not { Schema: > 0 })
         {
             _demoCache.Upsert(record);
             _demoCache.SaveIndex();
@@ -67,8 +67,8 @@ public sealed class RoundFactsSource : IRoundFactsSource
         foreach (DemoCacheIndexEntry demo in _demoCache.Contents)
         {
             if (demo.RoundFactsStamp() is not { Schema: > 0 } || Named(demo, filter.Demos) is not { } entry
-                                                              || _demoCache.TryLoadRecord(entry.Path, false) is not
-                                                                  { RoundFacts: { } rows })
+                || _demoCache.TryLoadRecord(entry.Path, false) is not
+                    { RoundFacts: { } rows })
             {
                 continue;
             }
@@ -78,8 +78,8 @@ public sealed class RoundFactsSource : IRoundFactsSource
             foreach (RoundFacts round in rows.Rounds)
             {
                 if (RoundFactsRules.Matches(entry.Path, round, filter) && (!filter.HasTickAnchored
-                                                                           || RoundFactsRules.MatchesAnywhere(round,
-                                                                               filter, tickRate)))
+                        || RoundFactsRules.MatchesAnywhere(round,
+                            filter, tickRate)))
                 {
                     hits.Add((entry, round));
                 }

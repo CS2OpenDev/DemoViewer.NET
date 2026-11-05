@@ -575,7 +575,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         StatusMessage = dropped == 0
             ? ""
             : $"{dropped} staged clip{(dropped == 1 ? "" : "s")} could not be restored — the demo or its " +
-              "highlights are no longer in the cache.";
+            "highlights are no longer in the cache.";
     }
 
     /// <summary>O(1) staged test: Match Overview's <c>[ + ]</c> buttons call this per row build.</summary>
@@ -949,8 +949,8 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         // Changed (i.e. repeatedly through a long backfill), and rebuilding ClipGroups each time would tear
         // the tray's containers down under the user's pointer mid-drag.
         bool unchanged = order.SequenceEqual(_order)
-                         && order.All(k => _selection.TryGetValue(k, out HighlightSelection? old)
-                                           && WindowInputs(selection[k].Record) == WindowInputs(old.Record));
+            && order.All(k => _selection.TryGetValue(k, out HighlightSelection? old)
+                && WindowInputs(selection[k].Record) == WindowInputs(old.Record));
 
         _selection.Clear();
         foreach (KeyValuePair<HighlightKey, HighlightSelection> pair in selection)
@@ -970,7 +970,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         if (gone > 0)
         {
             StatusMessage = $"{gone} staged clip{(gone == 1 ? " is" : "s are")} no longer in the " +
-                            "highlights cache and " + (gone == 1 ? "was" : "were") + " removed.";
+                "highlights cache and " + (gone == 1 ? "was" : "were") + " removed.";
         }
 
         if (lost.Count > 0)
@@ -1014,7 +1014,7 @@ public partial class HighlightsTabViewModel : ObservableObject, IWorkspaceTabVie
         DemoCacheRecord? record = _demoCache.TryLoadRecord(key.FilePath);
         CachedHighlightEvent? highlight = record?.Highlights.FirstOrDefault(e =>
             e.RulesetId == key.RulesetId && e.HighlightId == key.HighlightId
-                                         && e.Tick == key.Tick && e.PlayerSlot == key.PlayerSlot);
+            && e.Tick == key.Tick && e.PlayerSlot == key.PlayerSlot);
         return record is null || highlight is null ? null : new HighlightSelection(record, highlight);
     }
 

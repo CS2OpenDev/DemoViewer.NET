@@ -290,7 +290,7 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
         _includeAnnotations = seed.ExportIncludeAnnotations;
         _includeVision = seed.ExportIncludeVision;
         _selectedSize = Sizes.FirstOrDefault(s => s.Width == seed.ExportWidth && s.Height == seed.ExportHeight)
-                        ?? Sizes[0];
+            ?? Sizes[0];
         _customWidthText = seed.ExportWidth.ToString(CultureInfo.InvariantCulture);
         _customHeightText = seed.ExportHeight.ToString(CultureInfo.InvariantCulture);
         _outputPath = BuildDefaultPath(seed, _scene.FileStem);
@@ -804,10 +804,10 @@ public sealed partial class Playback2DExportDialogViewModel : ViewModelBase, IDi
 
         string trimmed = requested.Trim().ToLowerInvariant();
         return string.Equals(trimmed, EncoderLadder.Auto, StringComparison.Ordinal) ||
-               string.Equals(trimmed, EncoderLadder.Software, StringComparison.Ordinal) ||
-               EncoderLadder.Find(formatId, trimmed) is not null
-            ? trimmed
-            : EncoderLadder.Auto;
+            string.Equals(trimmed, EncoderLadder.Software, StringComparison.Ordinal) ||
+            EncoderLadder.Find(formatId, trimmed) is not null
+                ? trimmed
+                : EncoderLadder.Auto;
     }
 
     private void RefreshFfmpegStatus() =>

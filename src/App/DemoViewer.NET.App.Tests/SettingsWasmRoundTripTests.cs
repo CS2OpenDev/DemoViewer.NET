@@ -68,7 +68,7 @@ public class SettingsWasmRoundTripTests
 
         await Assert.That(string.Join(", ", unpersisted)).IsEqualTo("")
             .Because("every Playback2D property needs a SettingsService.WriteInMemory row, or the "
-                     + "setting silently forgets itself on the browser head");
+                + "setting silently forgets itself on the browser head");
     }
 
     /// <summary>

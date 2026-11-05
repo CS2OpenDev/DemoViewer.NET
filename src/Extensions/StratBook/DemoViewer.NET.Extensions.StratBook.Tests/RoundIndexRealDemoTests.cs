@@ -56,7 +56,7 @@ public class RoundIndexRealDemoTests
             RoundIndexBuilder.Build(parsed, facts, RoundIndexOptions.Default, PawnPlaceSource.Instance);
         watch.Stop();
         Console.WriteLine($"round index build: {watch.ElapsedMilliseconds} ms over {parsed.Frames.Count} frames, " +
-                          $"{document.RowCount} rows, {document.Places.Count} places, {document.Transitions.Count} transitions");
+            $"{document.RowCount} rows, {document.Places.Count} places, {document.Transitions.Count} transitions");
 
         int ctSeats = facts.Rounds[0].Ct.Slots.Length;
         int tSeats = facts.Rounds[0].T.Slots.Length;
@@ -186,8 +186,8 @@ public class RoundIndexRealDemoTests
 
         watch.Stop();
         Console.WriteLine($"indexed {index.IndexedDemoCount} of {demos.Length} demos in {watch.ElapsedMilliseconds} ms "
-                          +
-                          $"({watch.ElapsedMilliseconds / Math.Max(1, demos.Length)} ms per demo, parse included)");
+            +
+            $"({watch.ElapsedMilliseconds / Math.Max(1, demos.Length)} ms per demo, parse included)");
 
         Stopwatch lookup = Stopwatch.StartNew();
         int count = index.Count(new SituationQuery("de_nuke", [new PlaceQuery("BombsiteA", 2)], []));

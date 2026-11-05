@@ -36,7 +36,7 @@ public class SuggestedTagsIndexPlacementRealDemoTests
         RoundFactsEvaluator facts = new(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
         facts.Evaluate(path, parsed);
         RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts
-                              ?? throw new InvalidOperationException("the evaluator wrote no rows");
+            ?? throw new InvalidOperationException("the evaluator wrote no rows");
 
         OccupancyBuild walk = RoundOccupancyBuilder.FromWalk(parsed, rows);
         RoundIndexBuild built =

@@ -175,7 +175,8 @@ public class StratRevisionTests
             StratDocument working = probe.Materialize(document.Id, 3)!;
             working.Name = "edited before the crash";
             working.Revision = 1;
-            await File.WriteAllTextAsync(StratFile(root, document), StratStore.Serialize(StratStore.WithPending(working, true)));
+            await File.WriteAllTextAsync(StratFile(root, document),
+                StratStore.Serialize(StratStore.WithPending(working, true)));
 
             StratStore restarted = new(PackStores.At(root), utcNow: SteppingClock(_past.AddHours(1)));
             using StratSession session = Session(restarted);
@@ -212,7 +213,8 @@ public class StratRevisionTests
             // Revision 1 plus a rename; revisions 2 and 3 only moved steps.
             StratDocument working = new StratStore(PackStores.At(root)).Materialize(document.Id, 1)!;
             working.Name = "renamed at revision 1";
-            await File.WriteAllTextAsync(StratFile(root, document), StratStore.Serialize(StratStore.WithPending(working, true)));
+            await File.WriteAllTextAsync(StratFile(root, document),
+                StratStore.Serialize(StratStore.WithPending(working, true)));
 
             StratStore restarted = new(PackStores.At(root), utcNow: SteppingClock(_past.AddHours(1)));
             using StratSession session = Session(restarted);

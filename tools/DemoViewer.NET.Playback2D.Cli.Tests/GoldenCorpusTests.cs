@@ -83,8 +83,8 @@ public class GoldenCorpusTests
         }
 
         Console.WriteLine($"[corpus] {declared.Count} declared goldens, " +
-                          $"{Directory.GetFiles(cpuDir, "*.png").Length} committed, " +
-                          $"{orphans.Count} orphaned");
+            $"{Directory.GetFiles(cpuDir, "*.png").Length} committed, " +
+            $"{orphans.Count} orphaned");
 
         await Assert.That(orphans)
             .IsEmpty()

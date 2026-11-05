@@ -49,7 +49,7 @@ public class PackPlayback2DBindingTests
             .Because("the pack binds these app types outside the first-party seam:\n" + string.Join("\n", unexpected));
         await Assert.That(stale).IsEmpty()
             .Because("these allowed app types are no longer bound, so drop them from the list:\n"
-                     + string.Join("\n", stale));
+                + string.Join("\n", stale));
     }
 
     [Test]

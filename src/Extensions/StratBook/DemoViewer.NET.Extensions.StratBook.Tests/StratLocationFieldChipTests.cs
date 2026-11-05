@@ -318,6 +318,7 @@ public partial class StratLocationFieldTests
             // Stairs up and to the right of B, Jungle up and to the left: the token now faces Jungle.
             static (double X, double Y)? Centres(string place, double levelMinZ) =>
                 place switch { "Stairs" => (100, 100), "Jungle" => (-100, 100), _ => null };
+
             TokenTrack b = StratSceneProjection.Build(document, StratPath.MainLine(document), null, Centres).Tracks
                 .Single(t => t.Slot == "B");
             await Assert

@@ -87,9 +87,9 @@ public class PremierEmblemTests
     private static SKBitmap Decode(string key, int scale)
     {
         IconRef icon = IconCatalogue.Get(key)
-                       ?? throw new InvalidOperationException($"{key} was not baked");
+            ?? throw new InvalidOperationException($"{key} was not baked");
         return SKBitmap.Decode(icon.Bytes(scale))
-               ?? throw new InvalidOperationException($"{key}@{scale} did not decode");
+            ?? throw new InvalidOperationException($"{key}@{scale} did not decode");
     }
 
     private static SKColor At(SKBitmap bmp, double u, double v) =>

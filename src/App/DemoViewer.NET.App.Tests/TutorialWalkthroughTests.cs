@@ -271,9 +271,9 @@ public class TutorialWalkthroughTests
                 // The real Open-Demo button lives under the hole and must be reachable there…
                 Control? hit = window.InputHitTest(hole.Center) as Control;
                 bool overButton = hit is not null
-                                  && TutorialAnchor.TryResolve(TutorialTarget.OpenDemo, out Control btn)
-                                  && (ReferenceEquals(hit, btn) || btn.GetVisualDescendants().Contains(hit)
-                                                                || hit.GetVisualAncestors().Contains(btn));
+                    && TutorialAnchor.TryResolve(TutorialTarget.OpenDemo, out Control btn)
+                    && (ReferenceEquals(hit, btn) || btn.GetVisualDescendants().Contains(hit)
+                        || hit.GetVisualAncestors().Contains(btn));
                 await Assert.That(overButton).IsTrue()
                     .Because("a click in the spotlight hole passes through the scrim to the real Open-Demo button");
 
@@ -456,7 +456,7 @@ public class TutorialWalkthroughTests
 
                 await Assert.That(vm.SelectedTab!.TabId).IsEqualTo("builtin.library")
                     .Because("mid-tour the card open must not yank the shell off the spotlighted "
-                             + "Library — the tour navigates tabs itself once the demo run begins");
+                        + "Library — the tour navigates tabs itself once the demo run begins");
             }
             finally
             {

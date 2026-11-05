@@ -25,7 +25,7 @@ public class FloorSplitterMultiFloorTests
     public async Task Nuke_ReachesAndHolds_TwoFloors()
     {
         string? nuke = DemoTestHelper.FindDemoPath("vitality-vs-fut-m3-nuke.dem")
-                       ?? DemoTestHelper.FindDemoPath("furia-vs-vitality-m3-nuke.dem");
+            ?? DemoTestHelper.FindDemoPath("furia-vs-vitality-m3-nuke.dem");
         if (nuke is null)
         {
             throw new SkipTestException("no nuke demo");

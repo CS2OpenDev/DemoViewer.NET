@@ -117,8 +117,8 @@ public sealed partial class GraphBreakpoint : ObservableObject
         get
         {
             string edgeTag = $"{Label(EdgeSourceKey)}→{Label(EdgeDestKey)}"
-                             + (string.IsNullOrEmpty(EdgeLabel) ? "" : $" [{EdgeLabel}]")
-                             + (string.IsNullOrEmpty(EdgeConditionLabel) ? "" : $" ⟨{EdgeConditionLabel}⟩");
+                + (string.IsNullOrEmpty(EdgeLabel) ? "" : $" [{EdgeLabel}]")
+                + (string.IsNullOrEmpty(EdgeConditionLabel) ? "" : $" ⟨{EdgeConditionLabel}⟩");
             string target = TargetKind == GraphBreakpointTarget.Node ? Label(NodeKey) : edgeTag;
             return string.IsNullOrWhiteSpace(Condition) ? target : $"{target}  ⟨{Condition}⟩";
         }

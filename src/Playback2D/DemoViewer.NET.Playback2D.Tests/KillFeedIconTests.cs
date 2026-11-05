@@ -151,7 +151,7 @@ public class KillFeedIconAllocationTests
         long withIcons = PerFrameBytes(icons);
 
         Console.WriteLine($"[budget] kill feed: text {textOnly} B/frame, icons {withIcons} B/frame, "
-                          + $"delta {withIcons - textOnly}");
+            + $"delta {withIcons - textOnly}");
 
         // Measured as a DELTA, not an absolute. Whatever the shipped text feed allocates per frame is a
         // pre-existing property of this layer and of TextBlobCache; what must not regress is the icon

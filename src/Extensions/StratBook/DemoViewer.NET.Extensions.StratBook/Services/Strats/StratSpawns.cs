@@ -53,7 +53,7 @@ public sealed record StratSpawns(IReadOnlyList<SpawnSpot> T, IReadOnlyList<Spawn
         double cx, cy;
         ZoneVolume? buy = zones.Volumes
             .Where(v => v.Kind == ZoneVolumeKind.Buyzone
-                        && string.Equals(v.Team, team, StringComparison.OrdinalIgnoreCase))
+                && string.Equals(v.Team, team, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(v => (v.Max.X - v.Min.X) * (double)(v.Max.Y - v.Min.Y))
             .FirstOrDefault();
         if (buy is not null)
@@ -61,9 +61,9 @@ public sealed record StratSpawns(IReadOnlyList<SpawnSpot> T, IReadOnlyList<Spawn
             areas =
             [
                 .. zones.Areas.Where(a => a.CornerCount > 0
-                                          && a.CentroidX >= buy.Min.X && a.CentroidX <= buy.Max.X
-                                          && a.CentroidY >= buy.Min.Y && a.CentroidY <= buy.Max.Y
-                                          && a.Z >= buy.Min.Z - ZSlack && a.Z <= buy.Max.Z)
+                    && a.CentroidX >= buy.Min.X && a.CentroidX <= buy.Max.X
+                    && a.CentroidY >= buy.Min.Y && a.CentroidY <= buy.Max.Y
+                    && a.Z >= buy.Min.Z - ZSlack && a.Z <= buy.Max.Z)
             ];
             cx = (buy.Min.X + buy.Max.X) / 2.0;
             cy = (buy.Min.Y + buy.Max.Y) / 2.0;

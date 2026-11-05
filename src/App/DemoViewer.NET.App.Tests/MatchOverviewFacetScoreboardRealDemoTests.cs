@@ -50,7 +50,7 @@ public class MatchOverviewFacetScoreboardRealDemoTests
         }
 
         FactTable facet = library.TryGet(path, PlayerMatchFacet.Key)
-                          ?? throw new InvalidOperationException("the visit wrote no facet");
+            ?? throw new InvalidOperationException("the visit wrote no facet");
         List<CachedStatRow> projected = DemoCacheAnalysisProjector.ProjectScoreboard(facet);
         DemoCacheRecord record = cache.TryLoadRecord(path)!;
 

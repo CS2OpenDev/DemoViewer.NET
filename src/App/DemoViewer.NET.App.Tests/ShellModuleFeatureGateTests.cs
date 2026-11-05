@@ -80,7 +80,8 @@ public class ShellModuleFeatureGateTests
             using FeatureGate gate = new(sp.GetRequiredService<IOptionsMonitor<AppSettings>>(), false);
             using ShellModuleFeatureGate projection = new(gate, static () => false);
             string sub = FeatureCatalog.All
-                .First(d => d is { OwnerPackId: StratBookPack.PackFeatureId, Scope: FeatureScope.SubFeature, Required: false }).Id;
+                .First(d => d is
+                    { OwnerPackId: StratBookPack.PackFeatureId, Scope: FeatureScope.SubFeature, Required: false }).Id;
             int raised = 0;
             projection.Changed += () => raised++;
             await Assert.That(projection.IsEnabled(sub)).IsTrue();

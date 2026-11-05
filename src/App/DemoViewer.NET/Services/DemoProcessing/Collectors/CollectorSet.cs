@@ -115,7 +115,7 @@ internal sealed class CollectorSet
     /// <summary>True when every member of <paramref name="other" /> is here under the same stamp.</summary>
     public bool IsSupersetOf(CollectorSet other) =>
         other.All.All(c => _byId.TryGetValue(c.Id, out RegisteredCollector? mine)
-                           && string.Equals(mine.Contribution.Stamp, c.Contribution.Stamp, StringComparison.Ordinal));
+            && string.Equals(mine.Contribution.Stamp, c.Contribution.Stamp, StringComparison.Ordinal));
 
     public bool Contains(string collectorId) => _byId.ContainsKey(collectorId);
 

@@ -257,7 +257,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     private void OnSectionToggled(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (!_applyingDefault && e.PropertyName == nameof(DossierSectionViewModel.IsExpanded)
-                              && sender is DossierSectionViewModel section)
+            && sender is DossierSectionViewModel section)
         {
             _expanded[section.Key] = section.IsExpanded;
         }
@@ -942,7 +942,7 @@ public sealed class PeriodDiffRowViewModel
         RecordLabel = period.Wins + period.Losses == 0
             ? "no resolved score"
             : $"{period.Wins}-{period.Losses}"
-              + (period.Undetermined > 0 ? $" ({period.Undetermined} undetermined)" : "");
+            + (period.Undetermined > 0 ? $" ({period.Undetermined} undetermined)" : "");
         WinRateLabel = period.WinRate is { } wr
             ? wr.ToString("P0", CultureInfo.InvariantCulture)
             : "—";

@@ -151,7 +151,7 @@ public sealed record StratDragTarget(
             if (StratStepFields.MotionOf(step.Verb) is StepMotion.Travel or StepMotion.Lurk)
             {
                 int places = StratStepLines.LineFor(step, slot)?.Via?.Count
-                             ?? (StratStepLines.HasLines(step) ? 0 : step.Via?.Count ?? 0);
+                    ?? (StratStepLines.HasLines(step) ? 0 : step.Via?.Count ?? 0);
                 return new StratDragTarget(slot, StratDragAction.Via, run.PathIndex,
                     projection.Path[run.PathIndex].StepIndex,
                     new StratLocationField(step.Id, slot, StratLocationKind.Via), Math.Min(run.LegAt(tick), places),
@@ -209,10 +209,10 @@ public sealed record StratDragTarget(
         if (grip == TokenGrip.Heading)
         {
             return StratStepFields.Uses(step.Verb, StratStepField.Watch)
-                   || StratStepLines.LineFor(step, slot)?.Watch is not null
-                ? new StratDragTarget(slot, StratDragAction.Turn, pathIndex, at.StepIndex, Joins: !names,
-                    StepId: step.Id)
-                : Refuse(slot, RunnerTurnNote);
+                || StratStepLines.LineFor(step, slot)?.Watch is not null
+                    ? new StratDragTarget(slot, StratDragAction.Turn, pathIndex, at.StepIndex, Joins: !names,
+                        StepId: step.Id)
+                    : Refuse(slot, RunnerTurnNote);
         }
 
         // Throw, wait and call move no one, and a lurk is shared by its lurkers: the drag edits the step that placed the token.
@@ -385,8 +385,8 @@ public static partial class StratDragPatches
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(target);
         return target.Action == StratDragAction.Start
-               || (target is { IsRefused: false, StepIndex: >= 0 } && target.StepIndex < document.Steps.Count
-                   && (target.StepId == Guid.Empty || document.Steps[target.StepIndex].Id == target.StepId));
+            || (target is { IsRefused: false, StepIndex: >= 0 } && target.StepIndex < document.Steps.Count
+                && (target.StepId == Guid.Empty || document.Steps[target.StepIndex].Id == target.StepId));
     }
 
     /// <summary>
@@ -515,7 +515,7 @@ public static partial class StratDragPatches
         {
             Match m = pointer.Match(op.Path);
             if (op.Op == PatchOp.Remove && m.Success
-                                        && int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) == index)
+                && int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) == index)
             {
                 removes.Add(int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture));
             }
@@ -530,7 +530,7 @@ public static partial class StratDragPatches
             if (only is { } single
                     ? k == single
                     : string.Equals(step.Positions[k].Slot, slot, StringComparison.Ordinal)
-                      && (seen is null || seen(k)))
+                    && (seen is null || seen(k)))
             {
                 removes.Add(k);
             }

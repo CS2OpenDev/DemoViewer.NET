@@ -513,7 +513,7 @@ public sealed class SyncEngine : IAsyncDisposable
                 if ((!_desiredPlaying || !_believedPlaying) && _desiredTick is { } target)
                 {
                     bool closeEnough = _believedTick is { } believed
-                                       && Math.Abs(believed - target) <= SeekConfirmTolerance;
+                        && Math.Abs(believed - target) <= SeekConfirmTolerance;
                     bool alreadyInFlight = _pendingSeekTarget == target || _seekSlotArmed && _seekSlot == target;
                     if (!closeEnough && !alreadyInFlight)
                     {

@@ -51,7 +51,7 @@ public static class NavFloors
         package.Read(vpkPath);
         string navPath = $"maps/{mapName}.nav";
         PackageEntry entry = package.FindEntry(navPath)
-                             ?? throw new FileNotFoundException($"{navPath} not found in {vpkPath}");
+            ?? throw new FileNotFoundException($"{navPath} not found in {vpkPath}");
         package.ReadEntry(entry, out byte[] bytes);
         return bytes;
     }
@@ -307,21 +307,23 @@ public static class NavFloors
         double minZ, double maxZ, List<double> boundaries, List<FloorBand> floors)
     {
         StringBuilder sb = new();
-        sb.AppendLine(CultureInfo.InvariantCulture, $"  areas={areaCount}  Z[{minZ:F0}..{maxZ:F0}]  buckets={counts.Length}");
+        sb.AppendLine(CultureInfo.InvariantCulture,
+            $"  areas={areaCount}  Z[{minZ:F0}..{maxZ:F0}]  buckets={counts.Length}");
         for (int b = 0; b < counts.Length; b++)
         {
             double z = (lo + b) * BucketWidth;
             int bars = peakW > 0 ? (int)Math.Round(counts[b] / peakW * 40) : 0;
             if (counts[b] > 0)
             {
-                sb.AppendLine(CultureInfo.InvariantCulture, $"    z {z,7:F0}  {new string('#', bars),-40}  {counts[b],10:F0}");
+                sb.AppendLine(CultureInfo.InvariantCulture,
+                    $"    z {z,7:F0}  {new string('#', bars),-40}  {counts[b],10:F0}");
             }
         }
 
         sb.AppendLine(CultureInfo.InvariantCulture,
             $"  → boundaries: [{string.Join(", ", boundaries.Select(x => x.ToString("F0", CultureInfo.InvariantCulture)))}]");
         sb.AppendLine($"  → floors: {floors.Count}  " +
-                      string.Join("  ", floors.Select(f => $"[{f.MinZ:F0}..{f.MaxZ:F0}]")));
+            string.Join("  ", floors.Select(f => $"[{f.MinZ:F0}..{f.MaxZ:F0}]")));
         return sb.ToString();
     }
 

@@ -166,8 +166,8 @@ public sealed class ReelJobService(
                 {
                     Phase = ReelJobPhase.Failed,
                     Error = "Real reel generation needs Windows — the InEngineHooked capture "
-                            + "provider streams frames from a DXGI present hook. "
-                            + "Use \"Dry run (mock)\" to validate the clip plan on other platforms."
+                    + "provider streams frames from a DXGI present hook. "
+                    + "Use \"Dry run (mock)\" to validate the clip plan on other platforms."
                 };
                 return;
             }

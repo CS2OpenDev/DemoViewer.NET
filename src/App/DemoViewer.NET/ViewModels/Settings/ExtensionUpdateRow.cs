@@ -90,7 +90,7 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
 
     /// <summary>The Update button shows while a version is offered and nothing is in flight.</summary>
     public bool CanUpdate => IsSupported && !IsChecking && !IsDownloading
-                             && State?.Status == ExtensionUpdateStatus.UpdateAvailable;
+        && State?.Status == ExtensionUpdateStatus.UpdateAvailable;
 
     /// <summary>The offered version's text, for the Update button's tooltip; null when none.</summary>
     public string? OfferedVersion => State?.Offered?.Version.ToString();

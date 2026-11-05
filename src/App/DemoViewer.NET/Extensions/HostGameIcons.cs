@@ -21,7 +21,7 @@ internal sealed class HostGameIcons : IGameIconBackend
     [ModuleInitializer]
     [SuppressMessage("Usage", "CA2255",
         Justification = "Application code that is a class library only because several heads reference it; "
-                        + "the UI kit's icons must be live before any extension view draws one.")]
+            + "the UI kit's icons must be live before any extension view draws one.")]
     internal static void Install() => GameIcon.Backend ??= new HostGameIcons();
 
     /// <inheritdoc />

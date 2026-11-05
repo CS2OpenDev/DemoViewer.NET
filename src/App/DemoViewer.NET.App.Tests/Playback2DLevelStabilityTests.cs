@@ -74,7 +74,7 @@ public class Playback2DLevelStabilityTests
                     if (score <= 0)
                     {
                         violations.Add($"{level.Id} moved from [{before.MinZ:F0}..{before.MaxZ:F0}] " +
-                                       $"to [{level.ZMin:F0}..{level.ZMax:F0}]");
+                            $"to [{level.ZMin:F0}..{level.ZMax:F0}]");
                     }
 
                     if (Math.Abs(before.MinZ - level.ZMin) > 1e-3 ||
@@ -89,7 +89,7 @@ public class Playback2DLevelStabilityTests
         }
 
         Console.WriteLine($"[levels-nuke] {rebuilds} rebuilds, counts={string.Join(",", trail)}, " +
-                          $"ids={string.Join(",", seen.Keys)}, drifted-while-retained={driftedWhileRetained}");
+            $"ids={string.Join(",", seen.Keys)}, drifted-while-retained={driftedWhileRetained}");
 
         await Assert.That(rebuilds).IsGreaterThan(0);
         await Assert.That(driftedWhileRetained).IsGreaterThan(0)
@@ -130,8 +130,8 @@ public class Playback2DLevelStabilityTests
         }
 
         Console.WriteLine($"[levels-nuke-baked] levels={space.Levels.Count} " +
-                          $"ids={string.Join(",", space.Levels.Select(l => l.Id.ToString()))} " +
-                          $"referenceZ={referenceZ:F0} → {reference}");
+            $"ids={string.Join(",", space.Levels.Select(l => l.Id.ToString()))} " +
+            $"referenceZ={referenceZ:F0} → {reference}");
 
         await Assert.That(space.Levels.Count).IsEqualTo(2)
             .Because("de_nuke's baked bundle publishes two nav floors");
@@ -225,7 +225,7 @@ public class Playback2DLevelStabilityTests
         }
 
         Console.WriteLine($"[autofollow-nuke] slot={followedSlot} observations={observations} " +
-                          $"switches={switches} (no hysteresis: {naiveSwitches})");
+            $"switches={switches} (no hysteresis: {naiveSwitches})");
 
         await Assert.That(observations).IsGreaterThan(0)
             .Because("the tour sample must reach two floors with a live player to follow");
@@ -283,7 +283,7 @@ public class Playback2DLevelStabilityTests
         }
 
         Console.WriteLine($"[autofollow-nuke-positive] players={tracks.Count} " +
-                          $"traversed={traversed} transitions={transitions}");
+            $"traversed={traversed} transitions={transitions}");
 
         await Assert.That(traversed).IsGreaterThan(0)
             .Because("this capture takes players to both floors — a chooser that never switches is broken");
@@ -430,7 +430,7 @@ public class Playback2DLevelStabilityTests
     private static string ResolveNuke()
     {
         string? staged = DemoTestHelper.FindDemoPath("vitality-vs-fut-m3-nuke.dem")
-                         ?? DemoTestHelper.FindDemoPath("furia-vs-vitality-m3-nuke.dem");
+            ?? DemoTestHelper.FindDemoPath("furia-vs-vitality-m3-nuke.dem");
         if (staged is not null)
         {
             return staged;

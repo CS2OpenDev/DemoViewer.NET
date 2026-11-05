@@ -67,10 +67,7 @@ public static class MapPoolRecordService
                 })
         ];
 
-        return new MapPoolRecord
-        {
-            Maps = mapRows, Deciders = BuildDeciders(results), TotalDemos = results.Count
-        };
+        return new MapPoolRecord { Maps = mapRows, Deciders = BuildDeciders(results), TotalDemos = results.Count };
     }
 
     // A decider is inferable only from a recognizable series length (manual veto entry

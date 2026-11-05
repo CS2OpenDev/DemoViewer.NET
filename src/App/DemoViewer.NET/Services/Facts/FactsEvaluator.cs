@@ -73,7 +73,7 @@ public sealed class FactsEvaluator : IDemoEvaluator
     public bool Wants(string path) =>
         _cache.TryGetIndex(path) is { ParseSchema: > 0 } entry
         && (_facts.Facets().Any(f => _facts.Fingerprint(f.RulesetId, BacklogTickRate) is { } fp
-                                     && StampedFacts.NeedsWrite(entry, f.RulesetId, fp))
+                && StampedFacts.NeedsWrite(entry, f.RulesetId, fp))
             || UpgradesSight(path, entry));
 
     /// <summary>
@@ -131,9 +131,9 @@ public sealed class FactsEvaluator : IDemoEvaluator
         }
 
         return _cache.TryGetIndex(path) is not { ParseSchema: > 0 } entry
-               || StampedFacts.NeedsWrite(entry, rulesetId, fingerprint)
-               || (string.Equals(rulesetId, PlayerMatchFacet.RulesetId, StringComparison.Ordinal)
-                   && UpgradesSight(path, entry));
+            || StampedFacts.NeedsWrite(entry, rulesetId, fingerprint)
+            || (string.Equals(rulesetId, PlayerMatchFacet.RulesetId, StringComparison.Ordinal)
+                && UpgradesSight(path, entry));
     }
 
     private void Record(string path, AnalysisRun run, int tickRate)
@@ -157,7 +157,7 @@ public sealed class FactsEvaluator : IDemoEvaluator
             // A current facet is written again only to give player_match the sight an open brings.
             bool upgrade = entry is not null && !StampedFacts.NeedsWrite(entry, facet.RulesetId, fingerprint);
             if (upgrade && !(sightOpen
-                             && string.Equals(facet.RulesetId, PlayerMatchFacet.RulesetId, StringComparison.Ordinal)))
+                    && string.Equals(facet.RulesetId, PlayerMatchFacet.RulesetId, StringComparison.Ordinal)))
             {
                 continue;
             }

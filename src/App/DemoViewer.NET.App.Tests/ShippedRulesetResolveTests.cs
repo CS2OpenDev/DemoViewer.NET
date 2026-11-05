@@ -43,7 +43,7 @@ public class ShippedRulesetResolveTests
         RuleConfigLoadResult loaded = YamlConfigLoader.TryLoadDirectory(Path.Combine(root, "rules"));
         await Assert.That(loaded.Success).IsTrue()
             .Because("tier 1, the shipped rulesets parse: "
-                     + string.Join("; ", loaded.Errors.Select(e => e.ToString())));
+                + string.Join("; ", loaded.Errors.Select(e => e.ToString())));
         await Assert.That(loaded.Rulesets.Count).IsGreaterThan(0)
             .Because("a resolve over no rulesets asserts nothing");
 
@@ -52,6 +52,6 @@ public class ShippedRulesetResolveTests
         RulesetValidationResult validated = DemoAnalysis.ValidateRulesets(loaded.Rulesets);
         await Assert.That(validated.Diagnostics.Count).IsEqualTo(0)
             .Because("tier 2, the shipped rulesets resolve demo-less: "
-                     + string.Join("; ", validated.Diagnostics.Select(d => d.ToString())));
+                + string.Join("; ", validated.Diagnostics.Select(d => d.ToString())));
     }
 }

@@ -33,7 +33,8 @@ public class RoundTrackRoundFactsTests
             // A round_end that would paint round 1 for T; the facts say CT, and the facts win.
             Events =
             {
-                ["round_end"] = [new TimelineEventRecord(90, 90, new Dictionary<string, string> { ["winner"] = "2" })]
+                ["round_end"] =
+                    [new TimelineEventRecord(90, 90, new Dictionary<string, string> { ["winner"] = "2" })]
             }
         };
         RoundTrack track = new() { Facts = [Round(1, 3), Round(2, 0), Round(3, 2)] };
@@ -60,7 +61,8 @@ public class RoundTrackRoundFactsTests
             EventFrames = { ["round_freeze_end"] = [0, 100] },
             Events =
             {
-                ["round_end"] = [new TimelineEventRecord(90, 90, new Dictionary<string, string> { ["winner"] = "2" })]
+                ["round_end"] =
+                    [new TimelineEventRecord(90, 90, new Dictionary<string, string> { ["winner"] = "2" })]
             }
         };
         RoundTrack track = new() { Facts = [] };

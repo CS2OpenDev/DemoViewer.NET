@@ -155,7 +155,7 @@ public static class TeamSuggestions
             }
 
             if (own is not { } mine || PlayersOf(id, teams.Me.SteamIds) is not { } other
-                                    || !string.Equals(mine.Prefix, other.Prefix, StringComparison.Ordinal))
+                || !string.Equals(mine.Prefix, other.Prefix, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -178,7 +178,7 @@ public static class TeamSuggestions
     {
         int cut = id.LastIndexOf(':');
         if (cut < 0 || !(id.StartsWith("squad:", StringComparison.Ordinal)
-                         || id.StartsWith("roster:", StringComparison.Ordinal)))
+                || id.StartsWith("roster:", StringComparison.Ordinal)))
         {
             return null;
         }
@@ -396,7 +396,7 @@ public static class TeamSuggestions
         index.Demos.Values
             .SelectMany(row => row.Sides.Values.Select(side => (Row: row, Side: side)))
             .Where(p => p.Side.TeamId == teamId
-                        && (rosterId is null || string.Equals(p.Side.RosterId, rosterId, StringComparison.Ordinal)))
+                && (rosterId is null || string.Equals(p.Side.RosterId, rosterId, StringComparison.Ordinal)))
             .OrderByDescending(p => p.Row.OrderTicks)
             .ThenByDescending(p => p.Row.Path, StringComparer.Ordinal);
 

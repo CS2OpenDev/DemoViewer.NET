@@ -135,7 +135,7 @@ public class PlayerOverviewEntryPointRenderTests
             {
                 Border Row(string player) => window.GetVisualDescendants().OfType<Border>()
                     .First(b => b.Classes.Contains("pickRow") && b.DataContext is AddClipsRowViewModel r
-                                                              && r.PlayerName == player);
+                        && r.PlayerName == player);
 
                 await AssertEntry(Opened(Row("BOT Kirk")), false);
                 MenuItem neo = Opened(Row("Neo"));

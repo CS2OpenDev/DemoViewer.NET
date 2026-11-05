@@ -68,11 +68,11 @@ public class PlayerEventRealDemoTests
         }
 
         FactTable killRows = library.TryGet(path, PlayerEventFacet.KillsKey)
-                             ?? throw new InvalidOperationException("the visit wrote no kills");
+            ?? throw new InvalidOperationException("the visit wrote no kills");
         FactTable deathRows = library.TryGet(path, PlayerEventFacet.DeathsKey)
-                              ?? throw new InvalidOperationException("the visit wrote no deaths");
+            ?? throw new InvalidOperationException("the visit wrote no deaths");
         FactTable facet = library.TryGet(path, PlayerMatchFacet.Key)
-                          ?? throw new InvalidOperationException("the visit wrote no player_match");
+            ?? throw new InvalidOperationException("the visit wrote no player_match");
         if (Environment.GetEnvironmentVariable(PlayerEventFacetTests.SampleUpdateVar) == "1"
             && DemoTestHelper.FindRepoRoot() is { } repo)
         {

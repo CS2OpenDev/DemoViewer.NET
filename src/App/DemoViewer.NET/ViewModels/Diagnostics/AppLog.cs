@@ -118,7 +118,7 @@ internal static partial class AppLog
 
     [LoggerMessage(EventId = 9, Level = LogLevel.Warning,
         Message = "{count} library row(s) hold a half-resolved final score; the score is withheld "
-                  + "from the card and offered for on-demand re-derivation")]
+            + "from the card and offered for on-demand re-derivation")]
     public static partial void LibraryHalfResolvedScores(ILogger logger, int count);
 
     [LoggerMessage(EventId = 10, Level = LogLevel.Warning,
@@ -193,7 +193,7 @@ internal static partial class AppLog
     /// <summary>An empty listing over cached rows: an automount or mount point that is not up. Counted as not reached.</summary>
     [LoggerMessage(EventId = 34, Level = LogLevel.Warning,
         Message = "Library folder {folder} listed no demos while the cache holds {cached} row(s) under it; "
-                  + "treated as not reached (a mount that is not up yet?). Its cached rows are kept")]
+            + "treated as not reached (a mount that is not up yet?). Its cached rows are kept")]
     public static partial void LibraryFolderListedEmpty(ILogger logger, string folder, int cached);
 
     [LoggerMessage(EventId = 33, Level = LogLevel.Information,
@@ -244,7 +244,7 @@ internal static partial class AppLog
     /// </summary>
     [LoggerMessage(EventId = 12, Level = LogLevel.Warning,
         Message = "Ruleset '{rulesetId}' was excluded from the analysis graph and none of its stats "
-                  + "or highlights can fire: {diagnostics}")]
+            + "or highlights can fire: {diagnostics}")]
     public static partial void RulesetExcluded(ILogger logger, string rulesetId, string diagnostics);
 
     /// <summary>

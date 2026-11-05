@@ -470,8 +470,8 @@ public class MatchOverviewLandingTests
 
                 await Assert.That(slackWhenHidden).IsEqualTo(0).Within(0.5)
                     .Because("a hidden button must take no WIDTH either: the button's column carries its "
-                             + "gap as a Margin, because a Grid's ColumnSpacing applies to a zero-width "
-                             + "column too and would leave the plate 20px short of flush right");
+                        + "gap as a Margin, because a Grid's ColumnSpacing applies to a zero-width "
+                        + "column too and would leave the plate 20px short of flush right");
             }
         });
     }
@@ -880,7 +880,7 @@ public class MatchOverviewLandingTests
                         .Because("every round was also won from one of the two sides");
                     await Assert.That(ctTeam).IsNotEqualTo(ctSide)
                         .Because("this demo has a half swap — if these matched, the test could not tell a "
-                                 + "team total from a side total and the original defect would slip back in");
+                            + "team total from a side total and the original defect would slip back in");
                 }
 
                 // The team totals come from CCSTeam.m_iScore, the same source the Library card badge reads.
@@ -1107,7 +1107,7 @@ public class MatchOverviewLandingTests
 
                 await Assert.That(claimsComplete && aSlotSaysMissing).IsFalse()
                     .Because($"[{state}] the chip reads '{vm.CompletenessLabel}' while a slot says analysis is "
-                             + $"missing (stats: '{vm.PlayerStatsMessage}' / highlights: '{vm.HighlightsMessage}')");
+                        + $"missing (stats: '{vm.PlayerStatsMessage}' / highlights: '{vm.HighlightsMessage}')");
 
                 // And the converse: any slot that says something is missing must offer a way to fix it.
                 if (vm.HighlightsMessage.Length > 0 && !vm.HasHighlights)
@@ -1141,7 +1141,7 @@ public class MatchOverviewLandingTests
             // a gate that allows one heavy job machine-wide.
             await Assert.That(live.HasHighlightsAction).IsFalse()
                 .Because("the open is already harvesting — offering to start it again is both a "
-                         + "contradiction and a wasted heavy pass");
+                    + "contradiction and a wasted heavy pass");
             await Assert.That(live.HighlightsMessage).IsEqualTo("Harvesting highlights…")
                 .Because("which is only defensible while that sentence is actually true");
 

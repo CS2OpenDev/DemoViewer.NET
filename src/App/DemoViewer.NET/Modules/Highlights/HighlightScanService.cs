@@ -687,8 +687,8 @@ public sealed class HighlightScanService : IDisposable, IDemoEvaluator
             // Only overwrite a NAMES-ONLY placeholder when this parse actually recovered real slots. Never
             // trade a roster that at least has names for an empty one just because the parse saw no players.
             bool placeholderRepairable = record.Players.Count > 0
-                                         && record.Players.All(p => p.Slot < 0)
-                                         && parsedRoster.Exists(p => p.Slot >= 0);
+                && record.Players.All(p => p.Slot < 0)
+                && parsedRoster.Exists(p => p.Slot >= 0);
             if (rosterMissing || placeholderRepairable)
             {
                 record.Players = parsedRoster;

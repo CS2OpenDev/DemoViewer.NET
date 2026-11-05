@@ -192,7 +192,7 @@ public sealed class ModuleContext : IModuleContext, ICurrentDemoSource
 
     public IReadOnlyList<int> EventFrames(string? eventName) =>
         _navigator is not null && eventName is not null
-                               && _navigator.EventBoundaryFramesByName.TryGetValue(eventName, out int[]? frames)
+        && _navigator.EventBoundaryFramesByName.TryGetValue(eventName, out int[]? frames)
             ? frames
             : Array.Empty<int>();
 

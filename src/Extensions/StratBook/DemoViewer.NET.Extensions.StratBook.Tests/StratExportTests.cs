@@ -478,7 +478,7 @@ public class StratExportTests
     private static string GoldenPath()
     {
         string repo = DemoTestHelper.FindRepoRoot()
-                      ?? throw new InvalidOperationException("repo root not found from the test output directory");
+            ?? throw new InvalidOperationException("repo root not found from the test output directory");
         return Path.Combine(repo, "tests", "fixtures", "strats", "export", GoldenName);
     }
 }

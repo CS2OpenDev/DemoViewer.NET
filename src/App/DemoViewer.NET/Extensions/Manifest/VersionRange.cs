@@ -102,8 +102,8 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
             }
 
             if (set.All(c => c.Holds(version)) && (!version.IsPrerelease
-                                                   || set.Any(c =>
-                                                       c.Version.IsPrerelease && c.Version.SameCore(version))))
+                    || set.Any(c =>
+                        c.Version.IsPrerelease && c.Version.SameCore(version))))
             {
                 return true;
             }
@@ -223,7 +223,7 @@ public sealed partial class VersionRange : IEquatable<VersionRange>
     private static partial Regex Token();
 
     [GeneratedRegex(@"^(\d+)(?:\.(\d+|x|X|\*))?(?:\.(\d+|x|X|\*))?(?:-(" + SemVersion.PrereleasePattern
-                                                                         + @"))?(?:\+[0-9A-Za-z.-]+)?$")]
+        + @"))?(?:\+[0-9A-Za-z.-]+)?$")]
     private static partial Regex PartialVersion();
 
     private enum Op

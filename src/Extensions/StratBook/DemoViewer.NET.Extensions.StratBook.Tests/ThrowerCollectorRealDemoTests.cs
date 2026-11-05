@@ -53,7 +53,7 @@ public class ThrowerCollectorRealDemoTests
         List<PlacedEvent> fromWalk = DetonationEvents.From(parsed, walked);
         List<PlacedEvent> fromCollector = DetonationEvents.From(parsed, collected);
         Console.WriteLine($"{Path.GetFileName(path)}: {walked.Count} walked, {collected.Count} collected, "
-                          + $"{fromCollector.Count(e => e.Kind is DetonationEvents.Inferno or DetonationEvents.Decoy && e.ThrowerSlot >= 0)} named");
+            + $"{fromCollector.Count(e => e.Kind is DetonationEvents.Inferno or DetonationEvents.Decoy && e.ThrowerSlot >= 0)} named");
         using (Assert.Multiple())
         {
             await Assert.That(walked.Count).IsGreaterThan(0);
@@ -73,7 +73,7 @@ public class ThrowerCollectorRealDemoTests
     {
         // The benchmarks are the oracle set; a folder DEMO_PATH stands in only where they are absent.
         return DemoTestHelper.TrySetDemo("benchmarks", which, out string? problem)
-               ?? DemoTestHelper.DemoPathFolderDemo(which)
-               ?? throw new SkipTestException($"no benchmark demos: {problem}");
+            ?? DemoTestHelper.DemoPathFolderDemo(which)
+            ?? throw new SkipTestException($"no benchmark demos: {problem}");
     }
 }

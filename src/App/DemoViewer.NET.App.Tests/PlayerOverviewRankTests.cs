@@ -420,7 +420,7 @@ public class PlayerOverviewRankRenderTests
             double mapsLeft = maps.TranslatePoint(new Point(0, 0), window)!.Value.X;
             double historyRight = history.TranslatePoint(new Point(history.Bounds.Width, 0), window)!.Value.X;
             double tops = Math.Abs(maps.TranslatePoint(new Point(0, 0), window)!.Value.Y
-                                   - history.TranslatePoint(new Point(0, 0), window)!.Value.Y);
+                - history.TranslatePoint(new Point(0, 0), window)!.Value.Y);
             using (Assert.Multiple())
             {
                 await Assert.That(mapsLeft).IsGreaterThan(historyRight)
@@ -484,7 +484,8 @@ public class PlayerOverviewRankRenderTests
             MapsSectionView view = window.GetVisualDescendants().OfType<MapsSectionView>().Single();
             Point[] corners =
             [
-                .. view.GetVisualDescendants().OfType<GameIcon>().Where(i => i is { Name: "MapRankBadge", IsVisible: true })
+                .. view.GetVisualDescendants().OfType<GameIcon>()
+                    .Where(i => i is { Name: "MapRankBadge", IsVisible: true })
                     .Select(i => i.TranslatePoint(new Point(i.Bounds.Width, 0), i.FindAncestorOfType<Border>()!)!.Value)
             ];
             Border[] cards = [.. view.GetVisualDescendants().OfType<Border>().Where(b => b.Name == "MapCard")];

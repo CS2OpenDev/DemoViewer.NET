@@ -62,8 +62,8 @@ public class Playback2DRoundTimerTests
         double remainLater = RoundSecondsAt(frames, demo, path, clockBase, tickRate, laterFrame);
 
         Console.WriteLine($"[round-timer] {Path.GetFileName(path)} clockBase={clockBase:F3} " +
-                          $"round2 freeze_end frame={laterFreeze} gateFrame={gateFrame} " +
-                          $"remainAtGate={remainAtGate:F2}s laterFrame={laterFrame} remainLater={remainLater:F2}s");
+            $"round2 freeze_end frame={laterFreeze} gateFrame={gateFrame} " +
+            $"remainAtGate={remainAtGate:F2}s laterFrame={laterFrame} remainLater={remainLater:F2}s");
 
         // ≈115 at the (later) freeze_end, allowing ~1s for the "few frames after" and rounding residue.
         await Assert.That(remainAtGate).IsGreaterThan(112.0);
@@ -105,8 +105,8 @@ public class Playback2DRoundTimerTests
         for (int i = 0; i < frames.Count; i++)
         {
             if (frames[i].InnerMessages.Any(m => m is GameEventMessage gem &&
-                                                 gem.DecodedEvent.Name.Equals("round_freeze_end",
-                                                     StringComparison.OrdinalIgnoreCase)))
+                    gem.DecodedEvent.Name.Equals("round_freeze_end",
+                        StringComparison.OrdinalIgnoreCase)))
             {
                 result.Add(i);
             }

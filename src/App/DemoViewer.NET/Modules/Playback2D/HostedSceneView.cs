@@ -254,7 +254,7 @@ internal sealed class HostedSceneView : Control, ISceneViewBackend, IDisposable
             ScenePress converted = new(press.Level, press.WorldX, press.WorldY,
                 new Point(press.Screen.X, press.Screen.Y), Convert(press.Modifiers));
             return _guard?.Run("scene source", () => Source.OnPress(converted), false, FaultKind.Recurring)
-                   ?? Source.OnPress(converted);
+                ?? Source.OnPress(converted);
         }
 
         // The host's handlers touch the visual tree, so a raise from a worker is posted to the UI thread.

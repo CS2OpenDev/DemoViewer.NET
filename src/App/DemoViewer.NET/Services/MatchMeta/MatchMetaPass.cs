@@ -112,14 +112,14 @@ public sealed partial class MatchMetaPass : IRecordPass
     {
         Match match = ValveName().Match(Path.GetFileName(path));
         return match.Success
-               && ulong.TryParse(match.Groups[1].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture,
-                   out ulong reservation)
-               && long.TryParse(match.Groups[2].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture,
-                   out long outcome)
-               && long.TryParse(match.Groups[3].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture,
-                   out long token)
-            ? (reservation, outcome, token)
-            : null;
+            && ulong.TryParse(match.Groups[1].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture,
+                out ulong reservation)
+            && long.TryParse(match.Groups[2].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture,
+                out long outcome)
+            && long.TryParse(match.Groups[3].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture,
+                out long token)
+                ? (reservation, outcome, token)
+                : null;
     }
 
     [GeneratedRegex(@"match730_(\d+)_(\d+)_(\d+)", RegexOptions.CultureInvariant)]

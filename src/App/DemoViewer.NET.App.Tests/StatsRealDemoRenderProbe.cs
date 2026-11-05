@@ -145,7 +145,7 @@ public class StatsRealDemoRenderProbe
             Console.WriteLine(
                 $"[capture] {HeadlessSession.ArtifactDir}/real-rounds.png cols={vm.RoundColumns.Count} rows={vm.RoundRows.Count}");
             Console.WriteLine("[round cols] "
-                              + string.Join(" | ", vm.RoundColumns.Select(c => $"{c.Label}:{c.Meta.Width}")));
+                + string.Join(" | ", vm.RoundColumns.Select(c => $"{c.Label}:{c.Meta.Width}")));
             if (vm.RoundRows.Count > 0)
             {
                 Console.WriteLine("[row0 cells] " + string.Join(" | ",

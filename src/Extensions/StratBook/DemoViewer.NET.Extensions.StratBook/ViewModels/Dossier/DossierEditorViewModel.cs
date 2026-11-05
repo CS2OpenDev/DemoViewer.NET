@@ -278,7 +278,7 @@ public sealed partial class DossierEditorViewModel : ObservableObject
             ? (DossierExporter.Html(doc, ExportForm), ".html")
             : (DossierExporter.Markdown(doc, ExportForm), ".md");
         string stem = StratBookTabViewModel.ExportFileStem(_teamName)
-                      + (ExportForm == DossierForm.OnePager ? "-one-pager" : "-dossier");
+            + (ExportForm == DossierForm.OnePager ? "-one-pager" : "-dossier");
         string? path;
         try
         {
@@ -327,7 +327,7 @@ public sealed partial class DossierEditorViewModel : ObservableObject
         {
             _store.EditNote(id, row.Key, row.EditText);
             row.Text = _store.For(id).Notes.FirstOrDefault(n => DossierNotesStore.NoteKey(n.Id) == row.Key)?.Text
-                       ?? row.Text;
+                ?? row.Text;
         }
         else
         {

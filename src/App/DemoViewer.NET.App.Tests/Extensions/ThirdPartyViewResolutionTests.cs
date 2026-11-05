@@ -49,8 +49,8 @@ public class ThirdPartyViewResolutionTests
         Type[] ownTypes =
         [
             .. fake.GetExportedTypes().Where(t => typeof(IExtension).IsAssignableFrom(t)
-                                                  || typeof(IExtensionViewModel).IsAssignableFrom(t)
-                                                  || typeof(Control).IsAssignableFrom(t))
+                || typeof(IExtensionViewModel).IsAssignableFrom(t)
+                || typeof(Control).IsAssignableFrom(t))
         ];
 
         using (Assert.Multiple())

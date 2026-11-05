@@ -419,8 +419,7 @@ public class ExtensionUpdateServiceTests
             FakeFeeds.Entry entry = new("1.0.1", zip);
             FakeFeedClient client = new()
             {
-                Zips = { [entry.Url] = zip },
-                Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(entry) }
+                Zips = { [entry.Url] = zip }, Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(entry) }
             };
             RecordingTrust trust = new(true);
             ExtensionUpdateService service = NewService(root, client, trust);
@@ -639,8 +638,7 @@ public class ExtensionUpdateServiceTests
             FakeFeeds.Entry entry = new("1.0.1", zip);
             FakeFeedClient client = new()
             {
-                Zips = { [entry.Url] = zip },
-                Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(entry) }
+                Zips = { [entry.Url] = zip }, Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(entry) }
             };
             RecordingQueue queue = new();
             ExtensionUpdateService service = NewService(root, client, queue: queue);
@@ -778,7 +776,7 @@ public class ExtensionUpdateServiceTests
     {
         string extensions = Path.Combine(root, "extensions");
         return !Directory.Exists(extensions)
-               || !Directory.EnumerateFiles(extensions, "*", SearchOption.AllDirectories).Any();
+            || !Directory.EnumerateFiles(extensions, "*", SearchOption.AllDirectories).Any();
     }
 
     private static string NewRoot()

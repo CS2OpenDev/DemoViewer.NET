@@ -41,7 +41,7 @@ public class GameEventViewFactoryTests
 
         GameEventView view = GameEventViewFactory.FromEvent(death);
         Console.WriteLine($"[tick-align] player_death ServerTick={death.ServerTick} " +
-                          $"GameTick={death.GameTick} view.Tick={view.Tick}");
+            $"GameTick={death.GameTick} view.Tick={view.Tick}");
 
         await Assert.That(view.Tick).IsEqualTo(death.GameTick);
 
@@ -67,7 +67,7 @@ public class GameEventViewFactoryTests
         }
 
         Console.WriteLine($"[tick-align] first player_death message-frame ServerTick={msgFrameTick} " +
-                          $"(event GameTick={death.GameTick})");
+            $"(event GameTick={death.GameTick})");
         // The message frame sits at ~the true game tick (±frame granularity), NOT shifted by ServerStartTick,
         // so the kill-nav (frame-index based) lands on the kill, unaffected by the feed's tick-field bug.
         await Assert.That(Math.Abs(msgFrameTick - death.GameTick)).IsLessThan(64); // within ~1s of true tick
@@ -105,6 +105,6 @@ public class GameEventViewFactoryTests
         await Assert.That(weapon.Contains('"')).IsFalse();
 
         Console.WriteLine($"[kill-feed-part1] player_death killer={death.Fields["Attacker"]} " +
-                          $"victim={death.Fields["UserId"]} weapon={weapon} hs={death.Fields["Headshot"]}");
+            $"victim={death.Fields["UserId"]} weapon={weapon} hs={death.Fields["Headshot"]}");
     }
 }

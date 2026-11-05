@@ -195,9 +195,9 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
     /// <summary>True when any filter is narrowing the list, drives the Clear affordance.</summary>
     public bool HasActiveFilters =>
         !string.IsNullOrWhiteSpace(SearchText) || PlayerFilters.Any(p => p.IsSelected)
-                                               || TypeFilters.Any(t => t.IsSelected)
-                                               || MapFilters.Any(m => m.IsSelected)
-                                               || KindFilters.Any(k => k.IsSelected);
+        || TypeFilters.Any(t => t.IsSelected)
+        || MapFilters.Any(m => m.IsSelected)
+        || KindFilters.Any(k => k.IsSelected);
 
     /// <summary>The filtered-out empty state: rows exist, but the filters exclude every one of them.</summary>
     public bool ShowNoFilterMatch => _allRows.Count > 0 && Rows.Count == 0;
@@ -230,7 +230,7 @@ public sealed partial class AddClipsPickerViewModel : ObservableObject
         get
         {
             string corpus = $"{TotalHighlights} highlight{S(TotalHighlights)} across " +
-                            $"{DemosWithHighlights} demo{S(DemosWithHighlights)}";
+                $"{DemosWithHighlights} demo{S(DemosWithHighlights)}";
             return HasActiveFilters ? $"Showing {Rows.Count} of {corpus}" : corpus;
         }
     }

@@ -227,11 +227,11 @@ public class AimCapabilityProbeTests
                 profile: profile));
 
         bool overclaims = report.DeclarationDrift.Any(line => line.Contains("HasPlayerBlind", StringComparison.Ordinal)
-                                                              && line.Contains("never fires",
-                                                                  StringComparison.Ordinal));
+            && line.Contains("never fires",
+                StringComparison.Ordinal));
         bool underclaims = report.DeclarationDrift.Any(line => line.Contains("HasPlayerSound", StringComparison.Ordinal)
-                                                               && line.Contains("is not declared",
-                                                                   StringComparison.Ordinal));
+            && line.Contains("is not declared",
+                StringComparison.Ordinal));
 
         using (Assert.Multiple())
         {

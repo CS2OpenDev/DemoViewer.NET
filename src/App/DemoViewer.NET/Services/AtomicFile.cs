@@ -74,7 +74,7 @@ public static class AtomicFile
                 return;
             }
             catch (Exception ex) when (attempt < _replaceRetryDelaysMs.Length && OperatingSystem.IsWindows()
-                                                                             && IsTransientOnWindows(ex))
+                                       && IsTransientOnWindows(ex))
             {
                 Thread.Sleep(_replaceRetryDelaysMs[attempt]);
             }

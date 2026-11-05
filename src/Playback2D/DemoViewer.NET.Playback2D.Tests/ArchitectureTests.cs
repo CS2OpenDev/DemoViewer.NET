@@ -299,8 +299,8 @@ public class ArchitectureTests
         [
             .. typeof(Scene2DFrame).GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .Where(p => p.SetMethod is { IsPublic: true } set
-                            && !set.ReturnParameter.GetRequiredCustomModifiers()
-                                .Contains(typeof(System.Runtime.CompilerServices.IsExternalInit)))
+                    && !set.ReturnParameter.GetRequiredCustomModifiers()
+                        .Contains(typeof(System.Runtime.CompilerServices.IsExternalInit)))
                 .Select(p => p.Name)
         ];
 
@@ -431,8 +431,8 @@ public class ArchitectureTests
     public async Task ExCoreSources_NameNoneOfTheForbiddenRoots()
     {
         string repoRoot = TestTiers.FindRepoRoot()
-                          ?? throw new SkipTestException(
-                              "repo root not found (no DemoViewer.NET.slnx above the test binary)");
+            ?? throw new SkipTestException(
+                "repo root not found (no DemoViewer.NET.slnx above the test binary)");
         string pipelineRoot = Path.Combine(repoRoot, "src", "Playback2D", "DemoViewer.NET.Playback2D.Pipeline");
 
         // Derived, not hand-listed: a Pipeline type added outside the ex-Core namespaces is covered the
@@ -522,7 +522,7 @@ public class ArchitectureTests
         }
 
         return _exCoreNamespaces.Contains(outer.Namespace, StringComparer.Ordinal)
-               && !_mergedNamespaceOwnTypes.Contains(outer.FullName, StringComparer.Ordinal);
+            && !_mergedNamespaceOwnTypes.Contains(outer.FullName, StringComparer.Ordinal);
     }
 
     // A type's simple name without generic arity: List`1 reads as List.
@@ -567,7 +567,7 @@ public class ArchitectureTests
         }
 
         const BindingFlags All = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
-                                 | BindingFlags.Static;
+            | BindingFlags.Static;
         foreach (FieldInfo f in type.GetFields(All))
         {
             Add(f.FieldType);

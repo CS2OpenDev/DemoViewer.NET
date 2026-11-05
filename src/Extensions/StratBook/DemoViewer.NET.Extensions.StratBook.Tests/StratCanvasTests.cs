@@ -432,10 +432,10 @@ public class StratCanvasTests
             {
                 await Assert.That(projection.Path.Select(p => p.Step.Id))
                     .IsEquivalentTo(
-                        [
-                            StratTestData.StepId(1), StratTestData.StepId(2), StratTestData.StepId(4),
-                            StratTestData.StepId(5)
-                        ], CollectionOrdering.Matching);
+                    [
+                        StratTestData.StepId(1), StratTestData.StepId(2), StratTestData.StepId(4),
+                        StratTestData.StepId(5)
+                    ], CollectionOrdering.Matching);
                 await Assert.That(session.UndoDepth).IsEqualTo(undo).Because("a path is view state, not an edit");
                 await Assert.That(canvas.Timeline.Markers.Single(m => m is { TrackId: StepTrack.TrackId, Tick: Step2 })
                         .Glyph)

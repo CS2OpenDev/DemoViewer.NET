@@ -239,14 +239,14 @@ public class StatValue : StatPresenter
         // The drawn text is cached because a scoreboard rebuilds hundreds of these on every sort; anything
         // that changes its glyphs, metrics or colour has to drop the cache or the cell paints the old value.
         if (change.Property == ValueProperty || change.Property == TextProperty
-                                             || change.Property == FormatProperty
-                                             || change.Property == FontFamilyProperty
-                                             || change.Property == FontSizeProperty
-                                             || change.Property == FontWeightProperty
-                                             || change.Property == FontStyleProperty
-                                             || change.Property == ForegroundProperty
-                                             || change.Property == FontFeaturesProperty
-                                             || change.Property == LeaderBrushProperty)
+            || change.Property == FormatProperty
+            || change.Property == FontFamilyProperty
+            || change.Property == FontSizeProperty
+            || change.Property == FontWeightProperty
+            || change.Property == FontStyleProperty
+            || change.Property == ForegroundProperty
+            || change.Property == FontFeaturesProperty
+            || change.Property == LeaderBrushProperty)
         {
             _formatted = null;
             _star = null;

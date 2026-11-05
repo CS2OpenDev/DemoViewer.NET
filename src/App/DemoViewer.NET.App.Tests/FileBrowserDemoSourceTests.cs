@@ -373,8 +373,8 @@ public class FileBrowserDemoSourceTests
             await Assert.That(thrown.Message).Contains("no such file or directory");
             await Assert.That(thrown.Message).Contains("case-sensitive");
             await Assert.That(handler.Requests.Any(r => r.Contains("/api/resources/items", StringComparison.Ordinal)
-                                                        && r.Contains(Uri.EscapeDataString("/TestingDemo"),
-                                                            StringComparison.Ordinal))).IsTrue();
+                && r.Contains(Uri.EscapeDataString("/TestingDemo"),
+                    StringComparison.Ordinal))).IsTrue();
         }
     }
 

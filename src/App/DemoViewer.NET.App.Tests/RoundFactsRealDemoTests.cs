@@ -35,7 +35,7 @@ public class RoundFactsRealDemoTests
             new RulesRoundFactsRulesetIdentity());
         evaluator.Evaluate(path, parsed);
         return store.RoundFactsOf(path)
-               ?? throw new InvalidOperationException("the evaluator wrote no rows");
+            ?? throw new InvalidOperationException("the evaluator wrote no rows");
     }
 
     [Test]
@@ -163,9 +163,9 @@ public class RoundFactsRealDemoTests
                 // The halftime swap moves the score with the teams; a per-side score therefore swaps too.
                 bool swapped = current.Half != previous.Half;
                 int expectedCt = (swapped ? previous.T.ScoreBefore : previous.Ct.ScoreBefore)
-                                 + (previous.WinnerSide == (swapped ? 2 : 3) ? 1 : 0);
+                    + (previous.WinnerSide == (swapped ? 2 : 3) ? 1 : 0);
                 int expectedT = (swapped ? previous.Ct.ScoreBefore : previous.T.ScoreBefore)
-                                + (previous.WinnerSide == (swapped ? 3 : 2) ? 1 : 0);
+                    + (previous.WinnerSide == (swapped ? 3 : 2) ? 1 : 0);
                 await Assert.That(current.Ct.ScoreBefore).IsEqualTo(expectedCt).Because($"round {current.Number} CT");
                 await Assert.That(current.T.ScoreBefore).IsEqualTo(expectedT).Because($"round {current.Number} T");
             }

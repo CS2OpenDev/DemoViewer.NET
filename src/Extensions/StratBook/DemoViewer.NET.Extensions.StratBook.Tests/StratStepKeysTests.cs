@@ -246,10 +246,10 @@ public class StratStepKeysTests
 
             TextBlock Marker() => RowContainer(view, 0).GetVisualDescendants().OfType<TextBlock>()
                 .Single(t => t.Classes.Contains("stratIssue") && t is { Text: "⚠", IsEffectivelyVisible: true }
-                             && t.GetVisualParent() is StackPanel
-                             {
-                                 Orientation: Avalonia.Layout.Orientation.Horizontal
-                             });
+                    && t.GetVisualParent() is StackPanel
+                    {
+                        Orientation: Avalonia.Layout.Orientation.Horizontal
+                    });
 
             TextBlock marker = Marker();
             using (Assert.Multiple())
@@ -257,7 +257,8 @@ public class StratStepKeysTests
                 await Assert.That(marker.IsEffectivelyVisible).IsTrue();
                 await Assert.That(ToolTip.GetTip(marker) as string).Contains("destination");
                 await Assert.That(RowContainer(view, 0).GetVisualDescendants().OfType<TextBlock>()
-                        .Any(t => t is { IsEffectivelyVisible: true, Text: "warning: a move has no destination place (to)" }))
+                        .Any(t => t is
+                            { IsEffectivelyVisible: true, Text: "warning: a move has no destination place (to)" }))
                     .IsTrue();
             }
 

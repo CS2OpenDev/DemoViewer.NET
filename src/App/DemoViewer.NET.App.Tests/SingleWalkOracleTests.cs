@@ -110,7 +110,7 @@ public partial class SingleWalkOracleTests
 
             string digest = string.Concat(dump.Select(kv => $"{kv.Key} {Sha(kv.Value)}\n"));
             string why = $"open passes {Ran(opened!)}; sweep passes {Ran(sweep!)}; "
-                         + $"open queue at capture {openPending}; faulted on the open {openFaulted}";
+                + $"open queue at capture {openPending}; faulted on the open {openFaulted}";
             if (Environment.GetEnvironmentVariable(DumpDirEnvVar) is { Length: > 0 } dumpRoot)
             {
                 WriteDump(Path.Combine(dumpRoot, name), dump, digest, why);
@@ -269,7 +269,7 @@ public partial class SingleWalkOracleTests
             // An extension demo-data file is a JSON header line, then the payload.
             int newline = Array.IndexOf(bytes, (byte)'\n');
             if (newline > 0 && TryParse(bytes[..newline]) is JsonObject header
-                            && (header.ContainsKey("facet") || header.ContainsKey("Facet")))
+                && (header.ContainsKey("facet") || header.ContainsKey("Facet")))
             {
                 Add(result, key + "@header", header, demo, configDir);
                 bytes = bytes[(newline + 1)..];
@@ -283,9 +283,9 @@ public partial class SingleWalkOracleTests
             // The grenade sidecar is binary; its decoded rows and header are compared, Engine masked.
             // TryDecode reads the gzip stream as written, not the inflated bytes.
             JsonNode? json = bytes is [(byte)'D', (byte)'V', (byte)'G', (byte)'L', ..]
-                             && GrenadeThrowLog.TryDecode(stored) is { } grenades
-                ? JsonSerializer.SerializeToNode(grenades, _fields)
-                : TryParse(bytes);
+                && GrenadeThrowLog.TryDecode(stored) is { } grenades
+                    ? JsonSerializer.SerializeToNode(grenades, _fields)
+                    : TryParse(bytes);
             Add(result, key, json, demo, configDir, bytes);
         }
 

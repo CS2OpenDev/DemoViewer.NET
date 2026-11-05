@@ -61,7 +61,7 @@ public class ThemeRegistryTests
         List<(string, IReadOnlyDictionary<string, Color>)> found = [];
         foreach (string resource in asm.GetManifestResourceNames()
                      .Where(n => n.Contains(".Themes.", StringComparison.Ordinal)
-                                 && n.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                         && n.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                      .OrderBy(n => n, StringComparer.Ordinal))
         {
             using Stream stream = asm.GetManifestResourceStream(resource)!;
@@ -146,7 +146,7 @@ public class ThemeRegistryTests
                 string[] missing = keys.Except(present, StringComparer.Ordinal).ToArray();
                 await Assert.That(missing).IsEmpty()
                     .Because($"{name} retints {present.Length} of the {keys.Length} tokens in {family}; "
-                             + $"missing: {string.Join(", ", missing)}");
+                        + $"missing: {string.Join(", ", missing)}");
             }
         }
     }

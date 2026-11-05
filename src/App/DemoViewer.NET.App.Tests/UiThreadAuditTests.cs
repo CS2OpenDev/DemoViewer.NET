@@ -52,7 +52,8 @@ public class UiThreadAuditTests
         string dir = Path.Combine(Path.GetTempPath(), $"dv-ui-audit-{Guid.NewGuid():N}");
         CopyTree(source, dir);
         string settingsFile = Path.Combine(dir, "settings.json");
-        if (File.Exists(settingsFile) && JsonNode.Parse(await File.ReadAllTextAsync(settingsFile)) is JsonObject settings)
+        if (File.Exists(settingsFile)
+            && JsonNode.Parse(await File.ReadAllTextAsync(settingsFile)) is JsonObject settings)
         {
             settings["ProcessingQueue"] = new JsonObject
             {
@@ -151,8 +152,8 @@ public class UiThreadAuditTests
                             }
 
                             Console.WriteLine($"[ui-audit] {id} scroll: extent={scroller.Extent.Height:F0}px "
-                                              + $"avg={total.Elapsed.TotalMilliseconds / 20:F1}ms worst={worst:F0}ms "
-                                              + $"visuals={window.GetVisualDescendants().Count()}");
+                                + $"avg={total.Elapsed.TotalMilliseconds / 20:F1}ms worst={worst:F0}ms "
+                                + $"visuals={window.GetVisualDescendants().Count()}");
                             double worstJump = 0;
                             for (int step = 1; step <= 10; step++)
                             {
@@ -521,10 +522,10 @@ public class UiThreadAuditTests
     private static void Raise(object owner, string field, string evt = "Changed")
     {
         const System.Reflection.BindingFlags Any = System.Reflection.BindingFlags.NonPublic
-                                                   | System.Reflection.BindingFlags.Public
-                                                   | System.Reflection.BindingFlags.Instance;
+            | System.Reflection.BindingFlags.Public
+            | System.Reflection.BindingFlags.Instance;
         object? store = owner.GetType().GetField(field, Any)?.GetValue(owner)
-                        ?? owner.GetType().GetProperty(field, Any)?.GetValue(owner);
+            ?? owner.GetType().GetProperty(field, Any)?.GetValue(owner);
         if (store?.GetType()
                 .GetField(evt, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 ?.GetValue(store) is Delegate d)
@@ -592,12 +593,12 @@ public class UiThreadAuditTests
                         DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTeamRow team = dossier.Teams[0];
                         dossier.SelectedTeam = dossier.Teams.First(t => t != team);
                         await Until(() => !dossier.Openings.IsBuilding && !dossier.PostPlant.IsBuilding
-                                                                       && !dossier.Situational.IsBuilding
-                                                                       && dossier.HeatmapTask.IsCompleted, 30_000);
+                            && !dossier.Situational.IsBuilding
+                            && dossier.HeatmapTask.IsCompleted, 30_000);
                         double dossierMs = await Timed(() => dossier.SelectedTeam = team,
                             () => !dossier.Openings.IsBuilding && !dossier.PostPlant.IsBuilding
-                                                               && !dossier.Situational.IsBuilding
-                                                               && dossier.HeatmapTask.IsCompleted);
+                                && !dossier.Situational.IsBuilding
+                                && dossier.HeatmapTask.IsCompleted);
 
                         vm.TrySelectTab("utilitybook.browser");
                         Settle();
@@ -643,8 +644,8 @@ public class UiThreadAuditTests
                             () => situations.Results.BatchTask.IsCompleted && situations.Results.Count > 0);
 
                         Console.WriteLine($"[ui-audit] time to result ({mode}): dossier select={dossierMs:F0}ms "
-                                          + $"utility map={mapMs:F0}ms, with a lineup save running={mapWithSaveMs:F0}ms "
-                                          + $"situations search to filled={searchMs:F0}ms ({situations.Results.Count} cards)");
+                            + $"utility map={mapMs:F0}ms, with a lineup save running={mapWithSaveMs:F0}ms "
+                            + $"situations search to filled={searchMs:F0}ms ({situations.Results.Count} cards)");
                     }
 
                     Services.DemoProcessing.QueueWork.Bypass = false;
@@ -778,8 +779,8 @@ public class UiThreadAuditTests
             }
 
             Console.WriteLine($"[ui-audit] queue time-to-result: idle={idle:F0}ms besideBackgroundJob={besideJob:F0}ms "
-                              + $"besideParse={besideParse:F0}ms userBehindSlowLightItem={userBehindLight:F0}ms; "
-                              + $"burst of 40 section builds: {burst.ElapsedMilliseconds}ms, worst UI pump {worst:F1}ms");
+                + $"besideParse={besideParse:F0}ms userBehindSlowLightItem={userBehindLight:F0}ms; "
+                + $"burst of 40 section builds: {burst.ElapsedMilliseconds}ms, worst UI pump {worst:F1}ms");
         });
     }
 
@@ -814,7 +815,7 @@ public class UiThreadAuditTests
         double teamsCtor = sw.Elapsed.TotalMilliseconds;
         Directory.Delete(teamsRoot, true);
         Console.WriteLine($"[ui-audit] store loads: cache index={cacheMs:F0}ms ({cache.Index.Count} rows) "
-                          + $"library.json={libraryMs:F0}ms ({library.Entries.Count}) teams={teamsCtor:F0}ms");
+            + $"library.json={libraryMs:F0}ms ({library.Entries.Count}) teams={teamsCtor:F0}ms");
         await Task.CompletedTask;
     }
 
@@ -856,7 +857,7 @@ public class UiThreadAuditTests
 
     private static void Report(string step, double build, double open, Stall stall) =>
         Console.WriteLine($"[ui-audit] {step}: sync={build:F0}ms open={open:F0}ms worstStall={stall.WorstMs:F0}ms "
-                          + $"stalls>50ms={stall.Over50} blocked={stall.TotalBlockedMs:F0}ms");
+            + $"stalls>50ms={stall.Over50} blocked={stall.TotalBlockedMs:F0}ms");
 
     private static void CopyTree(string from, string to)
     {

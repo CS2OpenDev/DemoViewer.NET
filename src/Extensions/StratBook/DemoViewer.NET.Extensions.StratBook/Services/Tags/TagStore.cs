@@ -427,9 +427,9 @@ public sealed class TagStore
             SuggestionVerdictDocument? document =
                 JsonSerializer.Deserialize(json, TagJsonContext.Default.SuggestionVerdictDocument);
             return document?.Demo is { Sha256.Length: > 0 } demo
-                   && string.Equals(Normalize(demo.Sha256), key, StringComparison.Ordinal)
-                ? document
-                : null;
+                && string.Equals(Normalize(demo.Sha256), key, StringComparison.Ordinal)
+                    ? document
+                    : null;
         }
         catch (JsonException)
         {

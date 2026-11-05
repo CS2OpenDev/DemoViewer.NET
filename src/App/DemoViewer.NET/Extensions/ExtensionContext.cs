@@ -129,7 +129,7 @@ internal sealed class ExtensionContext : IExtensionContext
             PackContributions.AcceptedStores(extension, _guard));
         Settings = new ExtensionSettingsStore(extension.Id, AppPaths.ConfigRoot, Post);
         Notifications = services.GetService<NotificationCenter>()?.For(_guard, CreateLogger("Notifications"))
-                        ?? new NotificationCenter(Post).For(_guard, CreateLogger("Notifications"));
+            ?? new NotificationCenter(Post).For(_guard, CreateLogger("Notifications"));
         _keymap = new HostKeymap(() => CommandRegistry.Default.EffectiveBindings,
             () => services.GetService<SettingsService>()?.Current.Playback2D.KeybindOverrides ?? []);
         Identity = new HostIdentity(services.GetService<IdentityService>, _guard);
@@ -397,7 +397,7 @@ internal sealed class ExtensionJobs(
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException
                                            && !(ex is OperationCanceledException
-                                                && ctx.CancellationToken.IsCancellationRequested))
+                                               && ctx.CancellationToken.IsCancellationRequested))
                 {
                     handle.Error = ex;
                     throw;
@@ -438,8 +438,8 @@ internal sealed class ExtensionJobs(
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex) when (guard is not null && ex is not OutOfMemoryException
-                                                             && !(ex is OperationCanceledException
-                                                                  && input.CancellationToken.IsCancellationRequested))
+                                           && !(ex is OperationCanceledException
+                                               && input.CancellationToken.IsCancellationRequested))
                 {
                     guard.Report("job", ex);
                     throw;
@@ -502,8 +502,8 @@ internal sealed class ExtensionJobs(
             await work(new Context(ctx)).ConfigureAwait(false);
         }
         catch (Exception ex) when (guard is not null && ex is not OutOfMemoryException
-                                                     && !(ex is OperationCanceledException
-                                                          && ctx.CancellationToken.IsCancellationRequested))
+                                   && !(ex is OperationCanceledException
+                                       && ctx.CancellationToken.IsCancellationRequested))
         {
             guard.Report("job", ex);
             throw;
@@ -715,7 +715,7 @@ internal sealed class ExtensionPasses(string extensionId, Func<DemoScheduler?> s
         }
 
         if (handlers is not null && _subscribed is { } source
-                                 && string.Equals(source.OwnerOf(passId), extensionId, StringComparison.Ordinal))
+            && string.Equals(source.OwnerOf(passId), extensionId, StringComparison.Ordinal))
         {
             _post(handlers);
         }

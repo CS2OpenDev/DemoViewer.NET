@@ -291,8 +291,8 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
         _customWidth = defaults.ReelWidth > 0 ? defaults.ReelWidth : 1920;
         _customHeight = defaults.ReelHeight > 0 ? defaults.ReelHeight : 1080;
         _selectedResolution = Array.Find(_resolutionOptions,
-                                  o => !o.IsCustom && o.Width == defaults.ReelWidth && o.Height == defaults.ReelHeight)
-                              ?? ReelResolutionOption.Custom;
+                o => !o.IsCustom && o.Width == defaults.ReelWidth && o.Height == defaults.ReelHeight)
+            ?? ReelResolutionOption.Custom;
         _baseFileName = SuggestBaseName(selections);
         _seededBaseName = _baseFileName;
 
@@ -427,8 +427,8 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     private bool JobRunning => _reelJob?.Status.IsRunning ?? false;
 
     private bool CanGenerate => _movedCount == 0 && _unresolvedCount == 0 && _plan.Count > 0
-                                && !string.IsNullOrWhiteSpace(OutputFolder)
-                                && IsResolutionValid && !JobRunning && !IsFfmpegMissing;
+        && !string.IsNullOrWhiteSpace(OutputFolder)
+        && IsResolutionValid && !JobRunning && !IsFfmpegMissing;
 
     /// <summary>The CRF numeric field is editable only in CRF mode (CRF ⊕ bitrate).</summary>
     public bool CrfEnabled => UseCrf;
@@ -462,7 +462,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     {
         string winget = OperatingSystem.IsWindows()
             ? "Install it with:   winget install Gyan.FFmpeg   (then restart DemoViewer), or download " +
-              "a build and add its bin folder to PATH."
+            "a build and add its bin folder to PATH."
             : "Install it with your package manager and make sure it is on PATH.";
         return FfmpegDependency.ManagedDirectory is { } managed
             ? winget + $" No PATH edits wanted? Copy ffmpeg.exe and ffprobe.exe into:  {managed}  and press Re-check."
@@ -474,9 +474,9 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
     private void RefreshFfmpegStatus()
     {
         IsFfmpegMissing = _ffmpegLocator is not null
-                          && !IsDryRunOnly
-                          && _reelJob is not null
-                          && !_ffmpegLocator().Found;
+            && !IsDryRunOnly
+            && _reelJob is not null
+            && !_ffmpegLocator().Found;
     }
 
     /// <summary>Opens the ffmpeg download page in the default browser.</summary>
@@ -764,7 +764,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
             // "remove it", not "deselect it": the tray's ✕ is the affordance now, and the checkbox the old
             // copy pointed at no longer exists anywhere on the page.
             ErrorBanner = $"{_movedCount} clip{(_movedCount == 1 ? " has" : "s have")} a problem " +
-                          $"(demo moved). Fix or remove {(_movedCount == 1 ? "it" : "them")} to continue.";
+                $"(demo moved). Fix or remove {(_movedCount == 1 ? "it" : "them")} to continue.";
         }
         else if (_unresolvedCount > 0)
         {
@@ -772,7 +772,7 @@ public sealed partial class HighlightReelDialogViewModel : ViewModelBase
             // roster has no slot→name mapping (a legacy names-only cache record), so re-scanning re-parses it
             // and repairs the roster (HighlightScanService), after which the player resolves and this clears.
             ErrorBanner = $"{_unresolvedCount} clip{(_unresolvedCount == 1 ? "" : "s")} can't resolve the " +
-                          "player to spectate. Re-scan the demo (Rescan all) to refresh its roster, then retry.";
+                "player to spectate. Re-scan the demo (Rescan all) to refresh its roster, then retry.";
         }
         else if (string.IsNullOrWhiteSpace(OutputFolder))
         {

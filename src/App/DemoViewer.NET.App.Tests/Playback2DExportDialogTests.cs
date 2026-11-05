@@ -596,15 +596,15 @@ public class Playback2DExportDialogTests
     private static IEnumerable<string> FullOverlaySet() =>
         SceneLayerCatalog.SceneStackIds
             .Where(id => !string.Equals(id, SceneLayerIds.Vision, StringComparison.Ordinal) &&
-                         !string.Equals(id, SceneLayerIds.Zones, StringComparison.Ordinal) &&
-                         !string.Equals(id, SceneLayerIds.Query, StringComparison.Ordinal) &&
-                         !string.Equals(id, SceneLayerIds.Overlay, StringComparison.Ordinal));
+                !string.Equals(id, SceneLayerIds.Zones, StringComparison.Ordinal) &&
+                !string.Equals(id, SceneLayerIds.Query, StringComparison.Ordinal) &&
+                !string.Equals(id, SceneLayerIds.Overlay, StringComparison.Ordinal));
 
     /// <summary>Every non-opt-in scene-stack id except vision: bare `dv2d export`.</summary>
     private static IEnumerable<string> BareSceneSet() =>
         SceneLayerCatalog.SceneStackIds
             .Where(id => !SceneLayerIds.OptIn.Contains(id) &&
-                         !string.Equals(id, SceneLayerIds.Vision, StringComparison.Ordinal));
+                !string.Equals(id, SceneLayerIds.Vision, StringComparison.Ordinal));
 
     private static AnnotationSession EmptyInk() => new(new AnnotationDocument());
 

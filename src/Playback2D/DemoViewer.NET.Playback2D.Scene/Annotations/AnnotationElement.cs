@@ -178,7 +178,7 @@ public sealed record StrokeTiming(IReadOnlyList<TimingRun> Runs, int DurationTic
             int revealed = span <= 0
                 ? hi.SampleIndex
                 : lo.SampleIndex
-                  + (int)((long)(hi.SampleIndex - lo.SampleIndex) * (elapsedTicks - lo.TickOffset) / span);
+                + (int)((long)(hi.SampleIndex - lo.SampleIndex) * (elapsedTicks - lo.TickOffset) / span);
 
             return Math.Clamp(revealed + 1, 1, sampleCount);
         }
@@ -336,7 +336,7 @@ public readonly record struct TimeEnvelope(int? FromTick, int? UntilTick, int Fa
     /// <param name="fadeOut">Lead-out length in ticks.</param>
     [SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Instance by contract the UI calls it on the element's existing " +
-                        "envelope, and it becomes stateful the day 'pin' starts preserving custom fades.")]
+            "envelope, and it becomes stateful the day 'pin' starts preserving custom fades.")]
     public TimeEnvelope PinnedTo(int tick, int holdTicks, int fadeIn, int fadeOut) =>
         new(tick, tick + Math.Max(0, holdTicks), Math.Max(0, fadeIn), Math.Max(0, fadeOut));
 }

@@ -66,7 +66,7 @@ public sealed partial class DemoQueueRowViewModel : ViewModelBase, IDisposable
     ///     a light item would hold back the user's light items that run beside the running one.
     /// </summary>
     public bool CanPromote => IsQueued && Item.Kind is not (QueueJobKind.DemoOpen or QueueJobKind.HeapCompaction)
-                                       && Item.Hold != DemoQueueHold.OnOpen && !Item.Light;
+        && Item.Hold != DemoQueueHold.OnOpen && !Item.Light;
 
     /// <summary>The menu entry, saying when a promoted item will still wait.</summary>
     public string PromoteLabel => Item.Hold switch
@@ -115,9 +115,9 @@ public sealed partial class DemoQueueRowViewModel : ViewModelBase, IDisposable
 
     /// <summary>Shown while running, and while an open or a visit parked on one waits (it says what for).</summary>
     public bool HasDetail => (Item.State == DemoQueueItemState.Running
-                              || (Item.State == DemoQueueItemState.Queued
-                                  && (Item.Kind == QueueJobKind.DemoOpen || Item.Hold == DemoQueueHold.OnOpen)))
-                             && !string.IsNullOrEmpty(Item.Detail);
+            || (Item.State == DemoQueueItemState.Queued
+                && (Item.Kind == QueueJobKind.DemoOpen || Item.Hold == DemoQueueHold.OnOpen)))
+        && !string.IsNullOrEmpty(Item.Detail);
 
     /// <summary>Short priority label, shown only when the item is elevated above routine background work.</summary>
     public string PriorityLabel => Item.Priority switch

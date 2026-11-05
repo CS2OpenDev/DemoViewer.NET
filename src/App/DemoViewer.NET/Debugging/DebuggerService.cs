@@ -75,7 +75,7 @@ public sealed class DebuggerService
                 BreakpointKind.TickNumber => frame.ServerTick == bp.IntValue,
                 BreakpointKind.GameEventName => FrameContainsEvent(frame, bp.StringValue),
                 BreakpointKind.RoundTransition => FrameContainsEvent(frame, "round_start")
-                                                  || FrameContainsEvent(frame, "round_end"),
+                    || FrameContainsEvent(frame, "round_end"),
                 _ => false
             };
 

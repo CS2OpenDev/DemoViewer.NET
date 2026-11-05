@@ -216,7 +216,8 @@ public class ExtensionStoresTests
         try
         {
             ExtensionStores stores = Declared(root, root,
-                new StoreDescriptor("many", "Many", StoreRoot.Cache, ["demos/*" + ExtensionId + ".json", ExtensionId], IsUserWork: false),
+                new StoreDescriptor("many", "Many", StoreRoot.Cache, ["demos/*" + ExtensionId + ".json", ExtensionId],
+                    IsUserWork: false),
                 new StoreDescriptor("pattern", "Pattern", StoreRoot.Cache, ["demos/*" + ExtensionId + ".json"],
                     IsUserWork: false));
 
@@ -262,7 +263,8 @@ public class ExtensionStoresTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(config.Path).IsEqualTo(Path.Combine(root, ExtensionFolders.DataDirectoryName, ExtensionId));
+                await Assert.That(config.Path)
+                    .IsEqualTo(Path.Combine(root, ExtensionFolders.DataDirectoryName, ExtensionId));
                 await Assert.That(cache.Path).IsEqualTo(Path.Combine(root, "cache", ExtensionFolders.DataDirectoryName,
                     ExtensionId,
                     ExtensionFolders.OwnCacheDirectoryName));

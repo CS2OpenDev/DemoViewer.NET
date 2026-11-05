@@ -148,8 +148,8 @@ public class InjectionChannelMockTests
                 await injector.InjectAsync(MockUserActions.PlayDemo(otherDemoPath), cancellationToken);
                 DemoState changed = await NextMatchingAsync(states.Reader,
                     s => s.Origin == DemoStateOrigin.User
-                         && !string.IsNullOrEmpty(s.DemoFilePath)
-                         && s.DemoFilePath.EndsWith(Path.GetFileName(otherDemoPath), StringComparison.Ordinal),
+                        && !string.IsNullOrEmpty(s.DemoFilePath)
+                        && s.DemoFilePath.EndsWith(Path.GetFileName(otherDemoPath), StringComparison.Ordinal),
                     "user-origin demo-change DemoState", logs, cancellationToken);
                 InboundLogic.Decision changeDecision = InboundLogic.Decide(
                     changed, true, null, true, demoPath);

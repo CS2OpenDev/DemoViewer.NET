@@ -153,9 +153,9 @@ internal sealed class PackContributions(
         }
 
         string? refusal = RegisteredCollector.Refusal(collector)
-                          ?? (_collectors.Any(c => string.Equals(c.Id, collector.Id, StringComparison.Ordinal))
-                              ? $"collector {collector.Id} is registered twice"
-                              : null);
+            ?? (_collectors.Any(c => string.Equals(c.Id, collector.Id, StringComparison.Ordinal))
+                ? $"collector {collector.Id} is registered twice"
+                : null);
         if (refusal is not null)
         {
             Guard.Report("collector " + collector.Id, new ArgumentException(refusal + ", so it is left out."));
@@ -425,9 +425,9 @@ internal sealed class PackContributions(
                 int star = path.IndexOf('*', StringComparison.Ordinal);
                 string suffix = star < 0 ? "" : path[(star + 1)..];
                 if (star < 0 || !suffix.StartsWith('.')
-                             || Services.DemoCache.DemoCacheStore.RecordSuffix.EndsWith(suffix,
-                                 StringComparison.OrdinalIgnoreCase)
-                             || ".json".EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    || Services.DemoCache.DemoCacheStore.RecordSuffix.EndsWith(suffix,
+                        StringComparison.OrdinalIgnoreCase)
+                    || ".json".EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                 {
                     return $"'{raw}' would reach the demo cache's own records";
                 }

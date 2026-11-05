@@ -98,7 +98,7 @@ internal static class PackTitleCardRenderer
         float titleLine = titleSize * 1.25f;
         float subtitleLine = subtitleSize * 1.35f;
         float block = titleLines.Count * titleLine
-                      + (subtitleLines.Count > 0 ? subtitleSize + subtitleLines.Count * subtitleLine : 0);
+            + (subtitleLines.Count > 0 ? subtitleSize + subtitleLines.Count * subtitleLine : 0);
         float y = (side - block) / 2 + titleSize;
         foreach (string line in titleLines)
         {

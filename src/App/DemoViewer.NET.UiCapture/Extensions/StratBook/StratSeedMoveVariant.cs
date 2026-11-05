@@ -99,7 +99,8 @@ public static partial class Variants
 
         static List<StepPosition> Seeded() =>
         [
-            SlotAt("A", -750, -790), SlotAt("B", -735, -910), SlotAt("C", -775, -690), SlotAt("D", -865, -735), SlotAt("E", -610, -800),
+            SlotAt("A", -750, -790), SlotAt("B", -735, -910), SlotAt("C", -775, -690), SlotAt("D", -865, -735),
+            SlotAt("E", -610, -800),
             .. StratVocabulary.OpponentSlots.Select((s, i) => SlotAt(s, 100 + 50 * i, 2250))
         ];
 

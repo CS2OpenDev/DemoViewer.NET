@@ -3563,7 +3563,7 @@ public static partial class Variants
         if (mock == MatchOverviewMock.Failed)
         {
             vm.Fail(vm.SubjectKey, "The demo header is truncated — the file may have stopped recording early or been "
-                                   + "copied incompletely. Try re-downloading it from the source.");
+                + "copied incompletely. Try re-downloading it from the source.");
             return OverviewPanel(vm);
         }
 

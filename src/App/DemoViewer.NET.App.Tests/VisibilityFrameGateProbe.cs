@@ -60,7 +60,7 @@ public class VisibilityFrameGateProbe
 
         TriMesh mesh = TriMesh.Load(trisPath);
         Console.WriteLine($"[vgate] collision tris={mesh.Count:N0}  " +
-                          $"AABB X[{mesh.MinX:F0}..{mesh.MaxX:F0}] Y[{mesh.MinY:F0}..{mesh.MaxY:F0}] Z[{mesh.MinZ:F0}..{mesh.MaxZ:F0}]");
+            $"AABB X[{mesh.MinX:F0}..{mesh.MaxX:F0}] Y[{mesh.MinY:F0}..{mesh.MaxY:F0}] Z[{mesh.MinZ:F0}..{mesh.MaxZ:F0}]");
 
         ParsedDemo demo = DemoTestHelper.GetOrParse(demoPath);
         IReadOnlyList<DemoFrame> frames = demo.Frames;
@@ -124,7 +124,7 @@ public class VisibilityFrameGateProbe
 
         Console.WriteLine($"[vgate] samples={samples.Count} hits={gaps.Count} ({hitRate:P0}) noHit={noHit}");
         Console.WriteLine($"[vgate] feet-above-floor gap: median={median:F1}u  p10={p10:F1}  p90={p90:F1}  " +
-                          $"within±8u={within8} ({(double)within8 / gaps.Count:P0})  within±32u={within32} ({(double)within32 / gaps.Count:P0})");
+            $"within±8u={within8} ({(double)within8 / gaps.Count:P0})  within±32u={within32} ({(double)within32 / gaps.Count:P0})");
 
         // ── The gate ──
         // 1. Almost every feet-ray finds floor below (a frame mismatch would miss the geometry entirely).
@@ -145,7 +145,7 @@ public class VisibilityFrameGateProbe
     public async Task Probe_EyeOffset_And_EyeAngles_Fields()
     {
         string? demoPath = DemoTestHelper.FindDemoPath("vitality-vs-fut-m2-dust2.dem")
-                           ?? DemoTestHelper.FindDemoPath("vitality-vs-fut-m3-nuke.dem");
+            ?? DemoTestHelper.FindDemoPath("vitality-vs-fut-m3-nuke.dem");
         if (demoPath is null)
         {
             throw new SkipTestException("no demo present");

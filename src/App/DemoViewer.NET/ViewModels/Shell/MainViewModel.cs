@@ -2647,7 +2647,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (HostFor(descriptor) is { Contributed: true } host)
         {
             return (host.Tab.FeatureId is null || _gate is null || _gate.IsEnabled(host.Tab.FeatureId))
-                   && host.AllSections.Any(IsTabEnabled);
+                && host.AllSections.Any(IsTabEnabled);
         }
 
         if (_gate is null)
@@ -2766,7 +2766,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 // must land on Library specifically, not whatever happens to sort just before it.
                 SelectedTab = HostFor(removed) is { Contributed: true }
                     ? Tabs.FirstOrDefault(t => t.TabId == LibraryTabViewModel.HostId)
-                      ?? ChooseNeighbor(removed, desired)
+                    ?? ChooseNeighbor(removed, desired)
                     : ChooseNeighbor(removed, desired);
             }
 
@@ -4865,8 +4865,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (!TrySelectTab(p.ActiveTabId))
         {
             SelectedTab = Tabs.FirstOrDefault(t => t.TabId == HostIds.PlayerOverviewTab)
-                          ?? Tabs.FirstOrDefault(t => t.TabId == LibraryTabViewModel.HostId)
-                          ?? Tabs[0];
+                ?? Tabs.FirstOrDefault(t => t.TabId == LibraryTabViewModel.HostId)
+                ?? Tabs[0];
         }
     }
 
@@ -4983,7 +4983,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
 
         if (_playersByUserId is not null && _playersByUserId.TryGetValue(userId, out PlayerInfo? byId)
-                                         && byId.Name.Length > 0)
+            && byId.Name.Length > 0)
         {
             return byId.Name;
         }

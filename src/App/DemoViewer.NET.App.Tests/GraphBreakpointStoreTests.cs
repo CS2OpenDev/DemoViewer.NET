@@ -159,7 +159,7 @@ public sealed class GraphBreakpointStoreTests
         await Assert.That(GraphNodeKey.TryParse(bp.NodeKey, out GraphNodeKey parsed)).IsTrue();
         await Assert.That(parsed).IsEqualTo(GraphNodeKey.ForPlayer(0, 7, 0, "wallbang_kills"))
             .Because("an un-suffixed per-player key is the first copy, which is one of the two the "
-                     + "same string used to match at once");
+                + "same string used to match at once");
     }
 
     [Test]

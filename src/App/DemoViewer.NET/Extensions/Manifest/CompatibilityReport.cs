@@ -17,8 +17,8 @@ public static class CompatibilityReport
             : $"Incompatible: {result.Describe(manifest, manifest.Id)}.";
 
         return $"{manifest.Name} {manifest.Version} ({manifest.Id}): requiresHost {manifest.RequiresHost}, "
-               + $"requiresCs2DemoKit {manifest.RequiresCs2DemoKit}, minAppVersion {Floor(manifest.MinAppVersion)}; "
-               + $"host contract {host.ContractVersion}, CS2DemoKit {host.Cs2DemoKitVersion}, app {App(host.AppVersion)}. {verdict}";
+            + $"requiresCs2DemoKit {manifest.RequiresCs2DemoKit}, minAppVersion {Floor(manifest.MinAppVersion)}; "
+            + $"host contract {host.ContractVersion}, CS2DemoKit {host.Cs2DemoKitVersion}, app {App(host.AppVersion)}. {verdict}";
     }
 
     private static string Floor(SemVersion? minAppVersion) => minAppVersion?.ToString() ?? "any";

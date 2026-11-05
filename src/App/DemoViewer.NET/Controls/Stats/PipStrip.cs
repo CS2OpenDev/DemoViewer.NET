@@ -143,12 +143,12 @@ public class PipStrip : TemplatedControl
         // drawn with (Foreground is only the fallback): without it a theme switch repaints every pip
         // and leaves the overflow number in the old theme's colour.
         if (change.Property == CountProperty || change.Property == FontSizeProperty
-                                             || change.Property == ForegroundProperty
-                                             || change.Property == PipBrushProperty
-                                             || change.Property == FontFamilyProperty
-                                             || change.Property == FontWeightProperty
-                                             || change.Property == FontStyleProperty
-                                             || change.Property == FontFeaturesProperty)
+            || change.Property == ForegroundProperty
+            || change.Property == PipBrushProperty
+            || change.Property == FontFamilyProperty
+            || change.Property == FontWeightProperty
+            || change.Property == FontStyleProperty
+            || change.Property == FontFeaturesProperty)
         {
             _overflow = null;
         }

@@ -29,7 +29,11 @@ public sealed record StoreDescriptor(
     bool IsUserWork)
 {
     /// <summary>Files or folders under the root, as copied when the store was made.</summary>
-    public IReadOnlyList<string> Paths { get; init => field = Snapshot(value); } = Snapshot(Paths);
+    public IReadOnlyList<string> Paths
+    {
+        get;
+        init => field = Snapshot(value);
+    } = Snapshot(Paths);
 
     // The host checks these paths once and then opens and deletes what they name, so it must not see them
     // change. The argument comes from extension code, which may hand over null whatever the annotation says;

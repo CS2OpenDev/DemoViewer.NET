@@ -73,7 +73,7 @@ public sealed record ExtensionIdentity(
     public bool Owns(Assembly assembly) =>
         ReferenceEquals(assembly, Assembly)
         || (LoadContext is not null && !ReferenceEquals(LoadContext, AssemblyLoadContext.Default)
-                                    && ReferenceEquals(AssemblyLoadContext.GetLoadContext(assembly), LoadContext));
+            && ReferenceEquals(AssemblyLoadContext.GetLoadContext(assembly), LoadContext));
 }
 
 /// <summary>

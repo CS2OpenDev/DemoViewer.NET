@@ -301,7 +301,7 @@ public sealed partial class PlayerDetailsViewModel : ObservableObject
     {
         HasGameRow = gameRow is not null;
         PlayerName = gameRow?.Dimensions.GetValueOrDefault("player_name")?.ToString()
-                     ?? SelectedPlayer?.Name ?? $"slot {PlayerSlot}";
+            ?? SelectedPlayer?.Name ?? $"slot {PlayerSlot}";
         int team = gameRow?.Dimensions.GetValueOrDefault("team") is { } t
             ? Convert.ToInt32(t, CultureInfo.InvariantCulture)
             : SelectedPlayer?.Team ?? 0;
@@ -676,8 +676,8 @@ public sealed class FormTimelineViewModel
                      bool fk, bool fd) in rounds)
         {
             string tooltip = string.Create(CultureInfo.InvariantCulture,
-                                 $"r{round}: {kills:0.##}K {assists:0.##}A {deaths:0.##}D · {damage:0.##} dmg")
-                             + (HasKast ? $" · KAST {(kast ? "✓" : "✗")}" : "");
+                    $"r{round}: {kills:0.##}K {assists:0.##}A {deaths:0.##}D · {damage:0.##} dmg")
+                + (HasKast ? $" · KAST {(kast ? "✓" : "✗")}" : "");
 
             killValues.Add(kills);
             damageValues.Add(damage);
@@ -1033,17 +1033,17 @@ public sealed record AchievementItem(
             : "warmup";
         string c = chain.ToUpperInvariant();
         bool multi = c.Contains("ACE", StringComparison.Ordinal)
-                     || c.Contains("MULTI", StringComparison.Ordinal)
-                     || c.Contains("RAPID", StringComparison.Ordinal)
-                     || c.Contains("2K", StringComparison.Ordinal)
-                     || c.Contains("3K", StringComparison.Ordinal)
-                     || c.Contains("4K", StringComparison.Ordinal)
-                     || c.Contains("5K", StringComparison.Ordinal);
+            || c.Contains("MULTI", StringComparison.Ordinal)
+            || c.Contains("RAPID", StringComparison.Ordinal)
+            || c.Contains("2K", StringComparison.Ordinal)
+            || c.Contains("3K", StringComparison.Ordinal)
+            || c.Contains("4K", StringComparison.Ordinal)
+            || c.Contains("5K", StringComparison.Ordinal);
         bool clutch = c.Contains("CLUTCH", StringComparison.Ordinal);
         bool opening = !multi && !clutch
-                              && (c.Contains("OPENING", StringComparison.Ordinal)
-                                  || c.Contains("FIRST", StringComparison.Ordinal)
-                                  || c.Contains("ENTRY", StringComparison.Ordinal));
+            && (c.Contains("OPENING", StringComparison.Ordinal)
+                || c.Contains("FIRST", StringComparison.Ordinal)
+                || c.Contains("ENTRY", StringComparison.Ordinal));
         return new AchievementItem(chain, label, tick, multi && !clutch, clutch, opening);
     }
 }

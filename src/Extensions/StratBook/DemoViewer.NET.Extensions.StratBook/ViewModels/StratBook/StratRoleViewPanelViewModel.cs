@@ -184,8 +184,8 @@ public sealed partial class StratRoleViewPanelViewModel : ObservableObject
     {
         Header = header;
         SlotLine = "Slot " + header.Slot
-                           + (header.SlotName is { Length: > 0 } name ? ": " + name : "")
-                           + (header.Role is { Length: > 0 } role ? " (" + role + ")" : "");
+            + (header.SlotName is { Length: > 0 } name ? ": " + name : "")
+            + (header.Role is { Length: > 0 } role ? " (" + role + ")" : "");
 
         List<string> meta =
         [
@@ -210,7 +210,7 @@ public sealed partial class StratRoleViewPanelViewModel : ObservableObject
                 header.StartText is { Length: > 0 } start ? "Start: " + start : null
             }.OfType<string>());
         StatusFooter = "Status: " + header.Status + " · revision "
-                       + header.Revision.ToString(CultureInfo.InvariantCulture);
+            + header.Revision.ToString(CultureInfo.InvariantCulture);
     }
 
     private void RaiseComputed()

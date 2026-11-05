@@ -201,16 +201,16 @@ public class DemoLibraryServiceTests
                 // "on disk". Wait for what the second launch will actually read.
                 await WaitForAsync(() => FullyIndexedInCacheFile(dataPath) == 2,
                     () => "the end-of-backlog Save to persist both cache rows; saw " +
-                          $"rows={FullyIndexedInCacheFile(dataPath)} parses={Volatile.Read(ref parses1)} " +
-                          $"states=[{string.Join(",", svc.Entries.Select(e => e.State))}] " +
-                          $"backlog=[{string.Join(",", svc.Tier2Backlog().Select(Path.GetFileName))}] " +
-                          $"fileExists={File.Exists(dataPath)}");
+                        $"rows={FullyIndexedInCacheFile(dataPath)} parses={Volatile.Read(ref parses1)} " +
+                        $"states=[{string.Join(",", svc.Entries.Select(e => e.State))}] " +
+                        $"backlog=[{string.Join(",", svc.Tier2Backlog().Select(Path.GetFileName))}] " +
+                        $"fileExists={File.Exists(dataPath)}");
             }
 
             await Assert.That(parses1).IsEqualTo(2).Because("both demos parsed once via the queue");
             await Assert.That(FullyIndexedInCacheFile(dataPath)).IsEqualTo(2)
                 .Because("end-of-backlog Save persisted the cache — File.Exists would not prove it, " +
-                         "because AddFoldersAsync writes the same file to persist the folder list");
+                    "because AddFoldersAsync writes the same file to persist the folder list");
 
             // Second launch: a THROWING parser proves the cached demos are not re-parsed.
             DemoProcessingQueue queue2 = new(new HeavyJobGate(), a => a(),
@@ -241,7 +241,7 @@ public class DemoLibraryServiceTests
     public async Task Indexes_Map_Players_AndCaches()
     {
         string? demo = DemoTestHelper.FindDemoPath("vitality-vs-fut-m2-dust2.dem")
-                       ?? DemoTestHelper.FindDemoPath("vitality-vs-fut-m3-nuke.dem");
+            ?? DemoTestHelper.FindDemoPath("vitality-vs-fut-m3-nuke.dem");
         if (demo is null)
         {
             throw new SkipTestException("no demo present");
@@ -256,13 +256,13 @@ public class DemoLibraryServiceTests
             svc.Scheduler = scheduler;
             await svc.AddFoldersAsync([dir]);
             await WaitForAsync(() => svc.Entries is [{ State: DemoIndexState.Indexed }]
-                                     && FullyIndexedInCacheFile(dataPath) == 1,
+                    && FullyIndexedInCacheFile(dataPath) == 1,
                 "tier 2 read through the queue", 60000);
 
             await Assert.That(svc.Entries.Count).IsEqualTo(1);
             DemoEntry entry = svc.Entries[0];
             Console.WriteLine($"[lib] map={entry.MapName} state={entry.State} players={entry.Players.Count} " +
-                              $"dur={entry.DurationSeconds:F0}s");
+                $"dur={entry.DurationSeconds:F0}s");
 
             await Assert.That(entry.MapName).IsNotNull();
             await Assert.That(entry.MapName!).StartsWith("de_");
@@ -505,7 +505,7 @@ public class DemoLibraryServiceTests
     public async Task Open_RealDemo_FillsCardFromItsOwnParse_NoBackgroundParse()
     {
         string? demo = DemoTestHelper.FindDemoPath("vitality-vs-fut-m2-dust2.dem")
-                       ?? DemoTestHelper.FindDemoPath("vitality-vs-fut-m3-nuke.dem");
+            ?? DemoTestHelper.FindDemoPath("vitality-vs-fut-m3-nuke.dem");
         if (demo is null)
         {
             throw new SkipTestException("no demo present");
@@ -665,7 +665,7 @@ public class DemoLibraryServiceTests
             string dir2Leaf = Path.GetFileName(dir2);
             await WaitForAsync(
                 () => svc.Entries is [{ State: DemoIndexState.Indexed } entry]
-                      && entry.FilePath.Contains(dir2Leaf, StringComparison.Ordinal),
+                    && entry.FilePath.Contains(dir2Leaf, StringComparison.Ordinal),
                 "shadow promoted to primary and indexed");
 
             await Assert.That(svc.Entries.Count).IsEqualTo(1).Because("still one card — now the surviving copy");
@@ -804,8 +804,8 @@ public class DemoLibraryServiceTests
             await Task.WhenAll(first, second);
             await WaitForAsync(() => svc.Entries.All(e => e.State is DemoIndexState.Indexed or DemoIndexState.Failed),
                 () => "both demos indexed or failed; states were "
-                      + string.Join(", ", svc.Entries.Select(e => $"{Path.GetFileName(e.FilePath)}={e.State}"))
-                      + $", parses good={goodParses} bad={badParses}",
+                    + string.Join(", ", svc.Entries.Select(e => $"{Path.GetFileName(e.FilePath)}={e.State}"))
+                    + $", parses good={goodParses} bad={badParses}",
                 15000);
 
             await svc.RescanAsync();

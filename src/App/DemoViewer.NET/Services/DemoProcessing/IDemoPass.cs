@@ -148,8 +148,8 @@ public sealed class PassInput
     internal IReadOnlyList<FactRow> Table(string table, IReadOnlyList<string> rulesets)
     {
         AnalysisRun run = (Forward is { } forward ? forward.Run : RetainedRun?.Invoke())
-                          ?? throw new InvalidOperationException(
-                              $"the visit made no rules run, so table {table} was not recorded");
+            ?? throw new InvalidOperationException(
+                $"the visit made no rules run, so table {table} was not recorded");
         return TableOf is { } read
             ? read(run, table, rulesets)
             : throw new InvalidOperationException($"the visit reads no tables, so table {table} is not served");

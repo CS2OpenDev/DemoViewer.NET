@@ -808,42 +808,42 @@ public sealed partial class EntityTrackingTabViewModel : ObservableObject
     private static string Categorise(string name) => name switch
     {
         _ when name.Contains("Player", StringComparison.Ordinal)
-               || name.Contains("Controller", StringComparison.Ordinal)
+            || name.Contains("Controller", StringComparison.Ordinal)
             => "Players",
         _ when name.Contains("Weapon", StringComparison.Ordinal) || name.Contains("Knife", StringComparison.Ordinal)
-                                                                 || name.Contains("Pistol", StringComparison.Ordinal)
-                                                                 || name.Contains("Rifle", StringComparison.Ordinal)
-                                                                 || name.Contains("Machine", StringComparison.Ordinal)
-                                                                 || name.Contains("Shotgun", StringComparison.Ordinal)
-                                                                 || name.Contains("Sniper", StringComparison.Ordinal)
+            || name.Contains("Pistol", StringComparison.Ordinal)
+            || name.Contains("Rifle", StringComparison.Ordinal)
+            || name.Contains("Machine", StringComparison.Ordinal)
+            || name.Contains("Shotgun", StringComparison.Ordinal)
+            || name.Contains("Sniper", StringComparison.Ordinal)
             => "Weapons",
         _ when name.Contains("Grenade", StringComparison.Ordinal) || name.Contains("Molotov", StringComparison.Ordinal)
-                                                                  || name.Contains("Smoke", StringComparison.Ordinal)
-                                                                  || name.Contains("Inferno", StringComparison.Ordinal)
-                                                                  || name.Contains("Flash", StringComparison.Ordinal)
-                                                                  || name.Contains("Decoy", StringComparison.Ordinal)
-                                                                  || name.Contains("Bomb", StringComparison.Ordinal)
+            || name.Contains("Smoke", StringComparison.Ordinal)
+            || name.Contains("Inferno", StringComparison.Ordinal)
+            || name.Contains("Flash", StringComparison.Ordinal)
+            || name.Contains("Decoy", StringComparison.Ordinal)
+            || name.Contains("Bomb", StringComparison.Ordinal)
             => "Grenades / Projectiles",
         _ when name.StartsWith("CCSGame", StringComparison.Ordinal)
-               || name.StartsWith("CCSTeam", StringComparison.Ordinal)
-               || name.StartsWith("CCSMatch", StringComparison.Ordinal)
-               || name.StartsWith("CCSScore", StringComparison.Ordinal)
+            || name.StartsWith("CCSTeam", StringComparison.Ordinal)
+            || name.StartsWith("CCSMatch", StringComparison.Ordinal)
+            || name.StartsWith("CCSScore", StringComparison.Ordinal)
             => "Game",
         _ when name.StartsWith("CDynamic", StringComparison.Ordinal)
-               || name.StartsWith("CPhys", StringComparison.Ordinal)
-               || name.StartsWith("CBaseProp", StringComparison.Ordinal)
-               || name.StartsWith("CProp", StringComparison.Ordinal)
+            || name.StartsWith("CPhys", StringComparison.Ordinal)
+            || name.StartsWith("CBaseProp", StringComparison.Ordinal)
+            || name.StartsWith("CProp", StringComparison.Ordinal)
             => "Props",
         _ when name.StartsWith("CEnv", StringComparison.Ordinal) || name.StartsWith("CWorld", StringComparison.Ordinal)
-                                                                 || name.StartsWith("CLightEntity",
-                                                                     StringComparison.Ordinal)
-                                                                 || name.StartsWith("CSky", StringComparison.Ordinal)
-                                                                 || name.StartsWith("CFog", StringComparison.Ordinal)
-                                                                 || name.StartsWith("CColor", StringComparison.Ordinal)
+            || name.StartsWith("CLightEntity",
+                StringComparison.Ordinal)
+            || name.StartsWith("CSky", StringComparison.Ordinal)
+            || name.StartsWith("CFog", StringComparison.Ordinal)
+            || name.StartsWith("CColor", StringComparison.Ordinal)
             => "World / Environment",
         _ when name.StartsWith("CParticle", StringComparison.Ordinal)
-               || name.StartsWith("CEffect", StringComparison.Ordinal)
-               || name.StartsWith("CSVC", StringComparison.Ordinal)
+            || name.StartsWith("CEffect", StringComparison.Ordinal)
+            || name.StartsWith("CSVC", StringComparison.Ordinal)
             => "Effects",
         _ => "Other"
     };

@@ -217,7 +217,7 @@ public sealed partial class FirstRunWizardViewModel : ViewModelBase
     public string NotFoundMessage => HasSearchedDirectories
         ? "Couldn't find your Counter-Strike 2 demos folder automatically. Searched these Steam libraries:"
         : "Couldn't auto-detect your Counter-Strike 2 demos folder. No Steam installation was found in the "
-          + "usual locations, so add your demos folder manually below.";
+        + "usual locations, so add your demos folder manually below.";
 
     /// <summary>The three selectable user-category cards, each with a one-line description.</summary>
     public IReadOnlyList<CategoryOption> Categories { get; }

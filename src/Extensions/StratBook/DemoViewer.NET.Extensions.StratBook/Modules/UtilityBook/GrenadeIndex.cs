@@ -696,9 +696,9 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
                     if (seedCells.TryGetValue((position.Kind, position.JumpThrow, cx + dx, cy + dy),
                             out List<LineupSeed>? near)
                         && near.FirstOrDefault(s => Near(s.Origin, origin, OriginMergeRadius, OriginMergeHeight)
-                                                    && Near(s.Landing, landing, LineupLandingRadius,
-                                                        LineupLandingHeight)
-                                                    && AimNear(s.Yaw, yaw, s.Pitch, pitch)) is { } found
+                            && Near(s.Landing, landing, LineupLandingRadius,
+                                LineupLandingHeight)
+                            && AimNear(s.Yaw, yaw, s.Pitch, pitch)) is { } found
                         && (home is null || found.Order < home.Order))
                     {
                         home = found;
@@ -1169,8 +1169,8 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
 
                 // Its path went, its bytes did not: the same rows, read through the path that still has them.
                 if (demo.Demo.Sha256 is { Length: > 0 } sha && _library.FindBySha256(sha) is { } other
-                                                            && IsLoadable(other)
-                                                            && !_loaded.ContainsKey(other.FilePath))
+                    && IsLoadable(other)
+                    && !_loaded.ContainsKey(other.FilePath))
                 {
                     DemoRef moved = DemoRef.From(other);
                     _loaded[other.FilePath] = demo with

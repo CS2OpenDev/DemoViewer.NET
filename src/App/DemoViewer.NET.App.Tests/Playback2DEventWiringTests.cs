@@ -67,7 +67,7 @@ public class Playback2DEventWiringTests
         // raise. None exists today; if one is added, the guard must grow rather than silently stop asking.
         await Assert.That(string.Join(", ", unanalysable)).IsEqualTo("")
             .Because("an event with custom add/remove accessors is invisible to this scan — extend the "
-                     + "guard in the same commit that adds one");
+                + "guard in the same commit that adds one");
 
         List<string> dead = contracts
             .Where(c => !c.IsWired)
@@ -77,8 +77,8 @@ public class Playback2DEventWiringTests
 
         await Assert.That(string.Join("; ", dead)).IsEqualTo("")
             .Because("an event with no production subscriber is a feature that computes its answer and "
-                     + "throws it away — and one with no production raiser is a subscriber that will "
-                     + "never run");
+                + "throws it away — and one with no production raiser is a subscriber that will "
+                + "never run");
     }
 
     /// <summary>
@@ -128,7 +128,7 @@ public class Playback2DEventWiringTests
             Analyse(Playback2DWholeGraph.EventContractTypes, Playback2DWholeGraph.ProductionAssemblies);
 
         Console.WriteLine($"[event-wiring] module types={Playback2DWholeGraph.EventContractTypes.Count()} "
-                          + $"event contracts={contracts.Count}");
+            + $"event contracts={contracts.Count}");
 
         await Assert.That(Playback2DWholeGraph.EventContractTypes.Count()).IsGreaterThan(100);
         await Assert.That(contracts.Count).IsGreaterThanOrEqualTo(12);
@@ -236,16 +236,16 @@ public class Playback2DEventWiringTests
             foreach (IlSite site in sites)
             {
                 bool isSubscribe = site.Access == IlAccess.Call
-                                   && string.Equals(site.TargetMember, "add_" + name, StringComparison.Ordinal)
-                                   && owners.Contains(site.TargetType);
+                    && string.Equals(site.TargetMember, "add_" + name, StringComparison.Ordinal)
+                    && owners.Contains(site.TargetType);
 
                 // The compiler's own accessors load the backing field too; they are the plumbing, not a
                 // raise. Everything else that loads it is about to Invoke it.
                 bool isRaise = site.Access == IlAccess.LoadField
-                               && string.Equals(site.TargetMember, name, StringComparison.Ordinal)
-                               && implementers.Contains(site.TargetType)
-                               && site.Method != "add_" + name
-                               && site.Method != "remove_" + name;
+                    && string.Equals(site.TargetMember, name, StringComparison.Ordinal)
+                    && implementers.Contains(site.TargetType)
+                    && site.Method != "add_" + name
+                    && site.Method != "remove_" + name;
 
                 if (isSubscribe)
                 {
@@ -273,9 +273,9 @@ public class Playback2DEventWiringTests
         string add = "add_" + name;
         return Playback2DWholeGraph.Scan(scope, (_, member) => string.Equals(member, add, StringComparison.Ordinal))
             .Any(site => site.Access == IlAccess.Call
-                         && string.Equals(site.Type, type.FullName, StringComparison.Ordinal)
-                         && string.Equals(site.Method, add, StringComparison.Ordinal)
-                         && !string.Equals(site.TargetType, type.FullName, StringComparison.Ordinal));
+                && string.Equals(site.Type, type.FullName, StringComparison.Ordinal)
+                && string.Equals(site.Method, add, StringComparison.Ordinal)
+                && !string.Equals(site.TargetType, type.FullName, StringComparison.Ordinal));
     }
 
     // The interface whose event THIS event implements, or null. Resolved through the interface map rather

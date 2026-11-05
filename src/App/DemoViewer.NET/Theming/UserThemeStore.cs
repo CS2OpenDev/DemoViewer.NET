@@ -151,7 +151,7 @@ public sealed class UserThemeStore(ThemeRegistry registry)
     public Theme Rename(string id, string newName)
     {
         ThemePalette palette = Registry.PaletteFor(id)
-                               ?? throw new ArgumentException($"\"{id}\" is not a theme.", nameof(id));
+            ?? throw new ArgumentException($"\"{id}\" is not a theme.", nameof(id));
         return Save(id, palette, newName);
     }
 

@@ -57,11 +57,11 @@ public class Playback2DBrowserHonestyTests
                 await Assert.That(browser.KeybindsPersist).IsFalse();
                 await Assert.That(browser.KeybindPersistenceNote).IsNotEmpty()
                     .Because("a rebind that dies on refresh with nothing said is exactly the defect this "
-                             + "guards against");
+                        + "guards against");
                 await Assert.That(browser.KeybindPersistenceNote).Contains("Session only");
                 await Assert.That(browser.KeybindPersistenceNote).Contains("reload")
                     .Because("the annotation sentence names the reload, because that is the moment the "
-                             + "user loses the work");
+                        + "user loses the work");
             }
 
             (SettingsViewModel desktop, ServiceProvider spD) = NewVm(dir, false);
@@ -70,7 +70,7 @@ public class Playback2DBrowserHonestyTests
                 await Assert.That(desktop.KeybindsPersist).IsTrue();
                 await Assert.That(desktop.KeybindPersistenceNote).IsEmpty()
                     .Because("on desktop it is not a caveat, and a permanent warning is noise that "
-                             + "teaches people to stop reading warnings");
+                        + "teaches people to stop reading warnings");
             }
         }
         finally
@@ -137,12 +137,12 @@ public class Playback2DBrowserHonestyTests
             {
                 FeatureToggleRow row = Row(browser, ExportId);
                 Console.WriteLine($"[wasm-honesty] browser row: enabled={row.IsEnabled} "
-                                  + $"interactive={row.IsInteractive} hint='{row.LockHint}'");
+                    + $"interactive={row.IsInteractive} hint='{row.LockHint}'");
 
                 await Assert.That(row.IsPlatformUnavailable).IsTrue();
                 await Assert.That(row.IsEnabled).IsFalse()
                     .Because("the module's own gate answers false, and a list that disagrees with it is "
-                             + "showing the user a capability they do not have");
+                        + "showing the user a capability they do not have");
                 await Assert.That(row.IsInteractive).IsFalse();
                 await Assert.That(row.LockHint).Contains("browser");
 
@@ -226,13 +226,13 @@ public class Playback2DBrowserHonestyTests
             Playback2DTimelineHarness.Pump();
 
             TextBlock label = view.FindControl<TextBlock>("ExportUnavailableLabel")
-                              ?? throw new InvalidOperationException(
-                                  "ExportUnavailableLabel is not in the view — the note has no surface.");
+                ?? throw new InvalidOperationException(
+                    "ExportUnavailableLabel is not in the view — the note has no surface.");
             Button button = view.FindControl<Button>("ExportButton")
-                            ?? throw new InvalidOperationException("ExportButton is gone.");
+                ?? throw new InvalidOperationException("ExportButton is gone.");
 
             Console.WriteLine($"[wasm-honesty] label visible={label.IsEffectivelyVisible} "
-                              + $"text='{label.Text}' button visible={button.IsEffectivelyVisible}");
+                + $"text='{label.Text}' button visible={button.IsEffectivelyVisible}");
 
             await Assert.That(button.IsEffectivelyVisible).IsFalse();
             await Assert.That(label.IsEffectivelyVisible).IsTrue()

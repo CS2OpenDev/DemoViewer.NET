@@ -35,7 +35,7 @@ internal static class ZoneSetReader
     public static ZoneSet Read(ReadOnlySpan<byte> json)
     {
         ZonesFileDto dto = JsonSerializer.Deserialize<ZonesFileDto>(json, _options)
-                           ?? throw new JsonException("zones.json is empty.");
+            ?? throw new JsonException("zones.json is empty.");
 
         if (dto.SchemaVersion < 1)
         {

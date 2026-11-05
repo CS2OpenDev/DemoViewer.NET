@@ -397,6 +397,6 @@ public sealed class IdentityService : IDisposable
     {
         public bool SameAs(State other) =>
             Accounts.SequenceEqual(other.Accounts) && Active == other.Active
-                                                   && Dismissed.SequenceEqual(other.Dismissed);
+            && Dismissed.SequenceEqual(other.Dismissed);
     }
 }

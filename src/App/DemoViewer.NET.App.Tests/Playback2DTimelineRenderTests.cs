@@ -50,12 +50,12 @@ public class Playback2DTimelineRenderTests
             string path = Path.Combine(HeadlessSession.ArtifactDir, "playback2d-timeline.png");
             bmp!.Save(path, new PngBitmapEncoderOptions());
             Console.WriteLine($"[timeline-render] rect={origin.X},{origin.Y} "
-                              + $"{timeline.Bounds.Width:F0}x{timeline.Bounds.Height:F0} "
-                              + $"area={scan.Area} fill=#{scan.Fill:X8} x{scan.FillCount} "
-                              + $"ink={scan.Ink} colours={scan.DistinctColours} "
-                              + $"anyChannelNonZero={scan.AnyChannelNonZero} "
-                              + $"bands={vm.Timeline.Bands.Count} markers={vm.Timeline.Markers.Count} "
-                              + $"-> {path}");
+                + $"{timeline.Bounds.Width:F0}x{timeline.Bounds.Height:F0} "
+                + $"area={scan.Area} fill=#{scan.Fill:X8} x{scan.FillCount} "
+                + $"ink={scan.Ink} colours={scan.DistinctColours} "
+                + $"anyChannelNonZero={scan.AnyChannelNonZero} "
+                + $"bands={vm.Timeline.Bands.Count} markers={vm.Timeline.Markers.Count} "
+                + $"-> {path}");
 
             // This used to assert `nonBg > 100`, where nonBg counted pixels with ANY non-zero channel.
             // Pb2dPanelBg is #1A1E24, every channel non-zero, so the opaque panel fill alone satisfied
@@ -64,20 +64,20 @@ public class Playback2DTimelineRenderTests
             // lost by someone restoring it.
             await Assert.That(scan.AnyChannelNonZero).IsGreaterThan(scan.Area * 9 / 10)
                 .Because("the panel fill is opaque and non-black, which is why counting "
-                         + "non-black pixels measured nothing");
+                    + "non-black pixels measured nothing");
 
             // The fill is found rather than hard-coded, so a re-themed panel does not re-baseline this.
             await Assert.That(scan.FillCount).IsGreaterThan(scan.Area / 4)
                 .Because("the most common colour in the rect must BE the panel fill; if it is not, this "
-                         + "probe is measuring the wrong rectangle and everything below is noise");
+                    + "probe is measuring the wrong rectangle and everything below is noise");
 
             // Ink is what is drawn ON the fill: round bands, kill and bomb glyphs, tick labels, playhead.
             await Assert.That(scan.Ink).IsGreaterThan(100)
                 .Because("an empty timeline is a rect of one colour — that is the state this case exists "
-                         + "to fail on");
+                    + "to fail on");
             await Assert.That(scan.DistinctColours).IsGreaterThan(4)
                 .Because("bands, markers and text are several colours; one flat wash over the fill would "
-                         + "clear the Ink floor while still being nothing a user could read");
+                    + "clear the Ink floor while still being nothing a user could read");
         });
     }
 
@@ -105,7 +105,7 @@ public class Playback2DTimelineRenderTests
 
             // Auto-sized row: an off gate must leave no layout HOLE, so the viewport takes the space back.
             Console.WriteLine($"[timeline-gate] viewport {viewportWithTimeline:F0} -> {viewport.Bounds.Height:F0}"
-                              + $" (timeline was {timelineHeight:F0})");
+                + $" (timeline was {timelineHeight:F0})");
             await Assert.That(viewport.Bounds.Height).IsEqualTo(viewportWithTimeline + timelineHeight);
         });
     }
@@ -153,7 +153,7 @@ public class Playback2DTimelineRenderTests
             {
                 int i = (y * size.Width + x) * 4;
                 uint colour = (uint)(buffer[i] | buffer[i + 1] << 8 | buffer[i + 2] << 16
-                                     | buffer[i + 3] << 24);
+                    | buffer[i + 3] << 24);
                 histogram[colour] = histogram.GetValueOrDefault(colour) + 1;
                 area++;
                 if (buffer[i] != 0 || buffer[i + 1] != 0 || buffer[i + 2] != 0)

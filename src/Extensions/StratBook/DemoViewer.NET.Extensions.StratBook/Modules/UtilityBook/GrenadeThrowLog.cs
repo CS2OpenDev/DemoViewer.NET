@@ -101,7 +101,7 @@ public static class GrenadeThrowLog
                 Set(ref has, Has.Place, r.LandingPlace is not null);
                 Set(ref has, Has.JumpThrow, r.JumpThrow);
                 bool raw = !Fits(r.ReleasePosition) || !Fits(r.SpawnPosition) || !Fits(r.SpawnVelocity)
-                           || !Fits(r.ThrowerPositionAtSpawn) || !Fits(r.DetonationPosition);
+                    || !Fits(r.ThrowerPositionAtSpawn) || !Fits(r.DetonationPosition);
                 Set(ref has, Has.RawPoints, raw);
 
                 w.Write((uint)has);
@@ -278,8 +278,8 @@ public static class GrenadeThrowLog
         ArgumentNullException.ThrowIfNull(a);
         ArgumentNullException.ThrowIfNull(b);
         return a.Count == b.Count
-               && a.Zip(b).All(p => string.Equals(JsonSerializer.Serialize(p.First, GrenadeSidecar.JsonOptions),
-                   JsonSerializer.Serialize(p.Second, GrenadeSidecar.JsonOptions), StringComparison.Ordinal));
+            && a.Zip(b).All(p => string.Equals(JsonSerializer.Serialize(p.First, GrenadeSidecar.JsonOptions),
+                JsonSerializer.Serialize(p.Second, GrenadeSidecar.JsonOptions), StringComparison.Ordinal));
     }
 
     private static void Set(ref Has has, Has flag, bool on)

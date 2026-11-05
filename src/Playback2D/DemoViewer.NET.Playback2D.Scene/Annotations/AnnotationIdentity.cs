@@ -51,10 +51,10 @@ public sealed record ClockIdentity(string Kind, int TickRate, int FrameCount, in
         }
 
         return string.Equals(Kind, other.Kind, StringComparison.Ordinal)
-               && TickRate == other.TickRate
-               && FrameCount == other.FrameCount
-               && FirstTick == other.FirstTick
-               && LastTick == other.LastTick;
+            && TickRate == other.TickRate
+            && FrameCount == other.FrameCount
+            && FirstTick == other.FirstTick
+            && LastTick == other.LastTick;
     }
 
     private static bool IsUnknown(ClockIdentity clock) =>

@@ -267,7 +267,7 @@ public class OverlayViewTests
         evaluator.Evaluate(path, parsed);
 
         RoundPositionsDocument positions = sidecars.TryReadPositions(path, sources.FingerprintFor(parsed.MapName))
-                                           ?? throw new InvalidOperationException("the evaluator wrote no positions");
+            ?? throw new InvalidOperationException("the evaluator wrote no positions");
 
         // One hit per round, spanning every step the walk actually sampled.
         List<SituationHit> hits = [];

@@ -112,7 +112,7 @@ public class Playback2DTimelineRealDemoTests
         IReadOnlyList<TimelineMarker> markers = new KillTrack().BuildMarkers(data);
 
         Console.WriteLine($"[kill-markers] deaths(host)={context.GetEventTimeline(KillTrack.DeathEvent).Count} "
-                          + $"placed={records.Count} markers={markers.Count}");
+            + $"placed={records.Count} markers={markers.Count}");
 
         await Assert.That(markers.Count).IsEqualTo(records.Count);
         await Assert.That(markers.Count).IsGreaterThan(0);

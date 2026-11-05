@@ -135,7 +135,7 @@ public class TeamIdentityTests
             if (library.Demos.Count < batches)
             {
                 throw new System.TimeoutException($"timed out waiting for the library to hold all {batches} rows "
-                                                  + $"(it holds {library.Demos.Count})");
+                    + $"(it holds {library.Demos.Count})");
             }
 
             for (int spin = 0; spin < 200; spin++)
@@ -501,7 +501,8 @@ public class TeamIdentityTests
                 await Assert.That(teams.GetAssignment("/d/b2.dem")!.T.TeamId).IsEqualTo(a);
             }
 
-            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(Path.Combine(root, "teams.json")),
+            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(
+                await File.ReadAllTextAsync(Path.Combine(root, "teams.json")),
                 TeamsFile.JsonOptions)!;
             await Assert.That(file.Tombstones).IsEquivalentTo([b], CollectionOrdering.Matching);
 
@@ -629,7 +630,8 @@ public class TeamIdentityTests
 
             Guid team = teams.TeamOnSide("/d/a1.dem", 2)!.Id;
             teams.Override("/d/x.dem", 2, team);
-            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(await File.ReadAllTextAsync(Path.Combine(root, "teams.json")),
+            TeamsFile file = JsonSerializer.Deserialize<TeamsFile>(
+                await File.ReadAllTextAsync(Path.Combine(root, "teams.json")),
                 TeamsFile.JsonOptions)!;
             using (Assert.Multiple())
             {

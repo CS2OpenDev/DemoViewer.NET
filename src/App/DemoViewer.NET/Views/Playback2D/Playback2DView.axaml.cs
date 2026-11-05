@@ -297,7 +297,7 @@ public partial class Playback2DView : UserControl
 
     private bool IsInsideTextEditor(object? source) =>
         _textEditor is not null && source is Visual visual
-                                && (ReferenceEquals(visual, _textEditor) || _textEditor.IsVisualAncestorOf(visual));
+        && (ReferenceEquals(visual, _textEditor) || _textEditor.IsVisualAncestorOf(visual));
 
     // The surface placed a label: open the editor over it, sized to the label's em at this zoom so what is
     // typed reads roughly the size it will draw. Focus is POSTED: the press that placed the label is still
@@ -463,7 +463,7 @@ public partial class Playback2DView : UserControl
     private void OnModeButtonPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (e.InitialPressMouseButton != MouseButton.Right || _modeMenuFlyout is null
-                                                           || sender is not Control anchor)
+            || sender is not Control anchor)
         {
             return;
         }

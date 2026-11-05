@@ -127,7 +127,7 @@ internal sealed class FakeToolServices : IInkToolServices
                 // would prove the eraser works in a way production does not.
                 MapSpace? space = pane.Space;
                 return space is not { Levels.Count: > 1 }
-                       || space.IdForAnchor(world.LevelMinZ) == pane.LevelId;
+                    || space.IdForAnchor(world.LevelMinZ) == pane.LevelId;
             }
 
             case SpaceRef.Entity entity:

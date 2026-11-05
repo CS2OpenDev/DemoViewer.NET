@@ -61,7 +61,7 @@ public class StratSpawnTests
                         for (int j = i + 1; j < spots.Count; j++)
                         {
                             double d = Math.Sqrt(Math.Pow(spots[i].X - spots[j].X, 2)
-                                                 + Math.Pow(spots[i].Y - spots[j].Y, 2));
+                                + Math.Pow(spots[i].Y - spots[j].Y, 2));
                             await Assert.That(d).IsGreaterThanOrEqualTo(StratSpawns.Spacing / 2)
                                 .Because($"{map} {team}: tokens do not stack");
                         }

@@ -99,7 +99,7 @@ public partial class TutorialView : UserControl
     private void UpdatePulse()
     {
         bool spotlit = AnimatePulse
-                       && DataContext is TutorialViewModel { IsActive: true, HasSpotlight: true };
+            && DataContext is TutorialViewModel { IsActive: true, HasSpotlight: true };
         Scrim.Classes.Set("pulsing", spotlit);
     }
 

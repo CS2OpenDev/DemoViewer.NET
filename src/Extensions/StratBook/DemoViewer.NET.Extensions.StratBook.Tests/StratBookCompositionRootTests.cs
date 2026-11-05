@@ -115,14 +115,14 @@ public class StratBookCompositionRootTests
                 provider.GetRequiredService<Services.DemoProcessing.DemoScheduler>();
             await Assert.That(coordinator.PassIds)
                 .IsEquivalentTo(
-                    [
-                        "library", "highlights", Services.Facts.RoundFactsEvaluator.EvaluatorId, HostIds.FactsPass,
-                        Services.MatchMeta.MatchMetaEvaluator.StampId,
-                        DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator.EvaluatorId,
-                        DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator.EvaluatorId,
-                        DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedTagsService.EvaluatorId,
-                        DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.LineupClipPass.PassId
-                    ], CollectionOrdering.Matching);
+                [
+                    "library", "highlights", Services.Facts.RoundFactsEvaluator.EvaluatorId, HostIds.FactsPass,
+                    Services.MatchMeta.MatchMetaEvaluator.StampId,
+                    DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundIndexEvaluator.EvaluatorId,
+                    DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndexEvaluator.EvaluatorId,
+                    DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedTagsService.EvaluatorId,
+                    DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.LineupClipPass.PassId
+                ], CollectionOrdering.Matching);
             await Assert.That(coordinator.PassIds[2]).IsEqualTo("roundfacts");
             // The rulesets' tables, a core pass beside Round Facts.
             await Assert.That(coordinator.PassIds[3]).IsEqualTo("facts");

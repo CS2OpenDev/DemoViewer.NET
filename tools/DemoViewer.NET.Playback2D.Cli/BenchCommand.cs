@@ -197,8 +197,8 @@ internal static class BenchCommand
 
         GoldenCorpus corpus = CorpusLocator.Load(args);
         GoldenCorpusEntry entry = corpus.Find(name)
-                                  ?? throw new CliUsageException(
-                                      $"--name {name} matches no entry in {corpus.Directory}.");
+            ?? throw new CliUsageException(
+                $"--name {name} matches no entry in {corpus.Directory}.");
         if (!File.Exists(entry.ScenePath))
         {
             throw new FileNotFoundException($"corpus entry '{name}' has no scene at {entry.ScenePath}.",
@@ -271,7 +271,7 @@ internal static class BenchCommand
             ["os"] = RuntimeInformation.OSDescription,
             ["architecture"] = RuntimeInformation.OSArchitecture.ToString(),
             ["cpu"] = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ??
-                      RuntimeInformation.ProcessArchitecture.ToString(),
+                RuntimeInformation.ProcessArchitecture.ToString(),
             ["logical_cores"] = Environment.ProcessorCount,
             ["ram_bytes"] = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes,
             ["dotnet_version"] = RuntimeInformation.FrameworkDescription

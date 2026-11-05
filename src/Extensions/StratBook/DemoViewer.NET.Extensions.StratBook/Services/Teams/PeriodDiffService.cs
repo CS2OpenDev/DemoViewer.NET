@@ -64,8 +64,9 @@ public static class PeriodDiffService
             string? rosterId = sideAssignment.RosterId;
             string rosterLabel = rosterId is null
                 ? ""
-                : team?.Rosters.FirstOrDefault(roster => string.Equals(roster.Id, rosterId, StringComparison.Ordinal))?.Label
-                  ?? rosterId;
+                : team?.Rosters.FirstOrDefault(roster => string.Equals(roster.Id, rosterId, StringComparison.Ordinal))
+                    ?.Label
+                ?? rosterId;
 
             rows.Add(new PeriodDiffDemoRow(map, rosterId, rosterLabel, sideAssignment is { StandIn: true, Tier: 1 },
                 won, ctRounds, tRounds));
@@ -75,8 +76,8 @@ public static class PeriodDiffService
         PeriodDiffPeriod previous = BuildPeriod("previous", [.. rows.Skip(windowSize).Take(windowSize)]);
 
         bool rosterChanged = recent.DominantRoster is { } r && previous.DominantRoster is { } p
-                                                            && !string.Equals(r.RosterId, p.RosterId,
-                                                                StringComparison.Ordinal);
+            && !string.Equals(r.RosterId, p.RosterId,
+                StringComparison.Ordinal);
 
         return new PeriodDiffSet
         {

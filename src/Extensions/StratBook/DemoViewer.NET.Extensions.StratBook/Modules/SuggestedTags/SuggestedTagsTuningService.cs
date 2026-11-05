@@ -158,7 +158,7 @@ public sealed class SuggestedTagsTuningService
         failure?.Throw();
         cancellationToken.ThrowIfCancellationRequested();
         return report
-               ?? throw new OperationCanceledException("The preview was removed from the queue before it finished.");
+            ?? throw new OperationCanceledException("The preview was removed from the queue before it finished.");
     }
 
     // Every demo the cache does not hold is read as a job on its own visit, all queued at once so the queue can

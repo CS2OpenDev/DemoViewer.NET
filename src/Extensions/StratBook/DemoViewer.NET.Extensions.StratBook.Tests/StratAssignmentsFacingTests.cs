@@ -83,6 +83,7 @@ public class StratAssignmentsFacingTests
                 "Ramp" => (100, 100),
                 _ => null
             };
+
             TokenTrack b = Track(Watching(new StepWatch { Places = ["Hut", "Ramp"] }), "B", Centres);
 
             await Assert.That(YawAt(b, Two)).IsEqualTo(45f).Because("B stands on Hut, so it faces Ramp");

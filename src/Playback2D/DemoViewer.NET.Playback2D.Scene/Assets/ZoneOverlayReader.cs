@@ -28,7 +28,7 @@ internal static class ZoneOverlayReader
     public static ZoneOverlayDocument Read(ReadOnlySpan<byte> json)
     {
         OverlayDto dto = JsonSerializer.Deserialize<OverlayDto>(json, _options)
-                         ?? throw new JsonException("the overlay is empty.");
+            ?? throw new JsonException("the overlay is empty.");
 
         if (dto.SchemaVersion < 1)
         {

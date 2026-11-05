@@ -243,7 +243,7 @@ public class MatchOverviewSeedTests
                 .Because("the harvest is still running — 'no highlights fired' is a claim we cannot make");
             await Assert.That(vm.HasHighlightsAction).IsFalse()
                 .Because("a [Compute full stats] button under 'Harvesting…' contradicts it, and pressing it "
-                         + "would queue a redundant heavy pass over the demo already being harvested");
+                    + "would queue a redundant heavy pass over the demo already being harvested");
         }
 
         // Now the harvest lands.

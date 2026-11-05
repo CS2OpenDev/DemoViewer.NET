@@ -51,8 +51,8 @@ public class SprayPlotRenderProbe
             ?.Runs.OrderByDescending(r => r.Shots.Count).FirstOrDefault();
 
         Console.WriteLine($"[plot] {subject.Weapon} slot={subject.Slot} "
-                          + $"pattern={pattern.Count} anchored={anchoredRun.Shots.Count} "
-                          + $"tracked={trackedRun?.Shots.Count ?? 0}");
+            + $"pattern={pattern.Count} anchored={anchoredRun.Shots.Count} "
+            + $"tracked={trackedRun?.Shots.Count ?? 0}");
 
         int anchoredInk = 0;
         int trackedInk = 0;

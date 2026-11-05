@@ -180,9 +180,9 @@ public static class ExtensionServiceProviderExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         return services.GetKeyedService<IExtensionContext>(typeof(TPack))
-               ?? throw new InvalidOperationException(
-                   $"This host has no extension of type '{typeof(TPack).FullName}' loaded, so it has no "
-                   + "context. Name your own entry type here, from a factory the host resolves.");
+            ?? throw new InvalidOperationException(
+                $"This host has no extension of type '{typeof(TPack).FullName}' loaded, so it has no "
+                + "context. Name your own entry type here, from a factory the host resolves.");
     }
 }
 

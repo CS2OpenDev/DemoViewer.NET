@@ -235,9 +235,9 @@ public sealed partial class SuggestedInboxViewModel : ObservableObject, IWorkspa
         TagProposal p = item.Entry.Proposal;
         return (MapFilter == AllMaps
                 || string.Equals(item.Map ?? "no map", MapFilter, StringComparison.OrdinalIgnoreCase))
-               && (SideFilter == BothSides || ProposalIds.SideName(p.Side) == SideFilter)
-               && (DetectorFilter == AllDetectors || p.Detector == DetectorFilter)
-               && p.Confidence >= MinConfidence;
+            && (SideFilter == BothSides || ProposalIds.SideName(p.Side) == SideFilter)
+            && (DetectorFilter == AllDetectors || p.Detector == DetectorFilter)
+            && p.Confidence >= MinConfidence;
     }
 
     // Keeps the "all" entry first and the rest sorted; leaves the collection alone when nothing changed.

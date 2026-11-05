@@ -133,9 +133,9 @@ public sealed class StratOwner : IEquatable<StratOwner>
         }
 
         return folderName.StartsWith(TeamKind + "-", StringComparison.Ordinal)
-               && Guid.TryParse(folderName.AsSpan(TeamKind.Length + 1), out Guid id)
-            ? Team(id)
-            : null;
+            && Guid.TryParse(folderName.AsSpan(TeamKind.Length + 1), out Guid id)
+                ? Team(id)
+                : null;
     }
 
     public StratOwner Clone() => new() { Kind = Kind, TeamId = TeamId, Extra = Extra };

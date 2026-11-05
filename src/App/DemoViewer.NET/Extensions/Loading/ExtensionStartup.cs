@@ -114,9 +114,9 @@ public static class ExtensionStartup
 
             JsonNode? root = JsonNode.Parse(File.ReadAllText(settingsFile));
             return Find(root, "Extensions") is JsonObject section
-                   && Find(section, "AllowUnverified") is JsonValue value
-                   && value.TryGetValue(out bool allowed)
-                   && allowed;
+                && Find(section, "AllowUnverified") is JsonValue value
+                && value.TryGetValue(out bool allowed)
+                && allowed;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException
                                        or InvalidOperationException)

@@ -274,8 +274,8 @@ public class Playback2DAnnotationToolsTests
                 .Because("the panel edits the session; a mode that stops here is a decorative picker");
             await Assert.That(panel.VisibilityIndex).IsEqualTo(3)
                 .Because("the ComboBox reads the index straight back; a getter that disagreed with the "
-                         + "setter would snap the picker to the old row. That the XAML's item order IS "
-                         + "the enum's is pinned by RealTimeEnvelopeUiTests, which opens the XAML");
+                    + "setter would snap the picker to the old row. That the XAML's item order IS "
+                    + "the enum's is pinned by RealTimeEnvelopeUiTests, which opens the XAML");
 
             // in / out / hold: the three relative controls, and not Custom's absolute window. Each
             // section runs the element's own trapezoid shifted by its draw offset, so all three keep
@@ -502,8 +502,8 @@ public class Playback2DAnnotationToolsTests
 
             AnnotationToolbar toolbar = new() { DataContext = panel };
             CheckBox box = toolbar.FindControl<CheckBox>("AutoSaveToggle")
-                           ?? throw new InvalidOperationException(
-                               "AutoSaveToggle is not in the toolbar — the key is unreachable again.");
+                ?? throw new InvalidOperationException(
+                    "AutoSaveToggle is not in the toolbar — the key is unreachable again.");
 
             // The control's own binding, evaluated: a property the view-model exposes and no control
             // binds reaches nothing.

@@ -261,9 +261,9 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
     /// <summary>The slider's tooltip: the stops' semantics and the graph's full source.</summary>
     public string ToleranceTip => _adjacency is null
         ? "Exact matches exactly N in each place; any place matches when the side has at least that many alive. "
-          + "The middle stops need an adjacency graph, and this map has none yet."
+        + "The middle stops need an adjacency graph, and this map has none yet."
         : "Exact matches exactly N in each place; the wider stops match at least N over the place and its "
-          + $"neighbours, then their neighbours, then anywhere. Adjacency: {AdjacencySource} ({_adjacency.Source}).";
+        + $"neighbours, then their neighbours, then anywhere. Adjacency: {AdjacencySource} ({_adjacency.Source}).";
 
     // The tolerance the index actually runs: the middle stops collapse to Exact without a graph.
     private SituationTolerance EffectiveTolerance =>
@@ -432,7 +432,7 @@ public sealed partial class QueryCanvasViewModel : ExtensionViewModel, IDisposab
 
         string overflow = dropped > 0 ? $"; {dropped} more than the rail holds, left off" : "";
         HintLine = $"tick {snapshot.Time.Tick} from 2D playback: {snapshot.Ct.Count} CT, {snapshot.T.Count} T, "
-                   + $"{placed} placed{overflow}";
+            + $"{placed} placed{overflow}";
     }
 
     /// <summary>

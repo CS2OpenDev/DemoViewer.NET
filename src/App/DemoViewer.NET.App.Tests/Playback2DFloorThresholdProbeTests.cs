@@ -61,8 +61,8 @@ public class Playback2DFloorThresholdProbeTests
         }
 
         Console.WriteLine($"[floor-threshold] {Path.GetFileName(path)} frame={target}/{frames.Count} " +
-                          $"markers={vm.Markers.Count} playerZ=[{minZ:F0}..{maxZ:F0}] " +
-                          $"sectionHeights={(heights is null ? "null (histogram fallback)" : string.Join(", ", heights.Select(h => h.ToString("F2", CultureInfo.InvariantCulture))))}");
+            $"markers={vm.Markers.Count} playerZ=[{minZ:F0}..{maxZ:F0}] " +
+            $"sectionHeights={(heights is null ? "null (histogram fallback)" : string.Join(", ", heights.Select(h => h.ToString("F2", CultureInfo.InvariantCulture))))}");
 
         if (heights is null)
         {
@@ -183,14 +183,14 @@ public class Playback2DFloorThresholdProbeTests
 
             sampled++;
             Console.WriteLine($"[floor-dist] frame={f,6} sections=[{string.Join(",", perSection)}] " +
-                              $"sliceCount={sectionCount} adoptedHeights={adopted}");
+                $"sliceCount={sectionCount} adoptedHeights={adopted}");
         }
 
         Console.WriteLine($"[floor-dist] SUMMARY finalSliceCount={finalSectionCount} adoptedHeights={adopted} " +
-                          $"sampled={sampled} " +
-                          $"heights=[{string.Join(", ", heights.Select(h => h.ToString("F1", CultureInfo.InvariantCulture)))}] "
-                          +
-                          $"=> the single-floor radar sections were {(adopted ? "ADOPTED (unexpected!)" : "GATED OFF (correct — histogram floor kept)")}");
+            $"sampled={sampled} " +
+            $"heights=[{string.Join(", ", heights.Select(h => h.ToString("F1", CultureInfo.InvariantCulture)))}] "
+            +
+            $"=> the single-floor radar sections were {(adopted ? "ADOPTED (unexpected!)" : "GATED OFF (correct — histogram floor kept)")}");
 
         await Assert.That(sampled).IsGreaterThan(0);
 

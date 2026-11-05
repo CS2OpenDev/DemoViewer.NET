@@ -761,7 +761,7 @@ public sealed class AnnotationLayer : ISceneLayer
 
         emitted += AddSection(bodyStart, head, head,
             (float)(element.Time.OpacityAt(ClampTick(tick - (bodyElapsed + elapsed) / 2))
-                    * styleOpacity));
+                * styleOpacity));
         return emitted;
     }
 

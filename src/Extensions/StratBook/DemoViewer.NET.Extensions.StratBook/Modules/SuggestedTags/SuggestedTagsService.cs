@@ -323,7 +323,7 @@ public sealed class SuggestedTagsService : IExtensionPass
         [
             .. _library.Demos
                 .Where(e => NeedsBuild(e)
-                            && (forced.Contains(e.FilePath) || (background && !failed.Contains(e.FilePath))))
+                    && (forced.Contains(e.FilePath) || (background && !failed.Contains(e.FilePath))))
                 .OrderByDescending(e => e.Modified.Ticks)
                 .Select(e => e.FilePath)
         ];
@@ -411,10 +411,10 @@ public sealed class SuggestedTagsService : IExtensionPass
     {
         (_, ProposalSet set) = LoadCore(path, sha256);
         if (_tags is null || set.Sha256 is not { } sha
-                          || set.Entries.FirstOrDefault(e =>
-                                  e.Proposal.Id == proposalId && e.State == GeneratedState.Dismissed) is not
-                              { VerdictKey: { } key }
-                          || !_tags.RestoreVerdict(sha, key, _utcNow()))
+            || set.Entries.FirstOrDefault(e =>
+                    e.Proposal.Id == proposalId && e.State == GeneratedState.Dismissed) is not
+                { VerdictKey: { } key }
+            || !_tags.RestoreVerdict(sha, key, _utcNow()))
         {
             return false;
         }
@@ -439,8 +439,8 @@ public sealed class SuggestedTagsService : IExtensionPass
         [
             .. Load(path, sha256).Pending
                 .Where(e => e.Proposal.Confidence >= minConfidence
-                            && (detector is null || e.Proposal.Detector == detector)
-                            && (round is null || e.Proposal.Round == round))
+                    && (detector is null || e.Proposal.Detector == detector)
+                    && (round is null || e.Proposal.Round == round))
                 .Select(e => e.Proposal.Id)
         ];
         int accepted = 0;
@@ -619,7 +619,7 @@ public sealed class SuggestedTagsService : IExtensionPass
         string? sha = Normalize(sha256) ?? Normalize(_library.Find(path)?.Sha256)
             ?? Normalize(document.Demo.Sha256);
         if (sha is not null && Normalize(document.Demo.Sha256) is { } written
-                            && !string.Equals(sha, written, StringComparison.Ordinal))
+            && !string.Equals(sha, written, StringComparison.Ordinal))
         {
             return (null, ProposalSet.Empty(persistent)); // built for the file's old bytes
         }
@@ -679,7 +679,7 @@ public sealed class SuggestedTagsService : IExtensionPass
             SiteRegionTable? table = TableFor(map);
             string fingerprint = SuggestionsFingerprint.Compose(profile, table);
             if (!forced && Proposals.IsCurrent(path, fingerprint)
-                        && Proposals.TryRead(path) is not null)
+                && Proposals.TryRead(path) is not null)
             {
                 return; // a queued request the open's visit already satisfied
             }
@@ -775,8 +775,8 @@ public sealed class SuggestedTagsService : IExtensionPass
         string source;
         string? indexFingerprint = _indexSources?.FingerprintFor(map);
         if (_index is not null && indexFingerprint is not null
-                               && _index.IsCurrent(path, indexFingerprint)
-                               && _index.TryRead(path) is { } indexDocument)
+            && _index.IsCurrent(path, indexFingerprint)
+            && _index.TryRead(path) is { } indexDocument)
         {
             rounds = RoundOccupancyBuilder.FromIndex(indexDocument, facts, tickRate);
             source = ProposalDocument.FromRoundIndex;
@@ -893,8 +893,8 @@ public sealed class SuggestedTagsService : IExtensionPass
         lock (BuildLock(path))
         {
             if (_detonations?.TryRead(path) is not { } stored || InputsKey(demo) is not { } key
-                                                              || RoundFacts.TryGet(path) is not
-                                                                  { Schema: RoundFactsRows.CurrentSchema } facts)
+                || RoundFacts.TryGet(path) is not
+                    { Schema: RoundFactsRows.CurrentSchema } facts)
             {
                 return;
             }
@@ -934,13 +934,13 @@ public sealed class SuggestedTagsService : IExtensionPass
     {
         string path = demo.FilePath;
         if (_detonations?.Stamp(path) is not { } detonations || !_detonations.IsCurrent(path)
-                                                             || _indexSources?.FingerprintFor(demo.MapName ?? "") is not
-                                                                 { } indexFingerprint || _index?.Stamp(path) is not
-                                                                 { } index
-                                                             || !index.IsCurrent(RoundIndexStore.Schema,
-                                                                 indexFingerprint)
-                                                             || demo.Fact(RoundFactsRows.FacetId) is not
-                                                                 { IsWritten: true } roundFacts)
+            || _indexSources?.FingerprintFor(demo.MapName ?? "") is not
+                { } indexFingerprint || _index?.Stamp(path) is not
+                { } index
+            || !index.IsCurrent(RoundIndexStore.Schema,
+                indexFingerprint)
+            || demo.Fact(RoundFactsRows.FacetId) is not
+                { IsWritten: true } roundFacts)
         {
             return null;
         }

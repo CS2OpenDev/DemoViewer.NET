@@ -115,7 +115,7 @@ public class LibraryFingerprintTests
 
             await library.Service.AddFoldersAsync([folder]);
             await WaitForAsync(() => library.Service.Entries is [{ State: DemoIndexState.Indexed }]
-                                     && library.Store.TryGetByContentId(sha) is { ContentFingerprint: not null },
+                    && library.Store.TryGetByContentId(sha) is { ContentFingerprint: not null },
                 "the demo indexed and hashed");
 
             using (Assert.Multiple())
@@ -148,7 +148,7 @@ public class LibraryFingerprintTests
 
             await svc.AddFoldersAsync([nfs]);
             await WaitForAsync(() => svc.Entries is [{ State: DemoIndexState.Indexed }]
-                                     && library.Store.TryGetByContentId(sha) is { ContentFingerprint: not null },
+                    && library.Store.TryGetByContentId(sha) is { ContentFingerprint: not null },
                 "the first mount's demo indexed and hashed");
             using (Assert.Multiple())
             {
@@ -411,7 +411,7 @@ public class LibraryFingerprintTests
 
             await library.Service.AddFoldersAsync([folder]);
             await WaitForAsync(() => library.Service.Entries is [{ State: DemoIndexState.Indexed }]
-                                     && library.Store.TryGetIndex(path) is { ParseSchema: > 0 }, "the demo parsed");
+                && library.Store.TryGetIndex(path) is { ParseSchema: > 0 }, "the demo parsed");
             await Assert.That(library.Store.TryGetIndex(path)!.Sha256).IsNull();
 
             library.Service.Time = Settled;
@@ -448,7 +448,7 @@ public class LibraryFingerprintTests
             {
                 await first.Service.AddFoldersAsync([nfs]);
                 await WaitForAsync(() => first.Store.TryGetByContentId(sha) is { ContentFingerprint: not null }
-                                         && first.Service.Tier2Backlog().Count == 0,
+                        && first.Service.Tier2Backlog().Count == 0,
                     "the first mount indexed");
                 await first.Service.AddFoldersAsync([smb]);
                 await first.Service.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
@@ -495,7 +495,7 @@ public class LibraryFingerprintTests
             await svc.AddFoldersAsync([nfs, smb]);
             await svc.CopiesResolved.WaitAsync(TimeSpan.FromSeconds(10));
             await WaitForAsync(() => svc.Entries is [{ State: DemoIndexState.Indexed, HasDuplicates: true }]
-                                     && library.Store.TryGetByContentId(sha) is not null,
+                    && library.Store.TryGetByContentId(sha) is not null,
                 "one card, indexed, with its copy");
             string primary = svc.Entries[0].FilePath;
             string shadow = primary == onNfs ? onSmb : onNfs;

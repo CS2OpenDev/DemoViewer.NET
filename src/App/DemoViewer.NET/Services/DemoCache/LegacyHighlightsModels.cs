@@ -118,7 +118,6 @@ public sealed class LegacyCachedHighlight
     public int RoundNumber { get; init; }
 
     public string RenderedTitle { get; init; } = "";
-
 }
 
 /// <summary>

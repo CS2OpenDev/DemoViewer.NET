@@ -75,9 +75,9 @@ public sealed class DirectoryDemoSource : IDemoSource
     {
         string trimmed = root.Trim();
         return trimmed.StartsWith("file://", StringComparison.OrdinalIgnoreCase)
-               && Uri.TryCreate(trimmed, UriKind.Absolute, out Uri? uri)
-               && uri.IsFile
-            ? uri.LocalPath
-            : trimmed;
+            && Uri.TryCreate(trimmed, UriKind.Absolute, out Uri? uri)
+            && uri.IsFile
+                ? uri.LocalPath
+                : trimmed;
     }
 }

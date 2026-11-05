@@ -84,15 +84,15 @@ public class EnvelopeSpinnerWidthTests
             foreach (string name in names)
             {
                 NumericUpDown box = window.GetVisualDescendants().OfType<NumericUpDown>()
-                                        .FirstOrDefault(n => n.Name == name)
-                                    ?? throw new InvalidOperationException(
-                                        $"{name} is not in the visual tree — the envelope editor did "
-                                        + $"not open for {mode}, so this test measured nothing.");
+                        .FirstOrDefault(n => n.Name == name)
+                    ?? throw new InvalidOperationException(
+                        $"{name} is not in the visual tree — the envelope editor did "
+                        + $"not open for {mode}, so this test measured nothing.");
 
                 TextBox inner = box.GetVisualDescendants().OfType<TextBox>().FirstOrDefault()
-                                ?? throw new InvalidOperationException(
-                                    $"{name} has no inner TextBox. A NumericUpDown that never built its "
-                                    + "template is the missing-control-theme defect, not a sizing one.");
+                    ?? throw new InvalidOperationException(
+                        $"{name} has no inner TextBox. A NumericUpDown that never built its "
+                        + "template is the missing-control-theme defect, not a sizing one.");
 
                 // What the box actually holds, measured in the font it actually renders in, not a
                 // digit-width constant, which would drift the moment the theme's face or size changed.
@@ -113,7 +113,7 @@ public class EnvelopeSpinnerWidthTests
         Console.WriteLine($"[spinner-width] {string.Join(" · ", measured)}");
         await Assert.That(tooNarrow).IsEmpty()
             .Because("an envelope spinner too narrow to render its own value clips silently — "
-                     + "the binding, the view-model and the hit test all still pass");
+                + "the binding, the view-model and the hit test all still pass");
     }
 
     private static double MeasureText(string text, TextBox inner) =>

@@ -53,7 +53,7 @@ public class FocusPlayerRenderTests
     {
         Border row = window.GetVisualDescendants().OfType<Border>()
             .First(b => b.Classes.Contains("statsRow") && b.DataContext is StatsRow { IsTotals: false } r
-                                                       && r.PlayerName == player);
+                && r.PlayerName == player);
         ContextMenu menu = row.ContextMenu!;
         menu.Open(row);
         Pump();

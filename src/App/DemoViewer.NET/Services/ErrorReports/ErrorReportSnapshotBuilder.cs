@@ -436,7 +436,7 @@ public static class ErrorReportSnapshotBuilder
         // Only when the report is about the demo actually open: health belongs to a parse, and a cached
         // preview of another demo has none of its own.
         if (openDemo is null || openDemoPath is null
-                             || !string.Equals(demoPath, openDemoPath, StringComparison.OrdinalIgnoreCase))
+            || !string.Equals(demoPath, openDemoPath, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }

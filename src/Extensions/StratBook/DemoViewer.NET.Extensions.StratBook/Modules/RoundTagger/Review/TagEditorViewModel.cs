@@ -134,7 +134,6 @@ public sealed class TagPositionRow(TagPosition position)
 /// </summary>
 public sealed partial class TagEditorViewModel : ObservableObject
 {
-
     private readonly Func<TagEditorDraft, int, int, (int From, int To)> _bounds;
     private readonly Action? _cancel;
     private readonly Action? _delete;

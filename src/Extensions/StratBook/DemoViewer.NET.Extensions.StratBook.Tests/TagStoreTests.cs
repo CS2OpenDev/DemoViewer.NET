@@ -113,7 +113,8 @@ public class TagStoreTests
                 await Assert.That(store.TryLoad(Sha)).IsNull();
                 await Assert.That(store.Save(fresh)).IsFalse()
                     .Because("a file someone may have hand-edited is not replaced by what this session typed");
-                await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo("{ \"schemaVersion\": 1, \"instances\": [");
+                await Assert.That(await File.ReadAllTextAsync(path))
+                    .IsEqualTo("{ \"schemaVersion\": 1, \"instances\": [");
             }
         }
         finally

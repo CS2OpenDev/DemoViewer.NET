@@ -224,7 +224,8 @@ public class ExtensionReviewQueueTests
             queue, "/videos", path => !path.EndsWith("gone.dem", StringComparison.Ordinal));
 
         ReviewPackPlan planned = export.Plan("/videos/pack.mp4", ExportFormats.Mp4);
-        ReviewPackResult result = await export.RunAsync(planned, new Progress<ReviewPackProgress>(), CancellationToken.None);
+        ReviewPackResult result =
+            await export.RunAsync(planned, new Progress<ReviewPackProgress>(), CancellationToken.None);
 
         using (Assert.Multiple())
         {
@@ -256,10 +257,12 @@ public class ExtensionReviewQueueTests
             await Assert.That(() => onWorker.Plan("/videos/pack.mp4", ExportFormats.Mp4))
                 .Throws<InvalidOperationException>();
             await Assert.That(async () =>
-                    await onWorker.RunAsync(new ReviewPackPlan(), new Progress<ReviewPackProgress>(), CancellationToken.None))
+                    await onWorker.RunAsync(new ReviewPackPlan(), new Progress<ReviewPackProgress>(),
+                        CancellationToken.None))
                 .Throws<InvalidOperationException>();
             await Assert.That(async () =>
-                    await onUi.RunAsync(new ReviewPackPlan(), new Progress<ReviewPackProgress>(), CancellationToken.None))
+                    await onUi.RunAsync(new ReviewPackPlan(), new Progress<ReviewPackProgress>(),
+                        CancellationToken.None))
                 .Throws<ArgumentException>().Because("the plan carries no host plan to render");
             await Assert.That(onUi.Validate("", ExportFormats.Mp4)).IsNotNull();
             await Assert.That(onUi.Validate("/videos/pack.mp4", ExportFormats.Mp4)).IsNull();

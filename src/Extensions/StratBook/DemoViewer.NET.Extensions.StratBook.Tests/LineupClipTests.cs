@@ -881,7 +881,7 @@ public class LineupClipTests
             WritePair(clips, stems[keptOld.Id], 1000, now.AddHours(-2));
             WritePair(clips, stems[keptNew.Id], 1000, now.AddHours(-1));
             long cap = new DirectoryInfo(clips).EnumerateFiles().Sum(f => f.Length)
-                       + 100; // less than one more pair
+                + 100; // less than one more pair
 
             FileRenderer renderer = new() { Bytes = 1000 };
             using LineupClipService service = new(() => [Current()], PackStores.At(clips), () => true, renderer,

@@ -78,7 +78,7 @@ public class AnnotationSchemaSnapshotTests
         string round = await File.ReadAllTextAsync(sidecar.SidecarPath);
         await Assert.That(Normalize(round)).IsEqualTo(Normalize(original))
             .Because("the v1 sidecar is a published format; a round trip through this build must be " +
-                     "field-identical, unknown fields included");
+                "field-identical, unknown fields included");
     }
 
     private static string Normalize(string json) => json.Replace("\r\n", "\n", StringComparison.Ordinal);

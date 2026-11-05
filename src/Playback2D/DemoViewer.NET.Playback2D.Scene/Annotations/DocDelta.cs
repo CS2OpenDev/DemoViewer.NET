@@ -31,8 +31,11 @@ public abstract record DocDelta
     public sealed record Add(AnnotationElement Element, int Index) : DocDelta
     {
         /// <summary>The element to insert.</summary>
-        public AnnotationElement Element { get; init => field = Required(value, nameof(Element)); } =
-            Required(Element, nameof(Element));
+        public AnnotationElement Element
+        {
+            get;
+            init => field = Required(value, nameof(Element));
+        } = Required(Element, nameof(Element));
     }
 
     /// <summary>Removes the element with this id. A no-op when it is absent.</summary>
@@ -53,8 +56,11 @@ public abstract record DocDelta
     public sealed record Replace(Guid Id, AnnotationElement Element) : DocDelta
     {
         /// <summary>The replacement element.</summary>
-        public AnnotationElement Element { get; init => field = Required(value, nameof(Element)); } =
-            Required(Element, nameof(Element));
+        public AnnotationElement Element
+        {
+            get;
+            init => field = Required(value, nameof(Element));
+        } = Required(Element, nameof(Element));
     }
 
     /// <summary>Applies several deltas as one unit. Inverted in reverse order.</summary>
@@ -64,7 +70,10 @@ public abstract record DocDelta
     public sealed record Batch(IReadOnlyList<DocDelta> Items) : DocDelta
     {
         /// <summary>The deltas, in application order.</summary>
-        public IReadOnlyList<DocDelta> Items { get; init => field = Required(value, nameof(Items)); } =
-            Required(Items, nameof(Items));
+        public IReadOnlyList<DocDelta> Items
+        {
+            get;
+            init => field = Required(value, nameof(Items));
+        } = Required(Items, nameof(Items));
     }
 }

@@ -706,7 +706,7 @@ public sealed partial class TagMatrixTabViewModel : ExtensionViewModel, IWorkspa
         Title = TitleFor(result.Inputs, result.Demos);
         int unplaced = result.Found - result.Table.Total;
         SummaryLine = $"{Plural(result.Table.Total, "instance")} in {Plural(result.Demos, "demo")}"
-                      + (unplaced > 0 ? $" · {unplaced} with no value on an axis" : "");
+            + (unplaced > 0 ? $" · {unplaced} with no value on an axis" : "");
         EmptyLine = result.Demos == 0
             ? "Nothing tagged in this scope. Tag rounds with the palette in 2D Playback; the counts land here."
             : "No instance in this slice has a value on both axes.";

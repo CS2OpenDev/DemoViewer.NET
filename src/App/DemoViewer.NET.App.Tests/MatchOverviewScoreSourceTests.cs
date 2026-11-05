@@ -146,13 +146,13 @@ public class MatchOverviewScoreSourceTests
                         // line, not the consistency checks above, is what says so.
                         await Assert.That(o.ScoreLooksComplete).IsTrue()
                             .Because($"{name}: {ct}–{t} is not a completed premier result — the round-win "
-                                     + "count is wrong (a silent $round_end candidate shadowing a live one "
-                                     + "is the known failure mode)");
+                                + "count is wrong (a silent $round_end candidate shadowing a live one "
+                                + "is the known failure mode)");
                     }
 
                     Console.WriteLine($"[score-sweep] {name,-46} {libCt}:{libT}  "
-                                      + $"rounds={o.RoundCountDisplay} split={o.HasSideSplit} "
-                                      + $"labels={o.CtTeamLabel}/{o.TTeamLabel}");
+                        + $"rounds={o.RoundCountDisplay} split={o.HasSideSplit} "
+                        + $"labels={o.CtTeamLabel}/{o.TTeamLabel}");
                 }
                 finally
                 {
@@ -166,7 +166,7 @@ public class MatchOverviewScoreSourceTests
             // Not a failure, but say it plainly, because without a pro demo this gate cannot tell the
             // authoritative score from the analysis-derived one that used to be wrong.
             Console.WriteLine("[score-sweep] WARNING: no clan-carrying (pro/HLTV) demo was available — this "
-                              + "run could not discriminate the authoritative score from the analysis-derived one.");
+                + "run could not discriminate the authoritative score from the analysis-derived one.");
         }
     }
 }

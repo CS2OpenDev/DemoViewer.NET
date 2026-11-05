@@ -329,7 +329,9 @@ public class DemoLibraryScanTests
 
             Task scan = svc.RescanAsync();
             await WaitForAsync(() => reader.BlockedReads == 1, "the hung read");
-            await WaitForAsync(() => !queue.Snapshot().Any(s => s is { Kind: QueueJobKind.LibraryListing, State: DemoQueueItemState.Running }),
+            await WaitForAsync(
+                () => !queue.Snapshot().Any(s => s is
+                    { Kind: QueueJobKind.LibraryListing, State: DemoQueueItemState.Running }),
                 "the listing slice to end while its read is outstanding");
 
             Task heavy = QueueWork.Run(queue, QueueJobKind.LibraryScan, "other heavy job", "test", _ => { });
@@ -367,7 +369,7 @@ public class DemoLibraryScanTests
             Task scan = svc.RescanAsync();
             DemoQueueItemSnapshot? slice = null;
             await WaitForAsync(() => (slice = ListingSlice(queue, stopped, DemoQueueItemState.Queued)) is not null
-                                     && ListingSlice(queue, other, DemoQueueItemState.Queued) is not null,
+                    && ListingSlice(queue, other, DemoQueueItemState.Queued) is not null,
                 "both folders' first listing slice");
             queue.RemoveByUser(slice!.Id);
             queue.Resume();
@@ -485,7 +487,9 @@ public class DemoLibraryScanTests
             Task scan = svc.RescanAsync();
             await WaitForAsync(() => headers.BlockedReads == 1, "the hung header read");
             await WaitForAsync(() => Map(svc, a) is not null, "the other folder's header");
-            await WaitForAsync(() => !queue.Snapshot().Any(s => s is { Kind: QueueJobKind.LibraryListing, State: DemoQueueItemState.Running }),
+            await WaitForAsync(
+                () => !queue.Snapshot().Any(s => s is
+                    { Kind: QueueJobKind.LibraryListing, State: DemoQueueItemState.Running }),
                 "the header slice to end while its read is outstanding");
 
             Task heavy = QueueWork.Run(queue, QueueJobKind.LibraryScan, "other heavy job", "test", _ => { });

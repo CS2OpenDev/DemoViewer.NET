@@ -173,6 +173,6 @@ internal static class DetectorMath
         int toTick) =>
     [
         .. events.Where(e => e.Side == side && e.Place is { } place && places.Contains(place)
-                             && e.Tick >= fromTick && e.Tick < toTick)
+            && e.Tick >= fromTick && e.Tick < toTick)
     ];
 }

@@ -103,7 +103,7 @@ public class AnnotationLayerTests
 
         double anchor = MapSpace.QuantizeZ(space.Levels[0].ZMin);
         Console.WriteLine($"[reminted] pane={space.Levels[0].Id} " +
-                          $"mintingRule={MapSpace.IdForZMin(anchor)}");
+            $"mintingRule={MapSpace.IdForZMin(anchor)}");
         await Assert.That(space.Levels[0].Id).IsNotEqualTo(MapSpace.IdForZMin(anchor))
             .Because("the re-found floor carries a re-minted key — that is the condition under test");
 
@@ -352,7 +352,7 @@ public class AnnotationLayerTests
 
         await Assert.That(layer.Advance(in time, frame)).IsFalse()
             .Because("a fade needs no animation loop — a tick change already repaints, and an idle " +
-                     "tab that keeps re-arming burns a core in the background");
+                "tab that keeps re-arming burns a core in the background");
 
         session.Wet.Begin(AnnotationStyle.Default, new SpaceRef.World(0), null,
             new InkPoint(0, 0, 0.5f));
@@ -436,11 +436,11 @@ public class AnnotationLayerTests
         long second = Measure(layer, surface.Canvas, frame, in ctx);
 
         Console.WriteLine($"[annotations] alloc window1={first} B window2={second} B " +
-                          $"dry={layer.DryPictureCount} prepared={layer.PreparedCount}");
+            $"dry={layer.DryPictureCount} prepared={layer.PreparedCount}");
 
         await Assert.That(layer.PreparedCount).IsEqualTo(3)
             .Because("entity-anchored, fading and real-time all have to be LIVE, or this window is " +
-                     "measuring a layer that culled its own content");
+                "measuring a layer that culled its own content");
         await Assert.That(second).IsEqualTo(0);
     }
 

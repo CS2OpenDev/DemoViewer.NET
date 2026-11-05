@@ -190,7 +190,7 @@ public static class ExtensionLoader
         try
         {
             pack = Activator.CreateInstance(entry) as IExtension
-                   ?? throw new MissingMethodException($"'{m.EntryType}' has no public parameterless constructor");
+                ?? throw new MissingMethodException($"'{m.EntryType}' has no public parameterless constructor");
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -260,9 +260,9 @@ public static class ExtensionLoader
                     {
                         LoadResult loaded = Load(chosen);
                         LoadOutcome? failure = loaded.Failure
-                                               ?? CheckReferences(chosen, loaded.Pack!.GetType().Assembly,
-                                                   RunningVersion)
-                                               ?? Probe(chosen, loaded.Pack!);
+                            ?? CheckReferences(chosen, loaded.Pack!.GetType().Assembly,
+                                RunningVersion)
+                            ?? Probe(chosen, loaded.Pack!);
                         if (failure is null)
                         {
                             staged = loaded.Pack;
@@ -440,7 +440,7 @@ public static class ExtensionLoader
         string trimmed = Path.TrimEndingDirectorySeparator(outcome.Directory);
         string? parent = Path.GetDirectoryName(trimmed);
         return string.Equals(Path.GetFileName(trimmed), packId, StringComparison.Ordinal)
-               || (parent is not null && string.Equals(Path.GetFileName(parent), packId, StringComparison.Ordinal));
+            || (parent is not null && string.Equals(Path.GetFileName(parent), packId, StringComparison.Ordinal));
     }
 
     private static void Inspect(string root, string idDir, string versionDir, List<ExtensionCandidate> candidates,

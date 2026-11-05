@@ -37,10 +37,10 @@ public static partial class ReviewQueueMigration
     {
         ArgumentNullException.ThrowIfNull(entry);
         return entry.Kind == ReviewEntryKind.Clip
-               && string.Equals(entry.Source, LineupSource, StringComparison.Ordinal)
-               && entry.Question.Length == 0
-               && !entry.Reviewed
-               && GeneratedNote().IsMatch(entry.Note);
+            && string.Equals(entry.Source, LineupSource, StringComparison.Ordinal)
+            && entry.Question.Length == 0
+            && !entry.Reviewed
+            && GeneratedNote().IsMatch(entry.Note);
     }
 
     /// <summary>The entries without the generated lineup clips and without lineup cards left empty.</summary>
@@ -81,8 +81,8 @@ public static partial class ReviewQueueMigration
         {
             bool empty = i + 1 >= kept.Count || kept[i + 1].Kind == ReviewEntryKind.Section;
             if (kept[i].Kind == ReviewEntryKind.Section && empty
-                                                        && kept[i].Title.StartsWith(LineupCardPrefix,
-                                                            StringComparison.Ordinal))
+                && kept[i].Title.StartsWith(LineupCardPrefix,
+                    StringComparison.Ordinal))
             {
                 kept.RemoveAt(i);
                 cards++;

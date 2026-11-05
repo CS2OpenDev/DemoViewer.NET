@@ -106,8 +106,8 @@ public class ForwardPassRealDemoTests
         }
 
         Console.WriteLine($"{Path.GetFileName(path)}: "
-                          + string.Join(", ", forward.Select(kv => $"{kv.Key} {kv.Value.Length}"))
-                          + $", rows {(forward["round facts"] == None ? "none" : "yes")}");
+            + string.Join(", ", forward.Select(kv => $"{kv.Key} {kv.Value.Length}"))
+            + $", rows {(forward["round facts"] == None ? "none" : "yes")}");
     }
 
     [Test]

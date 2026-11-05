@@ -207,7 +207,7 @@ public class VisibilityEngineTests
         }
 
         Console.WriteLine($"[vengine] through-floor occluded {throughFloorOccluded}/{throughFloorTotal}  " +
-                          $"symmetric {symmetric}/{symTotal}");
+            $"symmetric {symmetric}/{symTotal}");
         await Assert.That(throughFloorTotal).IsGreaterThan(0);
         // Feet sit on solid floor (Phase-G gate), so a sightline into the ground is always blocked.
         await Assert.That((double)throughFloorOccluded / throughFloorTotal).IsGreaterThan(0.98);

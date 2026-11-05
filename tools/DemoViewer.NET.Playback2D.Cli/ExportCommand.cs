@@ -50,7 +50,7 @@ internal static class ExportCommand
         ct.ThrowIfCancellationRequested();
 
         string demoPath = args.String("demo")
-                          ?? throw new CliUsageException("export requires --demo <path.dem>.");
+            ?? throw new CliUsageException("export requires --demo <path.dem>.");
 
         long started = Stopwatch.GetTimestamp();
         ParsedDemo demo = DemoInput.Load(demoPath, out double parseMs);

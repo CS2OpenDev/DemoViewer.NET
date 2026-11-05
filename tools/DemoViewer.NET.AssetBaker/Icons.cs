@@ -107,7 +107,7 @@ public static class Icons
                 empty &= IsFullyTransparent(bmp);
                 tintable &= IsAchromatic(bmp);
                 using SKData png = bmp.Encode(SKEncodedImageFormat.Png, 100)
-                                   ?? throw new InvalidOperationException($"{key}: PNG encode failed");
+                    ?? throw new InvalidOperationException($"{key}: PNG encode failed");
                 encoded.Add(png.ToArray());
             }
 
@@ -130,7 +130,7 @@ public static class Icons
             // rank/ is declared rather than measured: the badges are a coherent set of pictures, and a
             // greyscale one (an unranked plate) would otherwise be judged tintable on its pixels alone.
             bool isPicture = key.StartsWith("rank/", StringComparison.Ordinal)
-                             || key.StartsWith("map/", StringComparison.Ordinal);
+                || key.StartsWith("map/", StringComparison.Ordinal);
             manifest[key] = new IconEntry(Round(box.Width), Round(box.Height), tintable && !isPicture);
         }
 
@@ -203,8 +203,8 @@ public static class Icons
         int BakeEmblem(string source, bool tinted)
         {
             PackageEntry entry = pak.FindEntry(source + ".vsvg_c")
-                                 ?? throw new InvalidOperationException(
-                                     $"{source} is not in this CS2 build — the Premier emblem moved.");
+                ?? throw new InvalidOperationException(
+                    $"{source} is not in this CS2 build — the Premier emblem moved.");
 
             byte[] svg = ReadSvg(pak, entry);
             crc.Append(svg);
@@ -232,7 +232,7 @@ public static class Icons
                     using SKBitmap plain = Render(pic, box, height);
                     using SKBitmap outBmp = wash is { } tint ? Modulate(plain, tint) : plain.Copy();
                     using SKData png = outBmp.Encode(SKEncodedImageFormat.Png, 100)
-                                       ?? throw new InvalidOperationException($"{key}: PNG encode failed");
+                        ?? throw new InvalidOperationException($"{key}: PNG encode failed");
 
                     string dest = Path.Combine(outDir, PathFor(key, height));
                     Directory.CreateDirectory(Path.GetDirectoryName(dest)!);

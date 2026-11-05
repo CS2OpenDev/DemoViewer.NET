@@ -74,7 +74,7 @@ public class ExtensionSdkArchitectureTests
             .. typeof(Playback2D.Scene2DFrame).Assembly.GetReferencedAssemblies()
                 .Select(a => a.Name!)
                 .Where(n => n.StartsWith("DemoViewer.NET", StringComparison.Ordinal)
-                            || n.StartsWith("Avalonia", StringComparison.Ordinal))
+                    || n.StartsWith("Avalonia", StringComparison.Ordinal))
         ];
 
         await Assert.That(ours).IsEmpty();
@@ -96,8 +96,8 @@ public class ExtensionSdkArchitectureTests
         foreach (Type root in (Type[])[typeof(MapAssets), typeof(MapIcons)])
         {
             foreach (MemberInfo member in root.GetMembers(BindingFlags.Public | BindingFlags.Static
-                                                                              | BindingFlags.Instance
-                                                                              | BindingFlags.DeclaredOnly))
+                         | BindingFlags.Instance
+                         | BindingFlags.DeclaredOnly))
             {
                 walked.Add($"{root.Name}.{member.Name}");
                 foreach (Type named in Named(member))
@@ -128,7 +128,7 @@ public class ExtensionSdkArchitectureTests
             .. typeof(Modules.Abstractions.IModuleContext).Assembly.GetReferencedAssemblies()
                 .Select(a => a.Name!)
                 .Where(n => n.StartsWith("DemoViewer.NET", StringComparison.Ordinal)
-                            || n.StartsWith("Avalonia", StringComparison.Ordinal))
+                    || n.StartsWith("Avalonia", StringComparison.Ordinal))
         ];
 
         await Assert.That(ours).IsEmpty();
@@ -217,7 +217,7 @@ public class ExtensionSdkArchitectureTests
         .. type.BaseType is { } @base ? (Type[])[@base] : [],
         .. type.GetInterfaces(),
         .. type.GetMembers(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance
-                           | BindingFlags.DeclaredOnly).SelectMany(Named)
+            | BindingFlags.DeclaredOnly).SelectMany(Named)
     ];
 
     private static bool Bcl(string assembly) =>

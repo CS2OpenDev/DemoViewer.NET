@@ -46,7 +46,7 @@ public sealed record ExternalExtensionRow(string Name, string Version, string St
         foreach (LoadOutcome outcome in rejected)
         {
             string name = outcome.Manifest?.Name
-                          ?? Path.GetFileName(Path.TrimEndingDirectorySeparator(outcome.Directory));
+                ?? Path.GetFileName(Path.TrimEndingDirectorySeparator(outcome.Directory));
             rows.Add(new ExternalExtensionRow(name, outcome.Manifest?.Version.ToString() ?? "",
                 "Not loaded: " + outcome.Detail));
         }

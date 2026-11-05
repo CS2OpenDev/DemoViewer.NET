@@ -36,7 +36,11 @@ public sealed record CommandDescriptor(
     Func<CommandContext, bool>? CanRun = null)
 {
     /// <summary>The scope the command resolves in.</summary>
-    public string Scope { get; init => field = Normalized(value); } = Normalized(Scope);
+    public string Scope
+    {
+        get;
+        init => field = Normalized(value);
+    } = Normalized(Scope);
 
     // Extension code may hand over null whatever the annotation says. An empty scope is refused for this one
     // command, where a throw here would cost the extension every command it lists.

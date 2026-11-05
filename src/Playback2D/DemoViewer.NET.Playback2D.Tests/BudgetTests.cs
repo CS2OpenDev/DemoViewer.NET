@@ -73,8 +73,8 @@ public class BudgetTests
         long steady = MeasureWindow(stage, fixture, time);
 
         Console.WriteLine($"[budget] 512 full-scene frames at {_size.Width}x{_size.Height}: " +
-                          $"warm window {first} B, steady window {steady} B " +
-                          $"({steady / 512.0:F2} B/frame)");
+            $"warm window {first} B, steady window {steady} B " +
+            $"({steady / 512.0:F2} B/frame)");
 
         if (steady != 0)
         {
@@ -133,8 +133,8 @@ public class BudgetTests
         long steady = MeasureWindow(stage, fixture, time);
 
         Console.WriteLine($"[budget] 512 full-scene frames on the HISTOGRAM path at " +
-                          $"{_size.Width}x{_size.Height}: warm window {first} B, steady window " +
-                          $"{steady} B ({steady / 512.0:F2} B/frame)");
+            $"{_size.Width}x{_size.Height}: warm window {first} B, steady window " +
+            $"{steady} B ({steady / 512.0:F2} B/frame)");
 
         await Assert.That(steady).IsEqualTo(0);
     }
@@ -280,7 +280,7 @@ public class BudgetTests
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"[budget-ink] total   p99={with.Total.P99Ms:F3} ms, frame floor 15.625 ms at 64 fps"));
         Console.WriteLine($"[budget-ink] allocation {with.AllocatedBytesPerFrame} B/frame " +
-                          $"({without.AllocatedBytesPerFrame} B/frame with the ink layer off)");
+            $"({without.AllocatedBytesPerFrame} B/frame with the ink layer off)");
 
         Console.WriteLine($"[budget-ink] report {with.WriteToBenchReports(BenchReportDirectory())}");
 

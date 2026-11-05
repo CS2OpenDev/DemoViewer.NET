@@ -140,7 +140,7 @@ public class PlayerMatchParityRealDemoTests
         MergedRulesBuild rules = AppRules();
         (DemoCacheStore cache, AnalysisFacts library, _) = Visit(path, parsed, rules);
         FactTable facet = library.TryGet(path, PlayerMatchFacet.Key)
-                          ?? throw new InvalidOperationException("the visit wrote no facet");
+            ?? throw new InvalidOperationException("the visit wrote no facet");
         DemoCacheIndexEntry row = cache.TryGetIndex(path)!;
         if (Environment.GetEnvironmentVariable(PlayerMatchFacetTests.SampleUpdateVar) == "1"
             && DemoTestHelper.FindRepoRoot() is { } repo)
@@ -209,7 +209,7 @@ public class PlayerMatchParityRealDemoTests
             {
                 // The background visit has no geometry: its sight columns are no data, and the open's test compares them.
                 if (rule is ColumnRule.NotAggregable || ColumnCatalogue.RequiresVisibility(key)
-                                                     || !stats.Values.TryGetValue(key, out object? value))
+                    || !stats.Values.TryGetValue(key, out object? value))
                 {
                     continue;
                 }
@@ -265,9 +265,9 @@ public class PlayerMatchParityRealDemoTests
         MergedRulesBuild rules = AppRules();
         (DemoCacheStore cache, AnalysisFacts library, ForwardDemoResult pass) = Visit(path, parsed, rules);
         FactTable rounds = library.TryGet(path, PlayerRoundFacet.Key)
-                           ?? throw new InvalidOperationException("the visit wrote no player_round");
+            ?? throw new InvalidOperationException("the visit wrote no player_round");
         FactTable facet = library.TryGet(path, PlayerMatchFacet.Key)
-                          ?? throw new InvalidOperationException("the visit wrote no player_match");
+            ?? throw new InvalidOperationException("the visit wrote no player_match");
         DemoCacheIndexEntry row = cache.TryGetIndex(path)!;
         if (Environment.GetEnvironmentVariable(PlayerRoundFacetTests.SampleUpdateVar) == "1"
             && DemoTestHelper.FindRepoRoot() is { } repo)
@@ -335,7 +335,7 @@ public class PlayerMatchParityRealDemoTests
             reconciled++;
 
             double Both(string count) => split.GetValueOrDefault(PlayerRoundFacet.Column(PlayerRoundFacet.Ct, count))
-                                         + split.GetValueOrDefault(PlayerRoundFacet.Column(PlayerRoundFacet.T, count));
+                + split.GetValueOrDefault(PlayerRoundFacet.Column(PlayerRoundFacet.T, count));
 
             foreach ((string round, string column) in totals.Where(t =>
                          Both(t.Round) != match.GetValueOrDefault(t.Match)))
@@ -348,9 +348,9 @@ public class PlayerMatchParityRealDemoTests
             double kastRounds =
                 Math.Round(match.GetValueOrDefault("KAST%") * match.GetValueOrDefault(ColumnRules.Rounds) / 100);
             double lastKast = rounds.Rows.Any(r => r.Dimensions["round_number"].AsInteger() == lastRound
-                                                   && r.Dimensions["steam_id"].AsText()
-                                                   == id.ToString(CultureInfo.InvariantCulture)
-                                                   && r.Values["kast"].AsBoolean() == true)
+                && r.Dimensions["steam_id"].AsText()
+                == id.ToString(CultureInfo.InvariantCulture)
+                && r.Values["kast"].AsBoolean() == true)
                 ? 1
                 : 0;
             if (Both("kast") != kastRounds && Both("kast") - lastKast != kastRounds)
@@ -438,7 +438,7 @@ public class PlayerMatchParityRealDemoTests
         DemoCacheIndexEntry row = cache.TryGetIndex(path)!;
         PackStamp upgraded = row.Stamp(stampId)!;
         FactTable facet = library.TryGet(path, PlayerMatchFacet.Key)
-                          ?? throw new InvalidOperationException("the open wrote no facet");
+            ?? throw new InvalidOperationException("the open wrote no facet");
         Dictionary<long, MetricRow> game = new PlayerGameStatsProjector().Project(open.Snapshots!, parsed).Single().Rows
             .ToDictionary(r => Convert.ToInt64(r.Dimensions["player_slot"], CultureInfo.InvariantCulture));
         Dictionary<string, int> decimals = Decimals(rules.CoreDocs);

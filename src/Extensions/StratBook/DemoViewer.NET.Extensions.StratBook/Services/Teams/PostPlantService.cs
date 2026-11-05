@@ -172,10 +172,7 @@ public sealed class PostPlantService
                     .Select(c => c.Value.ToBlock(c.Key.Map, c.Key.Side)))
         ];
 
-        return new PostPlantSet
-        {
-            Blocks = blocks, DemosRead = read, DemosWithoutPositions = withoutPositions
-        };
+        return new PostPlantSet { Blocks = blocks, DemosRead = read, DemosWithoutPositions = withoutPositions };
     }
 
     /// <summary>The alive count at the plant, the team's first: "4v3".</summary>
@@ -218,8 +215,8 @@ public sealed class PostPlantService
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(round);
         if (round.PlantTick is not { } plant || round.PlanterSlot is not { } planter
-                                             || positions.Round(round.Number) is not { } stored
-                                             || positions.CadenceTicks <= 0)
+            || positions.Round(round.Number) is not { } stored
+            || positions.CadenceTicks <= 0)
         {
             return null;
         }
@@ -254,7 +251,7 @@ public sealed class PostPlantService
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(round);
         if (round.PlantTick is not { } plant || positions.Round(round.Number) is not { } stored
-                                             || positions.CadenceTicks <= 0)
+            || positions.CadenceTicks <= 0)
         {
             return null;
         }
@@ -321,7 +318,7 @@ public sealed class PostPlantService
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(round);
         if (round.PlantTick is not { } plant || positions.Round(round.Number) is not { } stored
-                                             || positions.CadenceTicks <= 0)
+            || positions.CadenceTicks <= 0)
         {
             return null;
         }

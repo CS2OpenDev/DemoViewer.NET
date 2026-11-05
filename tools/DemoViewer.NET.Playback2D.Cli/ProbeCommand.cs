@@ -38,8 +38,8 @@ internal static class ProbeCommand
         // there is a GPU here, reported as `forced_cpu`.
         RenderSurfaceProbe probe = RenderSurfaceProviderFactory.Probe();
         bool forcedCpu = !probe.GpuAvailable &&
-                         RenderBackendPreferenceParser.FromEnvironment() ==
-                         RenderBackendPreference.ForceCpu;
+            RenderBackendPreferenceParser.FromEnvironment() ==
+            RenderBackendPreference.ForceCpu;
 
         if (ConsoleOut.IsJson)
         {

@@ -41,7 +41,7 @@ public class ZoneOutlineLayerTests
 
         PlaceOutline ramp = upper.Single(o => o.Name == "Ramp");
         Console.WriteLine("[outline] Ramp: "
-                          + string.Join("  ", ramp.Edges.Select(e => $"({e.A.X},{e.A.Y})-({e.B.X},{e.B.Y})")));
+            + string.Join("  ", ramp.Edges.Select(e => $"({e.A.X},{e.A.Y})-({e.B.X},{e.B.Y})")));
 
         // The seam between areas 1 and 2 (x = 100) and the T-junction along y = 0 (area 7 under both 1
         // and 2) are interior to Ramp and must not be drawn; the seam with Hut (x = 200) must be.

@@ -70,7 +70,7 @@ public class ProcessingQueueViewTests
                 _ => Task.FromException(new InvalidOperationException("no map bundle for de_nuke")),
                 ExtensionKind: KindsExtension.Clips));
             await PumpUntilAsync(() => done.Completion.IsCompleted && failed.Completion.IsCompleted
-                                                                   && queue.QueuedCount + queue.RunningCount == 0,
+                    && queue.QueuedCount + queue.RunningCount == 0,
                 "the finished items and the drain compaction");
 
             IDemoQueueHandle mining = queue.SubmitJob(new QueueJobRequest(QueueJobKind.Extension,

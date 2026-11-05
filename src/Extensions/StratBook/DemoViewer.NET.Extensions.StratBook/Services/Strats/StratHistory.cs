@@ -71,7 +71,7 @@ public static class StratHistory
         ArgumentNullException.ThrowIfNull(ops);
         JsonNode? root = ApplyAll(ToNode(document), ops);
         return root?.Deserialize(StratJsonContext.Default.StratDocument)
-               ?? throw new InvalidOperationException("the ops removed the document");
+            ?? throw new InvalidOperationException("the ops removed the document");
     }
 
     /// <summary>The document as a JSON tree, through the file's own serializer.</summary>
@@ -216,9 +216,9 @@ public static class StratHistory
             {
                 JsonObject obj => obj[token],
                 JsonArray array => int.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out int index)
-                                   && index < array.Count
-                    ? array[index]
-                    : null,
+                    && index < array.Count
+                        ? array[index]
+                        : null,
                 _ => null
             };
 
@@ -555,31 +555,31 @@ public static class StratDiffPhrasing
                 };
             case ["steps", var index, "assignments", var lineIndex, .. var rest]:
                 string who = Text(StratHistory.ValueAt(tree, $"/steps/{index}/assignments/{lineIndex}/slot"))
-                             ?? "a player";
+                    ?? "a player";
                 return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": " + who + " "
-                       + LineChange(tree, rest, op, callouts);
+                    + LineChange(tree, rest, op, callouts);
             case ["steps", var index, "positions", _] when op.Op == PatchOp.Remove
-                                                           && (StratHistory.ValueAt(tree, op.Path) ?? op.From) is
-                                                           JsonObject removed
-                                                           && removed["carried"] is JsonValue mark
-                                                           && mark.GetValueKind() == JsonValueKind.True:
+                && (StratHistory.ValueAt(tree, op.Path) ?? op.From) is
+                JsonObject removed
+                && removed["carried"] is JsonValue mark
+                && mark.GetValueKind() == JsonValueKind.True:
                 return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": "
-                                                                               + (Text(removed["slot"]) ?? "a token")
-                                                                               + "'s carried position dropped";
+                    + (Text(removed["slot"]) ?? "a token")
+                    + "'s carried position dropped";
             case ["steps", var index, "positions", _, "slot"] when op.Op == PatchOp.Replace
-                                                                   && (Text(StratHistory.ValueAt(tree, op.Path))
-                                                                       ?? Text(op.From)) is { } fromSlot
-                                                                   && Text(op.Value) is { } toSlot:
+                && (Text(StratHistory.ValueAt(tree, op.Path))
+                    ?? Text(op.From)) is { } fromSlot
+                && Text(op.Value) is { } toSlot:
                 return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": " + fromSlot
-                       + "'s position moved to " + toSlot;
+                    + "'s position moved to " + toSlot;
             case ["steps", var index, "lurk", .. var rest]:
                 return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": "
-                                                                               + LurkChange(tree, rest, op, callouts,
-                                                                                   clock);
+                    + LurkChange(tree, rest, op, callouts,
+                        clock);
             case ["steps", var index, "via" or "viaPoints", ..]:
                 return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": "
-                                                                               + ViaChange(tree, tokens[2..], op,
-                                                                                   callouts);
+                    + ViaChange(tree, tokens[2..], op,
+                        callouts);
             case ["steps", var index, .. var rest]:
                 return StepName(StratHistory.ValueAt(tree, "/steps/" + index)) + ": " + FieldChange(rest, op, callouts);
             case ["branches", _]:
@@ -763,10 +763,10 @@ public static class StratDiffPhrasing
                     : "lurk area points set to " + string.Join(", ", points);
             case ["rotate"]:
                 return op.Op == PatchOp.Remove
-                       || LurkOf(new JsonObject { ["rotate"] = op.Value?.DeepClone() })?.Rotate is not { } parsed
-                       || StratStepPhrasing.RotateText(parsed, callouts, clock) is not { } text
-                    ? "rotate removed"
-                    : text;
+                    || LurkOf(new JsonObject { ["rotate"] = op.Value?.DeepClone() })?.Rotate is not { } parsed
+                    || StratStepPhrasing.RotateText(parsed, callouts, clock) is not { } text
+                        ? "rotate removed"
+                        : text;
             case ["rotate", "atSeconds"]:
                 return op.Op == PatchOp.Remove || Number(op.Value) is not { } at
                     ? "rotate time cleared"
@@ -954,7 +954,7 @@ public static class StratDiffPhrasing
     {
         "other" => "acts",
         _ when verb.EndsWith('s') || verb.EndsWith('x') || verb.EndsWith("sh", StringComparison.Ordinal)
-               || verb.EndsWith("ch", StringComparison.Ordinal) => verb + "es",
+            || verb.EndsWith("ch", StringComparison.Ordinal) => verb + "es",
         _ => verb + "s"
     };
 

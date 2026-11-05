@@ -62,7 +62,7 @@ public class RenderCorrectnessTests
 
         ViewportTransform camera = renderer.Panes.Panes[0].Camera.Current;
         Console.WriteLine($"[nan-camera] keepArmed={keepArmed} centerX={camera.CenterX} " +
-                          $"baseScale={camera.BaseScale}");
+            $"baseScale={camera.BaseScale}");
 
         await Assert.That(double.IsFinite(camera.CenterX)).IsTrue();
         await Assert.That(double.IsFinite(camera.CenterY)).IsTrue();
@@ -142,7 +142,7 @@ public class RenderCorrectnessTests
         compositor.Render(surface.Canvas, Submission(ScenePalette.Light));
 
         Console.WriteLine($"[palette-cache] renders={layer.RenderCalls} " +
-                          $"pixel={PixelAt(surface, 32, 32)}");
+            $"pixel={PixelAt(surface, 32, 32)}");
 
         await Assert.That(layer.RenderCalls).IsEqualTo(2);
         await Assert.That(PixelAt(surface, 32, 32)).IsEqualTo(ScenePalette.Light.MinorGrid);
@@ -209,7 +209,7 @@ public class RenderCorrectnessTests
         int secondColumn = ColumnOfInk(surface);
 
         Console.WriteLine($"[single-pane] ink column {firstColumn} → {secondColumn}, " +
-                          $"renders={layer.RenderCalls}");
+            $"renders={layer.RenderCalls}");
 
         await Assert.That(layer.RenderCalls).IsEqualTo(2);
         await Assert.That(secondColumn - firstColumn).IsEqualTo(30).Within(1);
@@ -437,7 +437,7 @@ public class RenderCorrectnessTests
         }
 
         Console.WriteLine($"[hud-collide] {size.Width}x{size.Height} roster={rosterInk} px " +
-                          $"feed={feedInk} px overlap={overlap} px");
+            $"feed={feedInk} px overlap={overlap} px");
 
         await Assert.That(rosterInk).IsGreaterThan(0).Because("the roster must still draw, not withdraw");
         await Assert.That(feedInk).IsGreaterThan(0);
@@ -458,7 +458,7 @@ public class RenderCorrectnessTests
         double centre = (top + bottom) / 2.0;
 
         Console.WriteLine($"[hud-centring] roster ink rows {top}..{bottom}, centre {centre:F1} " +
-                          $"against pane centre {size.Height / 2.0:F1}");
+            $"against pane centre {size.Height / 2.0:F1}");
 
         await Assert.That(Math.Abs(centre - size.Height / 2.0)).IsLessThan(2.0);
     }
@@ -570,7 +570,7 @@ public class RenderCorrectnessTests
         long steady = MeasureUpdates(factory, frame);
 
         Console.WriteLine($"[alloc] histogram path: warm {warm} B, steady {steady} B over 512 updates " +
-                          $"({steady / 512.0:F2} B/frame)");
+            $"({steady / 512.0:F2} B/frame)");
 
         await Assert.That(steady).IsEqualTo(0);
     }

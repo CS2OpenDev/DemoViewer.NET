@@ -29,7 +29,6 @@ internal sealed class InlineJobs : IExtensionJobs
     }
 
 
-
     /// <summary>Returns once <paramref name="until" /> holds, re-checking on each submission.</summary>
     public Task WaitForSubmissionAsync(Func<bool> until) =>
         _submissions.WaitUntilAsync(until, "the expected job to be submitted");

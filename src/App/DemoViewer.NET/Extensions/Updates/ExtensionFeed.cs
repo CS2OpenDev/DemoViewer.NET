@@ -178,7 +178,7 @@ public sealed partial record ExtensionFeed(string Id, IReadOnlyList<ExtensionFee
     private static string RequiredString(JsonElement element, string member)
     {
         if (!element.TryGetProperty(member, out JsonElement value) || value.ValueKind != JsonValueKind.String
-                                                                   || string.IsNullOrWhiteSpace(value.GetString()))
+            || string.IsNullOrWhiteSpace(value.GetString()))
         {
             throw new ExtensionFeedException($"'{member}' is required.");
         }

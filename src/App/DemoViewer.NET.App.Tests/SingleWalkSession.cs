@@ -353,7 +353,7 @@ internal static class SingleWalkSession
             }
 
             if (site is null && ns.StartsWith("DemoViewer.NET", StringComparison.Ordinal)
-                             && !ns.StartsWith("DemoViewer.NET.AppTests", StringComparison.Ordinal))
+                && !ns.StartsWith("DemoViewer.NET.AppTests", StringComparison.Ordinal))
             {
                 Type outer = type!;
                 while (outer.DeclaringType is { } parent)

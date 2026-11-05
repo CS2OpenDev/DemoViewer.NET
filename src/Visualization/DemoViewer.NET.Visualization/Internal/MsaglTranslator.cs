@@ -41,10 +41,7 @@ internal static class MsaglTranslator
             double cr = nodeStyle.CornerRadius;
 
             Node msaglNode = new(
-                CurveFactory.CreateRectangleWithRoundedCorners(w, h, cr, cr, new MsaglPoint(0, 0)))
-            {
-                UserData = node
-            };
+                CurveFactory.CreateRectangleWithRoundedCorners(w, h, cr, cr, new MsaglPoint(0, 0))) { UserData = node };
             graph.Nodes.Add(msaglNode);
             msaglNodes[node] = msaglNode;
         }

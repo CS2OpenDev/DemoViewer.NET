@@ -38,7 +38,7 @@ public class FreehandOutlineTests
 
         await Assert.That(points.Count).IsEqualTo(reference.StrokePoints.Count)
             .Because($"{name}: stroke-point COUNT differs — the streamline/minimum-length stage is " +
-                     "structurally wrong, not just imprecise");
+                "structurally wrong, not just imprecise");
 
         for (int i = 0; i < points.Count; i++)
         {

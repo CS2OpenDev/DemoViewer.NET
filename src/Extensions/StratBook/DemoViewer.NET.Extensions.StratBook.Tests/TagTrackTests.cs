@@ -293,7 +293,7 @@ public class TagTrackTests
             (Window window, Playback2DView view) = Playback2DTimelineHarness.Show(vm);
             TimelineControl control = Playback2DTimelineHarness.Timeline(view);
             ItemsControl lane = control.FindControl<ItemsControl>("TagLane")
-                                ?? throw new InvalidOperationException("tag lane not found");
+                ?? throw new InvalidOperationException("tag lane not found");
             double heightWithoutTags = control.Bounds.Height;
 
             await Assert.That(vm.Timeline.HasLaneBands).IsFalse();
@@ -318,7 +318,7 @@ public class TagTrackTests
             Playback2DTimelineHarness.Pump();
 
             Console.WriteLine($"[tag-lane-click] band=[{band.StartFrameIndex}..{band.EndFrameIndex}] "
-                              + $"x={band.X:F0} w={band.Width:F0} seeks={string.Join(",", ctx.SeekFrames)}");
+                + $"x={band.X:F0} w={band.Width:F0} seeks={string.Join(",", ctx.SeekFrames)}");
             await Assert.That(ctx.SeekFrames).Contains(band.StartFrameIndex);
 
             vm.OnDeactivated();

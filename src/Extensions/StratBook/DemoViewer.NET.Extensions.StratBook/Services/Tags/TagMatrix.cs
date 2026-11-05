@@ -193,7 +193,7 @@ public static class TagMatrix
             int to = from;
             // A match has tens of rounds; a four-digit bound is a typo, not a range to enumerate.
             if (ends.Length == 2 && (!int.TryParse(ends[1], NumberStyles.None, CultureInfo.InvariantCulture, out to)
-                                     || to < from || to > 999))
+                    || to < from || to > 999))
             {
                 return false;
             }

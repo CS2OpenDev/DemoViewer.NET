@@ -67,7 +67,7 @@ public class Playback2DExportPaneMountTests
                 // fully-qualified type name as the ContentControl's only text.
                 bool rendersTypeName = view.GetVisualDescendants().OfType<TextBlock>()
                     .Any(t => t.Text?.Contains("Playback2DExportDialogViewModel", StringComparison.Ordinal)
-                              == true);
+                        == true);
                 await Assert.That(rendersTypeName).IsFalse();
             }
             finally
@@ -376,7 +376,7 @@ public class Playback2DExportSetupTests
 
             await Assert.That(setup.Palette).IsEqualTo(captured)
                 .Because("the palette is resolved at Start and travels on the request; the READ is what "
-                         + "is thread-affine, never the value");
+                    + "is thread-affine, never the value");
         });
 
     private static Scene2DExportRequest Request(AnnotationSession? ink) =>

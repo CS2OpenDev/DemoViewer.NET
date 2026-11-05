@@ -109,7 +109,7 @@ public class WorkbenchHighlightingTests
                 foreach (HighlightedSection section in hl.Sections)
                 {
                     if (abs >= section.Offset && abs < section.Offset + section.Length
-                                              && section.Color.Name is { } name)
+                        && section.Color.Name is { } name)
                     {
                         result[token] = name;
                         break;

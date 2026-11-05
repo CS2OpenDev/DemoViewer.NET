@@ -122,7 +122,7 @@ public sealed class LineupOriginSource : IDisposable
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(utility);
         if (utility.LineupId is not { } id || map.Length == 0
-                                           || For(map)?.ById.TryGetValue(id, out MapLineup? found) != true)
+            || For(map)?.ById.TryGetValue(id, out MapLineup? found) != true)
         {
             return null;
         }

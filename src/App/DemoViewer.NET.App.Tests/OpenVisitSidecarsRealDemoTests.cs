@@ -64,7 +64,7 @@ public class OpenVisitSidecarsRealDemoTests
             string[] stamped = [RoundFactsFingerprint.RulesetId, AnalysisFactsTests.FactsTable];
             ParsedDemo parsed = BackgroundPlanRealDemoTests.ParseMapped(path, DemoProcessingQueue.WithoutUserCommands);
             string bake = CollisionSoup.Find(parsed.MapName)
-                          ?? throw new InvalidOperationException($"no collision bake for {parsed.MapName}");
+                ?? throw new InvalidOperationException($"no collision bake for {parsed.MapName}");
             AnalysisOptions withBake = new() { VisibilityEngine = CollisionSoup.Load(bake) };
             string matchId = Path.GetFileName(path);
 
@@ -82,7 +82,8 @@ public class OpenVisitSidecarsRealDemoTests
             MergedRulesBuild retained = Stale(fixture);
             AnalysisRun bareRun = retained.BareRun(parsed, path);
             string retainedRows = JsonSerializer.Serialize(
-                new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(retained)).Rows(parsed, path), _fields);
+                new EngineRoundFactsRowSource(new RulesRoundFactsRulesetIdentity(retained)).Rows(parsed, path),
+                _fields);
 
             // A forward visit.
             MergedRulesBuild forwardRules = Stale(fixture);

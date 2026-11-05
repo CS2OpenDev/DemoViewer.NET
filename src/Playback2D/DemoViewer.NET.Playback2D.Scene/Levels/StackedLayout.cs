@@ -11,8 +11,8 @@ namespace DemoViewer.NET.Playback2D.Levels;
 /// <summary>How the level set is laid out on the host surface.</summary>
 [SuppressMessage("Naming", "CA1720:Identifier contains type name",
     Justification = "'Single' is the canonical member name; the persisted Playback2DSettings.LevelDisplayMode " +
-                    "key spells it that way. Renaming it to satisfy an analyser would break a " +
-                    "persisted setting to avoid a coincidence with System.Single.")]
+        "key spells it that way. Renaming it to satisfy an analyser would break a " +
+        "persisted setting to avoid a coincidence with System.Single.")]
 [PublicAPI]
 public enum LevelDisplayMode
 {

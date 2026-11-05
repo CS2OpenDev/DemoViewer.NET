@@ -52,9 +52,9 @@ public class ExportInitialFitTests
             map.MinX, map.MinY, map.MaxX, map.MaxY);
 
         Console.WriteLine($"[fit] pane 0 scale {placeholder.BaseScale:F5} → {fitted.BaseScale:F5} " +
-                          $"(expected {expected.BaseScale:F5}), centre " +
-                          $"({placeholder.CenterX:F0},{placeholder.CenterY:F0}) → " +
-                          $"({fitted.CenterX:F0},{fitted.CenterY:F0})");
+            $"(expected {expected.BaseScale:F5}), centre " +
+            $"({placeholder.CenterX:F0},{placeholder.CenterY:F0}) → " +
+            $"({fitted.CenterX:F0},{fitted.CenterY:F0})");
 
         // Born on the ±3000 placeholder…
         await Assert.That(placeholder.BaseScale)

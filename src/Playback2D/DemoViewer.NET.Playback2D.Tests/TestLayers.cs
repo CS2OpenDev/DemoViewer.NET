@@ -11,7 +11,6 @@ namespace DemoViewer.NET.Playback2DTests;
 /// <summary>A scriptable layer: records what the compositor asked of it, draws one flat rectangle.</summary>
 internal sealed class RecordingLayer(string id, LayerSlot slot = LayerSlot.World, int order = 0) : ISceneLayer
 {
-
     public SKColor? Fill { get; init; }
     public bool AdvanceResult { get; set; }
     public int AdvanceCount { get; private set; }

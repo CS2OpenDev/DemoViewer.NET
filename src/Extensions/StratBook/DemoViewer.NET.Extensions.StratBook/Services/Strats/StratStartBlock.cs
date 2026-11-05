@@ -52,13 +52,13 @@ public static class StratStartBlock
         ArgumentNullException.ThrowIfNull(document);
         sources = [];
         if (document.Start is not null || document.Origin is not null
-                                       || document.Tags.Contains(MinedStratBuilder.Tag, StringComparer.Ordinal))
+            || document.Tags.Contains(MinedStratBuilder.Tag, StringComparer.Ordinal))
         {
             return null;
         }
 
         bool seeded = document.Steps.Count > 0
-                      && StratClock.StratTickOf(document.Clock, document.Steps[0].AtSeconds) == 0;
+            && StratClock.StratTickOf(document.Clock, document.Steps[0].AtSeconds) == 0;
         bool unmarkedCopies = !document.Steps.Any(s => s.Positions.Any(p => p.Carried is not null));
         Dictionary<string, StartSource> found = new(StringComparer.Ordinal);
         foreach (string slot in seeded ? Tokens : [])
@@ -129,8 +129,8 @@ public static class StratStartBlock
 
         // Spawn only when every entry stands on the map's spawn spot for its token; anything else was moved by hand.
         bool atSpawns = spawnStart is not null && positions.All(p => For(spawnStart, p.Slot) is { X: { } sx, Y: { } sy }
-                                                                     && Math.Abs(sx - (p.X ?? double.NaN)) <= 1
-                                                                     && Math.Abs(sy - (p.Y ?? double.NaN)) <= 1);
+            && Math.Abs(sx - (p.X ?? double.NaN)) <= 1
+            && Math.Abs(sy - (p.Y ?? double.NaN)) <= 1);
         return new StratStart { Kind = atSpawns ? StratStart.SpawnKind : StratStart.CustomKind, Positions = positions };
     }
 
@@ -411,9 +411,9 @@ public static class StratStartPhrasing
         ArgumentNullException.ThrowIfNull(document);
         StratStart? start = StratStartBlock.Effective(document);
         return document.Start is null && start is { Kind: StratStart.CustomKind }
-                                      && StratStartBlock.For(start, slot) is not null
-            ? FromStepOne
-            : SlotText(start, slot, callouts);
+            && StratStartBlock.For(start, slot) is not null
+                ? FromStepOne
+                : SlotText(start, slot, callouts);
     }
 
     private const string FromStepOne = "from step 1";

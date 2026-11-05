@@ -215,14 +215,14 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
                 SetChip(StatusChipDotState.Working, true, $"Reel · {current} of {total}");
                 ShowSection(true);
                 Headline = $"Rendering clip {current} of {total}"
-                           + (clipLabel is not null ? $" — {clipLabel}" : "");
+                    + (clipLabel is not null ? $" — {clipLabel}" : "");
                 break;
 
             case ReelJobPhase.Completed:
                 SetChip(StatusChipDotState.Good, false, "Reel · done");
                 ShowSection(completed: true);
                 Headline = $"Reel complete — {status.ClipsCompleted} clip"
-                           + (status.ClipsCompleted == 1 ? "" : "s") + " rendered.";
+                    + (status.ClipsCompleted == 1 ? "" : "s") + " rendered.";
                 break;
 
             case ReelJobPhase.Failed:
@@ -250,7 +250,7 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
         OutputPath = status.OutputPath;
         ErrorText = status.Error;
         CanOpenFolder = status.Phase == ReelJobPhase.Completed
-                        && !string.IsNullOrEmpty(status.OutputPath) && _openFolder is not null;
+            && !string.IsNullOrEmpty(status.OutputPath) && _openFolder is not null;
         CanRetry = status.HasRetryableClips;
 
         RebuildClipRows(status, total, clipLabel);
@@ -259,7 +259,7 @@ public sealed partial class ReelJobStatusViewModel : ViewModelBase, IDisposable
         // (Diagnostics tab + rolling log file) so the report survives dismissing the chip. Deduped on the
         // message, because Apply also runs at construction and on unrelated re-applies of the same status.
         if (status is { Phase: ReelJobPhase.Failed, Error: { Length: > 0 } err }
-                                                && !string.Equals(err, _loggedError, StringComparison.Ordinal))
+            && !string.Equals(err, _loggedError, StringComparison.Ordinal))
         {
             _loggedError = err;
             ILogger reelsLog = DiagnosticsLog.CreateLogger(AppLog.ReelsCategory);

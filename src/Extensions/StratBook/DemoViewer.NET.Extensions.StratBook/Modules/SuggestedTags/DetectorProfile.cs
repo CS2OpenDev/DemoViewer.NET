@@ -78,7 +78,7 @@ public sealed class DetectorProfile
         }
 
         return ProposalDetection.DefaultOf(detector, parameter)
-               ?? throw new KeyNotFoundException($"no parameter {detector}.{parameter}");
+            ?? throw new KeyNotFoundException($"no parameter {detector}.{parameter}");
     }
 
     /// <summary>A copy with one parameter changed.</summary>
@@ -140,7 +140,7 @@ public sealed class DetectorProfile
         try
         {
             return ParseObject(JsonNode.Parse(json) as JsonObject
-                               ?? throw new FormatException("a profile is a JSON object"));
+                ?? throw new FormatException("a profile is a JSON object"));
         }
         catch (JsonException ex)
         {

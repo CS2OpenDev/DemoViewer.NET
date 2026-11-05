@@ -44,7 +44,8 @@ public class SignedTrustPolicyTests
         string publicKey = Convert.ToBase64String(key.ExportSubjectPublicKeyInfo());
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(dir, ExtensionSignature.FileName), ExtensionSignature.Sign(dir, key));
+            await File.WriteAllTextAsync(Path.Combine(dir, ExtensionSignature.FileName),
+                ExtensionSignature.Sign(dir, key));
             SignedTrustPolicy policy = new([publicKey]);
 
             TrustVerdict verdict = policy.Judge(dir, FakeManifests.For("net.demoviewer.pack.fake"));
@@ -104,7 +105,8 @@ public class SignedTrustPolicyTests
         string publicKey = Convert.ToBase64String(key.ExportSubjectPublicKeyInfo());
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(dir, ExtensionSignature.FileName), ExtensionSignature.Sign(dir, key));
+            await File.WriteAllTextAsync(Path.Combine(dir, ExtensionSignature.FileName),
+                ExtensionSignature.Sign(dir, key));
             ITrustPolicy policy = TrustPolicy.SignedOrOptIn([publicKey], static _ => null);
 
             TrustVerdict verdict = policy.Judge(dir, FakeManifests.For("net.demoviewer.pack.fake"));

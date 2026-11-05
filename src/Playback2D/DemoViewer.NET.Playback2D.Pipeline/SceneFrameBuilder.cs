@@ -269,9 +269,9 @@ public sealed class SceneFrameBuilder
                 // The empty string is what the pawn carries before it has stood in a named area; the
                 // round index treats that as no place, so the marker does too.
                 string? place = pawn is not null && pawn.TryGet("m_szLastPlaceName", out string? name)
-                                                 && !string.IsNullOrEmpty(name)
-                    ? name
-                    : null;
+                    && !string.IsNullOrEmpty(name)
+                        ? name
+                        : null;
 
                 (RingState ring, double ringAlpha) =
                     _ringTracker.Evaluate(p.Slot, input.FrameIndex, alive, flash, health, shotsFired);
@@ -404,10 +404,10 @@ public sealed class SceneFrameBuilder
         IReadOnlyList<MapRadarImage> radars = input.Radars ?? [];
 
         bool unchanged = string.Equals(_map.MapName, mapName, StringComparison.Ordinal)
-                         && ReferenceEquals(_radars, radars)
-                         && _map.NetworkedBounds.Equals(_networkedBounds)
-                         && ReferenceEquals(_map.SectionHeights, _sectionHeights)
-                         && _map.ObservedBounds.Equals(_observed);
+            && ReferenceEquals(_radars, radars)
+            && _map.NetworkedBounds.Equals(_networkedBounds)
+            && ReferenceEquals(_map.SectionHeights, _sectionHeights)
+            && _map.ObservedBounds.Equals(_observed);
         if (unchanged)
         {
             return _map;

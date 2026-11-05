@@ -44,7 +44,7 @@ public sealed record DemoDataStamp(
     /// <param name="fingerprint">What the extension would write now.</param>
     public bool IsCurrent(int schema, string? fingerprint) =>
         State == DemoDataState.Written && Schema == schema
-                                       && string.Equals(Fingerprint, fingerprint, StringComparison.Ordinal);
+        && string.Equals(Fingerprint, fingerprint, StringComparison.Ordinal);
 }
 
 /// <summary>One facet of one demo, as written.</summary>

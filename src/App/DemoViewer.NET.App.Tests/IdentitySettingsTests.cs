@@ -113,7 +113,8 @@ public class IdentitySettingsTests
             // A write through the service over the read-back file leaves the section as committed.
             identity.SetActive(Main);
             identity.SetAccounts([.. identity.Accounts]);
-            await Assert.That(SectionOf(await File.ReadAllTextAsync(Path.Combine(back, "settings.json")))).IsEqualTo(committed)
+            await Assert.That(SectionOf(await File.ReadAllTextAsync(Path.Combine(back, "settings.json"))))
+                .IsEqualTo(committed)
                 .Because("round trip");
         }
         finally

@@ -200,11 +200,11 @@ public static class AppPaths
     [ModuleInitializer]
     [SuppressMessage("Usage", "CA2255",
         Justification = "This assembly is application code; it is a class library only because the "
-                        + "Desktop, Browser and capture heads each reference it. The rule targets "
-                        + "general-purpose libraries, where a module initializer surprises the "
-                        + "consumer. Here the consumer is our own entry point, and running before "
-                        + "it is the entire point — the library's rules loading can resolve the "
-                        + "user-rules directory without going through AppPaths first.")]
+            + "Desktop, Browser and capture heads each reference it. The rule targets "
+            + "general-purpose libraries, where a module initializer surprises the "
+            + "consumer. Here the consumer is our own entry point, and running before "
+            + "it is the entire point — the library's rules loading can resolve the "
+            + "user-rules directory without going through AppPaths first.")]
     public static void ClaimConfigDirectoryName() => RuleSetLocator.AppConfigDirName = AppConfigDirName;
 
     /// <summary>

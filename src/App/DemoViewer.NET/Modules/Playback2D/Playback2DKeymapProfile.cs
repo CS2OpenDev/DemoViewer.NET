@@ -452,7 +452,7 @@ public sealed class Playback2DKeymapProfile
         if (Playback2DKeymap.IsBrowserReserved(key, modifiers, isBrowser))
         {
             error = $"{Playback2DKeymap.Format(key, modifiers)} is taken by the browser — the page never "
-                    + "receives it";
+                + "receives it";
             return false;
         }
 

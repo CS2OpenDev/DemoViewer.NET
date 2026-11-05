@@ -14,9 +14,13 @@ namespace DemoViewer.NET.Theming;
 ///     which ones it filled, so the editor and the missing-token warning can say so.
 /// </summary>
 public sealed class ThemePalette(
-    string id, string displayName, ThemeVariant baseVariant,
-    IReadOnlyDictionary<string, Color> colors, IReadOnlyDictionary<string, ThemeGradient> gradients,
-    IEnumerable<string> inherited, IReadOnlyDictionary<string, string>? unknownTokens = null)
+    string id,
+    string displayName,
+    ThemeVariant baseVariant,
+    IReadOnlyDictionary<string, Color> colors,
+    IReadOnlyDictionary<string, ThemeGradient> gradients,
+    IEnumerable<string> inherited,
+    IReadOnlyDictionary<string, string>? unknownTokens = null)
 {
     public string Id { get; } = id;
 
@@ -82,5 +86,5 @@ public sealed class ThemePalette(
         Colors.TryGetValue(token, out Color a)
             ? other.Colors.TryGetValue(token, out Color b) && a == b
             : Gradients.TryGetValue(token, out ThemeGradient? ga)
-              && other.Gradients.TryGetValue(token, out ThemeGradient? gb) && ga.Equals(gb);
+            && other.Gradients.TryGetValue(token, out ThemeGradient? gb) && ga.Equals(gb);
 }

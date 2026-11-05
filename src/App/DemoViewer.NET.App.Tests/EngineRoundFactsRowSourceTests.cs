@@ -156,7 +156,7 @@ public class EngineRoundFactsRowSourceTests
 
     private static IReadOnlyDictionary<string, object?> Cell(RoundFactsTable table, int round, int side) =>
         table.Rows.Single(r => RoundFactsValues.ToInt(r[RoundFactsColumns.RoundNumber]) == round
-                               && RoundFactsValues.ToInt(r[RoundFactsColumns.Side]) == side);
+            && RoundFactsValues.ToInt(r[RoundFactsColumns.Side]) == side);
 
     [Test]
     public async Task TheEngineTable_MapsOntoTheClipRounds_AndNullsWhatDidNotHappen()

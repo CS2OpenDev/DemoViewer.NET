@@ -44,7 +44,7 @@ public static class CollisionMesh
         package.Read(vpkPath);
         string entryPath = $"maps/{mapName}/world_physics.vmdl_c";
         PackageEntry entry = package.FindEntry(entryPath)
-                             ?? throw new FileNotFoundException($"{entryPath} not found in {vpkPath}");
+            ?? throw new FileNotFoundException($"{entryPath} not found in {vpkPath}");
         package.ReadEntry(entry, out byte[] bytes);
 
         using Resource res = new();
@@ -53,7 +53,7 @@ public static class CollisionMesh
         PhysAggregateData phys = res.DataBlock switch
         {
             Model model => model.GetEmbeddedPhys()
-                           ?? throw new InvalidDataException($"{entryPath}: model has no embedded phys"),
+                ?? throw new InvalidDataException($"{entryPath}: model has no embedded phys"),
             PhysAggregateData p => p,
             _ => throw new InvalidDataException($"{entryPath}: unexpected data block {res.DataBlock?.GetType().Name}")
         };
@@ -122,7 +122,7 @@ public static class CollisionMesh
         WriteTris(outPath, tris);
         long len = new FileInfo(outPath).Length;
         string diag = $"  collision: parts={phys.Parts.Length} hulls={hullCount} meshes={meshCount} " +
-                      $"tris={tris.Count:N0}  Z[{min.Z:F0}..{max.Z:F0}]  {len / 1024.0 / 1024.0:F1} MiB";
+            $"tris={tris.Count:N0}  Z[{min.Z:F0}..{max.Z:F0}]  {len / 1024.0 / 1024.0:F1} MiB";
         return new Result(tris.Count, min, max, diag);
     }
 

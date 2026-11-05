@@ -510,7 +510,8 @@ public class OrphanedContentTests
             first.Upsert(Analysed("/m/a.dem", "sha-a"));
             first.SaveIndex();
             string index = Path.Combine(root, "index.json");
-            string v5 = (await File.ReadAllTextAsync(index)).Replace("\"Version\":6", "\"Version\":5", StringComparison.Ordinal);
+            string v5 = (await File.ReadAllTextAsync(index)).Replace("\"Version\":6", "\"Version\":5",
+                StringComparison.Ordinal);
             await File.WriteAllTextAsync(index, v5);
 
             DemoCacheStore store = new(root);

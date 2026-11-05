@@ -146,8 +146,8 @@ public sealed class ExtensionUpdateService
         {
             return ExtensionLoader.Discover(_extensionsDirectory).Candidates
                 .Where(c => string.Equals(c.Manifest.Id, packId, StringComparison.Ordinal)
-                            && c.Manifest.Version > manifest.Version
-                            && PackCompatibility.Check(c.Manifest, _host).IsCompatible)
+                    && c.Manifest.Version > manifest.Version
+                    && PackCompatibility.Check(c.Manifest, _host).IsCompatible)
                 .Select(c => c.Manifest.Version)
                 .OrderByDescending(v => v)
                 .FirstOrDefault();
@@ -194,7 +194,7 @@ public sealed class ExtensionUpdateService
     {
         ArgumentNullException.ThrowIfNull(packId);
         PackStatus status = Statuses.FirstOrDefault(s => string.Equals(s.Pack.Id, packId, StringComparison.Ordinal))
-                            ?? throw new ArgumentException($"'{packId}' is not a declared extension.", nameof(packId));
+            ?? throw new ArgumentException($"'{packId}' is not a declared extension.", nameof(packId));
         ExtensionUpdateState? state = null;
         string name = status.Manifest?.Name ?? status.Pack.Id;
         await QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate, $"Check for updates: {name}", Owner, async ctx =>
@@ -566,7 +566,7 @@ public sealed class ExtensionUpdateService
 
             string? idFolder = Path.GetDirectoryName(part);
             if (idFolder is not null && Directory.Exists(idFolder)
-                                     && !Directory.EnumerateFileSystemEntries(idFolder).Any())
+                && !Directory.EnumerateFileSystemEntries(idFolder).Any())
             {
                 Directory.Delete(idFolder);
             }

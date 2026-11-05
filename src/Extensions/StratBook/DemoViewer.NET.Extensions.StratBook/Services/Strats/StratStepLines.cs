@@ -55,7 +55,7 @@ public static class StratStepLines
         }
 
         return string.Equals(step.Actor, slot, StringComparison.Ordinal)
-               || string.Equals(step.Actor, StratVocabulary.ActorAll, StringComparison.Ordinal);
+            || string.Equals(step.Actor, StratVocabulary.ActorAll, StringComparison.Ordinal);
     }
 
     /// <summary>The slot's line, stored or implicit; null when it has none, which a step for <c>all</c> without lines never gives.</summary>
@@ -157,5 +157,4 @@ public static class StratStepLines
             Lurk = step.Lurk
         };
     }
-
 }

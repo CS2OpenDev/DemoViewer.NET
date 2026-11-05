@@ -481,7 +481,10 @@ public class ForwardQueueTests
         queue.MaxQueueSize = 3;
         queue.Changed += () => maxQueued = Math.Max(maxQueued,
             queue.Snapshot().Count(s =>
-                s is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Queued or DemoQueueItemState.Running }));
+                s is
+                {
+                    Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Queued or DemoQueueItemState.Running
+                }));
 
         RoundFactsEvaluator facts = new(store, new NoRows(), new Identity("after-merge"));
         using HighlightScanService highlights = new(store, new Harvester("fp"), () => [], () => true);

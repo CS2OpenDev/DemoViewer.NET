@@ -574,7 +574,7 @@ public sealed partial class StratEditorViewModel : ObservableObject
     public bool SetWho(Guid stepId, IReadOnlyCollection<string> slots)
     {
         if (IsProjecting || _session.Document is not { } document
-                         || document.Steps.FindIndex(s => s.Id == stepId) is var index && index < 0)
+            || document.Steps.FindIndex(s => s.Id == stepId) is var index && index < 0)
         {
             return false;
         }
@@ -1220,7 +1220,7 @@ public sealed partial class StratEditorViewModel : ObservableObject
         List<string> lines =
         [
             .. issues.Select(issue => $"{issue.Severity.ToString().ToLowerInvariant()}: {issue.Message}"
-                                      + (issue.Field.Length > 0 ? $" ({issue.Field})" : ""))
+                + (issue.Field.Length > 0 ? $" ({issue.Field})" : ""))
         ];
         if (!Issues.SequenceEqual(lines))
         {
@@ -1247,9 +1247,9 @@ public sealed partial class StratEditorViewModel : ObservableObject
     {
         string[] parts = pointer.Split('/');
         return parts is [_, "steps", var step, ..]
-               && int.TryParse(step, NumberStyles.None, CultureInfo.InvariantCulture, out int index)
-            ? index
-            : null;
+            && int.TryParse(step, NumberStyles.None, CultureInfo.InvariantCulture, out int index)
+                ? index
+                : null;
     }
 
     private StratPinOption PinFor(string? steamId)
@@ -1982,8 +1982,8 @@ public sealed partial class StratStepRow : ObservableObject
         // A null technique is the most thrown one, shown selected without being written.
         Sync(Techniques, choice?.Techniques ?? []);
         Technique = Techniques.FirstOrDefault(t =>
-                        string.Equals(t.Key, step.Utility?.Technique, StringComparison.Ordinal))
-                    ?? Techniques.FirstOrDefault();
+                string.Equals(t.Key, step.Utility?.Technique, StringComparison.Ordinal))
+            ?? Techniques.FirstOrDefault();
 
         OnPropertyChanged(nameof(Number));
         RaiseShown();
@@ -2018,7 +2018,7 @@ public sealed partial class StratStepRow : ObservableObject
     {
         bool stored = StratStepLines.HasLines(step);
         ExpandsAll = !ShowCompact && !stored
-                                  && string.Equals(step.Actor, StratVocabulary.ActorAll, StringComparison.Ordinal);
+            && string.Equals(step.Actor, StratVocabulary.ActorAll, StringComparison.Ordinal);
         IReadOnlyList<StepAssignment> lines = ExpandsAll ? StratLinePatches.Copy(step, true) : StratStepLines.Of(step);
         // Five lines read from a step for everyone and the five stored lines an edit of one makes are the same rows.
         bool isImplicit = !stored && !ExpandsAll;
@@ -2168,7 +2168,7 @@ public sealed partial class StratStepRow : ObservableObject
         foreach (StratLineRow line in Lines)
         {
             line.IsSelected = IsSelected && slot is not null
-                                         && string.Equals(line.Slot, slot, StringComparison.Ordinal);
+                && string.Equals(line.Slot, slot, StringComparison.Ordinal);
         }
     }
 
@@ -2297,7 +2297,7 @@ public sealed partial class StratStepRow : ObservableObject
         PlaceRef? stored = LandingValue.Count > 0 ? LandingValue[0] : null;
         PlaceRef? next = value.Count > 0 ? StratLocations.Clone(value[0]) : null;
         if (stored is not null && StratLocations.HasPoint(stored)
-                               && (next is not null || StratLocations.HasPlace(stored)))
+            && (next is not null || StratLocations.HasPlace(stored)))
         {
             next ??= new PlaceRef { Extra = stored.Extra };
             if (!StratLocations.HasPoint(next))
@@ -2451,7 +2451,7 @@ public sealed partial class StratLineRow : ObservableObject
             PlaceLabel = StratStepFields.ToLabel(verb);
             ShowPlace = StratStepFields.Uses(verb, StratStepField.To) || PlaceText.Length > 0;
             ShowWatch = StratStepFields.Uses(verb, StratStepField.Watch) || WatchText.Length > 0
-                                                                         || line.Watch?.YawDegrees is not null;
+                || line.Watch?.YawDegrees is not null;
             ViaValue = StratLocations.Via(line.Via, line.ViaPoints);
             ShowVia = StratStepFields.Uses(verb, StratStepField.Via) || ViaText.Length > 0;
             HasAngle = line.Watch?.YawDegrees is not null;

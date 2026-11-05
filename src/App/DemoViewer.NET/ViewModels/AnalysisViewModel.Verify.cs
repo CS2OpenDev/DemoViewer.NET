@@ -147,7 +147,7 @@ public sealed partial class AnalysisViewModel
     {
         IReadOnlyList<int>? fires = TriggerFireMessagesFor(target);
         if (fires is { Count: > 0 } && NearestFireMessageIndex(fires, CurrentMessageIndex) is { } fireMsg
-                                    && ResolveFrameClockTick(_messageList, fireMsg) is { } fireTick)
+            && ResolveFrameClockTick(_messageList, fireMsg) is { } fireTick)
         {
             return fireTick;
         }

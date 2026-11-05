@@ -266,7 +266,7 @@ public class Playback2DLevelStripTests
             vm.NotifyFollowSlotChanged(2);
             bool followed = PushUntil(ctx, () => host.ActiveLevelId == upper);
             Console.WriteLine($"[autofollow] follow slot 2 -> active={host.ActiveLevelId} " +
-                              $"(lower={lower} upper={upper})");
+                $"(lower={lower} upper={upper})");
             await Assert.That(followed).IsTrue()
                 .Because("AutoFollow must reach the followed player's floor");
 
@@ -281,7 +281,7 @@ public class Playback2DLevelStripTests
             vm.LevelStrip.SelectCommand.Execute(vm.LevelStrip.Chips[^1]);
             PushUntil(ctx, () => false);
             Console.WriteLine($"[autofollow] manual pick -> active={host.ActiveLevelId} " +
-                              $"auto={host.AutoLevelFollow} pane0={host.PrimaryPaneLevelForTest}");
+                $"auto={host.AutoLevelFollow} pane0={host.PrimaryPaneLevelForTest}");
             await Assert.That(host.AutoLevelFollow).IsFalse();
             await Assert.That(host.ActiveLevelId).IsEqualTo(lower);
             await Assert.That(host.PrimaryPaneLevelForTest).IsEqualTo(lower);
@@ -292,7 +292,7 @@ public class Playback2DLevelStripTests
             vm.LevelStrip.EnableAuto();
             bool released = PushUntil(ctx, () => host.ActiveLevelId == upper);
             Console.WriteLine($"[autofollow] AUTO re-arm -> active={host.ActiveLevelId} " +
-                              $"pane0={host.PrimaryPaneLevelForTest}");
+                $"pane0={host.PrimaryPaneLevelForTest}");
             await Assert.That(released).IsTrue();
             await Assert.That(host.PrimaryPaneLevelForTest).IsEqualTo(upper);
 
@@ -336,7 +336,7 @@ public class Playback2DLevelStripTests
         Playback2DTimelineHarness.Pump();
 
         Console.WriteLine($"[strip] levels={host.Levels.Levels.Count} " +
-                          $"radar={host.Levels.RadarBinding}");
+            $"radar={host.Levels.RadarBinding}");
         return host;
     }
 

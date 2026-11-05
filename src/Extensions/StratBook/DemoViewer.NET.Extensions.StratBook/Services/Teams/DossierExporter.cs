@@ -214,7 +214,7 @@ public static class DossierExporter
                                section { page-break-inside: avoid; }
                                @media print { body { padding: 0; } }
                                """
-                               + "\n";
+        + "\n";
 
     private static string Escape(string text) => text
         .Replace("&", "&amp;", StringComparison.Ordinal)

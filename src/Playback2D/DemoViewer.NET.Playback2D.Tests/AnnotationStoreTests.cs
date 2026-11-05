@@ -278,7 +278,7 @@ public class AnnotationStoreTests
             .Because("the old build's own edit has to have landed, or this proves nothing about saving");
         await Assert.That(loaded.Elements[0].Timing).IsEqualTo(timing)
             .Because("the cadence went out through a reader that has never heard of it and came back "
-                     + "whole — which is the promise annotations-format.md makes to third parties");
+                + "whole — which is the promise annotations-format.md makes to third parties");
     }
 
     /// <summary>
@@ -350,7 +350,7 @@ public class AnnotationStoreTests
 
         await Assert.That(longDelta).IsEqualTo(shortDelta)
             .Because("a six-boundary table costs the same on a 400-sample stroke as on a 1600-sample "
-                     + "one; anything else means the encoding grew a per-point stamp");
+                + "one; anything else means the encoding grew a per-point stamp");
         await Assert.That(shortDelta).IsGreaterThan(0);
     }
 

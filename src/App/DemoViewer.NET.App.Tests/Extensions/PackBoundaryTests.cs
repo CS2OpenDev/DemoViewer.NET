@@ -32,8 +32,8 @@ public class PackBoundaryTests
     public async Task AppProject_HasNoProjectReferenceToAnExtension()
     {
         string repoRoot = DemoTestHelper.FindRepoRoot()
-                          ?? throw new SkipTestException(
-                              "repo root not found (no DemoViewer.NET.slnx above the test binary)");
+            ?? throw new SkipTestException(
+                "repo root not found (no DemoViewer.NET.slnx above the test binary)");
 
         XDocument csproj = XDocument.Load(Path.Combine(repoRoot, AppProject, "DemoViewer.NET.csproj"));
         List<string> extensionReferences = csproj.Descendants("ProjectReference")
@@ -56,8 +56,8 @@ public class PackBoundaryTests
     public async Task Playback2DProject_HasNoProjectReferenceToAnExtension(string projectDir, string csprojName)
     {
         string repoRoot = DemoTestHelper.FindRepoRoot()
-                          ?? throw new SkipTestException(
-                              "repo root not found (no DemoViewer.NET.slnx above the test binary)");
+            ?? throw new SkipTestException(
+                "repo root not found (no DemoViewer.NET.slnx above the test binary)");
 
         XDocument csproj = XDocument.Load(Path.Combine(repoRoot, projectDir, csprojName));
         List<string> extensionReferences = csproj.Descendants("ProjectReference")
@@ -99,8 +99,8 @@ public class PackBoundaryTests
     public async Task CoreNamespaces_DoNotReferencePack_Except_AllowedEdges()
     {
         string repoRoot = DemoTestHelper.FindRepoRoot()
-                          ?? throw new SkipTestException(
-                              "repo root not found (no DemoViewer.NET.slnx above the test binary)");
+            ?? throw new SkipTestException(
+                "repo root not found (no DemoViewer.NET.slnx above the test binary)");
 
         // Pack-owned namespaces: declared in the extension project and never in the app project. A namespace
         // both declare (Services.Zones, Services.RoundFacts, DemoViewer.NET.Extensions.StratBook.Services.RoundIndex) is shared and
@@ -149,11 +149,11 @@ public class PackBoundaryTests
     private static IEnumerable<string> SourceFiles(string root) =>
         Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories)
             .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",
-                               StringComparison.Ordinal)
-                           && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
-                               StringComparison.Ordinal)
-                           && (file.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
-                               || file.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase)));
+                    StringComparison.Ordinal)
+                && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
+                    StringComparison.Ordinal)
+                && (file.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
+                    || file.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase)));
 
     private static HashSet<string> FindPackOwnedNamespaces(string repoRoot)
     {

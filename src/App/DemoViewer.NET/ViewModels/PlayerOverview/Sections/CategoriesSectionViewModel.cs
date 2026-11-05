@@ -56,10 +56,10 @@ public sealed partial class CategoriesSectionViewModel : PlayerOverviewSection
             new("Knife", "0", _ofKills), new("DeagleHSRnds", "0", _perMatch)
         ]),
         new("Multi-kill", [StatGroup.MultiKill],
-            [
-                new("2K", "0", _perMatch), new("3K", "0", _perMatch), new("4K", "0", _perMatch),
-                new("5K", "0", _perMatch)
-            ]),
+        [
+            new("2K", "0", _perMatch), new("3K", "0", _perMatch), new("4K", "0", _perMatch),
+            new("5K", "0", _perMatch)
+        ]),
         new("Economy", [StatGroup.Economy], [new("Equip", "'$'#,0"), new("Armor", "0", _ofRounds)])
     ];
 

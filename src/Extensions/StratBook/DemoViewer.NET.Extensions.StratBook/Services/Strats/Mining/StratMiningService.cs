@@ -612,9 +612,9 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
 
     private static bool SameRounds(MinedPattern a, MinedPattern b) =>
         a.Medoid.DemoPath == b.Medoid.DemoPath && a.Medoid.Round == b.Medoid.Round
-                                               && a.Members.Select(RoundOf).Order(StringComparer.Ordinal)
-                                                   .SequenceEqual(b.Members.Select(RoundOf)
-                                                       .Order(StringComparer.Ordinal));
+        && a.Members.Select(RoundOf).Order(StringComparer.Ordinal)
+            .SequenceEqual(b.Members.Select(RoundOf)
+                .Order(StringComparer.Ordinal));
 
     private static string RoundOf(MinedMember m) => $"{m.DemoPath}#{m.Round}";
 
@@ -694,14 +694,14 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         RoundSignature medoid = pattern.Medoid;
         cancellationToken.ThrowIfCancellationRequested();
         if (_library.Find(medoid.DemoPath) is not { } record || _roundFacts.TryGet(medoid.DemoPath) is not { } rows
-                                                             || rows.Rounds.FirstOrDefault(r =>
-                                                                 r.Number == medoid.Round) is not { } facts
-                                                             || cancellationToken.IsCancellationRequested
-                                                             || _positions.TryReadPositions(medoid.DemoPath,
-                                                                     _fingerprintFor(pattern.Map), record.Sha256) is not
-                                                                 { } positions
-                                                             || positions.Round(medoid.Round) is not { } stored
-                                                             || _library.Detail(medoid.DemoPath) is not { } detail)
+            || rows.Rounds.FirstOrDefault(r =>
+                r.Number == medoid.Round) is not { } facts
+            || cancellationToken.IsCancellationRequested
+            || _positions.TryReadPositions(medoid.DemoPath,
+                    _fingerprintFor(pattern.Map), record.Sha256) is not
+                { } positions
+            || positions.Round(medoid.Round) is not { } stored
+            || _library.Detail(medoid.DemoPath) is not { } detail)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return null;
@@ -711,9 +711,9 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
         List<GrenadeRow> grenades =
         [
             .. _grenadeIndex?.Rows(new GrenadeQuery(pattern.Map, DemoPaths: new HashSet<string>([medoid.DemoPath])))
-                   .Select(g => g.Row)
-                   .Where(r => r.RoundNumber == medoid.Round)
-               ?? []
+                .Select(g => g.Row)
+                .Where(r => r.RoundNumber == medoid.Round)
+            ?? []
         ];
         cancellationToken.ThrowIfCancellationRequested();
         Dictionary<int, (ulong, string)> players = [];
@@ -932,9 +932,9 @@ public sealed class StratMiningService : IExtensionResident, IDisposable
 
     // The passes whose writes a mine reads: while one has a demo in flight, the library is still changing under it.
     private bool QueueBusy => _passes is { } passes
-                              && (passes.IsBusy(HostIds.RoundFactsPass)
-                                  || passes.IsBusy(RoundIndexEvaluator.EvaluatorId)
-                                  || passes.IsBusy(GrenadeIndexEvaluator.EvaluatorId));
+        && (passes.IsBusy(HostIds.RoundFactsPass)
+            || passes.IsBusy(RoundIndexEvaluator.EvaluatorId)
+            || passes.IsBusy(GrenadeIndexEvaluator.EvaluatorId));
 
     /// <summary>
     ///     The quiet timer: re-mines unless the processing queue has work, in which case it waits for the

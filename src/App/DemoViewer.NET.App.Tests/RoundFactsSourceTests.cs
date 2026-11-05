@@ -236,8 +236,8 @@ public class RoundFactsSourceTests
             await Assert.That(facts.Single(f => f.Key == "pace").Group).IsEqualTo("extra");
             // Nothing relative: no us, them, side or opponent.
             await Assert.That(facts.Any(f => f.Key.Contains("us", StringComparison.Ordinal)
-                                             || f.Key.Contains("them", StringComparison.Ordinal)
-                                             || f.Key == "side")).IsFalse();
+                || f.Key.Contains("them", StringComparison.Ordinal)
+                || f.Key == "side")).IsFalse();
             // The tick-anchored group appears only with a tick.
             await Assert.That(byKey.ContainsKey("phase")).IsFalse();
             await Assert.That(byKeyAtTick["phase"]).IsEqualTo("postPlant");

@@ -81,7 +81,7 @@ public class ExtensionPassHostTests
         scheduler.DemoChanged(Demo);
         await WaitForAsync(
             () => queue.ActiveCount(QueueJobKind.Scheduling) == 0
-                  && queue.ActiveCount(QueueJobKind.DemoProcessing) == 0,
+                && queue.ActiveCount(QueueJobKind.DemoProcessing) == 0,
             "the second plan");
 
         using (Assert.Multiple())

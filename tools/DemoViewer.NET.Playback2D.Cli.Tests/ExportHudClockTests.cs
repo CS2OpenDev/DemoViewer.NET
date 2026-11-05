@@ -53,7 +53,7 @@ public class ExportHudClockTests
         HudSnapshot drawn = replay.Hud.At(frame.Time.Tick);
 
         Console.WriteLine($"[hud-clock] round={drawn.RoundNumber} T={drawn.TScore} CT={drawn.CtScore} " +
-                          $"countdown={drawn.CountdownSeconds:F1}s at tick {drawn.Tick}");
+            $"countdown={drawn.CountdownSeconds:F1}s at tick {drawn.Tick}");
 
         // "—" is what ClockReading.Unknown renders, and it is what every CLI export used to show.
         await Assert.That(drawn.RoundNumber).IsNotEqualTo("—")
@@ -99,7 +99,7 @@ public class ExportHudClockTests
         }
 
         Console.WriteLine($"[hud-clock] rounds seen: {string.Join(",", rounds)}; " +
-                          $"countdown {countdowns[0]:F1}s → {countdowns[^1]:F1}s");
+            $"countdown {countdowns[0]:F1}s → {countdowns[^1]:F1}s");
 
         // Something on the clock has to have moved across the sampled span, or the reading is a constant
         // wearing a demo's clothes. NaN-aware: "no countdown running" → "0:43 left" is a change, and

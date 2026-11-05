@@ -76,7 +76,7 @@ public sealed partial class LibraryFilterViewModel : ObservableObject
 
         _suppress = false;
         Selected = Items.FirstOrDefault(i => i.Key == keepKey)
-                   ?? Items.FirstOrDefault() ?? new LibraryFilterItem("", "All");
+            ?? Items.FirstOrDefault() ?? new LibraryFilterItem("", "All");
     }
 
     /// <summary>Resets the selection to the "" (All) choice without firing <see cref="OnSelectionChanged" />.</summary>

@@ -115,7 +115,7 @@ internal static class Playback2DWholeGraph
     public static IEnumerable<Type> EventContractTypes =>
         ProductionAssemblies.SelectMany(SafeTypes)
             .Where(t => IsModuleNamespace(t.Namespace)
-                        || string.Equals(t.Namespace, "DemoViewer.NET.Extensions", StringComparison.Ordinal));
+                || string.Equals(t.Namespace, "DemoViewer.NET.Extensions", StringComparison.Ordinal));
 
     /// <summary>Whether a namespace belongs to the Playback2D module. See <see cref="ModuleTypes" />.</summary>
     public static bool IsModuleNamespace(string? ns) =>

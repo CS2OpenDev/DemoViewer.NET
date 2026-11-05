@@ -55,7 +55,7 @@ public class RealTimeInkTests
 
         await Assert.That(Tail(fixture.Render(132))).IsEqualTo(Tail(fixture.Render(228)))
             .Because("the hold outlasts the draw here, so the tail has not moved — this is a prefix, " +
-                     "not a stroke sliding along its own path");
+                "not a stroke sliding along its own path");
 
         await Assert.That(Ink(fixture.Render(99))).IsEqualTo(0)
             .Because("nothing has been drawn before the tick the stroke was authored at");
@@ -79,7 +79,7 @@ public class RealTimeInkTests
         int pausedTo = Head(fixture.Render(170));
 
         Console.WriteLine($"[realtime] 10 ticks while moving {movingFrom}→{movingTo} px, " +
-                          $"10 ticks across the pause {pausedFrom}→{pausedTo} px");
+            $"10 ticks across the pause {pausedFrom}→{pausedTo} px");
 
         await Assert.That(movingTo - movingFrom).IsGreaterThan(0);
         await Assert.That(pausedTo - pausedFrom).IsEqualTo(0)
@@ -114,7 +114,7 @@ public class RealTimeInkTests
             .Because("sample 0 is dissolving while the head is still full-strength ink");
         await Assert.That(tail).IsGreaterThan(background + 8)
             .Because("mid-lead-out is dim, not gone — a section that vanished at UntilTick would have " +
-                     "no ramp at all");
+                "no ramp at all");
         await Assert.That(head).IsEqualTo(Brightness(fixture.Render(120),
                 RealTimeFakes.WorldXOf(20), RealTimeFakes.WorldXOf(40)))
             .Because("the body is the element's plateau wherever it sits; it does not dim with the tail");
@@ -136,8 +136,8 @@ public class RealTimeInkTests
         SKColor[] chasingPixels = chasing.Render(228);
 
         Console.WriteLine($"[realtime] hold 512: tail={Tail(wholePixels)} head={Head(wholePixels)} " +
-                          $"ink={Ink(wholePixels)} | hold 8: tail={Tail(chasingPixels)} " +
-                          $"head={Head(chasingPixels)} ink={Ink(chasingPixels)}");
+            $"ink={Ink(wholePixels)} | hold 8: tail={Tail(chasingPixels)} " +
+            $"head={Head(chasingPixels)} ink={Ink(chasingPixels)}");
 
         await Assert.That(Head(wholePixels)).IsEqualTo(Head(chasingPixels))
             .Because("the head is the cadence's answer and the hold has no say in it");
@@ -187,8 +187,8 @@ public class RealTimeInkTests
         }
 
         Console.WriteLine($"[realtime] hash jumped={reference[..16]} " +
-                          $"stepped={Hash(stepped.Render(Target))[..16]} " +
-                          $"skipped={Hash(skipping.Render(Target))[..16]}");
+            $"stepped={Hash(stepped.Render(Target))[..16]} " +
+            $"skipped={Hash(skipping.Render(Target))[..16]}");
 
         await Assert.That(Hash(stepped.Render(Target))).IsEqualTo(reference)
             .Because("the layer holds no replay state, so 96 advances leave it exactly where one does");
@@ -214,7 +214,7 @@ public class RealTimeInkTests
         await Assert.That(Head(scrubbed.Render(132))).IsLessThan(atEnd);
         await Assert.That(back).IsEqualTo(Hash(cold.Render(132)))
             .Because("backwards is the same pure function as forwards — TimeEnvelope.OpacityAt and " +
-                     "RevealedCount both read the tick and nothing else");
+                "RevealedCount both read the tick and nothing else");
         await Assert.That(Ink(scrubbed.Render(50))).IsEqualTo(0);
     }
 
@@ -278,7 +278,7 @@ public class RealTimeInkTests
         long second = MeasureWindow(layer, surface.Canvas, in ctx);
 
         Console.WriteLine($"[realtime] alloc window1={first} B window2={second} B " +
-                          $"({second / 512.0:F2} B/frame), prepared={layer.PreparedCount}");
+            $"({second / 512.0:F2} B/frame), prepared={layer.PreparedCount}");
 
         await Assert.That(layer.PreparedCount).IsEqualTo(3)
             .Because("a fixture that culled its own ink would measure an empty layer");

@@ -92,7 +92,7 @@ public static class GrenadeTables
         return read.Success && read.Rulesets.Count == Rulesets.Count
             ? read.Rulesets
             : throw new InvalidOperationException("the grenade rulesets do not load: "
-                                                  + string.Join("; ", read.Errors));
+                + string.Join("; ", read.Errors));
     }
 
     /// <summary>The tables as a pass reads them off its visit's run.</summary>
@@ -116,8 +116,8 @@ public static class GrenadeTables
         return Read(name => tables.TryGetValue(name, out MetricTable? table)
                 ? table.Rows.Select(r => new GrenadeTableRow(r.Dimensions, r.Values))
                 : throw new InvalidOperationException($"the run recorded no {name} table: "
-                                                      + string.Join("; ",
-                                                          run.Build.ExcludedRulesets.SelectMany(e => e.Diagnostics))),
+                    + string.Join("; ",
+                        run.Build.ExcludedRulesets.SelectMany(e => e.Diagnostics))),
             serverStartTick);
     }
 
@@ -152,7 +152,7 @@ public static class GrenadeTables
             foreach (GrenadeTableRow row in rows(table))
             {
                 if (Int(row.Dimensions, "tick") is { } tick && Int(row.Values, "entity") is { } entity
-                                                            && Vector(row.Values, "x", "y", "z") is { } at)
+                    && Vector(row.Values, "x", "y", "z") is { } at)
                 {
                     detonations.Add(new GrenadeDetonation(name, tick, entity, at));
                 }
@@ -167,9 +167,9 @@ public static class GrenadeTables
     {
         IReadOnlyDictionary<string, object?> d = row.Dimensions, v = row.Values;
         if (Int(d, "entity_index") is not { } index || Int(d, "serial") is not { } serial
-                                                    || Str(v, "class_name") is not { } className
-                                                    || Int(d, "first_seen_tick") is not { } spawn
-                                                    || Int(d, "removed_tick") is not { } end)
+            || Str(v, "class_name") is not { } className
+            || Int(d, "first_seen_tick") is not { } spawn
+            || Int(d, "removed_tick") is not { } end)
         {
             return null;
         }
@@ -224,9 +224,9 @@ public static class GrenadeTables
     {
         IReadOnlyDictionary<string, object?> d = row.Dimensions, v = row.Values;
         if (Int(d, "tick") is not { } frameTick || Int(d, "player_slot") is not { } slot
-                                                || Str(v, "weapon") is not { } weapon
-                                                || GrenadeRules.ProjectileClassOfWeapon(weapon) is not
-                                                    { } projectileClass)
+            || Str(v, "weapon") is not { } weapon
+            || GrenadeRules.ProjectileClassOfWeapon(weapon) is not
+                { } projectileClass)
         {
             return null;
         }

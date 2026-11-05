@@ -82,9 +82,9 @@ public static class IconCatalogue
             .ToFrozenDictionary(n => n.Replace('\\', '/'), n => n, StringComparer.Ordinal);
 
         using Stream manifest = OpenResource(Prefix + "icons.json")
-                                ?? throw new InvalidOperationException(
-                                    "icons.json is not embedded. Run the icon bake: "
-                                    + "dotnet run --project tools/DemoViewer.NET.AssetBaker -- --icons");
+            ?? throw new InvalidOperationException(
+                "icons.json is not embedded. Run the icon bake: "
+                + "dotnet run --project tools/DemoViewer.NET.AssetBaker -- --icons");
 
         using JsonDocument doc = JsonDocument.Parse(manifest);
         JsonElement root = doc.RootElement;

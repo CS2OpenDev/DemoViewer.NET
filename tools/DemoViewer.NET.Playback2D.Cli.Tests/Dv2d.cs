@@ -151,7 +151,7 @@ internal static class Dv2d
         }
 
         using Process process = Process.Start(info)
-                                ?? throw new InvalidOperationException($"could not start {fileName}.");
+            ?? throw new InvalidOperationException($"could not start {fileName}.");
 
         // Read both streams before waiting: a full pipe buffer on either one deadlocks the child.
         Task<string> stdout = process.StandardOutput.ReadToEndAsync();

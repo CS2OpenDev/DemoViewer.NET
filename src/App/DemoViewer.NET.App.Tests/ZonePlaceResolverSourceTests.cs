@@ -116,15 +116,15 @@ public class ZonePlaceResolverSourceTests
 
         string file = Path.Combine(overlays.Path, Map + ZoneAssetPipeline.OverlaySuffix);
         await File.WriteAllTextAsync(file, """
-                                {
-                                  "schemaVersion": 1,
-                                  "mapName": "de_nuke",
-                                  "zones": [
-                                    { "name": "Sandwich", "floor": -512,
-                                      "polygon": [ -1600, -1900, -1200, -1900, -1200, -1500, -1600, -1500 ] }
-                                  ]
-                                }
-                                """);
+                                           {
+                                             "schemaVersion": 1,
+                                             "mapName": "de_nuke",
+                                             "zones": [
+                                               { "name": "Sandwich", "floor": -512,
+                                                 "polygon": [ -1600, -1900, -1200, -1900, -1200, -1500, -1600, -1500 ] }
+                                             ]
+                                           }
+                                           """);
 
         IZonePlaceResolver? after = source.TryGet(Map);
         await Assert.That(after).IsNotNull();

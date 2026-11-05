@@ -217,7 +217,8 @@ public class RulesetExclusionGuardTests
         {
             await File.WriteAllTextAsync(Path.Combine(user.FullName, BadId + ".rules.yaml"), BadYaml);
             ContributedRuleset[] contributed = [new(BadId, Owner, Owner, () => BadYaml)];
-            HashSet<string> shippedIds = new(YamlConfigLoader.LoadWithOverlay(_shipped, null).Rulesets.Select(r => r.Id),
+            HashSet<string> shippedIds = new(
+                YamlConfigLoader.LoadWithOverlay(_shipped, null).Rulesets.Select(r => r.Id),
                 StringComparer.Ordinal);
             MergedRulesBuild rules = new(
                 () => RuleLayers.WithExtensions(YamlConfigLoader.LoadWithOverlay(_shipped, user.FullName), shippedIds,

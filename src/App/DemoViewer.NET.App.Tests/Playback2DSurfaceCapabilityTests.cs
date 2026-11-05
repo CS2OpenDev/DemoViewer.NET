@@ -37,7 +37,7 @@ public class Playback2DSurfaceCapabilityTests
 
             bool mounted = Toolbar(view).IsEffectivelyVisible;
             Console.WriteLine($"[surface-capability] toolbar={mounted} "
-                              + $"annotationsEnabled={vm.IsAnnotationsEnabled}");
+                + $"annotationsEnabled={vm.IsAnnotationsEnabled}");
 
             await Assert.That(mounted).IsTrue()
                 .Because("the v2 host implements IAnnotationSurface, so the feature is the only question");
@@ -48,5 +48,5 @@ public class Playback2DSurfaceCapabilityTests
     private static AnnotationToolbar Toolbar(Playback2DView view) =>
         view.FindControl<AnnotationToolbar>("AnnotationToolbarHost")
         ?? throw new InvalidOperationException("AnnotationToolbarHost is not in the view's name scope — "
-                                               + "the element was renamed and this suite is measuring nothing.");
+            + "the element was renamed and this suite is measuring nothing.");
 }

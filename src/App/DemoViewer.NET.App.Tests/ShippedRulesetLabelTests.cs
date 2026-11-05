@@ -104,7 +104,7 @@ public class ShippedRulesetLabelTests
         }
 
         StatDef? stat = doc.Stats.FirstOrDefault(s => s.Id == entry.Stat)
-                        ?? doc.Stats.FirstOrDefault(s => s.Thresholds?.Any(t => t.Target == entry.Stat) == true);
+            ?? doc.Stats.FirstOrDefault(s => s.Thresholds?.Any(t => t.Target == entry.Stat) == true);
         if (stat is null)
         {
             throw new InvalidOperationException(

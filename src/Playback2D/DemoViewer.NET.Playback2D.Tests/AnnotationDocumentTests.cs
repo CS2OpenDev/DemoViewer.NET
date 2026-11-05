@@ -203,7 +203,7 @@ public class AnnotationDocumentTests
 
         doc.Undo();
         await Assert.That(doc.Elements[1]).IsEqualTo(b).Because("z-order is list order; a restored " +
-                                                                "stroke that jumps to the top would repaint over strokes it used to sit under");
+            "stroke that jumps to the top would repaint over strokes it used to sit under");
     }
 
     [Test]
@@ -236,7 +236,7 @@ public class AnnotationDocumentTests
 
         await Assert.That(thrown).IsNotNull()
             .Because("the router guarantees one active tool, so a nested gesture is a bug — and a " +
-                     "silently nested one merges two intents into a single undo entry");
+                "silently nested one merges two intents into a single undo entry");
     }
 
     [Test]
@@ -356,7 +356,7 @@ public class AnnotationDocumentTests
             {
                 await Assert.That(member.Name.Contains(word, StringComparison.Ordinal)).IsFalse()
                     .Because($"AnnotationDocument.{member.Name} names '{word}'; the undo history must " +
-                             "hold annotations and nothing else");
+                        "hold annotations and nothing else");
             }
         }
     }

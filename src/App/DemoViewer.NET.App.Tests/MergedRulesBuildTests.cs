@@ -521,7 +521,10 @@ public class MergedRulesBuildTests
     {
         bool fixtureOn = true;
         List<StampedRuleset> stamped =
-            [.. Enumerable.Range(0, 70).Select(i => new StampedRuleset($"absent_{i}", Extension, () => i % 2 == 0)), GatedBy(() => fixtureOn)];
+        [
+            .. Enumerable.Range(0, 70).Select(i => new StampedRuleset($"absent_{i}", Extension, () => i % 2 == 0)),
+            GatedBy(() => fixtureOn)
+        ];
         MergedRulesBuild build = new(FixtureRules, () => stamped);
 
         IReadOnlyList<string> on = Ids(build.Docs);
@@ -810,9 +813,7 @@ public class MergedRulesBuildTests
         MergedRulesBuild build = new(() => AnalysisFactsTests.WithFixture(fixture),
             () => [StampedRuleset.Core(RoundFacts), StampedRuleset.Core(AnalysisFactsTests.FactsRuleset)])
         {
-            OutputsFor = _ => new HashSet<string>(),
-            OpenCollectors = () => registered,
-            CollectorsFor = _ => registered
+            OutputsFor = _ => new HashSet<string>(), OpenCollectors = () => registered, CollectorsFor = _ => registered
         };
         ParsedDemo parsed = TwoFrameDemo();
 

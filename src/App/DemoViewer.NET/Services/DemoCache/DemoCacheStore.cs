@@ -223,9 +223,9 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             return _keyByPath.TryGetValue(path, out string? key) && !IsProvisional(_rows[key])
-                                                                 && LocationIn(_rows[key], path)?.Confirmed == true
-                ? key
-                : path;
+                && LocationIn(_rows[key], path)?.Confirmed == true
+                    ? key
+                    : path;
         }
     }
 
@@ -366,9 +366,9 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             return _rows.TryGetValue(contentId, out DemoCacheIndexEntry? row) && !IsProvisional(row)
-                                                                              && row.Locations.Any(l => l.Confirmed)
-                ? _index.GetValueOrDefault(row.Path)
-                : null;
+                && row.Locations.Any(l => l.Confirmed)
+                    ? _index.GetValueOrDefault(row.Path)
+                    : null;
         }
     }
 
@@ -492,7 +492,7 @@ public sealed class DemoCacheStore
             lock (_gate)
             {
                 if (_keyByPath.ContainsKey(path) || !_rows.TryGetValue(contentId, out DemoCacheIndexEntry? row)
-                                                 || IsProvisional(row))
+                    || IsProvisional(row))
                 {
                     return false;
                 }
@@ -726,9 +726,9 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             return _recentReads.TryGetValue(path, out RecentRead read) && read.Size == size
-                                                                       && SameTicks(read.LocalTicks, modifiedTicks)
-                ? (read.Sha256, read.Fingerprint)
-                : null;
+                && SameTicks(read.LocalTicks, modifiedTicks)
+                    ? (read.Sha256, read.Fingerprint)
+                    : null;
         }
     }
 
@@ -748,11 +748,11 @@ public sealed class DemoCacheStore
             lock (_gate)
             {
                 if (!_keyByPath.TryGetValue(path, out string? k) || IsProvisional(_rows[k])
-                                                                 || _rows[k].ContentFingerprint?.WindowBytes
-                                                                 == fingerprint.WindowBytes
-                                                                 || LocationIn(_rows[k], path) is not
-                                                                     { Confirmed: true } here
-                                                                 || here.Size != fingerprint.Size)
+                    || _rows[k].ContentFingerprint?.WindowBytes
+                    == fingerprint.WindowBytes
+                    || LocationIn(_rows[k], path) is not
+                        { Confirmed: true } here
+                    || here.Size != fingerprint.Size)
                 {
                     return;
                 }
@@ -775,9 +775,9 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             return _keyByPath.TryGetValue(path, out string? key) && !IsProvisional(_rows[key])
-                                                                 && LocationIn(_rows[key], path) is { } here
-                ? (key, here)
-                : null;
+                && LocationIn(_rows[key], path) is { } here
+                    ? (key, here)
+                    : null;
         }
     }
 
@@ -989,7 +989,7 @@ public sealed class DemoCacheStore
         try
         {
             return SidecarJson.ReadFile<DemoCacheRecord>(file, _jsonOptions) is { } record
-                   && IsRecordOf(record, demoPath, row);
+                && IsRecordOf(record, demoPath, row);
         }
         catch (Exception)
         {
@@ -1006,7 +1006,7 @@ public sealed class DemoCacheStore
         }
 
         return SamePath(record.Path, demoPath)
-               || (row is not null && row.Locations.Any(l => SamePath(l.Path, record.Path)));
+            || (row is not null && row.Locations.Any(l => SamePath(l.Path, record.Path)));
     }
 
     /// <summary>
@@ -1098,11 +1098,11 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             sha = _keyByPath.TryGetValue(path, out string? key) && !IsProvisional(_rows[key])
-                                                                && LocationIn(_rows[key], path) is
-                                                                    { Confirmed: true } at
-                                                                && at.Size == size && at.ModifiedTicks == modifiedTicks
-                ? key
-                : null;
+                && LocationIn(_rows[key], path) is
+                    { Confirmed: true } at
+                && at.Size == size && at.ModifiedTicks == modifiedTicks
+                    ? key
+                    : null;
         }
 
         return new DemoCacheRecord { Path = path, Size = size, ModifiedTicks = modifiedTicks, Sha256 = sha };
@@ -1239,14 +1239,14 @@ public sealed class DemoCacheStore
             lock (_gate)
             {
                 bool leaving = oldKey is not null && oldKey != newKey
-                                                  && _rows.TryGetValue(oldKey, out DemoCacheIndexEntry? leavingRow)
-                                                  && (leavingRow.Locations.Any(l => !SamePath(l.Path, path))
-                                                      || !IsProvisional(leavingRow));
+                    && _rows.TryGetValue(oldKey, out DemoCacheIndexEntry? leavingRow)
+                    && (leavingRow.Locations.Any(l => !SamePath(l.Path, path))
+                        || !IsProvisional(leavingRow));
                 claimants =
                 [
                     .. _rows
                         .Where(r => r.Key != newKey && (r.Key != oldKey || leaving)
-                                                    && r.Value.SidecarKeys?.Contains(pathKey) == true)
+                            && r.Value.SidecarKeys?.Contains(pathKey) == true)
                         .Select(r => r.Key)
                 ];
             }
@@ -1435,9 +1435,9 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             owner = _keyByPath.TryGetValue(path, out string? k) && _rows[k].Locations.Count > 1
-                                                                && _rows[k].SidecarKeys?.Contains(pathKey) == true
-                ? k
-                : null;
+                && _rows[k].SidecarKeys?.Contains(pathKey) == true
+                    ? k
+                    : null;
         }
 
         if (owner is not null)
@@ -2016,7 +2016,7 @@ public sealed class DemoCacheStore
     private bool MergeRecord(string source, string target, string contentId, ref DemoCacheRecord? merged)
     {
         if (RecordAt(source) is not { } from || !string.Equals(from.Sha256, contentId, StringComparison.Ordinal)
-                                             || RecordAt(target) is not { } into)
+            || RecordAt(target) is not { } into)
         {
             return true;
         }
@@ -2483,8 +2483,8 @@ public sealed class DemoCacheStore
     {
         ArgumentException.ThrowIfNullOrEmpty(suffix);
         if (suffix[0] != '.' || string.Equals(suffix, LegacyRecordSuffix, StringComparison.OrdinalIgnoreCase)
-                             || string.Equals(suffix, RecordSuffix, StringComparison.OrdinalIgnoreCase)
-                             || suffix.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            || string.Equals(suffix, RecordSuffix, StringComparison.OrdinalIgnoreCase)
+            || suffix.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
             throw new ArgumentException($"'{suffix}' is not a sibling suffix", nameof(suffix));
         }
@@ -2553,11 +2553,11 @@ public sealed class DemoCacheStore
         lock (_gate)
         {
             if (!_keyByPath.TryGetValue(path, out string? key) || IsProvisional(_rows[key])
-                                                               || LocationIn(_rows[key], path) is not
-                                                                   { Confirmed: false } at
-                                                               || !_recentReads.TryGetValue(path, out read)
-                                                               || read.Size != at.Size
-                                                               || !SameTicks(at.ModifiedTicks, read.LocalTicks))
+                || LocationIn(_rows[key], path) is not
+                    { Confirmed: false } at
+                || !_recentReads.TryGetValue(path, out read)
+                || read.Size != at.Size
+                || !SameTicks(at.ModifiedTicks, read.LocalTicks))
             {
                 return;
             }

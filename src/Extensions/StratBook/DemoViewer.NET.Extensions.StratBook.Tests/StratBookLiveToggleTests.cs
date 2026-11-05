@@ -573,7 +573,7 @@ public class StratBookLiveToggleTests
             }
 
             Console.WriteLine($"@TOGGLE_HEAP demos={provider.GetRequiredService<DemoCacheStore>().Index.Count} " +
-                              $"first: enable=+{Mb(first.Built)}MB left=+{Mb(first.Left)}MB; second: enable=+{Mb(second.Built)}MB left=+{Mb(second.Left)}MB; used left=+{Mb(left)}MB");
+                $"first: enable=+{Mb(first.Built)}MB left=+{Mb(first.Left)}MB; second: enable=+{Mb(second.Built)}MB left=+{Mb(second.Left)}MB; used left=+{Mb(left)}MB");
             using (Assert.Multiple())
             {
                 await Assert.That(second.Built).IsGreaterThan(2L * 1024 * 1024)

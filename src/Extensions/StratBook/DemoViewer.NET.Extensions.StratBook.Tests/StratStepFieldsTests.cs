@@ -63,7 +63,7 @@ public class StratStepFieldsTests
                     }
 
                     string member = issue.Field.Split('/', StringSplitOptions.RemoveEmptyEntries).ElementAtOrDefault(2)
-                                    ?? "";
+                        ?? "";
                     StratStepField asked = member switch
                     {
                         "from" => StratStepField.From,

@@ -53,9 +53,9 @@ public static partial class StratDepartureCheck
             {
                 StepPosition position = step.Positions[k];
                 if (position.Carried == true || position.Observed == true
-                                             || !StratVocabulary.Slots.Contains(position.Slot)
-                                             || !StratStepLines.Involves(step, position.Slot)
-                                             || step.Positions.FindLastIndex(p => p.Slot == position.Slot) != k)
+                    || !StratVocabulary.Slots.Contains(position.Slot)
+                    || !StratStepLines.Involves(step, position.Slot)
+                    || step.Positions.FindLastIndex(p => p.Slot == position.Slot) != k)
                 {
                     continue;
                 }

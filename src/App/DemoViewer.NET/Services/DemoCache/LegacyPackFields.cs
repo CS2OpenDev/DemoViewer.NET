@@ -220,19 +220,19 @@ internal static class LegacyPackFields
 
     private static int Int(Dictionary<string, JsonElement> members, string name) =>
         members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number
-                                                           && element.TryGetInt32(out int value)
+        && element.TryGetInt32(out int value)
             ? value
             : 0;
 
     private static long Long(Dictionary<string, JsonElement> members, string name) =>
         members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number
-                                                           && element.TryGetInt64(out long value)
+        && element.TryGetInt64(out long value)
             ? value
             : 0;
 
     private static double Number(Dictionary<string, JsonElement> members, string name) =>
         members.TryGetValue(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number
-                                                           && element.TryGetDouble(out double value)
+        && element.TryGetDouble(out double value)
             ? value
             : 0;
 
@@ -245,14 +245,14 @@ internal static class LegacyPackFields
         }
 
         if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out int ordinal)
-                                                      && Enum.IsDefined(typeof(DemoAnalysisState), ordinal))
+            && Enum.IsDefined(typeof(DemoAnalysisState), ordinal))
         {
             return (DemoAnalysisState)ordinal;
         }
 
         return element.ValueKind == JsonValueKind.String
-               && Enum.TryParse(element.GetString(), true, out DemoAnalysisState parsed)
-            ? parsed
-            : DemoAnalysisState.Pending;
+            && Enum.TryParse(element.GetString(), true, out DemoAnalysisState parsed)
+                ? parsed
+                : DemoAnalysisState.Pending;
     }
 }

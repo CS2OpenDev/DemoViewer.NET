@@ -10,12 +10,13 @@
         <ExtensionManifestPlaceholder>{version}</ExtensionManifestPlaceholder>
     </PropertyGroup>
 
-    <UsingTask TaskName="StampExtensionManifest" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <UsingTask TaskName="StampExtensionManifest" TaskFactory="RoslynCodeTaskFactory"
+               AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
         <ParameterGroup>
-            <Template ParameterType="System.String" Required="true"/>
-            <Placeholder ParameterType="System.String" Required="true"/>
-            <Version ParameterType="System.String" Required="true"/>
-            <OutputPath ParameterType="System.String" Required="true"/>
+            <Template ParameterType="System.String" Required="true" />
+            <Placeholder ParameterType="System.String" Required="true" />
+            <Version ParameterType="System.String" Required="true" />
+            <OutputPath ParameterType="System.String" Required="true" />
         </ParameterGroup>
         <Task>
             <Code Type="Fragment" Language="cs"><![CDATA[
@@ -47,7 +48,8 @@ if (!File.Exists(OutputPath) || File.ReadAllText(OutputPath) != stamped)
     <!-- Before AssignTargetPaths so the items it adds reach both the resource and the copy-to-output lists,
          including a referencing project's GetCopyToOutputDirectoryItems walk. -->
     <!-- $(GetPackageVersionDependsOn) is where Nerdbank.GitVersioning, when the project uses it, computes the version. -->
-    <Target Name="StampExtensionManifest" DependsOnTargets="$(GetPackageVersionDependsOn)" BeforeTargets="AssignTargetPaths">
+    <Target Name="StampExtensionManifest" DependsOnTargets="$(GetPackageVersionDependsOn)"
+            BeforeTargets="AssignTargetPaths">
         <PropertyGroup>
             <StampedExtensionManifest>$(IntermediateOutputPath)extension.json</StampedExtensionManifest>
             <_StampedManifestVersion>$(ExtensionManifestVersion)</_StampedManifestVersion>
@@ -55,18 +57,18 @@ if (!File.Exists(OutputPath) || File.ReadAllText(OutputPath) != stamped)
         </PropertyGroup>
 
         <Error Condition="'$(_StampedManifestVersion)' == '' and '$(DesignTimeBuild)' != 'true'"
-               Text="The project has no PackageVersion; the extension manifest cannot be stamped."/>
+               Text="The project has no PackageVersion; the extension manifest cannot be stamped." />
 
         <StampExtensionManifest Condition="'$(_StampedManifestVersion)' != ''"
                                 Template="$(ExtensionManifestTemplate)"
                                 Placeholder="$(ExtensionManifestPlaceholder)"
                                 Version="$(_StampedManifestVersion)"
-                                OutputPath="$(StampedExtensionManifest)"/>
+                                OutputPath="$(StampedExtensionManifest)" />
 
         <ItemGroup Condition="'$(_StampedManifestVersion)' != ''">
-            <EmbeddedResource Include="$(StampedExtensionManifest)" LogicalName="extension.json" Link="extension.json"/>
-            <None Include="$(StampedExtensionManifest)" CopyToOutputDirectory="PreserveNewest" Link="extension.json"/>
-            <FileWrites Include="$(StampedExtensionManifest)"/>
+            <EmbeddedResource Include="$(StampedExtensionManifest)" LogicalName="extension.json" Link="extension.json" />
+            <None Include="$(StampedExtensionManifest)" CopyToOutputDirectory="PreserveNewest" Link="extension.json" />
+            <FileWrites Include="$(StampedExtensionManifest)" />
         </ItemGroup>
     </Target>
 </Project>

@@ -226,16 +226,16 @@ public class PlayerOverviewCategoriesTests
                     .IsEquivalentTo(expected.Values, CollectionOrdering.Matching);
                 await Assert.That(Stat(section, "TotalFK").Detail)
                     .IsEqualTo((expected["TotalFK"]!.Value / rounds).ToString("0.00", CultureInfo.InvariantCulture)
-                               + " per round");
+                        + " per round");
                 await Assert.That(Stat(section, "AWP").Detail)
                     .IsEqualTo((expected["AWP"]!.Value / kills * 100).ToString("0", CultureInfo.InvariantCulture)
-                               + "% of kills");
+                        + "% of kills");
                 await Assert.That(Stat(section, "Clutch").Detail)
                     .IsEqualTo((expected["Clutch"]!.Value / demos.Length).ToString("0.00", CultureInfo.InvariantCulture)
-                               + " per match");
+                        + " per match");
                 await Assert.That(Stat(section, "Armor").Detail)
                     .IsEqualTo((expected["Armor"]!.Value / rounds * 100).ToString("0", CultureInfo.InvariantCulture)
-                               + "% of rounds");
+                        + "% of rounds");
                 await Assert.That(Stat(section, "Equip").Text)
                     .IsEqualTo(expected["Equip"]!.Value.ToString("'$'#,0", CultureInfo.InvariantCulture));
                 await Assert.That(section.ScopeText)

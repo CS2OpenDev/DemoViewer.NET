@@ -85,7 +85,8 @@ public class StratRecordPanelTests
     [Test]
     public async Task TaggingARound_UpdatesThePanel_WithoutReconfiguring()
     {
-        using Fixture fixture = Fixture.Create(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
+        using Fixture fixture =
+            Fixture.Create(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
 
         fixture.Panel.Configure(Strat());
         await fixture.Panel.Pending;
@@ -107,7 +108,8 @@ public class StratRecordPanelTests
     [Test]
     public async Task ChangingTheStratsSide_Rebuilds_AndFlipsWonAndLost()
     {
-        using Fixture fixture = Fixture.Create(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
+        using Fixture fixture =
+            Fixture.Create(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
 
         fixture.Panel.Configure(Strat(side: StratVocabulary.SideT));
         await fixture.Panel.Pending;
@@ -125,7 +127,8 @@ public class StratRecordPanelTests
     [Test]
     public async Task ClosingTheStrat_ClearsThePanel()
     {
-        using Fixture fixture = Fixture.Create(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
+        using Fixture fixture =
+            Fixture.Create(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
         fixture.Panel.Configure(Strat());
         await fixture.Panel.Pending;
         await Assert.That(fixture.Panel.HasStrat).IsTrue();
@@ -178,7 +181,8 @@ public class StratRecordPanelTests
     [Test]
     public async Task ARunWhoseDemoIsNotInTheLibrary_IsNotQueued_AndTheLineSaysSo()
     {
-        using Fixture fixture = Fixture.Create(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
+        using Fixture fixture =
+            Fixture.Create(Document(_shaA, Run(1, [("strat", S), ("strat.rev", "1")], winner: "T")));
         fixture.Panel.Configure(Strat());
         await fixture.Panel.Pending;
 

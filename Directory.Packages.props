@@ -6,17 +6,17 @@
     <ItemGroup>
         <!-- Avalonia packages -->
         <!-- Important: keep version in sync! -->
-        <PackageVersion Include="Avalonia" Version="12.1.4"/>
-        <PackageVersion Include="Avalonia.Controls.ColorPicker" Version="12.1.4"/>
-        <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4"/>
-        <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.4"/>
-        <PackageVersion Include="Avalonia.Desktop" Version="12.1.4"/>
-        <PackageVersion Include="Avalonia.Browser" Version="12.1.4"/>
+        <PackageVersion Include="Avalonia" Version="12.1.4" />
+        <PackageVersion Include="Avalonia.Controls.ColorPicker" Version="12.1.4" />
+        <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+        <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+        <PackageVersion Include="Avalonia.Desktop" Version="12.1.4" />
+        <PackageVersion Include="Avalonia.Browser" Version="12.1.4" />
         <!-- AvaloniaEdit — Rulesets v2 authoring Workbench editor (Phase 3). Tracks the Avalonia 11.3.x line. -->
-        <PackageVersion Include="Avalonia.AvaloniaEdit" Version="12.0.0"/>
+        <PackageVersion Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
         <!-- Headless UI testing (TUnit + SkiaSharp frame capture). Keep in sync with Avalonia version. -->
-        <PackageVersion Include="Avalonia.Headless" Version="12.1.4"/>
-        <PackageVersion Include="Avalonia.Skia" Version="12.1.4"/>
+        <PackageVersion Include="Avalonia.Headless" Version="12.1.4" />
+        <PackageVersion Include="Avalonia.Skia" Version="12.1.4" />
         <!-- SkiaSharp: the Playback2D v2 render core.
              PINNED to the version Avalonia.Skia 12.1.4 resolves. The on-screen path takes
              Avalonia's ISkiaSharpApiLeaseFeature, which hands back Avalonia's OWN SKCanvas: a different
@@ -24,17 +24,17 @@
              This is a DERIVED pin, not an independent choice. Bump ONLY in lockstep with the Avalonia
              version above, re-reading the resolved version from
              artifacts/obj/DemoViewer.NET.App.Tests/project.assets.json. -->
-        <PackageVersion Include="SkiaSharp" Version="3.119.4"/>
+        <PackageVersion Include="SkiaSharp" Version="3.119.4" />
         <!-- Native Skia for Linux test/CI runners. The FULL package, not …NoDependencies: the renderer draws
              SKTextBlob text and the golden corpus contains text layers, and swapping the native later
              would silently re-baseline every golden. The CI job installs its one system dependency:
              `sudo apt-get install -y libfontconfig1`. -->
-        <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4"/>
+        <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" />
         <!-- Native Skia for the dv2d CLI (tools/DemoViewer.NET.Playback2D.Cli), which has no Avalonia
              to bring the natives along. Derived pins exactly like the two above: they move with
              SkiaSharp, which moves with Avalonia. -->
-        <PackageVersion Include="SkiaSharp.NativeAssets.Win32" Version="3.119.4"/>
-        <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="3.119.4"/>
+        <PackageVersion Include="SkiaSharp.NativeAssets.Win32" Version="3.119.4" />
+        <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="3.119.4" />
         <!-- ANGLE (EGL + GLES2 over D3D11) native binaries: the windowless GPU render-surface backend.
 
              This is ALREADY in the desktop graph: Avalonia.Win32 12.1.4 depends on exactly this
@@ -50,15 +50,15 @@
              License: BSD-3-Clause (The ANGLE Project Authors); see THIRD-PARTY-NOTICES.md §e. Unlike
              ffmpeg this is LINKED IN-PROCESS, so the "separate programs" posture does not apply; the
              obligation is reproducing the notice, which §e does. -->
-        <PackageVersion Include="Avalonia.Angle.Windows.Natives" Version="2.1.27548.20260419"/>
+        <PackageVersion Include="Avalonia.Angle.Windows.Natives" Version="2.1.27548.20260419" />
         <!-- 2D-playback video export (docs/playback2d-v2/export.md). FFMpegCore is MIT and only
              BUILDS ARGUMENTS and pipes rawvideo to an ffmpeg SUBPROCESS. No ffmpeg code is linked, which
              is what keeps the GPL/LGPL posture clean (FSF "separate programs"). We never ship an ffmpeg
              binary; see THIRD-PARTY-NOTICES.md §g. Xabe.FFmpeg is CC BY-NC-SA and must never be added.
              5.4.0 is the newest stable 5.x, confirmed with `dotnet package search` at implementation. -->
-        <PackageVersion Include="FFMpegCore" Version="5.5.0"/>
-        <PackageVersion Include="Msagl" Version="1.2.1"/>
-        <PackageVersion Include="YamlDotNet" Version="16.3.0"/>
+        <PackageVersion Include="FFMpegCore" Version="5.5.0" />
+        <PackageVersion Include="Msagl" Version="1.2.1" />
+        <PackageVersion Include="YamlDotNet" Version="16.3.0" />
         <!--
             The demo parser and analysis engine. These were in-repo projects until 2026-08-17; they
             now live at github.com/CS2OpenDev/CS2DemoKit and this app is one consumer among others.
@@ -92,14 +92,14 @@
             0.14.0 is 0.14.0-beta0001 re-stamped: the tag diff is version.json alone, and the
             embedded ShippedRules are byte-identical to rules/, so that bump had nothing to extract.
         -->
-        <PackageVersion Include="CS2DemoKit.Parser" Version="0.14.1"/>
-        <PackageVersion Include="CS2DemoKit.Analysis" Version="0.14.1"/>
-        <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2"/>
+        <PackageVersion Include="CS2DemoKit.Parser" Version="0.14.1" />
+        <PackageVersion Include="CS2DemoKit.Analysis" Version="0.14.1" />
+        <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
         <!-- 3.29.5+ required by Cs2VideoGenerator.Core, and comfortably above the >= 3.27.0 floor
              CS2OpenDev.Protos states as policy. Grpc.Tools is gone: the parser no longer runs
              protoc, and the Valve message types arrive prebuilt in CS2OpenDev.Protos, which the
              parser pulls in transitively. -->
-        <PackageVersion Include="Google.Protobuf" Version="3.29.5"/>
+        <PackageVersion Include="Google.Protobuf" Version="3.29.5" />
         <!-- CSVG live-CS2 integration, from
              github.com/CS2OpenDev/CS2VideoGenerator.
 
@@ -107,17 +107,17 @@
              release: that line was private, and the public one restarted below 1.0.0 to leave room
              for fixes before 1.0.0. A 1.x is therefore older than what is here — treat any such
              "upgrade" as a regression. 0.10.1 is the first MIT release; 0.10.0 was GPL-3.0-only. -->
-        <PackageVersion Include="Cs2VideoGenerator.Core" Version="0.10.1"/>
-        <PackageVersion Include="Snappier" Version="1.3.1"/>
+        <PackageVersion Include="Cs2VideoGenerator.Core" Version="0.10.1" />
+        <PackageVersion Include="Snappier" Version="1.3.1" />
         <!-- Fuzzy matcher for the command palette. Pure-managed; WASM-safe. -->
-        <PackageVersion Include="FuzzySharp" Version="2.0.2"/>
+        <PackageVersion Include="FuzzySharp" Version="2.0.2" />
         <!-- Versioning -->
-        <PackageVersion Include="Nerdbank.GitVersioning" Version="3.7.115"/>
+        <PackageVersion Include="Nerdbank.GitVersioning" Version="3.7.115" />
         <!-- Install / auto-update packaging.
              Keep in sync with the vpk CLI pin in .config/dotnet-tools.json. -->
-        <PackageVersion Include="Velopack" Version="1.2.161"/>
+        <PackageVersion Include="Velopack" Version="1.2.161" />
         <!-- Test -->
-        <PackageVersion Include="TUnit" Version="1.76.0"/>
+        <PackageVersion Include="TUnit" Version="1.76.0" />
         <!--
             CS2OpenDev: community-maintained CS2 schema, protobuf and game-event definitions
             (github.com/CS2OpenDev). On nuget.org since 2026-08 under a renumbered public line, which
@@ -130,28 +130,28 @@
             references unless CentralPackageTransitivePinningEnabled is set, which it is not. An entry
             for one of those would state a number the restore ignores.
         -->
-        <PackageVersion Include="CS2OpenDev.Sdk" Version="0.9.0"/>
+        <PackageVersion Include="CS2OpenDev.Sdk" Version="0.9.0" />
 
         <!-- Configuration + Options + DI (App settings foundation). DI is consumed in a later
              chunk (App bootstrap); the refs live here so SettingsService can use Configuration/Options
              now. Microsoft.Extensions.Hosting is intentionally NOT added. Pinned to the net10.0 line. -->
-        <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13"/>
-        <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13"/>
-        <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.13"/>
-        <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.13"/>
-        <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.13"/>
-        <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.13"/>
-        <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.13"/>
-        <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.13"/>
+        <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
+        <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
+        <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.13" />
+        <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.13" />
+        <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.13" />
+        <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.13" />
+        <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.13" />
+        <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.13" />
         <!-- Logging (unified diagnostics pillar). Abstractions carries ILogger + [LoggerMessage]
              source generator and is WASM-safe (no providers); the App references the full Logging
              package for LoggerFactory + a custom in-memory ILoggerProvider (also WASM-safe — Blazor
              WASM uses it). OTLP/file exporters are NOT added here; they belong at the Desktop
              boundary. Pinned to the net10.0 line. -->
-        <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13"/>
-        <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.13"/>
+        <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
+        <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.13" />
         <!-- The extension SDK's public surface is pinned by a shipped/unshipped list. -->
-        <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0"/>
-        <PackageVersion Include="JetBrains.Annotations" Version="2025.2.4"/>
+        <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" />
+        <PackageVersion Include="JetBrains.Annotations" Version="2025.2.4" />
     </ItemGroup>
 </Project>

@@ -49,6 +49,6 @@ public class AimStatCatalogueTests
 
         await Assert.That(missing).IsEmpty()
             .Because("LiveAimStats reads each of these as null and every consumer folds that to 0:\n"
-                     + string.Join("\n", missing));
+                + string.Join("\n", missing));
     }
 }

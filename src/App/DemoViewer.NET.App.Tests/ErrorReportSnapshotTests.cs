@@ -145,7 +145,7 @@ public class ErrorReportSnapshotTests
         {
             await Assert.That(suspect).IsEmpty()
                 .Because("these reports are built to be sent to developers, and the allowlist is the only "
-                         + "thing between them and a credential");
+                    + "thing between them and a credential");
             await Assert.That(RuntimeEnvInfo.EnvAllowlist).DoesNotContain("PATH")
                 .Because("the whole search path names every tool the user has installed");
         }

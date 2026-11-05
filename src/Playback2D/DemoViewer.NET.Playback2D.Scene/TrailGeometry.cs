@@ -45,8 +45,8 @@ public static class TrailGeometry
         for (int i = 1; i < points.Count; i++)
         {
             bool onLevel = single
-                           || ctx.BelongsHere(points[i - 1].Z)
-                           || ctx.BelongsHere(points[i].Z);
+                || ctx.BelongsHere(points[i - 1].Z)
+                || ctx.BelongsHere(points[i].Z);
             if (onLevel)
             {
                 if (runStart < 0)
@@ -92,8 +92,8 @@ public static class TrailGeometry
         for (int i = 1; i < points.Count; i++)
         {
             bool onLevel = levelIndex < 0
-                           || levelOf(points[i - 1].Z) == levelIndex
-                           || levelOf(points[i].Z) == levelIndex;
+                || levelOf(points[i - 1].Z) == levelIndex
+                || levelOf(points[i].Z) == levelIndex;
             if (onLevel)
             {
                 if (runStart < 0)

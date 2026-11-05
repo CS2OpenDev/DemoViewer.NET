@@ -488,7 +488,7 @@ public sealed class StratSession : IDisposable
         }
 
         StratDocument next = root?.Deserialize(StratJsonContext.Default.StratDocument)
-                             ?? throw new InvalidOperationException("the ops removed the strat");
+            ?? throw new InvalidOperationException("the ops removed the strat");
 
         Document = next;
         return applied;
@@ -693,8 +693,8 @@ public sealed class StratSession : IDisposable
         }
 
         string revision = (RecoveryNote is null ? "" : RecoveryNote + " · ") + "revision "
-                                                                             + document.Revision.ToString(CultureInfo
-                                                                                 .InvariantCulture);
+            + document.Revision.ToString(CultureInfo
+                .InvariantCulture);
         if (!HasPending)
         {
             return revision + " · saved";
@@ -702,6 +702,6 @@ public sealed class StratSession : IDisposable
 
         string prefix = RecoveredPending ? "recovered edits from the last session · " : "";
         return prefix + revision + " · edits commit on save, on leaving the tab or after "
-               + IdleCommitDelay.TotalSeconds.ToString("0", CultureInfo.InvariantCulture) + " s idle";
+            + IdleCommitDelay.TotalSeconds.ToString("0", CultureInfo.InvariantCulture) + " s idle";
     }
 }

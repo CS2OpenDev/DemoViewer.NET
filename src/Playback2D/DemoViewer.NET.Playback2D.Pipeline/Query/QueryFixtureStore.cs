@@ -46,7 +46,7 @@ public static class QueryFixtureStore
         ArgumentNullException.ThrowIfNull(source);
 
         QueryFixtureDto dto = JsonSerializer.Deserialize(source, QueryFixtureJsonContext.Default.QueryFixtureDto)
-                              ?? throw new JsonException("Query fixture payload was null.");
+            ?? throw new JsonException("Query fixture payload was null.");
 
         QueryCanvasDocument document = new() { MapName = dto.Map ?? "" };
 

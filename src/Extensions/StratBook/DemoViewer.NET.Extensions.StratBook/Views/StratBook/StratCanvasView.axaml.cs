@@ -244,7 +244,7 @@ public partial class StratCanvasView : UserControl
 
     private bool IsInsideTextEditor(object? source) =>
         _textEditor is not null && source is Visual visual
-                                && (ReferenceEquals(visual, _textEditor) || _textEditor.IsVisualAncestorOf(visual));
+        && (ReferenceEquals(visual, _textEditor) || _textEditor.IsVisualAncestorOf(visual));
 
     // The text tool placed a label: the editor goes over it at the label's size, focus posted because the
     // press that placed it is still being routed and would take focus straight back.

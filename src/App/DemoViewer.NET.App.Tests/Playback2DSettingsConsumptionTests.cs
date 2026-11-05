@@ -92,8 +92,8 @@ public class Playback2DSettingsConsumptionTests
 
         await Assert.That(string.Join("; ", unconsumed)).IsEqualTo("")
             .Because("a key with no writer is a preference the user cannot express, and one with no "
-                     + "reader is a preference the app does not honour — neither is visible to a "
-                     + "round-trip test, which only proves the value can travel");
+                + "reader is a preference the app does not honour — neither is visible to a "
+                + "round-trip test, which only proves the value can travel");
     }
 
     /// <summary>
@@ -110,11 +110,11 @@ public class Playback2DSettingsConsumptionTests
             .ToHashSet(StringComparer.Ordinal);
 
         Console.WriteLine($"[settings-registry] the registry names {registry.Count} keys; the class declares "
-                          + $"{declared.Count}");
+            + $"{declared.Count}");
 
         await Assert.That(registry.Count).IsGreaterThan(20)
             .Because("a parse that found a handful of keys has found the wrong block, and would pass "
-                     + "whatever the class contains");
+                + "whatever the class contains");
 
         List<string> missing = registry
             .Where(k => !declared.Contains(k) && !_registryKeysNotYetBuilt.ContainsKey(k))
@@ -122,7 +122,7 @@ public class Playback2DSettingsConsumptionTests
 
         await Assert.That(string.Join(", ", missing)).IsEqualTo("")
             .Because("the registry is the persisted-key contract; a key it pins and the class lacks is a "
-                     + "setting the docs and the reader believe exists");
+                + "setting the docs and the reader believe exists");
     }
 
     /// <summary>The allow-lists must be load-bearing, and each entry must say why.</summary>
@@ -203,7 +203,7 @@ public class Playback2DSettingsConsumptionTests
         string owner = settings.FullName!;
         List<IlSite> sites = Playback2DWholeGraph.Scan(scope,
             (type, member) => string.Equals(type, owner, StringComparison.Ordinal)
-                              && accessors.Contains(member));
+                && accessors.Contains(member));
 
         List<SettingConsumption> result = [];
         foreach (PropertyInfo property in properties)

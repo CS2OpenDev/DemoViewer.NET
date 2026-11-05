@@ -164,7 +164,7 @@ public sealed class InputToolRouter
     {
         ArgumentNullException.ThrowIfNull(tool);
         if (ReferenceEquals(tool, _panZoom) || !_tools.TryGetValue(tool.Id, out IPointerTool? current)
-                                            || !ReferenceEquals(current, tool))
+            || !ReferenceEquals(current, tool))
         {
             return;
         }
@@ -233,9 +233,9 @@ public sealed class InputToolRouter
         // Read ONCE, at press time. Every clause here is a diversion to pan; the button→tool map below
         // is what the right button uses when nothing diverted it.
         bool divert = IsSpaceHeld
-                      || (e.Modifiers & ToolModifiers.Space) != 0
-                      || PanOnMiddleButton && e.Button == ToolPointerButton.Middle
-                      || PanOnControlDrag && (e.Modifiers & ToolModifiers.Control) != 0;
+            || (e.Modifiers & ToolModifiers.Space) != 0
+            || PanOnMiddleButton && e.Button == ToolPointerButton.Middle
+            || PanOnControlDrag && (e.Modifiers & ToolModifiers.Control) != 0;
 
         IPointerTool tool = divert ? _panZoom : ToolForButton(e.Button);
 

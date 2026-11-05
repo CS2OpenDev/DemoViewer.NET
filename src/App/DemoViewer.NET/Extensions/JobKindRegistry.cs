@@ -119,7 +119,7 @@ public sealed class JobKindRegistry
     /// </summary>
     public JobKindDescriptor Descriptor(QueueJobKind kind, string? extensionKind = null) =>
         kind == QueueJobKind.Extension && extensionKind is not null
-                                       && _byExtensionKind.TryGetValue(extensionKind, out JobKindDescriptor? declared)
+        && _byExtensionKind.TryGetValue(extensionKind, out JobKindDescriptor? declared)
             ? declared
             : _byKind[kind];
 

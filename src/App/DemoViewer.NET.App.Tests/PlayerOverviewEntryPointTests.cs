@@ -314,10 +314,7 @@ public class PlayerOverviewEntryPointTests
             [d.FilePath] = new LibraryDemo(d.FilePath, d.FileName, d.MapName, d.Modified, d.FileSizeBytes)
         };
         LibraryTabViewModel vm = new(svc, _ => Task.CompletedTask, () => Task.FromResult<IReadOnlyList<string>>([]),
-            findDemo: index.GetValueOrDefault)
-        {
-            PlayerOverviewOpener = (id, name) => opened.Add((id, name))
-        };
+            findDemo: index.GetValueOrDefault) { PlayerOverviewOpener = (id, name) => opened.Add((id, name)) };
         foreach (DemoEntry e in (DemoEntry[])[a, b, c, d])
         {
             svc.Entries.Add(e);
@@ -368,10 +365,7 @@ public class PlayerOverviewEntryPointTests
             [b.FilePath] = Indexed(b, new LibrarySidePlayer(0, "Neo"))
         };
         LibraryTabViewModel vm = new(svc, _ => Task.CompletedTask, () => Task.FromResult<IReadOnlyList<string>>([]),
-            findDemo: index.GetValueOrDefault)
-        {
-            PlayerOverviewOpener = (id, name) => opened.Add((id, name))
-        };
+            findDemo: index.GetValueOrDefault) { PlayerOverviewOpener = (id, name) => opened.Add((id, name)) };
         svc.Entries.Add(a);
         svc.Entries.Add(b);
 

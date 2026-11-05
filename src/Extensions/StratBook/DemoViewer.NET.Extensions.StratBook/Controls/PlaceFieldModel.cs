@@ -360,7 +360,7 @@ public sealed class PlaceFieldModel
     {
         int to = index + delta;
         return index >= 0 && index < _value.Count && to >= 0 && to < _value.Count
-               && StratLocations.HasPlace(_value[index]) == StratLocations.HasPlace(_value[to]);
+            && StratLocations.HasPlace(_value[index]) == StratLocations.HasPlace(_value[to]);
     }
 
     // "(1234, -560)", "1234, -560", "1234 -560": two numbers, optional parentheses, a comma or spaces between.
@@ -379,8 +379,8 @@ public sealed class PlaceFieldModel
         Match match = _pointPattern.Match(text.Trim());
         x = y = 0;
         return match.Success
-               && double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out x)
-               && double.TryParse(match.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out y);
+            && double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out x)
+            && double.TryParse(match.Groups[2].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out y);
     }
 
     /// <summary>

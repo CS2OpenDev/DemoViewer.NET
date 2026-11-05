@@ -159,8 +159,8 @@ public sealed partial class DetectedStratsViewModel : ObservableObject, IDisposa
     private async Task Rebuild(string? notice)
     {
         if (_mining is null || SelectedRow is not { StratId: null } row
-                            || _mining.Patterns.FirstOrDefault(p => p.Pattern.Key == row.Key)?.Pattern is not
-                                { } pattern)
+            || _mining.Patterns.FirstOrDefault(p => p.Pattern.Key == row.Key)?.Pattern is not
+                { } pattern)
         {
             return;
         }
@@ -396,10 +396,10 @@ public sealed class DetectedRowViewModel
         List<string> teams = [.. p.Teams.Select(teamName).OfType<string>().Order(StringComparer.Ordinal)];
         TeamsLine = teams.Count > 0 ? $"Run by {string.Join(", ", teams)}" : "No known team";
         Summary = string.Create(CultureInfo.InvariantCulture,
-                      $"{p.Map} · {side} · {p.Support} rounds in {p.Demos} {(p.Demos == 1 ? "demo" : "demos")}")
-                  + (known > 0 ? string.Create(CultureInfo.InvariantCulture, $" · won {p.Wins}/{known}") : "")
-                  + (p.UtilityCompared ? "" : " · positions only")
-                  + (detected.StratId is not null ? " · in book" : detected.Dismissed ? " · dismissed" : "");
+                $"{p.Map} · {side} · {p.Support} rounds in {p.Demos} {(p.Demos == 1 ? "demo" : "demos")}")
+            + (known > 0 ? string.Create(CultureInfo.InvariantCulture, $" · won {p.Wins}/{known}") : "")
+            + (p.UtilityCompared ? "" : " · positions only")
+            + (detected.StratId is not null ? " · in book" : detected.Dismissed ? " · dismissed" : "");
         UtilityLine = p.UtilityCompared
             ? "Utility and positions compared."
             : "Positions and timing only: some of these demos have no grenade rows. Index their grenades in the Utility Book to compare utility.";
@@ -465,6 +465,6 @@ public sealed record DetectedMemberRow(
     int OpenTick)
 {
     public string Line => string.Create(CultureInfo.InvariantCulture, $"Round {Round} · {FileName}")
-                          + (Result.Length > 0 ? $" · {Result}" : "")
-                          + (Team is null ? "" : $" · {Team}");
+        + (Result.Length > 0 ? $" · {Result}" : "")
+        + (Team is null ? "" : $" · {Team}");
 }

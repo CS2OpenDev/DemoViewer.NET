@@ -91,7 +91,7 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
         DemoCacheIndexEntry? entry = _demoCache.TryGetIndex(path);
         string? fingerprint = TryFingerprint(BacklogTickRate);
         return entry is { ParseSchema: > 0 } && entry.NeedsRoundFacts(fingerprint)
-                                             && !TriedWithoutRows(path, fingerprint);
+            && !TriedWithoutRows(path, fingerprint);
     }
 
     /// <summary>Whether the demo will need this pass once the pass it runs after has written.</summary>
@@ -108,8 +108,8 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
     {
         string? fingerprint = TryFingerprint(BacklogTickRate);
         return fingerprint is not null
-               && (_demoCache.TryGetIndex(path) is not { ParseSchema: > 0 } entry
-                   || entry.NeedsRoundFacts(fingerprint));
+            && (_demoCache.TryGetIndex(path) is not { ParseSchema: > 0 } entry
+                || entry.NeedsRoundFacts(fingerprint));
     }
 
     /// <inheritdoc />
@@ -142,7 +142,7 @@ public sealed class RoundFactsEvaluator : IDemoEvaluator
         [
             .. _demoCache.Contents
                 .Where(e => e.ParseSchema > 0 && e.NeedsRoundFacts(fingerprint)
-                                              && !TriedWithoutRows(e.Path, fingerprint))
+                    && !TriedWithoutRows(e.Path, fingerprint))
                 .OrderByDescending(e => e.ModifiedTicks)
                 .Select(e => e.Path)
         ];

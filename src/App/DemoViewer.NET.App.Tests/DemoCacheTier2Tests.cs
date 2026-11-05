@@ -100,7 +100,7 @@ public class DemoCacheTier2Tests
             await Assert.That(record.Roster.Count()).IsEqualTo(liveT + liveCt)
                 .Because("PLAYERS must equal the two rosters — the invariant the card is built on");
             await Assert.That(players.Any(p => p.Name.Contains("GOTV", StringComparison.OrdinalIgnoreCase)
-                                               && p.Team is not (2 or 3))).IsFalse()
+                    && p.Team is not (2 or 3))).IsFalse()
                 .Because("the GOTV proxy is infrastructure and is excluded at cache time, not at render time");
         }
     }
@@ -135,7 +135,7 @@ public class DemoCacheTier2Tests
                     Enumerable.Range(1, rounds.Count).ToList(), CollectionOrdering.Matching)
                 .Because("rounds are numbered sequentially from 1");
             await Assert.That(rounds.Zip(rounds.Skip(1)).All(p => p.Second.StartTickFrameClock
-                                                                  >= p.First.StartTickFrameClock)).IsTrue()
+                    >= p.First.StartTickFrameClock)).IsTrue()
                 .Because("round starts are monotonic in frame-clock ticks");
             // Frame clock, NOT server-tick space, never offset by ServerStartTick. A round start below the
             // server start tick would prove the wrong clock had been stored.

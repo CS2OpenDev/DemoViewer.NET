@@ -221,7 +221,7 @@ public class StratBookLibraryTests
             if (relative.StartsWith("bin/", StringComparison.Ordinal)
                 || relative.StartsWith("obj/", StringComparison.Ordinal)
                 || !(file.EndsWith(".cs", StringComparison.Ordinal)
-                     || file.EndsWith(".axaml", StringComparison.Ordinal)))
+                    || file.EndsWith(".axaml", StringComparison.Ordinal)))
             {
                 continue;
             }

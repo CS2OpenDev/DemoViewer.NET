@@ -186,7 +186,7 @@ public sealed class RankChartItem
         string peak = RankDisplay.Value(rankType, (int)values.Max());
         string net = values.Count > 1 && rankType == RankDisplay.Premier
             ? " · " + (values[^1] - values[0] >= 0 ? "+" : "")
-                    + (values[^1] - values[0]).ToString("N0", CultureInfo.InvariantCulture)
+            + (values[^1] - values[0]).ToString("N0", CultureInfo.InvariantCulture)
             : "";
         SummaryText = $"{count} · latest {latest} · peak {peak}{net}";
     }

@@ -63,8 +63,8 @@ public sealed class MemoryDemoData(IExtensionLibrary? library = null) : IExtensi
     /// <inheritdoc />
     public byte[]? Read(string demoPath, string facet, int schema, string? fingerprint, string? part = null) =>
         ReadAny(demoPath, facet, part) is { } record && record.Schema == schema
-                                                     && string.Equals(record.Fingerprint, fingerprint,
-                                                         StringComparison.Ordinal)
+        && string.Equals(record.Fingerprint, fingerprint,
+            StringComparison.Ordinal)
             ? record.Content
             : null;
 

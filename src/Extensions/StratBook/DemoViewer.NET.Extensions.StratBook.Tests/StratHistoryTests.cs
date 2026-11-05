@@ -15,7 +15,9 @@ namespace DemoViewer.NET.AppTests;
 /// </summary>
 public class StratHistoryTests
 {
-    private static readonly string[] _unmergedPaths = ["/steps/1/atSeconds", "/steps/0/atSeconds", "/steps/1/atSeconds"];
+    private static readonly string[] _unmergedPaths =
+        ["/steps/1/atSeconds", "/steps/0/atSeconds", "/steps/1/atSeconds"];
+
     private static readonly string[] _inverseKinds = [PatchOp.Add, PatchOp.Remove, PatchOp.Replace];
     private static readonly string[] _editedTags = ["first", "a/b", "appended"];
 

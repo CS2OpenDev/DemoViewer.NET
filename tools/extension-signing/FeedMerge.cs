@@ -63,7 +63,7 @@ public static class ExtensionFeedMerge
         }
 
         JsonArray entries = feed["entries"] as JsonArray
-                            ?? throw new ExtensionFeedMergeException("the existing feed has no 'entries' array.");
+            ?? throw new ExtensionFeedMergeException("the existing feed has no 'entries' array.");
 
         List<JsonNode> kept = [];
         SemVersion? highest = null;
@@ -71,7 +71,7 @@ public static class ExtensionFeedMerge
         foreach (JsonNode? node in entries)
         {
             JsonObject existing = node as JsonObject
-                                  ?? throw new ExtensionFeedMergeException("an existing entry is not a JSON object.");
+                ?? throw new ExtensionFeedMergeException("an existing entry is not a JSON object.");
             SemVersion existingVersion = RequiredVersion(existing, "version", "an existing entry");
             if (highest is null || existingVersion > highest)
             {
@@ -136,7 +136,7 @@ public static class ExtensionFeedMerge
     private static string RequiredString(JsonObject obj, string member, string subject)
     {
         if (obj[member] is not JsonValue value || !value.TryGetValue(out string? text)
-                                               || string.IsNullOrWhiteSpace(text))
+            || string.IsNullOrWhiteSpace(text))
         {
             throw new ExtensionFeedMergeException($"{subject} has no '{member}'.");
         }

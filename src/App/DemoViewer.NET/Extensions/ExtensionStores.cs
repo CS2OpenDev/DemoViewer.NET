@@ -168,8 +168,8 @@ internal sealed class ExtensionStores : IExtensionStores
         }
 
         StoreDescriptor store = Declared.FirstOrDefault(s => string.Equals(s.Id, storeId, StringComparison.Ordinal))
-                                ?? throw new ArgumentException($"'{_extensionId}' declares no store '{storeId}'.",
-                                    nameof(storeId));
+            ?? throw new ArgumentException($"'{_extensionId}' declares no store '{storeId}'.",
+                nameof(storeId));
         if (store.Paths.Count != 1 || store.Paths[0].Contains('*', StringComparison.Ordinal))
         {
             throw new ArgumentException(
@@ -183,8 +183,8 @@ internal sealed class ExtensionStores : IExtensionStores
         }
 
         return PackDataRemover.ResolveSafe(root, store.Paths[0])
-               ?? throw new InvalidOperationException(
-                   $"Store '{storeId}' of '{_extensionId}' names a path outside its root.");
+            ?? throw new InvalidOperationException(
+                $"Store '{storeId}' of '{_extensionId}' names a path outside its root.");
     }
 }
 
@@ -312,8 +312,8 @@ internal sealed class ExtensionFolder : IExtensionFolder
     {
         ArgumentNullException.ThrowIfNull(relativePath);
         return PackDataRemover.ResolveSafe(Path, relativePath)
-               ?? throw new ArgumentException($"'{relativePath}' is not a file inside the store.",
-                   nameof(relativePath));
+            ?? throw new ArgumentException($"'{relativePath}' is not a file inside the store.",
+                nameof(relativePath));
     }
 
     // A folder's path: the folder itself for an empty path, otherwise one inside it.
@@ -326,8 +326,8 @@ internal sealed class ExtensionFolder : IExtensionFolder
         }
 
         return PackDataRemover.ResolveSafe(Path, relativePath)
-               ?? throw new ArgumentException($"'{relativePath}' is not a folder inside the store.",
-                   nameof(relativePath));
+            ?? throw new ArgumentException($"'{relativePath}' is not a folder inside the store.",
+                nameof(relativePath));
     }
 }
 

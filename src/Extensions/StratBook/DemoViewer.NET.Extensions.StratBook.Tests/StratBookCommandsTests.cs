@@ -162,10 +162,10 @@ public class StratBookCommandsTests
 
             bool resolved = expectedScope == Playback2DBindingScope.Always
                 ? Playback2DKeymapProfile.Default.TryResolve(key, modifiers, toolActive, out string? resolvedAlways)
-                  && resolvedAlways == action
+                && resolvedAlways == action
                 : Playback2DKeymapProfile.Default.TryResolveInScope(expectedScope, key, modifiers,
-                      out string? resolvedScoped)
-                  && resolvedScoped == action;
+                    out string? resolvedScoped)
+                && resolvedScoped == action;
 
             await Assert.That(resolved).IsTrue()
                 .Because($"{action} should still resolve through the profile a tab routes through");
@@ -239,8 +239,8 @@ public class StratBookCommandsTests
             .. typeof(StratBookActions)
                 .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
                 .Where(f => f.IsLiteral && f.Name != nameof(StratBookActions.Prefix)
-                                        && f.Name != nameof(StratBookActions.PaletteScope)
-                                        && f.Name != nameof(StratBookActions.SuggestionScope))
+                    && f.Name != nameof(StratBookActions.PaletteScope)
+                    && f.Name != nameof(StratBookActions.SuggestionScope))
                 .Select(f => (string)f.GetRawConstantValue()!)
         ];
 
@@ -254,7 +254,7 @@ public class StratBookCommandsTests
     {
         System.Reflection.FieldInfo[] fields =
             typeof(CoreActions).GetFields(System.Reflection.BindingFlags.Public
-                                          | System.Reflection.BindingFlags.Static);
+                | System.Reflection.BindingFlags.Static);
         string[] scopes = [nameof(CoreActions.Scope), nameof(CoreActions.ToolScope)];
         string[] actions =
         [

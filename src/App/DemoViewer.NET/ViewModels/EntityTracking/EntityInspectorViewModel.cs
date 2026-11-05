@@ -191,7 +191,7 @@ public sealed partial class EntityInspectorViewModel : ObservableObject
     // rendering: an opaque number.
     private static bool IsHandleType(string typeName)
         => typeName.StartsWith("CHandle", StringComparison.Ordinal)
-           || typeName.StartsWith("CEntityHandle", StringComparison.Ordinal);
+            || typeName.StartsWith("CEntityHandle", StringComparison.Ordinal);
 
     // "m_pMovementServices.m_flMaxspeed" → [m_pMovementServices, m_flMaxspeed];
     // "m_hMyWeapons[0]" → [m_hMyWeapons, [0]] so arrays nest under a single group.

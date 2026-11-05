@@ -78,8 +78,8 @@ public class Playback2DBombRingTests
         for (int i = 0; i < frames.Count; i++)
         {
             if (frames[i].InnerMessages.Any(m => m is GameEventMessage gem &&
-                                                 gem.DecodedEvent.Name.Equals(name,
-                                                     StringComparison.OrdinalIgnoreCase)))
+                    gem.DecodedEvent.Name.Equals(name,
+                        StringComparison.OrdinalIgnoreCase)))
             {
                 return i;
             }

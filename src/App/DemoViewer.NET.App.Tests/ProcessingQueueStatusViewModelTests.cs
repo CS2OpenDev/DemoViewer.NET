@@ -404,7 +404,7 @@ public class ProcessingQueueStatusViewModelTests
         checks.Set(new WorkCheck(false, 0, at));
         await Assert.That(vm.CheckLine)
             .IsEqualTo("Library last checked for work at "
-                       + at.ToLocalTime().ToString("g", CultureInfo.CurrentCulture));
+                + at.ToLocalTime().ToString("g", CultureInfo.CurrentCulture));
     }
 
     private sealed class FakeChecks : IWorkCheckStatus

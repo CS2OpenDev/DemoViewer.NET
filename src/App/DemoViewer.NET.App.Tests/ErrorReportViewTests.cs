@@ -182,7 +182,7 @@ public class ErrorReportViewTests
                     .Because("a disabled control suppresses its tooltip unless ShowOnDisabled is set");
                 await Assert.That(control).IsFalse()
                     .Because("without the flag the same pointer path opens nothing, which is what makes "
-                             + "the assertion above evidence rather than a tautology");
+                        + "the assertion above evidence rather than a tautology");
             }
         });
     }

@@ -203,7 +203,7 @@ internal static class ZoneOverlayApplier
         {
             ZoneArea area = state.Baked.Areas[i];
             if (area.Z < minZ || area.Z > maxZ
-                              || !ZoneGeometry.PointInPolygon(zone.Polygon, area.CentroidX, area.CentroidY))
+                || !ZoneGeometry.PointInPolygon(zone.Polygon, area.CentroidX, area.CentroidY))
             {
                 continue;
             }

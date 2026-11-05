@@ -345,8 +345,8 @@ public class TagPositionTests
             TagInstance tag = tags.Document!.Instances.Single();
             TagMovement? move = tag.Movements.SingleOrDefault();
             Console.WriteLine($"[tag-position] positions={tag.Positions.Count} movements={tag.Movements.Count} "
-                              + $"from={move?.From.Place}@({move?.From.X:0},{move?.From.Y:0}) "
-                              + $"to={move?.To.Place}@({move?.To.X:0},{move?.To.Y:0}) tick={move?.To.Tick}");
+                + $"from={move?.From.Place}@({move?.From.X:0},{move?.From.Y:0}) "
+                + $"to={move?.To.Place}@({move?.To.X:0},{move?.To.Y:0}) tick={move?.To.Tick}");
             using (Assert.Multiple())
             {
                 await Assert.That(tag.Positions).IsEmpty();

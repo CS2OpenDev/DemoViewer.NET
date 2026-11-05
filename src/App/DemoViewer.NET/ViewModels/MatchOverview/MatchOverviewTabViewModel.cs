@@ -804,7 +804,7 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
         }
 
         DamageSummary = string.Join(" and ", parts)
-                        + " — player names, rosters, or events may be missing. The demo file may be damaged.";
+            + " — player names, rosters, or events may be missing. The demo file may be damaged.";
         IsDamaged = true;
     }
 
@@ -1311,9 +1311,9 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
         int? total = _authCt + _authT;
 
         bool splitOk = total is { } rounds
-                       && _analysisSideCt is { } ct
-                       && _analysisSideT is { } t
-                       && ct + t == rounds;
+            && _analysisSideCt is { } ct
+            && _analysisSideT is { } t
+            && ct + t == rounds;
         HasSideSplit = splitOk;
         CtSideWinsDisplay = splitOk ? FormatScore(_analysisSideCt) : Placeholder;
         TSideWinsDisplay = splitOk ? FormatScore(_analysisSideT) : Placeholder;
@@ -1599,8 +1599,8 @@ public sealed partial class MatchOverviewTabViewModel : ViewModelBase, IWorkspac
         record.AnalysisState == DemoAnalysisState.Failed
             ? OverviewCompleteness.Failed
             : record.Analysis.IsPresent
-              && record.AnalysisState == DemoAnalysisState.Indexed
-              && hasScoreboard
+            && record.AnalysisState == DemoAnalysisState.Indexed
+            && hasScoreboard
                 ? OverviewCompleteness.Full
                 : record.Parse.IsPresent
                     ? OverviewCompleteness.Indexed

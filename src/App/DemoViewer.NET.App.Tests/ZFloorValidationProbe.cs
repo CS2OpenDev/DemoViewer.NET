@@ -27,7 +27,7 @@ public class ZFloorValidationProbe
     public async Task NukePlayerZ_Distribution_VsNavBoundary()
     {
         string? path = DemoTestHelper.FindDemoPath("003816306022075596881_1029495947.dem")
-                       ?? DemoTestHelper.FindDemoPath("match730_003826256877184877003_0981591541_410.dem");
+            ?? DemoTestHelper.FindDemoPath("match730_003826256877184877003_0981591541_410.dem");
         if (path is null)
         {
             throw new SkipTestException("no Nuke demo present");
@@ -86,9 +86,9 @@ public class ZFloorValidationProbe
         long below528 = hist.Where(kv => kv.Key * BucketWidth < -528).Sum(kv => kv.Value);
         long below495 = hist.Where(kv => kv.Key * BucketWidth < -495).Sum(kv => kv.Value);
         Console.WriteLine($"[zprobe] players below -528: {below528} ({100.0 * below528 / total:F1}%)  " +
-                          $"above: {total - below528} ({100.0 * (total - below528) / total:F1}%)");
+            $"above: {total - below528} ({100.0 * (total - below528) / total:F1}%)");
         Console.WriteLine($"[zprobe] players below -495: {below495} ({100.0 * below495 / total:F1}%)  " +
-                          $"above: {total - below495} ({100.0 * (total - below495) / total:F1}%)");
+            $"above: {total - below495} ({100.0 * (total - below495) / total:F1}%)");
 
         // Find the player-Z valley in the [-700,-300] inter-floor region (the true divide for players).
         int? valleyBucket = null;
@@ -106,7 +106,7 @@ public class ZFloorValidationProbe
         if (valleyBucket is { } vb)
         {
             Console.WriteLine($"[zprobe] player-Z valley in [-700..-300] at z≈{vb * BucketWidth:F0} " +
-                              $"(count {valleyCount}) — the empirical player floor divide");
+                $"(count {valleyCount}) — the empirical player floor divide");
         }
 
         // ── Engine-fidelity gate: the baker's nav boundary (−528) must correctly classify real players. ──

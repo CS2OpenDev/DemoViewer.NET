@@ -22,8 +22,8 @@ public class ExtensionHostTests
     public async Task Cs2DemoKitVersion_EqualsTheDirectoryPackagesPropsPin()
     {
         string repoRoot = DemoTestHelper.FindRepoRoot()
-                          ?? throw new SkipTestException(
-                              "repo root not found (no DemoViewer.NET.slnx above the test binary)");
+            ?? throw new SkipTestException(
+                "repo root not found (no DemoViewer.NET.slnx above the test binary)");
         XDocument props = XDocument.Load(Path.Combine(repoRoot, "Directory.Packages.props"));
         string pin = props.Descendants("PackageVersion")
             .Single(e => (string?)e.Attribute("Include") == "CS2DemoKit.Analysis")

@@ -168,9 +168,9 @@ internal static class SyntheticScenes
             MapName = "synthetic_budget",
             SourceDemoId = null,
             Notes = "Hand-authored worst-case load for the frame-time and allocation budgets: 10 markers, " +
-                    "4 trails of 64 points crossing both Z bands, 12 area effects, 5 solved vision cones " +
-                    "and 5 sightlines, a defusing bomb, over 2 levels at 1080p. Not a picture of any real " +
-                    "round — a fixture that happens to be quiet would let a regression through."
+                "4 trails of 64 points crossing both Z bands, 12 area effects, 5 solved vision cones " +
+                "and 5 sightlines, a defusing bomb, over 2 levels at 1080p. Not a picture of any real " +
+                "round — a fixture that happens to be quiet would let a regression through."
         };
     }
 

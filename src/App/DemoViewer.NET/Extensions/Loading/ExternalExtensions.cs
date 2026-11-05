@@ -162,9 +162,9 @@ public static class ExternalExtensions
 
         IExtension pack = result.Pack!;
         LoadOutcome? failure = CheckSdk(candidate, pack.GetType().Assembly)
-                               ?? CheckAppReference(candidate, pack.GetType().Assembly)
-                               ?? ExtensionLoader.Probe(candidate, pack)
-                               ?? Conflicts(candidate, accepted, pack);
+            ?? CheckAppReference(candidate, pack.GetType().Assembly)
+            ?? ExtensionLoader.Probe(candidate, pack)
+            ?? Conflicts(candidate, accepted, pack);
         if (failure is not null)
         {
             return (null, failure with { External = true });
@@ -203,7 +203,7 @@ public static class ExternalExtensions
         AssemblyName? built = assembly.GetReferencedAssemblies()
             .FirstOrDefault(r => string.Equals(r.Name, sdk.Name, StringComparison.Ordinal));
         if (built?.Version is not { } builtVersion || sdk.Version is not { } running
-                                                   || builtVersion.Major == running.Major)
+            || builtVersion.Major == running.Major)
         {
             return null;
         }

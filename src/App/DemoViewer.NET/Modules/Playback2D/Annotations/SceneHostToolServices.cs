@@ -105,7 +105,7 @@ internal sealed class SceneHostToolServices(Scene2DHost host, AnnotationSession 
             }
 
             if (space is not null && space.Levels.Count > 1
-                                  && space.LevelIndexFor(marker.WorldZ) != pane.LevelIndex)
+                && space.LevelIndexFor(marker.WorldZ) != pane.LevelIndex)
             {
                 continue;
             }
@@ -155,7 +155,7 @@ internal sealed class SceneHostToolServices(Scene2DHost host, AnnotationSession 
                 // id from Z here leaves the eraser unable to touch ink the pane is visibly drawing.
                 MapSpace? space = pane.Space;
                 return space is not { Levels.Count: > 1 }
-                       || space.IdForAnchor(world.LevelMinZ) == pane.LevelId;
+                    || space.IdForAnchor(world.LevelMinZ) == pane.LevelId;
             }
 
             case SpaceRef.Entity entity:

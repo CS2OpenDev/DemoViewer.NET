@@ -99,8 +99,8 @@ public sealed class SituationsPlaybackContribution : IPlaybackContribution
     // pushed yet; the seam refuses on its own when nobody is alive.
     private bool RunFindRoundsLikeThis(PlaybackMoment moment) =>
         _findRounds is { } find && _context?.MapName is { Length: > 0 } map
-                                && moment.Frame.Markers.Count > 0
-                                && find.Show(map, moment.Frame.Time, moment.Frame.Markers);
+        && moment.Frame.Markers.Count > 0
+        && find.Show(map, moment.Frame.Time, moment.Frame.Markers);
 
     // J/K: the walk seeks through the seam's own funnel, so the shared clock and LiveSync's observer see
     // it as any other seek. Gated by the Situations tab's own feature, which the pack cascades off with.

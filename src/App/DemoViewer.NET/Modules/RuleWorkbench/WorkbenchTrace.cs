@@ -215,7 +215,7 @@ public static class WorkbenchTraceModel
                 // A flag: when: stat lowers to a conjunction named by its id (timeline); every other
                 // stat kind writes a value node (applied edges).
                 : timelineByChain.GetValueOrDefault(id)
-                  ?? appliedByStat.GetValueOrDefault(id) ?? [];
+                ?? appliedByStat.GetValueOrDefault(id) ?? [];
 
             fires.Sort(static (a, b) =>
             {

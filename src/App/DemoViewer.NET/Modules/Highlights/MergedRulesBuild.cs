@@ -128,7 +128,7 @@ public sealed class MergedRulesBuild
         lock (_gate)
         {
             if (ReferenceEquals(rules, _rules) && _merged is { } hit
-                                               && string.Equals(hit.Off, offKey, StringComparison.Ordinal))
+                && string.Equals(hit.Off, offKey, StringComparison.Ordinal))
             {
                 return hit;
             }
@@ -336,7 +336,7 @@ public sealed class MergedRulesBuild
     {
         IReadOnlyList<RulesetDoc> docs = Docs;
         RulesetDoc doc = Enabled(docs, rulesetId)
-                         ?? throw new InvalidOperationException($"no enabled {rulesetId} ruleset");
+            ?? throw new InvalidOperationException($"no enabled {rulesetId} ruleset");
         List<RulesetDoc> closure = UseClosure(docs, doc);
         lock (_gate)
         {
@@ -463,7 +463,7 @@ public sealed class MergedRulesBuild
             foreach (string id in current.Use)
             {
                 Visit(Enabled(docs, id)
-                      ?? throw new InvalidOperationException($"{current.Id} uses {id}, which is not enabled"));
+                    ?? throw new InvalidOperationException($"{current.Id} uses {id}, which is not enabled"));
             }
 
             order.Add(current);

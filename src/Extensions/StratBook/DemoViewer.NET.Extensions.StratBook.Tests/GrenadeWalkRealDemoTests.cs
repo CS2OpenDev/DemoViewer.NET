@@ -60,8 +60,9 @@ public class GrenadeWalkRealDemoTests
         List<SmokeGrenadeDetonateEvent> smokePops =
             [.. parsed.AllGameEvents.Select(e => e.Payload).OfType<SmokeGrenadeDetonateEvent>()];
         List<double> yawErrors = [];
-        foreach (GrenadeRow row in rows.Where(r => r is { ReleaseOnGround: true, ReleaseEyeYaw: not null, SpawnVelocity: { } v }
-                                                                             && MathF.Abs(v.X) + MathF.Abs(v.Y) > 1))
+        foreach (GrenadeRow row in rows.Where(r =>
+                     r is { ReleaseOnGround: true, ReleaseEyeYaw: not null, SpawnVelocity: { } v }
+                     && MathF.Abs(v.X) + MathF.Abs(v.Y) > 1))
         {
             WorldPoint v = row.SpawnVelocity!.Value;
             double velocityYaw = Math.Atan2(v.Y, v.X) * 180 / Math.PI;

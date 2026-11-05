@@ -175,10 +175,10 @@ public sealed class GrenadeLineupStore
 
         GrenadeLineupDocument? back = Read();
         return back is not null && back.Maps.Count == Doc.Maps.Count
-                                && back.Maps.All(m => Doc.Maps.TryGetValue(m.Key, out MapLineups? mine)
-                                                      && mine.Anchors.Count == m.Value.Anchors.Count
-                                                      && mine.Paths.Count == m.Value.Paths.Count
-                                                      && mine.Aliases.Count == m.Value.Aliases.Count);
+            && back.Maps.All(m => Doc.Maps.TryGetValue(m.Key, out MapLineups? mine)
+                && mine.Anchors.Count == m.Value.Anchors.Count
+                && mine.Paths.Count == m.Value.Paths.Count
+                && mine.Aliases.Count == m.Value.Aliases.Count);
     }
 
     private GrenadeLineupDocument? Read()

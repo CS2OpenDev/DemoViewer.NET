@@ -245,7 +245,7 @@ public sealed class AnnotationSessionController : IDisposable
 
         string? normalized = string.IsNullOrWhiteSpace(demoPath) ? null : demoPath;
         if (!force && _attached
-                   && string.Equals(_demoPath, normalized, StringComparison.OrdinalIgnoreCase))
+            && string.Equals(_demoPath, normalized, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }

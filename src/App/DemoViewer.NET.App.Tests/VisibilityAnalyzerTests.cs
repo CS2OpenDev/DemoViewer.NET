@@ -103,9 +103,9 @@ public class VisibilityAnalyzerTests
             .Where(e => e.Payload is PlayerDeathEvent)
             .Select(e => (Fire: e, Death: (PlayerDeathEvent)e.Payload!))
             .Where(x => x.Death.Penetrated == 0 && x.Death.Attacker >= 0
-                                                && x.Death.Attacker != x.Death.UserId
-                                                && x.Fire.FrameNumber >= KillLookbackFrames
-                                                && x.Fire.FrameNumber < frames.Count)
+                && x.Death.Attacker != x.Death.UserId
+                && x.Fire.FrameNumber >= KillLookbackFrames
+                && x.Fire.FrameNumber < frames.Count)
             .OrderBy(x => x.Fire.FrameNumber)
             .Take(150)
             .ToList();
@@ -151,7 +151,7 @@ public class VisibilityAnalyzerTests
             if (!couldSee && shown++ < 6)
             {
                 Console.WriteLine($"[killoracle:{map}] miss killer={death.Attacker} victim={death.UserId} " +
-                                  $"exposed={exposed} weapon={death.Weapon} smoke={death.ThruSmoke} dist={death.Distance:F0}");
+                    $"exposed={exposed} weapon={death.Weapon} smoke={death.ThruSmoke} dist={death.Distance:F0}");
             }
         }
 
@@ -201,9 +201,9 @@ public class VisibilityAnalyzerTests
             .Where(e => e.Payload is PlayerDeathEvent)
             .Select(e => (Fire: e, Death: (PlayerDeathEvent)e.Payload!))
             .Where(x => x.Death.Penetrated == 0 && x.Death.Attacker >= 0
-                                                && x.Death.Attacker != x.Death.UserId
-                                                && x.Fire.FrameNumber >= KillLookbackFrames
-                                                && x.Fire.FrameNumber < frames.Count)
+                && x.Death.Attacker != x.Death.UserId
+                && x.Fire.FrameNumber >= KillLookbackFrames
+                && x.Fire.FrameNumber < frames.Count)
             .OrderBy(x => x.Fire.FrameNumber)
             .Take(300)
             .ToList();
@@ -275,8 +275,8 @@ public class VisibilityAnalyzerTests
                 if (shownReal++ < 8)
                 {
                     Console.WriteLine($"[smoke:{map}] REAL through-smoke kill killer={death.Attacker} " +
-                                      $"victim={death.UserId} exposed={exposedReal} couldSee: noSmoke={couldSeeNo} " +
-                                      $"withSmoke={couldSeeReal} activeSmokes={smokeBuf.Count} weapon={death.Weapon}");
+                        $"victim={death.UserId} exposed={exposedReal} couldSee: noSmoke={couldSeeNo} " +
+                        $"withSmoke={couldSeeReal} activeSmokes={smokeBuf.Count} weapon={death.Weapon}");
                 }
             }
             else
@@ -306,10 +306,10 @@ public class VisibilityAnalyzerTests
 
         double synthRate = synthCandidates > 0 ? (double)synthBlocked / synthCandidates : 0;
         Console.WriteLine($"[smoke:{map}] considered={considered} exposedIdentical={exposedIdentical} " +
-                          $"synth={synthBlocked}/{synthCandidates} ({synthRate:P0}) " +
-                          $"realSmokeKills={realSmokeKills} realSubset={realSmokeSubset} realFlipped={realSmokeFlipped} "
-                          +
-                          $"directKills={directKills} directFlipped={directFlipped}");
+            $"synth={synthBlocked}/{synthCandidates} ({synthRate:P0}) " +
+            $"realSmokeKills={realSmokeKills} realSubset={realSmokeSubset} realFlipped={realSmokeFlipped} "
+            +
+            $"directKills={directKills} directFlipped={directFlipped}");
 
         await Assert.That(considered).IsGreaterThan(15);
 
@@ -419,7 +419,7 @@ public class VisibilityAnalyzerTests
         // Re-deriving a real lifetime needs the begin field's origin pinned first; that is a parser question,
         // not a visibility one.
         Console.WriteLine($"[smokelife:{map}] ticksWithSmoke={ticksWithSmoke} maxConcurrent={maxConcurrent} " +
-                          $"beginSpanTicks={maxAge - minAge} (origin scatter, NOT a lifetime — see above)");
+            $"beginSpanTicks={maxAge - minAge} (origin scatter, NOT a lifetime — see above)");
 
         if (ticksWithSmoke == 0)
         {
@@ -471,8 +471,8 @@ public class VisibilityAnalyzerTests
         VisibilityAnalyzer.Report report = VisibilityAnalyzer.Analyze(frames, engine, PositionResolver, opt);
 
         Console.WriteLine($"[vstat:{map}] sampledTicks={report.SampledTicks} sampledSeconds={report.SampledSeconds:F1} "
-                          +
-                          $"pairs={report.Pairs.Count}");
+            +
+            $"pairs={report.Pairs.Count}");
         foreach (VisibilityAnalyzer.PairStat p in report.Pairs.OrderByDescending(p => p.CouldSeeSeconds).Take(4))
         {
             Console.WriteLine(
@@ -567,7 +567,7 @@ public class VisibilityAnalyzerTests
 
         double rate = crossFloorPairs > 0 ? (double)occluded / crossFloorPairs : 0;
         Console.WriteLine($"[crossfloor] near-XY cross-floor pairs={crossFloorPairs} occluded={occluded} ({rate:P0}) " +
-                          "— a 2D projection would call ALL of these visible");
+            "— a 2D projection would call ALL of these visible");
 
         // Need a meaningful sample of stacked pairs, and the floor must block the majority (openings,
         // ramp/hole/vents, are the visible minority). A floor-occlusion bug would drive this toward 0%.

@@ -210,7 +210,7 @@ public static class RoundIndexBuilder
             }
 
             int end = round.EndTick
-                      ?? (i + 1 < rounds.Count ? rounds[i + 1].FreezeEndTick : lastFrameTick + 1);
+                ?? (i + 1 < rounds.Count ? rounds[i + 1].FreezeEndTick : lastFrameTick + 1);
             if (end <= round.FreezeEndTick)
             {
                 continue;
@@ -509,8 +509,8 @@ public sealed record RoundIndexDemoValues(int TickRate, int LastFrameTick, Round
         {
             Players = demo.Players,
             Departed = context.Collected<RoundIndexRosterCollector.Collected>(RoundIndexRosterCollector.CollectorId)
-                           ?.Slots
-                       ?? new Dictionary<int, RosterEntry>()
+                    ?.Slots
+                ?? new Dictionary<int, RosterEntry>()
         };
     }
 }

@@ -305,7 +305,7 @@ public static class GrenadeLineups
     {
         ArgumentNullException.ThrowIfNull(lineup);
         return lineup.Techniques.FirstOrDefault(t => string.Equals(t.Key, key, StringComparison.Ordinal))
-               ?? (lineup.Techniques.Count > 0 ? lineup.Techniques[0] : null);
+            ?? (lineup.Techniques.Count > 0 ? lineup.Techniques[0] : null);
     }
 
     /// <summary>The throw released nearest <paramref name="origin" />; ties to the earlier in list order.</summary>

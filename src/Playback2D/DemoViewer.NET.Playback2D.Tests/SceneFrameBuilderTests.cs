@@ -129,7 +129,7 @@ public class SceneFrameBuilderTests
         await Assert.That(t.Slot).IsEqualTo(0);
         await Assert.That(t.Team).IsEqualTo(2);
         await Assert.That(t.Name).IsEqualTo("P0").Because("the card carries the MARKER's tag, so a card "
-                                                          + "and its disc are matched by eye");
+            + "and its disc are matched by eye");
         await Assert.That(t.IsAlive).IsTrue();
         await Assert.That(t.Health).IsEqualTo(63);
         await Assert.That(t.Armor).IsEqualTo(87);

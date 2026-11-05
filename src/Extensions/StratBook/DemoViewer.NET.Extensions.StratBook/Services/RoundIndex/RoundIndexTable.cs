@@ -58,7 +58,7 @@ public static class RoundIndexTable
         return read is { Success: true, Rulesets.Count: 1 }
             ? read.Rulesets[0]
             : throw new InvalidOperationException("the round index ruleset does not load: "
-                                                  + string.Join("; ", read.Errors));
+                + string.Join("; ", read.Errors));
     }
 
     /// <summary>
@@ -71,10 +71,10 @@ public static class RoundIndexTable
         ArgumentNullException.ThrowIfNull(parsed);
         AnalysisRun run = DemoAnalysis.Run(parsed, [LoadRuleset()], new AnalysisOptions { CaptureSnapshots = false });
         MetricTable table = run.ProjectConfiguredOutputs().SingleOrDefault(t => t.Name == TableName)
-                            ?? throw new InvalidOperationException("the round index ruleset recorded no table: "
-                                                                   + string.Join("; ",
-                                                                       run.Build.ExcludedRulesets.SelectMany(e =>
-                                                                           e.Diagnostics)));
+            ?? throw new InvalidOperationException("the round index ruleset recorded no table: "
+                + string.Join("; ",
+                    run.Build.ExcludedRulesets.SelectMany(e =>
+                        e.Diagnostics)));
         return Samples(table.Rows.Select(r => (r.Dimensions, r.Values)));
     }
 
@@ -100,9 +100,9 @@ public static class RoundIndexTable
         foreach ((IReadOnlyDictionary<string, object?> dimensions, IReadOnlyDictionary<string, object?> values) in rows)
         {
             if (Int(dimensions, "tick") is not { } tick || Int(dimensions, "player_slot") is not { } slot
-                                                        || Float(values, "pos_x") is not { } x
-                                                        || Float(values, "pos_y") is not { } y
-                                                        || Float(values, "pos_z") is not { } z)
+                || Float(values, "pos_x") is not { } x
+                || Float(values, "pos_y") is not { } y
+                || Float(values, "pos_z") is not { } z)
             {
                 continue;
             }
@@ -135,7 +135,7 @@ public static class RoundIndexTable
         // The informational version: NBGV keeps AssemblyVersion at major.minor.0.0 for every patch and prerelease.
         Assembly assembly = typeof(DemoAnalysis).Assembly;
         string engine = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-                        ?? assembly.GetName().Version?.ToString() ?? "";
+            ?? assembly.GetName().Version?.ToString() ?? "";
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(ReadYaml() + "\n" + engine));
         return Convert.ToHexStringLower(hash, 0, 16);
     }

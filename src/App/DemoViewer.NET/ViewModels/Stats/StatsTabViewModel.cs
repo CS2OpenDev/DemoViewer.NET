@@ -512,8 +512,8 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     {
         string? matchId = _demoPathAccessor() is { } path ? Path.GetFileName(path) : null;
         EvaluationResult result = run.Snapshots
-                                  ?? throw new InvalidOperationException(
-                                      "Stats tab requires snapshot-mode evaluation.");
+            ?? throw new InvalidOperationException(
+                "Stats tab requires snapshot-mode evaluation.");
 
         List<MetricTable> extras =
         [
@@ -819,11 +819,11 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
             ? ""
             : _collisionTrisPath is null
                 ? $"No collision geometry is shipped for {demo.MapName}, so the line-of-sight columns "
-                  + "have nothing to measure on this demo: Preaim, Crosshair Travel, Time to Shoot, Time "
-                  + "to Damage, Aimed Reaction, Time to Kill, and the accuracies counted after first "
-                  + "contact. They read as no data rather than zero."
+                + "have nothing to measure on this demo: Preaim, Crosshair Travel, Time to Shoot, Time "
+                + "to Damage, Aimed Reaction, Time to Kill, and the accuracies counted after first "
+                + "contact. They read as no data rather than zero."
                 : "The line-of-sight pass found no enemy contacts in this demo, so the columns that "
-                  + "depend on it read as no data rather than zero.";
+                + "depend on it read as no data rather than zero.";
         OnPropertyChanged(nameof(SightNotice));
         OnPropertyChanged(nameof(HasSightNotice));
         OnPropertyChanged(nameof(IsSightNoticeVisible));
@@ -1001,8 +1001,8 @@ public sealed partial class StatsTabViewModel : ObservableObject, IDisposable
     private static (string? Key, bool Descending) DefaultSort(List<string> visibleOrder)
     {
         string? kills = visibleOrder.FirstOrDefault(c => string.Equals(c, "Kills", StringComparison.OrdinalIgnoreCase))
-                        ?? visibleOrder.FirstOrDefault(c =>
-                            string.Equals(c, "TotalK", StringComparison.OrdinalIgnoreCase));
+            ?? visibleOrder.FirstOrDefault(c =>
+                string.Equals(c, "TotalK", StringComparison.OrdinalIgnoreCase));
         if (kills is not null)
         {
             return (kills, true);

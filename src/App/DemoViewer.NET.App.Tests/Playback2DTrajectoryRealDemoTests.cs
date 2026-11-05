@@ -78,7 +78,7 @@ public class Playback2DTrajectoryRealDemoTests
         }
 
         Console.WriteLine($"[trail] smokegrenade_detonate @frame {detonate}; best smoke trail = " +
-                          $"{bestSmoke?.Points.Count ?? 0} pts");
+            $"{bestSmoke?.Points.Count ?? 0} pts");
 
         await Assert.That(bestSmoke).IsNotNull();
         await Assert.That(bestSmoke!.Points.Count).IsGreaterThanOrEqualTo(2); // a real multi-point flight path
@@ -161,7 +161,7 @@ public class Playback2DTrajectoryRealDemoTests
 
         float mostStationary = persistent.Select(s => maxPerAxisMove.GetValueOrDefault(s, 0f)).Min();
         Console.WriteLine($"[landed-smoke] persistent={persistent.Count} " +
-                          $"mostStationary maxPerAxisMove={mostStationary:F4}u over {steps} frames");
+            $"mostStationary maxPerAxisMove={mostStationary:F4}u over {steps} frames");
 
         await Assert.That(mostStationary).IsLessThan(0.5f); // < the SamePoint threshold ⇒ no re-append ⇒ fades
     }
@@ -171,8 +171,8 @@ public class Playback2DTrajectoryRealDemoTests
         for (int i = 0; i < frames.Count; i++)
         {
             if (frames[i].InnerMessages.Any(m => m is GameEventMessage gem &&
-                                                 gem.DecodedEvent.Name.Equals(name,
-                                                     StringComparison.OrdinalIgnoreCase)))
+                    gem.DecodedEvent.Name.Equals(name,
+                        StringComparison.OrdinalIgnoreCase)))
             {
                 return i;
             }

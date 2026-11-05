@@ -441,7 +441,7 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
         IReadOnlyList<SuggestedPlayer> active = _teams.ActiveRoster(row.Id);
         ActiveRosterLine = active.Count > 0
             ? "plays now (5 or more of the last 10): "
-              + string.Join(", ", active.Select(p => DisplayText.Sanitize(p.Name)))
+            + string.Join(", ", active.Select(p => DisplayText.Sanitize(p.Name)))
             : "plays now: nobody has 5 of the last 10 yet";
 
         foreach (Roster roster in row.Team.Rosters)
@@ -535,10 +535,10 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
         accounts.Count == 0
             ? "No accounts yet. Open Settings > Identity to add yours."
             : "Your accounts: "
-              + string.Join(", ",
-                  accounts.Select(a =>
-                      accounts.Count > 1 && string.Equals(a, active, StringComparison.Ordinal) ? a + " (active)" : a))
-              + ". Open Settings > Identity to change them.";
+            + string.Join(", ",
+                accounts.Select(a =>
+                    accounts.Count > 1 && string.Equals(a, active, StringComparison.Ordinal) ? a + " (active)" : a))
+            + ". Open Settings > Identity to change them.";
 
     private void ProjectSuggestions()
     {

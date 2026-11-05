@@ -147,7 +147,7 @@ public class ExtensionShellViewTests
         {
             Environment.SetEnvironmentVariable(TourDemoLocator.EnvVar, null);
             return TourDemoLocator.FindSampleDemo()
-                   ?? throw new InvalidOperationException("the committed tour sample is missing");
+                ?? throw new InvalidOperationException("the committed tour sample is missing");
         }
         finally
         {

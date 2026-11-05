@@ -223,7 +223,7 @@ internal sealed class NotificationCenter
         public void Post(Notification? notification)
         {
             if (notification is null || string.IsNullOrWhiteSpace(notification.Id)
-                                     || string.IsNullOrWhiteSpace(notification.Title))
+                || string.IsNullOrWhiteSpace(notification.Title))
             {
                 Log(() => NotificationLog.Malformed(log));
                 return;

@@ -100,10 +100,10 @@ public sealed class AnalysisFacts : IAnalysisFacts, IFactsVisibility
         }
 
         return _cache.TryReadSiblingBytes(demoPath, StampedFacts.Suffix(key)) is { } bytes
-               && FactsCodec.Decode(bytes) is { } table
-               && table.Key == key
-            ? table
-            : null;
+            && FactsCodec.Decode(bytes) is { } table
+            && table.Key == key
+                ? table
+                : null;
     }
 
     string IFactsVisibility.ShownKey =>

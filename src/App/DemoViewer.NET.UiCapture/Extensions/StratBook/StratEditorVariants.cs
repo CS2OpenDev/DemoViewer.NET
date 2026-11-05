@@ -173,7 +173,8 @@ public static partial class Variants
             ],
             Positions =
             [
-                SlotAt("B", Near("PalaceInterior", 0, 0)), SlotAt("C", Near("Connector", 0, 0)), SlotAt("D", Near("Stairs", 0, 0))
+                SlotAt("B", Near("PalaceInterior", 0, 0)), SlotAt("C", Near("Connector", 0, 0)),
+                SlotAt("D", Near("Stairs", 0, 0))
             ]
         };
         vm.Session.Apply(PatchOp.AddOp("/steps/-",

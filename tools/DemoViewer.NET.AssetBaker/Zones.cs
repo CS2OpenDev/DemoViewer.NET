@@ -105,7 +105,7 @@ public static class Zones
 
         string navPath = $"maps/{mapName}.nav";
         PackageEntry navEntry = package.FindEntry(navPath)
-                                ?? throw new FileNotFoundException($"{navPath} not found in {vpkPath}");
+            ?? throw new FileNotFoundException($"{navPath} not found in {vpkPath}");
         package.ReadEntry(navEntry, out byte[] navBytes);
         crc.Append(navBytes);
         string zonesVersion = Convert.ToHexString(crc.GetCurrentHash()).ToLowerInvariant();
@@ -190,7 +190,7 @@ public static class Zones
         using JsonDocument doc = JsonDocument.Parse(File.ReadAllBytes(bundlePath));
         JsonElement root = doc.RootElement;
         string mapVersion = root.GetProperty("mapVersion").GetString()
-                            ?? throw new InvalidDataException($"{bundlePath}: mapVersion is null");
+            ?? throw new InvalidDataException($"{bundlePath}: mapVersion is null");
         List<FloorBand> floors = new();
         foreach (JsonElement band in root.GetProperty("floors").EnumerateArray())
         {
@@ -823,7 +823,7 @@ public static class Zones
                      .OrderBy(g => places[g.Key], StringComparer.Ordinal))
         {
             sb.AppendLine($"    {places[g.Key]}: " +
-                          string.Join(", ", g.Select(i => places[i]).OrderBy(n => n, StringComparer.Ordinal)));
+                string.Join(", ", g.Select(i => places[i]).OrderBy(n => n, StringComparer.Ordinal)));
         }
 
         return sb.ToString();

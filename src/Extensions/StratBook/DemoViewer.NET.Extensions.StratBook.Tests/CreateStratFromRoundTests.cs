@@ -269,7 +269,10 @@ public class CreateStratFromRoundTests
                 "r7", origin, null, now);
             RoundFacts row = new()
             {
-                Number = 7, PlantTick = At(40), PlantSite = BombSite.B, RoundTimeSeconds = 115,
+                Number = 7,
+                PlantTick = At(40),
+                PlantSite = BombSite.B,
+                RoundTimeSeconds = 115,
                 T = { BuyType = BuyType.Force }
             };
             StratDocument withRow = StratFromRound.Document(capture, Options(capture), StratOwner.Me(), "de_mirage",

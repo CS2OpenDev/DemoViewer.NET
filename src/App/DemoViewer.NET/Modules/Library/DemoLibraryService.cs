@@ -991,8 +991,8 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             }
 
             if (end == SliceEnd.Waiting && slice.InFlight is { } waiting
-                                        && !await AnswersInTimeAsync(waiting.Answer, ct, waiting.Started, bound)
-                                            .ConfigureAwait(false))
+                && !await AnswersInTimeAsync(waiting.Answer, ct, waiting.Started, bound)
+                    .ConfigureAwait(false))
             {
                 leftUnread(left, $"{pathOf(waiting.Item)} gave no answer in {bound.TotalSeconds:0.#} s");
                 return false;
@@ -1266,8 +1266,8 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
                 walk.GiveUp("its listing was stopped in the queue");
             }
             else if (end == SliceEnd.Waiting && slice.InFlight is { } waiting
-                                             && !await AnswersInTimeAsync(waiting.Answer, ct, waiting.Started)
-                                                 .ConfigureAwait(false))
+                     && !await AnswersInTimeAsync(waiting.Answer, ct, waiting.Started)
+                         .ConfigureAwait(false))
             {
                 walk.GiveUp($"{waiting.Read.Directory} gave no answer in {Timing.NoAnswer.TotalSeconds:0.#} s");
                 RescanOnLateAnswer(walk.Folder, waiting.Answer);
@@ -1684,7 +1684,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
                 foreach (string path in doomed)
                 {
                     if (deferred is not null && _demoCache.LocationOf(path) is { } at
-                                             && unplacedSizes.Contains(at.Location.Size))
+                        && unplacedSizes.Contains(at.Location.Size))
                     {
                         deferred.Add(path);
                     }
@@ -1895,7 +1895,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         foreach ((string path, long size, DateTime _) in files)
         {
             if (unrecognisable.Contains(size) && !keyByPath[path].Key.StartsWith("sha:", StringComparison.Ordinal)
-                                              && _demoCache?.TryGetIndex(path) is null)
+                && _demoCache?.TryGetIndex(path) is null)
             {
                 needHash.Add(path);
             }
@@ -1974,10 +1974,10 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         lock (_fingerprints)
         {
             return _fingerprints.TryGetValue(path,
-                       out (long Size, long Ticks, IReadOnlyList<DemoContentFingerprint> Fingerprints) read)
-                   && read.Size == size && read.Ticks == modified.Ticks
-                ? read.Fingerprints
-                : null;
+                    out (long Size, long Ticks, IReadOnlyList<DemoContentFingerprint> Fingerprints) read)
+                && read.Size == size && read.Ticks == modified.Ticks
+                    ? read.Fingerprints
+                    : null;
         }
     }
 
@@ -1986,9 +1986,9 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         lock (_cacheLock)
         {
             return _cache.TryGetValue(path, out DemoLibraryCacheEntry? c)
-                   && c.Size == size && c.ModifiedTicks == modified.Ticks
-                ? c.Sha256
-                : null;
+                && c.Size == size && c.ModifiedTicks == modified.Ticks
+                    ? c.Sha256
+                    : null;
         }
     }
 
@@ -2204,7 +2204,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
             // that writes the stamp, and every pass that runs after it waits on it.
             if (entry.FilledFrom is null
                 && (entry.State != DemoIndexState.Indexed || cached is not { ScoreComputed: true }
-                                                          || !HasParseStamp(path)))
+                    || !HasParseStamp(path)))
             {
                 if (holdBack?.Contains(path) != true)
                 {
@@ -2241,8 +2241,8 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
     // the store last saw there.
     private (string ContentId, DemoCacheIndexEntry Row)? StoredParse(string path, long size, DateTime modified) =>
         _demoCache?.LocationOf(path) is { } at && at.Location.Size == size
-                                               && at.Location.ModifiedTicks == modified.Ticks
-                                               && _demoCache.TryGetIndex(path) is { ParseSchema: > 0 } row
+        && at.Location.ModifiedTicks == modified.Ticks
+        && _demoCache.TryGetIndex(path) is { ParseSchema: > 0 } row
             ? (at.ContentId, row)
             : null;
 
@@ -2283,7 +2283,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         // read keeps the original half data on the row as the permanent evidence, so the state is re-derived
         // correctly on every launch and cannot be lost. It also means NO new persisted field.
         bool scoreIsStale = cached.FullyIndexed
-                            && !IsScoreResultCoherent(cached.CtScore, cached.Score, cached.CtClan, cached.Clan);
+            && !IsScoreResultCoherent(cached.CtScore, cached.Score, cached.CtClan, cached.Clan);
         entry.ScoreRepairPending = scoreIsStale;
 
         if (cached.FullyIndexed)
@@ -2701,7 +2701,7 @@ public sealed class DemoLibraryService : IDisposable, IDemoEvaluator
         // Neither side resolved. The extractor bails BEFORE it can have kept a clan, so a clan without a
         // score is the same stale half-result as a score without its other half.
         return ctScore is null && tScore is null
-                               && string.IsNullOrWhiteSpace(ctClan) && string.IsNullOrWhiteSpace(tClan);
+            && string.IsNullOrWhiteSpace(ctClan) && string.IsNullOrWhiteSpace(tClan);
     }
 
     // Does this hydrated row hold a score the extractor could not have produced? PURE: it deliberately

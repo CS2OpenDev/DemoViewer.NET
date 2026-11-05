@@ -38,7 +38,7 @@ public class Playback2DFeatureWiringTests
                     .Where(IsExtensionProductionSource)
                 : [])
             .Where(p => p.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
-                        || p.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase))
+                || p.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase))
             .Where(p => !string.Equals(p, catalogPath, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
@@ -55,7 +55,7 @@ public class Playback2DFeatureWiringTests
 
         await Assert.That(string.Join(", ", unconsumed)).IsEqualTo("")
             .Because("a catalog row nothing reads is a switch wired to nothing — the user flips it and "
-                     + "the app does not change");
+                + "the app does not change");
     }
 
     // No build output, and no segment that names a test, test-support or capture project.
@@ -153,6 +153,6 @@ public class Playback2DFeatureWiringTests
         await Assert.That(Playback2DFeatureCatalogTests.Ids.Contains(AnnotationTrack.TrackId,
                 StringComparer.Ordinal)).IsFalse()
             .Because("the timeline track id is the bare word 'annotation' — three registries must not "
-                     + "share one key");
+                + "share one key");
     }
 }

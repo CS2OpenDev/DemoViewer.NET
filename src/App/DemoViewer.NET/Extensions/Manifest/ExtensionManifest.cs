@@ -70,7 +70,7 @@ public sealed partial record ExtensionManifest(
         try
         {
             dto = JsonSerializer.Deserialize<Dto>(json, _json)
-                  ?? throw new ExtensionManifestException("The manifest is empty.");
+                ?? throw new ExtensionManifestException("The manifest is empty.");
         }
         catch (JsonException ex)
         {
@@ -95,8 +95,8 @@ public sealed partial record ExtensionManifest(
     {
         ArgumentNullException.ThrowIfNull(assembly);
         using Stream stream = assembly.GetManifestResourceStream(FileName)
-                              ?? throw new ExtensionManifestException(
-                                  $"{assembly.GetName().Name} embeds no {FileName}.");
+            ?? throw new ExtensionManifestException(
+                $"{assembly.GetName().Name} embeds no {FileName}.");
         return Parse(stream);
     }
 

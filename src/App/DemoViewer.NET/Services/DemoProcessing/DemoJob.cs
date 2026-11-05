@@ -47,8 +47,8 @@ public sealed class DemoJobInput
 
     /// <summary>The parse. Throws once the job's turn has ended, so a kept input cannot hold the parse.</summary>
     public ParsedDemo Parsed => _parsed
-                                ?? throw new ObjectDisposedException(nameof(DemoJobInput),
-                                    "The job's turn on the parse has ended.");
+        ?? throw new ObjectDisposedException(nameof(DemoJobInput),
+            "The job's turn on the parse has ended.");
 
     /// <summary>Fires when the job or its visit is cancelled, or the app shuts down.</summary>
     public CancellationToken CancellationToken { get; }

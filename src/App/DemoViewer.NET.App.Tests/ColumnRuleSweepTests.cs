@@ -112,7 +112,7 @@ public class ColumnRuleSweepTests
                 .Because("one demo pools to its own value");
             await Assert
                 .That(Math.Abs(ColumnRules.For("HLTV")!.Pool([shortGame, longGame])!.Value
-                               - (((1.5 * 10) + (0.9 * 30)) / 40))).IsLessThan(1e-12)
+                    - (((1.5 * 10) + (0.9 * 30)) / 40))).IsLessThan(1e-12)
                 .Because("HLTV pools as the rounds-weighted mean");
             await Assert.That(ColumnRules.For("FK±")!.Pool([shortGame, longGame])).IsEqualTo(-2.0);
             await Assert.That(ColumnRules.For("Duel%")!.Pool([shortGame, longGame])).IsEqualTo(3.0 / 8 * 100);

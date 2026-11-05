@@ -150,7 +150,7 @@ public class SceneLayerTests
         SKColor[] bare = Render(withoutLabels, frame);
 
         Console.WriteLine($"[markers] fill with labels={CountColour(labelled, ScenePalette.Dark.TeamT)} " +
-                          $"without={CountColour(bare, ScenePalette.Dark.TeamT)}");
+            $"without={CountColour(bare, ScenePalette.Dark.TeamT)}");
 
         // The glyphs sit ON the disc, so hiding them shows more of the team fill, not less.
         await Assert.That(CountColour(bare, ScenePalette.Dark.TeamT))
@@ -226,9 +226,9 @@ public class SceneLayerTests
         float inkCentreY = (minY + maxY + 1) / 2f;
 
         Console.WriteLine($"[markers] \"{label}\" disc=({discX:F2},{discY:F2}) " +
-                          $"ink=[{minX}..{maxX}]x[{minY}..{maxY}] ({inkPixels} px) " +
-                          $"centre=({inkCentreX:F2},{inkCentreY:F2}) " +
-                          $"offset=({inkCentreX - discX:F2},{inkCentreY - discY:F2})");
+            $"ink=[{minX}..{maxX}]x[{minY}..{maxY}] ({inkPixels} px) " +
+            $"centre=({inkCentreX:F2},{inkCentreY:F2}) " +
+            $"offset=({inkCentreX - discX:F2},{inkCentreY - discY:F2})");
 
         await Assert.That(inkCentreX).IsEqualTo((float)discX).Within(InkCentreTolerancePx);
         await Assert.That(inkCentreY).IsEqualTo((float)discY).Within(InkCentreTolerancePx);

@@ -41,9 +41,9 @@ public class RoundIndexTableParityTests
         AnalysisRun run = DemoAnalysis.Run(parsed, [doc], new AnalysisOptions { CaptureSnapshots = false });
         IReadOnlyList<MetricTable> tables = run.ProjectConfiguredOutputs();
         MetricTable table = tables.SingleOrDefault(t => t.Name == RoundIndexTable.TableName)
-                            ?? throw new InvalidOperationException(
-                                $"no table; tables [{string.Join(", ", tables.Select(t => t.Name))}], excluded " +
-                                $"[{string.Join("; ", run.Build.ExcludedRulesets.SelectMany(e => e.Diagnostics))}], diagnostics [{string.Join("; ", run.Build.RulesetDiagnostics)}]");
+            ?? throw new InvalidOperationException(
+                $"no table; tables [{string.Join(", ", tables.Select(t => t.Name))}], excluded " +
+                $"[{string.Join("; ", run.Build.ExcludedRulesets.SelectMany(e => e.Diagnostics))}], diagnostics [{string.Join("; ", run.Build.RulesetDiagnostics)}]");
         List<PositionSample> c = RoundIndexTable.Samples(table.Rows.Select(r => (r.Dimensions, r.Values)));
         // What the pass reads: the rows as IPassContext.Table hands them over.
         List<PositionSample> passRows = RoundIndexTable.Samples(FactsCodec.FromMetric(table,
@@ -53,7 +53,7 @@ public class RoundIndexTableParityTests
         new RoundFactsEvaluator(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity())
             .Evaluate(path, parsed);
         RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts
-                              ?? throw new InvalidOperationException("no round facts rows");
+            ?? throw new InvalidOperationException("no round facts rows");
         RoundIndexDemoValues values = RoundIndexDemoValues.For(parsed);
         List<PositionSample> b = CadenceFrames(parsed, rows, values);
 
@@ -144,7 +144,7 @@ public class RoundIndexTableParityTests
             .Count(p => string.Join(";", p.First.Runs) != string.Join(";", p.Second.Runs));
         int stepDiffs = expected.Positions.Rounds.Zip(actual.Positions.Rounds)
             .Sum(p => p.First.Pos.Zip(p.Second.Pos).Count(s => string.Join(",", s.First) != string.Join(",", s.Second))
-                      + Math.Abs(p.First.Pos.Count - p.Second.Pos.Count));
+                + Math.Abs(p.First.Pos.Count - p.Second.Pos.Count));
         int steps = expected.Positions.Rounds.Sum(r => r.Pos.Count);
         Console.WriteLine(
             $"{label}: index {(ei == ai ? "equal" : "differs")}, positions {(ep == ap ? "equal" : "differs")}, " +
@@ -165,15 +165,15 @@ public class RoundIndexTableParityTests
         {
             int from = Math.Max(0, at - 150);
             Console.WriteLine($"{label} first diff at {at} of {expected.Length}/{actual.Length}:\n  expected " +
-                              $"{expected.Substring(from, Math.Min(300, expected.Length - from))}\n  actual   " +
-                              $"{actual.Substring(from, Math.Min(300, actual.Length - from))}");
+                $"{expected.Substring(from, Math.Min(300, expected.Length - from))}\n  actual   " +
+                $"{actual.Substring(from, Math.Min(300, actual.Length - from))}");
         }
     }
 
     private static string BenchmarkDemo(int which)
     {
         return DemoTestHelper.TrySetDemo("benchmarks", which, out string? problem)
-               ?? DemoTestHelper.DemoPathFolderDemo(which)
-               ?? throw new SkipTestException($"no benchmark demos: {problem}");
+            ?? DemoTestHelper.DemoPathFolderDemo(which)
+            ?? throw new SkipTestException($"no benchmark demos: {problem}");
     }
 }

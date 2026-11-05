@@ -64,7 +64,7 @@ public class SearchFiltersRealDemoTests
         IReadOnlyList<SituationHit> planted = index.Query(postPlant);
         IReadOnlyList<SituationHit> fullAndLate = index.Query(ctFullLate);
         RoundFactsRows rows = factsSource.TryGet(path)
-                              ?? throw new InvalidOperationException("the evaluator wrote no rows");
+            ?? throw new InvalidOperationException("the evaluator wrote no rows");
 
         // A plant is only visible to the index at a sampled step at or after it, and a round can be
         // decided before the next step comes: round 6 of the de_nuke replay plants at 35595 and is
@@ -73,10 +73,10 @@ public class SearchFiltersRealDemoTests
         RoundIndexDocument document =
             RoundIndexBuilder.Build(parsed, rows, RoundIndexOptions.Default, PawnPlaceSource.Instance);
         int sampledAfterPlant = rows.Rounds.Count(r => r is { IsLive: true, PlantTick: { } plant }
-                                                                && document.Rounds.SingleOrDefault(d =>
-                                                                    d.Number == r.Number) is { } indexed
-                                                                && document.ExpandRows(indexed)
-                                                                    .Any(row => row.Tick >= plant));
+            && document.Rounds.SingleOrDefault(d =>
+                d.Number == r.Number) is { } indexed
+            && document.ExpandRows(indexed)
+                .Any(row => row.Tick >= plant));
 
         using (Assert.Multiple())
         {

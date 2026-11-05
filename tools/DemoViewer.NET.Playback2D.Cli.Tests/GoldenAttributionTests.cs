@@ -64,12 +64,12 @@ public class GoldenAttributionTests
         if (OperatingSystem.IsMacOS() && _macOsDivergent.Contains(name))
         {
             throw new SkipTestException($"{name}: the committed golden was authored on Windows and " +
-                                        "macOS renders it outside the unrelaxed ceiling. See _macOsDivergent.");
+                "macOS renders it outside the unrelaxed ceiling. See _macOsDivergent.");
         }
 
         GoldenCorpus corpus = GoldenCorpus.Load(Dv2d.CorpusDirectory);
         GoldenCorpusEntry entry = corpus.Find(name)
-                                  ?? throw new InvalidOperationException($"no corpus entry '{name}'");
+            ?? throw new InvalidOperationException($"no corpus entry '{name}'");
         SceneFixture fixture = SceneFixture.Load(entry.ScenePath);
 
         string goldenPath = entry.GoldenPath(RenderBackend.CpuRaster);
@@ -91,7 +91,7 @@ public class GoldenAttributionTests
         int labels = GoldenEntryPlan.LabelCount(fixture);
         SKSizeI size = entry.Size;
         long budget = (long)(GoldenCommand.ToleranceFor(entry, null).MaxGlyphOutlierFraction
-                             * size.Width * size.Height);
+            * size.Width * size.Height);
         Console.WriteLine($"[attribution] {ink.Describe(name, labels)}, budget {budget} px");
 
         // The mask depends on MarkerLayer being findable under SceneLayerIds.Markers, so a renamed id

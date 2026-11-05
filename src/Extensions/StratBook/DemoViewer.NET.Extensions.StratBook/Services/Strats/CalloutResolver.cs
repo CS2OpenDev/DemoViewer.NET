@@ -161,10 +161,10 @@ public sealed class CalloutResolver
         for (int i = 1; i <= place.Length; i++)
         {
             bool boundary = i == place.Length
-                            || (char.IsUpper(place[i]) && char.IsLower(place[i - 1]))
-                            || (char.IsUpper(place[i]) && char.IsUpper(place[i - 1]) && i + 1 < place.Length
-                                && char.IsLower(place[i + 1]))
-                            || (char.IsDigit(place[i]) != char.IsDigit(place[i - 1]));
+                || (char.IsUpper(place[i]) && char.IsLower(place[i - 1]))
+                || (char.IsUpper(place[i]) && char.IsUpper(place[i - 1]) && i + 1 < place.Length
+                    && char.IsLower(place[i + 1]))
+                || (char.IsDigit(place[i]) != char.IsDigit(place[i - 1]));
             if (boundary)
             {
                 string word = place[start..i];
@@ -238,8 +238,8 @@ public static class CanonicalPlaces
                 using JsonDocument document = JsonDocument.Parse(stream);
                 JsonElement root = document.RootElement;
                 if (root.TryGetProperty("map", out JsonElement map) && map.GetString() is { Length: > 0 } name
-                                                                    && root.TryGetProperty("names",
-                                                                        out JsonElement names))
+                    && root.TryGetProperty("names",
+                        out JsonElement names))
                 {
                     lists[name.ToLowerInvariant()] =
                         [.. names.EnumerateArray().Select(n => n.GetString()).OfType<string>()];

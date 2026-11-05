@@ -391,7 +391,7 @@ public sealed class SiteRegionStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(map);
         if (map.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || map.Contains('/', StringComparison.Ordinal)
-                                                                || map.Contains('\\', StringComparison.Ordinal))
+            || map.Contains('\\', StringComparison.Ordinal))
         {
             throw new ArgumentException($"'{map}' cannot name a file", nameof(map));
         }

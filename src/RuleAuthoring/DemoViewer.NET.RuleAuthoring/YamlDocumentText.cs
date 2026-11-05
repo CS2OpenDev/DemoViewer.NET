@@ -81,7 +81,7 @@ public sealed class YamlDocumentText
             else
             {
                 if (current is not YamlSequenceNode sequence || segment.Index < 0
-                                                             || segment.Index >= sequence.Children.Count)
+                    || segment.Index >= sequence.Children.Count)
                 {
                     return null;
                 }
@@ -99,7 +99,7 @@ public sealed class YamlDocumentText
         ArgumentNullException.ThrowIfNull(path);
 
         if (path.Segments.Count == 0 || path.Segments[^1].Key is not { } key
-                                     || path.Parent is not { } parent || Find(parent) is not YamlMappingNode map)
+            || path.Parent is not { } parent || Find(parent) is not YamlMappingNode map)
         {
             return null;
         }
@@ -147,7 +147,7 @@ public sealed class YamlDocumentText
             {
                 int end = (int)block.End.Index;
                 while (end > (int)block.Start.Index && end - 1 < Text.Length
-                                                    && Text[end - 1] is '\n' or '\r')
+                       && Text[end - 1] is '\n' or '\r')
                 {
                     end--;
                 }

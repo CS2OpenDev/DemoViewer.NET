@@ -142,7 +142,8 @@ public class PlayerOverviewAimQualityTests
         string[] sight =
         [
             .. ColumnCatalogue.All.Where(m =>
-                    m is { RequiresVisibility: true, Hidden: false } && ColumnRules.For(m.Key) is not ColumnRule.NotAggregable)
+                    m is { RequiresVisibility: true, Hidden: false }
+                    && ColumnRules.For(m.Key) is not ColumnRule.NotAggregable)
                 .Select(m => m.Key)
         ];
 

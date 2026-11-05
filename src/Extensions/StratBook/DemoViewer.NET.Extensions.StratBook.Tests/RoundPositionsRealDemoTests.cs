@@ -63,7 +63,7 @@ public class RoundPositionsRealDemoTests
         RoundPositionsDocument positions = build.Positions;
         byte[] gz = Gzip(positions.SerializeUtf8());
         Console.WriteLine($"positions: {positions.Serialize().Length / 1024} KB json, {gz.Length / 1024} KB gz, " +
-                          $"{positions.Rounds.Sum(r => r.Pos.Count)} steps, {positions.Places.Count} places");
+            $"{positions.Rounds.Sum(r => r.Pos.Count)} steps, {positions.Places.Count} places");
 
         int checkedSteps = 0;
         foreach (RoundIndexRound indexRound in build.Index.Rounds)
@@ -174,7 +174,7 @@ public class RoundPositionsRealDemoTests
         RoundFactsEvaluator facts = new(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity());
         facts.Evaluate(path, parsed);
         RoundFactsRows rows = store.TryLoadRecord(path)?.RoundFacts
-                              ?? throw new InvalidOperationException("the evaluator wrote no rows");
+            ?? throw new InvalidOperationException("the evaluator wrote no rows");
 
         List<SituationHit> hits =
         [

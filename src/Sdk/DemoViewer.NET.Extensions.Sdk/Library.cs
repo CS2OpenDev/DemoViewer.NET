@@ -167,7 +167,7 @@ public sealed record LibraryFactState(string Id, int Schema, string? Fingerprint
     /// <param name="fingerprint">The fingerprint the reader expects.</param>
     public bool IsCurrent(int schema, string? fingerprint) =>
         State == DemoDataState.Written && Schema == schema
-                                       && string.Equals(Fingerprint, fingerprint, StringComparison.Ordinal);
+        && string.Equals(Fingerprint, fingerprint, StringComparison.Ordinal);
 
     /// <summary>True when rows were written at any schema under some fingerprint.</summary>
     public bool IsWritten => Schema > 0 && Fingerprint is not null;

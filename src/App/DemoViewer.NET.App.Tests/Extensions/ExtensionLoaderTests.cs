@@ -68,7 +68,7 @@ public class ExtensionLoaderTests
                     .IsEqualTo("An update in '4.0.0' was not loaded: no extension.json");
                 // Settings shows UserMessage; a path belongs in the log only.
                 await Assert.That(found.Rejected.All(o => !o.UserMessage.Contains(root, StringComparison.Ordinal)
-                                                          && !o.UserMessage.Contains(Path.DirectorySeparatorChar)))
+                        && !o.UserMessage.Contains(Path.DirectorySeparatorChar)))
                     .IsTrue();
             }
         }
@@ -110,7 +110,8 @@ public class ExtensionLoaderTests
                 await updater.DownloadAndStageAsync(ExtensionFeed.Parse(FakeFeeds.Json(entry)).Entries.Single());
             string inFlight = Path.Combine(root, "extensions", ExtensionStaging.StagingDirectoryName, FakeId, "1.0.2");
             Directory.CreateDirectory(inFlight);
-            await File.WriteAllTextAsync(Path.Combine(inFlight, ExtensionManifest.FileName), ManifestJson(FakeId, "1.0.2"));
+            await File.WriteAllTextAsync(Path.Combine(inFlight, ExtensionManifest.FileName),
+                ManifestJson(FakeId, "1.0.2"));
 
             ExtensionLoader.Discovery found = ExtensionLoader.Discover(Path.Combine(root, "extensions"));
             ExtensionLoader.Selection selection =
@@ -143,7 +144,8 @@ public class ExtensionLoaderTests
         {
             string outside = Path.Combine(root, "outside", "1.5.0");
             Directory.CreateDirectory(outside);
-            await File.WriteAllTextAsync(Path.Combine(outside, ExtensionManifest.FileName), ManifestJson(FakeId, "1.5.0"));
+            await File.WriteAllTextAsync(Path.Combine(outside, ExtensionManifest.FileName),
+                ManifestJson(FakeId, "1.5.0"));
             string idDir = Path.Combine(root, "extensions", FakeId);
             Directory.CreateDirectory(idDir);
             try
@@ -605,8 +607,8 @@ public class ExtensionLoaderTests
     public async Task TheExtension_ResolvesNothingByAssemblyName()
     {
         string repoRoot = DemoTestHelper.FindRepoRoot()
-                          ?? throw new SkipTestException(
-                              "repo root not found (no DemoViewer.NET.slnx above the test binary)");
+            ?? throw new SkipTestException(
+                "repo root not found (no DemoViewer.NET.slnx above the test binary)");
         string extension = Path.Combine(repoRoot, "src", "Extensions", "StratBook",
             "DemoViewer.NET.Extensions.StratBook");
         if (!Directory.Exists(extension))

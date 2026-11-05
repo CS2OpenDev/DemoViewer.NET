@@ -162,9 +162,9 @@ public class SingleWalkVisitProbe
         }
 
         return scenario is SingleWalkSession.Open or SingleWalkSession.Sweep or SingleWalkSession.Recheck
-               && visit.AnalysisDecodes != 1
-            ? $"analysis decodes {visit.AnalysisDecodes}, expected 1"
-            : null;
+            && visit.AnalysisDecodes != 1
+                ? $"analysis decodes {visit.AnalysisDecodes}, expected 1"
+                : null;
     }
 
     private static string Require(string name) =>

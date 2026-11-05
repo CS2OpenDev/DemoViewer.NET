@@ -150,8 +150,8 @@ public sealed record GrenadeWalkInputs(GrenadeTableRows Tables, GrenadeTrajector
     {
         ArgumentNullException.ThrowIfNull(context);
         GrenadeTrajectories flights = context.Collected<GrenadeTrajectories>(GrenadeTrajectoryCollector.CollectorId)
-                                      ?? throw new InvalidOperationException(
-                                          "the grenade trajectory collector put no collection");
+            ?? throw new InvalidOperationException(
+                "the grenade trajectory collector put no collection");
         return new GrenadeWalkInputs(GrenadeTables.Read(context.Table, context.Demo.ServerStartTick), flights);
     }
 

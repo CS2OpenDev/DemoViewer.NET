@@ -76,7 +76,7 @@ public class MemoryReleaseWiredTests
             await Assert.That(parsedRef!.IsAlive)
                 .IsFalse()
                 .Because("with the queue + coordinator wired (the real app's configuration) a closed demo "
-                         + "must still be collectable — this is the configuration that retained 3.6 GB");
+                    + "must still be collectable — this is the configuration that retained 3.6 GB");
             await Assert.That(frameRef!.IsAlive)
                 .IsFalse()
                 .Because("one live frame pins the whole demo byte buffer via zero-copy slicing");

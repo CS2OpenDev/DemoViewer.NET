@@ -514,7 +514,7 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
                     state.Reason);
                 ShowSection(degraded: true);
                 StateHeadline = state.Reason
-                                ?? "Seek unconfirmed — CS2 did not confirm the last seek; showing CS2's reported position.";
+                    ?? "Seek unconfirmed — CS2 did not confirm the last seek; showing CS2's reported position.";
                 RefreshVersions();
                 break;
 
@@ -546,7 +546,7 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     private void UpdateHudProjection(LiveSyncState state)
     {
         _hudActive = (_isHudGateEnabled?.Invoke() ?? true)
-                     && state.Kind != LiveSyncStateKind.Disconnected;
+            && state.Kind != LiveSyncStateKind.Disconnected;
 
         _hudDot = state.Kind switch
         {
@@ -571,7 +571,7 @@ public sealed partial class LiveSyncStatusViewModel : ViewModelBase, IDisposable
     public void NotifyHudGateChanged()
     {
         _hudActive = (_isHudGateEnabled?.Invoke() ?? true)
-                     && _liveSync.State.Kind != LiveSyncStateKind.Disconnected;
+            && _liveSync.State.Kind != LiveSyncStateKind.Disconnected;
         _hudChanged?.Invoke(this, EventArgs.Empty);
     }
 

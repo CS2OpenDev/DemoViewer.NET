@@ -544,7 +544,7 @@ public sealed class StratStore
     {
         ArgumentNullException.ThrowIfNull(document);
         return document.Extra?.TryGetValue(PendingField, out JsonElement value) == true
-               && value.ValueKind == JsonValueKind.True;
+            && value.ValueKind == JsonValueKind.True;
     }
 
     /// <summary>
@@ -750,8 +750,8 @@ public sealed class StratStore
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(table);
         if (OwnerProblem(owner) is not null || MapProblem(table.Map) is not null
-                                            || StratValidator.ValidateCallouts(table).Any(i =>
-                                                i.Severity == StratIssueSeverity.Refusal))
+            || StratValidator.ValidateCallouts(table).Any(i =>
+                i.Severity == StratIssueSeverity.Refusal))
         {
             return false;
         }
@@ -768,10 +768,10 @@ public sealed class StratStore
     public IReadOnlyList<StratIndexEntry> Query(StratOwner? owner, string? map, string? side, StratStatus? status) =>
     [
         .. Index.Where(e => (owner is null || e.Owner.Equals(owner))
-                            && (map is null || string.Equals(e.Map, map, StringComparison.OrdinalIgnoreCase))
-                            && (side is null || string.Equals(e.Side, side, StringComparison.Ordinal))
-                            && (status is null || string.Equals(e.Status, status.Value.ToString(),
-                                StringComparison.Ordinal)))
+                && (map is null || string.Equals(e.Map, map, StringComparison.OrdinalIgnoreCase))
+                && (side is null || string.Equals(e.Side, side, StringComparison.Ordinal))
+                && (status is null || string.Equals(e.Status, status.Value.ToString(),
+                    StringComparison.Ordinal)))
             .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Id)
     ];
 
@@ -949,9 +949,9 @@ public sealed class StratStore
         {
             root = StratHistory.ApplyAll(root, log[i].Ops);
             if (log[i].Revision == document.Revision && root is JsonObject
-                                                     && root.Deserialize(StratJsonContext.Default.StratDocument) is
-                                                         { } state
-                                                     && JsonNode.DeepEquals(Comparable(state), target))
+                && root.Deserialize(StratJsonContext.Default.StratDocument) is
+                    { } state
+                && JsonNode.DeepEquals(Comparable(state), target))
             {
                 found = i;
             }
@@ -1109,7 +1109,7 @@ public sealed class StratStore
         }
 
         string stem = SetAsidePrefix(path) + revision.ToString(System.Globalization.CultureInfo.InvariantCulture) + "-"
-                      + _utcNow().ToString("yyyyMMddTHHmmssZ", System.Globalization.CultureInfo.InvariantCulture);
+            + _utcNow().ToString("yyyyMMddTHHmmssZ", System.Globalization.CultureInfo.InvariantCulture);
         try
         {
             string target = stem + ".json";
@@ -1624,7 +1624,7 @@ public sealed class StratStore
             }
 
             if (rows.Remove(id, out StratIndexEntry? row) && !LogIsAhead(path, row.Revision)
-                                                          && !WrittenAfter(path, row))
+                && !WrittenAfter(path, row))
             {
                 lock (_gate)
                 {
@@ -1656,7 +1656,7 @@ public sealed class StratStore
         {
             // A file that is not there answers no time at all, which is never after the row.
             return (_folder!.LastWriteTimeUtc(stratPath) ?? DateTime.MinValue)
-                   > row.ModifiedUtc.ToUniversalTime() + _rowSlack;
+                > row.ModifiedUtc.ToUniversalTime() + _rowSlack;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {

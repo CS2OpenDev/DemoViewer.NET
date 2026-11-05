@@ -105,7 +105,7 @@ public sealed partial class HeaderSectionViewModel : PlayerOverviewSection
         IsMine = context.IsMine;
         CanSetAsMe = !context.IsMine;
         CanSetActive = context.IsMine
-                       && !string.Equals(_services.Identity.ActiveSteamId64, id, StringComparison.Ordinal);
+            && !string.Equals(_services.Identity.ActiveSteamId64, id, StringComparison.Ordinal);
         IsVisible = true;
     }
 

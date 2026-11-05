@@ -70,19 +70,19 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         ("Idle", "idle timeout auto close memory ram resume inactivity"),
         ("Features", "features tabs toggles chrome overrides hidden reset gate sub-features"),
         ("LiveSync", "live sync cs2 csvg install path game window fullscreen width height mock "
-                     + "tick offset plugin session log verbosity grpc"),
+            + "tick offset plugin session log verbosity grpc"),
         ("Highlights", "highlights reels clips lead-in lead-out padding output format fps crf "
-                       + "bitrate resolution audio scan"),
+            + "bitrate resolution audio scan"),
         ("Diagnostics", "diagnostics logging log level rows file rolling caps size count"),
         ("Playback2DKeys", "keys keybinds keybindings keyboard shortcuts hotkeys gestures rebind "
-                           + "controls 2d playback radar draw erase undo pan follow round kill speed"),
+            + "controls 2d playback radar draw erase undo pan follow round kill speed"),
         // The generic keyword surface for the section that lists every FeatureScope.Pack master switch.
         // ExtensionsSectionMatches below ALSO scans each built row's own Label, so a pack's name (and its
         // tabs' names) are findable without listing them here by hand. A pack's own contributed PAGES
         // (Suggested Tags tuning, Grenade Index) carry their own Keywords on the contribution
         // instead of a row here.
         ("Extensions", "extension extensions pack packs plugin addon add-on master switch background "
-                       + "indexing reindex")
+            + "indexing reindex")
     ];
 
     // Every feature row, in one flat list, for the gate-driven refresh sweep (the bound collections below are
@@ -513,7 +513,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         foreach (IExtensionDataRemoval removal in dataRemovals ?? [])
         {
             string label = FeatureCatalog.All.FirstOrDefault(d => d.Id == removal.FeatureId)?.Label
-                           ?? removal.FeatureId;
+                ?? removal.FeatureId;
             ExtensionDataActions.Add(new ExtensionDataActionViewModel(removal, label));
         }
 
@@ -944,7 +944,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         }
 
         return keywords.Contains(filter, StringComparison.OrdinalIgnoreCase)
-               || Fuzz.PartialRatio(filter.ToLowerInvariant(), keywords) >= 80;
+            || Fuzz.PartialRatio(filter.ToLowerInvariant(), keywords) >= 80;
     }
 
     // Recomputes every section/group visibility from (platform gate × filter). Called from the
@@ -973,7 +973,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         bool anyPageVisible = RefreshContributedPageVisibility(filter);
 
         ShowGroupGeneral = ShowSectionUserCategory || ShowSectionTheme || ShowSectionIdentity || ShowSectionUpdates
-                           || ShowSectionPlayback2DKeys;
+            || ShowSectionPlayback2DKeys;
         ShowGroupLibrary = ShowSectionFolders || ShowSectionProcessing || ShowSectionIdle;
         ShowGroupFeatures = ShowSectionFeatures;
         ShowGroupExtensions = ShowSectionExtensions || anyPageVisible;
@@ -2180,7 +2180,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
             foreach (FeatureDescriptor sub in FeatureCatalog.All)
             {
                 if (sub.Scope == FeatureScope.SubFeature && sub.OwnerPackId == pack.Id
-                                                         && !ownTabIds.Contains(sub.ParentId!))
+                    && !ownTabIds.Contains(sub.ParentId!))
                 {
                     AddFeatureRow(ExtensionsFeatureRows, sub, 1);
                 }
@@ -2384,7 +2384,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
                 else
                 {
                     string label = FeatureCatalog.All.FirstOrDefault(d => d.Id == watched.FeatureId)?.Label
-                                   ?? "extension";
+                        ?? "extension";
                     StratBookToggleNotice = $"The {label} stops its background work. Its data stays on disk.";
                 }
             }
@@ -2609,9 +2609,9 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         ThemeLoadProblemsText = problems.Count == 0
             ? null
             : (problems.Count == 1
-                  ? "1 theme file couldn't be loaded:\n"
-                  : $"{problems.Count} theme files couldn't be loaded:\n")
-              + string.Join("\n", problems.Select(p => $"{p.FileName}: {p.Reason}"));
+                ? "1 theme file couldn't be loaded:\n"
+                : $"{problems.Count} theme files couldn't be loaded:\n")
+            + string.Join("\n", problems.Select(p => $"{p.FileName}: {p.Reason}"));
     }
 
     // The editor or "Reload themes" re-scanned the folder: refresh the list, keeping the selection (or falling

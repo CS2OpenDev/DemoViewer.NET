@@ -120,24 +120,24 @@ public static class StratLocationPatches
         {
             StratLocationKind.From => StratStepFields.Uses(step.Verb, StratStepField.From) || step.From is not null,
             StratLocationKind.To when field.Slot is null => !StratStepLines.HasLines(step)
-                                                            && (StratStepFields.Uses(step.Verb, StratStepField.To)
-                                                                || step.To is not null),
+                && (StratStepFields.Uses(step.Verb, StratStepField.To)
+                    || step.To is not null),
             StratLocationKind.To => IsInvolved(step, field)
-                                    && (StratStepFields.Uses(step.Verb, StratStepField.To)
-                                        || LineOf(step, field)?.To is not null),
+                && (StratStepFields.Uses(step.Verb, StratStepField.To)
+                    || LineOf(step, field)?.To is not null),
             StratLocationKind.Landing => step.Utility is not null,
             StratLocationKind.Watch => IsInvolved(step, field)
-                                       && (StratStepFields.Uses(step.Verb, StratStepField.Watch)
-                                           || LineOf(step, field)?.Watch is not null),
+                && (StratStepFields.Uses(step.Verb, StratStepField.Watch)
+                    || LineOf(step, field)?.Watch is not null),
             StratLocationKind.LurkArea or StratLocationKind.RotateTo => StratStepFields.Uses(step.Verb,
                 StratStepField.Lurk) || step.Lurk is not null,
             StratLocationKind.Via when field.Slot is null => !StratStepLines.HasLines(step)
-                                                             && (StratStepFields.Uses(step.Verb, StratStepField.Via)
-                                                                 || step.Via is not null
-                                                                 || step.ViaPoints is not null),
+                && (StratStepFields.Uses(step.Verb, StratStepField.Via)
+                    || step.Via is not null
+                    || step.ViaPoints is not null),
             StratLocationKind.Via => IsInvolved(step, field)
-                                     && (StratStepFields.Uses(step.Verb, StratStepField.Via)
-                                         || LineOf(step, field) is { Via: not null } or { ViaPoints: not null }),
+                && (StratStepFields.Uses(step.Verb, StratStepField.Via)
+                    || LineOf(step, field) is { Via: not null } or { ViaPoints: not null }),
             _ => false
         };
     }
@@ -330,7 +330,7 @@ public static class StratLocationPatches
     // A line field names a player the step still has: a pick armed on a removed player must not add them back.
     private static bool IsInvolved(StratStep step, StratLocationField field) =>
         field.IsAllLines || (field.Slot is not null && StratVocabulary.Slots.Contains(field.Slot)
-                                                    && StratStepLines.Involves(step, field.Slot));
+            && StratStepLines.Involves(step, field.Slot));
 
     // A line field's line: the named slot's, or for every line the first, since the row shows them only while they agree.
     private static StepAssignment? LineOf(StratStep step, StratLocationField field) =>

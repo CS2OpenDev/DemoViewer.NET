@@ -227,7 +227,7 @@ public static class CaptureHost
         Dispatcher.UIThread.RunJobs();
 
         WriteableBitmap frame = window.CaptureRenderedFrame()
-                                 ?? throw new InvalidOperationException("CaptureRenderedFrame returned null.");
+            ?? throw new InvalidOperationException("CaptureRenderedFrame returned null.");
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPng))!);
         frame.Save(outPng, new PngBitmapEncoderOptions());
         window.Close();

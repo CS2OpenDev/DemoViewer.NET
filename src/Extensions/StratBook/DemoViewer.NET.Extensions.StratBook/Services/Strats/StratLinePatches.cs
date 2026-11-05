@@ -26,7 +26,7 @@ public static class StratLinePatches
     {
         ArgumentNullException.ThrowIfNull(step);
         if (expandAll && !StratStepLines.HasLines(step)
-                      && string.Equals(step.Actor, StratVocabulary.ActorAll, StringComparison.Ordinal))
+            && string.Equals(step.Actor, StratVocabulary.ActorAll, StringComparison.Ordinal))
         {
             return
             [
@@ -125,10 +125,10 @@ public static class StratLinePatches
 
         // Five bare lines to one place are a step for all, which is how an expanded step for all folds back.
         if (target.Count == StratVocabulary.Slots.Count && target.All(IsBare)
-                                                        && StratVocabulary.Slots.All(s =>
-                                                            target.Exists(l => l.Slot == s))
-                                                        && target.All(l =>
-                                                            SamePlace(l.To, target[0].To) && SameVia(l, target[0])))
+            && StratVocabulary.Slots.All(s =>
+                target.Exists(l => l.Slot == s))
+            && target.All(l =>
+                SamePlace(l.To, target[0].To) && SameVia(l, target[0])))
         {
             StepAssignment shared = target[0];
             target = [];
@@ -196,11 +196,11 @@ public static class StratLinePatches
         {
             // Never index-wise: that would hand one player's unknown fields to another.
             ops.AddRange(BySlot(before, target, array)
-                         ??
-                         [
-                             PatchOp.ReplaceOp(array, null,
-                                 new JsonArray(target.Select(l => (JsonNode?)Node(l)).ToArray()))
-                         ]);
+                ??
+                [
+                    PatchOp.ReplaceOp(array, null,
+                        new JsonArray(target.Select(l => (JsonNode?)Node(l)).ToArray()))
+                ]);
         }
         else if (target.Count == before.Count + 1
                  && before.Select(Json).SequenceEqual(target.Take(before.Count).Select(Json)))
@@ -557,7 +557,7 @@ public static class StratLinePatches
         List<StepAssignment> kept = [.. before.Where(l => after.Contains(l.Slot)).Select(Clone)];
         kept.ForEach(Normalize);
         if (kept.Count > target.Count || !kept.Select(Json).SequenceEqual(target.Take(kept.Count).Select(Json))
-                                      || target.Skip(kept.Count).Any(l => had.Contains(l.Slot)))
+            || target.Skip(kept.Count).Any(l => had.Contains(l.Slot)))
         {
             return null;
         }
@@ -594,8 +594,8 @@ public static class StratLinePatches
 
     private static bool SamePlace(PlaceRef? a, PlaceRef? b) =>
         (a is null && b is null) || (a is not null && b is not null
-                                                   && JsonSerializer.Serialize(a, StratJsonContext.Default.PlaceRef)
-                                                   == JsonSerializer.Serialize(b, StratJsonContext.Default.PlaceRef));
+            && JsonSerializer.Serialize(a, StratJsonContext.Default.PlaceRef)
+            == JsonSerializer.Serialize(b, StratJsonContext.Default.PlaceRef));
 
     private static string Json(StepAssignment line) =>
         JsonSerializer.Serialize(line, StratJsonContext.Default.StepAssignment);

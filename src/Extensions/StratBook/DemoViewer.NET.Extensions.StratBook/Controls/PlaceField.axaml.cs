@@ -292,7 +292,7 @@ public partial class PlaceField : UserControl
     private void OnTextChanged(object? sender, TextChangedEventArgs e)
     {
         if (!_syncing && FieldBox.IsFocused
-                      && !string.Equals(FieldBox.Text ?? "", Model.Text, StringComparison.Ordinal))
+            && !string.Equals(FieldBox.Text ?? "", Model.Text, StringComparison.Ordinal))
         {
             Model.Type(FieldBox.Text);
         }

@@ -169,7 +169,7 @@ public sealed partial record SemVersion(int Major, int Minor, int Patch, string?
         @"(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*";
 
     [GeneratedRegex(@"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(" + PrereleasePattern
-                                                                      + @"))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$")]
+        + @"))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$")]
     private static partial Regex Strict();
 
     [GeneratedRegex(@"^(\d+)\.(\d+)\.(\d+)(?:\.\d+)?(?:-(" + PrereleasePattern + @"))?(?:\+.*)?$")]

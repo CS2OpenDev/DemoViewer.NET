@@ -188,7 +188,8 @@ public static class RoundCaptureWalker
             }
         }
 
-        List<Stop> stops = [new(freezeEndTick, CaptureTrigger.FreezeEnd, null), .. EventStops(demo, freezeEndTick, end)];
+        List<Stop> stops =
+            [new(freezeEndTick, CaptureTrigger.FreezeEnd, null), .. EventStops(demo, freezeEndTick, end)];
         stops.AddRange(SweepStops(stops, freezeEndTick, end, tickRate));
         stops.Sort((a, b) => a.Tick != b.Tick ? a.Tick.CompareTo(b.Tick) : a.Trigger.CompareTo(b.Trigger));
 
@@ -379,8 +380,8 @@ public static class RoundCaptureWalker
             slot = SlotOfPawnIndex(tracker, PawnLookup.IndexOf((uint)source.PawnHandle));
         }
         else if (slot < 0 && source.EntityIndex > 0
-                          && tracker.CurrentEntities[source.EntityIndex] is { } inferno
-                          && PawnLookup.TryReadHandle(inferno, "m_hOwnerEntity", out uint owner))
+                 && tracker.CurrentEntities[source.EntityIndex] is { } inferno
+                 && PawnLookup.TryReadHandle(inferno, "m_hOwnerEntity", out uint owner))
         {
             slot = SlotOfPawnIndex(tracker, PawnLookup.IndexOf(owner));
         }
@@ -458,16 +459,16 @@ public static class RoundCaptureWalker
         {
             int team = CoerceInt(pawn["m_iTeamNum"]);
             if (team is not (2 or 3) || PositionUtil.CellToWorld(pawn) is not { } world
-                                     || PawnLookup.ResolvePawn(tracker, slot) is not { } resolved
-                                     || !PawnLookup.IsAlive(resolved))
+                || PawnLookup.ResolvePawn(tracker, slot) is not { } resolved
+                || !PawnLookup.IsAlive(resolved))
             {
                 continue;
             }
 
             EntityState? controller = set[slot + 1] is { } c
-                                      && c.ClassName.Contains("PlayerController", StringComparison.OrdinalIgnoreCase)
-                ? c
-                : null;
+                && c.ClassName.Contains("PlayerController", StringComparison.OrdinalIgnoreCase)
+                    ? c
+                    : null;
             float yaw = pawn["m_angEyeAngles"] is Vector3 eye ? eye.Y : 0;
             string? place = pawn["m_szLastPlaceName"] is string name && !string.IsNullOrEmpty(name) ? name : null;
             string? playerName = controller?["m_iszPlayerName"] as string;

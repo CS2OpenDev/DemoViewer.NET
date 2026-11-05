@@ -143,9 +143,9 @@ public sealed class ClockLayer : ISceneLayer
         panelW = Math.Max(panelW, Widest(caption, defuse) + _style.MarginPx * 2);
 
         float panelH = padY + topRowH
-                            + (caption is { } cap ? cap.Height : 0)
-                            + (defuse is { } def ? def.Height + 1f : 0)
-                            + padY;
+            + (caption is { } cap ? cap.Height : 0)
+            + (defuse is { } def ? def.Height + 1f : 0)
+            + padY;
         float panelTop = _style.MarginPx * 0.5f;
 
         _paint.Color = new SKColor(_style.PanelArgb);
@@ -194,7 +194,7 @@ public sealed class ClockLayer : ISceneLayer
             // No countdown to race means no race: NaN loses every comparison, and painting a defuse red
             // because nothing is ticking would say the exact opposite of what is happening.
             bool wins = double.IsNaN(_snapshot.CountdownSeconds)
-                        || _snapshot.DefuseSeconds <= _snapshot.CountdownSeconds;
+                || _snapshot.DefuseSeconds <= _snapshot.CountdownSeconds;
             _paint.Color = wins ? ctx.Palette.BombDefuse : ctx.Palette.BombDetonation;
             (float dx, float dy) = race.OriginForTopLeft(centreX - race.Width / 2, below + 1f);
             if (DrawLabels)

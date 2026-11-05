@@ -406,7 +406,7 @@ public sealed class OpeningTendenciesService
                 _utilityRounds++;
                 IndexedGrenade? first = grenades
                     .Where(g => g.Row.RoundNumber == round.Number && demo.Throws(g, side)
-                                                                  && g.Row.ReleaseTick >= freezeEnd)
+                        && g.Row.ReleaseTick >= freezeEnd)
                     .OrderBy(g => g.Row.ReleaseTick)
                     .FirstOrDefault();
                 if (first is null)

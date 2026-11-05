@@ -32,7 +32,7 @@ public class StratSeedMoveMotionTests
     {
         using AssetZonePlaceResolverSource source = new();
         return source.TryGet("de_dust2")
-               ?? throw new SkipTestException("de_dust2's zones are not in assets/");
+            ?? throw new SkipTestException("de_dust2's zones are not in assets/");
     }
 
     private static PlaceRef Point(string place, double x, double y) =>
@@ -268,12 +268,14 @@ public class StratSeedMoveMotionTests
         if (dragged)
         {
             (double x, double y, double _) = map.PlaceArrival("LongDoors", Level)
-                                             ?? throw new SkipTestException("no LongDoors arrival");
+                ?? throw new SkipTestException("no LongDoors arrival");
             lurk.Positions[4] = At("E", Math.Round(x - 7, 2), Math.Round(y - 9, 2));
         }
 
         lurk.Assignments =
-            [new StepAssignment { Slot = "E", Via = ["LongDoors"], Watch = new StepWatch { Places = [.. _lurkWatch] } }];
+        [
+            new StepAssignment { Slot = "E", Via = ["LongDoors"], Watch = new StepWatch { Places = [.. _lurkWatch] } }
+        ];
         lurk.Lurk = new StepLurk
         {
             Areas = [.. _lurkWatch],

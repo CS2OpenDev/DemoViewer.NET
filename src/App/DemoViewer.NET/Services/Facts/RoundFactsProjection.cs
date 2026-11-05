@@ -324,8 +324,8 @@ public static class RoundFactsProjection
         // only be checked against the ceiling scaled by the head count.
         int? money = RoundFactsValues.ToInt(row.GetValueOrDefault(RoundFactsColumns.Money));
         bool reliable = RoundFactsValues.ToBool(row.GetValueOrDefault(RoundFactsColumns.MoneyReliable))
-                        ?? (money is { } m and >= 0
-                                           && m <= thresholds.MoneySaneMax * Math.Max(facts.PlayersAtFreezeEnd, 1));
+            ?? (money is { } m and >= 0
+                && m <= thresholds.MoneySaneMax * Math.Max(facts.PlayersAtFreezeEnd, 1));
         facts.MoneyReliable = money is not null && reliable;
         facts.MoneyAtFreezeEnd = facts.MoneyReliable ? money : null;
 

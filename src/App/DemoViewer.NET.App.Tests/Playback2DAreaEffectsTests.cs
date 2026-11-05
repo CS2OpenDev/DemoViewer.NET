@@ -71,11 +71,7 @@ public class Playback2DAreaEffectsTests
     {
         Ent e = new("CSmokeGrenadeProjectile")
         {
-            F =
-            {
-                ["m_nSmokeEffectTickBegin"] = tickBegin,
-                ["m_vSmokeDetonationPos"] = new Vector3(x, y, z)
-            }
+            F = { ["m_nSmokeEffectTickBegin"] = tickBegin, ["m_vSmokeDetonationPos"] = new Vector3(x, y, z) }
         };
         return e;
     }

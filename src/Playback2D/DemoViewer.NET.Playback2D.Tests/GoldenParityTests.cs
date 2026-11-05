@@ -70,11 +70,11 @@ public class GoldenParityTests
         byte[] actual = stage.RenderFixturePng(fixture);
 
         GoldenDeltaProfile profile = GoldenImageComparer.Analyze(expected, actual)
-                                     ?? throw new InvalidOperationException("images are not comparable");
+            ?? throw new InvalidOperationException("images are not comparable");
 
         Console.WriteLine($"[parity] {name} map={fixture.MapName} bundle={bound} " +
-                          $"levels={stage.Renderer.Levels.Space.Levels.Count} " +
-                          $"radar={stage.Renderer.Levels.Space.RadarBinding}");
+            $"levels={stage.Renderer.Levels.Space.Levels.Count} " +
+            $"radar={stage.Renderer.Levels.Space.RadarBinding}");
         Console.WriteLine($"[parity] {name} {profile.Describe()}");
 
         await WriteArtifacts(name, expected, actual);
@@ -129,9 +129,9 @@ public class GoldenParityTests
         {
             bool underInk = PixelChanged(withTextPng, noTextPng, geometry.MaxDeltaX, geometry.MaxDeltaY);
             Console.WriteLine($"[parity] {name} geometry's worst pixel " +
-                              $"({geometry.MaxDeltaX},{geometry.MaxDeltaY}) rose to " +
-                              $"{geometry.MaxChannelDelta} from {full.MaxChannelDelta}; " +
-                              $"under glyph ink: {underInk}");
+                $"({geometry.MaxDeltaX},{geometry.MaxDeltaY}) rose to " +
+                $"{geometry.MaxChannelDelta} from {full.MaxChannelDelta}; " +
+                $"under glyph ink: {underInk}");
             await Assert.That(underInk).IsTrue();
         }
     }

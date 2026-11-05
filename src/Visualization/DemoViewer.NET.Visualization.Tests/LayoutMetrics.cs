@@ -83,7 +83,7 @@ public sealed record LayoutMetrics(
     {
         List<IReadOnlyList<Point>> routed = edges
             .Where(e => !ReferenceEquals(e.Source, e.Destination)
-                        && layout.EdgeRoutes.TryGetValue(e, out IReadOnlyList<Point>? r) && r.Count >= 2)
+                && layout.EdgeRoutes.TryGetValue(e, out IReadOnlyList<Point>? r) && r.Count >= 2)
             .Select(e => layout.EdgeRoutes[e])
             .ToList();
 

@@ -229,8 +229,8 @@ public static class ThemeExport
         {
             ThemeGradientStop s = g.Stops[i];
             lines.Add("    { \"offset\": " + s.Offset.ToString("0.###", CultureInfo.InvariantCulture)
-                                           + ", \"color\": " + Quote(ThemeJson.FormatColor(s.Color)) + " }"
-                                           + (i < g.Stops.Count - 1 ? "," : ""));
+                + ", \"color\": " + Quote(ThemeJson.FormatColor(s.Color)) + " }"
+                + (i < g.Stops.Count - 1 ? "," : ""));
         }
 
         lines.Add("  ]");

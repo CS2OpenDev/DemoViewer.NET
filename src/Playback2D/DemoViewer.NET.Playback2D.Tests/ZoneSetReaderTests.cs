@@ -84,8 +84,8 @@ public class ZoneSetReaderTests
         await Assert.That(ZoneAssetPipeline.TryLoad(dir.Path, null)).IsNull();
 
         await File.WriteAllTextAsync(plain, "{ \"schemaVersion\": 1, \"mapName\": \"x\", \"zonesVersion\": \"1\", " +
-                                            "\"places\": [ { \"id\": 0, \"name\": \"A\" } ], " +
-                                            "\"areas\": [ { \"id\": 1, \"place\": 7, \"floor\": 0, \"z\": 0, \"xy\": [] } ] }");
+            "\"places\": [ { \"id\": 0, \"name\": \"A\" } ], " +
+            "\"areas\": [ { \"id\": 1, \"place\": 7, \"floor\": 0, \"z\": 0, \"xy\": [] } ] }");
         await Assert.That(ZoneAssetPipeline.TryLoad(dir.Path, null)).IsNull();
 
         await File.WriteAllTextAsync(plain, ZoneFixtures.Json());
@@ -125,7 +125,7 @@ public class ZoneSetReaderTests
             }
 
             Console.WriteLine($"[zones] {map}: {baked.Places.Count} places, {baked.Areas.Count} areas, " +
-                              $"{baked.Floors.Count} floors, version {baked.ZonesVersion}");
+                $"{baked.Floors.Count} floors, version {baked.ZonesVersion}");
         }
 
         Console.WriteLine($"[zones] committed bakes checked: {checkedMaps}");

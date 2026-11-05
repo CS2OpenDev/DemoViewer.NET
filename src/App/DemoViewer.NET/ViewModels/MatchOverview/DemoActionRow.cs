@@ -48,9 +48,9 @@ public sealed partial class DemoActionRow : ObservableObject
         }
 
         IsVisible = subject is not null
-                    && _isFeatureOn(_featureId)
-                    && !string.Equals(_requestedFor, subject, StringComparison.OrdinalIgnoreCase)
-                    && Action.IsAvailable(subject);
+            && _isFeatureOn(_featureId)
+            && !string.Equals(_requestedFor, subject, StringComparison.OrdinalIgnoreCase)
+            && Action.IsAvailable(subject);
     }
 
     [RelayCommand]

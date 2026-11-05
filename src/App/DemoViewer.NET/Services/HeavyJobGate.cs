@@ -143,7 +143,7 @@ public sealed class HeavyJobGate : IDisposable
             lock (_sync)
             {
                 return !_disposed && _reelSessions == 0 && _exportSessions == 0 &&
-                       _interactivePending == 0 && _held < _maxConcurrency;
+                    _interactivePending == 0 && _held < _maxConcurrency;
             }
         }
     }

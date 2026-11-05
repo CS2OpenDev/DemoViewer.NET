@@ -188,8 +188,8 @@ public sealed partial class ChoiceSettingRow : SchemaSettingRow
     {
         string stored = Settings.Get(Key, Descriptor.Default as string ?? "");
         Selected = Choices.FirstOrDefault(c => string.Equals(c.Value, stored, StringComparison.Ordinal))
-                   ?? Choices.FirstOrDefault(c =>
-                       string.Equals(c.Value, Descriptor.Default as string, StringComparison.Ordinal));
+            ?? Choices.FirstOrDefault(c =>
+                string.Equals(c.Value, Descriptor.Default as string, StringComparison.Ordinal));
     }
 
     partial void OnSelectedChanged(SettingChoice? value)

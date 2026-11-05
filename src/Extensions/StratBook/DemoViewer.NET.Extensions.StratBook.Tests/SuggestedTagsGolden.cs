@@ -191,7 +191,7 @@ internal sealed class SuggestedTagsGolden
     internal List<GoldenProposal> Detect()
     {
         SiteRegionTable table = SiteRegionTable.TryParse(RegionTable!.ToJsonString())
-                                ?? throw new InvalidOperationException("the fixture's region table does not parse");
+            ?? throw new InvalidOperationException("the fixture's region table does not parse");
         SiteRegions regions = SiteRegions.Compose(Map, null, table, DetectorProfile.Default);
         List<PlacedEvent> events =
         [

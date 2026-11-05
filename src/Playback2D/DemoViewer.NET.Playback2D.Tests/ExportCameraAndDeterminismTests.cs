@@ -313,7 +313,7 @@ public class ExportAllocationTests
         long extra = longRun - shortRun;
         double perFrame = extra / 512.0;
         Console.WriteLine($"[alloc] export {perFrame:F2} bytes/frame " +
-                          $"(512 frames: {shortRun} B, 1024 frames: {longRun} B, delta {extra} B)");
+            $"(512 frames: {shortRun} B, 1024 frames: {longRun} B, delta {extra} B)");
 
         // The ceiling is 64 BYTES for the extra 512 frames, not 64 per frame: a single 48-byte
         // allocation appears once, at a varying iteration past ~150, with no gen-0 collection in the

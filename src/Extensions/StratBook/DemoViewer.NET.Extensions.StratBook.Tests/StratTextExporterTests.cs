@@ -43,7 +43,7 @@ public class StratTextExporterTests
     public async Task TheSampleStratsCallSheet_MatchesTheCommittedGolden()
     {
         string repo = DemoTestHelper.FindRepoRoot()
-                       ?? throw new SkipTestException("repo root not found from the test output directory");
+            ?? throw new SkipTestException("repo root not found from the test output directory");
         string path = Path.Combine(repo, "tests", "fixtures", "strats", "schema-v1.sample.callsheet.md");
         string rendered = StratTextExporter.CallSheet(SchemaSample(), Callouts());
 

@@ -269,8 +269,8 @@ public sealed class GraphBreakpointStore
         try
         {
             return JsonSerializer.Deserialize<Dictionary<string, List<PersistedGraphBreakpoint>>>(
-                       File.ReadAllText(path), _options)
-                   ?? new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer.Ordinal);
+                    File.ReadAllText(path), _options)
+                ?? new Dictionary<string, List<PersistedGraphBreakpoint>>(StringComparer.Ordinal);
         }
         catch
         {

@@ -206,7 +206,7 @@ public class PlayerOverviewBenchmarksTests
             await Assert.That(PlayerBenchmark.Percentile(0, [1, 5, 5, 9])).IsEqualTo(0);
             await Assert.That(PlayerBenchmark.Percentile(9, [1, 5, 5, 9])).IsEqualTo(87.5);
             await Assert.That(BenchmarkRowItem.Ordinal(1) + BenchmarkRowItem.Ordinal(12) + BenchmarkRowItem.Ordinal(23)
-                              + BenchmarkRowItem.Ordinal(50))
+                    + BenchmarkRowItem.Ordinal(50))
                 .IsEqualTo("1st12th23rd50th");
         }
     }

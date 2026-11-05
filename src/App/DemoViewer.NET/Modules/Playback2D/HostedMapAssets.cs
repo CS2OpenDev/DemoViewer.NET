@@ -30,7 +30,7 @@ internal sealed class HostedMapAssets : IMapAssetsBackend
     [ModuleInitializer]
     [SuppressMessage("Usage", "CA2255",
         Justification = "Application code that is a class library only because several heads reference it; "
-                        + "the UI kit's map surface must be live before any extension code asks for a map.")]
+            + "the UI kit's map surface must be live before any extension code asks for a map.")]
     internal static void Install() => MapAssets.Backend ??= new HostedMapAssets();
 
     /// <inheritdoc />

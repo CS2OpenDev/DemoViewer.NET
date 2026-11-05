@@ -114,7 +114,7 @@ public class GameClockOpenRealDemoTests
         for (int i = 0; i < 400; i++)
         {
             if (vm.Playback.AuthoritativeTracker is { } t && t.CurrentFrameIndex == frameIndex
-                                                          && !vm.EntityTab.IsSeekingEntities)
+                && !vm.EntityTab.IsSeekingEntities)
             {
                 return t;
             }

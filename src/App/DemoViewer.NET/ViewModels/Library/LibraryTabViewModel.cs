@@ -1021,8 +1021,8 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
         // A library tick that leaves the answer as it was keeps the bound entry, so the flyout is not rebuilt.
         PlayerOverviewEntry current = SelectedPlayerOverview;
         if (next.SteamId64 == current.SteamId64 && next.Offers == current.Offers
-                                                && string.Equals(next.Name, current.Name, StringComparison.Ordinal)
-                                                && string.Equals(next.Tip, current.Tip, StringComparison.Ordinal))
+            && string.Equals(next.Name, current.Name, StringComparison.Ordinal)
+            && string.Equals(next.Tip, current.Tip, StringComparison.Ordinal))
         {
             return;
         }

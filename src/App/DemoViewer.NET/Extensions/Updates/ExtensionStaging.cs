@@ -267,8 +267,8 @@ public static class ExtensionStaging
     private static string? SafeRelativePath(string entryName)
     {
         if (string.IsNullOrEmpty(entryName) || Path.IsPathRooted(entryName)
-                                            || entryName.Contains(':', StringComparison.Ordinal)
-                                            || entryName.Contains('\0', StringComparison.Ordinal))
+            || entryName.Contains(':', StringComparison.Ordinal)
+            || entryName.Contains('\0', StringComparison.Ordinal))
         {
             return null;
         }

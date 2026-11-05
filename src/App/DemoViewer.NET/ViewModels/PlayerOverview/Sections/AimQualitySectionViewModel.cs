@@ -128,9 +128,9 @@ public sealed partial class AimQualitySectionViewModel : PlayerOverviewSection
 
         return window.WithSight == 0
             ? "None of these matches has line-of-sight data, so reaction, crosshair and after-contact columns read no data. "
-              + "The background scan has no map geometry; opening a match on a map with a collision bake adds it."
+            + "The background scan has no map geometry; opening a match on a map with a collision bake adds it."
             : $"{Matches(without)} without line-of-sight data {(without == 1 ? "is" : "are")} left out of the reaction, crosshair and after-contact columns. "
-              + "Opening a match on a map with a collision bake adds it.";
+            + "Opening a match on a map with a collision bake adds it.";
     }
 
     private static string Matches(int count) =>

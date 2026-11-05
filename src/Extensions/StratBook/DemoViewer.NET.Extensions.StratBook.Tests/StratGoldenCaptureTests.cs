@@ -306,7 +306,7 @@ public class StratGoldenCaptureTests
     private static string CorpusRoot()
     {
         string repo = DemoTestHelper.FindRepoRoot()
-                      ?? throw new SkipTestException("repo root not found from the test output directory");
+            ?? throw new SkipTestException("repo root not found from the test output directory");
         return Path.Combine(repo, "tests", "fixtures", "playback2d");
     }
 }

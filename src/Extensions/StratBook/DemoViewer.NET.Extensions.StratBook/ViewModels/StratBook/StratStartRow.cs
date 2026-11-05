@@ -82,7 +82,7 @@ public sealed partial class StratStartRow : ObservableObject
                 _ => "custom"
             };
         Summary = StratStartPhrasing.Text(document, places, spawns)
-                  ?? "no one placed: tokens appear at their first step";
+            ?? "no one placed: tokens appear at their first step";
         Line = document.Trigger?.Text is { Length: > 0 } trigger ? Summary + " · " + trigger : Summary;
         foreach (StratStartSlotRow row in Own.Concat(Opponents))
         {

@@ -243,7 +243,7 @@ public class TutorialAudienceTests
         }
 
         string root = DemoTestHelper.FindRepoRoot()
-                      ?? throw new InvalidOperationException("repo root not found");
+            ?? throw new InvalidOperationException("repo root not found");
         string views = Path.Combine(root, "src", "App", "DemoViewer.NET", "Views");
         foreach (string xaml in new[]
                  {

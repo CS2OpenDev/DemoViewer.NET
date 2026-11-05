@@ -233,7 +233,7 @@ public sealed partial class ResultCardsViewModel : ExtensionViewModel
     public string HeaderLine => Cards.Count == 0
         ? ""
         : $"{(Cards.Count == 1 ? "1 round" : $"{Cards.Count} rounds")} · click a card to open it "
-          + $"{ResultCardViewModel.SeekOffsetSeconds} s before the match; J / K walk them in playback";
+        + $"{ResultCardViewModel.SeekOffsetSeconds} s before the match; J / K walk them in playback";
 
     /// <summary>The thumbnail cache, so a rebuild can drop every picture of the old rows.</summary>
     public SituationThumbnailCache Cache { get; }

@@ -638,7 +638,7 @@ public class RuleWorkbenchModuleTests
                 int frameTick = demo.Frames[e.FrameNumber].ServerTick;
                 uncreditedByTick[frameTick] = uncreditedByTick.GetValueOrDefault(frameTick) + 1;
                 Console.WriteLine($"[trace-m6] uncredited death tick={frameTick} (event tick {e.GameTick}) " +
-                                  $"victim={death.UserId} attacker={death.Attacker} weapon={death.Weapon}");
+                    $"victim={death.UserId} attacker={death.Attacker} weapon={death.Weapon}");
             }
         }
 
@@ -851,7 +851,7 @@ public class RuleWorkbenchModuleTests
             {
                 int i = (y * w + x) * 4;
                 if (Math.Abs(buffer[i] - bb) > 6 || Math.Abs(buffer[i + 1] - bg) > 6
-                                                 || Math.Abs(buffer[i + 2] - br) > 6)
+                    || Math.Abs(buffer[i + 2] - br) > 6)
                 {
                     count++;
                 }

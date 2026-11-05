@@ -130,9 +130,9 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         lock (_gate)
         {
             return (entry is not null && _loaded.TryGetValue(DemoKey(entry), out LoadedDemo? demo))
-                   || LoadedAtLocked(demoPath, out demo)
-                ? demo.ComputedAtTicks
-                : 0;
+                || LoadedAtLocked(demoPath, out demo)
+                    ? demo.ComputedAtTicks
+                    : 0;
         }
     }
 
@@ -342,7 +342,7 @@ public sealed class SituationIndex : ISituationIndex, IExtensionResident, IDispo
         // A reader that has a hash compares it and ignores a mismatching file: the sidecar belongs to a
         // different demo that happens to share the path.
         if (entry.Sha256 is { Length: > 0 } sha && document.Demo.Sha256 is { Length: > 0 } written
-                                                && !string.Equals(sha, written, StringComparison.Ordinal))
+            && !string.Equals(sha, written, StringComparison.Ordinal))
         {
             RoundIndexLog.SidecarIgnored(Log, fileName, "content hash differs");
             return;

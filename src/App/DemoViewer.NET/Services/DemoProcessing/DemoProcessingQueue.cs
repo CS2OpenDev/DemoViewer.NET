@@ -910,7 +910,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                 e.Kind == QueueJobKind.DemoProcessing && IsActive(e) && !e.Finalizing && PathEquals(e.Path, path)
                 && (e.State == DemoQueueItemState.Queued
                     || joining.TrueForAll(j => DemoVisit.CanJoinRunning(j.Needs, e.Forward, e.Needs, e.UserCommands)
-                                               && (!e.Forward || CarriesCollectorsLocked(e, j.Pass)))));
+                        && (!e.Forward || CarriesCollectorsLocked(e, j.Pass)))));
             if (existing is not null)
             {
                 // Coalesce: one read, every pass; bump level, priority and order to the max seen.
@@ -1057,10 +1057,10 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             Entry? existing = request.Key is null
                 ? null
                 : _entries.FirstOrDefault(e => e.Kind == request.Kind && e.State == DemoQueueItemState.Queued
-                                                                      && string.Equals(e.Key, request.Key,
-                                                                          StringComparison.Ordinal)
-                                                                      && string.Equals(e.JobOwner, request.OwnerTag,
-                                                                          StringComparison.Ordinal));
+                    && string.Equals(e.Key, request.Key,
+                        StringComparison.Ordinal)
+                    && string.Equals(e.JobOwner, request.OwnerTag,
+                        StringComparison.Ordinal));
             if (existing is not null)
             {
                 existing.DisplayName = request.Title;
@@ -1443,7 +1443,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         {
             end = start + 1;
             while (end < pending.Count && pending[end].Ready == pending[start].Ready
-                                       && CompareTier(pending[end].Entry, pending[start].Entry, resident) == 0)
+                   && CompareTier(pending[end].Entry, pending[start].Entry, resident) == 0)
             {
                 end++;
             }
@@ -1885,7 +1885,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             visits = cancelled
                 ? []
                 : _entries.Where(e => e is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Queued }
-                                      && ReferenceEquals(e.ParkedBehind, open))
+                        && ReferenceEquals(e.ParkedBehind, open))
                     .ToList();
             foreach (Entry visit in visits)
             {
@@ -2190,9 +2190,9 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                 // A newer build of the same key is already waiting and replaces this one's work.
                 bool replaced = entry is { ReplacePending: true, Key: not null } && _entries.Any(e =>
                     e.State == DemoQueueItemState.Queued && e.Kind == entry.Kind
-                                                         && string.Equals(e.Key, entry.Key, StringComparison.Ordinal)
-                                                         && string.Equals(e.JobOwner, entry.JobOwner,
-                                                             StringComparison.Ordinal));
+                    && string.Equals(e.Key, entry.Key, StringComparison.Ordinal)
+                    && string.Equals(e.JobOwner, entry.JobOwner,
+                        StringComparison.Ordinal));
                 if (!replaced)
                 {
                     RequeueLocked(entry);
@@ -2386,9 +2386,9 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         foreach (Entry e in _entries)
         {
             if (e.Kind == QueueJobKind.DemoProcessing && IsStartableLocked(e)
-                                                      && e.Visit!.HasJobOwnedBy(owners)
-                                                      && (best is null || Compare(e, best, resident, _lastStartedPath)
-                                                          < 0))
+                && e.Visit!.HasJobOwnedBy(owners)
+                && (best is null || Compare(e, best, resident, _lastStartedPath)
+                    < 0))
             {
                 best = e;
             }
@@ -2689,7 +2689,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         ParkedLocked(e) ? DemoQueueHold.OnOpen
         : _paused && e.Priority < DemoJobPriority.UserRequested ? DemoQueueHold.Paused
         : !_backgroundEnabled && e.Priority < DemoJobPriority.UserRequested && e.Kind != QueueJobKind.HeapCompaction
-          && !IsLight(e) ? DemoQueueHold.BackgroundOff
+        && !IsLight(e) ? DemoQueueHold.BackgroundOff
         : DemoQueueHold.None;
 
     // A keyed item waits while one with its key runs (a same-key submit then reruns once, never beside
@@ -2704,13 +2704,13 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         foreach (Entry r in _entries)
         {
             if (r.State == DemoQueueItemState.Running && !ReferenceEquals(r, e)
-                                                      && ((e.Key is not null && r.Kind == e.Kind
-                                                                             && string.Equals(r.Key, e.Key,
-                                                                                 StringComparison.Ordinal)
-                                                                             && string.Equals(r.JobOwner, e.JobOwner,
-                                                                                 StringComparison.Ordinal))
-                                                          || (e.Serial is not null && string.Equals(r.Serial, e.Serial,
-                                                              StringComparison.Ordinal))))
+                && ((e.Key is not null && r.Kind == e.Kind
+                        && string.Equals(r.Key, e.Key,
+                            StringComparison.Ordinal)
+                        && string.Equals(r.JobOwner, e.JobOwner,
+                            StringComparison.Ordinal))
+                    || (e.Serial is not null && string.Equals(r.Serial, e.Serial,
+                        StringComparison.Ordinal))))
             {
                 return true;
             }

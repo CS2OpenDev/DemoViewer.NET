@@ -40,7 +40,7 @@ public class RuleWorkbenchGraphTests
         RuleGraphSkeleton.Skeleton skeleton = RuleGraphSkeleton.Build(build);
 
         Console.WriteLine($"[authoring-graph] nodes={skeleton.Nodes.Count} edges={skeleton.Edges.Count} " +
-                          $"groups={skeleton.Groups?.Count ?? 0}");
+            $"groups={skeleton.Groups?.Count ?? 0}");
 
         await Assert.That(skeleton.Nodes.Count).IsGreaterThan(0)
             .Because("a built ruleset graph has state nodes");
@@ -59,10 +59,10 @@ public class RuleWorkbenchGraphTests
         // those rows did not exist, so they are the one kind of row it leaves out; any other row
         // missing is still the silent loss this guards.
         int graphRows = build.Edges.Count(e => e.Source is not ExternalStateNode
-                                               && e.Destination is not ExternalStateNode);
+            && e.Destination is not ExternalStateNode);
         await Assert.That(skeleton.Edges.Count).IsEqualTo(graphRows)
             .Because("an edge whose endpoint misses the node map is dropped silently, and a node the "
-                     + "conversion fails to map takes its edges down with it");
+                + "conversion fails to map takes its edges down with it");
 
         // Endpoint identity, not just arity: every edge has to be wired to the view models this same
         // conversion produced. A second view model minted for one node keeps both counts right and
@@ -75,7 +75,7 @@ public class RuleWorkbenchGraphTests
         }
 
         await Assert.That(skeleton.Edges.All(e => converted.Contains(e.Source)
-                                                  && converted.Contains(e.Destination))).IsTrue()
+                && converted.Contains(e.Destination))).IsTrue()
             .Because("an edge endpoint that is not one of these nodes is a duplicate view model");
 
         // The skeleton is the PRE-evaluation graph, which is the one thing separating it from the
@@ -133,7 +133,7 @@ public class RuleWorkbenchGraphTests
                 .Because("the graph builds structurally from the open ruleset without a demo");
             await Assert.That(vm.GraphNodeCount).IsLessThanOrEqualTo(6)
                 .Because("a bare kill stat reduces to its declared output + upstream inputs (a handful of "
-                         + "nodes), NOT the 61 shared-scaffolding nodes of the full engine graph");
+                    + "nodes), NOT the 61 shared-scaffolding nodes of the full engine graph");
             await Assert.That(vm.GraphSupported).IsTrue();
         });
     }

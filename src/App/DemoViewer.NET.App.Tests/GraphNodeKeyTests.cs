@@ -81,7 +81,7 @@ public sealed class GraphNodeKeyTests
         await Assert.That(parsed).IsEqualTo(original);
         await Assert.That(parsed.Name).IsEqualTo(name)
             .Because("the occurrence rides in the slot segment, which holds digits only, so no "
-                     + "spelling of a name can be read as one");
+                + "spelling of a name can be read as one");
         await Assert.That(parsed.Occurrence).IsEqualTo(occurrence);
     }
 

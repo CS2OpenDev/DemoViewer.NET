@@ -68,7 +68,7 @@ internal static class RulesCheckCommand
         }
 
         Console.WriteLine($"rules check: {errors} error(s), {warnings} warning(s) "
-                          + $"across {load.LoadedFiles.Count} file(s)");
+            + $"across {load.LoadedFiles.Count} file(s)");
         return errors > 0 ? 1 : 0;
     }
 
@@ -138,7 +138,7 @@ internal static class RulesCheckCommand
         BuildResult build = builder.Build(rulesets);
         AnalysisRun run = DemoAnalysis.Evaluate(parsed, build);
         EvaluationResult result = run.Snapshots
-                                  ?? throw new InvalidOperationException("snapshot evaluation expected");
+            ?? throw new InvalidOperationException("snapshot evaluation expected");
 
         Dictionary<StateNode, int> fireCountByNode = BuildFireCountByNode(build, result);
 

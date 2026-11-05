@@ -54,7 +54,7 @@ public class ShippedSchemaDriftTests
             // says which of the two actually happened.
             await Assert.That(committed).DoesNotContain("\r")
                 .Because($"rules/{SchemaFileName} is stored eol=lf (see .gitattributes) — a CRLF "
-                         + "checkout is not drift: re-clone, or run git add --renormalize .");
+                    + "checkout is not drift: re-clone, or run git add --renormalize .");
 
             await Assert.That(committed)
                 .IsEqualTo(await File.ReadAllTextAsync(packaged))

@@ -103,13 +103,13 @@ public class StratTemplatesTests
 
                     if (step.Assignments is { } lines
                         && (step.To is not null || step.Actor != StratStepLines.ActorFor(lines)
-                                                || lines.Any(l => l.Watch is not null
-                                                                  || (l.To is not null
-                                                                      && !StratStepFields.Uses(step.Verb,
-                                                                          StratStepField.To)))))
+                            || lines.Any(l => l.Watch is not null
+                                || (l.To is not null
+                                    && !StratStepFields.Uses(step.Verb,
+                                        StratStepField.To)))))
                     {
                         problems.Add(where
-                                     + ": lines with a step-level to, a stale actor, a watch, or a place the verb does not use");
+                            + ": lines with a step-level to, a stale actor, a watch, or a place the verb does not use");
                     }
                 }
             }

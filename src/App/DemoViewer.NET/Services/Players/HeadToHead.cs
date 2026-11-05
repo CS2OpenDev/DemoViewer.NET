@@ -124,8 +124,8 @@ public sealed record HeadToHead(IReadOnlyList<HeadToHeadMatch> Matches)
         return
         [
             .. subject.Where(m => m.Side is { } side
-                                  && sides.TryGetValue(m.Row.ContentId(), out int theirs) && theirs != side
-                                  && taken.Add(m.Row.ContentId()))
+                && sides.TryGetValue(m.Row.ContentId(), out int theirs) && theirs != side
+                && taken.Add(m.Row.ContentId()))
         ];
     }
 

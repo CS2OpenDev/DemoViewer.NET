@@ -334,6 +334,6 @@ internal static class NetworkMounts
             OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         string withSeparator = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
         return string.Equals(folder, root.TrimEnd(Path.DirectorySeparatorChar), comparison)
-               || folder.StartsWith(withSeparator, comparison);
+            || folder.StartsWith(withSeparator, comparison);
     }
 }

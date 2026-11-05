@@ -128,7 +128,7 @@ public sealed class RoundIndexStore
         }
 
         if (sha256 is not null && positions.Demo.Sha256 is { } written
-                               && !string.Equals(written, sha256, StringComparison.OrdinalIgnoreCase))
+            && !string.Equals(written, sha256, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }

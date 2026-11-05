@@ -121,7 +121,7 @@ public static class LiveAimStats
         try
         {
             result = DemoAnalysis.Evaluate(demo, build, options).Snapshots
-                     ?? throw new InvalidOperationException("evaluation produced no snapshots");
+                ?? throw new InvalidOperationException("evaluation produced no snapshots");
         }
         catch (InvalidOperationException ex) when (AimSchemaDriftException.LooksLikeDrift(ex))
         {
@@ -203,8 +203,8 @@ public static class LiveAimStats
     private static string RulesetPath()
     {
         string root = DemoTestHelper.FindRepoRoot()
-                      ?? throw new SkipTestException(
-                          "Repo root not located from the test assembly (looked for the solution file).");
+            ?? throw new SkipTestException(
+                "Repo root not located from the test assembly (looked for the solution file).");
 
         string path = Path.Combine(root, "rules", "aim_rating.rules.yaml");
         return File.Exists(path)

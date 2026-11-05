@@ -44,7 +44,7 @@ public partial class DossierTabView : UserControl
         Dispatcher.UIThread.Post(() =>
         {
             if (ReferenceEquals(box.DataContext, row) && box.IsEffectivelyVisible
-                                                      && TopLevel.GetTopLevel(box) is not null
+                && TopLevel.GetTopLevel(box) is not null
                 || !row.IsEditing)
             {
                 _editing = null;

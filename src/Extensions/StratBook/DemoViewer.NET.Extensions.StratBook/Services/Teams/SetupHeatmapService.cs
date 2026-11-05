@@ -134,10 +134,7 @@ public sealed class SetupHeatmapService
                     .Select(c => c.Value.ToHeatmap(c.Key.Map, c.Key.Buy)))
         ];
 
-        return new SetupHeatmapSet
-        {
-            Heatmaps = heatmaps, DemosRead = read, DemosWithoutPositions = without
-        };
+        return new SetupHeatmapSet { Heatmaps = heatmaps, DemosRead = read, DemosWithoutPositions = without };
     }
 
     /// <summary>The setup window of a round in frame-clock ticks, inclusive; empty when <c>to &lt; from</c>.</summary>

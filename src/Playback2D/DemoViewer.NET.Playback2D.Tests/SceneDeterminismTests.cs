@@ -44,7 +44,7 @@ public class SceneDeterminismTests
         }
 
         Console.WriteLine("[determinism] 96 frames, first divergence: " +
-                          (firstDifference < 0 ? "none" : firstDifference.ToString(CultureInfo.InvariantCulture)));
+            (firstDifference < 0 ? "none" : firstDifference.ToString(CultureInfo.InvariantCulture)));
         await Assert.That(firstDifference).IsEqualTo(-1);
     }
 

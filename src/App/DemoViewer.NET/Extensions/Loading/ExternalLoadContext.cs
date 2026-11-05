@@ -50,7 +50,7 @@ public sealed class ExternalLoadContext : AssemblyLoadContext
         }
 
         return File.Exists(Path.Combine(AppContext.BaseDirectory, simpleName + ".dll"))
-               || TrustedPlatformAssembly(simpleName);
+            || TrustedPlatformAssembly(simpleName);
     }
 
     protected override Assembly? Load(AssemblyName assemblyName)

@@ -145,11 +145,7 @@ public class TextToolTests
     [Test]
     public async Task Style_Space_AndEnvelope_ResolveLikeTheDrawTool()
     {
-        Harness h = new()
-        {
-            Session = { DefaultVisibility = EnvelopeMode.Fade },
-            Services = { CurrentTick = 640 }
-        };
+        Harness h = new() { Session = { DefaultVisibility = EnvelopeMode.Fade }, Services = { CurrentTick = 640 } };
 
         h.Press(0, 0, ToolPointerButton.Right);
         h.Tool.CompleteEdit(h.Services, "hold");

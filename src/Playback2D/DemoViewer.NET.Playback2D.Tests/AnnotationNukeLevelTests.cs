@@ -56,7 +56,7 @@ public class AnnotationNukeLevelTests
         }
 
         Console.WriteLine($"[nuke-ink] levels={levels.Count} " +
-                          string.Join(" ", levels.Select(l => $"{l.Id.Key}:[{l.ZMin:F0}..{l.ZMax:F0}]")));
+            string.Join(" ", levels.Select(l => $"{l.Id.Key}:[{l.ZMin:F0}..{l.ZMax:F0}]")));
 
         renderer.SetAllCameras(fixture.Camera);
         SKColor[] baseline = Draw(renderer, fixture);
@@ -80,7 +80,7 @@ public class AnnotationNukeLevelTests
         int upperRed = Added(inked, baseline, upperBand, IsRed);
 
         Console.WriteLine($"[nuke-ink] added lower red={lowerRed} green={lowerGreen} | " +
-                          $"upper red={upperRed} green={upperGreen}");
+            $"upper red={upperRed} green={upperGreen}");
 
         await Assert.That(lowerRed).IsGreaterThan(50);
         await Assert.That(upperGreen).IsGreaterThan(50);

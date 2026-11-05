@@ -53,7 +53,7 @@ public static class OverlayFixtureStore
         ArgumentNullException.ThrowIfNull(source);
 
         OverlayFixtureDto dto = JsonSerializer.Deserialize(source, OverlayFixtureJsonContext.Default.OverlayFixtureDto)
-                                ?? throw new JsonException("Overlay fixture payload was null.");
+            ?? throw new JsonException("Overlay fixture payload was null.");
 
         List<OverlayPoint> points = [];
         Append(points, dto.Ct, QuerySide.Ct);

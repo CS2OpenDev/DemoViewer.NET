@@ -57,7 +57,7 @@ public sealed partial class LineupPickerViewModel : ObservableObject, IDisposabl
         Map = map;
         _close = close;
         _kind = current?.UtilityKind
-                ?? (StratVocabulary.UtilityKinds.Contains(utilityKind) ? utilityKind : StratVocabulary.UtilityKinds[0]);
+            ?? (StratVocabulary.UtilityKinds.Contains(utilityKind) ? utilityKind : StratVocabulary.UtilityKinds[0]);
         Map.PropertyChanged += OnMapPropertyChanged;
         Map.QueryKinds = StratLineupCatalog.GrenadeKindsFor(_kind);
         if (current is not null)

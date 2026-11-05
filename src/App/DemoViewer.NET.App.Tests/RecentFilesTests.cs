@@ -179,12 +179,12 @@ public class RecentFilesTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), """
-                                                                  {
-                                                                    "Recents": [
-                                                                      { "Path": "/demos/old.dem", "MapName": "de_inferno", "OpenedAtUtc": "2026-09-01T10:00:00Z" }
-                                                                    ]
-                                                                  }
-                                                                  """);
+                                                                             {
+                                                                               "Recents": [
+                                                                                 { "Path": "/demos/old.dem", "MapName": "de_inferno", "OpenedAtUtc": "2026-09-01T10:00:00Z" }
+                                                                               ]
+                                                                             }
+                                                                             """);
 
             RecentFilesStore store = NewStore(dir);
             await Assert.That(store.Items.Count).IsEqualTo(1);
@@ -210,14 +210,14 @@ public class RecentFilesTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(dir, "settings.json"), """
-                                                                  {
-                                                                    "Recents": [
-                                                                      { "Path": "/smb/m.dem", "MapName": null, "OpenedAtUtc": "2026-09-02T10:00:00Z", "Sha256": "sha-m" },
-                                                                      { "Path": "/nfs/m.dem", "MapName": null, "OpenedAtUtc": "2026-09-01T10:00:00Z", "Sha256": "sha-m" },
-                                                                      { "Path": "/nfs/x.dem", "MapName": null, "OpenedAtUtc": "2026-08-01T10:00:00Z" }
-                                                                    ]
-                                                                  }
-                                                                  """);
+                                                                             {
+                                                                               "Recents": [
+                                                                                 { "Path": "/smb/m.dem", "MapName": null, "OpenedAtUtc": "2026-09-02T10:00:00Z", "Sha256": "sha-m" },
+                                                                                 { "Path": "/nfs/m.dem", "MapName": null, "OpenedAtUtc": "2026-09-01T10:00:00Z", "Sha256": "sha-m" },
+                                                                                 { "Path": "/nfs/x.dem", "MapName": null, "OpenedAtUtc": "2026-08-01T10:00:00Z" }
+                                                                               ]
+                                                                             }
+                                                                             """);
 
             RecentFilesStore store = NewStore(dir);
             await Assert.That(store.Items.Select(r => r.Path))
@@ -237,16 +237,16 @@ public class RecentFilesTests
         try
         {
             await File.WriteAllTextAsync(file, """
-                                    {
-                                      "Theme": "Light",
-                                      "Recents": [
-                                        { "Path": "/smb/m.dem", "MapName": null, "OpenedAtUtc": "2026-09-03T10:00:00Z", "Sha256": "sha-m" },
-                                        { "Path": "/nfs/m.dem", "MapName": null, "OpenedAtUtc": "2026-09-02T10:00:00Z", "Sha256": "sha-m" },
-                                        { "Path": "/nfs/X.dem", "MapName": null, "OpenedAtUtc": "2026-09-01T10:00:00Z" },
-                                        { "Path": "/nfs/x.dem", "MapName": null, "OpenedAtUtc": "2026-08-01T10:00:00Z" }
-                                      ]
-                                    }
-                                    """);
+                                               {
+                                                 "Theme": "Light",
+                                                 "Recents": [
+                                                   { "Path": "/smb/m.dem", "MapName": null, "OpenedAtUtc": "2026-09-03T10:00:00Z", "Sha256": "sha-m" },
+                                                   { "Path": "/nfs/m.dem", "MapName": null, "OpenedAtUtc": "2026-09-02T10:00:00Z", "Sha256": "sha-m" },
+                                                   { "Path": "/nfs/X.dem", "MapName": null, "OpenedAtUtc": "2026-09-01T10:00:00Z" },
+                                                   { "Path": "/nfs/x.dem", "MapName": null, "OpenedAtUtc": "2026-08-01T10:00:00Z" }
+                                                 ]
+                                               }
+                                               """);
 
             _ = NewStore(dir);
             JsonObject migrated = (JsonObject)JsonNode.Parse(await File.ReadAllTextAsync(file))!;
@@ -257,7 +257,8 @@ public class RecentFilesTests
 
             string after = await File.ReadAllTextAsync(file);
             _ = NewStore(dir);
-            await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(after).Because("a stamped section is not rewritten");
+            await Assert.That(await File.ReadAllTextAsync(file)).IsEqualTo(after)
+                .Because("a stamped section is not rewritten");
         }
         finally
         {
@@ -288,8 +289,8 @@ public class RecentFilesTests
         try
         {
             await File.WriteAllTextAsync(Path.Combine(dir, "recent-files.json"), """
-                                                                      [ { "Path": "/demos/legacy.dem", "MapName": "de_nuke", "OpenedAtUtc": "2026-09-01T10:00:00Z" } ]
-                                                                      """);
+                [ { "Path": "/demos/legacy.dem", "MapName": "de_nuke", "OpenedAtUtc": "2026-09-01T10:00:00Z" } ]
+                """);
 
             RecentFilesStore store = NewStore(dir);
             await Assert.That(store.Items.Count).IsEqualTo(1);

@@ -43,9 +43,9 @@ public class StratStoreWriteOrderTests
     // Named rather than a bool so a failure says which commit inverted the order.
     private static string Order(IExtensionFolder strats, StratDocument document, string stage) =>
         $"{stage}: " + (File.GetLastWriteTimeUtc(StratFile(strats, document))
-                        >= File.GetLastWriteTimeUtc(LogFile(strats, document))
-            ? "strat >= log"
-            : "LOG AHEAD");
+            >= File.GetLastWriteTimeUtc(LogFile(strats, document))
+                ? "strat >= log"
+                : "LOG AHEAD");
 
     [Test]
     public async Task EveryCommit_LeavesTheStratFileNoOlderThanItsLog()

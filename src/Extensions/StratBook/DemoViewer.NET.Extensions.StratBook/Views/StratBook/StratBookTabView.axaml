@@ -222,7 +222,8 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     <Grid ColumnDefinitions="80,*,Auto" ColumnSpacing="4">
-                        <TextBox Grid.Column="0" FontSize="11" PlaceholderText="new alias" Text="{Binding NewAliasText}" />
+                        <TextBox Grid.Column="0" FontSize="11" PlaceholderText="new alias"
+                                 Text="{Binding NewAliasText}" />
                         <TextBox Grid.Column="1" FontSize="11" PlaceholderText="place or callout"
                                  Text="{Binding NewPlaceText}" />
                         <Button Grid.Column="2" Content="Add" Classes="ghost" FontSize="11" Padding="8 3"
@@ -1143,9 +1144,9 @@
                                                                                     ToolTip.Tip="Where they go; every player in the step" />
                                                                             </StackPanel>
                                                                             <StackPanel Grid.Row="0"
-                                                                                Grid.Column="{Binding GroupWatchColumn}"
-                                                                                Grid.ColumnSpan="{Binding GroupWatchSpan}"
-                                                                                IsVisible="{Binding ShowGroupWatch}">
+                                                                                    Grid.Column="{Binding GroupWatchColumn}"
+                                                                                    Grid.ColumnSpan="{Binding GroupWatchSpan}"
+                                                                                    IsVisible="{Binding ShowGroupWatch}">
                                                                                 <StackPanel Orientation="Horizontal"
                                                                                     Spacing="3">
                                                                                     <TextBlock Text="watching"
@@ -1256,7 +1257,8 @@
                                                                                                     Margin="6 0 0 0"
                                                                                                     IsVisible="{Binding IsImplicit}"
                                                                                                     Foreground="{DynamicResource TextValue}" />
-                                                                                                <c:PlaceField Grid.Row="0"
+                                                                                                <c:PlaceField
+                                                                                                    Grid.Row="0"
                                                                                                     Name="LinePlaceField"
                                                                                                     Grid.Column="1"
                                                                                                     IsVisible="{Binding ShowPlace}"
@@ -1268,7 +1270,8 @@
                                                                                                     PickCommandParameter="{Binding PlaceTarget}"
                                                                                                     ArmedTarget="{Binding $parent[UserControl].((vm:StratBookTabViewModel)DataContext).Canvas.ArmedField, FallbackValue={x:Null}}"
                                                                                                     ToolTip.Tip="This player's place" />
-                                                                                                <c:PlaceField Grid.Row="0"
+                                                                                                <c:PlaceField
+                                                                                                    Grid.Row="0"
                                                                                                     Name="LineWatchField"
                                                                                                     IsMulti="True"
                                                                                                     Grid.Column="2"
@@ -1313,7 +1316,8 @@
                                                                                                     IsVisible="{Binding ViaIssue, Converter={x:Static ObjectConverters.IsNotNull}}"
                                                                                                     Text="{Binding ViaIssue.Glyph, FallbackValue=''}"
                                                                                                     ToolTip.Tip="{Binding ViaIssue.Message, FallbackValue={x:Null}}" />
-                                                                                                <StackPanel Grid.Row="0"
+                                                                                                <StackPanel
+                                                                                                    Grid.Row="0"
                                                                                                     Grid.Column="3"
                                                                                                     Orientation="Horizontal"
                                                                                                     Spacing="2">
@@ -1567,7 +1571,8 @@
                                                                             <TextBlock Text="or when"
                                                                                     Classes="stratFieldLabel" />
                                                                             <AutoCompleteBox Name="RotateWhenField"
-                                                                                    Width="128" PlaceholderText="on the call"
+                                                                                    Width="128"
+                                                                                    PlaceholderText="on the call"
                                                                                     MinimumPrefixLength="0"
                                                                                     FilterMode="StartsWith"
                                                                                     ItemsSource="{x:Static vm:StratStepRow.RotateConditions}"

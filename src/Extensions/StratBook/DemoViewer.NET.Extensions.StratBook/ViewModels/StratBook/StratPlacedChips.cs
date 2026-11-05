@@ -109,7 +109,7 @@ public sealed partial class StratPlacedChip
         : Entries[0].Kind switch
         {
             StratPlacedKind.Departure => (Entries[0].Warning is { } warning ? warning + ". " : "")
-                                         + "Where the token leaves from at the step's time; it re-times the leg before. ✕ clears it.",
+                + "Where the token leaves from at the step's time; it re-times the leg before. ✕ clears it.",
             StratPlacedKind.Pinned => $"Not using the step's place: {Entries[0].Slot} is pinned here. ✕ clears it.",
             StratPlacedKind.Seen =>
                 "Where the capture saw the player. Clearing it changes how the captured strat plays.",

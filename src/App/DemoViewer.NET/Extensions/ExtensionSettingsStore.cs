@@ -225,7 +225,7 @@ internal sealed class ExtensionSettingsStore : IExtensionSettings
         {
             File.Move(path,
                 path + ".unreadable-"
-                     + DateTime.UtcNow.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture));
+                + DateTime.UtcNow.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

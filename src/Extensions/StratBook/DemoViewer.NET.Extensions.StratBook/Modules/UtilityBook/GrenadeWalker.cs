@@ -108,15 +108,15 @@ public static class GrenadeWalker
         {
             known.Add((p.EntityIndex, p.Serial));
             all.Add(p is { ThrowerSlot: < 0, AtSpawn: null }
-                                      && flights.Facts.TryGetValue((p.EntityIndex, p.Serial), out FlightFacts? f)
-                ? p with
-                {
-                    InitialPosition = p.InitialPosition ?? f.InitialPosition,
-                    InitialVelocity = p.InitialVelocity ?? f.InitialVelocity,
-                    IsIncendiary = p.IsIncendiary ?? f.IsIncendiary,
-                    LastMovedTick = f.LastMovedTick
-                }
-                : p);
+                && flights.Facts.TryGetValue((p.EntityIndex, p.Serial), out FlightFacts? f)
+                    ? p with
+                    {
+                        InitialPosition = p.InitialPosition ?? f.InitialPosition,
+                        InitialVelocity = p.InitialVelocity ?? f.InitialVelocity,
+                        IsIncendiary = p.IsIncendiary ?? f.IsIncendiary,
+                        LastMovedTick = f.LastMovedTick
+                    }
+                    : p);
         }
 
         int added = 0;
@@ -222,8 +222,8 @@ public static class GrenadeWalker
             }
 
             if (r.Tick >= fromTick && r.Slot == slot
-                                   && string.Equals(r.ProjectileClass, projectileClass, StringComparison.Ordinal)
-                                   && !claimed.Contains(r))
+                && string.Equals(r.ProjectileClass, projectileClass, StringComparison.Ordinal)
+                && !claimed.Contains(r))
             {
                 best = r;
             }
@@ -236,7 +236,8 @@ public static class GrenadeWalker
     ///     The thrower join for a projectile whose thrower never resolved: the unclaimed release of the same family
     ///     in <c>[spawn - 15, spawn - 6]</c>, the one nearest the measured seven-tick gap when several fit.
     /// </summary>
-    private static ReleaseFacts? JoinThrower(IReadOnlyList<ReleaseFacts> releases, string projectileClass, int spawnTick,
+    private static ReleaseFacts? JoinThrower(IReadOnlyList<ReleaseFacts> releases, string projectileClass,
+        int spawnTick,
         HashSet<ReleaseFacts> claimed)
     {
         ArgumentNullException.ThrowIfNull(releases);
@@ -317,9 +318,9 @@ public static class GrenadeWalker
 
             bool covered = atSpawn is { Coverage: > 0 };
             int? press = covered && atSpawn!.Value.LastJumpTick >= p.SpawnTick - GrenadeRules.JumpWindowTicks
-                                 && atSpawn.Value.LastJumpTick <= p.SpawnTick
-                ? atSpawn.Value.LastJumpTick
-                : null;
+                && atSpawn.Value.LastJumpTick <= p.SpawnTick
+                    ? atSpawn.Value.LastJumpTick
+                    : null;
             (bool jumpThrow, JumpThrowSource jumpSource, int? pressTick) =
                 GrenadeRules.ClassifyJumpThrow(covered, press, atSpawn?.OnGround);
 
@@ -431,8 +432,8 @@ public static class GrenadeWalker
     private static string ComputeVersion()
     {
         string inputs = string.Join("\n", GrenadeTables.Rulesets.Select(GrenadeTables.ReadYaml))
-                        + "\n" + GrenadeTrajectoryCollector.Version.ToString(CultureInfo.InvariantCulture) + "\n"
-                        + EngineVersion;
+            + "\n" + GrenadeTrajectoryCollector.Version.ToString(CultureInfo.InvariantCulture) + "\n"
+            + EngineVersion;
         return WalkVersion + ";" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(inputs)), 0, 8);
     }
 

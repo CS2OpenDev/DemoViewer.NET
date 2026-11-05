@@ -218,7 +218,7 @@ public class TagSchemaSnapshotTests
                 .Because(
                     "the v1 sidecar is a published format; a round trip must be field-identical, unknown fields included");
             await Assert.That(JsonSerializer.Serialize(TagTestData.SchemaSample(), TagJsonContext.Default.TagDocument)
-                              + "\n")
+                    + "\n")
                 .IsEqualTo(original).Because("this build still writes the committed shape");
         }
         finally

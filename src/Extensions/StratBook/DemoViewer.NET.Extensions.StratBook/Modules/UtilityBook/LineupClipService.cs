@@ -567,8 +567,8 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
         if (LineupClipPlanner.PlanEvery(_clusters(), _directory)
                 .FirstOrDefault(j => (j.LineupId == lineupId || j.AliasIds.Contains(lineupId))
-                                     && (techniqueKey is null || string.Equals(j.TechniqueKey, techniqueKey,
-                                         StringComparison.Ordinal)))
+                    && (techniqueKey is null || string.Equals(j.TechniqueKey, techniqueKey,
+                        StringComparison.Ordinal)))
             is not { } job)
         {
             return 0;
@@ -700,7 +700,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
         {
             string formerSetpos = LineupClipPlanner.SetposPathFor(former);
             if (!_folder!.FileExists(Inside(former)) || !_folder.FileExists(Inside(formerSetpos))
-                                                     || !SameThrow(formerSetpos, job))
+                || !SameThrow(formerSetpos, job))
             {
                 continue;
             }

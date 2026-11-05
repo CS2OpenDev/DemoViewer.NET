@@ -45,9 +45,9 @@ internal static class FakeFeeds
         {
             Entry e = entries[i];
             string sha = e.Sha256
-                         ?? (e.Bytes is null
-                             ? new string('0', 64)
-                             : Convert.ToHexStringLower(SHA256.HashData(e.Bytes)));
+                ?? (e.Bytes is null
+                    ? new string('0', 64)
+                    : Convert.ToHexStringLower(SHA256.HashData(e.Bytes)));
             long size = e.Size ?? e.Bytes?.LongLength ?? 1;
             if (i > 0)
             {

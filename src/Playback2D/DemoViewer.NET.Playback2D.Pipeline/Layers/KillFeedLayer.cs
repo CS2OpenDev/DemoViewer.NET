@@ -358,8 +358,8 @@ public sealed class KillFeedLayer : ISceneLayer
         // thing the game is telling us is not there.
         bool spellModifiers = _icons is null;
         bool spellWeapon = _icons is null
-                           || (_icons.Lookup(keys[0], _style.FontSizePx) is null
-                               && !_icons.IsBlankByDesign(keys[0]));
+            || (_icons.Lookup(keys[0], _style.FontSizePx) is null
+                && !_icons.IsBlankByDesign(keys[0]));
 
         RowVisual composed = new(Build(_builder, row, spellWeapon, spellModifiers), keys);
         _rendered[row] = composed;

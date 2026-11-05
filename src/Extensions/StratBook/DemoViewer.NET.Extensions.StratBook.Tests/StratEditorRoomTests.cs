@@ -75,7 +75,7 @@ public class StratEditorRoomTests
             List<string> overflow = [];
             foreach (Control control in content.GetVisualDescendants().OfType<Control>()
                          .Where(c => c is TextBox or ComboBox or Button or ToggleButton or TextBlock
-                                     && c.IsEffectivelyVisible))
+                             && c.IsEffectivelyVisible))
             {
                 if (control.TranslatePoint(new Point(control.Bounds.Width, 0), scroll) is { } right
                     && right.X > viewport + 0.5)

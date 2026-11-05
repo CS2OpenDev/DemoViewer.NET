@@ -369,8 +369,9 @@ public sealed class PlaceResolver
                     double dz = z is { } worldZ ? Math.Abs(area.Z - worldZ) : 0;
                     if (d < best - 1e-6 ||
                         (Math.Abs(d - best) <= 1e-6 &&
-                         (dz < bestDz - 1e-6 ||
-                          (Math.Abs(dz - bestDz) <= 1e-6 && bestIndex >= 0 && area.Id < Zones.Areas[bestIndex].Id))))
+                            (dz < bestDz - 1e-6 ||
+                                (Math.Abs(dz - bestDz) <= 1e-6 && bestIndex >= 0
+                                    && area.Id < Zones.Areas[bestIndex].Id))))
                     {
                         best = d;
                         bestDz = dz;

@@ -532,8 +532,8 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             GraphNodeCount = skeleton.Nodes.Count;
             int perPlayer = model.Nodes.Count(n => n.IsPerPlayer);
             GraphSummary = $"open ruleset: {skeleton.Nodes.Count} node(s), {skeleton.Edges.Count} edge(s)"
-                           + (perPlayer > 0 ? $" — {perPlayer} per-player" : "")
-                           + (demo is not null ? " (with demo)." : ".");
+                + (perPlayer > 0 ? $" — {perPlayer} per-player" : "")
+                + (demo is not null ? " (with demo)." : ".");
             if (GraphSupported)
             {
                 _ = GraphViewModel.SetGraphAsync(skeleton.Nodes, skeleton.Edges, skeleton.Groups);
@@ -639,7 +639,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
 
         // Prefer a target that actually fired so the panel opens on something non-empty.
         SelectedTraceTarget = TraceTargets.FirstOrDefault(t => t.FireCount > 0)
-                              ?? (TraceTargets.Count > 0 ? TraceTargets[0] : null);
+            ?? (TraceTargets.Count > 0 ? TraceTargets[0] : null);
         if (TraceTargets.Count == 0)
         {
             TraceSummary = "No stats or highlights declared to trace.";
@@ -683,7 +683,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     {
         List<string> parts = [];
         if (row.Dimensions.TryGetValue("player_name", out object? name) && name is { } n
-                                                                        && !string.IsNullOrEmpty(n.ToString()))
+            && !string.IsNullOrEmpty(n.ToString()))
         {
             parts.Add(n.ToString()!);
         }
@@ -994,7 +994,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             Summary = IsClean
                 ? $"✓ {fileCount} ruleset(s) — no problems."
                 : $"{Diagnostics.Count} problem(s) across {fileCount} ruleset(s)"
-                  + (OpenFileDiagnostics.Count > 0 ? $" ({OpenFileDiagnostics.Count} in this file)." : ".");
+                + (OpenFileDiagnostics.Count > 0 ? $" ({OpenFileDiagnostics.Count} in this file)." : ".");
 
             RenderGraphForOpenFile(); // keep the graph in sync with the edited buffer
         }

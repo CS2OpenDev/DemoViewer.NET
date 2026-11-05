@@ -85,7 +85,7 @@ public sealed class PackClipRenderer : IPackClipRenderer, IDisposable
         {
             Loaded demo = await LoadAsync(clip.Entry.DemoPath, ct).ConfigureAwait(false);
             request = PackPlanner.BuildClipRequest(clip, settings, demo.Parsed.Frames, demo.Parsed.TickRate)
-                      ?? throw new ExportValidationException("the clip's range lies outside its demo");
+                ?? throw new ExportValidationException("the clip's range lies outside its demo");
             setup = new ExportSceneSetup(demo.Parsed.Frames, demo.Parsed.TickRate, demo.Parsed.MapName,
                 ScenePalette.Dark, LevelDisplayMode.Stacked, null, null, demo.Asset, demo.Ink);
             SceneExportSession.Validate(request.Core);
@@ -119,8 +119,8 @@ public sealed class PackClipRenderer : IPackClipRenderer, IDisposable
         else
         {
             lease = await (_lease
-                           ?? throw new InvalidOperationException(
-                               "A pack renders on a demo's visit, and none was given."))
+                    ?? throw new InvalidOperationException(
+                        "A pack renders on a demo's visit, and none was given."))
                 (path, ct).ConfigureAwait(false);
             parsed = lease.Parsed;
         }

@@ -124,8 +124,8 @@ public static class StratFromRound
 
             step.Id = Guid.NewGuid();
             step.AtSeconds = StratClock.AtSecondsFor(moment.Tick, capture.FreezeEndTick, capture.TickRate,
-                                 options.RoundSeconds)
-                             ?? options.RoundSeconds;
+                    options.RoundSeconds)
+                ?? options.RoundSeconds;
             steps.Add(step);
         }
 
@@ -210,9 +210,9 @@ public static class StratFromRound
             }
 
             CapturedPawn? pawn = ours.Where(p => !tokens.ContainsKey(p.PlayerSlot)).Select(p => (CapturedPawn?)p)
-                                     .FirstOrDefault(p => id != 0 && p!.Value.SteamId == id)
-                                 ?? ours.Where(p => !tokens.ContainsKey(p.PlayerSlot) && p.SteamId == 0)
-                                     .Select(p => (CapturedPawn?)p).FirstOrDefault();
+                    .FirstOrDefault(p => id != 0 && p!.Value.SteamId == id)
+                ?? ours.Where(p => !tokens.ContainsKey(p.PlayerSlot) && p.SteamId == 0)
+                    .Select(p => (CapturedPawn?)p).FirstOrDefault();
             if (pawn is { } found)
             {
                 tokens[found.PlayerSlot] = slot;
@@ -463,7 +463,7 @@ public static class StratFromRound
 
         double dx = pawn.X - from.X, dy = pawn.Y - from.Y;
         return dx * dx + dy * dy > MoveThreshold * MoveThreshold
-               || !options.LevelMinZFor(pawn.Z).Equals(from.LevelMinZ);
+            || !options.LevelMinZFor(pawn.Z).Equals(from.LevelMinZ);
     }
 
     private static void Add(StratStep step, string token, CapturedPawn pawn, StratCaptureOptions options,

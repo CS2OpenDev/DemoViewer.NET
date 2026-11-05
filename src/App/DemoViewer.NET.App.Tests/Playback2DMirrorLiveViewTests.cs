@@ -97,8 +97,8 @@ public class Playback2DMirrorLiveViewTests
                 CameraScript.MirrorLiveView after = Mirror(host);
 
                 Console.WriteLine($"[mirror] pan {before.Panes[0].Transform.PanX:F1} → " +
-                                  $"{after.Panes[0].Transform.PanX:F1}, " +
-                                  $"manual {before.Panes[0].ManualOverride} → {after.Panes[0].ManualOverride}");
+                    $"{after.Panes[0].Transform.PanX:F1}, " +
+                    $"manual {before.Panes[0].ManualOverride} → {after.Panes[0].ManualOverride}");
 
                 await Assert.That(after.Panes[0].Transform.PanX)
                     .IsEqualTo(before.Panes[0].Transform.PanX + 60).Within(0.5);

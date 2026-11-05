@@ -541,7 +541,7 @@ public class ReviewPanelsPlaybackContributionTests
         await Assert.That(session.Document).IsNotNull();
 
         bool Landed() => string.Equals(session.DemoPath, demoPath, StringComparison.Ordinal)
-                         && session.Document is not null;
+            && session.Document is not null;
     }
 
     private sealed class FakeGate : IFeatureGate
