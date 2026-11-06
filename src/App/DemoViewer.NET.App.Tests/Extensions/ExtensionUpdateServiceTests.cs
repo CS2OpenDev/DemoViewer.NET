@@ -731,6 +731,39 @@ public class ExtensionUpdateServiceTests
 
     // ── Installed first-party extensions: the catalogue, the install policy, removal ──────────────
 
+    // The automatic stage covers a shipped extension as well as an installed one: a newer version the
+    // install policy accepts is staged for the next start, and the shipped copy keeps running until then.
+    [Test]
+    public async Task AutoStage_StagesANewerVersionOfAShippedExtension()
+    {
+        string root = NewRoot();
+        try
+        {
+            byte[] zip = ExtensionZip(Id, "1.0.1");
+            FakeFeeds.Entry entry = new("1.0.1", zip);
+            FakeFeedClient client = new() { Zips = { [entry.Url] = zip }, Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(entry) } };
+            RecordingQueue queue = new();
+            ExtensionUpdateService service = NewService(root, client, trust: TrustPolicy.Nothing, queue: queue,
+                statuses: [Status(version: "1.0.0", source: PackSource.Bundled)]);
+
+            IReadOnlyList<ExtensionUpdateState> states = await service.AutoStageAsync();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(states.Single().Status).IsEqualTo(ExtensionUpdateStatus.PendingRestart);
+                await Assert.That(states.Single().Pending).IsEqualTo(SemVersion.Parse("1.0.1"));
+                await Assert.That(states.Single().Source).IsEqualTo(PackSource.Bundled);
+                await Assert.That(Directory.Exists(Path.Combine(root, "extensions", Id, "1.0.1"))).IsTrue();
+                await Assert.That(queue.Requests.Select(r => (r.Title, r.Priority)))
+                    .IsEquivalentTo([("Update extensions", DemoJobPriority.Background)]);
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     // Safe mode leaves every shipped id without a status. The shipped list, not the statuses, is what keeps
     // such an id out of the catalogue and away from Remove, even with its folders on disk.
     [Test]

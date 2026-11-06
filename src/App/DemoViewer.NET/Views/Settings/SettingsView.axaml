@@ -860,7 +860,7 @@
                                             <TextBlock Text="{x:Static settings:SettingsViewModel.AutoUpdateLabel}"
                                                        Foreground="{DynamicResource TextValue}" FontSize="12" />
                                             <TextBlock
-                                                Text="When the app starts, a newer version of an installed extension is downloaded and takes effect at the next start. Only versions signed by this app's publisher are installed."
+                                                Text="When the app starts, a newer version of an extension is downloaded and takes effect at the next start. Only versions signed by this app's publisher are installed."
                                                 Foreground="{DynamicResource TextDim}" FontSize="10"
                                                 TextWrapping="Wrap" />
                                         </StackPanel>
