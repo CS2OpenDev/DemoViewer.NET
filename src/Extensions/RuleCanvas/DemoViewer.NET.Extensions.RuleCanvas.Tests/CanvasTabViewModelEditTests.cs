@@ -166,7 +166,7 @@ public class CanvasTabViewModelEditTests
             await Assert.That(vm.SourceDirty).IsTrue();
             await Assert.That(vm.EditStatus).StartsWith("Not saved:");
             await Assert.That(vm.Rulesets.Select(r => r.Id)).Contains("player_round").Because("the ruleset never left the picker");
-            await Assert.That(vm.Nodes.Count).IsEqualTo(8);
+            await Assert.That(vm.Nodes.Count(n => n.IsAuthorable)).IsEqualTo(8);
         }
 
         vm.SourceEdited("stats:" + Environment.NewLine + "  - this is not a mapping" + Environment.NewLine);

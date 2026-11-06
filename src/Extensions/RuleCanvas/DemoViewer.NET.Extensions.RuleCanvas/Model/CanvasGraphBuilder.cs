@@ -1,5 +1,6 @@
 #region
 
+using CS2DemoKit.Analysis.Abstractions;
 using CS2DemoKit.Analysis.Rules;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
@@ -36,7 +37,7 @@ public static class CanvasGraphBuilder
         RulesetDocumentGraph graph = composed.Graph;
 
         Dictionary<RulesetDocumentNodeKey, CanvasNodeViewModel> byKey = new();
-        List<CanvasNodeViewModel> nodes = new(graph.Nodes.Count);
+        List<CanvasNodeViewModel> nodes = new(graph.Nodes.Count + composed.Chain.Nodes.Count);
         foreach (RulesetDocumentNode node in graph.Nodes)
         {
             CanvasNodeViewModel vm = Dress(node, composed.Documents, [.. diagnostics[node.Key]]);
@@ -44,53 +45,133 @@ public static class CanvasGraphBuilder
             nodes.Add(vm);
         }
 
-        // Parallel reads between one pair (a stat and its <id>.count pseudo-member, say) are one wire. The
-        // reader's input is labelled with the first reference written; the producer has one output.
-        Dictionary<(RulesetDocumentNodeKey, RulesetDocumentNodeKey), CanvasConnectorViewModel> inputs = new();
-        Dictionary<RulesetDocumentNodeKey, CanvasConnectorViewModel> outputs = new();
+        // The engine's own nodes come after the declared ones: the events, the enrichments and the context
+        // values the chain runs through. A declared node the chain also names is the same node.
+        foreach (ChainNode node in composed.Chain.Nodes)
+        {
+            if (node.Kind != ChainNodeKind.Declared && !byKey.ContainsKey(node.Key))
+            {
+                CanvasNodeViewModel vm = Scaffold(node);
+                byKey[node.Key] = vm;
+                nodes.Add(vm);
+            }
+        }
+
+        // Wires are the chain's when it built, else the declared reads. One input and one output per node;
+        // what a wire means is written on the wire.
+        List<RulesetDocumentEdge> placementEdges = [];
         List<CanvasConnectionViewModel> wires = [];
-        foreach (RulesetDocumentEdge edge in graph.Edges)
+        Dictionary<RulesetDocumentNodeKey, CanvasConnectorViewModel> inputs = new();
+        Dictionary<RulesetDocumentNodeKey, CanvasConnectorViewModel> outputs = new();
+        CanvasConnectorViewModel Output(RulesetDocumentNodeKey key)
         {
-            if (!byKey.TryGetValue(edge.Source, out CanvasNodeViewModel? source)
-                || !byKey.TryGetValue(edge.Target, out CanvasNodeViewModel? target)
-                || inputs.ContainsKey((edge.Source, edge.Target)))
+            if (!outputs.TryGetValue(key, out CanvasConnectorViewModel? output))
             {
-                continue;
+                output = new CanvasConnectorViewModel { Title = "" };
+                outputs[key] = output;
+                byKey[key].Outputs.Add(output);
             }
 
-            if (!outputs.TryGetValue(edge.Source, out CanvasConnectorViewModel? output))
-            {
-                output = new CanvasConnectorViewModel { Title = "value" };
-                outputs[edge.Source] = output;
-                source.Outputs.Add(output);
-            }
-
-            CanvasConnectorViewModel input = new() { Title = edge.Reference };
-            inputs[(edge.Source, edge.Target)] = input;
-            target.Inputs.Add(input);
-            wires.Add(new CanvasConnectionViewModel(output, input));
+            return output;
         }
 
-        List<CanvasPlacement.Item> items = new(graph.Nodes.Count);
-        foreach (RulesetDocumentNode node in graph.Nodes)
+        CanvasConnectorViewModel Input(RulesetDocumentNodeKey key)
         {
-            CanvasNodeViewModel vm = byKey[node.Key];
+            if (!inputs.TryGetValue(key, out CanvasConnectorViewModel? input))
+            {
+                input = new CanvasConnectorViewModel { Title = "" };
+                inputs[key] = input;
+                byKey[key].Inputs.Add(input);
+            }
+
+            return input;
+        }
+
+        if (composed.Chain.Edges.Count > 0)
+        {
+            foreach (ChainEdge edge in composed.Chain.Edges)
+            {
+                if (!byKey.ContainsKey(edge.Source) || !byKey.ContainsKey(edge.Target))
+                {
+                    continue;
+                }
+
+                wires.Add(new CanvasConnectionViewModel(Output(edge.Source), Input(edge.Target), WireText(edge),
+                    string.IsNullOrWhiteSpace(edge.Condition) ? null : edge.Condition, edge.IsRead));
+                placementEdges.Add(new RulesetDocumentEdge(edge.Source, edge.Target, edge.Label));
+            }
+        }
+        else
+        {
+            HashSet<(RulesetDocumentNodeKey, RulesetDocumentNodeKey)> drawn = [];
+            foreach (RulesetDocumentEdge edge in graph.Edges)
+            {
+                if (byKey.ContainsKey(edge.Source) && byKey.ContainsKey(edge.Target) && drawn.Add((edge.Source, edge.Target)))
+                {
+                    wires.Add(new CanvasConnectionViewModel(Output(edge.Source), Input(edge.Target), edge.Reference, null, true));
+                    placementEdges.Add(edge);
+                }
+            }
+        }
+
+        List<CanvasPlacement.Item> items = new(nodes.Count);
+        foreach (CanvasNodeViewModel vm in nodes)
+        {
             vm.EstimatedSize = new Avalonia.Size(WidthOf(vm), HeightOf(vm));
-            items.Add(new CanvasPlacement.Item(node.Key, vm.EstimatedSize.Width, vm.EstimatedSize.Height));
+            items.Add(new CanvasPlacement.Item(new RulesetDocumentNodeKey(vm.Ruleset, vm.Id), vm.EstimatedSize.Width,
+                vm.EstimatedSize.Height));
         }
 
-        IReadOnlyDictionary<RulesetDocumentNodeKey, Avalonia.Point> placed = CanvasPlacement.Place(items, graph.Edges);
+        IReadOnlyDictionary<RulesetDocumentNodeKey, Avalonia.Point> placed = CanvasPlacement.Place(items, placementEdges);
         // A saved arrangement wins per node; a node the sidecar does not know keeps its computed place.
-        foreach (RulesetDocumentNode node in graph.Nodes)
+        foreach (CanvasNodeViewModel vm in nodes)
         {
-            if (placed.TryGetValue(node.Key, out Avalonia.Point at))
+            RulesetDocumentNodeKey key = new(vm.Ruleset, vm.Id);
+            if (placed.TryGetValue(key, out Avalonia.Point at))
             {
-                byKey[node.Key].Location = layout.PositionOf(node.Key, at);
+                vm.Location = layout.PositionOf(key, at);
             }
         }
 
         return (nodes, wires);
     }
+
+    // What the wire says: the event for a write, with what it does when that is not a value; the test for a
+    // logic input; reads for a read. The lowered condition is the hover text.
+    private static string WireText(ChainEdge edge)
+    {
+        if (edge.IsRead)
+        {
+            return "reads";
+        }
+
+        return edge.Effect switch
+        {
+            EdgeEffect.Activate => edge.Label + " on",
+            EdgeEffect.Deactivate => edge.Label + " off",
+            EdgeEffect.Conjunction => "and " + (edge.Condition ?? ""),
+            EdgeEffect.Disjunction => "or " + (edge.Condition ?? ""),
+            _ => edge.Label
+        };
+    }
+
+    // An engine node's face: the kind, the name, and whether it is per player. Nothing on it is editable.
+    private static CanvasNodeViewModel Scaffold(ChainNode node) => new()
+    {
+        Id = node.Key.Id,
+        Ruleset = node.Key.Ruleset,
+        Kind = node.Kind switch
+        {
+            ChainNodeKind.Event => "event",
+            ChainNodeKind.Enrichment => "enrich",
+            ChainNodeKind.Context => "context",
+            ChainNodeKind.Entity => "entity",
+            ChainNodeKind.External => "external",
+            _ => "engine"
+        },
+        Chips = node.IsPerPlayer ? ["each player"] : [],
+        IsAuthorable = false
+    };
 
     /// <summary>
     ///     The node face from the document: the trigger, gate and scope as chips; the <c>match:</c> block as

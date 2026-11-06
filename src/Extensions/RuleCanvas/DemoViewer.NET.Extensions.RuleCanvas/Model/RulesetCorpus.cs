@@ -1,6 +1,10 @@
 #region
 
+using CS2DemoKit.Analysis.Building;
+using CS2DemoKit.Analysis.Graphs;
+using CS2DemoKit.Analysis.Plugins;
 using CS2DemoKit.Analysis.Profiles;
+using CS2DemoKit.Analysis.Registry;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Analysis.Yaml;
@@ -28,11 +32,19 @@ public sealed class RulesetCorpus
     /// <param name="Documents">Every document that took part, by id, for the chips and facets a checked stat does not carry.</param>
     /// <param name="Diagnostics">The composition's diagnostics, as text.</param>
     /// <param name="PositionedDiagnostics">The same diagnostics that carry a line, with the ruleset they are about.</param>
+    /// <param name="Chain">The engine's lowered chain for the same documents; empty when the build failed, which the diagnostics then say.</param>
     public sealed record Composed(
         RulesetDocumentGraph Graph,
         IReadOnlyDictionary<string, RulesetDoc> Documents,
         IReadOnlyList<string> Diagnostics,
-        IReadOnlyList<(string RulesetId, int Line, string Message)> PositionedDiagnostics);
+        IReadOnlyList<(string RulesetId, int Line, string Message)> PositionedDiagnostics,
+        RulesetChainGraph Chain);
+
+    // The registries are immutable and cost a build each; the builder itself keeps state while it previews
+    // templates, so one is made per composition.
+    private static readonly Lazy<EventRegistry> _events = new(EventRegistry.Build);
+    private static readonly Lazy<EntityValueProviderRegistry> _entityProviders = new(EntityValueProviderRegistry.CreateDefault);
+    private static readonly Lazy<PerPlayerEntityValueProviderRegistry> _perPlayerProviders = new(PerPlayerEntityValueProviderRegistry.CreateDefault);
 
     private readonly Dictionary<string, RulesetDoc> _docs;
 
@@ -187,7 +199,7 @@ public sealed class RulesetCorpus
         if (!_docs.TryGetValue(id, out RulesetDoc? open))
         {
             return new Composed(RulesetDocumentGraph.Empty, new Dictionary<string, RulesetDoc>(StringComparer.Ordinal),
-                [$"{id} is not a loaded ruleset"], []);
+                [$"{id} is not a loaded ruleset"], [], RulesetChainGraph.Empty);
         }
 
         List<RulesetDoc> docs = [open];
@@ -226,6 +238,25 @@ public sealed class RulesetCorpus
         RulesetDocumentGraph graph = composed.Rulesets.Count == 0
             ? RulesetDocumentGraph.Empty
             : RulesetDocumentGraph.Build(composed.Rulesets, open.Id);
-        return new Composed(graph, taking, diagnostics, positioned);
+        RulesetChainGraph chain = RulesetChainGraph.Empty;
+        if (composed.Rulesets.Count > 0)
+        {
+            try
+            {
+                RuleChainBuilder builder = new(_events.Value, null, entityProviders: _entityProviders.Value,
+                    perPlayerEntityProviders: _perPlayerProviders.Value);
+                BuildResult build = builder.Build([.. composed.Rulesets]);
+                chain = RulesetChainGraph.Build(build, composed.Rulesets);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or NotSupportedException
+                                           or KeyNotFoundException or InvalidCastException or NullReferenceException)
+            {
+                // A document the resolver passed can still fail to lower; the canvas then draws the declared
+                // entries alone and says why.
+                diagnostics.Add("The rule chain could not be built: " + ex.Message);
+            }
+        }
+
+        return new Composed(graph, taking, diagnostics, positioned, chain);
     }
 }

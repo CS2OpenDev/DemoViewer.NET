@@ -25,7 +25,14 @@ public sealed partial class CanvasConnectorViewModel : ObservableObject
     private bool _isConnected = true;
 }
 
-/// <summary>A value reference drawn as a wire, from the producing node's output to the reader's input.</summary>
-/// <param name="Source">The output read.</param>
-/// <param name="Target">The input that reads it.</param>
-public sealed record CanvasConnectionViewModel(CanvasConnectorViewModel Source, CanvasConnectorViewModel Target);
+/// <summary>A wire from one node's output to another's input.</summary>
+/// <param name="Source">The output.</param>
+/// <param name="Target">The input.</param>
+/// <param name="Text">What the wire shows: the event that fires it, what it does, or the logic test.</param>
+/// <param name="Condition">The lowered condition, shown on hover, or null.</param>
+/// <param name="IsRead">A value read rather than a write; drawn dashed.</param>
+public sealed record CanvasConnectionViewModel(CanvasConnectorViewModel Source, CanvasConnectorViewModel Target,
+    string Text = "", string? Condition = null, bool IsRead = false)
+{
+    public bool HasText => Text.Length > 0;
+}

@@ -85,6 +85,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     public bool IsHighlight => Kind == "highlight";
 
+    /// <summary>A node the engine made rather than the author: an event, an enrichment, a context value.</summary>
+    public bool IsScaffold => Ruleset.StartsWith('~');
+
     public bool IsCompute => Kind == "compute";
 
     public bool HasFacets => Facets.Count > 0;

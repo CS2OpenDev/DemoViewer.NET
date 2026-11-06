@@ -124,9 +124,10 @@ public class RuleCanvasHubTests
                 });
                 using (Assert.Multiple())
                 {
-                    await Assert.That(containers).IsEqualTo(8).Because("player_round declares eight stats");
-                    await Assert.That(wires).IsEqualTo(2).Because("round_kast reads round_kills and round_kast_assists");
-                    await Assert.That(connectors).IsEqualTo(4).Because("two outputs read, two inputs reading");
+                    await Assert.That(containers).IsEqualTo(26)
+                        .Because("eight stats, ten engine nodes they run through, and the eight events that fire them");
+                    await Assert.That(wires).IsEqualTo(35).Because("every distinct event, gate, read and logic wire of the chain");
+                    await Assert.That(connectors).IsEqualTo(38).Because("one input and one output per node that has a wire on that side");
                     await Assert.That(texts).Contains("round_kast");
                     await Assert.That(texts).Contains("enemy").Because("the detailed style shows the facet rows");
                     await Assert.That(texts).Contains("while player.alive").Because("the gate is a chip");
