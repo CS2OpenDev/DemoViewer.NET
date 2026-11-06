@@ -21,14 +21,19 @@ public sealed record ExternalResolution(IReadOnlyList<PackStatus> Loaded, IReadO
 }
 
 /// <summary>
-///     Finds and loads third-party extensions: every id under the extensions folder that is not one this app
-///     ships. A copy loads only when it is compatible, its signature is not broken, it is verified or the
-///     user allowed unverified extensions, it loads and probes cleanly, and nothing it declares collides with
-///     what is already loaded. The newest such version of each id wins.
+///     Finds and loads the extensions this build does not ship: every id under the extensions folder that is
+///     not a shipped one. A third-party copy loads only when it is compatible, its signature is not broken,
+///     it is verified or the user allowed unverified extensions, it loads and probes cleanly, and nothing it
+///     declares collides with what is already loaded. A copy under the reserved prefix is an installed
+///     first-party extension: it loads only when this app's publisher signed it, and the user's unverified
+///     setting is never consulted for it. The newest such version of each id wins.
 /// </summary>
 public static class ExternalExtensions
 {
-    /// <summary>Ids under this prefix belong to the extensions this app ships; a third-party copy never takes one.</summary>
+    /// <summary>
+    ///     Ids under this prefix belong to this app's publisher. A copy claiming one loads only on the strength
+    ///     of a publisher signature; a third-party copy never takes one.
+    /// </summary>
     public const string ReservedIdPrefix = "net.demoviewer.";
 
     /// <summary>The setting's label, verbatim.</summary>
@@ -47,14 +52,18 @@ public static class ExternalExtensions
         Invalid
     }
 
-    /// <summary>Resolves the third-party extensions installed under <paramref name="configRoot" />.</summary>
+    /// <summary>Resolves the installed extensions under <paramref name="configRoot" /> that this build does not ship.</summary>
     /// <param name="configRoot">The config root; null (the browser) loads nothing.</param>
-    /// <param name="shipped">The extensions this app ships, already resolved: their ids are not third-party, and nothing may collide with them.</param>
+    /// <param name="shipped">The shipped extensions that loaded: nothing may collide with them.</param>
     /// <param name="host">What this app provides.</param>
     /// <param name="trust">The publisher keys and the user's setting.</param>
+    /// <param name="shippedIds">
+    ///     Every id this build ships, loaded or not; a folder of one of these is the shipped loader's to judge
+    ///     and is never looked at here. Null means the ids of <paramref name="shipped" />.
+    /// </param>
     public static ExternalResolution Resolve(string? configRoot, IReadOnlyList<IExtension> shipped,
         ExtensionHostInfo host,
-        ExternalTrust trust)
+        ExternalTrust trust, IReadOnlyList<string>? shippedIds = null)
     {
         ArgumentNullException.ThrowIfNull(shipped);
         ArgumentNullException.ThrowIfNull(host);
@@ -68,28 +77,24 @@ public static class ExternalExtensions
         List<LoadOutcome> rejected = [];
         try
         {
-            HashSet<string> shippedIds = new(shipped.Select(p => p.Id), StringComparer.Ordinal);
+            HashSet<string> excluded = new(shippedIds ?? [.. shipped.Select(p => p.Id)], StringComparer.Ordinal);
             ExtensionLoader.Discovery discovery = ExtensionLoader.Discover(directory);
             rejected.AddRange(discovery.Rejected
-                .Where(o => !shippedIds.Contains(IdFolderOf(directory, o.Directory)))
+                .Where(o => !excluded.Contains(IdFolderOf(directory, o.Directory)))
                 .Select(o => o with { External = true }));
 
             List<IExtension> accepted = [.. shipped];
             foreach (IGrouping<string, ExtensionCandidate> id in discovery.Candidates
-                         .Where(c => !shippedIds.Contains(c.Manifest.Id))
+                         .Where(c => !excluded.Contains(c.Manifest.Id))
                          .GroupBy(c => c.Manifest.Id, StringComparer.Ordinal)
                          .OrderBy(g => g.Key, StringComparer.Ordinal))
             {
-                if (id.Key.StartsWith(ReservedIdPrefix, StringComparison.Ordinal))
-                {
-                    rejected.AddRange(id.Select(c => Outcome(c, LoadFailure.ReservedId,
-                        $"the id '{id.Key}' is reserved for extensions this app ships")));
-                    continue;
-                }
-
+                bool firstParty = id.Key.StartsWith(ReservedIdPrefix, StringComparison.Ordinal);
                 foreach (ExtensionCandidate candidate in id.OrderByDescending(c => c.Manifest.Version))
                 {
-                    (PackStatus? status, LoadOutcome? failure) = TryLoad(candidate, accepted, host, trust);
+                    (PackStatus? status, LoadOutcome? failure) = firstParty
+                        ? TryLoadFirstParty(candidate, accepted, host, trust.PublisherKeys)
+                        : TryLoad(candidate, accepted, host, trust);
                     if (status is null)
                     {
                         rejected.Add(failure!);
@@ -111,8 +116,13 @@ public static class ExternalExtensions
         return new ExternalResolution(loaded, rejected);
     }
 
-    /// <summary>Reads a copy's signature against <paramref name="publisherKeys" />.</summary>
-    public static (Trust Trust, string? Detail) Classify(string directory, IReadOnlyList<string> publisherKeys)
+    /// <summary>
+    ///     Reads a copy's signature against <paramref name="publisherKeys" />: the verdict, the user-terms
+    ///     detail for an invalid signature, the signature check's own failure (null when verified) and the
+    ///     log-only specific.
+    /// </summary>
+    public static (Trust Trust, string? Detail, SignatureFailure? Failure, string? LogDetail) Classify(
+        string directory, IReadOnlyList<string> publisherKeys)
     {
         ArgumentNullException.ThrowIfNull(directory);
         ArgumentNullException.ThrowIfNull(publisherKeys);
@@ -121,14 +131,15 @@ public static class ExternalExtensions
             SignatureCheck check = ExtensionSignature.Verify(directory, publisherKeys);
             return check switch
             {
-                { Verified: true } => (Trust.Verified, null),
-                { Failure: SignatureFailure.Missing or SignatureFailure.UnknownKey } => (Trust.Unverified, null),
-                _ => (Trust.Invalid, check.Detail)
+                { Verified: true } => (Trust.Verified, null, null, null),
+                { Failure: SignatureFailure.Missing or SignatureFailure.UnknownKey } =>
+                    (Trust.Unverified, null, check.Failure, check.LogDetail),
+                _ => (Trust.Invalid, check.Detail, check.Failure, check.LogDetail)
             };
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            return (Trust.Invalid, ex.Message);
+            return (Trust.Invalid, ex.Message, SignatureFailure.Unreadable, ex.Message);
         }
     }
 
@@ -142,10 +153,10 @@ public static class ExternalExtensions
             return (null, Outcome(candidate, LoadFailure.Incompatible, compatibility.Describe(m, m.Id)!));
         }
 
-        (Trust verdict, string? detail) = Classify(candidate.Directory, trust.PublisherKeys);
+        (Trust verdict, string? detail, _, string? logDetail) = Classify(candidate.Directory, trust.PublisherKeys);
         if (verdict == Trust.Invalid)
         {
-            return (null, Outcome(candidate, LoadFailure.Untrusted, detail ?? "signature invalid"));
+            return (null, Outcome(candidate, LoadFailure.Untrusted, detail ?? "signature invalid", logDetail));
         }
 
         if (verdict == Trust.Unverified && !trust.AllowUnverified)
@@ -154,6 +165,46 @@ public static class ExternalExtensions
                 $"it is not verified; turn on \"{AllowUnverifiedLabel}\" in Settings to load it"));
         }
 
+        return LoadAndCheck(candidate, accepted, host,
+            new PackSource.External(candidate.Directory, verdict == Trust.Verified));
+    }
+
+    // A reserved id is this app's publisher's. The copy must verify against a publisher key; the user's
+    // unverified setting and the developer opt-in never reach this branch. Each way the signature can fail
+    // is its own outcome, so Settings can say what is wrong with the copy.
+    private static (PackStatus? Status, LoadOutcome? Failure) TryLoadFirstParty(ExtensionCandidate candidate,
+        IReadOnlyList<IExtension> accepted, ExtensionHostInfo host, IReadOnlyList<string> publisherKeys)
+    {
+        ExtensionManifest m = candidate.Manifest;
+        PackCompatibility compatibility = PackCompatibility.Check(m, host);
+        if (!compatibility.IsCompatible)
+        {
+            return (null, Outcome(candidate, LoadFailure.Incompatible, compatibility.Describe(m, m.Id)!));
+        }
+
+        (Trust verdict, string? detail, SignatureFailure? signature, string? logDetail) =
+            Classify(candidate.Directory, publisherKeys);
+        if (verdict != Trust.Verified)
+        {
+            string reserved = $"the id '{m.Id}' is reserved for extensions signed by this app's publisher";
+            return signature switch
+            {
+                SignatureFailure.Missing => (null,
+                    Outcome(candidate, LoadFailure.ReservedId, $"{reserved}, and the copy is not signed")),
+                SignatureFailure.UnknownKey => (null, Outcome(candidate, LoadFailure.ReservedForeignKey,
+                    $"{reserved}, and the copy is signed by a key this app does not know", logDetail)),
+                _ => (null, Outcome(candidate, LoadFailure.Untrusted, detail ?? "signature invalid", logDetail))
+            };
+        }
+
+        return LoadAndCheck(candidate, accepted, host, new PackSource.Installed(candidate.Directory));
+    }
+
+    // The steps both branches share once the copy is trusted: load into the dependency-resolving context,
+    // then the SDK, app-reference, version-skew, probe and collision checks.
+    private static (PackStatus? Status, LoadOutcome? Failure) LoadAndCheck(ExtensionCandidate candidate,
+        IReadOnlyList<IExtension> accepted, ExtensionHostInfo host, PackSource source)
+    {
         ExtensionLoader.LoadResult result = ExtensionLoader.Load(candidate, new ExternalLoadContext(candidate));
         if (result.Failure is { } loadFailure)
         {
@@ -161,8 +212,10 @@ public static class ExternalExtensions
         }
 
         IExtension pack = result.Pack!;
-        LoadOutcome? failure = CheckSdk(candidate, pack.GetType().Assembly)
-            ?? CheckAppReference(candidate, pack.GetType().Assembly)
+        Assembly assembly = pack.GetType().Assembly;
+        LoadOutcome? failure = CheckSdk(candidate, assembly)
+            ?? CheckAppReference(candidate, assembly)
+            ?? ExtensionLoader.CheckReferences(candidate, assembly, ExtensionLoader.RunningVersion)
             ?? ExtensionLoader.Probe(candidate, pack)
             ?? Conflicts(candidate, accepted, pack);
         if (failure is not null)
@@ -170,11 +223,7 @@ public static class ExternalExtensions
             return (null, failure with { External = true });
         }
 
-        PackStatus status = PackStatus.Evaluate(pack, host) with
-        {
-            Source = new PackSource.External(candidate.Directory, verdict == Trust.Verified)
-        };
-        return (status, null);
+        return (PackStatus.Evaluate(pack, host) with { Source = source }, null);
     }
 
     // The app's assembly is shared with every extension's load context, so an extension built against it would

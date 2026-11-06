@@ -147,8 +147,58 @@ public class ExternalExtensionTests
 
             ExternalResolution result = Resolve(root, allowUnverified: true);
 
-            await Assert.That(result.Loaded).IsEmpty();
-            await Assert.That(result.Rejected.Single().Failure).IsEqualTo(LoadFailure.ReservedId);
+            using (Assert.Multiple())
+            {
+                await Assert.That(result.Loaded).IsEmpty();
+                LoadOutcome refused = result.Rejected.Single();
+                await Assert.That(refused.Failure).IsEqualTo(LoadFailure.ReservedId);
+                await Assert.That(refused.Detail).IsEqualTo(
+                    "the id 'net.demoviewer.hello' is reserved for extensions signed by this app's publisher, and the copy is not signed");
+                await Assert.That(refused.UserMessage).DoesNotContain(ExternalExtensions.AllowUnverifiedLabel)
+                    .Because("no setting admits an unsigned copy of a reserved id");
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // The sample's output carries its whole closure. Its own package (Humanizer) resolves from the folder;
+    // the copy of an app assembly beside it (Avalonia.Base) is shadowed by the app's, so the reference-skew
+    // check over the running versions has nothing to compare it against.
+    [Test]
+    public async Task TheSamplesDependency_ResolvesFromItsFolder_WhileAnAppAssemblyCopyBesideItIsShadowed()
+    {
+        string root = NewRoot();
+        try
+        {
+            string installed = Install(root);
+            PackStatus status = Resolve(root, allowUnverified: true).Loaded.Single();
+            System.Reflection.Assembly assembly = status.Pack.GetType().Assembly;
+            AssemblyLoadContext context = AssemblyLoadContext.GetLoadContext(assembly)!;
+            System.Reflection.Assembly humanizer =
+                context.LoadFromAssemblyName(new System.Reflection.AssemblyName("Humanizer"));
+            System.Reflection.Assembly avalonia =
+                context.LoadFromAssemblyName(new System.Reflection.AssemblyName("Avalonia.Base"));
+            ExtensionCandidate candidate = new(installed,
+                ExtensionManifest.Parse(await File.ReadAllTextAsync(Path.Combine(installed, ExtensionManifest.FileName))));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(context).IsTypeOf<ExternalLoadContext>();
+                await Assert.That(File.Exists(Path.Combine(installed, "Humanizer.dll"))).IsTrue();
+                await Assert.That(File.Exists(Path.Combine(installed, "Avalonia.Base.dll"))).IsTrue()
+                    .Because("the sample's output carries the closure, app assemblies included");
+                await Assert.That(AssemblyLoadContext.GetLoadContext(humanizer)).IsEqualTo(context);
+                // Compared by tail: the runtime reports the real path, and the temp root is a symlink on macOS.
+                await Assert.That(humanizer.Location)
+                    .EndsWith(Path.Combine(HelloId, "1.0.0", "Humanizer.dll"));
+                await Assert.That(AssemblyLoadContext.GetLoadContext(avalonia)).IsEqualTo(AssemblyLoadContext.Default)
+                    .Because("an assembly the app ships always comes from the app");
+                await Assert.That(ExtensionLoader.CheckReferences(candidate, assembly, ExtensionLoader.RunningVersion))
+                    .IsNull();
+            }
         }
         finally
         {

@@ -48,8 +48,14 @@ public enum LoadFailure
     /// <summary>Reading the pack's contract members or running its <c>Register</c> on a scratch container threw.</summary>
     ProbeFailed,
 
-    /// <summary>A third-party copy claims an id reserved for extensions this app ships.</summary>
+    /// <summary>
+    ///     An unsigned copy claims an id under the reserved prefix. A reserved id loads only when this app's
+    ///     publisher signed the copy, whatever the user allowed for unverified extensions.
+    /// </summary>
     ReservedId,
+
+    /// <summary>A copy claims an id under the reserved prefix and is signed by a key this app does not know.</summary>
+    ReservedForeignKey,
 
     /// <summary>An unverified third-party copy while the user has not allowed unverified extensions.</summary>
     Unverified,
@@ -77,7 +83,7 @@ public enum LoadFailure
 ///     never a path or an exception message, since Settings shows it.
 /// </param>
 /// <param name="LogDetail">The exception message behind <paramref name="Detail" />, for the log only; null when there is none.</param>
-/// <param name="External">A third-party extension rather than an update of one this app ships.</param>
+/// <param name="External">A copy that is not an update of a shipped extension: a third-party one, or an installed first-party one.</param>
 public sealed record LoadOutcome(
     string Directory,
     ExtensionManifest? Manifest,

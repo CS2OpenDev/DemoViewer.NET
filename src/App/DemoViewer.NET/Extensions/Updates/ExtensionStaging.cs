@@ -2,7 +2,10 @@
 
 using System.IO.Compression;
 using System.Security.Cryptography;
+using CS2DemoKit.Analysis.Diagnostics;
 using DemoViewer.NET.Extensions.Manifest;
+using DemoViewer.NET.ViewModels.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 #endregion
 
@@ -19,6 +22,12 @@ public static class ExtensionStaging
 {
     /// <summary>The folder under <c>extensions/</c> that holds downloads in progress. The loader skips dot folders.</summary>
     public const string StagingDirectoryName = ".staging";
+
+    /// <summary>
+    ///     The file under <c>extensions/&lt;id&gt;/</c> that asks the next start to delete the whole id folder.
+    ///     A file, not a folder, so <see cref="Loading.ExtensionLoader.Discover" /> never sees it as a version.
+    /// </summary>
+    public const string RemovalMarkerName = ".remove";
 
     /// <summary>A zip with more entries than this is refused.</summary>
     private const int MaxEntries = 4096;
@@ -41,6 +50,81 @@ public static class ExtensionStaging
     /// <summary><c>&lt;extensions&gt;/&lt;id&gt;/&lt;version&gt;/</c>, the directory the loader reads.</summary>
     public static string InstalledPath(string extensionsDirectory, string id, SemVersion version) =>
         Path.Combine(extensionsDirectory, id, version.ToString());
+
+    /// <summary><c>&lt;extensions&gt;/&lt;id&gt;/.remove</c>.</summary>
+    public static string RemovalMarkerPath(string extensionsDirectory, string id) =>
+        Path.Combine(extensionsDirectory, id, RemovalMarkerName);
+
+    /// <summary>
+    ///     Asks the next start to delete <c>extensions/&lt;id&gt;/</c>. The folder is not deleted now: on
+    ///     Windows the loaded assembly is mapped for the life of the process, and a folder left half deleted
+    ///     would load again at the next start.
+    /// </summary>
+    public static void MarkForRemoval(string extensionsDirectory, string id)
+    {
+        ArgumentNullException.ThrowIfNull(extensionsDirectory);
+        ArgumentNullException.ThrowIfNull(id);
+        string idFolder = Path.Combine(extensionsDirectory, id);
+        if (!IsInside(extensionsDirectory, idFolder) || !Directory.Exists(idFolder))
+        {
+            return;
+        }
+
+        File.WriteAllText(RemovalMarkerPath(extensionsDirectory, id), string.Empty);
+    }
+
+    /// <summary>
+    ///     Deletes every id folder under <paramref name="extensionsDirectory" /> that carries
+    ///     <see cref="RemovalMarkerName" />. The marker goes last, so a folder that did not delete whole keeps
+    ///     asking. Never follows a link; never throws. Returns the folders it deleted whole.
+    /// </summary>
+    public static IReadOnlyList<string> ApplyPendingRemovals(string extensionsDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(extensionsDirectory);
+        List<string> removed = [];
+        try
+        {
+            if (!Directory.Exists(extensionsDirectory))
+            {
+                return removed;
+            }
+
+            ILogger log = DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory);
+            foreach (string idFolder in Directory.EnumerateDirectories(Path.GetFullPath(extensionsDirectory)))
+            {
+                string marker = Path.Combine(idFolder, RemovalMarkerName);
+                if (Path.GetFileName(idFolder).StartsWith('.') || !File.Exists(marker)
+                    || !IsInside(extensionsDirectory, idFolder))
+                {
+                    continue;
+                }
+
+                foreach (string child in Directory.EnumerateFileSystemEntries(idFolder))
+                {
+                    if (!string.Equals(child, marker, StringComparison.Ordinal))
+                    {
+                        DeleteTree(child);
+                    }
+                }
+
+                if (Directory.EnumerateFileSystemEntries(idFolder).Any(c => !string.Equals(c, marker, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
+                TryDeleteFile(marker);
+                Directory.Delete(idFolder, false);
+                removed.Add(idFolder);
+                AppLog.ExtensionInstalledRemoved(log, idFolder);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Whatever is left keeps its marker and is tried again at the next start.
+        }
+
+        return removed;
+    }
 
     /// <summary>
     ///     Checks a finished download against what the feed promised: its length first, then its SHA-256.

@@ -17,11 +17,13 @@ own: the list reads type references, and a const emits none, so the format ids t
 `ExportFormats` are invisible to it.
 
 Two of the naming rules a third party is held to are keyed off an id under the reserved
-`net.demoviewer.` prefix, and a shipped extension is exempt from both. `PackContributions.StoreRefusal`
-requires a third party's store paths to start with its own id; a shipped extension may name other paths,
+`net.demoviewer.` prefix, and a first-party extension is exempt from both, whether it shipped with the app
+or was installed from the catalogue (section 4): an installed one carries the prefix on the strength of its
+publisher signature, which is the only way a copy of a reserved id loads. `PackContributions.StoreRefusal`
+requires a third party's store paths to start with its own id; a first-party extension may name other paths,
 still bounded by the folders the host keeps for itself and, under the cache root, by not reaching the demo
 cache's own records. `ExtensionScope.OwnsId` requires a third party's chip, hub, demo-action and toolbar
-ids to start with its id and a dot, and lets a shipped extension keep its own names.
+ids to start with its id and a dot, and lets a first-party extension keep its own names.
 
 ## 1. Manifest and compatibility
 
@@ -175,9 +177,18 @@ a package whose assembly version does not move with its package version, and cod
 ## 2. Loading
 
 Everything here lives in the app under `DemoViewer.NET.Extensions.Loading` (`ExtensionLoader`,
-`ExtensionCandidate`, `ExtensionLoadContext`, `ShippedPack`, `ITrustPolicy` and `TrustPolicy`,
-`LoadOutcome` and `LoadFailure`) plus `PackSource` beside `PackStatus`. Only the Desktop head calls it;
-the browser head, UiCapture and the test assembly still compile-link the pack and configure it as before.
+`ExtensionCandidate`, `ExtensionLoadContext` and `ExternalLoadContext`, `ShippedPack`, `ITrustPolicy` and
+`TrustPolicy`, `LoadOutcome` and `LoadFailure`, `ExternalExtensions` and `ExtensionStartup`) plus
+`PackSource` beside `PackStatus`. Only the Desktop head calls it; the browser head, UiCapture and the test
+assembly still compile-link the pack and configure it as before.
+
+Three classes of directory sit under the extensions folder, told apart by their id. A folder whose id this
+build **ships** is a staged update, judged by `ExtensionLoader` against the shipped version (the choice
+below). A folder under the reserved `net.demoviewer.` prefix whose id this build does **not** ship is an
+**installed first-party extension**, judged by `ExternalExtensions` on its signature alone. Anything else is
+a **third-party** extension. `ExtensionStartup.Resolve` runs the shipped loader first and hands
+`ExternalExtensions.Resolve` every id this build ships, loaded or not, so an incompatible shipped copy
+never lets a folder of its own id in through the first-party branch.
 
 **The directory.** A downloaded extension is staged under the config root, one directory per version:
 
@@ -237,11 +248,33 @@ extension per output directory for now: the copied file keeps the bare name `ext
 second extension would collide with; renaming the copy to `<id>.extension.json` is still to do, as part
 of packaging.
 
-**The load context.** A staged copy loads into `ExtensionLoadContext`, a named (`extension:<id>@<version>`)
-non-collectible `AssemblyLoadContext` whose `Load` returns null for everything, so every reference the
-extension makes (the app assembly, Avalonia, CS2DemoKit) falls through to the default context and binds to
-the copy the app runs on. Only the extension's own assembly lives in the child context. No unload: "off"
-is the live-toggle switch (section 6).
+**Installed first-party extensions.** A directory under `extensions/<id>/<version>/` whose id starts with
+`net.demoviewer.` and is not one this build ships loads only when `extension.sig` verifies against
+`PublisherKeys.Current` (section 3). Per candidate, newest first, `ExternalExtensions.TryLoadFirstParty`
+runs the compatibility check (`Incompatible`), then the signature, each failure its own outcome so Settings
+can say what is wrong with the copy: no signature is `ReservedId` ("the id 'x' is reserved for extensions
+signed by this app's publisher, and the copy is not signed"), a signature by a key this app does not know
+is `ReservedForeignKey`, and a malformed, wrong or stale signature is `Untrusted` with the signature
+check's own detail ("a file changed after signing"). The user's "Allow unverified and potentially
+dangerous extensions" setting and the developer opt-in are never consulted for an id this build does not
+ship. A folder renamed to another id or version never reaches the signature: `Discover` refuses it as
+`FolderMismatch`, and the manifest is inside the digest, so editing it to match is `DigestMismatch`. A
+verified copy then loads into `ExternalLoadContext` and passes the same checks a third-party one does: the
+SDK major, no reference to the app assembly, the reference-skew check over `RunningVersion`, the probe and
+the collision check. Its status carries `PackSource.Installed(directory)` ("installed"), enters
+`FeaturePacks` through the external list like a third-party one, and gets the pack master row, the update
+line and Remove (section 4). For a staged update of a shipped extension the shipped loader's policy
+(`TrustPolicy.ForLaunch`) still applies, developer opt-in included while the unverified setting is on.
+
+**The load contexts.** A staged update of a shipped extension and an installed first-party extension both
+load into `ExternalLoadContext`, a named (`external:<id>@<version>`) non-collectible `AssemblyLoadContext`
+that resolves the extension's own dependencies from its folder and returns null for everything the app
+already provides (loaded in the default context, a file beside the app, or on the trusted platform
+assembly list), so those fall through to the default context and bind to the copy the app runs on. A
+release of the Strat Book that carries a package the app does not ship therefore installs and runs the
+same way on a build that ships it and on one that does not. `ExtensionLoadContext` (`extension:<id>@<version>`),
+whose `Load` returns null for everything, remains what `ExtensionLoader.Load` uses when no context is
+passed. No unload: "off" is the live-toggle switch (section 6).
 
 This was not the first choice. The plan said "default context", and the simpler design is to load the
 staged copy into `AssemblyLoadContext.Default` and skip it whenever the shipped assembly is already loaded.
@@ -268,10 +301,11 @@ before. The same prototype confirmed the other half of the trap: a method that m
   so the only methods that mention the type are the two factories, compiled only when invoked: the loader's
   factory never when the staged copy wins, the previewer's never after Main. The shipped `StratBookPack`
   is then neither loaded, instantiated nor configured.
-- *Dependencies come from the app.* A staged copy may reference only assemblies the app ships (the
-  contract and CS2DemoKit ranges in its manifest cover the first-party ones); a new package reference in an
-  extension release needs an app release that carries it, which the packaging and compatibility-matrix
-  checks enforce.
+- *Dependencies the app ships come from the app.* An assembly the app provides is always the app's copy,
+  whatever the extension's folder carries; the reference-skew check (`CheckReferences` over
+  `RunningVersion`) therefore requires the extension to have built against the app's version of it, and
+  skips an assembly the app does not ship, which `RunningVersion` reads as null. A package the app does
+  not ship travels in the extension's folder (section 5 stages it) and resolves from there.
 - *Internals.* Neither the app nor a Playback2D assembly grants the extension its internals, so a staged
   copy reaches exactly what the shipped one does: the public types.
 
@@ -289,9 +323,9 @@ installer sets the variable; it is the documented way to run an unsigned local b
 '<dir>'` or the incompatible form, then one `Staged extension at '<dir>' not loaded (<failure>): <detail>`
 per refused candidate. It lands in the Diagnostics tab and the rolling `logs/diagnostics.log`.
 
-**The Settings surface.** `PackStatus.Source` is `PackSource.Bundled` or `PackSource.Staged(directory)`,
-with a user label ("bundled", "installed update") that the pack master row shows in parentheses after
-the version: `1.0.1 (installed update)`. `PackStatus.Rejected` holds every staged candidate the loader
+**The Settings surface.** `PackStatus.Source` is `PackSource.Bundled`, `PackSource.Staged(directory)` or
+`PackSource.Installed(directory)`, with a user label ("bundled", "installed update", "installed") that
+the pack master row shows in parentheses after the version: `1.0.1 (installed update)`. `PackStatus.Rejected` holds every staged candidate the loader
 refused for that pack, newest first; the row shows one amber line per candidate beneath the description,
 `Update 1.1.0 was not loaded: Strat Book 1.1.0 needs CS2DemoKit 0.14.0; this app ships 0.13.0-beta0001`
 (or `An update in '<folder>' was not loaded: ...` when its manifest did not parse). Unlike the
@@ -489,10 +523,11 @@ injects the matching public half.
 
 Everything here lives in the app under `DemoViewer.NET.Extensions.Updates` (`ExtensionFeed` and
 `ExtensionFeedEntry`, `IExtensionFeedClient` and `HttpExtensionFeedClient`, `ExtensionFeedSource`,
-`ExtensionUpdateService`, `ExtensionUpdateState` and `StageResult`, `ExtensionStaging`) plus
-`ViewModels/Settings/ExtensionUpdateRow`. Only the Desktop head constructs the service: the browser has no
-config root to stage into, and its Settings line says updates come with the app. The service loads
-nothing; a staged copy is what the loader takes at the next start.
+`ExtensionUpdateService`, `ExtensionUpdateState`, `InstallableExtension` and `StageResult`,
+`ExtensionStaging`, `FirstPartyCatalog`) plus `ViewModels/Settings/ExtensionUpdateRow` and
+`InstallableExtensionRow`. Only the Desktop head constructs the service: the browser has no config root to
+stage into, and its Settings line says updates come with the app. The service loads nothing; a staged copy
+is what the loader takes at the next start.
 
 **The feed.** One `extensions.json` per extension, hosted as a GitHub release asset. The default URL is
 `https://github.com/<owner>/<repo>/releases/download/extensions-<id>/extensions.json`, with the repository
@@ -595,24 +630,71 @@ reason in user terms) or `Cancelled`. In order:
    is written.
 5. `extension.json` must exist at the root, parse, name the entry's id and version, and the assembly it
    names must be beside it.
-6. The loader's `ITrustPolicy.Judge` (`TrustPolicy.Default`, the same value `Program.Main` hands the
-   loader: section 3's signature check, or the developer opt-in) is asked about the unpacked directory
-   and its manifest. A refusing verdict's `Reason` is the refusal detail Settings shows ("a file changed
-   after signing", "signature invalid", ...) and its `LogDetail` goes to the log; a policy that throws
-   reads as untrusted.
-7. One `Directory.Move` to `extensions/<id>/<version>/`. A target that appeared in the meantime is
-   `AlreadyInstalled`. The `.zip.part` and the empty `.staging/<id>/` go.
+6. A trust policy is asked about the unpacked directory and its manifest. Which one depends on the
+   entry: an update of a declared shipped pack (its status's source is bundled or a staged update) is
+   judged by the policy the loader runs with (`TrustPolicy.Default`, section 3's signature check or the
+   developer opt-in); everything else, a catalogue install or an update of an installed pack, by the
+   **install policy**, `SignedTrustPolicy` over `PublisherKeys.Current` and nothing else, so a reserved id
+   this build does not ship is signed-only at staging as it is at load. A refusing verdict's `Reason` is
+   the refusal detail Settings shows ("a file changed after signing", "signature invalid", ...) and its
+   `LogDetail` goes to the log; a policy that throws reads as untrusted.
+7. The id's removal marker (below), if any, is deleted: an install after Remove and before the restart is
+   a reinstall. Then one `Directory.Move` to `extensions/<id>/<version>/`. A target that appeared in the
+   meantime is `AlreadyInstalled`. The `.zip.part` and the empty `.staging/<id>/` go.
+
+Stages run one at a time. Two stages of one entry share the `.staging/<id>/` paths, and the launch
+auto-stage and a user's Update can ask for the same entry at once; each stage waits for the one before it,
+so the second finds the installed folder (`AlreadyInstalled`), never the first's half-written files.
 
 Any refusal or error removes the `.zip.part` and the unpacked directory; a cancellation does the same.
 Every delete is guarded the way `PackDataRemover.ResolveSafe` guards (strictly inside `extensions/`, never
 through a reparse point, never a `.dem`), and `ExtensionLoader.Discover` skips dot folders, so an
 unfinished download is never reported as a broken candidate.
 
+**The catalogue.** `FirstPartyCatalog.Ids` is the compiled-in list of first-party extensions a build can
+install although it does not ship them: literals, since the app assembly references no extension; the
+Strat Book's id today. Each one's feed is `ExtensionFeedSource.Resolve` over the same template the
+updater uses. `CheckCatalogueAsync`, one queue item at user priority, takes every catalogue id with no
+entry in the service's statuses (a shipped one has its own row, whatever its verdict) and reports an
+`InstallableExtension`: the highest entry `IsOffered` accepts (`Available`), the highest compatible
+version already under `extensions/<id>/` (`PendingRestart`), why a copy on disk did not load this launch
+(`NotLoaded`, from `FeaturePacks.ExternalRejected`, with Remove as the way out), a newer version this app
+cannot run (`NeedsNewerApp`), or the feed's failure (`NotPublished`, `FeedUnreachable`, `FeedInvalid`).
+The last answer is remembered for the run (`LastCatalogue`). Settings lists them under "Available
+extensions" with name, version and size and an Install button; Install is `DownloadAndStageAsync` with the
+offered entry, judged by the install policy, and the row then reads `0.1.4 installed, restart to use it.`
+The next start loads the copy through `ExternalExtensions` (section 2).
+
+**Automatic staging.** `AutoStageAsync`, one queue item at background priority ("Update extensions"):
+for each declared first-party extension this process runs (an id under the reserved prefix, bundled,
+staged or installed, with a readable manifest), the feed is checked and a newer offered version is staged
+with the install policy, so nothing unverified is ever staged this way; the state is then remembered as
+the Settings row shows it (`PendingRestart` after a stage, the check's own state otherwise), and a
+Settings open within the hour seeds from it. `App.axaml.cs` runs it after the startup sweep below when
+`Extensions.AutoUpdate` is on (the Settings toggle "Install extension updates automatically", on by
+default) and `Extensions.LastUpdateCheckUtc` is unset or at least an hour old, and records the time
+through the same field the Settings check writes. A background item does not run while the user has
+background processing off; that is the queue's rule for every background job, not worked around here,
+and the Settings Check button remains the path that always asks.
+
+**Removal.** `RemoveInstalledAsync(id)` is allowed for a status whose source is `PackSource.Installed`
+and for a catalogue id with folders on disk and no status, never for a shipped id: a shipped extension is
+turned off (section 6), not removed. It writes the marker file `extensions/<id>/.remove` (a file under
+the id folder, invisible to `Discover`, which enumerates directories) and, when nothing of the id is
+loaded, deletes the folder at once; otherwise the folder goes at the next start, because the loaded
+assembly is mapped for the life of the process on Windows and a folder left half deleted would load
+again. `ExtensionStaging.ApplyPendingRemovals` deletes every id folder carrying the marker, the marker
+last so a folder that did not delete whole keeps asking, and runs from `ExtensionStartup.Resolve` before
+anything is discovered and from the startup sweep. The row reads `Removed, restart to finish.` Remove
+never touches the extension's data; "Delete extension data" never removes the install.
+
 **At startup.** `CleanupOnStartAsync`, a background queue item from the composition root after the
-loader's report: removes `extensions/.staging/` whole (a download the last run did not finish), then every
-staged version of a declared extension that is not newer than the running copy and is not the directory
-the running copy loaded from. Newer versions stay, even ones the loader refused today, since they may load
-after an app update. Nothing outside `extensions/` is touched.
+loader's report: removes `extensions/.staging/` whole (a download the last run did not finish), applies
+the pending removals, then removes every staged version of a declared extension that is not newer than
+the running copy and is not the directory the running copy loaded from, whether that is a staged update
+or an installed first-party copy. Newer versions stay, even ones the loader refused today, since they may
+load after an app update. Nothing outside `extensions/` is touched. A superseded installed version is
+therefore on disk until the next launch's sweep, which is the stated expectation.
 
 **Settings.** Under Extensions, each extension's master row carries one update line (`FeatureToggleRow.Update`,
 an `ExtensionUpdateRow`): the verdict, a Check button (always, unless a download runs), an Update button
@@ -642,9 +724,10 @@ Copy says "extension" and "update", never "pack". The UiCapture variants
 users will meet most.
 
 **Logging.** Under `App.Extensions`: `Extension <id> update check failed (<status>): <detail>`,
-`Extension <name> <version> staged at '<dir>'; it loads at the next start`,
-`Extension <name> <version> update refused: <detail> [<exception>]`, and
-`Removed staged extension directory '<dir>' (<reason>)` from the startup sweep.
+`Extension <name> <version> staged at '<dir>'; it loads at the next start` (a user's Update and the
+automatic stage alike), `Extension <name> <version> update refused: <detail> [<exception>]`,
+`Removed staged extension directory '<dir>' (<reason>)` from the startup sweep, `Extension <id> marked for
+removal; its folder is deleted at the next start`, and `Removed installed extension folder '<dir>'`.
 
 **Verified.** `ExtensionFeedTests` (the schema and every refusal), `ExtensionUpdateServiceTests` (every
 check state, the pinning rule's predicate as the only gate, wrong sha and size, five zip-slip shapes, a
@@ -940,7 +1023,9 @@ failing, and a dispatch with `allow_sdk_drift` skips the gate for an emergency a
 
 **One extension per output directory.** The shipped manifest copy is the bare `extension.json`. A second
 extension shipped beside this one in the same output directory needs it renamed to `<id>.extension.json`,
-which touches `ShippedPack.BesideApp`, the app csproj and the loader and matrix tests.
+which touches `ShippedPack.BesideApp`, the app csproj and the loader and matrix tests. Still to do; an
+installed first-party extension (section 2) is not affected, since nothing of it sits in the output
+directory.
 
 ---
 
@@ -960,7 +1045,11 @@ which touches `ShippedPack.BesideApp`, the app csproj and the loader and matrix 
 **Existing data.** Nothing is deleted when the pack is turned off. The settings page can offer "Delete
 Strat Book data" as a separate, confirmed action that removes the paths in the pack's `StoreDescriptor`s;
 cache sidecars are regenerable, `strats/`, `tags/`, `teams.json`, `review-queue.json` and the dossier
-stores are user work and must be called out by name in the confirmation.
+stores are user work and must be called out by name in the confirmation. An installed first-party
+extension (section 2) has the same switch and the same data action, because it composed like a shipped
+one. Removing the install itself is a third, separate action: Remove on its row marks its
+`extensions/<id>/` folder and the next start deletes it (section 4). Remove leaves the data; Delete
+extension data leaves the install.
 
 **Round Facts while off.** Round Facts is core and always on: 2D Playback tints its round bands by the
 rows for every user. The `round_facts` ruleset is a core stamped ruleset, so it rides every merged run with

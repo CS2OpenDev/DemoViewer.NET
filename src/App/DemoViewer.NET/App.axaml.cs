@@ -111,9 +111,13 @@ public class App : Application
             // the UI thread, so work left from the last session or owed by a changed configuration starts
             // without waiting for a demo to change. After that only events feed the scheduler.
             services.GetRequiredService<DemoScheduler>().RecheckAll();
-            // Drop an unfinished download and the staged versions the running copy supersedes. A
-            // background queue item; nothing waits on it.
-            _ = services.GetService<ExtensionUpdateService>()?.CleanupOnStartAsync();
+            // Drop an unfinished download and the staged versions the running copy supersedes, then stage a
+            // newer signed version of each first-party extension for the next start. Background queue items;
+            // nothing waits on them, and the stage runs only once the sweep is done.
+            if (services.GetService<ExtensionUpdateService>() is { } extensionUpdates)
+            {
+                _ = TidyAndAutoStageExtensionsAsync(extensionUpdates, services.GetRequiredService<SettingsService>());
+            }
             // One-off re-encode of pre-gzip record sidecars, and the rename of hashed demos' files from path
             // keys to content ids: no parse, background queue jobs that step aside between batches, each
             // marker-gated once a pass leaves nothing behind. Then the sweep of demos no folder has listed
@@ -510,6 +514,34 @@ public class App : Application
     }
 
     /// <summary>
+    ///     The launch-time extension housekeeping: the staging sweep, then, when "Install extension updates
+    ///     automatically" is on and the hourly rule allows, the automatic stage of newer signed first-party
+    ///     versions, recorded under the same timestamp the Settings check writes. Never throws: a failure
+    ///     here is a log line, not a failed start.
+    /// </summary>
+    private static async Task TidyAndAutoStageExtensionsAsync(ExtensionUpdateService updates, SettingsService settings)
+    {
+        try
+        {
+            await updates.CleanupOnStartAsync();
+            ExtensionsSettings current = settings.Current.Extensions;
+            if (!current.AutoUpdate
+                || !SettingsViewModel.ShouldAutoCheckExtensionUpdates(current.LastUpdateCheckUtc, DateTimeOffset.UtcNow))
+            {
+                return;
+            }
+
+            await updates.AutoStageAsync();
+            settings.Write(s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            AppLog.OperationFailed(DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory), "update extensions at start",
+                ex);
+        }
+    }
+
+    /// <summary>
     ///     The extension loader's one-time report: the head resolved the packs
     ///     in Main, before any logger existed, and recorded the outcome on each <see cref="PackStatus" />;
     ///     this writes it once the diagnostics pillar is up. One line per pack (loaded, with its source, or
@@ -524,9 +556,12 @@ public class App : Application
             string version = status.Manifest?.Version.ToString() ?? "?";
             if (status.IsCompatible)
             {
-                string location = status.Source is PackSource.Staged staged
-                    ? staged.Directory
-                    : status.Pack.GetType().Assembly.Location;
+                string location = status.Source switch
+                {
+                    PackSource.Staged staged => staged.Directory,
+                    PackSource.Installed installed => installed.Directory,
+                    _ => status.Pack.GetType().Assembly.Location
+                };
                 AppLog.ExtensionLoaded(log, name, version, status.Source.Label, location);
             }
             else

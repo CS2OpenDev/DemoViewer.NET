@@ -69,6 +69,25 @@ internal static class UpdateFixtures
     public static PackStatus StatusWithoutManifest(string id) =>
         new(new FakePack(id), null, new PackCompatibility.ManifestInvalid("unreadable"));
 
+    /// <summary>An installed first-party pack at <paramref name="version" />, loaded from <paramref name="directory" />.</summary>
+    public static PackStatus InstalledStatus(string id, string version, string directory) =>
+        Status(id, version, new PackSource.Installed(directory));
+
+    /// <summary>Every file under <paramref name="directory" /> as one flat zip, the way the release workflow lays it out.</summary>
+    public static byte[] ZipDirectory(string directory)
+    {
+        using MemoryStream stream = new();
+        using (ZipArchive archive = new(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (string file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+            {
+                archive.CreateEntryFromFile(file, Path.GetRelativePath(directory, file).Replace('\\', '/'));
+            }
+        }
+
+        return stream.ToArray();
+    }
+
     public static ITrustPolicy TrustAll { get; } = new RecordingTrust(true);
 
     /// <summary>Serves what the test puts in it; counts and gates downloads so a test can cancel one mid-way.</summary>

@@ -227,7 +227,8 @@ public static class ExtensionLoader
 
     /// <summary>
     ///     The head's one call: for each shipped pack, the staged copy that <see cref="Select" /> picks and
-    ///     <see cref="Load" /> loads, else the shipped one, judged by <see cref="PackStatus.Evaluate(IExtension, ExtensionHostInfo)" />
+    ///     <see cref="Load" /> loads into an <see cref="ExternalLoadContext" /> (so a release that carries a
+    ///     package the app does not ship resolves it from its folder), else the shipped one, judged by <see cref="PackStatus.Evaluate(IExtension, ExtensionHostInfo)" />
     ///     and stamped with its <see cref="PackSource" /> and every rejected staged candidate. A null
     ///     <paramref name="configRoot" /> (the browser) means shipped only. A failure of the loader itself
     ///     is a <see cref="LoadFailure.LoaderFailed" /> outcome on the shipped pack, never an exception.
@@ -258,7 +259,7 @@ public static class ExtensionLoader
                     rejected.AddRange(selection.Rejected);
                     if (selection.Chosen is { } chosen)
                     {
-                        LoadResult loaded = Load(chosen);
+                        LoadResult loaded = Load(chosen, new ExternalLoadContext(chosen));
                         LoadOutcome? failure = loaded.Failure
                             ?? CheckReferences(chosen, loaded.Pack!.GetType().Assembly,
                                 RunningVersion)
