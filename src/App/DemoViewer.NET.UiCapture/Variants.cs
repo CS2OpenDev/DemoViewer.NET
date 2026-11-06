@@ -195,7 +195,9 @@ public static partial class Variants
             ["library-populated"] = () => Library(LibraryState.Populated),
             ["library-dropover"] = () => Library(LibraryState.DragOver),
             ["library-populated-pack-on"] = () => Library(LibraryState.PopulatedPackOn),
-            ["workbench"] = Workbench,
+            ["workbench"] = () => Workbench(),
+            ["workbench-graph"] = () => Workbench("player_round", graph: true),
+            ["workbench-graph-player-stats"] = () => Workbench("player_stats", graph: true),
             ["framelist"] = FrameList,
             // v0.6.0 fit-and-finish surfaces: the code-color-promotion consumers (severity ramps,
             // Classifier* accents, hex swatch tiers) plus the two render-only gaps
@@ -737,15 +739,31 @@ public static partial class Variants
     ///     seeds a diagnostic so the Problems panel exercises the soft-error location colour. Renders the
     ///     workbench's translucent pane borders: a de-inline target.
     /// </summary>
-    private static RuleWorkbenchView Workbench()
+    private static RuleWorkbenchView Workbench(string? ruleset = null, bool graph = false)
     {
         RuleWorkbenchTabViewModel vm = new();
 
         // A shipped ruleset → editor gets content and IsReadOnlyFile flips the AccentCaution indicator on.
-        RulesetFileRef? shipped = vm.OpenableFiles.FirstOrDefault(f => f.IsShipped);
+        RulesetFileRef? shipped = ruleset is null
+            ? vm.OpenableFiles.FirstOrDefault(f => f.IsShipped)
+            : vm.OpenableFiles.FirstOrDefault(f => f.FileName == ruleset + ".rules.yaml");
         if (shipped is not null)
         {
             vm.SelectedFile = shipped;
+        }
+
+        if (graph)
+        {
+            // The layout runs on the pool and lands back on the dispatcher; pump until it has.
+            vm.ShowGraph = true;
+            DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+            while (!vm.GraphViewModel.IsLayoutComplete && DateTime.UtcNow < deadline)
+            {
+                Thread.Sleep(50);
+                Dispatcher.UIThread.RunJobs();
+            }
+
+            return new RuleWorkbenchView { DataContext = vm };
         }
 
         // Seed a diagnostic AFTER selection so the Problems list shows the AccentErrorSoft location text.
