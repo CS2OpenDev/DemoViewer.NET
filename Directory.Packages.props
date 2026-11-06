@@ -58,6 +58,11 @@
              5.4.0 is the newest stable 5.x, confirmed with `dotnet package search` at implementation. -->
         <PackageVersion Include="FFMpegCore" Version="5.5.0" />
         <PackageVersion Include="Msagl" Version="1.2.1" />
+        <!-- The node canvas of the Rule Canvas extension, and nothing else: the app assembly never references
+             it. trrahul's port of miroiu/nodify to Avalonia 12 (MIT); the published 2.0.0 is built against
+             12.0.5 and runs unchanged on the 12.1 line. Not BAndysc's NodifyAvalonia, which fails to load on
+             Avalonia 12, nor a vendored copy of either. See THIRD-PARTY-NOTICES.md §c. -->
+        <PackageVersion Include="Nodify.Avalonia" Version="2.0.0" />
         <PackageVersion Include="YamlDotNet" Version="16.3.0" />
         <!--
             The demo parser and analysis engine. These were in-repo projects until 2026-08-17; they

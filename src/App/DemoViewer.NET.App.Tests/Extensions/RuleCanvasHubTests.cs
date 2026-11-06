@@ -15,6 +15,8 @@ using DemoViewer.NET.ViewModels.Shell;
 using DemoViewer.NET.Views;
 using DemoViewer.NET.Views.Shell;
 using Microsoft.Extensions.DependencyInjection;
+using Nodify.Avalonia;
+using Nodify.Avalonia.Connections;
 
 #endregion
 
@@ -52,7 +54,11 @@ public class RuleCanvasHubTests
         return (vm, gate, provider);
     }
 
-    private static List<string> RenderedTexts(MainViewModel vm, string tabId)
+    private static List<string> RenderedTexts(MainViewModel vm, string tabId) =>
+        Rendered(vm, tabId, window =>
+            window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text ?? "").Where(t => t.Length > 0).ToList());
+
+    private static T Rendered<T>(MainViewModel vm, string tabId, Func<Window, T> read)
     {
         Window window = new() { Width = 1280, Height = 800, Content = new MainView { DataContext = vm } };
         window.Show();
@@ -61,12 +67,9 @@ public class RuleCanvasHubTests
         Dispatcher.UIThread.RunJobs();
         AvaloniaHeadlessPlatform.ForceRenderTimerTick();
         Dispatcher.UIThread.RunJobs();
-        List<string> texts =
-        [
-            .. window.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text ?? "").Where(t => t.Length > 0)
-        ];
+        T result = read(window);
         window.Close();
-        return texts;
+        return result;
     }
 
     [Test]
@@ -88,9 +91,45 @@ public class RuleCanvasHubTests
                     await Assert.That(vm.Tabs.Single(t => t.TabId == RuleCanvasPack.HubId).ActiveContent).IsTypeOf<HubTabView>();
                     await Assert.That(texts).Contains("RULE CANVAS").Because("the band binds the declaration's rail label");
                     await Assert.That(texts).Contains("Canvas").Because("the rail lists the one section");
-                    await Assert.That(texts).Contains("Nothing to draw yet")
+                    await Assert.That(texts).Contains("SAMPLE")
                         .Because("the first section is selected and realized when the host is");
                     await Assert.That(texts).Contains("Open Authoring");
+                }
+            }
+            finally
+            {
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
+
+    /// <summary>
+    ///     The sample graph on the real canvas: a templated container per node, a connector per value read or
+    ///     produced, and a connection per wire, all realized from a view-level style include of the Nodify theme.
+    /// </summary>
+    [Test]
+    public async Task TheSampleCanvas_RealizesItsNodesConnectorsAndWires() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (MainViewModel vm, _, ServiceProvider services) = NewShell();
+            try
+            {
+                (int containers, int connectors, int wires, List<string> texts) = Rendered(vm, RuleCanvasPack.HubId, window =>
+                {
+                    List<Avalonia.Visual> all = [.. window.GetVisualDescendants()];
+                    return (all.OfType<ItemContainer>().Count(), all.OfType<Connector>().Count(),
+                        all.OfType<Connection>().Count(),
+                        all.OfType<TextBlock>().Select(t => t.Text ?? "").Where(t => t.Length > 0).ToList());
+                });
+                using (Assert.Multiple())
+                {
+                    await Assert.That(containers).IsEqualTo(7).Because("seven nodes in the sample");
+                    await Assert.That(wires).IsEqualTo(5).Because("five value references in the sample");
+                    await Assert.That(connectors).IsEqualTo(9).Because("four outputs read, five inputs reading");
+                    await Assert.That(texts).Contains("counter_strafe_pct");
+                    await Assert.That(texts).Contains("counter_strafe_good")
+                        .Because("the detailed style shows the facet rows");
+                    await Assert.That(texts).Contains("while round.active").Because("the gate is a chip");
                 }
             }
             finally

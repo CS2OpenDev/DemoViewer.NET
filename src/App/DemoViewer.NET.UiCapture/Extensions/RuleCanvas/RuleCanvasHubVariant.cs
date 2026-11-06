@@ -3,6 +3,7 @@
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.RuleCanvas;
+using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Abstractions;
@@ -22,7 +23,7 @@ namespace DemoViewer.NET.UiCapture;
 /// </summary>
 public static partial class Variants
 {
-    private static MainView RuleCanvasHub()
+    private static MainView RuleCanvasHub(bool showFacets = true)
     {
         RuleCanvasPack pack = new();
         ServiceCollection services = new();
@@ -39,6 +40,8 @@ public static partial class Variants
         // as the other variants do, since nothing here is on a dispatcher.
         DemoLibraryService library = new(a => a(),
             Path.Combine(Path.GetTempPath(), "dvlib_uicapture_" + Guid.NewGuid().ToString("N") + ".json"));
+        // The section's view model is the pack's singleton, so the style is set before the view is built.
+        provider.GetRequiredService<CanvasTabViewModel>().ShowFacets = showFacets;
         MainViewModel vm = new(null, registry, library, null, new EverythingOn(), null, null, hubTabs: set.HubTabs);
         vm.RestoreSession();
         vm.TrySelectTab(RuleCanvasPack.HubId);

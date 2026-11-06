@@ -21,6 +21,8 @@
         <PackageReference Include="Avalonia"/>
         <PackageReference Include="CommunityToolkit.Mvvm"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
+        <!-- The canvas. Carried by this extension alone; the app never references it. -->
+        <PackageReference Include="Nodify.Avalonia"/>
     </ItemGroup>
 
     <ItemGroup>

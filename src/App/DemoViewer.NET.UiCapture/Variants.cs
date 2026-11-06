@@ -161,7 +161,8 @@ public static partial class Variants
             ["welcome-proposed"] = () => Welcome(true),
             ["breakpoints-map"] = BreakpointsMap,
             ["settings"] = () => Settings(),
-            ["rule-canvas-hub"] = RuleCanvasHub,
+            ["rule-canvas-hub"] = () => RuleCanvasHub(),
+            ["rule-canvas-compact"] = () => RuleCanvasHub(false),
             // Concurrency seeded to 2 so the BACKGROUND PROCESSING section shows the RAM-risk warning (the
             // safety-critical element). The default state (1, no warning) is
             // captured by "settings".

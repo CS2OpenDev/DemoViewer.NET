@@ -1,55 +1,194 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DemoViewer.NET.Extensions.RuleCanvas.ViewModels"
+             xmlns:nodify="clr-namespace:Nodify.Avalonia;assembly=Nodify.Avalonia"
+             xmlns:nodes="clr-namespace:Nodify.Avalonia.Nodes;assembly=Nodify.Avalonia"
+             xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia"
              x:Class="DemoViewer.NET.Extensions.RuleCanvas.Views.CanvasTabView"
              x:DataType="vm:CanvasTabViewModel">
 
     <!--
-      THE CANVAS SECTION, EMPTY: the extension exists, the hub shows, and nothing is drawn yet. The text
-      says what the canvas will be and sends the user to the Authoring tab, where rulesets are written
-      today. Every colour is a {DynamicResource} token.
+      THE CANVAS SECTION: a strip over a Nodify editor. The strip names the sample and switches the node
+      style; the editor draws the sample graph. A node is a header (kind pill, id, label) over chips
+      (trigger, gate, scope), the match facets as rows, and the expression; its ports are value references
+      only. Every colour is a token: the app's brushes on the node face, and the Nodify palette keys below
+      mapped onto the same tokens so the editor's own chrome follows the theme.
     -->
 
-    <ScrollViewer>
-        <StackPanel MaxWidth="640" Margin="32 40" HorizontalAlignment="Left" Spacing="20">
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Nodify.Avalonia/Themes/Controls.xaml" />
+    </UserControl.Styles>
 
-            <StackPanel Spacing="6">
-                <TextBlock Text="RULE CANVAS" FontSize="11" FontWeight="SemiBold" LetterSpacing="1"
-                           Foreground="{DynamicResource TextDim}" />
-                <TextBlock Text="Nothing to draw yet" FontSize="22" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextCardHeader}" />
-                <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource TextMid}"
-                           Text="This tab will draw a ruleset as nodes: every stat and highlight as a box, the values one reads from another as wires, the trigger and gates as chips in the header, and the match block as a form on the node face. The YAML stays the source of truth." />
-            </StackPanel>
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="NodifyEditor.BackgroundColor">#EFF0F7</Color>
+                    <Color x:Key="NodifyEditor.ForegroundColor">#2E2E60</Color>
+                    <Color x:Key="Node.BackgroundColor">#FCFCFE</Color>
+                    <Color x:Key="Node.ContentColor">#FCFCFE</Color>
+                    <Color x:Key="Node.HeaderColor">#E9EAF3</Color>
+                    <Color x:Key="Node.BorderColor">#C9CADD</Color>
+                    <Color x:Key="ItemContainer.BorderColor">#C9CADD</Color>
+                    <Color x:Key="ItemContainer.SelectedColor">#4A4A9E</Color>
+                    <Color x:Key="Connector.BackgroundColor">#4A4A9E</Color>
+                    <Color x:Key="Connector.BorderColor">#EFF0F7</Color>
+                    <Color x:Key="Connection.StrokeColor">#4A4A9E</Color>
+                    <Color x:Key="PendingConnection.StrokeColor">#4A4A9E</Color>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="NodifyEditor.BackgroundColor">#0C0C1A</Color>
+                    <Color x:Key="NodifyEditor.ForegroundColor">#C0C0F0</Color>
+                    <Color x:Key="Node.BackgroundColor">#171726</Color>
+                    <Color x:Key="Node.ContentColor">#171726</Color>
+                    <Color x:Key="Node.HeaderColor">#0E0E1E</Color>
+                    <Color x:Key="Node.BorderColor">#252545</Color>
+                    <Color x:Key="ItemContainer.BorderColor">#252545</Color>
+                    <Color x:Key="ItemContainer.SelectedColor">#8A8AE0</Color>
+                    <Color x:Key="Connector.BackgroundColor">#7A7AD6</Color>
+                    <Color x:Key="Connector.BorderColor">#0C0C1A</Color>
+                    <Color x:Key="Connection.StrokeColor">#7A7AD6</Color>
+                    <Color x:Key="PendingConnection.StrokeColor">#7A7AD6</Color>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
 
-            <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderSubtle}"
-                    BorderThickness="1" CornerRadius="4" Padding="16 14">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="WHAT NOW" FontSize="11" FontWeight="SemiBold" LetterSpacing="1"
-                               Foreground="{DynamicResource TextDim}" />
-                    <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource TextValue}"
-                               Text="Rulesets are still written in the Authoring tab. The canvas opens the same files once it can draw them." />
-                    <Button Classes="primary" HorizontalAlignment="Left" Content="Open Authoring"
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- The strip: what is drawn, and the style switch. -->
+        <Border Grid.Row="0" Background="{DynamicResource PanelHeaderBg}"
+                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="12 6">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="STYLE" FontSize="11" LetterSpacing="1" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextDim}" Margin="0 0 4 0" />
+                    <Button Classes="ghost" Content="Compact" FontSize="12" Padding="8 3"
+                            Command="{Binding SetStyleCommand}" CommandParameter="compact"
+                            IsEnabled="{Binding ShowFacets}" />
+                    <Button Classes="ghost" Content="Detailed" FontSize="12" Padding="8 3"
+                            Command="{Binding SetStyleCommand}" CommandParameter="detailed"
+                            IsEnabled="{Binding IsCompact}" />
+                    <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
+                    <Button Classes="ghost" Content="Open Authoring" FontSize="12" Padding="8 3"
                             Command="{Binding OpenAuthoringCommand}" />
-                    <TextBlock IsVisible="{Binding AuthoringUnavailable}" TextWrapping="Wrap" FontSize="12"
-                               Foreground="{DynamicResource AccentCaution}"
-                               Text="The Authoring tab is not available: it is switched off under Settings, Features, or this build has none." />
-                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextMid}"
-                               Text="This tab is off for consumers by default. Settings, Extensions, Rule Canvas turns it on or off for anyone." />
                 </StackPanel>
-            </Border>
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Border Background="{DynamicResource AccentCaution}" CornerRadius="3" Padding="6 1">
+                        <TextBlock Text="SAMPLE" FontSize="10" FontWeight="SemiBold" LetterSpacing="1"
+                                   Foreground="{DynamicResource TextOnAccent}" />
+                    </Border>
+                    <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
+                               Text="An excerpt of aim_rating, placed by hand. Seven nodes, five wires; the real ruleset comes next." />
+                    <TextBlock IsVisible="{Binding AuthoringUnavailable}" FontSize="12" VerticalAlignment="Center"
+                               Foreground="{DynamicResource AccentCaution}"
+                               Text="The Authoring tab is not available: switched off under Settings, Features, or this build has none." />
+                </StackPanel>
+            </DockPanel>
+        </Border>
 
-            <StackPanel Spacing="6">
-                <TextBlock Text="COMING NEXT" FontSize="11" FontWeight="SemiBold" LetterSpacing="1"
-                           Foreground="{DynamicResource TextDim}" />
-                <TextBlock FontSize="13" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
-                           Text="1. A read-only canvas of the open ruleset, laid out automatically." />
-                <TextBlock FontSize="13" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
-                           Text="2. The match block as a typed form on each node, scoped to the view the stat fires on." />
-                <TextBlock FontSize="13" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
-                           Text="3. Editing on the canvas that writes back to the YAML without touching its comments." />
-            </StackPanel>
+        <nodify:NodifyEditor Grid.Row="1"
+                             ItemsSource="{Binding Nodes}"
+                             Connections="{Binding Connections}">
 
-        </StackPanel>
-    </ScrollViewer>
+            <!-- Graph position lives on the node view model; the container writes it back on drag. -->
+            <nodify:NodifyEditor.ItemContainerTheme>
+                <ControlTheme TargetType="nodify:ItemContainer" BasedOn="{StaticResource {x:Type nodify:ItemContainer}}">
+                    <Setter Property="Location" Value="{ReflectionBinding Location, Mode=TwoWay}" />
+                </ControlTheme>
+            </nodify:NodifyEditor.ItemContainerTheme>
+
+            <nodify:NodifyEditor.ConnectionTemplate>
+                <DataTemplate x:DataType="vm:CanvasConnectionViewModel">
+                    <connections:Connection Source="{Binding Source.Anchor}"
+                                            Target="{Binding Target.Anchor}"
+                                            SourceOrientation="Horizontal"
+                                            TargetOrientation="Horizontal"
+                                            StrokeThickness="2"
+                                            ArrowEnds="End" ArrowSize="7,7" />
+                </DataTemplate>
+            </nodify:NodifyEditor.ConnectionTemplate>
+
+            <nodify:NodifyEditor.ItemTemplate>
+                <DataTemplate x:DataType="vm:CanvasNodeViewModel">
+                    <nodes:Node Input="{Binding Inputs}" Output="{Binding Outputs}" ContentPadding="10 6 10 8"
+                                ContentBrush="{DynamicResource CardBg}" HeaderBrush="{DynamicResource PanelHeaderBg}">
+
+                        <!-- Header: the kind pill, the id, and the label when there is one. -->
+                        <nodes:Node.Header>
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="2 1">
+                                <Border CornerRadius="3" Padding="5 1" VerticalAlignment="Center"
+                                        Background="{DynamicResource AccentInteractive}">
+                                    <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
+                                               Foreground="{DynamicResource TextOnAccent}" />
+                                </Border>
+                                <TextBlock Text="{Binding Id}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
+                                           Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource TextMid}"
+                                           VerticalAlignment="Center" IsVisible="{Binding Label, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            </StackPanel>
+                        </nodes:Node.Header>
+
+                        <nodes:Node.InputConnectorTemplate>
+                            <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
+                                <nodes:NodeInput Header="{Binding Title}" FontSize="11" FontFamily="monospace"
+                                                 Foreground="{DynamicResource TextValue}"
+                                                 Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                                 IsConnected="{Binding IsConnected}" />
+                            </DataTemplate>
+                        </nodes:Node.InputConnectorTemplate>
+
+                        <nodes:Node.OutputConnectorTemplate>
+                            <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
+                                <nodes:NodeOutput Header="{Binding Title}" FontSize="11" FontFamily="monospace"
+                                                  Foreground="{DynamicResource TextValue}"
+                                                  Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                                  IsConnected="{Binding IsConnected}" />
+                            </DataTemplate>
+                        </nodes:Node.OutputConnectorTemplate>
+
+                        <!-- Face: chips, then the facet rows (detailed) or their count (compact), then the expression. -->
+                        <StackPanel Spacing="6" MinWidth="180">
+                            <ItemsControl ItemsSource="{Binding Chips}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Border CornerRadius="9" Padding="7 1" Margin="0 0 4 2"
+                                                Background="{DynamicResource PanelBg}"
+                                                BorderBrush="{DynamicResource BorderAccent}" BorderThickness="1">
+                                            <TextBlock Text="{Binding}" FontSize="10" FontFamily="monospace"
+                                                       Foreground="{DynamicResource TextMid}" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <ItemsControl ItemsSource="{Binding Facets}" IsVisible="{Binding ShowFacets}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CanvasFacetViewModel">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0 1">
+                                            <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11" FontFamily="monospace"
+                                                       Foreground="{DynamicResource TextMid}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="11" FontFamily="monospace"
+                                                       Foreground="{DynamicResource TextValue}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="{Binding FacetSummary}" FontSize="11" Foreground="{DynamicResource TextDim}"
+                                       IsVisible="{Binding ShowFacetSummary}" />
+
+                            <TextBlock Text="{Binding Expression}" FontSize="11" FontFamily="monospace"
+                                       Foreground="{DynamicResource TextValue}" IsVisible="{Binding HasExpression}" />
+                        </StackPanel>
+                    </nodes:Node>
+                </DataTemplate>
+            </nodify:NodifyEditor.ItemTemplate>
+        </nodify:NodifyEditor>
+    </Grid>
 </UserControl>

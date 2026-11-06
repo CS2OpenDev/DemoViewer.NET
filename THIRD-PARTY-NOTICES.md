@@ -62,6 +62,9 @@ it:
 
 - **FFMpegCore** (MIT): a managed argument builder and process wrapper. It links no ffmpeg code;
   it starts ffmpeg as a **separate program** and pipes raw frames to its standard input. See §g.
+- **Nodify.Avalonia** (MIT, [trrahul/nodify-avalonia](https://github.com/trrahul/nodify-avalonia), a port
+  of [miroiu/nodify](https://github.com/miroiu/nodify), MIT): the node canvas of the Rule Canvas extension.
+  Referenced by that extension only; the app assembly does not depend on it.
 - **Cs2VideoGenerator.Core** (MIT, from
   [CS2OpenDev/CS2VideoGenerator](https://github.com/CS2OpenDev/CS2VideoGenerator)): drives Live
   Sync and in-game Reels. Its package also carries the native CS2 plugin binaries (`server.dll`,
