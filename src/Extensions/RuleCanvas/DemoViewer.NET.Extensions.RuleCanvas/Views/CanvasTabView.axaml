@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DemoViewer.NET.Extensions.RuleCanvas.ViewModels"
+             x:Class="DemoViewer.NET.Extensions.RuleCanvas.Views.CanvasTabView"
+             x:DataType="vm:CanvasTabViewModel">
+
+    <!--
+      THE CANVAS SECTION, EMPTY: the extension exists, the hub shows, and nothing is drawn yet. The text
+      says what the canvas will be and sends the user to the Authoring tab, where rulesets are written
+      today. Every colour is a {DynamicResource} token.
+    -->
+
+    <ScrollViewer>
+        <StackPanel MaxWidth="640" Margin="32 40" HorizontalAlignment="Left" Spacing="20">
+
+            <StackPanel Spacing="6">
+                <TextBlock Text="RULE CANVAS" FontSize="11" FontWeight="SemiBold" LetterSpacing="1"
+                           Foreground="{DynamicResource TextDim}" />
+                <TextBlock Text="Nothing to draw yet" FontSize="22" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextCardHeader}" />
+                <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource TextMid}"
+                           Text="This tab will draw a ruleset as nodes: every stat and highlight as a box, the values one reads from another as wires, the trigger and gates as chips in the header, and the match block as a form on the node face. The YAML stays the source of truth." />
+            </StackPanel>
+
+            <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderSubtle}"
+                    BorderThickness="1" CornerRadius="4" Padding="16 14">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="WHAT NOW" FontSize="11" FontWeight="SemiBold" LetterSpacing="1"
+                               Foreground="{DynamicResource TextDim}" />
+                    <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource TextValue}"
+                               Text="Rulesets are still written in the Authoring tab. The canvas opens the same files once it can draw them." />
+                    <Button Classes="primary" HorizontalAlignment="Left" Content="Open Authoring"
+                            Command="{Binding OpenAuthoringCommand}" />
+                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextMid}"
+                               Text="This tab is off for consumers by default. Settings, Extensions, Rule Canvas turns it on or off for anyone." />
+                </StackPanel>
+            </Border>
+
+            <StackPanel Spacing="6">
+                <TextBlock Text="COMING NEXT" FontSize="11" FontWeight="SemiBold" LetterSpacing="1"
+                           Foreground="{DynamicResource TextDim}" />
+                <TextBlock FontSize="13" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
+                           Text="1. A read-only canvas of the open ruleset, laid out automatically." />
+                <TextBlock FontSize="13" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
+                           Text="2. The match block as a typed form on each node, scoped to the view the stat fires on." />
+                <TextBlock FontSize="13" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
+                           Text="3. Editing on the canvas that writes back to the YAML without touching its comments." />
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

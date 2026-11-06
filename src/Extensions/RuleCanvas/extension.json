@@ -1,0 +1,9 @@
+{
+  "id": "net.demoviewer.pack.rulecanvas",
+  "name": "Rule Canvas",
+  "version": "{version}",
+  "assembly": "DemoViewer.NET.Extensions.RuleCanvas.dll",
+  "entryType": "DemoViewer.NET.Extensions.RuleCanvas.RuleCanvasPack",
+  "requiresHost": "^2.1",
+  "requiresCs2DemoKit": "0.14.1"
+}

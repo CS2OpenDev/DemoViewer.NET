@@ -24,6 +24,8 @@
     <ItemGroup>
         <ProjectReference Include="..\..\..\App\DemoViewer.NET\DemoViewer.NET.csproj"/>
         <ProjectReference Include="..\DemoViewer.NET.Extensions.StratBook\DemoViewer.NET.Extensions.StratBook.csproj"/>
+        <!-- CompiledInPacks.cs, linked below, declares the heads' whole pack list. -->
+        <ProjectReference Include="..\..\RuleCanvas\DemoViewer.NET.Extensions.RuleCanvas\DemoViewer.NET.Extensions.RuleCanvas.csproj"/>
         <ProjectReference Include="..\..\..\Testing\DemoViewer.NET.TestSupport\DemoViewer.NET.TestSupport.csproj"/>
     </ItemGroup>
 

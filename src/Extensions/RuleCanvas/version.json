@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/Nerdbank.GitVersioning/main/src/NerdBank.GitVersioning/version.schema.json",
+  "inherit": true,
+  "version": "0.1",
+  "versionHeightOffset": -1,
+  "pathFilters": [
+    ".",
+    ":!DemoViewer.NET.Extensions.RuleCanvas.SdkOnly.Tests",
+    "/src/Sdk/DemoViewer.NET.Extensions.Sdk/build"
+  ],
+  "publicReleaseRefSpec": [
+    "^refs/heads/main$",
+    "^refs/tags/v\\d+\\.\\d+",
+    "^refs/tags/extensions/net\\.demoviewer\\.pack\\.rulecanvas/v\\d+\\.\\d+\\.\\d+$"
+  ],
+  "release": {
+    "tagName": "extensions/net.demoviewer.pack.rulecanvas/v{version}"
+  },
+  "cloudBuild": {
+    "setVersionVariables": false,
+    "buildNumber": {
+      "enabled": false
+    }
+  }
+}

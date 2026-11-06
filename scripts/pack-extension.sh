@@ -23,6 +23,7 @@ cd "$ROOT"
 # id|csproj directory (relative to repo root)|repo manifest path
 EXTENSIONS=(
     "net.demoviewer.pack.stratbook|src/Extensions/StratBook/DemoViewer.NET.Extensions.StratBook|src/Extensions/StratBook/extension.json"
+    "net.demoviewer.pack.rulecanvas|src/Extensions/RuleCanvas/DemoViewer.NET.Extensions.RuleCanvas|src/Extensions/RuleCanvas/extension.json"
 )
 
 ID=""

@@ -120,6 +120,7 @@ PROJECTS=(
   "app|src/App/DemoViewer.NET.App.Tests"
   "ext|src/Extensions/StratBook/DemoViewer.NET.Extensions.StratBook.SdkOnly.Tests"
   "ext|src/Extensions/StratBook/DemoViewer.NET.Extensions.StratBook.Tests"
+  "ext|src/Extensions/RuleCanvas/DemoViewer.NET.Extensions.RuleCanvas.SdkOnly.Tests"
 )
 
 SELECTED=()

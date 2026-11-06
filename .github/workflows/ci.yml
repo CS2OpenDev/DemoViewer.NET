@@ -62,6 +62,9 @@ jobs:
       - name: Extension packaging dry run (Strat Book)
         run: bash scripts/pack-extension.sh net.demoviewer.pack.stratbook --dry-run
 
+      - name: Extension packaging dry run (Rule Canvas)
+        run: bash scripts/pack-extension.sh net.demoviewer.pack.rulecanvas --dry-run
+
       # The SDK packages: all pack, and each public API matches its PublicAPI files (the build fails
       # otherwise). The project list is scripts/sdk-packages.sh, shared with release-sdk.yml so the two
       # cannot pack different sets.

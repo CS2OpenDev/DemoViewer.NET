@@ -27,6 +27,7 @@
              DemoCachePackPayloadTests, PackDataRemoverTests, ...) build the real pack as their fixture;
              moving the pack's OWN tests out didn't remove this project's need for the pack assembly. -->
         <ProjectReference Include="..\..\Extensions\StratBook\DemoViewer.NET.Extensions.StratBook\DemoViewer.NET.Extensions.StratBook.csproj"/>
+        <ProjectReference Include="..\..\Extensions\RuleCanvas\DemoViewer.NET.Extensions.RuleCanvas\DemoViewer.NET.Extensions.RuleCanvas.csproj"/>
         <ProjectReference Include="..\..\Testing\DemoViewer.NET.TestSupport\DemoViewer.NET.TestSupport.csproj"/>
         <!-- Built, not referenced: the third-party extension tests install its output under a temp extensions folder. -->
         <ProjectReference Include="..\..\..\samples\Extensions\HelloExtension\HelloExtension.csproj"

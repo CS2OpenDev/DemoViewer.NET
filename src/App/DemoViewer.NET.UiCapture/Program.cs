@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Styling;
 using DemoViewer.NET.Extensions;
+using DemoViewer.NET.Extensions.RuleCanvas;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Theming;
@@ -33,7 +34,7 @@ if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(AppPaths.ConfigDirEn
 }
 
 // The same compiled-in pack list as the heads, so a variant's CommandRegistry and job-kind lookups resolve.
-FeaturePacks.Configure([new StratBookPack()]);
+FeaturePacks.Configure([new StratBookPack(), new RuleCanvasPack()]);
 
 // A seam for commands kept outside the repository (a local-only file can implement it). With no
 // implementation the call compiles away.

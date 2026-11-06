@@ -27,6 +27,7 @@
         <!-- The first-party extensions. The app never references them; each head composes both and names
              the packs in FeaturePacks.Configure. -->
         <ProjectReference Include="..\..\Extensions\StratBook\DemoViewer.NET.Extensions.StratBook\DemoViewer.NET.Extensions.StratBook.csproj"/>
+        <ProjectReference Include="..\..\Extensions\RuleCanvas\DemoViewer.NET.Extensions.RuleCanvas\DemoViewer.NET.Extensions.RuleCanvas.csproj"/>
         <!-- Desktop-only live CS2 sync engine (CSVG + ASP.NET Core). Only this head may
              reference it — Browser/App must stay free of it. -->
         <ProjectReference Include="..\DemoViewer.NET.LiveSync\DemoViewer.NET.LiveSync.csproj"/>
