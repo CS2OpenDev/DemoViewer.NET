@@ -150,6 +150,45 @@ public class CanvasTabViewModelEditTests
         }
     }
 
+    [Test]
+    public async Task SavingTextThatNoLongerLoads_IsRefused_AndThePaneStaysDirty()
+    {
+        using TempRules rules = TempRules.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        string before = File.ReadAllText(rules.UserPath("player_round"));
+
+        vm.SourceEdited(vm.DocumentText.Replace("ruleset: player_round", "ruleset: player_rnd"));
+        vm.SaveSourceCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).IsEqualTo(before).Because("the file is left alone");
+            await Assert.That(vm.SourceDirty).IsTrue();
+            await Assert.That(vm.EditStatus).StartsWith("Not saved:");
+            await Assert.That(vm.Rulesets.Select(r => r.Id)).Contains("player_round").Because("the ruleset never left the picker");
+            await Assert.That(vm.Nodes.Count).IsEqualTo(8);
+        }
+
+        vm.SourceEdited("stats:" + Environment.NewLine + "  - this is not a mapping" + Environment.NewLine);
+        vm.SaveSourceCommand.Execute(null);
+        await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).IsEqualTo(before);
+    }
+
+    [Test]
+    public async Task AFacetHoldingAListOrRange_IsRefused_NotDuplicated()
+    {
+        const string text = """
+            ruleset: t
+            for: each_player
+            stats:
+              kills:
+                count: kill
+                match: { hitgroup: [1..3] }
+                per: round
+            """;
+        await Assert.That(() => RulesetEdits.SetFacet(text, "kills", "hitgroup", "2")).Throws<InvalidOperationException>();
+    }
+
     /// <summary>A throwaway rules tree: a shipped directory, a user directory, and an own folder for sidecars.</summary>
     private sealed class TempRules : IDisposable
     {

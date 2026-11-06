@@ -142,5 +142,6 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             _ => "value"
         };
         WriteFacet(value, initial);
+        FacetToAdd = null;
     }
 }

@@ -30,6 +30,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     private RulesetCorpus? _corpus;
     private DateTime _loadedWriteTimeUtc;
     private bool _redrawing;
+    private string? _selectedId;
 
     /// <param name="selectTab">Selects a host tab by id; the Authoring tab's id is <see cref="AuthoringTabId" />.</param>
     public CanvasTabViewModel(Func<string, bool> selectTab)
@@ -178,12 +179,20 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     {
     }
 
+    // A reload after a write hands back a fresh Entry for the same ruleset; only another ruleset resets
+    // the history and the pane.
     partial void OnSelectedRulesetChanged(RulesetCorpus.Entry? value)
     {
-        _undo.Clear();
-        _redo.Clear();
-        SourceDirty = false;
-        EditStatus = "";
+        if (value?.Id != _selectedId)
+        {
+            _selectedId = value?.Id;
+            _undo.Clear();
+            _redo.Clear();
+            SourceDirty = false;
+            EditStatus = "";
+            NotifyHistory();
+        }
+
         NotifyEditability();
         Redraw(value, keepArrangement: false);
     }
@@ -214,14 +223,24 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     [RelayCommand]
     private void SaveSource()
     {
-        if (!IsUserRuleset || !SourceDirty)
+        if (SelectedRuleset is not { } selected || !IsUserRuleset || !SourceDirty)
         {
             return;
         }
 
         string pending = _pendingSourceText;
-        SourceDirty = false;
-        ApplyEdit(_ => pending, "save");
+        // A text that no longer loads as this ruleset would take it out of the picker and leave the file
+        // broken on disk, so it is refused here with the loader's reason and the pane stays dirty.
+        if (RulesetCorpus.WhyNotLoadable(pending, selected.Path, selected.Id) is { } reason)
+        {
+            EditStatus = "Not saved: " + reason;
+            return;
+        }
+
+        if (ApplyEdit(_ => pending, "save"))
+        {
+            SourceDirty = false;
+        }
     }
 
     /// <summary>Drops the source pane's unsaved text; the view puts the file's text back.</summary>
@@ -240,9 +259,17 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             return;
         }
 
+        string current = DocumentText;
         string previous = _undo.Pop();
-        _redo.Push(DocumentText);
-        Write(SelectedRuleset, previous);
+        if (Write(SelectedRuleset, previous))
+        {
+            _redo.Push(current);
+        }
+        else
+        {
+            _undo.Push(previous);
+        }
+
         NotifyHistory();
     }
 
@@ -254,9 +281,17 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             return;
         }
 
+        string current = DocumentText;
         string next = _redo.Pop();
-        _undo.Push(DocumentText);
-        Write(SelectedRuleset, next);
+        if (Write(SelectedRuleset, next))
+        {
+            _undo.Push(current);
+        }
+        else
+        {
+            _redo.Push(next);
+        }
+
         NotifyHistory();
     }
 
@@ -377,11 +412,12 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             value is null ? $"remove {node.Id}.match.{facet}" : $"set {node.Id}.match.{facet}");
     }
 
-    private void ApplyEdit(Func<string, string> transform, string description)
+    // Everything the writer and the parser throw on a document that moved under us lands in the status.
+    private bool ApplyEdit(Func<string, string> transform, string description)
     {
         if (SelectedRuleset is not { } selected || !IsUserRuleset)
         {
-            return;
+            return false;
         }
 
         string before = DocumentText;
@@ -390,27 +426,33 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         {
             after = transform(before);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
+        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException
+                                       or YamlDotNet.Core.YamlException or ArgumentOutOfRangeException)
         {
             EditStatus = $"Could not {description}: {ex.Message}";
-            return;
+            return false;
         }
 
         if (after == before)
         {
-            return;
+            return true;
+        }
+
+        if (!Write(selected, after))
+        {
+            return false;
         }
 
         _undo.Push(before);
         _redo.Clear();
         EditStatus = "";
-        Write(selected, after);
         NotifyHistory();
+        return true;
     }
 
     // The write itself, shared by edits, undo and redo: atomic on disk, then the corpus is re-read so the
     // picker, the chips and the wires all come from the file as it now is.
-    private void Write(RulesetCorpus.Entry entry, string text)
+    private bool Write(RulesetCorpus.Entry entry, string text)
     {
         try
         {
@@ -421,10 +463,11 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             EditStatus = "The file could not be written: " + ex.Message;
-            return;
+            return false;
         }
 
         Reload(entry.Id);
+        return true;
     }
 
     // Re-reads every ruleset (a write may have changed what others see through use:) and redraws the
@@ -439,6 +482,14 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         }
 
         RulesetCorpus.Entry? again = Rulesets.FirstOrDefault(e => e.Id == id);
+        if (again is null)
+        {
+            string reason = _corpus.Failures.Select(f => f.Reason).FirstOrDefault() ?? "it is not in the rules directories any more";
+            EditStatus = $"{id} no longer loads as a ruleset: {reason}";
+            Status = "Nothing to draw; the file no longer loads. Undo is still available.";
+            return;
+        }
+
         _redrawing = true;
         try
         {

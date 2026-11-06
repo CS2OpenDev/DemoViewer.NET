@@ -1,6 +1,5 @@
 #region
 
-using CS2DemoKit.Analysis.Catalog;
 using CS2DemoKit.Analysis.Profiles;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
@@ -37,11 +36,42 @@ public sealed class RulesetCorpus
 
     private readonly Dictionary<string, RulesetDoc> _docs;
 
-    private RulesetCorpus(IReadOnlyList<Entry> entries, Dictionary<string, RulesetDoc> docs, string? userDirectory)
+    private RulesetCorpus(IReadOnlyList<Entry> entries, Dictionary<string, RulesetDoc> docs, string? userDirectory,
+        IReadOnlyList<(string Path, string Reason)> failures)
     {
         Entries = entries;
         _docs = docs;
         UserDirectory = userDirectory;
+        Failures = failures;
+    }
+
+    /// <summary>The files that did not load as rulesets, with the loader's reason, so a broken file is named rather than silently absent.</summary>
+    public IReadOnlyList<(string Path, string Reason)> Failures { get; }
+
+    /// <summary>
+    ///     Whether <paramref name="text" /> loads as the ruleset <paramref name="expectedId" />, and if not, why:
+    ///     the check a save makes before it writes, so a typo cannot take the file out of the picker.
+    /// </summary>
+    public static string? WhyNotLoadable(string text, string path, string expectedId)
+    {
+        RulesetDocumentLoader.Outcome outcome;
+        try
+        {
+            outcome = RulesetDocumentLoader.Load(text, path);
+        }
+        catch (Exception ex) when (ex is YamlDotNet.Core.YamlException or InvalidOperationException)
+        {
+            return ex.Message;
+        }
+
+        if (outcome.Doc is null)
+        {
+            return outcome.Diagnostics.Count > 0
+                ? string.Join("; ", outcome.Diagnostics.Select(d => d.Message))
+                : "the text does not load as a ruleset";
+        }
+
+        return outcome.Doc.Id == expectedId ? null : $"the ruleset: key changed to {outcome.Doc.Id}; rename the file to match it instead";
     }
 
     /// <summary>The loadable rulesets in the order their directories were given, a later directory's file replacing an earlier one with the same id.</summary>
@@ -94,6 +124,7 @@ public sealed class RulesetCorpus
         ArgumentNullException.ThrowIfNull(directories);
         List<Entry> entries = [];
         Dictionary<string, RulesetDoc> docs = new(StringComparer.Ordinal);
+        List<(string, string)> failures = [];
         string? userDirectory = null;
         foreach ((string directory, string source) in directories)
         {
@@ -112,15 +143,17 @@ public sealed class RulesetCorpus
                 RulesetDoc? doc;
                 try
                 {
-                    doc = RulesetDocumentLoader.Load(File.ReadAllText(path), path).Doc;
+                    RulesetDocumentLoader.Outcome outcome = RulesetDocumentLoader.Load(File.ReadAllText(path), path);
+                    doc = outcome.Doc;
+                    if (doc is null)
+                    {
+                        failures.Add((path, string.Join("; ", outcome.Diagnostics.Select(d => d.Message))));
+                        continue;
+                    }
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or YamlDotNet.Core.YamlException)
                 {
-                    continue;
-                }
-
-                if (doc is null)
-                {
+                    failures.Add((path, ex.Message));
                     continue;
                 }
 
@@ -141,7 +174,7 @@ public sealed class RulesetCorpus
             }
         }
 
-        return new RulesetCorpus(entries, docs, userDirectory);
+        return new RulesetCorpus(entries, docs, userDirectory, failures);
     }
 
     /// <summary>
@@ -174,8 +207,7 @@ public sealed class RulesetCorpus
             }
         }
 
-        RulesetComposition.Result composed = RulesetComposition.Compose(docs,
-            CatalogScopeAdapter.From(CatalogResource.Load()), 64.0,
+        RulesetComposition.Result composed = RulesetComposition.Compose(docs, EmbeddedCatalog.Adapter, 64.0,
             DemoSourceProfileRegistry.DefaultFallback.GetType().Name);
         List<string> diagnostics = [.. composed.Diagnostics.Select(d => d.ToString() ?? "")];
         List<(string, int, string)> positioned = [];

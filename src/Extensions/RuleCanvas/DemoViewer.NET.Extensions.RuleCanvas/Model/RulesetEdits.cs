@@ -31,10 +31,18 @@ public static class RulesetEdits
         YamlPath match = RulesetDocumentEditor.StatPath(statId).Key("match");
         if (doc.Find(match) is YamlMappingNode map)
         {
-            // An existing value keeps the style its author chose; the writer handles that case whole.
-            if (doc.Find(match.Key(facet)) is YamlScalarNode)
+            // An existing value keeps the style its author chose; the writer handles that case whole. A value
+            // that is a collection (a range or a list) is refused: appending would write a duplicate key.
+            YamlNode? existing = doc.Find(match.Key(facet));
+            if (existing is YamlScalarNode)
             {
                 return editor.Apply([YamlEdits.SetScalar(doc, match.Key(facet), value)]).Text;
+            }
+
+            if (existing is not null)
+            {
+                throw new InvalidOperationException(
+                    $"{facet} holds a {(existing is YamlSequenceNode ? "list or range" : "collection")}; edit it in the source pane");
             }
 
             // A NEW facet is appended as written. The writer's own append would quote a value YAML reads as

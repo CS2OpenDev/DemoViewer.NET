@@ -45,7 +45,9 @@
         <ProjectReference Include="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk\DemoViewer.NET.Extensions.Sdk.csproj"/>
         <ProjectReference Include="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk.Ui\DemoViewer.NET.Extensions.Sdk.Ui.csproj"/>
         <!-- The comment-preserving splice writer. A library of the repo that nothing else references on
-             main; the extension carries it, and a pack of the extension stages it as a private dependency. -->
+             main. While the extension ships bundled, this and the packages above bind to the copies beside
+             the app; a staged release needs the dependency-staging packer from the optional-extensions
+             branch before it can carry them itself. -->
         <ProjectReference Include="..\..\..\RuleAuthoring\DemoViewer.NET.RuleAuthoring\DemoViewer.NET.RuleAuthoring.csproj"/>
     </ItemGroup>
 

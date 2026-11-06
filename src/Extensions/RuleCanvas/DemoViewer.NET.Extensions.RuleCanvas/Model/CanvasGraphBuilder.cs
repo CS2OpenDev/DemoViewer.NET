@@ -1,6 +1,5 @@
 #region
 
-using CS2DemoKit.Analysis.Catalog;
 using CS2DemoKit.Analysis.Rules;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
@@ -25,11 +24,8 @@ public static class CanvasGraphBuilder
     private const double ConnectorHeight = 22;
     private const double DiagnosticHeight = 18;
 
-    // The embedded catalog, read once: 18 views and their typed facets, which is what scopes a node's form.
-    private static readonly Lazy<CatalogRoot> _catalog = new(CatalogResource.Load);
-
     /// <summary>The catalog's view names, in its order.</summary>
-    public static IReadOnlyList<string> ViewNames => [.. _catalog.Value.Views.Select(v => v.Name)];
+    public static IReadOnlyList<string> ViewNames => [.. EmbeddedCatalog.Root.Views.Select(v => v.Name)];
 
     public static (IReadOnlyList<CanvasNodeViewModel> Nodes, IReadOnlyList<CanvasConnectionViewModel> Connections) Build(
         RulesetCorpus.Composed composed, RulesetNodeLayout? layout = null)
@@ -151,7 +147,7 @@ public static class CanvasGraphBuilder
                 AddScope(chips, stat.Per);
                 // The typed form: every facet the view offers, the bound ones as rows, the rest offered by the
                 // picker; a key the view does not know is kept as a row the resolver already flagged.
-                MatchFacetForm form = MatchFacetForm.For(_catalog.Value, node.View, stat.Trigger?.Match);
+                MatchFacetForm form = MatchFacetForm.For(EmbeddedCatalog.Root, node.View, stat.Trigger?.Match);
                 foreach (MatchFacetRow row in form.Rows)
                 {
                     if (row.IsSet)
@@ -167,7 +163,8 @@ public static class CanvasGraphBuilder
 
                 foreach (MatchBinding unknown in form.Unknown)
                 {
-                    facets.Add(new CanvasFacetViewModel(unknown.Key, RulesTypeKind.None, FacetText.Of(unknown.Test), Write));
+                    facets.Add(new CanvasFacetViewModel(unknown.Key, RulesTypeKind.None,
+                        MatchFacetValue.From(unknown.Test)?.ToMatchValue() ?? "", Write));
                 }
 
                 string kind = stat.Kind.ToString()?.ToLowerInvariant() ?? "";
@@ -252,7 +249,7 @@ public static class CanvasGraphBuilder
     {
         int longest = Math.Max(node.Id.Length + (node.Label?.Length ?? 0) + 8,
             node.Expression?.Split('\n').Max(l => l.Length) ?? 0);
-        longest = Math.Max(longest, node.Inputs.Max(i => (int?)i.Title.Length) ?? 0 + 14);
+        longest = Math.Max(longest, (node.Inputs.Max(i => (int?)i.Title.Length) ?? 0) + 14);
         return Math.Clamp(BaseWidth + Math.Max(0, longest - 30) * 6, BaseWidth, 520);
     }
 
