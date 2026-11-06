@@ -230,6 +230,39 @@ public class InstalledExtensionTests
         }
     }
 
+    // The signature is judged before compatibility: an unsigned copy that also needs a newer app is refused
+    // as unsigned, and only a verified one is told it is incompatible.
+    [Test]
+    public async Task AnIncompatibleManifest_IsReservedIdWhenUnsigned_AndIncompatibleOnlyWhenVerified()
+    {
+        string root = NewRoot();
+        using ECDsa key = NewKey(out string publicKey);
+        try
+        {
+            string dir = InstallTree(root, Built, key: null);
+            string manifestPath = Path.Combine(dir, ExtensionManifest.FileName);
+            string json = await File.ReadAllTextAsync(manifestPath);
+            json = System.Text.RegularExpressions.Regex.Replace(json, @"""requiresHost"":\s*""[^""]*""",
+                @"""requiresHost"": ""^999.0""");
+            await File.WriteAllTextAsync(manifestPath, json);
+            LoadOutcome unsigned = ResolveLenient(root, publicKey).ExternalRejected.Single();
+
+            await File.WriteAllTextAsync(Path.Combine(dir, ExtensionSignature.FileName), ExtensionSignature.Sign(dir, key));
+            LoadOutcome verified = ResolveLenient(root, publicKey).ExternalRejected.Single();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(unsigned.Failure).IsEqualTo(LoadFailure.ReservedId);
+                await Assert.That(verified.Failure).IsEqualTo(LoadFailure.Incompatible);
+                await Assert.That(verified.Detail).Contains("999.0");
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     // Every shipped id is the shipped loader's alone, whatever its verdict: with the shipped copy
     // incompatible, a signed copy on disk is still not taken in through the first-party branch.
     [Test]

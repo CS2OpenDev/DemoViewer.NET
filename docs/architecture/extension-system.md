@@ -251,7 +251,8 @@ of packaging.
 **Installed first-party extensions.** A directory under `extensions/<id>/<version>/` whose id starts with
 `net.demoviewer.` and is not one this build ships loads only when `extension.sig` verifies against
 `PublisherKeys.Current` (section 3). Per candidate, newest first, `ExternalExtensions.TryLoadFirstParty`
-runs the compatibility check (`Incompatible`), then the signature, each failure its own outcome so Settings
+judges the signature first, then compatibility (`Incompatible`), so an untrusted copy is never described
+as merely needing a newer app; each failure is its own outcome so Settings
 can say what is wrong with the copy: no signature is `ReservedId` ("the id 'x' is reserved for extensions
 signed by this app's publisher, and the copy is not signed"), a signature by a key this app does not know
 is `ReservedForeignKey`, and a malformed, wrong or stale signature is `Untrusted` with the signature

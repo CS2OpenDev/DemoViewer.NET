@@ -170,18 +170,13 @@ public static class ExternalExtensions
     }
 
     // A reserved id is this app's publisher's. The copy must verify against a publisher key; the user's
-    // unverified setting and the developer opt-in never reach this branch. Each way the signature can fail
-    // is its own outcome, so Settings can say what is wrong with the copy.
+    // unverified setting and the developer opt-in never reach this branch. The signature is judged before
+    // compatibility, so an untrusted copy is reported as untrusted, never as merely needing a newer app.
+    // Each way the signature can fail is its own outcome, so Settings can say what is wrong with the copy.
     private static (PackStatus? Status, LoadOutcome? Failure) TryLoadFirstParty(ExtensionCandidate candidate,
         IReadOnlyList<IExtension> accepted, ExtensionHostInfo host, IReadOnlyList<string> publisherKeys)
     {
         ExtensionManifest m = candidate.Manifest;
-        PackCompatibility compatibility = PackCompatibility.Check(m, host);
-        if (!compatibility.IsCompatible)
-        {
-            return (null, Outcome(candidate, LoadFailure.Incompatible, compatibility.Describe(m, m.Id)!));
-        }
-
         (Trust verdict, string? detail, SignatureFailure? signature, string? logDetail) =
             Classify(candidate.Directory, publisherKeys);
         if (verdict != Trust.Verified)
@@ -195,6 +190,12 @@ public static class ExternalExtensions
                     $"{reserved}, and the copy is signed by a key this app does not know", logDetail)),
                 _ => (null, Outcome(candidate, LoadFailure.Untrusted, detail ?? "signature invalid", logDetail))
             };
+        }
+
+        PackCompatibility compatibility = PackCompatibility.Check(m, host);
+        if (!compatibility.IsCompatible)
+        {
+            return (null, Outcome(candidate, LoadFailure.Incompatible, compatibility.Describe(m, m.Id)!));
         }
 
         return LoadAndCheck(candidate, accepted, host, new PackSource.Installed(candidate.Directory));
