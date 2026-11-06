@@ -856,6 +856,9 @@ public class ExtensionLoaderTests
     // below, equal to or above it derive from the copy beside the DLL rather than naming a literal.
     private const string OlderThanBuilt = "0.0.0";
 
+    // The copy beside the DLL is id-qualified (ExtensionManifestOutputName); a staged folder keeps the bare name.
+    private static readonly string ShippedManifestName = StratBookPack.PackId + "." + ExtensionManifest.FileName;
+
     private static string BuiltVersion => BuiltManifest().Version.ToString();
 
     private static string NewerThanBuilt
@@ -870,12 +873,12 @@ public class ExtensionLoaderTests
     private static ExtensionManifest BuiltManifest()
     {
         string shippedDll = typeof(StratBookPack).Assembly.Location;
-        string path = Path.Combine(Path.GetDirectoryName(shippedDll)!, ExtensionManifest.FileName);
+        string path = Path.Combine(Path.GetDirectoryName(shippedDll)!, ShippedManifestName);
         if (!File.Exists(path))
         {
             // A missing stamped copy is a build regression, not a reason to skip.
             throw new InvalidOperationException(
-                $"no {ExtensionManifest.FileName} beside {shippedDll}; the stamping target did not run");
+                $"no {ShippedManifestName} beside {shippedDll}; the stamping target did not run");
         }
 
         return ExtensionManifest.Parse(File.ReadAllText(path));
@@ -887,10 +890,10 @@ public class ExtensionLoaderTests
     private static ExtensionCandidate StageRealCopy(string root, string? versionOverride)
     {
         string shippedDll = typeof(StratBookPack).Assembly.Location;
-        string shippedManifestPath = Path.Combine(Path.GetDirectoryName(shippedDll)!, ExtensionManifest.FileName);
+        string shippedManifestPath = Path.Combine(Path.GetDirectoryName(shippedDll)!, ShippedManifestName);
         if (!File.Exists(shippedManifestPath))
         {
-            throw new SkipTestException($"no {ExtensionManifest.FileName} beside {shippedDll}");
+            throw new SkipTestException($"no {ShippedManifestName} beside {shippedDll}");
         }
 
         string json = File.ReadAllText(shippedManifestPath);
@@ -909,7 +912,7 @@ public class ExtensionLoaderTests
     private static string WriteShippedManifest(string root, string version)
     {
         string shippedDll = typeof(StratBookPack).Assembly.Location;
-        string json = File.ReadAllText(Path.Combine(Path.GetDirectoryName(shippedDll)!, ExtensionManifest.FileName));
+        string json = File.ReadAllText(Path.Combine(Path.GetDirectoryName(shippedDll)!, ShippedManifestName));
         ExtensionManifest built = ExtensionManifest.Parse(json);
         string path = Path.Combine(root, "shipped.extension.json");
         File.WriteAllText(path, json.Replace($"\"{built.Version}\"", $"\"{version}\"", StringComparison.Ordinal));

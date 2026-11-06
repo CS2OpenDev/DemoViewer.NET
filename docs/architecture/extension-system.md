@@ -31,9 +31,11 @@ Everything here lives in the app under `DemoViewer.NET.Extensions` (`ExtensionHo
 references these.
 
 **The manifest.** `src/Extensions/StratBook/extension.json`, one file embedded in the extension assembly
-under the logical name `extension.json` and copied beside the DLL on build (`None` with
-`CopyToOutputDirectory`, which flows through every project reference, so a head's publish output and the
-test binary's directory both carry it). The loader reads the on-disk copy before loading the
+under the logical name `extension.json` and copied beside the DLL on build as
+`<id>.extension.json` (`None` with `CopyToOutputDirectory`, which flows through every project reference, so
+a head's publish output and the test binary's directory both carry it; the SDK targets' default name is the
+bare `extension.json`, and a first-party project sets `ExtensionManifestOutputName` because the heads ship
+more than one extension into one directory). The loader reads the on-disk copy before loading the
 assembly; the pack reports the embedded copy in process through `IExtension.Manifest`.
 
 ```json
@@ -230,12 +232,11 @@ Every `LoadOutcome.Detail` is in user terms and carries at most a bare file name
 the exception message behind it (which the runtime fills with the full path) rides on `LogDetail` and
 reaches only the log line.
 
-The shipped version comes from the `extension.json` the build copies beside the app
+The shipped version comes from the `<id>.extension.json` the build copies beside the app
 (`ShippedPack.BesideApp`), never from the type (see the constraint below). An unreadable shipped manifest
-means no staged copy can be shown to be newer (`ShippedUnknown`), so the shipped copy runs. One shipped
-extension per output directory for now: the copied file keeps the bare name `extension.json`, which a
-second extension would collide with; renaming the copy to `<id>.extension.json` is still to do, as part
-of packaging.
+means no staged copy can be shown to be newer (`ShippedUnknown`), so the shipped copy runs. The copy is
+id-qualified so the Strat Book and the Rule Canvas, shipped into one output directory, do not overwrite
+each other's manifest; a staged folder keeps the bare name, since it holds one extension.
 
 **The load context.** A staged copy loads into `ExtensionLoadContext`, a named (`extension:<id>@<version>`)
 non-collectible `AssemblyLoadContext` whose `Load` returns null for everything, so every reference the
@@ -901,9 +902,9 @@ commit to be published, so an app release after an SDK-only change goes ahead. A
 failing, and a dispatch with `allow_sdk_drift` skips the gate for an emergency and says so in the run.
 `release-sdk.yml` runs the same script with `--packed` on its own packages before pushing them.
 
-**One extension per output directory.** The shipped manifest copy is the bare `extension.json`. A second
-extension shipped beside this one in the same output directory needs it renamed to `<id>.extension.json`,
-which touches `ShippedPack.BesideApp`, the app csproj and the loader and matrix tests.
+**Several extensions per output directory.** Each shipped manifest copy is `<id>.extension.json`
+(`ExtensionManifestOutputName` in the extension's csproj), so the heads can ship the Strat Book and the Rule
+Canvas side by side. The stage directory and the zip keep the bare `extension.json`.
 
 ---
 

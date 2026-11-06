@@ -226,7 +226,8 @@ fi
 # The stamped copy beside the DLL is the manifest that ships. Three checks tie it to its sources: its
 # version is the one nbgv computed above, it equals the embedded copy byte for byte, and it equals the
 # repo template with the placeholder replaced (so a template edit without a rebuild is caught).
-BUILT_MANIFEST_PATH="${TARGET_DIR}extension.json"
+# Id-qualified beside the DLL (ExtensionManifestOutputName); the staged copy below keeps the bare name.
+BUILT_MANIFEST_PATH="${TARGET_DIR}${ID}.extension.json"
 if [ ! -f "$BUILT_MANIFEST_PATH" ]; then
     echo "error: the build left no stamped extension.json beside $DLL_PATH." >&2
     exit 2

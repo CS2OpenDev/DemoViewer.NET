@@ -1,13 +1,17 @@
 <Project>
     <!-- Stamps the extension's manifest with the project's package version. extension.json beside the
          csproj (or $(ExtensionManifestTemplate)) is a template whose "version" is the literal "{version}"; the
-         stamped copy is embedded under the logical name extension.json and copied beside the DLL, where the
-         host reads it. The placeholder is not a semantic version on purpose: an unstamped copy fails to parse.
+         stamped copy is embedded under the logical name extension.json and copied beside the DLL as
+         $(ExtensionManifestOutputName), where the host reads it. The placeholder is not a semantic version on purpose: an unstamped copy fails to parse.
          Set $(ExtensionManifestVersion) to stamp a version other than $(PackageVersion). -->
 
     <PropertyGroup>
         <ExtensionManifestTemplate Condition="'$(ExtensionManifestTemplate)' == ''">$(MSBuildProjectDirectory)/extension.json</ExtensionManifestTemplate>
         <ExtensionManifestPlaceholder>{version}</ExtensionManifestPlaceholder>
+        <!-- The name of the copy beside the DLL. The default serves a staged folder, which holds one
+             extension; a host that ships several into one output directory sets an id-qualified name so
+             the copies do not overwrite each other. The embedded resource keeps the bare name either way. -->
+        <ExtensionManifestOutputName Condition="'$(ExtensionManifestOutputName)' == ''">extension.json</ExtensionManifestOutputName>
     </PropertyGroup>
 
     <UsingTask TaskName="StampExtensionManifest" TaskFactory="RoslynCodeTaskFactory"
@@ -67,7 +71,7 @@ if (!File.Exists(OutputPath) || File.ReadAllText(OutputPath) != stamped)
 
         <ItemGroup Condition="'$(_StampedManifestVersion)' != ''">
             <EmbeddedResource Include="$(StampedExtensionManifest)" LogicalName="extension.json" Link="extension.json" />
-            <None Include="$(StampedExtensionManifest)" CopyToOutputDirectory="PreserveNewest" Link="extension.json" />
+            <None Include="$(StampedExtensionManifest)" CopyToOutputDirectory="PreserveNewest" Link="$(ExtensionManifestOutputName)" />
             <FileWrites Include="$(StampedExtensionManifest)" />
         </ItemGroup>
     </Target>
