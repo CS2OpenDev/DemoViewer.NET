@@ -79,7 +79,7 @@
                                    Foreground="{DynamicResource TextOnAccent}" />
                     </Border>
                     <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
-                               Text="An excerpt of aim_rating, placed by hand. Seven nodes, five wires; the real ruleset comes next." />
+                               Text="An excerpt of player_round, placed by hand. Five nodes, two wires; the real ruleset comes next." />
                     <TextBlock IsVisible="{Binding AuthoringUnavailable}" FontSize="12" VerticalAlignment="Center"
                                Foreground="{DynamicResource AccentCaution}"
                                Text="The Authoring tab is not available: switched off under Settings, Features, or this build has none." />

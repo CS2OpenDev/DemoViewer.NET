@@ -123,13 +123,12 @@ public class RuleCanvasHubTests
                 });
                 using (Assert.Multiple())
                 {
-                    await Assert.That(containers).IsEqualTo(7).Because("seven nodes in the sample");
-                    await Assert.That(wires).IsEqualTo(5).Because("five value references in the sample");
-                    await Assert.That(connectors).IsEqualTo(9).Because("four outputs read, five inputs reading");
-                    await Assert.That(texts).Contains("counter_strafe_pct");
-                    await Assert.That(texts).Contains("counter_strafe_good")
-                        .Because("the detailed style shows the facet rows");
-                    await Assert.That(texts).Contains("while round.active").Because("the gate is a chip");
+                    await Assert.That(containers).IsEqualTo(5).Because("five nodes in the sample");
+                    await Assert.That(wires).IsEqualTo(2).Because("the flag reads two siblings");
+                    await Assert.That(connectors).IsEqualTo(4).Because("two outputs read, two inputs reading");
+                    await Assert.That(texts).Contains("round_kast");
+                    await Assert.That(texts).Contains("enemy").Because("the detailed style shows the facet rows");
+                    await Assert.That(texts).Contains("while player.alive").Because("the gate is a chip");
                 }
             }
             finally

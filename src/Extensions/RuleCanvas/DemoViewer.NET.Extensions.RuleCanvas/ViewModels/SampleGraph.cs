@@ -7,86 +7,61 @@ using Avalonia;
 namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 
 /// <summary>
-///     A hand-placed excerpt of <c>rules/aim_rating.rules.yaml</c> for choosing the canvas style: three
-///     counts feeding two computes, a counter-strafe pair feeding a third compute, and one highlight. Seven
-///     nodes, five wires. Replaced by the document-derived model once the style is settled.
+///     A hand-placed excerpt of <c>rules/player_round.rules.yaml</c> for settling the canvas style: the
+///     per-player, per-round counts and the KAST flag that reads two of them. Five nodes, two wires, and
+///     two nodes with no wire at all, which is the normal case in this language. Replaced by the
+///     document-derived model once the style is settled.
 /// </summary>
 public static class SampleGraph
 {
     public static (IReadOnlyList<CanvasNodeViewModel> Nodes, IReadOnlyList<CanvasConnectionViewModel> Connections) Build()
     {
-        CanvasNodeViewModel bulletShots = Count("bullet_shots", "Shots", "shot", new Point(40, 60),
-            new CanvasFacetViewModel("bullet", "true"));
-        CanvasNodeViewModel enemyHits = Count("enemy_hits", "Hits", "shot_landed", new Point(40, 230),
-            new CanvasFacetViewModel("enemy", "true"), new CanvasFacetViewModel("bullet", "true"));
-        CanvasNodeViewModel accuracy = Compute("accuracy_pct", "Accuracy", "enemy_hits / bullet_shots * 100",
-            new Point(420, 130), "enemy_hits", "bullet_shots");
+        CanvasNodeViewModel kills = Count("round_kills", "kill", new Point(40, 60), null, "per round",
+            new CanvasFacetViewModel("enemy", "true"));
+        CanvasNodeViewModel kastAssists = Count("round_kast_assists", "assist", new Point(40, 230),
+            "where enrich.kill.was_enemy_kill == true", "per round");
+        kills.Outputs.Add(new CanvasConnectorViewModel { Title = "value" });
+        kastAssists.Outputs.Add(new CanvasConnectorViewModel { Title = "value" });
 
-        CanvasNodeViewModel csAttempts = Count("cs_attempts", "CS attempts", "shot", new Point(40, 410),
-            new CanvasFacetViewModel("bullet", "true"), new CanvasFacetViewModel("counter_strafe_admitted", "true"));
-        CanvasNodeViewModel csClean = Count("cs_clean", "CS clean", "shot", new Point(40, 590),
-            new CanvasFacetViewModel("bullet", "true"), new CanvasFacetViewModel("counter_strafe_admitted", "true"),
-            new CanvasFacetViewModel("counter_strafe_good", "true"));
-        CanvasNodeViewModel counterStrafe = Compute("counter_strafe_pct", "CS%", "cs_clean / cs_attempts * 100",
-            new Point(420, 450), "cs_clean", "cs_attempts");
-
-        CanvasNodeViewModel highlight = new()
+        CanvasNodeViewModel kast = new()
         {
-            Id = "clean_strafe_round",
-            Kind = "highlight",
-            Label = "Clean strafing round",
+            Id = "round_kast",
+            Kind = "flag",
             Chips = ["per round"],
-            Expression = "cs_clean >= 5",
-            Location = new Point(420, 640)
+            Expression = "when round_kills > 0 or round_kast_assists > 0 or player.survived or player.traded",
+            Location = new Point(460, 130)
         };
-        highlight.Inputs.Add(new CanvasConnectorViewModel { Title = "cs_clean" });
+        kast.Inputs.Add(new CanvasConnectorViewModel { Title = "round_kills" });
+        kast.Inputs.Add(new CanvasConnectorViewModel { Title = "round_kast_assists" });
+
+        CanvasNodeViewModel deaths = Count("round_deaths", "death", new Point(40, 430), null, "while match.live", "per round");
+        CanvasNodeViewModel survived = Count("round_survived", "round_ended", new Point(40, 580), null,
+            "while player.alive", "per round");
 
         List<CanvasConnectionViewModel> wires =
         [
-            Wire(enemyHits, accuracy, 0),
-            Wire(bulletShots, accuracy, 1),
-            Wire(csClean, counterStrafe, 0),
-            Wire(csAttempts, counterStrafe, 1),
-            Wire(csClean, highlight, 0)
+            new(kills.Outputs[0], kast.Inputs[0]),
+            new(kastAssists.Outputs[0], kast.Inputs[1])
         ];
-        return ([bulletShots, enemyHits, accuracy, csAttempts, csClean, counterStrafe, highlight], wires);
+        return ([kills, kastAssists, kast, deaths, survived], wires);
     }
 
-    private static CanvasNodeViewModel Count(string id, string label, string view, Point at, params CanvasFacetViewModel[] facets)
-    {
-        CanvasNodeViewModel node = new()
+    private static CanvasNodeViewModel Count(string id, string view, Point at, string? predicate, string gateOrScope,
+        params CanvasFacetViewModel[] facets) =>
+        Count(id, view, at, predicate, [gateOrScope], facets);
+
+    private static CanvasNodeViewModel Count(string id, string view, Point at, string? predicate, string gate, string scope) =>
+        Count(id, view, at, predicate, [gate, scope], []);
+
+    private static CanvasNodeViewModel Count(string id, string view, Point at, string? predicate, string[] chips,
+        CanvasFacetViewModel[] facets) =>
+        new()
         {
             Id = id,
             Kind = "count",
-            Label = label,
-            Chips = ["on " + view, "while round.active"],
+            Chips = ["on " + view, .. chips],
             Facets = facets,
+            Expression = predicate,
             Location = at
         };
-        node.Outputs.Add(new CanvasConnectorViewModel { Title = "value" });
-        return node;
-    }
-
-    private static CanvasNodeViewModel Compute(string id, string label, string expression, Point at, params string[] reads)
-    {
-        CanvasNodeViewModel node = new()
-        {
-            Id = id,
-            Kind = "compute",
-            Label = label,
-            Chips = ["per match"],
-            Expression = expression,
-            Location = at
-        };
-        foreach (string read in reads)
-        {
-            node.Inputs.Add(new CanvasConnectorViewModel { Title = read });
-        }
-
-        return node;
-    }
-
-    // A count node's single output feeds every reader; a reader's inputs are in declaration order.
-    private static CanvasConnectionViewModel Wire(CanvasNodeViewModel from, CanvasNodeViewModel to, int input) =>
-        new(from.Outputs[0], to.Inputs[input]);
 }
