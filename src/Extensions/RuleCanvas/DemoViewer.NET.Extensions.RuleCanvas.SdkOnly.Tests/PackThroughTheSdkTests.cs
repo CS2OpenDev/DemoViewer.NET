@@ -26,7 +26,6 @@ public class PackThroughTheSdkTests
     private const string MasterSwitch = "pack.rulecanvas";
     private const string HubId = "rulecanvas.hub";
     private const string SectionId = "rulecanvas.canvas";
-    private const string SectionFeature = "tab.rulecanvas";
 
     /// <summary>
     ///     The loader's own route in: the manifest beside the DLL names an entry type a host can construct. The
@@ -59,24 +58,24 @@ public class PackThroughTheSdkTests
         await Assert.That(pack.Id).IsEqualTo(root.GetProperty("id").GetString());
     }
 
-    /// <summary>The switches Settings lists: one master, off for consumers, and one section under it.</summary>
+    /// <summary>
+    ///     The switch Settings lists: one master, off for consumers. The only section has none of its own, so
+    ///     the hub can never be on with its one section off.
+    /// </summary>
     [Test]
-    public async Task Features_AreOneMasterSwitch_AndOneSectionUnderIt()
+    public async Task Features_AreOneMasterSwitch_AndNothingElse()
     {
         RuleCanvasPack pack = new();
         List<ExtensionFeature> features = [.. pack.Features];
-        ExtensionFeature master = features.Single(f => f.Kind == ExtensionFeatureKind.Extension);
-        ExtensionFeature section = features.Single(f => f.Kind == ExtensionFeatureKind.Tab);
+        ExtensionFeature master = features.Single();
         using (Assert.Multiple())
         {
             await Assert.That(pack.FeatureId).IsEqualTo(MasterSwitch);
             await Assert.That(master.Id).IsEqualTo(MasterSwitch);
+            await Assert.That(master.Kind).IsEqualTo(ExtensionFeatureKind.Extension);
             await Assert.That(master.ParentId).IsNull();
             await Assert.That(master.Defaults).IsEqualTo(AudienceDefaults.PowerUsers)
                 .Because("an authoring surface stays out of a consumer's strip until they ask for it");
-            await Assert.That(section.Id).IsEqualTo(SectionFeature);
-            await Assert.That(section.ParentId).IsEqualTo(MasterSwitch);
-            await Assert.That(features).Count().IsEqualTo(2);
         }
     }
 
@@ -108,7 +107,7 @@ public class PackThroughTheSdkTests
             await Assert.That(section.TabId).IsEqualTo(SectionId);
             await Assert.That(section.Header).IsEqualTo("Canvas");
             await Assert.That(section.HostId).IsEqualTo(HubId);
-            await Assert.That(section.FeatureId).IsEqualTo(SectionFeature);
+            await Assert.That(section.FeatureId).IsNull().Because("the hub's switch gates its only section");
             await Assert.That(section.ViewModelFactory).IsNotNull();
             await Assert.That(section.ViewFactory).IsNotNull();
             await Assert.That(recorded.Rulesets).IsEmpty();

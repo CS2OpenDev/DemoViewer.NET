@@ -16,6 +16,13 @@
         <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
     </ItemGroup>
 
+    <!-- The recording host and the recording contribution sink, shared with the Strat Book's SDK-only
+         suite as source: one copy to move when the SDK grows a member. -->
+    <ItemGroup>
+        <Compile Include="..\..\StratBook\DemoViewer.NET.Extensions.StratBook.SdkOnly.Tests\SdkOnlyContext.cs" Link="SdkOnlyContext.cs"/>
+        <Compile Include="..\..\StratBook\DemoViewer.NET.Extensions.StratBook.SdkOnly.Tests\RecordedContributions.cs" Link="RecordedContributions.cs"/>
+    </ItemGroup>
+
     <ItemGroup>
         <ProjectReference Include="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk\DemoViewer.NET.Extensions.Sdk.csproj"/>
         <ProjectReference Include="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk.Ui\DemoViewer.NET.Extensions.Sdk.Ui.csproj"/>

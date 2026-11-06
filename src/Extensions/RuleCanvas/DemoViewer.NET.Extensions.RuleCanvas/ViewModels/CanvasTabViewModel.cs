@@ -1,5 +1,6 @@
 #region
 
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Modules.Abstractions;
 
@@ -19,6 +20,10 @@ public sealed partial class CanvasTabViewModel(Func<string, bool> selectTab) : E
 
     private readonly Func<string, bool> _selectTab = selectTab ?? throw new ArgumentNullException(nameof(selectTab));
 
+    /// <summary>True after a click found no Authoring tab to select: it is switched off, or the host has none.</summary>
+    [ObservableProperty]
+    private bool _authoringUnavailable;
+
     public void OnActivated(IModuleContext context)
     {
     }
@@ -28,5 +33,5 @@ public sealed partial class CanvasTabViewModel(Func<string, bool> selectTab) : E
     }
 
     [RelayCommand]
-    private void OpenAuthoring() => _selectTab(AuthoringTabId);
+    private void OpenAuthoring() => AuthoringUnavailable = !_selectTab(AuthoringTabId);
 }

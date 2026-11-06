@@ -9,15 +9,13 @@ using DemoViewer.NET.Modules.Abstractions;
 namespace DemoViewer.NET.Extensions.RuleCanvas.Modules;
 
 /// <summary>
-///     The Canvas section of the Rule Canvas hub. <see cref="TabId" /> and <see cref="TabFeatureId" /> are
-///     persisted keys; the header is display text. The view model is built lazily on first activation
-///     through <see cref="WorkspaceTabDescriptor.ViewModelFactory" />, never handed over as a DataContext.
+///     The Canvas section of the Rule Canvas hub. <see cref="TabId" /> is a persisted key; the header is
+///     display text. No feature of its own: the hub's switch is the section's switch while it is the only
+///     one. The view model is built lazily on first activation through
+///     <see cref="WorkspaceTabDescriptor.ViewModelFactory" />, never handed over as a DataContext.
 /// </summary>
 public sealed class CanvasModule(Func<CanvasTabViewModel> viewModelFactory) : IWorkspaceModule
 {
-    /// <summary>The section's feature id. A persisted override key.</summary>
-    public const string TabFeatureId = "tab.rulecanvas";
-
     /// <summary>The section's tab id. Stored in the user's session.</summary>
     public const string TabId = "rulecanvas.canvas";
 
@@ -38,7 +36,6 @@ public sealed class CanvasModule(Func<CanvasTabViewModel> viewModelFactory) : IW
             Header = "Canvas",
             Order = 0,
             HostId = RuleCanvasPack.HubId,
-            FeatureId = TabFeatureId,
             ViewModelFactory = _viewModelFactory,
             ViewFactory = () => new CanvasTabView()
         };

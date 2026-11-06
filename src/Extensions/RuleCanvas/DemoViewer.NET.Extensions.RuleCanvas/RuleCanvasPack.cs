@@ -24,19 +24,17 @@ public sealed class RuleCanvasPack : IExtension
     /// <summary>The hub tab's id, which its sections name as their host. Stored in the user's session.</summary>
     public const string HubId = "rulecanvas.hub";
 
-    // Every id is a persisted override key and must never be renamed; labels and descriptions are display
-    // text. Off for consumers by default: the canvas is an authoring surface.
+    // The id is a persisted override key and must never be renamed; the label and description are display
+    // text. Off for consumers by default: the canvas is an authoring surface. The one section has no switch
+    // of its own: the host gates the hub on this feature and a hub with its only section off would be an
+    // empty strip tab. A second section brings per-section switches with it.
     private static readonly ExtensionFeature[] _features =
     [
         new(
             PackFeatureId, ExtensionFeatureKind.Extension, "Rule Canvas extension",
             "A node-based view of a ruleset: every stat and highlight as a node, value references as wires, "
             + "triggers and gates as chips. Off hides the tab.",
-            null, AudienceDefaults.PowerUsers),
-        new(
-            CanvasModule.TabFeatureId, ExtensionFeatureKind.Tab, "Canvas",
-            "The canvas section of the Rule Canvas tab.",
-            PackFeatureId, AudienceDefaults.PowerUsers)
+            null, AudienceDefaults.PowerUsers)
     ];
 
     /// <inheritdoc />

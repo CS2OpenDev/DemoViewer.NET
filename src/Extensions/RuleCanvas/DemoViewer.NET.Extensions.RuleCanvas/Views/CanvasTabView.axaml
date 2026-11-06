@@ -31,6 +31,9 @@
                                Text="Rulesets are still written in the Authoring tab. The canvas opens the same files once it can draw them." />
                     <Button Classes="primary" HorizontalAlignment="Left" Content="Open Authoring"
                             Command="{Binding OpenAuthoringCommand}" />
+                    <TextBlock IsVisible="{Binding AuthoringUnavailable}" TextWrapping="Wrap" FontSize="12"
+                               Foreground="{DynamicResource AccentCaution}"
+                               Text="The Authoring tab is not available: it is switched off under Settings, Features, or this build has none." />
                     <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextMid}"
                                Text="This tab is off for consumers by default. Settings, Extensions, Rule Canvas turns it on or off for anyone." />
                 </StackPanel>

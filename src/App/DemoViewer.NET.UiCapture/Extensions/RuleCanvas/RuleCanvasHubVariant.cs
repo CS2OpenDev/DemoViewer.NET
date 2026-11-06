@@ -35,7 +35,9 @@ public static partial class Variants
             registry.Register(module);
         }
 
-        DemoLibraryService library = new(null,
+        // A throwaway library file, so the capture never opens the developer's real one; posts run inline,
+        // as the other variants do, since nothing here is on a dispatcher.
+        DemoLibraryService library = new(a => a(),
             Path.Combine(Path.GetTempPath(), "dvlib_uicapture_" + Guid.NewGuid().ToString("N") + ".json"));
         MainViewModel vm = new(null, registry, library, null, new EverythingOn(), null, null, hubTabs: set.HubTabs);
         vm.RestoreSession();
