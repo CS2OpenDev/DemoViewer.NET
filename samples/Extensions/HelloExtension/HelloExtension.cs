@@ -16,6 +16,7 @@ using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Input;
 using DemoViewer.NET.Playback2D.Levels;
 using DemoViewer.NET.Playback2D.Timeline;
+using Humanizer;
 using Microsoft.Extensions.DependencyInjection;
 using SkiaSharp;
 
@@ -123,10 +124,11 @@ public sealed class HelloExtension : IExtension
                 handle.Completed += result =>
                 {
                     bool read = result.Status == JobStatus.Completed;
+                    // Humanizer comes from the extension's own folder, not the app: "1 frame", "1,204 frames".
                     services.GetRequiredService<HelloTabViewModel>().Greeted =
                         context.Settings.Get(GreetingKey, "Hello") + " "
                         + (read
-                            ? $"{Path.GetFileName(path)} ({frames} frames)"
+                            ? $"{Path.GetFileName(path)} ({"frame".ToQuantity(frames, "N0", CultureInfo.InvariantCulture)})"
                             : Path.GetFileName(path));
                     chip.Greeted(Path.GetFileName(path));
 

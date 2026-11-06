@@ -53,14 +53,41 @@ jobs:
       - name: Build the solution (Release)
         run: dotnet build DemoViewer.NET.slnx -c Release -p:WasmBuildNative=false
 
-      # Packaging drift check: no signing key, so this
-      # only proves staging and zipping still match what the release workflow expects. The script reads
-      # the extension's version from nbgv, hence the tool restore.
+      # Packaging drift check, signed with a key made for this run and never kept: it proves staging, the
+      # dependency walk against the Desktop head's deps.json and the shared frameworks, signing, verifying
+      # and zipping still match what the release workflow and the loader expect. The script reads the
+      # extension's version from nbgv, hence the tool restore.
       - name: Restore CLI tools (nbgv)
         run: dotnet tool restore
 
+      - name: Throwaway extension signing key
+        run: |
+          set -euo pipefail
+          TOOL=$(dotnet build tools/extension-signing/ExtensionSigningTool.csproj -c Release -getProperty:TargetPath -v q)
+          dotnet "$TOOL" keygen --out "$RUNNER_TEMP/ext.pem"
+
+      # The shipped extension: everything it references the app provides, so nothing is staged beside it.
       - name: Extension packaging dry run (Strat Book)
-        run: bash scripts/pack-extension.sh net.demoviewer.pack.stratbook --dry-run
+        run: |
+          set -euo pipefail
+          bash scripts/pack-extension.sh net.demoviewer.pack.stratbook --dry-run --key "$RUNNER_TEMP/ext.pem"
+          STAGE=artifacts/extension-release/net.demoviewer.pack.stratbook/stage
+          if ls "$STAGE"/Microsoft.Extensions.*.dll >/dev/null 2>&1; then
+            echo "a framework-provided assembly was staged into the Strat Book zip"; ls "$STAGE"; exit 1
+          fi
+
+      # The sample carries one package the app does not ship (Humanizer) and copies of several it does. The
+      # zip must hold the first and none of the second; the loader test installs this same output.
+      - name: Extension packaging dry run (HelloExtension, with a dependency)
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/hello-pack"
+          bash scripts/pack-extension.sh dev.example.hello --dry-run --key "$RUNNER_TEMP/ext.pem" --out "$OUT" \
+            --project samples/Extensions/HelloExtension --manifest samples/Extensions/HelloExtension/extension.json
+          test -f "$OUT/stage/Humanizer.dll" || { echo "Humanizer.dll was not staged"; ls "$OUT/stage"; exit 1; }
+          if ls "$OUT"/stage/Microsoft.Extensions.*.dll "$OUT"/stage/Avalonia*.dll >/dev/null 2>&1; then
+            echo "an app-provided assembly was staged into the HelloExtension zip"; ls "$OUT/stage"; exit 1
+          fi
 
       # The SDK packages: all pack, and each public API matches its PublicAPI files (the build fails
       # otherwise). The project list is scripts/sdk-packages.sh, shared with release-sdk.yml so the two

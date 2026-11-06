@@ -660,8 +660,8 @@ while ignoring `.staging`, and the Settings cases in `SettingsViewModelTests`.
 
 ## 5. CI and packaging
 
-**`scripts/pack-extension.sh <id> [--key <private.pem>] [--dry-run] [--out <dir>]`.** Bash, runs the same
-way locally and in CI. In order:
+**`scripts/pack-extension.sh <id> [--key <private.pem>] [--dry-run] [--out <dir>] [--project <dir> --manifest <path>]`.**
+Bash, runs the same way locally and in CI. In order:
 
 1. Reads the host values this build offers rather than keeping its own copy: the contract version from
    `nbgv get-version -p src/Sdk/DemoViewer.NET.Extensions.Sdk`, which is the same number
@@ -684,6 +684,26 @@ way locally and in CI. In order:
    file is staged separately when the build produced one (`deps.json` does not track it); the manifest
    staged is the repo copy, not the build's `PreserveNewest` copy beside the DLL, though the next step
    proves them equal.
+   Then the dependencies. The shipped set is read from the Desktop head: every library in its
+   `DemoViewer.NET.Desktop.deps.json` target, plus every DLL of each shared framework its
+   `runtimeconfig.json` names (`Microsoft.NETCore.App` and `Microsoft.AspNetCore.App`), taken from the
+   highest installed `shared/<framework>/<major>.*` that `dotnet --list-runtimes` reports, the same copy
+   the runtime binds; the head is built first only when its deps.json is absent (CI has it from the
+   solution build). The SDK prunes framework-provided packages (`Microsoft.Extensions.*`) from the head's
+   deps.json, which is why the frameworks are read too: six such libraries sit in the Strat Book's
+   deps.json and would otherwise be staged as dead weight. Every other library in the extension's
+   deps.json target is then one of three things. In the framework set: skipped, no version check. In the
+   head's deps.json: the app ships it, and the extension must have built against that exact version or
+   the script fails (`built against X 1.2.0; the app ships 1.1.0`), since the loader's reference-skew
+   check would refuse the copy. Neither: staged flat beside the extension's assembly. A package entry's
+   `runtime` keys are package-relative (`lib/net10.0/Humanizer.dll`), so its files are copied by basename
+   from the build output, which carries them only when the project sets
+   `<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>` (a class library's output has no
+   package assemblies by default; the script names the property when a file is missing); a project
+   entry's keys are output-relative. `resources` go under their culture folder; `_._` placeholders and
+   entries with neither `runtime` nor `resources` are skipped; `native` or `runtimeTargets` on anything
+   staged fails as it does for the own entry. The Strat Book's project is not changed: its closure is
+   app-provided today, so nothing is staged beside it.
 5. Reads the manifest embedded in the built DLL (`extension-signing manifest <dll>`, straight out of the
    PE's resource metadata, no assembly load, written with `Console.Out.Write` rather than `WriteLine` so
    the output carries no extra trailing newline the embedded text did not already have) and `cmp`s it
@@ -771,10 +791,18 @@ DemoViewer.NET.Extensions.StratBook.dll
 DemoViewer.NET.Extensions.StratBook.xml
 extension.json
 extension.sig                             present whenever a signing key was available
+<Package>.dll                             each managed package the extension references and the app does not ship
 ```
 
 No satellite culture directories exist today; the staging step copies one when the build's `.deps.json`
-lists a `resources` entry for it, at its own relative path.
+lists a `resources` entry for it, at its own relative path. No `.deps.json` is staged:
+`AssemblyDependencyResolver` without one treats the folder's assemblies as the component's, and
+`ExternalLoadContext.Load` falls back to `<dir>/<name>.dll` regardless. `extension.sig` covers the staged
+dependencies because the digest is over the whole tree.
+
+**`--project <dir> --manifest <path>`** packs an extension project outside `EXTENSIONS`, dry-run only: a
+sample or a test fixture, which is never released, so its version is whatever the build stamped and no tag
+is checked against it. Everything else runs as for a listed id.
 
 **The tag convention.** A real release is cut by pushing `extensions/<id>/v<version>` (for example
 `extensions/net.demoviewer.pack.stratbook/v1.0.1`), which the script's own check requires to agree with
@@ -842,12 +870,21 @@ costs nothing (there is nothing else to serialize against), and it sidesteps nee
 job starts at all. A second extension that wants independent release cadences needs a per-id group fed
 by a job's own output to a dependent job, the shape `publish` already uses for `do_publish`.
 
-**The `ci.yml` dry-run step.** The `build` job, after the normal solution build, runs
-`pack-extension.sh net.demoviewer.pack.stratbook --dry-run` with no signing key, catching a packaging
-regression (a file the deps.json-derived staging list stops picking up, a manifest edited without a
-rebuild, a compatibility report gone `Incompatible`) on every PR rather than only when a release is cut.
-`release.yml` is untouched: it does not run on pull requests, and the app installer already bundles
-whichever extension version the heads reference at app release time with no change needed here.
+**The `ci.yml` dry-run steps.** The `build` job, after the normal solution build, makes a throwaway key
+with `extension-signing keygen` into `$RUNNER_TEMP` and runs two dry runs with it. The first,
+`pack-extension.sh net.demoviewer.pack.stratbook --dry-run --key <pem>`, catches a packaging regression (a
+file the deps.json-derived staging list stops picking up, a manifest edited without a rebuild, a
+compatibility report gone `Incompatible`, a signature that does not verify) on every PR rather than only
+when a release is cut, and asserts no `Microsoft.Extensions.*.dll` was staged. The second packs the
+sample, `pack-extension.sh dev.example.hello --dry-run --project samples/Extensions/HelloExtension
+--manifest samples/Extensions/HelloExtension/extension.json --key <pem>`: the sample references
+`Humanizer.Core`, pinned in `Directory.Packages.props`, calls into it once in its greeting and sets
+`CopyLocalLockFileAssemblies`, so its output carries its whole closure; the step asserts `Humanizer.dll`
+was staged and no Avalonia or `Microsoft.Extensions.*` assembly was. The same output is what
+`ExternalExtensionTests` installs under a temp extensions folder, where Humanizer resolves from the folder
+and the Avalonia copy beside it is shadowed by the app's. `release.yml` is untouched: it does not run on
+pull requests, and the app installer already bundles whichever extension version the heads reference at
+app release time with no change needed here.
 
 **Signing secret.** A real (non-dry-run) run signs with `DV_EXTENSION_SIGNING_KEY` (section 3). Without it
 a real run fails at the signing step and says so; a dry run (the dispatch default) needs no secret.
