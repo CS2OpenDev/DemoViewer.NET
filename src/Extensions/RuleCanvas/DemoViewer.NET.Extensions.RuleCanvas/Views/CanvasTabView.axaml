@@ -237,7 +237,7 @@
                         </nodes:Node.OutputConnectorTemplate>
 
                         <!-- Face: chips, then the facet rows (detailed) or their count (compact), then the expression. -->
-                        <StackPanel Spacing="6" MinWidth="180">
+                        <StackPanel Spacing="6" MinWidth="180" PointerPressed="OnFacePressed">
                             <ItemsControl ItemsSource="{Binding Chips}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>

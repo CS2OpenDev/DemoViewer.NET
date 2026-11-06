@@ -3,8 +3,10 @@
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 
 #endregion
@@ -26,6 +28,17 @@ public partial class CanvasTabView : UserControl
         DataContextChanged += (_, _) => Attach(DataContext as CanvasTabViewModel);
         Loaded += (_, _) => FitLater();
         Source.TextChanged += (_, _) => _viewModel?.SourceEdited(Source.Text);
+    }
+
+    // The node container starts a drag on any press it sees and captures the pointer, after which a picker
+    // inside the face never gets the release that opens it. A press on an editor stops at the face.
+    private void OnFacePressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Source is Visual source && source.GetSelfAndVisualAncestors().TakeWhile(v => !ReferenceEquals(v, sender))
+                .Any(v => v is ComboBox or TextBox or CheckBox or Button))
+        {
+            e.Handled = true;
+        }
     }
 
     // A typed literal is written when its editor loses focus; Enter is a key binding on the editor itself.
