@@ -18,7 +18,8 @@
 #                 --manifest naming its extension.json template. Its version is the one the build stamped,
 #                 and the tag check is skipped.
 #
-# Every step fails loudly; nothing here is skipped silently.
+# Every step fails loudly. The dependency walk names each library it leaves to the app or the runtime, so
+# nothing is skipped silently either.
 
 set -euo pipefail
 
@@ -75,6 +76,10 @@ if [ -n "$PROJECT_OVERRIDE" ] || [ -n "$MANIFEST_OVERRIDE" ]; then
     fi
     CSPROJ_DIR="${PROJECT_OVERRIDE%/}"
     MANIFEST_PATH="$MANIFEST_OVERRIDE"
+    if [ ! -f "$MANIFEST_PATH" ]; then
+        echo "error: --manifest $MANIFEST_PATH does not exist." >&2
+        exit 2
+    fi
     if [ "$(jq -r .id "$MANIFEST_PATH")" != "$ID" ]; then
         echo "error: $MANIFEST_PATH is for '$(jq -r .id "$MANIFEST_PATH")', not '$ID'." >&2
         exit 2
@@ -319,6 +324,7 @@ while IFS= read -r key; do
     dep_name="${key%%/*}"
     dep_version="${key#*/}"
     if printf '%s\n' "$FRAMEWORK_DLLS" | grep -qxF "$dep_name"; then
+        echo "[pack-extension] framework-provided, not staged: $dep_name $dep_version"
         continue
     fi
     shipped_version="$(printf '%s' "$HEAD_LIBS_JSON" | jq -r --arg n "$dep_name" '.[$n] // empty')"
@@ -328,6 +334,7 @@ while IFS= read -r key; do
             echo "       An extension takes the app's copy of a package the app ships, so it must build against that version." >&2
             exit 1
         fi
+        echo "[pack-extension] app-provided, not staged: $dep_name $dep_version"
         continue
     fi
     dep_json="$(printf '%s' "$EXT_TARGET_JSON" | jq -c --arg k "$key" '.[$k]')"
@@ -340,6 +347,7 @@ while IFS= read -r key; do
     dep_runtime="$(printf '%s' "$dep_json" | jq -r '.runtime // {} | keys[]')"
     dep_resources="$(printf '%s' "$dep_json" | jq -r '.resources // {} | to_entries[] | "\(.value.locale)\t\(.key)"')"
     if [ -z "$dep_runtime" ] && [ -z "$dep_resources" ]; then
+        echo "[pack-extension] no runtime assets, not staged: $dep_name $dep_version"
         continue
     fi
     while IFS= read -r rel; do

@@ -326,8 +326,9 @@ per refused candidate. It lands in the Diagnostics tab and the rolling `logs/dia
 
 **The Settings surface.** `PackStatus.Source` is `PackSource.Bundled`, `PackSource.Staged(directory)` or
 `PackSource.Installed(directory)`, with a user label ("bundled", "installed update", "installed") that
-the pack master row shows in parentheses after the version: `1.0.1 (installed update)`. `PackStatus.Rejected` holds every staged candidate the loader
-refused for that pack, newest first; the row shows one amber line per candidate beneath the description,
+the pack master row shows in parentheses after the version: `1.0.1 (installed update)`.
+`PackStatus.Rejected` holds every staged candidate the loader refused for that pack, newest first; the row
+shows one amber line per candidate beneath the description,
 `Update 1.1.0 was not loaded: Strat Book 1.1.0 needs CS2DemoKit 0.14.0; this app ships 0.13.0-beta0001`
 (or `An update in '<folder>' was not loaded: ...` when its manifest did not parse). Unlike the
 incompatible row above, this locks nothing, since the copy that is running works. The UiCapture
