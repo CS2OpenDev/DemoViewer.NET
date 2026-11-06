@@ -231,7 +231,9 @@
                              ItemsSource="{Binding Nodes}"
                              Connections="{Binding Connections}"
                              SelectedItems="{Binding SelectedNodes}"
-                             ItemsDragCompletedCommand="{Binding SaveLayoutCommand}">
+                             ItemsDragCompletedCommand="{Binding SaveLayoutCommand}"
+                             ConnectionCompletedCommand="{Binding ConnectCommand}"
+                             RemoveConnectionCommand="{Binding DisconnectCommand}">
 
             <!-- Graph position lives on the node view model; the container writes it back on drag. -->
             <nodify:NodifyEditor.ItemContainerTheme>

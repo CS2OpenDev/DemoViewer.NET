@@ -67,7 +67,7 @@ public static class CanvasGraphBuilder
         {
             if (!outputs.TryGetValue(key, out CanvasConnectorViewModel? output))
             {
-                output = new CanvasConnectorViewModel { Title = "" };
+                output = new CanvasConnectorViewModel { Title = "", Owner = byKey[key] };
                 outputs[key] = output;
                 byKey[key].Outputs.Add(output);
             }
@@ -79,7 +79,7 @@ public static class CanvasGraphBuilder
         {
             if (!inputs.TryGetValue(key, out CanvasConnectorViewModel? input))
             {
-                input = new CanvasConnectorViewModel { Title = "" };
+                input = new CanvasConnectorViewModel { Title = "", Owner = byKey[key] };
                 inputs[key] = input;
                 byKey[key].Inputs.Add(input);
             }

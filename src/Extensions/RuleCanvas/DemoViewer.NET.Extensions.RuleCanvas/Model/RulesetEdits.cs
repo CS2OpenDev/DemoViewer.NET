@@ -136,9 +136,48 @@ public static class RulesetEdits
         return editor.SetStatField(statId, key, value).Text;
     }
 
-    /// <summary>The scalar a stat holds under <paramref name="key" />, or null.</summary>
-    public static string? Field(string text, string statId, string key) =>
-        RulesetDocumentEditor.Open(text).Scalar(RulesetDocumentEditor.StatPath(statId).Key(key));
+    /// <summary>The scalar a stat holds under <paramref name="key" /> (dotted for a nested key), or null.</summary>
+    public static string? Field(string text, string statId, string key)
+    {
+        YamlPath path = RulesetDocumentEditor.StatPath(statId);
+        foreach (string part in key.Split('.'))
+        {
+            path = path.Key(part);
+        }
+
+        return RulesetDocumentEditor.Open(text).Scalar(path);
+    }
+
+    /// <summary>Removes a stat's scalar field when it has one; the text is unchanged otherwise.</summary>
+    public static string RemoveFieldIfPresent(string text, string statId, string key)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        return editor.Document.Find(RulesetDocumentEditor.StatPath(statId).Key(key)) is null
+            ? text
+            : editor.RemoveStatField(statId, key).Text;
+    }
+
+    /// <summary>
+    ///     Sets a flag's <c>when:</c>, whichever of the two spellings the author used: nested under
+    ///     <c>flag:</c>, or <c>flag: true</c> with <c>when:</c> beside it.
+    /// </summary>
+    public static string SetFlagWhen(string text, string statId, string when)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlPath stat = RulesetDocumentEditor.StatPath(statId);
+        // The writer keeps an existing scalar's quoting and quotes a new one as the text needs.
+        if (editor.Document.Find(stat.Key("flag")) is YamlMappingNode)
+        {
+            return editor.Apply([YamlEdits.SetKey(editor.Document, stat.Key("flag"), "when", when)]).Text;
+        }
+
+        if (editor.Document.Find(stat) is not YamlMappingNode)
+        {
+            throw new InvalidOperationException($"{statId} is not a stat in this document");
+        }
+
+        return editor.Apply([YamlEdits.SetKey(editor.Document, stat, "when", when)]).Text;
+    }
 
     /// <summary>Appends a stat block (composed at zero indentation) under <c>stats:</c>.</summary>
     public static string AddStat(string text, string block) => RulesetDocumentEditor.Open(text).AddStat(block).Text;

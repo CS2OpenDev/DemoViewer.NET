@@ -426,6 +426,188 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         }
     }
 
+    /// <summary>
+    ///     A wire drawn from one node to another, as the editor reports it: the two endpoints' view models, or
+    ///     a node when the wire was dropped on its container. What the wire stands for is written to the file:
+    ///     an event or a view sets the trigger, a context flag sets <c>while:</c>, an enrichment binds the
+    ///     facet that reads it, and a stat into a flag extends its <c>when:</c>. Anything else is refused with
+    ///     the reason, and the chain redraws from the file either way, so the wire shown is the wire run.
+    /// </summary>
+    [RelayCommand]
+    private void Connect(object? endpoints)
+    {
+        (CanvasNodeViewModel? source, CanvasNodeViewModel? target) = endpoints switch
+        {
+            Tuple<object, object> pair => (NodeOf(pair.Item1), NodeOf(pair.Item2)),
+            ValueTuple<object, object> pair => (NodeOf(pair.Item1), NodeOf(pair.Item2)),
+            _ => (null, null)
+        };
+        if (source is null || target is null)
+        {
+            return;
+        }
+
+        Connect(source, target);
+    }
+
+    /// <summary>Writes what a wire from <paramref name="source" /> to <paramref name="target" /> stands for.</summary>
+    public void Connect(CanvasNodeViewModel source, CanvasNodeViewModel target)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+        if (!IsEditable)
+        {
+            return;
+        }
+
+        if (!target.IsAuthorable || target.IsHighlight || target.IsScaffold)
+        {
+            EditStatus = "A wire can only end on a stat of your own ruleset.";
+            return;
+        }
+
+        switch (source.Ruleset)
+        {
+            case "~event":
+                ConnectEvent(source.Id, target);
+                break;
+            case "~context":
+                if (GatePathOf(source.Id) is { } gate)
+                {
+                    ApplyEdit(text => RulesetEdits.SetField(text, target.Id, "while", gate), $"gate {target.Id} on {gate}");
+                }
+                else
+                {
+                    EditStatus = $"{source.Id} is not a gate a ruleset can name in while:.";
+                }
+
+                break;
+            case "~enrichment":
+                ConnectEnrichment(source.Id, target);
+                break;
+            default:
+                ConnectStat(source, target);
+                break;
+        }
+    }
+
+    /// <summary>
+    ///     A wire removed from the canvas: the gate wire takes <c>while:</c> with it, and an enrichment's read
+    ///     takes the facet that reads it. Trigger wires and logic inputs are the stat's own definition and stay.
+    /// </summary>
+    [RelayCommand]
+    private void Disconnect(object? wire)
+    {
+        if (wire is not CanvasConnectionViewModel connection || !IsEditable
+            || connection.Source.Owner is not { } source || connection.Target.Owner is not { IsAuthorable: true } target)
+        {
+            return;
+        }
+
+        if (source.Ruleset == "~context" && !connection.IsRead)
+        {
+            ApplyEdit(text => RulesetEdits.RemoveFieldIfPresent(text, target.Id, "while"), $"ungate {target.Id}");
+        }
+        else if (source.Ruleset == "~enrichment" && FacetReading(source.Id, target) is { } facet)
+        {
+            ApplyEdit(text => RulesetEdits.RemoveFacet(text, target.Id, facet), $"remove {target.Id}.match.{facet}");
+        }
+        else
+        {
+            EditStatus = "That wire is part of the stat's own definition; change the stat instead.";
+        }
+    }
+
+    private static CanvasNodeViewModel? NodeOf(object endpoint) => endpoint switch
+    {
+        CanvasConnectorViewModel connector => connector.Owner,
+        CanvasNodeViewModel node => node,
+        _ => null
+    };
+
+    // An event fires one or several views. One view names the trigger outright; several leave the choice to
+    // the author, except for a sum or a capture, which can fire on the raw event.
+    private void ConnectEvent(string eventName, CanvasNodeViewModel target)
+    {
+        List<string> views = [.. EmbeddedCatalog.Root.Views.Where(v => v.Event == eventName).Select(v => v.Name)];
+        bool takesValue = target.Kind is "sum" or "capture";
+        if (target.Kind == "count" && views.Count == 1)
+        {
+            ApplyEdit(text => RulesetEdits.SetField(text, target.Id, "count", views[0]), $"retarget {target.Id} to {views[0]}");
+        }
+        else if (takesValue && views.Count == 1)
+        {
+            ApplyEdit(text => RulesetEdits.SetField(text, target.Id, "on", views[0]), $"retarget {target.Id} to {views[0]}");
+        }
+        else if (takesValue && views.Count == 0)
+        {
+            ApplyEdit(text => RulesetEdits.SetField(text, target.Id, "on", "raw." + eventName), $"retarget {target.Id} to {eventName}");
+        }
+        else if (views.Count > 1)
+        {
+            EditStatus = $"{eventName} fires {string.Join(", ", views)}; drop the view you mean from the gallery.";
+        }
+        else
+        {
+            EditStatus = $"A {target.Kind} cannot fire on {eventName}.";
+        }
+    }
+
+    // An enrichment is reached through the facet of the target's view that reads it.
+    private void ConnectEnrichment(string enrichment, CanvasNodeViewModel target)
+    {
+        CS2DemoKit.Analysis.Catalog.CatalogFacet? facet = EmbeddedCatalog.Root.Views.FirstOrDefault(v => v.Name == target.View)?.Facets
+            .FirstOrDefault(f => f.Enrichment == enrichment);
+        if (facet is null)
+        {
+            EditStatus = $"No facet of {target.View ?? target.Kind} reads {enrichment}; test it in where: instead.";
+            return;
+        }
+
+        if (!string.Equals(facet.Type, "bool", StringComparison.OrdinalIgnoreCase))
+        {
+            EditStatus = $"{facet.Name} is a {facet.Type} facet; set its value on the node.";
+            return;
+        }
+
+        ApplyEdit(text => RulesetEdits.SetFacet(text, target.Id, facet.Name, "true"), $"set {target.Id}.match.{facet.Name}");
+    }
+
+    private static string? FacetReading(string enrichment, CanvasNodeViewModel target) =>
+        EmbeddedCatalog.Root.Views.FirstOrDefault(v => v.Name == target.View)?.Facets
+            .FirstOrDefault(f => f.Enrichment == enrichment)?.Name;
+
+    // A stat wired into a flag joins its when: as one more alternative.
+    private void ConnectStat(CanvasNodeViewModel source, CanvasNodeViewModel target)
+    {
+        if (target.Kind != "flag" || source.IsScaffold)
+        {
+            EditStatus = $"A stat can be wired into a flag's when:; a {target.Kind} reads its operands in its own text.";
+            return;
+        }
+
+        string read = source.Ruleset == target.Ruleset ? source.Id : source.Ruleset + "." + source.Id;
+        ApplyEdit(text =>
+        {
+            string? existing = RulesetEdits.Field(text, target.Id, "flag.when") ?? RulesetEdits.Field(text, target.Id, "when");
+            string when = string.IsNullOrWhiteSpace(existing) ? $"{read} > 0" : $"{existing} or {read} > 0";
+            return RulesetEdits.SetFlagWhen(text, target.Id, when);
+        }, $"extend {target.Id} with {read}");
+    }
+
+    // The engine names its context flags in PascalCase; a ruleset names the same flags by their v2 path.
+    private static string? GatePathOf(string engineName) => engineName switch
+    {
+        "MatchLive" => "match.live",
+        "RoundActive" => "round.active",
+        "NoDeathsYet" => "round.no_deaths_yet",
+        "BombWasPlanted" => "round.bomb.was_planted",
+        "Alive" => "player.alive",
+        "Survived" => "player.survived",
+        "Traded" => "player.traded",
+        _ => null
+    };
+
     private string FreshId(string wanted)
     {
         HashSet<string> taken = new(Nodes.Select(n => n.Id), StringComparer.Ordinal);

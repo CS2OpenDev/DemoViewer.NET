@@ -16,6 +16,9 @@ public sealed partial class CanvasConnectorViewModel : ObservableObject
     /// <summary>The label beside the endpoint: the sibling id read, or <c>value</c> for an output.</summary>
     public required string Title { get; init; }
 
+    /// <summary>The node the endpoint sits on, so a wire drawn between two endpoints names two nodes.</summary>
+    public CanvasNodeViewModel? Owner { get; init; }
+
     /// <summary>Written by the control as the node moves.</summary>
     [ObservableProperty]
     private Point _anchor;
