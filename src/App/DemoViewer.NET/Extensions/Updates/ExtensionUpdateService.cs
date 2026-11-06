@@ -516,7 +516,15 @@ public sealed class ExtensionUpdateService
                 Error: "the extension's own manifest could not be read", CheckedAt: DateTimeOffset.UtcNow);
         }
 
-        Uri url = _feedUrl(packId);
+        Uri? url = TryResolveFeedUrl(packId, out string resolveDetail);
+        if (url is null)
+        {
+            AppLog.ExtensionFeedCheckFailed(Log, packId, nameof(ExtensionUpdateStatus.FeedInvalid), resolveDetail);
+            return new ExtensionUpdateState(packId, manifest.Name, manifest.Version, status.Source,
+                ExtensionUpdateStatus.FeedInvalid,
+                Error: FeedAddressError, LogDetail: resolveDetail, CheckedAt: DateTimeOffset.UtcNow);
+        }
+
         string text;
         try
         {
@@ -600,52 +608,63 @@ public sealed class ExtensionUpdateService
     // failures become statuses; a copy on disk outranks the feed, since it is what the next start does.
     private async Task<InstallableExtension> CatalogueCore(string id, CancellationToken ct)
     {
+        // Matched by folder, not by manifest id: Remove deletes extensions/<id>/, so a tree of this id under
+        // another id's folder is that folder's problem and must not block Install here.
         LoadOutcome? rejected = _externalRejected.FirstOrDefault(o =>
-            string.Equals(o.Manifest?.Id, id, StringComparison.Ordinal)
-            || string.Equals(IdFolderOf(o.Directory), id, StringComparison.Ordinal));
+            string.Equals(IdFolderOf(o.Directory), id, StringComparison.Ordinal));
         SemVersion? staged = HighestStaged(id, above: null);
         DateTimeOffset now = DateTimeOffset.UtcNow;
         string name = rejected?.Manifest?.Name ?? id;
 
-        Uri url = _feedUrl(id);
+        Uri? url = TryResolveFeedUrl(id, out string resolveDetail);
         ExtensionFeed? feed = null;
         InstallableStatus? feedStatus = null;
         string? error = null;
         string? logDetail = null;
-        try
+        if (url is null)
         {
-            string text = await _client.GetFeedAsync(url, ct).ConfigureAwait(false);
-            feed = ExtensionFeed.Parse(text);
-            if (!string.Equals(feed.Id, id, StringComparison.Ordinal))
-            {
-                feedStatus = InstallableStatus.FeedInvalid;
-                error = "the update feed is for another extension";
-                logDetail = $"the feed is for '{feed.Id}'";
-                feed = null;
-            }
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-        {
-            AppLog.ExtensionFeedNotPublished(Log, id, url);
-            feedStatus = InstallableStatus.NotPublished;
-        }
-        catch (ExtensionFeedException ex)
-        {
-            AppLog.ExtensionFeedCheckFailed(Log, id, nameof(InstallableStatus.FeedInvalid), ex.Message);
+            AppLog.ExtensionFeedCheckFailed(Log, id, nameof(InstallableStatus.FeedInvalid), resolveDetail);
             feedStatus = InstallableStatus.FeedInvalid;
-            error = "the update feed could not be read";
-            logDetail = ex.Message;
+            error = FeedAddressError;
+            logDetail = resolveDetail;
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        else
         {
-            AppLog.ExtensionFeedCheckFailed(Log, id, nameof(InstallableStatus.FeedUnreachable), ex.Message);
-            feedStatus = InstallableStatus.FeedUnreachable;
-            error = "the update feed could not be reached";
-            logDetail = ex.Message;
+            try
+            {
+                string text = await _client.GetFeedAsync(url, ct).ConfigureAwait(false);
+                feed = ExtensionFeed.Parse(text);
+                if (!string.Equals(feed.Id, id, StringComparison.Ordinal))
+                {
+                    feedStatus = InstallableStatus.FeedInvalid;
+                    error = "the update feed is for another extension";
+                    logDetail = $"the feed is for '{feed.Id}'";
+                    feed = null;
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                AppLog.ExtensionFeedNotPublished(Log, id, url);
+                feedStatus = InstallableStatus.NotPublished;
+            }
+            catch (ExtensionFeedException ex)
+            {
+                AppLog.ExtensionFeedCheckFailed(Log, id, nameof(InstallableStatus.FeedInvalid), ex.Message);
+                feedStatus = InstallableStatus.FeedInvalid;
+                error = "the update feed could not be read";
+                logDetail = ex.Message;
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                AppLog.ExtensionFeedCheckFailed(Log, id, nameof(InstallableStatus.FeedUnreachable), ex.Message);
+                feedStatus = InstallableStatus.FeedUnreachable;
+                error = "the update feed could not be reached";
+                logDetail = ex.Message;
+            }
         }
 
         ExtensionFeedEntry? latest = feed?.Latest;
@@ -681,6 +700,23 @@ public sealed class ExtensionUpdateService
 
         return new InstallableExtension(id, name, offered, latest, latestCompatibility, staged, rejected, status,
             error, logDetail, now);
+    }
+
+    private const string FeedAddressError = "the update feed address could not be resolved";
+
+    // The resolver is caller-supplied; one that throws is a feed failure, never a failed queue item.
+    private Uri? TryResolveFeedUrl(string packId, out string logDetail)
+    {
+        try
+        {
+            logDetail = string.Empty;
+            return _feedUrl(packId);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            logDetail = ex.Message;
+            return null;
+        }
     }
 
     // <extensions>/<id>/<version> or <extensions>/<id>: the id folder of a refused directory.

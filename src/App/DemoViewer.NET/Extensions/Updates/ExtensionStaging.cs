@@ -76,12 +76,14 @@ public static class ExtensionStaging
     /// <summary>
     ///     Deletes every id folder under <paramref name="extensionsDirectory" /> that carries
     ///     <see cref="RemovalMarkerName" />. The marker goes last, so a folder that did not delete whole keeps
-    ///     asking. Never follows a link; never throws. Returns the folders it deleted whole.
+    ///     asking, and one folder's failure does not stop the next. Never follows a link; never throws. Returns
+    ///     the folders it deleted whole.
     /// </summary>
     public static IReadOnlyList<string> ApplyPendingRemovals(string extensionsDirectory)
     {
         ArgumentNullException.ThrowIfNull(extensionsDirectory);
         List<string> removed = [];
+        string[] idFolders;
         try
         {
             if (!Directory.Exists(extensionsDirectory))
@@ -89,8 +91,17 @@ public static class ExtensionStaging
                 return removed;
             }
 
-            ILogger log = DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory);
-            foreach (string idFolder in Directory.EnumerateDirectories(Path.GetFullPath(extensionsDirectory)))
+            idFolders = Directory.GetDirectories(Path.GetFullPath(extensionsDirectory));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return removed;
+        }
+
+        ILogger log = DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory);
+        foreach (string idFolder in idFolders)
+        {
+            try
             {
                 string marker = Path.Combine(idFolder, RemovalMarkerName);
                 if (Path.GetFileName(idFolder).StartsWith('.') || !File.Exists(marker)
@@ -117,10 +128,10 @@ public static class ExtensionStaging
                 removed.Add(idFolder);
                 AppLog.ExtensionInstalledRemoved(log, idFolder);
             }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Whatever is left keeps its marker and is tried again at the next start.
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // This folder keeps its marker and is tried again at the next start.
+            }
         }
 
         return removed;

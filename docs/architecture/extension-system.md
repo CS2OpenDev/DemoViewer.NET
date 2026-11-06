@@ -659,7 +659,8 @@ does not ship (`FeaturePacks.ShippedIds`, which safe mode fills although it load
 status for (a shipped one has its own row, whatever its verdict) and reports an
 `InstallableExtension`: the highest entry `IsOffered` accepts (`Available`), the highest compatible
 version already under `extensions/<id>/` (`PendingRestart`), why a copy on disk did not load this launch
-(`NotLoaded`, from `FeaturePacks.ExternalRejected`, with Remove as the way out), a newer version this app
+(`NotLoaded`, from the `FeaturePacks.ExternalRejected` entry under `extensions/<id>/`, matched by folder
+because that folder is what Remove deletes, with Remove as the way out), a newer version this app
 cannot run (`NeedsNewerApp`), or the feed's failure (`NotPublished`, `FeedUnreachable`, `FeedInvalid`).
 The last answer is remembered for the run (`LastCatalogue`). Settings lists them under "Available
 extensions" with name, version and size and an Install button; Install is `DownloadAndStageAsync` with the
@@ -687,7 +688,8 @@ the id folder, invisible to `Discover`, which enumerates directories) and, when 
 loaded, deletes the folder at once; otherwise the folder goes at the next start, because the loaded
 assembly is mapped for the life of the process on Windows and a folder left half deleted would load
 again. `ExtensionStaging.ApplyPendingRemovals` deletes every id folder carrying the marker, the marker
-last so a folder that did not delete whole keeps asking, and runs from `ExtensionStartup.Resolve` before
+last so a folder that did not delete whole keeps asking and one folder's failure not stopping the next,
+and runs from `ExtensionStartup.Resolve` before
 anything is discovered and from the startup sweep. The row reads `Removed, restart to finish.` Remove
 never touches the extension's data; "Delete extension data" never removes the install.
 

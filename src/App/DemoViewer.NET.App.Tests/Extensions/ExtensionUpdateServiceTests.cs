@@ -763,6 +763,78 @@ public class ExtensionUpdateServiceTests
         }
     }
 
+    // A refused copy belongs to the catalogue row whose folder it sits in, since that folder is what Remove
+    // deletes: a tree of this id moved under another id's folder leaves this row installable, while a tree
+    // of another id under this folder makes it NotLoaded.
+    [Test]
+    public async Task Catalogue_MatchesARefusedCopyByItsFolder_NotByItsManifestId()
+    {
+        string root = NewRoot();
+        try
+        {
+            byte[] zip = ExtensionZip(Id, "1.0.0");
+            FakeFeedClient client = new() { Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(new FakeFeeds.Entry("1.0.0", zip)) } };
+            string extensions = Path.Combine(root, "extensions");
+            LoadOutcome underAnotherFolder = new(Path.Combine(extensions, "net.demoviewer.pack.other", "1.0.0"),
+                FakeManifests.For(Id, "Fake", "1.0.0"), LoadFailure.FolderMismatch, "the folder is 'net.demoviewer.pack.other'",
+                External: true);
+            LoadOutcome underThisFolder = new(Path.Combine(extensions, Id, "1.0.0"),
+                FakeManifests.For("net.demoviewer.pack.other", "Other", "1.0.0"), LoadFailure.FolderMismatch,
+                $"the folder is '{Id}'", External: true);
+
+            IReadOnlyList<InstallableExtension> elsewhere = await NewService(root, client, statuses: [], catalogue: [Id],
+                externalRejected: [underAnotherFolder]).CheckCatalogueAsync();
+            IReadOnlyList<InstallableExtension> here = await NewService(root, client, statuses: [], catalogue: [Id],
+                externalRejected: [underThisFolder]).CheckCatalogueAsync();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(elsewhere.Single().Status).IsEqualTo(InstallableStatus.Available);
+                await Assert.That(elsewhere.Single().Rejected).IsNull();
+                await Assert.That(here.Single().Status).IsEqualTo(InstallableStatus.NotLoaded);
+                await Assert.That(here.Single().Rejected).IsEqualTo(underThisFolder);
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // The feed URL resolver is injected; one that throws is a feed failure on the row, never an exception out
+    // of the queue item, for the update check and the catalogue alike.
+    [Test]
+    public async Task Check_AndCatalogue_ReportAResolverThatThrows_AsFeedInvalid()
+    {
+        string root = NewRoot();
+        try
+        {
+            FakeFeedClient client = new();
+            Func<string, Uri> broken = _ => throw new InvalidOperationException("no template");
+            ExtensionUpdateService declared = new(root, [Status()], Host, TrustAll, client, broken);
+            ExtensionUpdateService catalogue = new(root, [], Host, TrustAll, client, broken, catalogue: [Id],
+                shippedIds: []);
+
+            ExtensionUpdateState verdict = await declared.CheckAsync(Id);
+            InstallableExtension listed = (await catalogue.CheckCatalogueAsync()).Single();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(verdict.Status).IsEqualTo(ExtensionUpdateStatus.FeedInvalid);
+                await Assert.That(verdict.Error).IsEqualTo("the update feed address could not be resolved");
+                await Assert.That(verdict.LogDetail).IsEqualTo("no template");
+                await Assert.That(listed.Status).IsEqualTo(InstallableStatus.FeedInvalid);
+                await Assert.That(listed.Error).IsEqualTo("the update feed address could not be resolved");
+                await Assert.That(listed.LogDetail).IsEqualTo("no template");
+                await Assert.That(client.FeedFetches).IsEqualTo(0);
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     // The catalogue lists an id this build neither ships nor has loaded; a declared status hides it; a copy
     // on disk is reported as pending or, when this launch refused it, as not loaded with the reason.
     [Test]
