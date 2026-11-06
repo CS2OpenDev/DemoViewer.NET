@@ -71,7 +71,10 @@ internal sealed class Playback2DFakeContext : IModuleContext
 
     public IModuleFeatureGate? Features => Gate;
 
-    public double CurtimeSeconds(int tick) => tick / (double)TickRate;
+    /// <summary>The settled game-clock base the real context subtracts; 0 is the naive clock.</summary>
+    public double ClockBaseSeconds { get; set; }
+
+    public double CurtimeSeconds(int tick) => tick / (double)TickRate - ClockBaseSeconds;
 
     // Two frames per tick, and anything past the frame list resolves to -1 (the "drop this marker" answer).
     public int FrameIndexAtTick(int tick)

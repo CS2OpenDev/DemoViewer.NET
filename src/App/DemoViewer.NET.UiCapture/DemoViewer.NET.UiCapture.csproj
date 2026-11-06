@@ -27,4 +27,13 @@
         <Using Include="DemoViewer.NET.Extensions.Sdk"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- The shipped rules, next to the binary as the Desktop head packages them. RuleSetLocator
+             resolves them there, and without them a whole-shell capture evaluates nothing: no stats,
+             no highlights, and an "Analysis failed" banner. -->
+        <Content Include="..\..\..\rules\**"
+                 LinkBase="rules"
+                 CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
+
 </Project>

@@ -35,6 +35,15 @@ if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(AppPaths.ConfigDirEn
 // The same compiled-in pack list as the heads, so a variant's CommandRegistry and job-kind lookups resolve.
 FeaturePacks.Configure([new StratBookPack()]);
 
+// A seam for commands kept outside the repository (a local-only file can implement it). With no
+// implementation the call compiles away.
+int? localExit = null;
+Program.RunLocalCommand(args, ref localExit);
+if (localExit is { } localCode)
+{
+    return localCode;
+}
+
 if (args.Length == 0 || args[0] is "-h" or "--help" or "help")
 {
     PrintUsage();
@@ -153,4 +162,9 @@ static void PrintUsage()
     Console.WriteLine("  list                                      list available variants");
     Console.WriteLine(
         "  export-themes [--out <dir>]               write the built-in themes as JSON (default samples/Themes)");
+}
+
+internal partial class Program
+{
+    static partial void RunLocalCommand(string[] args, ref int? exitCode);
 }

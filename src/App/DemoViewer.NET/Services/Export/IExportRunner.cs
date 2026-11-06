@@ -92,6 +92,12 @@ public sealed record ExportSceneSetup(
     public Func<ISceneFrames>? Source { get; init; }
 
     /// <summary>
+    ///     The demo's game-clock calibration, handed to the frame source so the exported round and bomb
+    ///     timers read what the live HUD reads. 0 (the default) is the naive clock.
+    /// </summary>
+    public double ClockBaseSeconds { get; init; }
+
+    /// <summary>
     ///     The HUD for a <see cref="Source" /> export, which has no tracker for <see cref="Hud" />'s
     ///     factory to read. Ignored on the demo path.
     /// </summary>

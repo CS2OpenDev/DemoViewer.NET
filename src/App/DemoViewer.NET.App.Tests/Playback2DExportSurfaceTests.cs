@@ -316,6 +316,23 @@ public class Playback2DExportStatusSurfaceTests
 /// </summary>
 public class Playback2DExportSetupTests
 {
+    // A GOTV demo of a long-running server has a server tick twenty minutes ahead of the game clock. The
+    // live HUD subtracts the context's settled base; the export used to read the raw tick and burned a
+    // 22:17 round timer into every clip after round one.
+    [Test]
+    public async Task TheSetupCarriesTheContextsClockBase_SoExportTimersMatchTheLiveHud() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (Playback2DTabViewModel vm, Playback2DFakeContext ctx) = Playback2DTimelineHarness.Tab();
+            ctx.ClockBaseSeconds = 1222.5;
+            Playback2DExportHost host = new(() => null, null, null, null);
+
+            await Assert.That(vm.BuildExportSetup(host).ClockBaseSeconds).IsEqualTo(1222.5);
+
+            ctx.ClockBaseSeconds = 0;
+            await Assert.That(vm.BuildExportSetup(host).ClockBaseSeconds).IsEqualTo(0);
+        });
+
     // Stays on the UI thread only because the ink assertion needs no particular thread. The thread
     // production really builds on is the export's pool thread, pinned by
     // TheSetup_BuildsOffTheUiThread_LikeTheRunnerDoes below.

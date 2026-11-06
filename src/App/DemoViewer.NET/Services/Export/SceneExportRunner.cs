@@ -195,7 +195,12 @@ public sealed class SceneExportRunner : IExportRunner
             request.DemoEndFrame,
             request.Core.Fps,
             request.Core.Speed,
-            setup.TickRate) { MapName = setup.MapName, Radars = setup.MapAssets?.DescribeRadars() };
+            setup.TickRate)
+        {
+            MapName = setup.MapName,
+            Radars = setup.MapAssets?.DescribeRadars(),
+            ClockBaseSeconds = setup.ClockBaseSeconds
+        };
 
         return source;
     }
