@@ -654,8 +654,9 @@ unfinished download is never reported as a broken candidate.
 **The catalogue.** `FirstPartyCatalog.Ids` is the compiled-in list of first-party extensions a build can
 install although it does not ship them: literals, since the app assembly references no extension; the
 Strat Book's id today. Each one's feed is `ExtensionFeedSource.Resolve` over the same template the
-updater uses. `CheckCatalogueAsync`, one queue item at user priority, takes every catalogue id with no
-entry in the service's statuses (a shipped one has its own row, whatever its verdict) and reports an
+updater uses. `CheckCatalogueAsync`, one queue item at user priority, takes every catalogue id this build
+does not ship (`FeaturePacks.ShippedIds`, which safe mode fills although it loads nothing) and has no
+status for (a shipped one has its own row, whatever its verdict) and reports an
 `InstallableExtension`: the highest entry `IsOffered` accepts (`Available`), the highest compatible
 version already under `extensions/<id>/` (`PendingRestart`), why a copy on disk did not load this launch
 (`NotLoaded`, from `FeaturePacks.ExternalRejected`, with Remove as the way out), a newer version this app

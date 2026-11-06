@@ -37,6 +37,7 @@ public sealed class ExtensionUpdateService
     private readonly Func<string, Uri> _feedUrl;
     private readonly IDemoProcessingQueue? _queue;
     private readonly IReadOnlyList<string> _catalogue;
+    private readonly IReadOnlyList<string> _shippedIds;
     private readonly IReadOnlyList<LoadOutcome> _externalRejected;
     // Two stages of one entry share the .staging paths, so stages run one at a time: each waits for the
     // tail of the chain and the second then finds the first's result, not its files.
@@ -61,11 +62,16 @@ public sealed class ExtensionUpdateService
     /// </param>
     /// <param name="catalogue">The installable first-party ids; null is <see cref="FirstPartyCatalog.Ids" />.</param>
     /// <param name="externalRejected">The copies this launch refused (<see cref="FeaturePacks.ExternalRejected" /> when null), so a catalogue entry on disk that did not load says why.</param>
+    /// <param name="shippedIds">
+    ///     The ids this build ships (<see cref="FeaturePacks.ShippedIds" /> when null). Never listed and never
+    ///     removed, whatever <paramref name="statuses" /> holds: safe mode runs with no status for them.
+    /// </param>
     public ExtensionUpdateService(
         string configRoot, IReadOnlyList<PackStatus> statuses, ExtensionHostInfo host, ITrustPolicy trust,
         IExtensionFeedClient client, Func<string, Uri> feedUrl, IDemoProcessingQueue? queue = null,
         Func<ExtensionFeedEntry, ExtensionHostInfo, bool>? isOffered = null, ITrustPolicy? installTrust = null,
-        IReadOnlyList<string>? catalogue = null, IReadOnlyList<LoadOutcome>? externalRejected = null)
+        IReadOnlyList<string>? catalogue = null, IReadOnlyList<LoadOutcome>? externalRejected = null,
+        IReadOnlyList<string>? shippedIds = null)
     {
         ArgumentNullException.ThrowIfNull(configRoot);
         ArgumentNullException.ThrowIfNull(statuses);
@@ -82,6 +88,7 @@ public sealed class ExtensionUpdateService
         _feedUrl = feedUrl;
         _queue = queue;
         _catalogue = catalogue ?? FirstPartyCatalog.Ids;
+        _shippedIds = shippedIds ?? FeaturePacks.ShippedIds;
         _externalRejected = externalRejected ?? FeaturePacks.ExternalRejected;
         IsOffered = isOffered ?? DefaultIsOffered;
     }
@@ -284,12 +291,12 @@ public sealed class ExtensionUpdateService
 
     /// <summary>
     ///     The catalogue check, one queue item at user priority: for each first-party id this build can
-    ///     install and has no status for, the feed's highest offered version, what is already on disk, and
-    ///     why a copy on disk did not load. Never throws; every feed failure is a status.
+    ///     install, does not ship and has no status for, the feed's highest offered version, what is already
+    ///     on disk, and why a copy on disk did not load. Never throws; every feed failure is a status.
     /// </summary>
     public async Task<IReadOnlyList<InstallableExtension>> CheckCatalogueAsync(CancellationToken ct = default)
     {
-        string[] ids = [.. _catalogue.Where(id => !Statuses.Any(s => string.Equals(s.Pack.Id, id, StringComparison.Ordinal)))];
+        string[] ids = [.. _catalogue.Where(id => !IsShippedOrDeclared(id))];
         InstallableExtension?[] found = new InstallableExtension?[ids.Length];
         if (ids.Length > 0)
         {
@@ -397,7 +404,8 @@ public sealed class ExtensionUpdateService
         ArgumentNullException.ThrowIfNull(packId);
         PackStatus? status = Statuses.FirstOrDefault(s => string.Equals(s.Pack.Id, packId, StringComparison.Ordinal));
         bool allowed = status is { Source: PackSource.Installed }
-            || (status is null && _catalogue.Contains(packId, StringComparer.Ordinal));
+            || (status is null && _catalogue.Contains(packId, StringComparer.Ordinal)
+                && !_shippedIds.Contains(packId, StringComparer.Ordinal));
         string idFolder = Path.Combine(_extensionsDirectory, packId);
         if (!allowed || !ExtensionStaging.IsInside(_extensionsDirectory, idFolder) || !Directory.Exists(idFolder))
         {
@@ -682,6 +690,11 @@ public sealed class ExtensionUpdateService
         int separator = relative.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
         return separator < 0 ? relative : relative[..separator];
     }
+
+    // A shipped id, or one with a status this run: its own row covers it, so the catalogue never lists it.
+    private bool IsShippedOrDeclared(string id) =>
+        _shippedIds.Contains(id, StringComparer.Ordinal)
+        || Statuses.Any(s => string.Equals(s.Pack.Id, id, StringComparison.Ordinal));
 
     // A declared first-party pack this process runs: the automatic stage's scope.
     private static bool IsFirstParty(PackStatus status) =>

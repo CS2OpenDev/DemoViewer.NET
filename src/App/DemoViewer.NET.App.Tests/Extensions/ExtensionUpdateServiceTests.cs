@@ -731,6 +731,38 @@ public class ExtensionUpdateServiceTests
 
     // ── Installed first-party extensions: the catalogue, the install policy, removal ──────────────
 
+    // Safe mode leaves every shipped id without a status. The shipped list, not the statuses, is what keeps
+    // such an id out of the catalogue and away from Remove, even with its folders on disk.
+    [Test]
+    public async Task Catalogue_NeverListsOrRemovesAShippedId_EvenWithNoStatusForIt()
+    {
+        string root = NewRoot();
+        try
+        {
+            byte[] zip = ExtensionZip(Id, "1.0.0");
+            FakeFeedClient client = new() { Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(new FakeFeeds.Entry("1.0.0", zip)) } };
+            string onDisk = StageVersion(Path.Combine(root, "extensions"), "1.0.0");
+            ExtensionUpdateService service = NewService(root, client, statuses: [], catalogue: [Id], shippedIds: [Id]);
+
+            IReadOnlyList<InstallableExtension> listed = await service.CheckCatalogueAsync();
+            bool removed = await service.RemoveInstalledAsync(Id);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(listed).IsEmpty();
+                await Assert.That(client.FeedFetches).IsEqualTo(0);
+                await Assert.That(removed).IsFalse();
+                await Assert.That(Directory.Exists(onDisk)).IsTrue();
+                await Assert.That(File.Exists(ExtensionStaging.RemovalMarkerPath(Path.Combine(root, "extensions"), Id)))
+                    .IsFalse();
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     // The catalogue lists an id this build neither ships nor has loaded; a declared status hides it; a copy
     // on disk is reported as pending or, when this launch refused it, as not loaded with the reason.
     [Test]
@@ -954,9 +986,10 @@ public class ExtensionUpdateServiceTests
     private static ExtensionUpdateService NewService(string root, FakeFeedClient client, ITrustPolicy? trust = null,
         IDemoProcessingQueue? queue = null, IReadOnlyList<PackStatus>? statuses = null,
         Func<ExtensionFeedEntry, ExtensionHostInfo, bool>? isOffered = null, ITrustPolicy? installTrust = null,
-        IReadOnlyList<string>? catalogue = null, IReadOnlyList<LoadOutcome>? externalRejected = null) =>
+        IReadOnlyList<string>? catalogue = null, IReadOnlyList<LoadOutcome>? externalRejected = null,
+        IReadOnlyList<string>? shippedIds = null) =>
         new(root, statuses ?? [Status()], Host, trust ?? TrustAll, client, FeedUrl, queue, isOffered,
-            installTrust ?? TrustAll, catalogue ?? [], externalRejected ?? []);
+            installTrust ?? TrustAll, catalogue ?? [], externalRejected ?? [], shippedIds ?? []);
 
     private static ExtensionFeedEntry Entry(FakeFeeds.Entry e) =>
         ExtensionFeed.Parse(FakeFeeds.Json(e)).Entries.Single();

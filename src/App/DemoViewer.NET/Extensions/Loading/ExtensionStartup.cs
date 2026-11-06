@@ -16,10 +16,12 @@ namespace DemoViewer.NET.Extensions.Loading;
 ///     The qualified ruleset ids every manifest on disk claims, the ones this launch did not load included: the
 ///     host keeps them out of the highlights set whatever loaded.
 /// </param>
+/// <param name="ShippedIds">The ids this build ships, loaded or not: safe mode loads none and still ships them all.</param>
 public sealed record ExtensionStartupResult(
     IReadOnlyList<PackStatus> Statuses,
     IReadOnlyList<LoadOutcome> ExternalRejected,
-    IReadOnlyList<string> ClaimedRulesets);
+    IReadOnlyList<string> ClaimedRulesets,
+    IReadOnlyList<string> ShippedIds);
 
 /// <summary>The desktop head's extension resolution, before Avalonia starts.</summary>
 public static class ExtensionStartup
@@ -49,9 +51,10 @@ public static class ExtensionStartup
         }
 
         IReadOnlyList<string> claimed = ClaimedRulesets(configRoot, shipped);
+        string[] shippedIds = [.. shipped.Select(s => s.Id)];
         if (safeMode)
         {
-            return new ExtensionStartupResult([], [], claimed);
+            return new ExtensionStartupResult([], [], claimed, shippedIds);
         }
 
         IReadOnlyList<PackStatus> fromShipped = ExtensionLoader.Resolve(configRoot, shipped, host, shippedTrust);
@@ -61,7 +64,7 @@ public static class ExtensionStartup
             [.. fromShipped.Where(s => s.IsCompatible).Select(s => s.Pack)], host,
             new ExternalTrust(publisherKeys, allowUnverified),
             [.. shipped.Select(s => s.Id)]);
-        return new ExtensionStartupResult([.. fromShipped, .. external.Loaded], external.Rejected, claimed);
+        return new ExtensionStartupResult([.. fromShipped, .. external.Loaded], external.Rejected, claimed, shippedIds);
     }
 
     /// <summary>

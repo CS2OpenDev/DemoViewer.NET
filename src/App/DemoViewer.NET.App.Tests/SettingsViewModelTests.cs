@@ -1185,8 +1185,9 @@ public class SettingsViewModelTests
             {
                 Zips = { [entry.Url] = zip }, Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(entry) }
             };
+            // A build that does not ship the Strat Book: the test host does, so the shipped list is given.
             ExtensionUpdateService updater = new(dir, [], ExtensionHost.Current, TrustPolicy.Nothing, client,
-                UpdateFixtures.FeedUrl, installTrust: UpdateFixtures.TrustAll);
+                UpdateFixtures.FeedUrl, installTrust: UpdateFixtures.TrustAll, shippedIds: []);
             // Within the hour, so the open asks the catalogue only because this run has not asked it yet.
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
                 packStatuses: [], extensionUpdates: updater, isBrowser: () => false,

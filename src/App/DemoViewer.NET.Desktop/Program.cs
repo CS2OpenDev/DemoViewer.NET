@@ -86,7 +86,8 @@ internal static class Program
             PublisherKeys.Current,
             allowUnverified,
             launch.Decision.IsActive);
-        FeaturePacks.ConfigureResolved(extensions.Statuses, extensions.ExternalRejected, extensions.ClaimedRulesets);
+        FeaturePacks.ConfigureResolved(extensions.Statuses, extensions.ExternalRejected, extensions.ClaimedRulesets,
+            extensions.ShippedIds);
 
         // One fault tracker for the process, before anything runs extension code: the composition root takes
         // it, and the UI-thread and unobserved-task backstops attribute through it.
