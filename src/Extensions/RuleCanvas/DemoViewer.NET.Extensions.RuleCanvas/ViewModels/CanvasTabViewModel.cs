@@ -3,6 +3,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
@@ -10,8 +11,10 @@ using DemoViewer.NET.Modules.Abstractions;
 namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 
 /// <summary>
-///     The Canvas section. Draws the <see cref="SampleGraph" /> for now, in one of two densities, so the
-///     node style can be settled before the document-derived model replaces the sample.
+///     The Canvas section: a picker over the loadable rulesets and the chosen one drawn as nodes. The corpus
+///     is read on first activation and composed per selection, on the UI thread for now: a composition is a
+///     YAML parse plus a static projection and a first placement, tens of milliseconds at the corpus's sizes.
+///     Moving it onto the processing queue needs a demo-less job the SDK does not yet offer.
 /// </summary>
 public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceTabViewModel
 {
@@ -19,19 +22,45 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     public const string AuthoringTabId = "ruleworkbench.editor";
 
     private readonly Func<string, bool> _selectTab;
+    private readonly Func<RulesetCorpus> _loadCorpus;
+    private RulesetCorpus? _corpus;
 
     /// <param name="selectTab">Selects a host tab by id; the Authoring tab's id is <see cref="AuthoringTabId" />.</param>
     public CanvasTabViewModel(Func<string, bool> selectTab)
+        : this(selectTab, static () => RulesetCorpus.Load(RulesetCorpus.DefaultDirectories()))
     {
-        _selectTab = selectTab ?? throw new ArgumentNullException(nameof(selectTab));
-        (IReadOnlyList<CanvasNodeViewModel> nodes, IReadOnlyList<CanvasConnectionViewModel> wires) = SampleGraph.Build();
-        Nodes = new ObservableCollection<CanvasNodeViewModel>(nodes);
-        Connections = new ObservableCollection<CanvasConnectionViewModel>(wires);
     }
 
-    public ObservableCollection<CanvasNodeViewModel> Nodes { get; }
+    /// <param name="selectTab">Selects a host tab by id.</param>
+    /// <param name="loadCorpus">Reads the rulesets the picker offers; called once, on first activation.</param>
+    public CanvasTabViewModel(Func<string, bool> selectTab, Func<RulesetCorpus> loadCorpus)
+    {
+        _selectTab = selectTab ?? throw new ArgumentNullException(nameof(selectTab));
+        _loadCorpus = loadCorpus ?? throw new ArgumentNullException(nameof(loadCorpus));
+    }
 
-    public ObservableCollection<CanvasConnectionViewModel> Connections { get; }
+    public ObservableCollection<CanvasNodeViewModel> Nodes { get; } = [];
+
+    public ObservableCollection<CanvasConnectionViewModel> Connections { get; } = [];
+
+    public ObservableCollection<RulesetCorpus.Entry> Rulesets { get; } = [];
+
+    /// <summary>The ruleset drawn. Setting it composes and redraws.</summary>
+    [ObservableProperty]
+    private RulesetCorpus.Entry? _selectedRuleset;
+
+    /// <summary>The id opened first, when the corpus has it; otherwise the first entry.</summary>
+    public string PreferredRulesetId { get; set; } = "player_round";
+
+    /// <summary>What the canvas holds, in words: the node and wire counts, or why it is empty.</summary>
+    [ObservableProperty]
+    private string _status = "";
+
+    /// <summary>The composition's diagnostics, one per line, or empty.</summary>
+    [ObservableProperty]
+    private string _diagnostics = "";
+
+    public bool HasDiagnostics => Diagnostics.Length > 0;
 
     /// <summary>The detailed style: facet rows on the node face. Off is the compact style: a facet count.</summary>
     [ObservableProperty]
@@ -43,13 +72,65 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
     public bool IsCompact => !ShowFacets;
 
+    /// <summary>Raised on the UI thread after the node and wire collections were refilled, so the view can fit them.</summary>
+    public event Action? GraphReplaced;
+
     public void OnActivated(IModuleContext context)
     {
+        if (_corpus is not null)
+        {
+            return;
+        }
+
+        _corpus = _loadCorpus();
+        foreach (RulesetCorpus.Entry entry in _corpus.Entries)
+        {
+            Rulesets.Add(entry);
+        }
+
+        SelectedRuleset = Rulesets.FirstOrDefault(e => e.Id == PreferredRulesetId) ?? Rulesets.FirstOrDefault();
+        if (SelectedRuleset is null)
+        {
+            Status = "No rulesets found beside this build.";
+        }
     }
 
     public void OnDeactivated()
     {
     }
+
+    partial void OnSelectedRulesetChanged(RulesetCorpus.Entry? value)
+    {
+        Nodes.Clear();
+        Connections.Clear();
+        Diagnostics = "";
+        if (value is null || _corpus is null)
+        {
+            return;
+        }
+
+        RulesetCorpus.Composed composed = _corpus.Compose(value.Id);
+        (IReadOnlyList<CanvasNodeViewModel> nodes, IReadOnlyList<CanvasConnectionViewModel> wires) = CanvasGraphBuilder.Build(composed);
+        foreach (CanvasNodeViewModel node in nodes)
+        {
+            node.ShowFacets = ShowFacets;
+            Nodes.Add(node);
+        }
+
+        foreach (CanvasConnectionViewModel wire in wires)
+        {
+            Connections.Add(wire);
+        }
+
+        Diagnostics = string.Join('\n', composed.Diagnostics);
+        int unwired = nodes.Count(n => n.Inputs.Count == 0 && n.Outputs.Count == 0);
+        Status = nodes.Count == 0
+            ? "Nothing composed; see the diagnostics."
+            : $"{nodes.Count} nodes, {wires.Count} wires, {unwired} unwired";
+        GraphReplaced?.Invoke();
+    }
+
+    partial void OnDiagnosticsChanged(string value) => OnPropertyChanged(nameof(HasDiagnostics));
 
     partial void OnShowFacetsChanged(bool value)
     {

@@ -6,6 +6,7 @@
   "pathFilters": [
     ".",
     ":!DemoViewer.NET.Extensions.RuleCanvas.SdkOnly.Tests",
+    ":!DemoViewer.NET.Extensions.RuleCanvas.Tests",
     "/src/Sdk/DemoViewer.NET.Extensions.Sdk/build"
   ],
   "publicReleaseRefSpec": [

@@ -163,6 +163,8 @@ public static partial class Variants
             ["settings"] = () => Settings(),
             ["rule-canvas-hub"] = () => RuleCanvasHub(),
             ["rule-canvas-compact"] = () => RuleCanvasHub(false),
+            ["rule-canvas-aim"] = () => RuleCanvasHub(ruleset: "aim_rating"),
+            ["rule-canvas-player-stats"] = () => RuleCanvasHub(ruleset: "player_stats"),
             // Concurrency seeded to 2 so the BACKGROUND PROCESSING section shows the RAM-risk warning (the
             // safety-critical element). The default state (1, no warning) is
             // captured by "settings".

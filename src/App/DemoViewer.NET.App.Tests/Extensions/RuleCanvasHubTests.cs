@@ -91,8 +91,8 @@ public class RuleCanvasHubTests
                     await Assert.That(vm.Tabs.Single(t => t.TabId == RuleCanvasPack.HubId).ActiveContent).IsTypeOf<HubTabView>();
                     await Assert.That(texts).Contains("RULE CANVAS").Because("the band binds the declaration's rail label");
                     await Assert.That(texts).Contains("Canvas").Because("the rail lists the one section");
-                    await Assert.That(texts).Contains("SAMPLE")
-                        .Because("the first section is selected and realized when the host is");
+                    await Assert.That(texts).Contains("player_round")
+                        .Because("the first section is selected and realized when the host is, and it opens player_round first");
                     await Assert.That(texts).Contains("Open Authoring");
                 }
             }
@@ -104,11 +104,12 @@ public class RuleCanvasHubTests
         });
 
     /// <summary>
-    ///     The sample graph on the real canvas: a templated container per node, a connector per value read or
-    ///     produced, and a connection per wire, all realized from a view-level style include of the Nodify theme.
+    ///     player_round on the real canvas: a templated container per declared stat, a connector per value read
+    ///     or produced, and a connection per wire, all realized from a view-level style include of the Nodify
+    ///     theme. The counts are the shipped file's: eight stats, of which the KAST flag reads two siblings.
     /// </summary>
     [Test]
-    public async Task TheSampleCanvas_RealizesItsNodesConnectorsAndWires() =>
+    public async Task TheCanvas_DrawsPlayerRound_WithItsNodesConnectorsAndWires() =>
         await HeadlessSession.RunOnUi(async () =>
         {
             (MainViewModel vm, _, ServiceProvider services) = NewShell();
@@ -123,8 +124,8 @@ public class RuleCanvasHubTests
                 });
                 using (Assert.Multiple())
                 {
-                    await Assert.That(containers).IsEqualTo(5).Because("five nodes in the sample");
-                    await Assert.That(wires).IsEqualTo(2).Because("the flag reads two siblings");
+                    await Assert.That(containers).IsEqualTo(8).Because("player_round declares eight stats");
+                    await Assert.That(wires).IsEqualTo(2).Because("round_kast reads round_kills and round_kast_assists");
                     await Assert.That(connectors).IsEqualTo(4).Because("two outputs read, two inputs reading");
                     await Assert.That(texts).Contains("round_kast");
                     await Assert.That(texts).Contains("enemy").Because("the detailed style shows the facet rows");

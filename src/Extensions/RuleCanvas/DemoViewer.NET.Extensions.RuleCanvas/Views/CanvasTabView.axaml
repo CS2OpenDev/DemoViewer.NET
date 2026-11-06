@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DemoViewer.NET.Extensions.RuleCanvas.ViewModels"
+             xmlns:model="using:DemoViewer.NET.Extensions.RuleCanvas.Model"
              xmlns:nodify="clr-namespace:Nodify.Avalonia;assembly=Nodify.Avalonia"
              xmlns:nodes="clr-namespace:Nodify.Avalonia.Nodes;assembly=Nodify.Avalonia"
              xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia"
@@ -8,8 +9,8 @@
              x:DataType="vm:CanvasTabViewModel">
 
     <!--
-      THE CANVAS SECTION: a strip over a Nodify editor. The strip names the sample and switches the node
-      style; the editor draws the sample graph. A node is a header (kind pill, id, label) over chips
+      THE CANVAS SECTION: a strip over a Nodify editor. The strip picks the ruleset, reports what was
+      drawn and switches the node style; the editor draws the composed ruleset. A node is a header (kind pill, id, label) over chips
       (trigger, gate, scope), the match facets as rows, and the expression; its ports are value references
       only. Every colour is a token: the app's brushes on the node face, and the Nodify palette keys below
       mapped onto the same tokens so the editor's own chrome follows the theme.
@@ -74,12 +75,23 @@
                             Command="{Binding OpenAuthoringCommand}" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <Border Background="{DynamicResource AccentCaution}" CornerRadius="3" Padding="6 1">
-                        <TextBlock Text="SAMPLE" FontSize="10" FontWeight="SemiBold" LetterSpacing="1"
-                                   Foreground="{DynamicResource TextOnAccent}" />
-                    </Border>
+                    <TextBlock Text="RULESET" FontSize="11" LetterSpacing="1" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextDim}" />
+                    <ComboBox ItemsSource="{Binding Rulesets}" SelectedItem="{Binding SelectedRuleset}"
+                              MinWidth="220" FontSize="12" Padding="8 3">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="model:RulesetCorpus+Entry">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Id}" FontFamily="monospace" />
+                                    <TextBlock Text="{Binding Source}" Foreground="{DynamicResource TextDim}" FontSize="11" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                     <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
-                               Text="An excerpt of player_round, placed by hand. Five nodes, two wires; the real ruleset comes next." />
+                               Text="{Binding Status}" />
+                    <TextBlock FontSize="12" Foreground="{DynamicResource AccentCaution}" VerticalAlignment="Center"
+                               IsVisible="{Binding HasDiagnostics}" Text="diagnostics" ToolTip.Tip="{Binding Diagnostics}" />
                     <TextBlock IsVisible="{Binding AuthoringUnavailable}" FontSize="12" VerticalAlignment="Center"
                                Foreground="{DynamicResource AccentCaution}"
                                Text="The Authoring tab is not available: switched off under Settings, Features, or this build has none." />
@@ -87,7 +99,7 @@
             </DockPanel>
         </Border>
 
-        <nodify:NodifyEditor Grid.Row="1"
+        <nodify:NodifyEditor Grid.Row="1" x:Name="Editor"
                              ItemsSource="{Binding Nodes}"
                              Connections="{Binding Connections}">
 
@@ -183,8 +195,8 @@
                             <TextBlock Text="{Binding FacetSummary}" FontSize="11" Foreground="{DynamicResource TextDim}"
                                        IsVisible="{Binding ShowFacetSummary}" />
 
-                            <TextBlock Text="{Binding Expression}" FontSize="11" FontFamily="monospace"
-                                       Foreground="{DynamicResource TextValue}" IsVisible="{Binding HasExpression}" />
+                            <TextBlock Text="{Binding Expression}" FontSize="11" FontFamily="monospace" MaxWidth="340"
+                                       TextWrapping="Wrap" Foreground="{DynamicResource TextValue}" IsVisible="{Binding HasExpression}" />
                         </StackPanel>
                     </nodes:Node>
                 </DataTemplate>

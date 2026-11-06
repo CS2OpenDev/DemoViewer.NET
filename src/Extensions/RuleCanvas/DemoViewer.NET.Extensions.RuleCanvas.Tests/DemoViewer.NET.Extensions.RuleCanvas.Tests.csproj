@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The pack's own suite: the document-derived model over the shipped corpus in rules/, pure by
+      construction (composition plus a static projection, no Avalonia, no demo, no layout), so it stays in
+      every tier. Shell-level behaviour of the hub is in App.Tests, which has the shell.
+    -->
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <RootNamespace>DemoViewer.NET.Extensions.RuleCanvas.Tests</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="TUnit"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DemoViewer.NET.Extensions.RuleCanvas\DemoViewer.NET.Extensions.RuleCanvas.csproj"/>
+        <ProjectReference Include="..\..\..\Testing\DemoViewer.NET.TestSupport\DemoViewer.NET.TestSupport.csproj"/>
+    </ItemGroup>
+
+</Project>

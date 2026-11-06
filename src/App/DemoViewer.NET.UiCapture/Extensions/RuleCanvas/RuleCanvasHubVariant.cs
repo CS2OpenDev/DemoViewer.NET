@@ -23,7 +23,7 @@ namespace DemoViewer.NET.UiCapture;
 /// </summary>
 public static partial class Variants
 {
-    private static MainView RuleCanvasHub(bool showFacets = true)
+    private static MainView RuleCanvasHub(bool showFacets = true, string ruleset = "player_round")
     {
         RuleCanvasPack pack = new();
         ServiceCollection services = new();
@@ -41,7 +41,9 @@ public static partial class Variants
         DemoLibraryService library = new(a => a(),
             Path.Combine(Path.GetTempPath(), "dvlib_uicapture_" + Guid.NewGuid().ToString("N") + ".json"));
         // The section's view model is the pack's singleton, so the style is set before the view is built.
-        provider.GetRequiredService<CanvasTabViewModel>().ShowFacets = showFacets;
+        CanvasTabViewModel canvas = provider.GetRequiredService<CanvasTabViewModel>();
+        canvas.ShowFacets = showFacets;
+        canvas.PreferredRulesetId = ruleset;
         MainViewModel vm = new(null, registry, library, null, new EverythingOn(), null, null, hubTabs: set.HubTabs);
         vm.RestoreSession();
         vm.TrySelectTab(RuleCanvasPack.HubId);

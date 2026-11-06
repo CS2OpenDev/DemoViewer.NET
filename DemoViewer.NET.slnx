@@ -39,6 +39,8 @@
                 Path="src/Extensions/RuleCanvas/DemoViewer.NET.Extensions.RuleCanvas/DemoViewer.NET.Extensions.RuleCanvas.csproj"/>
         <Project
                 Path="src/Extensions/RuleCanvas/DemoViewer.NET.Extensions.RuleCanvas.SdkOnly.Tests/DemoViewer.NET.Extensions.RuleCanvas.SdkOnly.Tests.csproj"/>
+        <Project
+                Path="src/Extensions/RuleCanvas/DemoViewer.NET.Extensions.RuleCanvas.Tests/DemoViewer.NET.Extensions.RuleCanvas.Tests.csproj"/>
     </Folder>
     <Folder Name="/src/GameIcons/">
         <Project Path="src/GameIcons/DemoViewer.NET.GameIcons/DemoViewer.NET.GameIcons.csproj"/>

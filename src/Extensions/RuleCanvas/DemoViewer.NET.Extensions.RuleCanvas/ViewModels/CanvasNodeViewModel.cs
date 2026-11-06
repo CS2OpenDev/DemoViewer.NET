@@ -31,8 +31,14 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>The <c>match:</c> facets, each as the facet's name and its written value.</summary>
     public IReadOnlyList<CanvasFacetViewModel> Facets { get; init; } = [];
 
-    /// <summary>A <c>compute:</c> or <c>when:</c> expression, kept textual.</summary>
+    /// <summary>The <c>compute:</c>, flag, <c>where:</c> or <c>when:</c> text, kept textual; lines joined by newline.</summary>
     public string? Expression { get; init; }
+
+    /// <summary>The line the entry starts on in its file, for the jump to come. Zero when unknown.</summary>
+    public int SourceLine { get; init; }
+
+    /// <summary>Whether the open document declares this node; a <c>use:</c> dependency's node is drawn read-only.</summary>
+    public bool IsAuthorable { get; init; } = true;
 
     /// <summary>The values this node reads from siblings, one input connector each.</summary>
     public ObservableCollection<CanvasConnectorViewModel> Inputs { get; } = [];
@@ -43,6 +49,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>Graph position; the container writes it back on drag.</summary>
     [ObservableProperty]
     private Point _location;
+
+    /// <summary>The size the placement assumed, so the viewport can be fitted before the containers are measured.</summary>
+    public Size EstimatedSize { get; set; } = new(250, 80);
 
     /// <summary>Whether the facet rows show. The detailed style shows them; the compact one keeps the count only.</summary>
     [ObservableProperty]

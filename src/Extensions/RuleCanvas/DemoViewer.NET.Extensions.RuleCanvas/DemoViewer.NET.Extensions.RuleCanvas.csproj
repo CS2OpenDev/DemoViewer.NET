@@ -21,8 +21,13 @@
         <PackageReference Include="Avalonia"/>
         <PackageReference Include="CommunityToolkit.Mvvm"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
-        <!-- The canvas. Carried by this extension alone; the app never references it. -->
+        <!-- The canvas and its first placement. Both carried by this extension alone; the app never
+             references Nodify, and reaches MSAGL only through its own Visualization project. -->
         <PackageReference Include="Nodify.Avalonia"/>
+        <PackageReference Include="Msagl"/>
+        <!-- The SDK carries CS2DemoKit.Parser and not Analysis, so the ruleset loader, composer and
+             catalog need this one named here, as the Strat Book names it. -->
+        <PackageReference Include="CS2DemoKit.Analysis"/>
     </ItemGroup>
 
     <ItemGroup>
