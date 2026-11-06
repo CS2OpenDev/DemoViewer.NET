@@ -23,21 +23,37 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
     private readonly Func<string, bool> _selectTab;
     private readonly Func<RulesetCorpus> _loadCorpus;
+    private readonly Func<string?> _layoutFolder;
     private RulesetCorpus? _corpus;
 
     /// <param name="selectTab">Selects a host tab by id; the Authoring tab's id is <see cref="AuthoringTabId" />.</param>
     public CanvasTabViewModel(Func<string, bool> selectTab)
-        : this(selectTab, static () => RulesetCorpus.Load(RulesetCorpus.DefaultDirectories()))
+        : this(selectTab, static () => RulesetCorpus.Load(RulesetCorpus.DefaultDirectories()), static () => null)
     {
     }
 
     /// <param name="selectTab">Selects a host tab by id.</param>
     /// <param name="loadCorpus">Reads the rulesets the picker offers; called once, on first activation.</param>
-    public CanvasTabViewModel(Func<string, bool> selectTab, Func<RulesetCorpus> loadCorpus)
+    /// <param name="layoutFolder">
+    ///     The extension's own config folder, where a shipped ruleset's arrangement is kept since its own
+    ///     directory is not ours to write; null means shipped arrangements are not kept.
+    /// </param>
+    public CanvasTabViewModel(Func<string, bool> selectTab, Func<RulesetCorpus> loadCorpus, Func<string?> layoutFolder)
     {
         _selectTab = selectTab ?? throw new ArgumentNullException(nameof(selectTab));
         _loadCorpus = loadCorpus ?? throw new ArgumentNullException(nameof(loadCorpus));
+        _layoutFolder = layoutFolder ?? throw new ArgumentNullException(nameof(layoutFolder));
     }
+
+    /// <summary>
+    ///     Where the selected ruleset's arrangement lives: beside a user ruleset, under the extension's own
+    ///     folder for a shipped one, or null when there is nowhere to keep it.
+    /// </summary>
+    public string? SidecarPath => SidecarFor(SelectedRuleset);
+
+    /// <summary>True while a saved arrangement is applied, so it can be reset to the computed one.</summary>
+    [ObservableProperty]
+    private bool _hasSavedLayout;
 
     public ObservableCollection<CanvasNodeViewModel> Nodes { get; } = [];
 
@@ -110,7 +126,11 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         }
 
         RulesetCorpus.Composed composed = _corpus.Compose(value.Id);
-        (IReadOnlyList<CanvasNodeViewModel> nodes, IReadOnlyList<CanvasConnectionViewModel> wires) = CanvasGraphBuilder.Build(composed);
+        string? sidecar = SidecarFor(value);
+        RulesetNodeLayout layout = sidecar is null ? RulesetNodeLayout.Empty : RulesetLayoutStore.LoadSidecar(sidecar);
+        HasSavedLayout = layout.Count > 0;
+        OnPropertyChanged(nameof(SidecarPath));
+        (IReadOnlyList<CanvasNodeViewModel> nodes, IReadOnlyList<CanvasConnectionViewModel> wires) = CanvasGraphBuilder.Build(composed, layout);
         foreach (CanvasNodeViewModel node in nodes)
         {
             node.ShowFacets = ShowFacets;
@@ -139,6 +159,51 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         {
             node.ShowFacets = value;
         }
+    }
+
+    private string? SidecarFor(RulesetCorpus.Entry? entry)
+    {
+        if (entry is null)
+        {
+            return null;
+        }
+
+        if (entry.Source == "user")
+        {
+            return RulesetLayoutStore.SidecarPathFor(entry.Path);
+        }
+
+        string? folder = _layoutFolder();
+        return folder is null ? null : Path.Combine(folder, "layouts", entry.Id + RulesetLayoutStore.SidecarSuffix);
+    }
+
+    /// <summary>Writes every node's position to the sidecar. Bound to the editor's drag-completed command.</summary>
+    [RelayCommand]
+    private void SaveLayout()
+    {
+        string? sidecar = SidecarPath;
+        if (sidecar is null || Nodes.Count == 0)
+        {
+            return;
+        }
+
+        RulesetNodeLayout layout = RulesetNodeLayout.From(
+            Nodes.Select(n => new KeyValuePair<RulesetDocumentNodeKey, Avalonia.Point>(new RulesetDocumentNodeKey(n.Ruleset, n.Id), n.Location)));
+        HasSavedLayout = RulesetLayoutStore.SaveSidecar(sidecar, layout) && layout.Count > 0;
+    }
+
+    /// <summary>Drops the saved arrangement and places the ruleset again.</summary>
+    [RelayCommand]
+    private void ResetLayout()
+    {
+        string? sidecar = SidecarPath;
+        if (sidecar is not null)
+        {
+            RulesetLayoutStore.SaveSidecar(sidecar, RulesetNodeLayout.Empty);
+        }
+
+        RulesetCorpus.Entry? selected = SelectedRuleset;
+        OnSelectedRulesetChanged(selected);
     }
 
     [RelayCommand]

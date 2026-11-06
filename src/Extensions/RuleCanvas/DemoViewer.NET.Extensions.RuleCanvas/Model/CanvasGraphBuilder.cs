@@ -23,9 +23,10 @@ public static class CanvasGraphBuilder
     private const double ConnectorHeight = 22;
 
     public static (IReadOnlyList<CanvasNodeViewModel> Nodes, IReadOnlyList<CanvasConnectionViewModel> Connections) Build(
-        RulesetCorpus.Composed composed)
+        RulesetCorpus.Composed composed, RulesetNodeLayout? layout = null)
     {
         ArgumentNullException.ThrowIfNull(composed);
+        layout ??= RulesetNodeLayout.Empty;
         RulesetDocumentGraph graph = composed.Graph;
 
         Dictionary<RulesetDocumentNodeKey, CanvasNodeViewModel> byKey = new();
@@ -73,11 +74,12 @@ public static class CanvasGraphBuilder
         }
 
         IReadOnlyDictionary<RulesetDocumentNodeKey, Avalonia.Point> placed = CanvasPlacement.Place(items, graph.Edges);
+        // A saved arrangement wins per node; a node the sidecar does not know keeps its computed place.
         foreach (RulesetDocumentNode node in graph.Nodes)
         {
             if (placed.TryGetValue(node.Key, out Avalonia.Point at))
             {
-                byKey[node.Key].Location = at;
+                byKey[node.Key].Location = layout.PositionOf(node.Key, at);
             }
         }
 
@@ -166,6 +168,7 @@ public static class CanvasGraphBuilder
         return new CanvasNodeViewModel
         {
             Id = node.Id,
+            Ruleset = node.Key.Ruleset,
             Kind = node.Kind.ToString().ToLowerInvariant(),
             Label = string.Equals(label, node.Id, StringComparison.Ordinal) ? null : label,
             Chips = chips,

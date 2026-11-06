@@ -19,6 +19,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>The <c>stats:</c> or <c>highlights:</c> key.</summary>
     public required string Id { get; init; }
 
+    /// <summary>The ruleset that declares the node; with <see cref="Id" /> it is the node's identity in a layout.</summary>
+    public string Ruleset { get; init; } = "";
+
     /// <summary>The stat kind (<c>count</c>, <c>sum</c>, <c>compute</c> and so on), or <c>highlight</c>.</summary>
     public required string Kind { get; init; }
 

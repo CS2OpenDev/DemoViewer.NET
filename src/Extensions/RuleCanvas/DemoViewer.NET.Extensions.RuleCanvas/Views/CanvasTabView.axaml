@@ -71,6 +71,10 @@
                             Command="{Binding SetStyleCommand}" CommandParameter="detailed"
                             IsEnabled="{Binding IsCompact}" />
                     <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
+                    <Button Classes="ghost" Content="Reset arrangement" FontSize="12" Padding="8 3"
+                            Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding HasSavedLayout}"
+                            ToolTip.Tip="{Binding SidecarPath}" />
+                    <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
                     <Button Classes="ghost" Content="Open Authoring" FontSize="12" Padding="8 3"
                             Command="{Binding OpenAuthoringCommand}" />
                 </StackPanel>
@@ -101,7 +105,8 @@
 
         <nodify:NodifyEditor Grid.Row="1" x:Name="Editor"
                              ItemsSource="{Binding Nodes}"
-                             Connections="{Binding Connections}">
+                             Connections="{Binding Connections}"
+                             ItemsDragCompletedCommand="{Binding SaveLayoutCommand}">
 
             <!-- Graph position lives on the node view model; the container writes it back on drag. -->
             <nodify:NodifyEditor.ItemContainerTheme>

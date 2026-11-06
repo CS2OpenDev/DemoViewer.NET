@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.Modules;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,11 +57,17 @@ public sealed class RuleCanvasPack : IExtension
     public void Register(IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        // The shell lookup stays inside the delegate: the context is resolved on the click, not at
-        // construction, so the view model builds in a container that has no host context.
+        // The host context is resolved inside the delegates, on use, and as a keyed lookup that answers null
+        // rather than throwing: a shell test composes the pack in a container that has no host context, and
+        // the canvas still has to draw there, with nothing to select and nowhere to keep an arrangement.
         services.AddSingleton(sp => new CanvasTabViewModel(
-            tabId => sp.GetExtensionContext<RuleCanvasPack>().Shell.SelectTab(tabId)));
+            tabId => Context(sp)?.Shell.SelectTab(tabId) ?? false,
+            static () => RulesetCorpus.Load(RulesetCorpus.DefaultDirectories()),
+            () => Context(sp)?.Stores.Own(StoreRoot.Config)?.Path));
     }
+
+    private static IExtensionContext? Context(IServiceProvider services) =>
+        services.GetKeyedService<IExtensionContext>(typeof(RuleCanvasPack));
 
     /// <inheritdoc />
     public void Contribute(IExtensionContributions contributions, IServiceProvider services)
