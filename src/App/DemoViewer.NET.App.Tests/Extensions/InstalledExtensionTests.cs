@@ -339,6 +339,51 @@ public class InstalledExtensionTests
         }
     }
 
+    // The launch gate: off, or within the hour, asks nothing; due with nothing first-party to check asks
+    // nothing and says so, since the caller records the time only on a true; due with an installed copy
+    // asks the feed and stages.
+    [Test]
+    public async Task AutoStageAtLaunch_RunsOnlyWhenOnAndDue_AndReportsWhetherAFeedWasAsked()
+    {
+        string root = NewRoot();
+        using ECDsa key = NewKey(out string publicKey);
+        try
+        {
+            string first = InstallTree(root, Older, key);
+            (FakeFeedClient client, _) = Published(root, Built, key);
+            DateTimeOffset now = new(2026, 10, 3, 12, 0, 0, TimeSpan.Zero);
+            ExtensionUpdateService installed = new(root, [InstalledStatus(Id, Older, first)], ExtensionHost.Current,
+                TrustPolicy.Nothing, client, FeedUrl, installTrust: new SignedTrustPolicy([publicKey]));
+            ExtensionUpdateService nothingFirstParty = new(root, [], ExtensionHost.Current, TrustPolicy.Nothing,
+                client, FeedUrl, installTrust: new SignedTrustPolicy([publicKey]));
+
+            bool off = await installed.AutoStageAtLaunchAsync(false, null, now);
+            int fetchesAfterOff = client.FeedFetches;
+            bool withinTheHour = await installed.AutoStageAtLaunchAsync(true, now.AddMinutes(-30), now);
+            int fetchesAfterWithinTheHour = client.FeedFetches;
+            bool nothingToCheck = await nothingFirstParty.AutoStageAtLaunchAsync(true, null, now);
+            int fetchesAfterNothing = client.FeedFetches;
+            bool due = await installed.AutoStageAtLaunchAsync(true, now.AddHours(-1), now);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(off).IsFalse();
+                await Assert.That(fetchesAfterOff).IsEqualTo(0);
+                await Assert.That(withinTheHour).IsFalse();
+                await Assert.That(fetchesAfterWithinTheHour).IsEqualTo(0);
+                await Assert.That(nothingToCheck).IsFalse().Because("nothing was asked, so the record must not move");
+                await Assert.That(fetchesAfterNothing).IsEqualTo(0);
+                await Assert.That(due).IsTrue();
+                await Assert.That(client.FeedFetches).IsEqualTo(1);
+                await Assert.That(Directory.Exists(Path.Combine(root, "extensions", Id, Built))).IsTrue();
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     // ── Removal ──────────────────────────────────────────────────────────────────────────────────
 
     [Test]

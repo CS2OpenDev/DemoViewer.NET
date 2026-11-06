@@ -98,6 +98,13 @@ public sealed class ExtensionUpdateService
     public static TimeSpan AutoCheckInterval { get; } = TimeSpan.FromHours(1);
 
     /// <summary>
+    ///     Whether a check is due: nothing was ever recorded, or the last one is at least
+    ///     <see cref="AutoCheckInterval" /> ago. A clock that moved backwards reads as due as well.
+    /// </summary>
+    public static bool IsCheckDue(DateTimeOffset? lastCheckUtc, DateTimeOffset now) =>
+        lastCheckUtc is not { } last || now - last >= AutoCheckInterval || last > now;
+
+    /// <summary>
     ///     Whether a published version may be offered to this app. This is
     ///     <see cref="DefaultIsOffered" /> unless the constructor is given another.
     /// </summary>
@@ -358,6 +365,25 @@ public sealed class ExtensionUpdateService
 
         Remember(states);
         return states;
+    }
+
+    /// <summary>
+    ///     <see cref="AutoStageAsync" /> behind the launch rule: only when <paramref name="autoUpdate" />
+    ///     ("Install extension updates automatically") is on and <see cref="IsCheckDue" /> holds for
+    ///     <paramref name="lastCheckUtc" />. True when at least one feed was asked, which is when the caller
+    ///     records the time; false leaves the record alone, so a launch with no first-party extension to check
+    ///     never postpones the Settings check that lists the catalogue.
+    /// </summary>
+    public async Task<bool> AutoStageAtLaunchAsync(bool autoUpdate, DateTimeOffset? lastCheckUtc, DateTimeOffset now,
+        CancellationToken ct = default)
+    {
+        if (!autoUpdate || !IsCheckDue(lastCheckUtc, now))
+        {
+            return false;
+        }
+
+        IReadOnlyList<ExtensionUpdateState> states = await AutoStageAsync(ct).ConfigureAwait(false);
+        return states.Count > 0;
     }
 
     /// <summary>

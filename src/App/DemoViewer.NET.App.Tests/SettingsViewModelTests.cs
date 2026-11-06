@@ -1170,9 +1170,11 @@ public class SettingsViewModelTests
     }
 
     // The catalogue of installable first-party extensions: a build that does not ship the Strat Book lists it
-    // from the feed, Install stages it, and the row then says restart.
+    // on the first open of the run even within the hour of a recorded check (the launch stage records the time
+    // without asking the catalogue), the Check button asks again, Install stages it and the row then says
+    // restart, and a later open seeds from the remembered catalogue without asking.
     [Test]
-    public async Task InstallableExtensionRows_ListTheCatalogue_AndInstallSaysRestart()
+    public async Task InstallableExtensionRows_ListTheCatalogueOnceARun_TheButtonAsksAgain_AndInstallSaysRestart()
     {
         string dir = NewTempDir();
         try
@@ -1185,14 +1187,23 @@ public class SettingsViewModelTests
             };
             ExtensionUpdateService updater = new(dir, [], ExtensionHost.Current, TrustPolicy.Nothing, client,
                 UpdateFixtures.FeedUrl, installTrust: UpdateFixtures.TrustAll);
-            // The open-time check is suppressed so the one below is the only one.
+            // Within the hour, so the open asks the catalogue only because this run has not asked it yet.
             (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
                 packStatuses: [], extensionUpdates: updater, isBrowser: () => false,
                 seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
             await using (sp)
             {
-                bool emptyBefore = vm.HasInstallableExtensions;
+                // The open-time check is fire-and-forget; wait for its row.
+                DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+                while (!vm.HasInstallableExtensions && DateTimeOffset.UtcNow < deadline)
+                {
+                    await Task.Delay(20);
+                }
+
+                int fetchesOnOpen = client.FeedFetches;
+                await Task.Delay(50);
                 await vm.CheckExtensionUpdatesCommand.ExecuteAsync(null);
+                int fetchesAfterButton = client.FeedFetches;
                 InstallableExtensionRow row = vm.InstallableExtensionRows.Single();
                 string sizeBefore = row.Size;
                 bool canInstall = row.CanInstall;
@@ -1200,7 +1211,8 @@ public class SettingsViewModelTests
 
                 using (Assert.Multiple())
                 {
-                    await Assert.That(emptyBefore).IsFalse();
+                    await Assert.That(fetchesOnOpen).IsEqualTo(1);
+                    await Assert.That(fetchesAfterButton).IsEqualTo(2);
                     await Assert.That(vm.HasInstallableExtensions).IsTrue();
                     await Assert.That(row.Id).IsEqualTo(StratBookPack.PackId);
                     await Assert.That(row.Name).IsEqualTo("Fake");
@@ -1221,8 +1233,14 @@ public class SettingsViewModelTests
                 packStatuses: [], extensionUpdates: updater, isBrowser: () => false);
             await using (sp2)
             {
-                await Assert.That(again.InstallableExtensionRows.Select(r => r.Id))
-                    .IsEquivalentTo([StratBookPack.PackId]);
+                await Task.Delay(100);
+                using (Assert.Multiple())
+                {
+                    await Assert.That(again.InstallableExtensionRows.Select(r => r.Id))
+                        .IsEquivalentTo([StratBookPack.PackId]);
+                    await Assert.That(client.FeedFetches).IsEqualTo(2);
+                }
+
                 again.Dispose();
             }
         }

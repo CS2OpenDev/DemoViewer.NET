@@ -602,12 +602,19 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         RefreshFeatureRows();
         _gate.Changed += OnGateChanged;
 
-        // The feeds are asked on open, at most once an hour, unless automatic checks are off; the per-row
-        // button always asks. The catalogue of installable extensions is asked on the same rule.
-        if (current.Updates.CheckAutomatically
-            && ShouldAutoCheckExtensionUpdates(current.Extensions.LastUpdateCheckUtc, DateTimeOffset.UtcNow))
+        // The feeds are asked on open, at most once an hour, unless automatic checks are off; the Check
+        // buttons always ask. The catalogue follows the same rule, plus once a run when the hour has not
+        // passed: the launch stage records the time without asking the catalogue.
+        if (current.Updates.CheckAutomatically)
         {
-            _ = CheckExtensionUpdatesAsync();
+            if (ShouldAutoCheckExtensionUpdates(current.Extensions.LastUpdateCheckUtc, DateTimeOffset.UtcNow))
+            {
+                _ = CheckExtensionUpdatesAsync();
+            }
+            else if (extensionUpdates?.LastCatalogue is null)
+            {
+                _ = CheckInstallableExtensionsAsync();
+            }
         }
 
         // The 2D keybinding rows: the shipped table is the list, the resolved profile is the state.
@@ -2340,13 +2347,9 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     /// <summary>The update line of every declared extension, in row order; empty where updates do not apply.</summary>
     public List<ExtensionUpdateRow> ExtensionUpdateRows { get; } = [];
 
-    /// <summary>
-    ///     The open-time rule: check when nothing was ever recorded, or the last check is at least
-    ///     <see cref="ExtensionUpdateService.AutoCheckInterval" /> ago. A clock that moved backwards reads
-    ///     as due as well.
-    /// </summary>
+    /// <summary>The open-time rule, <see cref="ExtensionUpdateService.IsCheckDue" />: the launch stage runs on the same one.</summary>
     internal static bool ShouldAutoCheckExtensionUpdates(DateTimeOffset? lastCheckUtc, DateTimeOffset now) =>
-        lastCheckUtc is not { } last || now - last >= ExtensionUpdateService.AutoCheckInterval || last > now;
+        ExtensionUpdateService.IsCheckDue(lastCheckUtc, now);
 
     /// <summary>
     ///     Asks every extension's feed at once, as the open-time check does. The rows show "Checking" while

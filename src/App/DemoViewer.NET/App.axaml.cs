@@ -514,10 +514,10 @@ public class App : Application
     }
 
     /// <summary>
-    ///     The launch-time extension housekeeping: the staging sweep, then, when "Install extension updates
-    ///     automatically" is on and the hourly rule allows, the automatic stage of newer signed first-party
-    ///     versions, recorded under the same timestamp the Settings check writes. Never throws: a failure
-    ///     here is a log line, not a failed start.
+    ///     The launch-time extension housekeeping: the staging sweep, then the automatic stage of newer signed
+    ///     first-party versions behind its own rule (<see cref="ExtensionUpdateService.AutoStageAtLaunchAsync" />),
+    ///     recorded under the timestamp the Settings check writes only when a feed was asked. Never throws: a
+    ///     failure here is a log line, not a failed start.
     /// </summary>
     private static async Task TidyAndAutoStageExtensionsAsync(ExtensionUpdateService updates, SettingsService settings)
     {
@@ -525,14 +525,11 @@ public class App : Application
         {
             await updates.CleanupOnStartAsync();
             ExtensionsSettings current = settings.Current.Extensions;
-            if (!current.AutoUpdate
-                || !SettingsViewModel.ShouldAutoCheckExtensionUpdates(current.LastUpdateCheckUtc, DateTimeOffset.UtcNow))
+            if (await updates.AutoStageAtLaunchAsync(current.AutoUpdate, current.LastUpdateCheckUtc,
+                    DateTimeOffset.UtcNow))
             {
-                return;
+                settings.Write(s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
             }
-
-            await updates.AutoStageAsync();
-            settings.Write(s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

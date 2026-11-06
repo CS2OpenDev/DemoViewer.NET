@@ -868,6 +868,14 @@
                                                       OnContent="" OffContent=""
                                                       IsChecked="{Binding AutoUpdateExtensions, Mode=TwoWay}" />
                                     </Grid>
+
+                                    <!-- Asks every feed and the catalogue now, whatever the hourly rule says: the one
+                                         Check on a build with no extension row of its own. Desktop only. -->
+                                    <Button Classes="ghost" Padding="8,2" FontSize="10" HorizontalAlignment="Left"
+                                            Content="Check for updates"
+                                            Command="{Binding CheckExtensionUpdatesCommand}"
+                                            IsVisible="{x:Static settings:SettingsViewModel.ShowExternalExtensions}"
+                                            ToolTip.Tip="Checks every extension's feed now and lists the extensions this build can install." />
                                 </StackPanel>
                             </Border>
                         </StackPanel>

@@ -670,12 +670,14 @@ for each declared first-party extension this process runs (an id under the reser
 staged or installed, with a readable manifest), the feed is checked and a newer offered version is staged
 with the install policy, so nothing unverified is ever staged this way; the state is then remembered as
 the Settings row shows it (`PendingRestart` after a stage, the check's own state otherwise), and a
-Settings open within the hour seeds from it. `App.axaml.cs` runs it after the startup sweep below when
-`Extensions.AutoUpdate` is on (the Settings toggle "Install extension updates automatically", on by
-default) and `Extensions.LastUpdateCheckUtc` is unset or at least an hour old, and records the time
-through the same field the Settings check writes. A background item does not run while the user has
-background processing off; that is the queue's rule for every background job, not worked around here,
-and the Settings Check button remains the path that always asks.
+Settings open within the hour seeds from it. `AutoStageAtLaunchAsync` is the gate `App.axaml.cs` calls
+after the startup sweep below: it runs the stage when `Extensions.AutoUpdate` is on (the Settings toggle
+"Install extension updates automatically", on by default) and `Extensions.LastUpdateCheckUtc` is unset or
+at least an hour old (`IsCheckDue`, the rule the Settings open shares), and answers whether a feed was
+asked; only then does the app record the time through the field the Settings check writes, so a build
+with no first-party extension to check never postpones the Settings check that lists the catalogue. A
+background item does not run while the user has background processing off; that is the queue's rule for
+every background job, not worked around here, and the Settings Check buttons remain the path that always asks.
 
 **Removal.** `RemoveInstalledAsync(id)` is allowed for a status whose source is `PackSource.Installed`
 and for a catalogue id with folders on disk and no status, never for a shipped id: a shipped extension is
@@ -700,8 +702,10 @@ therefore on disk until the next launch's sweep, which is the stated expectation
 an `ExtensionUpdateRow`): the verdict, a Check button (always, unless a download runs), an Update button
 while a version is offered, a Cancel button and a progress bar while one downloads. Opening Settings checks
 every feed when `Extensions.LastUpdateCheckUtc` is unset or at least an hour old, and records the time
-after every finished check; within the hour the rows seed from the service's remembered verdict. The copy,
-one sentence per state:
+after every finished check; within the hour the rows seed from the service's remembered verdict, and the
+catalogue is asked once a run when nothing remembered it yet. The Extensions card's own "Check for updates"
+button asks every feed and the catalogue whatever the hour says, and is the only Check on a build with no
+extension row of its own. The copy, one sentence per state:
 
 | State | Line |
 |---|---|
