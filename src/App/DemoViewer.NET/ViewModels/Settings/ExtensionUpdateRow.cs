@@ -12,14 +12,15 @@ namespace DemoViewer.NET.ViewModels.Settings;
 
 /// <summary>
 ///     The update line under an extension's master row in Settings: the last
-///     check's verdict in user terms, a Check button, an Update button while a version is offered, and the
-///     download's progress while it runs. One per declared pack. A row with no service (the browser head)
-///     says updates come with the app and offers nothing.
+///     check's verdict in user terms, a Check button, an Update button while a version is offered, the
+///     download's progress while it runs, and Remove for an installed first-party extension. One per
+///     declared pack. A row with no service (the browser head) says updates come with the app and offers nothing.
 /// </summary>
 public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
 {
     private readonly ExtensionUpdateService? _service;
     private readonly Action? _onChecked;
+    private readonly PackSource? _source;
     private CancellationTokenSource? _download;
     private bool _disposed;
 
@@ -64,15 +65,27 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(HasFailure))]
     private string? _failure;
 
+    /// <summary>True once Remove was pressed; the folder goes at the next start.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Message))]
+    [NotifyPropertyChangedFor(nameof(HasMessage))]
+    [NotifyPropertyChangedFor(nameof(CanRemove))]
+    [NotifyPropertyChangedFor(nameof(CanUpdate))]
+    [NotifyPropertyChangedFor(nameof(ShowCheck))]
+    private bool _isRemoved;
+
     /// <param name="packId">The extension id.</param>
     /// <param name="service">The updater, or null where updates do not apply (the browser head).</param>
     /// <param name="onChecked">Runs after every finished check, so the owner can record the time.</param>
-    internal ExtensionUpdateRow(string packId, ExtensionUpdateService? service, Action? onChecked = null)
+    /// <param name="source">Where the running copy came from; Remove is offered for an installed first-party one.</param>
+    internal ExtensionUpdateRow(string packId, ExtensionUpdateService? service, Action? onChecked = null,
+        PackSource? source = null)
     {
         ArgumentNullException.ThrowIfNull(packId);
         PackId = packId;
         _service = service;
         _onChecked = onChecked;
+        _source = source;
         _state = service?.LastState(packId);
     }
 
@@ -83,14 +96,21 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
     public bool IsSupported => _service is not null;
 
     /// <summary>The Check button shows whenever updates apply here and no download is running.</summary>
-    public bool ShowCheck => IsSupported && !IsDownloading;
+    public bool ShowCheck => IsSupported && !IsDownloading && !IsRemoved;
 
     /// <summary>The Check button is enabled while nothing else is in flight.</summary>
     public bool CanCheck => IsSupported && !IsChecking && !IsDownloading;
 
     /// <summary>The Update button shows while a version is offered and nothing is in flight.</summary>
-    public bool CanUpdate => IsSupported && !IsChecking && !IsDownloading
+    public bool CanUpdate => IsSupported && !IsChecking && !IsDownloading && !IsRemoved
         && State?.Status == ExtensionUpdateStatus.UpdateAvailable;
+
+    /// <summary>
+    ///     Remove shows for an installed first-party extension (one this build does not ship) while nothing
+    ///     is in flight. A shipped extension is turned off, never removed.
+    /// </summary>
+    public bool CanRemove => IsSupported && _source is PackSource.Installed && !IsChecking && !IsDownloading
+        && !IsRemoved;
 
     /// <summary>The offered version's text, for the Update button's tooltip; null when none.</summary>
     public string? OfferedVersion => State?.Offered?.Version.ToString();
@@ -117,6 +137,11 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
                 return "Updates come with the app.";
             }
 
+            if (IsRemoved)
+            {
+                return RemovedMessage;
+            }
+
             if (IsChecking)
             {
                 return "Checking for updates…";
@@ -131,6 +156,9 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
             return State is null ? string.Empty : Describe(State);
         }
     }
+
+    /// <summary>The line after Remove: the folder is deleted when the app next starts.</summary>
+    public const string RemovedMessage = "Removed, restart to finish.";
 
     /// <summary>The sentence for <paramref name="state" />, the same one the row shows.</summary>
     public static string Describe(ExtensionUpdateState state)
@@ -230,6 +258,21 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
     [RelayCommand]
     private void CancelDownload() => _download?.Cancel();
 
+    /// <summary>Marks the installed extension for removal; its folder goes at the next start.</summary>
+    [RelayCommand]
+    private async Task RemoveAsync()
+    {
+        if (_service is null || !CanRemove)
+        {
+            return;
+        }
+
+        if (await _service.RemoveInstalledAsync(PackId))
+        {
+            IsRemoved = true;
+        }
+    }
+
     /// <summary>Stops a download the window's closing leaves behind.</summary>
     public void Dispose()
     {
@@ -242,10 +285,14 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
         _download?.Cancel();
     }
 
-    private static string NeedsNewerApp(ExtensionUpdateState state)
+    private static string NeedsNewerApp(ExtensionUpdateState state) =>
+        NeedsNewerApp(state.Latest, state.LatestCompatibility);
+
+    /// <summary>The sentence for a published version this app cannot run, naming what it needs.</summary>
+    internal static string NeedsNewerApp(ExtensionFeedEntry? latest, PackCompatibility? compatibility)
     {
-        string version = state.Latest?.Version.ToString() ?? "A newer version";
-        return state.LatestCompatibility switch
+        string version = latest?.Version.ToString() ?? "A newer version";
+        return compatibility switch
         {
             PackCompatibility.HostContractMismatch h =>
                 $"{version} available but needs app contract {h.Required} (this app provides {h.Actual}).",
@@ -257,6 +304,7 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
         };
     }
 
-    private static string Megabytes(long bytes) =>
+    /// <summary>Bytes as megabytes with one decimal, the form every download line uses.</summary>
+    internal static string Megabytes(long bytes) =>
         (bytes / (1024.0 * 1024.0)).ToString("0.0", CultureInfo.InvariantCulture);
 }

@@ -529,8 +529,13 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         AppSettings current = settings.Current;
         _allowUnverifiedExtensions = current.Extensions.AllowUnverified;
         _allowUnverifiedAtOpen = current.Extensions.AllowUnverified;
+        _autoUpdateExtensions = current.Extensions.AutoUpdate;
         ExternalExtensionRows =
             ExternalExtensionRow.Build(StatusesOrProcess(packStatuses), FeaturePacks.ExternalRejected);
+        foreach (InstallableExtension entry in extensionUpdates?.LastCatalogue ?? [])
+        {
+            InstallableExtensionRows.Add(new InstallableExtensionRow(entry, extensionUpdates!));
+        }
         _selectedCategoryOption = OptionFor(current.UserCategory);
         _selectedTheme = ThemeFor(current.Theme);
         UpdateSelectedThemeMissing();
@@ -598,7 +603,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         _gate.Changed += OnGateChanged;
 
         // The feeds are asked on open, at most once an hour, unless automatic checks are off; the per-row
-        // button always asks.
+        // button always asks. The catalogue of installable extensions is asked on the same rule.
         if (current.Updates.CheckAutomatically
             && ShouldAutoCheckExtensionUpdates(current.Extensions.LastUpdateCheckUtc, DateTimeOffset.UtcNow))
         {
@@ -766,6 +771,91 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         Persist(s => s.Extensions.AllowUnverified = value);
     }
 
+    // ── Installable first-party extensions ──
+
+    /// <summary>"Install extension updates automatically": newer signed versions are staged at launch.</summary>
+    [ObservableProperty]
+    private bool _autoUpdateExtensions;
+
+    /// <summary>The setting's label, verbatim.</summary>
+    public static string AutoUpdateLabel => "Install extension updates automatically";
+
+    /// <summary>
+    ///     The first-party extensions this build can install but does not have, from the last catalogue
+    ///     check; empty before the first check of the run.
+    /// </summary>
+    public ObservableCollection<InstallableExtensionRow> InstallableExtensionRows { get; } = [];
+
+    /// <summary>True when the catalogue lists anything.</summary>
+    public bool HasInstallableExtensions => InstallableExtensionRows.Count > 0;
+
+    partial void OnAutoUpdateExtensionsChanged(bool value)
+    {
+        if (_applyingExternal)
+        {
+            return;
+        }
+
+        Persist(s => s.Extensions.AutoUpdate = value);
+    }
+
+    /// <summary>
+    ///     Asks the catalogue, as the open-time check does, and rebuilds the rows from the answer. Desktop only:
+    ///     the browser has nowhere to install to.
+    /// </summary>
+    private async Task CheckInstallableExtensionsAsync()
+    {
+        if (_extensionUpdates is null || _isBrowser() || _disposed || _checkingInstallable)
+        {
+            return;
+        }
+
+        _checkingInstallable = true;
+        try
+        {
+            IReadOnlyList<InstallableExtension> entries =
+                await _extensionUpdates.CheckCatalogueAsync(_extensionUpdatesCts.Token);
+            if (_disposed)
+            {
+                return;
+            }
+
+            foreach (InstallableExtension entry in entries)
+            {
+                InstallableExtensionRow? row = InstallableExtensionRows.FirstOrDefault(r => r.Id == entry.Id);
+                if (row is null)
+                {
+                    InstallableExtensionRows.Add(new InstallableExtensionRow(entry, _extensionUpdates));
+                }
+                else if (!row.IsDownloading)
+                {
+                    row.Apply(entry);
+                }
+            }
+
+            for (int i = InstallableExtensionRows.Count - 1; i >= 0; i--)
+            {
+                if (entries.All(e => e.Id != InstallableExtensionRows[i].Id))
+                {
+                    InstallableExtensionRows[i].Dispose();
+                    InstallableExtensionRows.RemoveAt(i);
+                }
+            }
+
+            OnPropertyChanged(nameof(HasInstallableExtensions));
+        }
+        catch (OperationCanceledException)
+        {
+            // The window closed first; nothing to show.
+        }
+        finally
+        {
+            _checkingInstallable = false;
+        }
+    }
+
+    private bool _checkingInstallable;
+
     // The statuses passed in, else the process's own.
     private static IReadOnlyList<PackStatus> StatusesOrProcess(IReadOnlyList<PackStatus>? statuses) =>
         statuses ?? FeaturePacks.Statuses;
@@ -898,6 +988,11 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         _extensionUpdatesCts.Cancel();
         _extensionUpdatesCts.Dispose();
         foreach (ExtensionUpdateRow row in ExtensionUpdateRows)
+        {
+            row.Dispose();
+        }
+
+        foreach (InstallableExtensionRow row in InstallableExtensionRows)
         {
             row.Dispose();
         }
@@ -2237,7 +2332,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
             return null;
         }
 
-        ExtensionUpdateRow row = new(status.Pack.Id, _extensionUpdates, RecordExtensionUpdateCheck);
+        ExtensionUpdateRow row = new(status.Pack.Id, _extensionUpdates, RecordExtensionUpdateCheck, status.Source);
         ExtensionUpdateRows.Add(row);
         return row;
     }
@@ -2261,8 +2356,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task CheckExtensionUpdatesAsync()
     {
-        if (_extensionUpdates is null || ExtensionUpdateRows.Count == 0 || _disposed
-            || ExtensionUpdateRows.Any(r => r.IsChecking))
+        if (_extensionUpdates is null || _disposed || ExtensionUpdateRows.Any(r => r.IsChecking))
         {
             return;
         }
@@ -2274,12 +2368,17 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
         try
         {
-            IReadOnlyList<ExtensionUpdateState> states = await _extensionUpdates.CheckAsync(_extensionUpdatesCts.Token);
-            foreach (ExtensionUpdateState state in states)
+            if (ExtensionUpdateRows.Count > 0)
             {
-                ExtensionUpdateRows.FirstOrDefault(r => r.PackId == state.PackId)?.Apply(state);
+                IReadOnlyList<ExtensionUpdateState> states =
+                    await _extensionUpdates.CheckAsync(_extensionUpdatesCts.Token);
+                foreach (ExtensionUpdateState state in states)
+                {
+                    ExtensionUpdateRows.FirstOrDefault(r => r.PackId == state.PackId)?.Apply(state);
+                }
             }
 
+            await CheckInstallableExtensionsAsync();
             RecordExtensionUpdateCheck();
         }
         catch (OperationCanceledException)
@@ -2571,6 +2670,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
             IdleKeepBackgroundProcessing = settings.Idle.KeepBackgroundProcessing;
             SubscribeToBeta = settings.Updates.SubscribeToBeta;
             CheckForUpdatesAutomatically = settings.Updates.CheckAutomatically;
+            AutoUpdateExtensions = settings.Extensions.AutoUpdate;
         }
         finally
         {

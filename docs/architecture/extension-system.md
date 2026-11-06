@@ -717,7 +717,14 @@ one sentence per state:
 | `FeedInvalid` | `Could not check for updates: the update feed could not be read.` |
 | `Unknown` | `Updates cannot be checked: the extension's own manifest could not be read.` |
 | a refused download | the offer stands, plus an amber `Update 1.0.1 could not be installed: <reason>.` |
+| after Remove on an installed extension | `Removed, restart to finish.` |
 | browser head | `Updates come with the app.`, no buttons |
+
+The "Available extensions" card above the third-party list lists the catalogue: `Strat Book 0.1.4, 4.5 MB`
+and Install; `Downloading 0.1.4: 1.2 of 4.5 MB` with the bar and Cancel; `0.1.4 installed, restart to use
+it.`; an amber `Strat Book 0.1.4 could not be installed: <reason>.`; the `NeedsNewerApp` sentence above; or,
+for a copy on disk this launch refused, its `UserMessage` and Remove. The card is hidden when the
+catalogue lists nothing, which is every build that ships the Strat Book.
 
 Copy says "extension" and "update", never "pack". The UiCapture variants
 `settings-extensions-update-available` and `settings-extensions-update-installed` render the two states

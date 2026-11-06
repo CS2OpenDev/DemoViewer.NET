@@ -1169,6 +1169,192 @@ public class SettingsViewModelTests
         }
     }
 
+    // The catalogue of installable first-party extensions: a build that does not ship the Strat Book lists it
+    // from the feed, Install stages it, and the row then says restart.
+    [Test]
+    public async Task InstallableExtensionRows_ListTheCatalogue_AndInstallSaysRestart()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            byte[] zip = UpdateFixtures.ExtensionZip(StratBookPack.PackId, "9.9.9");
+            FakeFeeds.Entry entry = new("9.9.9", zip);
+            UpdateFixtures.FakeFeedClient client = new()
+            {
+                Zips = { [entry.Url] = zip }, Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(entry) }
+            };
+            ExtensionUpdateService updater = new(dir, [], ExtensionHost.Current, TrustPolicy.Nothing, client,
+                UpdateFixtures.FeedUrl, installTrust: UpdateFixtures.TrustAll);
+            // The open-time check is suppressed so the one below is the only one.
+            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
+                packStatuses: [], extensionUpdates: updater, isBrowser: () => false,
+                seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
+            await using (sp)
+            {
+                bool emptyBefore = vm.HasInstallableExtensions;
+                await vm.CheckExtensionUpdatesCommand.ExecuteAsync(null);
+                InstallableExtensionRow row = vm.InstallableExtensionRows.Single();
+                string sizeBefore = row.Size;
+                bool canInstall = row.CanInstall;
+                await row.InstallCommand.ExecuteAsync(null);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(emptyBefore).IsFalse();
+                    await Assert.That(vm.HasInstallableExtensions).IsTrue();
+                    await Assert.That(row.Id).IsEqualTo(StratBookPack.PackId);
+                    await Assert.That(row.Name).IsEqualTo("Fake");
+                    await Assert.That(row.Version).IsEqualTo("9.9.9");
+                    await Assert.That(sizeBefore).IsEqualTo("0.0 MB");
+                    await Assert.That(canInstall).IsTrue();
+                    await Assert.That(row.CanInstall).IsFalse();
+                    await Assert.That(row.Message).IsEqualTo("9.9.9 installed, restart to use it.");
+                    await Assert.That(Directory.Exists(Path.Combine(dir, "extensions", StratBookPack.PackId, "9.9.9")))
+                        .IsTrue();
+                }
+
+                vm.Dispose();
+            }
+
+            // A second open within the hour seeds the rows from the service's remembered catalogue.
+            (SettingsViewModel again, SettingsService _, IFeatureGate _, ServiceProvider sp2) = NewVm(dir,
+                packStatuses: [], extensionUpdates: updater, isBrowser: () => false);
+            await using (sp2)
+            {
+                await Assert.That(again.InstallableExtensionRows.Select(r => r.Id))
+                    .IsEquivalentTo([StratBookPack.PackId]);
+                again.Dispose();
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    // One sentence per catalogue state, the same vocabulary the update line uses.
+    [Test]
+    public async Task InstallableExtensionRow_Describe_OneSentencePerState()
+    {
+        ExtensionFeedEntry offered = ExtensionFeed.Parse(FakeFeeds.Json(new FakeFeeds.Entry("1.0.1"))).Entries.Single();
+        InstallableExtension available = new(FakeFeeds.Id, "Fake", offered, offered, null, null, null,
+            InstallableStatus.Available);
+        LoadOutcome refused = new("/extensions/x/1.0.0", FakeManifests.For(FakeFeeds.Id, "Fake", "1.0.0"),
+            LoadFailure.ReservedId, "the copy is not signed", External: true);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(InstallableExtensionRow.Describe(available)).IsEmpty();
+            await Assert.That(InstallableExtensionRow.Describe(available with
+                {
+                    Status = InstallableStatus.PendingRestart, Staged = SemVersion.Parse("1.0.1"), Offered = null
+                }))
+                .IsEqualTo("1.0.1 installed, restart to use it.");
+            await Assert.That(InstallableExtensionRow.Describe(available with
+                {
+                    Status = InstallableStatus.NotLoaded, Rejected = refused, Offered = null
+                }))
+                .IsEqualTo("Fake 1.0.0 was not loaded: the copy is not signed");
+            await Assert.That(InstallableExtensionRow.Describe(available with
+                {
+                    Status = InstallableStatus.NotPublished, Offered = null, Latest = null
+                }))
+                .IsEqualTo("Nothing has been published yet.");
+            await Assert.That(InstallableExtensionRow.Describe(available with
+                {
+                    Status = InstallableStatus.FeedUnreachable, Error = "the update feed could not be reached"
+                }))
+                .IsEqualTo("Could not check: the update feed could not be reached.");
+        }
+    }
+
+    [Test]
+    public async Task AutoUpdateExtensions_IsOnByDefault_AndPersists()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
+            await using (sp)
+            {
+                bool before = vm.AutoUpdateExtensions;
+                vm.AutoUpdateExtensions = false;
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(before).IsTrue();
+                    await Assert.That(svc.Current.Extensions.AutoUpdate).IsFalse();
+                    await Assert.That(SettingsViewModel.AutoUpdateLabel)
+                        .IsEqualTo("Install extension updates automatically");
+                }
+
+                vm.Dispose();
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    // Remove shows on an installed first-party extension's update line, never on the shipped one; pressing
+    // it marks the folder and the line says restart.
+    [Test]
+    public async Task ExtensionMasterRow_OffersRemove_ForAnInstalledCopyOnly()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            PackStatus real = FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId);
+            string installedDir = Path.Combine(dir, "extensions", StratBookPack.PackId, real.Manifest!.Version.ToString());
+            Directory.CreateDirectory(installedDir);
+            await File.WriteAllTextAsync(Path.Combine(installedDir, "marker.txt"), "x");
+            PackStatus installed = real with { Source = new PackSource.Installed(installedDir) };
+            UpdateFixtures.FakeFeedClient client = new();
+            ExtensionUpdateService installedUpdater = new(dir, [installed], ExtensionHost.Current, TrustPolicy.Nothing,
+                client, UpdateFixtures.FeedUrl);
+
+            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
+                packStatuses: [installed], extensionUpdates: installedUpdater, isBrowser: () => false,
+                seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
+            await using (sp)
+            {
+                ExtensionUpdateRow update = Row(vm, StratBookPack.PackFeatureId).Update!;
+                bool canRemove = update.CanRemove;
+                await update.RemoveCommand.ExecuteAsync(null);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(Row(vm, StratBookPack.PackFeatureId).SourceLabel).IsEqualTo("(installed)");
+                    await Assert.That(canRemove).IsTrue();
+                    await Assert.That(update.IsRemoved).IsTrue();
+                    await Assert.That(update.CanRemove).IsFalse();
+                    await Assert.That(update.Message).IsEqualTo("Removed, restart to finish.");
+                    await Assert.That(File.Exists(ExtensionStaging.RemovalMarkerPath(Path.Combine(dir, "extensions"),
+                        StratBookPack.PackId))).IsTrue();
+                    await Assert.That(Directory.Exists(installedDir)).IsTrue()
+                        .Because("the loaded copy goes at the next start, not now");
+                }
+
+                vm.Dispose();
+            }
+
+            (SettingsViewModel shippedVm, SettingsService _, IFeatureGate _, ServiceProvider sp2) = NewVm(dir,
+                extensionUpdates: NewUpdater(dir, client), isBrowser: () => false,
+                seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
+            await using (sp2)
+            {
+                await Assert.That(Row(shippedVm, StratBookPack.PackFeatureId).Update!.CanRemove).IsFalse()
+                    .Because("a shipped extension is turned off, never removed");
+                shippedVm.Dispose();
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     // The master row carries the manifest version (from FeaturePacks.Statuses by default), its
     // children none.
     [Test]
