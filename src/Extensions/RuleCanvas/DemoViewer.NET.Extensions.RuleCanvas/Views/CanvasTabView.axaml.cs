@@ -1,5 +1,6 @@
 #region
 
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -10,8 +11,8 @@ using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 namespace DemoViewer.NET.Extensions.RuleCanvas.Views;
 
 /// <summary>
-///     The Canvas section view. Bindings, plus one thing a binding cannot do: fit the viewport to the graph
-///     after the view model replaces it, once the containers have been laid out.
+///     The Canvas section view. Bindings, plus what a binding cannot do: fit the viewport to the graph after
+///     the view model replaces it, feed the source pane its text, and move its caret to a selected node's line.
 /// </summary>
 public partial class CanvasTabView : UserControl
 {
@@ -30,13 +31,38 @@ public partial class CanvasTabView : UserControl
         if (_viewModel is not null)
         {
             _viewModel.GraphReplaced -= FitLater;
+            _viewModel.JumpRequested -= JumpTo;
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
         _viewModel = viewModel;
         if (_viewModel is not null)
         {
             _viewModel.GraphReplaced += FitLater;
+            _viewModel.JumpRequested += JumpTo;
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            Source.Text = _viewModel.DocumentText;
         }
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(CanvasTabViewModel.DocumentText) && _viewModel is not null)
+        {
+            Source.Text = _viewModel.DocumentText;
+        }
+    }
+
+    // The caret lands on the line and the whole line is selected, so the entry reads as picked rather than
+    // merely scrolled into view. A line past the document's end, which a stale read could produce, is clamped.
+    private void JumpTo(int line)
+    {
+        int safeLine = Math.Clamp(line, 1, Math.Max(1, Source.Document.LineCount));
+        AvaloniaEdit.Document.DocumentLine documentLine = Source.Document.GetLineByNumber(safeLine);
+        Source.TextArea.Caret.Line = safeLine;
+        Source.TextArea.Caret.Column = 1;
+        Source.Select(documentLine.Offset, documentLine.Length);
+        Source.ScrollToLine(safeLine);
     }
 
     // Background priority runs after the layout pass that gives the editor its bounds. The extent comes from

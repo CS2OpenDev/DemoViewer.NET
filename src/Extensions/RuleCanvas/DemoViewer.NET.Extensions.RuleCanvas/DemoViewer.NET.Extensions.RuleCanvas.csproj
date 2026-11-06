@@ -25,6 +25,9 @@
              references Nodify, and reaches MSAGL only through its own Visualization project. -->
         <PackageReference Include="Nodify.Avalonia"/>
         <PackageReference Include="Msagl"/>
+        <!-- The source pane. The app ships this assembly and its theme, so at run time the extension shares
+             the app's copy; the pin is the app's pin. -->
+        <PackageReference Include="Avalonia.AvaloniaEdit"/>
         <!-- The SDK carries CS2DemoKit.Parser and not Analysis, so the ruleset loader, composer and
              catalog need this one named here, as the Strat Book names it. -->
         <PackageReference Include="CS2DemoKit.Analysis"/>

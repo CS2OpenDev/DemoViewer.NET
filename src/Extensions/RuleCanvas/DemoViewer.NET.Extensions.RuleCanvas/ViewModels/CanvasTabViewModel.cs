@@ -43,6 +43,18 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         _selectTab = selectTab ?? throw new ArgumentNullException(nameof(selectTab));
         _loadCorpus = loadCorpus ?? throw new ArgumentNullException(nameof(loadCorpus));
         _layoutFolder = layoutFolder ?? throw new ArgumentNullException(nameof(layoutFolder));
+        SelectedNodes.CollectionChanged += (_, _) => JumpToSelection();
+    }
+
+    // Only a node the open document declares can be jumped to; a use: dependency's node lives in another
+    // file, which the pane does not show.
+    private void JumpToSelection()
+    {
+        if (SelectedNodes.OfType<CanvasNodeViewModel>().FirstOrDefault(n => n.IsAuthorable && n.SourceLine > 0) is { } node)
+        {
+            SelectedLine = node.SourceLine;
+            JumpRequested?.Invoke(node.SourceLine);
+        }
     }
 
     /// <summary>
@@ -60,6 +72,28 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     public ObservableCollection<CanvasConnectionViewModel> Connections { get; } = [];
 
     public ObservableCollection<RulesetCorpus.Entry> Rulesets { get; } = [];
+
+    /// <summary>The editor's selection, written by the editor. The first selected node drives the source jump.</summary>
+    public ObservableCollection<object> SelectedNodes { get; } = [];
+
+    /// <summary>The selected ruleset's YAML, as the file reads; empty when none is selected or it cannot be read.</summary>
+    [ObservableProperty]
+    private string _documentText = "";
+
+    /// <summary>The selected ruleset's file name, for the source pane's header.</summary>
+    [ObservableProperty]
+    private string _documentName = "";
+
+    /// <summary>Whether the source pane shows beside the canvas.</summary>
+    [ObservableProperty]
+    private bool _showSource = true;
+
+    /// <summary>The line the source pane was last asked to show, 1-based; 0 before any jump.</summary>
+    [ObservableProperty]
+    private int _selectedLine;
+
+    /// <summary>Raised on the UI thread with a 1-based line when a selected node names where it is declared.</summary>
+    public event Action<int>? JumpRequested;
 
     /// <summary>The ruleset drawn. Setting it composes and redraws.</summary>
     [ObservableProperty]
@@ -119,10 +153,24 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     {
         Nodes.Clear();
         Connections.Clear();
+        SelectedNodes.Clear();
+        SelectedLine = 0;
         Diagnostics = "";
+        DocumentText = "";
+        DocumentName = "";
         if (value is null || _corpus is null)
         {
             return;
+        }
+
+        DocumentName = Path.GetFileName(value.Path);
+        try
+        {
+            DocumentText = File.ReadAllText(value.Path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            DocumentText = "";
         }
 
         RulesetCorpus.Composed composed = _corpus.Compose(value.Id);
@@ -208,6 +256,9 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
     [RelayCommand]
     private void SetStyle(string style) => ShowFacets = style != "compact";
+
+    [RelayCommand]
+    private void ToggleSource() => ShowSource = !ShowSource;
 
     [RelayCommand]
     private void OpenAuthoring() => AuthoringUnavailable = !_selectTab(AuthoringTabId);

@@ -130,6 +130,7 @@ public class RuleCanvasHubTests
                     await Assert.That(texts).Contains("round_kast");
                     await Assert.That(texts).Contains("enemy").Because("the detailed style shows the facet rows");
                     await Assert.That(texts).Contains("while player.alive").Because("the gate is a chip");
+                    await Assert.That(texts).Contains("player_round.rules.yaml").Because("the source pane names the file it shows");
                 }
             }
             finally

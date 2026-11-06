@@ -5,6 +5,7 @@
              xmlns:nodify="clr-namespace:Nodify.Avalonia;assembly=Nodify.Avalonia"
              xmlns:nodes="clr-namespace:Nodify.Avalonia.Nodes;assembly=Nodify.Avalonia"
              xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia"
+             xmlns:ae="using:AvaloniaEdit"
              x:Class="DemoViewer.NET.Extensions.RuleCanvas.Views.CanvasTabView"
              x:DataType="vm:CanvasTabViewModel">
 
@@ -71,6 +72,10 @@
                             Command="{Binding SetStyleCommand}" CommandParameter="detailed"
                             IsEnabled="{Binding IsCompact}" />
                     <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
+                    <Button Classes="ghost" Content="Source" FontSize="12" Padding="8 3"
+                            Command="{Binding ToggleSourceCommand}"
+                            ToolTip.Tip="Show or hide the ruleset's YAML beside the canvas" />
+                    <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
                     <Button Classes="ghost" Content="Reset arrangement" FontSize="12" Padding="8 3"
                             Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding HasSavedLayout}"
                             ToolTip.Tip="{Binding SidecarPath}" />
@@ -103,9 +108,37 @@
             </DockPanel>
         </Border>
 
-        <nodify:NodifyEditor Grid.Row="1" x:Name="Editor"
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+
+        <!-- The ruleset's YAML, read-only for now; a selected node scrolls it to the line that declares it. -->
+        <Border Grid.Column="1" Width="440" IsVisible="{Binding ShowSource}"
+                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1 0 0 0"
+                Background="{DynamicResource PanelBg}">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Background="{DynamicResource PanelHeaderBg}"
+                        BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="10 5">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="{DynamicResource TextDim}"
+                                   VerticalAlignment="Center" Text="read only" />
+                        <TextBlock Text="{Binding DocumentName}" FontSize="12" FontFamily="monospace"
+                                   Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                    </DockPanel>
+                </Border>
+                <ae:TextEditor x:Name="Source"
+                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                               FontSize="12"
+                               ShowLineNumbers="True"
+                               IsReadOnly="True"
+                               WordWrap="False"
+                               Background="{DynamicResource PanelBg}"
+                               Foreground="{DynamicResource TextValue}" />
+            </DockPanel>
+        </Border>
+
+        <nodify:NodifyEditor Grid.Column="0" x:Name="Editor"
                              ItemsSource="{Binding Nodes}"
                              Connections="{Binding Connections}"
+                             SelectedItems="{Binding SelectedNodes}"
                              ItemsDragCompletedCommand="{Binding SaveLayoutCommand}">
 
             <!-- Graph position lives on the node view model; the container writes it back on drag. -->
@@ -207,5 +240,6 @@
                 </DataTemplate>
             </nodify:NodifyEditor.ItemTemplate>
         </nodify:NodifyEditor>
+        </Grid>
     </Grid>
 </UserControl>
