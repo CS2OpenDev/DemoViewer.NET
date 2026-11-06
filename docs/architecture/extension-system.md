@@ -1034,6 +1034,17 @@ which touches `ShippedPack.BesideApp`, the app csproj and the loader and matrix 
 installed first-party extension (section 2) is not affected, since nothing of it sits in the output
 directory.
 
+**The pilot.** `InstalledExtensionTests` proves the installed path on the Strat Book without changing how
+it ships: the extension assembly this test process runs and the stamped manifest beside it are signed with
+an ephemeral key, zipped the way the release workflow zips, installed through `DownloadAndStageAsync` under
+a `SignedTrustPolicy` over that key, and resolved with an empty shipped list, which is "a build that leaves
+it out"; the status is `Installed`, the context `ExternalLoadContext`, the assembly a second one beside the
+shipped, and the pack composes with its tabs, rulesets, settings pages and passes. The negatives each
+assert the one outcome: unsigned (`ReservedId`), another key (`ReservedForeignKey`), a byte flipped after
+signing (`Untrusted`), the id or version folder renamed (`FolderMismatch`), and a shipped id whose shipped
+copy is incompatible still never installed. The automatic stage of a second signed version, the
+tombstone removal and the catalogue listing are covered there too.
+
 ---
 
 ## 6. Turning an extension off
