@@ -77,7 +77,9 @@ jobs:
           fi
 
       # The sample carries one package the app does not ship (Humanizer) and copies of several it does. The
-      # zip must hold the first and none of the second; the loader test installs this same output.
+      # zip must hold the first and none of the second. ExternalExtensionTests installs the same flat layout
+      # from the sample's build output and loads it; this job runs on another runner, so it does not consume
+      # this stage directory itself.
       - name: Extension packaging dry run (HelloExtension, with a dependency)
         run: |
           set -euo pipefail

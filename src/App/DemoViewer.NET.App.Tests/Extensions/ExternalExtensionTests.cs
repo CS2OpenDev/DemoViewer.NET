@@ -39,6 +39,27 @@ public class ExternalExtensionTests
         return target;
     }
 
+    // <root>/extensions/<id>/<version>/ holding what pack-extension.sh stages from that output: the extension's
+    // own assembly and manifest, plus only the libraries the app does not ship beside it. The script's rule is
+    // "framework or in the head's deps.json: the app's copy"; here a file beside the test host stands for both.
+    internal static string InstallPacked(string configRoot, string id = HelloId, string version = "1.0.0")
+    {
+        string target = Path.Combine(configRoot, ExtensionLoader.ExtensionsDirectoryName, id, version);
+        Directory.CreateDirectory(target);
+        foreach (string file in Directory.EnumerateFiles(SampleOutput()))
+        {
+            string name = Path.GetFileName(file);
+            bool own = name.StartsWith("HelloExtension.", StringComparison.Ordinal)
+                || string.Equals(name, ExtensionManifest.FileName, StringComparison.Ordinal);
+            if (own || !File.Exists(Path.Combine(AppContext.BaseDirectory, name)))
+            {
+                File.Copy(file, Path.Combine(target, name));
+            }
+        }
+
+        return target;
+    }
+
     internal static string NewRoot() => Path.Combine(Path.GetTempPath(), "dv-ext-" + Guid.NewGuid().ToString("N"));
 
     internal static ExternalResolution Resolve(string root, bool allowUnverified,
@@ -156,6 +177,46 @@ public class ExternalExtensionTests
                     "the id 'net.demoviewer.hello' is reserved for extensions signed by this app's publisher, and the copy is not signed");
                 await Assert.That(refused.UserMessage).DoesNotContain(ExternalExtensions.AllowUnverifiedLabel)
                     .Because("no setting admits an unsigned copy of a reserved id");
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // The layout pack-extension.sh ships: the extension, its manifest and its one package the app does not
+    // provide, nothing the app ships. The package resolves from the folder and everything else from the app.
+    [Test]
+    public async Task ThePackedLayout_LoadsWithItsDependencyFromItsFolder_AndNothingTheAppShipsBesideIt()
+    {
+        string root = NewRoot();
+        try
+        {
+            string installed = InstallPacked(root);
+            ExternalResolution result = Resolve(root, allowUnverified: true);
+            PackStatus status = result.Loaded.Single();
+            System.Reflection.Assembly assembly = status.Pack.GetType().Assembly;
+            AssemblyLoadContext context = AssemblyLoadContext.GetLoadContext(assembly)!;
+            System.Reflection.Assembly humanizer =
+                context.LoadFromAssemblyName(new System.Reflection.AssemblyName("Humanizer"));
+            System.Reflection.Assembly sdk =
+                context.LoadFromAssemblyName(new System.Reflection.AssemblyName("DemoViewer.NET.Extensions.Sdk"));
+            string[] staged = [.. Directory.EnumerateFiles(installed).Select(Path.GetFileName)!];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(result.Rejected).IsEmpty();
+                await Assert.That(status.IsCompatible).IsTrue().Because(status.Problem ?? "compatible");
+                await Assert.That(staged).Contains("HelloExtension.dll").And.Contains("Humanizer.dll")
+                    .And.Contains(ExtensionManifest.FileName);
+                await Assert.That(staged.Where(f => f.StartsWith("Avalonia", StringComparison.Ordinal))).IsEmpty();
+                await Assert.That(staged.Where(f => f.StartsWith("DemoViewer.NET.", StringComparison.Ordinal)
+                                                    && !f.StartsWith("HelloExtension.", StringComparison.Ordinal))).IsEmpty();
+                await Assert.That(AssemblyLoadContext.GetLoadContext(humanizer)).IsEqualTo(context);
+                await Assert.That(humanizer.Location).EndsWith(Path.Combine(HelloId, "1.0.0", "Humanizer.dll"));
+                await Assert.That(AssemblyLoadContext.GetLoadContext(sdk)).IsEqualTo(AssemblyLoadContext.Default);
+                await Assert.That(ReferenceEquals(sdk, typeof(IExtension).Assembly)).IsTrue();
             }
         }
         finally
