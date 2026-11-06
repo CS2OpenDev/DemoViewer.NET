@@ -61,6 +61,16 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     /// <summary>The catalog's views, which an added count stat fires on.</summary>
     public IReadOnlyList<string> Views { get; } = CanvasGraphBuilder.ViewNames;
 
+    /// <summary>What the gallery offers to drag: stat kinds, the catalog's views, the gates, and prefabs.</summary>
+    public IReadOnlyList<GalleryGroup> Gallery { get; } = CanvasGallery.Build(EmbeddedCatalog.Root);
+
+    // Where a dropped entry should land, by the id it will get; read once by the redraw that follows the write.
+    private readonly Dictionary<RulesetDocumentNodeKey, Avalonia.Point> _pendingPlacement = new();
+
+    /// <summary>Whether the gallery pane shows.</summary>
+    [ObservableProperty]
+    private bool _showGallery = true;
+
     /// <summary>The editor's selection, written by the editor. The first selected node drives the source jump.</summary>
     public ObservableCollection<object> SelectedNodes { get; } = [];
 
@@ -351,15 +361,85 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             return;
         }
 
-        HashSet<string> taken = new(Nodes.Select(n => n.Id), StringComparer.Ordinal);
-        string id = "new_" + view;
-        for (int n = 2; taken.Contains(id); n++)
-        {
-            id = $"new_{view}_{n}";
-        }
-
+        string id = FreshId("new_" + view);
         ApplyEdit(text => RulesetEdits.AddStat(text, $"{id}:\n  count: {view}\n  per: round\n"), "add " + id);
     }
+
+    /// <summary>
+    ///     A gallery item dropped on the canvas: a stat kind, a view or a prefab becomes a new entry placed at
+    ///     <paramref name="at" />. A gate has nothing to attach to on bare canvas and is refused with the reason.
+    /// </summary>
+    public void PlaceItem(GalleryItem item, Avalonia.Point at)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (!IsEditable || SelectedRuleset is not { } selected)
+        {
+            return;
+        }
+
+        if (item.Kind == GalleryItemKind.Gate || item.Body is null)
+        {
+            EditStatus = $"Drop {item.Name} onto a stat to gate it.";
+            return;
+        }
+
+        string id = FreshId(item.Kind == GalleryItemKind.Prefab ? item.Name : "new_" + item.Name);
+        string body = string.Join('\n', item.Body.Split('\n').Select(l => "  " + l));
+        _pendingPlacement[new RulesetDocumentNodeKey(selected.Id, id)] = at;
+        if (!ApplyEdit(text => RulesetEdits.AddStat(text, $"{id}:\n{body}\n"), "add " + id))
+        {
+            _pendingPlacement.Clear();
+        }
+    }
+
+    /// <summary>
+    ///     A gallery item dropped on a stat: a view retargets the trigger (the kind's own argument for a count,
+    ///     <c>on:</c> for a stat whose argument is a value), and a gate becomes its <c>while:</c>.
+    /// </summary>
+    public void DropOnNode(GalleryItem item, CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(node);
+        if (!IsEditable || !node.IsAuthorable || node.IsHighlight)
+        {
+            EditStatus = $"{item.Name} can only be dropped on a stat of your own ruleset.";
+            return;
+        }
+
+        switch (item.Kind)
+        {
+            case GalleryItemKind.Gate:
+                ApplyEdit(text => RulesetEdits.SetField(text, node.Id, "while", item.Name), $"gate {node.Id} on {item.Name}");
+                break;
+            case GalleryItemKind.View when node.Kind == "count":
+                ApplyEdit(text => RulesetEdits.SetField(text, node.Id, "count", item.Name), $"retarget {node.Id} to {item.Name}");
+                break;
+            case GalleryItemKind.View when node.Kind is "sum" or "capture":
+                ApplyEdit(text => RulesetEdits.SetField(text, node.Id, "on", item.Name), $"retarget {node.Id} to {item.Name}");
+                break;
+            case GalleryItemKind.View:
+                EditStatus = $"A {node.Kind} fires on no view; {item.Name} goes on a count, a sum or a capture.";
+                break;
+            default:
+                EditStatus = $"Drop {item.Title} on the canvas to add it as a stat.";
+                break;
+        }
+    }
+
+    private string FreshId(string wanted)
+    {
+        HashSet<string> taken = new(Nodes.Select(n => n.Id), StringComparer.Ordinal);
+        string id = wanted;
+        for (int n = 2; taken.Contains(id); n++)
+        {
+            id = $"{wanted}_{n}";
+        }
+
+        return id;
+    }
+
+    [RelayCommand]
+    private void ToggleGallery() => ShowGallery = !ShowGallery;
 
     [RelayCommand]
     private void SetStyle(string style) => ShowFacets = style != "compact";
@@ -551,6 +631,13 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         {
             layout = layout.With(key, at);
         }
+
+        foreach ((RulesetDocumentNodeKey key, Avalonia.Point at) in _pendingPlacement)
+        {
+            layout = layout.With(key, at);
+        }
+
+        _pendingPlacement.Clear();
 
         (IReadOnlyList<CanvasNodeViewModel> nodes, IReadOnlyList<CanvasConnectionViewModel> wires) =
             CanvasGraphBuilder.Build(composed, layout);

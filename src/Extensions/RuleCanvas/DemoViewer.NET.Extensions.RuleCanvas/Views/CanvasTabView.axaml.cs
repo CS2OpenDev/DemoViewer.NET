@@ -4,9 +4,11 @@ using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 
 #endregion
@@ -21,13 +23,66 @@ public partial class CanvasTabView : UserControl
 {
     private CanvasTabViewModel? _viewModel;
 
+    // The item being dragged from the gallery. The platform payload only has to exist; the drop reads this.
+    private GalleryItem? _dragging;
+
     /// <summary>Builds the view.</summary>
     public CanvasTabView()
     {
         InitializeComponent();
+        Editor.AddHandler(DragDrop.DragOverEvent, OnEditorDragOver);
+        Editor.AddHandler(DragDrop.DropEvent, OnEditorDrop);
         DataContextChanged += (_, _) => Attach(DataContext as CanvasTabViewModel);
         Loaded += (_, _) => FitLater();
         Source.TextChanged += (_, _) => _viewModel?.SourceEdited(Source.Text);
+    }
+
+    private async void OnGalleryItemPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Control { DataContext: GalleryItem item } || !e.GetCurrentPoint(sender as Visual).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        _dragging = item;
+        DataTransfer payload = new();
+        payload.Add(DataTransferItem.CreateText(item.Name));
+        try
+        {
+            await DragDrop.DoDragDropAsync(e, payload, DragDropEffects.Copy);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException or PlatformNotSupportedException)
+        {
+            // A platform that refuses the drag leaves the gallery as it was.
+        }
+        finally
+        {
+            _dragging = null;
+        }
+    }
+
+    private void OnEditorDragOver(object? sender, DragEventArgs e) =>
+        e.DragEffects = _dragging is null || _viewModel is not { IsEditable: true } ? DragDropEffects.None : DragDropEffects.Copy;
+
+    // A drop on a node's container goes to that node; anywhere else on the canvas places a new entry there.
+    private void OnEditorDrop(object? sender, DragEventArgs e)
+    {
+        if (_dragging is not { } item || _viewModel is null)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        CanvasNodeViewModel? node = (e.Source as Visual)?.GetSelfAndVisualAncestors()
+            .OfType<Nodify.Avalonia.ItemContainer>().FirstOrDefault()?.DataContext as CanvasNodeViewModel;
+        if (node is not null)
+        {
+            _viewModel.DropOnNode(item, node);
+        }
+        else
+        {
+            _viewModel.PlaceItem(item, Editor.GetLocationInsideEditor(e));
+        }
     }
 
     // The node container starts a drag on any press it sees and captures the pointer, after which a picker

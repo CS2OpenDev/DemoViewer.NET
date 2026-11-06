@@ -84,7 +84,9 @@
                                 Command="{Binding SetStyleCommand}" CommandParameter="detailed"
                                 IsEnabled="{Binding IsCompact}" />
                         <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
-                        <Button Classes="ghost" Content="Source" FontSize="12" Padding="8 3"
+                        <Button Classes="ghost" Content="Gallery" FontSize="12" Padding="8 3" Command="{Binding ToggleGalleryCommand}"
+                            ToolTip.Tip="Show or hide the gallery of stats, views, gates and prefabs" />
+                    <Button Classes="ghost" Content="Source" FontSize="12" Padding="8 3"
                                 Command="{Binding ToggleSourceCommand}"
                                 ToolTip.Tip="Show or hide the ruleset's YAML beside the canvas" />
                         <Button Classes="ghost" Content="Reset arrangement" FontSize="12" Padding="8 3"
@@ -145,10 +147,55 @@
             </StackPanel>
         </Border>
 
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto">
+
+            <!-- The gallery: drag a stat, a view or a prefab onto the canvas, a view or a gate onto a stat. -->
+            <Border Grid.Column="0" Width="210" IsVisible="{Binding ShowGallery}"
+                    BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 1 0"
+                    Background="{DynamicResource PanelBg}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{DynamicResource PanelHeaderBg}"
+                            BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="10 5">
+                        <TextBlock Text="GALLERY" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" />
+                    </Border>
+                    <ScrollViewer>
+                        <ItemsControl ItemsSource="{Binding Gallery}" Margin="8 6">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="model:GalleryGroup">
+                                    <StackPanel Spacing="2" Margin="0 0 0 10">
+                                        <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextMid}" Margin="2 0 0 3" />
+                                        <ItemsControl ItemsSource="{Binding Items}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="model:GalleryItem">
+                                                    <Border Classes="galleryItem" CornerRadius="4" Padding="7 3" Margin="0 1"
+                                                            Background="{DynamicResource CardBg}"
+                                                            BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                                                            Cursor="Hand" ToolTip.Tip="{Binding Hint}"
+                                                            PointerPressed="OnGalleryItemPressed">
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <Border CornerRadius="3" Padding="4 0" VerticalAlignment="Center" BorderThickness="1"
+                                                                    BorderBrush="{DynamicResource BorderAccent}">
+                                                                <TextBlock Text="{Binding KindLabel}" FontSize="8" LetterSpacing="1"
+                                                                           Foreground="{DynamicResource TextDim}" />
+                                                            </Border>
+                                                            <TextBlock Text="{Binding Title}" FontSize="12" FontFamily="monospace"
+                                                                       Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
 
         <!-- The ruleset's YAML, read-only for now; a selected node scrolls it to the line that declares it. -->
-        <Border Grid.Column="1" Width="440" IsVisible="{Binding ShowSource}"
+        <Border Grid.Column="2" Width="440" IsVisible="{Binding ShowSource}"
                 BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1 0 0 0"
                 Background="{DynamicResource PanelBg}">
             <DockPanel>
@@ -180,7 +227,7 @@
             </DockPanel>
         </Border>
 
-        <nodify:NodifyEditor Grid.Column="0" x:Name="Editor"
+        <nodify:NodifyEditor Grid.Column="1" x:Name="Editor" DragDrop.AllowDrop="True"
                              ItemsSource="{Binding Nodes}"
                              Connections="{Binding Connections}"
                              SelectedItems="{Binding SelectedNodes}"

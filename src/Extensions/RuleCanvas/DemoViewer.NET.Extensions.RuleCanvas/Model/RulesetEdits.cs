@@ -124,6 +124,22 @@ public static class RulesetEdits
         return editor.Apply([new TextEdit(from, to - from, "", $"remove {match.Key(facet)}")]).Text;
     }
 
+    /// <summary>Sets one scalar field of a stat (<c>while</c>, <c>on</c>, <c>count</c>), adding or replacing it.</summary>
+    public static string SetField(string text, string statId, string key, string value)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        if (editor.Document.Find(RulesetDocumentEditor.StatPath(statId)) is not YamlMappingNode)
+        {
+            throw new InvalidOperationException($"{statId} is not a stat in this document");
+        }
+
+        return editor.SetStatField(statId, key, value).Text;
+    }
+
+    /// <summary>The scalar a stat holds under <paramref name="key" />, or null.</summary>
+    public static string? Field(string text, string statId, string key) =>
+        RulesetDocumentEditor.Open(text).Scalar(RulesetDocumentEditor.StatPath(statId).Key(key));
+
     /// <summary>Appends a stat block (composed at zero indentation) under <c>stats:</c>.</summary>
     public static string AddStat(string text, string block) => RulesetDocumentEditor.Open(text).AddStat(block).Text;
 
