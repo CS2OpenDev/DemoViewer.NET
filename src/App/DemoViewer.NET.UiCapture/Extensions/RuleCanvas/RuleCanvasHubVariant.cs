@@ -3,6 +3,7 @@
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.RuleCanvas;
+using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules;
@@ -23,11 +24,24 @@ namespace DemoViewer.NET.UiCapture;
 /// </summary>
 public static partial class Variants
 {
-    private static MainView RuleCanvasHub(bool showFacets = true, string ruleset = "player_round")
+    private static MainView RuleCanvasHub(bool showFacets = true, string ruleset = "player_round", bool editable = false)
     {
         RuleCanvasPack pack = new();
         ServiceCollection services = new();
         pack.Register(services);
+        if (editable)
+        {
+            // The ruleset copied into a throwaway user directory, so the face shows its editors rather than
+            // the read-only text a shipped ruleset gets.
+            string root = Path.Combine(Path.GetTempPath(), "dv-uicapture-rules-" + Guid.NewGuid().ToString("N"));
+            string user = Path.Combine(root, "user");
+            Directory.CreateDirectory(user);
+            string shipped = CS2DemoKit.Analysis.Yaml.RuleSetLocator.ResolveShippedRulesDirectory();
+            File.Copy(Path.Combine(shipped, ruleset + ".rules.yaml"), Path.Combine(user, ruleset + ".rules.yaml"));
+            services.AddSingleton(new CanvasTabViewModel(_ => true,
+                () => RulesetCorpus.Load([(shipped, "shipped"), (user, "user")]), () => Path.Combine(root, "own")));
+        }
+
         ServiceProvider provider = services.BuildServiceProvider();
         PackContributionSet set = new([pack], provider);
         ModuleRegistry registry = new();

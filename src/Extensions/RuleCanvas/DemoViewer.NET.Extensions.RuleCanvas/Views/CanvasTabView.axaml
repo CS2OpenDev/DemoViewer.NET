@@ -21,6 +21,11 @@
         <StyleInclude Source="avares://Nodify.Avalonia/Themes/Controls.xaml" />
     </UserControl.Styles>
 
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveSourceCommand}" />
+        <KeyBinding Gesture="Cmd+S" Command="{Binding SaveSourceCommand}" />
+    </UserControl.KeyBindings>
+
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
@@ -58,54 +63,80 @@
 
     <Grid RowDefinitions="Auto,*">
 
-        <!-- The strip: what is drawn, and the style switch. -->
+        <!-- The strip, two rows: what is drawn and how it reads; then what can be done to it. -->
         <Border Grid.Row="0" Background="{DynamicResource PanelHeaderBg}"
                 BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="12 6">
-            <DockPanel>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
-                    <TextBlock Text="STYLE" FontSize="11" LetterSpacing="1" VerticalAlignment="Center"
+            <StackPanel Spacing="6">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="STYLE" FontSize="11" LetterSpacing="1" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextDim}" Margin="0 0 4 0" />
+                        <Button Classes="ghost" Content="Compact" FontSize="12" Padding="8 3"
+                                Command="{Binding SetStyleCommand}" CommandParameter="compact"
+                                IsEnabled="{Binding ShowFacets}" />
+                        <Button Classes="ghost" Content="Detailed" FontSize="12" Padding="8 3"
+                                Command="{Binding SetStyleCommand}" CommandParameter="detailed"
+                                IsEnabled="{Binding IsCompact}" />
+                        <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
+                        <Button Classes="ghost" Content="Source" FontSize="12" Padding="8 3"
+                                Command="{Binding ToggleSourceCommand}"
+                                ToolTip.Tip="Show or hide the ruleset's YAML beside the canvas" />
+                        <Button Classes="ghost" Content="Reset arrangement" FontSize="12" Padding="8 3"
+                                Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding HasSavedLayout}"
+                                ToolTip.Tip="{Binding SidecarPath}" />
+                        <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
+                        <Button Classes="ghost" Content="Open Authoring" FontSize="12" Padding="8 3"
+                                Command="{Binding OpenAuthoringCommand}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Text="RULESET" FontSize="11" LetterSpacing="1" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextDim}" />
+                        <ComboBox ItemsSource="{Binding Rulesets}" SelectedItem="{Binding SelectedRuleset}"
+                                  MinWidth="220" FontSize="12" Padding="8 3">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="model:RulesetCorpus+Entry">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding Id}" FontFamily="monospace" />
+                                        <TextBlock Text="{Binding Source}" Foreground="{DynamicResource TextDim}" FontSize="11" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
+                                   Text="{Binding Status}" />
+                        <TextBlock FontSize="12" Foreground="{DynamicResource AccentCaution}" VerticalAlignment="Center"
+                                   IsVisible="{Binding HasDiagnostics}" Text="diagnostics" ToolTip.Tip="{Binding Diagnostics}" />
+                        <TextBlock IsVisible="{Binding AuthoringUnavailable}" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AccentCaution}"
+                                   Text="The Authoring tab is not available: switched off under Settings, Features, or this build has none." />
+                    </StackPanel>
+                </DockPanel>
+
+                <!-- The edit row: history, the palette, deletion, and the way into a shipped ruleset. -->
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="EDIT" FontSize="11" LetterSpacing="1" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextDim}" Margin="0 0 4 0" />
-                    <Button Classes="ghost" Content="Compact" FontSize="12" Padding="8 3"
-                            Command="{Binding SetStyleCommand}" CommandParameter="compact"
-                            IsEnabled="{Binding ShowFacets}" />
-                    <Button Classes="ghost" Content="Detailed" FontSize="12" Padding="8 3"
-                            Command="{Binding SetStyleCommand}" CommandParameter="detailed"
-                            IsEnabled="{Binding IsCompact}" />
+                    <Button Classes="ghost" Content="Undo" FontSize="12" Padding="8 3" Command="{Binding UndoCommand}" />
+                    <Button Classes="ghost" Content="Redo" FontSize="12" Padding="8 3" Command="{Binding RedoCommand}" />
                     <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
-                    <Button Classes="ghost" Content="Source" FontSize="12" Padding="8 3"
-                            Command="{Binding ToggleSourceCommand}"
-                            ToolTip.Tip="Show or hide the ruleset's YAML beside the canvas" />
-                    <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
-                    <Button Classes="ghost" Content="Reset arrangement" FontSize="12" Padding="8 3"
-                            Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding HasSavedLayout}"
-                            ToolTip.Tip="{Binding SidecarPath}" />
-                    <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
-                    <Button Classes="ghost" Content="Open Authoring" FontSize="12" Padding="8 3"
-                            Command="{Binding OpenAuthoringCommand}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <TextBlock Text="RULESET" FontSize="11" LetterSpacing="1" VerticalAlignment="Center"
-                               Foreground="{DynamicResource TextDim}" />
-                    <ComboBox ItemsSource="{Binding Rulesets}" SelectedItem="{Binding SelectedRuleset}"
-                              MinWidth="220" FontSize="12" Padding="8 3">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="model:RulesetCorpus+Entry">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="{Binding Id}" FontFamily="monospace" />
-                                    <TextBlock Text="{Binding Source}" Foreground="{DynamicResource TextDim}" FontSize="11" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
+                    <ComboBox x:Name="AddStatView" PlaceholderText="Add stat on…" FontSize="12" Padding="8 3" MinWidth="140"
+                              IsEnabled="{Binding IsEditable}" ItemsSource="{Binding Views}"
+                              SelectionChanged="OnAddStatViewChanged" />
+                    <Button Classes="ghost" Content="Delete selected" FontSize="12" Padding="8 3"
+                            Command="{Binding DeleteSelectedCommand}" IsEnabled="{Binding IsEditable}"
+                            ToolTip.Tip="Remove the selected node's entry from the file" />
+                    <Button Classes="ghost" Content="Edit a copy" FontSize="12" Padding="8 3"
+                            Command="{Binding EditCopyCommand}" IsVisible="{Binding IsShippedRuleset}"
+                            ToolTip.Tip="Copy this shipped ruleset into your rules and open the copy, which overrides it" />
                     <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
-                               Text="{Binding Status}" />
+                               IsVisible="{Binding IsShippedRuleset}"
+                               Text="A shipped ruleset is read only here. Edit a copy puts one in your rules." />
                     <TextBlock FontSize="12" Foreground="{DynamicResource AccentCaution}" VerticalAlignment="Center"
-                               IsVisible="{Binding HasDiagnostics}" Text="diagnostics" ToolTip.Tip="{Binding Diagnostics}" />
-                    <TextBlock IsVisible="{Binding AuthoringUnavailable}" FontSize="12" VerticalAlignment="Center"
-                               Foreground="{DynamicResource AccentCaution}"
-                               Text="The Authoring tab is not available: switched off under Settings, Features, or this build has none." />
+                               IsVisible="{Binding SourceDirty}" Text="Save or revert the source pane to edit on the canvas." />
+                    <TextBlock FontSize="12" Foreground="{DynamicResource AccentCaution}" VerticalAlignment="Center"
+                               IsVisible="{Binding HasEditStatus}" Text="{Binding EditStatus}" />
                 </StackPanel>
-            </DockPanel>
+            </StackPanel>
         </Border>
 
         <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
@@ -118,8 +149,16 @@
                 <Border DockPanel.Dock="Top" Background="{DynamicResource PanelHeaderBg}"
                         BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="10 5">
                     <DockPanel>
-                        <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="{DynamicResource TextDim}"
-                                   VerticalAlignment="Center" Text="read only" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+                            <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center"
+                                       Text="read only" IsVisible="{Binding IsShippedRuleset}" />
+                            <TextBlock FontSize="11" Foreground="{DynamicResource AccentCaution}" VerticalAlignment="Center"
+                                       Text="unsaved" IsVisible="{Binding SourceDirty}" />
+                            <Button Classes="ghost" Content="Save" FontSize="11" Padding="6 1"
+                                    Command="{Binding SaveSourceCommand}" IsVisible="{Binding SourceDirty}" />
+                            <Button Classes="ghost" Content="Revert" FontSize="11" Padding="6 1"
+                                    Command="{Binding RevertSourceCommand}" IsVisible="{Binding SourceDirty}" />
+                        </StackPanel>
                         <TextBlock Text="{Binding DocumentName}" FontSize="12" FontFamily="monospace"
                                    Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
                     </DockPanel>
@@ -128,7 +167,7 @@
                                FontFamily="Cascadia Code,Consolas,Menlo,monospace"
                                FontSize="12"
                                ShowLineNumbers="True"
-                               IsReadOnly="True"
+                               IsReadOnly="{Binding IsShippedRuleset}"
                                WordWrap="False"
                                Background="{DynamicResource PanelBg}"
                                Foreground="{DynamicResource TextValue}" />
@@ -220,15 +259,47 @@
                             <ItemsControl ItemsSource="{Binding Facets}" IsVisible="{Binding ShowFacets}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:CanvasFacetViewModel">
-                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0 1">
+                                        <!-- A row: the name, then the editor the catalog type calls for. Read-only
+                                             nodes show the written value as text. -->
+                                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0 1" MinHeight="18">
                                             <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11" FontFamily="monospace"
-                                                       Foreground="{DynamicResource TextMid}" />
+                                                       Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
                                             <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="11" FontFamily="monospace"
-                                                       Foreground="{DynamicResource TextValue}" />
+                                                       Foreground="{DynamicResource TextValue}" VerticalAlignment="Center"
+                                                       IsVisible="{Binding !IsEditable}" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsEditable}">
+                                                <CheckBox IsChecked="{Binding Toggle}" IsThreeState="False" IsVisible="{Binding IsBool}"
+                                                          MinHeight="0" Padding="0" Margin="0" />
+                                                <ComboBox ItemsSource="{x:Static vm:CanvasFacetViewModel.Comparators}"
+                                                          SelectedItem="{Binding Comparator}" IsVisible="{Binding IsNumber}"
+                                                          FontSize="11" MinWidth="52" Padding="4 1" />
+                                                <TextBox Text="{Binding Literal}" IsVisible="{Binding !IsBool}" FontSize="11"
+                                                         FontFamily="monospace" MinWidth="60" Padding="4 1" MinHeight="0"
+                                                         LostFocus="OnFacetEditorLostFocus">
+                                                    <TextBox.KeyBindings>
+                                                        <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
+                                                    </TextBox.KeyBindings>
+                                                </TextBox>
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Classes="ghost" Content="×" FontSize="11" Padding="4 0" MinHeight="0"
+                                                    Command="{Binding RemoveCommand}" IsVisible="{Binding IsEditable}"
+                                                    ToolTip.Tip="Remove this facet" />
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+
+                            <!-- Adding a facet the view offers and the document does not bind yet. -->
+                            <ComboBox ItemsSource="{Binding AvailableFacets}" SelectedItem="{Binding FacetToAdd}"
+                                      PlaceholderText="add facet…" FontSize="11" Padding="6 1" MinHeight="0"
+                                      IsVisible="{Binding IsEditable}" />
+
+                            <!-- What the composition said about this entry. -->
+                            <Border Background="{DynamicResource AccentCaution}" CornerRadius="3" Padding="6 2"
+                                    IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}">
+                                <TextBlock Text="{Binding DiagnosticsText}" FontSize="10" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextOnAccent}" />
+                            </Border>
 
                             <TextBlock Text="{Binding FacetSummary}" FontSize="11" Foreground="{DynamicResource TextDim}"
                                        IsVisible="{Binding ShowFacetSummary}" />

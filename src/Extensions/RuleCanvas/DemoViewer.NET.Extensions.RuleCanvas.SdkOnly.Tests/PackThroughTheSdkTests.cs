@@ -108,8 +108,10 @@ public class PackThroughTheSdkTests
             await Assert.That(section.Header).IsEqualTo("Canvas");
             await Assert.That(section.HostId).IsEqualTo(HubId);
             await Assert.That(section.FeatureId).IsNull().Because("the hub's switch gates its only section");
-            await Assert.That(section.ViewModelFactory).IsNotNull();
-            await Assert.That(section.ViewFactory).IsNotNull();
+            // As objects, not delegates: a delegate assertion invokes the factory, and building the view
+            // outside an Avalonia application is not what this test is about.
+            await Assert.That((object?)section.ViewModelFactory).IsNotNull();
+            await Assert.That((object?)section.ViewFactory).IsNotNull();
             await Assert.That(recorded.Rulesets).IsEmpty();
             await Assert.That(recorded.StatusChips).IsEmpty();
         }

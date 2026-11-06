@@ -28,21 +28,27 @@ public sealed class RulesetCorpus
     /// <param name="Graph">The nodes and edges; empty when the composition failed.</param>
     /// <param name="Documents">Every document that took part, by id, for the chips and facets a checked stat does not carry.</param>
     /// <param name="Diagnostics">The composition's diagnostics, as text.</param>
+    /// <param name="PositionedDiagnostics">The same diagnostics that carry a line, with the ruleset they are about.</param>
     public sealed record Composed(
         RulesetDocumentGraph Graph,
         IReadOnlyDictionary<string, RulesetDoc> Documents,
-        IReadOnlyList<string> Diagnostics);
+        IReadOnlyList<string> Diagnostics,
+        IReadOnlyList<(string RulesetId, int Line, string Message)> PositionedDiagnostics);
 
     private readonly Dictionary<string, RulesetDoc> _docs;
 
-    private RulesetCorpus(IReadOnlyList<Entry> entries, Dictionary<string, RulesetDoc> docs)
+    private RulesetCorpus(IReadOnlyList<Entry> entries, Dictionary<string, RulesetDoc> docs, string? userDirectory)
     {
         Entries = entries;
         _docs = docs;
+        UserDirectory = userDirectory;
     }
 
-    /// <summary>The loadable rulesets, shipped first, each list in file-name order.</summary>
+    /// <summary>The loadable rulesets in the order their directories were given, a later directory's file replacing an earlier one with the same id.</summary>
     public IReadOnlyList<Entry> Entries { get; }
+
+    /// <summary>The directory tagged <c>user</c>, where an editable copy of a shipped ruleset goes, or null.</summary>
+    public string? UserDirectory { get; }
 
     /// <summary>
     ///     The directories the app reads rulesets from, in the order they are offered: the shipped set, then
@@ -66,8 +72,9 @@ public sealed class RulesetCorpus
             dirs.Add((shipped, "shipped"));
             try
             {
+                // Named even when empty: an editable copy of a shipped ruleset is written here.
                 string user = RuleSetLocator.EnsureUserRulesDirectory(shipped);
-                if (Directory.Exists(user) && !string.Equals(user, shipped, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(user, shipped, StringComparison.OrdinalIgnoreCase))
                 {
                     dirs.Add((user, "user"));
                 }
@@ -87,8 +94,14 @@ public sealed class RulesetCorpus
         ArgumentNullException.ThrowIfNull(directories);
         List<Entry> entries = [];
         Dictionary<string, RulesetDoc> docs = new(StringComparer.Ordinal);
+        string? userDirectory = null;
         foreach ((string directory, string source) in directories)
         {
+            if (source == "user")
+            {
+                userDirectory ??= directory;
+            }
+
             if (!Directory.Exists(directory))
             {
                 continue;
@@ -106,18 +119,29 @@ public sealed class RulesetCorpus
                     continue;
                 }
 
-                // The first file to claim an id wins, which keeps a user file from shadowing a shipped one
-                // in the picker; the Workbench shows both and this canvas will once it can edit.
-                if (doc is null || !docs.TryAdd(doc.Id, doc))
+                if (doc is null)
                 {
                     continue;
                 }
 
-                entries.Add(new Entry(doc.Id, string.IsNullOrWhiteSpace(doc.Title) ? doc.Id : doc.Title, path, source));
+                // A later directory overrides an earlier one by id, which is the host's own rule: a user file
+                // with a shipped ruleset's id replaces it, so an editable copy takes the shipped one's place.
+                Entry entry = new(doc.Id, string.IsNullOrWhiteSpace(doc.Title) ? doc.Id : doc.Title, path, source);
+                int existing = entries.FindIndex(e => e.Id == doc.Id);
+                if (existing >= 0)
+                {
+                    entries[existing] = entry;
+                }
+                else
+                {
+                    entries.Add(entry);
+                }
+
+                docs[doc.Id] = doc;
             }
         }
 
-        return new RulesetCorpus(entries, docs);
+        return new RulesetCorpus(entries, docs, userDirectory);
     }
 
     /// <summary>
@@ -130,7 +154,7 @@ public sealed class RulesetCorpus
         if (!_docs.TryGetValue(id, out RulesetDoc? open))
         {
             return new Composed(RulesetDocumentGraph.Empty, new Dictionary<string, RulesetDoc>(StringComparer.Ordinal),
-                [$"{id} is not a loaded ruleset"]);
+                [$"{id} is not a loaded ruleset"], []);
         }
 
         List<RulesetDoc> docs = [open];
@@ -154,9 +178,22 @@ public sealed class RulesetCorpus
             CatalogScopeAdapter.From(CatalogResource.Load()), 64.0,
             DemoSourceProfileRegistry.DefaultFallback.GetType().Name);
         List<string> diagnostics = [.. composed.Diagnostics.Select(d => d.ToString() ?? "")];
+        List<(string, int, string)> positioned = [];
+        foreach (RulesetDiagnostic diagnostic in composed.Diagnostics)
+        {
+            if (diagnostic.Position.Line > 0 && diagnostic.Position.File is { } file)
+            {
+                string? ruleset = taking.Values.FirstOrDefault(d => d.Position.File == file)?.Id;
+                if (ruleset is not null)
+                {
+                    positioned.Add((ruleset, diagnostic.Position.Line, diagnostic.Message));
+                }
+            }
+        }
+
         RulesetDocumentGraph graph = composed.Rulesets.Count == 0
             ? RulesetDocumentGraph.Empty
             : RulesetDocumentGraph.Build(composed.Rulesets, open.Id);
-        return new Composed(graph, taking, diagnostics);
+        return new Composed(graph, taking, diagnostics, positioned);
     }
 }

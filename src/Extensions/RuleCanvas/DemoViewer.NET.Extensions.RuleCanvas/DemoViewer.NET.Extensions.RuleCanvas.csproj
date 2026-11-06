@@ -44,6 +44,9 @@
              both and hand the pack list to FeaturePacks. -->
         <ProjectReference Include="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk\DemoViewer.NET.Extensions.Sdk.csproj"/>
         <ProjectReference Include="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk.Ui\DemoViewer.NET.Extensions.Sdk.Ui.csproj"/>
+        <!-- The comment-preserving splice writer. A library of the repo that nothing else references on
+             main; the extension carries it, and a pack of the extension stages it as a private dependency. -->
+        <ProjectReference Include="..\..\..\RuleAuthoring\DemoViewer.NET.RuleAuthoring\DemoViewer.NET.RuleAuthoring.csproj"/>
     </ItemGroup>
 
     <!-- Same rule as the app csproj: the Avalonia XAML rewrite re-embeds the .pdb path after Roslyn, which

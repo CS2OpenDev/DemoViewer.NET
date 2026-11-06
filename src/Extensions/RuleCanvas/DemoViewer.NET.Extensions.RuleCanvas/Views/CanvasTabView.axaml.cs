@@ -3,6 +3,7 @@
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 
@@ -24,6 +25,26 @@ public partial class CanvasTabView : UserControl
         InitializeComponent();
         DataContextChanged += (_, _) => Attach(DataContext as CanvasTabViewModel);
         Loaded += (_, _) => FitLater();
+        Source.TextChanged += (_, _) => _viewModel?.SourceEdited(Source.Text);
+    }
+
+    // A typed literal is written when its editor loses focus; Enter is a key binding on the editor itself.
+    private void OnFacetEditorLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox { DataContext: CanvasFacetViewModel facet })
+        {
+            facet.Commit();
+        }
+    }
+
+    // The picker is a command surface: the chosen view adds a stat, and the picker clears for the next.
+    private void OnAddStatViewChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox { SelectedItem: string view } picker && _viewModel is not null)
+        {
+            _viewModel.AddStatCommand.Execute(view);
+            picker.SelectedItem = null;
+        }
     }
 
     private void Attach(CanvasTabViewModel? viewModel)
@@ -45,9 +66,12 @@ public partial class CanvasTabView : UserControl
         }
     }
 
+    // The pane shows the file's text after every load and write, and again on Revert. Setting Text raises
+    // TextChanged, which reports the same text back and reads as clean.
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(CanvasTabViewModel.DocumentText) && _viewModel is not null)
+        if (e.PropertyName == nameof(CanvasTabViewModel.DocumentText) && _viewModel is not null
+            && Source.Text != _viewModel.DocumentText)
         {
             Source.Text = _viewModel.DocumentText;
         }
