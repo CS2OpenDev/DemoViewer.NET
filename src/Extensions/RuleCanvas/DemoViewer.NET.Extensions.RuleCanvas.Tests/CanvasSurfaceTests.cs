@@ -261,6 +261,72 @@ public class CanvasSurfaceTests
     }
 
     [Test]
+    public async Task AFileThatStopsLoading_StaysOpenOnItsText_AndASaveFromThePaneLoadsItBack()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        string path = rules.UserPath("player_round");
+        vm.Nodes.Single(n => n.Id == "round_kills").FacetToAdd = "headshot";
+        string good = File.ReadAllText(path);
+        await Assert.That(vm.CanUndo).IsTrue();
+
+        const string broken = "ruleset: [not a ruleset\n";
+        RulesTree.Touch(path, broken);
+        File.SetLastWriteTimeUtc(path, File.GetLastWriteTimeUtc(path).AddSeconds(2));
+        vm.FilesChanged([path]);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.EmptyState).IsEqualTo(CanvasEmptyState.LoadFailed);
+            await Assert.That(vm.SelectedRuleset?.Id).IsEqualTo("player_round");
+            await Assert.That(vm.DocumentText).IsEqualTo(broken).Because("the pane shows what is on disk, not what loaded last");
+            await Assert.That(vm.SourceDirty).IsFalse();
+            await Assert.That(vm.CanUndo).IsFalse().Because("the break was another writer's, so the history is gone");
+            await Assert.That(vm.Status).DoesNotContain("Undo is still available");
+            await Assert.That(vm.IsEditable).IsTrue();
+        }
+
+        vm.SourceEdited(good);
+        vm.SaveSourceCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(File.ReadAllText(path)).IsEqualTo(good);
+            await Assert.That(vm.SourceDirty).IsFalse();
+            await Assert.That(vm.EmptyState).IsEqualTo(CanvasEmptyState.None);
+            await Assert.That(vm.Nodes.Any(n => n.Id == "round_kills")).IsTrue().Because("the file loads and draws again");
+            await Assert.That(vm.EditStatus).IsEqualTo("");
+            await Assert.That(vm.HasEditStatus).IsFalse();
+        }
+    }
+
+    [Test]
+    public async Task AFileFixedOutside_DropsTheNoLongerLoadsLine()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        string path = rules.UserPath("player_round");
+        string good = File.ReadAllText(path);
+
+        RulesTree.Touch(path, "ruleset: [not a ruleset\n");
+        File.SetLastWriteTimeUtc(path, File.GetLastWriteTimeUtc(path).AddSeconds(2));
+        vm.FilesChanged([path]);
+        await Assert.That(vm.EmptyState).IsEqualTo(CanvasEmptyState.LoadFailed);
+        await Assert.That(vm.EditStatus).Contains("no longer loads");
+
+        RulesTree.Touch(path, good);
+        File.SetLastWriteTimeUtc(path, File.GetLastWriteTimeUtc(path).AddSeconds(4));
+        vm.FilesChanged([path]);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.EmptyState).IsEqualTo(CanvasEmptyState.None);
+            await Assert.That(vm.Nodes.Count).IsGreaterThan(0);
+            await Assert.That(vm.EditStatus).IsEqualTo("").Because("the strip stops saying the file no longer loads once it does");
+            await Assert.That(vm.HasEditStatus).IsFalse();
+        }
+    }
+
+    [Test]
     public async Task TheReadableFit_ClampsTheZoom_AndFramesTheAuthoredNodesWhenTheChainIsTooWide()
     {
         Size viewport = new(1000, 600);
