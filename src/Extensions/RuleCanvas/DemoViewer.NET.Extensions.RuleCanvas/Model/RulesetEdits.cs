@@ -124,6 +124,10 @@ public static class RulesetEdits
         return editor.Apply([new TextEdit(from, to - from, "", $"remove {match.Key(facet)}")]).Text;
     }
 
+    /// <summary>The keys of a stat's <c>match:</c> block, in document order; empty when it has none.</summary>
+    public static IReadOnlyList<string> FacetKeys(string text, string statId) =>
+        KeysUnder(RulesetDocumentEditor.Open(text).Document, RulesetDocumentEditor.StatPath(statId).Key("match"));
+
     /// <summary>Sets one scalar field of a stat (<c>while</c>, <c>on</c>, <c>count</c>), adding or replacing it.</summary>
     public static string SetField(string text, string statId, string key, string value)
     {
