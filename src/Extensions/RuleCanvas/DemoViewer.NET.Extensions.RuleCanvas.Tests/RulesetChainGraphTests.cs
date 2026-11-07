@@ -2,10 +2,14 @@
 
 using System.Diagnostics;
 using CS2DemoKit.Analysis.Abstractions;
+using CS2DemoKit.Analysis.Profiles;
 using CS2DemoKit.Analysis.Rules.Hashing;
+using CS2DemoKit.Analysis.RulesetsV2.Model;
+using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Analysis.Yaml;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.TestSupport;
+using TUnit.Core.Exceptions;
 
 #endregion
 
@@ -135,8 +139,111 @@ public class RulesetChainGraphTests
         using (Assert.Multiple())
         {
             await Assert.That(twins).IsGreaterThanOrEqualTo(1);
-            await Assert.That(wires).IsLessThanOrEqualTo(201).Because("measured 201 after the merge, 245 before; gate wires not counted");
+            await Assert.That(wires).IsLessThanOrEqualTo(202)
+                .Because("measured 245 before the merge, 201 after it, 202 once kast's tally is drawn; gate wires not counted");
         }
+    }
+
+    [Test]
+    public async Task AHighlightsCount_IsReadAsTheHighlight()
+    {
+        RulesetChainGraph chain = Compose("player_stats").Chain;
+        ChainNode highlight = chain.Nodes.Single(n => n.Key == new RulesetDocumentNodeKey("player_stats", "opening_kill"));
+        ChainEdge[] intoDuelWin = [.. chain.Edges.Where(e => e.Target.Id == "DuelWin%" && e.IsRead)];
+        using (Assert.Multiple())
+        {
+            await Assert.That(highlight.Outputs).IsEquivalentTo(["opening_kill.count"]);
+            await Assert.That(chain.Nodes.Count(n => n.Key.Id.EndsWith(".count", StringComparison.Ordinal))).IsEqualTo(0)
+                .Because("the counter is drawn as the highlight that bumps it");
+            await Assert.That(intoDuelWin.Select(e => (e.Source.Id, e.Label)))
+                .IsEquivalentTo([("opening_kill", "reads .count"), ("opening_death", "reads .count")])
+                .Because("a compute over opening_kill.count reads the highlight, and the wire says which companion");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "opening_kill" && e.Target.Id == "opening_kill")).IsFalse()
+                .Because("the rising edge that bumps the counter is the highlight's own");
+        }
+    }
+
+    /// <summary>
+    ///     A tally has no node of its own in the engine, only its target counters and a seen flag, all owned by
+    ///     it; the canvas draws the entry once with the targets as outputs. The resolver does not let a sibling
+    ///     read a target counter (resolve.unknown-root), so the only readers of the targets are show: columns.
+    /// </summary>
+    [Test]
+    public async Task ATally_IsOneNode_WithItsTargetsAsOutputs()
+    {
+        RulesetCorpus.Composed composed = Compose("kast");
+        RulesetChainGraph chain = composed.Chain;
+        ChainNode tally = chain.Nodes.Single(n => n.Key == new RulesetDocumentNodeKey("kast", "multi_kill_tally"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Diagnostics).IsEmpty();
+            await Assert.That(tally.Kind).IsEqualTo(ChainNodeKind.Declared);
+            await Assert.That(tally.Outputs).IsEquivalentTo(["rounds_5k", "rounds_4k", "rounds_3k", "rounds_2k"])
+                .Because("the threshold targets in threshold order, for the face");
+            await Assert.That(chain.Nodes.Select(n => n.Key.Id)).DoesNotContain("rounds_5k").Because("a target is the tally, not a node");
+            await Assert.That(chain.Nodes.Count(n => n.Key == tally.Key)).IsEqualTo(1).Because("four targets and a seen flag fold into one node");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "kills" && e.Target == tally.Key && e.IsRead && e.Label == "reads")).IsTrue()
+                .Because("the tallied stat is read at round end");
+            await Assert.That(chain.Edges.Count(e => e.Source.Id == "round_ended" && e.Target == tally.Key && !e.IsRead)).IsEqualTo(1)
+                .Because("the bump runs once from the merged round end, not once per target per twin");
+        }
+    }
+
+    /// <summary>
+    ///     Every stat reference in every shipped compute: formula is a read wire into the compute, resolved
+    ///     the way the author spells it: a sibling, a qualified ruleset.stat, a highlight's .count or a tally's
+    ///     target. Measured 2026-11-07 over 21 rulesets: zero exceptions.
+    /// </summary>
+    [Test]
+    public async Task EveryComputeReference_HasAReadWireInTheChain()
+    {
+        string root = DemoTestHelper.FindRepoRoot() ?? throw new SkipTestException("repo root not found from the test bin");
+        string rulesDir = Path.Combine(root, "rules");
+        RuleConfigLoadResult loaded = YamlConfigLoader.TryLoadDirectory(rulesDir);
+        RulesetComposition.Result composed = RulesetComposition.Compose(loaded.Rulesets, EmbeddedCatalog.Adapter, 64.0,
+            DemoSourceProfileRegistry.DefaultFallback.GetType().Name);
+        RulesetCorpus corpus = RulesetCorpus.Load([(rulesDir, "shipped")]);
+
+        int references = 0;
+        List<string> missing = [];
+        foreach (CheckedRuleset ruleset in composed.Rulesets)
+        {
+            RulesetChainGraph chain = corpus.Compose(ruleset.Id.Id).Chain;
+            foreach (CheckedStat stat in ruleset.Stats.Where(s => s.Kind == RuleNodeKind.Compute))
+            {
+                RulesetDocumentNodeKey key = new(ruleset.Id.Id, stat.StatId);
+                // A compute: formula rides in TriggerCondition; the value selector is for sum: and capture:.
+                IEnumerable<string> paths = (stat.TriggerCondition?.References ?? []).Concat(stat.ValueSelector?.References ?? [])
+                    .Where(r => r.IsStatReference && r.StatPath is not null)
+                    .Select(r => r.StatPath!)
+                    .Distinct(StringComparer.Ordinal);
+                foreach (string statPath in paths)
+                {
+                    references++;
+                    if (!chain.Edges.Any(e => e.Target == key && e.IsRead && Names(chain, e.Source, statPath)))
+                    {
+                        missing.Add($"{key} <- {statPath}");
+                    }
+                }
+            }
+        }
+
+        Console.WriteLine($"[chain] compute references={references} without a wire={missing.Count}: {string.Join(", ", missing)}");
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Rulesets.Count).IsEqualTo(loaded.Rulesets.Count);
+            await Assert.That(references).IsGreaterThanOrEqualTo(60).Because("the shipped computes read dozens of siblings");
+            await Assert.That(missing.Count).IsEqualTo(0)
+                .Because($"{missing.Count} of {references} compute references have no read wire: {string.Join(", ", missing)}");
+        }
+    }
+
+    /// <summary>Whether the chain node at <paramref name="source" /> is what <paramref name="statPath" /> names.</summary>
+    private static bool Names(RulesetChainGraph chain, RulesetDocumentNodeKey source, string statPath)
+    {
+        ChainNode node = chain.Nodes.Single(n => n.Key == source);
+        return statPath == node.Key.Id || statPath == node.Key.ToString() || node.Outputs.Contains(statPath, StringComparer.Ordinal)
+               || statPath.StartsWith(node.Key.Id + ".", StringComparison.Ordinal);
     }
 
     [Test]

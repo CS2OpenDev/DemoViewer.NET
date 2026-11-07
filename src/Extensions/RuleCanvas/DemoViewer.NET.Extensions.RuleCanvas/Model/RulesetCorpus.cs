@@ -68,6 +68,9 @@ public sealed class RulesetCorpus
 
     private readonly Dictionary<string, RulesetDoc> _docs;
 
+    /// <summary>The demo-source profile every demo-less composition runs under, by the id the catalog keys its views on.</summary>
+    internal static string ProfileName => DemoSourceProfileRegistry.DefaultFallback.GetType().Name;
+
     private RulesetCorpus(IReadOnlyList<Entry> entries, Dictionary<string, RulesetDoc> docs, string? userDirectory,
         IReadOnlyList<(string Path, string Reason)> failures)
     {
@@ -239,8 +242,7 @@ public sealed class RulesetCorpus
             }
         }
 
-        RulesetComposition.Result composed = RulesetComposition.Compose(docs, EmbeddedCatalog.Adapter, 64.0,
-            DemoSourceProfileRegistry.DefaultFallback.GetType().Name);
+        RulesetComposition.Result composed = RulesetComposition.Compose(docs, EmbeddedCatalog.Adapter, 64.0, ProfileName);
         List<string> diagnostics = [.. composed.Diagnostics.Select(d => d.ToString() ?? "")];
         List<(string, int, string)> positioned = [];
         foreach (RulesetCompositionDiagnostic diagnostic in composed.AttributedDiagnostics)

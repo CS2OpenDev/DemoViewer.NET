@@ -1,6 +1,7 @@
 #region
 
 using CS2DemoKit.Analysis.Abstractions;
+using CS2DemoKit.Analysis.Catalog;
 using CS2DemoKit.Analysis.Graphs;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 
@@ -42,6 +43,12 @@ public sealed record ChainNode(RulesetDocumentNodeKey Key, ChainNodeKind Kind, s
 {
     /// <summary>The wire events an event node stands for: one, or the twins merged into it. Empty for every other kind.</summary>
     public IReadOnlyList<string> Events { get; init; } = [];
+
+    /// <summary>
+    ///     The companions a declared node owns that a sibling can read, as the author spells them: a tally's
+    ///     target counters in threshold order, a highlight's <c>&lt;id&gt;.count</c>. Empty otherwise.
+    /// </summary>
+    public IReadOnlyList<string> Outputs { get; init; } = [];
 }
 
 /// <summary>One wire of the lowered chain, from the node that fires or is read to the node written.</summary>
@@ -123,19 +130,26 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
         ArgumentNullException.ThrowIfNull(rulesets);
         RuleGraph graph = RuleGraph.FromBuild(build, true, TemplatePlayer);
 
-        // Declared entries, by the owner spelling the graph uses; a companion shares its owner but is not
-        // named by it, and is dropped.
+        // Declared entries, by the owner spelling the graph uses, and what each one's companions are called.
         Dictionary<string, RulesetDocumentNodeKey> declared = new(StringComparer.Ordinal);
+        Dictionary<RulesetDocumentNodeKey, IReadOnlyList<string>> outputs = new();
         foreach (CheckedRuleset ruleset in rulesets)
         {
             foreach (CheckedStat stat in ruleset.Stats)
             {
-                declared[ruleset.Id.Id + "." + stat.StatId] = new RulesetDocumentNodeKey(ruleset.Id.Id, stat.StatId);
+                RulesetDocumentNodeKey key = new(ruleset.Id.Id, stat.StatId);
+                declared[ruleset.Id.Id + "." + stat.StatId] = key;
+                if (stat.TallyThresholds is { Count: > 0 } thresholds)
+                {
+                    outputs[key] = [.. thresholds.Select(t => t.Target)];
+                }
             }
 
             foreach (CheckedHighlight highlight in ruleset.Highlights)
             {
-                declared[ruleset.Id.Id + "." + highlight.HighlightId] = new RulesetDocumentNodeKey(ruleset.Id.Id, highlight.HighlightId);
+                RulesetDocumentNodeKey key = new(ruleset.Id.Id, highlight.HighlightId);
+                declared[ruleset.Id.Id + "." + highlight.HighlightId] = key;
+                outputs[key] = [highlight.CountNodeId];
             }
         }
 
@@ -143,6 +157,8 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
         // for several declared entries; the canvas draws each entry as its own node with the same wires.
         Dictionary<RuleGraphNode, List<RulesetDocumentNodeKey>> keys = new(ReferenceEqualityComparer.Instance);
         Dictionary<RuleGraphNode, ChainNodeKind> kinds = new(ReferenceEqualityComparer.Instance);
+        // A companion folded into its owner, by the name a sibling reads it under (.count, rounds_5k).
+        Dictionary<RuleGraphNode, string> companions = new(ReferenceEqualityComparer.Instance);
         HashSet<string> usedScaffoldKeys = new(StringComparer.Ordinal);
         RuleGraphNode? root = null;
         foreach (RuleGraphNode node in graph.Nodes)
@@ -155,13 +171,15 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
 
             if (node.Origin == RuleGraphNodeOrigin.Rule)
             {
-                // A companion (first-tick, a highlight's counter) shares its owner's name but is not a rule id.
+                // A companion (first-tick, a tally's counters, a highlight's .count) shares its owner's name
+                // but is not a rule id of its own; it is drawn as the owner.
                 List<RulesetDocumentNodeKey> owned = [];
+                List<RulesetDocumentNodeKey> owners = [];
                 foreach (string owner in node.Owners)
                 {
-                    if (declared.TryGetValue(owner, out RulesetDocumentNodeKey key) && node.RuleIds.Contains(owner))
+                    if (declared.TryGetValue(owner, out RulesetDocumentNodeKey key))
                     {
-                        owned.Add(key);
+                        (node.RuleIds.Contains(owner) ? owned : owners).Add(key);
                     }
                 }
 
@@ -169,6 +187,15 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                 {
                     keys[node] = owned;
                     kinds[node] = ChainNodeKind.Declared;
+                }
+                else if (owners.Count > 0)
+                {
+                    keys[node] = owners;
+                    kinds[node] = ChainNodeKind.Declared;
+                    string ownerPrefix = owners[0].Id + ".";
+                    companions[node] = node.Node.Name.StartsWith(ownerPrefix, StringComparison.Ordinal)
+                        ? node.Node.Name[(ownerPrefix.Length - 1)..]
+                        : node.Node.Name;
                 }
 
                 continue;
@@ -278,7 +305,12 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                 sources = keys[edge.Source];
             }
 
-            string text = isRead ? "reads" : label;
+            string text = label;
+            if (isRead)
+            {
+                text = companions.TryGetValue(readBy!, out string? companion) ? "reads " + companion : "reads";
+            }
+
             foreach (RulesetDocumentNodeKey source in sources)
             {
                 foreach (RulesetDocumentNodeKey target in keys[edge.Destination])
@@ -334,7 +366,10 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                     if (emitted.Add(key))
                     {
                         string name = kinds[node] == ChainNodeKind.Declared ? key.Id : node.Node.Name;
-                        nodes.Add(new ChainNode(key, kinds[node], name, node.Scope == RuleGraphScope.Player));
+                        nodes.Add(new ChainNode(key, kinds[node], name, node.Scope == RuleGraphScope.Player)
+                        {
+                            Outputs = outputs.GetValueOrDefault(key) ?? []
+                        });
                     }
                 }
             }
@@ -343,10 +378,23 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
         return new RulesetChainGraph(nodes, edges);
     }
 
-    /// <summary>The catalog view the resolver gave each set of concrete events, keyed by the sorted events.</summary>
+    /// <summary>
+    ///     The view name for each set of concrete events, keyed by the sorted events: the catalog's plainest
+    ///     view on that set under the composing profile (<c>round_ended</c>, not <c>round_won</c>), then any
+    ///     view the resolver gave a stat on a set the catalog does not list.
+    /// </summary>
     private static Dictionary<string, string> ViewsByEvents(IReadOnlyList<CheckedRuleset> rulesets)
     {
         Dictionary<string, string> views = new(StringComparer.Ordinal);
+        foreach (CatalogView view in EmbeddedCatalog.Root.Views.OrderBy(v => string.IsNullOrEmpty(v.Result) && string.IsNullOrEmpty(v.Actor) ? 0 : 1))
+        {
+            CatalogViewProfile? profile = view.Profiles.FirstOrDefault(p => p.Profile == RulesetCorpus.ProfileName);
+            if (profile is { ConcreteEvents.Count: > 1 })
+            {
+                views.TryAdd(Signature(profile.ConcreteEvents), view.Name);
+            }
+        }
+
         foreach (CheckedStat stat in rulesets.SelectMany(r => r.Stats))
         {
             if (stat.ResolvedView is { } view && stat.ConcreteEvents.Count > 1)
@@ -362,8 +410,8 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
 
     /// <summary>
     ///     Folds root-sourced events that write exactly the same declared and enrichment nodes, the same way,
-    ///     into one event node: the round-end trio is one <c>round_ended</c>, named by the view the resolver
-    ///     gave a stat on those events, else by the events joined. A wire every twin carried becomes one
+    ///     into one event node: the round-end trio is one <c>round_ended</c>, named by the catalog view on
+    ///     those events, else by the events joined. A wire every twin carried becomes one
     ///     wire labelled with the merged name; a wire only some carried keeps its own event's label.
     ///     Rewrites <paramref name="edges" /> in place and returns the event nodes in first-use order.
     /// </summary>
