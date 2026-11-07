@@ -20,6 +20,13 @@ public sealed partial class CanvasTabViewModel
     /// <summary>The text the source pane holds while dirty.</summary>
     private string _pendingSourceText = "";
 
+    /// <summary>
+    ///     The text the source pane should show: the file's, or the unsaved text while the pane is dirty. A view
+    ///     built again over this view model starts from it, and the echo through <see cref="SourceEdited" />
+    ///     leaves the pane as dirty as it was.
+    /// </summary>
+    public string SourceText => SourceDirty ? _pendingSourceText : DocumentText;
+
     /// <summary>The source pane reports its text on every change; a difference from the file makes it dirty.</summary>
     public void SourceEdited(string text)
     {
@@ -89,7 +96,7 @@ public sealed partial class CanvasTabViewModel
         List<CanvasNodeViewModel> nodes = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n.IsAuthorable)];
         if (IsEditable && nodes.Count > 0 && _composed is { } composed)
         {
-            Apply(CanvasEditSemantics.Delete(nodes, composed));
+            Apply(CanvasEditSemantics.Delete(nodes, composed, _session.Text));
         }
     }
 
@@ -315,10 +322,11 @@ public sealed partial class CanvasTabViewModel
         }
     }
 
-    // Each wire is its own write and redraw; a refused one is kept and said once, with the count that went.
+    // Each wire is its own write; the cut is one reload and one status line, so a refusal is said once,
+    // with the count that went, and only a wire whose removal changed the file counts as removed.
     private void DisconnectWires(List<CanvasConnectionViewModel> wires)
     {
-        if (!IsEditable || wires.Count == 0)
+        if (!IsEditable || wires.Count == 0 || SelectedRuleset is not { } selected)
         {
             return;
         }
@@ -327,25 +335,25 @@ public sealed partial class CanvasTabViewModel
         int removed = 0;
         foreach (CanvasConnectionViewModel wire in wires)
         {
-            EditRequest request = CanvasEditSemantics.Disconnect(wire);
-            if (request.IsRefused)
-            {
-                if (request.Refusal is { } reason && !refusals.Contains(reason))
-                {
-                    refusals.Add(reason);
-                }
-            }
-            else if (Apply(request))
+            EditOutcome outcome = _session.Apply(CanvasEditSemantics.Disconnect(wire));
+            if (outcome.IsWritten)
             {
                 removed++;
             }
-            else if (EditStatus.Length > 0 && !refusals.Contains(EditStatus))
+            else if (outcome.IsRefused && outcome.Message is { } reason && !refusals.Contains(reason))
             {
-                refusals.Add(EditStatus);
+                refusals.Add(reason);
             }
         }
 
         SelectedWires.Clear();
+        if (removed > 0)
+        {
+            EditStatus = "";
+            Reload(selected.Id, selected.Path);
+        }
+
+        NotifyHistory();
         if (refusals.Count > 0)
         {
             string kept = wires.Count - removed == 1 ? "1 wire kept" : $"{wires.Count - removed} wires kept";

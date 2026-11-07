@@ -343,7 +343,6 @@ public class RulesetChainGraphTests
 
         string note = $"{corpus.Entries.Count} rulesets composed with their chains in {clock.ElapsedMilliseconds}ms";
         Console.WriteLine("[chain] " + note);
-        File.WriteAllText(Path.Combine(Path.GetTempPath(), "rulecanvas-chain-timing.txt"), note);
         await Assert.That(failed).IsEmpty();
     }
 }

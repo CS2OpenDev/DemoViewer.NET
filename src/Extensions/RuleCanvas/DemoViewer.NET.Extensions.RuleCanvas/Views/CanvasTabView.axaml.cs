@@ -365,7 +365,8 @@ public partial class CanvasTabView : UserControl
             _viewModel.GraphReplaced += FitLater;
             _viewModel.JumpRequested += JumpTo;
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
-            Source.Text = _viewModel.DocumentText;
+            // The unsaved text when the pane is dirty: a tab switch rebuilds this view over the same view model.
+            Source.Text = _viewModel.SourceText;
             FillAddStatMenu(_viewModel.Views);
         }
     }

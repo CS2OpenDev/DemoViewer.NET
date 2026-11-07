@@ -34,6 +34,9 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     private RulesWatcher? _watcher;
     private bool _redrawing;
 
+    // The watcher's batches that arrived while the pane was dirty, replayed when it is clean again.
+    private readonly HashSet<string> _deferred = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>The status shown when the open file changed on disk while the source pane holds unsaved text.</summary>
     public const string ChangedOnDiskStatus = "file changed on disk; Revert to load it";
 
@@ -156,7 +159,11 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
     public bool CanRedo => _session.CanRedo;
 
-    /// <summary>Raised on the UI thread after the node and wire collections were refilled, so the view can fit them.</summary>
+    /// <summary>
+    ///     Raised on the UI thread after the node and wire collections were drawn fresh (another ruleset, a
+    ///     focus change, a layout reset), so the view can fit them. A redraw that kept the arrangement, which
+    ///     every write and reload of the same ruleset is, does not raise it: the viewport stays where it was.
+    /// </summary>
     public event Action? GraphReplaced;
 
     /// <summary>Raised on the UI thread with a 1-based line when a selected node names where it is declared.</summary>
@@ -185,14 +192,12 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
         StartWatching();
 
-        // Another surface may have written the file while this tab was not shown and not watching; the Workbench does.
-        if (SelectedRuleset is { } selected && !SourceDirty && _session.ChangedOnDisk)
-        {
-            Reload(selected.Id, selected.Path);
-        }
+        // Another surface may have written any file while this tab was not shown and not watching; the
+        // Workbench does. What the watcher would have reported goes through the same handler.
+        FilesChanged(_corpus.ChangedPaths());
     }
 
-    /// <summary>Nothing is reloaded while another tab is shown; the next activation re-checks the open file.</summary>
+    /// <summary>Nothing is reloaded while another tab is shown; the next activation re-checks the directories.</summary>
     public void OnDeactivated() => StopWatching();
 
     public void Dispose() => StopWatching();
@@ -201,7 +206,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     ///     Files under the user rules directory were touched, as the watcher reports them. A file that appeared
     ///     or went means a full load; one the corpus knows is re-read alone. The open file is skipped when it
     ///     holds what the session wrote (the canvas's own write), and nothing is reloaded while the source
-    ///     pane is dirty: the status names the change and Revert loads it.
+    ///     pane is dirty: the status names the change, the batch is held, and Revert or Save loads it.
     /// </summary>
     public void FilesChanged(IReadOnlyList<string> paths)
     {
@@ -214,6 +219,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         string? open = _session.Entry?.Path;
         if (SourceDirty)
         {
+            _deferred.UnionWith(paths);
             if (open is not null && paths.Any(p => SamePath(p, open)) && _session.ChangedOnDisk)
             {
                 EditStatus = ChangedOnDiskStatus;
@@ -293,6 +299,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
         NotifyEditability();
         Redraw(value, keepArrangement: false);
+        ReplayDeferred();
     }
 
     partial void OnDiagnosticsChanged(string value) => OnPropertyChanged(nameof(HasDiagnostics));
@@ -307,17 +314,34 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         }
     }
 
-    // A revert over a file that changed on disk loads it; the same-path guard keeps a ruleset switch,
-    // which also clears the flag, from reloading the file that was open before.
+    // A revert over a file that changed on disk loads it, with every batch held while the pane was dirty;
+    // the same-path guard keeps a ruleset switch, which also clears the flag, from reloading the file
+    // that was open before. The switch replays the held batch itself, once the new one is drawn.
     partial void OnSourceDirtyChanged(bool value)
     {
         NotifyEditability();
-        if (!value && SelectedRuleset is { } selected && _session.Entry is { } open
-            && SamePath(open.Path, selected.Path) && _session.ChangedOnDisk)
+        if (!value && SelectedRuleset is { } selected && _session.Entry is { } open && SamePath(open.Path, selected.Path))
         {
-            EditStatus = "";
-            Reload(selected.Id, selected.Path);
+            if (_session.ChangedOnDisk)
+            {
+                EditStatus = "";
+                _deferred.Add(selected.Path);
+            }
+
+            ReplayDeferred();
         }
+    }
+
+    private void ReplayDeferred()
+    {
+        if (_deferred.Count == 0 || SourceDirty)
+        {
+            return;
+        }
+
+        List<string> paths = [.. _deferred];
+        _deferred.Clear();
+        FilesChanged(paths);
     }
 
     partial void OnShowFacetsChanged(bool value)
@@ -530,7 +554,10 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             ? "Nothing composed; see the diagnostics."
             : $"{nodes.Count} nodes, {wires.Count} wires, {unwired} unwired";
         AfterRedraw(composed);
-        GraphReplaced?.Invoke();
+        if (!keepArrangement)
+        {
+            GraphReplaced?.Invoke();
+        }
     }
 
     private void NotifyEditability()

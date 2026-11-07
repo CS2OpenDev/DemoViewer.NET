@@ -248,4 +248,28 @@ public class CanvasTabViewModelEditTests
         await Assert.That(() => RulesetEdits.SetFacet(text, "kills", "hitgroup", "2")).Throws<InvalidOperationException>();
     }
 
+    [Test]
+    public async Task TheSourceText_IsTheUnsavedText_WhileDirty_AndItsEchoKeepsThePaneDirty()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        await Assert.That(vm.SourceText).IsEqualTo(vm.DocumentText);
+
+        string typed = vm.DocumentText + "# typing\n";
+        vm.SourceEdited(typed);
+        await Assert.That(vm.SourceText).IsEqualTo(typed);
+
+        // A view built again over this view model shows SourceText and reports it back, as the editor does.
+        vm.SourceEdited(vm.SourceText);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SourceDirty).IsTrue();
+            await Assert.That(vm.SourceText).IsEqualTo(typed);
+            await Assert.That(vm.IsEditable).IsFalse();
+        }
+
+        vm.RevertSourceCommand.Execute(null);
+        await Assert.That(vm.SourceText).IsEqualTo(vm.DocumentText);
+    }
 }

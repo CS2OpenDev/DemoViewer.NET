@@ -145,4 +145,25 @@ public class CanvasDeleteTests
             await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).IsEqualTo(before);
         }
     }
+
+    [Test]
+    public async Task WhenTheCompositionFails_TheReadersStillComeFromTheText_AndTheDeleteIsRefused()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        string path = rules.UserPath("player_round");
+        File.WriteAllText(path, RulesetEdits.AddStat(File.ReadAllText(path), "broken:\n  flag:\n    when: \"no_such_stat > 0\"\n  per: round\n"));
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        string before = File.ReadAllText(path);
+        await Assert.That(vm.Connections).IsEmpty().Because("one unresolved reference empties the composition");
+
+        vm.SelectedNodes.Add(vm.Nodes.Single(n => n.Id == "round_kast_assists"));
+        vm.DeleteSelectedCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.EditStatus).IsEqualTo("round_kast_assists is read by round_kast");
+            await Assert.That(File.ReadAllText(path)).IsEqualTo(before);
+            await Assert.That(vm.Nodes.Select(n => n.Id)).Contains("round_kast_assists");
+        }
+    }
 }
