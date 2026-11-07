@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="using:DemoViewer.NET.Extensions.RuleCanvas.Views"
+             xmlns:vm="using:DemoViewer.NET.Extensions.RuleCanvas.ViewModels"
+             x:Class="DemoViewer.NET.Extensions.RuleCanvas.Views.ConditionRowsView"
+             x:DataType="vm:CanvasExpressionViewModel">
+
+    <!--
+      ONE EXPRESSION LINE ON A NODE FACE. A flat condition is rows: path, comparator, literal, with the
+      join above every row but the first and the text read-only under them. A formula, a nested condition
+      or a line the user switched to text is one editor over the whole text. Both editors complete paths
+      of the node's view; the completion fills in the token at the caret, not the whole text.
+    -->
+
+    <StackPanel Spacing="3">
+
+        <StackPanel Spacing="2" IsVisible="{Binding ShowRows}">
+            <ItemsControl ItemsSource="{Binding Rows}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:CanvasConditionRowViewModel">
+                        <StackPanel Spacing="2">
+                            <Button Classes="ghost" Content="{Binding ConnectiveLabel}" FontSize="10" Padding="4 0" MinHeight="0"
+                                    HorizontalAlignment="Left" IsVisible="{Binding !IsFirst}"
+                                    Command="{Binding ToggleConnectiveCommand}"
+                                    ToolTip.Tip="Switch every join of this condition between and and or" />
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="4">
+                                <AutoCompleteBox Grid.Column="0" Text="{Binding Path}" ItemsSource="{Binding Paths}"
+                                                 TextFilter="{x:Static views:ConditionRowsView.TokenFilter}"
+                                                 TextSelector="{x:Static views:ConditionRowsView.TokenSelector}"
+                                                 MinimumPrefixLength="0" MaxDropDownHeight="180"
+                                                 FontSize="11" FontFamily="monospace" MinWidth="120" MaxWidth="220"
+                                                 Padding="4 1" MinHeight="0" PlaceholderText="path"
+                                                 KeyDown="OnCompletionKeyDown" LostFocus="OnRowEditorLostFocus" />
+                                <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:CanvasConditionRowViewModel.Comparators}"
+                                          SelectedItem="{Binding Comparator}" FontSize="11" MinWidth="62" Padding="4 1" MinHeight="0" />
+                                <CheckBox Grid.Column="2" IsChecked="{Binding BoolLiteral}" IsThreeState="False"
+                                          IsVisible="{Binding IsBoolLiteral}" MinHeight="0" Padding="0" Margin="0"
+                                          VerticalAlignment="Center" />
+                                <TextBox Grid.Column="2" Text="{Binding Literal}" IsVisible="{Binding ShowLiteralBox}"
+                                         FontSize="11" FontFamily="monospace" MinWidth="56" MaxWidth="160" Padding="4 1" MinHeight="0"
+                                         PlaceholderText="value" LostFocus="OnRowEditorLostFocus">
+                                    <TextBox.KeyBindings>
+                                        <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
+                                    </TextBox.KeyBindings>
+                                </TextBox>
+                                <Button Grid.Column="3" Classes="ghost" Content="×" FontSize="11" Padding="4 0" MinHeight="0"
+                                        Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this row" />
+                            </Grid>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <DockPanel>
+                <Button DockPanel.Dock="Left" Classes="ghost" Content="+ row" FontSize="10" Padding="4 0" MinHeight="0"
+                        VerticalAlignment="Top" Command="{Binding AddRowCommand}" ToolTip.Tip="Add a row to this condition" />
+                <Button DockPanel.Dock="Right" Classes="ghost" Content="{Binding ToggleLabel}" FontSize="10" Padding="4 0" MinHeight="0"
+                        VerticalAlignment="Top" Command="{Binding ToggleEditAsTextCommand}" />
+                <TextBlock Text="{Binding Text}" FontSize="10" FontFamily="monospace" MaxWidth="300" Margin="6 2 6 0"
+                           TextWrapping="Wrap" Foreground="{DynamicResource TextDim}" />
+            </DockPanel>
+        </StackPanel>
+
+        <StackPanel Spacing="2" IsVisible="{Binding ShowTextEditor}">
+            <AutoCompleteBox Text="{Binding Text}" ItemsSource="{Binding Paths}" IsVisible="{Binding HasCompletion}"
+                             TextFilter="{x:Static views:ConditionRowsView.TokenFilter}"
+                             TextSelector="{x:Static views:ConditionRowsView.TokenSelector}"
+                             MinimumPrefixLength="0" MaxDropDownHeight="180" PlaceholderText="{Binding Placeholder}"
+                             FontSize="11" FontFamily="monospace" MinWidth="200" MaxWidth="340" Padding="4 1" MinHeight="0"
+                             KeyDown="OnCompletionKeyDown" LostFocus="OnLineEditorLostFocus" />
+            <TextBox Text="{Binding Text}" IsVisible="{Binding !HasCompletion}" PlaceholderText="{Binding Placeholder}"
+                     FontSize="11" FontFamily="monospace" MinWidth="200" MaxWidth="340" Padding="4 1" MinHeight="0"
+                     TextWrapping="Wrap" AcceptsReturn="False" LostFocus="OnLineEditorLostFocus">
+                <TextBox.KeyBindings>
+                    <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
+                </TextBox.KeyBindings>
+            </TextBox>
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Classes="ghost" Content="{Binding ToggleLabel}" FontSize="10" Padding="4 0" MinHeight="0"
+                        Command="{Binding ToggleEditAsTextCommand}" IsVisible="{Binding CanToggleText}" />
+                <TextBlock Text="{Binding TextNote}" FontSize="10" Foreground="{DynamicResource TextDim}"
+                           IsVisible="{Binding ShowTextNote}" TextWrapping="Wrap" MaxWidth="300" VerticalAlignment="Center" />
+            </DockPanel>
+        </StackPanel>
+    </StackPanel>
+</UserControl>
