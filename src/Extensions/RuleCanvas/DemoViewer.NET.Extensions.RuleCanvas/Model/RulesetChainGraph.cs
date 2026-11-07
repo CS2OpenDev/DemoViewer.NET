@@ -282,12 +282,15 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
         foreach ((RuleGraphEdge edge, RuleGraphNode? readBy) in taken)
         {
             string label = edge.Descriptor.Label ?? "";
-            bool isRead = readBy is not null;
+            // A live compute's reads arrive as their own unlabelled edges from the node read, not through Reads.
+            bool isLive = edge.Descriptor.Kind == GraphEdgeKind.LiveComputeRead;
+            RuleGraphNode? reader = readBy ?? (isLive ? edge.Source : null);
+            bool isRead = reader is not null;
             IReadOnlyList<RulesetDocumentNodeKey> sources;
             RulesetDocumentNodeKey? guard = null;
             if (isRead)
             {
-                sources = keys[readBy!];
+                sources = keys[reader!];
             }
             else if (ReferenceEquals(edge.Source, root))
             {
@@ -309,7 +312,11 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             string text = label;
             if (isRead)
             {
-                text = companions.TryGetValue(readBy!, out string? companion) ? "reads " + companion : "reads";
+                text = companions.TryGetValue(reader!, out string? companion) ? "reads " + companion : "reads";
+                if (isLive)
+                {
+                    text += " (live)";
+                }
             }
 
             foreach (RulesetDocumentNodeKey source in sources)

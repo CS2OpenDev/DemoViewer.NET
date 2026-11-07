@@ -153,6 +153,47 @@ public class RulesetChainGraphTests
         }
     }
 
+    /// <summary>
+    ///     The engine draws a live compute's reads as unlabelled SetValue edges from each node read, with
+    ///     <c>live</c> as the condition. They are reads, and the wire says they are live.
+    /// </summary>
+    [Test]
+    public async Task ALiveComputesReads_AreReadWires_SayingLive()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("live_probe", """
+            ruleset: live_probe
+            title: Live probe
+            for: each_player
+
+            stats:
+              kills:
+                count: kill
+                per: round
+              live_ratio:
+                compute: { value: "kills * 2", live: true }
+                per: round
+              end_ratio:
+                compute: "kills * 3"
+                per: round
+            """);
+        RulesetCorpus.Composed composed = rules.Load().Compose("live_probe");
+        RulesetChainGraph chain = composed.Chain;
+        ChainEdge[] intoLive = [.. chain.Edges.Where(e => e.Target.Id == "live_ratio")];
+        ChainEdge[] intoEnd = [.. chain.Edges.Where(e => e.Target.Id == "end_ratio")];
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Diagnostics).IsEmpty();
+            await Assert.That(intoLive.Length).IsEqualTo(1);
+            await Assert.That(intoLive[0].Source.Id).IsEqualTo("kills");
+            await Assert.That(intoLive[0].IsRead).IsTrue().Because("the count is what the compute reads, not what writes it");
+            await Assert.That(intoLive[0].Label).IsEqualTo("reads (live)");
+            await Assert.That(ChainWiring.WireText(intoLive[0])).IsEqualTo("reads (live)");
+            await Assert.That(intoEnd.Any(e => e.IsRead && e.Source.Id == "kills" && e.Label == "reads")).IsTrue();
+            await Assert.That(intoEnd.Any(e => !e.IsRead && e.Source.Id == "round_ended")).IsTrue().Because("a round-end compute is fired by the round end");
+        }
+    }
+
     [Test]
     public async Task PlayerStats_MergingTwins_DropsTheDuplicateWires()
     {
