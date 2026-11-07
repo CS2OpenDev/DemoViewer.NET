@@ -22,7 +22,8 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
 {
     private readonly Func<string?> _layoutFolder = layoutFolder ?? throw new ArgumentNullException(nameof(layoutFolder));
 
-    // Where a dropped entry should land, by the key it will get; read once by the redraw that follows the write.
+    // Where a dropped entry should land, by the key it will get. Kept until a redraw draws that key, so a
+    // focus redraw or a refused write in between does not lose the drop point.
     private readonly Dictionary<RulesetDocumentNodeKey, Point> _pending = new();
 
     /// <summary>The node whose slice of the chain is drawn, or null for the whole chain.</summary>
@@ -30,10 +31,13 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
 
     public bool HasFocus => FocusKey is not null;
 
+    /// <summary>The placements recorded and not yet drawn.</summary>
+    public IReadOnlyDictionary<RulesetDocumentNodeKey, Point> Pending => _pending;
+
     /// <summary>Records where the entry that the next write adds should be drawn.</summary>
     public void PlaceNext(RulesetDocumentNodeKey key, Point at) => _pending[key] = at;
 
-    /// <summary>Drops a recorded placement whose write did not happen.</summary>
+    /// <summary>Drops every recorded placement.</summary>
     public void ForgetPending() => _pending.Clear();
 
     /// <summary>The on-screen positions as an arrangement, which a redraw after an edit keeps.</summary>
@@ -92,12 +96,15 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
             layout = layout.With(key, at);
         }
 
-        foreach ((RulesetDocumentNodeKey key, Point at) in _pending)
+        // A pending placement is spent by the first draw that holds its key; one that names no node drawn
+        // here (a slice, a refused write) waits for the draw that does.
+        HashSet<RulesetDocumentNodeKey> drawn = [.. composed.Graph.Nodes.Select(n => n.Key)];
+        foreach ((RulesetDocumentNodeKey key, Point at) in _pending.Where(p => drawn.Contains(p.Key)).ToList())
         {
             layout = layout.With(key, at);
+            _pending.Remove(key);
         }
 
-        _pending.Clear();
         return new Arrangement(composed, layout, saved.Count > 0, focusDropped);
     }
 

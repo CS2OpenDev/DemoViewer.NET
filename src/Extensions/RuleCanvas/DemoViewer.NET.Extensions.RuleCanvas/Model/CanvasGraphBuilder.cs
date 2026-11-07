@@ -60,12 +60,12 @@ public static class CanvasGraphBuilder
         }
 
         IReadOnlyDictionary<RulesetDocumentNodeKey, Avalonia.Point> placed =
-            CanvasPlacement.Place(items, [.. specs.Select(s => s.AsEdge())]);
+            CanvasPlacement.Place(items, [.. specs.Select(s => s.AsEdge())], layout);
         foreach (CanvasNodeViewModel node in nodes)
         {
             if (placed.TryGetValue(node.Key, out Avalonia.Point at))
             {
-                node.Location = layout.PositionOf(node.Key, at);
+                node.Location = at;
             }
         }
 
