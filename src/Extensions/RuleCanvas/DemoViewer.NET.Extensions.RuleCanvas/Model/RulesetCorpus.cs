@@ -30,7 +30,7 @@ public sealed class RulesetCorpus
     /// <summary>What composing one ruleset produced.</summary>
     /// <param name="Graph">The nodes and edges; the declared entries alone, unwired, when the composition failed.</param>
     /// <param name="Documents">Every document that took part, by id, for the chips and facets a checked stat does not carry.</param>
-    /// <param name="Diagnostics">The composition's diagnostics, as text.</param>
+    /// <param name="Diagnostics">The composition's diagnostics and the loader's for every document taking part, as text.</param>
     /// <param name="PositionedDiagnostics">The same diagnostics that carry a line, with the ruleset they are about.</param>
     /// <param name="Chain">The engine's lowered chain for the same documents; empty when the build failed, which the diagnostics then say.</param>
     public sealed record Composed(
@@ -68,13 +68,16 @@ public sealed class RulesetCorpus
 
     // Every file that loaded, in directory order, overridden ones included, so one file can be re-read
     // without a walk and a user file that loses a shipped id hands the shipped entry back.
-    private sealed record LoadedFile(string Path, string Source, RulesetDoc Doc);
+    private sealed record LoadedFile(string Path, string Source, RulesetDoc Doc, IReadOnlyList<RulesetDiagnostic> Diagnostics);
 
     private readonly IReadOnlyList<(string Directory, string Source)> _directories;
     private readonly List<LoadedFile> _files;
     private readonly List<(string Path, string Reason)> _failures;
     private readonly Dictionary<string, DateTime> _readAt;
     private readonly Dictionary<string, RulesetDoc> _docs;
+
+    // What the loader said about each document it still loaded: a stray key, a wrong shape. By id, as _docs.
+    private readonly Dictionary<string, IReadOnlyList<RulesetDiagnostic>> _loaderDiagnostics;
 
     /// <summary>The demo-source profile every demo-less composition runs under, by the id the catalog keys its views on.</summary>
     internal static string ProfileName => DemoSourceProfileRegistry.DefaultFallback.GetType().Name;
@@ -89,6 +92,7 @@ public sealed class RulesetCorpus
         UserDirectory = userDirectory;
         List<Entry> entries = [];
         _docs = new Dictionary<string, RulesetDoc>(StringComparer.Ordinal);
+        _loaderDiagnostics = new Dictionary<string, IReadOnlyList<RulesetDiagnostic>>(StringComparer.Ordinal);
         foreach (LoadedFile file in files)
         {
             // A later directory overrides an earlier one by id, which is the host's own rule: a user file
@@ -106,6 +110,7 @@ public sealed class RulesetCorpus
             }
 
             _docs[doc.Id] = doc;
+            _loaderDiagnostics[doc.Id] = file.Diagnostics;
         }
 
         Entries = entries;
@@ -314,7 +319,7 @@ public sealed class RulesetCorpus
             RulesetDocumentLoader.Outcome outcome = RulesetDocumentLoader.Load(File.ReadAllText(path), path);
             if (outcome.Doc is { } doc)
             {
-                return new LoadedFile(path, source, doc);
+                return new LoadedFile(path, source, doc, outcome.Diagnostics);
             }
 
             failures.Add((path, string.Join("; ", outcome.Diagnostics.Select(d => d.Message))));
@@ -405,6 +410,20 @@ public sealed class RulesetCorpus
             if (ruleset is not null)
             {
                 positioned.Add((ruleset, position.Line, diagnostic.Message));
+            }
+        }
+
+        // The loader keeps a document with a stray key or a wrong shape and drops the part it did not
+        // understand; the engine runs what remains, so the face must say what was ignored.
+        foreach (RulesetDoc doc in docs)
+        {
+            foreach (RulesetDiagnostic diagnostic in _loaderDiagnostics.GetValueOrDefault(doc.Id) ?? [])
+            {
+                diagnostics.Add(diagnostic.ToString());
+                if (diagnostic.Position.Line > 0)
+                {
+                    positioned.Add((doc.Id, diagnostic.Position.Line, diagnostic.Message));
+                }
             }
         }
 

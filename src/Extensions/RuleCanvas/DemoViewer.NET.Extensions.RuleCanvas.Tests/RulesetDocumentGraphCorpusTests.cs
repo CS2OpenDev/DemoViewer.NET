@@ -6,6 +6,7 @@ using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Analysis.Yaml;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
+using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 using DemoViewer.NET.TestSupport;
 using TUnit.Core.Exceptions;
 
@@ -269,6 +270,54 @@ public class RulesetDocumentGraphCorpusTests
             return new Corpus(
                 RulesetDocumentGraph.Build(composed.Rulesets, openRulesetId: null),
                 [.. loaded.Rulesets.Select(d => d.Id)]);
+        }
+    }
+
+    [Test]
+    public async Task ALoaderDiagnostic_OnADocumentThatStillLoads_ReachesTheCompositionAndTheNode()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("noisy", """
+            ruleset: noisy
+            title: Noisy
+            for: each_player
+            when: round_live
+            stats:
+              kills:
+                count: kill
+                per: round
+                nonsense: true
+              bands:
+                tally: kills
+                thresholds: { good: 5 }
+                per: match
+            """);
+        RulesetCorpus corpus = rules.Load();
+        await Assert.That(corpus.Entries.Select(e => e.Id)).Contains("noisy").Because("the loader keeps the document");
+
+        RulesetCorpus.Composed composed = corpus.Compose("noisy");
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Diagnostics.Count).IsGreaterThanOrEqualTo(3).Because(string.Join("; ", composed.Diagnostics));
+            await Assert.That(composed.Diagnostics.Any(d => d.Contains("unknown-key", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(composed.PositionedDiagnostics.Any(d => d.RulesetId == "noisy" && d.Line == 4)).IsTrue()
+                .Because("the stray top-level key is at line 4");
+            await Assert.That(composed.PositionedDiagnostics.Any(d => d.RulesetId == "noisy" && d.Line >= 9)).IsTrue()
+                .Because("the wrong-shaped thresholds are inside bands");
+        }
+
+        // The stray key inside kills is filed on its node; the top-level one and the dropped tally stay at the document.
+        ILookup<RulesetDocumentNodeKey, string> byNode = NodeFaceBuilder.DiagnosticsByNode(composed);
+        await Assert.That(byNode[new RulesetDocumentNodeKey("noisy", "kills")]).IsNotEmpty();
+
+        using CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "noisy";
+        vm.OnActivated(null!);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Nodes.Single(n => n.Id == "kills").Diagnostics).IsNotEmpty();
+            await Assert.That(vm.DiagnosticEntries.Any(d => d.Node is null && d.Message.Contains("'when'", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(vm.DiagnosticCount).IsGreaterThanOrEqualTo(3);
         }
     }
 }
