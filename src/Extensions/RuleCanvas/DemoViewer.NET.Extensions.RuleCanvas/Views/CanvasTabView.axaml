@@ -235,29 +235,82 @@
             </nodify:NodifyEditor.ConnectionTemplate>
 
             <nodify:NodifyEditor.ItemTemplate>
+                <views:CanvasNodeTemplateSelector>
+
+                <!-- An engine node (an event, an enrichment, a context flag) is one 30px row: the input dot, the
+                     kind pill, the name without its enrich. prefix, the output dot. Not the author's to edit. -->
+                <views:CanvasNodeTemplateSelector.Scaffold>
+                    <DataTemplate x:DataType="vm:CanvasNodeViewModel">
+                        <nodes:Node Input="{Binding Inputs}" Output="{Binding Outputs}" ContentPadding="0"
+                                    MinWidth="140" MaxWidth="260" ContentBrush="{DynamicResource RuleNodeBg}"
+                                    ToolTip.Tip="{Binding Id}">
+                            <nodes:Node.InputConnectorTemplate>
+                                <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
+                                    <nodes:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="{Binding IsConnected}"
+                                                     Padding="4 0" MinHeight="0" VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </nodes:Node.InputConnectorTemplate>
+                            <nodes:Node.OutputConnectorTemplate>
+                                <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
+                                    <nodes:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="{Binding IsConnected}"
+                                                      Padding="4 0" MinHeight="0" VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </nodes:Node.OutputConnectorTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="6" Height="30" Margin="2 0">
+                                <Border CornerRadius="3" Padding="4 0" VerticalAlignment="Center" BorderThickness="1"
+                                        views:TokenBrush.BorderBrush="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}">
+                                    <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
+                                               views:TokenBrush.Foreground="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                </Border>
+                                <TextBlock Text="{Binding Id, Converter={x:Static views:ScaffoldName.Instance}}" FontSize="12"
+                                           FontFamily="monospace" Foreground="{DynamicResource TextCardHeader}"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <ItemsControl ItemsSource="{Binding Chips}" VerticalAlignment="Center">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="4" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <TextBlock Text="{Binding}" FontSize="9" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </nodes:Node>
+                    </DataTemplate>
+                </views:CanvasNodeTemplateSelector.Scaffold>
+
+                <views:CanvasNodeTemplateSelector.Authored>
                 <DataTemplate x:DataType="vm:CanvasNodeViewModel">
                     <nodes:Node Input="{Binding Inputs}" Output="{Binding Outputs}" ContentPadding="10 6 10 8"
-                                ContentBrush="{DynamicResource CardBg}" HeaderBrush="{DynamicResource PanelHeaderBg}">
+                                ContentBrush="{DynamicResource RuleNodeBg}" HeaderBrush="{DynamicResource RuleNodeBg}">
 
-                        <!-- Header: the kind pill, the id, and the label when there is one. -->
+                        <!-- Header: a stripe and an outlined pill in the kind's token, the id, the label when there
+                             is one, and the diagnostics count as a badge whose tooltip carries the text. -->
                         <nodes:Node.Header>
-                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="2 1">
-                                <Border CornerRadius="3" Padding="5 1" VerticalAlignment="Center"
-                                        Background="{DynamicResource AccentInteractive}" IsVisible="{Binding !IsScaffold}">
-                                    <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
-                                               Foreground="{DynamicResource TextOnAccent}" />
-                                </Border>
-                                <!-- An engine node's pill is outlined rather than filled: not the author's. -->
-                                <Border CornerRadius="3" Padding="5 1" VerticalAlignment="Center" BorderThickness="1"
-                                        BorderBrush="{DynamicResource BorderAccent}" IsVisible="{Binding IsScaffold}">
-                                    <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
-                                               Foreground="{DynamicResource TextMid}" />
-                                </Border>
-                                <TextBlock Text="{Binding Id}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
-                                           Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource TextMid}"
-                                           VerticalAlignment="Center" IsVisible="{Binding Label, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="3,*">
+                                <Border Grid.Column="0" CornerRadius="3 0 0 0" Margin="0 0 0 -1"
+                                        views:TokenBrush.Background="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="8 5 8 3">
+                                    <Border CornerRadius="3" Padding="5 1" VerticalAlignment="Center" BorderThickness="1"
+                                            views:TokenBrush.BorderBrush="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}">
+                                        <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
+                                                   views:TokenBrush.Foreground="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                    </Border>
+                                    <TextBlock Text="{Binding Id}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
+                                               Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource TextMid}"
+                                               VerticalAlignment="Center" IsVisible="{Binding Label, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                    <Border CornerRadius="8" Padding="6 0" MinWidth="16" VerticalAlignment="Center"
+                                            IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}"
+                                            views:TokenBrush.Background="{Binding DiagnosticsText, Converter={x:Static views:DiagnosticSeverityToken.Instance}}">
+                                        <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextOnAccent}" HorizontalAlignment="Center" />
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
                         </nodes:Node.Header>
 
                         <nodes:Node.InputConnectorTemplate>
@@ -289,10 +342,10 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="x:String">
                                         <Border CornerRadius="9" Padding="7 1" Margin="0 0 4 2"
-                                                Background="{DynamicResource PanelBg}"
-                                                BorderBrush="{DynamicResource BorderAccent}" BorderThickness="1">
+                                                Background="{DynamicResource RuleCanvasBg}"
+                                                BorderBrush="{DynamicResource RuleNodeBorder}" BorderThickness="1">
                                             <TextBlock Text="{Binding}" FontSize="10" FontFamily="monospace"
-                                                       Foreground="{DynamicResource TextMid}" />
+                                                       Foreground="{DynamicResource RuleTextKey}" />
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -305,7 +358,7 @@
                                              nodes show the written value as text. -->
                                         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0 1" MinHeight="18">
                                             <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11" FontFamily="monospace"
-                                                       Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                                                       Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
                                             <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="11" FontFamily="monospace"
                                                        Foreground="{DynamicResource TextValue}" VerticalAlignment="Center"
                                                        IsVisible="{Binding !IsEditable}" />
@@ -336,22 +389,15 @@
                                       PlaceholderText="add facet…" FontSize="11" Padding="6 1" MinHeight="0"
                                       IsVisible="{Binding ShowFacetPicker}" />
 
-                            <!-- What the composition said about this entry. -->
-                            <Border Background="{DynamicResource AccentCaution}" CornerRadius="3" Padding="6 2"
-                                    IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}">
-                                <TextBlock Text="{Binding DiagnosticsText}" FontSize="10" TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextOnAccent}" />
-                            </Border>
-
-                            <TextBlock Text="{Binding FacetSummary}" FontSize="11" Foreground="{DynamicResource TextDim}"
+                            <TextBlock Text="{Binding FacetSummary}" FontSize="11" Foreground="{DynamicResource RuleTextKey}"
                                        IsVisible="{Binding ShowFacetSummary}" />
 
                             <!-- The scope and the gate as pickers while editable; chips otherwise. -->
                             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowFieldPickers}">
-                                <TextBlock Text="per" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
+                                <TextBlock Text="per" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
                                 <ComboBox ItemsSource="{x:Static vm:CanvasNodeViewModel.PerOptions}" SelectedItem="{Binding Per}"
                                           FontSize="11" MinWidth="76" Padding="6 1" MinHeight="0" />
-                                <TextBlock Text="while" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center"
+                                <TextBlock Text="while" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center"
                                            IsVisible="{Binding ShowGatePicker}" />
                                 <ComboBox ItemsSource="{x:Static vm:CanvasNodeViewModel.GateOptions}" SelectedItem="{Binding Gate}"
                                           PlaceholderText="none" FontSize="11" MinWidth="130" Padding="6 1" MinHeight="0"
@@ -367,7 +413,7 @@
                                     <DataTemplate x:DataType="vm:CanvasExpressionViewModel">
                                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0 1">
                                             <TextBlock Grid.Column="0" Text="{Binding Prefix}" FontSize="10" MinWidth="34"
-                                                       Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
+                                                       Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
                                             <TextBox Grid.Column="1" Text="{Binding Text}" Watermark="{Binding Placeholder}"
                                                      FontSize="11" FontFamily="monospace" MinWidth="200" MaxWidth="340" Padding="4 1" MinHeight="0"
                                                      TextWrapping="Wrap" AcceptsReturn="False" LostFocus="OnExpressionLostFocus">
@@ -382,6 +428,8 @@
                         </StackPanel>
                     </nodes:Node>
                 </DataTemplate>
+                </views:CanvasNodeTemplateSelector.Authored>
+                </views:CanvasNodeTemplateSelector>
             </nodify:NodifyEditor.ItemTemplate>
         </nodify:NodifyEditor>
         </Grid>

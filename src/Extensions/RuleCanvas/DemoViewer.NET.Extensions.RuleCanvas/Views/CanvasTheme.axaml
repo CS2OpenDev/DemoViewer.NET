@@ -39,6 +39,35 @@
                     <SolidColorBrush x:Key="RuleCutLine" Color="#C62828" />
                     <SolidColorBrush x:Key="RuleMinimapBg" Color="#E9EAF3" />
                     <SolidColorBrush x:Key="RuleTextKey" Color="#3C3C70" />
+                    <!-- Nodify's own brush keys, aliased onto the tokens: its control themes read these by key, and a
+                         node with a header takes them over a brush set on the element. -->
+                    <StaticResource x:Key="Node.BackgroundBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.ContentBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.HeaderBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.FooterBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Node.HeaderForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Node.BorderBrush" ResourceKey="RuleNodeBorder" />
+                    <StaticResource x:Key="ItemContainer.BorderBrush" ResourceKey="RuleNodeBorder" />
+                    <StaticResource x:Key="ItemContainer.SelectedBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="ItemContainer.HighlightBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="NodifyEditor.BackgroundBrush" ResourceKey="RuleCanvasBg" />
+                    <StaticResource x:Key="NodifyEditor.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="NodifyEditor.FocusVisualBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="Connector.BorderBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="NodeInput.BorderBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="NodeOutput.BorderBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="NodeInput.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="NodeOutput.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Connection.StrokeBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="PendingConnection.StrokeBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="PendingConnection.BackgroundBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="PendingConnection.BorderBrush" ResourceKey="RuleNodeBorder" />
+                    <StaticResource x:Key="PendingConnection.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Minimap.BackgroundBrush" ResourceKey="RuleMinimapBg" />
+                    <StaticResource x:Key="Minimap.ViewportStrokeBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="Minimap.ViewportBackgroundBrush" ResourceKey="RuleSelectionFill" />
+                    <StaticResource x:Key="MinimapItem.BackgroundBrush" ResourceKey="RuleWireWrite" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="RuleKindEvent" Color="#DCDCAA" />
@@ -60,6 +89,33 @@
                     <SolidColorBrush x:Key="RuleCutLine" Color="#E53935" />
                     <SolidColorBrush x:Key="RuleMinimapBg" Color="#0E0E1E" />
                     <SolidColorBrush x:Key="RuleTextKey" Color="#A0A0D8" />
+                    <StaticResource x:Key="Node.BackgroundBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.ContentBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.HeaderBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.FooterBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Node.HeaderForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Node.BorderBrush" ResourceKey="RuleNodeBorder" />
+                    <StaticResource x:Key="ItemContainer.BorderBrush" ResourceKey="RuleNodeBorder" />
+                    <StaticResource x:Key="ItemContainer.SelectedBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="ItemContainer.HighlightBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="NodifyEditor.BackgroundBrush" ResourceKey="RuleCanvasBg" />
+                    <StaticResource x:Key="NodifyEditor.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="NodifyEditor.FocusVisualBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="Connector.BorderBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="NodeInput.BorderBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="NodeOutput.BorderBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="NodeInput.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="NodeOutput.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Connection.StrokeBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="PendingConnection.StrokeBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="PendingConnection.BackgroundBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="PendingConnection.BorderBrush" ResourceKey="RuleNodeBorder" />
+                    <StaticResource x:Key="PendingConnection.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Minimap.BackgroundBrush" ResourceKey="RuleMinimapBg" />
+                    <StaticResource x:Key="Minimap.ViewportStrokeBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="Minimap.ViewportBackgroundBrush" ResourceKey="RuleSelectionFill" />
+                    <StaticResource x:Key="MinimapItem.BackgroundBrush" ResourceKey="RuleWireWrite" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
