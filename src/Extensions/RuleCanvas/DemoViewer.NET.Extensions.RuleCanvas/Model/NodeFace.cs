@@ -122,11 +122,14 @@ public abstract record StatFace(
     /// <summary>The kinds whose own key names the trigger; the others carry it under <c>on:</c>.</summary>
     public static bool KindNamesTrigger(string kind) => kind is "count" or "streak" or "bucket" or "burst";
 
-    /// <summary>The key a trigger write goes to: the kind's own key, <c>on:</c>, or null for a kind that fires on nothing.</summary>
+    /// <summary>
+    ///     The key a trigger write goes to: the kind's own key, <c>on:</c>, or null for a kind that fires on
+    ///     nothing. A tally evaluates at round end whatever is written; the resolver reads no <c>on:</c> for it.
+    /// </summary>
     public static string? TriggerKeyOf(string kind) => kind switch
     {
         "count" or "streak" or "bucket" or "burst" => kind,
-        "sum" or "capture" or "flag" or "tally" => "on",
+        "sum" or "capture" or "flag" => "on",
         _ => null
     };
 
@@ -136,10 +139,10 @@ public abstract record StatFace(
     /// </summary>
     public string? TriggerSpelling => Trigger?.Spelling ?? (KindNamesTrigger(Kind) ? KindArg?.Trim() : null);
 
-    /// <summary>Whether the face shows a trigger picker: every kind but a compute, a rate, and a flag that is its own condition.</summary>
+    /// <summary>Whether the face shows a trigger picker: every kind but a compute, a rate, a tally, and a flag that is its own condition.</summary>
     public bool HasTrigger => Kind switch
     {
-        "compute" or "rate" => false,
+        "compute" or "rate" or "tally" => false,
         "flag" => Trigger?.On is not null || string.Equals(KindArg?.Trim(), "true", StringComparison.OrdinalIgnoreCase),
         _ => true
     };

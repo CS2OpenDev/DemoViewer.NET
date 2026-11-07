@@ -141,7 +141,9 @@ public class CanvasFaceRowsTests
                 await Assert.That(vm.IsEditable).IsTrue();
                 await Assert.That(Node(vm, "kills").Trigger!.Key).IsEqualTo("count");
                 await Assert.That(Node(vm, "damage").Trigger!.Key).IsEqualTo("on");
-                await Assert.That(Node(vm, "multi_kill").Trigger!.Key).IsEqualTo("on");
+                await Assert.That(Node(vm, "multi_kill").Trigger).IsNull().Because("a tally evaluates at round end; the resolver reads no on: for it");
+                await Assert.That(Node(vm, "multi_kill").Chips.Any(c => c.StartsWith("on ", StringComparison.Ordinal))).IsFalse()
+                    .Because("the round_ended wire says when it evaluates");
                 await Assert.That(Node(vm, "rapid").Trigger!.Key).IsEqualTo("streak");
                 await Assert.That(Node(vm, "double_burst").Trigger!.Key).IsEqualTo("burst");
                 await Assert.That(Node(vm, "kills_by_weapon").Trigger!.Key).IsEqualTo("bucket");
@@ -225,9 +227,9 @@ public class CanvasFaceRowsTests
             burst.Selected = burst.Options.Single(o => o.Written == "post_plant_kill");
             await Assert.That(RulesetEdits.Field(Text(rules), "double_burst", "burst")).IsEqualTo("post_plant_kill");
 
-            CanvasTriggerViewModel tally = Node(vm, "multi_kill").Trigger!;
-            tally.Selected = tally.Options.Single(o => o.Written == "round_ended");
-            await Assert.That(RulesetEdits.Field(Text(rules), "multi_kill", "on")).IsEqualTo("round_ended");
+            // A tally has no picker: an on: under it is accepted by the loader and ignored by the resolver.
+            await Assert.That(CanvasEditSemantics.TriggerKeyFor(Node(vm, "multi_kill"))).IsNull();
+            await Assert.That(RulesetEdits.Field(Text(rules), "multi_kill", "on")).IsNull();
         }
     }
 
