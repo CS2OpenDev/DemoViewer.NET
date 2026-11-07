@@ -393,6 +393,8 @@
                                               TextPadding="5 1" TextCornerRadius="3"
                                               Classes.read="{Binding IsRead}"
                                               Classes.gate="{Binding IsGate}"
+                                              Classes.and="{Binding IsAnd}"
+                                              Classes.or="{Binding IsOr}"
                                               connections:BaseConnection.IsSelectable="True"
                                               ToolTip.Tip="{Binding Condition}">
                         <views:LabelledConnection.ContextMenu>

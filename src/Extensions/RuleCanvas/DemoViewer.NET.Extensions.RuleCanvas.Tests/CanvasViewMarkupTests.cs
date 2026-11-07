@@ -54,6 +54,21 @@ public class CanvasViewMarkupTests
         }
     }
 
+    // The theme styles four wire classes; a class nothing binds is a style that never matches.
+    [Test]
+    public async Task TheWireTemplate_BindsEveryClassTheThemeStyles()
+    {
+        XDocument view = LoadView();
+        XElement wire = view.Descendants().Single(e => e.Name.LocalName == "LabelledConnection");
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(wire, "Classes.read")).IsEqualTo("{Binding IsRead}");
+            await Assert.That(Attribute(wire, "Classes.gate")).IsEqualTo("{Binding IsGate}");
+            await Assert.That(Attribute(wire, "Classes.and")).IsEqualTo("{Binding IsAnd}").Because("Connection.and has a style and no setter");
+            await Assert.That(Attribute(wire, "Classes.or")).IsEqualTo("{Binding IsOr}").Because("Connection.or has a style and no setter");
+        }
+    }
+
     private static string ViewsFolder()
     {
         DirectoryInfo? dir = new(AppContext.BaseDirectory);

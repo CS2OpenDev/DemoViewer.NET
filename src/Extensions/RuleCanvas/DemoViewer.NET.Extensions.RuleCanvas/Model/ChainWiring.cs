@@ -13,8 +13,10 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 /// <param name="Condition">The lowered condition, for the hover, or null.</param>
 /// <param name="IsRead">A value read rather than a write; drawn dashed.</param>
 /// <param name="IsGate">A gate holding the target open while it is active; drawn as a long dash.</param>
+/// <param name="IsAnd">A logic input the target conjoins; drawn in the and colour.</param>
+/// <param name="IsOr">A logic input the target disjoins; drawn in the or colour.</param>
 public sealed record WireSpec(RulesetDocumentNodeKey Source, RulesetDocumentNodeKey Target, string Text, string? Condition, bool IsRead,
-    bool IsGate = false)
+    bool IsGate = false, bool IsAnd = false, bool IsOr = false)
 {
     /// <summary>The same wire as a placement edge.</summary>
     public RulesetDocumentEdge AsEdge() => new(Source, Target, Text);
@@ -38,8 +40,11 @@ public static class ChainWiring
             {
                 if (drawn.Contains(edge.Source) && drawn.Contains(edge.Target))
                 {
+                    // The connective classes are exclusive with read and gate, as WireText is.
+                    bool logic = !edge.IsRead && !edge.IsGate;
                     wires.Add(new WireSpec(edge.Source, edge.Target, WireText(edge),
-                        string.IsNullOrWhiteSpace(edge.Condition) ? null : edge.Condition, edge.IsRead, edge.IsGate));
+                        string.IsNullOrWhiteSpace(edge.Condition) ? null : edge.Condition, edge.IsRead, edge.IsGate,
+                        logic && edge.Effect == EdgeEffect.Conjunction, logic && edge.Effect == EdgeEffect.Disjunction));
                 }
             }
 
