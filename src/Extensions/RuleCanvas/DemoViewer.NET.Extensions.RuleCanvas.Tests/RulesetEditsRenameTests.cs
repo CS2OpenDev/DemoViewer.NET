@@ -116,6 +116,46 @@ public class RulesetEditsRenameTests
         }
     }
 
+    /// <summary>
+    ///     The engine expands bare stat ids inside a title's <c>{holes}</c> and renders an unresolvable hole as
+    ///     its literal text, with no diagnostic. A rename moves the holes and leaves the prose, even where the
+    ///     prose spells the id.
+    /// </summary>
+    [Test]
+    public async Task RenameStat_MovesTheHolesOfAHighlightTitle_AndLeavesItsProse()
+    {
+        const string doc = """
+            ruleset: t
+            title: T
+            for: each_player
+
+            stats:
+              kills:
+                count: kill
+                per: round
+
+            highlights:
+              big:
+                when: kills >= 3
+                per: round
+                title: "{player.name} got {kills} kills, {t.kills} as t.kills, {kills.count} never"
+              plain:
+                when: kills >= 1
+                per: round
+                title: kills on a low buy
+            """;
+        string after = RulesetEdits.RenameStat(doc, "kills", "frags");
+        using (Assert.Multiple())
+        {
+            await Assert.That(after).Contains("title: \"{player.name} got {frags} kills, {t.frags} as t.kills, {frags.count} never\"");
+            await Assert.That(after).Contains("title: kills on a low buy").Because("prose outside a hole is text");
+            await Assert.That(after).Contains("when: frags >= 3");
+            await Assert.That(RulesetEdits.SiblingReaders(doc, "kills")).IsEquivalentTo(["big", "plain"]);
+            await Assert.That(RulesetEdits.RewriteTitleHoles("{a} and {b", "b", "c", "t")).IsEqualTo("{a} and {b").Because("an unclosed hole is text");
+            await Assert.That(RulesetEdits.RewriteTitleHoles("{kills} {x.kills}", "kills", "frags", "x")).IsEqualTo("{frags} {x.frags}");
+        }
+    }
+
     [Test]
     [Arguments("deaths")]
     [Arguments("ace")]

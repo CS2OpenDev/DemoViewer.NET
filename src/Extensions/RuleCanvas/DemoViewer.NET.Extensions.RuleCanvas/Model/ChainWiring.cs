@@ -73,7 +73,8 @@ public static class ChainWiring
 
         if (edge.IsGate)
         {
-            return "while";
+            // A guard's gate says "while"; a comparison gate carries its test ("while round.number > 0").
+            return edge.Label.Length == 0 ? "while" : edge.Label;
         }
 
         return edge.Effect switch

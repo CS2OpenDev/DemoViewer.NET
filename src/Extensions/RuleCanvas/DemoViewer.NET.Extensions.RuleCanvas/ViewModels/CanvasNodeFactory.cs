@@ -28,6 +28,9 @@ public sealed class CanvasNodeFactory(
     /// <summary>The <c>format:</c> strings a compute commonly uses; the picker keeps any other as written.</summary>
     public static IReadOnlyList<string> FormatOptions { get; } = ["F0", "F1", "F2", "R"];
 
+    /// <summary>The <c>live:</c> cadence of a compute; the omitted key evaluates at the scope's end.</summary>
+    public static IReadOnlyList<string> LiveOptions { get; } = ["true", "false"];
+
     /// <summary>The <c>reduce:</c> names a bucket can use.</summary>
     public static IReadOnlyList<string> ReduceOptions { get; } = ["sum", "count", "min", "max", "last", "first"];
 
@@ -49,6 +52,7 @@ public sealed class CanvasNodeFactory(
         List<string> available = [];
         Dictionary<string, RulesTypeKind> availableKinds = new(StringComparer.Ordinal);
         List<string> fixedRows = [];
+        Dictionary<string, string> fixedTips = new(StringComparer.Ordinal);
         List<string> expression = [];
         List<CanvasExpressionViewModel> lines = [];
         List<CanvasFieldViewModel> fields = [];
@@ -101,8 +105,8 @@ public sealed class CanvasNodeFactory(
                 {
                     chips.Add(actor);
                     tips[actor] = ActorTip(stat);
-                    viewActor = stat.ViewActor;
-                    bindsActor = viewActor is null ? null : stat.Trigger?.SuppressesActorBinding != true;
+                    viewActor = stat.Binding;
+                    bindsActor = viewActor is null ? null : !stat.SuppressesActorBinding;
                 }
 
                 if (stat.Gate.Length > 0)
@@ -140,6 +144,19 @@ public sealed class CanvasNodeFactory(
                 if (stat.NotASuicide)
                 {
                     fixedRows.Add("not a suicide");
+                    fixedTips["not a suicide"] = "Baked into the view: event.Attacker != event.UserId";
+                }
+
+                if (stat.ViewResult is { } result && !stat.SuppressesActorBinding)
+                {
+                    string row = $"round {result} by this player's team";
+                    fixedRows.Add(row);
+                    fixedTips[row] = "The view's result, lowered to " + stat.TeamBindingTest;
+                }
+
+                if (stat.Define is { } define)
+                {
+                    AddDefineRows(define, fixedRows, fixedTips, available, availableKinds);
                 }
 
                 AddKindRows(stat, expression, lines, fields, choices, defaults, out thresholds, Field);
@@ -181,7 +198,8 @@ public sealed class CanvasNodeFactory(
             AvailableFacets = available,
             AvailableFacetKind = name => availableKinds.GetValueOrDefault(name, RulesTypeKind.None),
             FixedRows = fixedRows,
-            Expression = expression.Count == 0 ? null : string.Join('\n', expression),
+            FixedRowTips = fixedTips,
+            Expression =expression.Count == 0 ? null : string.Join('\n', expression),
             Lines = lines,
             Trigger = trigger,
             Fields = fields,
@@ -230,15 +248,55 @@ public sealed class CanvasNodeFactory(
         return trigger;
     }
 
+    // What a define's body adds to the trigger, as rows the stat cannot edit: its facets (which the picker
+    // then stops offering, since the resolver refuses the same key on both), its gate and its where.
+    private static void AddDefineRows(DefineFace define, List<string> fixedRows, Dictionary<string, string> fixedTips,
+        List<string> available, Dictionary<string, RulesTypeKind> availableKinds)
+    {
+        string tip = $"from define {define.Name}; edit it under define: {define.Name}";
+        void Row(string text)
+        {
+            fixedRows.Add(text);
+            fixedTips[text] = tip;
+        }
+
+        foreach (MatchBinding binding in define.Trigger.Match)
+        {
+            if (string.Equals(binding.Key, "actor", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            Row($"{binding.Key}: {MatchFacetValue.From(binding.Test)?.ToMatchValue() ?? ""}");
+            available.Remove(binding.Key);
+            availableKinds.Remove(binding.Key);
+        }
+
+        if (!string.IsNullOrWhiteSpace(define.Trigger.While))
+        {
+            Row("while " + define.Trigger.While);
+        }
+
+        if (!string.IsNullOrWhiteSpace(define.Trigger.Where))
+        {
+            Row("where " + define.Trigger.Where);
+        }
+    }
+
     private static string ActorTip(StatFace stat)
     {
-        if (stat.Trigger?.SuppressesActorBinding == true)
+        if (stat.SuppressesActorBinding)
         {
             return "match: { actor: any } switches the view's per-player binding off; every player's event counts";
         }
 
-        return stat.ViewActor is { } actor
-            ? $"the view binds its {actor} to this player; only this player's events count"
+        if (stat.ViewActor is { } actor)
+        {
+            return $"the view binds its {actor} to this player; only this player's events count";
+        }
+
+        return stat.ViewResult is not null
+            ? $"the view binds the round's result to this player's team: {stat.TeamBindingTest}"
             : "the view binds no role to a player; the event counts for everyone";
     }
 
@@ -259,11 +317,8 @@ public sealed class CanvasNodeFactory(
 
                 lines.Add(new CanvasExpressionViewModel("compute", "=", stat.KindArg ?? "", write));
                 choices.Add(new CanvasChoiceViewModel("format", "format", FormatOptions, compute.Format, "F1", write));
-                if (compute.Live)
-                {
-                    expression.Add("live");
-                }
-
+                // The cadence is a row in both styles, so a live compute is told from a round-end one while editing too.
+                choices.Add(new CanvasChoiceViewModel("live", "live", LiveOptions, compute.Live ? "true" : null, "false", write));
                 break;
             case FlagFace:
                 if (stat.Trigger?.On is null && stat.KindArg is { } condition && !string.Equals(condition.Trim(), "true", StringComparison.OrdinalIgnoreCase))

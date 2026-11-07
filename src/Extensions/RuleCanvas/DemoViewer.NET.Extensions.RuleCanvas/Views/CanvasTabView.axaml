@@ -594,12 +594,12 @@
                                       ToolTip.Tip="Off writes match: { actor: any }, so every player's event counts" />
 
                             <!-- Rows the engine adds and the author cannot remove, stated so the face says what runs. -->
-                            <ItemsControl ItemsSource="{Binding FixedRows}" IsVisible="{Binding HasFixedRows}">
+                            <ItemsControl ItemsSource="{Binding FixedRowItems}" IsVisible="{Binding HasFixedRows}">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="x:String">
-                                        <TextBlock Text="{Binding}" FontSize="11" FontFamily="monospace" Margin="0 1"
+                                    <DataTemplate x:DataType="vm:CanvasChip">
+                                        <TextBlock Text="{Binding Text}" FontSize="11" FontFamily="monospace" Margin="0 1"
                                                    Foreground="{DynamicResource RuleTextKey}"
-                                                   ToolTip.Tip="Baked into the view: event.Attacker != event.UserId" />
+                                                   ToolTip.Tip="{Binding Tip}" />
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

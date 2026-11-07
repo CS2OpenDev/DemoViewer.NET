@@ -124,6 +124,10 @@ public static class RulesetEdits
         return editor.Apply([new TextEdit(from, to - from, "", $"remove {match.Key(facet)}")]).Text;
     }
 
+    /// <summary>The keys of a stat's <c>match:</c> block, in document order; empty when it has none.</summary>
+    public static IReadOnlyList<string> FacetKeys(string text, string statId) =>
+        KeysUnder(RulesetDocumentEditor.Open(text).Document, RulesetDocumentEditor.StatPath(statId).Key("match"));
+
     /// <summary>Sets one scalar field of a stat (<c>while</c>, <c>on</c>, <c>count</c>), adding or replacing it.</summary>
     public static string SetField(string text, string statId, string key, string value)
     {
@@ -150,6 +154,64 @@ public static class RulesetEdits
         }
 
         return editor.Apply([YamlEdits.SetKey(editor.Document, path, key, value)]).Text;
+    }
+
+    /// <summary>
+    ///     Sets a compute's formula in whichever spelling the author used: the scalar, or <c>value:</c> of the
+    ///     <c>compute: { value, live }</c> mapping, whose <c>live:</c> stays.
+    /// </summary>
+    public static string SetComputeFormula(string text, string statId, string formula)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlPath compute = RulesetDocumentEditor.StatPath(statId).Key("compute");
+        return editor.Document.Find(compute) is YamlMappingNode
+            ? editor.Apply([YamlEdits.SetKey(editor.Document, compute, "value", formula)]).Text
+            : SetField(text, statId, "compute", formula);
+    }
+
+    /// <summary>
+    ///     Sets or, on null, removes a compute's <c>live:</c> cadence. A scalar <c>compute:</c> becomes the
+    ///     <c>{ value, live }</c> mapping when the cadence is set; removing it from a mapping leaves the mapping.
+    /// </summary>
+    public static string SetComputeLive(string text, string statId, string? live)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        YamlPath compute = RulesetDocumentEditor.StatPath(statId).Key("compute");
+        switch (doc.Find(compute))
+        {
+            case YamlMappingNode map:
+                if (live is not null)
+                {
+                    return editor.Apply([YamlEdits.SetKey(doc, compute, "live", live)]).Text;
+                }
+
+                if (doc.Find(compute.Key("live")) is null)
+                {
+                    return text;
+                }
+
+                return map.Style == MappingStyle.Flow
+                    ? editor.Apply([RemoveFlowKey(doc, map, "live", compute)]).Text
+                    : editor.Apply([YamlEdits.RemoveKey(doc, compute, "live")]).Text;
+            case YamlScalarNode scalar:
+                if (live is null)
+                {
+                    return text;
+                }
+
+                if (scalar.Style is ScalarStyle.Literal or ScalarStyle.Folded)
+                {
+                    throw new NotSupportedException($"{statId}.compute is a block scalar; edit it in the source pane");
+                }
+
+                // A quoted formula is carried verbatim; a plain one is quoted where the flow form needs it.
+                (int start, int length) = doc.SpanOf(scalar);
+                string formula = scalar.Style == ScalarStyle.Plain ? PlainOrQuoted(scalar.Value ?? "", inFlow: true) : doc.Text.Substring(start, length);
+                return editor.Apply([new TextEdit(start, length, $"{{ value: {formula}, live: {live} }}", $"set {compute}.live")]).Text;
+            default:
+                throw new InvalidOperationException($"{statId} is not a compute in this document");
+        }
     }
 
     /// <summary>
@@ -374,10 +436,10 @@ public static class RulesetEdits
         YamlDocumentText doc = RulesetDocumentEditor.Open(text).Document;
         string ruleset = (doc.Find(YamlPath.Root.Key("ruleset")) as YamlScalarNode)?.Value ?? "";
         List<string> readers = [];
-        foreach ((string owner, YamlPath site) in ReferenceSites(doc, includeShow: false))
+        foreach ((string owner, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: false))
         {
             if (owner != id && !readers.Contains(owner) && doc.Find(site) is YamlScalarNode { Value: { } value }
-                && RewriteReferences(value, id, id + "_", ruleset) != value)
+                && Rewrite(value, id, id + "_", ruleset, isTemplate) != value)
             {
                 readers.Add(owner);
             }
@@ -385,6 +447,9 @@ public static class RulesetEdits
 
         return readers;
     }
+
+    private static string Rewrite(string value, string oldId, string newId, string ruleset, bool isTemplate) =>
+        isTemplate ? RewriteTitleHoles(value, oldId, newId, ruleset) : RewriteReferences(value, oldId, newId, ruleset);
 
     private static string Rename(string text, YamlPath section, string oldId, string newId, string what)
     {
@@ -415,11 +480,11 @@ public static class RulesetEdits
         string ruleset = (doc.Find(YamlPath.Root.Key("ruleset")) as YamlScalarNode)?.Value ?? "";
         (int start, int length) = doc.SpanOf(key);
         List<TextEdit> edits = [new TextEdit(start, length, newId, $"rename {oldId}")];
-        foreach ((_, YamlPath site) in ReferenceSites(doc, includeShow: true))
+        foreach ((_, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: true))
         {
             if (doc.Find(site) is YamlScalarNode { Value: { } value })
             {
-                string rewritten = RewriteReferences(value, oldId, newId, ruleset);
+                string rewritten = Rewrite(value, oldId, newId, ruleset, isTemplate);
                 if (rewritten != value)
                 {
                     edits.Add(YamlEdits.SetScalar(doc, site, rewritten));
@@ -431,30 +496,32 @@ public static class RulesetEdits
     }
 
     // Every scalar that may read an entry by id, with the entry that owns it (a show: site is owned by "show").
-    private static IEnumerable<(string Owner, YamlPath Site)> ReferenceSites(YamlDocumentText doc, bool includeShow)
+    // A highlight's title is a template: only its {holes} name entries, so it is rewritten hole by hole.
+    private static IEnumerable<(string Owner, YamlPath Site, bool IsTemplate)> ReferenceSites(YamlDocumentText doc, bool includeShow)
     {
         foreach (string id in KeysUnder(doc, _stats))
         {
             YamlPath stat = _stats.Key(id);
             foreach (string key in new[] { "compute", "where", "while", "when", "tally", "key", "value", "of" })
             {
-                yield return (id, stat.Key(key));
+                yield return (id, stat.Key(key), false);
             }
 
             // flag: true names no sibling; flag: <expr> and flag: { when: <expr> } do.
             if (doc.Find(stat.Key("flag")) is YamlScalarNode { Value: not ("true" or "false") })
             {
-                yield return (id, stat.Key("flag"));
+                yield return (id, stat.Key("flag"), false);
             }
 
-            yield return (id, stat.Key("flag").Key("when"));
-            yield return (id, stat.Key("rate").Key("of"));
-            yield return (id, stat.Key("rate").Key("per"));
+            yield return (id, stat.Key("flag").Key("when"), false);
+            yield return (id, stat.Key("rate").Key("of"), false);
+            yield return (id, stat.Key("rate").Key("per"), false);
         }
 
         foreach (string id in KeysUnder(doc, _highlights))
         {
-            yield return (id, _highlights.Key(id).Key("when"));
+            yield return (id, _highlights.Key(id).Key("when"), false);
+            yield return (id, _highlights.Key(id).Key("title"), true);
         }
 
         if (!includeShow)
@@ -466,7 +533,7 @@ public static class RulesetEdits
         {
             for (int i = 0; i < scoreboard.Children.Count; i++)
             {
-                yield return ("show", _scoreboard.Index(i).Key("stat"));
+                yield return ("show", _scoreboard.Index(i).Key("stat"), false);
             }
         }
 
@@ -477,10 +544,39 @@ public static class RulesetEdits
             {
                 for (int i = 0; i < seq.Children.Count; i++)
                 {
-                    yield return ("show", columns.Index(i).Key("stat"));
+                    yield return ("show", columns.Index(i).Key("stat"), false);
                 }
             }
         }
+    }
+
+    /// <summary>
+    ///     A title template with every <c>{hole}</c> that names <paramref name="oldId" /> renamed the way
+    ///     <see cref="RewriteReferences" /> renames a token (<c>{kills}</c>, <c>{kills.count}</c>, <c>{t.kills}</c>).
+    ///     The prose between the holes is text and stays, even where it spells the id.
+    /// </summary>
+    public static string RewriteTitleHoles(string text, string oldId, string newId, string rulesetId)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        System.Text.StringBuilder sb = new(text.Length + 8);
+        int i = 0;
+        while (i < text.Length)
+        {
+            int open = text.IndexOf('{', i);
+            int close = open < 0 ? -1 : text.IndexOf('}', open + 1);
+            if (close < 0)
+            {
+                sb.Append(text, i, text.Length - i);
+                break;
+            }
+
+            sb.Append(text, i, open + 1 - i);
+            sb.Append(RewriteReferences(text[(open + 1)..close], oldId, newId, rulesetId));
+            sb.Append('}');
+            i = close + 1;
+        }
+
+        return sb.ToString();
     }
 
     /// <summary>
@@ -771,15 +867,16 @@ public static class RulesetEdits
         RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
         YamlDocumentText doc = editor.Document;
         List<TextEdit> edits = [];
-        foreach ((string? table, int index) in items)
+        foreach (IGrouping<string?, int> hits in items.GroupBy(i => i.Table, i => i.Index))
         {
-            YamlPath list = table is null ? _scoreboard : _tables.Key(table).Key("columns");
-            if (doc.Find(list) is not YamlSequenceNode seq || index < 0 || index >= seq.Children.Count)
+            YamlPath list = hits.Key is null ? _scoreboard : _tables.Key(hits.Key).Key("columns");
+            int[] indices = [.. hits.Distinct().Order()];
+            if (doc.Find(list) is not YamlSequenceNode seq || indices[0] < 0 || indices[^1] >= seq.Children.Count)
             {
-                throw new InvalidOperationException($"show: has no entry {index} in {table ?? "scoreboard"}");
+                throw new InvalidOperationException($"show: has no entry {indices[^1]} in {hits.Key ?? "scoreboard"}");
             }
 
-            edits.Add(RemoveSequenceItem(doc, seq, index, list));
+            edits.AddRange(RemoveSequenceItems(doc, seq, indices, list));
         }
 
         editor = editor.Apply(edits);
@@ -858,35 +955,58 @@ public static class RulesetEdits
         return new TextEdit(at, 0, $"{lead}{indent}- {item}{doc.NewLine}", $"append to {path}");
     }
 
-    // A block item goes with its whole line range; a flow item with the separator on one side of it.
-    private static TextEdit RemoveSequenceItem(YamlDocumentText doc, YamlSequenceNode seq, int index, YamlPath path)
+    private static TextEdit RemoveSequenceItem(YamlDocumentText doc, YamlSequenceNode seq, int index, YamlPath path) =>
+        RemoveSequenceItems(doc, seq, [index], path)[0];
+
+    // A block item goes with its whole line range. Flow items go as runs of neighbours, each run with the
+    // separator on one side of it, so two adjacent removals never claim the same separator.
+    private static List<TextEdit> RemoveSequenceItems(YamlDocumentText doc, YamlSequenceNode seq, int[] sorted, YamlPath path)
     {
-        YamlNode item = seq.Children[index];
+        List<TextEdit> edits = [];
         if (seq.Style != SequenceStyle.Flow)
         {
-            int from = doc.StartOfLine((int)item.Start.Index);
-            int to = doc.StartOfNextLine(doc.EndOf(item));
-            return new TextEdit(from, to - from, "", $"remove {path.Index(index)}");
+            foreach (int index in sorted)
+            {
+                YamlNode item = seq.Children[index];
+                int from = doc.StartOfLine((int)item.Start.Index);
+                int to = doc.StartOfNextLine(doc.EndOf(item));
+                edits.Add(new TextEdit(from, to - from, "", $"remove {path.Index(index)}"));
+            }
+
+            return edits;
         }
 
-        int start, end;
-        if (index < seq.Children.Count - 1)
+        for (int i = 0; i < sorted.Length;)
         {
-            start = (int)item.Start.Index;
-            end = (int)seq.Children[index + 1].Start.Index;
-        }
-        else if (index > 0)
-        {
-            start = doc.EndOf(seq.Children[index - 1]);
-            end = doc.EndOf(item);
-        }
-        else
-        {
-            start = (int)item.Start.Index;
-            end = doc.EndOf(item);
+            int first = sorted[i];
+            int last = first;
+            while (i + 1 < sorted.Length && sorted[i + 1] == last + 1)
+            {
+                last = sorted[++i];
+            }
+
+            i++;
+            int start, end;
+            if (last < seq.Children.Count - 1)
+            {
+                start = (int)seq.Children[first].Start.Index;
+                end = (int)seq.Children[last + 1].Start.Index;
+            }
+            else if (first > 0)
+            {
+                start = doc.EndOf(seq.Children[first - 1]);
+                end = doc.EndOf(seq.Children[last]);
+            }
+            else
+            {
+                start = (int)seq.Children[first].Start.Index;
+                end = doc.EndOf(seq.Children[last]);
+            }
+
+            edits.Add(new TextEdit(start, end - start, "", first == last ? $"remove {path.Index(first)}" : $"remove {path.Index(first)}..{last}"));
         }
 
-        return new TextEdit(start, end - start, "", $"remove {path.Index(index)}");
+        return edits;
     }
 
     // `{ a: 1, b: 2 }` minus one key, the way RemoveFacet does it for match:.

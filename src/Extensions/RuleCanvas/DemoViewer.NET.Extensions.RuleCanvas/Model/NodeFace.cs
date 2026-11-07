@@ -76,6 +76,15 @@ public sealed record TriggerFace(TriggerRef? On, IReadOnlyList<MatchBinding> Mat
     }
 }
 
+/// <summary>
+///     A trigger-bodied <c>define:</c> a stat fires through, as the document wrote it. The resolver splices
+///     the body's <c>match:</c>, <c>where:</c> and <c>while:</c> into the stat's trigger, so a face states
+///     them beside the stat's own.
+/// </summary>
+/// <param name="Name">The define's name, which is the trigger spelling.</param>
+/// <param name="Trigger">The body.</param>
+public sealed record DefineFace(string Name, TriggerFace Trigger);
+
 /// <summary>A declared stat. The fields every kind has; the sealed kinds add their own.</summary>
 /// <param name="Key">The node's identity.</param>
 /// <param name="Kind">The stat kind.</param>
@@ -107,14 +116,20 @@ public abstract record StatFace(
     TriggerFace? Trigger,
     MatchFacetForm Form) : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
 {
+    /// <summary>The define the trigger spelling names, when it names one of the open document's; null otherwise.</summary>
+    public DefineFace? Define { get; init; }
+
     /// <summary>The kinds whose own key names the trigger; the others carry it under <c>on:</c>.</summary>
     public static bool KindNamesTrigger(string kind) => kind is "count" or "streak" or "bucket" or "burst";
 
-    /// <summary>The key a trigger write goes to: the kind's own key, <c>on:</c>, or null for a kind that fires on nothing.</summary>
+    /// <summary>
+    ///     The key a trigger write goes to: the kind's own key, <c>on:</c>, or null for a kind that fires on
+    ///     nothing. A tally evaluates at round end whatever is written; the resolver reads no <c>on:</c> for it.
+    /// </summary>
     public static string? TriggerKeyOf(string kind) => kind switch
     {
         "count" or "streak" or "bucket" or "burst" => kind,
-        "sum" or "capture" or "flag" or "tally" => "on",
+        "sum" or "capture" or "flag" => "on",
         _ => null
     };
 
@@ -124,10 +139,10 @@ public abstract record StatFace(
     /// </summary>
     public string? TriggerSpelling => Trigger?.Spelling ?? (KindNamesTrigger(Kind) ? KindArg?.Trim() : null);
 
-    /// <summary>Whether the face shows a trigger picker: every kind but a compute, a rate, and a flag that is its own condition.</summary>
+    /// <summary>Whether the face shows a trigger picker: every kind but a compute, a rate, a tally, and a flag that is its own condition.</summary>
     public bool HasTrigger => Kind switch
     {
-        "compute" or "rate" => false,
+        "compute" or "rate" or "tally" => false,
         "flag" => Trigger?.On is not null || string.Equals(KindArg?.Trim(), "true", StringComparison.OrdinalIgnoreCase),
         _ => true
     };
@@ -136,9 +151,27 @@ public abstract record StatFace(
     public string? ViewActor => FaceVocabulary.ViewOf(View) is { } view && !string.IsNullOrEmpty(view.Actor) ? view.Actor : null;
 
     /// <summary>
+    ///     The round result a team-bound view keeps (<c>won</c>, <c>lost</c>), which the engine lowers to a test
+    ///     of this player's team against the round's winner; null for a view that binds no team.
+    /// </summary>
+    public string? ViewResult => FaceVocabulary.ViewOf(View) is { Binding: "team", Result.Length: > 0 } view ? view.Result : null;
+
+    /// <summary>
+    ///     What the view binds to this player and <c>actor: any</c> switches off: the role (<c>killer</c>), or
+    ///     the team the result names (<c>winning team</c>); null when the view binds nothing.
+    /// </summary>
+    public string? Binding => ViewActor ?? ViewResult switch
+    {
+        "won" => "winning team",
+        "lost" => "losing team",
+        null => null,
+        _ => ViewResult + " team"
+    };
+
+    /// <summary>
     ///     What the engine binds the event to, in words: <c>any player</c> when <c>actor: any</c> switched the
-    ///     binding off, <c>as killer</c> from the view's role, <c>binds nobody</c> for a view with none, or
-    ///     null when the face fires on no catalog view.
+    ///     binding off, <c>as killer</c> from the view's role, <c>as winning team</c> from its result,
+    ///     <c>binds nobody</c> for a view with neither, or null when the face fires on no catalog view.
     /// </summary>
     public string? ActorText
     {
@@ -149,14 +182,28 @@ public abstract record StatFace(
                 return null;
             }
 
-            if (Trigger?.SuppressesActorBinding == true)
+            if (SuppressesActorBinding)
             {
                 return "any player";
             }
 
-            return ViewActor is { } actor ? "as " + actor : "binds nobody";
+            return Binding is { } binding ? "as " + binding : "binds nobody";
         }
     }
+
+    /// <summary>
+    ///     The test the engine lowers a team-bound view to, over this player's team, or null. The winner is
+    ///     always a playing side, so a lost round also needs the player on one.
+    /// </summary>
+    public string? TeamBindingTest => ViewResult switch
+    {
+        null => null,
+        "lost" => "enrich.round.has_winner && enrich.round.winner_team != player.team && (player.team == 2 || player.team == 3)",
+        _ => "enrich.round.has_winner && enrich.round.winner_team == player.team"
+    };
+
+    /// <summary>Whether <c>actor: any</c> on the stat or on its define switched the view's binding off.</summary>
+    public bool SuppressesActorBinding => Trigger?.SuppressesActorBinding == true || Define?.Trigger.SuppressesActorBinding == true;
 
     /// <summary>Whether the view bakes <c>event.Attacker != event.UserId</c> in, which the face states as a fixed row.</summary>
     public bool NotASuicide => FaceVocabulary.BakesOutSuicide(View);

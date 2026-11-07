@@ -137,6 +137,69 @@ public class NodeFaceTests
         }
     }
 
+    /// <summary>
+    ///     highlights_clutch's retake_kills is <c>count: ct_retake_kill</c>, a define whose body carries the
+    ///     match, the gate and the where. The resolver runs all three; the face states them as rows the stat
+    ///     cannot edit, named for the define, and stops offering the define's facets as unset.
+    /// </summary>
+    [Test]
+    public async Task ADefineTriggeredStat_StatesTheDefinesBody_AsFixedRows()
+    {
+        IReadOnlyList<NodeFace> faces = NodeFaceBuilder.Build(Compose("highlights_clutch"));
+        StatFace retake = (StatFace)faces.Single(f => f.Id == "retake_kills");
+        StatFace clutch = (StatFace)faces.Single(f => f.Id == "clutch_1v2_round");
+        CanvasNodeViewModel node = CanvasNodeFactory.ReadOnly.Create(retake);
+        using (Assert.Multiple())
+        {
+            await Assert.That(retake.Define?.Name).IsEqualTo("ct_retake_kill");
+            await Assert.That(retake.View).IsEqualTo("kill");
+            await Assert.That(clutch.Define).IsNull().Because("round_won is a view, not a define");
+            await Assert.That(node.Chips).Contains("on ct_retake_kill");
+            await Assert.That(node.FixedRows)
+                .IsEquivalentTo(["not a suicide", "enemy: true", "while round.bomb.was_planted", "where player.team == 3"]);
+            await Assert.That(node.AvailableFacets).DoesNotContain("enemy").Because("the resolver refuses the same key on the define and the site");
+            await Assert.That(node.AvailableFacets).Contains("headshot");
+            await Assert.That(node.Facets).IsEmpty().Because("the stat's own match: is empty");
+            await Assert.That(node.FixedRowItems.Single(r => r.Text == "enemy: true").Tip).Contains("ct_retake_kill");
+            await Assert.That(node.FixedRowItems.Single(r => r.Text == "where player.team == 3").Tip).Contains("define:");
+            await Assert.That(node.FixedRowItems.Single(r => r.Text == "not a suicide").Tip).Contains("event.Attacker != event.UserId");
+            await Assert.That(node.Gate).IsEmpty().Because("the gate editor is the stat's own while:, which is unset");
+        }
+    }
+
+    /// <summary>
+    ///     round_won and round_lost bind a team, not a role: the engine lowers the result to a test of this
+    ///     player's team against the round's winner. The face says so, states the test, and offers the actor
+    ///     toggle, since the engine honours <c>actor: any</c> on a team view too.
+    /// </summary>
+    [Test]
+    public async Task ATeamBoundView_SaysWhichTeamItBinds_NotNobody()
+    {
+        IReadOnlyList<NodeFace> clutch = NodeFaceBuilder.Build(Compose("highlights_clutch"));
+        IReadOnlyList<NodeFace> stats = NodeFaceBuilder.Build(Compose("player_stats"));
+        StatFace won = (StatFace)clutch.Single(f => f.Id == "clutch_1v2_round");
+        StatFace lost = (StatFace)stats.Single(f => f.Id == "CTLosses");
+        StatFace ended = (StatFace)stats.Single(f => f.Id == "rounds_survived");
+        CanvasNodeViewModel wonNode = CanvasNodeFactory.ReadOnly.Create(won);
+        CanvasNodeViewModel lostNode = CanvasNodeFactory.ReadOnly.Create(lost);
+        wonNode.IsEditable = true;
+        using (Assert.Multiple())
+        {
+            await Assert.That(won.View).IsEqualTo("round_won");
+            await Assert.That(won.ActorText).IsEqualTo("as winning team");
+            await Assert.That(lost.View).IsEqualTo("round_lost");
+            await Assert.That(lost.ActorText).IsEqualTo("as losing team");
+            await Assert.That(ended.ActorText).IsEqualTo("binds nobody").Because("round_ended binds neither a role nor a team");
+            await Assert.That(wonNode.Chips).DoesNotContain("binds nobody");
+            await Assert.That(wonNode.ChipTips["as winning team"]).Contains("enrich.round.winner_team == player.team");
+            await Assert.That(lostNode.ChipTips["as losing team"]).Contains("winner_team != player.team");
+            await Assert.That(wonNode.FixedRows).Contains("round won by this player's team");
+            await Assert.That(lostNode.FixedRows).Contains("round lost by this player's team");
+            await Assert.That(wonNode.ShowActorToggle).IsTrue().Because("actor: any switches a team binding off too");
+            await Assert.That(wonNode.BindsActor == true).IsTrue();
+        }
+    }
+
     [Test]
     public async Task EveryShippedRuleset_BuildsAFaceForEveryNode()
     {
@@ -151,6 +214,9 @@ public class NodeFaceTests
             undeclared.AddRange(faces.OfType<UndeclaredFace>().Select(f => f.Key.ToString()));
         }
 
-        Console.WriteLine("[faces] undeclared: " + string.Join(", ", undeclared));
+        // The two sequence nodes the engine synthesises for player_event's per: player_event tables are the
+        // only chain nodes no stats: or highlights: entry backs; any other document-less face is a regression.
+        await Assert.That(undeclared).IsEquivalentTo(["player_event.#seq_player_kills", "player_event.#seq_player_deaths"])
+            .Because("undeclared: " + string.Join(", ", undeclared));
     }
 }

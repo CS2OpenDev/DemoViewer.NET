@@ -400,7 +400,10 @@ public static class CanvasEditSemantics
         {
             "per" when value is not null => Set(node, "per", value),
             "while" or "where" => SetOrRemove(node, key, value),
-            "compute" when value is not null => Set(node, "compute", value),
+            "compute" when value is not null =>
+                EditRequest.Of(text => RulesetEdits.SetComputeFormula(text, node.Id, value), $"set {node.Id}.compute"),
+            "live" => EditRequest.Of(text => RulesetEdits.SetComputeLive(text, node.Id, value),
+                value is null ? $"remove {node.Id}.compute.live" : $"set {node.Id}.compute.live"),
             "when" when value is not null => EditRequest.Of(text => RulesetEdits.SetFlagWhen(text, node.Id, value), $"set {node.Id}.when"),
             "compute" or "when" => EditRequest.Refuse($"A {key} cannot be empty; delete the stat instead."),
             // The trigger and the kind argument are the stat's definition: set, never emptied.
@@ -478,8 +481,31 @@ public static class CanvasEditSemantics
     private static EditRequest Set(CanvasNodeViewModel node, string key, string value) =>
         EditRequest.Of(text => RulesetEdits.SetField(text, node.Id, key, value), $"set {node.Id}.{key}");
 
-    private static EditRequest Retarget(CanvasNodeViewModel node, string key, string view) =>
-        EditRequest.Of(text => RulesetEdits.SetField(text, node.Id, key, view), $"retarget {node.Id} to {view}");
+    // The facets under match: are scoped to the old view. One the new view lacks makes the resolver drop the
+    // whole composition, so it goes in the same write. A target the catalog does not know (a define, a raw
+    // event) cannot be checked and keeps them.
+    private static EditRequest Retarget(CanvasNodeViewModel node, string key, string view)
+    {
+        CatalogView? target = FaceVocabulary.ViewOf(view);
+        bool Stale(string facet) => facet != "actor" && target!.Facets.All(f => f.Name != facet);
+        IReadOnlyList<string> dropped = target is null ? [] : [.. node.Facets.Select(f => f.Name).Where(Stale)];
+        string description = dropped.Count == 0
+            ? $"retarget {node.Id} to {view}"
+            : $"retarget {node.Id} to {view}, dropping {string.Join(", ", dropped)}";
+        return EditRequest.Of(text =>
+        {
+            text = RulesetEdits.SetField(text, node.Id, key, view);
+            if (target is not null)
+            {
+                foreach (string facet in RulesetEdits.FacetKeys(text, node.Id).Where(Stale))
+                {
+                    text = RulesetEdits.RemoveFacet(text, node.Id, facet);
+                }
+            }
+
+            return text;
+        }, description);
+    }
 
     // A highlight's when: reads stats; the wired one joins as a conjunct.
     private static EditRequest ConnectHighlight(CanvasNodeViewModel source, CanvasNodeViewModel target)

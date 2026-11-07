@@ -80,6 +80,12 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>Rows the engine adds and the author cannot remove: <c>not a suicide</c> on a view that bakes it in.</summary>
     public IReadOnlyList<string> FixedRows { get; init; } = [];
 
+    /// <summary>What a fixed row says on hover, by its text: where it comes from and where it can be edited.</summary>
+    public IReadOnlyDictionary<string, string> FixedRowTips { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>The fixed rows with their tips, for the template.</summary>
+    public IReadOnlyList<CanvasChip> FixedRowItems => [.. FixedRows.Select(r => new CanvasChip(r, FixedRowTips.GetValueOrDefault(r)))];
+
     /// <summary>The <c>compute:</c>, flag, <c>where:</c> or <c>when:</c> text, kept textual; lines joined by newline.</summary>
     public string? Expression { get; init; }
 

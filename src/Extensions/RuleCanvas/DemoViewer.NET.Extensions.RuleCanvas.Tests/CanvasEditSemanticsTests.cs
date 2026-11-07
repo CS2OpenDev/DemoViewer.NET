@@ -1,5 +1,6 @@
 #region
 
+using CS2DemoKit.Analysis.Rules;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 
@@ -170,6 +171,40 @@ public class CanvasEditSemanticsTests
             await Assert.That(trigger.Refusal).Contains("own definition");
             await Assert.That(ignored.IsRefused).IsTrue();
             await Assert.That(ignored.Refusal).IsNull().Because("a wire into another ruleset's node is not reported, there is nothing to say");
+        }
+    }
+
+    /// <summary>
+    ///     round_kills is <c>count: kill</c> with <c>match: { enemy: true }</c>. Retargeted to round_ended, which
+    ///     has no enemy facet, the resolver would report an unknown facet and compose nothing, so the facet goes
+    ///     in the same write; retargeted to death, which knows enemy, it stays.
+    /// </summary>
+    [Test]
+    public async Task Retargeting_DropsTheFacetsTheNewViewLacks_InTheSameWrite()
+    {
+        GalleryItem ended = new(GalleryItemKind.View, "round_ended", "round_ended", "", "count: round_ended\nper: round");
+        GalleryItem death = new(GalleryItemKind.View, "death", "death", "", "count: death\nper: round");
+        CanvasNodeViewModel kills = new()
+        {
+            Id = "round_kills", Kind = "count", Ruleset = "player_round", View = "kill",
+            Facets = [new CanvasFacetViewModel("enemy", RulesTypeKind.Bool, "true", (_, _) => { })]
+        };
+        EditRequest toEnded = CanvasEditSemantics.DropOnNode(ended, kills);
+        string retargeted = Run(toEnded);
+        string kept = Run(CanvasEditSemantics.DropOnNode(death, kills));
+        using RulesTree rules = RulesTree.New();
+        rules.User("player_round", retargeted);
+        RulesetCorpus.Composed composed = rules.Load().Compose("player_round");
+        using (Assert.Multiple())
+        {
+            await Assert.That(toEnded.Description).IsEqualTo("retarget round_kills to round_ended, dropping enemy");
+            await Assert.That(RulesetEdits.Field(retargeted, "round_kills", "count")).IsEqualTo("round_ended");
+            await Assert.That(RulesetEdits.FacetKeys(retargeted, "round_kills")).IsEmpty();
+            await Assert.That(RulesetEdits.FacetKeys(retargeted, "round_assists")).IsEquivalentTo(["enemy"]).Because("another stat's facets are its own");
+            await Assert.That(composed.Diagnostics).IsEmpty().Because("the whole composition still runs after the retarget");
+            await Assert.That(composed.Chain.Nodes.Count).IsGreaterThan(0);
+            await Assert.That(RulesetEdits.Field(kept, "round_kills", "count")).IsEqualTo("death");
+            await Assert.That(RulesetEdits.FacetKeys(kept, "round_kills")).IsEquivalentTo(["enemy"]).Because("death knows enemy");
         }
     }
 

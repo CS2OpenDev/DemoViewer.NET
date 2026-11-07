@@ -122,10 +122,103 @@ public class RulesetChainGraphTests
             await Assert.That(gated.Length).IsGreaterThanOrEqualTo(40).Because("most player_stats columns carry a while:");
             await Assert.That(chain.Edges.Where(e => e.Guard is not null).All(e => eventKeys.Contains(e.Source))).IsTrue()
                 .Because("a gated write runs from its event");
-            await Assert.That(chain.Edges.Where(e => e.IsGate).All(e => chain.Nodes.Any(n => n.Key == e.Source && n.Kind == ChainNodeKind.Context)))
-                .IsTrue().Because("a gate runs from its guard, which stays on the canvas");
+            await Assert.That(chain.Edges.Where(e => e.IsGate)
+                    .All(e => chain.Nodes.Any(n => n.Key == e.Source && n.Kind is ChainNodeKind.Context or ChainNodeKind.Declared)))
+                .IsTrue().Because("a gate runs from its guard, a context flag or a sibling flag, which stays on the canvas");
             await Assert.That(unfired.Length).IsEqualTo(0)
                 .Because($"{unfired.Length} of {declared.Count} declared nodes have no write wire: {string.Join(", ", unfired)}");
+        }
+    }
+
+    /// <summary>
+    ///     The engine wires a <c>while: &lt;sibling flag&gt;</c> trigger from the flag node exactly as it wires one
+    ///     from a context flag. aim_rating's contact_shots is <c>count: shot</c> gated on enemy_seen_round.
+    /// </summary>
+    [Test]
+    public async Task ASiblingFlagGate_DrawsLikeAContextGate()
+    {
+        RulesetChainGraph chain = Compose("aim_rating").Chain;
+        RulesetDocumentNodeKey flag = new("aim_rating", "enemy_seen_round");
+        RulesetDocumentNodeKey count = new("aim_rating", "contact_shots");
+        ChainEdge[] into = [.. chain.Edges.Where(e => e.Target == count)];
+        using (Assert.Multiple())
+        {
+            await Assert.That(into.Any(e => e.Source.Ruleset == "~event" && e.Source.Id == "weapon_fire" && e.Label == "weapon_fire" && e.Guard == flag))
+                .IsTrue().Because("the event fires the count, and the wire names the flag as its guard");
+            await Assert.That(into.Any(e => e.Source == flag && e.IsGate && e.Label == "while")).IsTrue()
+                .Because("while: enemy_seen_round is a dashed gate wire from the flag");
+            await Assert.That(into.Any(e => e.Source == flag && !e.IsGate)).IsFalse()
+                .Because("the flag is not drawn as what fires the count");
+            await Assert.That(into.Any(e => e.Label == "weapon_fire" && e.Source == flag)).IsFalse();
+        }
+    }
+
+    /// <summary>
+    ///     A comparison gate (<c>while: round.number &gt; 0</c>) has no guard node: the engine roots the trigger
+    ///     and reads the gate's operands on the edge. aim_rating's enemy_damage carries one, beside enemy_hits
+    ///     whose <c>while: round.active</c> is a guard. Both draw as gates.
+    /// </summary>
+    [Test]
+    public async Task AComparisonGate_DrawsAsAGateWire_NotAPlainRead()
+    {
+        RulesetChainGraph chain = Compose("aim_rating").Chain;
+        RulesetDocumentNodeKey damage = new("aim_rating", "enemy_damage");
+        ChainEdge[] into = [.. chain.Edges.Where(e => e.Target == damage)];
+        ChainEdge[] fromRound = [.. into.Where(e => e.Source.Id == "RoundNumber")];
+        using (Assert.Multiple())
+        {
+            await Assert.That(fromRound.Length).IsEqualTo(1);
+            await Assert.That(fromRound[0].IsGate).IsTrue().Because("the gate's read is the gate");
+            await Assert.That(fromRound[0].IsRead).IsFalse();
+            await Assert.That(fromRound[0].Label).IsEqualTo("while round.number > 0");
+            await Assert.That(ChainWiring.WireText(fromRound[0])).IsEqualTo("while round.number > 0");
+            await Assert.That(into.Any(e => e.Source.Ruleset == "~event" && !e.IsRead && e.Guard is null)).IsTrue()
+                .Because("the trigger runs from the event; a comparison gate has no guard node");
+            await Assert.That(into.Any(e => e.Source.Id == "enrich.hurt.was_enemy_damage" && e.IsRead && e.Label == "reads")).IsTrue()
+                .Because("the facet's read stays a plain read");
+            await Assert.That(chain.Edges.Any(e => e.Target.Id == "enemy_hits" && e.Source.Id == "RoundActive" && e.IsGate && e.Label == "while"))
+                .IsTrue().Because("a guard's gate wire keeps its one-word label");
+        }
+    }
+
+    /// <summary>
+    ///     The engine draws a live compute's reads as unlabelled SetValue edges from each node read, with
+    ///     <c>live</c> as the condition. They are reads, and the wire says they are live.
+    /// </summary>
+    [Test]
+    public async Task ALiveComputesReads_AreReadWires_SayingLive()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("live_probe", """
+            ruleset: live_probe
+            title: Live probe
+            for: each_player
+
+            stats:
+              kills:
+                count: kill
+                per: round
+              live_ratio:
+                compute: { value: "kills * 2", live: true }
+                per: round
+              end_ratio:
+                compute: "kills * 3"
+                per: round
+            """);
+        RulesetCorpus.Composed composed = rules.Load().Compose("live_probe");
+        RulesetChainGraph chain = composed.Chain;
+        ChainEdge[] intoLive = [.. chain.Edges.Where(e => e.Target.Id == "live_ratio")];
+        ChainEdge[] intoEnd = [.. chain.Edges.Where(e => e.Target.Id == "end_ratio")];
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Diagnostics).IsEmpty();
+            await Assert.That(intoLive.Length).IsEqualTo(1);
+            await Assert.That(intoLive[0].Source.Id).IsEqualTo("kills");
+            await Assert.That(intoLive[0].IsRead).IsTrue().Because("the count is what the compute reads, not what writes it");
+            await Assert.That(intoLive[0].Label).IsEqualTo("reads (live)");
+            await Assert.That(ChainWiring.WireText(intoLive[0])).IsEqualTo("reads (live)");
+            await Assert.That(intoEnd.Any(e => e.IsRead && e.Source.Id == "kills" && e.Label == "reads")).IsTrue();
+            await Assert.That(intoEnd.Any(e => !e.IsRead && e.Source.Id == "round_ended")).IsTrue().Because("a round-end compute is fired by the round end");
         }
     }
 
