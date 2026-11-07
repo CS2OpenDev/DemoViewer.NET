@@ -136,6 +136,62 @@ public static class RulesetEdits
         return editor.SetStatField(statId, key, value).Text;
     }
 
+    /// <summary>
+    ///     Sets <paramref name="key" /> inside the mapping a stat holds under <paramref name="parent" /> (a
+    ///     <c>rate: { of, per }</c>), adding the key when the mapping lacks it. The mapping itself must exist.
+    /// </summary>
+    public static string SetNestedField(string text, string statId, string parent, string key, string value)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlPath path = RulesetDocumentEditor.StatPath(statId).Key(parent);
+        if (editor.Document.Find(path) is not YamlMappingNode)
+        {
+            throw new InvalidOperationException($"{statId}.{parent} is not a mapping in this document");
+        }
+
+        return editor.Apply([YamlEdits.SetKey(editor.Document, path, key, value)]).Text;
+    }
+
+    /// <summary>
+    ///     Replaces a tally's <c>thresholds:</c> with <paramref name="rows" />, written as the block sequence of
+    ///     flow maps the corpus uses, in the order given; the key is added when the stat lacks it. Only the
+    ///     items are replaced, so the key's own line and a comment on it stay.
+    /// </summary>
+    public static string SetThresholds(string text, string statId, IReadOnlyList<(string Min, string Target)> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        if (rows.Count == 0)
+        {
+            throw new InvalidOperationException("a tally needs at least one threshold");
+        }
+
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        YamlPath stat = RulesetDocumentEditor.StatPath(statId);
+        if (doc.Find(stat) is not YamlMappingNode)
+        {
+            throw new InvalidOperationException($"{statId} is not a stat in this document");
+        }
+
+        string[] items = [.. rows.Select(r => $"- {{ min: {r.Min}, target: {r.Target} }}")];
+        YamlPath path = stat.Key("thresholds");
+        if (doc.Find(path) is not { } existing)
+        {
+            string block = "thresholds:" + "\n" + string.Join("\n", items.Select(i => "  " + i));
+            return editor.Apply([YamlEdits.AddEntry(doc, stat, block)]).Text;
+        }
+
+        if (existing is not YamlSequenceNode { Style: SequenceStyle.Block } sequence || sequence.Children.Count == 0)
+        {
+            throw new InvalidOperationException($"{statId}.thresholds is not a block list; edit it in the source pane");
+        }
+
+        int start = (int)sequence.Start.Index;
+        string indent = doc.IndentOf(start);
+        string replacement = string.Join(doc.NewLine + indent, items);
+        return editor.Apply([new TextEdit(start, doc.EndOf(sequence) - start, replacement, $"set {path}")]).Text;
+    }
+
     /// <summary>The scalar a stat holds under <paramref name="key" /> (dotted for a nested key), or null.</summary>
     public static string? Field(string text, string statId, string key)
     {

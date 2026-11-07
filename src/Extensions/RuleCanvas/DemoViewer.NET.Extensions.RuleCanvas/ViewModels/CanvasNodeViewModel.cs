@@ -3,6 +3,7 @@
 using System.Collections.ObjectModel;
 using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using CS2DemoKit.Analysis.Rules;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
 
@@ -10,11 +11,18 @@ using DemoViewer.NET.Extensions.RuleCanvas.Model;
 
 namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 
+/// <summary>One header chip: its text and what it says on hover.</summary>
+public sealed record CanvasChip(string Text, string? Tip)
+{
+    public bool HasTip => !string.IsNullOrEmpty(Tip);
+}
+
 /// <summary>
 ///     One node on the canvas: a stat or a highlight. The slot model is the design review's: the values a
 ///     node reads from siblings are its inputs and the value it produces is its output, so wires are value
 ///     references only; the trigger, the gate and the scope are chips, not ports; a <c>match:</c> block is
-///     a typed form on the node face, scoped to the view the node fires on.
+///     a typed form on the node face, scoped to the view the node fires on. While editable, the trigger,
+///     the scope and the gate are pickers in place of their chips, and every kind-specific key is a row.
 /// </summary>
 public sealed partial class CanvasNodeViewModel : ObservableObject
 {
@@ -24,7 +32,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>The scopes a stat can be kept per.</summary>
     public static IReadOnlyList<string> PerOptions { get; } = ["round", "match"];
 
-    /// <summary>The gates a stat can run while, with the empty entry for none.</summary>
+    /// <summary>The gates every stat can run while, with the empty entry for none; a node adds its ruleset's flags.</summary>
     public static IReadOnlyList<string> GateOptions { get; } = ["", .. CanvasEditSemantics.GatePaths.Select(g => g.Path)];
 
     /// <summary>The typed face this node was built from, or null for a node made by hand.</summary>
@@ -45,11 +53,20 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>The author's <c>label:</c> or a highlight's <c>title:</c>, or null.</summary>
     public string? Label { get; init; }
 
-    /// <summary>The view the node fires on, as the author named it, or null.</summary>
+    /// <summary>The view the node fires on, as the resolver named it, or null.</summary>
     public string? View { get; init; }
 
-    /// <summary>The header chips: the trigger, the gate and the scope, in that order, each one that is declared.</summary>
+    /// <summary>The value the node produces, as the checked model types it, or null when unknown.</summary>
+    public string? ValueType { get; init; }
+
+    /// <summary>The output connector's title: the value type when the face knows it.</summary>
+    public string OutputTitle => ValueType ?? "";
+
+    /// <summary>The header chips: the trigger, the actor binding, the gate and the scope, in that order, each one that is declared.</summary>
     public IReadOnlyList<string> Chips { get; init; } = [];
+
+    /// <summary>What a chip says on hover, by its text; a chip with no entry has no tip.</summary>
+    public IReadOnlyDictionary<string, string> ChipTips { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 
     /// <summary>The <c>match:</c> facets the document binds, in the catalog's order, then any the view does not know.</summary>
     public IReadOnlyList<CanvasFacetViewModel> Facets { get; init; } = [];
@@ -60,19 +77,66 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>Answers the catalog type of an available facet, for the initial value an added one gets.</summary>
     public Func<string, RulesTypeKind>? AvailableFacetKind { get; init; }
 
+    /// <summary>Rows the engine adds and the author cannot remove: <c>not a suicide</c> on a view that bakes it in.</summary>
+    public IReadOnlyList<string> FixedRows { get; init; } = [];
+
     /// <summary>The <c>compute:</c>, flag, <c>where:</c> or <c>when:</c> text, kept textual; lines joined by newline.</summary>
     public string? Expression { get; init; }
 
     /// <summary>The same fields as editors, for an authorable stat: <c>where</c> always, <c>when</c> for a flag, <c>compute</c> for a compute.</summary>
     public IReadOnlyList<CanvasExpressionViewModel> Lines { get; init; } = [];
 
+    /// <summary>The trigger picker, for a stat that fires on something; null for a compute, a rate and an expression flag.</summary>
+    public CanvasTriggerViewModel? Trigger { get; init; }
+
+    /// <summary>The kind's free-text keys: a sum's value, a streak's window, a rate's buckets, a highlight's group.</summary>
+    public IReadOnlyList<CanvasFieldViewModel> Fields { get; init; } = [];
+
+    /// <summary>The kind's closed-set keys: <c>keep</c>, <c>format</c>, <c>reduce</c>, a highlight's <c>kind</c>.</summary>
+    public IReadOnlyList<CanvasChoiceViewModel> Choices { get; init; } = [];
+
+    /// <summary>A tally's thresholds table; null for every other kind.</summary>
+    public CanvasThresholdsViewModel? Thresholds { get; init; }
+
+    /// <summary>The engine defaults the document leaves implicit, in words: <c>score 50</c>, <c>per round</c>.</summary>
+    public IReadOnlyList<string> Defaults { get; init; } = [];
+
+    /// <summary>The role the view binds to this player, or null when there is no binding to switch off.</summary>
+    public string? ViewActor { get; init; }
+
     /// <summary>The <c>per:</c> scope as written, for the picker; null when the picker has no selection.</summary>
     [ObservableProperty]
     private string? _per = "";
 
-    /// <summary>The <c>while:</c> gate as written, or empty, for the picker.</summary>
+    /// <summary>The <c>while:</c> gate as written, or empty.</summary>
     [ObservableProperty]
     private string _gate = "";
+
+    /// <summary>The gate editor's text; written on commit, not on every keystroke.</summary>
+    [ObservableProperty]
+    private string _gateText = "";
+
+    /// <summary>The gate picked from the list, which writes at once; null while the text is free.</summary>
+    [ObservableProperty]
+    private string? _gateChoice;
+
+    /// <summary>The gates this node can pick: none, the context paths, and the flags of its ruleset and its dependencies.</summary>
+    public IReadOnlyList<string> GateChoices { get; init; } = GateOptions;
+
+    /// <summary>Whether the gate as written is one the list offers; an unlisted gate keeps its chip beside the editor.</summary>
+    public bool IsGateListed => Gate.Length == 0 || GateChoices.Contains(Gate, StringComparer.Ordinal);
+
+    /// <summary>The label editor's text.</summary>
+    [ObservableProperty]
+    private string _labelText = "";
+
+    /// <summary>True while the header shows the label editor instead of the label.</summary>
+    [ObservableProperty]
+    private bool _isEditingLabel;
+
+    /// <summary>The actor toggle: true binds the event to this player (the view's own binding), false writes <c>actor: any</c>.</summary>
+    [ObservableProperty]
+    private bool? _bindsActor;
 
     /// <summary>Whether the face shows the scope picker: an editable stat or highlight.</summary>
     public bool ShowFieldPickers => IsEditable && IsAuthorable && !IsScaffold;
@@ -80,13 +144,32 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>A highlight has no gate; its <c>per:</c> is the rising edge's reset scope.</summary>
     public bool ShowGatePicker => !IsHighlight;
 
+    /// <summary>The trigger picker shows while editable, on a stat that fires on something.</summary>
+    public bool ShowTriggerPicker => IsEditable && Trigger is not null;
+
     /// <summary>The add-facet picker: an editable stat whose view still has facets to offer.</summary>
     public bool ShowFacetPicker => IsEditable && !IsHighlight && HasAvailableFacets;
 
-    /// <summary>The chips without the scope and the gate, which the pickers show instead while editable.</summary>
+    /// <summary>The actor toggle: an editable stat on a view that binds a role.</summary>
+    public bool ShowActorToggle => IsEditable && ViewActor is not null;
+
+    /// <summary>The label can be edited in place on an editable stat; a highlight's title has its own line.</summary>
+    public bool CanEditLabel => IsEditable && !IsHighlight && !IsScaffold;
+
+    public bool ShowLabelText => !IsEditingLabel && Label is not null;
+
+    public bool ShowLabelEditor => CanEditLabel && IsEditingLabel;
+
+    /// <summary>
+    ///     The chips without the ones a picker stands in for while editable: the trigger, the scope, and a
+    ///     gate the list offers. A gate outside the list keeps its chip, so what the file says stays in view.
+    /// </summary>
     public IReadOnlyList<string> VisibleChips => IsEditable
-        ? [.. Chips.Where(c => !c.StartsWith("per ", StringComparison.Ordinal) && !c.StartsWith("while ", StringComparison.Ordinal))]
+        ? [.. Chips.Where(c => !IsPickedChip(c))]
         : Chips;
+
+    /// <summary>The visible chips with their tips, for the template.</summary>
+    public IReadOnlyList<CanvasChip> VisibleChipItems => [.. VisibleChips.Select(c => new CanvasChip(c, ChipTips.GetValueOrDefault(c)))];
 
     public bool ShowExpressionText => HasExpression && !IsEditable;
 
@@ -137,6 +220,16 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     public bool HasAvailableFacets => AvailableFacets.Count > 0;
 
+    public bool HasFixedRows => FixedRows.Count > 0;
+
+    public bool HasFields => Fields.Count > 0;
+
+    public bool HasChoices => Choices.Count > 0;
+
+    public bool HasThresholds => Thresholds is not null;
+
+    public bool HasDefaults => Defaults.Count > 0;
+
     public bool HasExpression => Expression is not null;
 
     public bool HasDiagnostics => Diagnostics.Count > 0;
@@ -166,6 +259,52 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>What a field editor calls: a value to set, or null to remove the field.</summary>
     public void WriteField(string key, string? value) => _writeField?.Invoke(key, value);
 
+    /// <summary>What a facet row calls: a value to set, or null to remove the facet.</summary>
+    public void WriteFacet(string facet, string? value) => _writeFacet?.Invoke(facet, value);
+
+    /// <summary>Writes the gate editor's text: a gate to set, or nothing to remove it. Bound to Enter and to losing focus.</summary>
+    [RelayCommand]
+    public void CommitGate()
+    {
+        if (_writeField is null || !IsEditable)
+        {
+            return;
+        }
+
+        string text = GateText.Trim();
+        if (!string.Equals(text, Gate, StringComparison.Ordinal))
+        {
+            WriteField("while", text.Length == 0 ? null : text);
+        }
+    }
+
+    [RelayCommand]
+    private void BeginEditLabel()
+    {
+        if (CanEditLabel)
+        {
+            LabelText = Label ?? "";
+            IsEditingLabel = true;
+        }
+    }
+
+    /// <summary>Writes the label editor's text: a label to set, or nothing to remove it. Bound to Enter and to losing focus.</summary>
+    [RelayCommand]
+    public void CommitLabel()
+    {
+        IsEditingLabel = false;
+        if (_writeField is null || !CanEditLabel)
+        {
+            return;
+        }
+
+        string text = LabelText.Trim();
+        if (!string.Equals(text, Label ?? "", StringComparison.Ordinal))
+        {
+            WriteField("label", text.Length == 0 ? null : text);
+        }
+    }
+
     // The pickers write only once a writer is attached, so the values the builder sets are not written back.
     // A cleared picker hands null; a scope is never removed, so only a value is written.
     partial void OnPerChanged(string? value)
@@ -178,14 +317,40 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     partial void OnGateChanged(string value)
     {
+        OnPropertyChanged(nameof(IsGateListed));
         if (_writeField is not null && IsEditable)
         {
             WriteField("while", value.Length == 0 ? null : value);
         }
     }
 
-    /// <summary>What a facet row calls: a value to set, or null to remove the facet.</summary>
-    public void WriteFacet(string facet, string? value) => _writeFacet?.Invoke(facet, value);
+    // A gate picked from the list writes at once; the text editor waits for its commit.
+    partial void OnGateChoiceChanged(string? value)
+    {
+        if (_writeField is not null && IsEditable && value is not null && !string.Equals(value, Gate, StringComparison.Ordinal))
+        {
+            WriteField("while", value.Length == 0 ? null : value);
+        }
+    }
+
+    // The toggle writes the key that switches the view's binding off, or takes it away again.
+    partial void OnBindsActorChanged(bool? value)
+    {
+        if (_writeFacet is not null && IsEditable && ViewActor is not null && value is { } binds)
+        {
+            bool suppressed = Chips.Contains("any player", StringComparer.Ordinal);
+            if (binds == suppressed)
+            {
+                WriteFacet("actor", binds ? null : "any");
+            }
+        }
+    }
+
+    partial void OnIsEditingLabelChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowLabelText));
+        OnPropertyChanged(nameof(ShowLabelEditor));
+    }
 
     partial void OnShowFacetsChanged(bool value) => OnPropertyChanged(nameof(ShowFacetSummary));
 
@@ -201,9 +366,34 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             line.IsEditable = value;
         }
 
+        foreach (CanvasFieldViewModel field in Fields)
+        {
+            field.IsEditable = value;
+        }
+
+        foreach (CanvasChoiceViewModel choice in Choices)
+        {
+            choice.IsEditable = value;
+        }
+
+        if (Trigger is not null)
+        {
+            Trigger.IsEditable = value;
+        }
+
+        if (Thresholds is not null)
+        {
+            Thresholds.IsEditable = value;
+        }
+
         OnPropertyChanged(nameof(ShowFieldPickers));
+        OnPropertyChanged(nameof(ShowTriggerPicker));
         OnPropertyChanged(nameof(ShowFacetPicker));
+        OnPropertyChanged(nameof(ShowActorToggle));
+        OnPropertyChanged(nameof(CanEditLabel));
+        OnPropertyChanged(nameof(ShowLabelEditor));
         OnPropertyChanged(nameof(VisibleChips));
+        OnPropertyChanged(nameof(VisibleChipItems));
         OnPropertyChanged(nameof(ShowExpressionText));
         OnPropertyChanged(nameof(ShowLines));
     }
@@ -225,5 +415,20 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         };
         WriteFacet(value, initial);
         FacetToAdd = null;
+    }
+
+    private bool IsPickedChip(string chip)
+    {
+        if (chip.StartsWith("per ", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (chip.StartsWith("while ", StringComparison.Ordinal))
+        {
+            return IsGateListed;
+        }
+
+        return Trigger is not null && chip.StartsWith("on ", StringComparison.Ordinal);
     }
 }

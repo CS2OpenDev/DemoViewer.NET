@@ -40,7 +40,11 @@ public class CanvasFaceEditTests
                 await Assert.That(deaths.Per).IsEqualTo("round");
                 await Assert.That(deaths.Gate).IsEqualTo("match.live");
                 await Assert.That(deaths.ShowFieldPickers).IsTrue();
-                await Assert.That(deaths.VisibleChips).IsEquivalentTo(["on death"]).Because("the pickers stand in for the per and while chips");
+                await Assert.That(deaths.VisibleChips).IsEquivalentTo(["as victim"])
+                    .Because("the pickers stand in for the on, per and while chips; the binding has no picker and stays");
+                await Assert.That(deaths.ShowTriggerPicker).IsTrue();
+                await Assert.That(deaths.GateChoices).Contains("round_kast").Because("a sibling flag can be the gate");
+                await Assert.That(deaths.GateChoice).IsEqualTo("match.live");
                 await Assert.That(deaths.Lines.Select(l => l.Key)).IsEquivalentTo(["where"]);
                 await Assert.That(kast.Lines.Select(l => l.Key)).IsEquivalentTo(["when", "where"]);
                 await Assert.That(kast.Lines.Single(l => l.Key == "when").Text).StartsWith("round_kills > 0");
