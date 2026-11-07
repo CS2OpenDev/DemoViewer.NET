@@ -96,7 +96,7 @@ public sealed partial class CanvasTabViewModel
         List<CanvasNodeViewModel> nodes = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n.IsAuthorable)];
         if (IsEditable && nodes.Count > 0 && _composed is { } composed)
         {
-            Apply(CanvasEditSemantics.Delete(nodes, composed));
+            Apply(CanvasEditSemantics.Delete(nodes, composed, _session.Text));
         }
     }
 

@@ -161,12 +161,13 @@ public static class CanvasEditSemantics
 
     /// <summary>
     ///     What still names <paramref name="node" /> once it is gone: the siblings that read it (the document
-    ///     graph's edges out of it) and the <c>show:</c> entries that surface it. A deleted entry anything
-    ///     names leaves a file the host no longer composes, so a delete is refused while this is not empty;
-    ///     a cascade that removes these too is the inspector's offer, built from the same answer.
+    ///     graph's edges out of it, and the open document's own expressions when <paramref name="text" /> is
+    ///     given) and the <c>show:</c> entries that surface it. A deleted entry anything names leaves a file
+    ///     the host no longer composes, so a delete is refused while this is not empty; a cascade that
+    ///     removes these too is the inspector's offer, built from the same answer.
     /// </summary>
     public static NodeDependants Dependants(CanvasNodeViewModel node, RulesetCorpus.Composed composed,
-        IReadOnlySet<RulesetDocumentNodeKey>? alsoDeleted = null)
+        IReadOnlySet<RulesetDocumentNodeKey>? alsoDeleted = null, string? text = null)
     {
         ArgumentNullException.ThrowIfNull(node);
         ArgumentNullException.ThrowIfNull(composed);
@@ -176,6 +177,18 @@ public static class CanvasEditSemantics
             .Where(e => e.Source.Equals(key) && !e.Target.Equals(key) && !alsoDeleted.Contains(e.Target))
             .Select(e => e.Target.Id)
             .Distinct(StringComparer.Ordinal)];
+        // The graph is edgeless when the composition failed, which is when the text is the only witness.
+        if (text is not null && node.IsAuthorable)
+        {
+            foreach (string reader in TextReaders(text, node.Id))
+            {
+                if (reader != node.Id && !readers.Contains(reader) && !alsoDeleted.Contains(new RulesetDocumentNodeKey(node.Ruleset, reader)))
+                {
+                    readers.Add(reader);
+                }
+            }
+        }
+
         bool scoreboard = false;
         List<string> tables = [];
         if (composed.Documents.TryGetValue(node.Ruleset, out RulesetDoc? doc) && doc.Show is { } show)
@@ -190,14 +203,28 @@ public static class CanvasEditSemantics
         return new NodeDependants(node.Id, readers, scoreboard, tables);
     }
 
+    private static IReadOnlyList<string> TextReaders(string text, string id)
+    {
+        try
+        {
+            return RulesetEdits.SiblingReaders(text, id);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or YamlDotNet.Core.YamlException)
+        {
+            return [];
+        }
+    }
+
     /// <summary>Removes <paramref name="node" />'s entry, whichever section declares it, unless something still names it.</summary>
-    public static EditRequest Delete(CanvasNodeViewModel node, RulesetCorpus.Composed composed) => Delete([node], composed);
+    public static EditRequest Delete(CanvasNodeViewModel node, RulesetCorpus.Composed composed, string? text = null) =>
+        Delete([node], composed, text);
 
     /// <summary>
     ///     Removes every entry in <paramref name="nodes" /> in one write, or refuses the whole lot naming what
     ///     still reads or shows any of them. A node another of the same selection reads is not a dependant.
+    ///     <paramref name="text" /> is the open document, read for the siblings when the composition failed.
     /// </summary>
-    public static EditRequest Delete(IReadOnlyList<CanvasNodeViewModel> nodes, RulesetCorpus.Composed composed)
+    public static EditRequest Delete(IReadOnlyList<CanvasNodeViewModel> nodes, RulesetCorpus.Composed composed, string? text = null)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(composed);
@@ -208,7 +235,7 @@ public static class CanvasEditSemantics
         }
 
         HashSet<RulesetDocumentNodeKey> keys = [.. deleting.Select(n => n.Key)];
-        List<string> refusals = [.. deleting.Select(n => Dependants(n, composed, keys)).Where(d => d.Any).Select(d => d.Describe())];
+        List<string> refusals = [.. deleting.Select(n => Dependants(n, composed, keys, text)).Where(d => d.Any).Select(d => d.Describe())];
         if (refusals.Count > 0)
         {
             return EditRequest.Refuse(string.Join("; ", refusals));
