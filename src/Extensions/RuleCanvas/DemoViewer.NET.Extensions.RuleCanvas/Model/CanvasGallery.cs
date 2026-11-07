@@ -41,17 +41,13 @@ public sealed record GalleryGroup(string Title, IReadOnlyList<GalleryItem> Items
 
 /// <summary>
 ///     The gallery a user drags from: the stat kinds, the catalog's views, the gates the corpus uses, and
-///     prefabs for the stats most rulesets start with. Views come from the catalog; the gate paths are the
-///     v2 spelling, which the catalog does not carry by that name.
+///     prefabs for the stats most rulesets start with. Views come from the catalog; the gates from the
+///     one table in <see cref="CanvasEditSemantics.GatePaths" />.
 /// </summary>
 public static class CanvasGallery
 {
     /// <summary>The gate paths a ruleset writes in <c>while:</c>, in the order the gallery offers them.</summary>
-    public static IReadOnlyList<string> GatePaths { get; } =
-    [
-        "round.active", "match.live", "player.alive", "round.no_deaths_yet", "round.bomb.was_planted", "player.traded",
-        "player.survived"
-    ];
+    public static IReadOnlyList<string> GatePaths { get; } = [.. CanvasEditSemantics.GatePaths.Select(g => g.Path)];
 
     public static IReadOnlyList<GalleryGroup> Build(CatalogRoot catalog)
     {
@@ -74,16 +70,7 @@ public static class CanvasGallery
                     "tally: round_kills\nthresholds: [1, 2, 3, 4, 5]\nper: match"),
             ]),
             new GalleryGroup("Views", [.. catalog.Views.OrderBy(v => v.Name, StringComparer.Ordinal).Select(ViewItem)]),
-            new GalleryGroup("Gates",
-            [
-                Gate(GatePaths[0], "while the round is live, after freeze time and before it is decided"),
-                Gate(GatePaths[1], "while the match is live, between its start and its end"),
-                Gate(GatePaths[2], "while this player is alive"),
-                Gate(GatePaths[3], "until the round's first death"),
-                Gate(GatePaths[4], "after the bomb is planted this round"),
-                Gate(GatePaths[5], "once this player has been traded this round"),
-                Gate(GatePaths[6], "once this player has survived the round"),
-            ]),
+            new GalleryGroup("Gates", [.. CanvasEditSemantics.GatePaths.Select(g => Gate(g.Path, g.Hint))]),
             new GalleryGroup("Prefabs",
             [
                 Prefab("enemy_kills", "Enemy kills", "Kills on enemies, per round.",

@@ -56,7 +56,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     public ObservableCollection<RulesetCorpus.Entry> Rulesets { get; } = [];
 
     /// <summary>The catalog's views, which an added count stat fires on.</summary>
-    public IReadOnlyList<string> Views { get; } = CanvasGraphBuilder.ViewNames;
+    public IReadOnlyList<string> Views { get; } = CanvasEditSemantics.ViewNames;
 
     /// <summary>What the gallery offers to drag: stat kinds, the catalog's views, the gates, and prefabs.</summary>
     public IReadOnlyList<GalleryGroup> Gallery { get; } = CanvasGallery.Build(EmbeddedCatalog.Root);
@@ -317,8 +317,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             return;
         }
 
-        ApplyEdit(text => node.IsHighlight ? RulesetEdits.RemoveHighlight(text, node.Id) : RulesetEdits.RemoveStat(text, node.Id),
-            "delete " + node.Id);
+        Apply(CanvasEditSemantics.Delete(node));
     }
 
     /// <summary>Adds a count stat on <paramref name="view" /> with a fresh id, at the end of <c>stats:</c>.</summary>
@@ -330,8 +329,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             return;
         }
 
-        string id = FreshId("new_" + view);
-        ApplyEdit(text => RulesetEdits.AddStat(text, $"{id}:\n  count: {view}\n  per: round\n"), "add " + id);
+        Apply(CanvasEditSemantics.AddStat(view, FreshId("new_" + view)));
     }
 
     /// <summary>
@@ -346,19 +344,16 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             return;
         }
 
-        if (item.Kind == GalleryItemKind.Gate || item.Body is null)
+        string id = FreshId(CanvasEditSemantics.PlacedIdFor(item));
+        EditRequest request = CanvasEditSemantics.PlaceItem(item, id);
+        if (request.IsRefused)
         {
-            EditStatus = $"Drop {item.Name} onto a stat to gate it.";
+            Apply(request);
             return;
         }
 
-        string id = FreshId(item.Kind is GalleryItemKind.Prefab or GalleryItemKind.Highlight ? item.Name : "new_" + item.Name);
-        string body = string.Join('\n', item.Body.Split('\n').Select(l => "  " + l));
         _pendingPlacement[new RulesetDocumentNodeKey(selected.Id, id)] = at;
-        bool written = item.Kind == GalleryItemKind.Highlight
-            ? ApplyEdit(text => RulesetEdits.AddHighlight(text, id, item.Body), "add " + id)
-            : ApplyEdit(text => RulesetEdits.AddStat(text, $"{id}:\n{body}\n"), "add " + id);
-        if (!written)
+        if (!Apply(request))
         {
             _pendingPlacement.Clear();
         }
@@ -372,30 +367,13 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(node);
-        if (!IsEditable || !node.IsAuthorable || node.IsHighlight)
+        if (!IsEditable)
         {
             EditStatus = $"{item.Name} can only be dropped on a stat of your own ruleset.";
             return;
         }
 
-        switch (item.Kind)
-        {
-            case GalleryItemKind.Gate:
-                ApplyEdit(text => RulesetEdits.SetField(text, node.Id, "while", item.Name), $"gate {node.Id} on {item.Name}");
-                break;
-            case GalleryItemKind.View when node.Kind == "count":
-                ApplyEdit(text => RulesetEdits.SetField(text, node.Id, "count", item.Name), $"retarget {node.Id} to {item.Name}");
-                break;
-            case GalleryItemKind.View when node.Kind is "sum" or "capture":
-                ApplyEdit(text => RulesetEdits.SetField(text, node.Id, "on", item.Name), $"retarget {node.Id} to {item.Name}");
-                break;
-            case GalleryItemKind.View:
-                EditStatus = $"A {node.Kind} fires on no view; {item.Name} goes on a count, a sum or a capture.";
-                break;
-            default:
-                EditStatus = $"Drop {item.Title} on the canvas to add it as a stat.";
-                break;
-        }
+        Apply(CanvasEditSemantics.DropOnNode(item, node));
     }
 
     /// <summary>
@@ -427,57 +405,9 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
-        if (!IsEditable)
+        if (IsEditable)
         {
-            return;
-        }
-
-        if (!target.IsAuthorable || target.IsScaffold)
-        {
-            EditStatus = "A wire can only end on a stat or a highlight of your own ruleset.";
-            return;
-        }
-
-        if (target.IsHighlight)
-        {
-            if (source.IsScaffold)
-            {
-                EditStatus = "A highlight's when: reads stats; wire a stat into it.";
-                return;
-            }
-
-            string read = source.Ruleset == target.Ruleset ? source.Id : source.Ruleset + "." + source.Id;
-            ApplyEdit(text =>
-            {
-                string? existing = RulesetEdits.HighlightField(text, target.Id, "when");
-                string when = string.IsNullOrWhiteSpace(existing) ? $"{read} > 0" : $"{existing} and {read} > 0";
-                return RulesetEdits.SetHighlightField(text, target.Id, "when", when);
-            }, $"extend {target.Id} with {read}");
-            return;
-        }
-
-        switch (source.Ruleset)
-        {
-            case "~event":
-                ConnectEvent(source.Id, target);
-                break;
-            case "~context":
-                if (GatePathOf(source.Id) is { } gate)
-                {
-                    ApplyEdit(text => RulesetEdits.SetField(text, target.Id, "while", gate), $"gate {target.Id} on {gate}");
-                }
-                else
-                {
-                    EditStatus = $"{source.Id} is not a gate a ruleset can name in while:.";
-                }
-
-                break;
-            case "~enrichment":
-                ConnectEnrichment(source.Id, target);
-                break;
-            default:
-                ConnectStat(source, target);
-                break;
+            Apply(CanvasEditSemantics.Connect(source, target));
         }
     }
 
@@ -488,23 +418,9 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     [RelayCommand]
     private void Disconnect(object? wire)
     {
-        if (wire is not CanvasConnectionViewModel connection || !IsEditable
-            || connection.Source.Owner is not { } source || connection.Target.Owner is not { IsAuthorable: true } target)
+        if (wire is CanvasConnectionViewModel connection && IsEditable)
         {
-            return;
-        }
-
-        if (source.Ruleset == "~context" && !connection.IsRead)
-        {
-            ApplyEdit(text => RulesetEdits.RemoveFieldIfPresent(text, target.Id, "while"), $"ungate {target.Id}");
-        }
-        else if (source.Ruleset == "~enrichment" && FacetReading(source.Id, target) is { } facet)
-        {
-            ApplyEdit(text => RulesetEdits.RemoveFacet(text, target.Id, facet), $"remove {target.Id}.match.{facet}");
-        }
-        else
-        {
-            EditStatus = "That wire is part of the stat's own definition; change the stat instead.";
+            Apply(CanvasEditSemantics.Disconnect(connection));
         }
     }
 
@@ -512,89 +428,6 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     {
         CanvasConnectorViewModel connector => connector.Owner,
         CanvasNodeViewModel node => node,
-        _ => null
-    };
-
-    // An event fires one or several views. One view names the trigger outright; several leave the choice to
-    // the author, except for a sum or a capture, which can fire on the raw event.
-    private void ConnectEvent(string eventName, CanvasNodeViewModel target)
-    {
-        List<string> views = [.. EmbeddedCatalog.Root.Views.Where(v => v.Event == eventName).Select(v => v.Name)];
-        bool takesValue = target.Kind is "sum" or "capture";
-        if (target.Kind == "count" && views.Count == 1)
-        {
-            ApplyEdit(text => RulesetEdits.SetField(text, target.Id, "count", views[0]), $"retarget {target.Id} to {views[0]}");
-        }
-        else if (takesValue && views.Count == 1)
-        {
-            ApplyEdit(text => RulesetEdits.SetField(text, target.Id, "on", views[0]), $"retarget {target.Id} to {views[0]}");
-        }
-        else if (takesValue && views.Count == 0)
-        {
-            ApplyEdit(text => RulesetEdits.SetField(text, target.Id, "on", "raw." + eventName), $"retarget {target.Id} to {eventName}");
-        }
-        else if (views.Count > 1)
-        {
-            EditStatus = $"{eventName} fires {string.Join(", ", views)}; drop the view you mean from the gallery.";
-        }
-        else
-        {
-            EditStatus = $"A {target.Kind} cannot fire on {eventName}.";
-        }
-    }
-
-    // An enrichment is reached through the facet of the target's view that reads it.
-    private void ConnectEnrichment(string enrichment, CanvasNodeViewModel target)
-    {
-        CS2DemoKit.Analysis.Catalog.CatalogFacet? facet = EmbeddedCatalog.Root.Views.FirstOrDefault(v => v.Name == target.View)?.Facets
-            .FirstOrDefault(f => f.Enrichment == enrichment);
-        if (facet is null)
-        {
-            EditStatus = $"No facet of {target.View ?? target.Kind} reads {enrichment}; test it in where: instead.";
-            return;
-        }
-
-        if (!string.Equals(facet.Type, "bool", StringComparison.OrdinalIgnoreCase))
-        {
-            EditStatus = $"{facet.Name} is a {facet.Type} facet; set its value on the node.";
-            return;
-        }
-
-        ApplyEdit(text => RulesetEdits.SetFacet(text, target.Id, facet.Name, "true"), $"set {target.Id}.match.{facet.Name}");
-    }
-
-    private static string? FacetReading(string enrichment, CanvasNodeViewModel target) =>
-        EmbeddedCatalog.Root.Views.FirstOrDefault(v => v.Name == target.View)?.Facets
-            .FirstOrDefault(f => f.Enrichment == enrichment)?.Name;
-
-    // A stat wired into a flag joins its when: as one more alternative.
-    private void ConnectStat(CanvasNodeViewModel source, CanvasNodeViewModel target)
-    {
-        if (target.Kind != "flag" || source.IsScaffold)
-        {
-            EditStatus = $"A stat can be wired into a flag's when:; a {target.Kind} reads its operands in its own text.";
-            return;
-        }
-
-        string read = source.Ruleset == target.Ruleset ? source.Id : source.Ruleset + "." + source.Id;
-        ApplyEdit(text =>
-        {
-            string? existing = RulesetEdits.Field(text, target.Id, "flag.when") ?? RulesetEdits.Field(text, target.Id, "when");
-            string when = string.IsNullOrWhiteSpace(existing) ? $"{read} > 0" : $"{existing} or {read} > 0";
-            return RulesetEdits.SetFlagWhen(text, target.Id, when);
-        }, $"extend {target.Id} with {read}");
-    }
-
-    // The engine names its context flags in PascalCase; a ruleset names the same flags by their v2 path.
-    private static string? GatePathOf(string engineName) => engineName switch
-    {
-        "MatchLive" => "match.live",
-        "RoundActive" => "round.active",
-        "NoDeathsYet" => "round.no_deaths_yet",
-        "BombWasPlanted" => "round.bomb.was_planted",
-        "Alive" => "player.alive",
-        "Survived" => "player.survived",
-        "Traded" => "player.traded",
         _ => null
     };
 
@@ -621,17 +454,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     // A focus change redraws from the composition already in hand: the file did not change.
     partial void OnFocusKeyChanged(RulesetDocumentNodeKey? value) => Redraw(SelectedRuleset, keepArrangement: false, recompose: false);
 
-    private string FreshId(string wanted)
-    {
-        HashSet<string> taken = new(Nodes.Select(n => n.Id), StringComparer.Ordinal);
-        string id = wanted;
-        for (int n = 2; taken.Contains(id); n++)
-        {
-            id = $"{wanted}_{n}";
-        }
-
-        return id;
-    }
+    private string FreshId(string wanted) => CanvasEditSemantics.FreshId(wanted, Nodes.Select(n => n.Id));
 
     [RelayCommand]
     private void ToggleGallery() => ShowGallery = !ShowGallery;
@@ -678,82 +501,27 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         Redraw(SelectedRuleset, keepArrangement: false);
     }
 
-    // A facet write from a node face: through the splice writer, then the document is re-read and redrawn
-    // with every node where it was and the same node selected.
+    // A facet or field write from a node face: through the splice writer, then the document is re-read
+    // and redrawn with every node where it was and the same node selected.
     private void WriteFacet(CanvasNodeViewModel node, string facet, string? value)
     {
-        if (!IsEditable)
+        if (IsEditable)
         {
-            return;
+            Apply(CanvasEditSemantics.WriteFacet(node, facet, value));
         }
-
-        ApplyEdit(text => value is null
-                ? RulesetEdits.RemoveFacet(text, node.Id, facet)
-                : RulesetEdits.SetFacet(text, node.Id, facet, value),
-            value is null ? $"remove {node.Id}.match.{facet}" : $"set {node.Id}.match.{facet}");
     }
 
-    // A field write from a node face: the scope, the gate, or one of the expression lines. A removed where:
-    // or while: comes as null; a formula or a flag's test cannot be empty, so that is refused.
     private void WriteField(CanvasNodeViewModel node, string key, string? value)
     {
-        if (!IsEditable)
+        if (IsEditable)
         {
-            return;
-        }
-
-        if (node.IsHighlight)
-        {
-            WriteHighlightField(node, key, value);
-            return;
-        }
-
-        switch (key)
-        {
-            case "per" when value is not null:
-                ApplyEdit(text => RulesetEdits.SetField(text, node.Id, "per", value), $"set {node.Id}.per");
-                break;
-            case "while" or "where":
-                ApplyEdit(text => value is null
-                        ? RulesetEdits.RemoveFieldIfPresent(text, node.Id, key)
-                        : RulesetEdits.SetField(text, node.Id, key, value),
-                    value is null ? $"remove {node.Id}.{key}" : $"set {node.Id}.{key}");
-                break;
-            case "compute" when value is not null:
-                ApplyEdit(text => RulesetEdits.SetField(text, node.Id, "compute", value), $"set {node.Id}.compute");
-                break;
-            case "when" when value is not null:
-                ApplyEdit(text => RulesetEdits.SetFlagWhen(text, node.Id, value), $"set {node.Id}.when");
-                break;
-            case "compute" or "when":
-                EditStatus = $"A {key} cannot be empty; delete the stat instead.";
-                break;
-        }
-    }
-
-    // A highlight's fields: when: and per: cannot be empty; title: and score: can go.
-    private void WriteHighlightField(CanvasNodeViewModel node, string key, string? value)
-    {
-        switch (key)
-        {
-            case "when" or "per" when value is not null:
-                ApplyEdit(text => RulesetEdits.SetHighlightField(text, node.Id, key, value), $"set {node.Id}.{key}");
-                break;
-            case "when" or "per":
-                EditStatus = $"A highlight's {key} cannot be empty; delete the highlight instead.";
-                break;
-            case "title" or "score":
-                ApplyEdit(text => value is null
-                        ? RulesetEdits.RemoveHighlightFieldIfPresent(text, node.Id, key)
-                        : RulesetEdits.SetHighlightField(text, node.Id, key, value),
-                    value is null ? $"remove {node.Id}.{key}" : $"set {node.Id}.{key}");
-                break;
+            Apply(CanvasEditSemantics.WriteField(node, key, value));
         }
     }
 
     // Everything the writer and the parser throw on a document that moved under us lands in the status.
-    private bool ApplyEdit(Func<string, string> transform, string description) =>
-        SelectedRuleset is { } selected && Report(_session.Apply(transform, description), selected);
+    private bool Apply(EditRequest request) =>
+        SelectedRuleset is { } selected && Report(_session.Apply(request), selected);
 
     // What the session did, told to the surface: a refusal lands in the status, a write re-reads the
     // corpus so the picker, the chips and the wires all come from the file as it now is.

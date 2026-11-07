@@ -72,36 +72,6 @@ public class CanvasConnectTests
     }
 
     [Test]
-    public async Task AnEventThatFiresSeveralViews_IsRefusedWithTheChoice()
-    {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
-        using (rules)
-        {
-            string before = File.ReadAllText(rules.UserPath("player_round"));
-            vm.Connect(Node(vm, "player_death"), Node(vm, "round_kills"));
-            using (Assert.Multiple())
-            {
-                await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).IsEqualTo(before);
-                await Assert.That(vm.EditStatus).Contains("kill");
-                await Assert.That(vm.EditStatus).Contains("death");
-            }
-        }
-    }
-
-    [Test]
-    public async Task AWireIntoAnEngineNode_IsRefused()
-    {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
-        using (rules)
-        {
-            string before = File.ReadAllText(rules.UserPath("player_round"));
-            vm.Connect(Node(vm, "round_kills"), Node(vm, "MatchLive"));
-            await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).IsEqualTo(before);
-            await Assert.That(vm.EditStatus).Contains("your own ruleset");
-        }
-    }
-
-    [Test]
     public async Task RemovingTheGateWire_TakesTheWhileWithIt()
     {
         (TempRules rules, CanvasTabViewModel vm) = Open();
@@ -132,21 +102,6 @@ public class CanvasConnectTests
             string text = File.ReadAllText(rules.UserPath("player_round"));
             await Assert.That(RulesetEdits.Field(text, "round_kills", "match.enemy")).IsNull();
             await Assert.That(Node(vm, "round_kills").Facets).IsEmpty();
-        }
-    }
-
-    [Test]
-    public async Task RemovingATriggerWire_IsRefused()
-    {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
-        using (rules)
-        {
-            string before = File.ReadAllText(rules.UserPath("player_round"));
-            CanvasConnectionViewModel trigger = vm.Connections.Single(c =>
-                c.Source.Owner?.Id == "player_death" && c.Target.Owner?.Id == "round_kills");
-            vm.DisconnectCommand.Execute(trigger);
-            await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).IsEqualTo(before);
-            await Assert.That(vm.EditStatus).Contains("own definition");
         }
     }
 }

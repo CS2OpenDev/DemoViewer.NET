@@ -23,6 +23,9 @@ internal sealed class TempRules : IDisposable
 
     public string UserPath(string id) => Path.Combine(User, id + ".rules.yaml");
 
+    /// <summary>The shipped rules directory of this checkout.</summary>
+    public static string RepoRulesDirectory => Path.Combine(RepoRoot(), "rules");
+
     public static TempRules WithUser(string id)
     {
         TempRules rules = New();

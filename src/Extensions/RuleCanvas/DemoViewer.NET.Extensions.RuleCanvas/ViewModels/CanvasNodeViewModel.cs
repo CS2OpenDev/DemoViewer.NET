@@ -24,7 +24,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     public static IReadOnlyList<string> PerOptions { get; } = ["round", "match"];
 
     /// <summary>The gates a stat can run while, with the empty entry for none.</summary>
-    public static IReadOnlyList<string> GateOptions { get; } = ["", .. Model.CanvasGallery.GatePaths];
+    public static IReadOnlyList<string> GateOptions { get; } = ["", .. Model.CanvasEditSemantics.GatePaths.Select(g => g.Path)];
 
     /// <summary>The <c>stats:</c> or <c>highlights:</c> key.</summary>
     public required string Id { get; init; }
