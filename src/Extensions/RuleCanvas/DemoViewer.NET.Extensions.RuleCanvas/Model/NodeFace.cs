@@ -148,9 +148,27 @@ public abstract record StatFace(
     public string? ViewActor => FaceVocabulary.ViewOf(View) is { } view && !string.IsNullOrEmpty(view.Actor) ? view.Actor : null;
 
     /// <summary>
+    ///     The round result a team-bound view keeps (<c>won</c>, <c>lost</c>), which the engine lowers to a test
+    ///     of this player's team against the round's winner; null for a view that binds no team.
+    /// </summary>
+    public string? ViewResult => FaceVocabulary.ViewOf(View) is { Binding: "team", Result.Length: > 0 } view ? view.Result : null;
+
+    /// <summary>
+    ///     What the view binds to this player and <c>actor: any</c> switches off: the role (<c>killer</c>), or
+    ///     the team the result names (<c>winning team</c>); null when the view binds nothing.
+    /// </summary>
+    public string? Binding => ViewActor ?? ViewResult switch
+    {
+        "won" => "winning team",
+        "lost" => "losing team",
+        null => null,
+        _ => ViewResult + " team"
+    };
+
+    /// <summary>
     ///     What the engine binds the event to, in words: <c>any player</c> when <c>actor: any</c> switched the
-    ///     binding off, <c>as killer</c> from the view's role, <c>binds nobody</c> for a view with none, or
-    ///     null when the face fires on no catalog view.
+    ///     binding off, <c>as killer</c> from the view's role, <c>as winning team</c> from its result,
+    ///     <c>binds nobody</c> for a view with neither, or null when the face fires on no catalog view.
     /// </summary>
     public string? ActorText
     {
@@ -166,9 +184,20 @@ public abstract record StatFace(
                 return "any player";
             }
 
-            return ViewActor is { } actor ? "as " + actor : "binds nobody";
+            return Binding is { } binding ? "as " + binding : "binds nobody";
         }
     }
+
+    /// <summary>
+    ///     The test the engine lowers a team-bound view to, over this player's team, or null. The winner is
+    ///     always a playing side, so a lost round also needs the player on one.
+    /// </summary>
+    public string? TeamBindingTest => ViewResult switch
+    {
+        null => null,
+        "lost" => "enrich.round.has_winner && enrich.round.winner_team != player.team && (player.team == 2 || player.team == 3)",
+        _ => "enrich.round.has_winner && enrich.round.winner_team == player.team"
+    };
 
     /// <summary>Whether <c>actor: any</c> on the stat or on its define switched the view's binding off.</summary>
     public bool SuppressesActorBinding => Trigger?.SuppressesActorBinding == true || Define?.Trigger.SuppressesActorBinding == true;

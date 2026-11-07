@@ -167,6 +167,39 @@ public class NodeFaceTests
         }
     }
 
+    /// <summary>
+    ///     round_won and round_lost bind a team, not a role: the engine lowers the result to a test of this
+    ///     player's team against the round's winner. The face says so, states the test, and offers the actor
+    ///     toggle, since the engine honours <c>actor: any</c> on a team view too.
+    /// </summary>
+    [Test]
+    public async Task ATeamBoundView_SaysWhichTeamItBinds_NotNobody()
+    {
+        IReadOnlyList<NodeFace> clutch = NodeFaceBuilder.Build(Compose("highlights_clutch"));
+        IReadOnlyList<NodeFace> stats = NodeFaceBuilder.Build(Compose("player_stats"));
+        StatFace won = (StatFace)clutch.Single(f => f.Id == "clutch_1v2_round");
+        StatFace lost = (StatFace)stats.Single(f => f.Id == "CTLosses");
+        StatFace ended = (StatFace)stats.Single(f => f.Id == "rounds_survived");
+        CanvasNodeViewModel wonNode = CanvasNodeFactory.ReadOnly.Create(won);
+        CanvasNodeViewModel lostNode = CanvasNodeFactory.ReadOnly.Create(lost);
+        wonNode.IsEditable = true;
+        using (Assert.Multiple())
+        {
+            await Assert.That(won.View).IsEqualTo("round_won");
+            await Assert.That(won.ActorText).IsEqualTo("as winning team");
+            await Assert.That(lost.View).IsEqualTo("round_lost");
+            await Assert.That(lost.ActorText).IsEqualTo("as losing team");
+            await Assert.That(ended.ActorText).IsEqualTo("binds nobody").Because("round_ended binds neither a role nor a team");
+            await Assert.That(wonNode.Chips).DoesNotContain("binds nobody");
+            await Assert.That(wonNode.ChipTips["as winning team"]).Contains("enrich.round.winner_team == player.team");
+            await Assert.That(lostNode.ChipTips["as losing team"]).Contains("winner_team != player.team");
+            await Assert.That(wonNode.FixedRows).Contains("round won by this player's team");
+            await Assert.That(lostNode.FixedRows).Contains("round lost by this player's team");
+            await Assert.That(wonNode.ShowActorToggle).IsTrue().Because("actor: any switches a team binding off too");
+            await Assert.That(wonNode.BindsActor == true).IsTrue();
+        }
+    }
+
     [Test]
     public async Task EveryShippedRuleset_BuildsAFaceForEveryNode()
     {

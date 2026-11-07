@@ -102,7 +102,7 @@ public sealed class CanvasNodeFactory(
                 {
                     chips.Add(actor);
                     tips[actor] = ActorTip(stat);
-                    viewActor = stat.ViewActor;
+                    viewActor = stat.Binding;
                     bindsActor = viewActor is null ? null : !stat.SuppressesActorBinding;
                 }
 
@@ -142,6 +142,13 @@ public sealed class CanvasNodeFactory(
                 {
                     fixedRows.Add("not a suicide");
                     fixedTips["not a suicide"] = "Baked into the view: event.Attacker != event.UserId";
+                }
+
+                if (stat.ViewResult is { } result && !stat.SuppressesActorBinding)
+                {
+                    string row = $"round {result} by this player's team";
+                    fixedRows.Add(row);
+                    fixedTips[row] = "The view's result, lowered to " + stat.TeamBindingTest;
                 }
 
                 if (stat.Define is { } define)
@@ -280,8 +287,13 @@ public sealed class CanvasNodeFactory(
             return "match: { actor: any } switches the view's per-player binding off; every player's event counts";
         }
 
-        return stat.ViewActor is { } actor
-            ? $"the view binds its {actor} to this player; only this player's events count"
+        if (stat.ViewActor is { } actor)
+        {
+            return $"the view binds its {actor} to this player; only this player's events count";
+        }
+
+        return stat.ViewResult is not null
+            ? $"the view binds the round's result to this player's team: {stat.TeamBindingTest}"
             : "the view binds no role to a player; the event counts for everyone";
     }
 
