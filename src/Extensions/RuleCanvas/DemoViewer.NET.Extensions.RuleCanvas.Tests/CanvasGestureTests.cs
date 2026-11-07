@@ -1,6 +1,8 @@
 #region
 
 using Avalonia.Input;
+using DemoViewer.NET.Extensions.RuleCanvas.Model;
+using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 using DemoViewer.NET.Extensions.RuleCanvas.Views;
 using Nodify.Avalonia;
 using Nodify.Avalonia.Helpers.Gestures;
@@ -94,4 +96,25 @@ public class CanvasGestureTests
     public async Task TheKeyMap_ReadsEachChord(Key key, KeyModifiers modifiers, CanvasKeyAction expected) =>
         await Assert.That(CanvasKeyMap.Resolve(key, modifiers)).IsEqualTo(expected);
 
+    // The editor completes a connection on a plain click: the release hit-tests the press anchor and finds
+    // the port it started from, so the command sees the same endpoint twice.
+    [Test]
+    public async Task AClickOnAPort_ArrivesAsAWireToItself_AndWritesNothing()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        string before = File.ReadAllText(rules.UserPath("player_round"));
+        CanvasNodeViewModel flag = vm.Nodes.Single(n => n.Id == "round_kast");
+        CanvasConnectorViewModel port = new() { Title = "", Owner = flag };
+
+        vm.ConnectCommand.Execute(new ValueTuple<object, object>(port, port));
+        string after = File.ReadAllText(rules.UserPath("player_round"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(after).IsEqualTo(before).Because("the preview promised nothing would land");
+            await Assert.That(RulesetEdits.Field(after, "round_kast", "flag.when")).DoesNotContain("round_kast > 0");
+            await Assert.That(vm.Toast).IsNull().Because("a click is not a refused wire");
+        }
+    }
 }

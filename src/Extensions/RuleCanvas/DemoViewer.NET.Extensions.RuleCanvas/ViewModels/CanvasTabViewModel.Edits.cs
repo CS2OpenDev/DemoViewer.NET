@@ -165,7 +165,8 @@ public sealed partial class CanvasTabViewModel
             ValueTuple<object, object> pair => (NodeOf(pair.Item1), NodeOf(pair.Item2)),
             _ => (null, null)
         };
-        if (source is not null && target is not null)
+        // A plain click on a port comes back as a wire from the port to itself.
+        if (source is not null && target is not null && !ReferenceEquals(source, target))
         {
             Connect(source, target);
         }
