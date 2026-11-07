@@ -267,13 +267,11 @@ public sealed partial class CanvasConditionRowViewModel : ObservableObject
 
     /// <summary>Writes the row. Bound to Enter and to an editor losing focus.</summary>
     [RelayCommand]
-    public void Commit()
-    {
-        if (IsEditable)
-        {
-            _owner.CommitRow(this);
-        }
-    }
+    public void Commit() => TryCommit();
+
+    /// <summary>Writes the row when it is complete and differs from the text.</summary>
+    /// <returns>Whether a text was written.</returns>
+    public bool TryCommit() => IsEditable && _owner.CommitRow(this);
 
     [RelayCommand]
     private void Remove() => _owner.RemoveRow(this);
