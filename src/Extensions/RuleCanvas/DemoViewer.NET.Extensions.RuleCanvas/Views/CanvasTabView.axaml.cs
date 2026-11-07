@@ -111,11 +111,11 @@ public partial class CanvasTabView : UserControl
     }
 
     // The node container starts a drag on any press it sees and captures the pointer, after which a picker
-    // inside the face never gets the release that opens it. A press on an editor stops at the face.
+    // inside the face never gets the release that opens it. A left press on an editor stops at the face; a
+    // right press goes on, so the container selects the node before its menu opens.
     private void OnFacePressed(object? sender, PointerPressedEventArgs e)
     {
-        if (e.Source is Visual source && source.GetSelfAndVisualAncestors().TakeWhile(v => !ReferenceEquals(v, sender))
-                .Any(v => v is ComboBox or TextBox or AutoCompleteBox or CheckBox or Button))
+        if (sender is Visual face && CanvasGestures.FaceKeepsPress(e.Source as Visual, face, e.Properties))
         {
             e.Handled = true;
         }

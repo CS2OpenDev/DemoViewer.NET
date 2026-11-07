@@ -39,6 +39,17 @@ public static class CanvasGestures
             ? box
             : null;
 
+    /// <summary>
+    ///     Whether <paramref name="face" /> keeps a press that landed on <paramref name="source" />: a left
+    ///     press on one of its editors, which the node container would otherwise turn into a drag and
+    ///     capture, so the editor never gets the release that opens it. A right press goes on to the
+    ///     container, which selects the node before its menu opens, as a right press on the header does.
+    /// </summary>
+    public static bool FaceKeepsPress(Visual? source, Visual face, PointerPointProperties properties) =>
+        properties.IsLeftButtonPressed && source is not null
+        && source.GetSelfAndVisualAncestors().TakeWhile(v => !ReferenceEquals(v, face))
+            .Any(v => v is ComboBox or TextBox or AutoCompleteBox or CheckBox or Button);
+
     /// <summary>The full set for the user's own ruleset.</summary>
     public static EditorGestures Editing()
     {

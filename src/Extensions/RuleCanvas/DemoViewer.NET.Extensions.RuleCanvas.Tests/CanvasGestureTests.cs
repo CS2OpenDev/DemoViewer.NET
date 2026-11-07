@@ -139,6 +139,29 @@ public class CanvasGestureTests
         }
     }
 
+    // The container turns any press it sees into a drag and captures the pointer, so a left press on an
+    // editor stops at the face. A right press must go on: the container is what selects the node before
+    // the menu opens, and a menu over an unselected node acts on the old selection.
+    [Test]
+    public async Task TheFaceKeepsALeftPressOnAnEditor_AndLetsARightPressReachTheContainer()
+    {
+        CheckBox toggle = new();
+        Button remove = new();
+        TextBlock caption = new();
+        StackPanel face = new() { Children = { toggle, remove, caption } };
+        PointerPointProperties left = new(RawInputModifiers.LeftMouseButton, PointerUpdateKind.LeftButtonPressed);
+        PointerPointProperties right = new(RawInputModifiers.RightMouseButton, PointerUpdateKind.RightButtonPressed);
+        using (Assert.Multiple())
+        {
+            await Assert.That(CanvasGestures.FaceKeepsPress(toggle, face, left)).IsTrue();
+            await Assert.That(CanvasGestures.FaceKeepsPress(remove, face, left)).IsTrue();
+            await Assert.That(CanvasGestures.FaceKeepsPress(caption, face, left)).IsFalse().Because("a press on plain text drags the node");
+            await Assert.That(CanvasGestures.FaceKeepsPress(toggle, face, right)).IsFalse().Because("the container selects on the right press");
+            await Assert.That(CanvasGestures.FaceKeepsPress(remove, face, right)).IsFalse();
+            await Assert.That(CanvasGestures.FaceKeepsPress(null, face, left)).IsFalse();
+        }
+    }
+
     // The editor completes a connection on a plain click: the release hit-tests the press anchor and finds
     // the port it started from, so the command sees the same endpoint twice.
     [Test]
