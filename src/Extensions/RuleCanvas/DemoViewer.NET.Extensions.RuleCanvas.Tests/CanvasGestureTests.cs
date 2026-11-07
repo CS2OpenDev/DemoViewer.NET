@@ -115,6 +115,30 @@ public class CanvasGestureTests
         }
     }
 
+    // An editable combo with its list closed steps its selection on Up and Down, and the gate and field
+    // combos write a step at once, over the half-typed text.
+    [Test]
+    public async Task UpOrDownInAClosedEditableCombo_OpensItsList_AndNothingElseDoes()
+    {
+        ComboBox gate = new() { IsEditable = true };
+        ComboBox picker = new();
+        TextBox literal = new();
+        StackPanel face = new() { Children = { gate, picker, literal } };
+        using (Assert.Multiple())
+        {
+            await Assert.That(ReferenceEquals(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.None, gate), gate)).IsTrue();
+            await Assert.That(ReferenceEquals(CanvasGestures.ListToOpen(Key.Up, KeyModifiers.None, gate), gate)).IsTrue();
+            await Assert.That(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.Alt, gate)).IsNull().Because("Alt+Down is the combo's own toggle");
+            await Assert.That(CanvasGestures.ListToOpen(Key.Enter, KeyModifiers.None, gate)).IsNull();
+            await Assert.That(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.None, picker)).IsNull().Because("a plain picker is left to the combo");
+            await Assert.That(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.None, literal)).IsNull();
+            await Assert.That(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.None, face)).IsNull();
+            await Assert.That(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.None, null)).IsNull();
+            gate.IsDropDownOpen = true;
+            await Assert.That(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.None, gate)).IsNull().Because("an open list is the combo's");
+        }
+    }
+
     // The editor completes a connection on a plain click: the release hit-tests the press anchor and finds
     // the port it started from, so the command sees the same endpoint twice.
     [Test]

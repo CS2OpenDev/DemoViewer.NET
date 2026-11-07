@@ -55,6 +55,7 @@ public partial class CanvasTabView : UserControl
         Editor.AddHandler(PointerReleasedEvent, OnEditorPointerReleased, RoutingStrategies.Bubble, true);
         Editor.AddHandler(KeyDownEvent, OnEditorKeyDown, RoutingStrategies.Bubble, true);
         Editor.AddHandler(PointerWheelChangedEvent, OnFaceWheel, RoutingStrategies.Tunnel);
+        Editor.AddHandler(KeyDownEvent, OnFaceKeyDown, RoutingStrategies.Tunnel);
         ZoomCluster.AddHandler(PointerWheelChangedEvent, OnOverlayWheel);
         DataContextChanged += (_, _) => Attach(DataContext as CanvasTabViewModel);
         Loaded += (_, _) => FitLater();
@@ -162,6 +163,17 @@ public partial class CanvasTabView : UserControl
 
         menu.Open(owner);
         e.Handled = true;
+    }
+
+    // Tunnelled: a bare Up or Down in a closed editable combo would step its selection, and the gate and
+    // field combos write a step at once. Opening the list is what the key asked for.
+    private static void OnFaceKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (CanvasGestures.ListToOpen(e.Key, e.KeyModifiers, e.Source as Visual) is { } box)
+        {
+            box.SetCurrentValue(ComboBox.IsDropDownOpenProperty, true);
+            e.Handled = true;
+        }
     }
 
     // Keys reach here after the editor's own set. A press inside a text editor on a node face is that

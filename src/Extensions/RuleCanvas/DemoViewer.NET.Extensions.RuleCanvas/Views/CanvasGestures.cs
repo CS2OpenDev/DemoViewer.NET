@@ -2,6 +2,7 @@
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.VisualTree;
 using Nodify.Avalonia;
 
@@ -26,6 +27,17 @@ public static class CanvasGestures
     /// </summary>
     public static bool WheelOverClosedPicker(Visual? source) =>
         source?.GetSelfAndVisualAncestors().OfType<ComboBox>().FirstOrDefault() is { IsDropDownOpen: false };
+
+    /// <summary>
+    ///     The editable picker whose list a bare Up or Down pressed on <paramref name="source" /> opens, or
+    ///     null. With the list closed the combo would step its selection instead, and a stepped gate or
+    ///     field writes at once, taking the half-typed text with it. An open list is the combo's own.
+    /// </summary>
+    public static ComboBox? ListToOpen(Key key, KeyModifiers modifiers, Visual? source) =>
+        key is Key.Down or Key.Up && modifiers == KeyModifiers.None
+        && source?.GetSelfAndVisualAncestors().OfType<ComboBox>().FirstOrDefault() is { IsEditable: true, IsDropDownOpen: false } box
+            ? box
+            : null;
 
     /// <summary>The full set for the user's own ruleset.</summary>
     public static EditorGestures Editing()
