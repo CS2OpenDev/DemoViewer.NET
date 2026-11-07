@@ -65,9 +65,6 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     /// <summary>The catalog's views, which an added count stat fires on.</summary>
     public IReadOnlyList<string> Views { get; } = CanvasEditSemantics.ViewNames;
 
-    /// <summary>What the gallery offers to drag: stat kinds, the catalog's views, the gates, and prefabs.</summary>
-    public IReadOnlyList<GalleryGroup> Gallery { get; } = CanvasGallery.Build(EmbeddedCatalog.Root);
-
     /// <summary>The ruleset drawn. Setting it composes and redraws.</summary>
     [ObservableProperty]
     private RulesetCorpus.Entry? _selectedRuleset;
@@ -160,6 +157,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             if (SelectedRuleset is null)
             {
                 Status = "No rulesets found beside this build.";
+                AfterRedraw(null);
             }
 
             return;
@@ -192,7 +190,15 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
     partial void OnDiagnosticsChanged(string value) => OnPropertyChanged(nameof(HasDiagnostics));
 
-    partial void OnEditStatusChanged(string value) => OnPropertyChanged(nameof(HasEditStatus));
+    // A refusal is said on the toast as well; a repeated one, which changes nothing here, is said by Report.
+    partial void OnEditStatusChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasEditStatus));
+        if (value.Length > 0)
+        {
+            Notify(value);
+        }
+    }
 
     partial void OnSourceDirtyChanged(bool value) => NotifyEditability();
 
@@ -226,6 +232,11 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             case EditOutcomeKind.Refused:
                 if (outcome.Message is { } message)
                 {
+                    if (EditStatus == message)
+                    {
+                        Notify(message);
+                    }
+
                     EditStatus = message;
                 }
 
@@ -258,6 +269,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             string reason = _corpus.Failures.Select(f => f.Reason).FirstOrDefault() ?? "it is not in the rules directories any more";
             EditStatus = $"{id} no longer loads as a ruleset: {reason}";
             Status = "Nothing to draw; the file no longer loads. Undo is still available.";
+            MarkLoadFailure(id, reason);
             return;
         }
 
@@ -296,9 +308,11 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         {
             _session.Open(null);
             NotifyHistory();
+            AfterRedraw(null);
             return;
         }
 
+        ClearLoadFailure();
         DocumentName = Path.GetFileName(value.Path);
         _session.Open(value);
         DocumentText = _session.Text;
@@ -342,6 +356,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         Status = nodes.Count == 0
             ? "Nothing composed; see the diagnostics."
             : $"{nodes.Count} nodes, {wires.Count} wires, {unwired} unwired";
+        AfterRedraw(composed);
         GraphReplaced?.Invoke();
     }
 
