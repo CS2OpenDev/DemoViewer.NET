@@ -25,12 +25,9 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     private readonly Func<string, bool> _selectTab;
     private readonly Func<RulesetCorpus> _loadCorpus;
     private readonly Func<string?> _layoutFolder;
-    private readonly Stack<string> _undo = new();
-    private readonly Stack<string> _redo = new();
+    private readonly RulesetDocumentSession _session = new();
     private RulesetCorpus? _corpus;
-    private DateTime _loadedWriteTimeUtc;
     private bool _redrawing;
-    private string? _selectedId;
 
     /// <param name="selectTab">Selects a host tab by id; the Authoring tab's id is <see cref="AuthoringTabId" />.</param>
     public CanvasTabViewModel(Func<string, bool> selectTab)
@@ -153,9 +150,9 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     /// <summary>Canvas editors write only into the user's own file, and only while the pane holds what the file holds.</summary>
     public bool IsEditable => IsUserRuleset && !SourceDirty;
 
-    public bool CanUndo => _undo.Count > 0;
+    public bool CanUndo => _session.CanUndo;
 
-    public bool CanRedo => _redo.Count > 0;
+    public bool CanRedo => _session.CanRedo;
 
     /// <summary>
     ///     Where the selected ruleset's arrangement lives: beside a user ruleset, under the extension's own
@@ -189,7 +186,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         }
 
         // Another surface may have written the file since this tab was last shown; the Workbench does.
-        if (SelectedRuleset is { } selected && !SourceDirty && WriteTimeOf(selected.Path) != _loadedWriteTimeUtc)
+        if (SelectedRuleset is { } selected && !SourceDirty && _session.ChangedOnDisk)
         {
             Reload(selected.Id);
         }
@@ -199,18 +196,14 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     {
     }
 
-    // A reload after a write hands back a fresh Entry for the same ruleset; only another ruleset resets
-    // the history and the pane.
+    // A reload after a write hands back a fresh Entry for the same file; only another file resets the
+    // pane. The session resets the history on the same rule when the redraw opens the entry.
     partial void OnSelectedRulesetChanged(RulesetCorpus.Entry? value)
     {
-        if (value?.Id != _selectedId)
+        if (!string.Equals(value?.Path, _session.Entry?.Path, StringComparison.Ordinal))
         {
-            _selectedId = value?.Id;
-            _undo.Clear();
-            _redo.Clear();
             SourceDirty = false;
             EditStatus = "";
-            NotifyHistory();
         }
 
         NotifyEditability();
@@ -248,16 +241,8 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             return;
         }
 
-        string pending = _pendingSourceText;
-        // A text that no longer loads as this ruleset would take it out of the picker and leave the file
-        // broken on disk, so it is refused here with the loader's reason and the pane stays dirty.
-        if (RulesetCorpus.WhyNotLoadable(pending, selected.Path, selected.Id) is { } reason)
-        {
-            EditStatus = "Not saved: " + reason;
-            return;
-        }
-
-        if (ApplyEdit(_ => pending, "save"))
+        // Refused with the loader's reason when the text no longer loads as this ruleset; the pane stays dirty.
+        if (Report(_session.Save(_pendingSourceText), selected))
         {
             SourceDirty = false;
         }
@@ -274,45 +259,19 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     [RelayCommand(CanExecute = nameof(CanUndo))]
     private void Undo()
     {
-        if (_undo.Count == 0 || SelectedRuleset is null)
+        if (SelectedRuleset is { } selected)
         {
-            return;
+            Report(_session.Undo(), selected);
         }
-
-        string current = DocumentText;
-        string previous = _undo.Pop();
-        if (Write(SelectedRuleset, previous))
-        {
-            _redo.Push(current);
-        }
-        else
-        {
-            _undo.Push(previous);
-        }
-
-        NotifyHistory();
     }
 
     [RelayCommand(CanExecute = nameof(CanRedo))]
     private void Redo()
     {
-        if (_redo.Count == 0 || SelectedRuleset is null)
+        if (SelectedRuleset is { } selected)
         {
-            return;
+            Report(_session.Redo(), selected);
         }
-
-        string current = DocumentText;
-        string next = _redo.Pop();
-        if (Write(SelectedRuleset, next))
-        {
-            _undo.Push(current);
-        }
-        else
-        {
-            _redo.Push(next);
-        }
-
-        NotifyHistory();
     }
 
     /// <summary>
@@ -793,61 +752,31 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     }
 
     // Everything the writer and the parser throw on a document that moved under us lands in the status.
-    private bool ApplyEdit(Func<string, string> transform, string description)
+    private bool ApplyEdit(Func<string, string> transform, string description) =>
+        SelectedRuleset is { } selected && Report(_session.Apply(transform, description), selected);
+
+    // What the session did, told to the surface: a refusal lands in the status, a write re-reads the
+    // corpus so the picker, the chips and the wires all come from the file as it now is.
+    private bool Report(EditOutcome outcome, RulesetCorpus.Entry entry)
     {
-        if (SelectedRuleset is not { } selected || !IsUserRuleset)
+        switch (outcome.Kind)
         {
-            return false;
-        }
+            case EditOutcomeKind.Refused:
+                if (outcome.Message is { } message)
+                {
+                    EditStatus = message;
+                }
 
-        string before = DocumentText;
-        string after;
-        try
-        {
-            after = transform(before);
+                NotifyHistory();
+                return false;
+            case EditOutcomeKind.Written:
+                EditStatus = "";
+                Reload(entry.Id);
+                NotifyHistory();
+                return true;
+            default:
+                return true;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException
-                                       or YamlDotNet.Core.YamlException or ArgumentOutOfRangeException)
-        {
-            EditStatus = $"Could not {description}: {ex.Message}";
-            return false;
-        }
-
-        if (after == before)
-        {
-            return true;
-        }
-
-        if (!Write(selected, after))
-        {
-            return false;
-        }
-
-        _undo.Push(before);
-        _redo.Clear();
-        EditStatus = "";
-        NotifyHistory();
-        return true;
-    }
-
-    // The write itself, shared by edits, undo and redo: atomic on disk, then the corpus is re-read so the
-    // picker, the chips and the wires all come from the file as it now is.
-    private bool Write(RulesetCorpus.Entry entry, string text)
-    {
-        try
-        {
-            string temp = entry.Path + ".tmp";
-            File.WriteAllText(temp, text);
-            File.Move(temp, entry.Path, overwrite: true);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            EditStatus = "The file could not be written: " + ex.Message;
-            return false;
-        }
-
-        Reload(entry.Id);
-        return true;
     }
 
     // Re-reads every ruleset (a write may have changed what others see through use:) and redraws the
@@ -906,20 +835,15 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         DocumentName = "";
         if (value is null || _corpus is null)
         {
+            _session.Open(null);
+            NotifyHistory();
             return;
         }
 
         DocumentName = Path.GetFileName(value.Path);
-        try
-        {
-            DocumentText = File.ReadAllText(value.Path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            DocumentText = "";
-        }
-
-        _loadedWriteTimeUtc = WriteTimeOf(value.Path);
+        _session.Open(value);
+        DocumentText = _session.Text;
+        NotifyHistory();
 
         if (recompose || _composed is null)
         {
@@ -1046,17 +970,5 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
         string? folder = _layoutFolder();
         return folder is null ? null : Path.Combine(folder, "layouts", entry.Id + RulesetLayoutStore.SidecarSuffix);
-    }
-
-    private static DateTime WriteTimeOf(string path)
-    {
-        try
-        {
-            return File.GetLastWriteTimeUtc(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return DateTime.MinValue;
-        }
     }
 }
