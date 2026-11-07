@@ -38,7 +38,11 @@ public enum ChainNodeKind
 /// <param name="Kind">What it is.</param>
 /// <param name="Name">The engine's name, or the event name.</param>
 /// <param name="IsPerPlayer">Whether it materializes once per player.</param>
-public sealed record ChainNode(RulesetDocumentNodeKey Key, ChainNodeKind Kind, string Name, bool IsPerPlayer);
+public sealed record ChainNode(RulesetDocumentNodeKey Key, ChainNodeKind Kind, string Name, bool IsPerPlayer)
+{
+    /// <summary>The wire events an event node stands for: one, or the twins merged into it. Empty for every other kind.</summary>
+    public IReadOnlyList<string> Events { get; init; } = [];
+}
 
 /// <summary>One wire of the lowered chain, from the node that fires or is read to the node written.</summary>
 /// <param name="Source">The firing, gating or read node.</param>
@@ -237,10 +241,10 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             }
         }
 
-        List<ChainNode> nodes = [];
+        // Event nodes by wire event name, in first-use order; the twins are merged below.
         Dictionary<string, RulesetDocumentNodeKey> events = new(StringComparer.Ordinal);
         List<ChainEdge> edges = [];
-        HashSet<(RulesetDocumentNodeKey, RulesetDocumentNodeKey, string, EdgeEffect, bool)> seen = [];
+        HashSet<ChainEdge> seen = [];
         foreach ((RuleGraphEdge edge, RuleGraphNode? readBy) in taken)
         {
             string label = edge.Descriptor.Label ?? "";
@@ -252,14 +256,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             }
             else if (ReferenceEquals(edge.Source, root))
             {
-                if (!events.TryGetValue(label, out RulesetDocumentNodeKey eventKey))
-                {
-                    eventKey = new RulesetDocumentNodeKey("~event", label);
-                    events[label] = eventKey;
-                    nodes.Add(new ChainNode(eventKey, ChainNodeKind.Event, label, false));
-                }
-
-                sources = [eventKey];
+                sources = [EventKey(label)];
             }
             else
             {
@@ -271,26 +268,173 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             {
                 foreach (RulesetDocumentNodeKey target in keys[edge.Destination])
                 {
-                    if (source != target && seen.Add((source, target, text, edge.Descriptor.Effect, isRead)))
+                    if (source != target)
                     {
-                        edges.Add(new ChainEdge(source, target, text, edge.Descriptor.ConditionLabel, edge.Descriptor.Effect, isRead));
+                        Add(new ChainEdge(source, target, text, edge.Descriptor.ConditionLabel, edge.Descriptor.Effect, isRead));
                     }
                 }
             }
         }
 
+        RulesetDocumentNodeKey EventKey(string name)
+        {
+            if (!events.TryGetValue(name, out RulesetDocumentNodeKey key))
+            {
+                key = new RulesetDocumentNodeKey("~event", name);
+                events[name] = key;
+            }
+
+            return key;
+        }
+
+        void Add(ChainEdge edge)
+        {
+            if (seen.Add(edge))
+            {
+                edges.Add(edge);
+            }
+        }
+
+        Dictionary<RulesetDocumentNodeKey, ChainNodeKind> kindByKey = new();
+        foreach ((RuleGraphNode node, ChainNodeKind kind) in kinds)
+        {
+            foreach (RulesetDocumentNodeKey key in keys[node])
+            {
+                kindByKey[key] = kind;
+            }
+        }
+
+        List<ChainNode> nodes = MergeTwinEvents(events, edges, kindByKey, ViewsByEvents(rulesets));
+        HashSet<RulesetDocumentNodeKey> emitted = [];
         foreach (RuleGraphNode node in graph.Nodes)
         {
             if (included.Contains(node))
             {
                 foreach (RulesetDocumentNodeKey key in keys[node])
                 {
-                    string name = kinds[node] == ChainNodeKind.Declared ? key.Id : node.Node.Name;
-                    nodes.Add(new ChainNode(key, kinds[node], name, node.Scope == RuleGraphScope.Player));
+                    if (emitted.Add(key))
+                    {
+                        string name = kinds[node] == ChainNodeKind.Declared ? key.Id : node.Node.Name;
+                        nodes.Add(new ChainNode(key, kinds[node], name, node.Scope == RuleGraphScope.Player));
+                    }
                 }
             }
         }
 
         return new RulesetChainGraph(nodes, edges);
+    }
+
+    /// <summary>The catalog view the resolver gave each set of concrete events, keyed by the sorted events.</summary>
+    private static Dictionary<string, string> ViewsByEvents(IReadOnlyList<CheckedRuleset> rulesets)
+    {
+        Dictionary<string, string> views = new(StringComparer.Ordinal);
+        foreach (CheckedStat stat in rulesets.SelectMany(r => r.Stats))
+        {
+            if (stat.ResolvedView is { } view && stat.ConcreteEvents.Count > 1)
+            {
+                views.TryAdd(Signature(stat.ConcreteEvents), view);
+            }
+        }
+
+        return views;
+    }
+
+    private static string Signature(IEnumerable<string> parts) => string.Join("\n", parts.Order(StringComparer.Ordinal));
+
+    /// <summary>
+    ///     Folds root-sourced events that write exactly the same declared and enrichment nodes, the same way,
+    ///     into one event node: the round-end trio is one <c>round_ended</c>, named by the view the resolver
+    ///     gave a stat on those events, else by the events joined. A wire every twin carried becomes one
+    ///     wire labelled with the merged name; a wire only some carried keeps its own event's label.
+    ///     Rewrites <paramref name="edges" /> in place and returns the event nodes in first-use order.
+    /// </summary>
+    private static List<ChainNode> MergeTwinEvents(Dictionary<string, RulesetDocumentNodeKey> events, List<ChainEdge> edges,
+        Dictionary<RulesetDocumentNodeKey, ChainNodeKind> kindByKey, Dictionary<string, string> views)
+    {
+        Dictionary<string, List<string>> bySignature = new(StringComparer.Ordinal);
+        foreach ((string name, RulesetDocumentNodeKey key) in events)
+        {
+            // Context targets are left out of the signature on purpose: cs_win_panel_match also ends
+            // MatchLive, and that must not keep it apart from the other two round ends.
+            string signature = Signature(edges
+                .Where(e => e.Source == key && !e.IsRead
+                            && kindByKey.GetValueOrDefault(e.Target) is ChainNodeKind.Declared or ChainNodeKind.Enrichment)
+                .Select(e => $"{e.Target}|{e.Effect}|{e.Condition}")
+                .Distinct(StringComparer.Ordinal));
+            if (signature.Length > 0)
+            {
+                (bySignature.TryGetValue(signature, out List<string>? group) ? group : bySignature[signature] = []).Add(name);
+            }
+        }
+
+        Dictionary<RulesetDocumentNodeKey, (RulesetDocumentNodeKey Key, string Name, List<string> Events)> merged = new();
+        foreach (List<string> group in bySignature.Values.Where(g => g.Count > 1))
+        {
+            string name = views.GetValueOrDefault(Signature(group)) ?? string.Join(" / ", group);
+            RulesetDocumentNodeKey key = new("~event", name);
+            for (int n = 2; events.ContainsKey(key.Id); n++)
+            {
+                key = new RulesetDocumentNodeKey("~event", name + "#" + n);
+            }
+
+            foreach (string member in group)
+            {
+                merged[events[member]] = (key, name, group);
+            }
+        }
+
+        List<ChainNode> nodes = [];
+        HashSet<RulesetDocumentNodeKey> added = [];
+        foreach ((string name, RulesetDocumentNodeKey key) in events)
+        {
+            if (merged.TryGetValue(key, out (RulesetDocumentNodeKey Key, string Name, List<string> Events) twin))
+            {
+                if (added.Add(twin.Key))
+                {
+                    nodes.Add(new ChainNode(twin.Key, ChainNodeKind.Event, twin.Name, false) { Events = twin.Events });
+                }
+            }
+            else
+            {
+                nodes.Add(new ChainNode(key, ChainNodeKind.Event, name, false) { Events = [name] });
+            }
+        }
+
+        if (merged.Count == 0)
+        {
+            return nodes;
+        }
+
+        // Which twins carry each wire; a wire all of them carry is drawn once under the merged name.
+        Dictionary<(RulesetDocumentNodeKey, RulesetDocumentNodeKey, EdgeEffect, string?), HashSet<string>> carriers = new();
+        foreach (ChainEdge edge in edges)
+        {
+            if (merged.TryGetValue(edge.Source, out (RulesetDocumentNodeKey Key, string Name, List<string> Events) twin) && !edge.IsRead)
+            {
+                (RulesetDocumentNodeKey, RulesetDocumentNodeKey, EdgeEffect, string?) wire = (twin.Key, edge.Target, edge.Effect, edge.Condition);
+                (carriers.TryGetValue(wire, out HashSet<string>? set) ? set : carriers[wire] = []).Add(edge.Label);
+            }
+        }
+
+        List<ChainEdge> rewritten = [];
+        HashSet<ChainEdge> seen = [];
+        foreach (ChainEdge edge in edges)
+        {
+            ChainEdge next = edge;
+            if (merged.TryGetValue(edge.Source, out (RulesetDocumentNodeKey Key, string Name, List<string> Events) twin))
+            {
+                bool shared = !edge.IsRead && carriers[(twin.Key, edge.Target, edge.Effect, edge.Condition)].SetEquals(twin.Events);
+                next = edge with { Source = twin.Key, Label = shared ? twin.Name : edge.Label };
+            }
+
+            if (seen.Add(next))
+            {
+                rewritten.Add(next);
+            }
+        }
+
+        edges.Clear();
+        edges.AddRange(rewritten);
+        return nodes;
     }
 }

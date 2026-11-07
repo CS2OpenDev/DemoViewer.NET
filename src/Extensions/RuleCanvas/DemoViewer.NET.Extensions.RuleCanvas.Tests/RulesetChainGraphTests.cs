@@ -68,6 +68,44 @@ public class RulesetChainGraphTests
     }
 
     [Test]
+    public async Task RoundEndTwins_MergeIntoOneEventNode_NamedByTheView()
+    {
+        RulesetChainGraph chain = Compose("player_stats").Chain;
+        ChainNode roundEnded = chain.Nodes.Single(n => n.Name == "round_ended");
+        ChainEdge[] intoClutch = [.. chain.Edges.Where(e => e.Target.Id == "clutch_won" && !e.IsRead)];
+        using (Assert.Multiple())
+        {
+            await Assert.That(roundEnded.Kind).IsEqualTo(ChainNodeKind.Event);
+            await Assert.That(roundEnded.Events).IsEquivalentTo(["round_officially_ended", "cs_win_panel_match", "round_end_terminal"])
+                .Because("the wire events stay on the node for hover text");
+            await Assert.That(chain.Nodes.Select(n => n.Name)).DoesNotContain("round_officially_ended")
+                .Because("the three round ends write the same nodes the same way, so they are one node");
+            await Assert.That(chain.Nodes.Single(n => n.Name == "player_death").Events).IsEquivalentTo(["player_death"]);
+            await Assert.That(intoClutch.Length).IsEqualTo(1).Because("a wire every twin carried is drawn once");
+            await Assert.That(intoClutch[0].Source).IsEqualTo(roundEnded.Key);
+            await Assert.That(intoClutch[0].Label).IsEqualTo("round_ended");
+            await Assert.That(chain.Edges.Any(e => e.Source == roundEnded.Key && e.Target.Id == "MatchLive" && e.Label == "cs_win_panel_match"
+                                                  && e.Effect == EdgeEffect.Deactivate))
+                .IsTrue().Because("a wire only one twin carried keeps that twin's name");
+            await Assert.That(chain.Nodes.Where(n => n.Kind == ChainNodeKind.Event).Select(n => n.Name))
+                .Contains("player_team_observed").Because("an event that writes no declared node is not merged with its neighbour");
+        }
+    }
+
+    [Test]
+    public async Task PlayerStats_MergingTwins_DropsTheDuplicateWires()
+    {
+        RulesetChainGraph chain = Compose("player_stats").Chain;
+        int twins = chain.Nodes.Count(n => n.Kind == ChainNodeKind.Event && n.Events.Count > 1);
+        Console.WriteLine($"[chain] player_stats nodes={chain.Nodes.Count} edges={chain.Edges.Count} merged-events={twins}");
+        using (Assert.Multiple())
+        {
+            await Assert.That(twins).IsGreaterThanOrEqualTo(1);
+            await Assert.That(chain.Edges.Count).IsLessThanOrEqualTo(201).Because("measured 201 after the merge, 245 before");
+        }
+    }
+
+    [Test]
     public async Task TwoEntriesWithOneDefinition_EachGetTheirOwnNodeAndWires()
     {
         using TempRules rules = TempRules.WithUser("player_round");
