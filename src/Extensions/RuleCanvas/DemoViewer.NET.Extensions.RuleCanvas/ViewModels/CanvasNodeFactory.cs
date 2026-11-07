@@ -49,6 +49,7 @@ public sealed class CanvasNodeFactory(
         List<string> available = [];
         Dictionary<string, RulesTypeKind> availableKinds = new(StringComparer.Ordinal);
         List<string> fixedRows = [];
+        Dictionary<string, string> fixedTips = new(StringComparer.Ordinal);
         List<string> expression = [];
         List<CanvasExpressionViewModel> lines = [];
         List<CanvasFieldViewModel> fields = [];
@@ -102,7 +103,7 @@ public sealed class CanvasNodeFactory(
                     chips.Add(actor);
                     tips[actor] = ActorTip(stat);
                     viewActor = stat.ViewActor;
-                    bindsActor = viewActor is null ? null : stat.Trigger?.SuppressesActorBinding != true;
+                    bindsActor = viewActor is null ? null : !stat.SuppressesActorBinding;
                 }
 
                 if (stat.Gate.Length > 0)
@@ -140,6 +141,12 @@ public sealed class CanvasNodeFactory(
                 if (stat.NotASuicide)
                 {
                     fixedRows.Add("not a suicide");
+                    fixedTips["not a suicide"] = "Baked into the view: event.Attacker != event.UserId";
+                }
+
+                if (stat.Define is { } define)
+                {
+                    AddDefineRows(define, fixedRows, fixedTips, available, availableKinds);
                 }
 
                 AddKindRows(stat, expression, lines, fields, choices, defaults, out thresholds, Field);
@@ -181,7 +188,8 @@ public sealed class CanvasNodeFactory(
             AvailableFacets = available,
             AvailableFacetKind = name => availableKinds.GetValueOrDefault(name, RulesTypeKind.None),
             FixedRows = fixedRows,
-            Expression = expression.Count == 0 ? null : string.Join('\n', expression),
+            FixedRowTips = fixedTips,
+            Expression =expression.Count == 0 ? null : string.Join('\n', expression),
             Lines = lines,
             Trigger = trigger,
             Fields = fields,
@@ -230,9 +238,44 @@ public sealed class CanvasNodeFactory(
         return trigger;
     }
 
+    // What a define's body adds to the trigger, as rows the stat cannot edit: its facets (which the picker
+    // then stops offering, since the resolver refuses the same key on both), its gate and its where.
+    private static void AddDefineRows(DefineFace define, List<string> fixedRows, Dictionary<string, string> fixedTips,
+        List<string> available, Dictionary<string, RulesTypeKind> availableKinds)
+    {
+        string tip = $"from define {define.Name}; edit it under define: {define.Name}";
+        void Row(string text)
+        {
+            fixedRows.Add(text);
+            fixedTips[text] = tip;
+        }
+
+        foreach (MatchBinding binding in define.Trigger.Match)
+        {
+            if (string.Equals(binding.Key, "actor", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            Row($"{binding.Key}: {MatchFacetValue.From(binding.Test)?.ToMatchValue() ?? ""}");
+            available.Remove(binding.Key);
+            availableKinds.Remove(binding.Key);
+        }
+
+        if (!string.IsNullOrWhiteSpace(define.Trigger.While))
+        {
+            Row("while " + define.Trigger.While);
+        }
+
+        if (!string.IsNullOrWhiteSpace(define.Trigger.Where))
+        {
+            Row("where " + define.Trigger.Where);
+        }
+    }
+
     private static string ActorTip(StatFace stat)
     {
-        if (stat.Trigger?.SuppressesActorBinding == true)
+        if (stat.SuppressesActorBinding)
         {
             return "match: { actor: any } switches the view's per-player binding off; every player's event counts";
         }

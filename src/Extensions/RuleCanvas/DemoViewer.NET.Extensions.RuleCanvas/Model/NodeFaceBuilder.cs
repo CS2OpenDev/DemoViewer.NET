@@ -80,7 +80,7 @@ public static class NodeFaceBuilder
         // The typed form: every facet the view offers, the bound ones as rows, the rest offered by the
         // picker; a key the view does not know is kept as a row the resolver already flagged.
         MatchFacetForm form = MatchFacetForm.For(EmbeddedCatalog.Root, node.View, stat.Trigger?.Match);
-        return kind switch
+        StatFace face = kind switch
         {
             "sum" => new SumFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View, node.Events,
                 node.CrossRulesetReads, stat.KindArg, trigger, form, stat.Keep),
@@ -104,6 +104,12 @@ public static class NodeFaceBuilder
             _ => new CountFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View, node.Events,
                 node.CrossRulesetReads, stat.KindArg, trigger, form)
         };
+
+        // The resolver splices a define's body into the trigger; the face carries the body so it can say so.
+        DefineDef? define = face.TriggerSpelling is { } spelling
+            ? doc!.Defines.FirstOrDefault(d => d.Name == spelling && d.Body is TriggerDefineBody)
+            : null;
+        return define is null ? face : face with { Define = new DefineFace(define.Name, TriggerFace.From(((TriggerDefineBody)define.Body).Trigger)!) };
     }
 
     private static string PerText(PerScope per) => per == PerScope.None ? "" : per.ToString().ToLowerInvariant();

@@ -76,6 +76,15 @@ public sealed record TriggerFace(TriggerRef? On, IReadOnlyList<MatchBinding> Mat
     }
 }
 
+/// <summary>
+///     A trigger-bodied <c>define:</c> a stat fires through, as the document wrote it. The resolver splices
+///     the body's <c>match:</c>, <c>where:</c> and <c>while:</c> into the stat's trigger, so a face states
+///     them beside the stat's own.
+/// </summary>
+/// <param name="Name">The define's name, which is the trigger spelling.</param>
+/// <param name="Trigger">The body.</param>
+public sealed record DefineFace(string Name, TriggerFace Trigger);
+
 /// <summary>A declared stat. The fields every kind has; the sealed kinds add their own.</summary>
 /// <param name="Key">The node's identity.</param>
 /// <param name="Kind">The stat kind.</param>
@@ -107,6 +116,9 @@ public abstract record StatFace(
     TriggerFace? Trigger,
     MatchFacetForm Form) : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
 {
+    /// <summary>The define the trigger spelling names, when it names one of the open document's; null otherwise.</summary>
+    public DefineFace? Define { get; init; }
+
     /// <summary>The kinds whose own key names the trigger; the others carry it under <c>on:</c>.</summary>
     public static bool KindNamesTrigger(string kind) => kind is "count" or "streak" or "bucket" or "burst";
 
@@ -149,7 +161,7 @@ public abstract record StatFace(
                 return null;
             }
 
-            if (Trigger?.SuppressesActorBinding == true)
+            if (SuppressesActorBinding)
             {
                 return "any player";
             }
@@ -157,6 +169,9 @@ public abstract record StatFace(
             return ViewActor is { } actor ? "as " + actor : "binds nobody";
         }
     }
+
+    /// <summary>Whether <c>actor: any</c> on the stat or on its define switched the view's binding off.</summary>
+    public bool SuppressesActorBinding => Trigger?.SuppressesActorBinding == true || Define?.Trigger.SuppressesActorBinding == true;
 
     /// <summary>Whether the view bakes <c>event.Attacker != event.UserId</c> in, which the face states as a fixed row.</summary>
     public bool NotASuicide => FaceVocabulary.BakesOutSuicide(View);
