@@ -28,6 +28,12 @@ public static class NodeSizeEstimator
     private const int LineWrapColumns = 44;
     private const double EditableWidth = 360;
 
+    // The scaffold row: two 18px ports, a pill of the kind label, the name without its enrich. prefix, 30px tall.
+    private const double ScaffoldMinWidth = 140;
+    private const double ScaffoldMaxWidth = 260;
+    private const double ScaffoldHeight = 30;
+    private const double ScaffoldFixedWidth = 70;
+
     public static Size Estimate(CanvasNodeViewModel node)
     {
         ArgumentNullException.ThrowIfNull(node);
@@ -37,6 +43,13 @@ public static class NodeSizeEstimator
     public static double WidthOf(CanvasNodeViewModel node)
     {
         ArgumentNullException.ThrowIfNull(node);
+        if (node.IsScaffold)
+        {
+            string name = node.Id.StartsWith("enrich.", StringComparison.Ordinal) ? node.Id["enrich.".Length..] : node.Id;
+            double chips = node.Chips.Sum(c => c.Length * 5.5 + 4);
+            return Math.Clamp(ScaffoldFixedWidth + node.KindLabel.Length * 7 + name.Length * 7.2 + chips, ScaffoldMinWidth, ScaffoldMaxWidth);
+        }
+
         int longest = Math.Max(node.Id.Length + (node.Label?.Length ?? 0) + 8,
             node.Expression?.Split('\n').Max(l => l.Length) ?? 0);
         longest = Math.Max(longest, Math.Min(LineWrapColumns, node.Lines.Max(l => (int?)l.Text.Length) ?? 0) + 8);
@@ -50,6 +63,11 @@ public static class NodeSizeEstimator
     public static double HeightOf(CanvasNodeViewModel node)
     {
         ArgumentNullException.ThrowIfNull(node);
+        if (node.IsScaffold)
+        {
+            return ScaffoldHeight;
+        }
+
         int chipCount = node.Chips.Count + node.Defaults.Count;
         double chips = chipCount == 0 ? 0 : ChipRowHeight * Math.Ceiling(chipCount / 3.0);
         double rows = Math.Max((node.Facets.Count + node.FixedRows.Count) * FacetRowHeight,

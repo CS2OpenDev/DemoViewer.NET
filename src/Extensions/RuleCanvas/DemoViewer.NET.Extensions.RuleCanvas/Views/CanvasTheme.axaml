@@ -1,55 +1,271 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia">
+        xmlns:nodify="clr-namespace:Nodify.Avalonia;assembly=Nodify.Avalonia"
+        xmlns:nodes="clr-namespace:Nodify.Avalonia.Nodes;assembly=Nodify.Avalonia"
+        xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia"
+        xmlns:views="using:DemoViewer.NET.Extensions.RuleCanvas.Views">
 
     <!--
-      THE CANVAS THEME: the Nodify palette keys mapped onto the app's two themes, so the editor's own chrome
-      (background, node frame, connectors, wires) follows the theme the node faces already follow through the
-      app's brushes. Included by CanvasTabView after Nodify's own control styles; every visual decision about
-      the editor's chrome and the wire styles lives here.
+      THE CANVAS THEME: the canvas's own tokens (Rule*) in both themes, and every piece of Nodify chrome
+      restyled to read them, so nothing on the canvas falls back to Nodify's DodgerBlue and Orange. Included by
+      CanvasTabView after Nodify's own control styles; later styles win, so the ControlTheme keys below replace
+      Nodify's. A token that mirrors a host token carries the host's value for that theme and says so; the
+      extension keeps its own copy because a resource cannot alias one key to another across the host boundary.
+      The catalogue, with the measured contrasts, is in docs/ui/design-system.md under "Rule Canvas tokens".
     -->
 
     <Styles.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
-                    <Color x:Key="NodifyEditor.BackgroundColor">#EFF0F7</Color>
-                    <Color x:Key="NodifyEditor.ForegroundColor">#2E2E60</Color>
-                    <Color x:Key="Node.BackgroundColor">#FCFCFE</Color>
-                    <Color x:Key="Node.ContentColor">#FCFCFE</Color>
-                    <Color x:Key="Node.HeaderColor">#E9EAF3</Color>
-                    <Color x:Key="Node.BorderColor">#C9CADD</Color>
-                    <Color x:Key="ItemContainer.BorderColor">#C9CADD</Color>
-                    <Color x:Key="ItemContainer.SelectedColor">#4A4A9E</Color>
-                    <Color x:Key="Connector.BackgroundColor">#4A4A9E</Color>
-                    <Color x:Key="Connector.BorderColor">#EFF0F7</Color>
-                    <Color x:Key="Connection.StrokeColor">#4A4A9E</Color>
-                    <Color x:Key="PendingConnection.StrokeColor">#4A4A9E</Color>
+                    <!-- Node kinds: text and the header stripe, measured against RuleNodeBg. -->
+                    <SolidColorBrush x:Key="RuleKindEvent" Color="#795E26" />
+                    <SolidColorBrush x:Key="RuleKindEnrich" Color="#00796B" />
+                    <SolidColorBrush x:Key="RuleKindContext" Color="#1565C0" />
+                    <SolidColorBrush x:Key="RuleKindStat" Color="#0070C1" />
+                    <SolidColorBrush x:Key="RuleKindDerived" Color="#AF00DB" />
+                    <SolidColorBrush x:Key="RuleKindHighlight" Color="#A8470A" />
+                    <!-- Wire meanings, non-text, measured against RuleCanvasBg. -->
+                    <SolidColorBrush x:Key="RuleWireWrite" Color="#5A5E7C" />
+                    <SolidColorBrush x:Key="RuleWireRead" Color="#50507C" />
+                    <SolidColorBrush x:Key="RuleWireGate" Color="#1565C0" />
+                    <SolidColorBrush x:Key="RuleWireAnd" Color="#2E7D32" />
+                    <SolidColorBrush x:Key="RuleWireOr" Color="#B45309" />
+                    <!-- Surfaces and chrome. -->
+                    <SolidColorBrush x:Key="RuleCanvasBg" Color="#EFF0F7" />
+                    <SolidColorBrush x:Key="RuleNodeBg" Color="#FCFCFE" />
+                    <SolidColorBrush x:Key="RuleNodeBorder" Color="#A8AAC4" />
+                    <SolidColorBrush x:Key="RuleSelection" Color="#4A4A9E" />
+                    <SolidColorBrush x:Key="RuleSelectionFill" Color="#264A4A9E" />
+                    <SolidColorBrush x:Key="RuleCutLine" Color="#C62828" />
+                    <SolidColorBrush x:Key="RuleMinimapBg" Color="#E9EAF3" />
+                    <SolidColorBrush x:Key="RuleTextKey" Color="#3C3C70" />
+                    <!-- Nodify's own brush keys, aliased onto the tokens: its control themes read these by key, and a
+                         node with a header takes them over a brush set on the element. -->
+                    <StaticResource x:Key="Node.BackgroundBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.ContentBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.HeaderBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.FooterBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Node.HeaderForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Node.BorderBrush" ResourceKey="RuleNodeBorder" />
+                    <StaticResource x:Key="ItemContainer.BorderBrush" ResourceKey="RuleNodeBorder" />
+                    <StaticResource x:Key="ItemContainer.SelectedBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="ItemContainer.HighlightBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="NodifyEditor.BackgroundBrush" ResourceKey="RuleCanvasBg" />
+                    <StaticResource x:Key="NodifyEditor.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="NodifyEditor.FocusVisualBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="Connector.BorderBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="NodeInput.BorderBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="NodeOutput.BorderBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="NodeInput.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="NodeOutput.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Connection.StrokeBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="PendingConnection.StrokeBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="PendingConnection.BackgroundBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="PendingConnection.BorderBrush" ResourceKey="RuleNodeBorder" />
+                    <StaticResource x:Key="PendingConnection.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Minimap.BackgroundBrush" ResourceKey="RuleMinimapBg" />
+                    <StaticResource x:Key="Minimap.ViewportStrokeBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="Minimap.ViewportBackgroundBrush" ResourceKey="RuleSelectionFill" />
+                    <StaticResource x:Key="MinimapItem.BackgroundBrush" ResourceKey="RuleWireWrite" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <Color x:Key="NodifyEditor.BackgroundColor">#0C0C1A</Color>
-                    <Color x:Key="NodifyEditor.ForegroundColor">#C0C0F0</Color>
-                    <Color x:Key="Node.BackgroundColor">#171726</Color>
-                    <Color x:Key="Node.ContentColor">#171726</Color>
-                    <Color x:Key="Node.HeaderColor">#0E0E1E</Color>
-                    <Color x:Key="Node.BorderColor">#252545</Color>
-                    <Color x:Key="ItemContainer.BorderColor">#252545</Color>
-                    <Color x:Key="ItemContainer.SelectedColor">#8A8AE0</Color>
-                    <Color x:Key="Connector.BackgroundColor">#7A7AD6</Color>
-                    <Color x:Key="Connector.BorderColor">#0C0C1A</Color>
-                    <Color x:Key="Connection.StrokeColor">#7A7AD6</Color>
-                    <Color x:Key="PendingConnection.StrokeColor">#7A7AD6</Color>
+                    <SolidColorBrush x:Key="RuleKindEvent" Color="#DCDCAA" />
+                    <SolidColorBrush x:Key="RuleKindEnrich" Color="#26A69A" />
+                    <SolidColorBrush x:Key="RuleKindContext" Color="#569CD6" />
+                    <SolidColorBrush x:Key="RuleKindStat" Color="#4FC1FF" />
+                    <SolidColorBrush x:Key="RuleKindDerived" Color="#C586C0" />
+                    <SolidColorBrush x:Key="RuleKindHighlight" Color="#FFA657" />
+                    <SolidColorBrush x:Key="RuleWireWrite" Color="#9090B0" />
+                    <SolidColorBrush x:Key="RuleWireRead" Color="#7878A8" />
+                    <SolidColorBrush x:Key="RuleWireGate" Color="#569CD6" />
+                    <SolidColorBrush x:Key="RuleWireAnd" Color="#4CAF50" />
+                    <SolidColorBrush x:Key="RuleWireOr" Color="#D98A3F" />
+                    <SolidColorBrush x:Key="RuleCanvasBg" Color="#0C0C1A" />
+                    <SolidColorBrush x:Key="RuleNodeBg" Color="#171726" />
+                    <SolidColorBrush x:Key="RuleNodeBorder" Color="#3A3A66" />
+                    <SolidColorBrush x:Key="RuleSelection" Color="#8A8AE0" />
+                    <SolidColorBrush x:Key="RuleSelectionFill" Color="#268A8AE0" />
+                    <SolidColorBrush x:Key="RuleCutLine" Color="#E53935" />
+                    <SolidColorBrush x:Key="RuleMinimapBg" Color="#0E0E1E" />
+                    <SolidColorBrush x:Key="RuleTextKey" Color="#A0A0D8" />
+                    <StaticResource x:Key="Node.BackgroundBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.ContentBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.HeaderBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.FooterBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="Node.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Node.HeaderForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Node.BorderBrush" ResourceKey="RuleNodeBorder" />
+                    <StaticResource x:Key="ItemContainer.BorderBrush" ResourceKey="RuleNodeBorder" />
+                    <StaticResource x:Key="ItemContainer.SelectedBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="ItemContainer.HighlightBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="NodifyEditor.BackgroundBrush" ResourceKey="RuleCanvasBg" />
+                    <StaticResource x:Key="NodifyEditor.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="NodifyEditor.FocusVisualBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="Connector.BorderBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="NodeInput.BorderBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="NodeOutput.BorderBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="NodeInput.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="NodeOutput.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Connection.StrokeBrush" ResourceKey="RuleWireWrite" />
+                    <StaticResource x:Key="PendingConnection.StrokeBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="PendingConnection.BackgroundBrush" ResourceKey="RuleNodeBg" />
+                    <StaticResource x:Key="PendingConnection.BorderBrush" ResourceKey="RuleNodeBorder" />
+                    <StaticResource x:Key="PendingConnection.ForegroundBrush" ResourceKey="RuleTextKey" />
+                    <StaticResource x:Key="Minimap.BackgroundBrush" ResourceKey="RuleMinimapBg" />
+                    <StaticResource x:Key="Minimap.ViewportStrokeBrush" ResourceKey="RuleSelection" />
+                    <StaticResource x:Key="Minimap.ViewportBackgroundBrush" ResourceKey="RuleSelectionFill" />
+                    <StaticResource x:Key="MinimapItem.BackgroundBrush" ResourceKey="RuleWireWrite" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
+
+            <!-- The editor reads these three themes by key; defining them here replaces Nodify's. -->
+            <ControlTheme x:Key="NodifyEditor.SelectionRectangleTheme" TargetType="Rectangle">
+                <Setter Property="Stroke" Value="{DynamicResource RuleSelection}" />
+                <Setter Property="StrokeThickness" Value="1" />
+                <Setter Property="Fill" Value="{DynamicResource RuleSelectionFill}" />
+            </ControlTheme>
+            <ControlTheme x:Key="NodifyEditor.PushedAreaTheme" TargetType="Rectangle">
+                <Setter Property="Stroke" Value="{DynamicResource RuleSelection}" />
+                <Setter Property="StrokeThickness" Value="1" />
+                <Setter Property="Fill" Value="{DynamicResource RuleSelectionFill}" />
+            </ControlTheme>
+            <ControlTheme x:Key="NodifyEditor.CuttingLineTheme" TargetType="connections:CuttingLine">
+                <Setter Property="Stroke" Value="{DynamicResource RuleCutLine}" />
+                <Setter Property="StrokeThickness" Value="2" />
+                <Setter Property="StrokeDashArray" Value="2,1" />
+                <Setter Property="Fill" Value="{DynamicResource RuleCutLine}" />
+            </ControlTheme>
+            <!-- The header container keeps no padding of its own, so the kind stripe runs to the node's edge. -->
+            <ControlTheme x:Key="RuleNodeHeaderTheme" TargetType="Border">
+                <Setter Property="CornerRadius" Value="3 3 0 0" />
+                <Setter Property="Padding" Value="0" />
+            </ControlTheme>
+            <ControlTheme x:Key="RuleMinimapViewportTheme" TargetType="Rectangle">
+                <Setter Property="Stroke" Value="{DynamicResource RuleSelection}" />
+                <Setter Property="StrokeThickness" Value="2" />
+                <Setter Property="Fill" Value="{DynamicResource RuleSelectionFill}" />
+            </ControlTheme>
+
+            <!-- The toast: a card with a caution stripe, the text, and a close button; the control times itself out. -->
+            <ControlTheme x:Key="{x:Type views:TransientToast}" TargetType="views:TransientToast">
+                <Setter Property="MaxWidth" Value="360" />
+                <Setter Property="Focusable" Value="True" />
+                <Setter Property="Template">
+                    <ControlTemplate>
+                        <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderAccent}" BorderThickness="1"
+                                CornerRadius="4" Padding="0">
+                            <Grid ColumnDefinitions="3,*,Auto">
+                                <Border Grid.Column="0" Background="{DynamicResource AccentCaution}" CornerRadius="3 0 0 3" />
+                                <TextBlock Grid.Column="1" Text="{TemplateBinding Message}" FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextValue}" Margin="10 7" VerticalAlignment="Center" />
+                                <Button Grid.Column="2" Name="PART_Close" Content="×" Background="Transparent" BorderThickness="0"
+                                        Foreground="{DynamicResource TextMid}" Padding="6 2" Margin="0 2 4 0" VerticalAlignment="Top"
+                                        ToolTip.Tip="Dismiss (Esc)" />
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter>
+            </ControlTheme>
         </ResourceDictionary>
     </Styles.Resources>
 
-    <!-- A read is a dashed wire; a write is solid; a gate is a long dash, since it holds rather than fires. -->
+    <!-- A panel toggle in the strip: a ghost button that fills when its panel shows. -->
+    <Style Selector="ToggleButton.panel">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Padding" Value="8 3" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
+    </Style>
+    <Style Selector="ToggleButton.panel:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PanelHeaderHover}" />
+    </Style>
+    <Style Selector="ToggleButton.panel:checked /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PanelHeaderHoverDeep}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextValue}" />
+    </Style>
+
+    <!-- A gallery group's heading: a full-width toggle that folds its items. -->
+    <Style Selector="ToggleButton.expander">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="4 3" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="CornerRadius" Value="3" />
+    </Style>
+    <Style Selector="ToggleButton.expander:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PanelHeaderHover}" />
+    </Style>
+    <Style Selector="ToggleButton.expander:checked /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- A card centred over the canvas for a state with nothing to draw. -->
+    <Style Selector="Border.emptyCard">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Background" Value="{DynamicResource CardBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderAccent}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="24 20" />
+    </Style>
+
+    <!-- The editor. -->
+    <Style Selector="nodify|NodifyEditor">
+        <Setter Property="Background" Value="{DynamicResource RuleCanvasBg}" />
+        <Setter Property="Foreground" Value="{DynamicResource RuleTextKey}" />
+    </Style>
+
+    <!-- The node frame is the container's border: 1px at rest, a 2px ring when selected or hovered by a
+         pending wire, grown outward so the face does not shift. -->
+    <Style Selector="nodify|ItemContainer">
+        <Setter Property="BorderBrush" Value="{DynamicResource RuleNodeBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="SelectedBrush" Value="{DynamicResource RuleSelection}" />
+        <Setter Property="HighlightBrush" Value="{DynamicResource RuleSelection}" />
+        <Setter Property="SelectedBorderThickness" Value="2" />
+    </Style>
+    <Style Selector="nodify|ItemContainer /template/ Rectangle#PART_KeyboardFocusVisual">
+        <Setter Property="Stroke" Value="{DynamicResource RuleSelection}" />
+    </Style>
+
+    <Style Selector="nodes|Node">
+        <Setter Property="Background" Value="{DynamicResource RuleNodeBg}" />
+        <Setter Property="Foreground" Value="{DynamicResource RuleTextKey}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="HeaderContainerStyle" Value="{StaticResource RuleNodeHeaderTheme}" />
+    </Style>
+
+    <!-- Ports: a ring at rest, filled while wired. No strip behind them; the face is the background. -->
+    <Style Selector="nodes|NodeInput, nodes|NodeOutput">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource RuleTextKey}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RuleWireWrite}" />
+    </Style>
+    <Style Selector="connections|Connector">
+        <Setter Property="BorderBrush" Value="{DynamicResource RuleWireWrite}" />
+    </Style>
+
+    <!-- Wires by meaning: a write is solid; a read is a short dash; a gate holds rather than fires, so a
+         long dash; a logic input carries its connective's colour. Fill paints the arrow head. -->
+    <Style Selector="connections|Connection">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireWrite}" />
+        <Setter Property="Fill" Value="{DynamicResource RuleWireWrite}" />
+    </Style>
     <Style Selector="connections|Connection.read">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireRead}" />
+        <Setter Property="Fill" Value="{DynamicResource RuleWireRead}" />
         <Setter Property="StrokeDashArray" Value="4,3" />
         <Setter Property="StrokeThickness" Value="1.5" />
     </Style>
     <Style Selector="connections|Connection.gate">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireGate}" />
+        <Setter Property="Fill" Value="{DynamicResource RuleWireGate}" />
         <Setter Property="StrokeDashArray" Value="8,4" />
         <Setter Property="StrokeThickness" Value="1.5" />
     </Style>
@@ -71,5 +287,31 @@
                 <SolidColorBrush Color="#5050A0" Opacity="0.45" />
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <Style Selector="connections|Connection.and">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireAnd}" />
+        <Setter Property="Fill" Value="{DynamicResource RuleWireAnd}" />
+    </Style>
+    <Style Selector="connections|Connection.or">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireOr}" />
+        <Setter Property="Fill" Value="{DynamicResource RuleWireOr}" />
+    </Style>
+
+    <Style Selector="connections|PendingConnection">
+        <Setter Property="Stroke" Value="{DynamicResource RuleSelection}" />
+        <Setter Property="Background" Value="{DynamicResource RuleNodeBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RuleNodeBorder}" />
+        <Setter Property="Foreground" Value="{DynamicResource RuleTextKey}" />
+    </Style>
+
+    <Style Selector="nodify|Minimap">
+        <Setter Property="Background" Value="{DynamicResource RuleMinimapBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RuleNodeBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="ViewportStyle" Value="{StaticResource RuleMinimapViewportTheme}" />
+    </Style>
+    <Style Selector="nodify|MinimapItem">
+        <Setter Property="Background" Value="{DynamicResource RuleWireWrite}" />
     </Style>
 </Styles>

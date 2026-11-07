@@ -381,6 +381,9 @@ public partial class CanvasTabView : UserControl
     // yet; the editor's own FitToScreen refuses an empty extent.
     private void FitLater() => Dispatcher.UIThread.Post(FitNow, DispatcherPriority.Background);
 
+    // A readable fit, never a fit-everything: the zoom stays between 0.8 and 1, so 11px text never renders
+    // under 9px. When the whole chain does not fit at 0.8 the viewport frames the authored nodes instead and
+    // anchors to the left-most column, where the chain starts; the rest is a pan or the minimap away.
     private void FitNow()
     {
         if (_viewModel is null || _viewModel.Nodes.Count == 0 || Editor.Bounds.Width <= 0 || Editor.Bounds.Height <= 0)
@@ -388,17 +391,10 @@ public partial class CanvasTabView : UserControl
             return;
         }
 
-        if (BoundsOf(_viewModel.Nodes) is not { } extent)
-        {
-            return;
-        }
-
-        const double Pad = 40;
-        double width = extent.Width + 2 * Pad;
-        double height = extent.Height + 2 * Pad;
-        double zoom = Math.Min(1, Math.Min(Editor.Bounds.Width / width, Editor.Bounds.Height / height));
-        Editor.ViewportZoom = zoom;
-        Editor.ViewportLocation = new Point(extent.X - Pad, extent.Y - Pad);
+        ReadableFit fit = ReadableFit.Of(_viewModel.Nodes.Select(n => (n.Location, n.EstimatedSize, n.IsAuthorable)),
+            Editor.Bounds.Size);
+        Editor.ViewportZoom = fit.Zoom;
+        Editor.ViewportLocation = fit.Location;
     }
 
     // Once the containers are measured the editor's own fit is the truer one; before that, the estimate.

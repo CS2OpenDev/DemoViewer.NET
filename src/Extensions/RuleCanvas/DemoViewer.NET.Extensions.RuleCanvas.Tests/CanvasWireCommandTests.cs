@@ -56,13 +56,15 @@ public class CanvasWireCommandTests
         (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
-            vm.SelectedNodes.Add(Node(vm, "round_side"));
+            // Every shipped stat is a show: column and a delete of one is refused; an added stat has no dependants.
+            vm.PlaceItem(vm.Gallery.SelectMany(g => g.Items).Single(i => i.Name == "enemy_kills"), new Avalonia.Point(0, 0));
+            vm.SelectedNodes.Add(Node(vm, "enemy_kills"));
             vm.SelectedWires.Add(GateWire(vm, "round_deaths"));
             vm.DeleteSelectionCommand.Execute(null);
             string text = File.ReadAllText(rules.UserPath("player_round"));
             using (Assert.Multiple())
             {
-                await Assert.That(RulesetEdits.StatIds(text)).DoesNotContain("round_side");
+                await Assert.That(RulesetEdits.StatIds(text)).DoesNotContain("enemy_kills");
                 await Assert.That(RulesetEdits.Field(text, "round_deaths", "while")).IsEqualTo("match.live").Because("the node won");
             }
         }

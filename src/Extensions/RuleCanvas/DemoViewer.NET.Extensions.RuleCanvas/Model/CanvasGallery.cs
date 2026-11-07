@@ -29,48 +29,79 @@ public enum GalleryItemKind
 /// <param name="Kind">What dropping it does.</param>
 /// <param name="Name">The catalog name or the gate path, which is what the YAML gets.</param>
 /// <param name="Title">What the gallery shows.</param>
-/// <param name="Hint">One line on what it is, for the tooltip.</param>
+/// <param name="Hint">One line on what it is, shown under the title.</param>
 /// <param name="Body">For a stat or a prefab, the entry's body at one indentation, without its id line.</param>
 public sealed record GalleryItem(GalleryItemKind Kind, string Name, string Title, string Hint, string? Body = null)
 {
     public string KindLabel => Kind.ToString().ToUpperInvariant();
+
+    /// <summary>Whether <paramref name="query" /> matches the title, the name or the hint, ignoring case.</summary>
+    public bool Matches(string query) =>
+        Title.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || Hint.Contains(query, StringComparison.OrdinalIgnoreCase);
 }
 
-/// <summary>One group of the gallery.</summary>
-public sealed record GalleryGroup(string Title, IReadOnlyList<GalleryItem> Items);
+/// <summary>A titled run of items inside a group: the views of one event, or the user's own flags among the gates.</summary>
+/// <param name="Title">The sub-heading, or null for the group's unnamed run.</param>
+/// <param name="Items">The items, in the order shown.</param>
+public sealed record GallerySection(string? Title, IReadOnlyList<GalleryItem> Items);
+
+/// <summary>One group of the gallery: an expander whose body is its sections.</summary>
+/// <param name="Title">The expander's heading.</param>
+/// <param name="Items">Every item of the group, flat, for a drop or a search.</param>
+/// <param name="Sections">The items as shown, in sub-headed runs; one unnamed run when the group has no sub-headings.</param>
+/// <param name="ExpandedByDefault">Whether the expander opens on first show.</param>
+public sealed record GalleryGroup(string Title, IReadOnlyList<GalleryItem> Items, IReadOnlyList<GallerySection>? Sections = null,
+    bool ExpandedByDefault = true)
+{
+    /// <summary>The sections as shown; the flat items as one unnamed section when none were given.</summary>
+    public IReadOnlyList<GallerySection> Sections { get; init; } = Sections ?? [new GallerySection(null, Items)];
+
+    /// <summary>The expander's state. The view writes it; a search opens every group it shows.</summary>
+    public bool IsExpanded { get; set; } = ExpandedByDefault;
+
+    public int Count => Items.Count;
+}
 
 /// <summary>
-///     The gallery a user drags from: the stat kinds, the catalog's views, the gates the corpus uses, and
-///     prefabs for the stats most rulesets start with. Views come from the catalog; the gates from the
-///     one table in <see cref="CanvasEditSemantics.GatePaths" />.
+///     The gallery a user drags from, in task order: prefabs for the stats most rulesets start with, the
+///     highlights, the stat kinds, the gates (the engine's and the user's own flags), and the catalog's views
+///     grouped by the event that fires them. Views come from the catalog; the engine gates from the one
+///     table in <see cref="CanvasEditSemantics.GatePaths" />.
 /// </summary>
 public static class CanvasGallery
 {
     /// <summary>The gate paths a ruleset writes in <c>while:</c>, in the order the gallery offers them.</summary>
     public static IReadOnlyList<string> GatePaths { get; } = [.. CanvasEditSemantics.GatePaths.Select(g => g.Path)];
 
-    public static IReadOnlyList<GalleryGroup> Build(CatalogRoot catalog)
+    /// <summary>The gallery without a ruleset open: no flags of the user's own among the gates.</summary>
+    public static IReadOnlyList<GalleryGroup> Build(CatalogRoot catalog) => Build(catalog, []);
+
+    /// <param name="catalog">The catalog whose views the Views group lists.</param>
+    /// <param name="flags">The flag stat ids of the open ruleset, each offered as a gate under "Your flags".</param>
+    public static IReadOnlyList<GalleryGroup> Build(CatalogRoot catalog, IEnumerable<string> flags)
     {
         ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(flags);
+        List<GalleryItem> engineGates = [.. CanvasEditSemantics.GatePaths.Select(g => Gate(g.Path, g.Hint))];
+        List<GalleryItem> ownFlags = [.. flags.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
+            .Select(id => Gate(id, $"while your flag {id} holds"))];
+        List<GallerySection> gateSections = [new GallerySection(null, engineGates)];
+        if (ownFlags.Count > 0)
+        {
+            gateSections.Add(new GallerySection("Your flags", ownFlags));
+        }
+
+        List<GalleryItem> views = [.. catalog.Views.OrderBy(v => v.Name, StringComparer.Ordinal).Select(ViewItem)];
+        List<GallerySection> viewSections =
+        [
+            .. catalog.Views.GroupBy(v => v.Event, StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal)
+                .Select(g => new GallerySection(g.Key, [.. g.OrderBy(v => v.Name, StringComparer.Ordinal).Select(ViewItem)]))
+        ];
+
         return
         [
-            new GalleryGroup("Stats",
-            [
-                new GalleryItem(GalleryItemKind.Stat, "count", "count", "Counts a view's events per scope.",
-                    "count: kill\nmatch: { enemy: true }\nper: round"),
-                new GalleryItem(GalleryItemKind.Stat, "sum", "sum", "Adds an event value per scope.",
-                    "sum: enrich.hurt.capped_damage\non: damage_dealt\nmatch: { enemy: true }\nper: round"),
-                new GalleryItem(GalleryItemKind.Stat, "capture", "capture", "Keeps a value as it is when the event fires.",
-                    "capture: player.team\non: round_freeze_end\nper: round"),
-                new GalleryItem(GalleryItemKind.Stat, "flag", "flag", "True when its expression holds.",
-                    "flag:\n  when: \"round_kills > 0\"\nper: round"),
-                new GalleryItem(GalleryItemKind.Stat, "compute", "compute", "A formula over sibling stats, at the scope's end.",
-                    "compute: \"round_kills / max(round_deaths, 1)\"\nper: match"),
-                new GalleryItem(GalleryItemKind.Stat, "tally", "tally", "Counts the scopes in which a sibling reached a threshold.",
-                    "tally: round_kills\nthresholds: [1, 2, 3, 4, 5]\nper: match"),
-            ]),
-            new GalleryGroup("Views", [.. catalog.Views.OrderBy(v => v.Name, StringComparer.Ordinal).Select(ViewItem)]),
-            new GalleryGroup("Gates", [.. CanvasEditSemantics.GatePaths.Select(g => Gate(g.Path, g.Hint))]),
             new GalleryGroup("Prefabs",
             [
                 Prefab("enemy_kills", "Enemy kills", "Kills on enemies, per round.",
@@ -96,8 +127,68 @@ public static class CanvasGallery
                     "when: opening_kills >= 1\nper: round\nscore: 60\ntitle: \"{player.name} opening kill (round {round.number})\""),
                 Highlight("highlight", "Blank highlight", "A when: to fill in; wire a stat into it or type the test. Starts on the survived flag, which every ruleset can read.",
                     "when: player.survived\nper: round\nscore: 50\ntitle: \"{player.name} (round {round.number})\""),
-            ])
+            ]),
+            new GalleryGroup("Stats",
+            [
+                new GalleryItem(GalleryItemKind.Stat, "count", "count", "Counts a view's events per scope.",
+                    "count: kill\nmatch: { enemy: true }\nper: round"),
+                new GalleryItem(GalleryItemKind.Stat, "sum", "sum", "Adds an event value per scope.",
+                    "sum: enrich.hurt.capped_damage\non: damage_dealt\nmatch: { enemy: true }\nper: round"),
+                new GalleryItem(GalleryItemKind.Stat, "capture", "capture", "Keeps a value as it is when the event fires.",
+                    "capture: player.team\non: round_freeze_end\nper: round"),
+                new GalleryItem(GalleryItemKind.Stat, "flag", "flag", "True when its expression holds.",
+                    "flag:\n  when: \"round_kills > 0\"\nper: round"),
+                new GalleryItem(GalleryItemKind.Stat, "compute", "compute", "A formula over sibling stats, at the scope's end.",
+                    "compute: \"round_kills / max(round_deaths, 1)\"\nper: match"),
+                new GalleryItem(GalleryItemKind.Stat, "tally", "tally", "Counts the scopes in which a sibling reached a threshold.",
+                    "tally: round_kills\nthresholds: [1, 2, 3, 4, 5]\nper: match"),
+                new GalleryItem(GalleryItemKind.Stat, "streak", "streak", "The longest run of events closer together than the window, in ticks.",
+                    "streak: kill\nmatch: { enemy: true }\nwindow: 640\nmin_streak: 2\nper: match"),
+                new GalleryItem(GalleryItemKind.Stat, "bucket", "bucket", "Counts, or sums a value, per key such as the weapon.",
+                    "bucket: kill\nmatch: { enemy: true }\nkey: event.Weapon\nper: match"),
+                new GalleryItem(GalleryItemKind.Stat, "rate", "rate", "A per-key ratio of two sibling buckets on the same key.",
+                    "rate: { of: kills_by_weapon, per: shots_by_weapon }\nper: match"),
+                new GalleryItem(GalleryItemKind.Stat, "burst", "burst", "A pulse when enough events land inside a window, for multi-kill highlights.",
+                    "burst: kill\nmatch: { enemy: true }\nwindow: \"3s\"\nmin_streak: 2"),
+            ]),
+            new GalleryGroup("Gates", [.. engineGates, .. ownFlags], gateSections),
+            new GalleryGroup("Views", views, viewSections, ExpandedByDefault: false)
         ];
+    }
+
+    /// <summary>
+    ///     The groups narrowed to the items matching <paramref name="query" /> by title, name or hint, every
+    ///     shown group opened; a group with no match is left out. An empty query is the gallery as built.
+    /// </summary>
+    public static IReadOnlyList<GalleryGroup> Filter(IReadOnlyList<GalleryGroup> groups, string? query)
+    {
+        ArgumentNullException.ThrowIfNull(groups);
+        string trimmed = query?.Trim() ?? "";
+        if (trimmed.Length == 0)
+        {
+            return groups;
+        }
+
+        List<GalleryGroup> shown = [];
+        foreach (GalleryGroup group in groups)
+        {
+            List<GallerySection> sections = [];
+            foreach (GallerySection section in group.Sections)
+            {
+                List<GalleryItem> items = [.. section.Items.Where(i => i.Matches(trimmed))];
+                if (items.Count > 0)
+                {
+                    sections.Add(new GallerySection(section.Title, items));
+                }
+            }
+
+            if (sections.Count > 0)
+            {
+                shown.Add(new GalleryGroup(group.Title, [.. sections.SelectMany(s => s.Items)], sections) { IsExpanded = true });
+            }
+        }
+
+        return shown;
     }
 
     private static GalleryItem ViewItem(CatalogView view)
