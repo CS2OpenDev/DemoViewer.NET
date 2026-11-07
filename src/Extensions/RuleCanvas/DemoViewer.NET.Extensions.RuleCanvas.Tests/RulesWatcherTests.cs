@@ -418,4 +418,34 @@ public class RulesWatcherTests
             await Assert.That(vm.Rulesets.Select(e => e.Id)).Contains("fresh");
         }
     }
+
+    [Test]
+    public async Task AnEditorsSave_ByRenameOverTheFile_ReloadsThroughTheWatcher()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        // The report runs inline on the watcher's thread; the count is read only once it has returned.
+        int reports = 0;
+        using CanvasTabViewModel vm = new(_ => true, rules.Load, () => rules.OwnFolder, action =>
+        {
+            action();
+            Interlocked.Increment(ref reports);
+            return Task.CompletedTask;
+        }) { WatcherDebounce = Short };
+        vm.OnActivated(null!);
+        await Assert.That(vm.IsWatching).IsTrue();
+
+        // vim, VS Code and Rider all save as a temp file moved over the target.
+        string path = rules.UserPath("player_round");
+        string text = Labelled(path);
+        string temp = path + ".swp";
+        WriteExternally(temp, text);
+        File.Move(temp, path, overwrite: true);
+        bool reported = await WaitFor(() => Volatile.Read(ref reports) > 0, TimeSpan.FromSeconds(10));
+        using (Assert.Multiple())
+        {
+            await Assert.That(reported).IsTrue().Because("the rename reaches the view model as the file's own path");
+            await Assert.That(vm.DocumentText).IsEqualTo(text);
+            await Assert.That(vm.Nodes.Single(n => n.Id == "round_kills").Label).IsEqualTo("Kills!");
+        }
+    }
 }
