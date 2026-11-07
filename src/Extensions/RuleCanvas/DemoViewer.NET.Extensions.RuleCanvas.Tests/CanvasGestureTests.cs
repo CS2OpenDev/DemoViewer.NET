@@ -1,5 +1,6 @@
 #region
 
+using Avalonia.Controls;
 using Avalonia.Input;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
@@ -95,6 +96,24 @@ public class CanvasGestureTests
     [Arguments(Key.S, KeyModifiers.Control, CanvasKeyAction.None)]
     public async Task TheKeyMap_ReadsEachChord(Key key, KeyModifiers modifiers, CanvasKeyAction expected) =>
         await Assert.That(CanvasKeyMap.Resolve(key, modifiers)).IsEqualTo(expected);
+
+    // A picker that holds focus steps its selection on the wheel, and a stepped picker writes at once.
+    [Test]
+    public async Task AWheelOverAClosedPicker_IsTheEditorsZoom_AndAnOpenListOrPlainTextIsNot()
+    {
+        ComboBox picker = new();
+        TextBlock caption = new();
+        StackPanel face = new() { Children = { picker, caption } };
+        using (Assert.Multiple())
+        {
+            await Assert.That(CanvasGestures.WheelOverClosedPicker(picker)).IsTrue().Because("the picker would step and write");
+            await Assert.That(CanvasGestures.WheelOverClosedPicker(caption)).IsFalse().Because("the editor zooms on its own there");
+            await Assert.That(CanvasGestures.WheelOverClosedPicker(face)).IsFalse();
+            await Assert.That(CanvasGestures.WheelOverClosedPicker(null)).IsFalse();
+            picker.IsDropDownOpen = true;
+            await Assert.That(CanvasGestures.WheelOverClosedPicker(picker)).IsFalse().Because("an open list scrolls");
+        }
+    }
 
     // The editor completes a connection on a plain click: the release hit-tests the press anchor and finds
     // the port it started from, so the command sees the same endpoint twice.

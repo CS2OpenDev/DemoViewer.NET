@@ -54,6 +54,7 @@ public partial class CanvasTabView : UserControl
         Editor.AddHandler(PointerPressedEvent, OnEditorPointerPressed, RoutingStrategies.Tunnel);
         Editor.AddHandler(PointerReleasedEvent, OnEditorPointerReleased, RoutingStrategies.Bubble, true);
         Editor.AddHandler(KeyDownEvent, OnEditorKeyDown, RoutingStrategies.Bubble, true);
+        Editor.AddHandler(PointerWheelChangedEvent, OnFaceWheel, RoutingStrategies.Tunnel);
         ZoomCluster.AddHandler(PointerWheelChangedEvent, OnOverlayWheel);
         DataContextChanged += (_, _) => Attach(DataContext as CanvasTabViewModel);
         Loaded += (_, _) => FitLater();
@@ -315,7 +316,20 @@ public partial class CanvasTabView : UserControl
     private void OnMinimapZoom(object? sender, ZoomEventArgs e) => Editor.ZoomAtPosition(e.Zoom, e.Location);
 
     // A wheel over the cluster zooms the editor at that spot, as it would have without the overlay.
-    private void OnOverlayWheel(object? sender, PointerWheelEventArgs e)
+    private void OnOverlayWheel(object? sender, PointerWheelEventArgs e) => ZoomAtPointer(e);
+
+    // Tunnelled, so the wheel is taken before a focused picker steps its selection on it. Handled even with
+    // no vertical delta: a sideways tick would still step the picker.
+    private void OnFaceWheel(object? sender, PointerWheelEventArgs e)
+    {
+        if (CanvasGestures.WheelOverClosedPicker(e.Source as Visual))
+        {
+            ZoomAtPointer(e);
+            e.Handled = true;
+        }
+    }
+
+    private void ZoomAtPointer(PointerWheelEventArgs e)
     {
         if (e.Delta.Y != 0)
         {
