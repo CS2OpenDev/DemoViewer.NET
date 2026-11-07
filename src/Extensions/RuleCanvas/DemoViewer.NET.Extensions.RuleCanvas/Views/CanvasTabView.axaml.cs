@@ -54,6 +54,8 @@ public partial class CanvasTabView : UserControl
         Editor.AddHandler(PointerPressedEvent, OnEditorPointerPressed, RoutingStrategies.Tunnel);
         Editor.AddHandler(PointerReleasedEvent, OnEditorPointerReleased, RoutingStrategies.Bubble, true);
         Editor.AddHandler(KeyDownEvent, OnEditorKeyDown, RoutingStrategies.Bubble, true);
+        Editor.AddHandler(PointerWheelChangedEvent, OnFaceWheel, RoutingStrategies.Tunnel);
+        Editor.AddHandler(KeyDownEvent, OnFaceKeyDown, RoutingStrategies.Tunnel);
         ZoomCluster.AddHandler(PointerWheelChangedEvent, OnOverlayWheel);
         DataContextChanged += (_, _) => Attach(DataContext as CanvasTabViewModel);
         Loaded += (_, _) => FitLater();
@@ -109,11 +111,11 @@ public partial class CanvasTabView : UserControl
     }
 
     // The node container starts a drag on any press it sees and captures the pointer, after which a picker
-    // inside the face never gets the release that opens it. A press on an editor stops at the face.
+    // inside the face never gets the release that opens it. A left press on an editor stops at the face; a
+    // right press goes on, so the container selects the node before its menu opens.
     private void OnFacePressed(object? sender, PointerPressedEventArgs e)
     {
-        if (e.Source is Visual source && source.GetSelfAndVisualAncestors().TakeWhile(v => !ReferenceEquals(v, sender))
-                .Any(v => v is ComboBox or TextBox or AutoCompleteBox or CheckBox or Button))
+        if (sender is Visual face && CanvasGestures.FaceKeepsPress(e.Source as Visual, face, e.Properties))
         {
             e.Handled = true;
         }
@@ -161,6 +163,17 @@ public partial class CanvasTabView : UserControl
 
         menu.Open(owner);
         e.Handled = true;
+    }
+
+    // Tunnelled: a bare Up or Down in a closed editable combo would step its selection, and the gate and
+    // field combos write a step at once. Opening the list is what the key asked for.
+    private static void OnFaceKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (CanvasGestures.ListToOpen(e.Key, e.KeyModifiers, e.Source as Visual) is { } box)
+        {
+            box.SetCurrentValue(ComboBox.IsDropDownOpenProperty, true);
+            e.Handled = true;
+        }
     }
 
     // Keys reach here after the editor's own set. A press inside a text editor on a node face is that
@@ -315,7 +328,20 @@ public partial class CanvasTabView : UserControl
     private void OnMinimapZoom(object? sender, ZoomEventArgs e) => Editor.ZoomAtPosition(e.Zoom, e.Location);
 
     // A wheel over the cluster zooms the editor at that spot, as it would have without the overlay.
-    private void OnOverlayWheel(object? sender, PointerWheelEventArgs e)
+    private void OnOverlayWheel(object? sender, PointerWheelEventArgs e) => ZoomAtPointer(e);
+
+    // Tunnelled, so the wheel is taken before a focused picker steps its selection on it. Handled even with
+    // no vertical delta: a sideways tick would still step the picker.
+    private void OnFaceWheel(object? sender, PointerWheelEventArgs e)
+    {
+        if (CanvasGestures.WheelOverClosedPicker(e.Source as Visual))
+        {
+            ZoomAtPointer(e);
+            e.Handled = true;
+        }
+    }
+
+    private void ZoomAtPointer(PointerWheelEventArgs e)
     {
         if (e.Delta.Y != 0)
         {

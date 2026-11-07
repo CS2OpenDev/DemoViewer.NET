@@ -35,11 +35,19 @@ public sealed partial class CanvasConnectorViewModel : ObservableObject
 /// <param name="condition">The lowered condition, shown on hover, or null.</param>
 /// <param name="isRead">A value read rather than a write; drawn dashed.</param>
 /// <param name="isGate">A gate holding the target open while it is active; drawn as a long dash.</param>
+/// <param name="isAnd">A logic input the target conjoins; drawn in the and colour.</param>
+/// <param name="isOr">A logic input the target disjoins; drawn in the or colour.</param>
 public sealed class CanvasConnectionViewModel(CanvasConnectorViewModel source, CanvasConnectorViewModel target,
-    string text = "", string? condition = null, bool isRead = false, bool isGate = false)
+    string text = "", string? condition = null, bool isRead = false, bool isGate = false, bool isAnd = false, bool isOr = false)
 {
     /// <summary>A gate holding the target open while it is active; drawn dashed, labelled while.</summary>
     public bool IsGate { get; } = isGate;
+
+    /// <summary>A logic input the target conjoins; the wire template sets the and class from it.</summary>
+    public bool IsAnd { get; } = isAnd;
+
+    /// <summary>A logic input the target disjoins; the wire template sets the or class from it.</summary>
+    public bool IsOr { get; } = isOr;
 
     public CanvasConnectorViewModel Source { get; } = source;
 

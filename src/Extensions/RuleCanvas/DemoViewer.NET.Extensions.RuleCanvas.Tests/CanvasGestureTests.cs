@@ -1,5 +1,6 @@
 #region
 
+using Avalonia.Controls;
 using Avalonia.Input;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
@@ -95,6 +96,93 @@ public class CanvasGestureTests
     [Arguments(Key.S, KeyModifiers.Control, CanvasKeyAction.None)]
     public async Task TheKeyMap_ReadsEachChord(Key key, KeyModifiers modifiers, CanvasKeyAction expected) =>
         await Assert.That(CanvasKeyMap.Resolve(key, modifiers)).IsEqualTo(expected);
+
+    // A picker that holds focus steps its selection on the wheel, and a stepped picker writes at once.
+    [Test]
+    public async Task AWheelOverAClosedPicker_IsTheEditorsZoom_AndAnOpenListOrPlainTextIsNot()
+    {
+        ComboBox picker = new();
+        TextBlock caption = new();
+        StackPanel face = new() { Children = { picker, caption } };
+        using (Assert.Multiple())
+        {
+            await Assert.That(CanvasGestures.WheelOverClosedPicker(picker)).IsTrue().Because("the picker would step and write");
+            await Assert.That(CanvasGestures.WheelOverClosedPicker(caption)).IsFalse().Because("the editor zooms on its own there");
+            await Assert.That(CanvasGestures.WheelOverClosedPicker(face)).IsFalse();
+            await Assert.That(CanvasGestures.WheelOverClosedPicker(null)).IsFalse();
+            picker.IsDropDownOpen = true;
+            await Assert.That(CanvasGestures.WheelOverClosedPicker(picker)).IsFalse().Because("an open list scrolls");
+        }
+    }
+
+    // An editable combo with its list closed steps its selection on Up and Down, and the gate and field
+    // combos write a step at once, over the half-typed text.
+    [Test]
+    public async Task UpOrDownInAClosedEditableCombo_OpensItsList_AndNothingElseDoes()
+    {
+        ComboBox gate = new() { IsEditable = true };
+        ComboBox picker = new();
+        TextBox literal = new();
+        StackPanel face = new() { Children = { gate, picker, literal } };
+        using (Assert.Multiple())
+        {
+            await Assert.That(ReferenceEquals(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.None, gate), gate)).IsTrue();
+            await Assert.That(ReferenceEquals(CanvasGestures.ListToOpen(Key.Up, KeyModifiers.None, gate), gate)).IsTrue();
+            await Assert.That(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.Alt, gate)).IsNull().Because("Alt+Down is the combo's own toggle");
+            await Assert.That(CanvasGestures.ListToOpen(Key.Enter, KeyModifiers.None, gate)).IsNull();
+            await Assert.That(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.None, picker)).IsNull().Because("a plain picker is left to the combo");
+            await Assert.That(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.None, literal)).IsNull();
+            await Assert.That(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.None, face)).IsNull();
+            await Assert.That(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.None, null)).IsNull();
+            gate.IsDropDownOpen = true;
+            await Assert.That(CanvasGestures.ListToOpen(Key.Down, KeyModifiers.None, gate)).IsNull().Because("an open list is the combo's");
+        }
+    }
+
+    // The container turns any press it sees into a drag and captures the pointer, so a left press on an
+    // editor stops at the face. A right press must go on: the container is what selects the node before
+    // the menu opens, and a menu over an unselected node acts on the old selection.
+    [Test]
+    public async Task TheFaceKeepsALeftPressOnAnEditor_AndLetsARightPressReachTheContainer()
+    {
+        CheckBox toggle = new();
+        Button remove = new();
+        TextBlock caption = new();
+        StackPanel face = new() { Children = { toggle, remove, caption } };
+        PointerPointProperties left = new(RawInputModifiers.LeftMouseButton, PointerUpdateKind.LeftButtonPressed);
+        PointerPointProperties right = new(RawInputModifiers.RightMouseButton, PointerUpdateKind.RightButtonPressed);
+        using (Assert.Multiple())
+        {
+            await Assert.That(CanvasGestures.FaceKeepsPress(toggle, face, left)).IsTrue();
+            await Assert.That(CanvasGestures.FaceKeepsPress(remove, face, left)).IsTrue();
+            await Assert.That(CanvasGestures.FaceKeepsPress(caption, face, left)).IsFalse().Because("a press on plain text drags the node");
+            await Assert.That(CanvasGestures.FaceKeepsPress(toggle, face, right)).IsFalse().Because("the container selects on the right press");
+            await Assert.That(CanvasGestures.FaceKeepsPress(remove, face, right)).IsFalse();
+            await Assert.That(CanvasGestures.FaceKeepsPress(null, face, left)).IsFalse();
+        }
+    }
+
+    // The toast's close button promises Esc, but the toast only reads Escape when it holds focus, which
+    // nothing gives it; the key lands in the editor as ClearFocusAndSelection, so that command takes the
+    // toast with the selection and the control hides on the null.
+    [Test]
+    public async Task EscapesCommand_TakesTheToastWithTheSelection()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        vm.SelectedNodes.Add(vm.Nodes.First());
+        vm.Notify("a refusal");
+        await Assert.That(vm.Toast).IsNotNull();
+
+        await Assert.That(CanvasKeyMap.Resolve(Key.Escape, KeyModifiers.None)).IsEqualTo(CanvasKeyAction.ClearFocusAndSelection);
+        vm.ClearFocusAndSelectionCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Toast).IsNull().Because("Esc dismisses the toast from the editor, as its tooltip says");
+            await Assert.That(vm.SelectedNodes).IsEmpty();
+        }
+    }
 
     // The editor completes a connection on a plain click: the release hit-tests the press anchor and finds
     // the port it started from, so the command sees the same endpoint twice.

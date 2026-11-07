@@ -393,6 +393,8 @@
                                               TextPadding="5 1" TextCornerRadius="3"
                                               Classes.read="{Binding IsRead}"
                                               Classes.gate="{Binding IsGate}"
+                                              Classes.and="{Binding IsAnd}"
+                                              Classes.or="{Binding IsOr}"
                                               connections:BaseConnection.IsSelectable="True"
                                               ToolTip.Tip="{Binding Condition}">
                         <views:LabelledConnection.ContextMenu>
@@ -498,6 +500,7 @@
                                             IsVisible="{Binding CanEditLabel}" />
                                     <TextBox Text="{Binding LabelText}" Watermark="label" FontSize="11" MinWidth="90" Padding="4 1" MinHeight="0"
                                              IsVisible="{Binding ShowLabelEditor}"
+                                             views:FaceBehaviors.FocusWhenShown="True"
                                              views:FaceBehaviors.CommitOnLostFocus="{Binding CommitLabelCommand}">
                                         <TextBox.KeyBindings>
                                             <KeyBinding Gesture="Enter" Command="{Binding CommitLabelCommand}" />
@@ -859,10 +862,12 @@
                 </StackPanel>
             </Border>
 
-            <!-- A ruleset that declares nothing: a watermark with three quick starts. -->
-            <Border Classes="emptyCard" IsVisible="{Binding IsEmptyRuleset}" Background="Transparent" BorderThickness="0">
+            <!-- A ruleset that declares nothing: a watermark with three quick starts. Only the buttons take the
+                 pointer: a Transparent brush would make the whole card the hit target, and the card is a sibling
+                 of the editor, so a drop or a right click there would reach nothing. -->
+            <Border Classes="emptyCard" IsVisible="{Binding IsEmptyRuleset}" Background="{x:Null}" BorderThickness="0">
                 <StackPanel Spacing="12" MaxWidth="420" HorizontalAlignment="Center">
-                    <TextBlock Text="Drag a prefab or a stat from the gallery, or press + Add" FontSize="14"
+                    <TextBlock Text="Drag a prefab or a stat from the gallery, or press + Add" FontSize="14" IsHitTestVisible="False"
                                Foreground="{DynamicResource TextMid}" TextWrapping="Wrap" TextAlignment="Center" />
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" IsEnabled="{Binding IsEditable}">
                         <Button Classes="ghost" Content="Enemy kills" Command="{Binding QuickStartCommand}" CommandParameter="prefab"
@@ -873,7 +878,8 @@
                                 ToolTip.Tip="A highlight with a when: to fill in" />
                     </StackPanel>
                     <TextBlock Text="A shipped ruleset is read only here; Edit a copy puts one in your rules." FontSize="11"
-                               Foreground="{DynamicResource TextMid}" TextAlignment="Center" IsVisible="{Binding IsShippedRuleset}" />
+                               Foreground="{DynamicResource TextMid}" TextAlignment="Center" IsVisible="{Binding IsShippedRuleset}"
+                               IsHitTestVisible="False" />
                 </StackPanel>
             </Border>
 

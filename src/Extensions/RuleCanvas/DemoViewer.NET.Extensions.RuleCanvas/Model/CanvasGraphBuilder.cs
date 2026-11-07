@@ -49,7 +49,7 @@ public static class CanvasGraphBuilder
         foreach (WireSpec spec in specs)
         {
             wires.Add(new CanvasConnectionViewModel(Side(outputs, spec.Source, false), Side(inputs, spec.Target, true),
-                spec.Text, spec.Condition, spec.IsRead, spec.IsGate));
+                spec.Text, spec.Condition, spec.IsRead, spec.IsGate, spec.IsAnd, spec.IsOr));
         }
 
         List<CanvasPlacement.Item> items = new(nodes.Count);
