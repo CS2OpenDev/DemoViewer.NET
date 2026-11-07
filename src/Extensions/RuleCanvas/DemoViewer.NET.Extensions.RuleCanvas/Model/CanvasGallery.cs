@@ -140,8 +140,9 @@ public static class CanvasGallery
                     "flag:\n  when: \"round_kills > 0\"\nper: round"),
                 new GalleryItem(GalleryItemKind.Stat, "compute", "compute", "A formula over sibling stats, at the scope's end.",
                     "compute: \"round_kills / max(round_deaths, 1)\"\nper: match"),
+                // The loader takes thresholds only as { min, target } maps; a bare number list is dropped with the stat.
                 new GalleryItem(GalleryItemKind.Stat, "tally", "tally", "Counts the scopes in which a sibling reached a threshold.",
-                    "tally: round_kills\nthresholds: [1, 2, 3, 4, 5]\nper: match"),
+                    "tally: round_kills\nthresholds:\n  - { min: 3, target: rounds_3k }\nper: match"),
                 new GalleryItem(GalleryItemKind.Stat, "streak", "streak", "The longest run of events closer together than the window, in ticks.",
                     "streak: kill\nmatch: { enemy: true }\nwindow: 640\nmin_streak: 2\nper: match"),
                 new GalleryItem(GalleryItemKind.Stat, "bucket", "bucket", "Counts, or sums a value, per key such as the weapon.",

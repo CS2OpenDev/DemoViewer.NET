@@ -28,6 +28,47 @@ public class RulesetEditsTests
             per: round
         """;
 
+    private const string Flags = """
+        ruleset: t
+        for: each_player
+
+        stats:
+          kills:
+            count: kill
+            per: round
+          hot:
+            flag: "kills > 0"
+            per: round
+          armed:
+            flag: true
+            on: kill
+            per: round
+          seen:
+            flag:
+              when: "kills > 1"
+            per: round
+        """;
+
+    [Test]
+    public async Task SetFlagWhen_RewritesTheScalarForm_InPlace_AndRefusesATriggerFlag()
+    {
+        string scalar = RulesetEdits.SetFlagWhen(Flags, "hot", "kills > 1");
+        string nested = RulesetEdits.SetFlagWhen(Flags, "seen", "kills > 2");
+        using (Assert.Multiple())
+        {
+            await Assert.That(scalar).Contains("  hot:\n    flag: \"kills > 1\"\n    per: round");
+            await Assert.That(scalar).DoesNotContain("when: kills > 1").Because("the loader takes no stat-level when:");
+            await Assert.That(RulesetEdits.Field(nested, "seen", "flag.when")).IsEqualTo("kills > 2");
+            await Assert.That(() => RulesetEdits.SetFlagWhen(Flags, "armed", "kills > 0")).Throws<InvalidOperationException>()
+                .WithMessageContaining("trigger flag");
+            await Assert.That(() => RulesetEdits.SetFlagWhen(Flags, "kills", "kills > 0")).Throws<InvalidOperationException>();
+            await Assert.That(RulesetEdits.FlagWhen(Flags, "hot")).IsEqualTo("kills > 0");
+            await Assert.That(RulesetEdits.FlagWhen(Flags, "seen")).IsEqualTo("kills > 1");
+            await Assert.That(RulesetEdits.FlagWhen(Flags, "armed")).IsNull();
+            await Assert.That(RulesetEdits.FlagWhen(Flags, "kills")).IsNull();
+        }
+    }
+
     [Test]
     public async Task SetFacet_ReplacesTheValue_InAFlowBlock_AndKeepsEverythingElse()
     {

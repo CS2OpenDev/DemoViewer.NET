@@ -214,25 +214,42 @@ public static class RulesetEdits
     }
 
     /// <summary>
-    ///     Sets a flag's <c>when:</c>, whichever of the two spellings the author used: nested under
-    ///     <c>flag:</c>, or <c>flag: true</c> with <c>when:</c> beside it.
+    ///     Sets an expression flag's condition, whichever of the two spellings the author used: nested as
+    ///     <c>flag: { when: }</c>, or the scalar <c>flag: "&lt;expr&gt;"</c>. A trigger flag (<c>flag: true</c>
+    ///     with <c>on:</c>) has no condition to set; the loader takes no stat-level <c>when:</c>.
     /// </summary>
     public static string SetFlagWhen(string text, string statId, string when)
     {
         RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
         YamlPath stat = RulesetDocumentEditor.StatPath(statId);
         // The writer keeps an existing scalar's quoting and quotes a new one as the text needs.
-        if (editor.Document.Find(stat.Key("flag")) is YamlMappingNode)
+        switch (editor.Document.Find(stat.Key("flag")))
         {
-            return editor.Apply([YamlEdits.SetKey(editor.Document, stat.Key("flag"), "when", when)]).Text;
+            case YamlMappingNode:
+                return editor.Apply([YamlEdits.SetKey(editor.Document, stat.Key("flag"), "when", when)]).Text;
+            case YamlScalarNode { Value: not ("true" or "false") }:
+                return editor.Apply([YamlEdits.SetScalar(editor.Document, stat.Key("flag"), when)]).Text;
+            case YamlScalarNode:
+                throw new InvalidOperationException($"{statId} is a trigger flag; it fires on its on: and has no when: to set");
+            default:
+                throw new InvalidOperationException($"{statId} is not a flag in this document");
         }
+    }
 
-        if (editor.Document.Find(stat) is not YamlMappingNode)
+    /// <summary>
+    ///     An expression flag's condition as written, from either spelling, or null for a trigger flag and
+    ///     for a stat that is not a flag.
+    /// </summary>
+    public static string? FlagWhen(string text, string statId)
+    {
+        YamlPath flag = RulesetDocumentEditor.StatPath(statId).Key("flag");
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        return editor.Document.Find(flag) switch
         {
-            throw new InvalidOperationException($"{statId} is not a stat in this document");
-        }
-
-        return editor.Apply([YamlEdits.SetKey(editor.Document, stat, "when", when)]).Text;
+            YamlMappingNode => editor.Scalar(flag.Key("when")),
+            YamlScalarNode { Value: not (null or "true" or "false") } scalar => scalar.Value,
+            _ => null
+        };
     }
 
     /// <summary>Appends a stat block (composed at zero indentation) under <c>stats:</c>. An empty <c>stats: {}</c> is opened for it.</summary>
