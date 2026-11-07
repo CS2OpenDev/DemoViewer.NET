@@ -229,6 +229,7 @@
                                               TextBackground="{DynamicResource PanelBg}"
                                               TextPadding="5 1" TextCornerRadius="3"
                                               Classes.read="{Binding IsRead}"
+                                              Classes.gate="{Binding IsGate}"
                                               ToolTip.Tip="{Binding Condition}" />
                 </DataTemplate>
             </nodify:NodifyEditor.ConnectionTemplate>

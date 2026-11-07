@@ -34,9 +34,13 @@ public sealed partial class CanvasConnectorViewModel : ObservableObject
 /// <param name="text">What the wire shows: the event that fires it, what it does, or the logic test.</param>
 /// <param name="condition">The lowered condition, shown on hover, or null.</param>
 /// <param name="isRead">A value read rather than a write; drawn dashed.</param>
+/// <param name="isGate">A gate holding the target open while it is active; drawn as a long dash.</param>
 public sealed class CanvasConnectionViewModel(CanvasConnectorViewModel source, CanvasConnectorViewModel target,
-    string text = "", string? condition = null, bool isRead = false)
+    string text = "", string? condition = null, bool isRead = false, bool isGate = false)
 {
+    /// <summary>A gate holding the target open while it is active; drawn dashed, labelled while.</summary>
+    public bool IsGate { get; } = isGate;
+
     public CanvasConnectorViewModel Source { get; } = source;
 
     public CanvasConnectorViewModel Target { get; } = target;

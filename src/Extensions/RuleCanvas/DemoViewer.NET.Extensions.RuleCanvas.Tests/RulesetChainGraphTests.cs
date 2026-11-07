@@ -270,7 +270,7 @@ public class RulesetChainGraphTests
     [Test]
     public async Task ABrokenReference_StillDrawsEveryEntry_AndPinsTheDiagnostic()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         string path = rules.UserPath("player_round");
         string text = File.ReadAllText(path);
         File.WriteAllText(path, text.Replace("or player.traded\"", "or player.traded or no_such_stat > 0\"", StringComparison.Ordinal));
@@ -301,7 +301,7 @@ public class RulesetChainGraphTests
     [Test]
     public async Task ABrokenDependency_StillDrawsBothDocuments_AndNamesTheDependency()
     {
-        using TempRules rules = TempRules.WithUser("player_stats");
+        using RulesTree rules = RulesTree.WithUser("player_stats");
         string root = DemoTestHelper.FindRepoRoot() ?? throw new InvalidOperationException("repo root not found");
         string kast = rules.UserPath("kast");
         File.WriteAllText(kast, File.ReadAllText(Path.Combine(root, "rules", "kast.rules.yaml"))

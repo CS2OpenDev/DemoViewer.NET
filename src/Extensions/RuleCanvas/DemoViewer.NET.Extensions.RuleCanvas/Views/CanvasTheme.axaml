@@ -44,9 +44,13 @@
         </ResourceDictionary>
     </Styles.Resources>
 
-    <!-- A read is a dashed wire; a write is solid. -->
+    <!-- A read is a dashed wire; a write is solid; a gate is a long dash, since it holds rather than fires. -->
     <Style Selector="connections|Connection.read">
         <Setter Property="StrokeDashArray" Value="4,3" />
+        <Setter Property="StrokeThickness" Value="1.5" />
+    </Style>
+    <Style Selector="connections|Connection.gate">
+        <Setter Property="StrokeDashArray" Value="8,4" />
         <Setter Property="StrokeThickness" Value="1.5" />
     </Style>
 </Styles>

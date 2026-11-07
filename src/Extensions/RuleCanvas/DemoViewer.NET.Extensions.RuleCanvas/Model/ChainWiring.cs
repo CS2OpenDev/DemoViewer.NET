@@ -12,7 +12,9 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 /// <param name="Text">What the wire says: the event for a write, the test for a logic input, <c>reads</c> for a read.</param>
 /// <param name="Condition">The lowered condition, for the hover, or null.</param>
 /// <param name="IsRead">A value read rather than a write; drawn dashed.</param>
-public sealed record WireSpec(RulesetDocumentNodeKey Source, RulesetDocumentNodeKey Target, string Text, string? Condition, bool IsRead)
+/// <param name="IsGate">A gate holding the target open while it is active; drawn as a long dash.</param>
+public sealed record WireSpec(RulesetDocumentNodeKey Source, RulesetDocumentNodeKey Target, string Text, string? Condition, bool IsRead,
+    bool IsGate = false)
 {
     /// <summary>The same wire as a placement edge.</summary>
     public RulesetDocumentEdge AsEdge() => new(Source, Target, Text);
@@ -37,7 +39,7 @@ public static class ChainWiring
                 if (drawn.Contains(edge.Source) && drawn.Contains(edge.Target))
                 {
                     wires.Add(new WireSpec(edge.Source, edge.Target, WireText(edge),
-                        string.IsNullOrWhiteSpace(edge.Condition) ? null : edge.Condition, edge.IsRead));
+                        string.IsNullOrWhiteSpace(edge.Condition) ? null : edge.Condition, edge.IsRead, edge.IsGate));
                 }
             }
 
@@ -65,7 +67,13 @@ public static class ChainWiring
         ArgumentNullException.ThrowIfNull(edge);
         if (edge.IsRead)
         {
-            return "reads";
+            // The chain names what is read when it is a companion ("reads .count"); plain reads say "reads".
+            return edge.Label.Length == 0 ? "reads" : edge.Label;
+        }
+
+        if (edge.IsGate)
+        {
+            return "while";
         }
 
         return edge.Effect switch
