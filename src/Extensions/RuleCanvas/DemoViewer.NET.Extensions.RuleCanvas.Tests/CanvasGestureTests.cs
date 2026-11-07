@@ -18,12 +18,14 @@ public class CanvasGestureTests
     private static bool IsBound(InputGestureRef gesture) => !ReferenceEquals(gesture.Value, MultiGesture.None);
 
     [Test]
-    public async Task TheEditingSet_HasEveryGesture_ButSplit()
+    public async Task TheEditingSet_HasEveryGesture_ButSplitAndEscape()
     {
         EditorGestures gestures = CanvasGestures.Editing();
         using (Assert.Multiple())
         {
             await Assert.That(IsBound(gestures.Connection.Split)).IsFalse().Because("a knot would be a second layer");
+            await Assert.That(IsBound(gestures.Editor.Keyboard.DeselectAll)).IsFalse()
+                .Because("the editor reads Escape on KeyUp from a face editor too; the key map owns it");
             await Assert.That(IsBound(gestures.Connector.Connect)).IsTrue();
             await Assert.That(IsBound(gestures.Connector.Disconnect)).IsTrue();
             await Assert.That(IsBound(gestures.Connection.Disconnect)).IsTrue();
@@ -43,6 +45,7 @@ public class CanvasGestureTests
             await Assert.That(IsBound(gestures.Connector.Disconnect)).IsFalse();
             await Assert.That(IsBound(gestures.Connection.Disconnect)).IsFalse();
             await Assert.That(IsBound(gestures.Connection.Split)).IsFalse();
+            await Assert.That(IsBound(gestures.Editor.Keyboard.DeselectAll)).IsFalse();
             await Assert.That(IsBound(gestures.Editor.Cutting)).IsFalse();
             await Assert.That(IsBound(gestures.Editor.Selection.Replace)).IsTrue();
             await Assert.That(IsBound(gestures.Editor.Selection.Append)).IsTrue();
@@ -90,4 +93,5 @@ public class CanvasGestureTests
     [Arguments(Key.S, KeyModifiers.Control, CanvasKeyAction.None)]
     public async Task TheKeyMap_ReadsEachChord(Key key, KeyModifiers modifiers, CanvasKeyAction expected) =>
         await Assert.That(CanvasKeyMap.Resolve(key, modifiers)).IsEqualTo(expected);
+
 }
