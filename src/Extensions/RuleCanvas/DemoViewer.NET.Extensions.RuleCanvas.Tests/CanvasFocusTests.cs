@@ -117,7 +117,14 @@ public class CanvasFocusTests
         clock.Restart();
         (IReadOnlyList<CanvasNodeViewModel> nodes, IReadOnlyList<CanvasConnectionViewModel> wires) = CanvasGraphBuilder.Build(composed);
         long placeMs = clock.ElapsedMilliseconds;
-        string note = $"player_stats: {nodes.Count} nodes, {wires.Count} wires; compose {firstMs}ms first, {composeMs}ms warm; build and place {placeMs}ms";
+        // The placement's bounding box, from the estimated sizes the placement itself used: a layout
+        // baseline for later work, beside the chain's own counts.
+        double right = nodes.Max(n => n.Location.X + n.EstimatedSize.Width) - nodes.Min(n => n.Location.X);
+        double bottom = nodes.Max(n => n.Location.Y + n.EstimatedSize.Height) - nodes.Min(n => n.Location.Y);
+        int gates = composed.Chain.Edges.Count(e => e.IsGate);
+        string note = $"player_stats: {nodes.Count} nodes, {wires.Count} wires ({gates} gates); chain {composed.Chain.Nodes.Count} nodes, "
+                      + $"{composed.Chain.Edges.Count} edges; placed {right:F0}x{bottom:F0}, aspect {right / bottom:F2}; "
+                      + $"compose {firstMs}ms first, {composeMs}ms warm; build and place {placeMs}ms";
         Console.WriteLine("[canvas] " + note);
         File.WriteAllText(Path.Combine(Path.GetTempPath(), "rulecanvas-player-stats-timing.txt"), note);
         await Assert.That(composeMs + placeMs).IsLessThan(5000).Because(note);

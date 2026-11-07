@@ -28,7 +28,7 @@ public sealed class RulesetCorpus
     public sealed record Entry(string Id, string Title, string Path, string Source);
 
     /// <summary>What composing one ruleset produced.</summary>
-    /// <param name="Graph">The nodes and edges; empty when the composition failed.</param>
+    /// <param name="Graph">The nodes and edges; the declared entries alone, unwired, when the composition failed.</param>
     /// <param name="Documents">Every document that took part, by id, for the chips and facets a checked stat does not carry.</param>
     /// <param name="Diagnostics">The composition's diagnostics, as text.</param>
     /// <param name="PositionedDiagnostics">The same diagnostics that carry a line, with the ruleset they are about.</param>
@@ -67,6 +67,9 @@ public sealed class RulesetCorpus
     private static readonly Lazy<PerPlayerEntityValueProviderRegistry> _perPlayerProviders = new(PerPlayerEntityValueProviderRegistry.CreateDefault);
 
     private readonly Dictionary<string, RulesetDoc> _docs;
+
+    /// <summary>The demo-source profile every demo-less composition runs under, by the id the catalog keys its views on.</summary>
+    internal static string ProfileName => DemoSourceProfileRegistry.DefaultFallback.GetType().Name;
 
     private RulesetCorpus(IReadOnlyList<Entry> entries, Dictionary<string, RulesetDoc> docs, string? userDirectory,
         IReadOnlyList<(string Path, string Reason)> failures)
@@ -271,24 +274,28 @@ public sealed class RulesetCorpus
             }
         }
 
-        RulesetComposition.Result composed = RulesetComposition.Compose(docs, EmbeddedCatalog.Adapter, 64.0,
-            DemoSourceProfileRegistry.DefaultFallback.GetType().Name);
+        RulesetComposition.Result composed = RulesetComposition.Compose(docs, EmbeddedCatalog.Adapter, 64.0, ProfileName);
         List<string> diagnostics = [.. composed.Diagnostics.Select(d => d.ToString() ?? "")];
         List<(string, int, string)> positioned = [];
-        foreach (RulesetDiagnostic diagnostic in composed.Diagnostics)
+        foreach (RulesetCompositionDiagnostic diagnostic in composed.AttributedDiagnostics)
         {
-            if (diagnostic.Position.Line > 0 && diagnostic.Position.File is { } file)
+            if (diagnostic.Position is not { Line: > 0 } position)
             {
-                string? ruleset = taking.Values.FirstOrDefault(d => d.Position.File == file)?.Id;
-                if (ruleset is not null)
-                {
-                    positioned.Add((ruleset, diagnostic.Position.Line, diagnostic.Message));
-                }
+                continue;
+            }
+
+            // A cross-ruleset cycle is attributed to no ruleset; its file still names one.
+            string? ruleset = diagnostic.RulesetId
+                              ?? taking.Values.FirstOrDefault(d => position.File is not null && d.Position.File == position.File)?.Id;
+            if (ruleset is not null)
+            {
+                positioned.Add((ruleset, position.Line, diagnostic.Message));
             }
         }
 
+        // One unresolved reference anywhere empties the checked set; the entries are still in the documents.
         RulesetDocumentGraph graph = composed.Rulesets.Count == 0
-            ? RulesetDocumentGraph.Empty
+            ? RulesetDocumentGraph.FromDocuments(docs, open.Id)
             : RulesetDocumentGraph.Build(composed.Rulesets, open.Id);
         RulesetChainGraph chain = RulesetChainGraph.Empty;
         if (composed.Rulesets.Count > 0)

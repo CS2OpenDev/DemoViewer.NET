@@ -2,8 +2,14 @@
 
 using System.Diagnostics;
 using CS2DemoKit.Analysis.Abstractions;
+using CS2DemoKit.Analysis.Profiles;
+using CS2DemoKit.Analysis.Rules.Hashing;
+using CS2DemoKit.Analysis.RulesetsV2.Model;
+using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Analysis.Yaml;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
+using DemoViewer.NET.TestSupport;
+using TUnit.Core.Exceptions;
 
 #endregion
 
@@ -48,8 +54,15 @@ public class RulesetChainGraphTests
             await Assert.That(Node("enrich.kill.was_enemy_kill").Kind).IsEqualTo(ChainNodeKind.Enrichment);
             await Assert.That(Node("round_kills").Key).IsEqualTo(new RulesetDocumentNodeKey("player_round", "round_kills"))
                 .Because("a declared node keeps its document key, so facets and the jump still find it");
-            await Assert.That(chain.Edges.Any(e => e.Source.Id == "MatchLive" && e.Target.Id == "round_deaths" && e.Label == "player_death"))
-                .IsTrue().Because("while: match.live puts the gate in front of the stat");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "player_death" && e.Target.Id == "round_deaths" && e.Label == "player_death"
+                                                  && e.Guard == new RulesetDocumentNodeKey("~context", "MatchLive")))
+                .IsTrue().Because("the event fires the gated stat, and the wire names the guard");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "MatchLive" && e.Target.Id == "round_deaths" && e.IsGate && e.Label == "while"))
+                .IsTrue().Because("while: match.live is a gate wire beside the event wire");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "MatchLive" && e.Target.Id == "round_deaths" && !e.IsGate))
+                .IsFalse().Because("the guard is not drawn as what fires the stat");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "round_ended" && e.Target.Id == "round_survived" && e.Label == "round_ended"))
+                .IsTrue().Because("the trio behind player.alive merges once the wires run from the events");
             await Assert.That(chain.Edges.Any(e => e.Source.Id == "player_death" && e.Target.Id == "round_kills"
                                                   && e.Condition!.Contains("was_enemy_kill", StringComparison.Ordinal)))
                 .IsTrue().Because("the trigger wire carries the lowered condition");
@@ -61,8 +74,176 @@ public class RulesetChainGraphTests
             await Assert.That(chain.Nodes.Where(n => n.Kind == ChainNodeKind.External)).IsEmpty()
                 .Because("external state is where the walk stops; everything writes it");
             await Assert.That(chain.Nodes.Count).IsEqualTo(26)
-                .Because("the Workbench's 18 non-root nodes plus the eight events the root fires into them");
+                .Because("the Workbench's 18 non-root nodes plus eight events: the root's seven, and the three round ends "
+                         + "that fire round_survived through the Alive guard merged into one round_ended, which also "
+                         + "absorbs the cs_win_panel_match that ends MatchLive");
         }
+    }
+
+    [Test]
+    public async Task RoundEndTwins_MergeIntoOneEventNode_NamedByTheView()
+    {
+        RulesetChainGraph chain = Compose("player_stats").Chain;
+        ChainNode roundEnded = chain.Nodes.Single(n => n.Name == "round_ended");
+        ChainEdge[] intoClutch = [.. chain.Edges.Where(e => e.Target.Id == "clutch_won" && !e.IsRead)];
+        using (Assert.Multiple())
+        {
+            await Assert.That(roundEnded.Kind).IsEqualTo(ChainNodeKind.Event);
+            await Assert.That(roundEnded.Events).IsEquivalentTo(["round_officially_ended", "cs_win_panel_match", "round_end_terminal"])
+                .Because("the wire events stay on the node for hover text");
+            await Assert.That(chain.Nodes.Select(n => n.Name)).DoesNotContain("round_officially_ended")
+                .Because("the three round ends write the same nodes the same way, so they are one node");
+            await Assert.That(chain.Nodes.Single(n => n.Name == "player_death").Events).IsEquivalentTo(["player_death"]);
+            await Assert.That(intoClutch.Length).IsEqualTo(1).Because("a wire every twin carried is drawn once");
+            await Assert.That(intoClutch[0].Source).IsEqualTo(roundEnded.Key);
+            await Assert.That(intoClutch[0].Label).IsEqualTo("round_ended");
+            await Assert.That(chain.Edges.Any(e => e.Source == roundEnded.Key && e.Target.Id == "MatchLive" && e.Label == "cs_win_panel_match"
+                                                  && e.Effect == EdgeEffect.Deactivate))
+                .IsTrue().Because("a wire only one twin carried keeps that twin's name");
+            await Assert.That(chain.Nodes.Where(n => n.Kind == ChainNodeKind.Event).Select(n => n.Name))
+                .Contains("player_team_observed").Because("an event that writes no declared node is not merged with its neighbour");
+        }
+    }
+
+    [Test]
+    public async Task PlayerStats_EveryFiredStat_HasAWireFromItsEvent()
+    {
+        RulesetChainGraph chain = Compose("player_stats").Chain;
+        HashSet<RulesetDocumentNodeKey> eventKeys = [.. chain.Nodes.Where(n => n.Kind == ChainNodeKind.Event).Select(n => n.Key)];
+        List<ChainNode> declared = [.. chain.Nodes.Where(n => n.Kind == ChainNodeKind.Declared)];
+        string[] unfired =
+        [
+            .. declared.Where(n => !chain.Edges.Any(e => e.Target == n.Key && !e.IsRead && !e.IsGate)).Select(n => n.Key.Id)
+        ];
+        string[] gated = [.. chain.Edges.Where(e => e.Guard is not null).Select(e => e.Target.Id).Distinct()];
+        Console.WriteLine($"[chain] player_stats declared={declared.Count} no-write-wire={unfired.Length} gated={gated.Length}: {string.Join(", ", unfired)}");
+        using (Assert.Multiple())
+        {
+            await Assert.That(gated.Length).IsGreaterThanOrEqualTo(40).Because("most player_stats columns carry a while:");
+            await Assert.That(chain.Edges.Where(e => e.Guard is not null).All(e => eventKeys.Contains(e.Source))).IsTrue()
+                .Because("a gated write runs from its event");
+            await Assert.That(chain.Edges.Where(e => e.IsGate).All(e => chain.Nodes.Any(n => n.Key == e.Source && n.Kind == ChainNodeKind.Context)))
+                .IsTrue().Because("a gate runs from its guard, which stays on the canvas");
+            await Assert.That(unfired.Length).IsEqualTo(0)
+                .Because($"{unfired.Length} of {declared.Count} declared nodes have no write wire: {string.Join(", ", unfired)}");
+        }
+    }
+
+    [Test]
+    public async Task PlayerStats_MergingTwins_DropsTheDuplicateWires()
+    {
+        RulesetChainGraph chain = Compose("player_stats").Chain;
+        int twins = chain.Nodes.Count(n => n.Kind == ChainNodeKind.Event && n.Events.Count > 1);
+        int wires = chain.Edges.Count(e => !e.IsGate);
+        Console.WriteLine($"[chain] player_stats nodes={chain.Nodes.Count} edges={chain.Edges.Count} wires={wires} merged-events={twins}");
+        using (Assert.Multiple())
+        {
+            await Assert.That(twins).IsGreaterThanOrEqualTo(1);
+            await Assert.That(wires).IsLessThanOrEqualTo(202)
+                .Because("measured 245 before the merge, 201 after it, 202 once kast's tally is drawn; gate wires not counted");
+        }
+    }
+
+    [Test]
+    public async Task AHighlightsCount_IsReadAsTheHighlight()
+    {
+        RulesetChainGraph chain = Compose("player_stats").Chain;
+        ChainNode highlight = chain.Nodes.Single(n => n.Key == new RulesetDocumentNodeKey("player_stats", "opening_kill"));
+        ChainEdge[] intoDuelWin = [.. chain.Edges.Where(e => e.Target.Id == "DuelWin%" && e.IsRead)];
+        using (Assert.Multiple())
+        {
+            await Assert.That(highlight.Outputs).IsEquivalentTo(["opening_kill.count"]);
+            await Assert.That(chain.Nodes.Count(n => n.Key.Id.EndsWith(".count", StringComparison.Ordinal))).IsEqualTo(0)
+                .Because("the counter is drawn as the highlight that bumps it");
+            await Assert.That(intoDuelWin.Select(e => (e.Source.Id, e.Label)))
+                .IsEquivalentTo([("opening_kill", "reads .count"), ("opening_death", "reads .count")])
+                .Because("a compute over opening_kill.count reads the highlight, and the wire says which companion");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "opening_kill" && e.Target.Id == "opening_kill")).IsFalse()
+                .Because("the rising edge that bumps the counter is the highlight's own");
+        }
+    }
+
+    /// <summary>
+    ///     A tally has no node of its own in the engine, only its target counters and a seen flag, all owned by
+    ///     it; the canvas draws the entry once with the targets as outputs. The resolver does not let a sibling
+    ///     read a target counter (resolve.unknown-root), so the only readers of the targets are show: columns.
+    /// </summary>
+    [Test]
+    public async Task ATally_IsOneNode_WithItsTargetsAsOutputs()
+    {
+        RulesetCorpus.Composed composed = Compose("kast");
+        RulesetChainGraph chain = composed.Chain;
+        ChainNode tally = chain.Nodes.Single(n => n.Key == new RulesetDocumentNodeKey("kast", "multi_kill_tally"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Diagnostics).IsEmpty();
+            await Assert.That(tally.Kind).IsEqualTo(ChainNodeKind.Declared);
+            await Assert.That(tally.Outputs).IsEquivalentTo(["rounds_5k", "rounds_4k", "rounds_3k", "rounds_2k"])
+                .Because("the threshold targets in threshold order, for the face");
+            await Assert.That(chain.Nodes.Select(n => n.Key.Id)).DoesNotContain("rounds_5k").Because("a target is the tally, not a node");
+            await Assert.That(chain.Nodes.Count(n => n.Key == tally.Key)).IsEqualTo(1).Because("four targets and a seen flag fold into one node");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "kills" && e.Target == tally.Key && e.IsRead && e.Label == "reads")).IsTrue()
+                .Because("the tallied stat is read at round end");
+            await Assert.That(chain.Edges.Count(e => e.Source.Id == "round_ended" && e.Target == tally.Key && !e.IsRead)).IsEqualTo(1)
+                .Because("the bump runs once from the merged round end, not once per target per twin");
+        }
+    }
+
+    /// <summary>
+    ///     Every stat reference in every shipped compute: formula is a read wire into the compute, resolved
+    ///     the way the author spells it: a sibling, a qualified ruleset.stat, a highlight's .count or a tally's
+    ///     target. Measured 2026-11-07 over 21 rulesets: zero exceptions.
+    /// </summary>
+    [Test]
+    public async Task EveryComputeReference_HasAReadWireInTheChain()
+    {
+        string root = DemoTestHelper.FindRepoRoot() ?? throw new SkipTestException("repo root not found from the test bin");
+        string rulesDir = Path.Combine(root, "rules");
+        RuleConfigLoadResult loaded = YamlConfigLoader.TryLoadDirectory(rulesDir);
+        RulesetComposition.Result composed = RulesetComposition.Compose(loaded.Rulesets, EmbeddedCatalog.Adapter, 64.0,
+            DemoSourceProfileRegistry.DefaultFallback.GetType().Name);
+        RulesetCorpus corpus = RulesetCorpus.Load([(rulesDir, "shipped")]);
+
+        int references = 0;
+        List<string> missing = [];
+        foreach (CheckedRuleset ruleset in composed.Rulesets)
+        {
+            RulesetChainGraph chain = corpus.Compose(ruleset.Id.Id).Chain;
+            foreach (CheckedStat stat in ruleset.Stats.Where(s => s.Kind == RuleNodeKind.Compute))
+            {
+                RulesetDocumentNodeKey key = new(ruleset.Id.Id, stat.StatId);
+                // A compute: formula rides in TriggerCondition; the value selector is for sum: and capture:.
+                IEnumerable<string> paths = (stat.TriggerCondition?.References ?? []).Concat(stat.ValueSelector?.References ?? [])
+                    .Where(r => r.IsStatReference && r.StatPath is not null)
+                    .Select(r => r.StatPath!)
+                    .Distinct(StringComparer.Ordinal);
+                foreach (string statPath in paths)
+                {
+                    references++;
+                    if (!chain.Edges.Any(e => e.Target == key && e.IsRead && Names(chain, e.Source, statPath)))
+                    {
+                        missing.Add($"{key} <- {statPath}");
+                    }
+                }
+            }
+        }
+
+        Console.WriteLine($"[chain] compute references={references} without a wire={missing.Count}: {string.Join(", ", missing)}");
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Rulesets.Count).IsEqualTo(loaded.Rulesets.Count);
+            await Assert.That(references).IsGreaterThanOrEqualTo(60).Because("the shipped computes read dozens of siblings");
+            await Assert.That(missing.Count).IsEqualTo(0)
+                .Because($"{missing.Count} of {references} compute references have no read wire: {string.Join(", ", missing)}");
+        }
+    }
+
+    /// <summary>Whether the chain node at <paramref name="source" /> is what <paramref name="statPath" /> names.</summary>
+    private static bool Names(RulesetChainGraph chain, RulesetDocumentNodeKey source, string statPath)
+    {
+        ChainNode node = chain.Nodes.Single(n => n.Key == source);
+        return statPath == node.Key.Id || statPath == node.Key.ToString() || node.Outputs.Contains(statPath, StringComparer.Ordinal)
+               || statPath.StartsWith(node.Key.Id + ".", StringComparison.Ordinal);
     }
 
     [Test]
@@ -83,6 +264,64 @@ public class RulesetChainGraphTests
                 .IsEquivalentTo(Into("round_kills").Select(e => (e.Source, e.Label, e.IsRead)));
             await Assert.That(chain.Edges.Any(e => e.Source.Id == "round_kills" && e.Target.Id == "enemy_kills")).IsFalse()
                 .Because("sharing a node is not a wire between the two");
+        }
+    }
+
+    [Test]
+    public async Task ABrokenReference_StillDrawsEveryEntry_AndPinsTheDiagnostic()
+    {
+        using TempRules rules = TempRules.WithUser("player_round");
+        string path = rules.UserPath("player_round");
+        string text = File.ReadAllText(path);
+        File.WriteAllText(path, text.Replace("or player.traded\"", "or player.traded or no_such_stat > 0\"", StringComparison.Ordinal));
+        int brokenLine = Array.FindIndex(text.Split('\n'), l => l.StartsWith("  round_kast:", StringComparison.Ordinal)) + 1;
+
+        RulesetCorpus.Composed composed = rules.Load().Compose("player_round");
+        RulesetDocumentNode Node(string id) => composed.Graph.Nodes.Single(n => n.Key.Id == id);
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Chain.Nodes).IsEmpty().Because("nothing lowered");
+            await Assert.That(composed.Graph.Nodes.Count).IsEqualTo(8).Because("every stats: entry of the document is still a node");
+            await Assert.That(composed.Graph.Edges).IsEmpty().Because("no checked model, so no resolved read to draw");
+            await Assert.That(composed.Diagnostics.Any(d => d.Contains("no_such_stat", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(composed.PositionedDiagnostics.Any(d => d.RulesetId == "player_round" && d.Line >= brokenLine
+                                                                       && d.Message.Contains("no_such_stat", StringComparison.Ordinal)))
+                .IsTrue().Because("the diagnostic pins to the entry whose line it names");
+            await Assert.That(Node("round_kast").Kind).IsEqualTo(RuleNodeKind.Flag);
+            await Assert.That(Node("round_kast").IsAuthorable).IsTrue();
+            await Assert.That(Node("round_kast").Position.Line).IsEqualTo(brokenLine);
+            await Assert.That(Node("round_kills").View).IsEqualTo("kill").Because("count: kill names a catalog view");
+            await Assert.That(Node("round_kills").Events).IsEquivalentTo(["kill"]);
+            await Assert.That(Node("round_damage").Events).IsEquivalentTo(["damage_dealt"]).Because("the on: as written");
+            await Assert.That(Node("round_side").View).IsNull().Because("raw.round_freeze_end is no view");
+            await Assert.That(Node("round_kast").Events).IsEmpty();
+        }
+    }
+
+    [Test]
+    public async Task ABrokenDependency_StillDrawsBothDocuments_AndNamesTheDependency()
+    {
+        using TempRules rules = TempRules.WithUser("player_stats");
+        string root = DemoTestHelper.FindRepoRoot() ?? throw new InvalidOperationException("repo root not found");
+        string kast = rules.UserPath("kast");
+        File.WriteAllText(kast, File.ReadAllText(Path.Combine(root, "rules", "kast.rules.yaml"))
+            .Replace("kast_pct:\n    compute: \"", "kast_pct:\n    compute: \"no_such_stat + ", StringComparison.Ordinal));
+
+        RulesetCorpus corpus = rules.Load();
+        RulesetCorpus.Composed composed = corpus.Compose("player_stats");
+        using (Assert.Multiple())
+        {
+            await Assert.That(corpus.Failures).IsEmpty().Because("the edit keeps the file loadable");
+            await Assert.That(composed.Chain.Nodes).IsEmpty().Because(string.Join("; ", composed.Diagnostics));
+            await Assert.That(composed.Graph.Nodes.Count(n => n.Key.Ruleset == "player_stats")).IsGreaterThanOrEqualTo(50)
+                .Because("the open document's entries are all drawn");
+            await Assert.That(composed.Graph.Nodes.Count(n => n.Key.Ruleset == "kast")).IsGreaterThanOrEqualTo(15)
+                .Because("the dependency's entries are drawn too, read-only");
+            await Assert.That(composed.Graph.Nodes.Where(n => n.Key.Ruleset == "kast").All(n => !n.IsAuthorable)).IsTrue();
+            await Assert.That(composed.Graph.Nodes.Any(n => n.Key.Ruleset == "kast" && n.Kind == RuleNodeKind.Highlight)).IsTrue();
+            await Assert.That(composed.PositionedDiagnostics.Any(d => d.RulesetId == "kast"
+                                                                       && d.Message.Contains("no_such_stat", StringComparison.Ordinal)))
+                .IsTrue().Because("a dependency's diagnostic carries the dependency's id, so it pins to its own entry");
         }
     }
 

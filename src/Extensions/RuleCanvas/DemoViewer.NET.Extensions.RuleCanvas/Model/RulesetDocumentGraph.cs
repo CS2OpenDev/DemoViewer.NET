@@ -137,8 +137,46 @@ public sealed record RulesetDocumentGraph(
     IReadOnlyList<RulesetDocumentNode> Nodes,
     IReadOnlyList<RulesetDocumentEdge> Edges)
 {
-    /// <summary>The answer for a composition that produced nothing, which is what a failed check leaves.</summary>
+    /// <summary>The answer for no documents at all.</summary>
     public static RulesetDocumentGraph Empty { get; } = new([], []);
+
+    /// <summary>
+    ///     The declared entries of <paramref name="documents" /> as nodes with no edges: what the canvas draws
+    ///     when the composition failed and there is no checked model to project. Each node carries what the
+    ///     document itself says: the kind, the position, the label, the trigger as written, and the view when
+    ///     the catalog names one by that spelling. The value type is unknown, and a read is not resolved.
+    /// </summary>
+    public static RulesetDocumentGraph FromDocuments(IReadOnlyList<RulesetDoc> documents, string? openRulesetId)
+    {
+        ArgumentNullException.ThrowIfNull(documents);
+        HashSet<string> views = [.. EmbeddedCatalog.Root.Views.Select(v => v.Name)];
+        List<RulesetDocumentNode> nodes = [];
+        foreach (RulesetDoc doc in documents)
+        {
+            bool authorable = string.Equals(doc.Id, openRulesetId, StringComparison.Ordinal);
+            foreach (StatDef stat in doc.Stats)
+            {
+                // Only these kinds name their event in the kind argument; the others carry it under on:.
+                string? written = stat.Trigger?.On is { } on
+                    ? Spell(on)
+                    : stat.Kind is StatKind.Count or StatKind.Streak or StatKind.Bucket or StatKind.Burst
+                        ? stat.KindArg?.Trim()
+                        : null;
+                RuleNodeKind kind = Enum.TryParse(stat.Kind.ToString(), out RuleNodeKind parsed) ? parsed : RuleNodeKind.None;
+                nodes.Add(new RulesetDocumentNode(new RulesetDocumentNodeKey(doc.Id, stat.Id), kind, default,
+                    stat.Position, stat.Label, written is null ? [] : [written],
+                    written is not null && views.Contains(written) ? written : null, [], authorable));
+            }
+
+            foreach (HighlightDef highlight in doc.Highlights)
+            {
+                nodes.Add(new RulesetDocumentNode(new RulesetDocumentNodeKey(doc.Id, highlight.Id), RuleNodeKind.Highlight,
+                    RulesType.Bool, highlight.Position, highlight.Title, [], null, [], authorable));
+            }
+        }
+
+        return new RulesetDocumentGraph(nodes, []);
+    }
 
     /// <summary>
     ///     Projects the composed rulesets into nodes and edges.
@@ -191,6 +229,16 @@ public sealed record RulesetDocumentGraph(
 
         return new RulesetDocumentGraph(nodes, edges);
     }
+
+    /// <summary>The <c>on:</c> reference as the author spelled it, sigil and all.</summary>
+    private static string Spell(TriggerRef on) => on.Kind switch
+    {
+        TriggerRefKind.Raw => "raw." + on.Name,
+        TriggerRefKind.Net => "net." + on.Name,
+        TriggerRefKind.Cadence => "cadence." + on.Name,
+        TriggerRefKind.This => "this",
+        _ => on.Name
+    };
 
     /// <summary>
     ///     The ruleset's own id namespace, as <c>StatReferenceCycleDetector</c> builds it: every stat
