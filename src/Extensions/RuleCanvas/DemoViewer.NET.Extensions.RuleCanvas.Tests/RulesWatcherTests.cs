@@ -290,4 +290,126 @@ public class RulesWatcherTests
         vm.OnActivated(null!);
         await Assert.That(vm.IsWatching).IsFalse().Because("a report run off the editing thread would race it");
     }
+
+    private const string Fresh = "ruleset: fresh\ntitle: Fresh\nstats:\n  fresh_kills:\n    count: kill\n    per: round\n";
+
+    [Test]
+    public async Task ReActivation_LoadsTheOpenFile_WrittenWhileHidden_WhenThePaneIsClean()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        using CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        vm.OnDeactivated();
+        string path = rules.UserPath("player_round");
+        string text = Labelled(path);
+        WriteExternally(path, text);
+
+        vm.OnActivated(null!);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.DocumentText).IsEqualTo(text);
+            await Assert.That(vm.Nodes.Single(n => n.Id == "round_kills").Label).IsEqualTo("Kills!");
+            await Assert.That(vm.EditStatus).IsEqualTo("");
+        }
+    }
+
+    [Test]
+    public async Task ReActivation_OverADirtyPane_IsAStatusLine_AndKeepsThePaneText()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        using CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        string shown = vm.DocumentText;
+        vm.SourceEdited(shown + "# typing\n");
+        vm.OnDeactivated();
+        string path = rules.UserPath("player_round");
+        WriteExternally(path, Labelled(path));
+
+        vm.OnActivated(null!);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.EditStatus).IsEqualTo(CanvasTabViewModel.ChangedOnDiskStatus);
+            await Assert.That(vm.DocumentText).IsEqualTo(shown);
+            await Assert.That(vm.SourceDirty).IsTrue();
+            await Assert.That(vm.Nodes.Single(n => n.Id == "round_kills").Label).IsNotEqualTo("Kills!");
+        }
+    }
+
+    [Test]
+    public async Task ReActivation_SeesADependencyAndAFile_WrittenWhileHidden()
+    {
+        using RulesTree rules = RulesetCorpusReplaceTests.CorpusWithUser("kast");
+        using CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "player_stats";
+        vm.OnActivated(null!);
+        string kast = rules.UserPath("kast");
+        string kastNode = vm.Nodes.First(n => n.Ruleset == "kast").Id;
+        vm.OnDeactivated();
+        WriteExternally(kast, RulesetEdits.SetField(File.ReadAllText(kast), kastNode, "label", "From kast!"));
+        rules.User("fresh", Fresh);
+
+        vm.OnActivated(null!);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SelectedRuleset?.Id).IsEqualTo("player_stats");
+            await Assert.That(vm.Nodes.Single(n => n.Ruleset == "kast" && n.Id == kastNode).Label).IsEqualTo("From kast!");
+            await Assert.That(vm.Rulesets.Select(e => e.Id)).Contains("fresh");
+        }
+    }
+
+    [Test]
+    public async Task ABatchHeldWhileThePaneIsDirty_IsReplayedOnRevert()
+    {
+        using RulesTree rules = RulesetCorpusReplaceTests.CorpusWithUser("kast");
+        using CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "player_stats";
+        vm.OnActivated(null!);
+        vm.SourceEdited(vm.DocumentText + "# typing\n");
+        string kast = rules.UserPath("kast");
+        string kastNode = vm.Nodes.First(n => n.Ruleset == "kast").Id;
+        WriteExternally(kast, RulesetEdits.SetField(File.ReadAllText(kast), kastNode, "label", "From kast!"));
+        string fresh = rules.User("fresh", Fresh);
+
+        vm.FilesChanged([kast, fresh]);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Nodes.Single(n => n.Ruleset == "kast" && n.Id == kastNode).Label).IsNotEqualTo("From kast!");
+            await Assert.That(vm.Rulesets.Select(e => e.Id)).DoesNotContain("fresh").Because("nothing is reloaded under a dirty pane");
+            await Assert.That(vm.EditStatus).IsEqualTo("").Because("the open file did not change");
+        }
+
+        vm.RevertSourceCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SelectedRuleset?.Id).IsEqualTo("player_stats");
+            await Assert.That(vm.Nodes.Single(n => n.Ruleset == "kast" && n.Id == kastNode).Label).IsEqualTo("From kast!");
+            await Assert.That(vm.Rulesets.Select(e => e.Id)).Contains("fresh");
+        }
+    }
+
+    [Test]
+    public async Task ABatchHeldWhileThePaneIsDirty_IsReplayedOnSave()
+    {
+        using RulesTree rules = RulesetCorpusReplaceTests.CorpusWithUser("kast");
+        rules.UserCopyOf("player_stats");
+        using CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "player_stats";
+        vm.OnActivated(null!);
+        string typed = vm.DocumentText + "# typing\n";
+        vm.SourceEdited(typed);
+        string kast = rules.UserPath("kast");
+        string kastNode = vm.Nodes.First(n => n.Ruleset == "kast").Id;
+        WriteExternally(kast, RulesetEdits.SetField(File.ReadAllText(kast), kastNode, "label", "From kast!"));
+        string fresh = rules.User("fresh", Fresh);
+        vm.FilesChanged([kast, fresh]);
+
+        vm.SaveSourceCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SourceDirty).IsFalse();
+            await Assert.That(vm.DocumentText).IsEqualTo(typed);
+            await Assert.That(vm.Nodes.Single(n => n.Ruleset == "kast" && n.Id == kastNode).Label).IsEqualTo("From kast!");
+            await Assert.That(vm.Rulesets.Select(e => e.Id)).Contains("fresh");
+        }
+    }
 }
