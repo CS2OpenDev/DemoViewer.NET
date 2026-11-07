@@ -214,6 +214,9 @@ public class NodeFaceTests
             undeclared.AddRange(faces.OfType<UndeclaredFace>().Select(f => f.Key.ToString()));
         }
 
-        Console.WriteLine("[faces] undeclared: " + string.Join(", ", undeclared));
+        // The two sequence nodes the engine synthesises for player_event's per: player_event tables are the
+        // only chain nodes no stats: or highlights: entry backs; any other document-less face is a regression.
+        await Assert.That(undeclared).IsEquivalentTo(["player_event.#seq_player_kills", "player_event.#seq_player_deaths"])
+            .Because("undeclared: " + string.Join(", ", undeclared));
     }
 }
