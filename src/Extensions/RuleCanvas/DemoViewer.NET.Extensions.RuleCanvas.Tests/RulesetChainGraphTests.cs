@@ -50,8 +50,15 @@ public class RulesetChainGraphTests
             await Assert.That(Node("enrich.kill.was_enemy_kill").Kind).IsEqualTo(ChainNodeKind.Enrichment);
             await Assert.That(Node("round_kills").Key).IsEqualTo(new RulesetDocumentNodeKey("player_round", "round_kills"))
                 .Because("a declared node keeps its document key, so facets and the jump still find it");
-            await Assert.That(chain.Edges.Any(e => e.Source.Id == "MatchLive" && e.Target.Id == "round_deaths" && e.Label == "player_death"))
-                .IsTrue().Because("while: match.live puts the gate in front of the stat");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "player_death" && e.Target.Id == "round_deaths" && e.Label == "player_death"
+                                                  && e.Guard == new RulesetDocumentNodeKey("~context", "MatchLive")))
+                .IsTrue().Because("the event fires the gated stat, and the wire names the guard");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "MatchLive" && e.Target.Id == "round_deaths" && e.IsGate && e.Label == "while"))
+                .IsTrue().Because("while: match.live is a gate wire beside the event wire");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "MatchLive" && e.Target.Id == "round_deaths" && !e.IsGate))
+                .IsFalse().Because("the guard is not drawn as what fires the stat");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "round_ended" && e.Target.Id == "round_survived" && e.Label == "round_ended"))
+                .IsTrue().Because("the trio behind player.alive merges once the wires run from the events");
             await Assert.That(chain.Edges.Any(e => e.Source.Id == "player_death" && e.Target.Id == "round_kills"
                                                   && e.Condition!.Contains("was_enemy_kill", StringComparison.Ordinal)))
                 .IsTrue().Because("the trigger wire carries the lowered condition");
@@ -63,7 +70,9 @@ public class RulesetChainGraphTests
             await Assert.That(chain.Nodes.Where(n => n.Kind == ChainNodeKind.External)).IsEmpty()
                 .Because("external state is where the walk stops; everything writes it");
             await Assert.That(chain.Nodes.Count).IsEqualTo(26)
-                .Because("the Workbench's 18 non-root nodes plus the eight events the root fires into them");
+                .Because("the Workbench's 18 non-root nodes plus eight events: the root's seven, and the three round ends "
+                         + "that fire round_survived through the Alive guard merged into one round_ended, which also "
+                         + "absorbs the cs_win_panel_match that ends MatchLive");
         }
     }
 
@@ -93,15 +102,40 @@ public class RulesetChainGraphTests
     }
 
     [Test]
+    public async Task PlayerStats_EveryFiredStat_HasAWireFromItsEvent()
+    {
+        RulesetChainGraph chain = Compose("player_stats").Chain;
+        HashSet<RulesetDocumentNodeKey> eventKeys = [.. chain.Nodes.Where(n => n.Kind == ChainNodeKind.Event).Select(n => n.Key)];
+        List<ChainNode> declared = [.. chain.Nodes.Where(n => n.Kind == ChainNodeKind.Declared)];
+        string[] unfired =
+        [
+            .. declared.Where(n => !chain.Edges.Any(e => e.Target == n.Key && !e.IsRead && !e.IsGate)).Select(n => n.Key.Id)
+        ];
+        string[] gated = [.. chain.Edges.Where(e => e.Guard is not null).Select(e => e.Target.Id).Distinct()];
+        Console.WriteLine($"[chain] player_stats declared={declared.Count} no-write-wire={unfired.Length} gated={gated.Length}: {string.Join(", ", unfired)}");
+        using (Assert.Multiple())
+        {
+            await Assert.That(gated.Length).IsGreaterThanOrEqualTo(40).Because("most player_stats columns carry a while:");
+            await Assert.That(chain.Edges.Where(e => e.Guard is not null).All(e => eventKeys.Contains(e.Source))).IsTrue()
+                .Because("a gated write runs from its event");
+            await Assert.That(chain.Edges.Where(e => e.IsGate).All(e => chain.Nodes.Any(n => n.Key == e.Source && n.Kind == ChainNodeKind.Context)))
+                .IsTrue().Because("a gate runs from its guard, which stays on the canvas");
+            await Assert.That(unfired.Length).IsEqualTo(0)
+                .Because($"{unfired.Length} of {declared.Count} declared nodes have no write wire: {string.Join(", ", unfired)}");
+        }
+    }
+
+    [Test]
     public async Task PlayerStats_MergingTwins_DropsTheDuplicateWires()
     {
         RulesetChainGraph chain = Compose("player_stats").Chain;
         int twins = chain.Nodes.Count(n => n.Kind == ChainNodeKind.Event && n.Events.Count > 1);
-        Console.WriteLine($"[chain] player_stats nodes={chain.Nodes.Count} edges={chain.Edges.Count} merged-events={twins}");
+        int wires = chain.Edges.Count(e => !e.IsGate);
+        Console.WriteLine($"[chain] player_stats nodes={chain.Nodes.Count} edges={chain.Edges.Count} wires={wires} merged-events={twins}");
         using (Assert.Multiple())
         {
             await Assert.That(twins).IsGreaterThanOrEqualTo(1);
-            await Assert.That(chain.Edges.Count).IsLessThanOrEqualTo(201).Because("measured 201 after the merge, 245 before");
+            await Assert.That(wires).IsLessThanOrEqualTo(201).Because("measured 201 after the merge, 245 before; gate wires not counted");
         }
     }
 

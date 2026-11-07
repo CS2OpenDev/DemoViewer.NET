@@ -52,7 +52,14 @@ public sealed record ChainNode(RulesetDocumentNodeKey Key, ChainNodeKind Kind, s
 /// <param name="Effect">What the edge does to its target.</param>
 /// <param name="IsRead">A value read rather than a write.</param>
 public sealed record ChainEdge(RulesetDocumentNodeKey Source, RulesetDocumentNodeKey Target, string Label,
-    string? Condition, EdgeEffect Effect, bool IsRead);
+    string? Condition, EdgeEffect Effect, bool IsRead)
+{
+    /// <summary>The context guard a <c>while:</c> puts in front of this write, or null. The gate itself is a separate wire.</summary>
+    public RulesetDocumentNodeKey? Guard { get; init; }
+
+    /// <summary>A guard holding a write open rather than a write: drawn from the guard to the gated node, dashed.</summary>
+    public bool IsGate { get; init; }
+}
 
 /// <summary>
 ///     The engine's lowered chain for a composition, reduced to what the open rulesets reach: every declared
@@ -250,6 +257,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             string label = edge.Descriptor.Label ?? "";
             bool isRead = readBy is not null;
             IReadOnlyList<RulesetDocumentNodeKey> sources;
+            RulesetDocumentNodeKey? guard = null;
             if (isRead)
             {
                 sources = keys[readBy!];
@@ -257,6 +265,13 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             else if (ReferenceEquals(edge.Source, root))
             {
                 sources = [EventKey(label)];
+            }
+            else if (edge.Descriptor.Kind == GraphEdgeKind.Trigger && label.Length > 0 && kinds[edge.Source] == ChainNodeKind.Context)
+            {
+                // The engine wires a gated trigger from its guard; the event still fires it, so the wire
+                // runs from the event and the guard becomes a gate beside it.
+                sources = [EventKey(label)];
+                guard = keys[edge.Source][0];
             }
             else
             {
@@ -270,7 +285,11 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                 {
                     if (source != target)
                     {
-                        Add(new ChainEdge(source, target, text, edge.Descriptor.ConditionLabel, edge.Descriptor.Effect, isRead));
+                        Add(new ChainEdge(source, target, text, edge.Descriptor.ConditionLabel, edge.Descriptor.Effect, isRead) { Guard = guard });
+                        if (guard is { } gate && gate != target)
+                        {
+                            Add(new ChainEdge(gate, target, "while", null, edge.Descriptor.Effect, false) { IsGate = true });
+                        }
                     }
                 }
             }
@@ -357,7 +376,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             // Context targets are left out of the signature on purpose: cs_win_panel_match also ends
             // MatchLive, and that must not keep it apart from the other two round ends.
             string signature = Signature(edges
-                .Where(e => e.Source == key && !e.IsRead
+                .Where(e => e.Source == key && !e.IsRead && !e.IsGate
                             && kindByKey.GetValueOrDefault(e.Target) is ChainNodeKind.Declared or ChainNodeKind.Enrichment)
                 .Select(e => $"{e.Target}|{e.Effect}|{e.Condition}")
                 .Distinct(StringComparer.Ordinal));
@@ -406,12 +425,12 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
         }
 
         // Which twins carry each wire; a wire all of them carry is drawn once under the merged name.
-        Dictionary<(RulesetDocumentNodeKey, RulesetDocumentNodeKey, EdgeEffect, string?), HashSet<string>> carriers = new();
+        Dictionary<(RulesetDocumentNodeKey, RulesetDocumentNodeKey, EdgeEffect, string?, RulesetDocumentNodeKey?), HashSet<string>> carriers = new();
         foreach (ChainEdge edge in edges)
         {
             if (merged.TryGetValue(edge.Source, out (RulesetDocumentNodeKey Key, string Name, List<string> Events) twin) && !edge.IsRead)
             {
-                (RulesetDocumentNodeKey, RulesetDocumentNodeKey, EdgeEffect, string?) wire = (twin.Key, edge.Target, edge.Effect, edge.Condition);
+                (RulesetDocumentNodeKey, RulesetDocumentNodeKey, EdgeEffect, string?, RulesetDocumentNodeKey?) wire = (twin.Key, edge.Target, edge.Effect, edge.Condition, edge.Guard);
                 (carriers.TryGetValue(wire, out HashSet<string>? set) ? set : carriers[wire] = []).Add(edge.Label);
             }
         }
@@ -423,7 +442,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             ChainEdge next = edge;
             if (merged.TryGetValue(edge.Source, out (RulesetDocumentNodeKey Key, string Name, List<string> Events) twin))
             {
-                bool shared = !edge.IsRead && carriers[(twin.Key, edge.Target, edge.Effect, edge.Condition)].SetEquals(twin.Events);
+                bool shared = !edge.IsRead && carriers[(twin.Key, edge.Target, edge.Effect, edge.Condition, edge.Guard)].SetEquals(twin.Events);
                 next = edge with { Source = twin.Key, Label = shared ? twin.Name : edge.Label };
             }
 
