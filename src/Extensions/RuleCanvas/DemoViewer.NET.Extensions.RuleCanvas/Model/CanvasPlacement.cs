@@ -30,6 +30,11 @@ public static class CanvasPlacement
     /// <summary>One node to place, with the size the canvas is expected to give it.</summary>
     public sealed record Item(RulesetDocumentNodeKey Key, double Width, double Height);
 
+    private static long _placements;
+
+    /// <summary>How many times the layout engine has run in this process: a test's witness that a redraw did not place.</summary>
+    public static long Placements => Interlocked.Read(ref _placements);
+
     /// <summary>
     ///     Places only the items <paramref name="known" /> has no position for, which is how a redraw after
     ///     an edit keeps MSAGL off its path: with every node arranged nothing is computed, and a node that
@@ -90,6 +95,7 @@ public static class CanvasPlacement
             return placed;
         }
 
+        Interlocked.Increment(ref _placements);
         List<Component> components = Components(items, edges);
         List<(Component Component, Dictionary<RulesetDocumentNodeKey, Point> Local, Size Box)> boxes = [];
         foreach (Component component in components)

@@ -90,6 +90,7 @@ public class CanvasPlacementIncrementalTests
         CanvasGraphBuilder.Build(whole.Compose("player_stats"));
         long oldPathMs = clock.ElapsedMilliseconds;
 
+        long placements = CanvasPlacement.Placements;
         clock.Restart();
         stat.FacetToAdd = "headshot";
         long writeMs = clock.ElapsedMilliseconds;
@@ -103,7 +104,7 @@ public class CanvasPlacementIncrementalTests
             await Assert.That(vm.Nodes.Count).IsEqualTo(before.Count);
             await Assert.That(vm.Nodes.All(n => before.TryGetValue(n.Key, out Point at) && at == n.Location)).IsTrue()
                 .Because("a redraw after an edit keeps every node where it was");
-            await Assert.That(writeMs).IsLessThan(5000).Because(note);
+            await Assert.That(CanvasPlacement.Placements).IsEqualTo(placements).Because("every position was known, so the layout engine did not run");
         }
     }
 }
