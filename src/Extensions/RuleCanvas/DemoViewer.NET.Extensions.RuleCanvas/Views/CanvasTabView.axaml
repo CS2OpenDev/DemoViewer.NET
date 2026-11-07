@@ -361,20 +361,15 @@
                             <TextBlock Text="{Binding Expression}" FontSize="11" FontFamily="monospace" MaxWidth="340"
                                        TextWrapping="Wrap" Foreground="{DynamicResource TextValue}" IsVisible="{Binding ShowExpressionText}" />
 
-                            <!-- The where:, when: and compute: text as editors while editable. -->
+                            <!-- The where:, when: and compute: lines as editors while editable: a flat condition
+                                 as rows, anything else as text. ConditionRowsView holds the editors. -->
                             <ItemsControl ItemsSource="{Binding Lines}" IsVisible="{Binding ShowLines}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:CanvasExpressionViewModel">
                                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0 1">
                                             <TextBlock Grid.Column="0" Text="{Binding Prefix}" FontSize="10" MinWidth="34"
-                                                       Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
-                                            <TextBox Grid.Column="1" Text="{Binding Text}" Watermark="{Binding Placeholder}"
-                                                     FontSize="11" FontFamily="monospace" MinWidth="200" MaxWidth="340" Padding="4 1" MinHeight="0"
-                                                     TextWrapping="Wrap" AcceptsReturn="False" LostFocus="OnExpressionLostFocus">
-                                                <TextBox.KeyBindings>
-                                                    <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
-                                                </TextBox.KeyBindings>
-                                            </TextBox>
+                                                       Foreground="{DynamicResource TextDim}" VerticalAlignment="Top" Margin="0 3 0 0" />
+                                            <views:ConditionRowsView Grid.Column="1" />
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>

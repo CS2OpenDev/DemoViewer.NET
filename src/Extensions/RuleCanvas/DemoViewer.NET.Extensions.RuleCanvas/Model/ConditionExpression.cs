@@ -268,6 +268,40 @@ public sealed class ConditionExpression
         return Join(texts, separators);
     }
 
+    /// <summary>
+    ///     Joins every row by <paramref name="connective" /> instead, keeping each separator's spacing and
+    ///     spelling family: <c>&amp;&amp;</c> becomes <c>||</c> and <c>and</c> becomes <c>or</c>. One row
+    ///     or none has nothing to switch, so the text comes back unchanged.
+    /// </summary>
+    /// <param name="connective">The kind.</param>
+    /// <returns>The new text.</returns>
+    /// <exception cref="InvalidOperationException">The expression is not flat.</exception>
+    public string WithConnective(ConditionConnective connective)
+    {
+        RequireFlat();
+        if (Connective is null || Connective == connective)
+        {
+            return ToText();
+        }
+
+        List<string> separators = [];
+        foreach (string separator in _separators)
+        {
+            string spelling = separator.Trim();
+            string replacement = spelling switch
+            {
+                "&&" => "||",
+                "||" => "&&",
+                "and" => "or",
+                _ => "and"
+            };
+            int at = separator.IndexOf(spelling, StringComparison.Ordinal);
+            separators.Add(separator[..at] + replacement + separator[(at + spelling.Length)..]);
+        }
+
+        return Join([.. _leaves.Select(l => l.Text)], separators);
+    }
+
     private void RequireFlat()
     {
         if (!IsFlat)

@@ -90,7 +90,7 @@ public partial class CanvasTabView : UserControl
     private void OnFacePressed(object? sender, PointerPressedEventArgs e)
     {
         if (e.Source is Visual source && source.GetSelfAndVisualAncestors().TakeWhile(v => !ReferenceEquals(v, sender))
-                .Any(v => v is ComboBox or TextBox or CheckBox or Button))
+                .Any(v => v is ComboBox or TextBox or AutoCompleteBox or CheckBox or Button))
         {
             e.Handled = true;
         }
@@ -102,14 +102,6 @@ public partial class CanvasTabView : UserControl
         if (sender is TextBox { DataContext: CanvasFacetViewModel facet })
         {
             facet.Commit();
-        }
-    }
-
-    private void OnExpressionLostFocus(object? sender, RoutedEventArgs e)
-    {
-        if (sender is TextBox { DataContext: CanvasExpressionViewModel line })
-        {
-            line.Commit();
         }
     }
 
