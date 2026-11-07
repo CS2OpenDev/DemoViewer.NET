@@ -164,6 +164,70 @@ public static class CanvasEditSemantics
     }
 
     /// <summary>
+    ///     What a wire from <paramref name="source" /> to <paramref name="target" /> would write, in one line
+    ///     for the pending wire's preview: <c>sets while: match.live</c>, <c>binds facet enemy</c>,
+    ///     <c>joins when: with or round_damage &gt; 0</c>, or the refusal. Nothing is applied; the decision is
+    ///     <see cref="Connect" />'s, and the words come from the same facts it decided on.
+    /// </summary>
+    public static string ConnectPreview(CanvasNodeViewModel source, CanvasNodeViewModel target)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+        EditRequest request = Connect(source, target);
+        if (request.IsRefused)
+        {
+            return request.Refusal ?? "nothing to write";
+        }
+
+        if (target.IsHighlight)
+        {
+            return $"joins when: with and {ReadOf(source, target)} > 0";
+        }
+
+        switch (source.Ruleset)
+        {
+            case "~event":
+            {
+                IReadOnlyList<string> views = ViewsFiredBy(source.Id);
+                return target.Kind == "count"
+                    ? $"sets count: {views[0]}"
+                    : $"sets on: {(views.Count == 1 ? views[0] : "raw." + source.Id)}";
+            }
+            case "~context":
+                return $"sets while: {GatePathOf(source.Id)}";
+            case "~enrichment":
+                return $"binds facet {FacetReading(target.View, source.Id)?.Name}";
+            default:
+                return $"joins when: with or {ReadOf(source, target)} > 0";
+        }
+    }
+
+    /// <summary>
+    ///     Copies <paramref name="node" />'s entry under <paramref name="id" />, body and comments as written,
+    ///     at the end of its section. A node not declared by the open document has no text to copy.
+    /// </summary>
+    public static EditRequest Duplicate(CanvasNodeViewModel node, string id)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (!node.IsAuthorable || node.IsScaffold)
+        {
+            return EditRequest.Refuse("Only a stat or a highlight of your own ruleset can be duplicated.");
+        }
+
+        return EditRequest.Of(text =>
+        {
+            string body = RulesetEntryText.BodyOf(text, node.Id, node.IsHighlight);
+            if (node.IsHighlight)
+            {
+                return RulesetEdits.AddHighlight(text, id, body);
+            }
+
+            string indented = string.Join('\n', body.Split('\n').Select(l => l.Length == 0 ? l : "  " + l));
+            return RulesetEdits.AddStat(text, $"{id}:\n{indented}\n");
+        }, $"duplicate {node.Id} as {id}");
+    }
+
+    /// <summary>
     ///     A wire removed: the gate wire takes <c>while:</c> with it, and an enrichment's read takes the facet
     ///     that reads it. Trigger wires and logic inputs are the stat's own definition and stay. A wire whose
     ///     target is not the author's is ignored.

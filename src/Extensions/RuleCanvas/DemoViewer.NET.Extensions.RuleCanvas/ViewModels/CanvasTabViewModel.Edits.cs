@@ -1,5 +1,6 @@
 #region
 
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
 
@@ -180,13 +181,174 @@ public sealed partial class CanvasTabViewModel
         }
     }
 
-    /// <summary>A wire removed from the canvas: what it stood for is taken out of the file, or the removal is refused.</summary>
+    /// <summary>
+    ///     A wire removed from the canvas: what it stood for is taken out of the file, or the removal is
+    ///     refused. While a cut is in progress the wires are held and taken out together when it ends.
+    /// </summary>
     [RelayCommand]
     private void Disconnect(object? wire)
     {
-        if (wire is CanvasConnectionViewModel connection && IsEditable)
+        if (wire is not CanvasConnectionViewModel connection || !IsEditable)
         {
-            Apply(CanvasEditSemantics.Disconnect(connection));
+            return;
+        }
+
+        if (_cutting is not null)
+        {
+            _cutting.Add(connection);
+            return;
+        }
+
+        Apply(CanvasEditSemantics.Disconnect(connection));
+    }
+
+    /// <summary>The wire being dragged, written by the editor; its preview text is the semantics' answer.</summary>
+    public CanvasPendingConnectionViewModel Pending { get; } = new();
+
+    /// <summary>The editor's wire selection, written by the editor. Delete removes them when no node is selected.</summary>
+    public ObservableCollection<object> SelectedWires { get; } = [];
+
+    /// <summary>The wires crossed by the cutting line so far, or null between cuts.</summary>
+    private List<CanvasConnectionViewModel>? _cutting;
+
+    /// <summary>The cutting line was started: wires it crosses are held until it ends.</summary>
+    [RelayCommand]
+    private void CuttingStarted() => _cutting = [];
+
+    /// <summary>The cutting line ended: every wire it crossed is taken out, refusals folded into one line.</summary>
+    [RelayCommand]
+    private void CuttingCompleted()
+    {
+        List<CanvasConnectionViewModel> cut = _cutting ?? [];
+        _cutting = null;
+        DisconnectWires(cut);
+    }
+
+    /// <summary>Removes the selected wires through <see cref="CanvasEditSemantics.Disconnect" />, refusals folded into one line.</summary>
+    [RelayCommand]
+    private void DeleteWires() => DisconnectWires([.. SelectedWires.OfType<CanvasConnectionViewModel>()]);
+
+    /// <summary>
+    ///     The Delete key: the selected nodes' entries when any is the author's, else the selected wires. A
+    ///     selection of engine nodes alone has nothing in the file to delete.
+    /// </summary>
+    [RelayCommand]
+    private void DeleteSelection()
+    {
+        if (SelectedNodes.OfType<CanvasNodeViewModel>().Any(n => n.IsAuthorable))
+        {
+            DeleteSelected();
+        }
+        else if (SelectedWires.Count > 0)
+        {
+            DeleteWires();
+        }
+    }
+
+    /// <summary>Copies the first selected entry under a fresh id, at the end of its section.</summary>
+    [RelayCommand]
+    private void Duplicate()
+    {
+        if (SelectedNodes.OfType<CanvasNodeViewModel>().FirstOrDefault(n => n.IsAuthorable && !n.IsScaffold) is { } node)
+        {
+            DuplicateNode(node);
+        }
+    }
+
+    /// <summary>Copies <paramref name="node" />'s entry under a fresh id, which the redraw then selects.</summary>
+    public void DuplicateNode(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (!IsEditable)
+        {
+            return;
+        }
+
+        string id = FreshId(node.Id + "_copy");
+        if (Apply(CanvasEditSemantics.Duplicate(node, id)) && Nodes.FirstOrDefault(n => n.Id == id && n.Ruleset == node.Ruleset) is { } copy)
+        {
+            SelectedNodes.Clear();
+            SelectedNodes.Add(copy);
+        }
+    }
+
+    /// <summary>Selects every node drawn.</summary>
+    [RelayCommand]
+    private void SelectAll()
+    {
+        SelectedNodes.Clear();
+        foreach (CanvasNodeViewModel node in Nodes)
+        {
+            SelectedNodes.Add(node);
+        }
+    }
+
+    /// <summary>Escape: the whole chain comes back and nothing stays selected.</summary>
+    [RelayCommand]
+    private void ClearFocusAndSelection()
+    {
+        SelectedNodes.Clear();
+        SelectedWires.Clear();
+        FocusKey = null;
+    }
+
+    /// <summary>Adds a count stat on <paramref name="view" /> placed at <paramref name="at" />, as the canvas menu asks.</summary>
+    public void AddStatAt(string view, Avalonia.Point at)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        if (Gallery.SelectMany(g => g.Items).FirstOrDefault(i => i.Kind == GalleryItemKind.View && i.Name == view) is { } item)
+        {
+            PlaceItem(item, at);
+        }
+    }
+
+    /// <summary>Adds the gallery's blank highlight placed at <paramref name="at" />, as the canvas menu asks.</summary>
+    public void AddHighlightAt(Avalonia.Point at)
+    {
+        List<GalleryItem> highlights = [.. Gallery.SelectMany(g => g.Items).Where(i => i.Kind == GalleryItemKind.Highlight)];
+        GalleryItem? item = highlights.FirstOrDefault(i => i.Name == "highlight") ?? highlights.FirstOrDefault();
+        if (item is not null)
+        {
+            PlaceItem(item, at);
+        }
+    }
+
+    // Each wire is its own write and redraw; a refused one is kept and said once, with the count that went.
+    private void DisconnectWires(List<CanvasConnectionViewModel> wires)
+    {
+        if (!IsEditable || wires.Count == 0)
+        {
+            return;
+        }
+
+        List<string> refusals = [];
+        int removed = 0;
+        foreach (CanvasConnectionViewModel wire in wires)
+        {
+            EditRequest request = CanvasEditSemantics.Disconnect(wire);
+            if (request.IsRefused)
+            {
+                if (request.Refusal is { } reason && !refusals.Contains(reason))
+                {
+                    refusals.Add(reason);
+                }
+            }
+            else if (Apply(request))
+            {
+                removed++;
+            }
+            else if (EditStatus.Length > 0 && !refusals.Contains(EditStatus))
+            {
+                refusals.Add(EditStatus);
+            }
+        }
+
+        SelectedWires.Clear();
+        if (refusals.Count > 0)
+        {
+            string kept = wires.Count - removed == 1 ? "1 wire kept" : $"{wires.Count - removed} wires kept";
+            string went = removed == 0 ? "" : removed == 1 ? "1 wire removed; " : $"{removed} wires removed; ";
+            EditStatus = $"{went}{kept}: {string.Join(" ", refusals)}";
         }
     }
 
