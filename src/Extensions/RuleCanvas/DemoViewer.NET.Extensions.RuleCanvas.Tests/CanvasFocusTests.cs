@@ -103,6 +103,7 @@ public class CanvasFocusTests
     }
 
     [Test]
+    [NotInParallel]
     public async Task PlayerStats_ComposesAndPlaces_WithinBudget()
     {
         string shipped = RuleSetLocator.ResolveShippedRulesDirectory();

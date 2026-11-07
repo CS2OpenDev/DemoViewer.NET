@@ -136,7 +136,7 @@ public class RuleCanvasHubTests
                     await Assert.That(texts).Contains("round_kast");
                     await Assert.That(texts).Contains("enemy").Because("the detailed style shows the facet rows");
                     await Assert.That(texts).Contains("while player.alive").Because("the gate is a chip on a shipped ruleset");
-                    await Assert.That(texts).Contains("player_round.rules.yaml").Because("the source pane names the file it shows");
+                    await Assert.That(texts).Contains("YAML").Because("the right dock offers the YAML tab beside the Inspector");
                 }
             }
             finally

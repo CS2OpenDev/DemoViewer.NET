@@ -32,6 +32,7 @@ public partial class CanvasTabView : UserControl
 
     // The item being dragged from the gallery. The platform payload only has to exist; the drop reads this.
     private GalleryItem? _dragging;
+    private Point? _rightPressAt;
 
     // Where the last right press landed in graph space: what the canvas menu's Add items place at.
     private Point _menuAt;
@@ -51,6 +52,7 @@ public partial class CanvasTabView : UserControl
         Editor.AddHandler(DragDrop.DragOverEvent, OnEditorDragOver);
         Editor.AddHandler(DragDrop.DropEvent, OnEditorDrop);
         Editor.AddHandler(PointerPressedEvent, OnEditorPointerPressed, RoutingStrategies.Tunnel);
+        Editor.AddHandler(PointerReleasedEvent, OnEditorPointerReleased, RoutingStrategies.Bubble, true);
         Editor.AddHandler(KeyDownEvent, OnEditorKeyDown, RoutingStrategies.Bubble, true);
         ZoomCluster.AddHandler(PointerWheelChangedEvent, OnOverlayWheel);
         DataContextChanged += (_, _) => Attach(DataContext as CanvasTabViewModel);
@@ -123,7 +125,42 @@ public partial class CanvasTabView : UserControl
         if (e.GetCurrentPoint(Editor).Properties.IsRightButtonPressed)
         {
             _menuAt = Editor.GetLocationInsideEditor(e);
+            _rightPressAt = e.GetPosition(this);
         }
+    }
+
+    // Nodify's editor and its containers take the release without calling the base handler, so Avalonia
+    // never raises the context request that would open a ContextMenu. A right click that did not pan opens
+    // the menu of the control under the pointer here: a node's, a wire's, or the canvas's.
+    private void OnEditorPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (e.InitialPressMouseButton != MouseButton.Right || _rightPressAt is not { } pressed)
+        {
+            return;
+        }
+
+        _rightPressAt = null;
+        Point released = e.GetPosition(this);
+        if (e.Handled || new Vector(released.X - pressed.X, released.Y - pressed.Y).Length > NodifyEditor.MouseActionSuppressionThreshold)
+        {
+            return;
+        }
+
+        Visual? hit = this.InputHitTest(released) as Visual ?? e.Source as Visual;
+        Control? owner = hit?.GetSelfAndVisualAncestors().OfType<Control>().FirstOrDefault(c => c.ContextMenu is not null);
+        if (owner?.ContextMenu is not { } menu)
+        {
+            return;
+        }
+
+        if (owner is ItemContainer { DataContext: CanvasNodeViewModel node } && _viewModel is not null && !_viewModel.SelectedNodes.Contains(node))
+        {
+            _viewModel.SelectedNodes.Clear();
+            _viewModel.SelectedNodes.Add(node);
+        }
+
+        menu.Open(owner);
+        e.Handled = true;
     }
 
     // Keys reach here after the editor's own set. A press inside a text editor on a node face is that

@@ -49,6 +49,8 @@ public class RuleCanvasInputTests
                 ComboBox picker = window.GetVisualDescendants().OfType<ComboBox>()
                     .First(c => c.PlaceholderText == "add facet…" && c.IsEffectivelyVisible
                                 && c.DataContext is CanvasNodeViewModel { Id: "round_kills" });
+                CanvasNodeViewModel owner = (CanvasNodeViewModel)picker.DataContext!;
+                Reveal(EditorOf(window), new Rect(owner.Location, owner.EstimatedSize));
                 Point at = Center(picker, window);
                 window.MouseDown(at, MouseButton.Left);
                 window.MouseUp(at, MouseButton.Left);
@@ -98,6 +100,9 @@ public class RuleCanvasInputTests
 
                 CheckBox box = window.GetVisualDescendants().OfType<CheckBox>()
                     .First(c => c.DataContext is CanvasFacetViewModel { Name: "enemy" } && c.IsEffectivelyVisible);
+                Nodify.Avalonia.NodifyEditor editor = EditorOf(window);
+                CanvasNodeViewModel owner = ((CanvasTabViewModel)editor.DataContext!).Nodes.First(n => n.Facets.Contains(box.DataContext));
+                Reveal(editor, new Rect(owner.Location, owner.EstimatedSize));
                 Point at = Center(box, window);
                 window.MouseDown(at, MouseButton.Left);
                 window.MouseUp(at, MouseButton.Left);
@@ -135,8 +140,7 @@ public class RuleCanvasInputTests
                 Dispatcher.UIThread.RunJobs();
 
                 Nodify.Avalonia.NodifyEditor editor = window.GetVisualDescendants().OfType<Nodify.Avalonia.NodifyEditor>().First();
-                Point at = editor.TranslatePoint(new Point(editor.Bounds.Width - 10, editor.Bounds.Height - 200), window)
-                    ?? throw new InvalidOperationException("editor is not in the window");
+                Point at = EmptyCanvasPoint(editor, window);
                 window.MouseDown(at, MouseButton.Right);
                 window.MouseUp(at, MouseButton.Right);
                 Dispatcher.UIThread.RunJobs();
@@ -213,8 +217,14 @@ public class RuleCanvasInputTests
                 CanvasConnectionViewModel gate = canvas.Connections.Single(c =>
                     c.Source.Owner?.Id == "MatchLive" && c.Target.Owner?.Id == "round_deaths" && !c.IsRead);
                 Point middle = new((gate.Source.Anchor.X + gate.Target.Anchor.X) / 2, (gate.Source.Anchor.Y + gate.Target.Anchor.Y) / 2);
-                Point from = editor.ItemsHost.TranslatePoint(middle + new Vector(0, -30), window) ?? throw new InvalidOperationException("no items host");
-                Point to = editor.ItemsHost.TranslatePoint(middle + new Vector(0, 30), window) ?? throw new InvalidOperationException("no items host");
+                Reveal(editor, new Rect(middle - new Vector(120, 120), new Size(240, 240)));
+                middle = new Point((gate.Source.Anchor.X + gate.Target.Anchor.X) / 2, (gate.Source.Anchor.Y + gate.Target.Anchor.Y) / 2);
+                // Graph space to window space: the editor scales and offsets its items host by the viewport.
+                Point InWindow(Point graph) => editor.TranslatePoint(
+                    new Point((graph.X - editor.ViewportLocation.X) * editor.ViewportZoom, (graph.Y - editor.ViewportLocation.Y) * editor.ViewportZoom),
+                    window) ?? throw new InvalidOperationException("editor is not in the window");
+                Point from = InWindow(middle + new Vector(0, -30));
+                Point to = InWindow(middle + new Vector(0, 30));
 
                 const RawInputModifiers cut = RawInputModifiers.Alt | RawInputModifiers.Shift;
                 window.MouseDown(from, MouseButton.Left, cut);
@@ -232,6 +242,45 @@ public class RuleCanvasInputTests
                 await services.DisposeAsync();
             }
         });
+
+    private static void Pump()
+    {
+        Dispatcher.UIThread.RunJobs();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    // The canvas opens at a readable zoom anchored to the authored column, so a target can sit outside the
+    // window; the editor is asked to frame it before the pointer goes there.
+    private static void Reveal(Nodify.Avalonia.NodifyEditor editor, Rect graphRect)
+    {
+        // Set directly: the editor's own BringIntoView animates, and the headless clock does not run it.
+        editor.ViewportZoom = 1;
+        editor.ViewportLocation = new Point(graphRect.X - 60, graphRect.Y - 60);
+        Pump();
+    }
+
+    private static Nodify.Avalonia.NodifyEditor EditorOf(Window window) =>
+        window.GetVisualDescendants().OfType<Nodify.Avalonia.NodifyEditor>().First();
+
+    // A point over the canvas that no node container covers, scanned over a grid of the editor's bounds.
+    private static Point EmptyCanvasPoint(Nodify.Avalonia.NodifyEditor editor, Window window)
+    {
+        for (double y = 20; y < editor.Bounds.Height - 180; y += 40)
+        {
+            for (double x = 20; x < editor.Bounds.Width - 240; x += 40)
+            {
+                Point at = editor.TranslatePoint(new Point(x, y), window) ?? throw new InvalidOperationException("editor is not in the window");
+                if (window.InputHitTest(at) is Visual hit && hit.GetSelfAndVisualAncestors().Contains(editor)
+                    && !hit.GetSelfAndVisualAncestors().OfType<Nodify.Avalonia.ItemContainer>().Any())
+                {
+                    return at;
+                }
+            }
+        }
+
+        throw new InvalidOperationException("no empty canvas in view");
+    }
 
     private static Point Center(Control control, Window window) =>
         control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)
