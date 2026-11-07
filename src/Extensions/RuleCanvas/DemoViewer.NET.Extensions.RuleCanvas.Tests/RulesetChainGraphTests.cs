@@ -154,6 +154,34 @@ public class RulesetChainGraphTests
     }
 
     /// <summary>
+    ///     A comparison gate (<c>while: round.number &gt; 0</c>) has no guard node: the engine roots the trigger
+    ///     and reads the gate's operands on the edge. aim_rating's enemy_damage carries one, beside enemy_hits
+    ///     whose <c>while: round.active</c> is a guard. Both draw as gates.
+    /// </summary>
+    [Test]
+    public async Task AComparisonGate_DrawsAsAGateWire_NotAPlainRead()
+    {
+        RulesetChainGraph chain = Compose("aim_rating").Chain;
+        RulesetDocumentNodeKey damage = new("aim_rating", "enemy_damage");
+        ChainEdge[] into = [.. chain.Edges.Where(e => e.Target == damage)];
+        ChainEdge[] fromRound = [.. into.Where(e => e.Source.Id == "RoundNumber")];
+        using (Assert.Multiple())
+        {
+            await Assert.That(fromRound.Length).IsEqualTo(1);
+            await Assert.That(fromRound[0].IsGate).IsTrue().Because("the gate's read is the gate");
+            await Assert.That(fromRound[0].IsRead).IsFalse();
+            await Assert.That(fromRound[0].Label).IsEqualTo("while round.number > 0");
+            await Assert.That(ChainWiring.WireText(fromRound[0])).IsEqualTo("while round.number > 0");
+            await Assert.That(into.Any(e => e.Source.Ruleset == "~event" && !e.IsRead && e.Guard is null)).IsTrue()
+                .Because("the trigger runs from the event; a comparison gate has no guard node");
+            await Assert.That(into.Any(e => e.Source.Id == "enrich.hurt.was_enemy_damage" && e.IsRead && e.Label == "reads")).IsTrue()
+                .Because("the facet's read stays a plain read");
+            await Assert.That(chain.Edges.Any(e => e.Target.Id == "enemy_hits" && e.Source.Id == "RoundActive" && e.IsGate && e.Label == "while"))
+                .IsTrue().Because("a guard's gate wire keeps its one-word label");
+        }
+    }
+
+    /// <summary>
     ///     The engine draws a live compute's reads as unlabelled SetValue edges from each node read, with
     ///     <c>live</c> as the condition. They are reads, and the wire says they are live.
     /// </summary>

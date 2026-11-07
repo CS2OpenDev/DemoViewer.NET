@@ -3,6 +3,9 @@
 using CS2DemoKit.Analysis.Abstractions;
 using CS2DemoKit.Analysis.Catalog;
 using CS2DemoKit.Analysis.Graphs;
+using CS2DemoKit.Analysis.Rules.Ast;
+using CS2DemoKit.Analysis.Rules.Checking;
+using CS2DemoKit.Analysis.RulesetsV2.Compile;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 
 #endregion
@@ -80,6 +83,23 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
 
     private const string TemplatePlayer = "each player";
 
+    /// <summary>The engine rule id of each context value by the v2 path a <c>while:</c> writes (<c>round.number</c> to <c>round_number</c>).</summary>
+    private static Dictionary<string, string> ContextRuleIds { get; } = BuildContextRuleIds();
+
+    private static Dictionary<string, string> BuildContextRuleIds()
+    {
+        Dictionary<string, string> ids = new(StringComparer.Ordinal);
+        foreach (CatalogContextRule context in EmbeddedCatalog.Root.Contexts)
+        {
+            if (context.V2Name is { } path)
+            {
+                ids.TryAdd(path, context.RuleId);
+            }
+        }
+
+        return ids;
+    }
+
     /// <summary>
     ///     The slice around <paramref name="key" />: the node, everything upstream of it through every wire,
     ///     and everything downstream, with the wires among them. A node reached only sideways, an ancestor's
@@ -133,12 +153,14 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
         // Declared entries, by the owner spelling the graph uses, and what each one's companions are called.
         Dictionary<string, RulesetDocumentNodeKey> declared = new(StringComparer.Ordinal);
         Dictionary<RulesetDocumentNodeKey, IReadOnlyList<string>> outputs = new();
+        Dictionary<RulesetDocumentNodeKey, CheckedStat> stats = new();
         foreach (CheckedRuleset ruleset in rulesets)
         {
             foreach (CheckedStat stat in ruleset.Stats)
             {
                 RulesetDocumentNodeKey key = new(ruleset.Id.Id, stat.StatId);
                 declared[ruleset.Id.Id + "." + stat.StatId] = key;
+                stats[key] = stat;
                 if (stat.TallyThresholds is { Count: > 0 } thresholds)
                 {
                     outputs[key] = [.. thresholds.Select(t => t.Target)];
@@ -325,6 +347,14 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                 {
                     if (source != target)
                     {
+                        // A comparison gate (while: round.number > 0) has no guard node; the engine reads its
+                        // operands on the trigger edge. That read is the gate, and is drawn as one.
+                        if (readBy is not null && edge.Descriptor.Kind == GraphEdgeKind.Trigger && GateText(target, readBy) is { } gateText)
+                        {
+                            Add(new ChainEdge(source, target, gateText, null, edge.Descriptor.Effect, false) { IsGate = true });
+                            continue;
+                        }
+
                         Add(new ChainEdge(source, target, text, edge.Descriptor.ConditionLabel, edge.Descriptor.Effect, isRead) { Guard = guard });
                         if (guard is { } gate && gate != target)
                         {
@@ -352,6 +382,31 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             {
                 edges.Add(edge);
             }
+        }
+
+        // "while <gate>" when the stat written at target has a comparison gate that reads the reader's node;
+        // a bare-reference gate is the guard split above, and a stat with no gate has nothing to say.
+        string? GateText(RulesetDocumentNodeKey target, RuleGraphNode reader)
+        {
+            if (!stats.TryGetValue(target, out CheckedStat? stat) || stat.WhileGate is not { Root: not ReferenceNode } gate)
+            {
+                return null;
+            }
+
+            foreach (ResolvedReference reference in gate.References)
+            {
+                string ruleId = ContextRuleIds.GetValueOrDefault(reference.Path) ?? reference.Path;
+                if (reader.RuleIds.Contains(ruleId, StringComparer.Ordinal)
+                    || reader.RuleIds.Contains(target.Ruleset + "." + reference.Path, StringComparer.Ordinal)
+                    || keys[reader].Any(k => k.Ruleset == target.Ruleset && k.Id == reference.Path))
+                {
+                    // The infix writer parenthesises a binary root; the gate is one comparison, so the pair goes.
+                    string spelled = V1ExpressionWriter.Write(gate.Root);
+                    return "while " + (gate.Root is BinaryNode && spelled.Length > 1 ? spelled[1..^1] : spelled);
+                }
+            }
+
+            return null;
         }
 
         Dictionary<RulesetDocumentNodeKey, ChainNodeKind> kindByKey = new();
