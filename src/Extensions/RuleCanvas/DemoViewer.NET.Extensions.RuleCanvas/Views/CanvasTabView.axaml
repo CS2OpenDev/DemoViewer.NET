@@ -5,6 +5,7 @@
              xmlns:model="using:DemoViewer.NET.Extensions.RuleCanvas.Model"
              xmlns:nodify="clr-namespace:Nodify.Avalonia;assembly=Nodify.Avalonia"
              xmlns:nodes="clr-namespace:Nodify.Avalonia.Nodes;assembly=Nodify.Avalonia"
+             xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia"
              xmlns:ae="using:AvaloniaEdit"
              x:Class="DemoViewer.NET.Extensions.RuleCanvas.Views.CanvasTabView"
              x:DataType="vm:CanvasTabViewModel">
@@ -201,21 +202,64 @@
             </DockPanel>
         </Border>
 
-        <nodify:NodifyEditor Grid.Column="1" x:Name="Editor" DragDrop.AllowDrop="True"
+        <!-- The editor, with the zoom cluster and the minimap laid over its corners. Both forward the
+             wheel to the editor, so zooming never stops at an overlay. -->
+        <Grid Grid.Column="1">
+
+        <nodify:NodifyEditor x:Name="Editor" DragDrop.AllowDrop="True"
                              ItemsSource="{Binding Nodes}"
                              Connections="{Binding Connections}"
                              SelectedItems="{Binding SelectedNodes}"
+                             SelectedConnections="{Binding SelectedWires}"
+                             PendingConnection="{Binding Pending}"
                              ItemsDragCompletedCommand="{Binding SaveLayoutCommand}"
                              ConnectionCompletedCommand="{Binding ConnectCommand}"
-                             RemoveConnectionCommand="{Binding DisconnectCommand}">
+                             RemoveConnectionCommand="{Binding DisconnectCommand}"
+                             CuttingStartedCommand="{Binding CuttingStartedCommand}"
+                             CuttingCompletedCommand="{Binding CuttingCompletedCommand}">
 
-            <!-- Graph position lives on the node view model; the container writes it back on drag. -->
+            <!-- The canvas menu: a right click that did not pan. The stat and highlight land where the
+                 click was; the view list under Add stat on is filled by the view from the catalog. -->
+            <nodify:NodifyEditor.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Name="AddStatMenu" Header="Add stat on" IsEnabled="{Binding IsEditable}" />
+                    <MenuItem Header="Add highlight" IsEnabled="{Binding IsEditable}" Click="OnAddHighlightAt" />
+                    <Separator />
+                    <MenuItem Header="Fit to screen" InputGesture="A" Click="OnFit" />
+                    <MenuItem Header="Select all" InputGesture="Ctrl+A" Command="{Binding SelectAllCommand}" />
+                    <MenuItem Header="Reset arrangement" Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding HasSavedLayout}" />
+                </ContextMenu>
+            </nodify:NodifyEditor.ContextMenu>
+
+            <!-- Graph position lives on the node view model; the container writes it back on drag. The
+                 node menu acts on the node under the pointer; a right click selects it first. -->
             <nodify:NodifyEditor.ItemContainerTheme>
                 <ControlTheme TargetType="nodify:ItemContainer" BasedOn="{StaticResource {x:Type nodify:ItemContainer}}">
                     <Setter Property="Location" Value="{ReflectionBinding Location, Mode=TwoWay}" />
+                    <Setter Property="ContextMenu">
+                        <Template>
+                            <ContextMenu>
+                                <MenuItem Header="Focus this slice" Click="OnNodeFocus" />
+                                <MenuItem Header="Jump to source" Click="OnNodeJump" />
+                                <Separator />
+                                <MenuItem Header="Duplicate" InputGesture="Ctrl+D" Click="OnNodeDuplicate" />
+                                <MenuItem Header="Delete" InputGesture="Delete" Click="OnNodeDelete" />
+                                <Separator />
+                                <MenuItem Header="Align">
+                                    <MenuItem Header="Top" Tag="Top" Click="OnAlign" />
+                                    <MenuItem Header="Left" Tag="Left" Click="OnAlign" />
+                                    <MenuItem Header="Bottom" Tag="Bottom" Click="OnAlign" />
+                                    <MenuItem Header="Right" Tag="Right" Click="OnAlign" />
+                                    <MenuItem Header="Middle" Tag="Middle" Click="OnAlign" />
+                                    <MenuItem Header="Center" Tag="Center" Click="OnAlign" />
+                                </MenuItem>
+                            </ContextMenu>
+                        </Template>
+                    </Setter>
                 </ControlTheme>
             </nodify:NodifyEditor.ItemContainerTheme>
 
+            <!-- A wire: selectable, with its own menu. Hover and selection halos are in CanvasTheme.axaml. -->
             <nodify:NodifyEditor.ConnectionTemplate>
                 <DataTemplate x:DataType="vm:CanvasConnectionViewModel">
                     <views:LabelledConnection Source="{Binding Source.Anchor}"
@@ -230,9 +274,36 @@
                                               TextPadding="5 1" TextCornerRadius="3"
                                               Classes.read="{Binding IsRead}"
                                               Classes.gate="{Binding IsGate}"
-                                              ToolTip.Tip="{Binding Condition}" />
+                                              connections:BaseConnection.IsSelectable="True"
+                                              ToolTip.Tip="{Binding Condition}">
+                        <views:LabelledConnection.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Remove wire" Click="OnWireRemove" />
+                                <MenuItem Header="Jump to target's source" Click="OnWireJump" />
+                            </ContextMenu>
+                        </views:LabelledConnection.ContextMenu>
+                    </views:LabelledConnection>
                 </DataTemplate>
             </nodify:NodifyEditor.ConnectionTemplate>
+
+            <!-- The wire being dragged: drawn, snapped to the connector or node under it, and captioned
+                 with the sentence the drop would write, or the refusal, before anything is written. -->
+            <nodify:NodifyEditor.PendingConnectionTemplate>
+                <DataTemplate x:DataType="vm:CanvasPendingConnectionViewModel">
+                    <connections:PendingConnection Source="{Binding Source, Mode=OneWayToSource}"
+                                                   Target="{Binding Target, Mode=OneWayToSource}"
+                                                   PreviewTarget="{Binding PreviewTarget, Mode=OneWayToSource}"
+                                                   IsVisible="{Binding IsVisible, Mode=OneWayToSource}"
+                                                   EnablePreview="True" EnableSnapping="True" AllowOnlyConnectors="False"
+                                                   Stroke="{DynamicResource AccentInteractive}" StrokeThickness="2"
+                                                   Background="{DynamicResource CardBg}"
+                                                   BorderBrush="{DynamicResource BorderAccent}"
+                                                   Foreground="{DynamicResource TextValue}" Padding="8 4">
+                        <TextBlock Text="{Binding PreviewText}" FontSize="11" FontFamily="monospace"
+                                   MaxWidth="320" TextWrapping="Wrap" IsVisible="{Binding HasPreviewText}" />
+                    </connections:PendingConnection>
+                </DataTemplate>
+            </nodify:NodifyEditor.PendingConnectionTemplate>
 
             <nodify:NodifyEditor.ItemTemplate>
                 <DataTemplate x:DataType="vm:CanvasNodeViewModel">
@@ -384,6 +455,46 @@
                 </DataTemplate>
             </nodify:NodifyEditor.ItemTemplate>
         </nodify:NodifyEditor>
+
+        <!-- The zoom cluster, bottom-left. Every button goes through the editor's viewport API. -->
+        <Border x:Name="ZoomCluster" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="12" CornerRadius="4"
+                Padding="4 2" Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+                <Button Classes="ghost" Content="-" FontSize="12" Padding="8 1" MinHeight="0" Click="OnZoomOut"
+                        ToolTip.Tip="Zoom out (Ctrl+-)" />
+                <TextBlock Text="{Binding #Editor.ViewportZoom, StringFormat='{}{0:0%}'}" FontSize="11" MinWidth="40"
+                           TextAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextMid}" />
+                <Button Classes="ghost" Content="+" FontSize="12" Padding="8 1" MinHeight="0" Click="OnZoomIn"
+                        ToolTip.Tip="Zoom in (Ctrl++)" />
+                <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
+                <Button Classes="ghost" Content="Fit" FontSize="12" Padding="8 1" MinHeight="0" Click="OnFit"
+                        ToolTip.Tip="Fit the whole chain in view (A)" />
+                <Button Classes="ghost" Content="100%" FontSize="12" Padding="8 1" MinHeight="0" Click="OnZoomReset"
+                        ToolTip.Tip="Actual size" />
+            </StackPanel>
+        </Border>
+
+        <!-- The minimap, bottom-right: every node at its estimated size, the viewport as a frame to drag. -->
+        <nodify:Minimap x:Name="Minimap" Width="220" Height="150" Margin="12"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                        ItemsSource="{Binding #Editor.ItemsSource}"
+                        ViewportLocation="{Binding #Editor.ViewportLocation, Mode=TwoWay}"
+                        ViewportSize="{Binding #Editor.ViewportSize}"
+                        ItemsExtent="{Binding #Editor.ItemsExtent}"
+                        ResizeToViewport="True" Zoom="OnMinimapZoom"
+                        Background="{DynamicResource PanelBg}" Opacity="0.92"
+                        BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="4">
+            <nodify:Minimap.ItemContainerTheme>
+                <ControlTheme TargetType="nodify:MinimapItem" BasedOn="{StaticResource {x:Type nodify:MinimapItem}}">
+                    <Setter Property="Location" Value="{ReflectionBinding Location}" />
+                    <Setter Property="Width" Value="{ReflectionBinding EstimatedSize.Width}" />
+                    <Setter Property="Height" Value="{ReflectionBinding EstimatedSize.Height}" />
+                    <Setter Property="Background" Value="{DynamicResource AccentInteractive}" />
+                </ControlTheme>
+            </nodify:Minimap.ItemContainerTheme>
+        </nodify:Minimap>
+        </Grid>
         </Grid>
     </Grid>
 </UserControl>
