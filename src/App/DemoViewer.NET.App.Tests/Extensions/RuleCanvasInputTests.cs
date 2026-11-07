@@ -114,6 +114,125 @@ public class RuleCanvasInputTests
             }
         });
 
+    // The three tests below were written with the wave1/gestures workstream and have NOT been run: that
+    // workstream could not build App.Tests. Run them before trusting them; the pointer arithmetic for the
+    // cut assumes the items host and the connections host share the viewport transform.
+
+    [Test]
+    public async Task RightClickOnTheCanvas_OpensItsMenu_WithAddStatOnTheViews() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using EditableCorpus corpus = new();
+            (MainViewModel vm, ServiceProvider services) = corpus.NewShell();
+            Window window = new() { Width = 1400, Height = 900, Content = new MainView { DataContext = vm } };
+            try
+            {
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                vm.TrySelectTab(RuleCanvasPack.HubId);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                Dispatcher.UIThread.RunJobs();
+
+                Nodify.Avalonia.NodifyEditor editor = window.GetVisualDescendants().OfType<Nodify.Avalonia.NodifyEditor>().First();
+                Point at = editor.TranslatePoint(new Point(editor.Bounds.Width - 10, editor.Bounds.Height - 200), window)
+                    ?? throw new InvalidOperationException("editor is not in the window");
+                window.MouseDown(at, MouseButton.Right);
+                window.MouseUp(at, MouseButton.Right);
+                Dispatcher.UIThread.RunJobs();
+
+                MenuItem addStat = editor.ContextMenu!.Items.OfType<MenuItem>().First(m => m.Name == "AddStatMenu");
+                using (Assert.Multiple())
+                {
+                    await Assert.That(editor.ContextMenu.IsOpen).IsTrue().Because("a right click that did not pan opens the canvas menu");
+                    await Assert.That(addStat.ItemsSource!.OfType<MenuItem>().Select(m => m.Header as string)).Contains("kill");
+                }
+            }
+            finally
+            {
+                window.Close();
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
+
+    [Test]
+    public async Task DeleteWithAWireSelected_RemovesTheWire() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using EditableCorpus corpus = new();
+            (MainViewModel vm, ServiceProvider services) = corpus.NewShell();
+            Window window = new() { Width = 1400, Height = 900, Content = new MainView { DataContext = vm } };
+            try
+            {
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                vm.TrySelectTab(RuleCanvasPack.HubId);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                Dispatcher.UIThread.RunJobs();
+
+                Nodify.Avalonia.NodifyEditor editor = window.GetVisualDescendants().OfType<Nodify.Avalonia.NodifyEditor>().First();
+                CanvasTabViewModel canvas = (CanvasTabViewModel)editor.DataContext!;
+                CanvasConnectionViewModel gate = canvas.Connections.Single(c =>
+                    c.Source.Owner?.Id == "MatchLive" && c.Target.Owner?.Id == "round_deaths" && !c.IsRead);
+                canvas.SelectedWires.Add(gate);
+                editor.Focus();
+                window.KeyPressQwerty(PhysicalKey.Delete, RawInputModifiers.None);
+                Dispatcher.UIThread.RunJobs();
+
+                await Assert.That(File.ReadAllText(corpus.UserFile)).DoesNotContain("round_deaths:\n    count: death\n    while: match.live")
+                    .Because("Delete with only a wire selected took the gate out");
+            }
+            finally
+            {
+                window.Close();
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
+
+    [Test]
+    public async Task AnAltShiftDragAcrossAGateWire_CutsIt() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using EditableCorpus corpus = new();
+            (MainViewModel vm, ServiceProvider services) = corpus.NewShell();
+            Window window = new() { Width = 1400, Height = 900, Content = new MainView { DataContext = vm } };
+            try
+            {
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                vm.TrySelectTab(RuleCanvasPack.HubId);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                Dispatcher.UIThread.RunJobs();
+
+                Nodify.Avalonia.NodifyEditor editor = window.GetVisualDescendants().OfType<Nodify.Avalonia.NodifyEditor>().First();
+                CanvasTabViewModel canvas = (CanvasTabViewModel)editor.DataContext!;
+                CanvasConnectionViewModel gate = canvas.Connections.Single(c =>
+                    c.Source.Owner?.Id == "MatchLive" && c.Target.Owner?.Id == "round_deaths" && !c.IsRead);
+                Point middle = new((gate.Source.Anchor.X + gate.Target.Anchor.X) / 2, (gate.Source.Anchor.Y + gate.Target.Anchor.Y) / 2);
+                Point from = editor.ItemsHost.TranslatePoint(middle + new Vector(0, -30), window) ?? throw new InvalidOperationException("no items host");
+                Point to = editor.ItemsHost.TranslatePoint(middle + new Vector(0, 30), window) ?? throw new InvalidOperationException("no items host");
+
+                const RawInputModifiers cut = RawInputModifiers.Alt | RawInputModifiers.Shift;
+                window.MouseDown(from, MouseButton.Left, cut);
+                window.MouseMove(to, cut | RawInputModifiers.LeftMouseButton);
+                window.MouseUp(to, MouseButton.Left, cut);
+                Dispatcher.UIThread.RunJobs();
+
+                await Assert.That(File.ReadAllText(corpus.UserFile)).DoesNotContain("round_deaths:\n    count: death\n    while: match.live")
+                    .Because("the cutting line crossed the gate wire, which is registered as a cuttable type");
+            }
+            finally
+            {
+                window.Close();
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
+
     private static Point Center(Control control, Window window) =>
         control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)
         ?? throw new InvalidOperationException("control is not in the window");

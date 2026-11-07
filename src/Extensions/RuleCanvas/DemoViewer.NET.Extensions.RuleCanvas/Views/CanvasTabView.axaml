@@ -485,14 +485,14 @@
                         ResizeToViewport="True" Zoom="OnMinimapZoom"
                         Background="{DynamicResource PanelBg}" Opacity="0.92"
                         BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="4">
-            <nodify:Minimap.ItemContainerTheme>
-                <ControlTheme TargetType="nodify:MinimapItem" BasedOn="{StaticResource {x:Type nodify:MinimapItem}}">
+            <nodify:Minimap.Styles>
+                <Style Selector="nodify|MinimapItem">
                     <Setter Property="Location" Value="{ReflectionBinding Location}" />
                     <Setter Property="Width" Value="{ReflectionBinding EstimatedSize.Width}" />
                     <Setter Property="Height" Value="{ReflectionBinding EstimatedSize.Height}" />
                     <Setter Property="Background" Value="{DynamicResource AccentInteractive}" />
-                </ControlTheme>
-            </nodify:Minimap.ItemContainerTheme>
+                </Style>
+            </nodify:Minimap.Styles>
         </nodify:Minimap>
         </Grid>
         </Grid>
