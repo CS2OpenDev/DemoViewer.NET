@@ -373,7 +373,10 @@ public static class CanvasEditSemantics
         {
             "per" when value is not null => Set(node, "per", value),
             "while" or "where" => SetOrRemove(node, key, value),
-            "compute" when value is not null => Set(node, "compute", value),
+            "compute" when value is not null =>
+                EditRequest.Of(text => RulesetEdits.SetComputeFormula(text, node.Id, value), $"set {node.Id}.compute"),
+            "live" => EditRequest.Of(text => RulesetEdits.SetComputeLive(text, node.Id, value),
+                value is null ? $"remove {node.Id}.compute.live" : $"set {node.Id}.compute.live"),
             "when" when value is not null => EditRequest.Of(text => RulesetEdits.SetFlagWhen(text, node.Id, value), $"set {node.Id}.when"),
             "compute" or "when" => EditRequest.Refuse($"A {key} cannot be empty; delete the stat instead."),
             // The trigger and the kind argument are the stat's definition: set, never emptied.

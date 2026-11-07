@@ -153,6 +153,64 @@ public static class RulesetEdits
     }
 
     /// <summary>
+    ///     Sets a compute's formula in whichever spelling the author used: the scalar, or <c>value:</c> of the
+    ///     <c>compute: { value, live }</c> mapping, whose <c>live:</c> stays.
+    /// </summary>
+    public static string SetComputeFormula(string text, string statId, string formula)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlPath compute = RulesetDocumentEditor.StatPath(statId).Key("compute");
+        return editor.Document.Find(compute) is YamlMappingNode
+            ? editor.Apply([YamlEdits.SetKey(editor.Document, compute, "value", formula)]).Text
+            : SetField(text, statId, "compute", formula);
+    }
+
+    /// <summary>
+    ///     Sets or, on null, removes a compute's <c>live:</c> cadence. A scalar <c>compute:</c> becomes the
+    ///     <c>{ value, live }</c> mapping when the cadence is set; removing it from a mapping leaves the mapping.
+    /// </summary>
+    public static string SetComputeLive(string text, string statId, string? live)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        YamlPath compute = RulesetDocumentEditor.StatPath(statId).Key("compute");
+        switch (doc.Find(compute))
+        {
+            case YamlMappingNode map:
+                if (live is not null)
+                {
+                    return editor.Apply([YamlEdits.SetKey(doc, compute, "live", live)]).Text;
+                }
+
+                if (doc.Find(compute.Key("live")) is null)
+                {
+                    return text;
+                }
+
+                return map.Style == MappingStyle.Flow
+                    ? editor.Apply([RemoveFlowKey(doc, map, "live", compute)]).Text
+                    : editor.Apply([YamlEdits.RemoveKey(doc, compute, "live")]).Text;
+            case YamlScalarNode scalar:
+                if (live is null)
+                {
+                    return text;
+                }
+
+                if (scalar.Style is ScalarStyle.Literal or ScalarStyle.Folded)
+                {
+                    throw new NotSupportedException($"{statId}.compute is a block scalar; edit it in the source pane");
+                }
+
+                // A quoted formula is carried verbatim; a plain one is quoted where the flow form needs it.
+                (int start, int length) = doc.SpanOf(scalar);
+                string formula = scalar.Style == ScalarStyle.Plain ? PlainOrQuoted(scalar.Value ?? "", inFlow: true) : doc.Text.Substring(start, length);
+                return editor.Apply([new TextEdit(start, length, $"{{ value: {formula}, live: {live} }}", $"set {compute}.live")]).Text;
+            default:
+                throw new InvalidOperationException($"{statId} is not a compute in this document");
+        }
+    }
+
+    /// <summary>
     ///     Replaces a tally's <c>thresholds:</c> with <paramref name="rows" />, written as the block sequence of
     ///     flow maps the corpus uses, in the order given; the key is added when the stat lacks it. Only the
     ///     items are replaced, so the key's own line and a comment on it stay.

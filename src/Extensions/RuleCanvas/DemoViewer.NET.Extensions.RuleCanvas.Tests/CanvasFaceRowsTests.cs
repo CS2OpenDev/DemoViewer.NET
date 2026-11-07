@@ -162,7 +162,8 @@ public class CanvasFaceRowsTests
                 await Assert.That(Node(vm, "kills_by_weapon").Choices.Single().ReadText).IsEqualTo("count (default)");
                 await Assert.That(Node(vm, "damage_per_kill").Fields.Select(f => f.Key + "=" + f.Original)).IsEquivalentTo(["rate.of=damage_by_weapon", "rate.per=kills_by_weapon"]);
                 await Assert.That(Node(vm, "damage_per_kill").Fields[0].Suggestions).IsEquivalentTo(["kills_by_weapon", "damage_by_weapon"]);
-                await Assert.That(Node(vm, "kpr").Choices.Single().Current).IsEqualTo("F2");
+                await Assert.That(Choice(vm, "kpr", "format").Current).IsEqualTo("F2");
+                await Assert.That(Choice(vm, "kpr", "live").IsDefault).IsTrue().Because("a scalar compute evaluates at the scope's end");
                 await Assert.That(Node(vm, "kpr").Label).IsEqualTo("KPR");
                 await Assert.That(Node(vm, "ace").Choices.Single().Current).IsEqualTo("funny");
                 await Assert.That(Node(vm, "ace").Fields.Single().Original).IsEqualTo("multikill");
@@ -230,6 +231,73 @@ public class CanvasFaceRowsTests
             // A tally has no picker: an on: under it is accepted by the loader and ignored by the resolver.
             await Assert.That(CanvasEditSemantics.TriggerKeyFor(Node(vm, "multi_kill"))).IsNull();
             await Assert.That(RulesetEdits.Field(Text(rules), "multi_kill", "on")).IsNull();
+        }
+    }
+
+    /// <summary>
+    ///     <c>compute: { value, live: true }</c> is the engine's live cadence. The face shows it as a row in both
+    ///     styles, the formula line writes into the mapping's <c>value:</c> rather than over the mapping, and the
+    ///     row turns a scalar compute into the mapping and takes the key away again.
+    /// </summary>
+    [Test]
+    public async Task ALiveCompute_ShowsItsCadence_AndItsFormulaWritesIntoTheMapping()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("live_lab", """
+            ruleset: live_lab
+            title: Live lab
+            for: each_player
+
+            stats:
+              kills:
+                count: kill
+                per: round
+              live_ratio:
+                compute: { value: "kills * 2", live: true }
+                per: round
+              end_ratio:
+                compute: kills / max(kills, 1)
+                per: round
+            """);
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "live_lab";
+        vm.OnActivated(null!);
+        string Text() => File.ReadAllText(rules.UserPath("live_lab"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Diagnostics).IsEmpty();
+            await Assert.That(Choice(vm, "live_ratio", "live").Current).IsEqualTo("true");
+            await Assert.That(Choice(vm, "live_ratio", "live").ReadText).IsEqualTo("true");
+            await Assert.That(Choice(vm, "end_ratio", "live").IsDefault).IsTrue();
+            await Assert.That(Node(vm, "live_ratio").Lines.Single(l => l.Key == "compute").Text).IsEqualTo("kills * 2");
+        }
+
+        CanvasExpressionViewModel formula = Node(vm, "live_ratio").Lines.Single(l => l.Key == "compute");
+        formula.Text = "kills * 4";
+        formula.Commit();
+        using (Assert.Multiple())
+        {
+            await Assert.That(RulesetEdits.Field(Text(), "live_ratio", "compute.value")).IsEqualTo("kills * 4");
+            await Assert.That(RulesetEdits.Field(Text(), "live_ratio", "compute.live")).IsEqualTo("true").Because("the formula write keeps the cadence");
+        }
+
+        CanvasChoiceViewModel end = Choice(vm, "end_ratio", "live");
+        end.Selected = end.Options.Single(o => o.Value == "true");
+        using (Assert.Multiple())
+        {
+            await Assert.That(RulesetEdits.Field(Text(), "end_ratio", "compute.value")).IsEqualTo("kills / max(kills, 1)")
+                .Because("the scalar becomes the mapping, quoted where the flow form needs it");
+            await Assert.That(RulesetEdits.Field(Text(), "end_ratio", "compute.live")).IsEqualTo("true");
+            await Assert.That(vm.Diagnostics).IsEmpty();
+        }
+
+        CanvasChoiceViewModel live = Choice(vm, "live_ratio", "live");
+        live.Selected = live.Options[0];
+        using (Assert.Multiple())
+        {
+            await Assert.That(RulesetEdits.Field(Text(), "live_ratio", "compute.live")).IsNull().Because("the default removes the key");
+            await Assert.That(RulesetEdits.Field(Text(), "live_ratio", "compute.value")).IsEqualTo("kills * 4");
+            await Assert.That(Choice(vm, "live_ratio", "live").IsDefault).IsTrue();
         }
     }
 

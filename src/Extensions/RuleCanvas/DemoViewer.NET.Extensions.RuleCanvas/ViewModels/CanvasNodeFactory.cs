@@ -28,6 +28,9 @@ public sealed class CanvasNodeFactory(
     /// <summary>The <c>format:</c> strings a compute commonly uses; the picker keeps any other as written.</summary>
     public static IReadOnlyList<string> FormatOptions { get; } = ["F0", "F1", "F2", "R"];
 
+    /// <summary>The <c>live:</c> cadence of a compute; the omitted key evaluates at the scope's end.</summary>
+    public static IReadOnlyList<string> LiveOptions { get; } = ["true", "false"];
+
     /// <summary>The <c>reduce:</c> names a bucket can use.</summary>
     public static IReadOnlyList<string> ReduceOptions { get; } = ["sum", "count", "min", "max", "last", "first"];
 
@@ -314,11 +317,8 @@ public sealed class CanvasNodeFactory(
 
                 lines.Add(new CanvasExpressionViewModel("compute", "=", stat.KindArg ?? "", write));
                 choices.Add(new CanvasChoiceViewModel("format", "format", FormatOptions, compute.Format, "F1", write));
-                if (compute.Live)
-                {
-                    expression.Add("live");
-                }
-
+                // The cadence is a row in both styles, so a live compute is told from a round-end one while editing too.
+                choices.Add(new CanvasChoiceViewModel("live", "live", LiveOptions, compute.Live ? "true" : null, "false", write));
                 break;
             case FlagFace:
                 if (stat.Trigger?.On is null && stat.KindArg is { } condition && !string.Equals(condition.Trim(), "true", StringComparison.OrdinalIgnoreCase))
