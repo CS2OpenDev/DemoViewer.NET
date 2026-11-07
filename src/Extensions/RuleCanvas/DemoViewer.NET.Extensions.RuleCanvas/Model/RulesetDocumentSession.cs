@@ -205,12 +205,26 @@ public sealed class RulesetDocumentSession
         return outcome;
     }
 
+    /// <summary>The one message every write path answers with when the file on disk is not the text it was read as.</summary>
+    public const string ChangedOnDiskMessage = "The file changed on disk since it was read; reload it before editing.";
+
     // Atomic on disk: the whole text lands in a sibling and moves into place, so a reader never sees half.
+    // The write time is checked first so undo and redo cannot put a history over another writer's text.
     private EditOutcome Write(string text)
     {
         if (Entry is not { } entry || !IsUserFile)
         {
             return EditOutcome.Refused(null);
+        }
+
+        if (!File.Exists(entry.Path))
+        {
+            return EditOutcome.Refused($"{Path.GetFileName(entry.Path)} is no longer on disk; nothing was written.");
+        }
+
+        if (ChangedOnDisk)
+        {
+            return EditOutcome.Refused(ChangedOnDiskMessage);
         }
 
         try
