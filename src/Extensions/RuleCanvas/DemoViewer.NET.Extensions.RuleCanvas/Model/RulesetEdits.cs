@@ -436,10 +436,10 @@ public static class RulesetEdits
         YamlDocumentText doc = RulesetDocumentEditor.Open(text).Document;
         string ruleset = (doc.Find(YamlPath.Root.Key("ruleset")) as YamlScalarNode)?.Value ?? "";
         List<string> readers = [];
-        foreach ((string owner, YamlPath site) in ReferenceSites(doc, includeShow: false))
+        foreach ((string owner, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: false))
         {
             if (owner != id && !readers.Contains(owner) && doc.Find(site) is YamlScalarNode { Value: { } value }
-                && RewriteReferences(value, id, id + "_", ruleset) != value)
+                && Rewrite(value, id, id + "_", ruleset, isTemplate) != value)
             {
                 readers.Add(owner);
             }
@@ -447,6 +447,9 @@ public static class RulesetEdits
 
         return readers;
     }
+
+    private static string Rewrite(string value, string oldId, string newId, string ruleset, bool isTemplate) =>
+        isTemplate ? RewriteTitleHoles(value, oldId, newId, ruleset) : RewriteReferences(value, oldId, newId, ruleset);
 
     private static string Rename(string text, YamlPath section, string oldId, string newId, string what)
     {
@@ -477,11 +480,11 @@ public static class RulesetEdits
         string ruleset = (doc.Find(YamlPath.Root.Key("ruleset")) as YamlScalarNode)?.Value ?? "";
         (int start, int length) = doc.SpanOf(key);
         List<TextEdit> edits = [new TextEdit(start, length, newId, $"rename {oldId}")];
-        foreach ((_, YamlPath site) in ReferenceSites(doc, includeShow: true))
+        foreach ((_, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: true))
         {
             if (doc.Find(site) is YamlScalarNode { Value: { } value })
             {
-                string rewritten = RewriteReferences(value, oldId, newId, ruleset);
+                string rewritten = Rewrite(value, oldId, newId, ruleset, isTemplate);
                 if (rewritten != value)
                 {
                     edits.Add(YamlEdits.SetScalar(doc, site, rewritten));
@@ -493,30 +496,32 @@ public static class RulesetEdits
     }
 
     // Every scalar that may read an entry by id, with the entry that owns it (a show: site is owned by "show").
-    private static IEnumerable<(string Owner, YamlPath Site)> ReferenceSites(YamlDocumentText doc, bool includeShow)
+    // A highlight's title is a template: only its {holes} name entries, so it is rewritten hole by hole.
+    private static IEnumerable<(string Owner, YamlPath Site, bool IsTemplate)> ReferenceSites(YamlDocumentText doc, bool includeShow)
     {
         foreach (string id in KeysUnder(doc, _stats))
         {
             YamlPath stat = _stats.Key(id);
             foreach (string key in new[] { "compute", "where", "while", "when", "tally", "key", "value", "of" })
             {
-                yield return (id, stat.Key(key));
+                yield return (id, stat.Key(key), false);
             }
 
             // flag: true names no sibling; flag: <expr> and flag: { when: <expr> } do.
             if (doc.Find(stat.Key("flag")) is YamlScalarNode { Value: not ("true" or "false") })
             {
-                yield return (id, stat.Key("flag"));
+                yield return (id, stat.Key("flag"), false);
             }
 
-            yield return (id, stat.Key("flag").Key("when"));
-            yield return (id, stat.Key("rate").Key("of"));
-            yield return (id, stat.Key("rate").Key("per"));
+            yield return (id, stat.Key("flag").Key("when"), false);
+            yield return (id, stat.Key("rate").Key("of"), false);
+            yield return (id, stat.Key("rate").Key("per"), false);
         }
 
         foreach (string id in KeysUnder(doc, _highlights))
         {
-            yield return (id, _highlights.Key(id).Key("when"));
+            yield return (id, _highlights.Key(id).Key("when"), false);
+            yield return (id, _highlights.Key(id).Key("title"), true);
         }
 
         if (!includeShow)
@@ -528,7 +533,7 @@ public static class RulesetEdits
         {
             for (int i = 0; i < scoreboard.Children.Count; i++)
             {
-                yield return ("show", _scoreboard.Index(i).Key("stat"));
+                yield return ("show", _scoreboard.Index(i).Key("stat"), false);
             }
         }
 
@@ -539,10 +544,39 @@ public static class RulesetEdits
             {
                 for (int i = 0; i < seq.Children.Count; i++)
                 {
-                    yield return ("show", columns.Index(i).Key("stat"));
+                    yield return ("show", columns.Index(i).Key("stat"), false);
                 }
             }
         }
+    }
+
+    /// <summary>
+    ///     A title template with every <c>{hole}</c> that names <paramref name="oldId" /> renamed the way
+    ///     <see cref="RewriteReferences" /> renames a token (<c>{kills}</c>, <c>{kills.count}</c>, <c>{t.kills}</c>).
+    ///     The prose between the holes is text and stays, even where it spells the id.
+    /// </summary>
+    public static string RewriteTitleHoles(string text, string oldId, string newId, string rulesetId)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        System.Text.StringBuilder sb = new(text.Length + 8);
+        int i = 0;
+        while (i < text.Length)
+        {
+            int open = text.IndexOf('{', i);
+            int close = open < 0 ? -1 : text.IndexOf('}', open + 1);
+            if (close < 0)
+            {
+                sb.Append(text, i, text.Length - i);
+                break;
+            }
+
+            sb.Append(text, i, open + 1 - i);
+            sb.Append(RewriteReferences(text[(open + 1)..close], oldId, newId, rulesetId));
+            sb.Append('}');
+            i = close + 1;
+        }
+
+        return sb.ToString();
     }
 
     /// <summary>
