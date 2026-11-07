@@ -14,7 +14,7 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 /// </summary>
 public class CanvasEditSemanticsTests
 {
-    private static readonly string _playerRound = File.ReadAllText(Path.Combine(TempRules.RepoRulesDirectory, "player_round.rules.yaml"));
+    private static readonly string _playerRound = File.ReadAllText(Path.Combine(RulesTree.RepoRulesDirectory, "player_round.rules.yaml"));
 
     private static CanvasNodeViewModel Stat(string id, string kind, string? view = null, bool authorable = true) => new()
     {

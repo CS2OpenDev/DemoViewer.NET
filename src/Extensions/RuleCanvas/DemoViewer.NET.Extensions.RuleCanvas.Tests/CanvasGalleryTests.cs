@@ -31,7 +31,7 @@ public class CanvasGalleryTests
     [Test]
     public async Task APrefabDroppedOnTheCanvas_IsAddedWhereItLanded()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         GalleryItem prefab = vm.Gallery.Single(g => g.Title == "Prefabs").Items.Single(i => i.Name == "opening_kills");
@@ -54,7 +54,7 @@ public class CanvasGalleryTests
     [Test]
     public async Task AStatKindDroppedTwice_GetsDistinctIds()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         GalleryItem count = vm.Gallery.Single(g => g.Title == "Stats").Items.Single(i => i.Name == "count");
@@ -69,7 +69,7 @@ public class CanvasGalleryTests
     [Test]
     public async Task AGateDroppedOnAStat_BecomesItsWhile_AndOnTheCanvasIsRefused()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         GalleryItem gate = vm.Gallery.Single(g => g.Title == "Gates").Items.Single(i => i.Name == "round.active");
@@ -92,7 +92,7 @@ public class CanvasGalleryTests
     [Test]
     public async Task AViewDroppedOnACount_RetargetsIt_AndOnAFlagIsRefused()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         GalleryItem death = vm.Gallery.Single(g => g.Title == "Views").Items.Single(i => i.Name == "death");

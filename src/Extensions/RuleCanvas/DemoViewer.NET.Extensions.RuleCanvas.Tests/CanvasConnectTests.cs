@@ -14,9 +14,9 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 /// </summary>
 public class CanvasConnectTests
 {
-    private static (TempRules Rules, CanvasTabViewModel Vm) Open()
+    private static (RulesTree Rules, CanvasTabViewModel Vm) Open()
     {
-        TempRules rules = TempRules.WithUser("player_round");
+        RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         return (rules, vm);
@@ -27,7 +27,7 @@ public class CanvasConnectTests
     [Test]
     public async Task AContextFlagWiredIntoAStat_BecomesItsWhile()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             vm.Connect(Node(vm, "MatchLive"), Node(vm, "round_kills"));
@@ -44,7 +44,7 @@ public class CanvasConnectTests
     [Test]
     public async Task AnEnrichmentWiredIntoACount_BindsTheFacetThatReadsIt()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             vm.Connect(Node(vm, "enrich.kill.was_enemy_kill"), Node(vm, "round_deaths"));
@@ -57,7 +57,7 @@ public class CanvasConnectTests
     [Test]
     public async Task AStatWiredIntoAFlag_ExtendsItsWhen()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             vm.Connect(Node(vm, "round_damage"), Node(vm, "round_kast"));
@@ -74,7 +74,7 @@ public class CanvasConnectTests
     [Test]
     public async Task RemovingTheGateWire_TakesTheWhileWithIt()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             CanvasConnectionViewModel gate = vm.Connections.Single(c =>
@@ -93,7 +93,7 @@ public class CanvasConnectTests
     [Test]
     public async Task RemovingAnEnrichmentRead_TakesTheFacetWithIt()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             CanvasConnectionViewModel read = vm.Connections.Single(c =>

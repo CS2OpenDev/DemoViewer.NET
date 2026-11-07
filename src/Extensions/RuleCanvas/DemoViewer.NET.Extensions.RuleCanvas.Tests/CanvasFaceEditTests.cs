@@ -15,9 +15,9 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 /// </summary>
 public class CanvasFaceEditTests
 {
-    private static (TempRules Rules, CanvasTabViewModel Vm) Open()
+    private static (RulesTree Rules, CanvasTabViewModel Vm) Open()
     {
-        TempRules rules = TempRules.WithUser("player_round");
+        RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         return (rules, vm);
@@ -25,12 +25,12 @@ public class CanvasFaceEditTests
 
     private static CanvasNodeViewModel Node(CanvasTabViewModel vm, string id) => vm.Nodes.Single(n => n.Id == id);
 
-    private static string Text(TempRules rules) => File.ReadAllText(rules.UserPath("player_round"));
+    private static string Text(RulesTree rules) => File.ReadAllText(rules.UserPath("player_round"));
 
     [Test]
     public async Task TheFace_CarriesTheScopeTheGateAndTheLines()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             CanvasNodeViewModel deaths = Node(vm, "round_deaths");
@@ -52,7 +52,7 @@ public class CanvasFaceEditTests
     [Test]
     public async Task ChangingTheScope_WritesPer()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             Node(vm, "round_kills").Per = "match";
@@ -64,7 +64,7 @@ public class CanvasFaceEditTests
     [Test]
     public async Task AClearedScopePicker_WritesNothing()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             string before = Text(rules);
@@ -81,7 +81,7 @@ public class CanvasFaceEditTests
     [Test]
     public async Task PickingAGate_WritesWhile_AndClearingItRemovesIt()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             Node(vm, "round_kills").Gate = "round.active";
@@ -104,7 +104,7 @@ public class CanvasFaceEditTests
     [Test]
     public async Task EditingWhere_WritesIt_AndEmptyingItRemovesIt()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             CanvasExpressionViewModel where = Node(vm, "round_assists").Lines.Single(l => l.Key == "where");
@@ -128,7 +128,7 @@ public class CanvasFaceEditTests
     [Test]
     public async Task EditingAFlagsWhen_WritesIt_AndEmptyingItIsRefused()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             CanvasExpressionViewModel when = Node(vm, "round_kast").Lines.Single(l => l.Key == "when");
@@ -148,7 +148,7 @@ public class CanvasFaceEditTests
     [Test]
     public async Task EditingACompute_WritesTheFormula()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             vm.PlaceItem(vm.Gallery.Single(g => g.Title == "Stats").Items.Single(i => i.Name == "compute"), new Point(0, 0));
@@ -163,7 +163,7 @@ public class CanvasFaceEditTests
     [Test]
     public async Task AShippedRuleset_CarriesTheEditorsSwitchedOff()
     {
-        using TempRules rules = TempRules.WithShipped("player_round");
+        using RulesTree rules = RulesTree.WithShipped("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         CanvasNodeViewModel deaths = Node(vm, "round_deaths");

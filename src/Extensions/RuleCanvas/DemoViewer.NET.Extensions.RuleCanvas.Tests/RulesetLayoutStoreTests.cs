@@ -32,12 +32,13 @@ public class RulesetLayoutStoreTests
     [Test]
     public async Task AMissingSidecar_IsNotAnError()
     {
-        using RulesFolder folder = new();
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
 
-        RulesetNodeLayout layout = RulesetLayoutStore.Load(folder.RulesetPath);
+        RulesetNodeLayout layout = RulesetLayoutStore.Load(ruleset);
 
         await Assert.That(layout.Count).IsEqualTo(0);
-        await Assert.That(File.Exists(folder.SidecarPath)).IsFalse()
+        await Assert.That(File.Exists(RulesetLayoutStore.SidecarPathFor(ruleset))).IsFalse()
             .Because("reading an arrangement must not create one");
     }
 
@@ -45,24 +46,26 @@ public class RulesetLayoutStoreTests
     [Test]
     public async Task TheSidecar_SitsBesideTheRuleset_NamedForIt()
     {
-        using RulesFolder folder = new();
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
 
-        string sidecar = RulesetLayoutStore.SidecarPathFor(folder.RulesetPath);
+        string sidecar = RulesetLayoutStore.SidecarPathFor(ruleset);
 
         await Assert.That(Path.GetFileName(sidecar)).IsEqualTo("aim_rating.rules.layout.json");
-        await Assert.That(Path.GetDirectoryName(sidecar)).IsEqualTo(folder.Root);
+        await Assert.That(Path.GetDirectoryName(sidecar)).IsEqualTo(tree.UserDirectory);
     }
 
     [Test]
     public async Task SaveThenLoad_RoundTripsEveryPosition()
     {
-        using RulesFolder folder = new();
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
         RulesetNodeLayout arranged = RulesetNodeLayout.Empty
             .With(_accuracy, new Point(120.5, 48.25))
             .With(_attempts, new Point(-16, 0));
 
-        await Assert.That(RulesetLayoutStore.Save(folder.RulesetPath, arranged)).IsTrue();
-        RulesetNodeLayout reloaded = RulesetLayoutStore.Load(folder.RulesetPath);
+        await Assert.That(RulesetLayoutStore.Save(ruleset, arranged)).IsTrue();
+        RulesetNodeLayout reloaded = RulesetLayoutStore.Load(ruleset);
 
         await Assert.That(reloaded.Count).IsEqualTo(2);
         await Assert.That(reloaded.PositionFor(_accuracy)).IsEqualTo(new Point(120.5, 48.25));
@@ -92,8 +95,9 @@ public class RulesetLayoutStoreTests
     [Test]
     public async Task AKeyNoLongerInTheGraph_IsIgnoredRatherThanFatal()
     {
-        using RulesFolder folder = new();
-        folder.WriteSidecar(
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
+        RulesTree.Touch(RulesetLayoutStore.SidecarPathFor(ruleset), 
             """
             {"version":1,"nodes":{
               "aim_rating.accuracy_pct":{"x":10,"y":20},
@@ -101,7 +105,7 @@ public class RulesetLayoutStoreTests
               "some_other_ruleset.gone":{"x":50,"y":60}}}
             """);
 
-        RulesetNodeLayout layout = RulesetLayoutStore.Load(folder.RulesetPath);
+        RulesetNodeLayout layout = RulesetLayoutStore.Load(ruleset);
 
         await Assert.That(layout.PositionFor(_accuracy)).IsEqualTo(new Point(10, 20));
         await Assert.That(layout.Count).IsEqualTo(3)
@@ -113,14 +117,15 @@ public class RulesetLayoutStoreTests
     [Test]
     public async Task PropertiesThisBuildDoesNotKnow_AreIgnored()
     {
-        using RulesFolder folder = new();
-        folder.WriteSidecar(
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
+        RulesTree.Touch(RulesetLayoutStore.SidecarPathFor(ruleset), 
             """
             {"version":99,"viewport":{"zoom":1.5},"nodes":{
               "aim_rating.accuracy_pct":{"x":10,"y":20,"collapsed":true,"tint":"#ff0000"}}}
             """);
 
-        RulesetNodeLayout layout = RulesetLayoutStore.Load(folder.RulesetPath);
+        RulesetNodeLayout layout = RulesetLayoutStore.Load(ruleset);
 
         await Assert.That(layout.PositionFor(_accuracy)).IsEqualTo(new Point(10, 20));
     }
@@ -137,10 +142,11 @@ public class RulesetLayoutStoreTests
     [Arguments("")]
     public async Task ACorruptFile_LosesTheArrangementAndNothingElse(string contents)
     {
-        using RulesFolder folder = new();
-        folder.WriteSidecar(contents);
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
+        RulesTree.Touch(RulesetLayoutStore.SidecarPathFor(ruleset), contents);
 
-        RulesetNodeLayout layout = RulesetLayoutStore.Load(folder.RulesetPath);
+        RulesetNodeLayout layout = RulesetLayoutStore.Load(ruleset);
 
         await Assert.That(layout.Count).IsEqualTo(0);
         await Assert.That(layout.PositionOf(_accuracy, new Point(7, 7))).IsEqualTo(new Point(7, 7))
@@ -154,8 +160,9 @@ public class RulesetLayoutStoreTests
     [Test]
     public async Task OneDamagedEntry_DoesNotCostTheOthers()
     {
-        using RulesFolder folder = new();
-        folder.WriteSidecar(
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
+        RulesTree.Touch(RulesetLayoutStore.SidecarPathFor(ruleset), 
             """
             {"version":1,"nodes":{
               "aim_rating.accuracy_pct":{"x":10,"y":20},
@@ -168,7 +175,7 @@ public class RulesetLayoutStoreTests
               "aim_rating.cs_clean":{"x":90,"y":100}}}
             """);
 
-        RulesetNodeLayout layout = RulesetLayoutStore.Load(folder.RulesetPath);
+        RulesetNodeLayout layout = RulesetLayoutStore.Load(ruleset);
 
         await Assert.That(layout.PositionFor(_accuracy)).IsEqualTo(new Point(10, 20));
         await Assert.That(layout.PositionFor(_clean)).IsEqualTo(new Point(90, 100));
@@ -183,14 +190,15 @@ public class RulesetLayoutStoreTests
     [Test]
     public async Task AnEmptyLayout_RemovesTheSidecarRatherThanWritingOne()
     {
-        using RulesFolder folder = new();
-        RulesetLayoutStore.Save(folder.RulesetPath, RulesetNodeLayout.Empty.With(_accuracy, new Point(1, 2)));
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
+        RulesetLayoutStore.Save(ruleset, RulesetNodeLayout.Empty.With(_accuracy, new Point(1, 2)));
 
-        bool saved = RulesetLayoutStore.Save(folder.RulesetPath, RulesetNodeLayout.Empty);
+        bool saved = RulesetLayoutStore.Save(ruleset, RulesetNodeLayout.Empty);
 
         await Assert.That(saved).IsTrue();
-        await Assert.That(File.Exists(folder.SidecarPath)).IsFalse();
-        await Assert.That(RulesetLayoutStore.Load(folder.RulesetPath).Count).IsEqualTo(0);
+        await Assert.That(File.Exists(RulesetLayoutStore.SidecarPathFor(ruleset))).IsFalse();
+        await Assert.That(RulesetLayoutStore.Load(ruleset).Count).IsEqualTo(0);
     }
 
     /// <summary>
@@ -200,14 +208,15 @@ public class RulesetLayoutStoreTests
     [Test]
     public async Task ALayoutWithNothingWritable_RemovesTheSidecarToo()
     {
-        using RulesFolder folder = new();
-        RulesetLayoutStore.Save(folder.RulesetPath, RulesetNodeLayout.Empty.With(_accuracy, new Point(1, 2)));
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
+        RulesetLayoutStore.Save(ruleset, RulesetNodeLayout.Empty.With(_accuracy, new Point(1, 2)));
 
         bool saved = RulesetLayoutStore.Save(
-            folder.RulesetPath, RulesetNodeLayout.Empty.With(_accuracy, new Point(double.NaN, double.NaN)));
+            ruleset, RulesetNodeLayout.Empty.With(_accuracy, new Point(double.NaN, double.NaN)));
 
         await Assert.That(saved).IsTrue();
-        await Assert.That(File.Exists(folder.SidecarPath)).IsFalse();
+        await Assert.That(File.Exists(RulesetLayoutStore.SidecarPathFor(ruleset))).IsFalse();
     }
 
     /// <summary>
@@ -217,14 +226,15 @@ public class RulesetLayoutStoreTests
     [Test]
     public async Task AnUnwritableLocation_ReportsFailureInsteadOfThrowing()
     {
-        using RulesFolder folder = new();
-        Directory.CreateDirectory(folder.SidecarPath);
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
+        Directory.CreateDirectory(RulesetLayoutStore.SidecarPathFor(ruleset));
 
         bool saved = RulesetLayoutStore.Save(
-            folder.RulesetPath, RulesetNodeLayout.Empty.With(_accuracy, new Point(1, 2)));
+            ruleset, RulesetNodeLayout.Empty.With(_accuracy, new Point(1, 2)));
 
         await Assert.That(saved).IsFalse();
-        await Assert.That(RulesetLayoutStore.Load(folder.RulesetPath).Count).IsEqualTo(0)
+        await Assert.That(RulesetLayoutStore.Load(ruleset).Count).IsEqualTo(0)
             .Because("a sidecar that could not be written reads back as no arrangement, not as an error");
     }
 
@@ -255,13 +265,14 @@ public class RulesetLayoutStoreTests
     [Test]
     public async Task DragNoise_IsRoundedOutOfTheFile()
     {
-        using RulesFolder folder = new();
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
         RulesetNodeLayout arranged = RulesetNodeLayout.Empty
             .With(_accuracy, new Point(120.00000000000001, 120.987654));
 
-        RulesetLayoutStore.Save(folder.RulesetPath, arranged);
+        RulesetLayoutStore.Save(ruleset, arranged);
 
-        await Assert.That(RulesetLayoutStore.Load(folder.RulesetPath).PositionFor(_accuracy))
+        await Assert.That(RulesetLayoutStore.Load(ruleset).PositionFor(_accuracy))
             .IsEqualTo(new Point(120, 120.99));
     }
 
@@ -273,16 +284,17 @@ public class RulesetLayoutStoreTests
     [Test]
     public async Task ANonFiniteCoordinate_IsDroppedRatherThanFailingTheSave()
     {
-        using RulesFolder folder = new();
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
         RulesetNodeLayout arranged = RulesetNodeLayout.Empty
             .With(_accuracy, new Point(double.NaN, 10))
             .With(_clean, new Point(20, double.PositiveInfinity))
             .With(_attempts, new Point(30, 40));
 
-        bool saved = RulesetLayoutStore.Save(folder.RulesetPath, arranged);
+        bool saved = RulesetLayoutStore.Save(ruleset, arranged);
 
         await Assert.That(saved).IsTrue();
-        RulesetNodeLayout reloaded = RulesetLayoutStore.Load(folder.RulesetPath);
+        RulesetNodeLayout reloaded = RulesetLayoutStore.Load(ruleset);
         await Assert.That(reloaded.Count).IsEqualTo(1);
         await Assert.That(reloaded.PositionFor(_attempts)).IsEqualTo(new Point(30, 40));
     }
@@ -310,53 +322,18 @@ public class RulesetLayoutStoreTests
     [Test]
     public async Task TwoRulesetsSharingAnId_KeepSeparatePositions()
     {
-        using RulesFolder folder = new();
+        using RulesTree tree = RulesTree.New();
+        string ruleset = tree.User("aim_rating", "ruleset: aim_rating\n");
         RulesetDocumentNodeKey mine = new("kast", "enemy_kills_round");
         RulesetDocumentNodeKey theirs = new("highlights_multikill", "enemy_kills_round");
 
-        RulesetLayoutStore.Save(folder.RulesetPath, RulesetNodeLayout.Empty
+        RulesetLayoutStore.Save(ruleset, RulesetNodeLayout.Empty
             .With(mine, new Point(1, 2))
             .With(theirs, new Point(3, 4)));
 
-        RulesetNodeLayout reloaded = RulesetLayoutStore.Load(folder.RulesetPath);
+        RulesetNodeLayout reloaded = RulesetLayoutStore.Load(ruleset);
 
         await Assert.That(reloaded.PositionFor(mine)).IsEqualTo(new Point(1, 2));
         await Assert.That(reloaded.PositionFor(theirs)).IsEqualTo(new Point(3, 4));
-    }
-
-    /// <summary>A throwaway rules folder with one ruleset in it, so no test touches the real corpus.</summary>
-    private sealed class RulesFolder : IDisposable
-    {
-        public RulesFolder()
-        {
-            Root = Path.Combine(Path.GetTempPath(), "dvn-layout-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(Root);
-            RulesetPath = Path.Combine(Root, "aim_rating.rules.yaml");
-            File.WriteAllText(RulesetPath, "ruleset: aim_rating\n");
-        }
-
-        public string Root { get; }
-
-        public string RulesetPath { get; }
-
-        public string SidecarPath => RulesetLayoutStore.SidecarPathFor(RulesetPath);
-
-        public void Dispose()
-        {
-            try
-            {
-                Directory.Delete(Root, true);
-            }
-            catch (IOException)
-            {
-                // A leftover temp directory is not worth failing a test over.
-            }
-            catch (UnauthorizedAccessException)
-            {
-                // Same.
-            }
-        }
-
-        public void WriteSidecar(string json) => File.WriteAllText(SidecarPath, json);
     }
 }

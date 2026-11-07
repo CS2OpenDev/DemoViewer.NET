@@ -18,7 +18,7 @@ public class CanvasTabViewModelEditTests
     [Test]
     public async Task TogglingAFacet_WritesTheFile_KeepsTheArrangement_AndUndoes()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         string before = File.ReadAllText(rules.UserPath("player_round"));
@@ -66,7 +66,7 @@ public class CanvasTabViewModelEditTests
     [Test]
     public async Task AddingAndRemovingAFacet_RoundTrips_ThroughTheNodeFace()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         vm.Nodes.Single(n => n.Id == "round_kills").FacetToAdd = "headshot";
@@ -80,7 +80,7 @@ public class CanvasTabViewModelEditTests
     [Test]
     public async Task AddStatAndDelete_WriteThroughTheSplice()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         vm.AddStatCommand.Execute("kill");
@@ -102,7 +102,7 @@ public class CanvasTabViewModelEditTests
     [Test]
     public async Task AShippedRuleset_IsReadOnly_UntilCopied_AndTheCopyOverridesIt()
     {
-        using TempRules rules = TempRules.WithShipped("player_round");
+        using RulesTree rules = RulesTree.WithShipped("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         using (Assert.Multiple())
@@ -129,7 +129,7 @@ public class CanvasTabViewModelEditTests
     [Test]
     public async Task ADirtySourcePane_HoldsCanvasEdits_UntilSavedOrReverted()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         vm.SourceEdited(vm.DocumentText + "\n# typed in the pane\n");
@@ -153,7 +153,7 @@ public class CanvasTabViewModelEditTests
     [Test]
     public async Task SavingTextThatNoLongerLoads_IsRefused_AndThePaneStaysDirty()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         string before = File.ReadAllText(rules.UserPath("player_round"));

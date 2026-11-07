@@ -13,13 +13,13 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 /// </summary>
 public class RulesetDocumentSessionTests
 {
-    private static RulesetCorpus.Entry UserEntry(TempRules rules, string id) =>
+    private static RulesetCorpus.Entry UserEntry(RulesTree rules, string id) =>
         rules.Load().Entries.Single(e => e.Id == id && e.Source == "user");
 
     [Test]
     public async Task AnEdit_WritesTheFile_AndUndoAndRedo_WalkTheHistory()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         RulesetDocumentSession session = new();
         session.Open(UserEntry(rules, "player_round"));
         string before = session.Text;
@@ -56,7 +56,7 @@ public class RulesetDocumentSessionTests
     [Test]
     public async Task UndoAfterThePathChanged_DoesNotWrite()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         File.Copy(rules.UserPath("player_round"), rules.UserPath("other"));
         File.WriteAllText(rules.UserPath("other"), File.ReadAllText(rules.UserPath("other")).Replace("ruleset: player_round", "ruleset: other"));
         RulesetDocumentSession session = new();
@@ -82,7 +82,7 @@ public class RulesetDocumentSessionTests
     [Test]
     public async Task ReopeningTheSamePath_KeepsTheHistory()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         RulesetDocumentSession session = new();
         session.Open(UserEntry(rules, "player_round"));
         session.Apply(text => RulesetEdits.SetFacet(text, "round_kills", "enemy", "false"), "set enemy");
@@ -94,7 +94,7 @@ public class RulesetDocumentSessionTests
     [Test]
     public async Task ARefusedTransform_LeavesTheStacksAlone()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         RulesetDocumentSession session = new();
         session.Open(UserEntry(rules, "player_round"));
         session.Apply(text => RulesetEdits.SetFacet(text, "round_kills", "enemy", "false"), "set enemy");
@@ -117,7 +117,7 @@ public class RulesetDocumentSessionTests
     [Test]
     public async Task AShippedFile_IsNeverWritten_NotEvenBySave()
     {
-        using TempRules rules = TempRules.WithShipped("player_round");
+        using RulesTree rules = RulesTree.WithShipped("player_round");
         RulesetDocumentSession session = new();
         session.Open(rules.Load().Entries.Single(e => e.Id == "player_round"));
         string before = File.ReadAllText(rules.ShippedPath("player_round"));
@@ -136,7 +136,7 @@ public class RulesetDocumentSessionTests
     [Test]
     public async Task Save_RefusesTextThatNoLongerLoads_WithTheReason()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         RulesetDocumentSession session = new();
         session.Open(UserEntry(rules, "player_round"));
         string before = session.Text;

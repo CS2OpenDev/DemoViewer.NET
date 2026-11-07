@@ -17,7 +17,7 @@ public class CanvasTabViewModelJumpTests
     public async Task SelectingANode_JumpsToTheLineThatDeclaresIt()
     {
         CanvasTabViewModel vm = new(_ => true,
-            () => RulesetCorpus.Load([(Path.Combine(RepoRoot(), "rules"), "shipped")]), () => null);
+            () => RulesetCorpus.Load([(RulesTree.RepoRulesDirectory, "shipped")]), () => null);
         vm.PreferredRulesetId = "player_round";
         List<int> jumps = [];
         vm.JumpRequested += jumps.Add;
@@ -46,7 +46,7 @@ public class CanvasTabViewModelJumpTests
     public async Task ChangingTheRuleset_ClearsTheSelectionAndTheText()
     {
         CanvasTabViewModel vm = new(_ => true,
-            () => RulesetCorpus.Load([(Path.Combine(RepoRoot(), "rules"), "shipped")]), () => null);
+            () => RulesetCorpus.Load([(RulesTree.RepoRulesDirectory, "shipped")]), () => null);
         vm.PreferredRulesetId = "player_round";
         vm.OnActivated(null!);
         vm.SelectedNodes.Add(vm.Nodes[0]);
@@ -58,21 +58,5 @@ public class CanvasTabViewModelJumpTests
             await Assert.That(vm.DocumentName).IsEqualTo("weapon_stats.rules.yaml");
             await Assert.That(vm.DocumentText).Contains("ruleset: weapon_stats");
         }
-    }
-
-    private static string RepoRoot()
-    {
-        DirectoryInfo? dir = new(AppContext.BaseDirectory);
-        while (dir is not null)
-        {
-            if (File.Exists(Path.Combine(dir.FullName, "DemoViewer.NET.slnx")))
-            {
-                return dir.FullName;
-            }
-
-            dir = dir.Parent;
-        }
-
-        throw new InvalidOperationException("repo root not found");
     }
 }

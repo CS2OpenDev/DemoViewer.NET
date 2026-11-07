@@ -15,7 +15,7 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 public class NodeFaceTests
 {
     private static RulesetCorpus.Composed Compose(string id) =>
-        RulesetCorpus.Load([(TempRules.RepoRulesDirectory, "shipped")]).Compose(id);
+        RulesetCorpus.Load([(RulesTree.RepoRulesDirectory, "shipped")]).Compose(id);
 
     [Test]
     public async Task PlayerRound_FacesAreTypedPerKind()
@@ -121,7 +121,7 @@ public class NodeFaceTests
     [Test]
     public async Task EveryShippedRuleset_BuildsAFaceForEveryNode()
     {
-        RulesetCorpus corpus = RulesetCorpus.Load([(TempRules.RepoRulesDirectory, "shipped")]);
+        RulesetCorpus corpus = RulesetCorpus.Load([(RulesTree.RepoRulesDirectory, "shipped")]);
         List<string> undeclared = [];
         foreach (RulesetCorpus.Entry entry in corpus.Entries)
         {

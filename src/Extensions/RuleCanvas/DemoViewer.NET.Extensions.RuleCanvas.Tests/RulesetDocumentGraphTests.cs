@@ -295,21 +295,5 @@ public class RulesetDocumentGraphTests
         ?? throw new InvalidOperationException($"{id}.rules.yaml is not in the shipped corpus");
 
     private static IEnumerable<string> ShippedRulesets() =>
-        Directory.EnumerateFiles(Path.Combine(RepoRoot(), "rules"), "*.rules.yaml").OrderBy(p => p, StringComparer.Ordinal);
-
-    private static string RepoRoot()
-    {
-        DirectoryInfo? dir = new(AppContext.BaseDirectory);
-        while (dir is not null)
-        {
-            if (File.Exists(Path.Combine(dir.FullName, "DemoViewer.NET.slnx")))
-            {
-                return dir.FullName;
-            }
-
-            dir = dir.Parent;
-        }
-
-        throw new InvalidOperationException("repo root not found");
-    }
+        Directory.EnumerateFiles(RulesTree.RepoRulesDirectory, "*.rules.yaml").OrderBy(p => p, StringComparer.Ordinal);
 }

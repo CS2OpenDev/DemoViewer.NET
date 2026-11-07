@@ -18,7 +18,7 @@ public class CanvasFocusTests
     [Test]
     public async Task FocusingAFlag_DrawsItsInputsAndTheirChains_AndNothingElse()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         int whole = vm.Nodes.Count;
@@ -51,7 +51,7 @@ public class CanvasFocusTests
     [Test]
     public async Task Focus_SurvivesAnEdit_AndItsPlacementIsNotSaved()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         vm.FocusNode(vm.Nodes.Single(n => n.Id == "round_kills"));
@@ -71,7 +71,7 @@ public class CanvasFocusTests
     [Test]
     public async Task AGalleryDropWhileFocused_DropsTheFocus_AndLandsWhereItWasDropped()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         vm.FocusNode(vm.Nodes.Single(n => n.Id == "round_kills"));
@@ -88,7 +88,7 @@ public class CanvasFocusTests
     [Test]
     public async Task DeletingTheFocusedNode_DropsTheFocus()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         // An added stat, since every shipped one is a show: column and deleting it breaks the composition.

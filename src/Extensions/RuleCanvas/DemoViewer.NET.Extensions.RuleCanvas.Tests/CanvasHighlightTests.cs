@@ -14,9 +14,9 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 /// </summary>
 public class CanvasHighlightTests
 {
-    private static (TempRules Rules, CanvasTabViewModel Vm) Open()
+    private static (RulesTree Rules, CanvasTabViewModel Vm) Open()
     {
-        TempRules rules = TempRules.WithUser("player_round");
+        RulesTree rules = RulesTree.WithUser("player_round");
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         return (rules, vm);
@@ -25,12 +25,12 @@ public class CanvasHighlightTests
     private static GalleryItem Item(CanvasTabViewModel vm, string group, string name) =>
         vm.Gallery.Single(g => g.Title == group).Items.Single(i => i.Name == name);
 
-    private static string Text(TempRules rules) => File.ReadAllText(rules.UserPath("player_round"));
+    private static string Text(RulesTree rules) => File.ReadAllText(rules.UserPath("player_round"));
 
     [Test]
     public async Task AHighlightPrefab_CreatesTheSection_AndStandsInTheChain()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             vm.PlaceItem(Item(vm, "Prefabs", "enemy_kills"), new Point(0, 0));
@@ -58,7 +58,7 @@ public class CanvasHighlightTests
     [Test]
     public async Task TheFace_EditsWhenTitleScoreAndPer()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             vm.PlaceItem(Item(vm, "Highlights", "highlight"), new Point(0, 0));
@@ -94,7 +94,7 @@ public class CanvasHighlightTests
     [Test]
     public async Task AStatWiredIntoAHighlight_JoinsItsWhen()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             vm.PlaceItem(Item(vm, "Highlights", "highlight"), new Point(0, 0));
@@ -115,7 +115,7 @@ public class CanvasHighlightTests
     [Test]
     public async Task DeletingAHighlight_RemovesItsEntry()
     {
-        (TempRules rules, CanvasTabViewModel vm) = Open();
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
         using (rules)
         {
             vm.PlaceItem(Item(vm, "Highlights", "highlight"), new Point(0, 0));

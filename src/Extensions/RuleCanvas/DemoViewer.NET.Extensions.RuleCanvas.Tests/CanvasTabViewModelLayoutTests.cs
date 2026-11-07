@@ -21,19 +21,19 @@ public class CanvasTabViewModelLayoutTests
     [Test]
     public async Task AUserRuleset_KeepsItsArrangementBesideTheFile_AndResetDropsIt()
     {
-        using TempCorpus corpus = TempCorpus.OfShipped(Ruleset, "user");
-        CanvasTabViewModel first = NewViewModel(corpus, "user");
+        using RulesTree tree = RulesTree.WithUser(Ruleset);
+        CanvasTabViewModel first = tree.NewViewModel();
         first.OnActivated(null!);
         CanvasNodeViewModel moved = first.Nodes.Single(n => n.Id == "round_kills");
         Point computed = moved.Location;
         moved.Location = new Point(1234, 567);
         first.SaveLayoutCommand.Execute(null);
 
-        string sidecar = RulesetLayoutStore.SidecarPathFor(corpus.RulesetPath);
+        string sidecar = RulesetLayoutStore.SidecarPathFor(tree.UserPath(Ruleset));
         await Assert.That(File.Exists(sidecar)).IsTrue().Because("a user ruleset's arrangement travels with the file");
         await Assert.That(first.HasSavedLayout).IsTrue();
 
-        CanvasTabViewModel second = NewViewModel(corpus, "user");
+        CanvasTabViewModel second = tree.NewViewModel();
         second.OnActivated(null!);
         using (Assert.Multiple())
         {
@@ -55,18 +55,18 @@ public class CanvasTabViewModelLayoutTests
     [Test]
     public async Task AShippedRuleset_KeepsItsArrangementInTheExtensionsOwnFolder()
     {
-        using TempCorpus corpus = TempCorpus.OfShipped(Ruleset, "shipped");
-        CanvasTabViewModel vm = NewViewModel(corpus, "shipped");
+        using RulesTree tree = RulesTree.WithShipped(Ruleset);
+        CanvasTabViewModel vm = tree.NewViewModel();
         vm.OnActivated(null!);
         vm.Nodes.Single(n => n.Id == "round_kills").Location = new Point(10, 20);
         vm.SaveLayoutCommand.Execute(null);
 
-        string expected = Path.Combine(corpus.OwnFolder, "layouts", Ruleset + RulesetLayoutStore.SidecarSuffix);
+        string expected = Path.Combine(tree.OwnFolder, "layouts", Ruleset + RulesetLayoutStore.SidecarSuffix);
         using (Assert.Multiple())
         {
             await Assert.That(vm.SidecarPath).IsEqualTo(expected);
             await Assert.That(File.Exists(expected)).IsTrue();
-            await Assert.That(File.Exists(RulesetLayoutStore.SidecarPathFor(corpus.RulesetPath))).IsFalse()
+            await Assert.That(File.Exists(RulesetLayoutStore.SidecarPathFor(tree.ShippedPath(Ruleset)))).IsFalse()
                 .Because("nothing is written beside a shipped ruleset");
         }
     }
@@ -74,8 +74,8 @@ public class CanvasTabViewModelLayoutTests
     [Test]
     public async Task WithNoOwnFolder_AShippedRuleset_IsNotSavedAndDoesNotThrow()
     {
-        using TempCorpus corpus = TempCorpus.OfShipped(Ruleset, "shipped");
-        CanvasTabViewModel vm = new(_ => true, () => corpus.Load("shipped"), () => null);
+        using RulesTree tree = RulesTree.WithShipped(Ruleset);
+        CanvasTabViewModel vm = new(_ => true, tree.Load, () => null);
         vm.OnActivated(null!);
         vm.Nodes.Single(n => n.Id == "round_kills").Location = new Point(10, 20);
         vm.SaveLayoutCommand.Execute(null);
@@ -83,68 +83,7 @@ public class CanvasTabViewModelLayoutTests
         {
             await Assert.That(vm.SidecarPath).IsNull();
             await Assert.That(vm.HasSavedLayout).IsFalse();
-            await Assert.That(Directory.EnumerateFiles(corpus.Directory, "*.layout.json")).IsEmpty();
-        }
-    }
-
-    private static CanvasTabViewModel NewViewModel(TempCorpus corpus, string source) =>
-        new(_ => true, () => corpus.Load(source), () => corpus.OwnFolder);
-
-    /// <summary>One shipped ruleset copied into a throwaway directory, with an own folder beside it.</summary>
-    private sealed class TempCorpus : IDisposable
-    {
-        private TempCorpus(string root, string rulesetPath)
-        {
-            Root = root;
-            RulesetPath = rulesetPath;
-        }
-
-        public string Root { get; }
-
-        public string Directory => Path.GetDirectoryName(RulesetPath)!;
-
-        public string RulesetPath { get; }
-
-        public string OwnFolder => Path.Combine(Root, "own");
-
-        public static TempCorpus OfShipped(string id, string source)
-        {
-            string root = Path.Combine(Path.GetTempPath(), "rulecanvas-layout-" + Guid.NewGuid().ToString("N"));
-            string dir = Path.Combine(root, source);
-            System.IO.Directory.CreateDirectory(dir);
-            string target = Path.Combine(dir, id + ".rules.yaml");
-            File.Copy(Path.Combine(RepoRoot(), "rules", id + ".rules.yaml"), target);
-            return new TempCorpus(root, target);
-        }
-
-        public RulesetCorpus Load(string source) => RulesetCorpus.Load([(Directory, source)]);
-
-        public void Dispose()
-        {
-            try
-            {
-                System.IO.Directory.Delete(Root, true);
-            }
-            catch (IOException)
-            {
-                // A temp tree that outlives the test is tolerable; a failing cleanup is not a failing test.
-            }
-        }
-
-        private static string RepoRoot()
-        {
-            DirectoryInfo? dir = new(AppContext.BaseDirectory);
-            while (dir is not null)
-            {
-                if (File.Exists(Path.Combine(dir.FullName, "DemoViewer.NET.slnx")))
-                {
-                    return dir.FullName;
-                }
-
-                dir = dir.Parent;
-            }
-
-            throw new InvalidOperationException("repo root not found");
+            await Assert.That(Directory.EnumerateFiles(tree.ShippedDirectory, "*.layout.json")).IsEmpty();
         }
     }
 }

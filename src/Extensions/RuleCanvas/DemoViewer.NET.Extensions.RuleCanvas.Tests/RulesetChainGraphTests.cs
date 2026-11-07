@@ -68,7 +68,7 @@ public class RulesetChainGraphTests
     [Test]
     public async Task TwoEntriesWithOneDefinition_EachGetTheirOwnNodeAndWires()
     {
-        using TempRules rules = TempRules.WithUser("player_round");
+        using RulesTree rules = RulesTree.WithUser("player_round");
         string path = rules.UserPath("player_round");
         File.WriteAllText(path, File.ReadAllText(path).Replace("\nshow:",
             "\n  enemy_kills:\n    count: kill\n    match: { enemy: true }\n    per: round\n\nshow:", StringComparison.Ordinal));
