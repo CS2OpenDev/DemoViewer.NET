@@ -376,4 +376,24 @@ public class CanvasSurfaceTests
             await Assert.That(vm.ShowMinimap).IsEqualTo(!minimap);
         }
     }
+
+    [Test]
+    public async Task NewRuleset_NeverOverwritesAFileThePickerDoesNotShow()
+    {
+        using RulesTree rules = RulesTree.New();
+        string broken = rules.Broken("my_rules", "ruleset: [\n");
+        string renamed = rules.User("my_rules_2", "ruleset: something_else\ntitle: Else\nstats:\n  k:\n    count: kill\n    per: round\n");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        await Assert.That(vm.Rulesets.Select(r => r.Id)).DoesNotContain("my_rules");
+
+        vm.NewRulesetCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(File.ReadAllText(broken)).IsEqualTo("ruleset: [\n").Because("a file that does not load is still the user's");
+            await Assert.That(File.ReadAllText(renamed)).StartsWith("ruleset: something_else").Because("a file keyed under another id is still the user's");
+            await Assert.That(vm.SelectedRuleset?.Id).IsEqualTo("my_rules_3");
+            await Assert.That(File.Exists(rules.UserPath("my_rules_3"))).IsTrue();
+        }
+    }
 }

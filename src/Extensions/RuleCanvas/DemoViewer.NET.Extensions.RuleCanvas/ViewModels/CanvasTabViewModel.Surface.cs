@@ -198,8 +198,18 @@ public sealed partial class CanvasTabViewModel
             return;
         }
 
-        string id = CanvasEditSemantics.FreshId(NewRulesetId, Rulesets.Select(r => r.Id));
+        // A file that does not load, or whose ruleset: key is not its stem, is not in the picker but is on disk.
+        IEnumerable<string> onDisk = Directory.Exists(userDir)
+            ? Directory.EnumerateFiles(userDir, "*.rules.yaml").Select(p => Path.GetFileName(p)[..^".rules.yaml".Length])
+            : [];
+        string id = CanvasEditSemantics.FreshId(NewRulesetId, Rulesets.Select(r => r.Id).Concat(onDisk));
         string path = Path.Combine(userDir, id + ".rules.yaml");
+        if (File.Exists(path))
+        {
+            Notify($"{Path.GetFileName(path)} already exists; nothing was written.");
+            return;
+        }
+
         try
         {
             Directory.CreateDirectory(userDir);
