@@ -33,6 +33,12 @@ public abstract record NodeFace(
 
     public string Ruleset => Key.Ruleset;
 
+    /// <summary>What the face can name besides its own fields; empty for a face built outside a composition.</summary>
+    public FaceVocabulary Vocabulary { get; init; } = FaceVocabulary.Empty;
+
+    /// <summary>The value the node produces, as the checked model types it (<c>int</c>, <c>list&lt;int&gt;</c>), or null when unknown.</summary>
+    public string? ValueType { get; init; }
+
     /// <summary>A node the engine made rather than the author: an event, an enrichment, a context value.</summary>
     public bool IsScaffold => Key.Ruleset.StartsWith('~');
 
@@ -49,6 +55,25 @@ public sealed record TriggerFace(TriggerRef? On, IReadOnlyList<MatchBinding> Mat
 {
     public static TriggerFace? From(TriggerDef? trigger) =>
         trigger is null ? null : new TriggerFace(trigger.On, trigger.Match ?? [], trigger.Actor, trigger.Where, trigger.While);
+
+    /// <summary>Whether <c>actor: any</c> switched the view's per-player binding off.</summary>
+    public bool SuppressesActorBinding => string.Equals(Actor?.Trim(), "any", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The <c>on:</c> reference as the author spelled it, sigil and all, or null.</summary>
+    public string? Spelling => On is null ? null : Spell(On);
+
+    public static string Spell(TriggerRef on)
+    {
+        ArgumentNullException.ThrowIfNull(on);
+        return on.Kind switch
+        {
+            TriggerRefKind.Raw => "raw." + on.Name,
+            TriggerRefKind.Net => "net." + on.Name,
+            TriggerRefKind.Cadence => "cadence." + on.Name,
+            TriggerRefKind.This => "this",
+            _ => on.Name
+        };
+    }
 }
 
 /// <summary>A declared stat. The fields every kind has; the sealed kinds add their own.</summary>
@@ -80,7 +105,62 @@ public abstract record StatFace(
     IReadOnlyList<string> CrossRulesetReads,
     string? KindArg,
     TriggerFace? Trigger,
-    MatchFacetForm Form) : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable);
+    MatchFacetForm Form) : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
+{
+    /// <summary>The kinds whose own key names the trigger; the others carry it under <c>on:</c>.</summary>
+    public static bool KindNamesTrigger(string kind) => kind is "count" or "streak" or "bucket" or "burst";
+
+    /// <summary>The key a trigger write goes to: the kind's own key, <c>on:</c>, or null for a kind that fires on nothing.</summary>
+    public static string? TriggerKeyOf(string kind) => kind switch
+    {
+        "count" or "streak" or "bucket" or "burst" => kind,
+        "sum" or "capture" or "flag" or "tally" => "on",
+        _ => null
+    };
+
+    /// <summary>
+    ///     The trigger as the author wrote it: the <c>on:</c> reference, or the kind argument of a kind that
+    ///     names its trigger there. Null for a compute, an expression flag and a rate.
+    /// </summary>
+    public string? TriggerSpelling => Trigger?.Spelling ?? (KindNamesTrigger(Kind) ? KindArg?.Trim() : null);
+
+    /// <summary>Whether the face shows a trigger picker: every kind but a compute, a rate, and a flag that is its own condition.</summary>
+    public bool HasTrigger => Kind switch
+    {
+        "compute" or "rate" => false,
+        "flag" => Trigger?.On is not null || string.Equals(KindArg?.Trim(), "true", StringComparison.OrdinalIgnoreCase),
+        _ => true
+    };
+
+    /// <summary>The role the view binds to this player, from the catalog (<c>killer</c>, <c>victim</c>); null for no view or no binding.</summary>
+    public string? ViewActor => FaceVocabulary.ViewOf(View) is { } view && !string.IsNullOrEmpty(view.Actor) ? view.Actor : null;
+
+    /// <summary>
+    ///     What the engine binds the event to, in words: <c>any player</c> when <c>actor: any</c> switched the
+    ///     binding off, <c>as killer</c> from the view's role, <c>binds nobody</c> for a view with none, or
+    ///     null when the face fires on no catalog view.
+    /// </summary>
+    public string? ActorText
+    {
+        get
+        {
+            if (FaceVocabulary.ViewOf(View) is null)
+            {
+                return null;
+            }
+
+            if (Trigger?.SuppressesActorBinding == true)
+            {
+                return "any player";
+            }
+
+            return ViewActor is { } actor ? "as " + actor : "binds nobody";
+        }
+    }
+
+    /// <summary>Whether the view bakes <c>event.Attacker != event.UserId</c> in, which the face states as a fixed row.</summary>
+    public bool NotASuicide => FaceVocabulary.BakesOutSuicide(View);
+}
 
 /// <summary>A <c>count:</c> of a view's events.</summary>
 public sealed record CountFace(
@@ -173,11 +253,14 @@ public sealed record RateFace(
     string? KindArg, TriggerFace? Trigger, MatchFacetForm Form, string? RateOf, string? RatePer)
     : StatFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable, View, Events, CrossRulesetReads, KindArg, Trigger, Form);
 
-/// <summary>A <c>burst:</c> of events in quick succession.</summary>
+/// <summary>
+///     A <c>burst:</c> of events in quick succession: a pulse once <see cref="MinStreak" /> events land within
+///     <see cref="Window" />. Both are the streak keys as written, or null for the resolver's default.
+/// </summary>
 public sealed record BurstFace(
     RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
     int SourceLine, bool IsAuthorable, string? View, IReadOnlyList<string> Events, IReadOnlyList<string> CrossRulesetReads,
-    string? KindArg, TriggerFace? Trigger, MatchFacetForm Form)
+    string? KindArg, TriggerFace? Trigger, MatchFacetForm Form, string? Window, int? MinStreak)
     : StatFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable, View, Events, CrossRulesetReads, KindArg, Trigger, Form);
 
 /// <summary>

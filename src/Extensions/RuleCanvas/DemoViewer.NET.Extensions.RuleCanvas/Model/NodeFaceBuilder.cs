@@ -1,5 +1,6 @@
 #region
 
+using CS2DemoKit.Analysis.Rules;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 
 #endregion
@@ -19,9 +20,15 @@ public static class NodeFaceBuilder
         ILookup<RulesetDocumentNodeKey, string> diagnostics = DiagnosticsByNode(composed);
         List<NodeFace> faces = new(composed.Graph.Nodes.Count + composed.Chain.Nodes.Count);
         HashSet<RulesetDocumentNodeKey> keys = [];
+        string? open = composed.Graph.Nodes.FirstOrDefault(n => n.IsAuthorable)?.Key.Ruleset;
+        FaceVocabulary vocabulary = FaceVocabulary.Of(composed, open);
         foreach (RulesetDocumentNode node in composed.Graph.Nodes)
         {
-            faces.Add(Declared(node, composed.Documents, [.. diagnostics[node.Key]]));
+            faces.Add(Declared(node, composed.Documents, [.. diagnostics[node.Key]]) with
+            {
+                Vocabulary = vocabulary,
+                ValueType = node.ValueType.Kind == RulesTypeKind.None ? null : node.ValueType.ToString()
+            });
             keys.Add(node.Key);
         }
 
@@ -93,7 +100,7 @@ public static class NodeFaceBuilder
             "rate" => new RateFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View, node.Events,
                 node.CrossRulesetReads, stat.KindArg, trigger, form, stat.RateOf, stat.RatePer),
             "burst" => new BurstFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View, node.Events,
-                node.CrossRulesetReads, stat.KindArg, trigger, form),
+                node.CrossRulesetReads, stat.KindArg, trigger, form, stat.StreakWindow, stat.StreakMinStreak),
             _ => new CountFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View, node.Events,
                 node.CrossRulesetReads, stat.KindArg, trigger, form)
         };

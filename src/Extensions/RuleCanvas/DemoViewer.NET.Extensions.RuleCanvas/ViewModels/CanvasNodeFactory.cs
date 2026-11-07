@@ -10,10 +10,11 @@ using DemoViewer.NET.Extensions.RuleCanvas.Model;
 namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 
 /// <summary>
-///     Builds the node view model for a face: the trigger, gate and scope as chips; the <c>match:</c> form as
-///     facet rows written the way the author wrote them; the <c>compute:</c>, flag, <c>where:</c> or
-///     <c>when:</c> text as the expression line and, for an authorable node, as editors. The writers given
-///     here are what every row and picker writes through, with the node as the first argument.
+///     Builds the node view model for a face: the trigger, actor binding, gate and scope as chips; the
+///     <c>match:</c> form as facet rows written the way the author wrote them; the kind's own keys as rows
+///     and pickers; the <c>compute:</c>, flag, <c>where:</c> or <c>when:</c> text as the expression line
+///     and, for an authorable node, as editors. The writers given here are what every row and picker
+///     writes through, with the node as the first argument.
 /// </summary>
 /// <param name="writeFacet">Writes a facet of the node: a value to set, or null to remove it. Null writes nowhere.</param>
 /// <param name="writeField">Writes a field of the node: a value to set, or null to remove it. Null writes nowhere.</param>
@@ -21,6 +22,21 @@ public sealed class CanvasNodeFactory(
     Action<CanvasNodeViewModel, string, string?>? writeFacet = null,
     Action<CanvasNodeViewModel, string, string?>? writeField = null)
 {
+    /// <summary>The <c>keep:</c> modes a capture or a sum can name.</summary>
+    public static IReadOnlyList<string> KeepOptions { get; } = ["first", "last", "list", "min", "max"];
+
+    /// <summary>The <c>format:</c> strings a compute commonly uses; the picker keeps any other as written.</summary>
+    public static IReadOnlyList<string> FormatOptions { get; } = ["F0", "F1", "F2", "R"];
+
+    /// <summary>The <c>reduce:</c> names a bucket can use.</summary>
+    public static IReadOnlyList<string> ReduceOptions { get; } = ["sum", "count", "min", "max", "last", "first"];
+
+    /// <summary>The <c>kind:</c> values a highlight can carry.</summary>
+    public static IReadOnlyList<string> HighlightKindOptions { get; } = ["highlight", "funny", "lowlight", "hidden"];
+
+    /// <summary>The window spellings a streak or a burst commonly uses.</summary>
+    public static IReadOnlyList<string> WindowOptions { get; } = ["2", "640", "3s", "5s", "7s", "9s"];
+
     /// <summary>A factory whose nodes write nowhere, for a canvas that is only drawn.</summary>
     public static CanvasNodeFactory ReadOnly { get; } = new();
 
@@ -28,11 +44,20 @@ public sealed class CanvasNodeFactory(
     {
         ArgumentNullException.ThrowIfNull(face);
         List<string> chips = [];
+        Dictionary<string, string> tips = new(StringComparer.Ordinal);
         List<CanvasFacetViewModel> facets = [];
         List<string> available = [];
         Dictionary<string, RulesTypeKind> availableKinds = new(StringComparer.Ordinal);
+        List<string> fixedRows = [];
         List<string> expression = [];
         List<CanvasExpressionViewModel> lines = [];
+        List<CanvasFieldViewModel> fields = [];
+        List<CanvasChoiceViewModel> choices = [];
+        List<string> defaults = [];
+        CanvasTriggerViewModel? trigger = null;
+        CanvasThresholdsViewModel? thresholds = null;
+        string? viewActor = null;
+        bool? bindsActor = null;
         CanvasNodeViewModel? built = null;
         // Rows write through the node they belong to; the node writes through the factory's writers.
         void Facet(string facet, string? value) => built?.WriteFacet(facet, value);
@@ -53,6 +78,13 @@ public sealed class CanvasNodeFactory(
                 lines.Add(new CanvasExpressionViewModel("when", "when", highlight.When ?? "", Field));
                 lines.Add(new CanvasExpressionViewModel("title", "title", highlight.Title ?? "", Field));
                 lines.Add(new CanvasExpressionViewModel("score", "score", highlight.Score?.ToString(CultureInfo.InvariantCulture) ?? "", Field));
+                choices.Add(new CanvasChoiceViewModel("kind", "kind", HighlightKindOptions, highlight.HighlightKind, "highlight", Field));
+                fields.Add(new CanvasFieldViewModel("group", "group", highlight.Group, face.Vocabulary.Groups, null, Field));
+                if (highlight.Score is null)
+                {
+                    defaults.Add("score 50");
+                }
+
                 AddReads(chips, highlight.CrossRulesetReads);
                 break;
             case UndeclaredFace undeclared:
@@ -64,12 +96,21 @@ public sealed class CanvasNodeFactory(
                 AddReads(chips, undeclared.CrossRulesetReads);
                 break;
             case StatFace stat:
-                AddTrigger(chips, stat.View, stat.Events);
+                trigger = AddStatTrigger(stat, chips, tips, Field);
+                if (stat.ActorText is { } actor)
+                {
+                    chips.Add(actor);
+                    tips[actor] = ActorTip(stat);
+                    viewActor = stat.ViewActor;
+                    bindsActor = viewActor is null ? null : stat.Trigger?.SuppressesActorBinding != true;
+                }
+
                 if (stat.Gate.Length > 0)
                 {
                     chips.Add("while " + stat.Gate);
                 }
 
+                // The mapper fills per: round in before the face sees the entry, so the scope is never a default here.
                 AddScope(chips, stat.Per);
                 foreach (MatchFacetRow row in stat.Form.Rows)
                 {
@@ -86,28 +127,22 @@ public sealed class CanvasNodeFactory(
 
                 foreach (MatchBinding unknown in stat.Form.Unknown)
                 {
+                    // actor: is the engine's reserved key, shown as the binding chip and toggle rather than as a facet.
+                    if (string.Equals(unknown.Key, "actor", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
                     facets.Add(new CanvasFacetViewModel(unknown.Key, RulesTypeKind.None,
                         MatchFacetValue.From(unknown.Test)?.ToMatchValue() ?? "", Facet));
                 }
 
-                if (stat is ComputeFace)
+                if (stat.NotASuicide)
                 {
-                    if (stat.KindArg is { } formula)
-                    {
-                        expression.Add("= " + formula);
-                    }
-
-                    lines.Add(new CanvasExpressionViewModel("compute", "=", stat.KindArg ?? "", Field));
+                    fixedRows.Add("not a suicide");
                 }
-                else if (stat is FlagFace)
-                {
-                    if (stat.KindArg is { } condition)
-                    {
-                        expression.Add("when " + condition);
-                    }
 
-                    lines.Add(new CanvasExpressionViewModel("when", "when", stat.KindArg ?? "", Field));
-                }
+                AddKindRows(stat, expression, lines, fields, choices, defaults, out thresholds, Field);
 
                 if (!string.IsNullOrWhiteSpace(stat.Trigger?.Where))
                 {
@@ -128,6 +163,9 @@ public sealed class CanvasNodeFactory(
             chips.Add("from " + face.Ruleset);
         }
 
+        IReadOnlyList<string> gateChoices = face is StatFace
+            ? [.. CanvasNodeViewModel.GateOptions, .. face.Vocabulary.Flags.Where(f => f != face.Id)]
+            : CanvasNodeViewModel.GateOptions;
         built = new CanvasNodeViewModel
         {
             Face = face,
@@ -136,14 +174,28 @@ public sealed class CanvasNodeFactory(
             Kind = face.Kind,
             Label = face.Label,
             View = (face as StatFace)?.View ?? (face as UndeclaredFace)?.View,
+            ValueType = face.ValueType,
             Chips = chips,
+            ChipTips = tips,
             Facets = facets,
             AvailableFacets = available,
             AvailableFacetKind = name => availableKinds.GetValueOrDefault(name, RulesTypeKind.None),
+            FixedRows = fixedRows,
             Expression = expression.Count == 0 ? null : string.Join('\n', expression),
             Lines = lines,
+            Trigger = trigger,
+            Fields = fields,
+            Choices = choices,
+            Thresholds = thresholds,
+            Defaults = defaults,
+            ViewActor = viewActor,
+            BindsActor = bindsActor,
             Per = face.Per,
             Gate = face.Gate,
+            GateText = face.Gate,
+            GateChoice = gateChoices.Contains(face.Gate, StringComparer.Ordinal) ? face.Gate : null,
+            GateChoices = gateChoices,
+            LabelText = face.Label ?? "",
             SourceLine = face.SourceLine,
             IsAuthorable = face.IsAuthorable,
             Diagnostics = face.Diagnostics
@@ -153,7 +205,165 @@ public sealed class CanvasNodeFactory(
         return node;
     }
 
-    // The view as the author named it; only a trigger the resolver gave no view shows its wire events.
+    // The trigger chip carries the spelling the author wrote; the resolved view and the events are its tip.
+    // A face that fires on nothing (a compute, an expression flag) shows its wire events, if any, as before.
+    private static CanvasTriggerViewModel? AddStatTrigger(StatFace stat, List<string> chips, Dictionary<string, string> tips,
+        Action<string, string?> write)
+    {
+        if (!stat.HasTrigger || StatFace.TriggerKeyOf(stat.Kind) is not { } key)
+        {
+            AddTrigger(chips, stat.View, stat.Events);
+            return null;
+        }
+
+        CanvasTriggerViewModel trigger = new(key, stat.TriggerSpelling, stat.View, stat.Events, stat.Vocabulary.TriggersFor(stat.TriggerSpelling), write);
+        if (trigger.Chip.Length > 0)
+        {
+            chips.Add(trigger.Chip);
+            tips[trigger.Chip] = trigger.Tip;
+        }
+        else
+        {
+            AddTrigger(chips, stat.View, stat.Events);
+        }
+
+        return trigger;
+    }
+
+    private static string ActorTip(StatFace stat)
+    {
+        if (stat.Trigger?.SuppressesActorBinding == true)
+        {
+            return "match: { actor: any } switches the view's per-player binding off; every player's event counts";
+        }
+
+        return stat.ViewActor is { } actor
+            ? $"the view binds its {actor} to this player; only this player's events count"
+            : "the view binds no role to a player; the event counts for everyone";
+    }
+
+    // Each kind's own keys, named here once: the view model rows a template draws and the semantics write.
+    private static void AddKindRows(StatFace stat, List<string> expression, List<CanvasExpressionViewModel> lines,
+        List<CanvasFieldViewModel> fields, List<CanvasChoiceViewModel> choices, List<string> defaults,
+        out CanvasThresholdsViewModel? thresholds, Action<string, string?> write)
+    {
+        thresholds = null;
+        IReadOnlyList<string> values = [.. FaceVocabulary.ValuePathsFor(stat.View), .. FaceVocabulary.PlayerContextPaths];
+        switch (stat)
+        {
+            case ComputeFace compute:
+                if (stat.KindArg is { } formula)
+                {
+                    expression.Add("= " + formula);
+                }
+
+                lines.Add(new CanvasExpressionViewModel("compute", "=", stat.KindArg ?? "", write));
+                choices.Add(new CanvasChoiceViewModel("format", "format", FormatOptions, compute.Format, "F1", write));
+                if (compute.Live)
+                {
+                    expression.Add("live");
+                }
+
+                break;
+            case FlagFace:
+                if (stat.Trigger?.On is null && stat.KindArg is { } condition && !string.Equals(condition.Trim(), "true", StringComparison.OrdinalIgnoreCase))
+                {
+                    expression.Add("when " + condition);
+                }
+
+                if (stat.Trigger?.On is null)
+                {
+                    lines.Add(new CanvasExpressionViewModel("when", "when", stat.KindArg ?? "", write));
+                }
+
+                break;
+            case SumFace sum:
+                AddValue(stat, "sum", values, expression, fields, write);
+                if (sum.Keep is { } keep && keep != KeepMode.None)
+                {
+                    choices.Add(new CanvasChoiceViewModel("keep", "keep", KeepOptions, KeepText(keep), "last", write));
+                }
+
+                break;
+            case CaptureFace capture:
+                AddValue(stat, "capture", values, expression, fields, write);
+                choices.Add(new CanvasChoiceViewModel("keep", "keep", KeepOptions, KeepText(capture.Keep), "last", write));
+                break;
+            case TallyFace tally:
+                AddValue(stat, "tally", stat.Vocabulary.Stats.Where(s => s != stat.Id).ToList(), expression, fields, write);
+                thresholds = new CanvasThresholdsViewModel(
+                    [.. tally.Thresholds.Select(t => (TallyMinText(t.Min), t.Target))], write);
+                break;
+            case StreakFace streak:
+                AddWindow(streak.StreakWindow, streak.StreakMinStreak, expression, fields, write);
+                break;
+            case BurstFace burst:
+                AddWindow(burst.Window, burst.MinStreak, expression, fields, write);
+                break;
+            case BucketFace bucket:
+                string? key = bucket.BucketKey ?? (bucket.BucketKeys is { Count: > 0 } keys ? "[" + string.Join(", ", keys) + "]" : null);
+                if (key is not null)
+                {
+                    expression.Add("key " + key);
+                }
+
+                fields.Add(new CanvasFieldViewModel("key", "key", key, values, null, write,
+                    bucket.BucketKeys is { Count: > 0 }, "a list key is edited in the source pane"));
+                if (bucket.BucketValue is not null)
+                {
+                    expression.Add("value " + bucket.BucketValue);
+                }
+
+                fields.Add(new CanvasFieldViewModel("value", "value", bucket.BucketValue, values, "count per key", write));
+                choices.Add(new CanvasChoiceViewModel("reduce", "reduce", ReduceOptions, bucket.BucketReduce,
+                    bucket.BucketValue is null ? "count" : "sum", write));
+                break;
+            case RateFace rate:
+                if (rate.RateOf is not null || rate.RatePer is not null)
+                {
+                    expression.Add($"{rate.RateOf ?? "?"} / {rate.RatePer ?? "?"}");
+                }
+
+                fields.Add(new CanvasFieldViewModel("rate.of", "of", rate.RateOf, stat.Vocabulary.Buckets, null, write));
+                fields.Add(new CanvasFieldViewModel("rate.per", "per", rate.RatePer, stat.Vocabulary.Buckets, null, write));
+                break;
+        }
+    }
+
+    private static void AddValue(StatFace stat, string key, IReadOnlyList<string> suggestions, List<string> expression,
+        List<CanvasFieldViewModel> fields, Action<string, string?> write)
+    {
+        if (!string.IsNullOrWhiteSpace(stat.KindArg))
+        {
+            expression.Add("= " + stat.KindArg);
+        }
+
+        fields.Add(new CanvasFieldViewModel(key, "=", stat.KindArg, suggestions, null, write));
+    }
+
+    private static void AddWindow(string? window, int? minStreak, List<string> expression, List<CanvasFieldViewModel> fields,
+        Action<string, string?> write)
+    {
+        if (window is not null || minStreak is not null)
+        {
+            expression.Add($"window {window ?? "default"}, min streak {minStreak?.ToString(CultureInfo.InvariantCulture) ?? "default"}");
+        }
+
+        fields.Add(new CanvasFieldViewModel("window", "window", window, WindowOptions, "engine", write));
+        fields.Add(new CanvasFieldViewModel("min_streak", "min streak", minStreak?.ToString(CultureInfo.InvariantCulture), ["2", "3", "4", "5"],
+            "engine", write));
+    }
+
+    private static string? KeepText(KeepMode? keep) => keep is null or KeepMode.None ? null : keep.Value.ToString().ToLowerInvariant();
+
+    private static string TallyMinText(TallyMin min) => min switch
+    {
+        TallyMinLiteral literal => literal.Value.ToString(CultureInfo.InvariantCulture),
+        TallyMinParam param => param.RawText,
+        _ => min.ToString() ?? ""
+    };
+
+    // The view as the resolver named it; only a trigger the resolver gave no view shows its wire events.
     private static void AddTrigger(List<string> chips, string? view, IReadOnlyList<string> events)
     {
         if (!string.IsNullOrEmpty(view))

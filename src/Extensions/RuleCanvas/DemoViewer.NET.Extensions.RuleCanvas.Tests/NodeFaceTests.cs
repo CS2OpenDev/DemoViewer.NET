@@ -70,15 +70,20 @@ public class NodeFaceTests
         // Ids repeat across engine kinds (player_team is a context value and an entity pull), so the key is the key.
         Dictionary<RulesetDocumentNodeKey, CanvasNodeViewModel> byKey = faces.ToDictionary(f => f.Key, CanvasNodeFactory.ReadOnly.Create);
         CanvasNodeViewModel Node(string id) => byKey.Single(kv => kv.Key.Id == id && !kv.Key.Ruleset.StartsWith("~entity", StringComparison.Ordinal)).Value;
+        // Wave 1 changed three things on purpose. The trigger chip carries the author's spelling, so a raw
+        // event keeps its raw. prefix (round_side). A second chip after the trigger says whom the view binds
+        // (as killer, as victim, binds nobody), which the face hid before. A sum or a capture shows its value
+        // as the expression (= enrich.hurt.capped_damage), where it showed nothing. The kind's keys are rows
+        // (Fields, Choices), not chips, so they are checked apart below.
         (string Id, string[] Chips, string? Expression, string[] Lines)[] expected =
         [
-            ("round_side", ["on round_freeze_end", "per round"], null, ["where"]),
-            ("round_kills", ["on kill", "per round"], null, ["where"]),
-            ("round_deaths", ["on death", "while match.live", "per round"], null, ["where"]),
-            ("round_assists", ["on assist", "per round"], "where event.AssistedFlash == false", ["where"]),
-            ("round_damage", ["on damage_dealt", "per round"], null, ["where"]),
-            ("round_survived", ["on round_ended", "while player.alive", "per round"], null, ["where"]),
-            ("round_kast_assists", ["on assist", "per round"], "where enrich.kill.was_enemy_kill == true", ["where"]),
+            ("round_side", ["on raw.round_freeze_end", "per round"], "= player.team", ["where"]),
+            ("round_kills", ["on kill", "as killer", "per round"], null, ["where"]),
+            ("round_deaths", ["on death", "as victim", "while match.live", "per round"], null, ["where"]),
+            ("round_assists", ["on assist", "as assister", "per round"], "where event.AssistedFlash == false", ["where"]),
+            ("round_damage", ["on damage_dealt", "as attacker", "per round"], "= enrich.hurt.capped_damage", ["where"]),
+            ("round_survived", ["on round_ended", "binds nobody", "while player.alive", "per round"], null, ["where"]),
+            ("round_kast_assists", ["on assist", "as assister", "per round"], "where enrich.kill.was_enemy_kill == true", ["where"]),
             ("round_kast", ["per round"], "when round_kills > 0 or round_kast_assists > 0 or player.survived or player.traded", ["when", "where"]),
             ("MatchLive", [], null, []),
             ("Alive", ["each player"], null, []),
@@ -101,6 +106,20 @@ public class NodeFaceTests
             await Assert.That(Node("round_kast").Lines.Single(l => l.Key == "when").Text).StartsWith("round_kills > 0");
             await Assert.That(Node("round_kast").IsScaffold).IsFalse();
             await Assert.That(Node("MatchLive").IsScaffold).IsTrue();
+
+            // The trigger chip's tip names the resolved view and the wire event; the actor chip's names the role.
+            await Assert.That(Node("round_side").ChipTips["on raw.round_freeze_end"]).Contains("round_freeze_end");
+            await Assert.That(Node("round_kills").ChipTips["on kill"]).Contains("player_death");
+            await Assert.That(Node("round_kills").ChipTips["as killer"]).Contains("killer");
+            await Assert.That(Node("round_kills").Trigger!.Key).IsEqualTo("count");
+            await Assert.That(Node("round_damage").Trigger!.Key).IsEqualTo("on");
+            await Assert.That(Node("round_kast").Trigger).IsNull().Because("an expression flag is its own trigger");
+            await Assert.That(Node("round_damage").Fields.Single(f => f.Key == "sum").Original).IsEqualTo("enrich.hurt.capped_damage");
+            await Assert.That(Node("round_side").Choices.Single(c => c.Key == "keep").IsDefault).IsTrue();
+            await Assert.That(Node("round_kills").FixedRows).IsEquivalentTo(["not a suicide"]).Because("the kill view bakes Attacker != UserId in");
+            await Assert.That(Node("round_deaths").FixedRows).IsEmpty().Because("the death view keeps the suicide");
+            await Assert.That(Node("round_kills").ValueType).IsEqualTo("int");
+            await Assert.That(Node("round_kast").ValueType).IsEqualTo("bool");
         }
     }
 

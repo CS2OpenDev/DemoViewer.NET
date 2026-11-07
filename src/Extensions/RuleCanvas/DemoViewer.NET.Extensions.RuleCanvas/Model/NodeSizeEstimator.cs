@@ -23,6 +23,8 @@ public static class NodeSizeEstimator
     private const double DiagnosticHeight = 18;
     private const double PickerRowHeight = 30;
     private const double LineHeight = 26;
+    private const double FieldRowHeight = 26;
+    private const double ThresholdRowHeight = 26;
     private const int LineWrapColumns = 44;
     private const double EditableWidth = 360;
 
@@ -38,6 +40,7 @@ public static class NodeSizeEstimator
         int longest = Math.Max(node.Id.Length + (node.Label?.Length ?? 0) + 8,
             node.Expression?.Split('\n').Max(l => l.Length) ?? 0);
         longest = Math.Max(longest, Math.Min(LineWrapColumns, node.Lines.Max(l => (int?)l.Text.Length) ?? 0) + 8);
+        longest = Math.Max(longest, Math.Min(LineWrapColumns, node.Fields.Max(f => (int?)f.Original.Length) ?? 0) + 12);
         longest = Math.Max(longest, (node.Inputs.Max(i => (int?)i.Title.Length) ?? 0) + 14);
         double width = Math.Clamp(BaseWidth + Math.Max(0, longest - 30) * 6, BaseWidth, 520);
         // The picker row and an expression editor are wider than any chip row.
@@ -47,20 +50,26 @@ public static class NodeSizeEstimator
     public static double HeightOf(CanvasNodeViewModel node)
     {
         ArgumentNullException.ThrowIfNull(node);
-        double chips = node.Chips.Count == 0 ? 0 : ChipRowHeight * Math.Ceiling(node.Chips.Count / 3.0);
-        double rows = Math.Max(node.Facets.Count * FacetRowHeight,
+        int chipCount = node.Chips.Count + node.Defaults.Count;
+        double chips = chipCount == 0 ? 0 : ChipRowHeight * Math.Ceiling(chipCount / 3.0);
+        double rows = Math.Max((node.Facets.Count + node.FixedRows.Count) * FacetRowHeight,
             Math.Max(node.Inputs.Count, node.Outputs.Count) * ConnectorHeight);
         double expression = node.Expression is null ? 0 : ExpressionHeight * node.Expression.Split('\n').Length;
         double diagnostics = node.Diagnostics.Count * DiagnosticHeight;
-        // The editors an authorable stat can show: the picker row, the add-facet picker, and one line per
-        // expression, each wrapping at the editor's width. Estimated whether or not the node is editable yet.
+        // The kind's own rows show in both styles: a field or a choice per row, a threshold per row plus the add button.
+        double kind = (node.Fields.Count + node.Choices.Count) * FieldRowHeight
+                      + (node.Thresholds is null ? 0 : (node.Thresholds.Rows.Count + 1) * ThresholdRowHeight);
+        // The editors an authorable stat can show: the picker rows, the actor toggle, the add-facet picker, and
+        // one line per expression, each wrapping at the editor's width. Estimated whether or not the node is editable yet.
         double editors = 0;
         if (node.IsAuthorable && !node.IsScaffold)
         {
             editors = PickerRowHeight + (node.IsHighlight ? 0 : ConnectorHeight)
+                      + (node.Trigger is null ? 0 : PickerRowHeight)
+                      + (node.ViewActor is null ? 0 : ConnectorHeight)
                       + node.Lines.Sum(l => LineHeight + Math.Max(0, (l.Text.Length - 1) / LineWrapColumns) * 16);
         }
 
-        return HeaderHeight + chips + rows + expression + diagnostics + editors + 16;
+        return HeaderHeight + chips + rows + expression + diagnostics + kind + editors + 16;
     }
 }

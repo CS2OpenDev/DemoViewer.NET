@@ -153,9 +153,8 @@ public static class CanvasEditSemantics
         {
             GalleryItemKind.Gate => EditRequest.Of(text => RulesetEdits.SetField(text, node.Id, "while", item.Name),
                 $"gate {node.Id} on {item.Name}"),
-            GalleryItemKind.View when node.Kind == "count" => Retarget(node, "count", item.Name),
-            GalleryItemKind.View when node.Kind is "sum" or "capture" => Retarget(node, "on", item.Name),
-            GalleryItemKind.View => EditRequest.Refuse($"A {node.Kind} fires on no view; {item.Name} goes on a count, a sum or a capture."),
+            GalleryItemKind.View when TriggerKeyFor(node) is { } key => Retarget(node, key, item.Name),
+            GalleryItemKind.View => EditRequest.Refuse($"A {node.Kind} fires on no view; {item.Name} goes on a stat that has a trigger."),
             _ => EditRequest.Refuse($"Drop {item.Title} on the canvas to add it as a stat.")
         };
     }
@@ -309,17 +308,29 @@ public static class CanvasEditSemantics
         return key switch
         {
             "per" when value is not null => Set(node, "per", value),
-            "while" or "where" => value is null
-                ? EditRequest.Of(text => RulesetEdits.RemoveFieldIfPresent(text, node.Id, key), $"remove {node.Id}.{key}")
-                : Set(node, key, value),
+            "while" or "where" => SetOrRemove(node, key, value),
             "compute" when value is not null => Set(node, "compute", value),
             "when" when value is not null => EditRequest.Of(text => RulesetEdits.SetFlagWhen(text, node.Id, value), $"set {node.Id}.when"),
             "compute" or "when" => EditRequest.Refuse($"A {key} cannot be empty; delete the stat instead."),
+            // The trigger and the kind argument are the stat's definition: set, never emptied.
+            "count" or "streak" or "bucket" or "burst" or "on" when value is not null => Retarget(node, key, value),
+            "count" or "streak" or "bucket" or "burst" or "on" => EditRequest.Refuse("A stat needs a trigger; pick a view, an event or a define."),
+            "sum" or "capture" or "tally" when value is not null => Set(node, key, value),
+            "sum" or "capture" or "tally" => EditRequest.Refuse($"A {key} needs a value; delete the stat instead."),
+            // The optional keys: a value sets, nothing removes, and the engine's default takes over.
+            "keep" or "format" or "label" or "window" or "min_streak" or "key" or "value" or "reduce" => SetOrRemove(node, key, value),
+            "rate.of" or "rate.per" when value is not null =>
+                EditRequest.Of(text => RulesetEdits.SetNestedField(text, node.Id, "rate", key[5..], value), $"set {node.Id}.{key}"),
+            "rate.of" or "rate.per" => EditRequest.Refuse("A rate needs both buckets; delete the stat instead."),
+            "thresholds" => WriteThresholds(node, value),
             _ => EditRequest.Ignore
         };
     }
 
-    /// <summary>A highlight's fields: <c>when:</c> and <c>per:</c> cannot be empty; <c>title:</c> and <c>score:</c> can go.</summary>
+    /// <summary>
+    ///     A highlight's fields: <c>when:</c> and <c>per:</c> cannot be empty; <c>title:</c>, <c>score:</c>,
+    ///     <c>kind:</c> and <c>group:</c> can go, and the engine's default takes over.
+    /// </summary>
     public static EditRequest WriteHighlightField(CanvasNodeViewModel node, string key, string? value)
     {
         ArgumentNullException.ThrowIfNull(node);
@@ -328,12 +339,49 @@ public static class CanvasEditSemantics
             "when" or "per" when value is not null =>
                 EditRequest.Of(text => RulesetEdits.SetHighlightField(text, node.Id, key, value), $"set {node.Id}.{key}"),
             "when" or "per" => EditRequest.Refuse($"A highlight's {key} cannot be empty; delete the highlight instead."),
-            "title" or "score" => EditRequest.Of(text => value is null
+            "title" or "score" or "kind" or "group" => EditRequest.Of(text => value is null
                     ? RulesetEdits.RemoveHighlightFieldIfPresent(text, node.Id, key)
                     : RulesetEdits.SetHighlightField(text, node.Id, key, value),
                 value is null ? $"remove {node.Id}.{key}" : $"set {node.Id}.{key}"),
             _ => EditRequest.Ignore
         };
+    }
+
+    // A tally's table comes as one value, a row per line; see CanvasThresholdsViewModel.Serialize.
+    private static EditRequest WriteThresholds(CanvasNodeViewModel node, string? value)
+    {
+        IReadOnlyList<(string Min, string Target)> rows = value is null ? [] : CanvasThresholdsViewModel.Parse(value);
+        if (rows.Count == 0)
+        {
+            return EditRequest.Refuse("A tally needs at least one threshold with a minimum and a target.");
+        }
+
+        if (rows.Any(r => r.Min.Length == 0 || r.Target.Length == 0))
+        {
+            return EditRequest.Refuse("Every threshold needs a minimum and a target id.");
+        }
+
+        return EditRequest.Of(text => RulesetEdits.SetThresholds(text, node.Id, rows), $"set {node.Id}.thresholds");
+    }
+
+    private static EditRequest SetOrRemove(CanvasNodeViewModel node, string key, string? value) => value is null
+        ? EditRequest.Of(text => RulesetEdits.RemoveFieldIfPresent(text, node.Id, key), $"remove {node.Id}.{key}")
+        : Set(node, key, value);
+
+    /// <summary>
+    ///     The key a trigger write on <paramref name="node" /> goes to, or null when it fires on nothing. A flag
+    ///     takes <c>on:</c> only when its face says it is not its own condition; a node with no face is read by
+    ///     kind alone, and a flag then stays refused.
+    /// </summary>
+    public static string? TriggerKeyFor(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (node.Face is StatFace face)
+        {
+            return face.HasTrigger ? StatFace.TriggerKeyOf(face.Kind) : null;
+        }
+
+        return node.Kind == "flag" ? null : StatFace.TriggerKeyOf(node.Kind);
     }
 
     private static EditRequest Set(CanvasNodeViewModel node, string key, string value) =>
@@ -360,22 +408,21 @@ public static class CanvasEditSemantics
     }
 
     // An event fires one or several views. One view names the trigger outright; several leave the choice to
-    // the author, except for a sum or a capture, which can fire on the raw event.
+    // the author; none means the raw event, which a stat whose argument is a value can fire on.
     private static EditRequest ConnectEvent(string eventName, CanvasNodeViewModel target)
     {
+        if (TriggerKeyFor(target) is not { } key)
+        {
+            return EditRequest.Refuse($"A {target.Kind} fires on no view; it cannot fire on {eventName}.");
+        }
+
         IReadOnlyList<string> views = ViewsFiredBy(eventName);
-        bool takesValue = target.Kind is "sum" or "capture";
-        if (target.Kind == "count" && views.Count == 1)
+        if (views.Count == 1)
         {
-            return Retarget(target, "count", views[0]);
+            return Retarget(target, key, views[0]);
         }
 
-        if (takesValue && views.Count == 1)
-        {
-            return Retarget(target, "on", views[0]);
-        }
-
-        if (takesValue && views.Count == 0)
+        if (views.Count == 0 && key == "on")
         {
             return EditRequest.Of(text => RulesetEdits.SetField(text, target.Id, "on", "raw." + eventName), $"retarget {target.Id} to {eventName}");
         }

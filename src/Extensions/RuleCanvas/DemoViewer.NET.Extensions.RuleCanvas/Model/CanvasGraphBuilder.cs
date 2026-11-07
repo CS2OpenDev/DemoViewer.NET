@@ -36,7 +36,7 @@ public static class CanvasGraphBuilder
         {
             if (!side.TryGetValue(key, out CanvasConnectorViewModel? connector))
             {
-                connector = new CanvasConnectorViewModel { Title = "", Owner = byKey[key] };
+                connector = new CanvasConnectorViewModel { Title = input ? "" : byKey[key].OutputTitle, Owner = byKey[key] };
                 side[key] = connector;
                 (input ? byKey[key].Inputs : byKey[key].Outputs).Add(connector);
             }

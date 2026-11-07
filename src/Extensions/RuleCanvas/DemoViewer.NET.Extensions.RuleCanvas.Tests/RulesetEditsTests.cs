@@ -120,6 +120,65 @@ public class RulesetEditsTests
     }
 
     [Test]
+    public async Task SetThresholds_ReplacesTheItems_KeepsTheKeyLine_AndAddsTheKeyWhenAbsent()
+    {
+        const string tally = """
+            ruleset: t
+            for: each_player
+            stats:
+              kills:
+                count: kill
+                per: round
+              multi:
+                tally: kills
+                thresholds:   # the tiers
+                  - { min: 3, target: rounds_3k }
+                  - { min: 2, target: rounds_2k }
+                per: match
+              bare:
+                tally: kills
+                per: match
+            """;
+        string replaced = RulesetEdits.SetThresholds(tally, "multi", [("5", "rounds_5k"), ("2", "rounds_2k")]);
+        string added = RulesetEdits.SetThresholds(tally, "bare", [("params.min_kills", "big_rounds")]);
+        using (Assert.Multiple())
+        {
+            await Assert.That(replaced).Contains("thresholds:   # the tiers\n      - { min: 5, target: rounds_5k }\n      - { min: 2, target: rounds_2k }\n    per: match");
+            await Assert.That(replaced).DoesNotContain("rounds_3k");
+            await Assert.That(added).Contains("    per: match\n    thresholds:\n      - { min: params.min_kills, target: big_rounds }");
+            await Assert.That(RulesetEdits.StatIds(added)).IsEquivalentTo(["kills", "multi", "bare"]);
+            await Assert.That(() => RulesetEdits.SetThresholds(tally, "multi", [])).Throws<InvalidOperationException>();
+        }
+    }
+
+    [Test]
+    public async Task SetNestedField_WritesInsideTheRateMap_AndRefusesAScalarParent()
+    {
+        const string rate = """
+            ruleset: t
+            for: each_player
+            stats:
+              a:
+                bucket: kill
+                key: event.Weapon
+                per: match
+              b:
+                bucket: damage_dealt
+                key: event.Weapon
+                per: match
+              r:
+                rate: { of: b, per: a }
+            """;
+        string after = RulesetEdits.SetNestedField(rate, "r", "rate", "of", "a");
+        using (Assert.Multiple())
+        {
+            await Assert.That(after).Contains("rate: { of: a, per: a }");
+            await Assert.That(RulesetEdits.Field(after, "r", "rate.of")).IsEqualTo("a");
+            await Assert.That(() => RulesetEdits.SetNestedField(rate, "a", "bucket", "of", "x")).Throws<InvalidOperationException>();
+        }
+    }
+
+    [Test]
     public async Task AnUnknownStat_IsRefused_NotGuessed()
     {
         await Assert.That(() => RulesetEdits.SetFacet(Flow, "nope", "enemy", "true")).Throws<InvalidOperationException>();
