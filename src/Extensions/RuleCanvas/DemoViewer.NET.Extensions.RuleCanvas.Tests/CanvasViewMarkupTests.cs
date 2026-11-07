@@ -40,6 +40,20 @@ public class CanvasViewMarkupTests
         }
     }
 
+    // The pencil only makes the editor visible; Enter and commit-on-blur both need focus inside it.
+    [Test]
+    public async Task TheLabelEditor_AsksForFocusWhenItAppears()
+    {
+        XDocument view = LoadView();
+        XElement editor = view.Descendants().Single(e => e.Name.LocalName == "TextBox" && Attribute(e, "IsVisible") == "{Binding ShowLabelEditor}");
+        using (Assert.Multiple())
+        {
+            await Assert.That(editor.Attribute(_views + "FaceBehaviors.FocusWhenShown")?.Value).IsEqualTo("True")
+                .Because("the pencil is one gesture, not two");
+            await Assert.That(editor.Attribute(_views + "FaceBehaviors.CommitOnLostFocus")?.Value).IsEqualTo("{Binding CommitLabelCommand}");
+        }
+    }
+
     private static string ViewsFolder()
     {
         DirectoryInfo? dir = new(AppContext.BaseDirectory);

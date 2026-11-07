@@ -498,6 +498,7 @@
                                             IsVisible="{Binding CanEditLabel}" />
                                     <TextBox Text="{Binding LabelText}" Watermark="label" FontSize="11" MinWidth="90" Padding="4 1" MinHeight="0"
                                              IsVisible="{Binding ShowLabelEditor}"
+                                             views:FaceBehaviors.FocusWhenShown="True"
                                              views:FaceBehaviors.CommitOnLostFocus="{Binding CommitLabelCommand}">
                                         <TextBox.KeyBindings>
                                             <KeyBinding Gesture="Enter" Command="{Binding CommitLabelCommand}" />
