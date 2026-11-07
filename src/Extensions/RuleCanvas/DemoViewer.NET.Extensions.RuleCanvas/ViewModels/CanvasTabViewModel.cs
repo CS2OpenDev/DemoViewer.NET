@@ -276,9 +276,15 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
 
     // A reload after a write hands back a fresh Entry for the same file; only another file resets the
-    // pane. The session resets the history on the same rule when the redraw opens the entry.
+    // pane. The session resets the history on the same rule when the redraw opens the entry. While the
+    // picker is refilled its binding pushes null and then the entry back; neither is a selection.
     partial void OnSelectedRulesetChanged(RulesetCorpus.Entry? value)
     {
+        if (_redrawing)
+        {
+            return;
+        }
+
         if (!string.Equals(value?.Path, _session.Entry?.Path, StringComparison.Ordinal))
         {
             SourceDirty = false;
@@ -373,16 +379,21 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     // Takes the corpus load gives, refills the picker, and redraws id (or selects one when nothing was).
     private void Refresh(string? id, Func<RulesetCorpus> load)
     {
+        RulesetCorpus.Entry? was = SelectedRuleset;
         _corpus = load();
-        Rulesets.Clear();
-        foreach (RulesetCorpus.Entry entry in _corpus.Entries)
-        {
-            Rulesets.Add(entry);
-        }
-
+        Refill();
         if (id is null)
         {
-            SelectedRuleset = Rulesets.FirstOrDefault(e => e.Id == PreferredRulesetId) ?? Rulesets.FirstOrDefault();
+            RulesetCorpus.Entry? first = Rulesets.FirstOrDefault(e => e.Id == PreferredRulesetId) ?? Rulesets.FirstOrDefault();
+            if (first is null)
+            {
+                Redraw(null, keepArrangement: false);
+            }
+            else
+            {
+                SelectedRuleset = first;
+            }
+
             return;
         }
 
@@ -390,24 +401,60 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         if (again is null)
         {
             string reason = _corpus.Failures.Select(f => f.Reason).FirstOrDefault() ?? "it is not in the rules directories any more";
+            // The file stays open on the text it now holds, so the pane shows it and a corrected save or an
+            // undo passes the write-time guard; the history goes when the break was another writer's.
+            if (was is not null && was.Id == id)
+            {
+                Select(was);
+                _session.Open(was);
+                DocumentText = _session.Text;
+                NotifyHistory();
+            }
+
             EditStatus = $"{id} no longer loads as a ruleset: {reason}";
-            Status = "Nothing to draw; the file no longer loads. Undo is still available.";
+            Status = _session.CanUndo
+                ? "Nothing to draw; the file no longer loads. Undo is still available."
+                : "Nothing to draw; the file no longer loads.";
             MarkLoadFailure(id, reason);
             return;
         }
 
+        Select(again);
+        NotifyEditability();
+        // The same ruleset read again keeps its arrangement; another one is drawn fresh and fitted.
+        Redraw(again, keepArrangement: was?.Id == again.Id);
+    }
+
+    // The picker's binding pushes null into SelectedRuleset while its items are cleared, and the entry
+    // back when it is set; the guard keeps either from reopening the session or redrawing.
+    private void Refill()
+    {
         _redrawing = true;
         try
         {
-            SelectedRuleset = again;
+            Rulesets.Clear();
+            foreach (RulesetCorpus.Entry entry in _corpus?.Entries ?? [])
+            {
+                Rulesets.Add(entry);
+            }
         }
         finally
         {
             _redrawing = false;
         }
+    }
 
-        NotifyEditability();
-        Redraw(again, keepArrangement: true);
+    private void Select(RulesetCorpus.Entry? entry)
+    {
+        _redrawing = true;
+        try
+        {
+            SelectedRuleset = entry;
+        }
+        finally
+        {
+            _redrawing = false;
+        }
     }
 
     private void Redraw(RulesetCorpus.Entry? value, bool keepArrangement, bool recompose = true)

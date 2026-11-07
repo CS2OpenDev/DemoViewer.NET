@@ -60,12 +60,15 @@ public sealed class RulesetDocumentSession
 
     /// <summary>
     ///     Opens <paramref name="entry" />, reading its text from disk. The history survives when the path is
-    ///     the one already open, which a reload after a write hands back as a fresh entry; another path, or
-    ///     none, clears it.
+    ///     the one already open and the file still holds what this session last read or wrote, which a
+    ///     reload after a write hands back as a fresh entry; another path, none, or the same path after
+    ///     another writer touched it clears it.
     /// </summary>
     public void Open(RulesetCorpus.Entry? entry)
     {
-        if (!string.Equals(entry?.Path, Entry?.Path, StringComparison.Ordinal))
+        // A history over another writer's text would put it back on the next undo.
+        bool samePath = string.Equals(entry?.Path, Entry?.Path, StringComparison.Ordinal);
+        if (!samePath || ChangedOnDisk)
         {
             _undo.Clear();
             _redo.Clear();

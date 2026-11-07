@@ -532,12 +532,7 @@ public sealed partial class CanvasTabViewModel
 
         EditStatus = "";
         _corpus = _loadCorpus();
-        Rulesets.Clear();
-        foreach (RulesetCorpus.Entry entry in _corpus.Entries)
-        {
-            Rulesets.Add(entry);
-        }
-
+        Refill();
         if (Rulesets.FirstOrDefault(r => r.Id == id) is not { } created)
         {
             EditStatus = $"{id} was written but does not load: " + (_corpus.Failures.FirstOrDefault(f => f.Path == path).Reason ?? "unknown");

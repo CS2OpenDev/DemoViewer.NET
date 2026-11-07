@@ -301,7 +301,7 @@ public sealed partial class CanvasTabViewModel
         EmptyState = CanvasEmptyState.LoadFailed;
     }
 
-    // A ruleset that is about to be drawn is no longer a failed one.
+    // A ruleset that is about to be drawn is no longer a failed one, and the strip stops saying so.
     private void ClearLoadFailure()
     {
         if (EmptyState == CanvasEmptyState.LoadFailed)
@@ -309,6 +309,7 @@ public sealed partial class CanvasTabViewModel
             EmptyState = CanvasEmptyState.None;
             EmptyStateFile = "";
             EmptyStateReason = "";
+            EditStatus = "";
         }
     }
 }

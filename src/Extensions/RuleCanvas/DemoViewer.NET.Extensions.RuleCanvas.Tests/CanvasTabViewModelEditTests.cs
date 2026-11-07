@@ -15,6 +15,65 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 /// </summary>
 public class CanvasTabViewModelEditTests
 {
+    // The strip's picker is a ComboBox bound two-way to Rulesets and SelectedRuleset; Avalonia pushes null
+    // into the selection when the items are cleared. This handler is that binding, which no test here mounts.
+    private static void BindPicker(CanvasTabViewModel vm) =>
+        vm.Rulesets.CollectionChanged += (_, e) =>
+        {
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+            {
+                vm.SelectedRuleset = null;
+            }
+        };
+
+    [Test]
+    public async Task WithThePickerBound_AWrite_KeepsTheHistoryTheSelectionAndTheArrangement()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        BindPicker(vm);
+        List<string> changes = [];
+        vm.PropertyChanged += (_, e) => changes.Add(e.PropertyName ?? "");
+        CanvasNodeViewModel kills = vm.Nodes.Single(n => n.Id == "round_kills");
+        kills.Location = new Point(777, 88);
+        vm.SelectedNodes.Add(kills);
+
+        kills.Facets.Single(f => f.Name == "enemy").Toggle = false;
+        CanvasNodeViewModel redrawn = vm.Nodes.Single(n => n.Id == "round_kills");
+        using (Assert.Multiple())
+        {
+            await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).Contains("match: { enemy: false }");
+            await Assert.That(vm.SelectedRuleset?.Id).IsEqualTo("player_round");
+            await Assert.That(vm.CanUndo).IsTrue().Because("the picker's transient null must not reopen the session");
+            await Assert.That(vm.SelectedNodes).Contains(redrawn);
+            await Assert.That(redrawn.Location).IsEqualTo(new Point(777, 88));
+            await Assert.That(vm.EmptyState).IsEqualTo(CanvasEmptyState.None);
+            await Assert.That(changes.Count(c => c == nameof(CanvasTabViewModel.EmptyState))).IsEqualTo(0)
+                .Because("the no-rulesets card must not flash while the picker is refilled");
+        }
+
+        vm.UndoCommand.Execute(null);
+        await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).Contains("match: { enemy: true }");
+    }
+
+    [Test]
+    public async Task WithThePickerBound_NewRuleset_OpensIt()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        BindPicker(vm);
+
+        vm.NewRulesetCommand.Execute("mine");
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SelectedRuleset?.Id).IsEqualTo("mine");
+            await Assert.That(vm.DocumentName).IsEqualTo("mine.rules.yaml");
+            await Assert.That(vm.IsEditable).IsTrue();
+        }
+    }
+
     [Test]
     public async Task TogglingAFacet_WritesTheFile_KeepsTheArrangement_AndUndoes()
     {
