@@ -13,9 +13,10 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 /// <summary>
 ///     The Canvas section: a picker over the loadable rulesets, the chosen one drawn as nodes, its YAML
 ///     beside it, and edits from either surface written to the same file through the splice writer. The
-///     corpus is read on first activation and re-read after every write; a composition is a YAML parse
-///     plus a static projection and a first placement, tens of milliseconds at the corpus's sizes, and runs
-///     on the UI thread until the SDK offers a demo-less job.
+///     composition root over the session (the open file and its history), the semantics (what a gesture
+///     writes), the arranger (where nodes go) and the factory (what a node shows); this file holds the
+///     state the view binds to and the redraw, the partials hold the commands. The corpus is read on first
+///     activation and re-read after every write, on the UI thread until the SDK offers a demo-less job.
 /// </summary>
 public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceTabViewModel
 {
@@ -28,6 +29,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     private readonly CanvasArranger _arranger;
     private readonly CanvasNodeFactory _factory;
     private RulesetCorpus? _corpus;
+    private RulesetCorpus.Composed? _composed;
     private bool _redrawing;
 
     /// <param name="selectTab">Selects a host tab by id; the Authoring tab's id is <see cref="AuthoringTabId" />.</param>
@@ -57,40 +59,14 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
     public ObservableCollection<RulesetCorpus.Entry> Rulesets { get; } = [];
 
+    /// <summary>The editor's selection, written by the editor. The first selected node drives the source jump.</summary>
+    public ObservableCollection<object> SelectedNodes { get; } = [];
+
     /// <summary>The catalog's views, which an added count stat fires on.</summary>
     public IReadOnlyList<string> Views { get; } = CanvasEditSemantics.ViewNames;
 
     /// <summary>What the gallery offers to drag: stat kinds, the catalog's views, the gates, and prefabs.</summary>
     public IReadOnlyList<GalleryGroup> Gallery { get; } = CanvasGallery.Build(EmbeddedCatalog.Root);
-
-    /// <summary>Whether the gallery pane shows.</summary>
-    [ObservableProperty]
-    private bool _showGallery = true;
-
-    /// <summary>
-    ///     The node whose slice of the chain is in focus, by its layout key, or null for the whole chain. A
-    ///     change redraws from the composition already in hand: the file did not change.
-    /// </summary>
-    public RulesetDocumentNodeKey? FocusKey
-    {
-        get => _arranger.FocusKey;
-        set
-        {
-            if (_arranger.FocusKey != value)
-            {
-                _arranger.FocusKey = value;
-                NotifyFocus();
-                Redraw(SelectedRuleset, keepArrangement: false, recompose: false);
-            }
-        }
-    }
-
-    public bool HasFocus => _arranger.HasFocus;
-
-    public string FocusLabel => FocusKey?.Id ?? "";
-
-    /// <summary>The editor's selection, written by the editor. The first selected node drives the source jump.</summary>
-    public ObservableCollection<object> SelectedNodes { get; } = [];
 
     /// <summary>The ruleset drawn. Setting it composes and redraws.</summary>
     [ObservableProperty]
@@ -119,20 +95,19 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     [ObservableProperty]
     private string _documentName = "";
 
-    /// <summary>Whether the source pane shows beside the canvas.</summary>
-    [ObservableProperty]
-    private bool _showSource = true;
-
     /// <summary>Whether the source pane holds text that differs from the file. Canvas edits wait while it does.</summary>
     [ObservableProperty]
     private bool _sourceDirty;
 
-    /// <summary>The text the source pane holds while dirty.</summary>
-    private string _pendingSourceText = "";
-
     /// <summary>The line the source pane was last asked to show, 1-based; 0 before any jump.</summary>
     [ObservableProperty]
     private int _selectedLine;
+
+    [ObservableProperty]
+    private bool _showGallery = true;
+
+    [ObservableProperty]
+    private bool _showSource = true;
 
     /// <summary>The detailed style: facet rows on the node face. Off is the compact style: a facet count.</summary>
     [ObservableProperty]
@@ -164,12 +139,6 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     public bool CanUndo => _session.CanUndo;
 
     public bool CanRedo => _session.CanRedo;
-
-    /// <summary>
-    ///     Where the selected ruleset's arrangement lives: beside a user ruleset, under the extension's own
-    ///     folder for a shipped one, or null when there is nowhere to keep it.
-    /// </summary>
-    public string? SidecarPath => _arranger.SidecarFor(SelectedRuleset);
 
     /// <summary>Raised on the UI thread after the node and wire collections were refilled, so the view can fit them.</summary>
     public event Action? GraphReplaced;
@@ -236,247 +205,6 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         }
     }
 
-    /// <summary>The source pane reports its text on every change; a difference from the file makes it dirty.</summary>
-    public void SourceEdited(string text)
-    {
-        _pendingSourceText = text;
-        SourceDirty = text != DocumentText;
-    }
-
-    /// <summary>Writes the source pane's text to the file, as the Workbench's Save does.</summary>
-    [RelayCommand]
-    private void SaveSource()
-    {
-        if (SelectedRuleset is not { } selected || !IsUserRuleset || !SourceDirty)
-        {
-            return;
-        }
-
-        // Refused with the loader's reason when the text no longer loads as this ruleset; the pane stays dirty.
-        if (Report(_session.Save(_pendingSourceText), selected))
-        {
-            SourceDirty = false;
-        }
-    }
-
-    /// <summary>Drops the source pane's unsaved text; the view puts the file's text back.</summary>
-    [RelayCommand]
-    private void RevertSource()
-    {
-        SourceDirty = false;
-        OnPropertyChanged(nameof(DocumentText));
-    }
-
-    [RelayCommand(CanExecute = nameof(CanUndo))]
-    private void Undo()
-    {
-        if (SelectedRuleset is { } selected)
-        {
-            Report(_session.Undo(), selected);
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanRedo))]
-    private void Redo()
-    {
-        if (SelectedRuleset is { } selected)
-        {
-            Report(_session.Redo(), selected);
-        }
-    }
-
-    /// <summary>
-    ///     Copies the shipped ruleset into the user's rules directory under its own name and opens the copy,
-    ///     which is what the Workbench's Save-As does for a shipped file. The copy overrides the shipped one by id.
-    /// </summary>
-    [RelayCommand]
-    private void EditCopy()
-    {
-        if (SelectedRuleset is not { } selected || !IsShippedRuleset || _corpus?.UserDirectory is not { } userDir)
-        {
-            EditStatus = "There is no user rules directory to copy into.";
-            return;
-        }
-
-        string target = Path.Combine(userDir, Path.GetFileName(selected.Path));
-        try
-        {
-            Directory.CreateDirectory(userDir);
-            if (File.Exists(target))
-            {
-                EditStatus = $"{Path.GetFileName(target)} already exists in your rules; open it from the picker.";
-                return;
-            }
-
-            File.Copy(selected.Path, target);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            EditStatus = "The copy could not be written: " + ex.Message;
-            return;
-        }
-
-        Reload(selected.Id);
-    }
-
-    /// <summary>Removes the selected node's entry from the document.</summary>
-    [RelayCommand]
-    private void DeleteSelected()
-    {
-        if (!IsEditable || SelectedNodes.OfType<CanvasNodeViewModel>().FirstOrDefault(n => n.IsAuthorable) is not { } node)
-        {
-            return;
-        }
-
-        Apply(CanvasEditSemantics.Delete(node));
-    }
-
-    /// <summary>Adds a count stat on <paramref name="view" /> with a fresh id, at the end of <c>stats:</c>.</summary>
-    [RelayCommand]
-    private void AddStat(string? view)
-    {
-        if (!IsEditable || string.IsNullOrWhiteSpace(view))
-        {
-            return;
-        }
-
-        Apply(CanvasEditSemantics.AddStat(view, FreshId("new_" + view)));
-    }
-
-    /// <summary>
-    ///     A gallery item dropped on the canvas: a stat kind, a view or a prefab becomes a new entry placed at
-    ///     <paramref name="at" />. A gate has nothing to attach to on bare canvas and is refused with the reason.
-    /// </summary>
-    public void PlaceItem(GalleryItem item, Avalonia.Point at)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-        if (!IsEditable || SelectedRuleset is not { } selected)
-        {
-            return;
-        }
-
-        string id = FreshId(CanvasEditSemantics.PlacedIdFor(item));
-        EditRequest request = CanvasEditSemantics.PlaceItem(item, id);
-        if (request.IsRefused)
-        {
-            Apply(request);
-            return;
-        }
-
-        // A slice would hide the new entry and lose its drop position, so the whole chain comes back first.
-        if (HasFocus)
-        {
-            FocusKey = null;
-        }
-
-        _arranger.PlaceNext(new RulesetDocumentNodeKey(selected.Id, id), at);
-        if (!Apply(request))
-        {
-            _arranger.ForgetPending();
-        }
-    }
-
-    /// <summary>
-    ///     A gallery item dropped on a stat: a view retargets the trigger (the kind's own argument for a count,
-    ///     <c>on:</c> for a stat whose argument is a value), and a gate becomes its <c>while:</c>.
-    /// </summary>
-    public void DropOnNode(GalleryItem item, CanvasNodeViewModel node)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-        ArgumentNullException.ThrowIfNull(node);
-        if (!IsEditable)
-        {
-            EditStatus = $"{item.Name} can only be dropped on a stat of your own ruleset.";
-            return;
-        }
-
-        Apply(CanvasEditSemantics.DropOnNode(item, node));
-    }
-
-    /// <summary>
-    ///     A wire drawn from one node to another, as the editor reports it: the two endpoints' view models, or
-    ///     a node when the wire was dropped on its container. What the wire stands for is written to the file:
-    ///     an event or a view sets the trigger, a context flag sets <c>while:</c>, an enrichment binds the
-    ///     facet that reads it, and a stat into a flag extends its <c>when:</c>. Anything else is refused with
-    ///     the reason, and the chain redraws from the file either way, so the wire shown is the wire run.
-    /// </summary>
-    [RelayCommand]
-    private void Connect(object? endpoints)
-    {
-        (CanvasNodeViewModel? source, CanvasNodeViewModel? target) = endpoints switch
-        {
-            Tuple<object, object> pair => (NodeOf(pair.Item1), NodeOf(pair.Item2)),
-            ValueTuple<object, object> pair => (NodeOf(pair.Item1), NodeOf(pair.Item2)),
-            _ => (null, null)
-        };
-        if (source is null || target is null)
-        {
-            return;
-        }
-
-        Connect(source, target);
-    }
-
-    /// <summary>Writes what a wire from <paramref name="source" /> to <paramref name="target" /> stands for.</summary>
-    public void Connect(CanvasNodeViewModel source, CanvasNodeViewModel target)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-        ArgumentNullException.ThrowIfNull(target);
-        if (IsEditable)
-        {
-            Apply(CanvasEditSemantics.Connect(source, target));
-        }
-    }
-
-    /// <summary>
-    ///     A wire removed from the canvas: the gate wire takes <c>while:</c> with it, and an enrichment's read
-    ///     takes the facet that reads it. Trigger wires and logic inputs are the stat's own definition and stay.
-    /// </summary>
-    [RelayCommand]
-    private void Disconnect(object? wire)
-    {
-        if (wire is CanvasConnectionViewModel connection && IsEditable)
-        {
-            Apply(CanvasEditSemantics.Disconnect(connection));
-        }
-    }
-
-    private static CanvasNodeViewModel? NodeOf(object endpoint) => endpoint switch
-    {
-        CanvasConnectorViewModel connector => connector.Owner,
-        CanvasNodeViewModel node => node,
-        _ => null
-    };
-
-    /// <summary>Focuses the first selected node's slice: itself, everything upstream of it, and everything it feeds.</summary>
-    [RelayCommand]
-    private void FocusSelected()
-    {
-        if (SelectedNodes.OfType<CanvasNodeViewModel>().FirstOrDefault() is { } node)
-        {
-            FocusNode(node);
-        }
-    }
-
-    [RelayCommand]
-    private void ClearFocus() => FocusKey = null;
-
-    /// <summary>Focuses <paramref name="node" />'s slice; the rest of the chain is drawn faint until the focus is cleared.</summary>
-    public void FocusNode(CanvasNodeViewModel node)
-    {
-        ArgumentNullException.ThrowIfNull(node);
-        FocusKey = new RulesetDocumentNodeKey(node.Ruleset, node.Id);
-    }
-
-    private void NotifyFocus()
-    {
-        OnPropertyChanged(nameof(FocusKey));
-        OnPropertyChanged(nameof(HasFocus));
-        OnPropertyChanged(nameof(FocusLabel));
-    }
-
-    private string FreshId(string wanted) => CanvasEditSemantics.FreshId(wanted, Nodes.Select(n => n.Id));
-
     [RelayCommand]
     private void ToggleGallery() => ShowGallery = !ShowGallery;
 
@@ -489,48 +217,8 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     [RelayCommand]
     private void OpenAuthoring() => AuthoringUnavailable = !_selectTab(AuthoringTabId);
 
-    /// <summary>Writes every node's position to the sidecar. Bound to the editor's drag-completed command.</summary>
-    [RelayCommand]
-    private void SaveLayout()
-    {
-        if (!HasFocus && Nodes.Count > 0)
-        {
-            HasSavedLayout = _arranger.SaveLayout(SidecarPath, CurrentArrangement());
-        }
-    }
-
-    /// <summary>Drops the saved arrangement and places the ruleset again.</summary>
-    [RelayCommand]
-    private void ResetLayout()
-    {
-        CanvasArranger.ResetLayout(SidecarPath);
-        Redraw(SelectedRuleset, keepArrangement: false);
-    }
-
-    // A facet or field write from a node face: through the splice writer, then the document is re-read
-    // and redrawn with every node where it was and the same node selected.
-    private void WriteFacet(CanvasNodeViewModel node, string facet, string? value)
-    {
-        if (IsEditable)
-        {
-            Apply(CanvasEditSemantics.WriteFacet(node, facet, value));
-        }
-    }
-
-    private void WriteField(CanvasNodeViewModel node, string key, string? value)
-    {
-        if (IsEditable)
-        {
-            Apply(CanvasEditSemantics.WriteField(node, key, value));
-        }
-    }
-
-    // Everything the writer and the parser throw on a document that moved under us lands in the status.
-    private bool Apply(EditRequest request) =>
-        SelectedRuleset is { } selected && Report(_session.Apply(request), selected);
-
-    // What the session did, told to the surface: a refusal lands in the status, a write re-reads the
-    // corpus so the picker, the chips and the wires all come from the file as it now is.
+    // What the session did, told to the surface: a refusal with a reason lands in the status, a write
+    // re-reads the corpus so the picker, the chips and the wires all come from the file as it now is.
     private bool Report(EditOutcome outcome, RulesetCorpus.Entry entry)
     {
         switch (outcome.Kind)
@@ -587,8 +275,6 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         Redraw(again, keepArrangement: true);
     }
 
-    private RulesetCorpus.Composed? _composed;
-
     private void Redraw(RulesetCorpus.Entry? value, bool keepArrangement, bool recompose = true)
     {
         if (_redrawing)
@@ -597,8 +283,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         }
 
         RulesetNodeLayout current = keepArrangement ? CurrentArrangement() : RulesetNodeLayout.Empty;
-        HashSet<RulesetDocumentNodeKey> selected = new(SelectedNodes.OfType<CanvasNodeViewModel>()
-            .Select(n => new RulesetDocumentNodeKey(n.Ruleset, n.Id)));
+        HashSet<RulesetDocumentNodeKey> selected = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Select(n => n.Key)];
 
         Nodes.Clear();
         Connections.Clear();
@@ -647,7 +332,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             Connections.Add(wire);
         }
 
-        foreach (CanvasNodeViewModel node in nodes.Where(n => selected.Contains(new RulesetDocumentNodeKey(n.Ruleset, n.Id))))
+        foreach (CanvasNodeViewModel node in nodes.Where(n => selected.Contains(n.Key)))
         {
             SelectedNodes.Add(node);
         }
@@ -659,10 +344,6 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             : $"{nodes.Count} nodes, {wires.Count} wires, {unwired} unwired";
         GraphReplaced?.Invoke();
     }
-
-    private RulesetNodeLayout CurrentArrangement() =>
-        CanvasArranger.Capture(Nodes.Select(n =>
-            new KeyValuePair<RulesetDocumentNodeKey, Avalonia.Point>(new RulesetDocumentNodeKey(n.Ruleset, n.Id), n.Location)));
 
     private void NotifyEditability()
     {

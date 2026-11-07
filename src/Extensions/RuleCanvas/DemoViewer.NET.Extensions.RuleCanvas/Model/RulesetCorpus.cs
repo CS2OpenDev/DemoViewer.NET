@@ -210,6 +210,38 @@ public sealed class RulesetCorpus
     }
 
     /// <summary>
+    ///     Copies <paramref name="entry" /> into the user directory under its own file name, which is what
+    ///     the Workbench's Save-As does for a shipped file; the copy overrides the shipped one by id on the
+    ///     next load. Refused when there is no user directory, the copy already exists, or the disk says no.
+    /// </summary>
+    public EditOutcome CopyToUser(Entry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        if (UserDirectory is not { } userDir)
+        {
+            return EditOutcome.Refused("There is no user rules directory to copy into.");
+        }
+
+        string target = Path.Combine(userDir, Path.GetFileName(entry.Path));
+        try
+        {
+            Directory.CreateDirectory(userDir);
+            if (File.Exists(target))
+            {
+                return EditOutcome.Refused($"{Path.GetFileName(target)} already exists in your rules; open it from the picker.");
+            }
+
+            File.Copy(entry.Path, target);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return EditOutcome.Refused("The copy could not be written: " + ex.Message);
+        }
+
+        return EditOutcome.Written;
+    }
+
+    /// <summary>
     ///     Composes <paramref name="id" /> with its transitive <c>use:</c> dependencies against the embedded
     ///     catalog, at the demo-less tick rate and the fallback profile, and projects the result.
     /// </summary>
