@@ -122,10 +122,34 @@ public class RulesetChainGraphTests
             await Assert.That(gated.Length).IsGreaterThanOrEqualTo(40).Because("most player_stats columns carry a while:");
             await Assert.That(chain.Edges.Where(e => e.Guard is not null).All(e => eventKeys.Contains(e.Source))).IsTrue()
                 .Because("a gated write runs from its event");
-            await Assert.That(chain.Edges.Where(e => e.IsGate).All(e => chain.Nodes.Any(n => n.Key == e.Source && n.Kind == ChainNodeKind.Context)))
-                .IsTrue().Because("a gate runs from its guard, which stays on the canvas");
+            await Assert.That(chain.Edges.Where(e => e.IsGate)
+                    .All(e => chain.Nodes.Any(n => n.Key == e.Source && n.Kind is ChainNodeKind.Context or ChainNodeKind.Declared)))
+                .IsTrue().Because("a gate runs from its guard, a context flag or a sibling flag, which stays on the canvas");
             await Assert.That(unfired.Length).IsEqualTo(0)
                 .Because($"{unfired.Length} of {declared.Count} declared nodes have no write wire: {string.Join(", ", unfired)}");
+        }
+    }
+
+    /// <summary>
+    ///     The engine wires a <c>while: &lt;sibling flag&gt;</c> trigger from the flag node exactly as it wires one
+    ///     from a context flag. aim_rating's contact_shots is <c>count: shot</c> gated on enemy_seen_round.
+    /// </summary>
+    [Test]
+    public async Task ASiblingFlagGate_DrawsLikeAContextGate()
+    {
+        RulesetChainGraph chain = Compose("aim_rating").Chain;
+        RulesetDocumentNodeKey flag = new("aim_rating", "enemy_seen_round");
+        RulesetDocumentNodeKey count = new("aim_rating", "contact_shots");
+        ChainEdge[] into = [.. chain.Edges.Where(e => e.Target == count)];
+        using (Assert.Multiple())
+        {
+            await Assert.That(into.Any(e => e.Source.Ruleset == "~event" && e.Source.Id == "weapon_fire" && e.Label == "weapon_fire" && e.Guard == flag))
+                .IsTrue().Because("the event fires the count, and the wire names the flag as its guard");
+            await Assert.That(into.Any(e => e.Source == flag && e.IsGate && e.Label == "while")).IsTrue()
+                .Because("while: enemy_seen_round is a dashed gate wire from the flag");
+            await Assert.That(into.Any(e => e.Source == flag && !e.IsGate)).IsFalse()
+                .Because("the flag is not drawn as what fires the count");
+            await Assert.That(into.Any(e => e.Label == "weapon_fire" && e.Source == flag)).IsFalse();
         }
     }
 

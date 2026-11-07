@@ -293,10 +293,11 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             {
                 sources = [EventKey(label)];
             }
-            else if (edge.Descriptor.Kind == GraphEdgeKind.Trigger && label.Length > 0 && kinds[edge.Source] == ChainNodeKind.Context)
+            else if (edge.Descriptor.Kind == GraphEdgeKind.Trigger && label.Length > 0
+                     && kinds[edge.Source] is ChainNodeKind.Context or ChainNodeKind.Declared)
             {
-                // The engine wires a gated trigger from its guard; the event still fires it, so the wire
-                // runs from the event and the guard becomes a gate beside it.
+                // The engine wires a gated trigger from its guard, a context flag or a sibling flag alike;
+                // the event still fires it, so the wire runs from the event and the guard becomes a gate.
                 sources = [EventKey(label)];
                 guard = keys[edge.Source][0];
             }
