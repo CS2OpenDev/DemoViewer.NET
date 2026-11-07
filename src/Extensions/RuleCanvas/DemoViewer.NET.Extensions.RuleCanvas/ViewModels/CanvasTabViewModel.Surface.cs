@@ -88,10 +88,6 @@ public sealed partial class CanvasTabViewModel
     [ObservableProperty]
     private bool _showDiagnosticsList;
 
-    /// <summary>The Inspector dock, when one is docked; the strip toggles it, the dock binds it.</summary>
-    [ObservableProperty]
-    private bool _showInspector;
-
     [ObservableProperty]
     private bool _showMinimap = true;
 
@@ -135,8 +131,6 @@ public sealed partial class CanvasTabViewModel
     /// <summary>The user rules directory, or null when the corpus has none.</summary>
     public string? RulesFolder => _corpus?.UserDirectory;
 
-    [RelayCommand]
-    private void ToggleInspector() => ShowInspector = !ShowInspector;
 
     [RelayCommand]
     private void ToggleMinimap() => ShowMinimap = !ShowMinimap;
@@ -195,9 +189,8 @@ public sealed partial class CanvasTabViewModel
         AddItem(item);
     }
 
-    /// <summary>Writes a starter ruleset into the user rules directory and opens it.</summary>
-    [RelayCommand]
-    private void NewRuleset()
+    // The card's New ruleset: a starter with one stat, under a fresh id, so the canvas opens with something drawn.
+    private void CreateStarterRuleset()
     {
         if (_corpus?.UserDirectory is not { } userDir)
         {

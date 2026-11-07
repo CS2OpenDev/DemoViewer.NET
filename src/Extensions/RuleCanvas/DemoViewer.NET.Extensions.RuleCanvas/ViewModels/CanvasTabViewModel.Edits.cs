@@ -1,7 +1,9 @@
 #region
 
 using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CS2DemoKit.Analysis.RulesetsV2.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
 
 #endregion
@@ -380,4 +382,169 @@ public sealed partial class CanvasTabViewModel
         SelectedRuleset is { } selected && Report(_session.Apply(request), selected);
 
     private string FreshId(string wanted) => CanvasEditSemantics.FreshId(wanted, Nodes.Select(n => n.Id));
+
+    // ---- the right dock: the Inspector and the YAML tab ----
+
+    private InspectorViewModel? _inspector;
+
+    /// <summary>The Inspector over the selected node, or over the document when nothing is selected.</summary>
+    public InspectorViewModel Inspector => _inspector ??= new InspectorViewModel(ApplyForInspector, CreateRuleset, SelectByKey);
+
+    /// <summary>Whether the Inspector tab is offered in the right dock.</summary>
+    [ObservableProperty]
+    private bool _showInspector = true;
+
+    /// <summary>The dock's selected tab: 0 is the Inspector, 1 is the YAML.</summary>
+    [ObservableProperty]
+    private int _dockTab;
+
+    /// <summary>The right dock shows while either of its tabs is on.</summary>
+    public bool ShowDock => ShowSource || ShowInspector;
+
+    [RelayCommand]
+    private void ToggleInspector() => ShowInspector = !ShowInspector;
+
+    /// <summary>Writes a new ruleset under <paramref name="id" /> into the user's rules and opens it.</summary>
+    [RelayCommand]
+    private void NewRuleset(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            CreateStarterRuleset();
+        }
+        else
+        {
+            CreateRuleset(id);
+        }
+    }
+
+    // Turning a tab on brings it to the front; turning it off falls back to the other one.
+    partial void OnShowInspectorChanged(bool value)
+    {
+        if (value)
+        {
+            DockTab = 0;
+        }
+        else if (ShowSource)
+        {
+            DockTab = 1;
+        }
+
+        OnPropertyChanged(nameof(ShowDock));
+    }
+
+    partial void OnShowSourceChanged(bool value)
+    {
+        if (value)
+        {
+            DockTab = 1;
+        }
+        else if (ShowInspector)
+        {
+            DockTab = 0;
+        }
+
+        OnPropertyChanged(nameof(ShowDock));
+    }
+
+    /// <summary>Shows the Inspector the selection and the file as they now are. Called after every redraw and selection change.</summary>
+    private void RefreshInspector()
+    {
+        CanvasNodeViewModel? node = SelectedNodes.OfType<CanvasNodeViewModel>().FirstOrDefault();
+        RulesetDoc? doc = null;
+        if (SelectedRuleset is { } selected && _composed is { } composed)
+        {
+            composed.Documents.TryGetValue(selected.Id, out doc);
+        }
+
+        Inspector.Show(node, _session.Text, doc, SelectedRuleset, IsEditable, SourceDirty, _corpus?.UserDirectory is not null);
+    }
+
+    // The surfacing badge on every node of the author's, from the loaded document's show: block.
+    private void ApplySurfacing(IEnumerable<CanvasNodeViewModel> nodes)
+    {
+        RulesetDoc? doc = null;
+        if (SelectedRuleset is { } selected && _composed is { } composed)
+        {
+            composed.Documents.TryGetValue(selected.Id, out doc);
+        }
+
+        ShowSurface surface = ShowSurface.Of(doc);
+        foreach (CanvasNodeViewModel node in nodes)
+        {
+            node.Surfacing = node.IsAuthorable && !node.IsScaffold ? surface.BadgeFor(node.Id) : "";
+        }
+    }
+
+    private EditOutcome ApplyForInspector(EditRequest request)
+    {
+        if (SelectedRuleset is not { } selected || !IsEditable)
+        {
+            return EditOutcome.Refused(null);
+        }
+
+        EditOutcome outcome = _session.Apply(request);
+        Report(outcome, selected);
+        return outcome;
+    }
+
+    private void SelectByKey(RulesetDocumentNodeKey key)
+    {
+        if (Nodes.FirstOrDefault(n => n.Key == key) is { } node)
+        {
+            SelectedNodes.Clear();
+            SelectedNodes.Add(node);
+        }
+    }
+
+    private bool CreateRuleset(string id)
+    {
+        id = id.Trim();
+        if (!RulesetEdits.IsValidId(id))
+        {
+            EditStatus = $"'{id}' is not a valid ruleset id: letters, digits and underscores, not starting with a digit.";
+            return false;
+        }
+
+        if (_corpus?.UserDirectory is not { } directory)
+        {
+            EditStatus = "There is no user rules directory to write into.";
+            return false;
+        }
+
+        string path = Path.Combine(directory, id + ".rules.yaml");
+        if (File.Exists(path) || Rulesets.Any(r => r.Id == id))
+        {
+            EditStatus = $"{id} already exists; open it from the picker.";
+            return false;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(path, RulesetEdits.NewRulesetText(id, id.Replace('_', ' ')));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            EditStatus = "The file could not be written: " + ex.Message;
+            return false;
+        }
+
+        EditStatus = "";
+        _corpus = _loadCorpus();
+        Rulesets.Clear();
+        foreach (RulesetCorpus.Entry entry in _corpus.Entries)
+        {
+            Rulesets.Add(entry);
+        }
+
+        if (Rulesets.FirstOrDefault(r => r.Id == id) is not { } created)
+        {
+            EditStatus = $"{id} was written but does not load: " + (_corpus.Failures.FirstOrDefault(f => f.Path == path).Reason ?? "unknown");
+            return false;
+        }
+
+        SelectedRuleset = created;
+        return true;
+    }
 }

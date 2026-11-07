@@ -1,0 +1,183 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DemoViewer.NET.Extensions.RuleCanvas.ViewModels"
+             x:Class="DemoViewer.NET.Extensions.RuleCanvas.Views.InspectorView"
+             x:DataType="vm:InspectorViewModel">
+
+    <!--
+      THE INSPECTOR: the right dock's form over the selected node, or over the document when nothing is
+      selected. Every editor writes through the view model's fields; a text field commits on Enter or when
+      it loses focus, a picker on selection. Sections are headed the way the gallery and the strip are.
+    -->
+
+    <UserControl.Resources>
+        <!-- One field: its name, the editor its kind calls for, then the hint or the refusal under it. -->
+        <DataTemplate x:Key="FieldTemplate" x:DataType="vm:InspectorFieldViewModel">
+            <StackPanel Spacing="2" Margin="0 0 0 6" IsVisible="{Binding IsVisible}">
+                <Grid ColumnDefinitions="72,*" ColumnSpacing="8">
+                    <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="11" FontFamily="monospace"
+                               Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Text="{Binding Text}" FontSize="12" FontFamily="monospace" Padding="6 3" MinHeight="0"
+                             IsEnabled="{Binding IsEditable}" IsVisible="{Binding IsFreeText}" LostFocus="OnFieldLostFocus"
+                             Watermark="{Binding Title}">
+                        <TextBox.KeyBindings>
+                            <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
+                            <KeyBinding Gesture="Escape" Command="{Binding RevertCommand}" />
+                        </TextBox.KeyBindings>
+                    </TextBox>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Options}" SelectedItem="{Binding Text}" FontSize="12"
+                              Padding="6 3" MinHeight="0" HorizontalAlignment="Stretch"
+                              IsEnabled="{Binding IsEditable}" IsVisible="{Binding HasOptions}" PlaceholderText="none" />
+                </Grid>
+                <TextBlock Text="{Binding Hint}" FontSize="10" Foreground="{DynamicResource TextDim}" TextWrapping="Wrap"
+                           Margin="80 0 0 0" IsVisible="{Binding HasHint}" />
+                <TextBlock Text="{Binding Error}" FontSize="10" Foreground="{DynamicResource AccentCaution}" TextWrapping="Wrap"
+                           Margin="80 0 0 0" IsVisible="{Binding HasError}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- One show: entry: where it shows and what it references, with its label and group editable. -->
+        <DataTemplate x:Key="EntryTemplate" x:DataType="vm:ShowEntryViewModel">
+            <Border CornerRadius="4" Padding="8 5" Margin="0 0 0 6" Background="{DynamicResource CardBg}"
+                    BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1">
+                <StackPanel Spacing="4">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Classes="ghost" Content="×" FontSize="11" Padding="4 0" MinHeight="0"
+                                Command="{Binding RemoveCommand}" IsVisible="{Binding IsEditable}"
+                                ToolTip.Tip="Stop showing this entry here" />
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding Surface}" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Stat}" FontSize="11" FontFamily="monospace"
+                                       Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </DockPanel>
+                    <ContentControl Content="{Binding Label}" ContentTemplate="{StaticResource FieldTemplate}" />
+                    <ContentControl Content="{Binding Group}" ContentTemplate="{StaticResource FieldTemplate}" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="{DynamicResource PanelHeaderBg}"
+                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="10 5">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding RulesetSource}" FontSize="11"
+                           Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Heading}" FontSize="12" FontFamily="monospace" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer>
+            <StackPanel Margin="10 8" Spacing="10">
+
+                <TextBlock Text="{Binding ReadOnlyNote}" FontSize="11" Foreground="{DynamicResource AccentCaution}"
+                           TextWrapping="Wrap" IsVisible="{Binding HasReadOnlyNote}" />
+
+                <!-- Node mode: the entry's keys, where it shows, and its removal. -->
+                <StackPanel Spacing="10" IsVisible="{Binding HasNode}">
+                    <TextBlock Text="{Binding NodeNote}" FontSize="11" Foreground="{DynamicResource TextMid}"
+                               TextWrapping="Wrap" IsVisible="{Binding HasNodeNote}" />
+
+                    <StackPanel Spacing="4" IsVisible="{Binding IsNodeAuthorable}">
+                        <TextBlock Text="ENTRY" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" Margin="0 0 0 4" />
+                        <ItemsControl ItemsSource="{Binding NodeFields}" ItemTemplate="{StaticResource FieldTemplate}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6" IsVisible="{Binding IsNodeAuthorable}">
+                        <TextBlock Text="SURFACING" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" />
+                        <TextBlock Text="{Binding Surfacing}" FontSize="11" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap" />
+                        <ItemsControl ItemsSource="{Binding Entries}" ItemTemplate="{StaticResource EntryTemplate}" />
+                        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding CanEditNode}">
+                            <Button Classes="ghost" Content="Add to scoreboard" FontSize="11" Padding="8 3"
+                                    Command="{Binding AddToScoreboardCommand}"
+                                    ToolTip.Tip="Append a scoreboard entry for this stat, labelled by its label or id" />
+                            <ComboBox ItemsSource="{Binding Tables}" SelectedItem="{Binding TableToAdd}" FontSize="11"
+                                      Padding="6 2" MinHeight="0" MinWidth="110" IsVisible="{Binding HasTables}" />
+                            <Button Classes="ghost" Content="Add to table" FontSize="11" Padding="8 3"
+                                    Command="{Binding AddToTableCommand}" IsVisible="{Binding HasTables}"
+                                    ToolTip.Tip="Append a column for this stat to the table picked" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6" IsVisible="{Binding CanEditNode}">
+                        <TextBlock Text="DANGER" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" />
+                        <Button Classes="ghost" Content="{Binding DeleteLabel}" FontSize="11" Padding="8 3"
+                                Command="{Binding DeleteCommand}" HorizontalAlignment="Left"
+                                ToolTip.Tip="Remove the entry from the file" />
+                        <TextBlock Text="{Binding DeleteRefusal}" FontSize="11" Foreground="{DynamicResource AccentCaution}"
+                                   TextWrapping="Wrap" IsVisible="{Binding HasDeleteRefusal}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Document mode: the header, the uses, the whole surfacing block, and a new file. -->
+                <StackPanel Spacing="10" IsVisible="{Binding ShowsDocument}">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="RULESET" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" Margin="0 0 0 4" />
+                        <Grid ColumnDefinitions="72,*" ColumnSpacing="8" Margin="0 0 0 2">
+                            <TextBlock Grid.Column="0" Text="id" FontSize="11" FontFamily="monospace"
+                                       Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding RulesetId}" FontSize="12" FontFamily="monospace"
+                                       Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" ToolTip.Tip="{x:Static vm:InspectorViewModel.RulesetHint}" />
+                        </Grid>
+                        <TextBlock Text="{x:Static vm:InspectorViewModel.RulesetHint}" FontSize="10" Foreground="{DynamicResource TextDim}"
+                                   Margin="80 0 0 6" TextWrapping="Wrap" />
+                        <ItemsControl ItemsSource="{Binding DocumentFields}" ItemTemplate="{StaticResource FieldTemplate}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="USES" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" Margin="0 0 0 4" />
+                        <TextBlock Text="No other ruleset is read." FontSize="11" Foreground="{DynamicResource TextDim}"
+                                   IsVisible="{Binding !HasUses}" />
+                        <ItemsControl ItemsSource="{Binding Uses}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <DockPanel Margin="0 1">
+                                        <Button DockPanel.Dock="Right" Classes="ghost" Content="×" FontSize="11" Padding="4 0" MinHeight="0"
+                                                Command="{Binding $parent[ItemsControl].((vm:InspectorViewModel)DataContext).RemoveUseCommand}"
+                                                CommandParameter="{Binding}" ToolTip.Tip="Stop using this ruleset" />
+                                        <TextBlock Text="{Binding}" FontSize="12" FontFamily="monospace"
+                                                   Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <DockPanel IsVisible="{Binding IsEditable}">
+                            <Button DockPanel.Dock="Right" Classes="ghost" Content="Use" FontSize="11" Padding="8 3" Margin="6 0 0 0"
+                                    Command="{Binding AddUseCommand}" ToolTip.Tip="Add a ruleset whose stats this one may read" />
+                            <TextBox Text="{Binding UseToAdd}" Watermark="ruleset id" FontSize="12" FontFamily="monospace"
+                                     Padding="6 3" MinHeight="0">
+                                <TextBox.KeyBindings>
+                                    <KeyBinding Gesture="Enter" Command="{Binding AddUseCommand}" />
+                                </TextBox.KeyBindings>
+                            </TextBox>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="SURFACING" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" Margin="0 0 0 4" />
+                        <TextBlock Text="Nothing is shown; pick a stat and add it to the scoreboard or a table."
+                                   FontSize="11" Foreground="{DynamicResource TextDim}" TextWrapping="Wrap" IsVisible="{Binding !HasEntries}" />
+                        <ItemsControl ItemsSource="{Binding Entries}" ItemTemplate="{StaticResource EntryTemplate}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Spacing="4" IsVisible="{Binding CanCreate}">
+                    <TextBlock Text="NEW RULESET" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" Margin="0 0 0 4" />
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Classes="ghost" Content="Create" FontSize="11" Padding="8 3" Margin="6 0 0 0"
+                                Command="{Binding CreateRulesetCommand}"
+                                ToolTip.Tip="Write a minimal ruleset under this id into your rules and open it" />
+                        <TextBox Text="{Binding NewRulesetId}" Watermark="ruleset id" FontSize="12" FontFamily="monospace"
+                                 Padding="6 3" MinHeight="0">
+                            <TextBox.KeyBindings>
+                                <KeyBinding Gesture="Enter" Command="{Binding CreateRulesetCommand}" />
+                            </TextBox.KeyBindings>
+                        </TextBox>
+                    </DockPanel>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

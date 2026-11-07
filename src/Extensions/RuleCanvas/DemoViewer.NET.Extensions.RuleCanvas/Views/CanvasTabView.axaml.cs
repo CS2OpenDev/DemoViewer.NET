@@ -174,6 +174,16 @@ public partial class CanvasTabView : UserControl
         }
     }
 
+    // The YAML tab is detached while the Inspector is in front, so a jump made then lands when it comes back.
+    // SelectionChanged bubbles from every picker inside the dock; only the tab strip's own counts.
+    private void OnDockTabChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (ReferenceEquals(e.Source, Dock) && Dock.SelectedIndex == 1 && _viewModel is { SelectedLine: > 0 } vm)
+        {
+            Dispatcher.UIThread.Post(() => JumpTo(vm.SelectedLine), DispatcherPriority.Background);
+        }
+    }
+
     // The picker is a command surface: the chosen view adds a stat, and the picker clears for the next.
     private void OnAddStatViewChanged(object? sender, SelectionChangedEventArgs e)
     {
@@ -373,7 +383,11 @@ public partial class CanvasTabView : UserControl
         Source.TextArea.Caret.Line = safeLine;
         Source.TextArea.Caret.Column = 1;
         Source.Select(documentLine.Offset, documentLine.Length);
-        Source.ScrollToLine(safeLine);
+        // Scrolling needs the editor's visual lines, which it has only while the YAML tab is in front.
+        if (Source.IsAttachedToVisualTree())
+        {
+            Source.ScrollToLine(safeLine);
+        }
     }
 
     // Background priority runs after the layout pass that gives the editor its bounds. The extent comes from

@@ -63,6 +63,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         _factory = new CanvasNodeFactory(WriteFacet, WriteField);
         _marshal = marshal;
         SelectedNodes.CollectionChanged += (_, _) => JumpToSelection();
+        SelectedNodes.CollectionChanged += (_, _) => RefreshInspector();
     }
 
     /// <summary>How long the user rules directory must be quiet before a change is acted on. Read when watching starts.</summary>
@@ -431,6 +432,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             _session.Open(null);
             NotifyHistory();
             AfterRedraw(null);
+            RefreshInspector();
             return;
         }
 
@@ -468,11 +470,13 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             Connections.Add(wire);
         }
 
+        ApplySurfacing(nodes);
         foreach (CanvasNodeViewModel node in nodes.Where(n => selected.Contains(n.Key)))
         {
             SelectedNodes.Add(node);
         }
 
+        RefreshInspector();
         Diagnostics = string.Join('\n', composed.Diagnostics);
         int unwired = nodes.Count(n => n.Inputs.Count == 0 && n.Outputs.Count == 0);
         Status = nodes.Count == 0
@@ -491,6 +495,8 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         {
             node.IsEditable = IsEditable && node.IsAuthorable;
         }
+
+        RefreshInspector();
     }
 
     private void NotifyHistory()

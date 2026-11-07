@@ -209,6 +209,16 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     [ObservableProperty]
     private string? _facetToAdd;
 
+    /// <summary>
+    ///     Where <c>show:</c> surfaces this entry, in words (<c>shown: scoreboard as Kills</c>, <c>not shown</c>),
+    ///     set by the tab from <see cref="ShowSurface" /> after every redraw; empty for a node that is not the author's.
+    /// </summary>
+    [ObservableProperty]
+    private string _surfacing = "";
+
+    /// <summary>Whether <c>show:</c> references this entry somewhere.</summary>
+    public bool IsSurfaced => Surfacing.StartsWith("shown", StringComparison.Ordinal);
+
     public bool IsHighlight => Kind == "highlight";
 
     /// <summary>A node the engine made rather than the author: an event, an enrichment, a context value.</summary>
@@ -353,6 +363,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     }
 
     partial void OnShowFacetsChanged(bool value) => OnPropertyChanged(nameof(ShowFacetSummary));
+
+    partial void OnSurfacingChanged(string value) => OnPropertyChanged(nameof(IsSurfaced));
 
     partial void OnIsEditableChanged(bool value)
     {
