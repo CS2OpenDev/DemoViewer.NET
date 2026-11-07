@@ -23,6 +23,17 @@ public sealed class ScaffoldName : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }
 
+/// <summary>Whether a gallery item of this kind can be placed without a node under it: everything but a gate.</summary>
+public sealed class GalleryItemPlaceable : IValueConverter
+{
+    public static GalleryItemPlaceable Instance { get; } = new();
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is not Model.GalleryItemKind.Gate;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+}
+
 /// <summary>
 ///     A wire's label at the viewport's zoom: the text as given down to <see cref="MinZoom" />, and nothing
 ///     below it, where a 10px label would render under 7px and only clutter the wire. A multi-value converter

@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:nodify="clr-namespace:Nodify.Avalonia;assembly=Nodify.Avalonia"
         xmlns:nodes="clr-namespace:Nodify.Avalonia.Nodes;assembly=Nodify.Avalonia"
-        xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia">
+        xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia"
+        xmlns:views="using:DemoViewer.NET.Extensions.RuleCanvas.Views">
 
     <!--
       THE CANVAS THEME: the canvas's own tokens (Rule*) in both themes, and every piece of Nodify chrome
@@ -146,8 +147,73 @@
                 <Setter Property="StrokeThickness" Value="2" />
                 <Setter Property="Fill" Value="{DynamicResource RuleSelectionFill}" />
             </ControlTheme>
+
+            <!-- The toast: a card with a caution stripe, the text, and a close button; the control times itself out. -->
+            <ControlTheme x:Key="{x:Type views:TransientToast}" TargetType="views:TransientToast">
+                <Setter Property="MaxWidth" Value="360" />
+                <Setter Property="Focusable" Value="True" />
+                <Setter Property="Template">
+                    <ControlTemplate>
+                        <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderAccent}" BorderThickness="1"
+                                CornerRadius="4" Padding="0">
+                            <Grid ColumnDefinitions="3,*,Auto">
+                                <Border Grid.Column="0" Background="{DynamicResource AccentCaution}" CornerRadius="3 0 0 3" />
+                                <TextBlock Grid.Column="1" Text="{TemplateBinding Message}" FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextValue}" Margin="10 7" VerticalAlignment="Center" />
+                                <Button Grid.Column="2" Name="PART_Close" Content="×" Background="Transparent" BorderThickness="0"
+                                        Foreground="{DynamicResource TextMid}" Padding="6 2" Margin="0 2 4 0" VerticalAlignment="Top"
+                                        ToolTip.Tip="Dismiss (Esc)" />
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter>
+            </ControlTheme>
         </ResourceDictionary>
     </Styles.Resources>
+
+    <!-- A panel toggle in the strip: a ghost button that fills when its panel shows. -->
+    <Style Selector="ToggleButton.panel">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Padding" Value="8 3" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
+    </Style>
+    <Style Selector="ToggleButton.panel:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PanelHeaderHover}" />
+    </Style>
+    <Style Selector="ToggleButton.panel:checked /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PanelHeaderHoverDeep}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextValue}" />
+    </Style>
+
+    <!-- A gallery group's heading: a full-width toggle that folds its items. -->
+    <Style Selector="ToggleButton.expander">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="4 3" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="CornerRadius" Value="3" />
+    </Style>
+    <Style Selector="ToggleButton.expander:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PanelHeaderHover}" />
+    </Style>
+    <Style Selector="ToggleButton.expander:checked /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- A card centred over the canvas for a state with nothing to draw. -->
+    <Style Selector="Border.emptyCard">
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Background" Value="{DynamicResource CardBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderAccent}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="24 20" />
+    </Style>
 
     <!-- The editor. -->
     <Style Selector="nodify|NodifyEditor">

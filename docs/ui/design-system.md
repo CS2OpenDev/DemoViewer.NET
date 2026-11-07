@@ -403,6 +403,29 @@ tooltip. The kind of a node reaches the brush through `TokenBrush` (`Views/Token
 property that binds a control's background, foreground, border or fill to a token named at run time,
 which a `DynamicResource` cannot do.
 
+The rest of the canvas surface, for the record:
+- **Scaffold nodes** (an event, an enrichment, a context flag: the engine's, not the author's) take a
+  separate template through `CanvasNodeTemplateSelector`: one 30px row of input dot, outlined kind pill,
+  name without its `enrich.` prefix, output dot; 140 to 260 wide, `NodeSizeEstimator` sized to match.
+- **Fit** is `ReadableFit`: zoom clamped to 0.8 to 1.0, and when the whole chain does not fit at 0.8 the
+  authored nodes are framed, anchored to the left-most column. Wire labels hide under 0.7 zoom
+  (`WireLabelAtZoom`). The editor's own bounds are `MinViewportZoom` 0.25 and `MaxViewportZoom` 2.
+- **The strip** is one row: the ruleset picker with its source tag, a `shipped, read only` chip and a
+  primary `Edit a copy` beside it, an `AccentCaution` dot while the source pane is dirty, the diagnostics
+  count as an `AccentError` badge that folds the list open under the strip (each line selects its node),
+  the status; then undo and redo as icon buttons, `+ Add` with the searchable gallery in a flyout, Focus
+  and its chip, the Gallery, Source and Inspector toggles (`ToggleButton.panel`), Reset arrangement, Open
+  Authoring, and an overflow menu with the face style, the minimap, Delete selected, New ruleset and
+  Open rules folder. Refusals arrive on a `TransientToast` under the strip's left edge: `CardBg`, a 3px
+  `AccentCaution` stripe, `TextValue` 12px, five seconds or Escape.
+- **The gallery** has a search box over every group's titles, names and hints, then groups as expanders
+  in task order: Prefabs, Highlights, Stats (every kind the engine has), Gates with the open ruleset's
+  own flags under `Your flags`, and Views collapsed by default and folded by the event that fires them.
+  Every item shows its hint as a second line.
+- **Empty states** are cards centred over the editor: no rulesets (New ruleset writes a starter into the
+  user directory; Open rules folder); a ruleset with nothing declared (a watermark with Enemy kills, Flag
+  and Highlight quick starts); a file that stopped loading (the file name, the loader's reason, Undo).
+
 ---
 
 ## 2. Component contracts (shared controls)
