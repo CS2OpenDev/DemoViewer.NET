@@ -67,8 +67,14 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     [ObservableProperty]
     private string _gate = "";
 
-    /// <summary>Whether the face shows the scope and gate pickers: an editable stat.</summary>
-    public bool ShowFieldPickers => IsEditable && IsAuthorable && !IsHighlight && !IsScaffold;
+    /// <summary>Whether the face shows the scope picker: an editable stat or highlight.</summary>
+    public bool ShowFieldPickers => IsEditable && IsAuthorable && !IsScaffold;
+
+    /// <summary>A highlight has no gate; its <c>per:</c> is the rising edge's reset scope.</summary>
+    public bool ShowGatePicker => !IsHighlight;
+
+    /// <summary>The add-facet picker: an editable stat whose view still has facets to offer.</summary>
+    public bool ShowFacetPicker => IsEditable && !IsHighlight && HasAvailableFacets;
 
     /// <summary>The chips without the scope and the gate, which the pickers show instead while editable.</summary>
     public IReadOnlyList<string> VisibleChips => IsEditable
@@ -188,6 +194,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         }
 
         OnPropertyChanged(nameof(ShowFieldPickers));
+        OnPropertyChanged(nameof(ShowFacetPicker));
         OnPropertyChanged(nameof(VisibleChips));
         OnPropertyChanged(nameof(ShowExpressionText));
         OnPropertyChanged(nameof(ShowLines));

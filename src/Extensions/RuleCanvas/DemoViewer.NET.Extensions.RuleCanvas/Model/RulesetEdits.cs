@@ -186,6 +186,50 @@ public static class RulesetEdits
     public static string RemoveStat(string text, string statId) =>
         RulesetDocumentEditor.Open(text).RemoveStat(statId).Text;
 
+    private static YamlPath HighlightPath(string id) => _highlights.Key(id);
+
+    /// <summary>Sets one scalar field of a highlight (<c>when</c>, <c>per</c>, <c>title</c>, <c>score</c>), adding or replacing it.</summary>
+    public static string SetHighlightField(string text, string highlightId, string key, string value)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        if (editor.Document.Find(HighlightPath(highlightId)) is not YamlMappingNode)
+        {
+            throw new InvalidOperationException($"{highlightId} is not a highlight in this document");
+        }
+
+        return editor.Apply([YamlEdits.SetKey(editor.Document, HighlightPath(highlightId), key, value)]).Text;
+    }
+
+    /// <summary>Removes a highlight's scalar field when it has one; the text is unchanged otherwise.</summary>
+    public static string RemoveHighlightFieldIfPresent(string text, string highlightId, string key)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        return editor.Document.Find(HighlightPath(highlightId).Key(key)) is null
+            ? text
+            : editor.Apply([YamlEdits.RemoveKey(editor.Document, HighlightPath(highlightId), key)]).Text;
+    }
+
+    /// <summary>The scalar a highlight holds under <paramref name="key" />, or null.</summary>
+    public static string? HighlightField(string text, string highlightId, string key) =>
+        RulesetDocumentEditor.Open(text).Scalar(HighlightPath(highlightId).Key(key));
+
+    /// <summary>
+    ///     Appends a highlight (its body at one indentation under the id) under <c>highlights:</c>, adding the
+    ///     section at the end of the document when there is none.
+    /// </summary>
+    public static string AddHighlight(string text, string highlightId, string body)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        string entry = highlightId + ":\n" + string.Join('\n', body.Split('\n').Select(l => "  " + l));
+        if (editor.Document.Find(_highlights) is YamlMappingNode)
+        {
+            return editor.Apply([YamlEdits.AddEntry(editor.Document, _highlights, entry)]).Text;
+        }
+
+        string section = "highlights:\n" + string.Join('\n', entry.Split('\n').Select(l => "  " + l));
+        return editor.Apply([YamlEdits.AddEntry(editor.Document, YamlPath.Root, section)]).Text;
+    }
+
     /// <summary>Removes a highlight entry whole.</summary>
     public static string RemoveHighlight(string text, string highlightId)
     {

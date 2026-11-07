@@ -7,7 +7,9 @@ using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.RuleCanvas;
+using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.Modules;
+using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Abstractions;
@@ -35,6 +37,9 @@ public class RuleCanvasHubTests
         RuleCanvasPack pack = new();
         ServiceCollection services = new();
         pack.Register(services);
+        // The shipped rules alone: the developer's own user directory may hold an edited player_round.
+        string shipped = CS2DemoKit.Analysis.Yaml.RuleSetLocator.ResolveShippedRulesDirectory();
+        services.AddSingleton(new CanvasTabViewModel(_ => true, () => RulesetCorpus.Load([(shipped, "shipped")]), () => null));
         ServiceProvider provider = services.BuildServiceProvider();
         PackContributionSet set = new([pack], provider);
         ModuleRegistry registry = new();
@@ -130,8 +135,7 @@ public class RuleCanvasHubTests
                     await Assert.That(connectors).IsEqualTo(38).Because("one input and one output per node that has a wire on that side");
                     await Assert.That(texts).Contains("round_kast");
                     await Assert.That(texts).Contains("enemy").Because("the detailed style shows the facet rows");
-                    await Assert.That(texts.Any(t => t.Contains("player.alive", StringComparison.Ordinal))).IsTrue()
-                        .Because("the gate is a chip, or the gate picker's value on a machine with a user copy");
+                    await Assert.That(texts).Contains("while player.alive").Because("the gate is a chip on a shipped ruleset");
                     await Assert.That(texts).Contains("player_round.rules.yaml").Because("the source pane names the file it shows");
                 }
             }

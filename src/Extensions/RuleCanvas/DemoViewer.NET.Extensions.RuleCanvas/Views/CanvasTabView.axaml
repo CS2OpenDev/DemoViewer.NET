@@ -373,7 +373,7 @@
                             <!-- Adding a facet the view offers and the document does not bind yet. -->
                             <ComboBox ItemsSource="{Binding AvailableFacets}" SelectedItem="{Binding FacetToAdd}"
                                       PlaceholderText="add facet…" FontSize="11" Padding="6 1" MinHeight="0"
-                                      IsVisible="{Binding IsEditable}" />
+                                      IsVisible="{Binding ShowFacetPicker}" />
 
                             <!-- What the composition said about this entry. -->
                             <Border Background="{DynamicResource AccentCaution}" CornerRadius="3" Padding="6 2"
@@ -390,9 +390,11 @@
                                 <TextBlock Text="per" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
                                 <ComboBox ItemsSource="{x:Static vm:CanvasNodeViewModel.PerOptions}" SelectedItem="{Binding Per}"
                                           FontSize="11" MinWidth="76" Padding="6 1" MinHeight="0" />
-                                <TextBlock Text="while" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
+                                <TextBlock Text="while" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center"
+                                           IsVisible="{Binding ShowGatePicker}" />
                                 <ComboBox ItemsSource="{x:Static vm:CanvasNodeViewModel.GateOptions}" SelectedItem="{Binding Gate}"
-                                          PlaceholderText="none" FontSize="11" MinWidth="130" Padding="6 1" MinHeight="0" />
+                                          PlaceholderText="none" FontSize="11" MinWidth="130" Padding="6 1" MinHeight="0"
+                                          IsVisible="{Binding ShowGatePicker}" />
                             </StackPanel>
 
                             <TextBlock Text="{Binding Expression}" FontSize="11" FontFamily="monospace" MaxWidth="340"

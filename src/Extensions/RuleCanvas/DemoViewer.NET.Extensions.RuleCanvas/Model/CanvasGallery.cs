@@ -19,7 +19,10 @@ public enum GalleryItemKind
     Gate,
 
     /// <summary>A complete, common stat; placed on the canvas as a new entry.</summary>
-    Prefab
+    Prefab,
+
+    /// <summary>A highlight with a starter <c>when:</c>; placed on the canvas under <c>highlights:</c>.</summary>
+    Highlight
 }
 
 /// <summary>One thing the gallery offers to drag.</summary>
@@ -97,6 +100,15 @@ public static class CanvasGallery
                     "count: kill\nmatch: { enemy: true }\nwhile: round.no_deaths_yet\nper: match"),
                 Prefab("side", "Side", "The player's team at freeze end, per round.",
                     "capture: player.team\non: round_freeze_end\nper: round"),
+            ]),
+            new GalleryGroup("Highlights",
+            [
+                Highlight("multi_kill", "Multi-kill", "Fires when a player's enemy kills in a round reach three; reads the Enemy kills prefab.",
+                    "when: enemy_kills >= 3\nper: round\nscore: 80\ntitle: \"{player.name} multi-kill (round {round.number})\""),
+                Highlight("opening_kill", "Opening kill", "Fires on a player's first kill before any death in the round; reads the Opening kills prefab.",
+                    "when: opening_kills >= 1\nper: round\nscore: 60\ntitle: \"{player.name} opening kill (round {round.number})\""),
+                Highlight("highlight", "Blank highlight", "A when: to fill in; wire a stat into it or type the test. Starts on the survived flag, which every ruleset can read.",
+                    "when: player.survived\nper: round\nscore: 50\ntitle: \"{player.name} (round {round.number})\""),
             ])
         ];
     }
@@ -112,4 +124,7 @@ public static class CanvasGallery
 
     private static GalleryItem Prefab(string id, string title, string hint, string body) =>
         new(GalleryItemKind.Prefab, id, title, hint, body);
+
+    private static GalleryItem Highlight(string id, string title, string hint, string body) =>
+        new(GalleryItemKind.Highlight, id, title, hint, body);
 }

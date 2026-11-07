@@ -206,7 +206,12 @@ public static class CanvasGraphBuilder
             if (highlight is not null)
             {
                 AddScope(chips, highlight.Per);
+                per = highlight.Per == PerScope.None ? "" : highlight.Per.ToString().ToLowerInvariant();
                 expression.Add("when " + highlight.When);
+                lines.Add(new CanvasExpressionViewModel("when", "when", highlight.When ?? "", WriteField));
+                lines.Add(new CanvasExpressionViewModel("title", "title", highlight.Title ?? "", WriteField));
+                lines.Add(new CanvasExpressionViewModel("score", "score",
+                    Convert.ToString(highlight.Score, System.Globalization.CultureInfo.InvariantCulture) ?? "", WriteField));
             }
         }
         else
@@ -362,7 +367,7 @@ public static class CanvasGraphBuilder
         longest = Math.Max(longest, (node.Inputs.Max(i => (int?)i.Title.Length) ?? 0) + 14);
         double width = Math.Clamp(BaseWidth + Math.Max(0, longest - 30) * 6, BaseWidth, 520);
         // The picker row and an expression editor are wider than any chip row.
-        return node.IsAuthorable && !node.IsHighlight && !node.IsScaffold ? Math.Max(width, EditableWidth) : width;
+        return node.IsAuthorable && !node.IsScaffold ? Math.Max(width, EditableWidth) : width;
     }
 
     private static double HeightOf(CanvasNodeViewModel node)
@@ -375,9 +380,9 @@ public static class CanvasGraphBuilder
         // The editors an authorable stat can show: the picker row, the add-facet picker, and one line per
         // expression, each wrapping at the editor's width. Estimated whether or not the node is editable yet.
         double editors = 0;
-        if (node.IsAuthorable && !node.IsHighlight && !node.IsScaffold)
+        if (node.IsAuthorable && !node.IsScaffold)
         {
-            editors = PickerRowHeight + ConnectorHeight
+            editors = PickerRowHeight + (node.IsHighlight ? 0 : ConnectorHeight)
                       + node.Lines.Sum(l => LineHeight + Math.Max(0, (l.Text.Length - 1) / LineWrapColumns) * 16);
         }
 

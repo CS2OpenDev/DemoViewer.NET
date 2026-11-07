@@ -393,10 +393,13 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             return;
         }
 
-        string id = FreshId(item.Kind == GalleryItemKind.Prefab ? item.Name : "new_" + item.Name);
+        string id = FreshId(item.Kind is GalleryItemKind.Prefab or GalleryItemKind.Highlight ? item.Name : "new_" + item.Name);
         string body = string.Join('\n', item.Body.Split('\n').Select(l => "  " + l));
         _pendingPlacement[new RulesetDocumentNodeKey(selected.Id, id)] = at;
-        if (!ApplyEdit(text => RulesetEdits.AddStat(text, $"{id}:\n{body}\n"), "add " + id))
+        bool written = item.Kind == GalleryItemKind.Highlight
+            ? ApplyEdit(text => RulesetEdits.AddHighlight(text, id, item.Body), "add " + id)
+            : ApplyEdit(text => RulesetEdits.AddStat(text, $"{id}:\n{body}\n"), "add " + id);
+        if (!written)
         {
             _pendingPlacement.Clear();
         }
@@ -470,9 +473,27 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             return;
         }
 
-        if (!target.IsAuthorable || target.IsHighlight || target.IsScaffold)
+        if (!target.IsAuthorable || target.IsScaffold)
         {
-            EditStatus = "A wire can only end on a stat of your own ruleset.";
+            EditStatus = "A wire can only end on a stat or a highlight of your own ruleset.";
+            return;
+        }
+
+        if (target.IsHighlight)
+        {
+            if (source.IsScaffold)
+            {
+                EditStatus = "A highlight's when: reads stats; wire a stat into it.";
+                return;
+            }
+
+            string read = source.Ruleset == target.Ruleset ? source.Id : source.Ruleset + "." + source.Id;
+            ApplyEdit(text =>
+            {
+                string? existing = RulesetEdits.HighlightField(text, target.Id, "when");
+                string when = string.IsNullOrWhiteSpace(existing) ? $"{read} > 0" : $"{existing} and {read} > 0";
+                return RulesetEdits.SetHighlightField(text, target.Id, "when", when);
+            }, $"extend {target.Id} with {read}");
             return;
         }
 
@@ -722,6 +743,12 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             return;
         }
 
+        if (node.IsHighlight)
+        {
+            WriteHighlightField(node, key, value);
+            return;
+        }
+
         switch (key)
         {
             case "per" when value is not null:
@@ -741,6 +768,26 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
                 break;
             case "compute" or "when":
                 EditStatus = $"A {key} cannot be empty; delete the stat instead.";
+                break;
+        }
+    }
+
+    // A highlight's fields: when: and per: cannot be empty; title: and score: can go.
+    private void WriteHighlightField(CanvasNodeViewModel node, string key, string? value)
+    {
+        switch (key)
+        {
+            case "when" or "per" when value is not null:
+                ApplyEdit(text => RulesetEdits.SetHighlightField(text, node.Id, key, value), $"set {node.Id}.{key}");
+                break;
+            case "when" or "per":
+                EditStatus = $"A highlight's {key} cannot be empty; delete the highlight instead.";
+                break;
+            case "title" or "score":
+                ApplyEdit(text => value is null
+                        ? RulesetEdits.RemoveHighlightFieldIfPresent(text, node.Id, key)
+                        : RulesetEdits.SetHighlightField(text, node.Id, key, value),
+                    value is null ? $"remove {node.Id}.{key}" : $"set {node.Id}.{key}");
                 break;
         }
     }

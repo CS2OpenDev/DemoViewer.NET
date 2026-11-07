@@ -20,7 +20,7 @@ public class CanvasGalleryTests
         IReadOnlyList<GalleryGroup> gallery = CanvasGallery.Build(EmbeddedCatalog.Root);
         using (Assert.Multiple())
         {
-            await Assert.That(gallery.Select(g => g.Title)).IsEquivalentTo(["Stats", "Views", "Gates", "Prefabs"]);
+            await Assert.That(gallery.Select(g => g.Title)).IsEquivalentTo(["Stats", "Views", "Gates", "Prefabs", "Highlights"]);
             await Assert.That(gallery.Single(g => g.Title == "Views").Items.Select(i => i.Name)).Contains("kill");
             await Assert.That(gallery.Single(g => g.Title == "Gates").Items.Select(i => i.Name)).Contains("round.active");
             await Assert.That(gallery.SelectMany(g => g.Items).Where(i => i.Kind != GalleryItemKind.Gate).All(i => i.Body is not null))
