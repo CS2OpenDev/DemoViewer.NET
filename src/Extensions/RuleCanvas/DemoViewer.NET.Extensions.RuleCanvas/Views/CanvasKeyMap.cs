@@ -20,8 +20,9 @@ public enum CanvasKeyAction
 }
 
 /// <summary>
-///     The canvas's own keys, apart from the editor's built-in set (Ctrl+A, Home, Escape for deselect,
-///     arrows). Ctrl and Cmd are the same chord, so the map reads the same on every platform.
+///     The canvas's own keys, apart from the editor's built-in set (Ctrl+A, Home, arrows). Escape is
+///     here rather than the editor's, which would read it from a face editor too. Ctrl and Cmd are the
+///     same chord, so the map reads the same on every platform.
 /// </summary>
 public static class CanvasKeyMap
 {
