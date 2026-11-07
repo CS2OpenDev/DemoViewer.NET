@@ -254,8 +254,12 @@ public class CanvasFaceRowsTests
             sum.Commit();
             await Assert.That(RulesetEdits.Field(Text(rules), "damage", "sum")).IsEqualTo("event.DmgHealth");
 
-            Field(vm, "damage", "sum").Picked = "player.health";
-            await Assert.That(RulesetEdits.Field(Text(rules), "damage", "sum")).IsEqualTo("player.health").Because("a picked suggestion commits at once");
+            CanvasFieldViewModel picked = Field(vm, "damage", "sum");
+            picked.Picked = "player.health";
+            await Assert.That(RulesetEdits.Field(Text(rules), "damage", "sum")).IsEqualTo("event.DmgHealth").Because("a pick lands in the editor; the commit writes");
+            await Assert.That(picked.Text).IsEqualTo("player.health");
+            picked.Commit();
+            await Assert.That(RulesetEdits.Field(Text(rules), "damage", "sum")).IsEqualTo("player.health");
 
             string before = Text(rules);
             CanvasFieldViewModel again = Field(vm, "damage", "sum");
@@ -271,6 +275,34 @@ public class CanvasFaceRowsTests
             tally.Text = "kills_match";
             tally.Commit();
             await Assert.That(RulesetEdits.Field(Text(rules), "multi_kill", "tally")).IsEqualTo("kills_match");
+        }
+    }
+
+    [Test]
+    public async Task AKeystrokeThatEqualsASuggestion_DoesNotCommit_TheTypedValueDoes()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
+        using (rules)
+        {
+            string before = Text(rules);
+            // An editable combo selects the item whose text equals the typed text, before the text binding
+            // updates: typing 25 into a window field with the suggestion 2 arrives as Picked = 2 first.
+            CanvasFieldViewModel window = Field(vm, "rapid", "window");
+            window.Picked = "2";
+            await Assert.That(Text(rules)).IsEqualTo(before).Because("the pick alone writes nothing, so the editor survives the keystroke");
+            window.Picked = null;
+            window.Text = "25";
+            window.Commit();
+            await Assert.That(RulesetEdits.Field(Text(rules), "rapid", "window")).IsEqualTo("25");
+
+            before = Text(rules);
+            CanvasNodeViewModel odd = Node(vm, "odd_gate");
+            odd.GateChoice = "seen";
+            await Assert.That(Text(rules)).IsEqualTo(before).Because("a listed gate that prefixes the typed one must not write mid-keystroke");
+            odd.GateChoice = null;
+            odd.GateText = "seen_twice";
+            odd.CommitGate();
+            await Assert.That(RulesetEdits.Field(Text(rules), "odd_gate", "while")).IsEqualTo("seen_twice");
         }
     }
 
@@ -303,8 +335,12 @@ public class CanvasFaceRowsTests
             odd.CommitGate();
             await Assert.That(RulesetEdits.Field(Text(rules), "odd_gate", "while")).IsEqualTo("round.number > 3");
 
-            Node(vm, "odd_gate").GateChoice = "player.alive";
-            await Assert.That(RulesetEdits.Field(Text(rules), "odd_gate", "while")).IsEqualTo("player.alive").Because("a pick from the list writes at once");
+            CanvasNodeViewModel pickedGate = Node(vm, "odd_gate");
+            pickedGate.GateChoice = "player.alive";
+            await Assert.That(RulesetEdits.Field(Text(rules), "odd_gate", "while")).IsEqualTo("round.number > 3").Because("a pick lands in the editor; the commit writes");
+            await Assert.That(pickedGate.GateText).IsEqualTo("player.alive");
+            pickedGate.CommitGate();
+            await Assert.That(RulesetEdits.Field(Text(rules), "odd_gate", "while")).IsEqualTo("player.alive");
 
             CanvasNodeViewModel cleared = Node(vm, "odd_gate");
             cleared.GateText = "";
@@ -312,6 +348,7 @@ public class CanvasFaceRowsTests
             await Assert.That(RulesetEdits.Field(Text(rules), "odd_gate", "while")).IsNull();
 
             Node(vm, "kills").GateChoice = "seen";
+            Node(vm, "kills").CommitGate();
             await Assert.That(RulesetEdits.Field(Text(rules), "kills", "while")).IsEqualTo("seen");
         }
     }
@@ -458,6 +495,7 @@ public class CanvasFaceRowsTests
 
             CanvasFieldViewModel group = Field(vm, "quad", "group");
             group.Picked = "multikill";
+            group.Commit();
             await Assert.That(RulesetEdits.HighlightField(Text(rules), "quad", "group")).IsEqualTo("multikill");
 
             group = Field(vm, "ace", "group");
@@ -500,6 +538,40 @@ public class CanvasFaceRowsTests
             table.Rows[0].CommitCommand.Execute(null);
             await Assert.That(Text(rules)).IsEqualTo(before);
             await Assert.That(vm.EditStatus).Contains("threshold");
+        }
+    }
+
+    [Test]
+    public async Task ABlankCellInAMultiRowTable_IsRefused_NotDroppedFromTheFile()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
+        using (rules)
+        {
+            Node(vm, "multi_kill").Thresholds!.AddCommand.Execute(null);
+            string before = Text(rules);
+            CanvasThresholdsViewModel table = Node(vm, "multi_kill").Thresholds!;
+            await Assert.That(table.Rows.Count).IsEqualTo(3);
+
+            table.Rows[1].Min = "";
+            table.Rows[1].CommitCommand.Execute(null);
+            using (Assert.Multiple())
+            {
+                await Assert.That(Text(rules)).IsEqualTo(before).Because("a cleared minimum is a refusal, not a deleted threshold");
+                await Assert.That(Text(rules)).Contains("rounds_2k");
+                await Assert.That(vm.EditStatus).Contains("minimum");
+            }
+
+            table = Node(vm, "multi_kill").Thresholds!;
+            table.Rows[1].Min = "2";
+            table.Rows[1].Target = "";
+            table.Rows[1].CommitCommand.Execute(null);
+            using (Assert.Multiple())
+            {
+                await Assert.That(Text(rules)).IsEqualTo(before).Because("a cleared target is refused the same way");
+                await Assert.That(vm.EditStatus).Contains("target");
+                await Assert.That(CanvasThresholdsViewModel.Parse("5 rounds_5k\n rounds_4k\n3 ")).IsEquivalentTo([("5", "rounds_5k"), ("", "rounds_4k"), ("3", "")]);
+                await Assert.That(CanvasThresholdsViewModel.Parse("")).IsEmpty();
+            }
         }
     }
 

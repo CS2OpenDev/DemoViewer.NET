@@ -513,7 +513,8 @@ public static class CanvasEditSemantics
         return EditRequest.Of(text => RulesetEdits.SetFacet(text, target.Id, facet.Name, "true"), $"set {target.Id}.match.{facet.Name}");
     }
 
-    // A stat wired into a flag joins its when: as one more alternative.
+    // A stat wired into an expression flag joins its when: as one more alternative. A trigger flag
+    // (flag: true with on:) has no when:, and the loader takes none beside it.
     private static EditRequest ConnectStat(CanvasNodeViewModel source, CanvasNodeViewModel target)
     {
         if (target.Kind != "flag" || source.IsScaffold)
@@ -521,10 +522,15 @@ public static class CanvasEditSemantics
             return EditRequest.Refuse($"A stat can be wired into a flag's when:; a {target.Kind} reads its operands in its own text.");
         }
 
+        if (target.Face is FlagFace { Trigger.On: not null })
+        {
+            return EditRequest.Refuse($"{target.Id} fires on its trigger and has no when: to extend; test {source.Id} in its where: instead.");
+        }
+
         string read = ReadOf(source, target);
         return EditRequest.Of(text =>
         {
-            string? existing = RulesetEdits.Field(text, target.Id, "flag.when") ?? RulesetEdits.Field(text, target.Id, "when");
+            string? existing = RulesetEdits.FlagWhen(text, target.Id);
             string when = string.IsNullOrWhiteSpace(existing) ? $"{read} > 0" : $"{existing} or {read} > 0";
             return RulesetEdits.SetFlagWhen(text, target.Id, when);
         }, $"extend {target.Id} with {read}");

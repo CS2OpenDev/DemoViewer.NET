@@ -52,6 +52,26 @@ public class CanvasGalleryTests
     }
 
     [Test]
+    public async Task ATallyDroppedOnTheCanvas_LoadsWithItsThresholds_AndIsDrawn()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        GalleryItem tally = vm.Gallery.Single(g => g.Title == "Stats").Items.Single(i => i.Name == "tally");
+
+        vm.PlaceItem(tally, new Point(300, 300));
+
+        CanvasNodeViewModel? added = vm.Nodes.SingleOrDefault(n => n.Id == "new_tally");
+        using (Assert.Multiple())
+        {
+            await Assert.That(added).IsNotNull().Because("a body the loader rejects leaves no node and no diagnostic");
+            await Assert.That(vm.Diagnostics).IsEmpty();
+            await Assert.That(added!.Thresholds!.Rows.Select(r => r.Min + ":" + r.Target)).IsEquivalentTo(["3:rounds_3k"]);
+            await Assert.That(added.Location).IsEqualTo(new Point(300, 300));
+        }
+    }
+
+    [Test]
     public async Task AStatKindDroppedTwice_GetsDistinctIds()
     {
         using RulesTree rules = RulesTree.WithUser("player_round");

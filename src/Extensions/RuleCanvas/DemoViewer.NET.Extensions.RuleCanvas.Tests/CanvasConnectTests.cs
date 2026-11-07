@@ -72,6 +72,53 @@ public class CanvasConnectTests
     }
 
     [Test]
+    public async Task AStatWiredIntoAScalarFlag_RewritesItsExpression_AndIntoATriggerFlag_IsRefused()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("flags_lab", """
+            ruleset: flags_lab
+            title: Flags lab
+            for: each_player
+
+            stats:
+              kills:
+                count: kill
+                per: round
+              deaths:
+                count: death
+                per: round
+              hot:
+                flag: "kills > 0"
+                per: round
+              armed:
+                flag: true
+                on: kill
+                per: round
+            """);
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "flags_lab";
+        vm.OnActivated(null!);
+        string Text() => File.ReadAllText(rules.UserPath("flags_lab"));
+
+        vm.Connect(Node(vm, "deaths"), Node(vm, "hot"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(Text()).Contains("  hot:\n    flag: \"kills > 0 or deaths > 0\"\n    per: round");
+            await Assert.That(vm.Diagnostics).IsEmpty();
+            await Assert.That(vm.Connections.Any(c => c.Source.Owner?.Id == "deaths" && c.Target.Owner?.Id == "hot")).IsTrue();
+        }
+
+        string before = Text();
+        vm.Connect(Node(vm, "deaths"), Node(vm, "armed"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(Text()).IsEqualTo(before).Because("a trigger flag has no when: the loader reads");
+            await Assert.That(vm.EditStatus).Contains("no when:");
+            await Assert.That(CanvasEditSemantics.ConnectPreview(Node(vm, "deaths"), Node(vm, "armed"))).Contains("no when:");
+        }
+    }
+
+    [Test]
     public async Task RemovingTheGateWire_TakesTheWhileWithIt()
     {
         (RulesTree rules, CanvasTabViewModel vm) = Open();

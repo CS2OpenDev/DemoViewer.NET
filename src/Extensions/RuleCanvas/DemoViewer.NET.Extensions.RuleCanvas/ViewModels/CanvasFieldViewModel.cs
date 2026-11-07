@@ -76,7 +76,11 @@ public sealed partial class CanvasFieldViewModel : ObservableObject
     [ObservableProperty]
     private bool _isEditable;
 
-    /// <summary>The suggestion picked from the list, which commits at once.</summary>
+    /// <summary>
+    ///     The suggestion picked from the list, which lands in the editor. It does not commit: an editable
+    ///     combo also selects on the keystroke whose text equals an item, before the text binding updates,
+    ///     so a pick cannot be told from a prefix the author is still typing.
+    /// </summary>
     [ObservableProperty]
     private string? _picked;
 
@@ -86,13 +90,10 @@ public sealed partial class CanvasFieldViewModel : ObservableObject
 
     partial void OnPickedChanged(string? value)
     {
-        if (_loading || value is null)
+        if (!_loading && value is not null)
         {
-            return;
+            Text = value;
         }
-
-        Text = value;
-        Commit();
     }
 
     /// <summary>Writes the text when it changed. Bound to Enter and to the editor losing focus.</summary>

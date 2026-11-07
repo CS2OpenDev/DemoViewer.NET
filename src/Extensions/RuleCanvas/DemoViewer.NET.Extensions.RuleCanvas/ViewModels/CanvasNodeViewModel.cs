@@ -116,7 +116,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     [ObservableProperty]
     private string _gateText = "";
 
-    /// <summary>The gate picked from the list, which writes at once; null while the text is free.</summary>
+    /// <summary>The gate picked from the list, which lands in the editor; null while the text is free.</summary>
     [ObservableProperty]
     private string? _gateChoice;
 
@@ -334,12 +334,13 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         }
     }
 
-    // A gate picked from the list writes at once; the text editor waits for its commit.
+    // A pick lands in the editor and commits with it. The combo also selects on the keystroke whose
+    // text equals a listed gate, so a pick cannot be told from a prefix still being typed.
     partial void OnGateChoiceChanged(string? value)
     {
-        if (_writeField is not null && IsEditable && value is not null && !string.Equals(value, Gate, StringComparison.Ordinal))
+        if (value is not null)
         {
-            WriteField("while", value.Length == 0 ? null : value);
+            GateText = value;
         }
     }
 

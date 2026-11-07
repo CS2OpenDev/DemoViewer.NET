@@ -69,18 +69,23 @@ public sealed partial class CanvasThresholdsViewModel : ObservableObject
     public static string Serialize(IEnumerable<(string Min, string Target)> rows) =>
         string.Join('\n', rows.Select(r => r.Min.Trim() + " " + r.Target.Trim()));
 
-    /// <summary>The rows of a <see cref="Serialize" /> text; a line with no target is dropped.</summary>
+    /// <summary>
+    ///     The rows of a <see cref="Serialize" /> text, one per line. A blank cell comes back empty rather
+    ///     than dropping its row, so the semantics refuse it instead of writing the row out of the file.
+    /// </summary>
     public static IReadOnlyList<(string Min, string Target)> Parse(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
+        if (text.Length == 0)
+        {
+            return [];
+        }
+
         List<(string, string)> rows = [];
         foreach (string line in text.Split('\n'))
         {
-            string[] parts = line.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length == 2 && parts[1].Length > 0)
-            {
-                rows.Add((parts[0], parts[1]));
-            }
+            string[] parts = line.Split(' ', 2, StringSplitOptions.TrimEntries);
+            rows.Add((parts[0], parts.Length > 1 ? parts[1] : ""));
         }
 
         return rows;
