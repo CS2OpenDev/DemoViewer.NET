@@ -67,8 +67,9 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
     /// <summary>
     ///     Decides one redraw. A focus draws one slice, freshly placed, so the sidecar's arrangement of the
     ///     whole chain does not apply to it; a focus that names a node no longer there (deleted, or another
-    ///     ruleset) is dropped. The arrangement on screen wins over the sidecar, and a pending placement over
-    ///     both; the sidecar alone decides on open, when nothing is on screen.
+    ///     ruleset) is dropped, and the slice's arrangement with it. The arrangement on screen wins over the
+    ///     sidecar, and a pending placement over both; the sidecar alone decides on open, when nothing is on
+    ///     screen.
     /// </summary>
     public Arrangement Arrange(RulesetCorpus.Composed composed, string? sidecar, RulesetNodeLayout onScreen)
     {
@@ -86,8 +87,10 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
             }
             else
             {
+                // The slice's positions were its own; the whole chain comes back from the sidecar alone.
                 FocusKey = null;
                 focusDropped = true;
+                onScreen = RulesetNodeLayout.Empty;
             }
         }
 

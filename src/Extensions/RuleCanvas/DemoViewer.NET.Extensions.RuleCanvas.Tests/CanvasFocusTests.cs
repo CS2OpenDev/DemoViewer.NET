@@ -130,4 +130,30 @@ public class CanvasFocusTests
         File.WriteAllText(Path.Combine(Path.GetTempPath(), "rulecanvas-player-stats-timing.txt"), note);
         await Assert.That(composeMs + placeMs).IsLessThan(5000).Because(note);
     }
+
+    [Test]
+    public async Task AFocusDroppedByADelete_RedrawsTheChainFromTheSidecar_NotTheSlice()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        vm.PlaceItem(vm.Gallery.Single(g => g.Title == "Prefabs").Items.Single(i => i.Name == "enemy_kills"), new Avalonia.Point(0, 0));
+        vm.SaveLayoutCommand.Execute(null);
+        await Assert.That(vm.HasSavedLayout).IsTrue();
+        Dictionary<RulesetDocumentNodeKey, Avalonia.Point> saved = vm.Nodes.ToDictionary(n => n.Key, n => n.Location);
+
+        vm.FocusNode(vm.Nodes.Single(n => n.Id == "enemy_kills"));
+        CanvasNodeViewModel death = vm.Nodes.Single(n => n.Id == "player_death");
+        await Assert.That(death.Location).IsNotEqualTo(saved[death.Key]).Because("the slice is placed on its own");
+
+        vm.SelectedNodes.Add(vm.Nodes.Single(n => n.Id == "enemy_kills"));
+        vm.DeleteSelectedCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.HasFocus).IsFalse();
+            await Assert.That(vm.Nodes.Select(n => n.Id)).DoesNotContain("enemy_kills");
+            await Assert.That(vm.Nodes.All(n => saved.TryGetValue(n.Key, out Avalonia.Point at) && at == n.Location)).IsTrue()
+                .Because("every surviving node is where the sidecar has it, not where the slice drew it");
+        }
+    }
 }
