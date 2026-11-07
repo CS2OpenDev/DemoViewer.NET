@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CS2DemoKit.Analysis.Rules;
+using DemoViewer.NET.Extensions.RuleCanvas.Model;
 
 #endregion
 
@@ -24,10 +25,16 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     public static IReadOnlyList<string> PerOptions { get; } = ["round", "match"];
 
     /// <summary>The gates a stat can run while, with the empty entry for none.</summary>
-    public static IReadOnlyList<string> GateOptions { get; } = ["", .. Model.CanvasEditSemantics.GatePaths.Select(g => g.Path)];
+    public static IReadOnlyList<string> GateOptions { get; } = ["", .. CanvasEditSemantics.GatePaths.Select(g => g.Path)];
+
+    /// <summary>The typed face this node was built from, or null for a node made by hand.</summary>
+    public NodeFace? Face { get; init; }
 
     /// <summary>The <c>stats:</c> or <c>highlights:</c> key.</summary>
     public required string Id { get; init; }
+
+    /// <summary>The node's identity in a layout, a selection and a focus.</summary>
+    public RulesetDocumentNodeKey Key => new(Ruleset, Id);
 
     /// <summary>The ruleset that declares the node; with <see cref="Id" /> it is the node's identity in a layout.</summary>
     public string Ruleset { get; init; } = "";

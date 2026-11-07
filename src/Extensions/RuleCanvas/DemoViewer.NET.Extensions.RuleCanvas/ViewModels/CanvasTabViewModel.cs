@@ -26,6 +26,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     private readonly Func<RulesetCorpus> _loadCorpus;
     private readonly RulesetDocumentSession _session = new();
     private readonly CanvasArranger _arranger;
+    private readonly CanvasNodeFactory _factory;
     private RulesetCorpus? _corpus;
     private bool _redrawing;
 
@@ -46,6 +47,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         _selectTab = selectTab ?? throw new ArgumentNullException(nameof(selectTab));
         _loadCorpus = loadCorpus ?? throw new ArgumentNullException(nameof(loadCorpus));
         _arranger = new CanvasArranger(layoutFolder ?? throw new ArgumentNullException(nameof(layoutFolder)));
+        _factory = new CanvasNodeFactory(WriteFacet, WriteField);
         SelectedNodes.CollectionChanged += (_, _) => JumpToSelection();
     }
 
@@ -632,12 +634,10 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         }
 
         (IReadOnlyList<CanvasNodeViewModel> nodes, IReadOnlyList<CanvasConnectionViewModel> wires) =
-            CanvasGraphBuilder.Build(composed, layout);
+            CanvasGraphBuilder.Build(composed, layout, _factory);
         foreach (CanvasNodeViewModel node in nodes)
         {
             node.ShowFacets = ShowFacets;
-            node.AttachWriters((facet, facetValue) => WriteFacet(node, facet, facetValue),
-                (key, fieldValue) => WriteField(node, key, fieldValue));
             node.IsEditable = IsEditable && node.IsAuthorable;
             Nodes.Add(node);
         }

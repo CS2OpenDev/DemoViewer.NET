@@ -1,0 +1,128 @@
+#region
+
+using CS2DemoKit.Analysis.RulesetsV2.Model;
+
+#endregion
+
+namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
+
+/// <summary>
+///     The faces of a composition: one per declared node, read from the document the checked model does not
+///     carry the text of, then one per engine node of the chain that no declared node already is. Pure:
+///     documents and the checked model in, faces out, in the order the canvas draws them.
+/// </summary>
+public static class NodeFaceBuilder
+{
+    public static IReadOnlyList<NodeFace> Build(RulesetCorpus.Composed composed)
+    {
+        ArgumentNullException.ThrowIfNull(composed);
+        ILookup<RulesetDocumentNodeKey, string> diagnostics = DiagnosticsByNode(composed);
+        List<NodeFace> faces = new(composed.Graph.Nodes.Count + composed.Chain.Nodes.Count);
+        HashSet<RulesetDocumentNodeKey> keys = [];
+        foreach (RulesetDocumentNode node in composed.Graph.Nodes)
+        {
+            faces.Add(Declared(node, composed.Documents, [.. diagnostics[node.Key]]));
+            keys.Add(node.Key);
+        }
+
+        // The engine's own nodes come after the declared ones: the events, the enrichments and the context
+        // values the chain runs through. A declared node the chain also names is the same node.
+        foreach (ChainNode node in composed.Chain.Nodes)
+        {
+            if (node.Kind != ChainNodeKind.Declared && keys.Add(node.Key))
+            {
+                faces.Add(new ScaffoldFace(node.Key, CanvasEditSemantics.ScaffoldKind(node.Kind), null, "", "", [], 0, false,
+                    node.Kind, node.Name, node.IsPerPlayer));
+            }
+        }
+
+        return faces;
+    }
+
+    /// <summary>The face of one declared node, from its document entry when the document holds one under its id.</summary>
+    public static NodeFace Declared(RulesetDocumentNode node, IReadOnlyDictionary<string, RulesetDoc> documents,
+        IReadOnlyList<string> diagnostics)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        ArgumentNullException.ThrowIfNull(documents);
+        documents.TryGetValue(node.Key.Ruleset, out RulesetDoc? doc);
+        string kind = node.Kind.ToString().ToLowerInvariant();
+        string? label = string.Equals(node.Label, node.Id, StringComparison.Ordinal) ? null : node.Label;
+        int line = node.Position.Line;
+
+        if (node.IsHighlight)
+        {
+            HighlightDef? highlight = doc?.Highlights.FirstOrDefault(h => h.Id == node.Id);
+            return highlight is null
+                ? new UndeclaredFace(node.Key, kind, label, "", "", diagnostics, line, node.IsAuthorable, node.View, node.Events,
+                    node.CrossRulesetReads)
+                : new HighlightFace(node.Key, kind, label, PerText(highlight.Per), "", diagnostics, line, node.IsAuthorable,
+                    node.CrossRulesetReads, highlight.When, highlight.Title, highlight.Score, highlight.Kind, highlight.Group);
+        }
+
+        StatDef? stat = doc?.Stats.FirstOrDefault(s => s.Id == node.Id);
+        if (stat is null)
+        {
+            return new UndeclaredFace(node.Key, kind, label, "", "", diagnostics, line, node.IsAuthorable, node.View, node.Events,
+                node.CrossRulesetReads);
+        }
+
+        string per = PerText(stat.Per);
+        string gate = string.IsNullOrWhiteSpace(stat.Trigger?.While) ? "" : stat.Trigger.While;
+        TriggerFace? trigger = TriggerFace.From(stat.Trigger);
+        // The typed form: every facet the view offers, the bound ones as rows, the rest offered by the
+        // picker; a key the view does not know is kept as a row the resolver already flagged.
+        MatchFacetForm form = MatchFacetForm.For(EmbeddedCatalog.Root, node.View, stat.Trigger?.Match);
+        return kind switch
+        {
+            "sum" => new SumFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View, node.Events,
+                node.CrossRulesetReads, stat.KindArg, trigger, form, stat.Keep),
+            "capture" => new CaptureFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View,
+                node.Events, node.CrossRulesetReads, stat.KindArg, trigger, form, stat.Keep),
+            "flag" => new FlagFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View, node.Events,
+                node.CrossRulesetReads, stat.KindArg, trigger, form, TriggerFace.From(stat.OffTrigger)),
+            "compute" => new ComputeFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View,
+                node.Events, node.CrossRulesetReads, stat.KindArg, trigger, form, stat.Format, stat.Live),
+            "tally" => new TallyFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View, node.Events,
+                node.CrossRulesetReads, stat.KindArg, trigger, form, stat.Thresholds ?? []),
+            "streak" => new StreakFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View,
+                node.Events, node.CrossRulesetReads, stat.KindArg, trigger, form, stat.StreakWindow, stat.StreakMinStreak),
+            "bucket" => new BucketFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View,
+                node.Events, node.CrossRulesetReads, stat.KindArg, trigger, form, stat.BucketKey, stat.BucketKeys, stat.BucketValue,
+                stat.BucketReduce),
+            "rate" => new RateFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View, node.Events,
+                node.CrossRulesetReads, stat.KindArg, trigger, form, stat.RateOf, stat.RatePer),
+            "burst" => new BurstFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View, node.Events,
+                node.CrossRulesetReads, stat.KindArg, trigger, form),
+            _ => new CountFace(node.Key, kind, label, per, gate, diagnostics, line, node.IsAuthorable, node.View, node.Events,
+                node.CrossRulesetReads, stat.KindArg, trigger, form)
+        };
+    }
+
+    private static string PerText(PerScope per) => per == PerScope.None ? "" : per.ToString().ToLowerInvariant();
+
+    /// <summary>
+    ///     Files each composition diagnostic under the node whose entry contains its line: entries are
+    ///     contiguous in the file, so the node with the greatest start line at or before the diagnostic's
+    ///     line is the one it is about. A diagnostic with no position, or before the first entry, stays
+    ///     at the document level.
+    /// </summary>
+    public static ILookup<RulesetDocumentNodeKey, string> DiagnosticsByNode(RulesetCorpus.Composed composed)
+    {
+        ArgumentNullException.ThrowIfNull(composed);
+        List<(RulesetDocumentNodeKey Key, string Message)> filed = [];
+        foreach ((string rulesetId, int line, string message) in composed.PositionedDiagnostics)
+        {
+            RulesetDocumentNode? owner = composed.Graph.Nodes
+                .Where(n => n.Key.Ruleset == rulesetId && n.Position.Line > 0 && n.Position.Line <= line)
+                .OrderByDescending(n => n.Position.Line)
+                .FirstOrDefault();
+            if (owner is not null)
+            {
+                filed.Add((owner.Key, message));
+            }
+        }
+
+        return filed.ToLookup(f => f.Key, f => f.Message);
+    }
+}
