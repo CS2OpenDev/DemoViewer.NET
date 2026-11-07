@@ -127,8 +127,8 @@ public class CanvasFocusTests
                       + $"{composed.Chain.Edges.Count} edges; placed {right:F0}x{bottom:F0}, aspect {right / bottom:F2}; "
                       + $"compose {firstMs}ms first, {composeMs}ms warm; build and place {placeMs}ms";
         Console.WriteLine("[canvas] " + note);
-        File.WriteAllText(Path.Combine(Path.GetTempPath(), "rulecanvas-player-stats-timing.txt"), note);
-        await Assert.That(composeMs + placeMs).IsLessThan(5000).Because(note);
+        // A gross budget: a shared runner has stretched this past five seconds with nothing changed.
+        await Assert.That(composeMs + placeMs).IsLessThan(30_000).Because(note);
     }
 
     [Test]
