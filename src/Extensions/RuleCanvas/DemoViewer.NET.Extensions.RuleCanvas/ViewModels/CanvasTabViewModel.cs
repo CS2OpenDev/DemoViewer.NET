@@ -159,7 +159,11 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
     public bool CanRedo => _session.CanRedo;
 
-    /// <summary>Raised on the UI thread after the node and wire collections were refilled, so the view can fit them.</summary>
+    /// <summary>
+    ///     Raised on the UI thread after the node and wire collections were drawn fresh (another ruleset, a
+    ///     focus change, a layout reset), so the view can fit them. A redraw that kept the arrangement, which
+    ///     every write and reload of the same ruleset is, does not raise it: the viewport stays where it was.
+    /// </summary>
     public event Action? GraphReplaced;
 
     /// <summary>Raised on the UI thread with a 1-based line when a selected node names where it is declared.</summary>
@@ -550,7 +554,10 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             ? "Nothing composed; see the diagnostics."
             : $"{nodes.Count} nodes, {wires.Count} wires, {unwired} unwired";
         AfterRedraw(composed);
-        GraphReplaced?.Invoke();
+        if (!keepArrangement)
+        {
+            GraphReplaced?.Invoke();
+        }
     }
 
     private void NotifyEditability()

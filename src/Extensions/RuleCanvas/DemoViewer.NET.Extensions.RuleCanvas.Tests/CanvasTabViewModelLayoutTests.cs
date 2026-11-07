@@ -86,4 +86,27 @@ public class CanvasTabViewModelLayoutTests
             await Assert.That(Directory.EnumerateFiles(tree.ShippedDirectory, "*.layout.json")).IsEmpty();
         }
     }
+
+    [Test]
+    public async Task AWrite_DoesNotAskForAFit_AndAFreshDrawDoes()
+    {
+        using RulesTree tree = RulesTree.WithUser(Ruleset);
+        tree.User("other", "ruleset: other\ntitle: Other\nstats:\n  other_kills:\n    count: kill\n    per: round\n");
+        CanvasTabViewModel vm = tree.NewViewModel();
+        vm.OnActivated(null!);
+        int fits = 0;
+        vm.GraphReplaced += () => fits++;
+
+        vm.Nodes.Single(n => n.Id == "round_kills").FacetToAdd = "headshot";
+        await Assert.That(fits).IsEqualTo(0).Because("a write keeps the arrangement and the viewport with it");
+        vm.UndoCommand.Execute(null);
+        await Assert.That(fits).IsEqualTo(0);
+
+        vm.FocusNode(vm.Nodes.Single(n => n.Id == "round_kills"));
+        await Assert.That(fits).IsEqualTo(1).Because("a slice is placed fresh");
+        vm.ClearFocusCommand.Execute(null);
+        await Assert.That(fits).IsEqualTo(2);
+        vm.SelectedRuleset = vm.Rulesets.Single(r => r.Id == "other");
+        await Assert.That(fits).IsEqualTo(3).Because("another ruleset is drawn fresh");
+    }
 }

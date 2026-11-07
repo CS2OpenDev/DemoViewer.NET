@@ -200,15 +200,21 @@ public class RulesWatcherTests
             return rules.Load();
         }, () => rules.OwnFolder);
         vm.OnActivated(null!);
-        int replaced = 0;
-        vm.GraphReplaced += () => replaced++;
+        int redraws = 0;
+        vm.Nodes.CollectionChanged += (_, e) =>
+        {
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+            {
+                redraws++;
+            }
+        };
         vm.Nodes.Single(n => n.Id == "round_kills").FacetToAdd = "headshot";
-        await Assert.That(replaced).IsEqualTo(1);
+        await Assert.That(redraws).IsEqualTo(1);
 
         vm.FilesChanged([rules.UserPath("player_round")]);
         using (Assert.Multiple())
         {
-            await Assert.That(replaced).IsEqualTo(1).Because("the file holds what the session wrote");
+            await Assert.That(redraws).IsEqualTo(1).Because("the file holds what the session wrote");
             await Assert.That(loads).IsEqualTo(1);
         }
     }
