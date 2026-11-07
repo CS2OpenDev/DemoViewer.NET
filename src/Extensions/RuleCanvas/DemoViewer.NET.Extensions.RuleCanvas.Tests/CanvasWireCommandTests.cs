@@ -262,4 +262,34 @@ public class CanvasWireCommandTests
             await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).IsEqualTo(before);
         }
     }
+
+    [Test]
+    public async Task ACutTheSessionRefuses_IsSaidOnce()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
+        using (rules)
+        {
+            // Another writer's save, which every write path refuses until the file is reloaded.
+            string path = rules.UserPath("player_round");
+            File.SetLastWriteTimeUtc(path, File.GetLastWriteTimeUtc(path).AddSeconds(2));
+            int toasts = 0;
+            vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(CanvasTabViewModel.Toast))
+                {
+                    toasts++;
+                }
+            };
+
+            vm.CuttingStartedCommand.Execute(null);
+            vm.DisconnectCommand.Execute(GateWire(vm, "round_deaths"));
+            vm.CuttingCompletedCommand.Execute(null);
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.EditStatus).IsEqualTo("1 wire kept: " + RulesetDocumentSession.ChangedOnDiskMessage);
+                await Assert.That(toasts).IsEqualTo(1).Because("the refusal is said once, folded");
+                await Assert.That(RulesetEdits.Field(File.ReadAllText(path), "round_deaths", "while")).IsEqualTo("match.live");
+            }
+        }
+    }
 }

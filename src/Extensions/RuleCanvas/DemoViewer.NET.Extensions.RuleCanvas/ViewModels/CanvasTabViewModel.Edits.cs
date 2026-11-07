@@ -322,10 +322,11 @@ public sealed partial class CanvasTabViewModel
         }
     }
 
-    // Each wire is its own write and redraw; a refused one is kept and said once, with the count that went.
+    // Each wire is its own write; the cut is one reload and one status line, so a refusal is said once,
+    // with the count that went, and only a wire whose removal changed the file counts as removed.
     private void DisconnectWires(List<CanvasConnectionViewModel> wires)
     {
-        if (!IsEditable || wires.Count == 0)
+        if (!IsEditable || wires.Count == 0 || SelectedRuleset is not { } selected)
         {
             return;
         }
@@ -334,25 +335,25 @@ public sealed partial class CanvasTabViewModel
         int removed = 0;
         foreach (CanvasConnectionViewModel wire in wires)
         {
-            EditRequest request = CanvasEditSemantics.Disconnect(wire);
-            if (request.IsRefused)
-            {
-                if (request.Refusal is { } reason && !refusals.Contains(reason))
-                {
-                    refusals.Add(reason);
-                }
-            }
-            else if (Apply(request))
+            EditOutcome outcome = _session.Apply(CanvasEditSemantics.Disconnect(wire));
+            if (outcome.IsWritten)
             {
                 removed++;
             }
-            else if (EditStatus.Length > 0 && !refusals.Contains(EditStatus))
+            else if (outcome.IsRefused && outcome.Message is { } reason && !refusals.Contains(reason))
             {
-                refusals.Add(EditStatus);
+                refusals.Add(reason);
             }
         }
 
         SelectedWires.Clear();
+        if (removed > 0)
+        {
+            EditStatus = "";
+            Reload(selected.Id, selected.Path);
+        }
+
+        NotifyHistory();
         if (refusals.Count > 0)
         {
             string kept = wires.Count - removed == 1 ? "1 wire kept" : $"{wires.Count - removed} wires kept";
