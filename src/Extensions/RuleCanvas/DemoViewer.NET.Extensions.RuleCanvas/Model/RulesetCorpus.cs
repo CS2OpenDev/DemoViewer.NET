@@ -66,22 +66,52 @@ public sealed class RulesetCorpus
     private static readonly Lazy<EntityValueProviderRegistry> _entityProviders = new(EntityValueProviderRegistry.CreateDefault);
     private static readonly Lazy<PerPlayerEntityValueProviderRegistry> _perPlayerProviders = new(PerPlayerEntityValueProviderRegistry.CreateDefault);
 
+    // Every file that loaded, in directory order, overridden ones included, so one file can be re-read
+    // without a walk and a user file that loses a shipped id hands the shipped entry back.
+    private sealed record LoadedFile(string Path, string Source, RulesetDoc Doc);
+
+    private readonly List<LoadedFile> _files;
+    private readonly List<(string Path, string Reason)> _failures;
     private readonly Dictionary<string, RulesetDoc> _docs;
 
     /// <summary>The demo-source profile every demo-less composition runs under, by the id the catalog keys its views on.</summary>
     internal static string ProfileName => DemoSourceProfileRegistry.DefaultFallback.GetType().Name;
 
-    private RulesetCorpus(IReadOnlyList<Entry> entries, Dictionary<string, RulesetDoc> docs, string? userDirectory,
-        IReadOnlyList<(string Path, string Reason)> failures)
+    private RulesetCorpus(List<LoadedFile> files, string? userDirectory, List<(string Path, string Reason)> failures)
     {
-        Entries = entries;
-        _docs = docs;
+        _files = files;
+        _failures = failures;
         UserDirectory = userDirectory;
-        Failures = failures;
+        List<Entry> entries = [];
+        _docs = new Dictionary<string, RulesetDoc>(StringComparer.Ordinal);
+        foreach (LoadedFile file in files)
+        {
+            // A later directory overrides an earlier one by id, which is the host's own rule: a user file
+            // with a shipped ruleset's id replaces it, so an editable copy takes the shipped one's place.
+            RulesetDoc doc = file.Doc;
+            Entry entry = new(doc.Id, string.IsNullOrWhiteSpace(doc.Title) ? doc.Id : doc.Title, file.Path, file.Source);
+            int existing = entries.FindIndex(e => e.Id == doc.Id);
+            if (existing >= 0)
+            {
+                entries[existing] = entry;
+            }
+            else
+            {
+                entries.Add(entry);
+            }
+
+            _docs[doc.Id] = doc;
+        }
+
+        Entries = entries;
     }
 
     /// <summary>The files that did not load as rulesets, with the loader's reason, so a broken file is named rather than silently absent.</summary>
-    public IReadOnlyList<(string Path, string Reason)> Failures { get; }
+    public IReadOnlyList<(string Path, string Reason)> Failures => _failures;
+
+    /// <summary>Whether <paramref name="path" /> is a file this corpus read, loaded or not, which <see cref="Replace" /> can re-read alone.</summary>
+    public bool Knows(string path) =>
+        _files.Any(f => SamePath(f.Path, path)) || _failures.Any(f => SamePath(f.Path, path));
 
     /// <summary>
     ///     Whether <paramref name="text" /> loads as the ruleset <paramref name="expectedId" />, and if not, why:
@@ -157,9 +187,8 @@ public sealed class RulesetCorpus
     public static RulesetCorpus Load(IEnumerable<(string Directory, string Source)> directories)
     {
         ArgumentNullException.ThrowIfNull(directories);
-        List<Entry> entries = [];
-        Dictionary<string, RulesetDoc> docs = new(StringComparer.Ordinal);
-        List<(string, string)> failures = [];
+        List<LoadedFile> files = [];
+        List<(string Path, string Reason)> failures = [];
         string? userDirectory = null;
         foreach ((string directory, string source) in directories)
         {
@@ -175,41 +204,78 @@ public sealed class RulesetCorpus
 
             foreach (string path in Directory.EnumerateFiles(directory, "*.rules.yaml").OrderBy(p => p, StringComparer.Ordinal))
             {
-                RulesetDoc? doc;
-                try
+                if (ReadFile(path, source, failures) is { } file)
                 {
-                    RulesetDocumentLoader.Outcome outcome = RulesetDocumentLoader.Load(File.ReadAllText(path), path);
-                    doc = outcome.Doc;
-                    if (doc is null)
-                    {
-                        failures.Add((path, string.Join("; ", outcome.Diagnostics.Select(d => d.Message))));
-                        continue;
-                    }
+                    files.Add(file);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or YamlDotNet.Core.YamlException)
-                {
-                    failures.Add((path, ex.Message));
-                    continue;
-                }
-
-                // A later directory overrides an earlier one by id, which is the host's own rule: a user file
-                // with a shipped ruleset's id replaces it, so an editable copy takes the shipped one's place.
-                Entry entry = new(doc.Id, string.IsNullOrWhiteSpace(doc.Title) ? doc.Id : doc.Title, path, source);
-                int existing = entries.FindIndex(e => e.Id == doc.Id);
-                if (existing >= 0)
-                {
-                    entries[existing] = entry;
-                }
-                else
-                {
-                    entries.Add(entry);
-                }
-
-                docs[doc.Id] = doc;
             }
         }
 
-        return new RulesetCorpus(entries, docs, userDirectory, failures);
+        return new RulesetCorpus(files, userDirectory, failures);
+    }
+
+    /// <summary>
+    ///     The corpus with <paramref name="path" /> read again and every other file as it was: what a write
+    ///     to one file needs, where a full load re-parses every ruleset. The file keeps its place in the
+    ///     directory order, so the override by id comes out as a full load would have it; a file that no
+    ///     longer loads moves to <see cref="Failures" />. Null when the path is not one this corpus read,
+    ///     which is a file that appeared and needs a full load.
+    /// </summary>
+    public RulesetCorpus? Replace(string path)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        int index = _files.FindIndex(f => SamePath(f.Path, path));
+        string? source = index >= 0 ? _files[index].Source : _failures.Any(f => SamePath(f.Path, path)) ? SourceOf(path) : null;
+        if (source is null)
+        {
+            return null;
+        }
+
+        List<LoadedFile> files = [.. _files];
+        List<(string Path, string Reason)> failures = [.. _failures.Where(f => !SamePath(f.Path, path))];
+        LoadedFile? again = ReadFile(index >= 0 ? _files[index].Path : path, source, failures);
+        if (index >= 0)
+        {
+            files.RemoveAt(index);
+        }
+
+        if (again is not null)
+        {
+            // A file that failed before has no slot of its own; after its directory's last file keeps the
+            // override by id right, which is all the order decides.
+            files.Insert(index >= 0 ? index : files.FindLastIndex(f => f.Source == source) + 1, again);
+        }
+
+        return new RulesetCorpus(files, UserDirectory, failures);
+    }
+
+    private string? SourceOf(string path)
+    {
+        string? directory = Path.GetDirectoryName(path);
+        return directory is not null && UserDirectory is not null && SamePath(directory, UserDirectory) ? "user" : "shipped";
+    }
+
+    private static bool SamePath(string a, string b) =>
+        string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
+
+    private static LoadedFile? ReadFile(string path, string source, List<(string Path, string Reason)> failures)
+    {
+        try
+        {
+            RulesetDocumentLoader.Outcome outcome = RulesetDocumentLoader.Load(File.ReadAllText(path), path);
+            if (outcome.Doc is { } doc)
+            {
+                return new LoadedFile(path, source, doc);
+            }
+
+            failures.Add((path, string.Join("; ", outcome.Diagnostics.Select(d => d.Message))));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or YamlDotNet.Core.YamlException)
+        {
+            failures.Add((path, ex.Message));
+        }
+
+        return null;
     }
 
     /// <summary>

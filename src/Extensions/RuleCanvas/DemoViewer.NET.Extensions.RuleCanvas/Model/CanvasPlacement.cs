@@ -31,6 +31,52 @@ public static class CanvasPlacement
     public sealed record Item(RulesetDocumentNodeKey Key, double Width, double Height);
 
     /// <summary>
+    ///     Places only the items <paramref name="known" /> has no position for, which is how a redraw after
+    ///     an edit keeps MSAGL off its path: with every node arranged nothing is computed, and a node that
+    ///     has no position yet is placed on its own, below the arranged ones, so it cannot land on one.
+    /// </summary>
+    public static IReadOnlyDictionary<RulesetDocumentNodeKey, Point> Place(
+        IReadOnlyList<Item> items, IReadOnlyList<RulesetDocumentEdge> edges, RulesetNodeLayout known)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(edges);
+        ArgumentNullException.ThrowIfNull(known);
+        Dictionary<RulesetDocumentNodeKey, Point> placed = new();
+        List<Item> missing = [];
+        double bottom = 0;
+        foreach (Item item in items)
+        {
+            if (known.PositionFor(item.Key) is { } at)
+            {
+                placed[item.Key] = at;
+                bottom = Math.Max(bottom, at.Y + item.Height);
+            }
+            else
+            {
+                missing.Add(item);
+            }
+        }
+
+        if (missing.Count == 0)
+        {
+            return placed;
+        }
+
+        if (placed.Count == 0)
+        {
+            return Place(items, edges);
+        }
+
+        double below = Math.Round(bottom + Gap);
+        foreach ((RulesetDocumentNodeKey key, Point at) in Place(missing, edges))
+        {
+            placed[key] = new Point(at.X, at.Y + below);
+        }
+
+        return placed;
+    }
+
+    /// <summary>
     ///     Places <paramref name="items" /> and returns each node's top-left corner in canvas coordinates.
     /// </summary>
     public static IReadOnlyDictionary<RulesetDocumentNodeKey, Point> Place(

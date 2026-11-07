@@ -18,7 +18,7 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 ///     state the view binds to and the redraw, the partials hold the commands. The corpus is read on first
 ///     activation and re-read after every write, on the UI thread until the SDK offers a demo-less job.
 /// </summary>
-public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceTabViewModel
+public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceTabViewModel, IDisposable
 {
     /// <summary>The Rule Workbench's tab id on the main strip, as the host declares it.</summary>
     public const string AuthoringTabId = "ruleworkbench.editor";
@@ -28,9 +28,14 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     private readonly RulesetDocumentSession _session = new();
     private readonly CanvasArranger _arranger;
     private readonly CanvasNodeFactory _factory;
+    private readonly Func<Action, Task>? _marshal;
     private RulesetCorpus? _corpus;
     private RulesetCorpus.Composed? _composed;
+    private RulesWatcher? _watcher;
     private bool _redrawing;
+
+    /// <summary>The status shown when the open file changed on disk while the source pane holds unsaved text.</summary>
+    public const string ChangedOnDiskStatus = "file changed on disk; Revert to load it";
 
     /// <param name="selectTab">Selects a host tab by id; the Authoring tab's id is <see cref="AuthoringTabId" />.</param>
     public CanvasTabViewModel(Func<string, bool> selectTab)
@@ -39,19 +44,32 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     }
 
     /// <param name="selectTab">Selects a host tab by id.</param>
-    /// <param name="loadCorpus">Reads the rulesets the picker offers; called on first activation and after every write.</param>
+    /// <param name="loadCorpus">Reads the rulesets the picker offers; called on first activation and when a file appears or goes.</param>
     /// <param name="layoutFolder">
     ///     The extension's own config folder, where a shipped ruleset's arrangement is kept since its own
     ///     directory is not ours to write; null means shipped arrangements are not kept.
     /// </param>
-    public CanvasTabViewModel(Func<string, bool> selectTab, Func<RulesetCorpus> loadCorpus, Func<string?> layoutFolder)
+    /// <param name="marshal">
+    ///     Runs the file watcher's report on the UI thread. Null means the user rules directory is not
+    ///     watched at all: a report run where the watcher fires would race the thread that edits, so a test
+    ///     that wants the watcher passes a marshal that runs the report inline and drives it alone.
+    /// </param>
+    public CanvasTabViewModel(Func<string, bool> selectTab, Func<RulesetCorpus> loadCorpus, Func<string?> layoutFolder,
+        Func<Action, Task>? marshal = null)
     {
         _selectTab = selectTab ?? throw new ArgumentNullException(nameof(selectTab));
         _loadCorpus = loadCorpus ?? throw new ArgumentNullException(nameof(loadCorpus));
         _arranger = new CanvasArranger(layoutFolder ?? throw new ArgumentNullException(nameof(layoutFolder)));
         _factory = new CanvasNodeFactory(WriteFacet, WriteField);
+        _marshal = marshal;
         SelectedNodes.CollectionChanged += (_, _) => JumpToSelection();
     }
+
+    /// <summary>How long the user rules directory must be quiet before a change is acted on. Read when watching starts.</summary>
+    public TimeSpan WatcherDebounce { get; set; } = RulesWatcher.DefaultDebounce;
+
+    /// <summary>Whether the user rules directory is being watched; false before activation, after deactivation, or where the platform cannot.</summary>
+    public bool IsWatching => _watcher?.IsWatching == true;
 
     public ObservableCollection<CanvasNodeViewModel> Nodes { get; } = [];
 
@@ -162,19 +180,101 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
                 Status = "No rulesets found beside this build.";
             }
 
+            StartWatching();
             return;
         }
 
-        // Another surface may have written the file since this tab was last shown; the Workbench does.
+        StartWatching();
+
+        // Another surface may have written the file while this tab was not shown and not watching; the Workbench does.
         if (SelectedRuleset is { } selected && !SourceDirty && _session.ChangedOnDisk)
         {
-            Reload(selected.Id);
+            Reload(selected.Id, selected.Path);
         }
     }
 
-    public void OnDeactivated()
+    /// <summary>Nothing is reloaded while another tab is shown; the next activation re-checks the open file.</summary>
+    public void OnDeactivated() => StopWatching();
+
+    public void Dispose() => StopWatching();
+
+    /// <summary>
+    ///     Files under the user rules directory were touched, as the watcher reports them. A file that appeared
+    ///     or went means a full load; one the corpus knows is re-read alone. The open file is skipped when it
+    ///     holds what the session wrote (the canvas's own write), and nothing is reloaded while the source
+    ///     pane is dirty: the status names the change and Revert loads it.
+    /// </summary>
+    public void FilesChanged(IReadOnlyList<string> paths)
     {
+        ArgumentNullException.ThrowIfNull(paths);
+        if (_corpus is null || paths.Count == 0)
+        {
+            return;
+        }
+
+        string? open = _session.Entry?.Path;
+        if (SourceDirty)
+        {
+            if (open is not null && paths.Any(p => SamePath(p, open)) && _session.ChangedOnDisk)
+            {
+                EditStatus = ChangedOnDiskStatus;
+            }
+
+            return;
+        }
+
+        bool full = false;
+        List<string> changed = [];
+        foreach (string path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            bool exists = File.Exists(path);
+            bool known = _corpus.Knows(path);
+            if (known && exists)
+            {
+                if (open is null || !SamePath(path, open) || _session.ChangedOnDisk)
+                {
+                    changed.Add(path);
+                }
+            }
+            else if (known || exists)
+            {
+                full = true;
+            }
+        }
+
+        if (full)
+        {
+            Refresh(SelectedRuleset?.Id, _loadCorpus);
+        }
+        else if (changed.Count > 0)
+        {
+            Refresh(SelectedRuleset?.Id, () => changed.Aggregate(_corpus, (corpus, path) => corpus.Replace(path) ?? _loadCorpus()));
+        }
     }
+
+    private void StartWatching()
+    {
+        if (_marshal is null || _watcher is not null || _corpus?.UserDirectory is not { } directory || !Directory.Exists(directory))
+        {
+            return;
+        }
+
+        _watcher = new RulesWatcher(directory, _marshal, WatcherDebounce);
+        _watcher.Changed += FilesChanged;
+    }
+
+    private void StopWatching()
+    {
+        if (_watcher is { } watcher)
+        {
+            _watcher = null;
+            watcher.Changed -= FilesChanged;
+            watcher.Dispose();
+        }
+    }
+
+    private static bool SamePath(string a, string b) =>
+        string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
 
     // A reload after a write hands back a fresh Entry for the same file; only another file resets the
     // pane. The session resets the history on the same rule when the redraw opens the entry.
@@ -194,7 +294,18 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
     partial void OnEditStatusChanged(string value) => OnPropertyChanged(nameof(HasEditStatus));
 
-    partial void OnSourceDirtyChanged(bool value) => NotifyEditability();
+    // A revert over a file that changed on disk loads it; the same-path guard keeps a ruleset switch,
+    // which also clears the flag, from reloading the file that was open before.
+    partial void OnSourceDirtyChanged(bool value)
+    {
+        NotifyEditability();
+        if (!value && SelectedRuleset is { } selected && _session.Entry is { } open
+            && SamePath(open.Path, selected.Path) && _session.ChangedOnDisk)
+        {
+            EditStatus = "";
+            Reload(selected.Id, selected.Path);
+        }
+    }
 
     partial void OnShowFacetsChanged(bool value)
     {
@@ -233,7 +344,8 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
                 return false;
             case EditOutcomeKind.Written:
                 EditStatus = "";
-                Reload(entry.Id);
+                // A copy of a shipped file is a file that appeared; the user file written is re-read alone.
+                Reload(entry.Id, entry.Source == "user" ? entry.Path : null);
                 NotifyHistory();
                 return true;
             default:
@@ -241,15 +353,25 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         }
     }
 
-    // Re-reads every ruleset (a write may have changed what others see through use:) and redraws the
-    // selected one with its arrangement and selection kept.
-    private void Reload(string id)
+    // After a write: the file written is re-read alone when the corpus knows it, every file otherwise, and
+    // the selected ruleset is redrawn with its arrangement and selection kept.
+    private void Reload(string id, string? writtenPath = null) =>
+        Refresh(id, () => (writtenPath is null ? null : _corpus?.Replace(writtenPath)) ?? _loadCorpus());
+
+    // Takes the corpus load gives, refills the picker, and redraws id (or selects one when nothing was).
+    private void Refresh(string? id, Func<RulesetCorpus> load)
     {
-        _corpus = _loadCorpus();
+        _corpus = load();
         Rulesets.Clear();
         foreach (RulesetCorpus.Entry entry in _corpus.Entries)
         {
             Rulesets.Add(entry);
+        }
+
+        if (id is null)
+        {
+            SelectedRuleset = Rulesets.FirstOrDefault(e => e.Id == PreferredRulesetId) ?? Rulesets.FirstOrDefault();
+            return;
         }
 
         RulesetCorpus.Entry? again = Rulesets.FirstOrDefault(e => e.Id == id);

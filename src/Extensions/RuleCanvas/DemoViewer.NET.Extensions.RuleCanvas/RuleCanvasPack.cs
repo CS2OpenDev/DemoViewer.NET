@@ -63,7 +63,8 @@ public sealed class RuleCanvasPack : IExtension
         services.AddSingleton(sp => new CanvasTabViewModel(
             tabId => Context(sp)?.Shell.SelectTab(tabId) ?? false,
             static () => RulesetCorpus.Load(RulesetCorpus.DefaultDirectories()),
-            () => Context(sp)?.Stores.Own(StoreRoot.Config)?.Path));
+            () => Context(sp)?.Stores.Own(StoreRoot.Config)?.Path,
+            static action => Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(action).GetTask()));
     }
 
     private static IExtensionContext? Context(IServiceProvider services) =>

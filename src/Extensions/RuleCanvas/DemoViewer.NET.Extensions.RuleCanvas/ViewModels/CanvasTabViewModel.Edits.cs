@@ -83,9 +83,10 @@ public sealed partial class CanvasTabViewModel
     [RelayCommand]
     private void DeleteSelected()
     {
-        if (IsEditable && SelectedNodes.OfType<CanvasNodeViewModel>().FirstOrDefault(n => n.IsAuthorable) is { } node)
+        List<CanvasNodeViewModel> nodes = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n.IsAuthorable)];
+        if (IsEditable && nodes.Count > 0 && _composed is { } composed)
         {
-            Apply(CanvasEditSemantics.Delete(node));
+            Apply(CanvasEditSemantics.Delete(nodes, composed));
         }
     }
 
@@ -125,11 +126,9 @@ public sealed partial class CanvasTabViewModel
             FocusKey = null;
         }
 
+        // The placement outlives a refused write: the arranger spends it on the first draw that holds the key.
         _arranger.PlaceNext(new RulesetDocumentNodeKey(selected.Id, id), at);
-        if (!Apply(request))
-        {
-            _arranger.ForgetPending();
-        }
+        Apply(request);
     }
 
     /// <summary>
