@@ -20,6 +20,13 @@ public sealed partial class CanvasTabViewModel
     /// <summary>The text the source pane holds while dirty.</summary>
     private string _pendingSourceText = "";
 
+    /// <summary>
+    ///     The text the source pane should show: the file's, or the unsaved text while the pane is dirty. A view
+    ///     built again over this view model starts from it, and the echo through <see cref="SourceEdited" />
+    ///     leaves the pane as dirty as it was.
+    /// </summary>
+    public string SourceText => SourceDirty ? _pendingSourceText : DocumentText;
+
     /// <summary>The source pane reports its text on every change; a difference from the file makes it dirty.</summary>
     public void SourceEdited(string text)
     {
