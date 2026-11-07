@@ -1,6 +1,7 @@
 #region
 
 using CS2DemoKit.Analysis.Catalog;
+using CS2DemoKit.Analysis.RulesetsV2.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 
 #endregion
@@ -12,6 +13,40 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 /// <param name="Path">The v2 path the ruleset writes (<c>match.live</c>).</param>
 /// <param name="Hint">One line on when the gate is open, for the gallery.</param>
 public sealed record GatePath(string EngineName, string Path, string Hint);
+
+/// <summary>What still names one entry once it is deleted: the siblings that read it and the <c>show:</c> entries that surface it.</summary>
+/// <param name="Id">The entry.</param>
+/// <param name="Readers">The ids of the open document's entries whose <c>compute:</c>, <c>when:</c>, <c>where:</c> or <c>while:</c> reads it.</param>
+/// <param name="Scoreboard">Whether a <c>show: scoreboard:</c> entry names it.</param>
+/// <param name="Tables">The <c>show: tables:</c> with a column that names it.</param>
+public sealed record NodeDependants(string Id, IReadOnlyList<string> Readers, bool Scoreboard, IReadOnlyList<string> Tables)
+{
+    public bool Any => Readers.Count > 0 || Scoreboard || Tables.Count > 0;
+
+    /// <summary>The refusal: <c>round_kills is read by round_kast and shown in table player_round</c>.</summary>
+    public string Describe()
+    {
+        List<string> parts = [];
+        if (Readers.Count > 0)
+        {
+            parts.Add("read by " + string.Join(", ", Readers));
+        }
+
+        List<string> shown = [];
+        if (Scoreboard)
+        {
+            shown.Add("on the scoreboard");
+        }
+
+        shown.AddRange(Tables.Select(t => "in table " + t));
+        if (shown.Count > 0)
+        {
+            parts.Add("shown " + string.Join(" and ", shown));
+        }
+
+        return parts.Count == 0 ? Id + " has no dependants" : Id + " is " + string.Join(" and ", parts);
+    }
+}
 
 /// <summary>
 ///     Every write decision the canvas makes, as data: a gesture or a face edit in, an <see cref="EditRequest" />
@@ -125,12 +160,71 @@ public static class CanvasEditSemantics
         };
     }
 
-    /// <summary>Removes <paramref name="node" />'s entry, whichever section declares it.</summary>
-    public static EditRequest Delete(CanvasNodeViewModel node)
+    /// <summary>
+    ///     What still names <paramref name="node" /> once it is gone: the siblings that read it (the document
+    ///     graph's edges out of it) and the <c>show:</c> entries that surface it. A deleted entry anything
+    ///     names leaves a file the host no longer composes, so a delete is refused while this is not empty;
+    ///     a cascade that removes these too is the inspector's offer, built from the same answer.
+    /// </summary>
+    public static NodeDependants Dependants(CanvasNodeViewModel node, RulesetCorpus.Composed composed,
+        IReadOnlySet<RulesetDocumentNodeKey>? alsoDeleted = null)
     {
         ArgumentNullException.ThrowIfNull(node);
-        return EditRequest.Of(text => node.IsHighlight ? RulesetEdits.RemoveHighlight(text, node.Id) : RulesetEdits.RemoveStat(text, node.Id),
-            "delete " + node.Id);
+        ArgumentNullException.ThrowIfNull(composed);
+        alsoDeleted ??= new HashSet<RulesetDocumentNodeKey>();
+        RulesetDocumentNodeKey key = node.Key;
+        List<string> readers = [.. composed.Graph.Edges
+            .Where(e => e.Source.Equals(key) && !e.Target.Equals(key) && !alsoDeleted.Contains(e.Target))
+            .Select(e => e.Target.Id)
+            .Distinct(StringComparer.Ordinal)];
+        bool scoreboard = false;
+        List<string> tables = [];
+        if (composed.Documents.TryGetValue(node.Ruleset, out RulesetDoc? doc) && doc.Show is { } show)
+        {
+            // A show: reference is the id, or the id and a facet of it (a highlight's .count).
+            bool Names(string? reference) =>
+                reference is not null && (reference == node.Id || reference.StartsWith(node.Id + ".", StringComparison.Ordinal));
+            scoreboard = show.Scoreboard.Any(e => Names(e.Stat));
+            tables.AddRange(show.Tables.Where(t => t.Columns.Any(c => Names(c.Stat))).Select(t => t.Name));
+        }
+
+        return new NodeDependants(node.Id, readers, scoreboard, tables);
+    }
+
+    /// <summary>Removes <paramref name="node" />'s entry, whichever section declares it, unless something still names it.</summary>
+    public static EditRequest Delete(CanvasNodeViewModel node, RulesetCorpus.Composed composed) => Delete([node], composed);
+
+    /// <summary>
+    ///     Removes every entry in <paramref name="nodes" /> in one write, or refuses the whole lot naming what
+    ///     still reads or shows any of them. A node another of the same selection reads is not a dependant.
+    /// </summary>
+    public static EditRequest Delete(IReadOnlyList<CanvasNodeViewModel> nodes, RulesetCorpus.Composed composed)
+    {
+        ArgumentNullException.ThrowIfNull(nodes);
+        ArgumentNullException.ThrowIfNull(composed);
+        List<CanvasNodeViewModel> deleting = [.. nodes.Where(n => n.IsAuthorable && !n.IsScaffold)];
+        if (deleting.Count == 0)
+        {
+            return EditRequest.Ignore;
+        }
+
+        HashSet<RulesetDocumentNodeKey> keys = [.. deleting.Select(n => n.Key)];
+        List<string> refusals = [.. deleting.Select(n => Dependants(n, composed, keys)).Where(d => d.Any).Select(d => d.Describe())];
+        if (refusals.Count > 0)
+        {
+            return EditRequest.Refuse(string.Join("; ", refusals));
+        }
+
+        return EditRequest.Of(text =>
+            {
+                foreach (CanvasNodeViewModel node in deleting)
+                {
+                    text = node.IsHighlight ? RulesetEdits.RemoveHighlight(text, node.Id) : RulesetEdits.RemoveStat(text, node.Id);
+                }
+
+                return text;
+            },
+            "delete " + string.Join(", ", deleting.Select(n => n.Id)));
     }
 
     /// <summary>
