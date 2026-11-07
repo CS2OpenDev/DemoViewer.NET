@@ -159,7 +159,12 @@ public class RulesetCorpusReplaceTests
         {
             await Assert.That(replacedNodes.Select(n => n.Id)).IsEquivalentTo(fullNodes.Select(n => n.Id)).Because(note);
             await Assert.That(replacedNodes.Single(n => n.Id == "total_deaths").Label).IsEqualTo("Deaths");
-            await Assert.That(replaceLoadMs).IsLessThanOrEqualTo(fullLoadMs).Because(note);
+            // The untouched documents are the same objects: one file was re-read, not the corpus.
+            await Assert.That(replaced.Compose("kast").Documents["kast"]).IsSameReferenceAs(corpus.Compose("kast").Documents["kast"]);
+            await Assert.That(replaced.Compose("player_round").Documents["player_round"])
+                .IsSameReferenceAs(corpus.Compose("player_round").Documents["player_round"]);
+            await Assert.That(replaced.Compose("player_stats").Documents["player_stats"])
+                .IsNotSameReferenceAs(corpus.Compose("player_stats").Documents["player_stats"]);
         }
     }
 }
