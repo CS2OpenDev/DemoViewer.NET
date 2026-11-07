@@ -59,9 +59,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>The same fields as editors, for an authorable stat: <c>where</c> always, <c>when</c> for a flag, <c>compute</c> for a compute.</summary>
     public IReadOnlyList<CanvasExpressionViewModel> Lines { get; init; } = [];
 
-    /// <summary>The <c>per:</c> scope as written, for the picker.</summary>
+    /// <summary>The <c>per:</c> scope as written, for the picker; null when the picker has no selection.</summary>
     [ObservableProperty]
-    private string _per = "";
+    private string? _per = "";
 
     /// <summary>The <c>while:</c> gate as written, or empty, for the picker.</summary>
     [ObservableProperty]
@@ -160,9 +160,10 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     public void WriteField(string key, string? value) => _writeField?.Invoke(key, value);
 
     // The pickers write only once a writer is attached, so the values the builder sets are not written back.
-    partial void OnPerChanged(string value)
+    // A cleared picker hands null; a scope is never removed, so only a value is written.
+    partial void OnPerChanged(string? value)
     {
-        if (_writeField is not null && IsEditable && value.Length > 0)
+        if (_writeField is not null && IsEditable && value is { Length: > 0 })
         {
             WriteField("per", value);
         }

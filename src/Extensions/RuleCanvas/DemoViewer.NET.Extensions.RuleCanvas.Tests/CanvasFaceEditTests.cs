@@ -62,6 +62,23 @@ public class CanvasFaceEditTests
     }
 
     [Test]
+    public async Task AClearedScopePicker_WritesNothing()
+    {
+        (TempRules rules, CanvasTabViewModel vm) = Open();
+        using (rules)
+        {
+            string before = Text(rules);
+            Node(vm, "round_kills").Per = null;
+            using (Assert.Multiple())
+            {
+                await Assert.That(Text(rules)).IsEqualTo(before);
+                await Assert.That(vm.EditStatus).IsEmpty();
+                await Assert.That(RulesetEdits.Field(Text(rules), "round_kills", "per")).IsEqualTo("round");
+            }
+        }
+    }
+
+    [Test]
     public async Task PickingAGate_WritesWhile_AndClearingItRemovesIt()
     {
         (TempRules rules, CanvasTabViewModel vm) = Open();

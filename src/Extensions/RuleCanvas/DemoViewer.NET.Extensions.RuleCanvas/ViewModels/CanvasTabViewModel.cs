@@ -24,8 +24,8 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
     private readonly Func<string, bool> _selectTab;
     private readonly Func<RulesetCorpus> _loadCorpus;
-    private readonly Func<string?> _layoutFolder;
     private readonly RulesetDocumentSession _session = new();
+    private readonly CanvasArranger _arranger;
     private RulesetCorpus? _corpus;
     private bool _redrawing;
 
@@ -45,7 +45,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     {
         _selectTab = selectTab ?? throw new ArgumentNullException(nameof(selectTab));
         _loadCorpus = loadCorpus ?? throw new ArgumentNullException(nameof(loadCorpus));
-        _layoutFolder = layoutFolder ?? throw new ArgumentNullException(nameof(layoutFolder));
+        _arranger = new CanvasArranger(layoutFolder ?? throw new ArgumentNullException(nameof(layoutFolder)));
         SelectedNodes.CollectionChanged += (_, _) => JumpToSelection();
     }
 
@@ -61,20 +61,29 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     /// <summary>What the gallery offers to drag: stat kinds, the catalog's views, the gates, and prefabs.</summary>
     public IReadOnlyList<GalleryGroup> Gallery { get; } = CanvasGallery.Build(EmbeddedCatalog.Root);
 
-    // Where a dropped entry should land, by the id it will get; read once by the redraw that follows the write.
-    private readonly Dictionary<RulesetDocumentNodeKey, Avalonia.Point> _pendingPlacement = new();
-
     /// <summary>Whether the gallery pane shows.</summary>
     [ObservableProperty]
     private bool _showGallery = true;
 
-    /// <summary>The node whose slice of the chain is in focus, by its layout key, or null for the whole chain.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasFocus))]
-    [NotifyPropertyChangedFor(nameof(FocusLabel))]
-    private RulesetDocumentNodeKey? _focusKey;
+    /// <summary>
+    ///     The node whose slice of the chain is in focus, by its layout key, or null for the whole chain. A
+    ///     change redraws from the composition already in hand: the file did not change.
+    /// </summary>
+    public RulesetDocumentNodeKey? FocusKey
+    {
+        get => _arranger.FocusKey;
+        set
+        {
+            if (_arranger.FocusKey != value)
+            {
+                _arranger.FocusKey = value;
+                NotifyFocus();
+                Redraw(SelectedRuleset, keepArrangement: false, recompose: false);
+            }
+        }
+    }
 
-    public bool HasFocus => FocusKey is not null;
+    public bool HasFocus => _arranger.HasFocus;
 
     public string FocusLabel => FocusKey?.Id ?? "";
 
@@ -158,7 +167,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     ///     Where the selected ruleset's arrangement lives: beside a user ruleset, under the extension's own
     ///     folder for a shipped one, or null when there is nowhere to keep it.
     /// </summary>
-    public string? SidecarPath => SidecarFor(SelectedRuleset);
+    public string? SidecarPath => _arranger.SidecarFor(SelectedRuleset);
 
     /// <summary>Raised on the UI thread after the node and wire collections were refilled, so the view can fit them.</summary>
     public event Action? GraphReplaced;
@@ -352,10 +361,16 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             return;
         }
 
-        _pendingPlacement[new RulesetDocumentNodeKey(selected.Id, id)] = at;
+        // A slice would hide the new entry and lose its drop position, so the whole chain comes back first.
+        if (HasFocus)
+        {
+            FocusKey = null;
+        }
+
+        _arranger.PlaceNext(new RulesetDocumentNodeKey(selected.Id, id), at);
         if (!Apply(request))
         {
-            _pendingPlacement.Clear();
+            _arranger.ForgetPending();
         }
     }
 
@@ -451,8 +466,12 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         FocusKey = new RulesetDocumentNodeKey(node.Ruleset, node.Id);
     }
 
-    // A focus change redraws from the composition already in hand: the file did not change.
-    partial void OnFocusKeyChanged(RulesetDocumentNodeKey? value) => Redraw(SelectedRuleset, keepArrangement: false, recompose: false);
+    private void NotifyFocus()
+    {
+        OnPropertyChanged(nameof(FocusKey));
+        OnPropertyChanged(nameof(HasFocus));
+        OnPropertyChanged(nameof(FocusLabel));
+    }
 
     private string FreshId(string wanted) => CanvasEditSemantics.FreshId(wanted, Nodes.Select(n => n.Id));
 
@@ -472,32 +491,17 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     [RelayCommand]
     private void SaveLayout()
     {
-        if (HasFocus)
+        if (!HasFocus && Nodes.Count > 0)
         {
-            // A slice's placement is its own; the sidecar keeps the whole chain's.
-            return;
+            HasSavedLayout = _arranger.SaveLayout(SidecarPath, CurrentArrangement());
         }
-
-        string? sidecar = SidecarPath;
-        if (sidecar is null || Nodes.Count == 0)
-        {
-            return;
-        }
-
-        RulesetNodeLayout layout = CurrentArrangement();
-        HasSavedLayout = RulesetLayoutStore.SaveSidecar(sidecar, layout) && layout.Count > 0;
     }
 
     /// <summary>Drops the saved arrangement and places the ruleset again.</summary>
     [RelayCommand]
     private void ResetLayout()
     {
-        string? sidecar = SidecarPath;
-        if (sidecar is not null)
-        {
-            RulesetLayoutStore.SaveSidecar(sidecar, RulesetNodeLayout.Empty);
-        }
-
+        CanvasArranger.ResetLayout(SidecarPath);
         Redraw(SelectedRuleset, keepArrangement: false);
     }
 
@@ -618,48 +622,14 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             _composed = _corpus.Compose(value.Id);
         }
 
-        RulesetCorpus.Composed composed = _composed;
-        string? sidecar = SidecarFor(value);
-        RulesetNodeLayout saved = sidecar is null ? RulesetNodeLayout.Empty : RulesetLayoutStore.LoadSidecar(sidecar);
-        HasSavedLayout = saved.Count > 0;
         OnPropertyChanged(nameof(SidecarPath));
-
-        // A focus draws one slice, freshly placed, so the sidecar's arrangement of the whole chain does not
-        // apply to it. A focus that names a node no longer there (deleted, or another ruleset) is dropped.
-        RulesetNodeLayout layout = saved;
-        if (FocusKey is { } focusKey)
+        (RulesetCorpus.Composed composed, RulesetNodeLayout layout, bool hasSaved, bool focusDropped) =
+            _arranger.Arrange(_composed, SidecarPath, current);
+        HasSavedLayout = hasSaved;
+        if (focusDropped)
         {
-            if (composed.Focused(focusKey) is { } focused)
-            {
-                composed = focused;
-                layout = RulesetNodeLayout.Empty;
-            }
-            else
-            {
-                _redrawing = true;
-                try
-                {
-                    FocusKey = null;
-                }
-                finally
-                {
-                    _redrawing = false;
-                }
-            }
+            NotifyFocus();
         }
-
-        // The arrangement on screen wins over the sidecar for a redraw after an edit; the sidecar wins on open.
-        foreach ((RulesetDocumentNodeKey key, Avalonia.Point at) in current.Positions)
-        {
-            layout = layout.With(key, at);
-        }
-
-        foreach ((RulesetDocumentNodeKey key, Avalonia.Point at) in _pendingPlacement)
-        {
-            layout = layout.With(key, at);
-        }
-
-        _pendingPlacement.Clear();
 
         (IReadOnlyList<CanvasNodeViewModel> nodes, IReadOnlyList<CanvasConnectionViewModel> wires) =
             CanvasGraphBuilder.Build(composed, layout);
@@ -691,7 +661,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     }
 
     private RulesetNodeLayout CurrentArrangement() =>
-        RulesetNodeLayout.From(Nodes.Select(n =>
+        CanvasArranger.Capture(Nodes.Select(n =>
             new KeyValuePair<RulesetDocumentNodeKey, Avalonia.Point>(new RulesetDocumentNodeKey(n.Ruleset, n.Id), n.Location)));
 
     private void NotifyEditability()
@@ -722,21 +692,5 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             SelectedLine = node.SourceLine;
             JumpRequested?.Invoke(node.SourceLine);
         }
-    }
-
-    private string? SidecarFor(RulesetCorpus.Entry? entry)
-    {
-        if (entry is null)
-        {
-            return null;
-        }
-
-        if (entry.Source == "user")
-        {
-            return RulesetLayoutStore.SidecarPathFor(entry.Path);
-        }
-
-        string? folder = _layoutFolder();
-        return folder is null ? null : Path.Combine(folder, "layouts", entry.Id + RulesetLayoutStore.SidecarSuffix);
     }
 }

@@ -69,6 +69,23 @@ public class CanvasFocusTests
     }
 
     [Test]
+    public async Task AGalleryDropWhileFocused_DropsTheFocus_AndLandsWhereItWasDropped()
+    {
+        using TempRules rules = TempRules.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        vm.FocusNode(vm.Nodes.Single(n => n.Id == "round_kills"));
+
+        vm.PlaceItem(vm.Gallery.Single(g => g.Title == "Prefabs").Items.Single(i => i.Name == "deaths"), new Avalonia.Point(640, 480));
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.HasFocus).IsFalse().Because("a slice would hide the new entry");
+            await Assert.That(vm.Nodes.Single(n => n.Id == "deaths").Location).IsEqualTo(new Avalonia.Point(640, 480));
+            await Assert.That(vm.Nodes.Select(n => n.Id)).Contains("round_damage").Because("the whole chain is drawn again");
+        }
+    }
+
+    [Test]
     public async Task DeletingTheFocusedNode_DropsTheFocus()
     {
         using TempRules rules = TempRules.WithUser("player_round");
