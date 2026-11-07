@@ -140,6 +140,26 @@ public class RulesWatcherTests
     }
 
     [Test]
+    public async Task Undo_AfterAnExternalWriteWasLoaded_DoesNotPutTheOldTextBack()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        using CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        string path = rules.UserPath("player_round");
+        vm.Nodes.Single(n => n.Id == "round_kills").FacetToAdd = "headshot";
+        await Assert.That(vm.CanUndo).IsTrue();
+        string theirs = Labelled(path);
+        WriteExternally(path, theirs);
+
+        vm.FilesChanged([path]);
+        await Assert.That(vm.Nodes.Single(n => n.Id == "round_kills").Label).IsEqualTo("Kills!");
+        await Assert.That(vm.CanUndo).IsFalse().Because("the history before another writer's text is not a history over it");
+
+        vm.UndoCommand.Execute(null);
+        await Assert.That(File.ReadAllText(path)).IsEqualTo(theirs);
+    }
+
+    [Test]
     public async Task AnExternalWrite_WhileThePaneIsDirty_IsAStatusLine_AndRevertLoadsIt()
     {
         using RulesTree rules = RulesTree.WithUser("player_round");

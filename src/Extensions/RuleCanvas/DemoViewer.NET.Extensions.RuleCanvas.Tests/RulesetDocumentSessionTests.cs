@@ -92,6 +92,29 @@ public class RulesetDocumentSessionTests
     }
 
     [Test]
+    public async Task ReopeningTheSamePath_AfterAnotherWriterTouchedIt_ClearsTheHistory()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        RulesetDocumentSession session = new();
+        session.Open(UserEntry(rules, "player_round"));
+        session.Apply(text => RulesetEdits.SetFacet(text, "round_kills", "enemy", "false"), "set enemy");
+        string path = rules.UserPath("player_round");
+        string theirs = session.Text + "# theirs\n";
+        File.WriteAllText(path, theirs);
+        File.SetLastWriteTimeUtc(path, File.GetLastWriteTimeUtc(path).AddSeconds(2));
+
+        session.Open(UserEntry(rules, "player_round"));
+        EditOutcome undone = session.Undo();
+        using (Assert.Multiple())
+        {
+            await Assert.That(session.CanUndo).IsFalse().Because("a history over another writer's text would put it back");
+            await Assert.That(session.CanRedo).IsFalse();
+            await Assert.That(undone.IsRefused).IsTrue();
+            await Assert.That(File.ReadAllText(path)).IsEqualTo(theirs);
+        }
+    }
+
+    [Test]
     public async Task ARefusedTransform_LeavesTheStacksAlone()
     {
         using RulesTree rules = RulesTree.WithUser("player_round");
