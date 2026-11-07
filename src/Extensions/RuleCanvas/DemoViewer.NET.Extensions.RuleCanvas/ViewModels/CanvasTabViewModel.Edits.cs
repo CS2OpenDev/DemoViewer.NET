@@ -285,13 +285,14 @@ public sealed partial class CanvasTabViewModel
         }
     }
 
-    /// <summary>Escape: the whole chain comes back and nothing stays selected.</summary>
+    /// <summary>Escape: the whole chain comes back, nothing stays selected, and the toast goes.</summary>
     [RelayCommand]
     private void ClearFocusAndSelection()
     {
         SelectedNodes.Clear();
         SelectedWires.Clear();
         FocusKey = null;
+        Toast = null;
     }
 
     /// <summary>Adds a count stat on <paramref name="view" /> placed at <paramref name="at" />, as the canvas menu asks.</summary>

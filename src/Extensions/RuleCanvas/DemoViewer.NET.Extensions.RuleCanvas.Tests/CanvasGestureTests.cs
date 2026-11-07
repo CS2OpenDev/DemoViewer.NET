@@ -162,6 +162,28 @@ public class CanvasGestureTests
         }
     }
 
+    // The toast's close button promises Esc, but the toast only reads Escape when it holds focus, which
+    // nothing gives it; the key lands in the editor as ClearFocusAndSelection, so that command takes the
+    // toast with the selection and the control hides on the null.
+    [Test]
+    public async Task EscapesCommand_TakesTheToastWithTheSelection()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        vm.SelectedNodes.Add(vm.Nodes.First());
+        vm.Notify("a refusal");
+        await Assert.That(vm.Toast).IsNotNull();
+
+        await Assert.That(CanvasKeyMap.Resolve(Key.Escape, KeyModifiers.None)).IsEqualTo(CanvasKeyAction.ClearFocusAndSelection);
+        vm.ClearFocusAndSelectionCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Toast).IsNull().Because("Esc dismisses the toast from the editor, as its tooltip says");
+            await Assert.That(vm.SelectedNodes).IsEmpty();
+        }
+    }
+
     // The editor completes a connection on a plain click: the release hit-tests the press anchor and finds
     // the port it started from, so the command sees the same endpoint twice.
     [Test]
