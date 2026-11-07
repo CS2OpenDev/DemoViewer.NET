@@ -867,15 +867,16 @@ public static class RulesetEdits
         RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
         YamlDocumentText doc = editor.Document;
         List<TextEdit> edits = [];
-        foreach ((string? table, int index) in items)
+        foreach (IGrouping<string?, int> hits in items.GroupBy(i => i.Table, i => i.Index))
         {
-            YamlPath list = table is null ? _scoreboard : _tables.Key(table).Key("columns");
-            if (doc.Find(list) is not YamlSequenceNode seq || index < 0 || index >= seq.Children.Count)
+            YamlPath list = hits.Key is null ? _scoreboard : _tables.Key(hits.Key).Key("columns");
+            int[] indices = [.. hits.Distinct().Order()];
+            if (doc.Find(list) is not YamlSequenceNode seq || indices[0] < 0 || indices[^1] >= seq.Children.Count)
             {
-                throw new InvalidOperationException($"show: has no entry {index} in {table ?? "scoreboard"}");
+                throw new InvalidOperationException($"show: has no entry {indices[^1]} in {hits.Key ?? "scoreboard"}");
             }
 
-            edits.Add(RemoveSequenceItem(doc, seq, index, list));
+            edits.AddRange(RemoveSequenceItems(doc, seq, indices, list));
         }
 
         editor = editor.Apply(edits);
@@ -954,35 +955,58 @@ public static class RulesetEdits
         return new TextEdit(at, 0, $"{lead}{indent}- {item}{doc.NewLine}", $"append to {path}");
     }
 
-    // A block item goes with its whole line range; a flow item with the separator on one side of it.
-    private static TextEdit RemoveSequenceItem(YamlDocumentText doc, YamlSequenceNode seq, int index, YamlPath path)
+    private static TextEdit RemoveSequenceItem(YamlDocumentText doc, YamlSequenceNode seq, int index, YamlPath path) =>
+        RemoveSequenceItems(doc, seq, [index], path)[0];
+
+    // A block item goes with its whole line range. Flow items go as runs of neighbours, each run with the
+    // separator on one side of it, so two adjacent removals never claim the same separator.
+    private static List<TextEdit> RemoveSequenceItems(YamlDocumentText doc, YamlSequenceNode seq, int[] sorted, YamlPath path)
     {
-        YamlNode item = seq.Children[index];
+        List<TextEdit> edits = [];
         if (seq.Style != SequenceStyle.Flow)
         {
-            int from = doc.StartOfLine((int)item.Start.Index);
-            int to = doc.StartOfNextLine(doc.EndOf(item));
-            return new TextEdit(from, to - from, "", $"remove {path.Index(index)}");
+            foreach (int index in sorted)
+            {
+                YamlNode item = seq.Children[index];
+                int from = doc.StartOfLine((int)item.Start.Index);
+                int to = doc.StartOfNextLine(doc.EndOf(item));
+                edits.Add(new TextEdit(from, to - from, "", $"remove {path.Index(index)}"));
+            }
+
+            return edits;
         }
 
-        int start, end;
-        if (index < seq.Children.Count - 1)
+        for (int i = 0; i < sorted.Length;)
         {
-            start = (int)item.Start.Index;
-            end = (int)seq.Children[index + 1].Start.Index;
-        }
-        else if (index > 0)
-        {
-            start = doc.EndOf(seq.Children[index - 1]);
-            end = doc.EndOf(item);
-        }
-        else
-        {
-            start = (int)item.Start.Index;
-            end = doc.EndOf(item);
+            int first = sorted[i];
+            int last = first;
+            while (i + 1 < sorted.Length && sorted[i + 1] == last + 1)
+            {
+                last = sorted[++i];
+            }
+
+            i++;
+            int start, end;
+            if (last < seq.Children.Count - 1)
+            {
+                start = (int)seq.Children[first].Start.Index;
+                end = (int)seq.Children[last + 1].Start.Index;
+            }
+            else if (first > 0)
+            {
+                start = doc.EndOf(seq.Children[first - 1]);
+                end = doc.EndOf(seq.Children[last]);
+            }
+            else
+            {
+                start = (int)seq.Children[first].Start.Index;
+                end = doc.EndOf(seq.Children[last]);
+            }
+
+            edits.Add(new TextEdit(start, end - start, "", first == last ? $"remove {path.Index(first)}" : $"remove {path.Index(first)}..{last}"));
         }
 
-        return new TextEdit(start, end - start, "", $"remove {path.Index(index)}");
+        return edits;
     }
 
     // `{ a: 1, b: 2 }` minus one key, the way RemoveFacet does it for match:.

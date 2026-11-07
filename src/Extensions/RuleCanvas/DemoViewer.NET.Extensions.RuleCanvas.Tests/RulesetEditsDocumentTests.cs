@@ -155,6 +155,46 @@ public class RulesetEditsDocumentTests
         }
     }
 
+    /// <summary>
+    ///     A flow list's last item is removed with the separator before it and any other with the one after,
+    ///     so two adjacent hits ending at the last item used to claim the same separator twice.
+    /// </summary>
+    [Test]
+    public async Task RemoveShowReference_TakesAdjacentFlowEntries_WhereverTheyLie()
+    {
+        const string flow = """
+            ruleset: t
+            title: T
+            for: each_player
+
+            stats:
+              kills:
+                count: kill
+                per: round
+              deaths:
+                count: death
+                per: round
+
+            show:
+              scoreboard: [{ stat: deaths, label: D }, { stat: kills, label: B }, { stat: kills, label: C }]
+            """;
+        string lastTwo = RulesetEdits.RemoveShowReference(flow, "kills");
+        string firstTwo = RulesetEdits.RemoveShowReference(flow
+            .Replace("deaths, label: D", "kills, label: A", StringComparison.Ordinal)
+            .Replace("kills, label: C", "deaths, label: C", StringComparison.Ordinal), "kills");
+        string outer = RulesetEdits.RemoveShowReference(flow
+            .Replace("deaths, label: D", "kills, label: A", StringComparison.Ordinal)
+            .Replace("kills, label: B", "deaths, label: B", StringComparison.Ordinal), "kills");
+        string all = RulesetEdits.RemoveShowReference(lastTwo, "deaths");
+        using (Assert.Multiple())
+        {
+            await Assert.That(lastTwo).Contains("scoreboard: [{ stat: deaths, label: D }]");
+            await Assert.That(firstTwo).Contains("scoreboard: [{ stat: deaths, label: C }]");
+            await Assert.That(outer).Contains("scoreboard: [{ stat: deaths, label: B }]");
+            await Assert.That(all).DoesNotContain("show:").Because("an emptied flow list goes with its section");
+        }
+    }
+
     [Test]
     public async Task RemoveShowItem_RemovesOneEntry_ByItsPlace()
     {
