@@ -173,13 +173,22 @@ public class CanvasSurfaceTests
             await Assert.That(vm.DiagnosticEntries.All(d => d.Token == "AccentError")).IsTrue();
         }
 
+        // Unconditional: a line without a node selects nothing, so a lost attribution must read red here.
         CanvasDiagnostic? inNode = vm.DiagnosticEntries.FirstOrDefault(d => d.Node is not null);
-        if (inNode is not null)
+        await Assert.That(inNode).IsNotNull().Because("the compute diagnostic is attributed to ratio");
+        List<CanvasDiagnostic> rulesetLevel = [.. vm.DiagnosticEntries.Where(d => d.Node is null)];
+        using (Assert.Multiple())
         {
-            vm.SelectDiagnosticCommand.Execute(inNode);
-            await Assert.That(vm.SelectedNodes).Contains(inNode.Node!);
-            await Assert.That(inNode.Where).IsEqualTo(inNode.Node!.Id);
+            await Assert.That(inNode!.Node!.Id).IsEqualTo("ratio");
+            await Assert.That(inNode.Message).Contains("no_such_stat");
+            await Assert.That(inNode.Where).IsEqualTo("ratio");
+            await Assert.That(rulesetLevel.All(d => d.Where == "ruleset")).IsTrue();
+            await Assert.That(rulesetLevel.Any(d => d.Message == inNode.Message)).IsFalse()
+                .Because("a line attributed to a node is not repeated at ruleset level");
         }
+
+        vm.SelectDiagnosticCommand.Execute(inNode);
+        await Assert.That(vm.SelectedNodes).Contains(inNode.Node!);
 
         vm.ShowDiagnosticsList = false;
         vm.ToggleDiagnosticsListCommand.Execute(null);
