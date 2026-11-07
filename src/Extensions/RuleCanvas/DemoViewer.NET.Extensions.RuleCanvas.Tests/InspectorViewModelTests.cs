@@ -129,6 +129,12 @@ public class InspectorViewModelTests
             Select(vm, "round_side");
             inspector.Keep.Text = "first";
             await Assert.That(RulesetEdits.Field(Text(rules), "round_side", "keep")).IsEqualTo("first");
+
+            inspector.Keep.Text = null!;
+            await Assert.That(RulesetEdits.Field(Text(rules), "round_side", "keep")).IsEqualTo("first")
+                .Because("a picker losing its selection is not a removal");
+            inspector.Keep.Text = "";
+            await Assert.That(RulesetEdits.Field(Text(rules), "round_side", "keep")).IsNull().Because("the empty option is");
         }
     }
 

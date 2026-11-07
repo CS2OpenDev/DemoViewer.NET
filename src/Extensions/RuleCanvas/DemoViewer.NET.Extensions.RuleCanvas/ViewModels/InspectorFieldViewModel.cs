@@ -64,7 +64,7 @@ public sealed partial class InspectorFieldViewModel : ObservableObject
     public bool HasError => Error.Length > 0;
 
     /// <summary>Whether the text differs from what the file holds.</summary>
-    public bool IsDirty => Text.Trim() != _original;
+    public bool IsDirty => (Text ?? "").Trim() != _original;
 
     /// <summary>Puts the file's value in the field without writing it back.</summary>
     public void Load(string? value, bool visible = true)
@@ -92,7 +92,15 @@ public sealed partial class InspectorFieldViewModel : ObservableObject
             return;
         }
 
-        string text = Text.Trim();
+        // A picker whose bound value is outside its options reads back as null; that is not a removal,
+        // which is the empty option picked.
+        if (Options is { } options && (Text is null || !options.Contains(Text, StringComparer.Ordinal)))
+        {
+            return;
+        }
+
+        string text = (Text ?? "").Trim();
+
         if (text != _original)
         {
             _write(this, text.Length == 0 ? null : text);
