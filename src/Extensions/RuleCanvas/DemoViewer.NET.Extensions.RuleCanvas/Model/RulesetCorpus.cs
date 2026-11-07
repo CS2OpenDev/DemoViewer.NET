@@ -38,7 +38,27 @@ public sealed class RulesetCorpus
         IReadOnlyDictionary<string, RulesetDoc> Documents,
         IReadOnlyList<string> Diagnostics,
         IReadOnlyList<(string RulesetId, int Line, string Message)> PositionedDiagnostics,
-        RulesetChainGraph Chain);
+        RulesetChainGraph Chain)
+    {
+        /// <summary>
+        ///     This composition cut down to one node's slice of the chain, or null when the key names no node
+        ///     of it. Declared entries outside the slice are left out too, so the canvas draws the slice alone.
+        /// </summary>
+        public Composed? Focused(RulesetDocumentNodeKey key)
+        {
+            RulesetChainGraph slice = Chain.Slice(key);
+            if (slice.Nodes.Count == 0)
+            {
+                return null;
+            }
+
+            HashSet<RulesetDocumentNodeKey> keys = [.. slice.Nodes.Select(n => n.Key)];
+            RulesetDocumentGraph graph = new(
+                [.. Graph.Nodes.Where(n => keys.Contains(n.Key))],
+                [.. Graph.Edges.Where(e => keys.Contains(e.Source) && keys.Contains(e.Target))]);
+            return this with { Graph = graph, Chain = slice };
+        }
+    }
 
     // The registries are immutable and cost a build each; the builder itself keeps state while it previews
     // templates, so one is made per composition.

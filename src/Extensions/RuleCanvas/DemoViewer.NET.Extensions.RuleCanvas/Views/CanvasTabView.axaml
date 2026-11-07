@@ -84,6 +84,20 @@
                                 Command="{Binding SetStyleCommand}" CommandParameter="detailed"
                                 IsEnabled="{Binding IsCompact}" />
                         <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
+                        <Button Classes="ghost" Content="Focus selected" FontSize="12" Padding="8 3"
+                                Command="{Binding FocusSelectedCommand}"
+                                ToolTip.Tip="Draw only the selected node's slice of the chain: what feeds it and what it feeds" />
+                        <Border CornerRadius="3" Padding="6 1" VerticalAlignment="Center" IsVisible="{Binding HasFocus}"
+                                Background="{DynamicResource AccentInteractive}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{Binding FocusLabel}" FontSize="11" FontFamily="monospace"
+                                           Foreground="{DynamicResource TextOnAccent}" VerticalAlignment="Center" />
+                                <Button Content="×" FontSize="11" Padding="2 0" MinHeight="0" Background="Transparent"
+                                        BorderThickness="0" Foreground="{DynamicResource TextOnAccent}"
+                                        Command="{Binding ClearFocusCommand}" ToolTip.Tip="Show the whole chain again" />
+                            </StackPanel>
+                        </Border>
+                        <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="6 2" />
                         <Button Classes="ghost" Content="Gallery" FontSize="12" Padding="8 3" Command="{Binding ToggleGalleryCommand}"
                             ToolTip.Tip="Show or hide the gallery of stats, views, gates and prefabs" />
                     <Button Classes="ghost" Content="Source" FontSize="12" Padding="8 3"

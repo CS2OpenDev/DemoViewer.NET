@@ -37,8 +37,9 @@ internal sealed class TempRules : IDisposable
         return rules;
     }
 
-    public CanvasTabViewModel NewViewModel() =>
-        new(_ => true, () => RulesetCorpus.Load([(Shipped, "shipped"), (User, "user")]), () => Path.Combine(_root, "own"));
+    public RulesetCorpus Load() => RulesetCorpus.Load([(Shipped, "shipped"), (User, "user")]);
+
+    public CanvasTabViewModel NewViewModel() => new(_ => true, Load, () => Path.Combine(_root, "own"));
 
     private static TempRules New()
     {

@@ -62,6 +62,50 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
 
     private const string TemplatePlayer = "each player";
 
+    /// <summary>
+    ///     The slice around <paramref name="key" />: the node, everything upstream of it through every wire,
+    ///     and everything downstream, with the wires among them. A node reached only sideways, an ancestor's
+    ///     other reader, is not in it. Empty when the key is not a node of this chain.
+    /// </summary>
+    public RulesetChainGraph Slice(RulesetDocumentNodeKey key)
+    {
+        if (Nodes.All(n => n.Key != key))
+        {
+            return Empty;
+        }
+
+        HashSet<RulesetDocumentNodeKey> inSlice = [key];
+        Queue<RulesetDocumentNodeKey> pending = new([key]);
+        while (pending.Count > 0)
+        {
+            RulesetDocumentNodeKey at = pending.Dequeue();
+            foreach (ChainEdge edge in Edges)
+            {
+                if (edge.Target == at && inSlice.Add(edge.Source))
+                {
+                    pending.Enqueue(edge.Source);
+                }
+            }
+        }
+
+        pending.Enqueue(key);
+        while (pending.Count > 0)
+        {
+            RulesetDocumentNodeKey at = pending.Dequeue();
+            foreach (ChainEdge edge in Edges)
+            {
+                if (edge.Source == at && inSlice.Add(edge.Target))
+                {
+                    pending.Enqueue(edge.Target);
+                }
+            }
+        }
+
+        return new RulesetChainGraph(
+            [.. Nodes.Where(n => inSlice.Contains(n.Key))],
+            [.. Edges.Where(e => inSlice.Contains(e.Source) && inSlice.Contains(e.Target))]);
+    }
+
     public static RulesetChainGraph Build(BuildResult build, IReadOnlyList<CheckedRuleset> rulesets)
     {
         ArgumentNullException.ThrowIfNull(build);
@@ -84,7 +128,9 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             }
         }
 
-        Dictionary<RuleGraphNode, RulesetDocumentNodeKey> keys = new(ReferenceEqualityComparer.Instance);
+        // The engine shares one node between entries with the same definition, so a rule node can stand
+        // for several declared entries; the canvas draws each entry as its own node with the same wires.
+        Dictionary<RuleGraphNode, List<RulesetDocumentNodeKey>> keys = new(ReferenceEqualityComparer.Instance);
         Dictionary<RuleGraphNode, ChainNodeKind> kinds = new(ReferenceEqualityComparer.Instance);
         HashSet<string> usedScaffoldKeys = new(StringComparer.Ordinal);
         RuleGraphNode? root = null;
@@ -98,15 +144,20 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
 
             if (node.Origin == RuleGraphNodeOrigin.Rule)
             {
+                // A companion (first-tick, a highlight's counter) shares its owner's name but is not a rule id.
+                List<RulesetDocumentNodeKey> owned = [];
                 foreach (string owner in node.Owners)
                 {
-                    if (declared.TryGetValue(owner, out RulesetDocumentNodeKey key)
-                        && string.Equals(node.Node.Name, key.Id, StringComparison.Ordinal))
+                    if (declared.TryGetValue(owner, out RulesetDocumentNodeKey key) && node.RuleIds.Contains(owner))
                     {
-                        keys[node] = key;
-                        kinds[node] = ChainNodeKind.Declared;
-                        break;
+                        owned.Add(key);
                     }
+                }
+
+                if (owned.Count > 0)
+                {
+                    keys[node] = owned;
+                    kinds[node] = ChainNodeKind.Declared;
                 }
 
                 continue;
@@ -127,7 +178,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                 id = node.Node.Name + "#" + n;
             }
 
-            keys[node] = new RulesetDocumentNodeKey(prefix, id);
+            keys[node] = [new RulesetDocumentNodeKey(prefix, id)];
             kinds[node] = kind;
         }
 
@@ -192,32 +243,39 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
         HashSet<(RulesetDocumentNodeKey, RulesetDocumentNodeKey, string, EdgeEffect, bool)> seen = [];
         foreach ((RuleGraphEdge edge, RuleGraphNode? readBy) in taken)
         {
-            RulesetDocumentNodeKey target = keys[edge.Destination];
             string label = edge.Descriptor.Label ?? "";
-            RulesetDocumentNodeKey source;
             bool isRead = readBy is not null;
+            IReadOnlyList<RulesetDocumentNodeKey> sources;
             if (isRead)
             {
-                source = keys[readBy!];
+                sources = keys[readBy!];
             }
             else if (ReferenceEquals(edge.Source, root))
             {
-                if (!events.TryGetValue(label, out source))
+                if (!events.TryGetValue(label, out RulesetDocumentNodeKey eventKey))
                 {
-                    source = new RulesetDocumentNodeKey("~event", label);
-                    events[label] = source;
-                    nodes.Add(new ChainNode(source, ChainNodeKind.Event, label, false));
+                    eventKey = new RulesetDocumentNodeKey("~event", label);
+                    events[label] = eventKey;
+                    nodes.Add(new ChainNode(eventKey, ChainNodeKind.Event, label, false));
                 }
+
+                sources = [eventKey];
             }
             else
             {
-                source = keys[edge.Source];
+                sources = keys[edge.Source];
             }
 
             string text = isRead ? "reads" : label;
-            if (seen.Add((source, target, text, edge.Descriptor.Effect, isRead)))
+            foreach (RulesetDocumentNodeKey source in sources)
             {
-                edges.Add(new ChainEdge(source, target, text, edge.Descriptor.ConditionLabel, edge.Descriptor.Effect, isRead));
+                foreach (RulesetDocumentNodeKey target in keys[edge.Destination])
+                {
+                    if (source != target && seen.Add((source, target, text, edge.Descriptor.Effect, isRead)))
+                    {
+                        edges.Add(new ChainEdge(source, target, text, edge.Descriptor.ConditionLabel, edge.Descriptor.Effect, isRead));
+                    }
+                }
             }
         }
 
@@ -225,7 +283,11 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
         {
             if (included.Contains(node))
             {
-                nodes.Add(new ChainNode(keys[node], kinds[node], node.Node.Name, node.Scope == RuleGraphScope.Player));
+                foreach (RulesetDocumentNodeKey key in keys[node])
+                {
+                    string name = kinds[node] == ChainNodeKind.Declared ? key.Id : node.Node.Name;
+                    nodes.Add(new ChainNode(key, kinds[node], name, node.Scope == RuleGraphScope.Player));
+                }
             }
         }
 

@@ -66,6 +66,27 @@ public class RulesetChainGraphTests
     }
 
     [Test]
+    public async Task TwoEntriesWithOneDefinition_EachGetTheirOwnNodeAndWires()
+    {
+        using TempRules rules = TempRules.WithUser("player_round");
+        string path = rules.UserPath("player_round");
+        File.WriteAllText(path, File.ReadAllText(path).Replace("\nshow:",
+            "\n  enemy_kills:\n    count: kill\n    match: { enemy: true }\n    per: round\n\nshow:", StringComparison.Ordinal));
+        RulesetChainGraph chain = rules.Load().Compose("player_round").Chain;
+
+        ChainEdge[] Into(string id) => [.. chain.Edges.Where(e => e.Target.Id == id)];
+        using (Assert.Multiple())
+        {
+            await Assert.That(chain.Nodes.Select(n => n.Key.Id)).Contains("enemy_kills")
+                .Because("the engine shares one node between the two, the canvas does not");
+            await Assert.That(Into("enemy_kills").Select(e => (e.Source, e.Label, e.IsRead)))
+                .IsEquivalentTo(Into("round_kills").Select(e => (e.Source, e.Label, e.IsRead)));
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "round_kills" && e.Target.Id == "enemy_kills")).IsFalse()
+                .Because("sharing a node is not a wire between the two");
+        }
+    }
+
+    [Test]
     public async Task EveryShippedRuleset_LowersWithoutADiagnostic()
     {
         string shipped = RuleSetLocator.ResolveShippedRulesDirectory();

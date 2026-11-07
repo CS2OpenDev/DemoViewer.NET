@@ -29,13 +29,23 @@ public sealed partial class CanvasConnectorViewModel : ObservableObject
 }
 
 /// <summary>A wire from one node's output to another's input.</summary>
-/// <param name="Source">The output.</param>
-/// <param name="Target">The input.</param>
-/// <param name="Text">What the wire shows: the event that fires it, what it does, or the logic test.</param>
-/// <param name="Condition">The lowered condition, shown on hover, or null.</param>
-/// <param name="IsRead">A value read rather than a write; drawn dashed.</param>
-public sealed record CanvasConnectionViewModel(CanvasConnectorViewModel Source, CanvasConnectorViewModel Target,
-    string Text = "", string? Condition = null, bool IsRead = false)
+/// <param name="source">The output.</param>
+/// <param name="target">The input.</param>
+/// <param name="text">What the wire shows: the event that fires it, what it does, or the logic test.</param>
+/// <param name="condition">The lowered condition, shown on hover, or null.</param>
+/// <param name="isRead">A value read rather than a write; drawn dashed.</param>
+public sealed class CanvasConnectionViewModel(CanvasConnectorViewModel source, CanvasConnectorViewModel target,
+    string text = "", string? condition = null, bool isRead = false)
 {
+    public CanvasConnectorViewModel Source { get; } = source;
+
+    public CanvasConnectorViewModel Target { get; } = target;
+
+    public string Text { get; } = text;
+
+    public string? Condition { get; } = condition;
+
+    public bool IsRead { get; } = isRead;
+
     public bool HasText => Text.Length > 0;
 }

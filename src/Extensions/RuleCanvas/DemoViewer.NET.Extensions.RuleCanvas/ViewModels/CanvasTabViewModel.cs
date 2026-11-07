@@ -71,6 +71,16 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     [ObservableProperty]
     private bool _showGallery = true;
 
+    /// <summary>The node whose slice of the chain is in focus, by its layout key, or null for the whole chain.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFocus))]
+    [NotifyPropertyChangedFor(nameof(FocusLabel))]
+    private RulesetDocumentNodeKey? _focusKey;
+
+    public bool HasFocus => FocusKey is not null;
+
+    public string FocusLabel => FocusKey?.Id ?? "";
+
     /// <summary>The editor's selection, written by the editor. The first selected node drives the source jump.</summary>
     public ObservableCollection<object> SelectedNodes { get; } = [];
 
@@ -608,6 +618,29 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         _ => null
     };
 
+    /// <summary>Focuses the first selected node's slice: itself, everything upstream of it, and everything it feeds.</summary>
+    [RelayCommand]
+    private void FocusSelected()
+    {
+        if (SelectedNodes.OfType<CanvasNodeViewModel>().FirstOrDefault() is { } node)
+        {
+            FocusNode(node);
+        }
+    }
+
+    [RelayCommand]
+    private void ClearFocus() => FocusKey = null;
+
+    /// <summary>Focuses <paramref name="node" />'s slice; the rest of the chain is drawn faint until the focus is cleared.</summary>
+    public void FocusNode(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        FocusKey = new RulesetDocumentNodeKey(node.Ruleset, node.Id);
+    }
+
+    // A focus change redraws from the composition already in hand: the file did not change.
+    partial void OnFocusKeyChanged(RulesetDocumentNodeKey? value) => Redraw(SelectedRuleset, keepArrangement: false, recompose: false);
+
     private string FreshId(string wanted)
     {
         HashSet<string> taken = new(Nodes.Select(n => n.Id), StringComparer.Ordinal);
@@ -636,6 +669,12 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     [RelayCommand]
     private void SaveLayout()
     {
+        if (HasFocus)
+        {
+            // A slice's placement is its own; the sidecar keeps the whole chain's.
+            return;
+        }
+
         string? sidecar = SidecarPath;
         if (sidecar is null || Nodes.Count == 0)
         {
@@ -766,7 +805,9 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         Redraw(again, keepArrangement: true);
     }
 
-    private void Redraw(RulesetCorpus.Entry? value, bool keepArrangement)
+    private RulesetCorpus.Composed? _composed;
+
+    private void Redraw(RulesetCorpus.Entry? value, bool keepArrangement, bool recompose = true)
     {
         if (_redrawing)
         {
@@ -801,14 +842,42 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
         _loadedWriteTimeUtc = WriteTimeOf(value.Path);
 
-        RulesetCorpus.Composed composed = _corpus.Compose(value.Id);
+        if (recompose || _composed is null)
+        {
+            _composed = _corpus.Compose(value.Id);
+        }
+
+        RulesetCorpus.Composed composed = _composed;
         string? sidecar = SidecarFor(value);
         RulesetNodeLayout saved = sidecar is null ? RulesetNodeLayout.Empty : RulesetLayoutStore.LoadSidecar(sidecar);
         HasSavedLayout = saved.Count > 0;
         OnPropertyChanged(nameof(SidecarPath));
 
-        // The arrangement on screen wins over the sidecar for a redraw after an edit; the sidecar wins on open.
+        // A focus draws one slice, freshly placed, so the sidecar's arrangement of the whole chain does not
+        // apply to it. A focus that names a node no longer there (deleted, or another ruleset) is dropped.
         RulesetNodeLayout layout = saved;
+        if (FocusKey is { } focusKey)
+        {
+            if (composed.Focused(focusKey) is { } focused)
+            {
+                composed = focused;
+                layout = RulesetNodeLayout.Empty;
+            }
+            else
+            {
+                _redrawing = true;
+                try
+                {
+                    FocusKey = null;
+                }
+                finally
+                {
+                    _redrawing = false;
+                }
+            }
+        }
+
+        // The arrangement on screen wins over the sidecar for a redraw after an edit; the sidecar wins on open.
         foreach ((RulesetDocumentNodeKey key, Avalonia.Point at) in current.Positions)
         {
             layout = layout.With(key, at);
