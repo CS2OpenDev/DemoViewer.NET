@@ -130,7 +130,8 @@ public class RuleCanvasHubTests
                     await Assert.That(connectors).IsEqualTo(38).Because("one input and one output per node that has a wire on that side");
                     await Assert.That(texts).Contains("round_kast");
                     await Assert.That(texts).Contains("enemy").Because("the detailed style shows the facet rows");
-                    await Assert.That(texts).Contains("while player.alive").Because("the gate is a chip");
+                    await Assert.That(texts.Any(t => t.Contains("player.alive", StringComparison.Ordinal))).IsTrue()
+                        .Because("the gate is a chip, or the gate picker's value on a machine with a user copy");
                     await Assert.That(texts).Contains("player_round.rules.yaml").Because("the source pane names the file it shows");
                 }
             }

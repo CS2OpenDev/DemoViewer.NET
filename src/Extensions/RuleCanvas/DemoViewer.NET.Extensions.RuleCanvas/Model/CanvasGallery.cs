@@ -43,6 +43,13 @@ public sealed record GalleryGroup(string Title, IReadOnlyList<GalleryItem> Items
 /// </summary>
 public static class CanvasGallery
 {
+    /// <summary>The gate paths a ruleset writes in <c>while:</c>, in the order the gallery offers them.</summary>
+    public static IReadOnlyList<string> GatePaths { get; } =
+    [
+        "round.active", "match.live", "player.alive", "round.no_deaths_yet", "round.bomb.was_planted", "player.traded",
+        "player.survived"
+    ];
+
     public static IReadOnlyList<GalleryGroup> Build(CatalogRoot catalog)
     {
         ArgumentNullException.ThrowIfNull(catalog);
@@ -66,13 +73,13 @@ public static class CanvasGallery
             new GalleryGroup("Views", [.. catalog.Views.OrderBy(v => v.Name, StringComparer.Ordinal).Select(ViewItem)]),
             new GalleryGroup("Gates",
             [
-                Gate("round.active", "while the round is live, after freeze time and before it is decided"),
-                Gate("match.live", "while the match is live, between its start and its end"),
-                Gate("player.alive", "while this player is alive"),
-                Gate("round.no_deaths_yet", "until the round's first death"),
-                Gate("round.bomb.was_planted", "after the bomb is planted this round"),
-                Gate("player.traded", "once this player has been traded this round"),
-                Gate("player.survived", "once this player has survived the round"),
+                Gate(GatePaths[0], "while the round is live, after freeze time and before it is decided"),
+                Gate(GatePaths[1], "while the match is live, between its start and its end"),
+                Gate(GatePaths[2], "while this player is alive"),
+                Gate(GatePaths[3], "until the round's first death"),
+                Gate(GatePaths[4], "after the bomb is planted this round"),
+                Gate(GatePaths[5], "once this player has been traded this round"),
+                Gate(GatePaths[6], "once this player has survived the round"),
             ]),
             new GalleryGroup("Prefabs",
             [

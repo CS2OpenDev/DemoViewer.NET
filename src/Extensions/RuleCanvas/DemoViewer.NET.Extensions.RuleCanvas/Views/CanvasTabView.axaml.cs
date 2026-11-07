@@ -105,6 +105,14 @@ public partial class CanvasTabView : UserControl
         }
     }
 
+    private void OnExpressionLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox { DataContext: CanvasExpressionViewModel line })
+        {
+            line.Commit();
+        }
+    }
+
     // The picker is a command surface: the chosen view adds a stat, and the picker clears for the next.
     private void OnAddStatViewChanged(object? sender, SelectionChangedEventArgs e)
     {

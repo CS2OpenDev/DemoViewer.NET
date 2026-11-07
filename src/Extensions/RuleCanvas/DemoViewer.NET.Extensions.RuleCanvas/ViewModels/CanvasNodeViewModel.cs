@@ -18,6 +18,13 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 public sealed partial class CanvasNodeViewModel : ObservableObject
 {
     private Action<string, string?>? _writeFacet;
+    private Action<string, string?>? _writeField;
+
+    /// <summary>The scopes a stat can be kept per.</summary>
+    public static IReadOnlyList<string> PerOptions { get; } = ["round", "match"];
+
+    /// <summary>The gates a stat can run while, with the empty entry for none.</summary>
+    public static IReadOnlyList<string> GateOptions { get; } = ["", .. Model.CanvasGallery.GatePaths];
 
     /// <summary>The <c>stats:</c> or <c>highlights:</c> key.</summary>
     public required string Id { get; init; }
@@ -48,6 +55,29 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     /// <summary>The <c>compute:</c>, flag, <c>where:</c> or <c>when:</c> text, kept textual; lines joined by newline.</summary>
     public string? Expression { get; init; }
+
+    /// <summary>The same fields as editors, for an authorable stat: <c>where</c> always, <c>when</c> for a flag, <c>compute</c> for a compute.</summary>
+    public IReadOnlyList<CanvasExpressionViewModel> Lines { get; init; } = [];
+
+    /// <summary>The <c>per:</c> scope as written, for the picker.</summary>
+    [ObservableProperty]
+    private string _per = "";
+
+    /// <summary>The <c>while:</c> gate as written, or empty, for the picker.</summary>
+    [ObservableProperty]
+    private string _gate = "";
+
+    /// <summary>Whether the face shows the scope and gate pickers: an editable stat.</summary>
+    public bool ShowFieldPickers => IsEditable && IsAuthorable && !IsHighlight && !IsScaffold;
+
+    /// <summary>The chips without the scope and the gate, which the pickers show instead while editable.</summary>
+    public IReadOnlyList<string> VisibleChips => IsEditable
+        ? [.. Chips.Where(c => !c.StartsWith("per ", StringComparison.Ordinal) && !c.StartsWith("while ", StringComparison.Ordinal))]
+        : Chips;
+
+    public bool ShowExpressionText => HasExpression && !IsEditable;
+
+    public bool ShowLines => IsEditable && Lines.Count > 0;
 
     /// <summary>The line the entry starts on in its file, for the jump. Zero when unknown.</summary>
     public int SourceLine { get; init; }
@@ -113,8 +143,32 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         var n => $"{n} facets"
     };
 
-    /// <summary>Hooks the writer every facet row and the add-facet picker write through.</summary>
-    public void AttachWriter(Action<string, string?> writeFacet) => _writeFacet = writeFacet;
+    /// <summary>Hooks the writers: facet rows and the add-facet picker, then the scope, gate and expression editors.</summary>
+    public void AttachWriters(Action<string, string?> writeFacet, Action<string, string?> writeField)
+    {
+        _writeFacet = writeFacet;
+        _writeField = writeField;
+    }
+
+    /// <summary>What a field editor calls: a value to set, or null to remove the field.</summary>
+    public void WriteField(string key, string? value) => _writeField?.Invoke(key, value);
+
+    // The pickers write only once a writer is attached, so the values the builder sets are not written back.
+    partial void OnPerChanged(string value)
+    {
+        if (_writeField is not null && IsEditable && value.Length > 0)
+        {
+            WriteField("per", value);
+        }
+    }
+
+    partial void OnGateChanged(string value)
+    {
+        if (_writeField is not null && IsEditable)
+        {
+            WriteField("while", value.Length == 0 ? null : value);
+        }
+    }
 
     /// <summary>What a facet row calls: a value to set, or null to remove the facet.</summary>
     public void WriteFacet(string facet, string? value) => _writeFacet?.Invoke(facet, value);
@@ -127,6 +181,16 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         {
             facet.IsEditable = value;
         }
+
+        foreach (CanvasExpressionViewModel line in Lines)
+        {
+            line.IsEditable = value;
+        }
+
+        OnPropertyChanged(nameof(ShowFieldPickers));
+        OnPropertyChanged(nameof(VisibleChips));
+        OnPropertyChanged(nameof(ShowExpressionText));
+        OnPropertyChanged(nameof(ShowLines));
     }
 
     // A new facet is written with a value of its type the author then edits in place: a bool is on, a

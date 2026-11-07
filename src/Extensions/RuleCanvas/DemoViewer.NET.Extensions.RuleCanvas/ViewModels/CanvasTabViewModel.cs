@@ -713,6 +713,38 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             value is null ? $"remove {node.Id}.match.{facet}" : $"set {node.Id}.match.{facet}");
     }
 
+    // A field write from a node face: the scope, the gate, or one of the expression lines. A removed where:
+    // or while: comes as null; a formula or a flag's test cannot be empty, so that is refused.
+    private void WriteField(CanvasNodeViewModel node, string key, string? value)
+    {
+        if (!IsEditable)
+        {
+            return;
+        }
+
+        switch (key)
+        {
+            case "per" when value is not null:
+                ApplyEdit(text => RulesetEdits.SetField(text, node.Id, "per", value), $"set {node.Id}.per");
+                break;
+            case "while" or "where":
+                ApplyEdit(text => value is null
+                        ? RulesetEdits.RemoveFieldIfPresent(text, node.Id, key)
+                        : RulesetEdits.SetField(text, node.Id, key, value),
+                    value is null ? $"remove {node.Id}.{key}" : $"set {node.Id}.{key}");
+                break;
+            case "compute" when value is not null:
+                ApplyEdit(text => RulesetEdits.SetField(text, node.Id, "compute", value), $"set {node.Id}.compute");
+                break;
+            case "when" when value is not null:
+                ApplyEdit(text => RulesetEdits.SetFlagWhen(text, node.Id, value), $"set {node.Id}.when");
+                break;
+            case "compute" or "when":
+                EditStatus = $"A {key} cannot be empty; delete the stat instead.";
+                break;
+        }
+    }
+
     // Everything the writer and the parser throw on a document that moved under us lands in the status.
     private bool ApplyEdit(Func<string, string> transform, string description)
     {
@@ -895,7 +927,8 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         foreach (CanvasNodeViewModel node in nodes)
         {
             node.ShowFacets = ShowFacets;
-            node.AttachWriter((facet, facetValue) => WriteFacet(node, facet, facetValue));
+            node.AttachWriters((facet, facetValue) => WriteFacet(node, facet, facetValue),
+                (key, fieldValue) => WriteField(node, key, fieldValue));
             node.IsEditable = IsEditable && node.IsAuthorable;
             Nodes.Add(node);
         }

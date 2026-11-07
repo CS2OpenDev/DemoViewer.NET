@@ -319,7 +319,7 @@
 
                         <!-- Face: chips, then the facet rows (detailed) or their count (compact), then the expression. -->
                         <StackPanel Spacing="6" MinWidth="180" PointerPressed="OnFacePressed">
-                            <ItemsControl ItemsSource="{Binding Chips}">
+                            <ItemsControl ItemsSource="{Binding VisibleChips}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel />
@@ -385,8 +385,37 @@
                             <TextBlock Text="{Binding FacetSummary}" FontSize="11" Foreground="{DynamicResource TextDim}"
                                        IsVisible="{Binding ShowFacetSummary}" />
 
+                            <!-- The scope and the gate as pickers while editable; chips otherwise. -->
+                            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowFieldPickers}">
+                                <TextBlock Text="per" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
+                                <ComboBox ItemsSource="{x:Static vm:CanvasNodeViewModel.PerOptions}" SelectedItem="{Binding Per}"
+                                          FontSize="11" MinWidth="76" Padding="6 1" MinHeight="0" />
+                                <TextBlock Text="while" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
+                                <ComboBox ItemsSource="{x:Static vm:CanvasNodeViewModel.GateOptions}" SelectedItem="{Binding Gate}"
+                                          PlaceholderText="none" FontSize="11" MinWidth="130" Padding="6 1" MinHeight="0" />
+                            </StackPanel>
+
                             <TextBlock Text="{Binding Expression}" FontSize="11" FontFamily="monospace" MaxWidth="340"
-                                       TextWrapping="Wrap" Foreground="{DynamicResource TextValue}" IsVisible="{Binding HasExpression}" />
+                                       TextWrapping="Wrap" Foreground="{DynamicResource TextValue}" IsVisible="{Binding ShowExpressionText}" />
+
+                            <!-- The where:, when: and compute: text as editors while editable. -->
+                            <ItemsControl ItemsSource="{Binding Lines}" IsVisible="{Binding ShowLines}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CanvasExpressionViewModel">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0 1">
+                                            <TextBlock Grid.Column="0" Text="{Binding Prefix}" FontSize="10" MinWidth="34"
+                                                       Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
+                                            <TextBox Grid.Column="1" Text="{Binding Text}" Watermark="{Binding Placeholder}"
+                                                     FontSize="11" FontFamily="monospace" MinWidth="200" MaxWidth="340" Padding="4 1" MinHeight="0"
+                                                     TextWrapping="Wrap" AcceptsReturn="False" LostFocus="OnExpressionLostFocus">
+                                                <TextBox.KeyBindings>
+                                                    <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
+                                                </TextBox.KeyBindings>
+                                            </TextBox>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </nodes:Node>
                 </DataTemplate>

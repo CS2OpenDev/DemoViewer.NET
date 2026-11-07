@@ -24,6 +24,10 @@ public static class CanvasGraphBuilder
     private const double ExpressionHeight = 20;
     private const double ConnectorHeight = 22;
     private const double DiagnosticHeight = 18;
+    private const double PickerRowHeight = 30;
+    private const double LineHeight = 26;
+    private const int LineWrapColumns = 44;
+    private const double EditableWidth = 360;
 
     /// <summary>The catalog's view names, in its order.</summary>
     public static IReadOnlyList<string> ViewNames => [.. EmbeddedCatalog.Root.Views.Select(v => v.Name)];
@@ -186,10 +190,14 @@ public static class CanvasGraphBuilder
         List<string> available = [];
         Dictionary<string, RulesTypeKind> availableKinds = new(StringComparer.Ordinal);
         List<string> expression = [];
+        List<CanvasExpressionViewModel> lines = [];
+        string per = "";
+        string gate = "";
         string? label = node.Label;
         CanvasNodeViewModel? built = null;
         // Rows write through the node they belong to; the node is attached to the document by the tab.
         void Write(string facet, string? value) => built?.WriteFacet(facet, value);
+        void WriteField(string key, string? value) => built?.WriteField(key, value);
 
         documents.TryGetValue(node.Key.Ruleset, out RulesetDoc? doc);
         if (node.IsHighlight)
@@ -223,9 +231,11 @@ public static class CanvasGraphBuilder
                 if (!string.IsNullOrWhiteSpace(stat.Trigger?.While))
                 {
                     chips.Add("while " + stat.Trigger.While);
+                    gate = stat.Trigger.While;
                 }
 
                 AddScope(chips, stat.Per);
+                per = stat.Per == PerScope.None ? "" : stat.Per.ToString().ToLowerInvariant();
                 // The typed form: every facet the view offers, the bound ones as rows, the rest offered by the
                 // picker; a key the view does not know is kept as a row the resolver already flagged.
                 MatchFacetForm form = MatchFacetForm.For(EmbeddedCatalog.Root, node.View, stat.Trigger?.Match);
@@ -249,18 +259,33 @@ public static class CanvasGraphBuilder
                 }
 
                 string kind = stat.Kind.ToString()?.ToLowerInvariant() ?? "";
-                if (kind is "compute" && stat.KindArg is { } formula)
+                if (kind is "compute")
                 {
-                    expression.Add("= " + formula);
+                    if (stat.KindArg is { } formula)
+                    {
+                        expression.Add("= " + formula);
+                    }
+
+                    lines.Add(new CanvasExpressionViewModel("compute", "=", stat.KindArg ?? "", WriteField));
                 }
-                else if (kind is "flag" && stat.KindArg is { } condition)
+                else if (kind is "flag")
                 {
-                    expression.Add("when " + condition);
+                    if (stat.KindArg is { } condition)
+                    {
+                        expression.Add("when " + condition);
+                    }
+
+                    lines.Add(new CanvasExpressionViewModel("when", "when", stat.KindArg ?? "", WriteField));
                 }
 
                 if (!string.IsNullOrWhiteSpace(stat.Trigger?.Where))
                 {
                     expression.Add("where " + stat.Trigger.Where);
+                }
+
+                if (kind is not "compute")
+                {
+                    lines.Add(new CanvasExpressionViewModel("where", "where", stat.Trigger?.Where ?? "", WriteField));
                 }
             }
         }
@@ -287,6 +312,9 @@ public static class CanvasGraphBuilder
             AvailableFacets = available,
             AvailableFacetKind = name => availableKinds.GetValueOrDefault(name, RulesTypeKind.None),
             Expression = expression.Count == 0 ? null : string.Join('\n', expression),
+            Lines = lines,
+            Per = per,
+            Gate = gate,
             SourceLine = node.Position.Line,
             IsAuthorable = node.IsAuthorable,
             Diagnostics = nodeDiagnostics
@@ -330,8 +358,11 @@ public static class CanvasGraphBuilder
     {
         int longest = Math.Max(node.Id.Length + (node.Label?.Length ?? 0) + 8,
             node.Expression?.Split('\n').Max(l => l.Length) ?? 0);
+        longest = Math.Max(longest, Math.Min(LineWrapColumns, node.Lines.Max(l => (int?)l.Text.Length) ?? 0) + 8);
         longest = Math.Max(longest, (node.Inputs.Max(i => (int?)i.Title.Length) ?? 0) + 14);
-        return Math.Clamp(BaseWidth + Math.Max(0, longest - 30) * 6, BaseWidth, 520);
+        double width = Math.Clamp(BaseWidth + Math.Max(0, longest - 30) * 6, BaseWidth, 520);
+        // The picker row and an expression editor are wider than any chip row.
+        return node.IsAuthorable && !node.IsHighlight && !node.IsScaffold ? Math.Max(width, EditableWidth) : width;
     }
 
     private static double HeightOf(CanvasNodeViewModel node)
@@ -341,6 +372,15 @@ public static class CanvasGraphBuilder
             Math.Max(node.Inputs.Count, node.Outputs.Count) * ConnectorHeight);
         double expression = node.Expression is null ? 0 : ExpressionHeight * node.Expression.Split('\n').Length;
         double diagnostics = node.Diagnostics.Count * DiagnosticHeight;
-        return HeaderHeight + chips + rows + expression + diagnostics + 16;
+        // The editors an authorable stat can show: the picker row, the add-facet picker, and one line per
+        // expression, each wrapping at the editor's width. Estimated whether or not the node is editable yet.
+        double editors = 0;
+        if (node.IsAuthorable && !node.IsHighlight && !node.IsScaffold)
+        {
+            editors = PickerRowHeight + ConnectorHeight
+                      + node.Lines.Sum(l => LineHeight + Math.Max(0, (l.Text.Length - 1) / LineWrapColumns) * 16);
+        }
+
+        return HeaderHeight + chips + rows + expression + diagnostics + editors + 16;
     }
 }
