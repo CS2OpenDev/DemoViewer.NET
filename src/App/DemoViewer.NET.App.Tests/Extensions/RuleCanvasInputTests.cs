@@ -11,6 +11,7 @@ using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.RuleCanvas;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
+using DemoViewer.NET.Extensions.RuleCanvas.Views;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Abstractions;
@@ -119,9 +120,47 @@ public class RuleCanvasInputTests
             }
         });
 
-    // The three tests below were written with the wave1/gestures workstream and have NOT been run: that
-    // workstream could not build App.Tests. Run them before trusting them; the pointer arithmetic for the
-    // cut assumes the items host and the connections host share the viewport transform.
+    // The pencil only reveals the label editor; the editor must take focus itself for the gesture to be one.
+    [Test]
+    public async Task ClickingTheLabelPencil_FocusesTheEditor_SoTypingLandsInIt() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using EditableCorpus corpus = new();
+            (MainViewModel vm, ServiceProvider services) = corpus.NewShell();
+            Window window = new() { Width = 1400, Height = 900, Content = new MainView { DataContext = vm } };
+            try
+            {
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                vm.TrySelectTab(RuleCanvasPack.HubId);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                Dispatcher.UIThread.RunJobs();
+
+                Button pencil = window.GetVisualDescendants().OfType<Button>()
+                    .First(b => b.Content as string == "✎" && b.IsEffectivelyVisible && b.DataContext is CanvasNodeViewModel { Id: "round_kills" });
+                CanvasNodeViewModel owner = (CanvasNodeViewModel)pencil.DataContext!;
+                Reveal(EditorOf(window), new Rect(owner.Location, owner.EstimatedSize));
+                Point at = Center(pencil, window);
+                window.MouseDown(at, MouseButton.Left);
+                window.MouseUp(at, MouseButton.Left);
+                Pump();
+
+                TextBox editor = window.GetVisualDescendants().OfType<TextBox>()
+                    .First(t => ReferenceEquals(t.DataContext, owner) && t.IsVisible && !t.GetVisualAncestors().OfType<ComboBox>().Any());
+                await Assert.That(editor.IsFocused).IsTrue().Because("the pencil is one gesture: the editor it reveals takes focus");
+
+                window.KeyTextInput("opening");
+                Dispatcher.UIThread.RunJobs();
+                await Assert.That(editor.Text).Contains("opening").Because("the keystrokes went to the editor, not to the pencil");
+            }
+            finally
+            {
+                window.Close();
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
 
     [Test]
     public async Task RightClickOnTheCanvas_OpensItsMenu_WithAddStatOnTheViews() =>
@@ -160,8 +199,10 @@ public class RuleCanvasInputTests
             }
         });
 
+    // The selection is made by the click, through SelectedConnections, so the binding and Nodify's wire
+    // selection are what this proves; the Delete routing is the smaller half.
     [Test]
-    public async Task DeleteWithAWireSelected_RemovesTheWire() =>
+    public async Task ClickingAWireSelectsIt_AndDeleteRemovesTheWireNotTheStat() =>
         await HeadlessSession.RunOnUi(async () =>
         {
             using EditableCorpus corpus = new();
@@ -176,17 +217,34 @@ public class RuleCanvasInputTests
                 AvaloniaHeadlessPlatform.ForceRenderTimerTick();
                 Dispatcher.UIThread.RunJobs();
 
-                Nodify.Avalonia.NodifyEditor editor = window.GetVisualDescendants().OfType<Nodify.Avalonia.NodifyEditor>().First();
+                Nodify.Avalonia.NodifyEditor editor = EditorOf(window);
                 CanvasTabViewModel canvas = (CanvasTabViewModel)editor.DataContext!;
                 CanvasConnectionViewModel gate = canvas.Connections.Single(c =>
                     c.Source.Owner?.Id == "MatchLive" && c.Target.Owner?.Id == "round_deaths" && !c.IsRead);
-                canvas.SelectedWires.Add(gate);
-                editor.Focus();
+                Point middle = Midpoint(gate);
+                Reveal(editor, new Rect(middle - new Vector(120, 120), new Size(240, 240)));
+                Point at = OnWire(editor, window, gate);
+                window.MouseDown(at, MouseButton.Left);
+                window.MouseUp(at, MouseButton.Left);
+                Dispatcher.UIThread.RunJobs();
+
+                await Assert.That(canvas.SelectedWires.Count).IsEqualTo(1).Because("the click selected the wire through SelectedConnections");
+                await Assert.That(ReferenceEquals(canvas.SelectedWires[0], gate)).IsTrue();
+
+                if (!editor.IsKeyboardFocusWithin)
+                {
+                    editor.Focus();
+                }
+
                 window.KeyPressQwerty(PhysicalKey.Delete, RawInputModifiers.None);
                 Dispatcher.UIThread.RunJobs();
 
-                await Assert.That(File.ReadAllText(corpus.UserFile)).DoesNotContain("round_deaths:\n    count: death\n    while: match.live")
-                    .Because("Delete with only a wire selected took the gate out");
+                string text = File.ReadAllText(corpus.UserFile);
+                using (Assert.Multiple())
+                {
+                    await Assert.That(RulesetEdits.Field(text, "round_deaths", "while")).IsNull().Because("Delete with only a wire selected took the gate out");
+                    await Assert.That(RulesetEdits.StatIds(text)).Contains("round_deaths").Because("the wire went, not the stat");
+                }
             }
             finally
             {
@@ -216,15 +274,11 @@ public class RuleCanvasInputTests
                 CanvasTabViewModel canvas = (CanvasTabViewModel)editor.DataContext!;
                 CanvasConnectionViewModel gate = canvas.Connections.Single(c =>
                     c.Source.Owner?.Id == "MatchLive" && c.Target.Owner?.Id == "round_deaths" && !c.IsRead);
-                Point middle = new((gate.Source.Anchor.X + gate.Target.Anchor.X) / 2, (gate.Source.Anchor.Y + gate.Target.Anchor.Y) / 2);
+                Point middle = Midpoint(gate);
                 Reveal(editor, new Rect(middle - new Vector(120, 120), new Size(240, 240)));
-                middle = new Point((gate.Source.Anchor.X + gate.Target.Anchor.X) / 2, (gate.Source.Anchor.Y + gate.Target.Anchor.Y) / 2);
-                // Graph space to window space: the editor scales and offsets its items host by the viewport.
-                Point InWindow(Point graph) => editor.TranslatePoint(
-                    new Point((graph.X - editor.ViewportLocation.X) * editor.ViewportZoom, (graph.Y - editor.ViewportLocation.Y) * editor.ViewportZoom),
-                    window) ?? throw new InvalidOperationException("editor is not in the window");
-                Point from = InWindow(middle + new Vector(0, -30));
-                Point to = InWindow(middle + new Vector(0, 30));
+                middle = Midpoint(gate);
+                Point from = InWindow(editor, window, middle + new Vector(0, -30));
+                Point to = InWindow(editor, window, middle + new Vector(0, 30));
 
                 const RawInputModifiers cut = RawInputModifiers.Alt | RawInputModifiers.Shift;
                 window.MouseDown(from, MouseButton.Left, cut);
@@ -232,8 +286,13 @@ public class RuleCanvasInputTests
                 window.MouseUp(to, MouseButton.Left, cut);
                 Dispatcher.UIThread.RunJobs();
 
-                await Assert.That(File.ReadAllText(corpus.UserFile)).DoesNotContain("round_deaths:\n    count: death\n    while: match.live")
-                    .Because("the cutting line crossed the gate wire, which is registered as a cuttable type");
+                string text = File.ReadAllText(corpus.UserFile);
+                using (Assert.Multiple())
+                {
+                    await Assert.That(RulesetEdits.Field(text, "round_deaths", "while")).IsNull()
+                        .Because("the cutting line crossed the gate wire, which is registered as a cuttable type");
+                    await Assert.That(RulesetEdits.StatIds(text)).Contains("round_deaths").Because("the wire went, not the stat");
+                }
             }
             finally
             {
@@ -262,6 +321,34 @@ public class RuleCanvasInputTests
 
     private static Nodify.Avalonia.NodifyEditor EditorOf(Window window) =>
         window.GetVisualDescendants().OfType<Nodify.Avalonia.NodifyEditor>().First();
+
+    // Read after Reveal: the anchors are written by the connectors as the containers arrange.
+    private static Point Midpoint(CanvasConnectionViewModel wire) =>
+        new((wire.Source.Anchor.X + wire.Target.Anchor.X) / 2, (wire.Source.Anchor.Y + wire.Target.Anchor.Y) / 2);
+
+    // Graph space to window space: the editor scales and offsets its items host by the viewport.
+    private static Point InWindow(Nodify.Avalonia.NodifyEditor editor, Window window, Point graph) =>
+        editor.TranslatePoint(
+            new Point((graph.X - editor.ViewportLocation.X) * editor.ViewportZoom, (graph.Y - editor.ViewportLocation.Y) * editor.ViewportZoom),
+            window) ?? throw new InvalidOperationException("editor is not in the window");
+
+    // A window point the wire's own stroke takes: the curve passes through the anchors' midpoint, and the
+    // stroke is two pixels wide, so the scan around it absorbs the arrow offsets and rounding.
+    private static Point OnWire(Nodify.Avalonia.NodifyEditor editor, Window window, CanvasConnectionViewModel wire)
+    {
+        Point middle = InWindow(editor, window, Midpoint(wire));
+        foreach (double dy in new[] { 0, 1, -1, 2, -2, 3, -3, 4, -4 })
+        {
+            Point at = middle + new Vector(0, dy);
+            if (window.InputHitTest(at) is Visual hit
+                && hit.GetSelfAndVisualAncestors().OfType<LabelledConnection>().Any(c => ReferenceEquals(c.DataContext, wire)))
+            {
+                return at;
+            }
+        }
+
+        throw new InvalidOperationException("the wire is not under its midpoint");
+    }
 
     // A point over the canvas that no node container covers, scanned over a grid of the editor's bounds.
     private static Point EmptyCanvasPoint(Nodify.Avalonia.NodifyEditor editor, Window window)
