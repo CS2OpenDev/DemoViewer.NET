@@ -2,8 +2,10 @@
 
 using System.Diagnostics;
 using CS2DemoKit.Analysis.Abstractions;
+using CS2DemoKit.Analysis.Rules.Hashing;
 using CS2DemoKit.Analysis.Yaml;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
+using DemoViewer.NET.TestSupport;
 
 #endregion
 
@@ -83,6 +85,64 @@ public class RulesetChainGraphTests
                 .IsEquivalentTo(Into("round_kills").Select(e => (e.Source, e.Label, e.IsRead)));
             await Assert.That(chain.Edges.Any(e => e.Source.Id == "round_kills" && e.Target.Id == "enemy_kills")).IsFalse()
                 .Because("sharing a node is not a wire between the two");
+        }
+    }
+
+    [Test]
+    public async Task ABrokenReference_StillDrawsEveryEntry_AndPinsTheDiagnostic()
+    {
+        using TempRules rules = TempRules.WithUser("player_round");
+        string path = rules.UserPath("player_round");
+        string text = File.ReadAllText(path);
+        File.WriteAllText(path, text.Replace("or player.traded\"", "or player.traded or no_such_stat > 0\"", StringComparison.Ordinal));
+        int brokenLine = Array.FindIndex(text.Split('\n'), l => l.StartsWith("  round_kast:", StringComparison.Ordinal)) + 1;
+
+        RulesetCorpus.Composed composed = rules.Load().Compose("player_round");
+        RulesetDocumentNode Node(string id) => composed.Graph.Nodes.Single(n => n.Key.Id == id);
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Chain.Nodes).IsEmpty().Because("nothing lowered");
+            await Assert.That(composed.Graph.Nodes.Count).IsEqualTo(8).Because("every stats: entry of the document is still a node");
+            await Assert.That(composed.Graph.Edges).IsEmpty().Because("no checked model, so no resolved read to draw");
+            await Assert.That(composed.Diagnostics.Any(d => d.Contains("no_such_stat", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(composed.PositionedDiagnostics.Any(d => d.RulesetId == "player_round" && d.Line >= brokenLine
+                                                                       && d.Message.Contains("no_such_stat", StringComparison.Ordinal)))
+                .IsTrue().Because("the diagnostic pins to the entry whose line it names");
+            await Assert.That(Node("round_kast").Kind).IsEqualTo(RuleNodeKind.Flag);
+            await Assert.That(Node("round_kast").IsAuthorable).IsTrue();
+            await Assert.That(Node("round_kast").Position.Line).IsEqualTo(brokenLine);
+            await Assert.That(Node("round_kills").View).IsEqualTo("kill").Because("count: kill names a catalog view");
+            await Assert.That(Node("round_kills").Events).IsEquivalentTo(["kill"]);
+            await Assert.That(Node("round_damage").Events).IsEquivalentTo(["damage_dealt"]).Because("the on: as written");
+            await Assert.That(Node("round_side").View).IsNull().Because("raw.round_freeze_end is no view");
+            await Assert.That(Node("round_kast").Events).IsEmpty();
+        }
+    }
+
+    [Test]
+    public async Task ABrokenDependency_StillDrawsBothDocuments_AndNamesTheDependency()
+    {
+        using TempRules rules = TempRules.WithUser("player_stats");
+        string root = DemoTestHelper.FindRepoRoot() ?? throw new InvalidOperationException("repo root not found");
+        string kast = rules.UserPath("kast");
+        File.WriteAllText(kast, File.ReadAllText(Path.Combine(root, "rules", "kast.rules.yaml"))
+            .Replace("kast_pct:\n    compute: \"", "kast_pct:\n    compute: \"no_such_stat + ", StringComparison.Ordinal));
+
+        RulesetCorpus corpus = rules.Load();
+        RulesetCorpus.Composed composed = corpus.Compose("player_stats");
+        using (Assert.Multiple())
+        {
+            await Assert.That(corpus.Failures).IsEmpty().Because("the edit keeps the file loadable");
+            await Assert.That(composed.Chain.Nodes).IsEmpty().Because(string.Join("; ", composed.Diagnostics));
+            await Assert.That(composed.Graph.Nodes.Count(n => n.Key.Ruleset == "player_stats")).IsGreaterThanOrEqualTo(50)
+                .Because("the open document's entries are all drawn");
+            await Assert.That(composed.Graph.Nodes.Count(n => n.Key.Ruleset == "kast")).IsGreaterThanOrEqualTo(15)
+                .Because("the dependency's entries are drawn too, read-only");
+            await Assert.That(composed.Graph.Nodes.Where(n => n.Key.Ruleset == "kast").All(n => !n.IsAuthorable)).IsTrue();
+            await Assert.That(composed.Graph.Nodes.Any(n => n.Key.Ruleset == "kast" && n.Kind == RuleNodeKind.Highlight)).IsTrue();
+            await Assert.That(composed.PositionedDiagnostics.Any(d => d.RulesetId == "kast"
+                                                                       && d.Message.Contains("no_such_stat", StringComparison.Ordinal)))
+                .IsTrue().Because("a dependency's diagnostic carries the dependency's id, so it pins to its own entry");
         }
     }
 
