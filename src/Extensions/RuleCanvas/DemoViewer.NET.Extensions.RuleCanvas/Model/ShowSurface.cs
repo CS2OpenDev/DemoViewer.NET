@@ -1,0 +1,113 @@
+#region
+
+using CS2DemoKit.Analysis.RulesetsV2.Model;
+
+#endregion
+
+namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
+
+/// <summary>
+///     One place a <c>show:</c> block surfaces an entry: a scoreboard entry or a table column, by its
+///     position in that sequence so an edit can address it.
+/// </summary>
+/// <param name="Table">The table's name, or null for the scoreboard.</param>
+/// <param name="Index">The entry's index in the scoreboard or in the table's columns.</param>
+/// <param name="Stat">The reference as written: <c>kills</c>, <c>ace.count</c>, <c>kast.kast_pct</c>.</param>
+/// <param name="Label">The <c>label:</c>, or null.</param>
+/// <param name="Group">The scoreboard <c>group:</c>, or null; a column has none.</param>
+public sealed record ShowReference(string? Table, int Index, string Stat, string? Label, string? Group)
+{
+    public bool IsScoreboard => Table is null;
+
+    /// <summary>Where the entry shows, in words: <c>scoreboard</c> or the table's name.</summary>
+    public string Surface => Table ?? "scoreboard";
+}
+
+/// <summary>One <c>tables:</c> entry: its name, its grain and its columns.</summary>
+public sealed record ShowTable(string Name, string Per, IReadOnlyList<ShowReference> Columns);
+
+/// <summary>
+///     Which entries a ruleset's <c>show:</c> block surfaces and where, read from the loaded document so
+///     the answer is the file's. A reference names a stat by its id, a highlight by its id or its
+///     <c>&lt;id&gt;.count</c>, and either by its ruleset-qualified spelling.
+/// </summary>
+public sealed class ShowSurface
+{
+    private ShowSurface(string rulesetId, IReadOnlyList<ShowReference> scoreboard, IReadOnlyList<ShowTable> tables)
+    {
+        RulesetId = rulesetId;
+        Scoreboard = scoreboard;
+        Tables = tables;
+    }
+
+    /// <summary>The answer for no document.</summary>
+    public static ShowSurface Empty { get; } = new("", [], []);
+
+    public string RulesetId { get; }
+
+    public IReadOnlyList<ShowReference> Scoreboard { get; }
+
+    public IReadOnlyList<ShowTable> Tables { get; }
+
+    /// <summary>Every reference, scoreboard first, then each table's columns in document order.</summary>
+    public IEnumerable<ShowReference> All => Scoreboard.Concat(Tables.SelectMany(t => t.Columns));
+
+    public bool IsEmpty => Scoreboard.Count == 0 && Tables.Count == 0;
+
+    /// <summary>Reads the <c>show:</c> block of <paramref name="doc" />; <see cref="Empty" /> for none.</summary>
+    public static ShowSurface Of(RulesetDoc? doc)
+    {
+        if (doc?.Show is not { } show)
+        {
+            return doc is null ? Empty : new ShowSurface(doc.Id, [], []);
+        }
+
+        List<ShowReference> scoreboard = [];
+        for (int i = 0; i < show.Scoreboard.Count; i++)
+        {
+            ScoreboardEntry entry = show.Scoreboard[i];
+            scoreboard.Add(new ShowReference(null, i, entry.Stat, entry.Label, entry.Group));
+        }
+
+        List<ShowTable> tables = [];
+        foreach (TableDef table in show.Tables)
+        {
+            List<ShowReference> columns = [];
+            for (int i = 0; i < table.Columns.Count; i++)
+            {
+                TableColumn column = table.Columns[i];
+                columns.Add(new ShowReference(table.Name, i, column.Stat, column.Label, null));
+            }
+
+            tables.Add(new ShowTable(table.Name, table.Per ?? "", columns));
+        }
+
+        return new ShowSurface(doc.Id, scoreboard, tables);
+    }
+
+    /// <summary>Whether <paramref name="stat" /> as written in <c>show:</c> names the entry <paramref name="id" />.</summary>
+    public static bool Refers(string stat, string id, string rulesetId)
+    {
+        ArgumentNullException.ThrowIfNull(stat);
+        string bare = stat.StartsWith(rulesetId + ".", StringComparison.Ordinal) ? stat[(rulesetId.Length + 1)..] : stat;
+        return bare == id || bare == id + ".count";
+    }
+
+    /// <summary>The places <paramref name="id" /> shows, in document order; empty when it is not surfaced.</summary>
+    public IReadOnlyList<ShowReference> ReferencesTo(string id) => [.. All.Where(r => Refers(r.Stat, id, RulesetId))];
+
+    /// <summary>
+    ///     The badge for an entry: <c>shown: scoreboard as Kills</c>, with every further place after a comma,
+    ///     or <c>not shown</c>.
+    /// </summary>
+    public string BadgeFor(string id)
+    {
+        IReadOnlyList<ShowReference> places = ReferencesTo(id);
+        if (places.Count == 0)
+        {
+            return "not shown";
+        }
+
+        return "shown: " + string.Join(", ", places.Select(p => p.Surface + " as " + (p.Label ?? p.Stat)));
+    }
+}
