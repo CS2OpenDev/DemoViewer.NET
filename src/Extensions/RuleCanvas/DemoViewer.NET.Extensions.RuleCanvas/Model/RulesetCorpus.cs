@@ -70,17 +70,22 @@ public sealed class RulesetCorpus
     // without a walk and a user file that loses a shipped id hands the shipped entry back.
     private sealed record LoadedFile(string Path, string Source, RulesetDoc Doc);
 
+    private readonly IReadOnlyList<(string Directory, string Source)> _directories;
     private readonly List<LoadedFile> _files;
     private readonly List<(string Path, string Reason)> _failures;
+    private readonly Dictionary<string, DateTime> _readAt;
     private readonly Dictionary<string, RulesetDoc> _docs;
 
     /// <summary>The demo-source profile every demo-less composition runs under, by the id the catalog keys its views on.</summary>
     internal static string ProfileName => DemoSourceProfileRegistry.DefaultFallback.GetType().Name;
 
-    private RulesetCorpus(List<LoadedFile> files, string? userDirectory, List<(string Path, string Reason)> failures)
+    private RulesetCorpus(IReadOnlyList<(string Directory, string Source)> directories, List<LoadedFile> files, string? userDirectory,
+        List<(string Path, string Reason)> failures, Dictionary<string, DateTime> readAt)
     {
+        _directories = directories;
         _files = files;
         _failures = failures;
+        _readAt = readAt;
         UserDirectory = userDirectory;
         List<Entry> entries = [];
         _docs = new Dictionary<string, RulesetDoc>(StringComparer.Ordinal);
@@ -187,31 +192,71 @@ public sealed class RulesetCorpus
     public static RulesetCorpus Load(IEnumerable<(string Directory, string Source)> directories)
     {
         ArgumentNullException.ThrowIfNull(directories);
+        List<(string Directory, string Source)> dirs = [.. directories];
         List<LoadedFile> files = [];
         List<(string Path, string Reason)> failures = [];
+        Dictionary<string, DateTime> readAt = new(StringComparer.OrdinalIgnoreCase);
         string? userDirectory = null;
-        foreach ((string directory, string source) in directories)
+        foreach ((string directory, string source) in dirs)
         {
             if (source == "user")
             {
                 userDirectory ??= directory;
             }
 
-            if (!Directory.Exists(directory))
+            foreach (string path in RulesFilesIn(directory))
             {
-                continue;
-            }
-
-            foreach (string path in Directory.EnumerateFiles(directory, "*.rules.yaml").OrderBy(p => p, StringComparer.Ordinal))
-            {
-                if (ReadFile(path, source, failures) is { } file)
+                if (ReadFile(path, source, failures, readAt) is { } file)
                 {
                     files.Add(file);
                 }
             }
         }
 
-        return new RulesetCorpus(files, userDirectory, failures);
+        return new RulesetCorpus(dirs, files, userDirectory, failures, readAt);
+    }
+
+    /// <summary>
+    ///     The files on disk this corpus does not reflect: every <c>*.rules.yaml</c> under its directories that
+    ///     appeared, went, or has a write time other than the one it was read at. What a watcher would have
+    ///     reported while nothing was watching, for the owner to hand to the same handler.
+    /// </summary>
+    public IReadOnlyList<string> ChangedPaths()
+    {
+        List<string> changed = [];
+        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+        foreach ((string directory, string _) in _directories)
+        {
+            foreach (string path in RulesFilesIn(directory))
+            {
+                string full = Path.GetFullPath(path);
+                seen.Add(full);
+                if (!_readAt.TryGetValue(full, out DateTime at) || at != WriteTimeOf(path))
+                {
+                    changed.Add(path);
+                }
+            }
+        }
+
+        changed.AddRange(_readAt.Keys.Where(p => !seen.Contains(p)));
+        return changed;
+    }
+
+    private static IEnumerable<string> RulesFilesIn(string directory) =>
+        Directory.Exists(directory)
+            ? Directory.EnumerateFiles(directory, "*.rules.yaml").OrderBy(p => p, StringComparer.Ordinal)
+            : [];
+
+    private static DateTime WriteTimeOf(string path)
+    {
+        try
+        {
+            return File.GetLastWriteTimeUtc(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return DateTime.MinValue;
+        }
     }
 
     /// <summary>
@@ -233,7 +278,8 @@ public sealed class RulesetCorpus
 
         List<LoadedFile> files = [.. _files];
         List<(string Path, string Reason)> failures = [.. _failures.Where(f => !SamePath(f.Path, path))];
-        LoadedFile? again = ReadFile(index >= 0 ? _files[index].Path : path, source, failures);
+        Dictionary<string, DateTime> readAt = new(_readAt, StringComparer.OrdinalIgnoreCase);
+        LoadedFile? again = ReadFile(index >= 0 ? _files[index].Path : path, source, failures, readAt);
         if (index >= 0)
         {
             files.RemoveAt(index);
@@ -246,7 +292,7 @@ public sealed class RulesetCorpus
             files.Insert(index >= 0 ? index : files.FindLastIndex(f => f.Source == source) + 1, again);
         }
 
-        return new RulesetCorpus(files, UserDirectory, failures);
+        return new RulesetCorpus(_directories, files, UserDirectory, failures, readAt);
     }
 
     private string? SourceOf(string path)
@@ -258,8 +304,11 @@ public sealed class RulesetCorpus
     private static bool SamePath(string a, string b) =>
         string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
 
-    private static LoadedFile? ReadFile(string path, string source, List<(string Path, string Reason)> failures)
+    // The write time is taken before the read, so a write that lands between the two reads as a change.
+    private static LoadedFile? ReadFile(string path, string source, List<(string Path, string Reason)> failures,
+        Dictionary<string, DateTime> readAt)
     {
+        readAt[Path.GetFullPath(path)] = WriteTimeOf(path);
         try
         {
             RulesetDocumentLoader.Outcome outcome = RulesetDocumentLoader.Load(File.ReadAllText(path), path);
