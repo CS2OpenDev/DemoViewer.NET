@@ -53,4 +53,23 @@
         <Setter Property="StrokeDashArray" Value="8,4" />
         <Setter Property="StrokeThickness" Value="1.5" />
     </Style>
+
+    <!-- Wires are selectable: a halo under the hovered wire says it can be picked, a wider one marks the
+         selection. The halo is the accent at low alpha so the stroke on top stays readable. -->
+    <Style Selector="connections|Connection:pointerover">
+        <Setter Property="OutlineThickness" Value="3" />
+        <Setter Property="OutlineBrush">
+            <Setter.Value>
+                <SolidColorBrush Color="#5050A0" Opacity="0.25" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style Selector="connections|Connection[(connections|BaseConnection.IsSelected)=true]">
+        <Setter Property="OutlineThickness" Value="4" />
+        <Setter Property="OutlineBrush">
+            <Setter.Value>
+                <SolidColorBrush Color="#5050A0" Opacity="0.45" />
+            </Setter.Value>
+        </Setter>
+    </Style>
 </Styles>
