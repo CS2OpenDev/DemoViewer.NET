@@ -1,0 +1,52 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia">
+
+    <!--
+      THE CANVAS THEME: the Nodify palette keys mapped onto the app's two themes, so the editor's own chrome
+      (background, node frame, connectors, wires) follows the theme the node faces already follow through the
+      app's brushes. Included by CanvasTabView after Nodify's own control styles; every visual decision about
+      the editor's chrome and the wire styles lives here.
+    -->
+
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="NodifyEditor.BackgroundColor">#EFF0F7</Color>
+                    <Color x:Key="NodifyEditor.ForegroundColor">#2E2E60</Color>
+                    <Color x:Key="Node.BackgroundColor">#FCFCFE</Color>
+                    <Color x:Key="Node.ContentColor">#FCFCFE</Color>
+                    <Color x:Key="Node.HeaderColor">#E9EAF3</Color>
+                    <Color x:Key="Node.BorderColor">#C9CADD</Color>
+                    <Color x:Key="ItemContainer.BorderColor">#C9CADD</Color>
+                    <Color x:Key="ItemContainer.SelectedColor">#4A4A9E</Color>
+                    <Color x:Key="Connector.BackgroundColor">#4A4A9E</Color>
+                    <Color x:Key="Connector.BorderColor">#EFF0F7</Color>
+                    <Color x:Key="Connection.StrokeColor">#4A4A9E</Color>
+                    <Color x:Key="PendingConnection.StrokeColor">#4A4A9E</Color>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="NodifyEditor.BackgroundColor">#0C0C1A</Color>
+                    <Color x:Key="NodifyEditor.ForegroundColor">#C0C0F0</Color>
+                    <Color x:Key="Node.BackgroundColor">#171726</Color>
+                    <Color x:Key="Node.ContentColor">#171726</Color>
+                    <Color x:Key="Node.HeaderColor">#0E0E1E</Color>
+                    <Color x:Key="Node.BorderColor">#252545</Color>
+                    <Color x:Key="ItemContainer.BorderColor">#252545</Color>
+                    <Color x:Key="ItemContainer.SelectedColor">#8A8AE0</Color>
+                    <Color x:Key="Connector.BackgroundColor">#7A7AD6</Color>
+                    <Color x:Key="Connector.BorderColor">#0C0C1A</Color>
+                    <Color x:Key="Connection.StrokeColor">#7A7AD6</Color>
+                    <Color x:Key="PendingConnection.StrokeColor">#7A7AD6</Color>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <!-- A read is a dashed wire; a write is solid. -->
+    <Style Selector="connections|Connection.read">
+        <Setter Property="StrokeDashArray" Value="4,3" />
+        <Setter Property="StrokeThickness" Value="1.5" />
+    </Style>
+</Styles>

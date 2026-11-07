@@ -5,7 +5,6 @@
              xmlns:model="using:DemoViewer.NET.Extensions.RuleCanvas.Model"
              xmlns:nodify="clr-namespace:Nodify.Avalonia;assembly=Nodify.Avalonia"
              xmlns:nodes="clr-namespace:Nodify.Avalonia.Nodes;assembly=Nodify.Avalonia"
-             xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia"
              xmlns:ae="using:AvaloniaEdit"
              x:Class="DemoViewer.NET.Extensions.RuleCanvas.Views.CanvasTabView"
              x:DataType="vm:CanvasTabViewModel">
@@ -14,58 +13,19 @@
       THE CANVAS SECTION: a strip over a Nodify editor. The strip picks the ruleset, reports what was
       drawn and switches the node style; the editor draws the composed ruleset. A node is a header (kind pill, id, label) over chips
       (trigger, gate, scope), the match facets as rows, and the expression; its ports are value references
-      only. Every colour is a token: the app's brushes on the node face, and the Nodify palette keys below
-      mapped onto the same tokens so the editor's own chrome follows the theme.
+      only. Every colour is a token: the app's brushes on the node face, and the Nodify palette in
+      CanvasTheme.axaml mapped onto the same tokens so the editor's own chrome follows the theme.
     -->
 
     <UserControl.Styles>
         <StyleInclude Source="avares://Nodify.Avalonia/Themes/Controls.xaml" />
-        <!-- A read is a dashed wire; a write is solid. -->
-        <Style Selector="connections|Connection.read">
-            <Setter Property="StrokeDashArray" Value="4,3" />
-            <Setter Property="StrokeThickness" Value="1.5" />
-        </Style>
+        <StyleInclude Source="avares://DemoViewer.NET.Extensions.RuleCanvas/Views/CanvasTheme.axaml" />
     </UserControl.Styles>
 
     <UserControl.KeyBindings>
         <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveSourceCommand}" />
         <KeyBinding Gesture="Cmd+S" Command="{Binding SaveSourceCommand}" />
     </UserControl.KeyBindings>
-
-    <UserControl.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.ThemeDictionaries>
-                <ResourceDictionary x:Key="Light">
-                    <Color x:Key="NodifyEditor.BackgroundColor">#EFF0F7</Color>
-                    <Color x:Key="NodifyEditor.ForegroundColor">#2E2E60</Color>
-                    <Color x:Key="Node.BackgroundColor">#FCFCFE</Color>
-                    <Color x:Key="Node.ContentColor">#FCFCFE</Color>
-                    <Color x:Key="Node.HeaderColor">#E9EAF3</Color>
-                    <Color x:Key="Node.BorderColor">#C9CADD</Color>
-                    <Color x:Key="ItemContainer.BorderColor">#C9CADD</Color>
-                    <Color x:Key="ItemContainer.SelectedColor">#4A4A9E</Color>
-                    <Color x:Key="Connector.BackgroundColor">#4A4A9E</Color>
-                    <Color x:Key="Connector.BorderColor">#EFF0F7</Color>
-                    <Color x:Key="Connection.StrokeColor">#4A4A9E</Color>
-                    <Color x:Key="PendingConnection.StrokeColor">#4A4A9E</Color>
-                </ResourceDictionary>
-                <ResourceDictionary x:Key="Dark">
-                    <Color x:Key="NodifyEditor.BackgroundColor">#0C0C1A</Color>
-                    <Color x:Key="NodifyEditor.ForegroundColor">#C0C0F0</Color>
-                    <Color x:Key="Node.BackgroundColor">#171726</Color>
-                    <Color x:Key="Node.ContentColor">#171726</Color>
-                    <Color x:Key="Node.HeaderColor">#0E0E1E</Color>
-                    <Color x:Key="Node.BorderColor">#252545</Color>
-                    <Color x:Key="ItemContainer.BorderColor">#252545</Color>
-                    <Color x:Key="ItemContainer.SelectedColor">#8A8AE0</Color>
-                    <Color x:Key="Connector.BackgroundColor">#7A7AD6</Color>
-                    <Color x:Key="Connector.BorderColor">#0C0C1A</Color>
-                    <Color x:Key="Connection.StrokeColor">#7A7AD6</Color>
-                    <Color x:Key="PendingConnection.StrokeColor">#7A7AD6</Color>
-                </ResourceDictionary>
-            </ResourceDictionary.ThemeDictionaries>
-        </ResourceDictionary>
-    </UserControl.Resources>
 
     <Grid RowDefinitions="Auto,*">
 
