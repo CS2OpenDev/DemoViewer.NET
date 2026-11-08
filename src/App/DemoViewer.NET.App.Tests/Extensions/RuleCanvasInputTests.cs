@@ -199,6 +199,95 @@ public class RuleCanvasInputTests
             }
         });
 
+    // Nodify's container takes the release without raising the context request, so the view opens the
+    // node's menu itself on a right click that did not pan, selecting the node first.
+    [Test]
+    public async Task RightClickOnANode_OpensItsMenu_WithDelete_AndSelectsIt() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using EditableCorpus corpus = new();
+            (MainViewModel vm, ServiceProvider services) = corpus.NewShell();
+            Window window = new() { Width = 1400, Height = 900, Content = new MainView { DataContext = vm } };
+            try
+            {
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                vm.TrySelectTab(RuleCanvasPack.HubId);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                Dispatcher.UIThread.RunJobs();
+
+                TextBlock title = HeaderTitle(window, "round_kills");
+                CanvasNodeViewModel owner = (CanvasNodeViewModel)title.DataContext!;
+                Nodify.Avalonia.NodifyEditor editor = EditorOf(window);
+                CanvasTabViewModel canvas = (CanvasTabViewModel)editor.DataContext!;
+                Reveal(editor, new Rect(owner.Location, owner.EstimatedSize));
+                Point at = Center(title, window);
+                window.MouseDown(at, MouseButton.Right);
+                window.MouseUp(at, MouseButton.Right);
+                Dispatcher.UIThread.RunJobs();
+
+                Nodify.Avalonia.ItemContainer container = title.GetVisualAncestors().OfType<Nodify.Avalonia.ItemContainer>().First();
+                using (Assert.Multiple())
+                {
+                    await Assert.That(container.ContextMenu?.IsOpen).IsEqualTo(true).Because("a right click that did not pan opens the node menu");
+                    await Assert.That(container.ContextMenu!.Items.OfType<MenuItem>().Select(m => m.Header as string)).Contains("Delete");
+                    await Assert.That(canvas.SelectedNodes.OfType<CanvasNodeViewModel>().Select(n => n.Id)).IsEquivalentTo(new[] { "round_kills" })
+                        .Because("the menu acts on the node under the pointer");
+                }
+            }
+            finally
+            {
+                window.Close();
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
+
+    [Test]
+    public async Task RightClickOnAWire_OpensItsMenu_WithRemoveWire() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using EditableCorpus corpus = new();
+            (MainViewModel vm, ServiceProvider services) = corpus.NewShell();
+            Window window = new() { Width = 1400, Height = 900, Content = new MainView { DataContext = vm } };
+            try
+            {
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                vm.TrySelectTab(RuleCanvasPack.HubId);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                Dispatcher.UIThread.RunJobs();
+
+                Nodify.Avalonia.NodifyEditor editor = EditorOf(window);
+                CanvasTabViewModel canvas = (CanvasTabViewModel)editor.DataContext!;
+                CanvasConnectionViewModel gate = canvas.Connections.Single(c =>
+                    c.Source.Owner?.Id == "MatchLive" && c.Target.Owner?.Id == "round_deaths" && !c.IsRead);
+                Point middle = Midpoint(gate);
+                Reveal(editor, new Rect(middle - new Vector(120, 120), new Size(240, 240)));
+                Point at = OnWire(editor, window, gate);
+                LabelledConnection wire = ((Visual)window.InputHitTest(at)!).GetSelfAndVisualAncestors().OfType<LabelledConnection>()
+                    .First(c => ReferenceEquals(c.DataContext, gate));
+                window.MouseDown(at, MouseButton.Right);
+                window.MouseUp(at, MouseButton.Right);
+                Dispatcher.UIThread.RunJobs();
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(wire.ContextMenu?.IsOpen).IsEqualTo(true).Because("a right click on the stroke opens the wire menu");
+                    await Assert.That(wire.ContextMenu!.Items.OfType<MenuItem>().Select(m => m.Header as string)).Contains("Remove wire");
+                    await Assert.That(editor.ContextMenu!.IsOpen).IsFalse().Because("the canvas menu stays shut under a wire");
+                }
+            }
+            finally
+            {
+                window.Close();
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
+
     // The selection is made by the click, through SelectedConnections, so the binding and Nodify's wire
     // selection are what this proves; the Delete routing is the smaller half.
     [Test]
