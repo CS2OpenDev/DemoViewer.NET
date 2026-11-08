@@ -128,20 +128,56 @@ public class CanvasThemeTests
         }
     }
 
+    // A quoted #rgb, #argb, #rrggbb or #aarrggbb, in markup or in a C# string; #region and the like have no quote.
+    private static readonly System.Text.RegularExpressions.Regex _hex =
+        new("[\"']#(?:[0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})[\"']", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static readonly string[] _scanned = ["Model", "ViewModels", "Views"];
+
+    private static readonly System.Text.RegularExpressions.Regex _named =
+        new(@"\b(?:Colors|Brushes)\.[A-Z][A-Za-z]+", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     [Test]
     public async Task TheTheme_HoldsTheOnlyHex()
     {
-        // Every colour on the canvas is a token: the view files name tokens, never a hex value or a named colour.
+        // Every colour on the canvas is a token: the model, the view models and the views name tokens, never a
+        // hex value or a named colour, in markup or in code.
         string root = Path.GetDirectoryName(typeof(CanvasThemeTests).Assembly.Location)!;
         string? views = FindViews(root);
         await Assert.That(views).IsNotNull().Because("the extension's Views folder is beside the tests in the repo");
-        foreach (string file in Directory.EnumerateFiles(views!, "*.axaml").Where(f => !f.EndsWith("CanvasTheme.axaml", StringComparison.Ordinal)))
+        string extension = Path.GetDirectoryName(views!)!;
+        List<string> files =
+        [
+            .. _scanned
+                .SelectMany(folder => Directory.EnumerateFiles(Path.Combine(extension, folder), "*.*", SearchOption.AllDirectories))
+                .Where(f => f.EndsWith(".cs", StringComparison.Ordinal) || f.EndsWith(".axaml", StringComparison.Ordinal))
+                .Where(f => !f.EndsWith("CanvasTheme.axaml", StringComparison.Ordinal))
+        ];
+        await Assert.That(files.Count).IsGreaterThan(40).Because("the three folders are scanned, not one");
+        using (Assert.Multiple())
         {
-            string text = File.ReadAllText(file);
-            await Assert.That(System.Text.RegularExpressions.Regex.IsMatch(text, "=\"#[0-9A-Fa-f]{6,8}\""))
-                .IsFalse().Because(Path.GetFileName(file) + " holds a hex colour");
-            await Assert.That(text.Contains("DodgerBlue", StringComparison.Ordinal) || text.Contains("\"Orange\"", StringComparison.Ordinal))
-                .IsFalse().Because(Path.GetFileName(file) + " names a Nodify default");
+            foreach (string file in files)
+            {
+                string text = File.ReadAllText(file);
+                await Assert.That(_hex.Match(text).Value).IsEqualTo("").Because(Path.GetFileName(file) + " holds a hex colour");
+                await Assert.That(_named.Match(text).Value).IsEqualTo("").Because(Path.GetFileName(file) + " names a colour");
+                await Assert.That(text.Contains("DodgerBlue", StringComparison.Ordinal) || text.Contains("\"Orange\"", StringComparison.Ordinal))
+                    .IsFalse().Because(Path.GetFileName(file) + " names a Nodify default");
+            }
+        }
+
+        // The scanner itself: the four hex widths and a named colour are caught, a #region and a token are not.
+        using (Assert.Multiple())
+        {
+            foreach (string literal in new[] { "\"#FFF\"", "\"#8FFF\"", "\"#5050A0\"", "'#265050A0'" })
+            {
+                await Assert.That(_hex.IsMatch("x=" + literal)).IsTrue().Because(literal);
+            }
+
+            await Assert.That(_hex.IsMatch("#region\n\"#12345\"")).IsFalse();
+            await Assert.That(_named.IsMatch("Fill = Brushes.Transparent;")).IsTrue();
+            await Assert.That(_named.IsMatch("Colors.DodgerBlue")).IsTrue();
+            await Assert.That(_named.IsMatch("{DynamicResource RuleTextKey}")).IsFalse();
         }
     }
 
