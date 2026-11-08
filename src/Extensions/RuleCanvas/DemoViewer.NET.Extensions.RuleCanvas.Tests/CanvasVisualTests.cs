@@ -88,8 +88,10 @@ public class CanvasVisualTests
         using (Assert.Multiple())
         {
             await Assert.That(WireLabelAtZoom.Of("player_death on", 1.0)).IsEqualTo("player_death on");
-            await Assert.That(WireLabelAtZoom.Of("player_death on", 0.7)).IsEqualTo("player_death on");
-            await Assert.That(WireLabelAtZoom.Of("player_death on", 0.69)).IsEqualTo("");
+            await Assert.That(WireLabelAtZoom.Of("player_death on", ReadableFit.MinZoom)).IsEqualTo("player_death on")
+                .Because("the opening zoom never hides the labels");
+            await Assert.That(WireLabelAtZoom.Of("player_death on", 0.55)).IsEqualTo("player_death on");
+            await Assert.That(WireLabelAtZoom.Of("player_death on", 0.54)).IsEqualTo("");
             await Assert.That(WireLabelAtZoom.Of(null, 1.0)).IsEqualTo("");
             await Assert.That(WireLabelAtZoom.Instance.Convert(["reads", 0.5], typeof(string), null, null!)).IsEqualTo("");
             await Assert.That(WireLabelAtZoom.Instance.Convert(["reads"], typeof(string), null, null!))

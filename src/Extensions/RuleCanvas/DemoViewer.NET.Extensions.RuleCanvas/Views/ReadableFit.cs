@@ -10,7 +10,9 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Views;
 ///     The viewport that shows a graph at a readable zoom. The whole extent is fitted down to
 ///     <see cref="MinZoom" />; when it does not fit there, the viewport frames the extent's width from its
 ///     left-most column through the authored column, anchored at the extent's top-left, so the chain reads
-///     source to stat and what is left over is a pan down. Pure, so the rule is testable without an editor.
+///     source to stat and what is left over is a pan down. When even that is too wide for the floor, the
+///     authored column is kept at the right edge and the upstream remainder is a pan left. Pure, so the rule
+///     is testable without an editor.
 /// </summary>
 /// <param name="Zoom">The viewport zoom.</param>
 /// <param name="Location">The viewport's top-left in graph coordinates.</param>
@@ -50,11 +52,17 @@ public sealed record ReadableFit(double Zoom, Point Location, bool FramesSourceT
 
         // Source to stat: from the extent's left edge through the right edge of the right-most authored node.
         // Without an authored node the whole width is the reading direction.
-        double right = all.Any(n => n.IsAuthored)
+        bool authored = all.Any(n => n.IsAuthored);
+        double right = authored
             ? all.Where(n => n.IsAuthored).Max(n => n.Location.X + n.Size.Width) + Pad
             : extent.Right;
         double widthFit = viewport.Width / Math.Max(1, right - extent.Left);
-        return new ReadableFit(Math.Clamp(widthFit, MinZoom, MaxZoom), extent.TopLeft, true);
+        double zoom = Math.Clamp(widthFit, MinZoom, MaxZoom);
+
+        // Wider than the floor allows: the authored column sits at the right edge, since that is what the
+        // user edits, and what is cut off is upstream, a pan left. With nothing authored the source stays.
+        double left = authored && widthFit < MinZoom ? right - viewport.Width / zoom : extent.Left;
+        return new ReadableFit(zoom, new Point(left, extent.Top), true);
     }
 
     /// <summary>

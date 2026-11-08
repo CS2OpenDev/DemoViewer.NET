@@ -414,8 +414,9 @@ The rest of the canvas surface, for the record:
 - **Fit** is `ReadableFit`: the whole chain fitted with the zoom clamped to 0.6 to 1.0, and when it does
   not fit at 0.6 the extent's width from its left-most column through the authored column is framed at a
   zoom in that range, anchored at the extent's top-left, so the chain reads source to stat and the rest is
-  a pan down, never a pan left to find the event. Wire labels hide under 0.7 zoom (`WireLabelAtZoom`). The
-  editor's own bounds are `MinViewportZoom` 0.25 and `MaxViewportZoom` 2.
+  a pan down. When even that width is too wide for 0.6, the authored column is kept at the right edge and
+  the upstream remainder is a pan left: the stat is what the user edits. Wire labels hide under 0.55 zoom
+  (`WireLabelAtZoom`), under the fit's floor, so an opening view is always labelled.
 - **The strip** is one row: the ruleset picker with its source tag, a `shipped, read only` chip and a
   primary `Edit a copy` beside it, an `AccentCaution` dot while the source pane is dirty, the diagnostics
   count as an `AccentError` badge that folds the list open under the strip (each line selects its node),

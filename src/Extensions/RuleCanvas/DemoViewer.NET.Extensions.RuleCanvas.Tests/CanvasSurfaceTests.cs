@@ -375,6 +375,24 @@ public class CanvasSurfaceTests
             await Assert.That(framed.Location.Y).IsEqualTo(-ReadableFit.Pad);
         }
 
+        // Wider than the floor allows even source to stat: the authored column ends at the right edge and the
+        // event column is the pan left.
+        List<(Point, Size, bool)> vast =
+        [
+            (new Point(0, 0), new Size(200, 100), false),
+            (new Point(2000, 0), new Size(360, 200), true),
+            (new Point(5000, 0), new Size(200, 100), false)
+        ];
+        ReadableFit edge = ReadableFit.Of(vast, viewport);
+        using (Assert.Multiple())
+        {
+            await Assert.That(edge.FramesSourceToStat).IsTrue();
+            await Assert.That(edge.Zoom).IsEqualTo(ReadableFit.MinZoom);
+            await Assert.That(edge.Location.X).IsEqualTo(2360 + ReadableFit.Pad - 1000 / ReadableFit.MinZoom).Within(0.001)
+                .Because("the authored column's right edge sits at the viewport's right edge");
+            await Assert.That(edge.Location.Y).IsEqualTo(-ReadableFit.Pad);
+        }
+
         // Too tall rather than too wide: the width fits at 1, so the zoom stays 1 and the rest is a pan down.
         List<(Point, Size, bool)> tall = [(new Point(0, 0), new Size(200, 100), false), (new Point(300, 2000), new Size(200, 100), true)];
         ReadableFit column = ReadableFit.Of(tall, viewport);

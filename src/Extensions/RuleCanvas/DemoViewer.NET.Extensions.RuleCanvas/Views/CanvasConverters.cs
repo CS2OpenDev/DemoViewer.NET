@@ -41,8 +41,8 @@ public sealed class GalleryItemPlaceable : IValueConverter
 /// </summary>
 public sealed class WireLabelAtZoom : IMultiValueConverter
 {
-    /// <summary>The zoom below which labels hide.</summary>
-    public const double MinZoom = 0.7;
+    /// <summary>The zoom below which labels hide. Under the fit's floor, so an opening view is always labelled.</summary>
+    public const double MinZoom = 0.55;
 
     public static WireLabelAtZoom Instance { get; } = new();
 
