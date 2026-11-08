@@ -46,6 +46,9 @@
                     <SolidColorBrush x:Key="RuleCheckGlyph" Color="#FCFCFE" />
                     <!-- 10px text on an AccentError or AccentCaution badge; TextOnAccent is 3.30 on the light error red. -->
                     <SolidColorBrush x:Key="RuleDiagnosticBadgeText" Color="#FCFCFE" />
+                    <!-- Minimap items are the kind tokens, which are tuned for text on the face; at full strength
+                         on the light minimap they shout, so light draws them at 55%. -->
+                    <x:Double x:Key="RuleMinimapItemOpacity">0.55</x:Double>
                     <!-- Nodify's own brush keys, aliased onto the tokens: its control themes read these by key, and a
                          node with a header takes them over a brush set on the element. -->
                     <StaticResource x:Key="Node.BackgroundBrush" ResourceKey="RuleNodeBg" />
@@ -99,6 +102,7 @@
                     <SolidColorBrush x:Key="RuleWireHalo" Color="#99A0A0F0" />
                     <SolidColorBrush x:Key="RuleCheckGlyph" Color="#12121E" />
                     <SolidColorBrush x:Key="RuleDiagnosticBadgeText" Color="#0C0C1A" />
+                    <x:Double x:Key="RuleMinimapItemOpacity">1</x:Double>
                     <StaticResource x:Key="Node.BackgroundBrush" ResourceKey="RuleNodeBg" />
                     <StaticResource x:Key="Node.ContentBrush" ResourceKey="RuleNodeBg" />
                     <StaticResource x:Key="Node.HeaderBrush" ResourceKey="RuleNodeBg" />
@@ -327,5 +331,6 @@
     </Style>
     <Style Selector="nodify|MinimapItem">
         <Setter Property="Background" Value="{DynamicResource RuleWireWrite}" />
+        <Setter Property="Opacity" Value="{DynamicResource RuleMinimapItemOpacity}" />
     </Style>
 </Styles>

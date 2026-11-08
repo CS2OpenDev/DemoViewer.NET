@@ -66,6 +66,25 @@ public class CanvasThemeTests
         }
     }
 
+    // The minimap items are the kind tokens, tuned for text on the face; light softens them, dark does not.
+    [Test]
+    public async Task TheMinimapItems_AreSoftenedInLightOnly()
+    {
+        Styles styles = LoadTheme();
+        ResourceDictionary resources = (ResourceDictionary)styles.Resources;
+        using (Assert.Multiple())
+        {
+            await Assert.That(resources.TryGetResource("RuleMinimapItemOpacity", ThemeVariant.Light, out object? light) && light is double).IsTrue();
+            await Assert.That(resources.TryGetResource("RuleMinimapItemOpacity", ThemeVariant.Dark, out object? dark) && dark is double).IsTrue();
+            await Assert.That((double)light!).IsEqualTo(0.55);
+            await Assert.That((double)dark!).IsEqualTo(1.0);
+            Style item = styles.OfType<Style>().Single(s => s.Selector?.ToString().EndsWith("MinimapItem", StringComparison.Ordinal) == true);
+            Setter opacity = item.Setters.OfType<Setter>().Single(s => s.Property?.Name == "Opacity");
+            await Assert.That(opacity.Value is DynamicResourceExtension { ResourceKey: "RuleMinimapItemOpacity" }).IsTrue()
+                .Because("the softening is the theme's, not the template's");
+        }
+    }
+
     [Test]
     public async Task TheTheme_RestylesEveryPieceOfNodifyChrome()
     {
