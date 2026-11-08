@@ -496,10 +496,11 @@ public partial class CanvasTabView : UserControl
         }
     }
 
-    // F: the selection, or the whole chain when nothing is selected, brought into view at a zoom that fits.
+    // F: the selection, or the whole chain when nothing is selected, framed at the zoom that fits it, at most
+    // 1.0. Set directly: the editor's BringIntoView animates the location and never touches the zoom.
     private void FrameSelection()
     {
-        if (_viewModel is null)
+        if (_viewModel is null || Editor.Bounds.Width <= 0 || Editor.Bounds.Height <= 0)
         {
             return;
         }
@@ -507,7 +508,9 @@ public partial class CanvasTabView : UserControl
         List<CanvasNodeViewModel> selected = [.. _viewModel.SelectedNodes.OfType<CanvasNodeViewModel>()];
         if (BoundsOf(selected.Count > 0 ? selected : _viewModel.Nodes) is { } bounds)
         {
-            _ = Editor.BringIntoView(bounds.Inflate(40));
+            ReadableFit fit = ReadableFit.OfSelection(bounds.Inflate(ReadableFit.Pad), Editor.Bounds.Size, Editor.MinViewportZoom);
+            Editor.ViewportZoom = fit.Zoom;
+            Editor.ViewportLocation = fit.Location;
         }
     }
 

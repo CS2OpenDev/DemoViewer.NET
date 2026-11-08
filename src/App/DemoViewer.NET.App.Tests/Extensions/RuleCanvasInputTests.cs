@@ -199,6 +199,95 @@ public class RuleCanvasInputTests
             }
         });
 
+    // Nodify's container takes the release without raising the context request, so the view opens the
+    // node's menu itself on a right click that did not pan, selecting the node first.
+    [Test]
+    public async Task RightClickOnANode_OpensItsMenu_WithDelete_AndSelectsIt() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using EditableCorpus corpus = new();
+            (MainViewModel vm, ServiceProvider services) = corpus.NewShell();
+            Window window = new() { Width = 1400, Height = 900, Content = new MainView { DataContext = vm } };
+            try
+            {
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                vm.TrySelectTab(RuleCanvasPack.HubId);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                Dispatcher.UIThread.RunJobs();
+
+                TextBlock title = HeaderTitle(window, "round_kills");
+                CanvasNodeViewModel owner = (CanvasNodeViewModel)title.DataContext!;
+                Nodify.Avalonia.NodifyEditor editor = EditorOf(window);
+                CanvasTabViewModel canvas = (CanvasTabViewModel)editor.DataContext!;
+                Reveal(editor, new Rect(owner.Location, owner.EstimatedSize));
+                Point at = Center(title, window);
+                window.MouseDown(at, MouseButton.Right);
+                window.MouseUp(at, MouseButton.Right);
+                Dispatcher.UIThread.RunJobs();
+
+                Nodify.Avalonia.ItemContainer container = title.GetVisualAncestors().OfType<Nodify.Avalonia.ItemContainer>().First();
+                using (Assert.Multiple())
+                {
+                    await Assert.That(container.ContextMenu?.IsOpen).IsEqualTo(true).Because("a right click that did not pan opens the node menu");
+                    await Assert.That(container.ContextMenu!.Items.OfType<MenuItem>().Select(m => m.Header as string)).Contains("Delete");
+                    await Assert.That(canvas.SelectedNodes.OfType<CanvasNodeViewModel>().Select(n => n.Id)).IsEquivalentTo(new[] { "round_kills" })
+                        .Because("the menu acts on the node under the pointer");
+                }
+            }
+            finally
+            {
+                window.Close();
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
+
+    [Test]
+    public async Task RightClickOnAWire_OpensItsMenu_WithRemoveWire() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using EditableCorpus corpus = new();
+            (MainViewModel vm, ServiceProvider services) = corpus.NewShell();
+            Window window = new() { Width = 1400, Height = 900, Content = new MainView { DataContext = vm } };
+            try
+            {
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                vm.TrySelectTab(RuleCanvasPack.HubId);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                Dispatcher.UIThread.RunJobs();
+
+                Nodify.Avalonia.NodifyEditor editor = EditorOf(window);
+                CanvasTabViewModel canvas = (CanvasTabViewModel)editor.DataContext!;
+                CanvasConnectionViewModel gate = canvas.Connections.Single(c =>
+                    c.Source.Owner?.Id == "MatchLive" && c.Target.Owner?.Id == "round_deaths" && !c.IsRead);
+                Point middle = Midpoint(gate);
+                Reveal(editor, new Rect(middle - new Vector(120, 120), new Size(240, 240)));
+                Point at = OnWire(editor, window, gate);
+                LabelledConnection wire = ((Visual)window.InputHitTest(at)!).GetSelfAndVisualAncestors().OfType<LabelledConnection>()
+                    .First(c => ReferenceEquals(c.DataContext, gate));
+                window.MouseDown(at, MouseButton.Right);
+                window.MouseUp(at, MouseButton.Right);
+                Dispatcher.UIThread.RunJobs();
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(wire.ContextMenu?.IsOpen).IsEqualTo(true).Because("a right click on the stroke opens the wire menu");
+                    await Assert.That(wire.ContextMenu!.Items.OfType<MenuItem>().Select(m => m.Header as string)).Contains("Remove wire");
+                    await Assert.That(editor.ContextMenu!.IsOpen).IsFalse().Because("the canvas menu stays shut under a wire");
+                }
+            }
+            finally
+            {
+                window.Close();
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
+
     // The selection is made by the click, through SelectedConnections, so the binding and Nodify's wire
     // selection are what this proves; the Delete routing is the smaller half.
     [Test]
@@ -302,6 +391,149 @@ public class RuleCanvasInputTests
             }
         });
 
+    // The container turns any press it sees into a drag. A press inside a face editor stops at the face, so
+    // dragging across the label editor selects text and leaves the node where it is.
+    [Test]
+    public async Task ADragThatStartsInTheLabelEditor_LeavesTheNodeWhereItIs() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using EditableCorpus corpus = new();
+            (MainViewModel vm, ServiceProvider services) = corpus.NewShell();
+            Window window = new() { Width = 1400, Height = 900, Content = new MainView { DataContext = vm } };
+            try
+            {
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                vm.TrySelectTab(RuleCanvasPack.HubId);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                Dispatcher.UIThread.RunJobs();
+
+                Button pencil = window.GetVisualDescendants().OfType<Button>()
+                    .First(b => b.Content as string == "✎" && b.IsEffectivelyVisible && b.DataContext is CanvasNodeViewModel { Id: "round_kills" });
+                CanvasNodeViewModel owner = (CanvasNodeViewModel)pencil.DataContext!;
+                Reveal(EditorOf(window), new Rect(owner.Location, owner.EstimatedSize));
+                Point pencilAt = Center(pencil, window);
+                window.MouseDown(pencilAt, MouseButton.Left);
+                window.MouseUp(pencilAt, MouseButton.Left);
+                Pump();
+
+                TextBox editor = window.GetVisualDescendants().OfType<TextBox>()
+                    .First(t => ReferenceEquals(t.DataContext, owner) && t.IsVisible && !t.GetVisualAncestors().OfType<ComboBox>().Any());
+                Point before = owner.Location;
+                Point from = Center(editor, window);
+                Point to = from + new Vector(60, 0);
+                window.MouseDown(from, MouseButton.Left);
+                window.MouseMove(to, RawInputModifiers.LeftMouseButton);
+                window.MouseUp(to, MouseButton.Left);
+                Pump();
+
+                await Assert.That(owner.Location).IsEqualTo(before).Because("the press was the editor's, so the container never started a drag");
+            }
+            finally
+            {
+                window.Close();
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
+
+    // The control case for the editor test above: the same drag from the header moves the node.
+    [Test]
+    public async Task ADragFromTheHeader_MovesTheNode() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using EditableCorpus corpus = new();
+            (MainViewModel vm, ServiceProvider services) = corpus.NewShell();
+            Window window = new() { Width = 1400, Height = 900, Content = new MainView { DataContext = vm } };
+            try
+            {
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                vm.TrySelectTab(RuleCanvasPack.HubId);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                Dispatcher.UIThread.RunJobs();
+
+                TextBlock title = HeaderTitle(window, "round_kills");
+                CanvasNodeViewModel owner = (CanvasNodeViewModel)title.DataContext!;
+                Reveal(EditorOf(window), new Rect(owner.Location, owner.EstimatedSize));
+                Point before = owner.Location;
+                Point from = Center(title, window);
+                Point to = from + new Vector(60, 0);
+                window.MouseDown(from, MouseButton.Left);
+                window.MouseMove(to, RawInputModifiers.LeftMouseButton);
+                window.MouseUp(to, MouseButton.Left);
+                Pump();
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(owner.Location.X - before.X).IsGreaterThan(30).Because("a 60px drag at zoom 1 moved the node right");
+                    await Assert.That(Math.Abs(owner.Location.Y - before.Y)).IsLessThan(1).Because("the drag was horizontal");
+                }
+            }
+            finally
+            {
+                window.Close();
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
+
+    // F frames the selection: two nodes that do not fit at the opening zoom end up in view together, which
+    // only a zoom change can do. Set, not animated: the headless clock does not run the editor's animations.
+    [Test]
+    public async Task PressingF_FramesTheSelectedNodes_ByChangingTheZoom() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using EditableCorpus corpus = new();
+            (MainViewModel vm, ServiceProvider services) = corpus.NewShell();
+            Window window = new() { Width = 1400, Height = 900, Content = new MainView { DataContext = vm } };
+            try
+            {
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                vm.TrySelectTab(RuleCanvasPack.HubId);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                Dispatcher.UIThread.RunJobs();
+
+                Nodify.Avalonia.NodifyEditor editor = EditorOf(window);
+                CanvasTabViewModel canvas = (CanvasTabViewModel)editor.DataContext!;
+                (CanvasNodeViewModel near, CanvasNodeViewModel far) = FarthestPair(canvas.Nodes);
+                Reveal(editor, NodeRect(editor, near));
+                double zoomBefore = editor.ViewportZoom;
+                await Assert.That(ViewportRect(editor).Contains(NodeRect(editor, far))).IsFalse()
+                    .Because("the pair was chosen so that both do not fit at the opening zoom");
+
+                canvas.SelectedNodes.Clear();
+                canvas.SelectedNodes.Add(near);
+                canvas.SelectedNodes.Add(far);
+                Dispatcher.UIThread.RunJobs();
+                if (!editor.IsKeyboardFocusWithin)
+                {
+                    editor.Focus();
+                }
+
+                window.KeyPressQwerty(PhysicalKey.F, RawInputModifiers.None);
+                Pump();
+
+                Rect viewport = ViewportRect(editor);
+                using (Assert.Multiple())
+                {
+                    await Assert.That(editor.ViewportZoom).IsLessThan(zoomBefore).Because("F zoomed out to fit the pair");
+                    await Assert.That(viewport.Contains(NodeRect(editor, near))).IsTrue().Because("the first node is in view");
+                    await Assert.That(viewport.Contains(NodeRect(editor, far))).IsTrue().Because("the second node is in view");
+                }
+            }
+            finally
+            {
+                window.Close();
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
+
     private static void Pump()
     {
         Dispatcher.UIThread.RunJobs();
@@ -317,6 +549,35 @@ public class RuleCanvasInputTests
         editor.ViewportZoom = 1;
         editor.ViewportLocation = new Point(graphRect.X - 60, graphRect.Y - 60);
         Pump();
+    }
+
+    // The viewport in graph space: the editor's pixels over its zoom, from its location.
+    private static Rect ViewportRect(Nodify.Avalonia.NodifyEditor editor) =>
+        new(editor.ViewportLocation, new Size(editor.Bounds.Width / editor.ViewportZoom, editor.Bounds.Height / editor.ViewportZoom));
+
+    // A node's measured rect where its container exists; the placement estimate otherwise.
+    private static Rect NodeRect(Nodify.Avalonia.NodifyEditor editor, CanvasNodeViewModel node) =>
+        new(node.Location, editor.ContainerFromItem(node) is Control { Bounds: { Width: > 0, Height: > 0 } bounds } ? bounds.Size : node.EstimatedSize);
+
+    private static (CanvasNodeViewModel, CanvasNodeViewModel) FarthestPair(IEnumerable<CanvasNodeViewModel> nodes)
+    {
+        List<CanvasNodeViewModel> all = [.. nodes];
+        (CanvasNodeViewModel, CanvasNodeViewModel) best = (all[0], all[0]);
+        double farthest = -1;
+        foreach (CanvasNodeViewModel a in all)
+        {
+            foreach (CanvasNodeViewModel b in all)
+            {
+                double distance = (a.Location - b.Location).Length;
+                if (distance > farthest)
+                {
+                    farthest = distance;
+                    best = (a, b);
+                }
+            }
+        }
+
+        return best;
     }
 
     private static Nodify.Avalonia.NodifyEditor EditorOf(Window window) =>
@@ -368,6 +629,11 @@ public class RuleCanvasInputTests
 
         throw new InvalidOperationException("no empty canvas in view");
     }
+
+    // The id in an authored node's header: the gallery lists the same names over GalleryItem contexts.
+    private static TextBlock HeaderTitle(Window window, string id) =>
+        window.GetVisualDescendants().OfType<TextBlock>()
+            .First(t => t.Text == id && t.IsEffectivelyVisible && t.DataContext is CanvasNodeViewModel node && node.Id == id);
 
     private static Point Center(Control control, Window window) =>
         control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)

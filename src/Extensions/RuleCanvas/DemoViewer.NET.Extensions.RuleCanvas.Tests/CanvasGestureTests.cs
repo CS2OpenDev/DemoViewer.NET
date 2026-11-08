@@ -1,5 +1,6 @@
 #region
 
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
@@ -96,6 +97,27 @@ public class CanvasGestureTests
     [Arguments(Key.S, KeyModifiers.Control, CanvasKeyAction.None)]
     public async Task TheKeyMap_ReadsEachChord(Key key, KeyModifiers modifiers, CanvasKeyAction expected) =>
         await Assert.That(CanvasKeyMap.Resolve(key, modifiers)).IsEqualTo(expected);
+
+    // F frames the selection: the zoom fits the padded bounds, never above 1 and never below the editor's own
+    // floor, and the bounds sit at the viewport's centre. The readable floor is a fit-on-open rule, not F's.
+    [Test]
+    public async Task FramingASelection_FitsItsZoom_AndCentresTheBounds()
+    {
+        Size viewport = new(1000, 500);
+
+        ReadableFit small = ReadableFit.OfSelection(new Rect(100, 100, 200, 100), viewport, 0.1);
+        ReadableFit wide = ReadableFit.OfSelection(new Rect(0, 0, 4000, 500), viewport, 0.1);
+        ReadableFit vast = ReadableFit.OfSelection(new Rect(0, 0, 40000, 500), viewport, 0.1);
+        using (Assert.Multiple())
+        {
+            await Assert.That(small.Zoom).IsEqualTo(1.0).Because("a selection that fits is never zoomed in past 1");
+            await Assert.That(small.Location).IsEqualTo(new Point(200 - 500, 150 - 250)).Because("the bounds' centre is the viewport's");
+            await Assert.That(wide.Zoom).IsEqualTo(0.25).Within(1e-9).Because("the width is the binding side");
+            await Assert.That(wide.Location).IsEqualTo(new Point(0, 250 - 1000)).Because("the frame is 1000 graph units tall at 0.25");
+            await Assert.That(vast.Zoom).IsEqualTo(0.1).Because("the editor's floor wins over the fit");
+            await Assert.That(vast.FramesAuthoredOnly).IsFalse();
+        }
+    }
 
     // A picker that holds focus steps its selection on the wheel, and a stepped picker writes at once.
     [Test]
