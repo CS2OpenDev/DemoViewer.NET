@@ -123,6 +123,30 @@ public class NodeFaceTests
         }
     }
 
+    /// <summary>
+    ///     The round-end trio merges into one <c>round_ended</c> event node. Its face carries the wire events,
+    ///     the factory counts them in a chip whose tip lists them; a one-event node says nothing more.
+    /// </summary>
+    [Test]
+    public async Task AMergedEventNode_CountsItsEvents_AndListsThemOnHover()
+    {
+        IReadOnlyList<NodeFace> faces = NodeFaceBuilder.Build(Compose("player_stats"));
+        ScaffoldFace merged = faces.OfType<ScaffoldFace>().Single(f => f.Name == "round_ended");
+        ScaffoldFace single = faces.OfType<ScaffoldFace>().Single(f => f.Name == "player_death");
+        CanvasNodeViewModel mergedNode = CanvasNodeFactory.ReadOnly.Create(merged);
+        CanvasNodeViewModel singleNode = CanvasNodeFactory.ReadOnly.Create(single);
+        using (Assert.Multiple())
+        {
+            await Assert.That(merged.Events).IsEquivalentTo(["round_officially_ended", "cs_win_panel_match", "round_end_terminal"]);
+            await Assert.That(mergedNode.Chips).Contains("3 events");
+            await Assert.That(mergedNode.ChipTips["3 events"].Split('\n'))
+                .IsEquivalentTo(["round_officially_ended", "cs_win_panel_match", "round_end_terminal"]);
+            await Assert.That(mergedNode.VisibleChipItems.Single(c => c.Text == "3 events").HasTip).IsTrue();
+            await Assert.That(single.Events).IsEquivalentTo(["player_death"]);
+            await Assert.That(singleNode.Chips).IsEmpty();
+        }
+    }
+
     [Test]
     public async Task AUseDependency_IsDrawnReadOnly_WithItsRulesetOnTheFace()
     {

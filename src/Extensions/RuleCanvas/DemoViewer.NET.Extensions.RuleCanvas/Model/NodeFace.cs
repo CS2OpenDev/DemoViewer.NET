@@ -343,4 +343,8 @@ public sealed record UndeclaredFace(
 public sealed record ScaffoldFace(
     RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
     int SourceLine, bool IsAuthorable, ChainNodeKind ChainKind, string Name, bool IsPerPlayer)
-    : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable);
+    : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
+{
+    /// <summary>The wire events an event node stands for: one, or the twins merged into it. Empty for every other kind.</summary>
+    public IReadOnlyList<string> Events { get; init; } = [];
+}

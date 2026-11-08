@@ -75,6 +75,14 @@ public sealed class CanvasNodeFactory(
                     chips.Add("each player");
                 }
 
+                // A merged event node names the wire events it stands for; a single event is the node's name.
+                if (scaffold.Events.Count > 1)
+                {
+                    string merged = $"{scaffold.Events.Count} events";
+                    chips.Add(merged);
+                    tips[merged] = string.Join('\n', scaffold.Events);
+                }
+
                 break;
             case HighlightFace highlight:
                 AddScope(chips, highlight.Per);

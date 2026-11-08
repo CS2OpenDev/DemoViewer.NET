@@ -39,7 +39,7 @@ public static class NodeFaceBuilder
             if (node.Kind != ChainNodeKind.Declared && keys.Add(node.Key))
             {
                 faces.Add(new ScaffoldFace(node.Key, CanvasEditSemantics.ScaffoldKind(node.Kind), null, "", "", [], 0, false,
-                    node.Kind, node.Name, node.IsPerPlayer));
+                    node.Kind, node.Name, node.IsPerPlayer) { Events = node.Events });
             }
         }
 
