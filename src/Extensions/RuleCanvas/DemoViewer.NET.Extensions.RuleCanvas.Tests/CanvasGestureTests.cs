@@ -115,7 +115,7 @@ public class CanvasGestureTests
             await Assert.That(wide.Zoom).IsEqualTo(0.25).Within(1e-9).Because("the width is the binding side");
             await Assert.That(wide.Location).IsEqualTo(new Point(0, 250 - 1000)).Because("the frame is 1000 graph units tall at 0.25");
             await Assert.That(vast.Zoom).IsEqualTo(0.1).Because("the editor's floor wins over the fit");
-            await Assert.That(vast.FramesAuthoredOnly).IsFalse();
+            await Assert.That(vast.FramesSourceToStat).IsFalse();
         }
     }
 
