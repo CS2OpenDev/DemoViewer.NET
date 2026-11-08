@@ -115,27 +115,73 @@ public static class NodeFaceBuilder
     private static string PerText(PerScope per) => per == PerScope.None ? "" : per.ToString().ToLowerInvariant();
 
     /// <summary>
-    ///     Files each composition diagnostic under the node whose entry contains its line: entries are
-    ///     contiguous in the file, so the node with the greatest start line at or before the diagnostic's
-    ///     line is the one it is about. A diagnostic with no position, or before the first entry, stays
-    ///     at the document level.
+    ///     Files each composition diagnostic under the node whose entry contains its line. An entry runs
+    ///     from its start line to the next thing the document declares: the next stat or highlight, or a
+    ///     define, a param, a cadence or the <c>show:</c> block, which closes the section. A diagnostic
+    ///     outside every entry, before the first or inside another block, stays at the document level, as
+    ///     does one inside an entry the graph does not draw.
     /// </summary>
     public static ILookup<RulesetDocumentNodeKey, string> DiagnosticsByNode(RulesetCorpus.Composed composed)
     {
         ArgumentNullException.ThrowIfNull(composed);
+        HashSet<RulesetDocumentNodeKey> drawn = [.. composed.Graph.Nodes.Select(n => n.Key)];
+        Dictionary<string, List<(int Line, RulesetDocumentNodeKey? Opens)>> marks = new(StringComparer.Ordinal);
         List<(RulesetDocumentNodeKey Key, string Message)> filed = [];
         foreach ((string rulesetId, int line, string message) in composed.PositionedDiagnostics)
         {
-            RulesetDocumentNode? owner = composed.Graph.Nodes
-                .Where(n => n.Key.Ruleset == rulesetId && n.Position.Line > 0 && n.Position.Line <= line)
-                .OrderByDescending(n => n.Position.Line)
-                .FirstOrDefault();
-            if (owner is not null)
+            if (!marks.TryGetValue(rulesetId, out List<(int Line, RulesetDocumentNodeKey? Opens)>? lines))
             {
-                filed.Add((owner.Key, message));
+                lines = composed.Documents.TryGetValue(rulesetId, out RulesetDoc? doc) ? Marks(doc) : [];
+                marks[rulesetId] = lines;
+            }
+
+            // The last mark at or before the line says what the line is inside: an entry, or something else.
+            int at = lines.FindLastIndex(m => m.Line <= line);
+            if (at >= 0 && lines[at].Opens is { } key && drawn.Contains(key))
+            {
+                filed.Add((key, message));
             }
         }
 
         return filed.ToLookup(f => f.Key, f => f.Message);
+    }
+
+    // Every line the document opens something on, in file order: an entry with its key, anything else with none.
+    private static List<(int Line, RulesetDocumentNodeKey? Opens)> Marks(RulesetDoc doc)
+    {
+        List<(int Line, RulesetDocumentNodeKey? Opens)> marks = [];
+        foreach (StatDef stat in doc.Stats)
+        {
+            marks.Add((stat.Position.Line, new RulesetDocumentNodeKey(doc.Id, stat.Id)));
+        }
+
+        foreach (HighlightDef highlight in doc.Highlights)
+        {
+            marks.Add((highlight.Position.Line, new RulesetDocumentNodeKey(doc.Id, highlight.Id)));
+        }
+
+        foreach (DefineDef define in doc.Defines)
+        {
+            marks.Add((define.Position.Line, null));
+        }
+
+        foreach (ParamDef param in doc.Params)
+        {
+            marks.Add((param.Position.Line, null));
+        }
+
+        foreach (CadenceDef cadence in doc.Cadences)
+        {
+            marks.Add((cadence.Position.Line, null));
+        }
+
+        if (doc.Show is { } show)
+        {
+            marks.Add((show.Position.Line, null));
+        }
+
+        marks.RemoveAll(m => m.Line <= 0);
+        marks.Sort((a, b) => a.Line.CompareTo(b.Line));
+        return marks;
     }
 }
