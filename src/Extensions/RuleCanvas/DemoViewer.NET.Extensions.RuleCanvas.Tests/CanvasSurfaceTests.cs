@@ -23,7 +23,7 @@ public class CanvasSurfaceTests
         {
             await Assert.That(string.Join(",", gallery.Select(g => g.Title))).IsEqualTo("Prefabs,Highlights,Stats,Gates,Views");
             await Assert.That(gallery.Single(g => g.Title == "Stats").Items.Select(i => i.Name))
-                .IsEquivalentTo(["count", "sum", "capture", "flag", "compute", "tally", "streak", "bucket", "rate", "burst"]);
+                .IsEquivalentTo(["count", "sum", "capture", "flag", "compute", "tally", "streak", "bucket", "rate", "burst", "define"]);
             GalleryGroup views = gallery.Single(g => g.Title == "Views");
             await Assert.That(views.IsExpanded).IsFalse().Because("the views are the long tail");
             await Assert.That(views.Sections.Count).IsGreaterThan(1).Because("views are grouped by the event that fires them");

@@ -22,7 +22,13 @@ public enum GalleryItemKind
     Prefab,
 
     /// <summary>A highlight with a starter <c>when:</c>; placed on the canvas under <c>highlights:</c>.</summary>
-    Highlight
+    Highlight,
+
+    /// <summary>
+    ///     A named trigger; placed on the canvas as a new <c>define:</c> entry, or dropped on a stat to put a new
+    ///     define, firing on the stat's own trigger, in front of it.
+    /// </summary>
+    Define
 }
 
 /// <summary>One thing the gallery offers to drag.</summary>
@@ -66,7 +72,7 @@ public sealed record GalleryGroup(string Title, IReadOnlyList<GalleryItem> Items
 
 /// <summary>
 ///     The gallery a user drags from, in task order: prefabs for the stats most rulesets start with, the
-///     highlights, the stat kinds, the gates (the engine's and the user's own flags), and the catalog's views
+///     highlights, the stat kinds and the define, the gates (the engine's and the user's own flags), and the catalog's views
 ///     grouped by the event that fires them. Views come from the catalog; the engine gates from the one
 ///     table in <see cref="CanvasEditSemantics.GatePaths" />.
 /// </summary>
@@ -151,6 +157,8 @@ public static class CanvasGallery
                     "rate: { of: kills_by_weapon, per: shots_by_weapon }\nper: match"),
                 new GalleryItem(GalleryItemKind.Stat, "burst", "burst", "A pulse when enough events land inside a window, for multi-kill highlights.",
                     "burst: kill\nmatch: { enemy: true }\nwindow: \"3s\"\nmin_streak: 2"),
+                new GalleryItem(GalleryItemKind.Define, "define", "define",
+                    "A named trigger: a view with its own match, while and where, that stats fire on.", "on: kill"),
             ]),
             new GalleryGroup("Gates", [.. engineGates, .. ownFlags], gateSections),
             new GalleryGroup("Views", views, viewSections, ExpandedByDefault: false)
