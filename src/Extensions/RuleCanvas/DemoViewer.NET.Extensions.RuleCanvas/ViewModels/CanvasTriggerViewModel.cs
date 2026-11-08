@@ -59,12 +59,21 @@ public sealed partial class CanvasTriggerViewModel : ObservableObject
     /// <summary>The header chip: the prefix and the spelling, or empty when there is none.</summary>
     public string Chip => Spelling.Length == 0 ? "" : Prefix + " " + Spelling;
 
+    /// <summary>Whether the spelling names a define of the open document, drawn as the node in front of this one.</summary>
+    public bool IsDefine { get; init; }
+
     /// <summary>What the chip and the picker say on hover: the view it resolves to and the events it fires on.</summary>
     public string Tip
     {
         get
         {
             string fires = Events.Count == 0 ? "fires on no wire event" : "fires on " + string.Join(", ", Events);
+            if (IsDefine)
+            {
+                string resolves = ResolvedView is { } resolved ? $"; resolves to the view {resolved}" : "";
+                return $"{Spelling} is a define of this ruleset, drawn as the node in front{resolves}; {fires}";
+            }
+
             return ResolvedView is { } view && !string.Equals(view, Spelling, StringComparison.Ordinal)
                 ? $"{Spelling} resolves to the view {view}; {fires}"
                 : $"{Spelling}: {fires}";

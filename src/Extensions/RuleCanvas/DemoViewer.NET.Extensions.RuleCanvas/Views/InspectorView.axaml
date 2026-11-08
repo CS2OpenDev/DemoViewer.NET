@@ -85,11 +85,11 @@
                         <ItemsControl ItemsSource="{Binding NodeFields}" ItemTemplate="{StaticResource FieldTemplate}" />
                     </StackPanel>
 
-                    <StackPanel Spacing="6" IsVisible="{Binding IsNodeAuthorable}">
+                    <StackPanel Spacing="6" IsVisible="{Binding ShowsSurfacing}">
                         <TextBlock Text="SURFACING" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" />
                         <TextBlock Text="{Binding Surfacing}" FontSize="11" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap" />
                         <ItemsControl ItemsSource="{Binding Entries}" ItemTemplate="{StaticResource EntryTemplate}" />
-                        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding CanEditNode}">
+                        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding CanSurfaceNode}">
                             <Button Classes="ghost" Content="Add to scoreboard" FontSize="11" Padding="8 3"
                                     Command="{Binding AddToScoreboardCommand}"
                                     ToolTip.Tip="Append a scoreboard entry for this stat, labelled by its label or id" />

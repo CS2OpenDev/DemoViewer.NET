@@ -24,11 +24,14 @@ public static class RulesetEdits
     ///     write it (<c>true</c>, <c>1</c>, <c>&lt;= 320</c>). A stat with no <c>match:</c> block gets one,
     ///     in the flow form the corpus writes.
     /// </summary>
-    public static string SetFacet(string text, string statId, string facet, string value)
+    public static string SetFacet(string text, string statId, string facet, string value) =>
+        SetFacetAt(text, RulesetDocumentEditor.StatPath(statId), statId, "stat", facet, value);
+
+    private static string SetFacetAt(string text, YamlPath entry, string id, string what, string facet, string value)
     {
         RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
         YamlDocumentText doc = editor.Document;
-        YamlPath match = RulesetDocumentEditor.StatPath(statId).Key("match");
+        YamlPath match = entry.Key("match");
         if (doc.Find(match) is YamlMappingNode map)
         {
             // An existing value keeps the style its author chose; the writer handles that case whole. A value
@@ -66,13 +69,12 @@ public static class RulesetEdits
             return editor.Apply([append]).Text;
         }
 
-        if (doc.Find(RulesetDocumentEditor.StatPath(statId)) is not YamlMappingNode)
+        if (doc.Find(entry) is not YamlMappingNode)
         {
-            throw new InvalidOperationException($"{statId} is not a stat in this document");
+            throw new InvalidOperationException($"{id} is not a {what} in this document");
         }
 
-        return editor.Apply([YamlEdits.AddEntry(doc, RulesetDocumentEditor.StatPath(statId),
-            $"match: {{ {facet}: {value} }}")]).Text;
+        return editor.Apply([YamlEdits.AddEntry(doc, entry, $"match: {{ {facet}: {value} }}")]).Text;
     }
 
     /// <summary>
@@ -80,24 +82,26 @@ public static class RulesetEdits
     ///     flow block (<c>{ a: 1, b: 2 }</c>) is edited in place here, since the writer refuses that case on
     ///     its own; a block-style one goes through the writer.
     /// </summary>
-    public static string RemoveFacet(string text, string statId, string facet)
+    public static string RemoveFacet(string text, string statId, string facet) =>
+        RemoveFacetAt(text, RulesetDocumentEditor.StatPath(statId), statId, facet);
+
+    private static string RemoveFacetAt(string text, YamlPath entry, string id, string facet)
     {
         RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
-        YamlPath statPath = RulesetDocumentEditor.StatPath(statId);
-        YamlPath match = statPath.Key("match");
+        YamlPath match = entry.Key("match");
         if (editor.Document.Find(match) is not YamlMappingNode map)
         {
-            throw new InvalidOperationException($"{statId} has no match: block");
+            throw new InvalidOperationException($"{id} has no match: block");
         }
 
         if (!map.Children.Keys.OfType<YamlScalarNode>().Any(k => k.Value == facet))
         {
-            throw new InvalidOperationException($"{statId} has no facet {facet}");
+            throw new InvalidOperationException($"{id} has no facet {facet}");
         }
 
         if (map.Children.Count == 1)
         {
-            return editor.RemoveStatField(statId, "match").Text;
+            return editor.Apply([YamlEdits.RemoveKey(editor.Document, entry, "match")]).Text;
         }
 
         if (map.Style != MappingStyle.Flow)
@@ -388,11 +392,204 @@ public static class RulesetEdits
     /// <summary>The highlight ids the document declares, in document order.</summary>
     public static IReadOnlyList<string> HighlightIds(string text) => KeysUnder(RulesetDocumentEditor.Open(text).Document, _highlights);
 
-    /// <summary>Every id the document declares, stats then highlights: the one namespace a new id must be free in.</summary>
+    /// <summary>
+    ///     Every id the document declares, stats, highlights then defines: the one namespace a new id must be
+    ///     free in, since the resolver keeps define names beside stat ids.
+    /// </summary>
     public static IReadOnlyList<string> EntryIds(string text)
     {
         YamlDocumentText doc = RulesetDocumentEditor.Open(text).Document;
-        return [.. KeysUnder(doc, _stats), .. KeysUnder(doc, _highlights)];
+        return [.. KeysUnder(doc, _stats), .. KeysUnder(doc, _highlights), .. KeysUnder(doc, _define)];
+    }
+
+    // ---- define: ----
+
+    private static readonly YamlPath _define = YamlPath.Root.Key("define");
+
+    // The keys a stat's trigger lives under: the kind's own for a count and its kin, on: and off: for the rest.
+    private static readonly string[] _triggerKeys = ["count", "streak", "bucket", "burst", "on", "off"];
+
+    private static YamlPath DefinePath(string name) => _define.Key(name);
+
+    /// <summary>The names under <c>define:</c>, in document order; list and expression defines included.</summary>
+    public static IReadOnlyList<string> DefineNames(string text) => KeysUnder(RulesetDocumentEditor.Open(text).Document, _define);
+
+    /// <summary>The scalar a define holds under <paramref name="key" />, or null.</summary>
+    public static string? DefineField(string text, string name, string key) =>
+        RulesetDocumentEditor.Open(text).Scalar(DefinePath(name).Key(key));
+
+    /// <summary>The keys of a define's <c>match:</c> block, in document order; empty when it has none.</summary>
+    public static IReadOnlyList<string> DefineFacetKeys(string text, string name) =>
+        KeysUnder(RulesetDocumentEditor.Open(text).Document, DefinePath(name).Key("match"));
+
+    /// <summary>Sets one scalar field of a trigger define (<c>on</c>, <c>while</c>, <c>where</c>), adding or replacing it.</summary>
+    public static string SetDefineField(string text, string name, string key, string value)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        if (editor.Document.Find(DefinePath(name)) is not YamlMappingNode)
+        {
+            throw new InvalidOperationException($"{name} is not a trigger define in this document");
+        }
+
+        return editor.Apply([YamlEdits.SetKey(editor.Document, DefinePath(name), key, value)]).Text;
+    }
+
+    /// <summary>Removes a define's scalar field when it has one; the text is unchanged otherwise.</summary>
+    public static string RemoveDefineFieldIfPresent(string text, string name, string key)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        return editor.Document.Find(DefinePath(name).Key(key)) is null
+            ? text
+            : editor.Apply([YamlEdits.RemoveKey(editor.Document, DefinePath(name), key)]).Text;
+    }
+
+    /// <summary>Sets one <c>match:</c> facet of a trigger define, as <see cref="SetFacet" /> does for a stat.</summary>
+    public static string SetDefineFacet(string text, string name, string facet, string value) =>
+        SetFacetAt(text, DefinePath(name), name, "trigger define", facet, value);
+
+    /// <summary>Removes one facet from a trigger define's <c>match:</c>, as <see cref="RemoveFacet" /> does for a stat.</summary>
+    public static string RemoveDefineFacet(string text, string name, string facet) => RemoveFacetAt(text, DefinePath(name), name, facet);
+
+    /// <summary>The ids of the stats whose trigger key spells <paramref name="name" />, in document order.</summary>
+    public static IReadOnlyList<string> StatsFiringOn(string text, string name)
+    {
+        YamlDocumentText doc = RulesetDocumentEditor.Open(text).Document;
+        List<string> firing = [];
+        foreach (string id in KeysUnder(doc, _stats))
+        {
+            if (_triggerKeys.Any(k => doc.Find(_stats.Key(id).Key(k)) is YamlScalarNode { Value: { } value } && value.Trim() == name))
+            {
+                firing.Add(id);
+            }
+        }
+
+        return firing;
+    }
+
+    /// <summary>
+    ///     Adds a trigger define named <paramref name="name" /> with <paramref name="body" /> (its keys at zero
+    ///     indentation, <c>on: kill</c>) under <c>define:</c>. A document without the block gets one in the
+    ///     loader's order: above <c>stats:</c>, after whatever precedes it, never at the end of the file.
+    /// </summary>
+    public static string AddDefine(string text, string name, string body)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(body);
+        if (!IsValidId(name))
+        {
+            throw new InvalidOperationException($"'{name}' is not a valid define name: letters, digits and underscores, not starting with a digit");
+        }
+
+        if (EntryIds(text).Contains(name, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException($"{name} is already declared in this ruleset");
+        }
+
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        string entry = name + ":\n" + string.Join('\n', body.Split('\n').Select(l => "  " + l));
+        if (doc.Find(_define) is YamlMappingNode { Style: MappingStyle.Flow, Children.Count: 0 } empty)
+        {
+            (int start, int length) = doc.SpanOf(empty);
+            editor = editor.Apply([new TextEdit(start, length, "", "open define")]);
+            doc = editor.Document;
+        }
+
+        if (doc.FindKey(_define) is not null)
+        {
+            return editor.Apply([YamlEdits.AddEntry(doc, _define, entry)]).Text;
+        }
+
+        string block = "define:" + doc.NewLine + string.Join(doc.NewLine, entry.Split('\n').Select(l => "  " + l)) + doc.NewLine;
+        if (doc.FindKey(_stats) is not { } statsKey || doc.Find(YamlPath.Root) is not YamlMappingNode root)
+        {
+            return editor.Apply([YamlEdits.AddEntry(doc, YamlPath.Root, block)]).Text;
+        }
+
+        // After the top-level entry before stats:, so a comment above stats: stays on stats:.
+        KeyValuePair<YamlNode, YamlNode>? before = root.Children
+            .Where(c => c.Key.Start.Index < statsKey.Start.Index)
+            .OrderBy(c => c.Key.Start.Index)
+            .Select(c => (KeyValuePair<YamlNode, YamlNode>?)c)
+            .LastOrDefault();
+        int at = before is { } anchor ? doc.StartOfNextLine(doc.EndOf(anchor.Value)) : doc.StartOfLine((int)statsKey.Start.Index);
+        bool blankAfter = at < doc.Text.Length && doc.Text[at] is '\n' or '\r';
+        string lead = at > 0 && doc.Text[at - 1] is not ('\n' or '\r') ? doc.NewLine : "";
+        return editor.Apply([new TextEdit(at, 0, lead + doc.NewLine + block + (blankAfter ? "" : doc.NewLine), "add define")]).Text;
+    }
+
+    /// <summary>Removes a define whole; the last one takes the <c>define:</c> block with it.</summary>
+    public static string RemoveDefine(string text, string name)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        if (doc.Find(DefinePath(name)) is null)
+        {
+            throw new InvalidOperationException($"{name} is not a define in this document");
+        }
+
+        editor = editor.Apply([YamlEdits.RemoveKey(doc, _define, name)]);
+        doc = editor.Document;
+        return IsEmptyCollection(doc.Find(_define)) ? editor.Apply([YamlEdits.RemoveKey(doc, YamlPath.Root, "define")]).Text : editor.Text;
+    }
+
+    /// <summary>
+    ///     Renames a define and rewrites every stat whose trigger key spells it, and every reference token to
+    ///     it in the sibling expressions and titles <see cref="RenameStat" /> rewrites. Only the tokens move.
+    /// </summary>
+    public static string RenameDefine(string text, string oldName, string newName)
+    {
+        ArgumentNullException.ThrowIfNull(newName);
+        newName = newName.Trim();
+        if (!IsValidId(newName))
+        {
+            throw new InvalidOperationException($"'{newName}' is not a valid id: letters, digits and underscores, not starting with a digit");
+        }
+
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        if (doc.FindKey(DefinePath(oldName)) is not { } key)
+        {
+            throw new InvalidOperationException($"{oldName} is not a define in this document");
+        }
+
+        if (oldName == newName)
+        {
+            return text;
+        }
+
+        if (EntryIds(text).Contains(newName, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException($"{newName} is already declared in this ruleset");
+        }
+
+        string ruleset = (doc.Find(YamlPath.Root.Key("ruleset")) as YamlScalarNode)?.Value ?? "";
+        (int start, int length) = doc.SpanOf(key);
+        List<TextEdit> edits = [new TextEdit(start, length, newName, $"rename {oldName}")];
+        foreach (string id in KeysUnder(doc, _stats))
+        {
+            foreach (string trigger in _triggerKeys)
+            {
+                YamlPath site = _stats.Key(id).Key(trigger);
+                if (doc.Find(site) is YamlScalarNode { Value: { } value } && value.Trim() == oldName)
+                {
+                    edits.Add(YamlEdits.SetScalar(doc, site, newName));
+                }
+            }
+        }
+
+        foreach ((_, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: false))
+        {
+            if (doc.Find(site) is YamlScalarNode { Value: { } value } && !_triggerKeys.Contains(site.Segments[^1].Key))
+            {
+                string rewritten = Rewrite(value, oldName, newName, ruleset, isTemplate);
+                if (rewritten != value)
+                {
+                    edits.Add(YamlEdits.SetScalar(doc, site, rewritten));
+                }
+            }
+        }
+
+        return editor.Apply(edits).Text;
     }
 
     // ---- ids and renaming ----

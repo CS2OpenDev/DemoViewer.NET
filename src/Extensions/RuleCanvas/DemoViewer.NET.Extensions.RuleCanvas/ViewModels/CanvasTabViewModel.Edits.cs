@@ -137,13 +137,14 @@ public sealed partial class CanvasTabViewModel
         }
 
         // The placement outlives a refused write: the arranger spends it on the first draw that holds the key.
-        _arranger.PlaceNext(new RulesetDocumentNodeKey(selected.Id, id), at);
+        _arranger.PlaceNext(CanvasEditSemantics.PlacedKeyFor(item, selected.Id, id), at);
         Apply(request);
     }
 
     /// <summary>
     ///     A gallery item dropped on a stat: a view retargets the trigger (the kind's own argument for a count,
-    ///     <c>on:</c> for a stat whose argument is a value), and a gate becomes its <c>while:</c>.
+    ///     <c>on:</c> for a stat whose argument is a value), a gate becomes its <c>while:</c>, and the define
+    ///     puts a fresh define in front of the stat.
     /// </summary>
     public void DropOnNode(GalleryItem item, CanvasNodeViewModel node)
     {
@@ -151,11 +152,11 @@ public sealed partial class CanvasTabViewModel
         ArgumentNullException.ThrowIfNull(node);
         if (!IsEditable)
         {
-            EditStatus = $"{item.Name} can only be dropped on a stat of your own ruleset.";
+            EditStatus = $"{item.Name} can only be dropped on a define or a stat of your own ruleset.";
             return;
         }
 
-        Apply(CanvasEditSemantics.DropOnNode(item, node));
+        Apply(CanvasEditSemantics.DropOnNode(item, node, FreshId(CanvasEditSemantics.PlacedIdFor(item))));
     }
 
     /// <summary>
@@ -273,8 +274,9 @@ public sealed partial class CanvasTabViewModel
             return;
         }
 
-        string id = FreshId(node.Id + "_copy");
-        if (Apply(CanvasEditSemantics.Duplicate(node, id)) && Nodes.FirstOrDefault(n => n.Id == id && n.Ruleset == node.Ruleset) is { } copy)
+        string id = FreshId(node.Title + "_copy");
+        RulesetDocumentNodeKey key = node.IsDefine ? RulesetDocumentNodeKey.Define(node.Ruleset, id) : new RulesetDocumentNodeKey(node.Ruleset, id);
+        if (Apply(CanvasEditSemantics.Duplicate(node, id)) && Nodes.FirstOrDefault(n => n.Key == key) is { } copy)
         {
             SelectedNodes.Clear();
             SelectedNodes.Add(copy);
@@ -391,7 +393,8 @@ public sealed partial class CanvasTabViewModel
     private bool Apply(EditRequest request) =>
         SelectedRuleset is { } selected && Report(_session.Apply(request), selected);
 
-    private string FreshId(string wanted) => CanvasEditSemantics.FreshId(wanted, Nodes.Select(n => n.Id));
+    // Defines share the stat id namespace, so a fresh id is free of both; the define prefix is the canvas's, not the file's.
+    private string FreshId(string wanted) => CanvasEditSemantics.FreshId(wanted, Nodes.Select(n => n.Title));
 
     // ---- the right dock: the Inspector and the YAML tab ----
 
@@ -482,7 +485,8 @@ public sealed partial class CanvasTabViewModel
         ShowSurface surface = ShowSurface.Of(doc);
         foreach (CanvasNodeViewModel node in nodes)
         {
-            node.Surfacing = node.IsAuthorable && !node.IsScaffold ? surface.BadgeFor(node.Id) : "";
+            // A define is not a value show: can surface.
+            node.Surfacing = node.IsAuthorable && !node.IsScaffold && !node.IsDefine ? surface.BadgeFor(node.Id) : "";
         }
     }
 

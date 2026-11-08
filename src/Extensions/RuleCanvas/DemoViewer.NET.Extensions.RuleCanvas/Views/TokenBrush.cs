@@ -102,6 +102,7 @@ public sealed class RuleKindToken : IValueConverter
         "context" => "RuleKindContext",
         "flag" or "compute" => "RuleKindDerived",
         "highlight" => "RuleKindHighlight",
+        "define" => "RuleKindDefine",
         _ => "RuleKindStat"
     };
 

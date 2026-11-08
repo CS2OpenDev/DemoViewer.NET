@@ -50,7 +50,8 @@ public static class NodeSizeEstimator
             return Math.Clamp(ScaffoldFixedWidth + node.KindLabel.Length * 7 + name.Length * 7.2 + chips, ScaffoldMinWidth, ScaffoldMaxWidth);
         }
 
-        int longest = Math.Max(node.Id.Length + (node.Label?.Length ?? 0) + 8,
+        // The header shows the define's name, not its define. key; a define has no label.
+        int longest = Math.Max(node.Title.Length + (node.Label?.Length ?? 0) + 8,
             node.Expression?.Split('\n').Max(l => l.Length) ?? 0);
         longest = Math.Max(longest, Math.Min(LineWrapColumns, node.Lines.Max(l => (int?)l.Text.Length) ?? 0) + 8);
         longest = Math.Max(longest, Math.Min(LineWrapColumns, node.Fields.Max(f => (int?)f.Original.Length) ?? 0) + 12);
@@ -78,7 +79,9 @@ public static class NodeSizeEstimator
         double kind = (node.Fields.Count + node.Choices.Count) * FieldRowHeight
                       + (node.Thresholds is null ? 0 : (node.Thresholds.Rows.Count + 1) * ThresholdRowHeight);
         // The editors an authorable stat can show: the picker rows, the actor toggle, the add-facet picker, and
-        // one line per expression, each wrapping at the editor's width. Estimated whether or not the node is editable yet.
+        // one line per expression, each wrapping at the editor's width. Estimated whether or not the node is
+        // editable yet. A define takes the same rows less the actor toggle, which it never has, and its gate
+        // picker sits where a stat's scope and gate row does.
         double editors = 0;
         if (node.IsAuthorable && !node.IsScaffold)
         {

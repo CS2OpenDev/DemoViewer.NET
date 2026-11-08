@@ -232,10 +232,16 @@ public sealed partial class InspectorViewModel : ObservableObject
         NotifyShape();
     }
 
+    /// <summary>A define is a trigger, not a value, so <c>show:</c> has nothing to surface for it.</summary>
+    public bool CanSurfaceNode => CanEditNode && _node is { IsDefine: false };
+
+    /// <summary>The surfacing block shows for an authorable stat or highlight; a define has none.</summary>
+    public bool ShowsSurfacing => IsNodeAuthorable && _node is { IsDefine: false };
+
     [RelayCommand]
     private void AddToScoreboard()
     {
-        if (_node is { } node && CanEditNode)
+        if (_node is { } node && CanSurfaceNode)
         {
             string reference = ReferenceOf(node);
             Apply(EditRequest.Of(t => RulesetEdits.AddToScoreboard(t, reference, node.Label ?? node.Id), $"show {node.Id} on the scoreboard"));
@@ -246,7 +252,7 @@ public sealed partial class InspectorViewModel : ObservableObject
     private void AddToTable(string? table)
     {
         table ??= TableToAdd;
-        if (_node is { } node && CanEditNode && !string.IsNullOrEmpty(table))
+        if (_node is { } node && CanSurfaceNode && !string.IsNullOrEmpty(table))
         {
             string reference = ReferenceOf(node);
             Apply(EditRequest.Of(t => RulesetEdits.AddToTable(t, table, reference, node.Label ?? node.Id), $"show {node.Id} in {table}"));
@@ -270,8 +276,10 @@ public sealed partial class InspectorViewModel : ObservableObject
                 t = RulesetEdits.RemoveShowReference(t, node.Id);
             }
 
-            return node.IsHighlight ? RulesetEdits.RemoveHighlight(t, node.Id) : RulesetEdits.RemoveStat(t, node.Id);
-        }, "delete " + node.Id));
+            return node.IsDefine ? RulesetEdits.RemoveDefine(t, node.Title)
+                : node.IsHighlight ? RulesetEdits.RemoveHighlight(t, node.Id)
+                : RulesetEdits.RemoveStat(t, node.Id);
+        }, "delete " + node.Title));
     }
 
     [RelayCommand]
@@ -310,10 +318,17 @@ public sealed partial class InspectorViewModel : ObservableObject
 
     private void ShowNode(CanvasNodeViewModel node)
     {
-        Heading = $"{node.KindLabel} {node.Id}";
+        Heading = $"{node.KindLabel} {node.Title}";
         NodeNote = node.IsScaffold ? "An engine node; nothing on it is written by a ruleset."
             : !node.IsAuthorable ? $"Declared by {node.Ruleset}; open that ruleset to edit it."
+            : node.IsDefine ? "A named trigger; the stats that fire on it are wired from it."
             : "";
+        if (node.IsDefine)
+        {
+            ShowDefine(node);
+            return;
+        }
+
         bool stat = !node.IsHighlight;
         Id.Load(node.Id, IsNodeAuthorable);
         Label.Load(stat ? Field(node.Id, "label") : null, stat && IsNodeAuthorable);
@@ -343,6 +358,34 @@ public sealed partial class InspectorViewModel : ObservableObject
             1 => "Delete and remove its reference",
             var n => $"Delete and remove its {n} references"
         };
+    }
+
+    // A define has a name and a gate the Inspector can edit; its trigger, facets and where are the node's own
+    // rows. show: cannot surface it, and it cannot go while a stat fires on it.
+    private void ShowDefine(CanvasNodeViewModel node)
+    {
+        string name = node.Title;
+        Id.Load(name, IsNodeAuthorable);
+        Label.Load(null, false);
+        Per.Load(null, false);
+        Gate.Load(Try(() => RulesetEdits.DefineField(_text, name, "while")), IsNodeAuthorable);
+        Format.Load(null, false);
+        Keep.Load(null, false);
+        Title.Load(null, false);
+        Score.Load(null, false);
+        Group.Load(null, false);
+        HighlightKind.Load(null, false);
+        foreach (InspectorFieldViewModel field in NodeFields)
+        {
+            field.IsEditable = CanEditNode;
+        }
+
+        Surfacing = "";
+        _showReferences = 0;
+        FillEntries([]);
+        IReadOnlyList<string> firing = Try(() => RulesetEdits.StatsFiringOn(_text, name)) ?? [];
+        DeleteRefusal = firing.Count == 0 ? "" : $"{name} is fired on by {string.Join(", ", firing)}; retarget them first.";
+        DeleteLabel = "Delete";
     }
 
     private void ShowDocument(RulesetCorpus.Entry? entry)
@@ -391,6 +434,7 @@ public sealed partial class InspectorViewModel : ObservableObject
         EditRequest request = field.Key switch
         {
             "id" => RenameRequest(node, value),
+            _ when node.IsDefine => CanvasEditSemantics.WriteDefineField(node, field.Key, value),
             "per" when value is null => EditRequest.Refuse("per cannot be empty; a stat is kept per round or per match."),
             _ when node.IsHighlight => EditRequest.Of(t => value is null
                     ? RulesetEdits.RemoveHighlightFieldIfPresent(t, node.Id, field.Key)
@@ -406,7 +450,8 @@ public sealed partial class InspectorViewModel : ObservableObject
         field.Error = outcome.IsRefused ? outcome.Message ?? "" : "";
         if (outcome.IsWritten && field.Key == "id" && value is { } renamed)
         {
-            _select(new RulesetDocumentNodeKey(node.Ruleset, renamed.Trim()));
+            string id = renamed.Trim();
+            _select(node.IsDefine ? RulesetDocumentNodeKey.Define(node.Ruleset, id) : new RulesetDocumentNodeKey(node.Ruleset, id));
         }
     }
 
@@ -418,15 +463,15 @@ public sealed partial class InspectorViewModel : ObservableObject
             return EditRequest.Refuse($"'{wanted}' is not a valid id: letters, digits and underscores, not starting with a digit.");
         }
 
-        if (wanted != node.Id && _ids.Contains(wanted, StringComparer.Ordinal))
+        if (wanted != node.Title && _ids.Contains(wanted, StringComparer.Ordinal))
         {
             return EditRequest.Refuse($"{wanted} is already declared in this ruleset.");
         }
 
-        return EditRequest.Of(t => node.IsHighlight
-                ? RulesetEdits.RenameHighlight(t, node.Id, wanted)
+        return EditRequest.Of(t => node.IsDefine ? RulesetEdits.RenameDefine(t, node.Title, wanted)
+                : node.IsHighlight ? RulesetEdits.RenameHighlight(t, node.Id, wanted)
                 : RulesetEdits.RenameStat(t, node.Id, wanted),
-            $"rename {node.Id} to {wanted}");
+            $"rename {node.Title} to {wanted}");
     }
 
     private void WriteDocumentField(InspectorFieldViewModel field, string? value)
@@ -494,6 +539,8 @@ public sealed partial class InspectorViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(ShowsDocument));
         OnPropertyChanged(nameof(CanEditNode));
+        OnPropertyChanged(nameof(CanSurfaceNode));
+        OnPropertyChanged(nameof(ShowsSurfacing));
         OnPropertyChanged(nameof(HasNodeNote));
         OnPropertyChanged(nameof(HasReadOnlyNote));
         OnPropertyChanged(nameof(HasEntries));

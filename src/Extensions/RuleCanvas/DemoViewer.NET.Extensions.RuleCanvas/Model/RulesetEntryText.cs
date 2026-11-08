@@ -16,13 +16,21 @@ public static class RulesetEntryText
 {
     private static readonly YamlPath _highlights = YamlPath.Root.Key("highlights");
 
+    private static readonly YamlPath _define = YamlPath.Root.Key("define");
+
     /// <summary>The body of <paramref name="id" />'s entry at zero indentation, without its id line.</summary>
     /// <exception cref="InvalidOperationException">The entry is not in the document.</exception>
-    public static string BodyOf(string text, string id, bool highlight)
+    public static string BodyOf(string text, string id, bool highlight) =>
+        BodyAt(text, highlight ? _highlights.Key(id) : RulesetDocumentEditor.StatPath(id), id);
+
+    /// <summary>The body of the define <paramref name="name" /> at zero indentation, without its name line.</summary>
+    /// <exception cref="InvalidOperationException">The define is not in the document.</exception>
+    public static string DefineBodyOf(string text, string name) => BodyAt(text, _define.Key(name), name);
+
+    private static string BodyAt(string text, YamlPath path, string id)
     {
         ArgumentNullException.ThrowIfNull(text);
         YamlDocumentText doc = RulesetDocumentEditor.Open(text).Document;
-        YamlPath path = highlight ? _highlights.Key(id) : RulesetDocumentEditor.StatPath(id);
         if (doc.FindKey(path) is not { } key || doc.Find(path) is not YamlMappingNode value)
         {
             throw new InvalidOperationException($"{id} is not an entry of this document");

@@ -107,9 +107,13 @@ public static class CanvasEditSemantics
         return id;
     }
 
-    /// <summary>The id a placed gallery item asks for: a prefab or a highlight keeps its name, a kind or a view is <c>new_</c> it.</summary>
+    /// <summary>The id a placed gallery item asks for: a prefab or a highlight keeps its name, a kind, a view or the define is <c>new_</c> it.</summary>
     public static string PlacedIdFor(GalleryItem item) =>
         item.Kind is GalleryItemKind.Prefab or GalleryItemKind.Highlight ? item.Name : "new_" + item.Name;
+
+    /// <summary>The node key a placed item will draw under: a define's is prefixed, every other entry's is its id.</summary>
+    public static RulesetDocumentNodeKey PlacedKeyFor(GalleryItem item, string ruleset, string id) =>
+        item.Kind == GalleryItemKind.Define ? RulesetDocumentNodeKey.Define(ruleset, id) : new RulesetDocumentNodeKey(ruleset, id);
 
     /// <summary>Adds a count stat on <paramref name="view" /> as <paramref name="id" />, at the end of <c>stats:</c>.</summary>
     public static EditRequest AddStat(string view, string id) =>
@@ -117,7 +121,8 @@ public static class CanvasEditSemantics
 
     /// <summary>
     ///     A gallery item dropped on bare canvas: a stat kind, a view, a prefab or a highlight becomes a new entry
-    ///     under <paramref name="id" />. A gate has nothing to attach to there and is refused.
+    ///     under <paramref name="id" />; the define becomes a <c>define:</c> entry, its block opened above
+    ///     <c>stats:</c> when the document has none. A gate has nothing to attach to there and is refused.
     /// </summary>
     public static EditRequest PlaceItem(GalleryItem item, string id)
     {
@@ -132,31 +137,82 @@ public static class CanvasEditSemantics
             return EditRequest.Of(text => RulesetEdits.AddHighlight(text, id, item.Body), "add " + id);
         }
 
+        if (item.Kind == GalleryItemKind.Define)
+        {
+            return EditRequest.Of(text => RulesetEdits.AddDefine(text, id, item.Body), "add define " + id);
+        }
+
         string body = string.Join('\n', item.Body.Split('\n').Select(l => "  " + l));
         return EditRequest.Of(text => RulesetEdits.AddStat(text, $"{id}:\n{body}\n"), "add " + id);
     }
 
     /// <summary>
     ///     A gallery item dropped on a node: a view retargets the trigger (the kind's own argument for a count,
-    ///     <c>on:</c> for a stat whose argument is a value), and a gate becomes its <c>while:</c>.
+    ///     <c>on:</c> for a stat whose argument is a value, <c>on:</c> for a define), a gate becomes its
+    ///     <c>while:</c>, and the define puts a new define named <paramref name="freshId" />, firing on the
+    ///     stat's own trigger, in front of the stat, which then fires on it.
     /// </summary>
-    public static EditRequest DropOnNode(GalleryItem item, CanvasNodeViewModel node)
+    public static EditRequest DropOnNode(GalleryItem item, CanvasNodeViewModel node, string? freshId = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(node);
         if (!node.IsAuthorable || node.IsHighlight)
         {
-            return EditRequest.Refuse($"{item.Name} can only be dropped on a stat of your own ruleset.");
+            return EditRequest.Refuse($"{item.Name} can only be dropped on a define or a stat of your own ruleset.");
         }
 
         return item.Kind switch
         {
-            GalleryItemKind.Gate => EditRequest.Of(text => RulesetEdits.SetField(text, node.Id, "while", item.Name),
-                $"gate {node.Id} on {item.Name}"),
+            GalleryItemKind.Gate => Gate(node, item.Name),
             GalleryItemKind.View when TriggerKeyFor(node) is { } key => Retarget(node, key, item.Name),
             GalleryItemKind.View => EditRequest.Refuse($"A {node.Kind} fires on no view; {item.Name} goes on a stat that has a trigger."),
+            GalleryItemKind.Define when node.IsDefine => EditRequest.Refuse("A define cannot fire on a define; drop it on a stat or on the canvas."),
+            GalleryItemKind.Define when freshId is not null && TriggerKeyFor(node) is { } key => InterposeDefine(node, key, freshId),
+            GalleryItemKind.Define => EditRequest.Refuse($"A {node.Kind} fires on no view, so no define can stand in front of it."),
             _ => EditRequest.Refuse($"Drop {item.Title} on the canvas to add it as a stat.")
         };
+    }
+
+    // The gate goes on the node's own while:. The resolver reads a define's while: and a firing stat's as one
+    // compound gate and refuses it, so a gate on either side is refused while the other side has one.
+    private static EditRequest Gate(CanvasNodeViewModel node, string gate)
+    {
+        string id = node.Title;
+        if (node.IsDefine)
+        {
+            return EditRequest.Of(text =>
+            {
+                IReadOnlyList<string> gated = [.. RulesetEdits.StatsFiringOn(text, id).Where(s => RulesetEdits.Field(text, s, "while") is not null)];
+                return gated.Count > 0
+                    ? throw new InvalidOperationException($"{string.Join(", ", gated)} already carry a while: of their own, and the engine takes one gate per trigger")
+                    : RulesetEdits.SetDefineField(text, id, "while", gate);
+            }, $"gate define {id} on {gate}");
+        }
+
+        return EditRequest.Of(text =>
+        {
+            string? define = RulesetEdits.DefineNames(text).FirstOrDefault(d => RulesetEdits.StatsFiringOn(text, d).Contains(id, StringComparer.Ordinal));
+            return define is not null && RulesetEdits.DefineField(text, define, "while") is { } own
+                ? throw new InvalidOperationException($"{id} fires on {define}, which is already gated on {own}; the engine takes one gate per trigger")
+                : RulesetEdits.SetField(text, id, "while", gate);
+        }, $"gate {id} on {gate}");
+    }
+
+    // A new define takes the stat's trigger spelling as its on:, and the stat fires on the define: nothing changes
+    // in what runs, and the condition now has a node to grow on. A stat already firing on a define keeps it.
+    private static EditRequest InterposeDefine(CanvasNodeViewModel node, string key, string freshId)
+    {
+        if (node.Face is StatFace { Define: not null } face)
+        {
+            return EditRequest.Refuse($"{node.Id} already fires on {face.Define!.Name}; edit that define instead.");
+        }
+
+        string spelling = (node.Face as StatFace)?.TriggerSpelling ?? node.View ?? "kill";
+        return EditRequest.Of(text =>
+        {
+            text = RulesetEdits.AddDefine(text, freshId, "on: " + spelling);
+            return RulesetEdits.SetField(text, node.Id, key, freshId);
+        }, $"put define {freshId} in front of {node.Id}");
     }
 
     /// <summary>
@@ -235,7 +291,24 @@ public static class CanvasEditSemantics
         }
 
         HashSet<RulesetDocumentNodeKey> keys = [.. deleting.Select(n => n.Key)];
-        List<string> refusals = [.. deleting.Select(n => Dependants(n, composed, keys, text)).Where(d => d.Any).Select(d => d.Describe())];
+        List<string> refusals = [];
+        foreach (CanvasNodeViewModel node in deleting)
+        {
+            if (node.IsDefine)
+            {
+                // A define something fires on leaves those stats with no trigger; there is nothing to retarget them to.
+                IReadOnlyList<string> firing = [.. StatsFiringOn(node, composed, text).Where(s => !keys.Contains(new RulesetDocumentNodeKey(node.Ruleset, s)))];
+                if (firing.Count > 0)
+                {
+                    refusals.Add($"{node.Title} is fired on by {string.Join(", ", firing)}; retarget them first");
+                }
+            }
+            else if (Dependants(node, composed, keys, text) is { Any: true } dependants)
+            {
+                refusals.Add(dependants.Describe());
+            }
+        }
+
         if (refusals.Count > 0)
         {
             return EditRequest.Refuse(string.Join("; ", refusals));
@@ -245,12 +318,32 @@ public static class CanvasEditSemantics
             {
                 foreach (CanvasNodeViewModel node in deleting)
                 {
-                    text = node.IsHighlight ? RulesetEdits.RemoveHighlight(text, node.Id) : RulesetEdits.RemoveStat(text, node.Id);
+                    text = node.IsDefine ? RulesetEdits.RemoveDefine(text, node.Title)
+                        : node.IsHighlight ? RulesetEdits.RemoveHighlight(text, node.Id)
+                        : RulesetEdits.RemoveStat(text, node.Id);
                 }
 
                 return text;
             },
-            "delete " + string.Join(", ", deleting.Select(n => n.Id)));
+            "delete " + string.Join(", ", deleting.Select(n => n.Title)));
+    }
+
+    // The stats whose trigger spells the define, from the loaded document, or from the text when the document did not load.
+    private static IReadOnlyList<string> StatsFiringOn(CanvasNodeViewModel define, RulesetCorpus.Composed composed, string? text)
+    {
+        if (composed.Documents.TryGetValue(define.Ruleset, out RulesetDoc? doc))
+        {
+            return RulesetDocumentGraph.StatsFiringOn(doc, define.Title);
+        }
+
+        try
+        {
+            return text is null ? [] : RulesetEdits.StatsFiringOn(text, define.Title);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or YamlDotNet.Core.YamlException)
+        {
+            return [];
+        }
     }
 
     /// <summary>
@@ -264,7 +357,7 @@ public static class CanvasEditSemantics
         ArgumentNullException.ThrowIfNull(target);
         if (!target.IsAuthorable || target.IsScaffold)
         {
-            return EditRequest.Refuse("A wire can only end on a stat or a highlight of your own ruleset.");
+            return EditRequest.Refuse("A wire can only end on a stat, a define or a highlight of your own ruleset.");
         }
 
         if (target.IsHighlight)
@@ -272,15 +365,37 @@ public static class CanvasEditSemantics
             return ConnectHighlight(source, target);
         }
 
+        if (source.IsDefine)
+        {
+            return ConnectDefine(source, target);
+        }
+
         return source.Ruleset switch
         {
             "~event" => ConnectEvent(source.Id, target),
             "~context" => GatePathOf(source.Id) is { } gate
-                ? EditRequest.Of(text => RulesetEdits.SetField(text, target.Id, "while", gate), $"gate {target.Id} on {gate}")
+                ? Gate(target, gate)
                 : EditRequest.Refuse($"{source.Id} is not a gate a ruleset can name in while:."),
             "~enrichment" => ConnectEnrichment(source.Id, target),
+            _ when target.IsDefine => EditRequest.Refuse("A define fires on an event or a view; wire one of those into it."),
             _ => ConnectStat(source, target)
         };
+    }
+
+    // A define wired into a stat is what the stat fires on; the facets scoped to the old view go with the retarget.
+    private static EditRequest ConnectDefine(CanvasNodeViewModel define, CanvasNodeViewModel target)
+    {
+        if (target.IsDefine)
+        {
+            return EditRequest.Refuse("A define cannot fire on a define; wire it into a stat.");
+        }
+
+        if (TriggerKeyFor(target) is not { } key)
+        {
+            return EditRequest.Refuse($"A {target.Kind} fires on no view; it cannot fire on {define.Title}.");
+        }
+
+        return Retarget(target, key, define.Title) with { Description = $"fire {target.Id} on {define.Title}" };
     }
 
     /// <summary>
@@ -302,6 +417,11 @@ public static class CanvasEditSemantics
         if (target.IsHighlight)
         {
             return $"joins when: with and {ReadOf(source, target)} > 0";
+        }
+
+        if (source.IsDefine)
+        {
+            return $"fires {target.Id} on {source.Title}";
         }
 
         switch (source.Ruleset)
@@ -331,7 +451,13 @@ public static class CanvasEditSemantics
         ArgumentNullException.ThrowIfNull(node);
         if (!node.IsAuthorable || node.IsScaffold)
         {
-            return EditRequest.Refuse("Only a stat or a highlight of your own ruleset can be duplicated.");
+            return EditRequest.Refuse("Only a stat, a define or a highlight of your own ruleset can be duplicated.");
+        }
+
+        if (node.IsDefine)
+        {
+            return EditRequest.Of(text => RulesetEdits.AddDefine(text, id, RulesetEntryText.DefineBodyOf(text, node.Title)),
+                $"duplicate define {node.Title} as {id}");
         }
 
         return EditRequest.Of(text =>
@@ -362,25 +488,62 @@ public static class CanvasEditSemantics
 
         if (source.Ruleset == "~context" && !wire.IsRead)
         {
-            return EditRequest.Of(text => RulesetEdits.RemoveFieldIfPresent(text, target.Id, "while"), $"ungate {target.Id}");
+            return EditRequest.Of(text => target.IsDefine
+                ? RulesetEdits.RemoveDefineFieldIfPresent(text, target.Title, "while")
+                : RulesetEdits.RemoveFieldIfPresent(text, target.Id, "while"), $"ungate {target.Title}");
         }
 
         if (source.Ruleset == "~enrichment" && FacetReading(target.View, source.Id)?.Name is { } facet)
         {
-            return EditRequest.Of(text => RulesetEdits.RemoveFacet(text, target.Id, facet), $"remove {target.Id}.match.{facet}");
+            return WriteFacet(target, facet, null);
+        }
+
+        if (source.IsDefine)
+        {
+            return EditRequest.Refuse($"{target.Id} fires on {source.Title}; pick another trigger on the stat instead.");
         }
 
         return EditRequest.Refuse("That wire is part of the stat's own definition; change the stat instead.");
     }
 
-    /// <summary>A facet row's write: a value sets the facet, null removes it.</summary>
+    /// <summary>A facet row's write: a value sets the facet, null removes it. A define's go to its own block.</summary>
     public static EditRequest WriteFacet(CanvasNodeViewModel node, string facet, string? value)
     {
         ArgumentNullException.ThrowIfNull(node);
+        if (node.IsDefine)
+        {
+            string name = node.Title;
+            return EditRequest.Of(text => value is null
+                    ? RulesetEdits.RemoveDefineFacet(text, name, facet)
+                    : RulesetEdits.SetDefineFacet(text, name, facet, value),
+                value is null ? $"remove define {name}.match.{facet}" : $"set define {name}.match.{facet}");
+        }
+
         return EditRequest.Of(text => value is null
                 ? RulesetEdits.RemoveFacet(text, node.Id, facet)
                 : RulesetEdits.SetFacet(text, node.Id, facet, value),
             value is null ? $"remove {node.Id}.match.{facet}" : $"set {node.Id}.match.{facet}");
+    }
+
+    /// <summary>
+    ///     A field write from a define face: its trigger (set, never emptied), its gate or its where (either
+    ///     removed on null). A define has no scope, label or kind key, so anything else is ignored.
+    /// </summary>
+    public static EditRequest WriteDefineField(CanvasNodeViewModel node, string key, string? value)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        string name = node.Title;
+        return key switch
+        {
+            "on" when value is not null => Retarget(node, "on", value),
+            "on" => EditRequest.Refuse("A define needs a trigger; pick a view or an event."),
+            "while" when value is not null => Gate(node, value),
+            "while" or "where" => EditRequest.Of(text => value is null
+                    ? RulesetEdits.RemoveDefineFieldIfPresent(text, name, key)
+                    : RulesetEdits.SetDefineField(text, name, key, value),
+                value is null ? $"remove define {name}.{key}" : $"set define {name}.{key}"),
+            _ => EditRequest.Ignore
+        };
     }
 
     /// <summary>
@@ -396,9 +559,15 @@ public static class CanvasEditSemantics
             return WriteHighlightField(node, key, value);
         }
 
+        if (node.IsDefine)
+        {
+            return WriteDefineField(node, key, value);
+        }
+
         return key switch
         {
             "per" when value is not null => Set(node, "per", value),
+            "while" when value is not null => Gate(node, value),
             "while" or "where" => SetOrRemove(node, key, value),
             "compute" when value is not null =>
                 EditRequest.Of(text => RulesetEdits.SetComputeFormula(text, node.Id, value), $"set {node.Id}.compute"),
@@ -473,6 +642,11 @@ public static class CanvasEditSemantics
     public static string? TriggerKeyFor(CanvasNodeViewModel node)
     {
         ArgumentNullException.ThrowIfNull(node);
+        if (node.IsDefine)
+        {
+            return "on";
+        }
+
         if (node.Face is StatFace face)
         {
             return face.HasTrigger ? StatFace.TriggerKeyOf(face.Kind) : null;
@@ -486,23 +660,26 @@ public static class CanvasEditSemantics
 
     // The facets under match: are scoped to the old view. One the new view lacks makes the resolver drop the
     // whole composition, so it goes in the same write. A target the catalog does not know (a define, a raw
-    // event) cannot be checked and keeps them.
+    // event) cannot be checked and keeps them. A define's trigger and facets live under define: instead.
     private static EditRequest Retarget(CanvasNodeViewModel node, string key, string view)
     {
         CatalogView? target = FaceVocabulary.ViewOf(view);
+        bool define = node.IsDefine;
+        string id = node.Title;
         bool Stale(string facet) => facet != "actor" && target!.Facets.All(f => f.Name != facet);
         IReadOnlyList<string> dropped = target is null ? [] : [.. node.Facets.Select(f => f.Name).Where(Stale)];
         string description = dropped.Count == 0
-            ? $"retarget {node.Id} to {view}"
-            : $"retarget {node.Id} to {view}, dropping {string.Join(", ", dropped)}";
+            ? $"retarget {id} to {view}"
+            : $"retarget {id} to {view}, dropping {string.Join(", ", dropped)}";
         return EditRequest.Of(text =>
         {
-            text = RulesetEdits.SetField(text, node.Id, key, view);
+            text = define ? RulesetEdits.SetDefineField(text, id, key, view) : RulesetEdits.SetField(text, id, key, view);
             if (target is not null)
             {
-                foreach (string facet in RulesetEdits.FacetKeys(text, node.Id).Where(Stale))
+                IReadOnlyList<string> keys = define ? RulesetEdits.DefineFacetKeys(text, id) : RulesetEdits.FacetKeys(text, id);
+                foreach (string facet in keys.Where(Stale))
                 {
-                    text = RulesetEdits.RemoveFacet(text, node.Id, facet);
+                    text = define ? RulesetEdits.RemoveDefineFacet(text, id, facet) : RulesetEdits.RemoveFacet(text, id, facet);
                 }
             }
 
@@ -510,10 +687,10 @@ public static class CanvasEditSemantics
         }, description);
     }
 
-    // A highlight's when: reads stats; the wired one joins as a conjunct.
+    // A highlight's when: reads stats; the wired one joins as a conjunct. A define is a trigger, not a value.
     private static EditRequest ConnectHighlight(CanvasNodeViewModel source, CanvasNodeViewModel target)
     {
-        if (source.IsScaffold)
+        if (source.IsScaffold || source.IsDefine)
         {
             return EditRequest.Refuse("A highlight's when: reads stats; wire a stat into it.");
         }
@@ -544,7 +721,10 @@ public static class CanvasEditSemantics
 
         if (views.Count == 0 && key == "on")
         {
-            return EditRequest.Of(text => RulesetEdits.SetField(text, target.Id, "on", "raw." + eventName), $"retarget {target.Id} to {eventName}");
+            string raw = "raw." + eventName;
+            return EditRequest.Of(text => target.IsDefine
+                ? RulesetEdits.SetDefineField(text, target.Title, "on", raw)
+                : RulesetEdits.SetField(text, target.Id, "on", raw), $"retarget {target.Title} to {eventName}");
         }
 
         return views.Count > 1
@@ -566,14 +746,14 @@ public static class CanvasEditSemantics
             return EditRequest.Refuse($"{facet.Name} is a {facet.Type} facet; set its value on the node.");
         }
 
-        return EditRequest.Of(text => RulesetEdits.SetFacet(text, target.Id, facet.Name, "true"), $"set {target.Id}.match.{facet.Name}");
+        return WriteFacet(target, facet.Name, "true");
     }
 
     // A stat wired into an expression flag joins its when: as one more alternative. A trigger flag
     // (flag: true with on:) has no when:, and the loader takes none beside it.
     private static EditRequest ConnectStat(CanvasNodeViewModel source, CanvasNodeViewModel target)
     {
-        if (target.Kind != "flag" || source.IsScaffold)
+        if (target.Kind != "flag" || source.IsScaffold || source.IsDefine)
         {
             return EditRequest.Refuse($"A stat can be wired into a flag's when:; a {target.Kind} reads its operands in its own text.");
         }

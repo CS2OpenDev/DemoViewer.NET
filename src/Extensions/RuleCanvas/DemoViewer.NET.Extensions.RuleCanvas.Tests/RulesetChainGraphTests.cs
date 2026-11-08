@@ -8,6 +8,7 @@ using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Analysis.Yaml;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
+using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 using DemoViewer.NET.TestSupport;
 using TUnit.Core.Exceptions;
 
@@ -511,6 +512,148 @@ public class RulesetChainGraphTests
             await Assert.That(facts[0].Name).Contains("bomb_site");
             await Assert.That(chain.Edges.Any(e => e.Source == facts[0].Key && e.Target == plantSite.Key && e.IsRead)).IsTrue();
             await Assert.That(Compose("player_round").Chain.Nodes.Any(n => n.IsPerTeam || n.IsRoundFact)).IsFalse();
+        }
+    }
+
+    /// <summary>
+    ///     The engine folds a define's body into the trigger wire of every stat firing on it. The canvas cuts
+    ///     that wire at a define node: the event fires the define, with the define's condition and gate, and the
+    ///     define fires the stat. highlights_clutch's ct_retake_kill carries a match, a while and a where, so its
+    ///     enrichment read, its gate wire and its context read all move to the define.
+    /// </summary>
+    [Test]
+    public async Task ADefine_IsANodeBetweenTheEventAndTheStat_CarryingItsOwnCondition()
+    {
+        RulesetCorpus.Composed composed = Compose("highlights_clutch");
+        RulesetChainGraph chain = composed.Chain;
+        RulesetDocumentNodeKey define = RulesetDocumentNodeKey.Define("highlights_clutch", "ct_retake_kill");
+        RulesetDocumentNodeKey stat = new("highlights_clutch", "retake_kills");
+        ChainNode node = chain.Nodes.Single(n => n.Key == define);
+        ChainEdge[] intoDefine = [.. chain.Edges.Where(e => e.Target == define)];
+        ChainEdge[] intoStat = [.. chain.Edges.Where(e => e.Target == stat)];
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Diagnostics).IsEmpty();
+            await Assert.That(chain.Nodes.Count).IsEqualTo(25).Because("the 24 nodes the engine lowers plus the define");
+            await Assert.That(node.Kind).IsEqualTo(ChainNodeKind.Declared);
+            await Assert.That(node.Name).IsEqualTo("ct_retake_kill");
+            await Assert.That(node.IsPerPlayer).IsTrue().Because("it materializes with the stats that fire on it");
+            await Assert.That(chain.Nodes.ToList().FindIndex(n => n.Key == define)).IsLessThan(chain.Nodes.ToList().FindIndex(n => n.Key == stat));
+            ChainEdge trigger = intoDefine.Single(e => !e.IsRead && !e.IsGate);
+            await Assert.That(trigger.Source).IsEqualTo(new RulesetDocumentNodeKey("~event", "player_death")).Because("the event fires the define");
+            await Assert.That(trigger.Label).IsEqualTo("player_death");
+            await Assert.That(trigger.Guard).IsEqualTo(new RulesetDocumentNodeKey("~context", "BombWasPlanted")).Because("the define's while: is its guard");
+            await Assert.That(trigger.Condition).Contains("was_enemy_kill").Because("the stat adds nothing, so the lowered condition is the define's");
+            await Assert.That(trigger.Condition).Contains("player.team == 3");
+            await Assert.That(intoDefine.Any(e => e.IsGate && e.Source.Id == "BombWasPlanted" && e.Label == "while")).IsTrue()
+                .Because("the define's while: is a dashed gate wire into the define");
+            await Assert.That(intoDefine.Any(e => e.IsRead && e.Source.Id == "enrich.kill.was_enemy_kill")).IsTrue()
+                .Because("the define's enemy facet reads the enrichment");
+            await Assert.That(intoDefine.Any(e => e.IsRead && e.Source.Id == "player_team")).IsTrue()
+                .Because("the define's where: reads player.team");
+            await Assert.That(intoStat.Select(e => (e.Source, e.Label, e.IsRead, e.IsGate)))
+                .IsEquivalentTo([(define, "fires", false, false)]).Because("the stat is fired by the define and nothing else");
+            await Assert.That(intoStat[0].Guard).IsNull();
+            await Assert.That(intoStat[0].Condition).IsNull();
+            await Assert.That(ChainWiring.WireText(intoStat[0])).IsEqualTo("fires");
+            await Assert.That(chain.Edges.Any(e => e.Source.Ruleset == "~event" && e.Target == stat)).IsFalse();
+            await Assert.That(chain.Edges.Any(e => e.Source == stat && e.Target.Id == "retake_multi")).IsTrue().Because("what the stat feeds is untouched");
+        }
+    }
+
+    /// <summary>
+    ///     Two stats firing on one define share one event wire into it and get one fires wire each. The stat
+    ///     face no longer states the define's body; the canvas has the define node for that.
+    /// </summary>
+    [Test]
+    public async Task ADefineTwoStatsFireOn_IsFiredOnce_AndFiresEach()
+    {
+        RulesetCorpus.Composed composed = Compose("post_plant_double");
+        RulesetChainGraph chain = composed.Chain;
+        RulesetDocumentNodeKey define = RulesetDocumentNodeKey.Define("post_plant_double", "post_plant_kill");
+        IReadOnlyList<NodeFace> faces = NodeFaceBuilder.Build(composed);
+        CanvasNodeViewModel kills = CanvasNodeFactory.ReadOnly.Create(faces.Single(f => f.Id == "post_plant_kills"));
+        CanvasNodeViewModel ticks = CanvasNodeFactory.ReadOnly.Create(faces.Single(f => f.Id == "kill_ticks"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Diagnostics).IsEmpty();
+            await Assert.That(chain.Nodes.Count).IsEqualTo(10).Because("nine lowered nodes plus the define");
+            await Assert.That(chain.Edges.Count(e => e.Target == define && !e.IsRead && !e.IsGate)).IsEqualTo(1).Because("one event wire into the define");
+            await Assert.That(chain.Edges.Count(e => e.Target == define && e.IsGate)).IsEqualTo(1);
+            await Assert.That(chain.Edges.Where(e => e.Source == define).Select(e => (e.Target.Id, e.Label)))
+                .IsEquivalentTo([("post_plant_kills", "fires"), ("kill_ticks", "fires")]);
+            await Assert.That(chain.Edges.Any(e => e.Target.Id is "post_plant_kills" or "kill_ticks" && e.Source != define)).IsFalse()
+                .Because("the gate and the enrichment read belong to the define now");
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "bomb_planted" && e.Target.Id == "plant_tick")).IsTrue()
+                .Because("a stat that does not fire on the define keeps its own wire");
+            await Assert.That(kills.FixedRows).IsEquivalentTo(["not a suicide"]).Because("the view's own row stays; the define's rows go");
+            await Assert.That(kills.Chips).Contains("on post_plant_kill");
+            await Assert.That(kills.Chips).DoesNotContain("while round.bomb.was_planted");
+            await Assert.That(ticks.FixedRows).IsEquivalentTo(["not a suicide"]);
+            await Assert.That(ticks.Chips).Contains("on post_plant_kill");
+            await Assert.That(faces.OfType<DefineFace>().Single().Gate).IsEqualTo("round.bomb.was_planted");
+        }
+    }
+
+    /// <summary>
+    ///     A stat that refines the define it fires on (its own facet and where:) keeps what is its own: the
+    ///     define wire carries the body spelled from the define, the fires wire the stat's refinements, and the
+    ///     define's gate goes to the define. A read both make is drawn to both. A stat gated beside a gated
+    ///     define is not a case: the resolver refuses two while: gates as a compound (resolve.while.unsupported).
+    /// </summary>
+    [Test]
+    public async Task AStatThatRefinesItsDefine_KeepsItsOwnReads()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("refine", """
+            ruleset: refine
+            title: Refine
+            for: each_player
+
+            define:
+              enemy_kill:
+                on: kill
+                match: { enemy: true }
+                while: round.active
+
+            stats:
+              hs:
+                count: enemy_kill
+                match: { headshot: true }
+                where: "enrich.kill.was_enemy_kill == true"
+                per: round
+              plain:
+                count: enemy_kill
+                per: round
+            """);
+        RulesetCorpus.Composed composed = rules.Load().Compose("refine");
+        RulesetChainGraph chain = composed.Chain;
+        RulesetDocumentNodeKey define = RulesetDocumentNodeKey.Define("refine", "enemy_kill");
+        RulesetDocumentNodeKey hs = new("refine", "hs");
+        ChainEdge[] intoHs = [.. chain.Edges.Where(e => e.Target == hs)];
+        ChainEdge[] intoDefine = [.. chain.Edges.Where(e => e.Target == define)];
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Diagnostics).IsEmpty().Because(string.Join("; ", composed.Diagnostics));
+            await Assert.That(intoDefine.Count(e => !e.IsRead && !e.IsGate)).IsEqualTo(1).Because("both stats fire through one event wire");
+            ChainEdge trigger = intoDefine.Single(e => !e.IsRead && !e.IsGate);
+            await Assert.That(trigger.Condition).Contains("was_enemy_kill").Because("plain adds nothing, so its lowered condition is the define's");
+            await Assert.That(trigger.Condition).DoesNotContain("Headshot").Because("hs's own facet is not the define's");
+            await Assert.That(trigger.Guard).IsEqualTo(new RulesetDocumentNodeKey("~context", "RoundActive"));
+            await Assert.That(intoDefine.Any(e => e.IsGate && e.Source.Id == "RoundActive")).IsTrue();
+            await Assert.That(intoDefine.Any(e => e.IsRead && e.Source.Id == "enrich.kill.was_enemy_kill")).IsTrue();
+            ChainEdge fires = intoHs.Single(e => !e.IsRead && !e.IsGate);
+            await Assert.That(fires.Source).IsEqualTo(define);
+            await Assert.That(fires.Condition).IsEqualTo("headshot: true; where enrich.kill.was_enemy_kill == true");
+            await Assert.That(fires.Guard).IsNull();
+            await Assert.That(intoHs.Any(e => e.IsGate)).IsFalse().Because("the define's gate is the define's");
+            await Assert.That(intoHs.Any(e => e.IsRead && e.Source.Id == "enrich.kill.was_enemy_kill")).IsTrue()
+                .Because("hs's where: reads the enrichment too, so the read is drawn to both");
+            ChainEdge[] intoPlain = [.. chain.Edges.Where(e => e.Target.Id == "plain")];
+            await Assert.That(intoPlain.Length).IsEqualTo(1);
+            await Assert.That(intoPlain[0].Source).IsEqualTo(define);
+            await Assert.That(intoPlain[0].Label).IsEqualTo("fires");
+            await Assert.That(intoPlain[0].Condition).IsNull();
         }
     }
 

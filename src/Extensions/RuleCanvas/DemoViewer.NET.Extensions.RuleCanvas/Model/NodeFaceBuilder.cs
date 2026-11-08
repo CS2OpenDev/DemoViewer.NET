@@ -57,6 +57,15 @@ public static class NodeFaceBuilder
         string? label = string.Equals(node.Label, node.Id, StringComparison.Ordinal) ? null : node.Label;
         int line = node.Position.Line;
 
+        if (node.IsDefine)
+        {
+            (DefineDef Define, TriggerDef Trigger)? declared = doc is null ? null : RulesetDocumentGraph.TriggerDefine(doc, node.Key.Name);
+            return declared is { } found
+                ? Define(node.Key, found.Define, found.Trigger, node.View, node.Events, diagnostics, node.IsAuthorable)
+                : new UndeclaredFace(node.Key, DefineFace.KindName, null, "", "", diagnostics, line, node.IsAuthorable, node.View,
+                    node.Events, []);
+        }
+
         if (node.IsHighlight)
         {
             HighlightDef? highlight = doc?.Highlights.FirstOrDefault(h => h.Id == node.Id);
@@ -105,19 +114,30 @@ public static class NodeFaceBuilder
                 node.CrossRulesetReads, stat.KindArg, trigger, form)
         };
 
-        // The resolver splices a define's body into the trigger; the face carries the body so it can say so.
-        DefineDef? define = face.TriggerSpelling is { } spelling
-            ? doc!.Defines.FirstOrDefault(d => d.Name == spelling && d.Body is TriggerDefineBody)
-            : null;
-        return define is null ? face : face with { Define = new DefineFace(define.Name, TriggerFace.From(((TriggerDefineBody)define.Body).Trigger)!) };
+        // The resolver splices a define's body into the trigger; the face names the define it fires through.
+        (DefineDef Define, TriggerDef Trigger)? define = face.TriggerSpelling is { } spelling ? RulesetDocumentGraph.TriggerDefine(doc!, spelling) : null;
+        return define is not { } named
+            ? face
+            : face with { Define = Define(RulesetDocumentNodeKey.Define(doc!.Id, named.Define.Name), named.Define, named.Trigger, node.View, node.Events, [], node.IsAuthorable) };
+    }
+
+    /// <summary>The face of one trigger-bodied define, from its body; the view and events come from the graph node.</summary>
+    public static DefineFace Define(RulesetDocumentNodeKey key, DefineDef define, TriggerDef trigger, string? view,
+        IReadOnlyList<string> events, IReadOnlyList<string> diagnostics, bool authorable)
+    {
+        ArgumentNullException.ThrowIfNull(define);
+        ArgumentNullException.ThrowIfNull(trigger);
+        string gate = string.IsNullOrWhiteSpace(trigger.While) ? "" : trigger.While;
+        return new DefineFace(key, DefineFace.KindName, null, "", gate, diagnostics, define.Position.Line, authorable, define.Name,
+            TriggerFace.From(trigger)!, view, events, MatchFacetForm.For(EmbeddedCatalog.Root, view, trigger.Match));
     }
 
     private static string PerText(PerScope per) => per == PerScope.None ? "" : per.ToString().ToLowerInvariant();
 
     /// <summary>
     ///     Files each composition diagnostic under the node whose entry contains its line. An entry runs
-    ///     from its start line to the next thing the document declares: the next stat or highlight, or a
-    ///     define, a param, a cadence or the <c>show:</c> block, which closes the section. A diagnostic
+    ///     from its start line to the next thing the document declares: the next stat, highlight or trigger
+    ///     define, or a list define, a param, a cadence or the <c>show:</c> block, which closes the section. A diagnostic
     ///     outside every entry, before the first or inside another block, stays at the document level, as
     ///     does one inside an entry the graph does not draw.
     /// </summary>
@@ -160,9 +180,10 @@ public static class NodeFaceBuilder
             marks.Add((highlight.Position.Line, new RulesetDocumentNodeKey(doc.Id, highlight.Id)));
         }
 
+        // A trigger define is an entry of its own when it is drawn; DiagnosticsByNode drops the key otherwise.
         foreach (DefineDef define in doc.Defines)
         {
-            marks.Add((define.Position.Line, null));
+            marks.Add((define.Position.Line, define.Body is TriggerDefineBody ? RulesetDocumentNodeKey.Define(doc.Id, define.Name) : null));
         }
 
         foreach (ParamDef param in doc.Params)

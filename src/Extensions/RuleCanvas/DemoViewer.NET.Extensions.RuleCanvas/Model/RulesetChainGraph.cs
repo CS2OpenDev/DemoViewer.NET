@@ -6,6 +6,7 @@ using CS2DemoKit.Analysis.Graphs;
 using CS2DemoKit.Analysis.Rules.Ast;
 using CS2DemoKit.Analysis.Rules.Checking;
 using CS2DemoKit.Analysis.RulesetsV2.Compile;
+using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 
 #endregion
@@ -153,7 +154,13 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             [.. Edges.Where(e => inSlice.Contains(e.Source) && inSlice.Contains(e.Target))]);
     }
 
-    public static RulesetChainGraph Build(BuildResult build, IReadOnlyList<CheckedRuleset> rulesets)
+    /// <param name="build">The lowered chain.</param>
+    /// <param name="rulesets">The checked rulesets it was built from.</param>
+    /// <param name="open">
+    ///     The open document, whose trigger-bodied defines are drawn as nodes between the event and the stats
+    ///     that fire on them; null folds every define into its stats, as the engine does.
+    /// </param>
+    public static RulesetChainGraph Build(BuildResult build, IReadOnlyList<CheckedRuleset> rulesets, RulesetDoc? open = null)
     {
         ArgumentNullException.ThrowIfNull(build);
         ArgumentNullException.ThrowIfNull(rulesets);
@@ -484,7 +491,224 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             }
         }
 
+        if (open is not null)
+        {
+            SpliceDefines(nodes, edges, open, stats);
+        }
+
         return new RulesetChainGraph(nodes, edges) { Diagnostics = graph.Diagnostics };
+    }
+
+    /// <summary>
+    ///     The lowered graph has no node for a define: its body is folded into the trigger wire of every stat
+    ///     that fires on it. The canvas draws the define once, so each such stat's trigger wire is cut in two
+    ///     at a define node: the event fires the define, carrying the define's condition and gate, and the
+    ///     define fires the stat. What the define's body reads (a facet's enrichment, a context in its where:
+    ///     or while:) moves with it; what the stat's own body reads stays on the stat.
+    /// </summary>
+    private static void SpliceDefines(List<ChainNode> nodes, List<ChainEdge> edges, RulesetDoc open,
+        Dictionary<RulesetDocumentNodeKey, CheckedStat> stats)
+    {
+        Dictionary<RulesetDocumentNodeKey, ChainNode> byKey = nodes.ToDictionary(n => n.Key);
+        foreach ((DefineDef define, TriggerDef trigger) in RulesetDocumentGraph.TriggerDefines(open))
+        {
+            RulesetDocumentNodeKey key = RulesetDocumentNodeKey.Define(open.Id, define.Name);
+            List<StatDef> firing = [.. open.Stats.Where(s => RulesetDocumentGraph.TriggerSpelling(s) == define.Name
+                                                             && byKey.ContainsKey(new RulesetDocumentNodeKey(open.Id, s.Id)))];
+            if (firing.Count == 0)
+            {
+                continue;
+            }
+
+            string? view = firing.Select(s => stats.GetValueOrDefault(new RulesetDocumentNodeKey(open.Id, s.Id))?.ResolvedView).FirstOrDefault(v => v is not null);
+            ChainNode first = byKey[new RulesetDocumentNodeKey(open.Id, firing[0].Id)];
+            ChainNode node = new(key, ChainNodeKind.Declared, define.Name, first.IsPerPlayer) { IsPerTeam = first.IsPerTeam };
+            nodes.Insert(nodes.IndexOf(first), node);
+            byKey[key] = node;
+
+            List<ChainEdge> rewritten = [];
+            HashSet<ChainEdge> seen = [];
+            void Add(ChainEdge edge)
+            {
+                if (seen.Add(edge))
+                {
+                    rewritten.Add(edge);
+                }
+            }
+
+            HashSet<RulesetDocumentNodeKey> targets = [.. firing.Select(s => new RulesetDocumentNodeKey(open.Id, s.Id))];
+            // The lowered condition is the define's alone on a stat that adds nothing of its own; when every
+            // firing stat refines it, the define's part is spelled from its body instead.
+            HashSet<RulesetDocumentNodeKey> unrefined = [.. firing.Where(s => !HasRefinements(s)).Select(s => new RulesetDocumentNodeKey(open.Id, s.Id))];
+            string? defineCondition = edges
+                .Where(e => unrefined.Contains(e.Target) && !e.IsRead && !e.IsGate && byKey[e.Source].Kind == ChainNodeKind.Event)
+                .Select(e => e.Condition)
+                .FirstOrDefault() ?? Spell(trigger);
+            foreach (ChainEdge edge in edges)
+            {
+                if (!targets.Contains(edge.Target))
+                {
+                    Add(edge);
+                    continue;
+                }
+
+                StatDef stat = firing.Single(s => s.Id == edge.Target.Id);
+                ChainNode source = byKey[edge.Source];
+                if (edge.IsGate)
+                {
+                    Add(GateIsDefines(edge.Source, edge.Label, trigger, stat, open.Id) ? edge with { Target = key } : edge);
+                    continue;
+                }
+
+                if (edge.IsRead)
+                {
+                    bool defines = BodyReads(source, trigger.Match, [trigger.Where, trigger.While], view);
+                    if (defines)
+                    {
+                        Add(edge with { Target = key });
+                    }
+
+                    if (!defines || BodyReads(source, stat.Trigger?.Match ?? [], OwnTexts(stat), view))
+                    {
+                        Add(edge);
+                    }
+
+                    continue;
+                }
+
+                if (source.Kind != ChainNodeKind.Event)
+                {
+                    Add(edge);
+                    continue;
+                }
+
+                RulesetDocumentNodeKey? guard = edge.Guard is { } g && GateIsDefines(g, "while", trigger, stat, open.Id) ? g : null;
+                Add(edge with { Target = key, Condition = defineCondition, Guard = guard });
+                Add(new ChainEdge(key, edge.Target, "fires", HasRefinements(stat) ? Spell(stat.Trigger!) : null, edge.Effect, false)
+                {
+                    Guard = guard is null ? edge.Guard : null
+                });
+            }
+
+            edges.Clear();
+            edges.AddRange(rewritten);
+        }
+    }
+
+    // Whether a gate wire or a guard from `source` is the define's while: rather than the stat's own. A stat
+    // with no while: of its own is gated by the define alone.
+    private static bool GateIsDefines(RulesetDocumentNodeKey source, string label, TriggerDef trigger, StatDef stat, string rulesetId)
+    {
+        if (string.IsNullOrWhiteSpace(stat.Trigger?.While))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(trigger.While))
+        {
+            return false;
+        }
+
+        string gate = trigger.While.Trim();
+        return source.Id == ContextRuleIds.GetValueOrDefault(gate)
+               || source == new RulesetDocumentNodeKey(rulesetId, gate)
+               || label == "while " + gate;
+    }
+
+    // Whether a body (its match: facets and its texts) reads what `source` stands for: the enrichment one of
+    // its facets is reached through, or a context or enrichment path named in its where: or while:.
+    private static bool BodyReads(ChainNode source, IReadOnlyList<MatchBinding> match, IEnumerable<string?> texts, string? view)
+    {
+        if (source.Kind == ChainNodeKind.Enrichment
+            && match.Any(b => CanvasEditSemantics.FacetReading(view, source.Name)?.Name == b.Key))
+        {
+            return true;
+        }
+
+        // A path names the node by the catalog's rule id, by its own spelling, or by the engine's built-in
+        // player.team to player_team form, which the catalog does not list.
+        foreach (string path in texts.Where(t => !string.IsNullOrWhiteSpace(t)).SelectMany(t => Paths(t!)))
+        {
+            if (path == source.Name || path.Replace('.', '_') == source.Name || ContextRuleIds.GetValueOrDefault(path) == source.Name)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // The dotted identifiers of an expression text, quoted literals left out.
+    private static IEnumerable<string> Paths(string text)
+    {
+        int i = 0;
+        while (i < text.Length)
+        {
+            char c = text[i];
+            if (c is '"' or '\'')
+            {
+                int close = text.IndexOf(c, i + 1);
+                i = close < 0 ? text.Length : close + 1;
+                continue;
+            }
+
+            if (char.IsAsciiLetter(c) || c == '_')
+            {
+                int start = i;
+                while (i < text.Length && (char.IsAsciiLetterOrDigit(text[i]) || text[i] is '_' or '.'))
+                {
+                    i++;
+                }
+
+                yield return text[start..i].TrimEnd('.');
+                continue;
+            }
+
+            i++;
+        }
+    }
+
+    // The texts of a stat's own body that may read a node: its where:, its while:, and its value argument.
+    private static IEnumerable<string?> OwnTexts(StatDef stat)
+    {
+        yield return stat.Trigger?.Where;
+        yield return stat.Trigger?.While;
+        if (stat.Kind is not (StatKind.Count or StatKind.Streak or StatKind.Bucket or StatKind.Burst))
+        {
+            yield return stat.KindArg;
+        }
+
+        yield return stat.BucketKey;
+        yield return stat.BucketValue;
+        foreach (string key in stat.BucketKeys ?? [])
+        {
+            yield return key;
+        }
+    }
+
+    // Whether the stat adds a match: facet or a where: of its own beside the define's; actor: is a binding, not a condition.
+    private static bool HasRefinements(StatDef stat) =>
+        stat.Trigger is { } trigger
+        && (trigger.Match.Any(b => !string.Equals(b.Key, "actor", StringComparison.Ordinal)) || !string.IsNullOrWhiteSpace(trigger.Where));
+
+    // A trigger body as a condition the hover can show: its facets as written, then its where:.
+    private static string? Spell(TriggerDef trigger)
+    {
+        List<string> parts = [];
+        foreach (MatchBinding binding in trigger.Match)
+        {
+            if (!string.Equals(binding.Key, "actor", StringComparison.Ordinal))
+            {
+                parts.Add($"{binding.Key}: {MatchFacetValue.From(binding.Test)?.ToMatchValue() ?? ""}");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(trigger.Where))
+        {
+            parts.Add("where " + trigger.Where.Trim());
+        }
+
+        return parts.Count == 0 ? null : string.Join("; ", parts);
     }
 
     /// <summary>

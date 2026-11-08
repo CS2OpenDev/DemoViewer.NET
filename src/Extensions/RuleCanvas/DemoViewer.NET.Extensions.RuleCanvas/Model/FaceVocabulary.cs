@@ -140,7 +140,7 @@ public sealed record FaceVocabulary(
                 flags.Add(own ? node.Id : node.Key.ToString());
             }
 
-            if (!own || node.IsHighlight)
+            if (!own || node.IsHighlight || node.IsDefine)
             {
                 continue;
             }
@@ -170,6 +170,23 @@ public sealed record FaceVocabulary(
 
         options.AddRange(CatalogTriggers);
         options.AddRange(Defines.Select(d => new TriggerOption(d, "define", [])));
+        return options;
+    }
+
+    /// <summary>
+    ///     The triggers a define can fire on: the catalog's alone, since the resolver reads a define's <c>on:</c>
+    ///     as a view, a raw or a cadence, never as another define. A current spelling outside the catalog is
+    ///     listed first so it stays visible and selected.
+    /// </summary>
+    public static IReadOnlyList<TriggerOption> TriggersForDefine(string? current)
+    {
+        List<TriggerOption> options = [];
+        if (!string.IsNullOrEmpty(current) && CatalogTriggers.All(t => t.Written != current))
+        {
+            options.Add(new TriggerOption(current, "written", []));
+        }
+
+        options.AddRange(CatalogTriggers);
         return options;
     }
 

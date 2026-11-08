@@ -19,7 +19,7 @@ public class CanvasThemeTests
 {
     private static readonly string[] _tokens =
     [
-        "RuleKindEvent", "RuleKindEnrich", "RuleKindContext", "RuleKindStat", "RuleKindDerived", "RuleKindHighlight",
+        "RuleKindEvent", "RuleKindEnrich", "RuleKindContext", "RuleKindStat", "RuleKindDerived", "RuleKindHighlight", "RuleKindDefine",
         "RuleWireWrite", "RuleWireRead", "RuleWireGate", "RuleWireAnd", "RuleWireOr",
         "RuleCanvasBg", "RuleNodeBg", "RuleNodeBorder", "RuleSelection", "RuleSelectionFill", "RuleCutLine", "RuleMinimapBg",
         "RuleTextKey", "RuleWireHalo", "RuleCheckGlyph", "RuleDiagnosticBadgeText"
@@ -192,6 +192,7 @@ public class CanvasThemeTests
             await Assert.That(RuleKindToken.KeyFor("flag")).IsEqualTo("RuleKindDerived");
             await Assert.That(RuleKindToken.KeyFor("compute")).IsEqualTo("RuleKindDerived");
             await Assert.That(RuleKindToken.KeyFor("highlight")).IsEqualTo("RuleKindHighlight");
+            await Assert.That(RuleKindToken.KeyFor("define")).IsEqualTo("RuleKindDefine");
             foreach (string kind in new[] { "count", "sum", "capture", "tally", "streak", "bucket", "rate", "burst" })
             {
                 await Assert.That(RuleKindToken.KeyFor(kind)).IsEqualTo("RuleKindStat").Because(kind);

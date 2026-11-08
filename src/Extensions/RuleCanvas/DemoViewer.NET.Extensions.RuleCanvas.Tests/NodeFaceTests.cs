@@ -188,11 +188,12 @@ public class NodeFaceTests
 
     /// <summary>
     ///     highlights_clutch's retake_kills is <c>count: ct_retake_kill</c>, a define whose body carries the
-    ///     match, the gate and the where. The resolver runs all three; the face states them as rows the stat
-    ///     cannot edit, named for the define, and stops offering the define's facets as unset.
+    ///     match, the gate and the where. The define is drawn as its own node in front of the stat, so the stat
+    ///     face keeps only the trigger chip, whose tip names the define, and stops offering the define's facets
+    ///     as unset; the body's rows are the define node's.
     /// </summary>
     [Test]
-    public async Task ADefineTriggeredStat_StatesTheDefinesBody_AsFixedRows()
+    public async Task ADefineTriggeredStat_KeepsTheChip_AndLeavesTheBodyToTheDefineNode()
     {
         IReadOnlyList<NodeFace> faces = NodeFaceBuilder.Build(Compose("highlights_clutch"));
         StatFace retake = (StatFace)faces.Single(f => f.Id == "retake_kills");
@@ -201,18 +202,20 @@ public class NodeFaceTests
         using (Assert.Multiple())
         {
             await Assert.That(retake.Define?.Name).IsEqualTo("ct_retake_kill");
+            await Assert.That(retake.FiresOnDefine).IsTrue();
             await Assert.That(retake.View).IsEqualTo("kill");
             await Assert.That(clutch.Define).IsNull().Because("round_won is a view, not a define");
-            await Assert.That(node.Chips).Contains("on ct_retake_kill");
-            await Assert.That(node.FixedRows)
-                .IsEquivalentTo(["not a suicide", "enemy: true", "while round.bomb.was_planted", "where player.team == 3"]);
+            await Assert.That(node.Chips).IsEquivalentTo(["on ct_retake_kill", "as killer", "per round"]);
+            await Assert.That(node.ChipTips["on ct_retake_kill"]).Contains("define of this ruleset");
+            await Assert.That(node.ChipTips["on ct_retake_kill"]).Contains("kill");
+            await Assert.That(node.Trigger!.IsDefine).IsTrue();
+            await Assert.That(node.FixedRows).IsEquivalentTo(["not a suicide"]).Because("the define's rows are on the define node now");
+            await Assert.That(node.Expression).IsNull().Because("the define's where: is not the stat's");
             await Assert.That(node.AvailableFacets).DoesNotContain("enemy").Because("the resolver refuses the same key on the define and the site");
             await Assert.That(node.AvailableFacets).Contains("headshot");
             await Assert.That(node.Facets).IsEmpty().Because("the stat's own match: is empty");
-            await Assert.That(node.FixedRowItems.Single(r => r.Text == "enemy: true").Tip).Contains("ct_retake_kill");
-            await Assert.That(node.FixedRowItems.Single(r => r.Text == "where player.team == 3").Tip).Contains("define:");
-            await Assert.That(node.FixedRowItems.Single(r => r.Text == "not a suicide").Tip).Contains("event.Attacker != event.UserId");
             await Assert.That(node.Gate).IsEmpty().Because("the gate editor is the stat's own while:, which is unset");
+            await Assert.That(CanvasNodeFactory.ReadOnly.Create(clutch).Trigger!.IsDefine).IsFalse();
         }
     }
 

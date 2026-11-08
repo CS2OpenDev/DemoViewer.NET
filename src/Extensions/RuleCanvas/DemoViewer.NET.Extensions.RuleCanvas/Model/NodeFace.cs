@@ -43,6 +43,8 @@ public abstract record NodeFace(
     public bool IsScaffold => Key.Ruleset.StartsWith('~');
 
     public bool IsHighlight => Kind == "highlight";
+
+    public bool IsDefine => Key.IsDefine;
 }
 
 /// <summary>
@@ -77,13 +79,40 @@ public sealed record TriggerFace(TriggerRef? On, IReadOnlyList<MatchBinding> Mat
 }
 
 /// <summary>
-///     A trigger-bodied <c>define:</c> a stat fires through, as the document wrote it. The resolver splices
-///     the body's <c>match:</c>, <c>where:</c> and <c>while:</c> into the stat's trigger, so a face states
-///     them beside the stat's own.
+///     A trigger-bodied <c>define:</c> of the open document: a named trigger with its own <c>on:</c>,
+///     <c>match:</c>, <c>while:</c> and <c>where:</c>, which the stats that name it fire through. The resolver
+///     splices the body into each such stat, so the canvas draws the define once, between the event and the
+///     stats, and the stat face keeps only the name.
 /// </summary>
-/// <param name="Name">The define's name, which is the trigger spelling.</param>
-/// <param name="Trigger">The body.</param>
-public sealed record DefineFace(string Name, TriggerFace Trigger);
+/// <param name="Key">The node's identity: the declaring ruleset and <c>define.&lt;name&gt;</c>.</param>
+/// <param name="Kind">Always <c>define</c>.</param>
+/// <param name="Label">Null; a define has no label.</param>
+/// <param name="Per">Empty; a define has no scope of its own.</param>
+/// <param name="Gate">The body's <c>while:</c> as written, or empty.</param>
+/// <param name="Diagnostics">What the composition said inside this entry.</param>
+/// <param name="SourceLine">The line the define starts on; zero when unknown.</param>
+/// <param name="IsAuthorable">Whether the open document declares it, which it always does.</param>
+/// <param name="Name">The define's name, which is what a stat's trigger spells.</param>
+/// <param name="Trigger">The body as written.</param>
+/// <param name="View">The catalog view the body's <c>on:</c> resolves to, or null.</param>
+/// <param name="Events">The wire events the view fires on.</param>
+/// <param name="Form">The typed <c>match:</c> form over the view's facets.</param>
+public sealed record DefineFace(
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    int SourceLine, bool IsAuthorable, string Name, TriggerFace Trigger, string? View, IReadOnlyList<string> Events, MatchFacetForm Form)
+    : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
+{
+    public const string KindName = "define";
+
+    /// <summary>The <c>on:</c> reference as the author spelled it, or null for a body with none.</summary>
+    public string? TriggerSpelling => Trigger.Spelling;
+
+    /// <summary>Whether <c>actor: any</c> in the body switched the view's binding off for every stat firing on it.</summary>
+    public bool SuppressesActorBinding => Trigger.SuppressesActorBinding;
+
+    /// <summary>Whether the view bakes <c>event.Attacker != event.UserId</c> in, which the face states as a fixed row.</summary>
+    public bool NotASuicide => FaceVocabulary.BakesOutSuicide(View);
+}
 
 /// <summary>A declared stat. The fields every kind has; the sealed kinds add their own.</summary>
 /// <param name="Key">The node's identity.</param>
@@ -118,6 +147,8 @@ public abstract record StatFace(
 {
     /// <summary>The define the trigger spelling names, when it names one of the open document's; null otherwise.</summary>
     public DefineFace? Define { get; init; }
+
+    public bool FiresOnDefine => Define is not null;
 
     /// <summary>The kinds whose own key names the trigger; the others carry it under <c>on:</c>.</summary>
     public static bool KindNamesTrigger(string kind) => kind is "count" or "streak" or "bucket" or "burst";
