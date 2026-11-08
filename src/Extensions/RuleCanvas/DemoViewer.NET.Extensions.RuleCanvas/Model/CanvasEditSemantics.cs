@@ -373,14 +373,43 @@ public static class CanvasEditSemantics
         return EditRequest.Refuse("That wire is part of the stat's own definition; change the stat instead.");
     }
 
-    /// <summary>A facet row's write: a value sets the facet, null removes it.</summary>
+    /// <summary>A facet row's write: a value sets the facet, null removes it. A define's go to its own block.</summary>
     public static EditRequest WriteFacet(CanvasNodeViewModel node, string facet, string? value)
     {
         ArgumentNullException.ThrowIfNull(node);
+        if (node.IsDefine)
+        {
+            string name = node.Title;
+            return EditRequest.Of(text => value is null
+                    ? RulesetEdits.RemoveDefineFacet(text, name, facet)
+                    : RulesetEdits.SetDefineFacet(text, name, facet, value),
+                value is null ? $"remove define {name}.match.{facet}" : $"set define {name}.match.{facet}");
+        }
+
         return EditRequest.Of(text => value is null
                 ? RulesetEdits.RemoveFacet(text, node.Id, facet)
                 : RulesetEdits.SetFacet(text, node.Id, facet, value),
             value is null ? $"remove {node.Id}.match.{facet}" : $"set {node.Id}.match.{facet}");
+    }
+
+    /// <summary>
+    ///     A field write from a define face: its trigger (set, never emptied), its gate or its where (either
+    ///     removed on null). A define has no scope, label or kind key, so anything else is ignored.
+    /// </summary>
+    public static EditRequest WriteDefineField(CanvasNodeViewModel node, string key, string? value)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        string name = node.Title;
+        return key switch
+        {
+            "on" when value is not null => Retarget(node, "on", value),
+            "on" => EditRequest.Refuse("A define needs a trigger; pick a view or an event."),
+            "while" or "where" => EditRequest.Of(text => value is null
+                    ? RulesetEdits.RemoveDefineFieldIfPresent(text, name, key)
+                    : RulesetEdits.SetDefineField(text, name, key, value),
+                value is null ? $"remove define {name}.{key}" : $"set define {name}.{key}"),
+            _ => EditRequest.Ignore
+        };
     }
 
     /// <summary>
@@ -394,6 +423,11 @@ public static class CanvasEditSemantics
         if (node.IsHighlight)
         {
             return WriteHighlightField(node, key, value);
+        }
+
+        if (node.IsDefine)
+        {
+            return WriteDefineField(node, key, value);
         }
 
         return key switch
@@ -473,6 +507,11 @@ public static class CanvasEditSemantics
     public static string? TriggerKeyFor(CanvasNodeViewModel node)
     {
         ArgumentNullException.ThrowIfNull(node);
+        if (node.IsDefine)
+        {
+            return "on";
+        }
+
         if (node.Face is StatFace face)
         {
             return face.HasTrigger ? StatFace.TriggerKeyOf(face.Kind) : null;
@@ -486,23 +525,26 @@ public static class CanvasEditSemantics
 
     // The facets under match: are scoped to the old view. One the new view lacks makes the resolver drop the
     // whole composition, so it goes in the same write. A target the catalog does not know (a define, a raw
-    // event) cannot be checked and keeps them.
+    // event) cannot be checked and keeps them. A define's trigger and facets live under define: instead.
     private static EditRequest Retarget(CanvasNodeViewModel node, string key, string view)
     {
         CatalogView? target = FaceVocabulary.ViewOf(view);
+        bool define = node.IsDefine;
+        string id = node.Title;
         bool Stale(string facet) => facet != "actor" && target!.Facets.All(f => f.Name != facet);
         IReadOnlyList<string> dropped = target is null ? [] : [.. node.Facets.Select(f => f.Name).Where(Stale)];
         string description = dropped.Count == 0
-            ? $"retarget {node.Id} to {view}"
-            : $"retarget {node.Id} to {view}, dropping {string.Join(", ", dropped)}";
+            ? $"retarget {id} to {view}"
+            : $"retarget {id} to {view}, dropping {string.Join(", ", dropped)}";
         return EditRequest.Of(text =>
         {
-            text = RulesetEdits.SetField(text, node.Id, key, view);
+            text = define ? RulesetEdits.SetDefineField(text, id, key, view) : RulesetEdits.SetField(text, id, key, view);
             if (target is not null)
             {
-                foreach (string facet in RulesetEdits.FacetKeys(text, node.Id).Where(Stale))
+                IReadOnlyList<string> keys = define ? RulesetEdits.DefineFacetKeys(text, id) : RulesetEdits.FacetKeys(text, id);
+                foreach (string facet in keys.Where(Stale))
                 {
-                    text = RulesetEdits.RemoveFacet(text, node.Id, facet);
+                    text = define ? RulesetEdits.RemoveDefineFacet(text, id, facet) : RulesetEdits.RemoveFacet(text, id, facet);
                 }
             }
 

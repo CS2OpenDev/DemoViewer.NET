@@ -119,17 +119,34 @@ public sealed class CanvasNodeFactory(
                 AddReads(chips, undeclared.CrossRulesetReads);
                 break;
             case DefineFace named:
-                AddTrigger(chips, named.TriggerSpelling ?? named.View, named.Events);
+                // The same editors a count has, less the actor toggle and the label: a define binds no player of
+                // its own and has no label key. Its picker offers no define, since a define cannot fire on one.
+                trigger = new CanvasTriggerViewModel("on", named.TriggerSpelling, named.View, named.Events,
+                    FaceVocabulary.TriggersForDefine(named.TriggerSpelling), Field);
+                if (trigger.Chip.Length > 0)
+                {
+                    chips.Add(trigger.Chip);
+                    tips[trigger.Chip] = trigger.Tip;
+                }
+
+                if (named.SuppressesActorBinding)
+                {
+                    chips.Add("any player");
+                    tips["any player"] = "match: { actor: any } switches the view's per-player binding off for every stat firing on this define";
+                }
+
                 if (named.Gate.Length > 0)
                 {
                     chips.Add("while " + named.Gate);
                 }
 
+                AddFacetRows(named.Form, facets, available, availableKinds, Facet);
                 if (!string.IsNullOrWhiteSpace(named.Trigger.Where))
                 {
                     expression.Add("where " + named.Trigger.Where);
                 }
 
+                lines.Add(new CanvasExpressionViewModel("where", "where", named.Trigger.Where ?? "", Field));
                 break;
             case StatFace stat:
                 trigger = AddStatTrigger(stat, chips, tips, Field);
@@ -153,31 +170,7 @@ public sealed class CanvasNodeFactory(
 
                 // The mapper fills per: round in before the face sees the entry, so the scope is never a default here.
                 AddScope(chips, stat.Per);
-                foreach (MatchFacetRow row in stat.Form.Rows)
-                {
-                    if (row.IsSet)
-                    {
-                        facets.Add(new CanvasFacetViewModel(row.Name, row.Type.Kind, row.Value!.ToMatchValue(), Facet));
-                    }
-                    else
-                    {
-                        available.Add(row.Name);
-                        availableKinds[row.Name] = row.Type.Kind;
-                    }
-                }
-
-                foreach (MatchBinding unknown in stat.Form.Unknown)
-                {
-                    // actor: is the engine's reserved key, shown as the binding chip and toggle rather than as a facet.
-                    if (string.Equals(unknown.Key, "actor", StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
-
-                    facets.Add(new CanvasFacetViewModel(unknown.Key, RulesTypeKind.None,
-                        MatchFacetValue.From(unknown.Test)?.ToMatchValue() ?? "", Facet));
-                }
-
+                AddFacetRows(stat.Form, facets, available, availableKinds, Facet);
                 if (stat.NotASuicide)
                 {
                     fixedRows.Add("not a suicide");
@@ -220,7 +213,7 @@ public sealed class CanvasNodeFactory(
             chips.Add("from " + face.Ruleset);
         }
 
-        IReadOnlyList<string> gateChoices = face is StatFace
+        IReadOnlyList<string> gateChoices = face is StatFace or DefineFace
             ? [.. CanvasNodeViewModel.GateOptions, .. face.Vocabulary.Flags.Where(f => f != face.Id)]
             : CanvasNodeViewModel.GateOptions;
         built = new CanvasNodeViewModel
@@ -304,6 +297,34 @@ public sealed class CanvasNodeFactory(
         chips.Add(off.Chip);
         tips[off.Chip] = off.Tip;
         return off;
+    }
+
+    // The typed form as rows: the bound facets as editors, the unbound ones offered by the picker, and a key
+    // the view does not know as a row the resolver already flagged. actor: is the engine's reserved key, shown
+    // as the binding chip rather than as a facet.
+    private static void AddFacetRows(MatchFacetForm form, List<CanvasFacetViewModel> facets, List<string> available,
+        Dictionary<string, RulesTypeKind> availableKinds, Action<string, string?> write)
+    {
+        foreach (MatchFacetRow row in form.Rows)
+        {
+            if (row.IsSet)
+            {
+                facets.Add(new CanvasFacetViewModel(row.Name, row.Type.Kind, row.Value!.ToMatchValue(), write));
+            }
+            else
+            {
+                available.Add(row.Name);
+                availableKinds[row.Name] = row.Type.Kind;
+            }
+        }
+
+        foreach (MatchBinding unknown in form.Unknown)
+        {
+            if (!string.Equals(unknown.Key, "actor", StringComparison.Ordinal))
+            {
+                facets.Add(new CanvasFacetViewModel(unknown.Key, RulesTypeKind.None, MatchFacetValue.From(unknown.Test)?.ToMatchValue() ?? "", write));
+            }
+        }
     }
 
     private static string ActorTip(StatFace stat)

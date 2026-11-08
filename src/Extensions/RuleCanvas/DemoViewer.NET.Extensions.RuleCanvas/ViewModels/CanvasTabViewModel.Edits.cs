@@ -482,7 +482,8 @@ public sealed partial class CanvasTabViewModel
         ShowSurface surface = ShowSurface.Of(doc);
         foreach (CanvasNodeViewModel node in nodes)
         {
-            node.Surfacing = node.IsAuthorable && !node.IsScaffold ? surface.BadgeFor(node.Id) : "";
+            // A define is not a value show: can surface.
+            node.Surfacing = node.IsAuthorable && !node.IsScaffold && !node.IsDefine ? surface.BadgeFor(node.Id) : "";
         }
     }
 

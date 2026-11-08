@@ -150,8 +150,11 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     [ObservableProperty]
     private bool? _bindsActor;
 
-    /// <summary>Whether the face shows the scope picker: an editable stat or highlight.</summary>
+    /// <summary>Whether the face shows the scope and gate pickers' row: an editable stat, highlight or define.</summary>
     public bool ShowFieldPickers => IsEditable && IsAuthorable && !IsScaffold;
+
+    /// <summary>A define has no scope of its own; the stats firing on it keep theirs.</summary>
+    public bool ShowPerPicker => ShowFieldPickers && !IsDefine;
 
     /// <summary>A highlight has no gate; its <c>per:</c> is the rising edge's reset scope.</summary>
     public bool ShowGatePicker => !IsHighlight;
@@ -168,8 +171,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>The actor toggle: an editable stat on a view that binds a role.</summary>
     public bool ShowActorToggle => IsEditable && ViewActor is not null;
 
-    /// <summary>The label can be edited in place on an editable stat; a highlight's title has its own line.</summary>
-    public bool CanEditLabel => IsEditable && !IsHighlight && !IsScaffold;
+    /// <summary>The label can be edited in place on an editable stat; a highlight's title has its own line, and a define has no label key.</summary>
+    public bool CanEditLabel => IsEditable && !IsHighlight && !IsScaffold && !IsDefine;
 
     public bool ShowLabelText => !IsEditingLabel && Label is not null;
 
@@ -423,6 +426,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         }
 
         OnPropertyChanged(nameof(ShowFieldPickers));
+        OnPropertyChanged(nameof(ShowPerPicker));
         OnPropertyChanged(nameof(ShowTriggerPicker));
         OnPropertyChanged(nameof(ShowOffTriggerPicker));
         OnPropertyChanged(nameof(ShowFacetPicker));

@@ -524,7 +524,7 @@
                                         <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
                                                    views:TokenBrush.Foreground="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
                                     </Border>
-                                    <TextBlock Text="{Binding Id}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
+                                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
                                                Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource RuleTextKey}"
                                                VerticalAlignment="Center" IsVisible="{Binding ShowLabelText}" />
@@ -811,12 +811,14 @@
                                        IsVisible="{Binding ShowFacetSummary}" />
 
                             <!-- The scope and the gate as pickers while editable; chips otherwise. The gate editor lists the
-                                 context paths and the ruleset's flags and takes any text the file could hold. -->
+                                 context paths and the ruleset's flags and takes any text the file could hold. A define
+                                 has no scope, so its row holds the gate alone. -->
                             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowFieldPickers}">
-                                <TextBlock Text="per" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
+                                <TextBlock Text="per" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center"
+                                           IsVisible="{Binding ShowPerPicker}" />
                                 <ComboBox ItemsSource="{x:Static vm:CanvasNodeViewModel.PerOptions}" SelectedItem="{Binding Per}"
                                           PlaceholderText="round (default)" PlaceholderForeground="{DynamicResource TextMid}"
-                                          FontSize="11" MinWidth="76" Padding="6 1" MinHeight="0" />
+                                          FontSize="11" MinWidth="76" Padding="6 1" MinHeight="0" IsVisible="{Binding ShowPerPicker}" />
                                 <TextBlock Text="while" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center"
                                            IsVisible="{Binding ShowGatePicker}" />
                                 <ComboBox ItemsSource="{Binding GateChoices}" SelectedItem="{Binding GateChoice}" IsEditable="True"

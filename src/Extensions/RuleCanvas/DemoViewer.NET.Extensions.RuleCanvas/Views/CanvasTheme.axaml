@@ -25,6 +25,7 @@
                     <SolidColorBrush x:Key="RuleKindStat" Color="#0070C1" />
                     <SolidColorBrush x:Key="RuleKindDerived" Color="#AF00DB" />
                     <SolidColorBrush x:Key="RuleKindHighlight" Color="#A8470A" />
+                    <SolidColorBrush x:Key="RuleKindDefine" Color="#2E6B4F" />
                     <!-- Wire meanings, non-text, measured against RuleCanvasBg. -->
                     <SolidColorBrush x:Key="RuleWireWrite" Color="#5A5E7C" />
                     <SolidColorBrush x:Key="RuleWireRead" Color="#50507C" />
@@ -86,6 +87,7 @@
                     <SolidColorBrush x:Key="RuleKindStat" Color="#4FC1FF" />
                     <SolidColorBrush x:Key="RuleKindDerived" Color="#C586C0" />
                     <SolidColorBrush x:Key="RuleKindHighlight" Color="#FFA657" />
+                    <SolidColorBrush x:Key="RuleKindDefine" Color="#7FD1A0" />
                     <SolidColorBrush x:Key="RuleWireWrite" Color="#9090B0" />
                     <SolidColorBrush x:Key="RuleWireRead" Color="#7878A8" />
                     <SolidColorBrush x:Key="RuleWireGate" Color="#569CD6" />

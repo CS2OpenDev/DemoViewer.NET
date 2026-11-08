@@ -164,6 +164,141 @@ public class DefineNodeTests
         }
     }
 
+    private const string Lab = """
+        ruleset: define_lab
+        title: Define lab
+        for: each_player
+
+        define:
+          post_plant_kill:
+            on: kill                         # the retake frag
+            match: { enemy: true }
+            while: round.bomb.was_planted
+
+        stats:
+          late_kills:
+            count: post_plant_kill
+            per: round
+          seen:
+            flag:
+              when: "late_kills > 0"
+            per: round
+        """;
+
+    private static (RulesTree Rules, CanvasTabViewModel Vm) OpenLab()
+    {
+        RulesTree rules = RulesTree.New();
+        rules.User("define_lab", Lab);
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "define_lab";
+        vm.OnActivated(null!);
+        return (rules, vm);
+    }
+
+    private static CanvasNodeViewModel Define(CanvasTabViewModel vm) => vm.Nodes.Single(n => n.IsDefine);
+
+    /// <summary>
+    ///     The define node carries a count's editors less the actor toggle, the scope and the label: the trigger
+    ///     picker, the facet rows and their add picker, the gate editor and the where rows. Each writes under
+    ///     define: through its own helpers, and the stats firing on it follow by name.
+    /// </summary>
+    [Test]
+    public async Task ADefineNode_HasACountsEditors_LessActorScopeAndLabel()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = OpenLab();
+        using (rules)
+        {
+            CanvasNodeViewModel define = Define(vm);
+            CanvasNodeViewModel count = vm.Nodes.Single(n => n.Id == "late_kills");
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.Diagnostics).IsEmpty();
+                await Assert.That(define.IsEditable).IsTrue();
+                await Assert.That(define.Title).IsEqualTo("post_plant_kill");
+                await Assert.That(define.ShowTriggerPicker).IsTrue();
+                await Assert.That(define.Trigger!.Key).IsEqualTo("on");
+                await Assert.That(define.Trigger.Spelling).IsEqualTo("kill");
+                await Assert.That(define.Trigger.Options.Any(o => o.Group == "define")).IsFalse().Because("a define cannot fire on a define");
+                await Assert.That(define.Trigger.Options.Any(o => o.Written == "raw.player_death")).IsTrue();
+                await Assert.That(define.ShowFieldPickers).IsTrue();
+                await Assert.That(define.ShowPerPicker).IsFalse().Because("a define has no scope; the stats firing on it keep theirs");
+                await Assert.That(define.ShowGatePicker).IsTrue();
+                await Assert.That(define.GateChoice).IsEqualTo("round.bomb.was_planted");
+                await Assert.That(define.GateChoices).Contains("seen").Because("a sibling flag can gate a define");
+                await Assert.That(define.CanEditLabel).IsFalse();
+                await Assert.That(define.ShowActorToggle).IsFalse();
+                await Assert.That(define.ShowFacetPicker).IsTrue();
+                await Assert.That(define.Facets.Select(f => f.Name)).IsEquivalentTo(["enemy"]);
+                await Assert.That(define.AvailableFacets).Contains("headshot");
+                await Assert.That(define.Lines.Select(l => l.Key)).IsEquivalentTo(["where"]);
+                await Assert.That(define.VisibleChips).IsEmpty().Because("the trigger picker and the listed gate stand in for the chips");
+                await Assert.That(define.Surfacing).IsEmpty().Because("show: cannot surface a define");
+                await Assert.That(count.ShowPerPicker).IsTrue();
+                await Assert.That(count.Chips).Contains("on post_plant_kill");
+                await Assert.That(count.AvailableFacets).DoesNotContain("enemy");
+                await Assert.That(CanvasEditSemantics.TriggerKeyFor(define)).IsEqualTo("on");
+                await Assert.That(CanvasEditSemantics.WriteField(define, "per", "match").IsRefused).IsTrue().Because("a define has no per:");
+                await Assert.That(CanvasEditSemantics.WriteField(define, "per", "match").Refusal).IsNull();
+                await Assert.That(CanvasEditSemantics.WriteField(define, "on", null).Refusal).Contains("needs a trigger");
+            }
+        }
+    }
+
+    [Test]
+    public async Task ADefineNodesEditors_WriteUnderDefine_AndTheStatsFollowByName()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = OpenLab();
+        using (rules)
+        {
+            string Text() => File.ReadAllText(rules.UserPath("define_lab"));
+
+            CanvasTriggerViewModel trigger = Define(vm).Trigger!;
+            trigger.Selected = trigger.Options.Single(o => o.Written == "death");
+            using (Assert.Multiple())
+            {
+                await Assert.That(RulesetEdits.DefineField(Text(), "post_plant_kill", "on")).IsEqualTo("death");
+                await Assert.That(Text()).Contains("on: death                         # the retake frag");
+                await Assert.That(RulesetEdits.DefineFacetKeys(Text(), "post_plant_kill")).IsEquivalentTo(["enemy"]).Because("death knows enemy too");
+                await Assert.That(vm.Diagnostics).IsEmpty();
+                await Assert.That(Define(vm).View).IsEqualTo("death");
+                await Assert.That(vm.Nodes.Single(n => n.Id == "late_kills").View).IsEqualTo("death").Because("the stat fires on the define by name");
+                await Assert.That(vm.Connections.Any(c => c.Source.Owner?.IsDefine == true && c.Target.Owner?.Id == "late_kills" && c.Text == "fires")).IsTrue();
+            }
+
+            Define(vm).FacetToAdd = "headshot";
+            await Assert.That(RulesetEdits.DefineFacetKeys(Text(), "post_plant_kill")).IsEquivalentTo(["enemy", "headshot"]);
+            await Assert.That(Define(vm).Facets.Select(f => f.Name)).IsEquivalentTo(["enemy", "headshot"]);
+
+            Define(vm).Facets.Single(f => f.Name == "enemy").RemoveCommand.Execute(null);
+            await Assert.That(RulesetEdits.DefineFacetKeys(Text(), "post_plant_kill")).IsEquivalentTo(["headshot"]);
+
+            CanvasNodeViewModel gated = Define(vm);
+            gated.GateText = "round.active";
+            gated.CommitGate();
+            await Assert.That(RulesetEdits.DefineField(Text(), "post_plant_kill", "while")).IsEqualTo("round.active");
+            await Assert.That(vm.Connections.Any(c => c.Source.Owner?.Id == "RoundActive" && c.Target.Owner?.IsDefine == true && c.IsGate)).IsTrue()
+                .Because("the gate wire runs into the define");
+
+            CanvasNodeViewModel ungated = Define(vm);
+            ungated.GateText = "";
+            ungated.CommitGate();
+            await Assert.That(RulesetEdits.DefineField(Text(), "post_plant_kill", "while")).IsNull();
+
+            CanvasExpressionViewModel where = Define(vm).Lines.Single(l => l.Key == "where");
+            where.Text = "player.team == 3";
+            where.Commit();
+            await Assert.That(RulesetEdits.DefineField(Text(), "post_plant_kill", "where")).IsEqualTo("player.team == 3");
+            await Assert.That(vm.Diagnostics).IsEmpty();
+            await Assert.That(Define(vm).Lines.Single(l => l.Key == "where").Text).IsEqualTo("player.team == 3");
+
+            where = Define(vm).Lines.Single(l => l.Key == "where");
+            where.Text = "";
+            where.Commit();
+            await Assert.That(RulesetEdits.DefineField(Text(), "post_plant_kill", "where")).IsNull();
+            await Assert.That(vm.CanUndo).IsTrue();
+        }
+    }
+
     [Test]
     public async Task WhenTheCompositionFails_TheDefineIsStillDrawn_FromTheDocument()
     {
