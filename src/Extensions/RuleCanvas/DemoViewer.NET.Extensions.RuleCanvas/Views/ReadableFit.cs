@@ -11,7 +11,7 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Views;
 ///     <see cref="MinZoom" />; when it does not fit there, the viewport frames the extent's width from its
 ///     left-most column through the authored column, anchored at the extent's top-left, so the chain reads
 ///     source to stat and what is left over is a pan down. When even that is too wide for the floor, the
-///     authored column is kept at the right edge and the upstream remainder is a pan left. Pure, so the rule
+///     authored nodes' own box is framed from its top-left and the upstream is a pan left. Pure, so the rule
 ///     is testable without an editor.
 /// </summary>
 /// <param name="Zoom">The viewport zoom.</param>
@@ -52,17 +52,23 @@ public sealed record ReadableFit(double Zoom, Point Location, bool FramesSourceT
 
         // Source to stat: from the extent's left edge through the right edge of the right-most authored node.
         // Without an authored node the whole width is the reading direction.
-        bool authored = all.Any(n => n.IsAuthored);
-        double right = authored
-            ? all.Where(n => n.IsAuthored).Max(n => n.Location.X + n.Size.Width) + Pad
-            : extent.Right;
-        double widthFit = viewport.Width / Math.Max(1, right - extent.Left);
-        double zoom = Math.Clamp(widthFit, MinZoom, MaxZoom);
+        List<(Point Location, Size Size, bool IsAuthored)> authored = [.. all.Where(n => n.IsAuthored)];
+        if (authored.Count == 0)
+        {
+            return new ReadableFit(MinZoom, extent.TopLeft, true);
+        }
 
-        // Wider than the floor allows: the authored column sits at the right edge, since that is what the
-        // user edits, and what is cut off is upstream, a pan left. With nothing authored the source stays.
-        double left = authored && widthFit < MinZoom ? right - viewport.Width / zoom : extent.Left;
-        return new ReadableFit(zoom, new Point(left, extent.Top), true);
+        Rect column = ExtentOf(authored);
+        double widthFit = viewport.Width / Math.Max(1, column.Right - extent.Left);
+        if (widthFit >= MinZoom)
+        {
+            return new ReadableFit(Math.Min(widthFit, MaxZoom), extent.TopLeft, true);
+        }
+
+        // Wider than the floor allows even from source to stat: the authored nodes' own box is framed from
+        // its top-left, so what the user edits is under the viewport and the upstream is a pan left.
+        double columnFit = Math.Min(viewport.Width / Math.Max(1, column.Width), usableHeight / Math.Max(1, column.Height));
+        return new ReadableFit(Math.Clamp(columnFit, MinZoom, MaxZoom), column.TopLeft, true);
     }
 
     /// <summary>
