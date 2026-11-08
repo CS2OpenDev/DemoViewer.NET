@@ -230,9 +230,9 @@ public class RuleCanvasInputTests
                 Nodify.Avalonia.ItemContainer container = title.GetVisualAncestors().OfType<Nodify.Avalonia.ItemContainer>().First();
                 using (Assert.Multiple())
                 {
-                    await Assert.That(container.ContextMenu?.IsOpen).IsEqualTo(true).Because("a right click that did not pan opens the node menu");
+                    await Assert.That(container.ContextMenu?.IsOpen == true).IsTrue().Because("a right click that did not pan opens the node menu");
                     await Assert.That(container.ContextMenu!.Items.OfType<MenuItem>().Select(m => m.Header as string)).Contains("Delete");
-                    await Assert.That(canvas.SelectedNodes.OfType<CanvasNodeViewModel>().Select(n => n.Id)).IsEquivalentTo(new[] { "round_kills" })
+                    await Assert.That(canvas.SelectedNodes.OfType<CanvasNodeViewModel>().Select(n => n.Id)).IsEquivalentTo(OnlyRoundKills)
                         .Because("the menu acts on the node under the pointer");
                 }
             }
@@ -275,7 +275,7 @@ public class RuleCanvasInputTests
 
                 using (Assert.Multiple())
                 {
-                    await Assert.That(wire.ContextMenu?.IsOpen).IsEqualTo(true).Because("a right click on the stroke opens the wire menu");
+                    await Assert.That(wire.ContextMenu?.IsOpen == true).IsTrue().Because("a right click on the stroke opens the wire menu");
                     await Assert.That(wire.ContextMenu!.Items.OfType<MenuItem>().Select(m => m.Header as string)).Contains("Remove wire");
                     await Assert.That(editor.ContextMenu!.IsOpen).IsFalse().Because("the canvas menu stays shut under a wire");
                 }
@@ -423,7 +423,9 @@ public class RuleCanvasInputTests
                 Point before = owner.Location;
                 Point from = Center(editor, window);
                 Point to = from + new Vector(60, 0);
+                window.MouseMove(from);
                 window.MouseDown(from, MouseButton.Left);
+                window.MouseMove(from + new Vector(20, 0), RawInputModifiers.LeftMouseButton);
                 window.MouseMove(to, RawInputModifiers.LeftMouseButton);
                 window.MouseUp(to, MouseButton.Left);
                 Pump();
@@ -438,7 +440,9 @@ public class RuleCanvasInputTests
             }
         });
 
-    // The control case for the editor test above: the same drag from the header moves the node.
+    // The control case for the editor test above: the same drag from the header moves the node. The pointer
+    // hovers first because the drag origin is the editor's last hovered position, then moves twice: the
+    // container enters its dragging state on the first move past the threshold and measures from there.
     [Test]
     public async Task ADragFromTheHeader_MovesTheNode() =>
         await HeadlessSession.RunOnUi(async () =>
@@ -461,7 +465,9 @@ public class RuleCanvasInputTests
                 Point before = owner.Location;
                 Point from = Center(title, window);
                 Point to = from + new Vector(60, 0);
+                window.MouseMove(from);
                 window.MouseDown(from, MouseButton.Left);
+                window.MouseMove(from + new Vector(20, 0), RawInputModifiers.LeftMouseButton);
                 window.MouseMove(to, RawInputModifiers.LeftMouseButton);
                 window.MouseUp(to, MouseButton.Left);
                 Pump();
@@ -559,6 +565,8 @@ public class RuleCanvasInputTests
     private static Rect NodeRect(Nodify.Avalonia.NodifyEditor editor, CanvasNodeViewModel node) =>
         new(node.Location, editor.ContainerFromItem(node) is Control { Bounds: { Width: > 0, Height: > 0 } bounds } ? bounds.Size : node.EstimatedSize);
 
+    private static readonly string[] OnlyRoundKills = ["round_kills"];
+
     private static (CanvasNodeViewModel, CanvasNodeViewModel) FarthestPair(IEnumerable<CanvasNodeViewModel> nodes)
     {
         List<CanvasNodeViewModel> all = [.. nodes];
@@ -568,7 +576,8 @@ public class RuleCanvasInputTests
         {
             foreach (CanvasNodeViewModel b in all)
             {
-                double distance = (a.Location - b.Location).Length;
+                Vector gap = a.Location - b.Location;
+                double distance = gap.Length;
                 if (distance > farthest)
                 {
                     farthest = distance;
