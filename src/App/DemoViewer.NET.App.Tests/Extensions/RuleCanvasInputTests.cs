@@ -302,6 +302,60 @@ public class RuleCanvasInputTests
             }
         });
 
+    // F frames the selection: two nodes that do not fit at the opening zoom end up in view together, which
+    // only a zoom change can do. Set, not animated: the headless clock does not run the editor's animations.
+    [Test]
+    public async Task PressingF_FramesTheSelectedNodes_ByChangingTheZoom() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using EditableCorpus corpus = new();
+            (MainViewModel vm, ServiceProvider services) = corpus.NewShell();
+            Window window = new() { Width = 1400, Height = 900, Content = new MainView { DataContext = vm } };
+            try
+            {
+                window.Show();
+                Dispatcher.UIThread.RunJobs();
+                vm.TrySelectTab(RuleCanvasPack.HubId);
+                Dispatcher.UIThread.RunJobs();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+                Dispatcher.UIThread.RunJobs();
+
+                Nodify.Avalonia.NodifyEditor editor = EditorOf(window);
+                CanvasTabViewModel canvas = (CanvasTabViewModel)editor.DataContext!;
+                (CanvasNodeViewModel near, CanvasNodeViewModel far) = FarthestPair(canvas.Nodes);
+                Reveal(editor, NodeRect(editor, near));
+                double zoomBefore = editor.ViewportZoom;
+                await Assert.That(ViewportRect(editor).Contains(NodeRect(editor, far))).IsFalse()
+                    .Because("the pair was chosen so that both do not fit at the opening zoom");
+
+                canvas.SelectedNodes.Clear();
+                canvas.SelectedNodes.Add(near);
+                canvas.SelectedNodes.Add(far);
+                Dispatcher.UIThread.RunJobs();
+                if (!editor.IsKeyboardFocusWithin)
+                {
+                    editor.Focus();
+                }
+
+                window.KeyPressQwerty(PhysicalKey.F, RawInputModifiers.None);
+                Pump();
+
+                Rect viewport = ViewportRect(editor);
+                using (Assert.Multiple())
+                {
+                    await Assert.That(editor.ViewportZoom).IsLessThan(zoomBefore).Because("F zoomed out to fit the pair");
+                    await Assert.That(viewport.Contains(NodeRect(editor, near))).IsTrue().Because("the first node is in view");
+                    await Assert.That(viewport.Contains(NodeRect(editor, far))).IsTrue().Because("the second node is in view");
+                }
+            }
+            finally
+            {
+                window.Close();
+                vm.Dispose();
+                await services.DisposeAsync();
+            }
+        });
+
     private static void Pump()
     {
         Dispatcher.UIThread.RunJobs();
@@ -317,6 +371,35 @@ public class RuleCanvasInputTests
         editor.ViewportZoom = 1;
         editor.ViewportLocation = new Point(graphRect.X - 60, graphRect.Y - 60);
         Pump();
+    }
+
+    // The viewport in graph space: the editor's pixels over its zoom, from its location.
+    private static Rect ViewportRect(Nodify.Avalonia.NodifyEditor editor) =>
+        new(editor.ViewportLocation, new Size(editor.Bounds.Width / editor.ViewportZoom, editor.Bounds.Height / editor.ViewportZoom));
+
+    // A node's measured rect where its container exists; the placement estimate otherwise.
+    private static Rect NodeRect(Nodify.Avalonia.NodifyEditor editor, CanvasNodeViewModel node) =>
+        new(node.Location, editor.ContainerFromItem(node) is Control { Bounds: { Width: > 0, Height: > 0 } bounds } ? bounds.Size : node.EstimatedSize);
+
+    private static (CanvasNodeViewModel, CanvasNodeViewModel) FarthestPair(IEnumerable<CanvasNodeViewModel> nodes)
+    {
+        List<CanvasNodeViewModel> all = [.. nodes];
+        (CanvasNodeViewModel, CanvasNodeViewModel) best = (all[0], all[0]);
+        double farthest = -1;
+        foreach (CanvasNodeViewModel a in all)
+        {
+            foreach (CanvasNodeViewModel b in all)
+            {
+                double distance = (a.Location - b.Location).Length;
+                if (distance > farthest)
+                {
+                    farthest = distance;
+                    best = (a, b);
+                }
+            }
+        }
+
+        return best;
     }
 
     private static Nodify.Avalonia.NodifyEditor EditorOf(Window window) =>

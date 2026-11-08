@@ -45,6 +45,22 @@ public sealed record ReadableFit(double Zoom, Point Location, bool FramesAuthore
         return new ReadableFit(Math.Clamp(authoredFit, MinZoom, MaxZoom), frame.TopLeft, true);
     }
 
+    /// <summary>
+    ///     The viewport that frames <paramref name="bounds" /> (graph space, already padded): the zoom that
+    ///     fits them, at most <see cref="MaxZoom" /> and at least <paramref name="minZoom" />, centred on them.
+    ///     The readable floor does not apply: a wide selection is framed whole.
+    /// </summary>
+    /// <param name="bounds">The area to frame, in graph coordinates.</param>
+    /// <param name="viewport">The editor's size in screen pixels.</param>
+    /// <param name="minZoom">The editor's own zoom floor.</param>
+    public static ReadableFit OfSelection(Rect bounds, Size viewport, double minZoom)
+    {
+        double fit = Math.Min(viewport.Width / Math.Max(1, bounds.Width), viewport.Height / Math.Max(1, bounds.Height));
+        double zoom = Math.Clamp(fit, Math.Min(minZoom, MaxZoom), MaxZoom);
+        Point location = new(bounds.Center.X - viewport.Width / zoom / 2, bounds.Center.Y - viewport.Height / zoom / 2);
+        return new ReadableFit(zoom, location, false);
+    }
+
     // The padded extent of the nodes and the zoom that fits it to the viewport, anchored at the extent's
     // top-left so the left-most column is in view whatever the clamp does to the zoom.
     private static (Rect Extent, double Fit) Frame(List<(Point Location, Size Size, bool IsAuthored)> nodes, Size viewport)
