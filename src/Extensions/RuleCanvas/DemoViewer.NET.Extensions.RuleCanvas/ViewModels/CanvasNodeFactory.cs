@@ -75,6 +75,16 @@ public sealed class CanvasNodeFactory(
                 {
                     chips.Add("each player");
                 }
+                else if (scaffold.IsPerTeam)
+                {
+                    chips.Add("each team");
+                }
+
+                if (scaffold.IsRoundFact)
+                {
+                    chips.Add("round fact");
+                    tips["round fact"] = "Read once at the plant and held to the next freeze end; no trigger drives it";
+                }
 
                 // A merged event node names the wire events it stands for; a single event is the node's name.
                 if (scaffold.Events.Count > 1)

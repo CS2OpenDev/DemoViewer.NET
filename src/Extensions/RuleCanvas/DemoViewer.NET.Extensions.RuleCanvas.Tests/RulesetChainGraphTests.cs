@@ -488,6 +488,32 @@ public class RulesetChainGraphTests
         }
     }
 
+    /// <summary>
+    ///     round_facts is <c>for: each_team</c> and captures <c>round.bomb.site</c>, a plant-site round fact. The
+    ///     chain tells a side-scoped node from a per-player one, and a round fact from a trigger-driven context.
+    /// </summary>
+    [Test]
+    public async Task ATeamRuleset_MarksItsNodesPerTeam_AndARoundFactAsOne()
+    {
+        RulesetCorpus.Composed composed = Compose("round_facts");
+        RulesetChainGraph chain = composed.Chain;
+        ChainNode plantSite = chain.Nodes.Single(n => n.Key == new RulesetDocumentNodeKey("round_facts", "plant_site"));
+        ChainNode[] facts = [.. chain.Nodes.Where(n => n.IsRoundFact)];
+        Console.WriteLine("[chain] round_facts facts=" + string.Join(", ", facts.Select(n => n.Name)) + " per-team="
+                          + chain.Nodes.Count(n => n.IsPerTeam) + " per-player=" + chain.Nodes.Count(n => n.IsPerPlayer));
+        using (Assert.Multiple())
+        {
+            await Assert.That(chain.Nodes).IsNotEmpty().Because(string.Join("; ", composed.Diagnostics));
+            await Assert.That(plantSite.IsPerTeam).IsTrue();
+            await Assert.That(plantSite.IsPerPlayer).IsFalse();
+            await Assert.That(facts.Length).IsEqualTo(1).Because("plant_site reads round.bomb.site and nothing else reads a fact");
+            await Assert.That(facts[0].Kind).IsEqualTo(ChainNodeKind.Context);
+            await Assert.That(facts[0].Name).Contains("bomb_site");
+            await Assert.That(chain.Edges.Any(e => e.Source == facts[0].Key && e.Target == plantSite.Key && e.IsRead)).IsTrue();
+            await Assert.That(Compose("player_round").Chain.Nodes.Any(n => n.IsPerTeam || n.IsRoundFact)).IsFalse();
+        }
+    }
+
     [Test]
     public async Task EveryShippedRuleset_LowersWithoutADiagnostic()
     {

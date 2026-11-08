@@ -47,6 +47,12 @@ public sealed record ChainNode(RulesetDocumentNodeKey Key, ChainNodeKind Kind, s
     /// <summary>The wire events an event node stands for: one, or the twins merged into it. Empty for every other kind.</summary>
     public IReadOnlyList<string> Events { get; init; } = [];
 
+    /// <summary>Whether it materializes once per side, for a <c>for: each_team</c> ruleset's nodes and the team aggregates.</summary>
+    public bool IsPerTeam { get; init; }
+
+    /// <summary>A plant-site round fact (<c>round.bomb.site</c>), read once at the plant rather than driven by a trigger.</summary>
+    public bool IsRoundFact { get; init; }
+
     /// <summary>
     ///     The companions a declared node owns that a sibling can read, as the author spells them: a tally's
     ///     target counters in threshold order, a highlight's <c>&lt;id&gt;.count</c>. Empty otherwise.
@@ -469,7 +475,9 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                         string name = kinds[node] == ChainNodeKind.Declared ? key.Id : node.Node.Name;
                         nodes.Add(new ChainNode(key, kinds[node], name, node.Scope == RuleGraphScope.Player)
                         {
-                            Outputs = outputs.GetValueOrDefault(key) ?? []
+                            Outputs = outputs.GetValueOrDefault(key) ?? [],
+                            IsPerTeam = node.Scope == RuleGraphScope.Team,
+                            IsRoundFact = node.Origin == RuleGraphNodeOrigin.RoundFact
                         });
                     }
                 }

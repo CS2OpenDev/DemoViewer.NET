@@ -347,4 +347,10 @@ public sealed record ScaffoldFace(
 {
     /// <summary>The wire events an event node stands for: one, or the twins merged into it. Empty for every other kind.</summary>
     public IReadOnlyList<string> Events { get; init; } = [];
+
+    /// <summary>Whether it materializes once per side rather than once per player or once for the match.</summary>
+    public bool IsPerTeam { get; init; }
+
+    /// <summary>A plant-site round fact: a context value read once at the plant, not driven by a trigger.</summary>
+    public bool IsRoundFact { get; init; }
 }
