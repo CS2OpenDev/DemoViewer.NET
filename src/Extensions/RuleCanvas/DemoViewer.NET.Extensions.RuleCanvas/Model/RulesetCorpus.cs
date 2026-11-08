@@ -439,7 +439,7 @@ public sealed class RulesetCorpus
                 RuleChainBuilder builder = new(_events.Value, null, entityProviders: _entityProviders.Value,
                     perPlayerEntityProviders: _perPlayerProviders.Value);
                 BuildResult build = builder.Build([.. composed.Rulesets]);
-                chain = RulesetChainGraph.Build(build, composed.Rulesets);
+                chain = RulesetChainGraph.Build(build, composed.Rulesets, open);
                 foreach (string message in chain.Diagnostics)
                 {
                     diagnostics.Add("The rule graph could not draw everything: " + message);

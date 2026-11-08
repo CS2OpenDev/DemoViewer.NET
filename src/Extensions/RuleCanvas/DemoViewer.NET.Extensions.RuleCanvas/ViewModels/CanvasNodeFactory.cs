@@ -191,9 +191,12 @@ public sealed class CanvasNodeFactory(
                     fixedTips[row] = "The view's result, lowered to " + stat.TeamBindingTest;
                 }
 
-                if (stat.Define is { } define)
+                // The define's facets are its node's rows; the resolver refuses the same key on the define and
+                // the site, so the picker stops offering them here.
+                foreach (MatchBinding bound in stat.Define?.Trigger.Match ?? [])
                 {
-                    AddDefineRows(define, fixedRows, fixedTips, available, availableKinds);
+                    available.Remove(bound.Key);
+                    availableKinds.Remove(bound.Key);
                 }
 
                 AddKindRows(stat, expression, lines, fields, choices, defaults, out thresholds, Field);
@@ -272,7 +275,10 @@ public sealed class CanvasNodeFactory(
             return null;
         }
 
-        CanvasTriggerViewModel trigger = new(key, stat.TriggerSpelling, stat.View, stat.Events, stat.Vocabulary.TriggersFor(stat.TriggerSpelling), write);
+        CanvasTriggerViewModel trigger = new(key, stat.TriggerSpelling, stat.View, stat.Events, stat.Vocabulary.TriggersFor(stat.TriggerSpelling), write)
+        {
+            IsDefine = stat.Define is not null
+        };
         if (trigger.Chip.Length > 0)
         {
             chips.Add(trigger.Chip);
@@ -298,41 +304,6 @@ public sealed class CanvasNodeFactory(
         chips.Add(off.Chip);
         tips[off.Chip] = off.Tip;
         return off;
-    }
-
-    // What a define's body adds to the trigger, as rows the stat cannot edit: its facets (which the picker
-    // then stops offering, since the resolver refuses the same key on both), its gate and its where.
-    private static void AddDefineRows(DefineFace define, List<string> fixedRows, Dictionary<string, string> fixedTips,
-        List<string> available, Dictionary<string, RulesTypeKind> availableKinds)
-    {
-        string tip = $"from define {define.Name}; edit it under define: {define.Name}";
-        void Row(string text)
-        {
-            fixedRows.Add(text);
-            fixedTips[text] = tip;
-        }
-
-        foreach (MatchBinding binding in define.Trigger.Match)
-        {
-            if (string.Equals(binding.Key, "actor", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            Row($"{binding.Key}: {MatchFacetValue.From(binding.Test)?.ToMatchValue() ?? ""}");
-            available.Remove(binding.Key);
-            availableKinds.Remove(binding.Key);
-        }
-
-        if (!string.IsNullOrWhiteSpace(define.Trigger.While))
-        {
-            Row("while " + define.Trigger.While);
-        }
-
-        if (!string.IsNullOrWhiteSpace(define.Trigger.Where))
-        {
-            Row("where " + define.Trigger.Where);
-        }
     }
 
     private static string ActorTip(StatFace stat)
