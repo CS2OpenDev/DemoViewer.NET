@@ -204,6 +204,17 @@ public sealed class CanvasNodeFactory(
             chips.Add("from " + face.Ruleset);
         }
 
+        // The event's own fields come after the catalog facets; picking one adds a where row, so the
+        // picker is the one place to find what an event carries without a catalog change.
+        if (face is StatFace { View: not null } fielded && lines.Any(l => l.Key == "where"))
+        {
+            foreach ((string path, RulesTypeKind kind) in ConditionVocabulary.EventFieldsFor(EmbeddedCatalog.Root, fielded.View))
+            {
+                available.Add(path);
+                availableKinds[path] = kind;
+            }
+        }
+
         IReadOnlyList<string> gateChoices = face is StatFace
             ? [.. CanvasNodeViewModel.GateOptions, .. face.Vocabulary.Flags.Where(f => f != face.Id)]
             : CanvasNodeViewModel.GateOptions;

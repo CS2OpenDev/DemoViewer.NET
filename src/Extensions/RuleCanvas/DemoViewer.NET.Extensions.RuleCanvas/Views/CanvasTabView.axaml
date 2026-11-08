@@ -695,10 +695,12 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <!-- Adding a facet the view offers and the document does not bind yet. -->
+                            <!-- Adding a facet the view offers and the document does not bind yet, or one of the
+                                 event's own fields, which lands as a where row. -->
                             <ComboBox ItemsSource="{Binding AvailableFacets}" SelectedItem="{Binding FacetToAdd}"
-                                      PlaceholderText="add facet…" FontSize="11" Padding="6 1" MinHeight="0"
-                                      IsVisible="{Binding ShowFacetPicker}" />
+                                      PlaceholderText="add facet or event field…" FontSize="11" Padding="6 1" MinHeight="0"
+                                      IsVisible="{Binding ShowFacetPicker}"
+                                      ToolTip.Tip="A facet the view offers becomes a match: entry; an event.* field becomes a where row you can then edit" />
 
                             <!-- The kind's own free-text keys: a sum's value, a streak's window, a rate's buckets. The
                                  editor is a combo over the suggestions that takes any text; a locked value is shown only. -->

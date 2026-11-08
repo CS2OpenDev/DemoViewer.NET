@@ -106,6 +106,31 @@ public sealed partial class CanvasExpressionViewModel : ObservableObject
     [RelayCommand]
     public void AddRow() => Builder.AddRow();
 
+    /// <summary>
+    ///     Appends a written row, joined by the author's connective ("and" when there is none yet), and
+    ///     writes the field. False when the line is not an editable flat condition.
+    /// </summary>
+    public bool AppendRow(string path, string? comparator, string? literal)
+    {
+        if (!IsEditable || !IsCondition || !IsFlat)
+        {
+            return false;
+        }
+
+        string text;
+        try
+        {
+            text = Condition.WithRowAdded(path, comparator, literal, Condition.Connective ?? ConditionConnective.And, "and");
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+
+        WriteText(text);
+        return true;
+    }
+
     [RelayCommand]
     public void RemoveRow(CanvasConditionRowViewModel? row) => Builder.RemoveRow(row);
 

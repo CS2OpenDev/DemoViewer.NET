@@ -438,7 +438,21 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             return;
         }
 
-        string initial = AvailableFacetKind?.Invoke(value) switch
+        RulesTypeKind kind = AvailableFacetKind?.Invoke(value) ?? RulesTypeKind.None;
+        if (value.StartsWith("event.", StringComparison.Ordinal))
+        {
+            (string comparator, string literal) = kind switch
+            {
+                RulesTypeKind.Bool => ("==", "true"),
+                RulesTypeKind.Int or RulesTypeKind.Float => (">", "0"),
+                _ => ("==", "\"value\"")
+            };
+            Lines.FirstOrDefault(l => l.Key == "where")?.AppendRow(value, comparator, literal);
+            FacetToAdd = null;
+            return;
+        }
+
+        string initial = kind switch
         {
             RulesTypeKind.Bool => "true",
             RulesTypeKind.Int or RulesTypeKind.Float => "0",

@@ -2,6 +2,7 @@
 
 using System.Text;
 using CS2DemoKit.Analysis.Catalog;
+using CS2DemoKit.Analysis.Rules;
 
 #endregion
 
@@ -722,6 +723,46 @@ public static class ConditionVocabulary
     ///     same name, else the concrete wire events its profiles resolve it to (<c>round_end</c> is
     ///     <c>round_officially_ended</c> and two others).
     /// </summary>
+    /// <summary>
+    ///     The fields of <paramref name="view" />'s event an author can test in a where row, as
+    ///     <c>event.X</c> paths with the kind the literal takes: every typed field except the view's role
+    ///     slots and the fields one of its facets already reads. Empty for no view.
+    /// </summary>
+    public static IReadOnlyList<(string Path, RulesTypeKind Kind)> EventFieldsFor(CatalogRoot catalog, string? view)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        CatalogView? scope = view is null ? null : catalog.Views.FirstOrDefault(v => string.Equals(v.Name, view, StringComparison.Ordinal));
+        if (scope is null)
+        {
+            return [];
+        }
+
+        HashSet<string> taken = new(scope.Roles.Select(r => r.Field).Concat(scope.Facets.Select(f => f.Field).OfType<string>()), StringComparer.Ordinal);
+        List<(string, RulesTypeKind)> fields = [];
+        HashSet<string> seen = new(StringComparer.Ordinal);
+        foreach (CatalogEvent evt in EventsOf(catalog, scope))
+        {
+            foreach (CatalogField field in evt.Fields)
+            {
+                RulesTypeKind kind = field.V2Type switch
+                {
+                    "Bool" => RulesTypeKind.Bool,
+                    "Int" => RulesTypeKind.Int,
+                    "Float" => RulesTypeKind.Float,
+                    "String" => RulesTypeKind.String,
+                    _ => RulesTypeKind.None
+                };
+                string path = field.V2Name ?? "event." + field.Name;
+                if (kind != RulesTypeKind.None && !taken.Contains(field.Name) && seen.Add(path))
+                {
+                    fields.Add((path, kind));
+                }
+            }
+        }
+
+        return fields;
+    }
+
     private static IEnumerable<CatalogEvent> EventsOf(CatalogRoot catalog, CatalogView view)
     {
         CatalogEvent? logical = catalog.Events.FirstOrDefault(e => string.Equals(e.Name, view.Event, StringComparison.Ordinal));

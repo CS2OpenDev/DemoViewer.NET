@@ -14,6 +14,41 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 /// </summary>
 public class CanvasFaceRowsTests
 {
+    // The add picker offers the event's own fields after the catalog facets: the roles and the fields a
+    // facet already wraps stay out; picking one lands as a where row in the author's connective.
+    [Test]
+    public async Task TheAddPicker_OffersTheEventsFields_AndOneBecomesAWhereRow()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        CanvasNodeViewModel kills = vm.Nodes.Single(n => n.Id == "round_kills");
+        using (Assert.Multiple())
+        {
+            await Assert.That(kills.AvailableFacets).Contains("event.AttackerBlind");
+            await Assert.That(kills.AvailableFacets).Contains("event.Distance");
+            await Assert.That(kills.AvailableFacets).DoesNotContain("event.Attacker").Because("a role slot is the binding, not a test");
+            await Assert.That(kills.AvailableFacets).DoesNotContain("event.Headshot").Because("the headshot facet already wraps it");
+            await Assert.That(kills.AvailableFacets.ToList().IndexOf("headshot")).IsLessThan(kills.AvailableFacets.ToList().IndexOf("event.AttackerBlind"))
+                .Because("facets first, then the fields");
+        }
+
+        kills.FacetToAdd = "event.AttackerBlind";
+        string text = File.ReadAllText(rules.UserPath("player_round"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(RulesetEdits.Field(text, "round_kills", "where")).IsEqualTo("event.AttackerBlind == true");
+            await Assert.That(text).DoesNotContain("AttackerBlind: true").Because("an event field is never a match facet");
+            await Assert.That(kills.FacetToAdd).IsNull();
+        }
+
+        CanvasNodeViewModel assists = vm.Nodes.Single(n => n.Id == "round_kast_assists");
+        assists.FacetToAdd = "event.Distance";
+        text = File.ReadAllText(rules.UserPath("player_round"));
+        await Assert.That(RulesetEdits.Field(text, "round_kast_assists", "where")).IsEqualTo("enrich.kill.was_enemy_kill == true and event.Distance > 0")
+            .Because("a numeric field starts as a > 0 test, appended to the written where");
+    }
+
     private const string Lab = """
         ruleset: faces_lab
         title: Faces lab
