@@ -42,6 +42,8 @@
                     <SolidColorBrush x:Key="RuleTextKey" Color="#3C3C70" />
                     <!-- The halo under a hovered or selected wire; the alpha is in the token so the composite is measured. -->
                     <SolidColorBrush x:Key="RuleWireHalo" Color="#B34A4A9E" />
+                    <!-- The tick in a checked face checkbox, on RuleSelection: TextOnAccent is 2.44 there in light. -->
+                    <SolidColorBrush x:Key="RuleCheckGlyph" Color="#FCFCFE" />
                     <!-- Nodify's own brush keys, aliased onto the tokens: its control themes read these by key, and a
                          node with a header takes them over a brush set on the element. -->
                     <StaticResource x:Key="Node.BackgroundBrush" ResourceKey="RuleNodeBg" />
@@ -93,6 +95,7 @@
                     <SolidColorBrush x:Key="RuleMinimapBg" Color="#0E0E1E" />
                     <SolidColorBrush x:Key="RuleTextKey" Color="#A0A0D8" />
                     <SolidColorBrush x:Key="RuleWireHalo" Color="#99A0A0F0" />
+                    <SolidColorBrush x:Key="RuleCheckGlyph" Color="#12121E" />
                     <StaticResource x:Key="Node.BackgroundBrush" ResourceKey="RuleNodeBg" />
                     <StaticResource x:Key="Node.ContentBrush" ResourceKey="RuleNodeBg" />
                     <StaticResource x:Key="Node.HeaderBrush" ResourceKey="RuleNodeBg" />
@@ -205,6 +208,19 @@
     </Style>
     <Style Selector="ToggleButton.expander:checked /template/ ContentPresenter">
         <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- A checkbox on a node face: checked, its box and tick are the canvas's selection tokens rather than
+         Fluent's accent. Styles outrank the control theme, so the hover and pressed states follow. -->
+    <Style Selector="CheckBox.face:checked /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="{DynamicResource RuleSelection}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RuleSelection}" />
+    </Style>
+    <Style Selector="CheckBox.face:checked /template/ Path#CheckGlyph">
+        <Setter Property="Fill" Value="{DynamicResource RuleCheckGlyph}" />
+    </Style>
+    <Style Selector="CheckBox.face:unchecked /template/ Border#NormalRectangle">
+        <Setter Property="BorderBrush" Value="{DynamicResource RuleWireWrite}" />
     </Style>
 
     <!-- A card centred over the canvas for a state with nothing to draw. -->

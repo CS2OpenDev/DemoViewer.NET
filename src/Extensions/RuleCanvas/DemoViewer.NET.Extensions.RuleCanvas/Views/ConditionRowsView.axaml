@@ -33,7 +33,7 @@
                                                  KeyDown="OnCompletionKeyDown" LostFocus="OnRowEditorLostFocus" />
                                 <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:CanvasConditionRowViewModel.Comparators}"
                                           SelectedItem="{Binding Comparator}" FontSize="11" MinWidth="62" Padding="4 1" MinHeight="0" />
-                                <CheckBox Grid.Column="2" IsChecked="{Binding BoolLiteral}" IsThreeState="False"
+                                <CheckBox Grid.Column="2" Classes="face" IsChecked="{Binding BoolLiteral}" IsThreeState="False"
                                           IsVisible="{Binding IsBoolLiteral}" MinHeight="0" Padding="0" Margin="0"
                                           VerticalAlignment="Center" />
                                 <TextBox Grid.Column="2" Text="{Binding Literal}" IsVisible="{Binding ShowLiteralBox}"

@@ -69,6 +69,22 @@ public class CanvasViewMarkupTests
         }
     }
 
+    // The theme restyles CheckBox.face; a face checkbox without the class keeps Fluent's accent fill.
+    [Test]
+    public async Task EveryFaceCheckBox_CarriesTheFaceClass()
+    {
+        foreach (string file in new[] { "CanvasTabView.axaml", "ConditionRowsView.axaml" })
+        {
+            XDocument view = XDocument.Load(Path.Combine(ViewsFolder(), file));
+            List<XElement> boxes = [.. view.Descendants().Where(e => e.Name.LocalName == "CheckBox")];
+            await Assert.That(boxes).IsNotEmpty().Because(file);
+            foreach (XElement box in boxes)
+            {
+                await Assert.That(Attribute(box, "Classes").Split(' ')).Contains("face").Because(file + ": " + Attribute(box, "IsChecked"));
+            }
+        }
+    }
+
     // The converter hides a label under 0.7 zoom; a Text bound straight to the view model never reaches it.
     [Test]
     public async Task TheWireLabel_GoesThroughTheZoomConverter()

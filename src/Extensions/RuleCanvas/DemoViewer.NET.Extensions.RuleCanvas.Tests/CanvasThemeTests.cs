@@ -22,7 +22,7 @@ public class CanvasThemeTests
         "RuleKindEvent", "RuleKindEnrich", "RuleKindContext", "RuleKindStat", "RuleKindDerived", "RuleKindHighlight",
         "RuleWireWrite", "RuleWireRead", "RuleWireGate", "RuleWireAnd", "RuleWireOr",
         "RuleCanvasBg", "RuleNodeBg", "RuleNodeBorder", "RuleSelection", "RuleSelectionFill", "RuleCutLine", "RuleMinimapBg",
-        "RuleTextKey", "RuleWireHalo"
+        "RuleTextKey", "RuleWireHalo", "RuleCheckGlyph"
     ];
 
     private static readonly string[] _restyled =
@@ -84,6 +84,12 @@ public class CanvasThemeTests
                 await Assert.That(selectors.Any(s => s.EndsWith("Connection." + wire, StringComparison.Ordinal)))
                     .IsTrue().Because("the " + wire + " wire style lives with the palette");
             }
+
+            // A checked face checkbox is restyled off Fluent's accent: the box and its tick.
+            await Assert.That(selectors.Any(s => s.Contains("CheckBox.face:checked", StringComparison.Ordinal) && s.EndsWith("Border#NormalRectangle", StringComparison.Ordinal)))
+                .IsTrue().Because("the checked box takes RuleSelection");
+            await Assert.That(selectors.Any(s => s.Contains("CheckBox.face:checked", StringComparison.Ordinal) && s.EndsWith("Path#CheckGlyph", StringComparison.Ordinal)))
+                .IsTrue().Because("the tick takes RuleCheckGlyph");
 
             // The halo under a hovered or selected wire is the token, not a literal.
             List<Style> halos = [.. styles.OfType<Style>().Where(s => s.Setters.OfType<Setter>().Any(x => x.Property?.Name == "OutlineBrush"))];

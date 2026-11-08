@@ -600,7 +600,7 @@
                             </StackPanel>
 
                             <!-- The view's per-player binding, switched off by match: { actor: any }. -->
-                            <CheckBox IsChecked="{Binding BindsActor}" IsThreeState="False" Content="bind to this player" FontSize="11"
+                            <CheckBox Classes="face" IsChecked="{Binding BindsActor}" IsThreeState="False" Content="bind to this player" FontSize="11"
                                       MinHeight="0" Padding="4 0" IsVisible="{Binding ShowActorToggle}"
                                       ToolTip.Tip="Off writes match: { actor: any }, so every player's event counts" />
 
@@ -627,7 +627,7 @@
                                                        Foreground="{DynamicResource TextValue}" VerticalAlignment="Center"
                                                        IsVisible="{Binding !IsEditable}" />
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsEditable}">
-                                                <CheckBox IsChecked="{Binding Toggle}" IsThreeState="False" IsVisible="{Binding IsBool}"
+                                                <CheckBox Classes="face" IsChecked="{Binding Toggle}" IsThreeState="False" IsVisible="{Binding IsBool}"
                                                           MinHeight="0" Padding="0" Margin="0" />
                                                 <ComboBox ItemsSource="{x:Static vm:CanvasFacetViewModel.Comparators}"
                                                           SelectedItem="{Binding Comparator}" IsVisible="{Binding IsNumber}"

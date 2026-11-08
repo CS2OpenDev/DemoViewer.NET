@@ -395,6 +395,7 @@ Contrast is WCAG 2 relative luminance, measured where the token is used: a kind 
 | `RuleCutLine` | `#E53935` | `#C62828` | The cutting line. Mirrors `AccentError`. | |
 | `RuleMinimapBg` | `#0E0E1E` | `#E9EAF3` | The minimap's surface. Mirrors `PanelHeaderBg`. | |
 | `RuleWireHalo` | `#99A0A0F0` | `#B34A4A9E` | The halo under a hovered wire (3px) and a selected one (5px). The alpha is in the token: 60% of a lifted `RuleSelection` in dark, 70% of `RuleSelection` in light, measured composited on `RuleCanvasBg`. | 3.58 / 3.41 |
+| `RuleCheckGlyph` | `#12121E` | `#FCFCFE` | The tick in a checked face checkbox (`CheckBox.face`), whose box is `RuleSelection`; the unchecked box's border is `RuleWireWrite`. Dark mirrors `TextOnAccent`, light mirrors `RuleNodeBg`, since `TextOnAccent` on `RuleSelection` is 2.44 in light. Measured on `RuleSelection`. | 6.01 / 7.41 |
 | `RuleTextKey` | `#A0A0D8` | `#3C3C70` | Key labels on a face: facet names, `on`, `per`, `while`, the expression prefixes, chip text. Mirrors `TextBright`. What the canvas dims but still means (an engine default chip, a default value, the condition echo under its rows, a note, the thresholds arrow, a read-only tag) is `TextMid` (4.26 / 7.37 on the face); `TextDim` is 1.81 on `CardBg` and carries no meaning on the canvas. | 7.17 / 9.89 |
 
 The kind pill is outlined (1px border and text in the kind token on `RuleNodeBg`), never a filled
