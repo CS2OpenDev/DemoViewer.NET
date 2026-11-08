@@ -430,7 +430,7 @@ public sealed class RulesetCorpus
         // One unresolved reference anywhere empties the checked set; the entries are still in the documents.
         RulesetDocumentGraph graph = composed.Rulesets.Count == 0
             ? RulesetDocumentGraph.FromDocuments(docs, open.Id)
-            : RulesetDocumentGraph.Build(composed.Rulesets, open.Id);
+            : RulesetDocumentGraph.Build(composed.Rulesets, open.Id, docs);
         RulesetChainGraph chain = RulesetChainGraph.Empty;
         if (composed.Rulesets.Count > 0)
         {

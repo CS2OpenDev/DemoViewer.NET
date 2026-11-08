@@ -38,8 +38,11 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>The typed face this node was built from, or null for a node made by hand.</summary>
     public NodeFace? Face { get; init; }
 
-    /// <summary>The <c>stats:</c> or <c>highlights:</c> key.</summary>
+    /// <summary>The <c>stats:</c> or <c>highlights:</c> key, or <c>define.&lt;name&gt;</c> for a define.</summary>
     public required string Id { get; init; }
+
+    /// <summary>What the header shows: the define's name, or the id.</summary>
+    public string Title => Key.Name;
 
     /// <summary>The node's identity in a layout, a selection and a focus.</summary>
     public RulesetDocumentNodeKey Key => new(Ruleset, Id);
@@ -232,6 +235,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     public bool IsSurfaced => Surfacing.StartsWith("shown", StringComparison.Ordinal);
 
     public bool IsHighlight => Kind == "highlight";
+
+    /// <summary>A trigger-bodied <c>define:</c> of the open document; its stats fire through it.</summary>
+    public bool IsDefine => Key.IsDefine;
 
     /// <summary>A node the engine made rather than the author: an event, an enrichment, a context value.</summary>
     public bool IsScaffold => Ruleset.StartsWith('~');

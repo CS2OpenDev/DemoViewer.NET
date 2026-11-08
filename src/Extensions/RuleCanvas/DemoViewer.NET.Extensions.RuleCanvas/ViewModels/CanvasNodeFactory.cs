@@ -118,6 +118,19 @@ public sealed class CanvasNodeFactory(
 
                 AddReads(chips, undeclared.CrossRulesetReads);
                 break;
+            case DefineFace named:
+                AddTrigger(chips, named.TriggerSpelling ?? named.View, named.Events);
+                if (named.Gate.Length > 0)
+                {
+                    chips.Add("while " + named.Gate);
+                }
+
+                if (!string.IsNullOrWhiteSpace(named.Trigger.Where))
+                {
+                    expression.Add("where " + named.Trigger.Where);
+                }
+
+                break;
             case StatFace stat:
                 trigger = AddStatTrigger(stat, chips, tips, Field);
                 if (stat is FlagFace { OffTrigger.On: not null } latch)
@@ -214,7 +227,7 @@ public sealed class CanvasNodeFactory(
             Ruleset = face.Ruleset,
             Kind = face.Kind,
             Label = face.Label,
-            View = (face as StatFace)?.View ?? (face as UndeclaredFace)?.View,
+            View = (face as StatFace)?.View ?? (face as UndeclaredFace)?.View ?? (face as DefineFace)?.View,
             ValueType = face.ValueType,
             Chips = chips,
             ChipTips = tips,

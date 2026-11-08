@@ -1,5 +1,6 @@
 #region
 
+using CS2DemoKit.Analysis.Catalog;
 using CS2DemoKit.Analysis.Rules;
 using CS2DemoKit.Analysis.Rules.Checking;
 using CS2DemoKit.Analysis.Rules.Hashing;
@@ -25,6 +26,18 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 /// <param name="Id">The <c>stats:</c> or <c>highlights:</c> key.</param>
 public readonly record struct RulesetDocumentNodeKey(string Ruleset, string Id)
 {
+    /// <summary>What a define node's id starts with; a stat id cannot hold a dot, so the two never collide.</summary>
+    public const string DefinePrefix = "define.";
+
+    /// <summary>Whether this key names a trigger-bodied <c>define:</c> rather than a stat or a highlight.</summary>
+    public bool IsDefine => Id.StartsWith(DefinePrefix, StringComparison.Ordinal);
+
+    /// <summary>The define's name for a define key; the id itself otherwise.</summary>
+    public string Name => IsDefine ? Id[DefinePrefix.Length..] : Id;
+
+    /// <summary>The key of the define <paramref name="name" /> declared by <paramref name="ruleset" />.</summary>
+    public static RulesetDocumentNodeKey Define(string ruleset, string name) => new(ruleset, DefinePrefix + name);
+
     /// <summary>Formats as the qualified read an author would write from another ruleset.</summary>
     /// <returns>The <c>ruleset.id</c> form.</returns>
     public override string ToString() => Ruleset + "." + Id;
@@ -91,6 +104,9 @@ public sealed record RulesetDocumentNode(
 
     /// <summary>Which of the two document sections declares this node.</summary>
     public bool IsHighlight => Kind == RuleNodeKind.Highlight;
+
+    /// <summary>A trigger-bodied <c>define:</c> of the open document, drawn as the node its stats fire through.</summary>
+    public bool IsDefine => Key.IsDefine;
 }
 
 /// <summary>
@@ -151,17 +167,18 @@ public sealed record RulesetDocumentGraph(
         ArgumentNullException.ThrowIfNull(documents);
         HashSet<string> views = [.. EmbeddedCatalog.Root.Views.Select(v => v.Name)];
         List<RulesetDocumentNode> nodes = [];
+        List<RulesetDocumentEdge> edges = [];
         foreach (RulesetDoc doc in documents)
         {
             bool authorable = string.Equals(doc.Id, openRulesetId, StringComparison.Ordinal);
+            if (authorable)
+            {
+                AddDefines(doc, nodes, edges, (_, spelling) => (views.Contains(spelling) ? spelling : null, [spelling]));
+            }
+
             foreach (StatDef stat in doc.Stats)
             {
-                // Only these kinds name their event in the kind argument; the others carry it under on:.
-                string? written = stat.Trigger?.On is { } on
-                    ? Spell(on)
-                    : stat.Kind is StatKind.Count or StatKind.Streak or StatKind.Bucket or StatKind.Burst
-                        ? stat.KindArg?.Trim()
-                        : null;
+                string? written = TriggerSpelling(stat);
                 RuleNodeKind kind = Enum.TryParse(stat.Kind.ToString(), out RuleNodeKind parsed) ? parsed : RuleNodeKind.None;
                 nodes.Add(new RulesetDocumentNode(new RulesetDocumentNodeKey(doc.Id, stat.Id), kind, default,
                     stat.Position, stat.Label, written is null ? [] : [written],
@@ -175,7 +192,75 @@ public sealed record RulesetDocumentGraph(
             }
         }
 
-        return new RulesetDocumentGraph(nodes, []);
+        return new RulesetDocumentGraph(nodes, edges);
+    }
+
+    /// <summary>
+    ///     The trigger of <paramref name="stat" /> as the author spelled it: the <c>on:</c> reference, or the kind
+    ///     argument of a kind that names its event there; null for a kind that fires on nothing.
+    /// </summary>
+    public static string? TriggerSpelling(StatDef stat)
+    {
+        ArgumentNullException.ThrowIfNull(stat);
+        // Only these kinds name their event in the kind argument; the others carry it under on:.
+        return stat.Trigger?.On is { } on
+            ? Spell(on)
+            : stat.Kind is StatKind.Count or StatKind.Streak or StatKind.Bucket or StatKind.Burst
+                ? stat.KindArg?.Trim()
+                : null;
+    }
+
+    /// <summary>The trigger-bodied defines of <paramref name="doc" />, in document order; the other bodies are not nodes.</summary>
+    public static IEnumerable<(DefineDef Define, TriggerDef Trigger)> TriggerDefines(RulesetDoc doc)
+    {
+        ArgumentNullException.ThrowIfNull(doc);
+        foreach (DefineDef define in doc.Defines)
+        {
+            if (define.Body is TriggerDefineBody body)
+            {
+                yield return (define, body.Trigger);
+            }
+        }
+    }
+
+    /// <summary>The trigger-bodied define of <paramref name="doc" /> named <paramref name="name" />, or null.</summary>
+    public static (DefineDef Define, TriggerDef Trigger)? TriggerDefine(RulesetDoc doc, string name)
+    {
+        foreach ((DefineDef define, TriggerDef trigger) in TriggerDefines(doc))
+        {
+            if (string.Equals(define.Name, name, StringComparison.Ordinal))
+            {
+                return (define, trigger);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>The ids of the stats of <paramref name="doc" /> whose trigger names the define <paramref name="name" />, in document order.</summary>
+    public static IReadOnlyList<string> StatsFiringOn(RulesetDoc doc, string name)
+    {
+        ArgumentNullException.ThrowIfNull(doc);
+        return [.. doc.Stats.Where(s => string.Equals(TriggerSpelling(s), name, StringComparison.Ordinal)).Select(s => s.Id)];
+    }
+
+    // One node per trigger-bodied define of the open document, keyed define.<name>, wired to every stat that
+    // fires on it, ahead of the stats as the document orders them. The resolver scopes defines to their own
+    // document, so a dependency's are not drawn.
+    private static void AddDefines(RulesetDoc doc, List<RulesetDocumentNode> nodes, List<RulesetDocumentEdge> edges,
+        Func<string, string, (string? View, IReadOnlyList<string> Events)> resolve)
+    {
+        foreach ((DefineDef define, TriggerDef trigger) in TriggerDefines(doc))
+        {
+            RulesetDocumentNodeKey key = RulesetDocumentNodeKey.Define(doc.Id, define.Name);
+            string? spelling = trigger.On is { } on ? Spell(on) : null;
+            (string? view, IReadOnlyList<string> events) = spelling is null ? (null, []) : resolve(define.Name, spelling);
+            nodes.Add(new RulesetDocumentNode(key, RuleNodeKind.None, default, define.Position, null, events, view, [], true));
+            foreach (string stat in StatsFiringOn(doc, define.Name))
+            {
+                edges.Add(new RulesetDocumentEdge(key, new RulesetDocumentNodeKey(doc.Id, stat), "fires"));
+            }
+        }
     }
 
     /// <summary>
@@ -189,8 +274,13 @@ public sealed record RulesetDocumentGraph(
     ///     The id of the document being edited, whose nodes are authorable. <c>null</c> marks nothing
     ///     authorable, which is the honest answer when no file is open.
     /// </param>
+    /// <param name="documents">
+    ///     The documents composed, for the open one's trigger-bodied <c>define:</c> entries, which the checked
+    ///     model folds into the stats that fire on them; null draws no define nodes.
+    /// </param>
     /// <returns>The model.</returns>
-    public static RulesetDocumentGraph Build(IReadOnlyList<CheckedRuleset> rulesets, string? openRulesetId)
+    public static RulesetDocumentGraph Build(IReadOnlyList<CheckedRuleset> rulesets, string? openRulesetId,
+        IReadOnlyList<RulesetDoc>? documents = null)
     {
         ArgumentNullException.ThrowIfNull(rulesets);
 
@@ -202,6 +292,24 @@ public sealed record RulesetDocumentGraph(
             string rulesetId = ruleset.Id.Id;
             bool authorable = string.Equals(rulesetId, openRulesetId, StringComparison.Ordinal);
             Dictionary<string, RulesetDocumentNodeKey> index = IndexOf(ruleset);
+            if (authorable && documents?.FirstOrDefault(d => d.Id == rulesetId) is { } doc)
+            {
+                // The define's view and events are what the resolver gave a stat firing on it; the catalog
+                // answers for a define nothing fires on yet.
+                AddDefines(doc, nodes, edges, (name, spelling) =>
+                {
+                    CheckedStat? firing = StatsFiringOn(doc, name)
+                        .Select(id => ruleset.Stats.FirstOrDefault(s => s.StatId == id))
+                        .FirstOrDefault(s => s is not null);
+                    if (firing is not null)
+                    {
+                        return (firing.ResolvedView, firing.ConcreteEvents);
+                    }
+
+                    CatalogView? view = EmbeddedCatalog.Root.Views.FirstOrDefault(v => v.Name == spelling);
+                    return (view?.Name, view is null ? [] : [view.Event]);
+                });
+            }
 
             foreach (CheckedStat stat in ruleset.Stats)
             {

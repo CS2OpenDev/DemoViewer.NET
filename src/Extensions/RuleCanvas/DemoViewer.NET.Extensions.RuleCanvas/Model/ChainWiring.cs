@@ -56,7 +56,8 @@ public static class ChainWiring
         {
             if (drawn.Contains(edge.Source) && drawn.Contains(edge.Target) && seen.Add((edge.Source, edge.Target)))
             {
-                wires.Add(new WireSpec(edge.Source, edge.Target, edge.Reference, null, true));
+                // A define fires the stat; everything else in the document graph is a read.
+                wires.Add(new WireSpec(edge.Source, edge.Target, edge.Reference, null, !edge.Source.IsDefine));
             }
         }
 

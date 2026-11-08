@@ -140,7 +140,7 @@ public sealed record FaceVocabulary(
                 flags.Add(own ? node.Id : node.Key.ToString());
             }
 
-            if (!own || node.IsHighlight)
+            if (!own || node.IsHighlight || node.IsDefine)
             {
                 continue;
             }
