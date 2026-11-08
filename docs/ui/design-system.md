@@ -418,7 +418,8 @@ The rest of the canvas surface, for the record:
 - **The strip** is one row: the ruleset picker with its source tag, a `shipped, read only` chip and a
   primary `Edit a copy` beside it, an `AccentCaution` dot while the source pane is dirty, the diagnostics
   count as an `AccentError` badge that folds the list open under the strip (each line selects its node),
-  the status; then undo and redo as icon buttons, `+ Add` with the searchable gallery in a flyout, Focus
+  the status in a star column (it trims with an ellipsis and carries itself as a tooltip, so it never runs
+  under the buttons); then undo and redo as icon buttons, `+ Add` with the searchable gallery in a flyout, Focus
   and its chip, the Gallery, Source and Inspector toggles (`ToggleButton.panel`), Reset arrangement, Open
   Authoring, and an overflow menu with the face style, the minimap, Delete selected, New ruleset and
   Open rules folder. Refusals arrive on a `TransientToast` under the strip's left edge: `CardBg`, a 3px

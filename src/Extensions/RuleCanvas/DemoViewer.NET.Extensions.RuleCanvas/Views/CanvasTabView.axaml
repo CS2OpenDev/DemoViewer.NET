@@ -35,8 +35,9 @@
         <Border Grid.Row="0" Background="{DynamicResource PanelHeaderBg}"
                 BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="12 5">
             <StackPanel Spacing="4">
-                <DockPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <!-- The left group sits in the star column so the status trims instead of running under the buttons. -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                         <Button Classes="icon-btn" Content="&#x21B6;" FontSize="15" Padding="5 0" Command="{Binding UndoCommand}"
                                 ToolTip.Tip="Undo (Ctrl+Z)" />
                         <Button Classes="icon-btn" Content="&#x21B7;" FontSize="15" Padding="5 0" Command="{Binding RedoCommand}"
@@ -133,49 +134,54 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <ComboBox ItemsSource="{Binding Rulesets}" SelectedItem="{Binding SelectedRuleset}"
-                                  MinWidth="240" FontSize="12" Padding="8 3" ToolTip.Tip="The ruleset drawn">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="model:RulesetCorpus+Entry">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="{Binding Id}" FontFamily="monospace" />
-                                        <TextBlock Text="{Binding Source}" Foreground="{DynamicResource TextMid}" FontSize="11" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <!-- A shipped ruleset: the chip says it is read only, the button beside it makes a copy. -->
-                        <Border CornerRadius="3" Padding="6 1" VerticalAlignment="Center" BorderThickness="1"
-                                BorderBrush="{DynamicResource AccentCaution}" IsVisible="{Binding IsShippedRuleset}"
-                                ToolTip.Tip="A shipped ruleset is read only here. Edit a copy puts one in your rules, which overrides it.">
-                            <TextBlock Text="shipped, read only" FontSize="11" Foreground="{DynamicResource AccentCaution}" />
-                        </Border>
-                        <Button Classes="primary" Content="Edit a copy" FontSize="12" Padding="8 3"
-                                Command="{Binding EditCopyCommand}" IsVisible="{Binding IsShippedRuleset}"
-                                ToolTip.Tip="Copy this shipped ruleset into your rules and open the copy, which overrides it" />
-                        <TextBlock Text="&#x25CF;" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource AccentCaution}"
-                                   IsVisible="{Binding SourceDirty}"
-                                   ToolTip.Tip="The source pane holds unsaved text. Save or revert it to edit on the canvas." />
-                        <!-- The diagnostics count; pressing it folds the list under the strip open. -->
-                        <Button Classes="ghost" Padding="6 1" MinHeight="0" VerticalAlignment="Center"
-                                Command="{Binding ToggleDiagnosticsListCommand}" IsVisible="{Binding HasDiagnostics}"
-                                ToolTip.Tip="{Binding Diagnostics}">
-                            <Border CornerRadius="8" Padding="7 0" Background="{DynamicResource AccentError}">
-                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <TextBlock Text="{Binding DiagnosticCount}" FontSize="10" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
-                                    <TextBlock Text="diagnostics" FontSize="10" Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
-                                </StackPanel>
+                    <Grid Grid.Column="0" ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0 0 8 0" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <ComboBox ItemsSource="{Binding Rulesets}" SelectedItem="{Binding SelectedRuleset}"
+                                      MinWidth="240" FontSize="12" Padding="8 3" ToolTip.Tip="The ruleset drawn">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="model:RulesetCorpus+Entry">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Id}" FontFamily="monospace" />
+                                            <TextBlock Text="{Binding Source}" Foreground="{DynamicResource TextMid}" FontSize="11" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <!-- A shipped ruleset: the chip says it is read only, the button beside it makes a copy. -->
+                            <Border CornerRadius="3" Padding="6 1" VerticalAlignment="Center" BorderThickness="1"
+                                    BorderBrush="{DynamicResource AccentCaution}" IsVisible="{Binding IsShippedRuleset}"
+                                    ToolTip.Tip="A shipped ruleset is read only here. Edit a copy puts one in your rules, which overrides it.">
+                                <TextBlock Text="shipped, read only" FontSize="11" Foreground="{DynamicResource AccentCaution}" />
                             </Border>
-                        </Button>
-                        <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
-                                   Text="{Binding Status}" />
-                        <TextBlock IsVisible="{Binding AuthoringUnavailable}" FontSize="12" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource AccentCaution}"
-                                   Text="The Authoring tab is not available: switched off under Settings, Features, or this build has none." />
-                    </StackPanel>
-                </DockPanel>
+                            <Button Classes="primary" Content="Edit a copy" FontSize="12" Padding="8 3"
+                                    Command="{Binding EditCopyCommand}" IsVisible="{Binding IsShippedRuleset}"
+                                    ToolTip.Tip="Copy this shipped ruleset into your rules and open the copy, which overrides it" />
+                            <TextBlock Text="&#x25CF;" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource AccentCaution}"
+                                       IsVisible="{Binding SourceDirty}"
+                                       ToolTip.Tip="The source pane holds unsaved text. Save or revert it to edit on the canvas." />
+                            <!-- The diagnostics count; pressing it folds the list under the strip open. -->
+                            <Button Classes="ghost" Padding="6 1" MinHeight="0" VerticalAlignment="Center"
+                                    Command="{Binding ToggleDiagnosticsListCommand}" IsVisible="{Binding HasDiagnostics}"
+                                    ToolTip.Tip="{Binding Diagnostics}">
+                                <Border CornerRadius="8" Padding="7 0" Background="{DynamicResource AccentError}">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="{Binding DiagnosticCount}" FontSize="10" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
+                                        <TextBlock Text="diagnostics" FontSize="10" Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
+                                    </StackPanel>
+                                </Border>
+                            </Button>
+                        </StackPanel>
+                        <DockPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock DockPanel.Dock="Left" FontSize="12" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
+                                       Text="{Binding Status}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Status}" Margin="0 0 8 0" />
+                            <TextBlock IsVisible="{Binding AuthoringUnavailable}" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentCaution}" TextTrimming="CharacterEllipsis"
+                                       Text="The Authoring tab is not available: switched off under Settings, Features, or this build has none."
+                                       ToolTip.Tip="The Authoring tab is not available: switched off under Settings, Features, or this build has none." />
+                        </DockPanel>
+                    </Grid>
+                </Grid>
 
                 <!-- The diagnostics, one line each; a line selects the node it is inside. -->
                 <ItemsControl ItemsSource="{Binding DiagnosticEntries}" IsVisible="{Binding ShowDiagnosticsList}" Margin="0 2 0 0">

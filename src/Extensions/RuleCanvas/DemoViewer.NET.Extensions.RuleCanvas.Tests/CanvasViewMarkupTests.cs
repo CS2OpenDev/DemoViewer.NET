@@ -69,6 +69,26 @@ public class CanvasViewMarkupTests
         }
     }
 
+    // A horizontal StackPanel measures its children unbounded, so the status ran under the right-docked buttons.
+    [Test]
+    public async Task TheStripStatus_SitsInAStarColumn_AndTrims()
+    {
+        XDocument view = LoadView();
+        XElement status = view.Descendants().Single(e => e.Name.LocalName == "TextBlock" && Attribute(e, "Text") == "{Binding Status}");
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(status, "TextTrimming")).IsEqualTo("CharacterEllipsis");
+            await Assert.That(Attribute(status, "ToolTip.Tip")).IsEqualTo("{Binding Status}").Because("the trimmed text is still readable");
+            XElement? starColumn = status.Ancestors().FirstOrDefault(e => e.Name.LocalName == "Grid" && Attribute(e, "ColumnDefinitions").Contains('*'));
+            await Assert.That(starColumn).IsNotNull().Because("the status is bounded by a star column, not a StackPanel");
+            XElement cell = status.Ancestors().First(a => a.Parent == starColumn);
+            await Assert.That(Attribute(cell, "Grid.Column")).IsEqualTo("1").Because("the fixed group is column 0 (Auto) and the status column 1 (*)");
+            await Assert.That(Attribute(starColumn!, "ColumnDefinitions")).IsEqualTo("Auto,*");
+            await Assert.That(status.Ancestors().TakeWhile(a => a != starColumn).Any(a => a.Name.LocalName == "StackPanel")).IsFalse()
+                .Because("a StackPanel between the status and its column would give it unbounded width again");
+        }
+    }
+
     // TextOnAccent is 3.30:1 on the light error red; the badge text is the token measured for both badges.
     [Test]
     public async Task EveryDiagnosticsBadge_UsesTheBadgeTextToken()
