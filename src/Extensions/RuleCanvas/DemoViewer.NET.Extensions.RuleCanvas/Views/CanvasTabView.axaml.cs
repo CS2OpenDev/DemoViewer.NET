@@ -470,9 +470,17 @@ public partial class CanvasTabView : UserControl
         }
 
         ReadableFit fit = ReadableFit.Of(_viewModel.Nodes.Select(n => (n.Location, n.EstimatedSize, n.IsAuthorable)),
-            Editor.Bounds.Size);
+            Editor.Bounds.Size, OverlayReserve());
         Editor.ViewportZoom = fit.Zoom;
         Editor.ViewportLocation = fit.Location;
+    }
+
+    // The zoom cluster and the minimap sit over the editor's bottom edge; the fit keeps the chain above them.
+    private double OverlayReserve()
+    {
+        double cluster = ZoomCluster.Bounds.Height + ZoomCluster.Margin.Bottom;
+        double minimap = Minimap.IsVisible ? Math.Max(Minimap.Height, Minimap.Bounds.Height) + Minimap.Margin.Bottom : 0;
+        return Math.Max(cluster, minimap);
     }
 
     // Once the containers are measured the editor's own fit is the truer one; before that, the estimate.

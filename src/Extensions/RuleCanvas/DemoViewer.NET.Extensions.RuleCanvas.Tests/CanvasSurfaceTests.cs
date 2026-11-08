@@ -396,6 +396,24 @@ public class CanvasSurfaceTests
         await Assert.That(ReadableFit.Of([], viewport).Zoom).IsEqualTo(ReadableFit.MaxZoom);
     }
 
+    // The minimap and the zoom cluster cover the editor's bottom edge; a fit that ignored them put nodes under them.
+    [Test]
+    public async Task TheReadableFit_KeepsTheChainAboveTheBottomOverlays()
+    {
+        Size viewport = new(1000, 600);
+        List<(Point, Size, bool)> chain = [(new Point(0, 0), new Size(200, 440), true), (new Point(300, 0), new Size(200, 100), false)];
+        ReadableFit bare = ReadableFit.Of(chain, viewport);
+        ReadableFit reserved = ReadableFit.Of(chain, viewport, 162);
+        using (Assert.Multiple())
+        {
+            await Assert.That(bare.Zoom).IsEqualTo(1.0).Because("520 of padded height fits 600");
+            await Assert.That(reserved.Zoom).IsEqualTo((600.0 - 162) / 520).Within(0.001).Because("520 has to fit the 438 above the overlays");
+            await Assert.That(reserved.Location).IsEqualTo(bare.Location).Because("the reserve shrinks the zoom, not where the chain starts");
+            await Assert.That(reserved.FramesSourceToStat).IsFalse();
+            await Assert.That(ReadableFit.Of(chain, viewport, -50).Zoom).IsEqualTo(1.0).Because("a negative reserve is no reserve");
+        }
+    }
+
     [Test]
     public async Task ThePanelToggles_Flip()
     {

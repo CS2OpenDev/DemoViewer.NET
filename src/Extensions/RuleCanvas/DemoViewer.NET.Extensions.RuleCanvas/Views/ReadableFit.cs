@@ -25,7 +25,13 @@ public sealed record ReadableFit(double Zoom, Point Location, bool FramesSourceT
 
     /// <param name="nodes">Every node: where it is, how big it is estimated, and whether the author wrote it.</param>
     /// <param name="viewport">The editor's size in screen pixels.</param>
-    public static ReadableFit Of(IEnumerable<(Point Location, Size Size, bool IsAuthored)> nodes, Size viewport)
+    public static ReadableFit Of(IEnumerable<(Point Location, Size Size, bool IsAuthored)> nodes, Size viewport) =>
+        Of(nodes, viewport, 0);
+
+    /// <param name="nodes">Every node: where it is, how big it is estimated, and whether the author wrote it.</param>
+    /// <param name="viewport">The editor's size in screen pixels.</param>
+    /// <param name="bottomReserve">Screen pixels along the viewport's bottom that overlays cover; the fit stays above them.</param>
+    public static ReadableFit Of(IEnumerable<(Point Location, Size Size, bool IsAuthored)> nodes, Size viewport, double bottomReserve)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         List<(Point Location, Size Size, bool IsAuthored)> all = [.. nodes];
@@ -34,8 +40,9 @@ public sealed record ReadableFit(double Zoom, Point Location, bool FramesSourceT
             return new ReadableFit(MaxZoom, new Point(0, 0), false);
         }
 
+        double usableHeight = Math.Max(1, viewport.Height - Math.Max(0, bottomReserve));
         Rect extent = ExtentOf(all);
-        double fit = Math.Min(viewport.Width / Math.Max(1, extent.Width), viewport.Height / Math.Max(1, extent.Height));
+        double fit = Math.Min(viewport.Width / Math.Max(1, extent.Width), usableHeight / Math.Max(1, extent.Height));
         if (fit >= MinZoom)
         {
             return new ReadableFit(Math.Min(fit, MaxZoom), extent.TopLeft, false);
