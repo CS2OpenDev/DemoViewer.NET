@@ -592,6 +592,20 @@
                                 </ComboBox>
                             </StackPanel>
 
+                            <!-- A flag's off: deactivator, with the same picker, writing off:. -->
+                            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowOffTriggerPicker}">
+                                <TextBlock Text="off" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
+                                <ComboBox ItemsSource="{Binding OffTrigger.Options}" SelectedItem="{Binding OffTrigger.Selected}"
+                                          PlaceholderText="pick a deactivator…" FontSize="11" MinWidth="190" Padding="6 1" MinHeight="0"
+                                          ToolTip.Tip="{Binding OffTrigger.Tip}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="model:TriggerOption">
+                                            <TextBlock Text="{Binding Display}" FontSize="11" FontFamily="monospace" ToolTip.Tip="{Binding Tip}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+
                             <!-- The view's per-player binding, switched off by match: { actor: any }. -->
                             <CheckBox IsChecked="{Binding BindsActor}" IsThreeState="False" Content="bind to this player" FontSize="11"
                                       MinHeight="0" Padding="4 0" IsVisible="{Binding ShowActorToggle}"

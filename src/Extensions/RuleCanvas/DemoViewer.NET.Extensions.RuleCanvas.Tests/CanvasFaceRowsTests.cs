@@ -301,6 +301,61 @@ public class CanvasFaceRowsTests
         }
     }
 
+    /// <summary>
+    ///     A flag with <c>on:</c> and <c>off:</c> is a latch. The face shows the deactivator as a second trigger
+    ///     row with the same picker, writing <c>off:</c> and leaving <c>on:</c> and the facets alone.
+    /// </summary>
+    [Test]
+    public async Task AFlagWithOff_ShowsADeactivatorRow_ThatWritesOff()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("latch", """
+            ruleset: latch
+            title: Latch
+            for: each_player
+
+            stats:
+              planted:
+                flag: true
+                on: bomb_planted
+                off: round_ended
+                per: round
+              seen:
+                flag:
+                  when: "planted"
+                per: round
+            """);
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "latch";
+        vm.OnActivated(null!);
+        string Text() => File.ReadAllText(rules.UserPath("latch"));
+        CanvasNodeViewModel planted = Node(vm, "planted");
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Diagnostics).IsEmpty();
+            await Assert.That(planted.Chips).Contains("on bomb_planted");
+            await Assert.That(planted.Chips).Contains("off round_ended");
+            await Assert.That(planted.ChipTips["off round_ended"]).StartsWith("round_ended");
+            await Assert.That(planted.Trigger!.Key).IsEqualTo("on");
+            await Assert.That(planted.OffTrigger!.Key).IsEqualTo("off");
+            await Assert.That(planted.OffTrigger.Spelling).IsEqualTo("round_ended");
+            await Assert.That(planted.OffTrigger.Options.Select(o => o.Written)).IsEquivalentTo(planted.Trigger.Options.Select(o => o.Written));
+            await Assert.That(planted.ShowOffTriggerPicker).IsTrue();
+            await Assert.That(planted.VisibleChips).DoesNotContain("off round_ended").Because("the picker stands in for the chip");
+            await Assert.That(Node(vm, "seen").OffTrigger).IsNull();
+            await Assert.That(Node(vm, "seen").ShowOffTriggerPicker).IsFalse();
+        }
+
+        planted.OffTrigger.Selected = planted.OffTrigger.Options.Single(o => o.Written == "bomb_defused");
+        using (Assert.Multiple())
+        {
+            await Assert.That(RulesetEdits.Field(Text(), "planted", "off")).IsEqualTo("bomb_defused");
+            await Assert.That(RulesetEdits.Field(Text(), "planted", "on")).IsEqualTo("bomb_planted");
+            await Assert.That(Node(vm, "planted").Chips).Contains("off bomb_defused");
+            await Assert.That(Node(vm, "planted").Chips).Contains("on bomb_planted");
+        }
+    }
+
     [Test]
     public async Task TheValueRow_WritesTheKindKey_RefusesEmpty_AndOffersThePathsOfTheView()
     {

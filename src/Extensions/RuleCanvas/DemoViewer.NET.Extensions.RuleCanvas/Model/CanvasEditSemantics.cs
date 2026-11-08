@@ -409,6 +409,9 @@ public static class CanvasEditSemantics
             // The trigger and the kind argument are the stat's definition: set, never emptied.
             "count" or "streak" or "bucket" or "burst" or "on" when value is not null => Retarget(node, key, value),
             "count" or "streak" or "bucket" or "burst" or "on" => EditRequest.Refuse("A stat needs a trigger; pick a view, an event or a define."),
+            // A flag's deactivator names its own view; the facets under match: belong to on:, so none are dropped.
+            "off" when value is not null => Set(node, "off", value),
+            "off" => EditRequest.Refuse("A flag with off: needs a deactivator; remove the key in the source pane to drop it."),
             "sum" or "capture" or "tally" when value is not null => Set(node, key, value),
             "sum" or "capture" or "tally" => EditRequest.Refuse($"A {key} needs a value; delete the stat instead."),
             // The optional keys: a value sets, nothing removes, and the engine's default takes over.

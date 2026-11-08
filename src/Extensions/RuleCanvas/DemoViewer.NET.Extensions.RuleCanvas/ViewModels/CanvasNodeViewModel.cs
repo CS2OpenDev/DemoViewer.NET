@@ -95,6 +95,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>The trigger picker, for a stat that fires on something; null for a compute, a rate and an expression flag.</summary>
     public CanvasTriggerViewModel? Trigger { get; init; }
 
+    /// <summary>The deactivator picker of a flag with <c>off:</c>, writing that key; null for every other face.</summary>
+    public CanvasTriggerViewModel? OffTrigger { get; init; }
+
     /// <summary>The kind's free-text keys: a sum's value, a streak's window, a rate's buckets, a highlight's group.</summary>
     public IReadOnlyList<CanvasFieldViewModel> Fields { get; init; } = [];
 
@@ -152,6 +155,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     /// <summary>The trigger picker shows while editable, on a stat that fires on something.</summary>
     public bool ShowTriggerPicker => IsEditable && Trigger is not null;
+
+    /// <summary>The off: picker shows while editable, under the on: row of a flag that has one.</summary>
+    public bool ShowOffTriggerPicker => IsEditable && OffTrigger is not null;
 
     /// <summary>The add-facet picker: an editable stat whose view still has facets to offer.</summary>
     public bool ShowFacetPicker => IsEditable && !IsHighlight && HasAvailableFacets;
@@ -400,6 +406,11 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
             Trigger.IsEditable = value;
         }
 
+        if (OffTrigger is not null)
+        {
+            OffTrigger.IsEditable = value;
+        }
+
         if (Thresholds is not null)
         {
             Thresholds.IsEditable = value;
@@ -407,6 +418,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
         OnPropertyChanged(nameof(ShowFieldPickers));
         OnPropertyChanged(nameof(ShowTriggerPicker));
+        OnPropertyChanged(nameof(ShowOffTriggerPicker));
         OnPropertyChanged(nameof(ShowFacetPicker));
         OnPropertyChanged(nameof(ShowActorToggle));
         OnPropertyChanged(nameof(CanEditLabel));
@@ -446,6 +458,11 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         if (chip.StartsWith("while ", StringComparison.Ordinal))
         {
             return IsGateListed;
+        }
+
+        if (chip.StartsWith("off ", StringComparison.Ordinal))
+        {
+            return OffTrigger is not null;
         }
 
         return Trigger is not null && chip.StartsWith("on ", StringComparison.Ordinal);

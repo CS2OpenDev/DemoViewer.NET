@@ -24,13 +24,15 @@ public sealed partial class CanvasTriggerViewModel : ObservableObject
     /// <param name="events">The wire events the trigger fires on.</param>
     /// <param name="options">What the picker offers, the current spelling among them.</param>
     /// <param name="write">Writes the key; the value is never null here.</param>
+    /// <param name="prefix">The word before the spelling on the chip: <c>on</c>, or <c>off</c> for a flag's deactivator.</param>
     public CanvasTriggerViewModel(string key, string? spelling, string? resolvedView, IReadOnlyList<string> events,
-        IReadOnlyList<TriggerOption> options, Action<string, string?> write)
+        IReadOnlyList<TriggerOption> options, Action<string, string?> write, string prefix = "on")
     {
         ArgumentNullException.ThrowIfNull(events);
         ArgumentNullException.ThrowIfNull(options);
         _loading = true;
         Key = key;
+        Prefix = prefix;
         Spelling = spelling ?? "";
         ResolvedView = resolvedView;
         Events = events;
@@ -51,8 +53,11 @@ public sealed partial class CanvasTriggerViewModel : ObservableObject
 
     public IReadOnlyList<TriggerOption> Options { get; }
 
-    /// <summary>The header chip: <c>on</c> and the spelling, or empty when there is none.</summary>
-    public string Chip => Spelling.Length == 0 ? "" : "on " + Spelling;
+    /// <summary>The word before the spelling: <c>on</c>, or <c>off</c> on a flag's deactivator row.</summary>
+    public string Prefix { get; }
+
+    /// <summary>The header chip: the prefix and the spelling, or empty when there is none.</summary>
+    public string Chip => Spelling.Length == 0 ? "" : Prefix + " " + Spelling;
 
     /// <summary>What the chip and the picker say on hover: the view it resolves to and the events it fires on.</summary>
     public string Tip
