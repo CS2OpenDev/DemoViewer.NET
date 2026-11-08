@@ -360,6 +360,46 @@ public class RulesetChainGraphTests
         }
     }
 
+    /// <summary>
+    ///     Two stats with one definition share one engine node, so a read of either arrives from that node
+    ///     with both as owners. The reader's text names which one it reads; the other owner gets no wire.
+    /// </summary>
+    [Test]
+    public async Task AReadOfOneSharedOwner_WiresFromThatOwnerAlone()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("twins", """
+            ruleset: twins
+            title: Twins
+            for: each_player
+
+            stats:
+              a:
+                count: kill
+                per: round
+              b:
+                count: kill
+                per: round
+              saw_a:
+                flag:
+                  when: "a > 0"
+                per: round
+            """);
+        RulesetCorpus.Composed composed = rules.Load().Compose("twins");
+        RulesetChainGraph chain = composed.Chain;
+        RulesetDocumentNodeKey flag = new("twins", "saw_a");
+        ChainEdge[] fromOwners = [.. chain.Edges.Where(e => e.Target == flag && e.Source.Ruleset == "twins")];
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Diagnostics).IsEmpty();
+            await Assert.That(chain.Nodes.Select(n => n.Key.Id)).Contains("b").Because("the twin is still drawn");
+            await Assert.That(fromOwners.Length).IsEqualTo(1).Because("the flag reads a, not b: " + string.Join(", ", fromOwners.Select(e => e.Source.Id)));
+            await Assert.That(fromOwners[0].Source.Id).IsEqualTo("a");
+            await Assert.That(fromOwners[0].IsGate).IsFalse();
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "b" && e.Target == flag)).IsFalse();
+        }
+    }
+
     [Test]
     public async Task ABrokenReference_StillDrawsEveryEntry_AndPinsTheDiagnostic()
     {
@@ -415,6 +455,62 @@ public class RulesetChainGraphTests
             await Assert.That(composed.PositionedDiagnostics.Any(d => d.RulesetId == "kast"
                                                                        && d.Message.Contains("no_such_stat", StringComparison.Ordinal)))
                 .IsTrue().Because("a dependency's diagnostic carries the dependency's id, so it pins to its own entry");
+        }
+    }
+
+    /// <summary>
+    ///     aim_rating gates its contact tier on enemy_spotted, which a demo-less build cannot produce: no
+    ///     geometry, no contact scan. The build reports that as coverage, and the canvas says it at the
+    ///     entry, so the node carries it and the strip lists it. The shipped catalog binds every view on the
+    ///     fallback profile, so this is the one coverage skip the corpus can show.
+    /// </summary>
+    [Test]
+    public async Task ACoverageSkip_IsSaidAtTheEntry_SoTheNodeCarriesIt()
+    {
+        RulesetCorpus.Composed composed = Compose("aim_rating");
+        string[] lines = File.ReadAllLines(Path.Combine(RulesTree.RepoRulesDirectory, "aim_rating.rules.yaml"));
+        int line = Array.FindIndex(lines, l => l.StartsWith("  first_contacts:", StringComparison.Ordinal)) + 1;
+        RulesetDocumentNodeKey key = new("aim_rating", "first_contacts");
+        ILookup<RulesetDocumentNodeKey, string> byNode = NodeFaceBuilder.DiagnosticsByNode(composed);
+        using (Assert.Multiple())
+        {
+            await Assert.That(line).IsGreaterThan(1);
+            await Assert.That(composed.Chain.Nodes).IsNotEmpty().Because("a coverage skip is not a failed build");
+            await Assert.That(composed.PositionedDiagnostics.Any(d => d.RulesetId == "aim_rating" && d.Line == line
+                                                                       && d.Message.StartsWith("first_contacts:", StringComparison.Ordinal)
+                                                                       && d.Message.Contains("enemy_spotted", StringComparison.Ordinal)))
+                .IsTrue().Because(string.Join("; ", composed.Diagnostics));
+            await Assert.That(byNode[key].Any(m => m.Contains("enemy_spotted", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(composed.Diagnostics.Any(d => d.StartsWith("enemy_seen_round:", StringComparison.Ordinal))).IsTrue()
+                .Because("the flag on enemy_spotted is reported too");
+            await Assert.That(composed.Diagnostics.Any(d => d.Contains((char)0x2014))).IsFalse();
+            await Assert.That(composed.Graph.Nodes.Any(n => n.Key == key)).IsTrue();
+        }
+    }
+
+    /// <summary>
+    ///     round_facts is <c>for: each_team</c> and captures <c>round.bomb.site</c>, a plant-site round fact. The
+    ///     chain tells a side-scoped node from a per-player one, and a round fact from a trigger-driven context.
+    /// </summary>
+    [Test]
+    public async Task ATeamRuleset_MarksItsNodesPerTeam_AndARoundFactAsOne()
+    {
+        RulesetCorpus.Composed composed = Compose("round_facts");
+        RulesetChainGraph chain = composed.Chain;
+        ChainNode plantSite = chain.Nodes.Single(n => n.Key == new RulesetDocumentNodeKey("round_facts", "plant_site"));
+        ChainNode[] facts = [.. chain.Nodes.Where(n => n.IsRoundFact)];
+        Console.WriteLine("[chain] round_facts facts=" + string.Join(", ", facts.Select(n => n.Name)) + " per-team="
+                          + chain.Nodes.Count(n => n.IsPerTeam) + " per-player=" + chain.Nodes.Count(n => n.IsPerPlayer));
+        using (Assert.Multiple())
+        {
+            await Assert.That(chain.Nodes).IsNotEmpty().Because(string.Join("; ", composed.Diagnostics));
+            await Assert.That(plantSite.IsPerTeam).IsTrue();
+            await Assert.That(plantSite.IsPerPlayer).IsFalse();
+            await Assert.That(facts.Length).IsEqualTo(1).Because("plant_site reads round.bomb.site and nothing else reads a fact");
+            await Assert.That(facts[0].Kind).IsEqualTo(ChainNodeKind.Context);
+            await Assert.That(facts[0].Name).Contains("bomb_site");
+            await Assert.That(chain.Edges.Any(e => e.Source == facts[0].Key && e.Target == plantSite.Key && e.IsRead)).IsTrue();
+            await Assert.That(Compose("player_round").Chain.Nodes.Any(n => n.IsPerTeam || n.IsRoundFact)).IsFalse();
         }
     }
 

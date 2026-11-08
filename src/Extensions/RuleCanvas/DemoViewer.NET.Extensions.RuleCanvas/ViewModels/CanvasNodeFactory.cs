@@ -59,6 +59,7 @@ public sealed class CanvasNodeFactory(
         List<CanvasChoiceViewModel> choices = [];
         List<string> defaults = [];
         CanvasTriggerViewModel? trigger = null;
+        CanvasTriggerViewModel? off = null;
         CanvasThresholdsViewModel? thresholds = null;
         string? viewActor = null;
         bool? bindsActor = null;
@@ -73,6 +74,24 @@ public sealed class CanvasNodeFactory(
                 if (scaffold.IsPerPlayer)
                 {
                     chips.Add("each player");
+                }
+                else if (scaffold.IsPerTeam)
+                {
+                    chips.Add("each team");
+                }
+
+                if (scaffold.IsRoundFact)
+                {
+                    chips.Add("round fact");
+                    tips["round fact"] = "Read once at the plant and held to the next freeze end; no trigger drives it";
+                }
+
+                // A merged event node names the wire events it stands for; a single event is the node's name.
+                if (scaffold.Events.Count > 1)
+                {
+                    string merged = $"{scaffold.Events.Count} events";
+                    chips.Add(merged);
+                    tips[merged] = string.Join('\n', scaffold.Events);
                 }
 
                 break;
@@ -101,6 +120,11 @@ public sealed class CanvasNodeFactory(
                 break;
             case StatFace stat:
                 trigger = AddStatTrigger(stat, chips, tips, Field);
+                if (stat is FlagFace { OffTrigger.On: not null } latch)
+                {
+                    off = AddOffTrigger(latch, chips, tips, Field);
+                }
+
                 if (stat.ActorText is { } actor)
                 {
                     chips.Add(actor);
@@ -202,6 +226,7 @@ public sealed class CanvasNodeFactory(
             Expression =expression.Count == 0 ? null : string.Join('\n', expression),
             Lines = lines,
             Trigger = trigger,
+            OffTrigger = off,
             Fields = fields,
             Choices = choices,
             Thresholds = thresholds,
@@ -246,6 +271,20 @@ public sealed class CanvasNodeFactory(
         }
 
         return trigger;
+    }
+
+    // A flag's deactivator: the same picker as the on: row, written under off:. The checked model does not
+    // carry the off: view, so the chip's tip comes from the catalog by the spelling alone.
+    private static CanvasTriggerViewModel AddOffTrigger(FlagFace flag, List<string> chips, Dictionary<string, string> tips,
+        Action<string, string?> write)
+    {
+        string spelling = flag.OffTrigger!.Spelling!;
+        IReadOnlyList<TriggerOption> options = flag.Vocabulary.TriggersFor(spelling);
+        TriggerOption? known = options.FirstOrDefault(o => string.Equals(o.Written, spelling, StringComparison.Ordinal));
+        CanvasTriggerViewModel off = new("off", spelling, FaceVocabulary.ViewOf(spelling)?.Name, known?.Events ?? [], options, write, "off");
+        chips.Add(off.Chip);
+        tips[off.Chip] = off.Tip;
+        return off;
     }
 
     // What a define's body adds to the trigger, as rows the stat cannot edit: its facets (which the picker

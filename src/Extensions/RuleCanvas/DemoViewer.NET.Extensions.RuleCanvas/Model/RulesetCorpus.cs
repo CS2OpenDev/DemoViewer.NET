@@ -440,6 +440,12 @@ public sealed class RulesetCorpus
                     perPlayerEntityProviders: _perPlayerProviders.Value);
                 BuildResult build = builder.Build([.. composed.Rulesets]);
                 chain = RulesetChainGraph.Build(build, composed.Rulesets);
+                foreach (string message in chain.Diagnostics)
+                {
+                    diagnostics.Add("The rule graph could not draw everything: " + message);
+                }
+
+                graph = WithBuildSkips(graph, docs, open.Id, build, diagnostics, positioned);
             }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or NotSupportedException
                                            or KeyNotFoundException or InvalidCastException or NullReferenceException)
@@ -452,4 +458,58 @@ public sealed class RulesetCorpus
 
         return new Composed(graph, taking, diagnostics, positioned, chain);
     }
+
+    /// <summary>
+    ///     Says what the build skipped or dropped, at the entry it is about, so the text lands on the node and
+    ///     in the strip: every coverage skip (a view that does not bind on the profile, a tally target or a
+    ///     reader skipped with it, a contact read with no geometry) and every ruleset that could not be
+    ///     lowered. A skipped entry the checked set no longer holds is drawn from its document, unwired.
+    /// </summary>
+    private static RulesetDocumentGraph WithBuildSkips(RulesetDocumentGraph graph, IReadOnlyList<RulesetDoc> docs, string openId,
+        BuildResult build, List<string> diagnostics, List<(string, int, string)> positioned)
+    {
+        HashSet<RulesetDocumentNodeKey> skipped = [];
+        foreach (RulesetCoverageDiagnostic skip in build.RulesetCoverage ?? [])
+        {
+            string text = CoverageText(skip);
+            diagnostics.Add(text);
+            if (skip.Position.Line > 0)
+            {
+                positioned.Add((skip.Ruleset.Id, skip.Position.Line, text));
+            }
+
+            skipped.Add(new RulesetDocumentNodeKey(skip.Ruleset.Id, skip.NodeId));
+        }
+
+        foreach (ExcludedRuleset excluded in build.ExcludedRulesets)
+        {
+            foreach (RulesetCompositionDiagnostic reason in excluded.Diagnostics)
+            {
+                string text = $"{excluded.Id} is left out of the chain: {Plain(reason.Message)}";
+                diagnostics.Add(text);
+                if (reason.Position is { Line: > 0 } position)
+                {
+                    positioned.Add((reason.RulesetId ?? excluded.Id, position.Line, text));
+                }
+            }
+        }
+
+        skipped.ExceptWith(graph.Nodes.Select(n => n.Key));
+        if (skipped.Count == 0)
+        {
+            return graph;
+        }
+
+        IEnumerable<RulesetDocumentNode> undrawn = RulesetDocumentGraph.FromDocuments(docs, openId).Nodes.Where(n => skipped.Contains(n.Key));
+        return new RulesetDocumentGraph([.. graph.Nodes, .. undrawn], graph.Edges);
+    }
+
+    private static string CoverageText(RulesetCoverageDiagnostic skip) =>
+        skip.ViewName.Length > 0
+        && (skip.Message.Contains("does not bind", StringComparison.Ordinal) || skip.Message.Contains("no binding", StringComparison.Ordinal))
+            ? $"view {skip.ViewName} does not bind on profile {skip.ProfileId}; {skip.NodeId} has no wires"
+            : $"{skip.NodeId}: {Plain(skip.Message)}";
+
+    // The engine joins its clauses with a dash; the strip reads them as one sentence.
+    private static string Plain(string message) => message.Replace(" " + (char)0x2014 + " ", "; ", StringComparison.Ordinal);
 }

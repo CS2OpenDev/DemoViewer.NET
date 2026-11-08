@@ -320,4 +320,48 @@ public class RulesetDocumentGraphCorpusTests
             await Assert.That(vm.DiagnosticCount).IsGreaterThanOrEqualTo(3);
         }
     }
+
+    /// <summary>
+    ///     An entry ends where the next declared thing starts. A stray key inside <c>show:</c> sits after the
+    ///     last stat, and belongs to the document, not to that stat; the same line inside the stat is the stat's.
+    /// </summary>
+    [Test]
+    public async Task ADiagnosticAfterTheLastEntry_StaysAtTheDocument()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("tail", """
+            ruleset: tail
+            title: Tail
+            for: each_player
+            stats:
+              kills:
+                count: kill
+                per: round
+              deaths:
+                count: death
+                per: round
+                nonsense: true
+            show:
+              scoreboard:
+                - kills
+              stray: true
+            """);
+        RulesetCorpus.Composed composed = rules.Load().Compose("tail");
+        ILookup<RulesetDocumentNodeKey, string> byNode = NodeFaceBuilder.DiagnosticsByNode(composed);
+        RulesetDocumentNodeKey deaths = new("tail", "deaths");
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.PositionedDiagnostics.Any(d => d.Line == 11 && d.Message.Contains("nonsense", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(composed.PositionedDiagnostics.Any(d => d.Line == 15 && d.Message.Contains("stray", StringComparison.Ordinal))).IsTrue()
+                .Because(string.Join("; ", composed.PositionedDiagnostics.Select(d => $"{d.Line}: {d.Message}")));
+            await Assert.That(byNode[deaths].Any(m => m.Contains("nonsense", StringComparison.Ordinal))).IsTrue().Because("inside the entry");
+            await Assert.That(byNode[deaths].Any(m => m.Contains("stray", StringComparison.Ordinal))).IsFalse().Because("inside show:, after the entry");
+            await Assert.That(byNode[new RulesetDocumentNodeKey("tail", "kills")]).IsEmpty();
+        }
+
+        using CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "tail";
+        vm.OnActivated(null!);
+        await Assert.That(vm.DiagnosticEntries.Single(d => d.Message.Contains("stray", StringComparison.Ordinal)).Node).IsNull();
+    }
 }
