@@ -69,6 +69,25 @@ public class CanvasViewMarkupTests
         }
     }
 
+    // TextOnAccent is 3.30:1 on the light error red; the badge text is the token measured for both badges.
+    [Test]
+    public async Task EveryDiagnosticsBadge_UsesTheBadgeTextToken()
+    {
+        XDocument view = LoadView();
+        List<XElement> badges = [.. view.Descendants().Where(e => e.Name.LocalName == "Border"
+            && (Attribute(e, "Background") == "{DynamicResource AccentError}"
+                || (e.Attribute(_views + "TokenBrush.Background")?.Value ?? "").Contains("DiagnosticSeverityToken", StringComparison.Ordinal)))];
+        List<XElement> texts = [.. badges.SelectMany(b => b.Descendants().Where(e => e.Name.LocalName == "TextBlock"))];
+        await Assert.That(texts.Count).IsEqualTo(3).Because("the strip badge holds two texts, the node badge one");
+        foreach (XElement text in texts)
+        {
+            await Assert.That(Attribute(text, "Foreground")).IsEqualTo("{DynamicResource RuleDiagnosticBadgeText}").Because(Attribute(text, "Text"));
+        }
+
+        await Assert.That(view.Descendants().Any(e => Attribute(e, "Foreground") == "{DynamicResource TextOnAccent}")).IsFalse()
+            .Because("TextOnAccent is under 4.5:1 on every accent the canvas fills with");
+    }
+
     // The theme restyles CheckBox.face; a face checkbox without the class keeps Fluent's accent fill.
     [Test]
     public async Task EveryFaceCheckBox_CarriesTheFaceClass()

@@ -22,7 +22,7 @@ public class CanvasThemeTests
         "RuleKindEvent", "RuleKindEnrich", "RuleKindContext", "RuleKindStat", "RuleKindDerived", "RuleKindHighlight",
         "RuleWireWrite", "RuleWireRead", "RuleWireGate", "RuleWireAnd", "RuleWireOr",
         "RuleCanvasBg", "RuleNodeBg", "RuleNodeBorder", "RuleSelection", "RuleSelectionFill", "RuleCutLine", "RuleMinimapBg",
-        "RuleTextKey", "RuleWireHalo", "RuleCheckGlyph"
+        "RuleTextKey", "RuleWireHalo", "RuleCheckGlyph", "RuleDiagnosticBadgeText"
     ];
 
     private static readonly string[] _restyled =

@@ -164,8 +164,8 @@
                             <Border CornerRadius="8" Padding="7 0" Background="{DynamicResource AccentError}">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <TextBlock Text="{Binding DiagnosticCount}" FontSize="10" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TextOnAccent}" />
-                                    <TextBlock Text="diagnostics" FontSize="10" Foreground="{DynamicResource TextOnAccent}" />
+                                               Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
+                                    <TextBlock Text="diagnostics" FontSize="10" Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
                                 </StackPanel>
                             </Border>
                         </Button>
@@ -500,7 +500,7 @@
                                     </Border>
                                     <TextBlock Text="{Binding Id}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
                                                Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource TextMid}"
+                                    <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource RuleTextKey}"
                                                VerticalAlignment="Center" IsVisible="{Binding ShowLabelText}" />
                                     <Button Classes="ghost" Content="✎" FontSize="10" Padding="3 0" MinHeight="0" VerticalAlignment="Center"
                                             Command="{Binding BeginEditLabelCommand}" ToolTip.Tip="Edit the label"
@@ -517,7 +517,7 @@
                                             IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}"
                                             views:TokenBrush.Background="{Binding DiagnosticsText, Converter={x:Static views:DiagnosticSeverityToken.Instance}}">
                                         <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextOnAccent}" HorizontalAlignment="Center" />
+                                                   Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
                                     </Border>
                                 </StackPanel>
                             </Grid>

@@ -44,6 +44,8 @@
                     <SolidColorBrush x:Key="RuleWireHalo" Color="#B34A4A9E" />
                     <!-- The tick in a checked face checkbox, on RuleSelection: TextOnAccent is 2.44 there in light. -->
                     <SolidColorBrush x:Key="RuleCheckGlyph" Color="#FCFCFE" />
+                    <!-- 10px text on an AccentError or AccentCaution badge; TextOnAccent is 3.30 on the light error red. -->
+                    <SolidColorBrush x:Key="RuleDiagnosticBadgeText" Color="#FCFCFE" />
                     <!-- Nodify's own brush keys, aliased onto the tokens: its control themes read these by key, and a
                          node with a header takes them over a brush set on the element. -->
                     <StaticResource x:Key="Node.BackgroundBrush" ResourceKey="RuleNodeBg" />
@@ -96,6 +98,7 @@
                     <SolidColorBrush x:Key="RuleTextKey" Color="#A0A0D8" />
                     <SolidColorBrush x:Key="RuleWireHalo" Color="#99A0A0F0" />
                     <SolidColorBrush x:Key="RuleCheckGlyph" Color="#12121E" />
+                    <SolidColorBrush x:Key="RuleDiagnosticBadgeText" Color="#0C0C1A" />
                     <StaticResource x:Key="Node.BackgroundBrush" ResourceKey="RuleNodeBg" />
                     <StaticResource x:Key="Node.ContentBrush" ResourceKey="RuleNodeBg" />
                     <StaticResource x:Key="Node.HeaderBrush" ResourceKey="RuleNodeBg" />
