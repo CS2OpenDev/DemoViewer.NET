@@ -69,6 +69,26 @@ public class CanvasViewMarkupTests
         }
     }
 
+    // The converter hides a label under 0.7 zoom; a Text bound straight to the view model never reaches it.
+    [Test]
+    public async Task TheWireLabel_GoesThroughTheZoomConverter()
+    {
+        XDocument view = LoadView();
+        XElement wire = view.Descendants().Single(e => e.Name.LocalName == "LabelledConnection");
+        XElement? text = wire.Elements().SingleOrDefault(e => e.Name.LocalName == "LabelledConnection.Text");
+        await Assert.That(text).IsNotNull().Because("the label is a property element, not a plain binding");
+        XElement multi = text!.Elements().Single(e => e.Name.LocalName == "MultiBinding");
+        List<string> paths = [.. multi.Elements().Where(e => e.Name.LocalName == "Binding").Select(e => Attribute(e, "Path"))];
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(wire, "Text")).IsEqualTo("").Because("an attribute would override the property element");
+            await Assert.That(Attribute(multi, "Converter")).IsEqualTo("{x:Static views:WireLabelAtZoom.Instance}");
+            await Assert.That(paths.Count).IsEqualTo(2);
+            await Assert.That(paths[0]).IsEqualTo("Text").Because("the converter reads the text first");
+            await Assert.That(paths[1]).EndsWith("ViewportZoom").Because("and the editor's zoom second");
+        }
+    }
+
     private static string ViewsFolder()
     {
         DirectoryInfo? dir = new(AppContext.BaseDirectory);

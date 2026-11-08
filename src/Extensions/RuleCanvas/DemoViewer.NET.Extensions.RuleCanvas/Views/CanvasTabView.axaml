@@ -378,7 +378,8 @@
                 </ControlTheme>
             </nodify:NodifyEditor.ItemContainerTheme>
 
-            <!-- A wire: selectable, with its own menu. Hover and selection halos are in CanvasTheme.axaml. -->
+            <!-- A wire: selectable, with its own menu. Hover and selection halos are in CanvasTheme.axaml. The
+                 label goes through WireLabelAtZoom so it hides under 0.7, where 10px would render under 7px. -->
             <nodify:NodifyEditor.ConnectionTemplate>
                 <DataTemplate x:DataType="vm:CanvasConnectionViewModel">
                     <views:LabelledConnection Source="{Binding Source.Anchor}"
@@ -387,7 +388,7 @@
                                               TargetOrientation="Horizontal"
                                               StrokeThickness="2"
                                               ArrowEnds="End" ArrowSize="7,7"
-                                              Text="{Binding Text}" FontSize="10" FontFamily="monospace"
+                                              FontSize="10" FontFamily="monospace"
                                               Foreground="{DynamicResource TextMid}"
                                               TextBackground="{DynamicResource PanelBg}"
                                               TextPadding="5 1" TextCornerRadius="3"
@@ -397,6 +398,12 @@
                                               Classes.or="{Binding IsOr}"
                                               connections:BaseConnection.IsSelectable="True"
                                               ToolTip.Tip="{Binding Condition}">
+                        <views:LabelledConnection.Text>
+                            <MultiBinding Converter="{x:Static views:WireLabelAtZoom.Instance}">
+                                <Binding Path="Text" />
+                                <Binding Path="$parent[nodify:NodifyEditor].ViewportZoom" />
+                            </MultiBinding>
+                        </views:LabelledConnection.Text>
                         <views:LabelledConnection.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Remove wire" Click="OnWireRemove" />
