@@ -1,6 +1,7 @@
 #region
 
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Styling;
 using DemoViewer.NET.Extensions.RuleCanvas.Views;
@@ -21,7 +22,7 @@ public class CanvasThemeTests
         "RuleKindEvent", "RuleKindEnrich", "RuleKindContext", "RuleKindStat", "RuleKindDerived", "RuleKindHighlight",
         "RuleWireWrite", "RuleWireRead", "RuleWireGate", "RuleWireAnd", "RuleWireOr",
         "RuleCanvasBg", "RuleNodeBg", "RuleNodeBorder", "RuleSelection", "RuleSelectionFill", "RuleCutLine", "RuleMinimapBg",
-        "RuleTextKey"
+        "RuleTextKey", "RuleWireHalo"
     ];
 
     private static readonly string[] _restyled =
@@ -82,6 +83,16 @@ public class CanvasThemeTests
             {
                 await Assert.That(selectors.Any(s => s.EndsWith("Connection." + wire, StringComparison.Ordinal)))
                     .IsTrue().Because("the " + wire + " wire style lives with the palette");
+            }
+
+            // The halo under a hovered or selected wire is the token, not a literal.
+            List<Style> halos = [.. styles.OfType<Style>().Where(s => s.Setters.OfType<Setter>().Any(x => x.Property?.Name == "OutlineBrush"))];
+            await Assert.That(halos.Count).IsEqualTo(2).Because("a hover halo and a selection halo");
+            foreach (Style halo in halos)
+            {
+                Setter brush = halo.Setters.OfType<Setter>().Single(x => x.Property?.Name == "OutlineBrush");
+                await Assert.That(brush.Value is DynamicResourceExtension { ResourceKey: "RuleWireHalo" }).IsTrue()
+                    .Because(halo.Selector?.ToString() ?? "halo");
             }
 
             foreach (string theme in new[] { "NodifyEditor.SelectionRectangleTheme", "NodifyEditor.CuttingLineTheme", "NodifyEditor.PushedAreaTheme" })

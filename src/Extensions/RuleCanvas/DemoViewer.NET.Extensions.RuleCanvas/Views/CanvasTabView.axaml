@@ -423,7 +423,7 @@
                                                    PreviewTarget="{Binding PreviewTarget, Mode=OneWayToSource}"
                                                    IsVisible="{Binding IsVisible, Mode=OneWayToSource}"
                                                    EnablePreview="True" EnableSnapping="True" AllowOnlyConnectors="False"
-                                                   Stroke="{DynamicResource AccentInteractive}" StrokeThickness="2"
+                                                   Stroke="{DynamicResource RuleSelection}" StrokeThickness="2"
                                                    Background="{DynamicResource CardBg}"
                                                    BorderBrush="{DynamicResource BorderAccent}"
                                                    Foreground="{DynamicResource TextValue}" Padding="8 4">
