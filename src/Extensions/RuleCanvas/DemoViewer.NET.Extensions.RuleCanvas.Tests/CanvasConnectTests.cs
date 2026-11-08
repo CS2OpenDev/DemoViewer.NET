@@ -14,6 +14,44 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 /// </summary>
 public class CanvasConnectTests
 {
+    // A wire dropped on empty canvas starts a node: from a stat, a highlight, a flag or a compute reading it;
+    // from an event, a count or a define per view; from a define, a count; from a highlight, nothing.
+    [Test]
+    public async Task AWireDroppedOnEmptyCanvas_OffersNodesThatReadTheSource_AndPlacesThePick()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        CanvasNodeViewModel kills = vm.Nodes.Single(n => n.Id == "round_kills");
+        IReadOnlyList<GalleryItem> fromStat = vm.WireDropOptions(kills);
+        CanvasNodeViewModel death = vm.Nodes.Single(n => n.Ruleset == "~event" && n.Id == "player_death");
+        IReadOnlyList<GalleryItem> fromEvent = vm.WireDropOptions(death);
+        using (Assert.Multiple())
+        {
+            await Assert.That(fromStat.Select(o => o.Title)).IsEquivalentTo(["New highlight when round_kills > 0", "New flag when round_kills > 0", "New compute from round_kills"]);
+            await Assert.That(fromEvent.Select(o => o.Title)).Contains("New count on kill");
+            await Assert.That(fromEvent.Select(o => o.Title)).Contains("New define on death");
+            await Assert.That(kills.Outputs.Count).IsEqualTo(1).Because("a stat has its output port before anything reads it");
+        }
+
+        CanvasNodeViewModel? dropped = null;
+        vm.WireDropped += n => dropped = n;
+        vm.ConnectCommand.Execute(((object)kills.Outputs[0], (object?)null));
+        await Assert.That(dropped).IsSameReferenceAs(kills);
+
+        vm.PlaceItem(fromStat[0], new Avalonia.Point(900, 300));
+        string text = File.ReadAllText(rules.UserPath("player_round"));
+        CanvasNodeViewModel highlight = vm.Nodes.Single(n => n.Id == "round_kills_highlight");
+        using (Assert.Multiple())
+        {
+            await Assert.That(RulesetEdits.HighlightField(text, "round_kills_highlight", "when")).IsEqualTo("round_kills > 0");
+            await Assert.That(highlight.Inputs.Count).IsEqualTo(1);
+            await Assert.That(vm.Connections.Any(w => ReferenceEquals(w.Source.Owner, vm.Nodes.Single(n => n.Id == "round_kills")) && ReferenceEquals(w.Target.Owner, highlight))).IsTrue()
+                .Because("the new highlight is wired from the stat it reads");
+            await Assert.That(vm.WireDropOptions(highlight)).IsEmpty().Because("nothing starts from a highlight");
+        }
+    }
+
     private static (RulesTree Rules, CanvasTabViewModel Vm) Open()
     {
         RulesTree rules = RulesTree.WithUser("player_round");

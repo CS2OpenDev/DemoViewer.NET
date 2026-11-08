@@ -400,6 +400,7 @@ public partial class CanvasTabView : UserControl
         {
             _viewModel.GraphReplaced -= FitLater;
             _viewModel.JumpRequested -= JumpTo;
+            _viewModel.WireDropped -= OfferNodesForWire;
             _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -409,6 +410,7 @@ public partial class CanvasTabView : UserControl
         {
             _viewModel.GraphReplaced += FitLater;
             _viewModel.JumpRequested += JumpTo;
+            _viewModel.WireDropped += OfferNodesForWire;
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
             // The unsaved text when the pane is dirty: a tab switch rebuilds this view over the same view model.
             Source.Text = _viewModel.SourceText;
@@ -420,6 +422,30 @@ public partial class CanvasTabView : UserControl
     // keyboard, and loses every gesture that would write.
     private void ApplyGestures() =>
         Editor.InputGestures = _viewModel is { IsEditable: true } ? _editingGestures : _readOnlyGestures;
+
+    // A wire dropped on empty canvas: a menu at the pointer with the nodes that can start there; the pick is
+    // placed where the wire ended. The editor's MouseLocation is that point in graph space.
+    private void OfferNodesForWire(CanvasNodeViewModel source)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        Point at = Editor.MouseLocation;
+        MenuFlyout menu = new() { Placement = PlacementMode.Pointer };
+        foreach (GalleryItem option in _viewModel.WireDropOptions(source))
+        {
+            MenuItem item = new() { Header = option.Title, Tag = option };
+            item.Click += (_, _) => _viewModel.PlaceItem(option, at);
+            menu.Items.Add(item);
+        }
+
+        if (menu.Items.Count > 0)
+        {
+            menu.ShowAt(Editor, true);
+        }
+    }
 
     // One item per view under Add stat on. Named rather than bound: the items need the press location,
     // which only the view holds.

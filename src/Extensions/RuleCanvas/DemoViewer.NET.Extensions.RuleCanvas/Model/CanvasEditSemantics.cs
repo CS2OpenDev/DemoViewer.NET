@@ -111,6 +111,54 @@ public static class CanvasEditSemantics
     public static string PlacedIdFor(GalleryItem item) =>
         item.Kind is GalleryItemKind.Prefab or GalleryItemKind.Highlight ? item.Name : "new_" + item.Name;
 
+    /// <summary>
+    ///     The nodes a wire from <paramref name="source" /> can start when it is dropped on empty canvas, as
+    ///     placeable items whose bodies already name the source: from a stat, a highlight, a flag or a compute
+    ///     that reads it; from an event, a count or a define on each view it fires; from a define, a count on
+    ///     it; from a gate, a define held by it. Empty when nothing can start there.
+    /// </summary>
+    public static IReadOnlyList<GalleryItem> WireDropOptions(CanvasNodeViewModel source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (source.IsScaffold)
+        {
+            return source.Ruleset switch
+            {
+                "~event" => [.. ViewsFiredBy(source.Id).SelectMany(view => new[]
+                {
+                    new GalleryItem(GalleryItemKind.Prefab, view + "_count", "New count on " + view, "Counts " + view + " per round.", $"count: {view}\nper: round"),
+                    new GalleryItem(GalleryItemKind.Define, view + "_define", "New define on " + view, "A named trigger on " + view + " to put conditions on.", $"on: {view}")
+                })],
+                "~context" when GatePathOf(source.Id) is { } gate =>
+                [
+                    new GalleryItem(GalleryItemKind.Define, "gated_kill", "New define on kill while " + gate, "A kill trigger held by " + gate + ".", $"on: kill\nwhile: {gate}")
+                ],
+                _ => []
+            };
+        }
+
+        if (source.IsDefine)
+        {
+            return [new GalleryItem(GalleryItemKind.Prefab, source.Id + "_count", "New count on " + source.Id, "Counts the define's firings per round.", $"count: {source.Id}\nper: round")];
+        }
+
+        if (source.IsHighlight || !source.IsAuthorable)
+        {
+            return [];
+        }
+
+        string read = source.Id;
+        return
+        [
+            new GalleryItem(GalleryItemKind.Highlight, read + "_highlight", "New highlight when " + read + " > 0", "A highlight that fires when the stat is above zero in the scope.",
+                $"when: {read} > 0\nper: round\nscore: 50\ntitle: \"{{player.name}} {read} (round {{round.number}})\""),
+            new GalleryItem(GalleryItemKind.Prefab, read + "_flag", "New flag when " + read + " > 0", "True in a scope where the stat is above zero.",
+                $"flag:\n  when: \"{read} > 0\"\nper: round"),
+            new GalleryItem(GalleryItemKind.Prefab, read + "_compute", "New compute from " + read, "A formula over the stat, to edit on the face.",
+                $"compute: \"{read}\"\nper: round")
+        ];
+    }
+
     /// <summary>The node key a placed item will draw under: a define's is prefixed, every other entry's is its id.</summary>
     public static RulesetDocumentNodeKey PlacedKeyFor(GalleryItem item, string ruleset, string id) =>
         item.Kind == GalleryItemKind.Define ? RulesetDocumentNodeKey.Define(ruleset, id) : new RulesetDocumentNodeKey(ruleset, id);

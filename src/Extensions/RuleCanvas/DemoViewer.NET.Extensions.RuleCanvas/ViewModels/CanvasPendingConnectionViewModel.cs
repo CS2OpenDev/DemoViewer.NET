@@ -15,7 +15,7 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 public sealed partial class CanvasPendingConnectionViewModel : ObservableObject
 {
     /// <summary>What the preview says while the wire ends over nothing it can land on.</summary>
-    public const string NoTargetText = "drop on a stat, a define or a highlight";
+    public const string NoTargetText = "drop on a stat, a define or a highlight, or on empty canvas for a new node";
 
     /// <summary>The connector the drag started from, written by the editor.</summary>
     [ObservableProperty]

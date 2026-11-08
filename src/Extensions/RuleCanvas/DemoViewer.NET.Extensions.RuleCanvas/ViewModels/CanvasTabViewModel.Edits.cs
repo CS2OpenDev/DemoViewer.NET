@@ -178,7 +178,22 @@ public sealed partial class CanvasTabViewModel
         {
             Connect(source, target);
         }
+        else if (source is not null && target is null && IsEditable)
+        {
+            if (WireDropOptions(source).Count == 0)
+            {
+                Notify($"Nothing starts from {source.Id} here; drop the wire on a stat, a define or a highlight.");
+            }
+            else
+            {
+                WireDropped?.Invoke(source);
+            }
+        }
     }
+
+    /// <summary>The nodes a wire from <paramref name="source" /> can start on empty canvas; empty when the ruleset is not the user's.</summary>
+    public IReadOnlyList<GalleryItem> WireDropOptions(CanvasNodeViewModel source) =>
+        IsEditable ? CanvasEditSemantics.WireDropOptions(source) : [];
 
     /// <summary>Writes what a wire from <paramref name="source" /> to <paramref name="target" /> stands for.</summary>
     public void Connect(CanvasNodeViewModel source, CanvasNodeViewModel target)

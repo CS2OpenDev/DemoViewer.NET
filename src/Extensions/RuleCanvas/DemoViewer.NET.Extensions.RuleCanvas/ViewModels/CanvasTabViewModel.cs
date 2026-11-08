@@ -166,6 +166,9 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     /// </summary>
     public event Action? GraphReplaced;
 
+    /// <summary>A wire from <c>source</c> was dropped on empty canvas; the view offers the nodes it can start there.</summary>
+    public event Action<CanvasNodeViewModel>? WireDropped;
+
     /// <summary>Raised on the UI thread with a 1-based line when a selected node names where it is declared.</summary>
     public event Action<int>? JumpRequested;
 
@@ -549,7 +552,8 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
         RefreshInspector();
         Diagnostics = string.Join('\n', composed.Diagnostics);
-        int unwired = nodes.Count(n => n.Inputs.Count == 0 && n.Outputs.Count == 0);
+        HashSet<CanvasNodeViewModel> wired = [.. wires.SelectMany(w => new[] { w.Source.Owner, w.Target.Owner }).OfType<CanvasNodeViewModel>()];
+        int unwired = nodes.Count(n => !wired.Contains(n));
         Status = nodes.Count == 0
             ? "Nothing composed; see the diagnostics."
             : $"{nodes.Count} nodes, {wires.Count} wires, {unwired} unwired";

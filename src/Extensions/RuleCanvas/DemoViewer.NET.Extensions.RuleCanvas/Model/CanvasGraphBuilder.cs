@@ -44,6 +44,17 @@ public static class CanvasGraphBuilder
             return connector;
         }
 
+        // An authored node always has its ports, wired or not: a wire starts at a stat's output and ends at
+        // a highlight's input before anything reads or feeds them. Scaffolds get theirs with their first wire.
+        foreach (CanvasNodeViewModel node in nodes.Where(n => n.IsAuthorable && !n.IsScaffold))
+        {
+            Side(inputs, node.Key, true);
+            if (!node.IsHighlight)
+            {
+                Side(outputs, node.Key, false);
+            }
+        }
+
         IReadOnlyList<WireSpec> specs = ChainWiring.Wires(composed, byKey.Keys.ToHashSet());
         List<CanvasConnectionViewModel> wires = new(specs.Count);
         foreach (WireSpec spec in specs)
