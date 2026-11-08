@@ -81,6 +81,9 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
 {
     public static RulesetChainGraph Empty { get; } = new([], []);
 
+    /// <summary>What the engine's graph view could not draw as the builder describes it; empty when it drew everything.</summary>
+    public IReadOnlyList<string> Diagnostics { get; init; } = [];
+
     private const string TemplatePlayer = "each player";
 
     /// <summary>The engine rule id of each context value by the v2 path a <c>while:</c> writes (<c>round.number</c> to <c>round_number</c>).</summary>
@@ -473,7 +476,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             }
         }
 
-        return new RulesetChainGraph(nodes, edges);
+        return new RulesetChainGraph(nodes, edges) { Diagnostics = graph.Diagnostics };
     }
 
     /// <summary>

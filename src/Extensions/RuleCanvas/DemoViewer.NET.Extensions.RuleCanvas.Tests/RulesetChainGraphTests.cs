@@ -458,6 +458,36 @@ public class RulesetChainGraphTests
         }
     }
 
+    /// <summary>
+    ///     aim_rating gates its contact tier on enemy_spotted, which a demo-less build cannot produce: no
+    ///     geometry, no contact scan. The build reports that as coverage, and the canvas says it at the
+    ///     entry, so the node carries it and the strip lists it. The shipped catalog binds every view on the
+    ///     fallback profile, so this is the one coverage skip the corpus can show.
+    /// </summary>
+    [Test]
+    public async Task ACoverageSkip_IsSaidAtTheEntry_SoTheNodeCarriesIt()
+    {
+        RulesetCorpus.Composed composed = Compose("aim_rating");
+        string[] lines = File.ReadAllLines(Path.Combine(RulesTree.RepoRulesDirectory, "aim_rating.rules.yaml"));
+        int line = Array.FindIndex(lines, l => l.StartsWith("  first_contacts:", StringComparison.Ordinal)) + 1;
+        RulesetDocumentNodeKey key = new("aim_rating", "first_contacts");
+        ILookup<RulesetDocumentNodeKey, string> byNode = NodeFaceBuilder.DiagnosticsByNode(composed);
+        using (Assert.Multiple())
+        {
+            await Assert.That(line).IsGreaterThan(1);
+            await Assert.That(composed.Chain.Nodes).IsNotEmpty().Because("a coverage skip is not a failed build");
+            await Assert.That(composed.PositionedDiagnostics.Any(d => d.RulesetId == "aim_rating" && d.Line == line
+                                                                       && d.Message.StartsWith("first_contacts:", StringComparison.Ordinal)
+                                                                       && d.Message.Contains("enemy_spotted", StringComparison.Ordinal)))
+                .IsTrue().Because(string.Join("; ", composed.Diagnostics));
+            await Assert.That(byNode[key].Any(m => m.Contains("enemy_spotted", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(composed.Diagnostics.Any(d => d.StartsWith("enemy_seen_round:", StringComparison.Ordinal))).IsTrue()
+                .Because("the flag on enemy_spotted is reported too");
+            await Assert.That(composed.Diagnostics.Any(d => d.Contains((char)0x2014))).IsFalse();
+            await Assert.That(composed.Graph.Nodes.Any(n => n.Key == key)).IsTrue();
+        }
+    }
+
     [Test]
     public async Task EveryShippedRuleset_LowersWithoutADiagnostic()
     {
