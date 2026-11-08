@@ -154,6 +154,8 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
         Dictionary<string, RulesetDocumentNodeKey> declared = new(StringComparer.Ordinal);
         Dictionary<RulesetDocumentNodeKey, IReadOnlyList<string>> outputs = new();
         Dictionary<RulesetDocumentNodeKey, CheckedStat> stats = new();
+        // What each entry's own text names, as the resolver spelled it: its reads and a rate's buckets.
+        Dictionary<RulesetDocumentNodeKey, IReadOnlyList<string>> references = new();
         foreach (CheckedRuleset ruleset in rulesets)
         {
             foreach (CheckedStat stat in ruleset.Stats)
@@ -161,6 +163,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                 RulesetDocumentNodeKey key = new(ruleset.Id.Id, stat.StatId);
                 declared[ruleset.Id.Id + "." + stat.StatId] = key;
                 stats[key] = stat;
+                references[key] = [.. stat.DeclaredReads, .. new[] { stat.RateOf, stat.RatePer }.OfType<string>()];
                 if (stat.TallyThresholds is { Count: > 0 } thresholds)
                 {
                     outputs[key] = [.. thresholds.Select(t => t.Target)];
@@ -171,6 +174,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             {
                 RulesetDocumentNodeKey key = new(ruleset.Id.Id, highlight.HighlightId);
                 declared[ruleset.Id.Id + "." + highlight.HighlightId] = key;
+                references[key] = highlight.DeclaredReads;
                 outputs[key] = [highlight.CountNodeId];
             }
         }
@@ -309,7 +313,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             RuleGraphNode? reader = readBy ?? (isLive ? edge.Source : null);
             bool isRead = reader is not null;
             IReadOnlyList<RulesetDocumentNodeKey> sources;
-            RulesetDocumentNodeKey? guard = null;
+            IReadOnlyList<RulesetDocumentNodeKey>? guards = null;
             if (isRead)
             {
                 sources = keys[reader!];
@@ -324,7 +328,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                 // The engine wires a gated trigger from its guard, a context flag or a sibling flag alike;
                 // the event still fires it, so the wire runs from the event and the guard becomes a gate.
                 sources = [EventKey(label)];
-                guard = keys[edge.Source][0];
+                guards = keys[edge.Source];
             }
             else
             {
@@ -341,9 +345,10 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                 }
             }
 
-            foreach (RulesetDocumentNodeKey source in sources)
+            foreach (RulesetDocumentNodeKey target in keys[edge.Destination])
             {
-                foreach (RulesetDocumentNodeKey target in keys[edge.Destination])
+                RulesetDocumentNodeKey? guard = guards is null ? null : OwnersNamedBy(guards, target)[0];
+                foreach (RulesetDocumentNodeKey source in OwnersNamedBy(sources, target))
                 {
                     if (source != target)
                     {
@@ -382,6 +387,36 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             {
                 edges.Add(edge);
             }
+        }
+
+        // A shared engine node stands for every entry with its definition. A wire into target runs from
+        // the owners target's own text names, and from all of them only when it names none.
+        IReadOnlyList<RulesetDocumentNodeKey> OwnersNamedBy(IReadOnlyList<RulesetDocumentNodeKey> owners, RulesetDocumentNodeKey target)
+        {
+            if (owners.Count < 2 || !references.TryGetValue(target, out IReadOnlyList<string>? paths))
+            {
+                return owners;
+            }
+
+            List<RulesetDocumentNodeKey> named = [.. owners.Where(owner => paths.Any(path => Names(owner, path, target.Ruleset)))];
+            return named.Count > 0 ? named : owners;
+        }
+
+        bool Names(RulesetDocumentNodeKey owner, string path, string from)
+        {
+            string qualified = owner.Ruleset + "." + owner.Id;
+            if (path == qualified || path.StartsWith(qualified + ".", StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (from == owner.Ruleset && (path == owner.Id || path.StartsWith(owner.Id + ".", StringComparison.Ordinal)))
+            {
+                return true;
+            }
+
+            return outputs.TryGetValue(owner, out IReadOnlyList<string>? companions)
+                   && companions.Any(c => path == c || path == owner.Ruleset + "." + c);
         }
 
         // "while <gate>" when the stat written at target has a comparison gate that reads the reader's node;

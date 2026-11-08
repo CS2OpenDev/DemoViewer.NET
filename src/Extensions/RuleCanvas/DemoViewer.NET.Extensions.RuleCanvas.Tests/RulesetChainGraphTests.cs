@@ -360,6 +360,46 @@ public class RulesetChainGraphTests
         }
     }
 
+    /// <summary>
+    ///     Two stats with one definition share one engine node, so a read of either arrives from that node
+    ///     with both as owners. The reader's text names which one it reads; the other owner gets no wire.
+    /// </summary>
+    [Test]
+    public async Task AReadOfOneSharedOwner_WiresFromThatOwnerAlone()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("twins", """
+            ruleset: twins
+            title: Twins
+            for: each_player
+
+            stats:
+              a:
+                count: kill
+                per: round
+              b:
+                count: kill
+                per: round
+              saw_a:
+                flag:
+                  when: "a > 0"
+                per: round
+            """);
+        RulesetCorpus.Composed composed = rules.Load().Compose("twins");
+        RulesetChainGraph chain = composed.Chain;
+        RulesetDocumentNodeKey flag = new("twins", "saw_a");
+        ChainEdge[] fromOwners = [.. chain.Edges.Where(e => e.Target == flag && e.Source.Ruleset == "twins")];
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Diagnostics).IsEmpty();
+            await Assert.That(chain.Nodes.Select(n => n.Key.Id)).Contains("b").Because("the twin is still drawn");
+            await Assert.That(fromOwners.Length).IsEqualTo(1).Because("the flag reads a, not b: " + string.Join(", ", fromOwners.Select(e => e.Source.Id)));
+            await Assert.That(fromOwners[0].Source.Id).IsEqualTo("a");
+            await Assert.That(fromOwners[0].IsGate).IsFalse();
+            await Assert.That(chain.Edges.Any(e => e.Source.Id == "b" && e.Target == flag)).IsFalse();
+        }
+    }
+
     [Test]
     public async Task ABrokenReference_StillDrawsEveryEntry_AndPinsTheDiagnostic()
     {
