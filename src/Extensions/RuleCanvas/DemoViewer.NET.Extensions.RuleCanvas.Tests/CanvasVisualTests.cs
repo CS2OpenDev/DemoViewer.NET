@@ -97,6 +97,31 @@ public class CanvasVisualTests
         }
     }
 
+    // Sugiyama centres a layer on one x; two sources of different widths then start at different lefts.
+    [Test]
+    public async Task APlacedLayer_SharesOneLeftEdge()
+    {
+        RulesetDocumentNodeKey a = new("r", "a"), b = new("r", "b"), c = new("r", "c"), d = new("r", "d");
+        IReadOnlyList<CanvasPlacement.Item> items = [new(a, 200, 100), new(b, 320, 140), new(c, 260, 120), new(d, 180, 100)];
+        IReadOnlyList<RulesetDocumentEdge> edges = [new(a, c, "a"), new(b, c, "b"), new(c, d, "c")];
+        IReadOnlyDictionary<RulesetDocumentNodeKey, Point> placed = CanvasPlacement.Place(items, edges);
+        using (Assert.Multiple())
+        {
+            await Assert.That(placed[a].X).IsEqualTo(placed[b].X).Because("a and b are one layer and start at the same left");
+            await Assert.That(placed[c].X).IsGreaterThanOrEqualTo(placed[b].X + 320).Because("the next layer stays clear of the widest source");
+            await Assert.That(placed[d].X).IsGreaterThanOrEqualTo(placed[c].X + 260);
+            foreach (CanvasPlacement.Item one in items)
+            {
+                foreach (CanvasPlacement.Item other in items.Where(o => o != one))
+                {
+                    Rect first = new(placed[one.Key], new Size(one.Width, one.Height));
+                    Rect second = new(placed[other.Key], new Size(other.Width, other.Height));
+                    await Assert.That(first.Intersects(second)).IsFalse().Because(one.Key.Id + " over " + other.Key.Id);
+                }
+            }
+        }
+    }
+
     [Test]
     public async Task ADiagnosticsBadge_IsAnErrorUnlessTheTextSaysWarning()
     {
