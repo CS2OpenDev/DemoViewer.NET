@@ -7,17 +7,17 @@ using Avalonia;
 namespace DemoViewer.NET.Extensions.RuleCanvas.Views;
 
 /// <summary>
-///     The viewport that shows a graph at a readable zoom. The zoom is the fit clamped to
-///     <see cref="MinZoom" /> to <see cref="MaxZoom" />; when the whole extent does not fit at the floor, the
-///     authored nodes are framed instead, anchored to the left-most column. Pure, so the rule is testable
-///     without an editor.
+///     The viewport that shows a graph at a readable zoom. The whole extent is fitted down to
+///     <see cref="MinZoom" />; when it does not fit there, the viewport frames the extent's width from its
+///     left-most column through the authored column, anchored at the extent's top-left, so the chain reads
+///     source to stat and what is left over is a pan down. Pure, so the rule is testable without an editor.
 /// </summary>
 /// <param name="Zoom">The viewport zoom.</param>
 /// <param name="Location">The viewport's top-left in graph coordinates.</param>
-/// <param name="FramesAuthoredOnly">Whether the whole chain was too large and only the authored nodes are framed.</param>
-public sealed record ReadableFit(double Zoom, Point Location, bool FramesAuthoredOnly)
+/// <param name="FramesSourceToStat">Whether the whole extent was too large and only its source-to-stat width is framed.</param>
+public sealed record ReadableFit(double Zoom, Point Location, bool FramesSourceToStat)
 {
-    public const double MinZoom = 0.8;
+    public const double MinZoom = 0.6;
 
     public const double MaxZoom = 1.0;
 
@@ -34,27 +34,28 @@ public sealed record ReadableFit(double Zoom, Point Location, bool FramesAuthore
             return new ReadableFit(MaxZoom, new Point(0, 0), false);
         }
 
-        (Rect extent, double fit) = Frame(all, viewport);
-        if (fit >= MinZoom || !all.Any(n => n.IsAuthored))
+        Rect extent = ExtentOf(all);
+        double fit = Math.Min(viewport.Width / Math.Max(1, extent.Width), viewport.Height / Math.Max(1, extent.Height));
+        if (fit >= MinZoom)
         {
-            return new ReadableFit(Math.Clamp(fit, MinZoom, MaxZoom), extent.TopLeft, false);
+            return new ReadableFit(Math.Min(fit, MaxZoom), extent.TopLeft, false);
         }
 
-        List<(Point Location, Size Size, bool IsAuthored)> authored = [.. all.Where(n => n.IsAuthored)];
-        (Rect frame, double authoredFit) = Frame(authored, viewport);
-        return new ReadableFit(Math.Clamp(authoredFit, MinZoom, MaxZoom), frame.TopLeft, true);
+        // Source to stat: from the extent's left edge through the right edge of the right-most authored node.
+        // Without an authored node the whole width is the reading direction.
+        double right = all.Any(n => n.IsAuthored)
+            ? all.Where(n => n.IsAuthored).Max(n => n.Location.X + n.Size.Width) + Pad
+            : extent.Right;
+        double widthFit = viewport.Width / Math.Max(1, right - extent.Left);
+        return new ReadableFit(Math.Clamp(widthFit, MinZoom, MaxZoom), extent.TopLeft, true);
     }
 
-    // The padded extent of the nodes and the zoom that fits it to the viewport, anchored at the extent's
-    // top-left so the left-most column is in view whatever the clamp does to the zoom.
-    private static (Rect Extent, double Fit) Frame(List<(Point Location, Size Size, bool IsAuthored)> nodes, Size viewport)
+    private static Rect ExtentOf(List<(Point Location, Size Size, bool IsAuthored)> nodes)
     {
         double minX = nodes.Min(n => n.Location.X) - Pad;
         double minY = nodes.Min(n => n.Location.Y) - Pad;
         double maxX = nodes.Max(n => n.Location.X + n.Size.Width) + Pad;
         double maxY = nodes.Max(n => n.Location.Y + n.Size.Height) + Pad;
-        Rect extent = new(new Point(minX, minY), new Point(maxX, maxY));
-        double fit = Math.Min(viewport.Width / Math.Max(1, extent.Width), viewport.Height / Math.Max(1, extent.Height));
-        return (extent, fit);
+        return new Rect(new Point(minX, minY), new Point(maxX, maxY));
     }
 }

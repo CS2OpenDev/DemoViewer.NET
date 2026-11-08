@@ -336,7 +336,7 @@ public class CanvasSurfaceTests
     }
 
     [Test]
-    public async Task TheReadableFit_ClampsTheZoom_AndFramesTheAuthoredNodesWhenTheChainIsTooWide()
+    public async Task TheReadableFit_ClampsTheZoom_AndFramesSourceToStatWhenTheChainIsTooWide()
     {
         Size viewport = new(1000, 600);
         List<(Point, Size, bool)> small = [(new Point(0, 0), new Size(200, 100), true), (new Point(300, 0), new Size(200, 100), false)];
@@ -345,7 +345,17 @@ public class CanvasSurfaceTests
         {
             await Assert.That(fits.Zoom).IsEqualTo(1.0).Because("a small chain is never zoomed past 1");
             await Assert.That(fits.Location).IsEqualTo(new Point(-ReadableFit.Pad, -ReadableFit.Pad));
-            await Assert.That(fits.FramesAuthoredOnly).IsFalse();
+            await Assert.That(fits.FramesSourceToStat).IsFalse();
+        }
+
+        // 1480 wide with the pad: fits at 0.68, so the whole extent is shown between the floor and 1.
+        List<(Point, Size, bool)> medium = [(new Point(0, 0), new Size(200, 100), false), (new Point(1200, 0), new Size(200, 100), true)];
+        ReadableFit whole = ReadableFit.Of(medium, viewport);
+        using (Assert.Multiple())
+        {
+            await Assert.That(whole.FramesSourceToStat).IsFalse().Because("the whole extent fits above the floor");
+            await Assert.That(whole.Zoom).IsEqualTo(1000.0 / 1480).Within(0.001);
+            await Assert.That(whole.Zoom).IsGreaterThanOrEqualTo(ReadableFit.MinZoom);
         }
 
         List<(Point, Size, bool)> wide =
@@ -358,15 +368,31 @@ public class CanvasSurfaceTests
         ReadableFit framed = ReadableFit.Of(wide, viewport);
         using (Assert.Multiple())
         {
-            await Assert.That(framed.FramesAuthoredOnly).IsTrue();
-            await Assert.That(framed.Zoom).IsEqualTo(ReadableFit.MaxZoom).Because("the authored frame fits, so it is shown at full size");
-            await Assert.That(framed.Location.X).IsEqualTo(600 - ReadableFit.Pad).Because("anchored to the left-most authored column");
+            await Assert.That(framed.FramesSourceToStat).IsTrue();
+            await Assert.That(framed.Zoom).IsEqualTo(1000.0 / 1440).Within(0.001)
+                .Because("the width from the event column through the authored column is framed, not the scaffold after it");
+            await Assert.That(framed.Location.X).IsEqualTo(-ReadableFit.Pad).Because("anchored at the extent's left, where the chain starts");
             await Assert.That(framed.Location.Y).IsEqualTo(-ReadableFit.Pad);
+        }
+
+        // Too tall rather than too wide: the width fits at 1, so the zoom stays 1 and the rest is a pan down.
+        List<(Point, Size, bool)> tall = [(new Point(0, 0), new Size(200, 100), false), (new Point(300, 2000), new Size(200, 100), true)];
+        ReadableFit column = ReadableFit.Of(tall, viewport);
+        using (Assert.Multiple())
+        {
+            await Assert.That(column.FramesSourceToStat).IsTrue();
+            await Assert.That(column.Zoom).IsEqualTo(ReadableFit.MaxZoom);
+            await Assert.That(column.Location).IsEqualTo(new Point(-ReadableFit.Pad, -ReadableFit.Pad));
         }
 
         List<(Point, Size, bool)> scaffoldOnly = [(new Point(0, 0), new Size(200, 100), false), (new Point(5000, 0), new Size(200, 100), false)];
         ReadableFit floor = ReadableFit.Of(scaffoldOnly, viewport);
-        await Assert.That(floor.Zoom).IsEqualTo(ReadableFit.MinZoom).Because("with nothing authored the whole chain is framed at the floor");
+        using (Assert.Multiple())
+        {
+            await Assert.That(floor.Zoom).IsEqualTo(ReadableFit.MinZoom).Because("with nothing authored the whole width is framed, at the floor");
+            await Assert.That(floor.Location.X).IsEqualTo(-ReadableFit.Pad);
+        }
+
         await Assert.That(ReadableFit.Of([], viewport).Zoom).IsEqualTo(ReadableFit.MaxZoom);
     }
 

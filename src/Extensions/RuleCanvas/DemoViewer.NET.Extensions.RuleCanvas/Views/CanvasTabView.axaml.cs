@@ -459,9 +459,9 @@ public partial class CanvasTabView : UserControl
     // yet; the editor's own FitToScreen refuses an empty extent.
     private void FitLater() => Dispatcher.UIThread.Post(FitNow, DispatcherPriority.Background);
 
-    // A readable fit, never a fit-everything: the zoom stays between 0.8 and 1, so 11px text never renders
-    // under 9px. When the whole chain does not fit at 0.8 the viewport frames the authored nodes instead and
-    // anchors to the left-most column, where the chain starts; the rest is a pan or the minimap away.
+    // A readable fit, never a fit-everything: the zoom stays between 0.6 and 1. When the whole chain does not
+    // fit at 0.6 the viewport frames its width from the event column through the authored column, anchored
+    // at the extent's top-left, so the chain reads source to stat; the rest is a pan down or the minimap away.
     private void FitNow()
     {
         if (_viewModel is null || _viewModel.Nodes.Count == 0 || Editor.Bounds.Width <= 0 || Editor.Bounds.Height <= 0)

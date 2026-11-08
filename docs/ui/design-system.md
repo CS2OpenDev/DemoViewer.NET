@@ -407,9 +407,11 @@ The rest of the canvas surface, for the record:
 - **Scaffold nodes** (an event, an enrichment, a context flag: the engine's, not the author's) take a
   separate template through `CanvasNodeTemplateSelector`: one 30px row of input dot, outlined kind pill,
   name without its `enrich.` prefix, output dot; 140 to 260 wide, `NodeSizeEstimator` sized to match.
-- **Fit** is `ReadableFit`: zoom clamped to 0.8 to 1.0, and when the whole chain does not fit at 0.8 the
-  authored nodes are framed, anchored to the left-most column. Wire labels hide under 0.7 zoom
-  (`WireLabelAtZoom`). The editor's own bounds are `MinViewportZoom` 0.25 and `MaxViewportZoom` 2.
+- **Fit** is `ReadableFit`: the whole chain fitted with the zoom clamped to 0.6 to 1.0, and when it does
+  not fit at 0.6 the extent's width from its left-most column through the authored column is framed at a
+  zoom in that range, anchored at the extent's top-left, so the chain reads source to stat and the rest is
+  a pan down, never a pan left to find the event. Wire labels hide under 0.7 zoom (`WireLabelAtZoom`). The
+  editor's own bounds are `MinViewportZoom` 0.25 and `MaxViewportZoom` 2.
 - **The strip** is one row: the ruleset picker with its source tag, a `shipped, read only` chip and a
   primary `Edit a copy` beside it, an `AccentCaution` dot while the source pane is dirty, the diagnostics
   count as an `AccentError` badge that folds the list open under the strip (each line selects its node),
