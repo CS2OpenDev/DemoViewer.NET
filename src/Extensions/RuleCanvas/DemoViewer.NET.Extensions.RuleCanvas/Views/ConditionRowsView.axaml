@@ -57,7 +57,7 @@
                 <Button DockPanel.Dock="Right" Classes="ghost" Content="{Binding ToggleLabel}" FontSize="10" Padding="4 0" MinHeight="0"
                         VerticalAlignment="Top" Command="{Binding ToggleEditAsTextCommand}" />
                 <TextBlock Text="{Binding Text}" FontSize="10" FontFamily="monospace" MaxWidth="300" Margin="6 2 6 0"
-                           TextWrapping="Wrap" Foreground="{DynamicResource TextDim}" />
+                           TextWrapping="Wrap" Foreground="{DynamicResource TextMid}" />
             </DockPanel>
         </StackPanel>
 
@@ -78,7 +78,7 @@
             <DockPanel>
                 <Button DockPanel.Dock="Right" Classes="ghost" Content="{Binding ToggleLabel}" FontSize="10" Padding="4 0" MinHeight="0"
                         Command="{Binding ToggleEditAsTextCommand}" IsVisible="{Binding CanToggleText}" />
-                <TextBlock Text="{Binding TextNote}" FontSize="10" Foreground="{DynamicResource TextDim}"
+                <TextBlock Text="{Binding TextNote}" FontSize="10" Foreground="{DynamicResource TextMid}"
                            IsVisible="{Binding ShowTextNote}" TextWrapping="Wrap" MaxWidth="300" VerticalAlignment="Center" />
             </DockPanel>
         </StackPanel>

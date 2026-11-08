@@ -295,7 +295,7 @@
                         BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="10 5">
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
-                            <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center"
+                            <TextBlock FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
                                        Text="read only" IsVisible="{Binding IsShippedRuleset}" />
                             <TextBlock FontSize="11" Foreground="{DynamicResource AccentCaution}" VerticalAlignment="Center"
                                        Text="unsaved" IsVisible="{Binding SourceDirty}" />
@@ -542,7 +542,8 @@
                         </nodes:Node.OutputConnectorTemplate>
 
                         <!-- Face: chips, then the kind's own rows, the facet rows (detailed) or their count (compact),
-                             then the expression. Every row the engine adds on its own is drawn dimmed, never hidden. -->
+                             then the expression. Every row the engine adds on its own is drawn in TextMid, never
+                             hidden; TextDim is 1.81:1 on the face and carries no meaning anywhere on the canvas. -->
                         <StackPanel Spacing="6" MinWidth="180" PointerPressed="OnFacePressed">
                             <WrapPanel>
                                 <ItemsControl ItemsSource="{Binding VisibleChipItems}">
@@ -573,10 +574,10 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="x:String">
                                             <Border CornerRadius="9" Padding="7 1" Margin="0 0 4 2"
-                                                    BorderBrush="{DynamicResource TextDim}" BorderThickness="1"
+                                                    BorderBrush="{DynamicResource RuleNodeBorder}" BorderThickness="1"
                                                     ToolTip.Tip="The engine's default; the document does not write this key">
                                                 <TextBlock Text="{Binding}" FontSize="10" FontFamily="monospace"
-                                                           Foreground="{DynamicResource TextDim}" />
+                                                           Foreground="{DynamicResource TextMid}" />
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -586,7 +587,7 @@
                             <!-- The trigger as a picker while editable: the spelling the author wrote, over the catalog's
                                  views by event, the raw events and the document's defines. -->
                             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowTriggerPicker}">
-                                <TextBlock Text="on" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
+                                <TextBlock Text="on" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
                                 <ComboBox ItemsSource="{Binding Trigger.Options}" SelectedItem="{Binding Trigger.Selected}"
                                           PlaceholderText="pick a trigger…" FontSize="11" MinWidth="190" Padding="6 1" MinHeight="0"
                                           ToolTip.Tip="{Binding Trigger.Tip}">
@@ -666,7 +667,7 @@
                                                        ToolTip.Tip="{Binding LockedReason}">
                                                 <TextBlock.Styles>
                                                     <Style Selector="TextBlock.dim">
-                                                        <Setter Property="Foreground" Value="{DynamicResource TextDim}" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
                                                     </Style>
                                                 </TextBlock.Styles>
                                                 <Classes.dim>
@@ -699,7 +700,7 @@
                                                        IsVisible="{Binding !IsEditable}">
                                                 <TextBlock.Styles>
                                                     <Style Selector="TextBlock.dim">
-                                                        <Setter Property="Foreground" Value="{DynamicResource TextDim}" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
                                                     </Style>
                                                 </TextBlock.Styles>
                                                 <Classes.dim>
@@ -736,7 +737,7 @@
                                                         <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
                                                     </TextBox.KeyBindings>
                                                 </TextBox>
-                                                <TextBlock Grid.Column="1" Text="→" FontSize="11" Foreground="{DynamicResource TextDim}"
+                                                <TextBlock Grid.Column="1" Text="→" FontSize="11" Foreground="{DynamicResource TextMid}"
                                                            VerticalAlignment="Center" />
                                                 <TextBlock Grid.Column="2" Text="{Binding Target}" FontSize="11" FontFamily="monospace"
                                                            Foreground="{DynamicResource TextValue}" VerticalAlignment="Center"
@@ -767,7 +768,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowFieldPickers}">
                                 <TextBlock Text="per" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
                                 <ComboBox ItemsSource="{x:Static vm:CanvasNodeViewModel.PerOptions}" SelectedItem="{Binding Per}"
-                                          PlaceholderText="round (default)" PlaceholderForeground="{DynamicResource TextDim}"
+                                          PlaceholderText="round (default)" PlaceholderForeground="{DynamicResource TextMid}"
                                           FontSize="11" MinWidth="76" Padding="6 1" MinHeight="0" />
                                 <TextBlock Text="while" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center"
                                            IsVisible="{Binding ShowGatePicker}" />
