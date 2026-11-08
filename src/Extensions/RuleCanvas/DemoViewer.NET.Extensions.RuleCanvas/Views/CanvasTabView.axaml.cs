@@ -113,6 +113,25 @@ public partial class CanvasTabView : UserControl
     // The node container starts a drag on any press it sees and captures the pointer, after which a picker
     // inside the face never gets the release that opens it. A left press on an editor stops at the face; a
     // right press goes on, so the container selects the node before its menu opens.
+    // The New flyout: Create empty or Start with a stat; a written file closes it, a refusal leaves it open.
+    private void OnCreateRuleset(object? sender, RoutedEventArgs e)
+    {
+        bool starter = sender is Control { Tag: "starter" };
+        if (_viewModel?.CreateNewRuleset(starter) == true)
+        {
+            NewRulesetButton.Flyout?.Hide();
+        }
+    }
+
+    private void OnNewRulesetKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            OnCreateRuleset(null, e);
+            e.Handled = true;
+        }
+    }
+
     private void OnFacePressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is Visual face && CanvasGestures.FaceKeepsPress(e.Source as Visual, face, e.Properties))

@@ -84,6 +84,10 @@ public sealed partial class CanvasTabViewModel
     [ObservableProperty]
     private CanvasToast? _toast;
 
+    /// <summary>The id typed into the strip's New flyout; blank means a fresh <c>my_rules</c>.</summary>
+    [ObservableProperty]
+    private string _newRulesetName = "";
+
     /// <summary>The strip's diagnostics list, open or folded.</summary>
     [ObservableProperty]
     private bool _showDiagnosticsList;
@@ -187,6 +191,37 @@ public sealed partial class CanvasTabViewModel
             _ => null
         };
         AddItem(item);
+    }
+
+    /// <summary>
+    ///     The strip's New flyout: an empty ruleset (no stats, the watermark's quick starts) under
+    ///     <see cref="NewRulesetName" /> or a fresh <c>my_rules</c>, or the one-stat starter. True when a file
+    ///     was written and opened; a refusal is on the status and the toast.
+    /// </summary>
+    public bool CreateNewRuleset(bool starter)
+    {
+        if (starter)
+        {
+            CreateStarterRuleset();
+            return true;
+        }
+
+        string id = NewRulesetName.Trim();
+        if (id.Length == 0)
+        {
+            IEnumerable<string> onDisk = _corpus?.UserDirectory is { } dir && Directory.Exists(dir)
+                ? Directory.EnumerateFiles(dir, "*.rules.yaml").Select(p => Path.GetFileName(p)[..^".rules.yaml".Length])
+                : [];
+            id = CanvasEditSemantics.FreshId(NewRulesetId, Rulesets.Select(r => r.Id).Concat(onDisk));
+        }
+
+        if (!CreateRuleset(id))
+        {
+            return false;
+        }
+
+        NewRulesetName = "";
+        return true;
     }
 
     // The card's New ruleset: a starter with one stat, under a fresh id, so the canvas opens with something drawn.

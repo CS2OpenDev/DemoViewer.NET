@@ -195,6 +195,45 @@ public class CanvasSurfaceTests
         await Assert.That(vm.ShowDiagnosticsList).IsTrue();
     }
 
+    // The strip's New flyout: a blank id makes an empty my_rules, which opens on the watermark; a typed id
+    // names the file; a bad id is refused on the status and the flyout's text stays for correction.
+    [Test]
+    public async Task TheStripsNew_MakesAnEmptyRuleset_UnderTheTypedOrAFreshId()
+    {
+        using RulesTree rules = RulesTree.WithShipped("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+
+        await Assert.That(vm.CreateNewRuleset(starter: false)).IsTrue();
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SelectedRuleset?.Id).IsEqualTo("my_rules");
+            await Assert.That(File.ReadAllText(rules.UserPath("my_rules"))).Contains("stats: {}");
+            await Assert.That(vm.EmptyState).IsEqualTo(CanvasEmptyState.EmptyRuleset).Because("an empty file opens on the watermark's quick starts");
+            await Assert.That(vm.IsEditable).IsTrue();
+        }
+
+        vm.NewRulesetName = "scrim_notes";
+        await Assert.That(vm.CreateNewRuleset(starter: false)).IsTrue();
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SelectedRuleset?.Id).IsEqualTo("scrim_notes");
+            await Assert.That(vm.NewRulesetName).IsEmpty().Because("a written file clears the box");
+        }
+
+        vm.NewRulesetName = "2 bad";
+        await Assert.That(vm.CreateNewRuleset(starter: false)).IsFalse();
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.EditStatus).Contains("not a valid ruleset id");
+            await Assert.That(vm.NewRulesetName).IsEqualTo("2 bad").Because("the refused text stays to be corrected");
+            await Assert.That(vm.SelectedRuleset?.Id).IsEqualTo("scrim_notes");
+        }
+
+        await Assert.That(vm.CreateNewRuleset(starter: true)).IsTrue();
+        await Assert.That(vm.Nodes.Any(n => n.Id == "enemy_kills")).IsTrue().Because("the starter draws its one stat");
+    }
+
     [Test]
     public async Task AnEmptyTree_ShowsTheNoRulesetsCard_AndNewRulesetFillsIt()
     {

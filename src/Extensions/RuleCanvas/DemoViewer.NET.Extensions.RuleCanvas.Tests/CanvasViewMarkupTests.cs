@@ -40,6 +40,22 @@ public class CanvasViewMarkupTests
         }
     }
 
+    // New is on the strip, not behind the overflow menu: a flyout with the id box and both ways to create.
+    [Test]
+    public async Task TheStrip_OffersNewRuleset_BesideThePicker()
+    {
+        XDocument view = LoadView();
+        XElement button = view.Descendants().Single(e => e.Name.LocalName == "Button" && e.Attribute(_x + "Name")?.Value == "NewRulesetButton");
+        List<XElement> inFlyout = [.. button.Descendants()];
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(button, "Content")).IsEqualTo("New");
+            await Assert.That(Attribute(button, "IsEnabled")).IsEqualTo("{Binding CanCreateRuleset}");
+            await Assert.That(inFlyout.Any(e => e.Name.LocalName == "TextBox" && Attribute(e, "Text") == "{Binding NewRulesetName}")).IsTrue();
+            await Assert.That(inFlyout.Count(e => e.Name.LocalName == "Button" && Attribute(e, "Click") == "OnCreateRuleset")).IsEqualTo(2);
+        }
+    }
+
     // The pencil only makes the editor visible; Enter and commit-on-blur both need focus inside it.
     [Test]
     public async Task TheLabelEditor_AsksForFocusWhenItAppears()

@@ -127,7 +127,7 @@
                                     <Separator />
                                     <MenuItem Header="Delete selected" Command="{Binding DeleteSelectedCommand}" />
                                     <MenuItem Header="Edit a copy" Command="{Binding EditCopyCommand}" IsVisible="{Binding IsShippedRuleset}" />
-                                    <MenuItem Header="New ruleset" Command="{Binding NewRulesetCommand}" />
+                                    <MenuItem Header="New ruleset with a starter stat" Command="{Binding NewRulesetCommand}" />
                                     <MenuItem Header="Open rules folder" Command="{Binding OpenRulesFolderCommand}" />
                                 </MenuFlyout>
                             </Button.Flyout>
@@ -147,7 +147,26 @@
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
-                            <!-- A shipped ruleset: the chip says it is read only, the button beside it makes a copy. -->
+                            <Button x:Name="NewRulesetButton" Classes="ghost" Content="New" FontSize="12" Padding="8 3"
+                                IsEnabled="{Binding CanCreateRuleset}" ToolTip.Tip="Create a ruleset file in your rules folder and open it">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <StackPanel Spacing="8" Width="300" Margin="4">
+                                        <TextBlock Text="NEW RULESET" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource RuleTextKey}" />
+                                        <TextBox Text="{Binding NewRulesetName}" PlaceholderText="ruleset id, e.g. my_rules" FontSize="12"
+                                                 FontFamily="monospace" Padding="6 3" MinHeight="0" KeyDown="OnNewRulesetKeyDown" />
+                                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
+                                                   Text="An empty file goes into your rules folder and opens here; fill it from the gallery. Letters, digits and underscores; the id is the file's name." />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button Classes="primary" Content="Create empty" FontSize="12" Padding="8 3" Tag="empty" Click="OnCreateRuleset" />
+                                            <Button Classes="ghost" Content="Start with a stat" FontSize="12" Padding="8 3" Tag="starter" Click="OnCreateRuleset"
+                                                    ToolTip.Tip="A fresh my_rules with one enemy-kills count, so something is drawn" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                        <!-- A shipped ruleset: the chip says it is read only, the button beside it makes a copy. -->
                             <Border CornerRadius="3" Padding="6 1" VerticalAlignment="Center" BorderThickness="1"
                                     BorderBrush="{DynamicResource AccentCaution}" IsVisible="{Binding IsShippedRuleset}"
                                     ToolTip.Tip="A shipped ruleset is read only here. Edit a copy puts one in your rules, which overrides it.">
@@ -606,19 +625,26 @@
                                 </ComboBox>
                             </StackPanel>
 
-                            <!-- A flag's off: deactivator, with the same picker, writing off:. -->
-                            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowOffTriggerPicker}">
-                                <TextBlock Text="off" FontSize="10" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
-                                <ComboBox ItemsSource="{Binding OffTrigger.Options}" SelectedItem="{Binding OffTrigger.Selected}"
-                                          PlaceholderText="pick a deactivator…" FontSize="11" MinWidth="190" Padding="6 1" MinHeight="0"
-                                          ToolTip.Tip="{Binding OffTrigger.Tip}">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate x:DataType="model:TriggerOption">
-                                            <TextBlock Text="{Binding Display}" FontSize="11" FontFamily="monospace" ToolTip.Tip="{Binding Tip}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                            </StackPanel>
+                            <!-- A flag's off: deactivator, with the same picker, writing off:. Bound through its own
+                                 view model so a face without one binds nothing. -->
+                            <ContentControl Content="{Binding OffTrigger}" IsVisible="{Binding ShowOffTriggerPicker}">
+                                <ContentControl.ContentTemplate>
+                                    <DataTemplate x:DataType="vm:CanvasTriggerViewModel">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="off" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
+                                            <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}"
+                                                      PlaceholderText="pick a deactivator…" FontSize="11" MinWidth="190" Padding="6 1" MinHeight="0"
+                                                      ToolTip.Tip="{Binding Tip}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="model:TriggerOption">
+                                                        <TextBlock Text="{Binding Display}" FontSize="11" FontFamily="monospace" ToolTip.Tip="{Binding Tip}" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ContentControl.ContentTemplate>
+                            </ContentControl>
 
                             <!-- The view's per-player binding, switched off by match: { actor: any }. -->
                             <CheckBox Classes="face" IsChecked="{Binding BindsActor}" IsThreeState="False" Content="bind to this player" FontSize="11"
