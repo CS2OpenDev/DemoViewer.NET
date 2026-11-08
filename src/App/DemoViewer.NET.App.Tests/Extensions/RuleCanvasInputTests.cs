@@ -48,7 +48,7 @@ public class RuleCanvasInputTests
                 Dispatcher.UIThread.RunJobs();
 
                 ComboBox picker = window.GetVisualDescendants().OfType<ComboBox>()
-                    .First(c => c.PlaceholderText == "add facet…" && c.IsEffectivelyVisible
+                    .First(c => c.PlaceholderText == "add facet or event field…" && c.IsEffectivelyVisible
                                 && c.DataContext is CanvasNodeViewModel { Id: "round_kills" });
                 CanvasNodeViewModel owner = (CanvasNodeViewModel)picker.DataContext!;
                 Reveal(EditorOf(window), new Rect(owner.Location, owner.EstimatedSize));
