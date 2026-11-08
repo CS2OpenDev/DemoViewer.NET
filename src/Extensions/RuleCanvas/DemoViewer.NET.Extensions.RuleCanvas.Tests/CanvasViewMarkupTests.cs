@@ -69,6 +69,81 @@ public class CanvasViewMarkupTests
         }
     }
 
+    // A horizontal StackPanel measures its children unbounded, so the status ran under the right-docked buttons.
+    [Test]
+    public async Task TheStripStatus_SitsInAStarColumn_AndTrims()
+    {
+        XDocument view = LoadView();
+        XElement status = view.Descendants().Single(e => e.Name.LocalName == "TextBlock" && Attribute(e, "Text") == "{Binding Status}");
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(status, "TextTrimming")).IsEqualTo("CharacterEllipsis");
+            await Assert.That(Attribute(status, "ToolTip.Tip")).IsEqualTo("{Binding Status}").Because("the trimmed text is still readable");
+            XElement? starColumn = status.Ancestors().FirstOrDefault(e => e.Name.LocalName == "Grid" && Attribute(e, "ColumnDefinitions").Contains('*'));
+            await Assert.That(starColumn).IsNotNull().Because("the status is bounded by a star column, not a StackPanel");
+            XElement cell = status.Ancestors().First(a => a.Parent == starColumn);
+            await Assert.That(Attribute(cell, "Grid.Column")).IsEqualTo("1").Because("the fixed group is column 0 (Auto) and the status column 1 (*)");
+            await Assert.That(Attribute(starColumn!, "ColumnDefinitions")).IsEqualTo("Auto,*");
+            await Assert.That(status.Ancestors().TakeWhile(a => a != starColumn).Any(a => a.Name.LocalName == "StackPanel")).IsFalse()
+                .Because("a StackPanel between the status and its column would give it unbounded width again");
+        }
+    }
+
+    // TextOnAccent is 3.30:1 on the light error red; the badge text is the token measured for both badges.
+    [Test]
+    public async Task EveryDiagnosticsBadge_UsesTheBadgeTextToken()
+    {
+        XDocument view = LoadView();
+        List<XElement> badges = [.. view.Descendants().Where(e => e.Name.LocalName == "Border"
+            && (Attribute(e, "Background") == "{DynamicResource AccentError}"
+                || (e.Attribute(_views + "TokenBrush.Background")?.Value ?? "").Contains("DiagnosticSeverityToken", StringComparison.Ordinal)))];
+        List<XElement> texts = [.. badges.SelectMany(b => b.Descendants().Where(e => e.Name.LocalName == "TextBlock"))];
+        await Assert.That(texts.Count).IsEqualTo(3).Because("the strip badge holds two texts, the node badge one");
+        foreach (XElement text in texts)
+        {
+            await Assert.That(Attribute(text, "Foreground")).IsEqualTo("{DynamicResource RuleDiagnosticBadgeText}").Because(Attribute(text, "Text"));
+        }
+
+        await Assert.That(view.Descendants().Any(e => Attribute(e, "Foreground") == "{DynamicResource TextOnAccent}")).IsFalse()
+            .Because("TextOnAccent is under 4.5:1 on every accent the canvas fills with");
+    }
+
+    // The theme restyles CheckBox.face; a face checkbox without the class keeps Fluent's accent fill.
+    [Test]
+    public async Task EveryFaceCheckBox_CarriesTheFaceClass()
+    {
+        foreach (string file in new[] { "CanvasTabView.axaml", "ConditionRowsView.axaml" })
+        {
+            XDocument view = XDocument.Load(Path.Combine(ViewsFolder(), file));
+            List<XElement> boxes = [.. view.Descendants().Where(e => e.Name.LocalName == "CheckBox")];
+            await Assert.That(boxes).IsNotEmpty().Because(file);
+            foreach (XElement box in boxes)
+            {
+                await Assert.That(Attribute(box, "Classes").Split(' ')).Contains("face").Because(file + ": " + Attribute(box, "IsChecked"));
+            }
+        }
+    }
+
+    // The converter hides a label under 0.7 zoom; a Text bound straight to the view model never reaches it.
+    [Test]
+    public async Task TheWireLabel_GoesThroughTheZoomConverter()
+    {
+        XDocument view = LoadView();
+        XElement wire = view.Descendants().Single(e => e.Name.LocalName == "LabelledConnection");
+        XElement? text = wire.Elements().SingleOrDefault(e => e.Name.LocalName == "LabelledConnection.Text");
+        await Assert.That(text).IsNotNull().Because("the label is a property element, not a plain binding");
+        XElement multi = text!.Elements().Single(e => e.Name.LocalName == "MultiBinding");
+        List<string> paths = [.. multi.Elements().Where(e => e.Name.LocalName == "Binding").Select(e => Attribute(e, "Path"))];
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(wire, "Text")).IsEqualTo("").Because("an attribute would override the property element");
+            await Assert.That(Attribute(multi, "Converter")).IsEqualTo("{x:Static views:WireLabelAtZoom.Instance}");
+            await Assert.That(paths.Count).IsEqualTo(2);
+            await Assert.That(paths[0]).IsEqualTo("Text").Because("the converter reads the text first");
+            await Assert.That(paths[1]).EndsWith("ViewportZoom").Because("and the editor's zoom second");
+        }
+    }
+
     private static string ViewsFolder()
     {
         DirectoryInfo? dir = new(AppContext.BaseDirectory);

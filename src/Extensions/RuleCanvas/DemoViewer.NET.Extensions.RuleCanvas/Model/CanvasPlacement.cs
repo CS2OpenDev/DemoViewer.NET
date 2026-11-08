@@ -216,17 +216,61 @@ public static class CanvasPlacement
         // MSAGL is Y-up; the canvas is Y-down. Flip against the component's bounding box.
         MsaglRectangle bounds = graph.BoundingBox;
         Dictionary<RulesetDocumentNodeKey, Point> local = new();
-        double width = 0, height = 0;
         foreach ((RulesetDocumentNodeKey key, Node node) in nodes)
         {
             Item item = (Item)node.UserData;
             double x = node.Center.X - bounds.Left - item.Width / 2;
             double y = bounds.Top - node.Center.Y - item.Height / 2;
             local[key] = new Point(x, y);
-            width = Math.Max(width, x + item.Width);
-            height = Math.Max(height, y + item.Height);
+        }
+
+        LeftAlignLayers(local, nodes);
+        double width = 0, height = 0;
+        foreach ((RulesetDocumentNodeKey key, Point at) in local)
+        {
+            Item item = (Item)nodes[key].UserData;
+            width = Math.Max(width, at.X + item.Width);
+            height = Math.Max(height, at.Y + item.Height);
         }
 
         return (local, new Size(width, height));
     }
+
+    // Sugiyama centres a layer's nodes on one x, so faces of different widths stagger their left edges. Each
+    // layer is pulled to its left-most node, one node at a time, where the move lands on no other node.
+    private static void LeftAlignLayers(Dictionary<RulesetDocumentNodeKey, Point> local, Dictionary<RulesetDocumentNodeKey, Node> nodes)
+    {
+        List<(RulesetDocumentNodeKey Key, double Centre)> byCentre = [.. nodes.Select(kv => (Key: kv.Key, Centre: kv.Value.Center.X)).OrderBy(n => n.Centre)];
+        int start = 0;
+        for (int i = 1; i <= byCentre.Count; i++)
+        {
+            if (i < byCentre.Count && byCentre[i].Centre - byCentre[start].Centre <= 1)
+            {
+                continue;
+            }
+
+            List<RulesetDocumentNodeKey> layer = [.. byCentre.Skip(start).Take(i - start).Select(n => n.Key)];
+            double left = layer.Min(key => local[key].X);
+            foreach (RulesetDocumentNodeKey key in layer)
+            {
+                Point at = local[key];
+                if (at.X <= left)
+                {
+                    continue;
+                }
+
+                Item item = (Item)nodes[key].UserData;
+                Rect moved = new(new Point(left, at.Y), new Size(item.Width, item.Height));
+                bool lands = local.Any(other => !other.Key.Equals(key) && moved.Intersects(RectOf(other.Value, (Item)nodes[other.Key].UserData)));
+                if (!lands)
+                {
+                    local[key] = new Point(left, at.Y);
+                }
+            }
+
+            start = i;
+        }
+    }
+
+    private static Rect RectOf(Point at, Item item) => new(at, new Size(item.Width, item.Height));
 }
