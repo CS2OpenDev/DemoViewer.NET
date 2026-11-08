@@ -141,6 +141,12 @@ public sealed class CanvasNodeFactory(
                 }
 
                 AddFacetRows(named.Form, facets, available, availableKinds, Facet);
+                if (named.NotASuicide)
+                {
+                    fixedRows.Add("not a suicide");
+                    fixedTips["not a suicide"] = "Baked into the view: event.Attacker != event.UserId";
+                }
+
                 if (!string.IsNullOrWhiteSpace(named.Trigger.Where))
                 {
                     expression.Add("where " + named.Trigger.Where);

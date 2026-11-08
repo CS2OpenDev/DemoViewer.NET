@@ -68,6 +68,61 @@ public class CanvasVisualTests
         }
     }
 
+    /// <summary>
+    ///     A define face is estimated as an authored node with a count's rows less the actor toggle and the
+    ///     label, is placed as one (between the event and the stat that fires on it), and is tinted by its own
+    ///     kind token on the minimap.
+    /// </summary>
+    [Test]
+    public async Task ADefineNode_IsSizedLikeACountLessTheActorToggle_PlacedBeforeItsStat_AndTintedByItsToken()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("sizes", """
+            ruleset: sizes
+            title: Sizes
+            for: each_player
+
+            define:
+              named_kill:
+                on: kill
+                match: { enemy: true }
+                where: "event.Headshot == true"
+
+            stats:
+              count_kill:
+                count: kill
+                match: { enemy: true }
+                where: "event.Headshot == true"
+                per: round
+              fired:
+                count: named_kill
+                per: round
+            """);
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "sizes";
+        vm.OnActivated(null!);
+        CanvasNodeViewModel define = vm.Nodes.Single(n => n.IsDefine);
+        CanvasNodeViewModel count = vm.Nodes.Single(n => n.Id == "count_kill");
+        CanvasNodeViewModel fired = vm.Nodes.Single(n => n.Id == "fired");
+        CanvasNodeViewModel eventNode = vm.Nodes.Single(n => n.IsScaffold && n.Id == "player_death");
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Diagnostics).IsEmpty();
+            await Assert.That(define.IsAuthorable).IsTrue().Because("the fit and the placement treat it as an authored node");
+            await Assert.That(count.ShowActorToggle).IsTrue();
+            await Assert.That(define.ShowActorToggle).IsFalse();
+            await Assert.That(NodeSizeEstimator.HeightOf(count) - NodeSizeEstimator.HeightOf(define)).IsEqualTo(22)
+                .Because("the same rows: trigger, facets, add-facet, gate row, where line; only the actor toggle differs");
+            await Assert.That(NodeSizeEstimator.WidthOf(define)).IsEqualTo(NodeSizeEstimator.WidthOf(count)).Because("the names are one length");
+            await Assert.That(NodeSizeEstimator.HeightOf(define)).IsGreaterThan(30).Because("a define is a face, not a scaffold row");
+            await Assert.That(define.EstimatedSize).IsEqualTo(NodeSizeEstimator.Estimate(define));
+            await Assert.That(eventNode.Location.X).IsLessThan(define.Location.X).Because("the event fires the define");
+            await Assert.That(define.Location.X).IsLessThan(fired.Location.X).Because("the define fires the stat");
+            await Assert.That(RuleKindToken.Instance.Convert(define.Kind, typeof(string), null, null!)).IsEqualTo("RuleKindDefine")
+                .Because("the minimap tints a define in its own token");
+        }
+    }
+
     [Test]
     public async Task AScaffoldName_DropsTheEnrichPrefix_AndKeepsTheRest()
     {

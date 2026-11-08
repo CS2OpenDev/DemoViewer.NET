@@ -109,6 +109,9 @@ public sealed record DefineFace(
 
     /// <summary>Whether <c>actor: any</c> in the body switched the view's binding off for every stat firing on it.</summary>
     public bool SuppressesActorBinding => Trigger.SuppressesActorBinding;
+
+    /// <summary>Whether the view bakes <c>event.Attacker != event.UserId</c> in, which the face states as a fixed row.</summary>
+    public bool NotASuicide => FaceVocabulary.BakesOutSuicide(View);
 }
 
 /// <summary>A declared stat. The fields every kind has; the sealed kinds add their own.</summary>
