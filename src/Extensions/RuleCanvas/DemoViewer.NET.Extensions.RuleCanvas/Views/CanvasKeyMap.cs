@@ -16,7 +16,10 @@ public enum CanvasKeyAction
     Duplicate,
     ClearFocusAndSelection,
     FrameSelection,
-    FitAll
+    FitAll,
+    GroupSelection,
+    TidySelection,
+    Search
 }
 
 /// <summary>
@@ -40,6 +43,9 @@ public static class CanvasKeyMap
             Key.Z when primary && shift => CanvasKeyAction.Redo,
             Key.Y when primary && !shift => CanvasKeyAction.Redo,
             Key.D when primary && !shift => CanvasKeyAction.Duplicate,
+            Key.G when primary && !shift => CanvasKeyAction.GroupSelection,
+            Key.T when primary && shift => CanvasKeyAction.TidySelection,
+            Key.F when primary && !shift => CanvasKeyAction.Search,
             Key.Escape => CanvasKeyAction.ClearFocusAndSelection,
             Key.F when bare => CanvasKeyAction.FrameSelection,
             Key.A when bare => CanvasKeyAction.FitAll,

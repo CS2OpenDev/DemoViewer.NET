@@ -51,6 +51,11 @@
                          when the run predates the text drawn. -->
                     <SolidColorBrush x:Key="RuleLiveBadgeBg" Color="#E6E7F3" />
                     <SolidColorBrush x:Key="RuleLiveStale" Color="#7E8099" />
+                    <!-- A frame around nodes: a translucent fill off the selection hue so the canvas and the wires
+                         show through, a header one step denser, and a border that reads as chrome, not as a kind. -->
+                    <SolidColorBrush x:Key="RuleGroupFill" Color="#144A4A9E" />
+                    <SolidColorBrush x:Key="RuleGroupHeaderBg" Color="#2E4A4A9E" />
+                    <SolidColorBrush x:Key="RuleGroupBorder" Color="#8E90B4" />
                     <!-- Minimap items are the kind tokens, which are tuned for text on the face; at full strength
                          on the light minimap they shout, so light draws them at 55%. -->
                     <x:Double x:Key="RuleMinimapItemOpacity">0.55</x:Double>
@@ -110,6 +115,9 @@
                     <SolidColorBrush x:Key="RuleDiagnosticBadgeText" Color="#0C0C1A" />
                     <SolidColorBrush x:Key="RuleLiveBadgeBg" Color="#24243C" />
                     <SolidColorBrush x:Key="RuleLiveStale" Color="#6E6E8C" />
+                    <SolidColorBrush x:Key="RuleGroupFill" Color="#1A8A8AE0" />
+                    <SolidColorBrush x:Key="RuleGroupHeaderBg" Color="#388A8AE0" />
+                    <SolidColorBrush x:Key="RuleGroupBorder" Color="#4C4C84" />
                     <x:Double x:Key="RuleMinimapItemOpacity">1</x:Double>
                     <StaticResource x:Key="Node.BackgroundBrush" ResourceKey="RuleNodeBg" />
                     <StaticResource x:Key="Node.ContentBrush" ResourceKey="RuleNodeBg" />
@@ -281,6 +289,15 @@
         <Setter Property="Foreground" Value="{DynamicResource RuleTextKey}" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="HeaderContainerStyle" Value="{StaticResource RuleNodeHeaderTheme}" />
+    </Style>
+
+    <!-- A frame around nodes: translucent, so what it groups stays readable through it. -->
+    <Style Selector="nodes|GroupingNode">
+        <Setter Property="Background" Value="{DynamicResource RuleGroupFill}" />
+        <Setter Property="HeaderBrush" Value="{DynamicResource RuleGroupHeaderBg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource RuleGroupBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="{DynamicResource RuleTextKey}" />
     </Style>
 
     <!-- Ports: a ring at rest, filled while wired. No strip behind them; the face is the background. -->

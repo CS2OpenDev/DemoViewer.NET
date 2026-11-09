@@ -22,12 +22,13 @@ public class CanvasThemeTests
         "RuleKindEvent", "RuleKindEnrich", "RuleKindContext", "RuleKindStat", "RuleKindDerived", "RuleKindHighlight", "RuleKindDefine",
         "RuleWireWrite", "RuleWireRead", "RuleWireGate", "RuleWireAnd", "RuleWireOr",
         "RuleCanvasBg", "RuleNodeBg", "RuleNodeBorder", "RuleSelection", "RuleSelectionFill", "RuleCutLine", "RuleMinimapBg",
-        "RuleTextKey", "RuleWireHalo", "RuleCheckGlyph", "RuleDiagnosticBadgeText", "RuleLiveBadgeBg", "RuleLiveStale"
+        "RuleTextKey", "RuleWireHalo", "RuleCheckGlyph", "RuleDiagnosticBadgeText", "RuleLiveBadgeBg", "RuleLiveStale",
+        "RuleGroupFill", "RuleGroupHeaderBg", "RuleGroupBorder"
     ];
 
     private static readonly string[] _restyled =
     [
-        "NodifyEditor", "ItemContainer", "Node", "NodeInput", "Connection", "PendingConnection", "Minimap"
+        "NodifyEditor", "ItemContainer", "Node", "NodeInput", "Connection", "PendingConnection", "Minimap", "GroupingNode"
     ];
 
     private static Styles LoadTheme()

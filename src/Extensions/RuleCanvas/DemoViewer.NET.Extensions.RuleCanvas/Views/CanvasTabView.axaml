@@ -52,6 +52,16 @@
                                 ToolTip.Tip="Redo (Ctrl+Shift+Z)" />
                         <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
 
+                        <!-- The canvas search: nodes the text does not name dim; Enter frames the next match, Escape clears. -->
+                        <TextBox x:Name="SearchBox" Text="{Binding CanvasSearch}" PlaceholderText="Find node (Ctrl+F)" FontSize="12"
+                                 Padding="6 2" MinHeight="0" Width="170" VerticalAlignment="Center" KeyDown="OnSearchKeyDown"
+                                 ToolTip.Tip="Filter the canvas by id, label, event or define name; Enter frames each match in turn" />
+                        <TextBlock Text="{Binding SearchSummary}" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
+                                   IsVisible="{Binding IsSearching}" />
+                        <Button Classes="icon-btn" Content="×" Margin="0" IsVisible="{Binding IsSearching}"
+                                Command="{Binding ClearSearchCommand}" ToolTip.Tip="Clear the search (Esc)" />
+                        <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
+
                         <!-- The keyboard path into the gallery: the same searchable list, each item a button. -->
                         <Button Classes="ghost" Content="+ Add" FontSize="12" Padding="8 3" IsEnabled="{Binding IsEditable}"
                                 ToolTip.Tip="Add a prefab, a highlight, a stat kind or a view under the authored nodes">
@@ -134,6 +144,8 @@
                                     <MenuItem Header="Diagnostics list" Command="{Binding ToggleDiagnosticsListCommand}" />
                                     <Separator />
                                     <MenuItem Header="Delete selected" Command="{Binding DeleteSelectedCommand}" />
+                                    <MenuItem Header="Group selection" InputGesture="Ctrl+G" Command="{Binding GroupSelectionCommand}" />
+                                    <MenuItem Header="Tidy selection" InputGesture="Ctrl+Shift+T" Command="{Binding TidySelectionCommand}" />
                                     <MenuItem Header="Edit a copy" Command="{Binding EditCopyCommand}" IsVisible="{Binding IsShippedRuleset}" />
                                     <MenuItem Header="New ruleset with a starter stat" Command="{Binding NewRulesetCommand}" />
                                     <MenuItem Header="Open rules folder" Command="{Binding OpenRulesFolderCommand}" />
@@ -377,7 +389,8 @@
         <Grid Grid.Column="1">
 
         <nodify:NodifyEditor x:Name="Editor" DragDrop.AllowDrop="True"
-                             ItemsSource="{Binding Nodes}"
+                             ItemsSource="{Binding Items}"
+                             ViewportZoom="{Binding ViewportZoom, Mode=OneWayToSource}"
                              Connections="{Binding Connections}"
                              SelectedItems="{Binding SelectedNodes}"
                              SelectedConnections="{Binding SelectedWires}"
@@ -406,6 +419,8 @@
             <nodify:NodifyEditor.ItemContainerTheme>
                 <ControlTheme TargetType="nodify:ItemContainer" BasedOn="{StaticResource {x:Type nodify:ItemContainer}}">
                     <Setter Property="Location" Value="{ReflectionBinding Location, Mode=TwoWay}" />
+                    <!-- A node the search does not name dims to the port-dimming level; a frame never does. -->
+                    <Setter Property="Opacity" Value="{ReflectionBinding DimOpacity}" />
                     <Setter Property="ContextMenu">
                         <Template>
                             <ContextMenu>
@@ -414,6 +429,9 @@
                                 <Separator />
                                 <MenuItem Header="Duplicate" InputGesture="Ctrl+D" Click="OnNodeDuplicate" />
                                 <MenuItem Header="Delete" InputGesture="Delete" Click="OnNodeDelete" />
+                                <Separator />
+                                <MenuItem Header="Group selection" InputGesture="Ctrl+G" Click="OnGroupSelection" />
+                                <MenuItem Header="Tidy selection" InputGesture="Ctrl+Shift+T" Click="OnTidySelection" />
                                 <Separator />
                                 <MenuItem Header="Align">
                                     <MenuItem Header="Top" Tag="Top" Click="OnAlign" />
@@ -542,6 +560,35 @@
                     </DataTemplate>
                 </views:CanvasNodeTemplateSelector.Scaffold>
 
+                <!-- A frame around nodes, drawn under them: the header drags its contents along, the content lets
+                     the pointer through to the nodes, the corner thumb resizes. The title is click-to-edit. -->
+                <views:CanvasNodeTemplateSelector.Group>
+                    <DataTemplate x:DataType="vm:CanvasGroupViewModel">
+                        <nodes:GroupingNode ActualSize="{Binding Size, Mode=TwoWay}" MovementMode="Group" CanResize="True"
+                                            IsContentHitTestVisible="False" MinWidth="120" MinHeight="60"
+                                            ResizeCompletedCommand="{Binding $parent[views:CanvasTabView].((vm:CanvasTabViewModel)DataContext).SaveLayoutCommand}">
+                            <nodes:GroupingNode.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="8 4" PointerPressed="OnFacePressed">
+                                    <TextBlock Text="{Binding HeaderText}" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center"
+                                               IsVisible="{Binding ShowTitleText}" />
+                                    <Button Classes="ghost" Content="✎" FontSize="10" Padding="3 0" MinHeight="0" VerticalAlignment="Center"
+                                            Command="{Binding BeginEditTitleCommand}" ToolTip.Tip="Rename the group"
+                                            IsVisible="{Binding ShowTitleText}" />
+                                    <TextBox Text="{Binding TitleText}" PlaceholderText="Group" FontSize="11" MinWidth="120" Padding="4 1" MinHeight="0"
+                                             IsVisible="{Binding IsEditingTitle}"
+                                             views:FaceBehaviors.FocusWhenShown="True"
+                                             views:FaceBehaviors.CommitOnLostFocus="{Binding CommitTitleCommand}">
+                                        <TextBox.KeyBindings>
+                                            <KeyBinding Gesture="Enter" Command="{Binding CommitTitleCommand}" />
+                                        </TextBox.KeyBindings>
+                                    </TextBox>
+                                </StackPanel>
+                            </nodes:GroupingNode.Header>
+                        </nodes:GroupingNode>
+                    </DataTemplate>
+                </views:CanvasNodeTemplateSelector.Group>
+
                 <views:CanvasNodeTemplateSelector.Authored>
                 <DataTemplate x:DataType="vm:CanvasNodeViewModel">
                     <nodes:Node Input="{Binding RailInputs}" Output="{Binding Outputs}" ContentPadding="10 6 10 8"
@@ -550,10 +597,13 @@
                         <!-- Header: a stripe and an outlined pill in the kind's token, the id, the label when there
                              is one, and the diagnostics count as a badge whose tooltip carries the text. On an editable stat the label is click-to-edit. -->
                         <nodes:Node.Header>
-                            <Grid ColumnDefinitions="3,*,Auto">
+                            <Grid ColumnDefinitions="3,*,Auto" DoubleTapped="OnHeaderDoubleTapped">
                                 <Border Grid.Column="0" CornerRadius="3 0 0 0" Margin="0 0 0 -1"
                                         views:TokenBrush.Background="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="8 5 8 3" PointerPressed="OnFacePressed">
+                                    <!-- The fold: a chevron that keeps the header, the badge and the port rail and hides the rows. -->
+                                    <Button Classes="ghost" Content="{Binding CollapseGlyph}" FontSize="11" Padding="2 0" MinHeight="0" MinWidth="0"
+                                            VerticalAlignment="Center" Click="OnCollapseToggle" ToolTip.Tip="{Binding CollapseTip}" />
                                     <Border CornerRadius="3" Padding="5 1" VerticalAlignment="Center" BorderThickness="1"
                                             views:TokenBrush.BorderBrush="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}">
                                         <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
@@ -615,7 +665,7 @@
                         <!-- Face: chips, then the kind's own rows, the facet rows (detailed) or their count (compact),
                              then the expression. Every row the engine adds on its own is drawn in TextMid, never
                              hidden; TextDim is 1.81:1 on the face and carries no meaning anywhere on the canvas. -->
-                        <StackPanel Spacing="6" MinWidth="180" PointerPressed="OnFacePressed">
+                        <StackPanel Spacing="6" MinWidth="180" PointerPressed="OnFacePressed" IsVisible="{Binding ShowsFace}">
                             <WrapPanel>
                                 <ItemsControl ItemsSource="{Binding VisibleChipItems}">
                                     <ItemsControl.ItemsPanel>
@@ -930,7 +980,7 @@
         <!-- The minimap, bottom-right: every node at its estimated size, the viewport as a frame to drag. -->
         <nodify:Minimap x:Name="Minimap" Width="220" Height="150" Margin="12" IsVisible="{Binding ShowMinimap}"
                         HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                        ItemsSource="{Binding #Editor.ItemsSource}"
+                        ItemsSource="{Binding Nodes}"
                         ViewportLocation="{Binding #Editor.ViewportLocation, Mode=TwoWay}"
                         ViewportSize="{Binding #Editor.ViewportSize}"
                         ItemsExtent="{Binding #Editor.ItemsExtent}"
