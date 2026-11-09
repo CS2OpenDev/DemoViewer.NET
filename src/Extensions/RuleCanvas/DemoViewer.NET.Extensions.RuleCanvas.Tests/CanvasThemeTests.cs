@@ -19,7 +19,8 @@ public class CanvasThemeTests
 {
     private static readonly string[] _tokens =
     [
-        "RuleKindEvent", "RuleKindEnrich", "RuleKindContext", "RuleKindStat", "RuleKindDerived", "RuleKindHighlight", "RuleKindDefine", "RuleKindSurface", "RuleKindDependency",
+        "RuleKindEvent", "RuleKindEnrich", "RuleKindContext", "RuleKindStat", "RuleKindCapture", "RuleKindFlag", "RuleKindDerived", "RuleKindShaped",
+        "RuleKindHighlight", "RuleKindDefine", "RuleKindSurface", "RuleKindDependency",
         "RuleWireWrite", "RuleWireRead", "RuleWireGate", "RuleWireAnd", "RuleWireOr",
         "RuleCanvasBg", "RuleNodeBg", "RuleNodeBorder", "RuleSelection", "RuleSelectionFill", "RuleCutLine", "RuleMinimapBg",
         "RuleTextKey", "RuleWireHalo", "RuleCheckGlyph", "RuleDiagnosticBadgeText", "RuleDiagnosticWarning", "RuleLiveBadgeBg", "RuleLiveStale",
@@ -191,19 +192,163 @@ public class CanvasThemeTests
             await Assert.That(RuleKindToken.KeyFor("event")).IsEqualTo("RuleKindEvent");
             await Assert.That(RuleKindToken.KeyFor("enrich")).IsEqualTo("RuleKindEnrich");
             await Assert.That(RuleKindToken.KeyFor("context")).IsEqualTo("RuleKindContext");
-            await Assert.That(RuleKindToken.KeyFor("flag")).IsEqualTo("RuleKindDerived");
+            await Assert.That(RuleKindToken.KeyFor("entity")).IsEqualTo("RuleKindEnrich");
+            await Assert.That(RuleKindToken.KeyFor("count")).IsEqualTo("RuleKindStat");
+            await Assert.That(RuleKindToken.KeyFor("sum")).IsEqualTo("RuleKindStat");
+            await Assert.That(RuleKindToken.KeyFor("capture")).IsEqualTo("RuleKindCapture");
+            await Assert.That(RuleKindToken.KeyFor("flag")).IsEqualTo("RuleKindFlag");
             await Assert.That(RuleKindToken.KeyFor("compute")).IsEqualTo("RuleKindDerived");
+            await Assert.That(RuleKindToken.KeyFor("rate")).IsEqualTo("RuleKindDerived");
+            foreach (string kind in new[] { "tally", "streak", "bucket", "burst" })
+            {
+                await Assert.That(RuleKindToken.KeyFor(kind)).IsEqualTo("RuleKindShaped").Because(kind);
+            }
+
             await Assert.That(RuleKindToken.KeyFor("highlight")).IsEqualTo("RuleKindHighlight");
             await Assert.That(RuleKindToken.KeyFor("define")).IsEqualTo("RuleKindDefine");
             await Assert.That(RuleKindToken.KeyFor("show")).IsEqualTo("RuleKindSurface");
             await Assert.That(RuleKindToken.KeyFor("params")).IsEqualTo("RuleKindSurface");
             await Assert.That(RuleKindToken.KeyFor("dependency")).IsEqualTo("RuleKindDependency");
-            foreach (string kind in new[] { "count", "sum", "capture", "tally", "streak", "bucket", "rate", "burst" })
-            {
-                await Assert.That(RuleKindToken.KeyFor(kind)).IsEqualTo("RuleKindStat").Because(kind);
-            }
-
             await Assert.That(_tokens).Contains(RuleKindToken.KeyFor(null));
+
+            // Every family token is reached by some kind, so none is dead.
+            List<string> families = [.. _tokens.Where(t => t.StartsWith("RuleKind", StringComparison.Ordinal))];
+            await Assert.That(RuleKindToken.Kinds.Select(RuleKindToken.KeyFor).Distinct()).IsEquivalentTo(families);
+        }
+    }
+
+    private static Color ColorOf(ResourceDictionary resources, string key, ThemeVariant variant)
+    {
+        resources.TryGetResource(key, variant, out object? value);
+        return ((ISolidColorBrush)value!).Color;
+    }
+
+    private static double Luminance(Color c)
+    {
+        static double Channel(byte v)
+        {
+            double s = v / 255.0;
+            return s <= 0.03928 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4);
+        }
+
+        return 0.2126 * Channel(c.R) + 0.7152 * Channel(c.G) + 0.0722 * Channel(c.B);
+    }
+
+    private static double Contrast(Color a, Color b)
+    {
+        double la = Luminance(a), lb = Luminance(b);
+        return (Math.Max(la, lb) + 0.05) / (Math.Min(la, lb) + 0.05);
+    }
+
+    private static Color Over(Color top, Color bottom, double alpha) => Color.FromRgb(
+        (byte)Math.Round(top.R * alpha + bottom.R * (1 - alpha)),
+        (byte)Math.Round(top.G * alpha + bottom.G * (1 - alpha)),
+        (byte)Math.Round(top.B * alpha + bottom.B * (1 - alpha)));
+
+    private static double HueOf(Color c)
+    {
+        double r = c.R / 255.0, g = c.G / 255.0, b = c.B / 255.0;
+        double max = Math.Max(r, Math.Max(g, b)), min = Math.Min(r, Math.Min(g, b)), d = max - min;
+        if (d == 0)
+        {
+            return 0;
+        }
+
+        double h = max == r ? (g - b) / d % 6 : max == g ? (b - r) / d + 2 : (r - g) / d + 4;
+        return (h * 60 + 360) % 360;
+    }
+
+    private static double HueDistance(double a, double b)
+    {
+        double d = Math.Abs(a - b) % 360;
+        return Math.Min(d, 360 - d);
+    }
+
+    // The pill text is the family token on the face and on the family's own header tint; the stripe is the
+    // same token beside RuleNodeBg. WCAG 2: 4.5:1 for the 9px pill text.
+    [Test]
+    public async Task EveryKind_PillText_HoldsFourAndAHalfToOne_OnTheFaceAndItsTint()
+    {
+        ResourceDictionary resources = (ResourceDictionary)LoadTheme().Resources;
+        using (Assert.Multiple())
+        {
+            foreach (ThemeVariant variant in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            {
+                Color face = ColorOf(resources, "RuleNodeBg", variant);
+                await Assert.That(resources.TryGetResource("RuleKindTintOpacity", variant, out object? tintValue) && tintValue is double).IsTrue();
+                double tint = (double)tintValue!;
+                await Assert.That(tint).IsBetween(0.04, 0.15).Because("a faint band, not a fill");
+                foreach (string kind in RuleKindToken.Kinds)
+                {
+                    Color family = ColorOf(resources, RuleKindToken.KeyFor(kind), variant);
+                    string why = $"{kind} in {variant.Key}";
+                    await Assert.That(Contrast(family, face)).IsGreaterThanOrEqualTo(4.5).Because(why + " on RuleNodeBg");
+                    await Assert.That(Contrast(family, Over(family, face, tint))).IsGreaterThanOrEqualTo(4.5).Because(why + " on its header tint");
+                }
+            }
+        }
+    }
+
+    // The saturated families are told apart by hue: 25 degrees between any two, and from the wire, selection and
+    // cut-line hues a node could be mistaken for. The muted families sit under a chroma ceiling instead.
+    [Test]
+    public async Task TheSaturatedFamilies_StandApartInHue_FromEachOtherAndTheWires()
+    {
+        string[] saturated = ["RuleKindEvent", "RuleKindStat", "RuleKindCapture", "RuleKindFlag", "RuleKindDerived", "RuleKindShaped", "RuleKindHighlight", "RuleKindDefine"];
+        string[] muted = ["RuleKindEnrich", "RuleKindContext", "RuleKindSurface", "RuleKindDependency"];
+        string[] reserved = ["RuleWireGate", "RuleWireAnd", "RuleWireOr", "RuleSelection", "RuleCutLine"];
+        ResourceDictionary resources = (ResourceDictionary)LoadTheme().Resources;
+        using (Assert.Multiple())
+        {
+            foreach (ThemeVariant variant in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            {
+                for (int i = 0; i < saturated.Length; i++)
+                {
+                    double hue = HueOf(ColorOf(resources, saturated[i], variant));
+                    for (int j = i + 1; j < saturated.Length; j++)
+                    {
+                        await Assert.That(HueDistance(hue, HueOf(ColorOf(resources, saturated[j], variant))))
+                            .IsGreaterThanOrEqualTo(24.5).Because($"{saturated[i]} and {saturated[j]} in {variant.Key}");
+                    }
+
+                    foreach (string wire in reserved)
+                    {
+                        await Assert.That(HueDistance(hue, HueOf(ColorOf(resources, wire, variant))))
+                            .IsGreaterThanOrEqualTo(12).Because($"{saturated[i]} and {wire} in {variant.Key}");
+                    }
+                }
+
+                foreach (string key in muted)
+                {
+                    Color c = ColorOf(resources, key, variant);
+                    double chroma = (Math.Max(c.R, Math.Max(c.G, c.B)) - Math.Min(c.R, Math.Min(c.G, c.B))) / 255.0;
+                    await Assert.That(chroma).IsLessThan(0.16).Because($"{key} in {variant.Key} is a quiet family");
+                }
+            }
+        }
+    }
+
+    // The selection ring is the container's border, outside the face: it must read on the canvas, and stand
+    // apart from the family stripe it meets at the node's left edge.
+    [Test]
+    public async Task TheSelectionRing_ReadsOnTheCanvas_AndBesideEveryStripe()
+    {
+        ResourceDictionary resources = (ResourceDictionary)LoadTheme().Resources;
+        using (Assert.Multiple())
+        {
+            foreach (ThemeVariant variant in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            {
+                Color ring = ColorOf(resources, "RuleSelection", variant);
+                await Assert.That(Contrast(ring, ColorOf(resources, "RuleCanvasBg", variant))).IsGreaterThanOrEqualTo(3.0).Because(variant.Key?.ToString() ?? "");
+                double ringHue = HueOf(ring);
+                foreach (string kind in RuleKindToken.Kinds)
+                {
+                    string key = RuleKindToken.KeyFor(kind);
+                    Color stripe = ColorOf(resources, key, variant);
+                    bool apart = HueDistance(ringHue, HueOf(stripe)) >= 20 || Contrast(ring, stripe) >= 1.5;
+                    await Assert.That(apart).IsTrue().Because($"{key} in {variant.Key} would read as part of the ring");
+                }
+            }
         }
     }
 

@@ -376,12 +376,19 @@ Contrast is WCAG 2 relative luminance, measured where the token is used: a kind 
 
 | Token | Dark | Light | Role | Contrast dark / light |
 |---|---|---|---|---|
-| `RuleKindEvent` | `#DCDCAA` | `#795E26` | Engine event nodes: the header stripe and the outlined kind pill. | 12.5 / 5.95 |
-| `RuleKindEnrich` | `#26A69A` | `#00796B` | Enrichment, entity and provider nodes. Mirrors `AccentInfo`. | 5.90 / 5.19 |
-| `RuleKindContext` | `#569CD6` | `#1565C0` | Context flags (`RoundActive`, `Alive`, ...). Light mirrors `ClassifierBlue`. | 6.00 / 5.61 |
-| `RuleKindStat` | `#4FC1FF` | `#0070C1` | Counted stats: count, sum, capture, tally, streak, bucket, rate, burst. | 8.77 / 5.01 |
-| `RuleKindDerived` | `#C586C0` | `#AF00DB` | Derived stats: flag and compute. | 6.36 / 5.33 |
-| `RuleKindHighlight` | `#FFA657` | `#A8470A` | Highlights. Warm, so the payoff of a chain reads as its end. | 9.14 / 5.74 |
+| `RuleKindEvent` | `#E0C25C` | `#7A5C00` | Events, what fires: the header stripe and the outlined kind pill. | 10.14 / 6.10 |
+| `RuleKindEnrich` | `#91AFAA` | `#4E6B66` | Enrichment, entity and provider nodes. Muted: an engine scaffold. | 7.51 / 5.66 |
+| `RuleKindContext` | `#9BACB4` | `#566972` | Context flags (`RoundActive`, `Alive`, ...). Muted: an engine scaffold. | 7.54 / 5.60 |
+| `RuleKindStat` | `#1EC0D2` | `#00717D` | Accumulators: count and sum, and any kind not named here. | 8.03 / 5.60 |
+| `RuleKindCapture` | `#8ABF30` | `#487100` | Captures: the last value. | 8.07 / 5.63 |
+| `RuleKindFlag` | `#EC92CC` | `#B72785` | Flags: a bool. | 8.05 / 5.63 |
+| `RuleKindDerived` | `#E193E8` | `#A926B5` | Derived stats: compute and rate. | 8.04 / 5.64 |
+| `RuleKindShaped` | `#C69DF4` | `#8441D0` | Shaped stats: tally, streak, bucket, burst. | 8.03 / 5.62 |
+| `RuleKindHighlight` | `#F691A7` | `#C32245` | Highlights, the moments. | 8.03 / 5.64 |
+| `RuleKindDefine` | `#31C681` | `#00753F` | Defines, the named triggers. | 8.02 / 5.67 |
+| `RuleKindSurface` | `#B0A89F` | `#6F645A` | Show tables, the scoreboard and params. Muted. | 7.54 / 5.62 |
+| `RuleKindDependency` | `#B7A3B7` | `#775E77` | A folded `use:` dependency. Muted. | 7.53 / 5.61 |
+| `RuleKindTintOpacity` | `0.12` | `0.08` | A double: the family brush's opacity in the header band over `RuleNodeBg`. The pill text holds 4.5:1 on the band too (lowest 6.13 / 4.97). | |
 | `RuleWireWrite` | `#9090B0` | `#5A5E7C` | A write wire (an event firing a stat), solid; also the port rings. | 6.28 / 5.55 |
 | `RuleWireRead` | `#7878A8` | `#50507C` | A read wire (a sibling's value), dashed 4,3. | 4.66 / 6.65 |
 | `RuleWireGate` | `#569CD6` | `#1565C0` | A gate wire (a `while:` holding a stat open), dashed 8,4; the context kind's colour. | 6.58 / 5.06 |
@@ -399,6 +406,10 @@ Contrast is WCAG 2 relative luminance, measured where the token is used: a kind 
 | `RuleDiagnosticBadgeText` | `#0C0C1A` | `#FCFCFE` | The 10px count on a diagnostics badge, in the strip and on a node header. Measured on `AccentError` / `AccentCaution`: 4.59 and 8.53 in dark, 5.49 and 4.61 in light. `TextOnAccent` was 4.39 / 3.30 on the error red. | 4.59 / 5.49 |
 | `RuleMinimapItemOpacity` | `1` | `0.55` | A double, not a brush: the opacity of a minimap item, whose fill is the node's kind token. The kind tokens are tuned for text on the face and shout on the light minimap at full strength. | |
 | `RuleTextKey` | `#A0A0D8` | `#3C3C70` | Key labels on a face: facet names, `on`, `per`, `while`, the expression prefixes, chip text. Mirrors `TextBright`. What the canvas dims but still means (an engine default chip, a default value, the condition echo under its rows, a note, the thresholds arrow, a read-only tag) is `TextMid` (4.26 / 7.37 on the face); `TextDim` is 1.81 on `CardBg` and carries no meaning on the canvas. | 7.17 / 9.89 |
+
+The eight saturated families sit at least 25 degrees of hue apart from each other and at least 12 from
+the gate, and, or, selection and cut-line hues; the four muted ones stay under a chroma ceiling and are
+read by their pill. `CanvasThemeTests` holds both rules and the 4.5:1 pill contrast in both themes.
 
 The kind pill is outlined (1px border and text in the kind token on `RuleNodeBg`), never a filled
 `AccentInteractive` pill with `TextOnAccent` (2.65 dark, 2.44 light). A diagnostics badge is `AccentError`

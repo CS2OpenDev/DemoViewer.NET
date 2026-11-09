@@ -97,12 +97,20 @@ public static class TokenBrush
 }
 
 /// <summary>
-///     The token a node kind is painted in: an engine kind, a counted stat, a derived one, or a highlight.
+///     The token a node kind is painted in, one per family: events, the engine's scaffolds, accumulators,
+///     captures, flags, derived stats, shaped stats, highlights, defines, surfaces and dependencies.
 ///     Converts the kind string a node carries into the key the canvas theme defines.
 /// </summary>
 public sealed class RuleKindToken : IValueConverter
 {
     public static RuleKindToken Instance { get; } = new();
+
+    /// <summary>Every kind a node can carry.</summary>
+    public static IReadOnlyList<string> Kinds { get; } =
+    [
+        "event", "enrich", "entity", "external", "engine", "context", "count", "sum", "capture", "flag", "compute", "rate",
+        "tally", "streak", "bucket", "burst", "highlight", "define", "show", "params", "dependency"
+    ];
 
     /// <summary>The theme key for <paramref name="kind" />, as the face names it.</summary>
     public static string KeyFor(string? kind) => kind switch
@@ -110,7 +118,10 @@ public sealed class RuleKindToken : IValueConverter
         "event" => "RuleKindEvent",
         "enrich" or "entity" or "external" or "engine" => "RuleKindEnrich",
         "context" => "RuleKindContext",
-        "flag" or "compute" => "RuleKindDerived",
+        "capture" => "RuleKindCapture",
+        "flag" => "RuleKindFlag",
+        "compute" or "rate" => "RuleKindDerived",
+        "tally" or "streak" or "bucket" or "burst" => "RuleKindShaped",
         "highlight" => "RuleKindHighlight",
         "define" => "RuleKindDefine",
         "show" or "params" => "RuleKindSurface",
