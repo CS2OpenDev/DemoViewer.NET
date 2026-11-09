@@ -160,4 +160,81 @@ public class CanvasRowPortTests
             }
         });
     }
+
+    [Test]
+    [Category("Render")]
+    [NotInParallel]
+    public async Task WithTheWhenLineAsText_TheRowWiresStillFollowTheNode()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (RulesTree rules, CanvasTabViewModel vm) = Open();
+            using (rules)
+            {
+                CanvasTabView view = new() { DataContext = vm };
+                Window window = new() { Width = 1600, Height = 900, Content = view };
+                window.Show();
+                NodifyEditor editor = view.GetVisualDescendants().OfType<NodifyEditor>().First();
+                CanvasNodeViewModel busy = Node(vm, "busy");
+                editor.ViewportZoom = 1;
+                editor.ViewportLocation = new Point(busy.Location.X - 100, busy.Location.Y - 100);
+                Pump();
+
+                busy.Lines.Single(l => l.Key == "when").ToggleEditAsTextCommand.Execute(null);
+                Pump();
+                List<CanvasConnectionViewModel> rows = [.. vm.Connections.Where(c => c.Target.Owner == busy && c.IsOr)];
+                await Assert.That(rows.Count).IsEqualTo(3);
+                List<Point> before = [.. rows.Select(c => c.Target.Anchor)];
+                busy.Location += new Vector(200, 120);
+                Pump();
+                using (Assert.Multiple())
+                {
+                    for (int i = 0; i < rows.Count; i++)
+                    {
+                        await Assert.That(rows[i].Target.Anchor - before[i]).IsEqualTo(new Vector(200, 120)).Because($"the {rows[i].Target.Title} wire's end moved with the node");
+                    }
+                }
+
+                window.Close();
+            }
+        });
+    }
+
+    private static void Pump()
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        }
+    }
+
+    [Test]
+    [Category("Render")]
+    [NotInParallel]
+    public async Task PlayerRound_DrawsARingPerConditionRow_AndEveryWiredOneIsOnTheFace()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using RulesTree rules = RulesTree.WithUser("player_round");
+            CanvasTabViewModel vm = rules.NewViewModel();
+            vm.OnActivated(null!);
+            CanvasTabView view = new() { DataContext = vm };
+            Window window = new() { Width = 1600, Height = 1000, Content = view };
+            window.Show();
+            Pump();
+            List<CanvasConnectorViewModel> rows = [.. vm.Nodes.SelectMany(n => n.Inputs).Where(i => i.IsRow)];
+            HashSet<object?> drawn = [.. view.GetVisualDescendants().OfType<Border>().Where(b => b.Name == "PortHalo").Select(b => b.DataContext)];
+            using (Assert.Multiple())
+            {
+                await Assert.That(rows.Select(r => r.Owner!.Id + ":" + r.Title + (r.IsWired ? "" : " (unwired)"))).IsEquivalentTo([
+                    "round_assists:event.AssistedFlash (unwired)", "round_kast_assists:enrich.kill.was_enemy_kill",
+                    "round_kast:round_kills", "round_kast:round_kast_assists", "round_kast:player.survived", "round_kast:player.traded"
+                ]).Because("an event field is no wire; every other row has one");
+                await Assert.That(rows.Where(r => r.IsWired && !drawn.Contains(r)).Select(r => r.Title)).IsEmpty().Because("a wired ring is on its face");
+            }
+
+            window.Close();
+        });
+    }
 }
