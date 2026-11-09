@@ -78,6 +78,9 @@ public sealed partial class CanvasTabViewModel
     [RelayCommand]
     private void GroupSelection() => GroupSelection(null);
 
+    /// <summary>What a group of one node is told: one node frames nothing.</summary>
+    public const string GroupNeedsTwo = "Select two or more nodes to group them: drag a box around them on empty canvas.";
+
     /// <summary>
     ///     As <see cref="GroupSelectionCommand" />, around <paramref name="bounds" /> when the view measured the
     ///     selection; the estimated sizes otherwise.
@@ -93,6 +96,7 @@ public sealed partial class CanvasTabViewModel
         List<CanvasNodeViewModel> nodes = [.. SelectedNodes.OfType<CanvasNodeViewModel>()];
         if (nodes.Count < 2)
         {
+            Notify(GroupNeedsTwo);
             return;
         }
 

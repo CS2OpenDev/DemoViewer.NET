@@ -236,4 +236,21 @@ public class CanvasGestureTests
             await Assert.That(vm.Toast).IsNull().Because("a click is not a refused wire");
         }
     }
+
+    [Test]
+    [Arguments("Ctrl+G", true, Key.G, KeyModifiers.Meta)]
+    [Arguments("Ctrl+Shift+T", true, Key.T, KeyModifiers.Meta | KeyModifiers.Shift)]
+    [Arguments("Ctrl+G", false, Key.G, KeyModifiers.Control)]
+    [Arguments("Delete", true, Key.Delete, KeyModifiers.None)]
+    public async Task TheMenuGesture_ShowsCmdOnMacOS_AndCtrlElsewhere(string written, bool mac, Key key, KeyModifiers modifiers)
+    {
+        KeyGesture shown = PrimaryGesture.For(written, mac);
+        using (Assert.Multiple())
+        {
+            await Assert.That(shown.Key).IsEqualTo(key);
+            await Assert.That(shown.KeyModifiers).IsEqualTo(modifiers);
+            await Assert.That(CanvasKeyMap.Resolve(shown.Key, shown.KeyModifiers)).IsEqualTo(CanvasKeyMap.Resolve(key, written.Contains("Ctrl", StringComparison.Ordinal) ? (modifiers & ~KeyModifiers.Meta) | KeyModifiers.Control : modifiers))
+                .Because("the shown chord runs what the written one runs");
+        }
+    }
 }

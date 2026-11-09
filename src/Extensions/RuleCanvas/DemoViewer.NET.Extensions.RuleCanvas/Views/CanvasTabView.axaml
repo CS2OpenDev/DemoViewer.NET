@@ -150,8 +150,8 @@
                                     <MenuItem Header="Reset arrangement" Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding HasSavedLayout}"
                                               ToolTip.Tip="{Binding SidecarPath}" />
                                     <MenuItem Header="Delete selected" Command="{Binding DeleteSelectedCommand}" />
-                                    <MenuItem Header="Group selection" InputGesture="Ctrl+G" Command="{Binding GroupSelectionCommand}" />
-                                    <MenuItem Header="Tidy selection" InputGesture="Ctrl+Shift+T" Command="{Binding TidySelectionCommand}" />
+                                    <MenuItem Header="Group selection" InputGesture="{views:PrimaryGesture Ctrl+G}" Command="{Binding GroupSelectionCommand}" />
+                                    <MenuItem Header="Tidy selection" InputGesture="{views:PrimaryGesture Ctrl+Shift+T}" Command="{Binding TidySelectionCommand}" />
                                     <MenuItem Header="Pin viewers on selection" Command="{Binding PinSelectedViewersCommand}" />
                                     <MenuItem Header="Unpin viewers on selection" Command="{Binding UnpinSelectedViewersCommand}" />
                                     <MenuItem Header="Edit a copy" Command="{Binding EditCopyCommand}" IsVisible="{Binding IsShippedRuleset}" />
@@ -467,11 +467,11 @@
                                 <MenuItem Header="Freeze value as fixture" Click="OnFreezeFixture"
                                           ToolTip.Tip="Write the selected instance's final value and fire count as a comment above the entry" />
                                 <Separator />
-                                <MenuItem Header="Duplicate" InputGesture="Ctrl+D" Click="OnNodeDuplicate" />
+                                <MenuItem Header="Duplicate" InputGesture="{views:PrimaryGesture Ctrl+D}" Click="OnNodeDuplicate" />
                                 <MenuItem Header="Delete" InputGesture="Delete" Click="OnNodeDelete" />
                                 <Separator />
-                                <MenuItem Header="Group selection" InputGesture="Ctrl+G" Click="OnGroupSelection" />
-                                <MenuItem Header="Tidy selection" InputGesture="Ctrl+Shift+T" Click="OnTidySelection" />
+                                <MenuItem Header="Group selection" InputGesture="{views:PrimaryGesture Ctrl+G}" Click="OnGroupSelection" />
+                                <MenuItem Header="Tidy selection" InputGesture="{views:PrimaryGesture Ctrl+Shift+T}" Click="OnTidySelection" />
                                 <Separator />
                                 <MenuItem Header="Align">
                                     <MenuItem Header="Top" Tag="Top" Click="OnAlign" />
