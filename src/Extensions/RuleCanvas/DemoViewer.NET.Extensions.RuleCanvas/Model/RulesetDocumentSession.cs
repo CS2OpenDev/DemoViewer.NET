@@ -55,6 +55,9 @@ public sealed class RulesetDocumentSession
 
     public bool CanRedo => _redo.Count > 0;
 
+    /// <summary>How many writes Undo can take back, so a layout change can be ordered against them.</summary>
+    public int UndoDepth => _undo.Count;
+
     /// <summary>Whether another writer touched the file since its text was taken.</summary>
     public bool ChangedOnDisk => Entry is { } entry && WriteTimeOf(entry.Path) != LoadedWriteTimeUtc;
 
