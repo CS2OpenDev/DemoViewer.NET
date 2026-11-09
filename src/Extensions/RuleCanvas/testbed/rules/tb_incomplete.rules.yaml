@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=../../../../../rules/cs2demokit-rules.schema.json
+#
+# Testbed: unfinished on purpose. The file loads and ok_kills is whole. no_trigger is a sum with no on:,
+# blank_when a highlight with an empty when:, bad is dropped by the loader, and odd_key carries a key the
+# language does not have. Each should be a warning or an error at its own line, and ok_kills should
+# still draw wired. enabled: false keeps the app's own analysis from composing it; the canvas still does.
+ruleset: tb_incomplete
+title: "TB Incomplete"
+summary: Deliberately unfinished entries beside one whole stat.
+for: each_player
+enabled: false
+
+stats:
+  ok_kills:
+    count: kill
+    match: { enemy: true }
+    per: round
+
+  no_trigger:
+    sum: event.DmgHealth
+    per: round
+
+  bad: 5
+
+  odd_key:
+    count: death
+    frobnicate: 1
+    per: round
+
+highlights:
+  blank_when:
+    when: ""
+    per: round
+    title: "TB unfinished highlight"

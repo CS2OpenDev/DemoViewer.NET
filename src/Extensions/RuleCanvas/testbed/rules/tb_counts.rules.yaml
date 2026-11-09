@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=../../../../../rules/cs2demokit-rules.schema.json
+#
+# Testbed: counts and value stats. Look at the facet chips on enemy_headshots (enemy, headshot),
+# the actor chip on any_kills, the value row on enemy_damage and the keep row on first_kill_tick.
+ruleset: tb_counts
+title: "TB Counts"
+summary: Counts with facets, an actor any count, a sum and a capture.
+for: each_player
+
+stats:
+  enemy_headshots:
+    count: kill
+    match: { enemy: true, headshot: true }
+    per: round
+    label: TB EnemyHS
+
+  any_kills:
+    count: kill
+    match: { actor: any }
+    per: round
+    label: TB AnyKills
+
+  enemy_damage:
+    sum: event.DmgHealth
+    on: damage_dealt
+    match: { enemy: true }
+    per: round
+    label: TB EnemyDmg
+
+  first_kill_tick:
+    capture: event.tick
+    on: kill
+    keep: first
+    per: round
+    label: TB FirstKillTick

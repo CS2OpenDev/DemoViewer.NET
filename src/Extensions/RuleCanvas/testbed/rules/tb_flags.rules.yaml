@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=../../../../../rules/cs2demokit-rules.schema.json
+#
+# Testbed: flags. kast_like has four when rows joined by or, like player_round's round_kast;
+# kill_and_assist two joined by and; up_two is an expression flag; planted is a latch set by
+# on: bomb_planted and cleared by off: round_ended, so its face shows two trigger rows.
+ruleset: tb_flags
+title: "TB Flags"
+summary: Flags over siblings joined by or and by and, an expression flag, and an on and off latch.
+for: each_player
+
+stats:
+  round_kills:
+    count: kill
+    match: { enemy: true }
+    per: round
+
+  round_assists:
+    count: assist
+    match: { enemy: true }
+    per: round
+
+  round_deaths:
+    count: death
+    per: round
+
+  kast_like:
+    flag:
+      when: "round_kills > 0 or round_assists > 0 or player.survived or player.traded"
+    per: round
+
+  kill_and_assist:
+    flag:
+      when: "round_kills > 0 and round_assists > 0"
+    per: round
+
+  up_two:
+    flag:
+      when: "round_kills - round_deaths >= 2"
+    per: round
+
+  planted:
+    flag: true
+    on: bomb_planted
+    off: round_ended
+    per: round

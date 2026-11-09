@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=../../../../../rules/cs2demokit-rules.schema.json
+#
+# Testbed: params and use. min_kills is a bounded int param read by the highlight's when; use: [kast]
+# draws kast as a folded dependency node, and kast_share reads its exported kast_pct.
+ruleset: tb_params_use
+title: "TB Params Use"
+summary: A params block with bounds read by a highlight, and a compute reading kast.kast_pct.
+for: each_player
+use: [ kast ]
+
+params:
+  min_kills: { type: int, default: 2, min: 1, max: 5 }
+
+stats:
+  param_kills:
+    count: kill
+    match: { enemy: true }
+    per: round
+
+  kast_share:
+    compute: "kast.kast_pct / 100"
+    format: F2
+    per: match
+
+highlights:
+  tb_param_kills:
+    when: param_kills >= params.min_kills
+    per: round
+    score: 30
+    title: "TB {param_kills} kills for {player.name} (round {round.number})"

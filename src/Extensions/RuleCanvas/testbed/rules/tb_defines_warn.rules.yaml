@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../../../../rules/cs2demokit-rules.schema.json
+#
+# Testbed: a define nothing fires on. unused_kill should carry one warning saying nothing fires on it,
+# with the fix in the text. Set plain_kills' trigger to it, or drop it on a trigger wire, and the
+# warning should go.
+ruleset: tb_defines_warn
+title: "TB Defines Warn"
+summary: A trigger define that no stat fires on.
+for: each_player
+
+define:
+  unused_kill:
+    on: kill
+    match: { enemy: true }
+
+stats:
+  plain_kills:
+    count: kill
+    per: round
