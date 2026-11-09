@@ -43,7 +43,7 @@ public class CanvasPrimitivesTests
             {
                 await Assert.That(vm.Gallery[0].Title).IsEqualTo("Primitives");
                 await Assert.That(vm.Gallery[0].Items.Select(i => i.Title))
-                    .IsEquivalentTo(["Blank stat", "Blank define", "Blank highlight", "Blank flag"]);
+                    .IsEquivalentTo(["Blank stat", "Blank event", "Blank define", "Blank highlight", "Blank flag"]);
                 await Assert.That(vm.Gallery.Single(g => g.Title == "Prefabs").Items.Select(i => i.Name)).Contains("enemy_kills");
                 await Assert.That(vm.Gallery.Single(g => g.Title == "Highlights").Items.Single(i => i.Name == "highlight").Title).IsEqualTo("Survived highlight");
             }
@@ -256,6 +256,129 @@ public class CanvasPrimitivesTests
             vm.WireEditor!.Row!.Literal = "2";
             vm.WireEditor.Commit();
             await Assert.That(RulesetEdits.HighlightField(Text(rules), CanvasGallery.BlankHighlightName, "when")).IsEqualTo("kills > 2");
+        }
+    }
+
+    private const string PlantsOnly = "stats:\n  plants:\n    count: bomb_planted\n    per: round\n  a:\n    count:\n    per: round\n";
+
+    private static RulesetDocumentNodeKey PlayerDeath => new("~event", "player_death");
+
+    [Test]
+    public async Task TheBlankEvent_AsksWhichView_WhereItWasDropped()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open(PlantsOnly);
+        using (rules)
+        {
+            Point? asked = null;
+            vm.EventPickRequested += at => asked = at;
+            string before = Text(rules);
+            vm.PlaceItem(Item(vm, "Blank event"), new Point(-300, 40));
+            GalleryItem kill = vm.BlankEventOptions.Single(o => o.Name == "kill");
+            using (Assert.Multiple())
+            {
+                await Assert.That(asked).IsEqualTo(new Point(-300, 40));
+                await Assert.That(kill.Kind).IsEqualTo(GalleryItemKind.Event);
+                await Assert.That(kill.Hint).IsEqualTo("fires on player_death");
+                await Assert.That(Text(rules)).IsEqualTo(before).Because("nothing is placed until a view is picked");
+            }
+        }
+    }
+
+    [Test]
+    public async Task APlacedEvent_FloatsInTheSidecar_AndSurvivesADragAndAReload()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open(PlantsOnly);
+        using (rules)
+        {
+            string before = Text(rules);
+            vm.PlaceItem(vm.BlankEventOptions.Single(o => o.Name == "kill"), new Point(-300, 40));
+            CanvasNodeViewModel floating = vm.Nodes.Single(n => n.Key == PlayerDeath);
+            string sidecar = RulesetLayoutStore.SidecarPathFor(rules.UserPath("lab"));
+            using (Assert.Multiple())
+            {
+                await Assert.That(floating.IsFloating).IsTrue();
+                await Assert.That(floating.FloatingView).IsEqualTo("kill");
+                await Assert.That(floating.Location).IsEqualTo(new Point(-300, 40));
+                await Assert.That(floating.Outputs.Single().Kind).IsEqualTo(PortKind.Fire).Because("a wire can start from it before it has any");
+                await Assert.That(Text(rules)).IsEqualTo(before).Because("a floating event is layout, not YAML");
+                await Assert.That(RulesetLayoutStore.Load(rules.UserPath("lab")).Scaffolds).IsEquivalentTo([new CanvasScaffold("kill", new Point(-300, 40))]);
+            }
+
+            floating.Location = new Point(-500, 90);
+            vm.SaveLayoutCommand.Execute(null);
+            CanvasTabViewModel reopened = rules.NewViewModel();
+            reopened.PreferredRulesetId = "lab";
+            reopened.OnActivated(null!);
+            CanvasNodeViewModel again = reopened.Nodes.Single(n => n.Key == PlayerDeath);
+            using (Assert.Multiple())
+            {
+                await Assert.That(again.FloatingView).IsEqualTo("kill");
+                await Assert.That(again.Location).IsEqualTo(new Point(-500, 90));
+                await Assert.That(File.ReadAllText(sidecar)).Contains("\"scaffolds\"");
+            }
+
+            vm.PlaceItem(vm.BlankEventOptions.Single(o => o.Name == "death"), new Point(0, 0));
+            await Assert.That(vm.Nodes.Count(n => n.Key == PlayerDeath)).IsEqualTo(1).Because("one event is one node");
+        }
+    }
+
+    [Test]
+    public async Task WiringAFloatingEvent_WritesItsView_AndTheChainsEventTakesItsPlace()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open(PlantsOnly);
+        using (rules)
+        {
+            vm.PlaceItem(vm.BlankEventOptions.Single(o => o.Name == "kill"), new Point(-300, 40));
+            CanvasNodeViewModel floating = vm.Nodes.Single(n => n.Key == PlayerDeath);
+            CanvasWalkthrough.WireInto(vm, floating, Node(vm, "a").Port(PortKind.Trigger)!);
+            CanvasNodeViewModel real = vm.Nodes.Single(n => n.Key == PlayerDeath);
+            using (Assert.Multiple())
+            {
+                await Assert.That(RulesetEdits.Field(Text(rules), "a", "count")).IsEqualTo("kill").Because("player_death fires three views; the floating node names one");
+                await Assert.That(real.IsFloating).IsFalse();
+                await Assert.That(real.Location).IsEqualTo(new Point(-300, 40)).Because("the chain's node keeps the spot");
+                await Assert.That(vm.Connections.Any(c => c.Source.Owner == real && c.Target.Owner?.Id == "a")).IsTrue();
+            }
+        }
+    }
+
+    [Test]
+    public async Task DeletingAFloatingEvent_TakesItOutOfTheSidecar_AndUndoBringsItBack()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open(PlantsOnly);
+        using (rules)
+        {
+            vm.PlaceItem(vm.BlankEventOptions.Single(o => o.Name == "kill"), new Point(-300, 40));
+            vm.SelectedNodes.Clear();
+            vm.SelectedNodes.Add(vm.Nodes.Single(n => n.Key == PlayerDeath));
+            vm.DeleteSelectedCommand.Execute(null);
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.Nodes.Any(n => n.Key == PlayerDeath)).IsFalse();
+                await Assert.That(RulesetLayoutStore.Load(rules.UserPath("lab")).Scaffolds).IsEmpty();
+            }
+
+            vm.UndoCommand.Execute(null);
+            await Assert.That(vm.Nodes.Single(n => n.Key == PlayerDeath).FloatingView).IsEqualTo("kill");
+        }
+    }
+
+    [Test]
+    public async Task TheSidecar_HoldsAScaffoldAlone_AndReadsItBack()
+    {
+        RulesetNodeLayout layout = RulesetNodeLayout.Empty.WithScaffold(new CanvasScaffold("kill", new Point(1.5, -2)));
+        string json = RulesetLayoutStore.Serialize(layout);
+        using RulesTree rules = RulesTree.New();
+        string path = rules.User("lab", Header);
+        using (Assert.Multiple())
+        {
+            await Assert.That(layout.IsEmpty).IsFalse();
+            await Assert.That(RulesetLayoutStore.Parse(json).Scaffolds).IsEquivalentTo([new CanvasScaffold("kill", new Point(1.5, -2))]);
+            await Assert.That(RulesetLayoutStore.Save(path, layout)).IsTrue();
+            await Assert.That(File.Exists(RulesetLayoutStore.SidecarPathFor(path))).IsTrue().Because("a layout holding only a scaffold is not empty");
+            await Assert.That(layout.WithoutScaffold("kill").IsEmpty).IsTrue();
+            await Assert.That(layout.With(new RulesetDocumentNodeKey("lab", "x"), new Point(0, 0)).Scaffolds.Count).IsEqualTo(1)
+                .Because("every copy carries the scaffolds");
         }
     }
 }

@@ -84,8 +84,8 @@ public class CanvasGalleryTests
             await Assert.That(gallery.Select(g => g.Title)).IsEquivalentTo(["Primitives", "Stats", "Views", "Gates", "Prefabs", "Highlights", "Surfacing"]);
             await Assert.That(gallery.Single(g => g.Title == "Views").Items.Select(i => i.Name)).Contains("kill");
             await Assert.That(gallery.Single(g => g.Title == "Gates").Items.Select(i => i.Name)).Contains("round.active");
-            await Assert.That(gallery.SelectMany(g => g.Items).Where(i => i.Kind != GalleryItemKind.Gate).All(i => i.Body is not null))
-                .IsTrue().Because("everything but a gate places an entry, so it needs a body");
+            await Assert.That(gallery.SelectMany(g => g.Items).Where(i => i.Kind is not (GalleryItemKind.Gate or GalleryItemKind.Event)).All(i => i.Body is not null))
+                .IsTrue().Because("everything but a gate or a floating event places an entry, so it needs a body");
         }
     }
 

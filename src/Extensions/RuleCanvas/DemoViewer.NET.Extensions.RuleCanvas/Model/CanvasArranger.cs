@@ -139,6 +139,12 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
         IEnumerable<string> expanded) =>
         RulesetNodeLayout.From(positions, collapsed, groups, pinned, expanded);
 
+    /// <summary>As the five-argument form, with the floating event nodes on screen.</summary>
+    public static RulesetNodeLayout Capture(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
+        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups, IEnumerable<RulesetDocumentNodeKey> pinned,
+        IEnumerable<string> expanded, IEnumerable<CanvasScaffold> scaffolds) =>
+        RulesetNodeLayout.From(positions, collapsed, groups, pinned, expanded, scaffolds);
+
     /// <summary>
     ///     Where an entry's arrangement lives: beside a user ruleset, under the extension's own folder for a
     ///     shipped one since its directory is not ours to write, or null when there is nowhere to keep it.

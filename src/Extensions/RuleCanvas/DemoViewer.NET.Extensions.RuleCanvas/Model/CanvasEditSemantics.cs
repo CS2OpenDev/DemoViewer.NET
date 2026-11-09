@@ -750,6 +750,7 @@ public static partial class CanvasEditSemantics
 
         return source.Ruleset switch
         {
+            "~event" when source.FloatingView is { } floating => ConnectFloating(floating, target),
             "~event" => ConnectEvent(source.Id, target),
             "~context" => GatePathOf(source.Id) is { } gate
                 ? Gate(target, gate)
@@ -837,6 +838,8 @@ public static partial class CanvasEditSemantics
 
         switch (source.Ruleset)
         {
+            case "~event" when source.FloatingView is { } floating:
+                return $"sets {TriggerKeyFor(target)}: {floating}";
             case "~event":
             {
                 IReadOnlyList<string> views = ViewsFiredBy(source.Id);

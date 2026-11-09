@@ -31,7 +31,13 @@ public enum GalleryItemKind
     Define,
 
     /// <summary>A <c>show:</c> table; placed on the canvas as an empty table on the ruleset's grain, to wire stats into.</summary>
-    Table
+    Table,
+
+    /// <summary>
+    ///     A floating event node kept in the layout sidecar, not the YAML. The Blank event item asks which view;
+    ///     an item named for a view places that view's event.
+    /// </summary>
+    Event
 }
 
 /// <summary>One thing the gallery offers to drag.</summary>
@@ -54,6 +60,7 @@ public sealed record GalleryItem(GalleryItemKind Kind, string Name, string Title
         GalleryItemKind.Highlight => "highlight",
         GalleryItemKind.Define => "define",
         GalleryItemKind.Table => "show",
+        GalleryItemKind.Event => "event",
         _ => "count"
     };
 
@@ -96,6 +103,9 @@ public static class CanvasGallery
 {
     /// <summary>The name of the Primitives stat with no kind, which places as <c>new_stat</c>.</summary>
     public const string BlankStatName = "stat";
+
+    /// <summary>The name of the Primitives event, which asks for a view before it places.</summary>
+    public const string BlankEventName = "event";
 
     /// <summary>The name of the Primitives highlight, which is also the id it places under.</summary>
     public const string BlankHighlightName = "new_highlight";
@@ -144,6 +154,8 @@ public static class CanvasGallery
             [
                 new GalleryItem(GalleryItemKind.Stat, BlankStatName, "Blank stat", "A stat with no kind and no trigger; pick its kind on the face.",
                     "per: round"),
+                new GalleryItem(GalleryItemKind.Event, BlankEventName, "Blank event",
+                    "A view's event on its own, to wire into a stat's on port. Asks which view."),
                 new GalleryItem(GalleryItemKind.Define, "define", "Blank define", "A define with an empty on:; wire an event into it.", "on:"),
                 new GalleryItem(GalleryItemKind.Highlight, BlankHighlightName, "Blank highlight", "A highlight with an empty when:; wire a stat into it.",
                     "when: \"\"\nper: round\nscore: 50\ntitle: \"{player.name} (round {round.number})\""),
@@ -295,6 +307,17 @@ public static class CanvasGallery
     }
 
     private static GalleryItem Gate(string path, string hint) => new(GalleryItemKind.Gate, path, path, hint);
+
+    /// <summary>What the Blank event asks: one item per catalog view, by event then view, each placing that view's event.</summary>
+    public static IReadOnlyList<GalleryItem> BlankEventOptions(CatalogRoot catalog)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        return
+        [
+            .. catalog.Views.OrderBy(v => v.Event, StringComparer.Ordinal).ThenBy(v => v.Name, StringComparer.Ordinal)
+                .Select(v => new GalleryItem(GalleryItemKind.Event, v.Name, v.Name, $"fires on {v.Event}"))
+        ];
+    }
 
     private static GalleryItem Prefab(string id, string title, string hint, string body) =>
         new(GalleryItemKind.Prefab, id, title, hint, body);

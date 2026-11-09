@@ -131,6 +131,12 @@ public sealed partial class CanvasTabViewModel
     [RelayCommand]
     private void DeleteSelected()
     {
+        List<CanvasNodeViewModel> floating = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n.IsFloating)];
+        if (IsEditable && floating.Count > 0)
+        {
+            RemoveScaffolds(floating);
+        }
+
         List<CanvasNodeViewModel> nodes = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n.IsAuthorable)];
         if (!IsEditable || nodes.Count == 0 || _composed is not { } composed)
         {
@@ -176,6 +182,12 @@ public sealed partial class CanvasTabViewModel
         ArgumentNullException.ThrowIfNull(item);
         if (!IsEditable || SelectedRuleset is not { } selected)
         {
+            return;
+        }
+
+        if (item.Kind == GalleryItemKind.Event)
+        {
+            PlaceEvent(item, at);
             return;
         }
 

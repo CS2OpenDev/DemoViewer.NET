@@ -29,6 +29,21 @@ public static class CanvasGraphBuilder
             nodes.Add(node);
         }
 
+        // A floating event from the gallery is drawn until the chain draws its event, which then takes its place.
+        List<(CanvasNodeViewModel Node, Avalonia.Point At)> floating = [];
+        foreach (CanvasScaffold scaffold in layout.Scaffolds)
+        {
+            if (CanvasEditSemantics.ScaffoldKey(scaffold.View) is { } key && !byKey.ContainsKey(key))
+            {
+                CanvasNodeViewModel node = factory.Create(new ScaffoldFace(key, "event", scaffold.View, "", "", [], 0, false,
+                    ChainNodeKind.Event, key.Id, true) { Events = [key.Id] });
+                node.FloatingView = scaffold.View;
+                byKey[key] = node;
+                nodes.Add(node);
+                floating.Add((node, layout.PositionFor(key) ?? scaffold.At));
+            }
+        }
+
         // One input per kind a node takes and one output per node, typed by what they carry; a dependency
         // node has one output per entry read, titled by the entry.
         Dictionary<(RulesetDocumentNodeKey, PortKind), CanvasConnectorViewModel> inputs = new();
@@ -74,6 +89,11 @@ public static class CanvasGraphBuilder
 
         // An authored node always has its ports, wired or not, so a wire can start or end there before
         // anything feeds or reads it. Scaffolds get theirs with their first wire.
+        foreach ((CanvasNodeViewModel node, Avalonia.Point _) in floating)
+        {
+            Output(node.Key);
+        }
+
         foreach (CanvasNodeViewModel node in nodes.Where(n => n.IsAuthorable && !n.IsScaffold))
         {
             // A show node takes one read input per column, so each column's wire lands on its own row.
@@ -155,6 +175,11 @@ public static class CanvasGraphBuilder
             {
                 node.Location = at;
             }
+        }
+
+        foreach ((CanvasNodeViewModel node, Avalonia.Point at) in floating)
+        {
+            node.Location = at;
         }
 
         return (nodes, wires);

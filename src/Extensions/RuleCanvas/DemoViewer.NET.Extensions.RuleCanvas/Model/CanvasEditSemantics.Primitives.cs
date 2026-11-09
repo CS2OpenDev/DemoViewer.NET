@@ -41,4 +41,21 @@ public static partial class CanvasEditSemantics
             return RulesetEdits.SetField(text, id, kind, "");
         }, $"make {id} a {kind}");
     }
+
+    /// <summary>The event node a floating view is drawn as: the chain's own key for the view's event, or null for an unknown view.</summary>
+    public static RulesetDocumentNodeKey? ScaffoldKey(string view) =>
+        EmbeddedCatalog.Root.Views.FirstOrDefault(v => v.Name == view) is { } found ? new RulesetDocumentNodeKey("~event", found.Event) : null;
+
+    // The floating node carries the view it was placed for, so the event's other views do not make the wire ambiguous.
+    private static EditRequest ConnectFloating(string view, CanvasNodeViewModel target)
+    {
+        if (target.IsDefine)
+        {
+            return Retarget(target, "on", view) with { Description = $"fire define {target.Title} on {view}" };
+        }
+
+        return TriggerKeyFor(target) is { } key
+            ? Retarget(target, key, view) with { Description = $"fire {target.Id} on {view}" }
+            : EditRequest.Refuse($"A {target.Kind} fires on no view; it cannot fire on {view}.");
+    }
 }
