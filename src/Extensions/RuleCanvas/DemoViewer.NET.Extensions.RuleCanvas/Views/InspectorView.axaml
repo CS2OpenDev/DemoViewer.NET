@@ -82,6 +82,8 @@
         <Border DockPanel.Dock="Top" Background="{DynamicResource PanelHeaderBg}"
                 BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="10 5">
             <DockPanel>
+                <Border DockPanel.Dock="Left" Width="3" CornerRadius="1" Margin="0 1 8 1" IsVisible="{Binding HasHeadingKind}"
+                        views:TokenBrush.Background="{Binding HeadingKind, Converter={x:Static views:RuleKindToken.Instance}}" />
                 <TextBlock DockPanel.Dock="Right" Text="{Binding RulesetSource}" FontSize="11"
                            Foreground="{DynamicResource TextDim}" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding Heading}" FontSize="12" FontFamily="monospace" FontWeight="SemiBold"

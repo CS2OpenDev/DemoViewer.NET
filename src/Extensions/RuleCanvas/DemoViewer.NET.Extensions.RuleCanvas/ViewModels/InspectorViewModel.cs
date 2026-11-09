@@ -170,6 +170,13 @@ public sealed partial class InspectorViewModel : ObservableObject
     [ObservableProperty]
     private string _heading = "";
 
+    /// <summary>The selected node's kind, which colours the heading's stripe; null over a wire or the document.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHeadingKind))]
+    private string? _headingKind;
+
+    public bool HasHeadingKind => HeadingKind is not null;
+
     /// <summary>What a node that cannot be edited is: an engine node, or another ruleset's.</summary>
     [ObservableProperty]
     private string _nodeNote = "";
@@ -272,6 +279,7 @@ public sealed partial class InspectorViewModel : ObservableObject
             if (!HasNode)
             {
                 Heading = HasDocument ? "RULESET " + RulesetId : "No ruleset open";
+                HeadingKind = null;
             }
 
             return;
@@ -280,6 +288,7 @@ public sealed partial class InspectorViewModel : ObservableObject
         Wire = build(wire, () => ShowWire(wire, build));
         WireText = wire.Text;
         Heading = $"WIRE {wire.Source.Owner?.Title} to {wire.Target.Owner?.Title}";
+        HeadingKind = null;
     }
 
     /// <summary>The Inspector has a node it can write: authorable and the surface editable.</summary>
@@ -481,6 +490,7 @@ public sealed partial class InspectorViewModel : ObservableObject
     private void ShowNode(CanvasNodeViewModel node)
     {
         Heading = node.IsShow && node.Key.IsScoreboard ? "SCOREBOARD" : node.IsShow ? $"TABLE {node.Title}" : $"{node.KindLabel} {node.Title}";
+        HeadingKind = node.Kind;
         NodeNote = node.IsScaffold ? "An engine node; nothing on it is written by a ruleset."
             : node.IsDependency ? $"use: [ {node.Id} ] folded to one node; Expand draws its entries, Open {node.Id} edits them."
             : !node.IsAuthorable ? $"Declared by {node.Ruleset}; open that ruleset to edit it."
@@ -605,6 +615,7 @@ public sealed partial class InspectorViewModel : ObservableObject
     private void ShowDocument(RulesetCorpus.Entry? entry)
     {
         Heading = entry is null ? "No ruleset open" : "RULESET " + entry.Id;
+        HeadingKind = null;
         NodeNote = "";
         Surfacing = "";
         SurfacingHeading = "SURFACING";

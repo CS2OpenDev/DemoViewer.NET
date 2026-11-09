@@ -26,7 +26,7 @@ namespace DemoViewer.NET.UiCapture;
 public static partial class Variants
 {
     private static MainView RuleCanvasHub(bool showFacets = true, string ruleset = "player_round", bool editable = false,
-        string? focus = null, bool live = false)
+        string? focus = null, bool live = false, bool legend = false)
     {
         RuleCanvasPack pack = new();
         ServiceCollection services = new();
@@ -65,6 +65,7 @@ public static partial class Variants
         CanvasTabViewModel canvas = provider.GetRequiredService<CanvasTabViewModel>();
         canvas.ShowFacets = showFacets;
         canvas.PreferredRulesetId = ruleset;
+        canvas.ShowLegend = legend;
         MainViewModel vm = new(null, registry, library, null, new EverythingOn(), null, null, hubTabs: set.HubTabs);
         vm.RestoreSession();
         vm.TrySelectTab(RuleCanvasPack.HubId);

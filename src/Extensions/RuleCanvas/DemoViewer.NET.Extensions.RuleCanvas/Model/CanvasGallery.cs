@@ -45,6 +45,18 @@ public sealed record GalleryItem(GalleryItemKind Kind, string Name, string Title
 {
     public string KindLabel => Kind.ToString().ToUpperInvariant();
 
+    /// <summary>The node kind the item draws as once placed, which picks its family colour.</summary>
+    public string NodeKind => Kind switch
+    {
+        GalleryItemKind.Stat => Name,
+        GalleryItemKind.Prefab => Body?.Split('\n')[0].Split(':')[0].Trim() is { Length: > 0 } key ? key : "count",
+        GalleryItemKind.Gate => Name.Contains('.', StringComparison.Ordinal) ? "context" : "flag",
+        GalleryItemKind.Highlight => "highlight",
+        GalleryItemKind.Define => "define",
+        GalleryItemKind.Table => "show",
+        _ => "count"
+    };
+
     /// <summary>Whether <paramref name="query" /> matches the title, the name or the hint, ignoring case.</summary>
     public bool Matches(string query) =>
         Title.Contains(query, StringComparison.OrdinalIgnoreCase)

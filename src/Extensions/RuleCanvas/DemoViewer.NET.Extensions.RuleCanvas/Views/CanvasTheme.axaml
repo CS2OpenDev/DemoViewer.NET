@@ -18,16 +18,23 @@
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
-                    <!-- Node kinds: text and the header stripe, measured against RuleNodeBg. -->
-                    <SolidColorBrush x:Key="RuleKindEvent" Color="#795E26" />
-                    <SolidColorBrush x:Key="RuleKindEnrich" Color="#00796B" />
-                    <SolidColorBrush x:Key="RuleKindContext" Color="#1565C0" />
-                    <SolidColorBrush x:Key="RuleKindStat" Color="#0070C1" />
-                    <SolidColorBrush x:Key="RuleKindDerived" Color="#AF00DB" />
-                    <SolidColorBrush x:Key="RuleKindHighlight" Color="#A8470A" />
-                    <SolidColorBrush x:Key="RuleKindDefine" Color="#2E6B4F" />
-                    <SolidColorBrush x:Key="RuleKindSurface" Color="#546E7A" />
-                    <SolidColorBrush x:Key="RuleKindDependency" Color="#6A4FA3" />
+                    <!-- Node families: the pill text and the header stripe, 4.5:1 on RuleNodeBg and on the family's
+                         header tint. Saturated hues sit at least 25 degrees from each other and from the wire, selection
+                         and error hues; scaffolds, surfaces and dependencies are told apart by low chroma instead. -->
+                    <SolidColorBrush x:Key="RuleKindEvent" Color="#7A5C00" />
+                    <SolidColorBrush x:Key="RuleKindEnrich" Color="#4E6B66" />
+                    <SolidColorBrush x:Key="RuleKindContext" Color="#566972" />
+                    <SolidColorBrush x:Key="RuleKindStat" Color="#00717D" />
+                    <SolidColorBrush x:Key="RuleKindCapture" Color="#487100" />
+                    <SolidColorBrush x:Key="RuleKindFlag" Color="#B72785" />
+                    <SolidColorBrush x:Key="RuleKindDerived" Color="#A926B5" />
+                    <SolidColorBrush x:Key="RuleKindShaped" Color="#8441D0" />
+                    <SolidColorBrush x:Key="RuleKindHighlight" Color="#C32245" />
+                    <SolidColorBrush x:Key="RuleKindDefine" Color="#00753F" />
+                    <SolidColorBrush x:Key="RuleKindSurface" Color="#6F645A" />
+                    <SolidColorBrush x:Key="RuleKindDependency" Color="#775E77" />
+                    <!-- The header band: the family brush at this opacity over RuleNodeBg. -->
+                    <x:Double x:Key="RuleKindTintOpacity">0.08</x:Double>
                     <!-- Wire meanings, non-text, measured against RuleCanvasBg. -->
                     <SolidColorBrush x:Key="RuleWireWrite" Color="#5A5E7C" />
                     <SolidColorBrush x:Key="RuleWireRead" Color="#50507C" />
@@ -97,15 +104,19 @@
                     <StaticResource x:Key="MinimapItem.BackgroundBrush" ResourceKey="RuleWireWrite" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="RuleKindEvent" Color="#DCDCAA" />
-                    <SolidColorBrush x:Key="RuleKindEnrich" Color="#26A69A" />
-                    <SolidColorBrush x:Key="RuleKindContext" Color="#569CD6" />
-                    <SolidColorBrush x:Key="RuleKindStat" Color="#4FC1FF" />
-                    <SolidColorBrush x:Key="RuleKindDerived" Color="#C586C0" />
-                    <SolidColorBrush x:Key="RuleKindHighlight" Color="#FFA657" />
-                    <SolidColorBrush x:Key="RuleKindDefine" Color="#7FD1A0" />
-                    <SolidColorBrush x:Key="RuleKindSurface" Color="#9FB4BE" />
-                    <SolidColorBrush x:Key="RuleKindDependency" Color="#B49AE8" />
+                    <SolidColorBrush x:Key="RuleKindEvent" Color="#E0C25C" />
+                    <SolidColorBrush x:Key="RuleKindEnrich" Color="#91AFAA" />
+                    <SolidColorBrush x:Key="RuleKindContext" Color="#9BACB4" />
+                    <SolidColorBrush x:Key="RuleKindStat" Color="#1EC0D2" />
+                    <SolidColorBrush x:Key="RuleKindCapture" Color="#8ABF30" />
+                    <SolidColorBrush x:Key="RuleKindFlag" Color="#EC92CC" />
+                    <SolidColorBrush x:Key="RuleKindDerived" Color="#E193E8" />
+                    <SolidColorBrush x:Key="RuleKindShaped" Color="#C69DF4" />
+                    <SolidColorBrush x:Key="RuleKindHighlight" Color="#F691A7" />
+                    <SolidColorBrush x:Key="RuleKindDefine" Color="#31C681" />
+                    <SolidColorBrush x:Key="RuleKindSurface" Color="#B0A89F" />
+                    <SolidColorBrush x:Key="RuleKindDependency" Color="#B7A3B7" />
+                    <x:Double x:Key="RuleKindTintOpacity">0.12</x:Double>
                     <SolidColorBrush x:Key="RuleWireWrite" Color="#9090B0" />
                     <SolidColorBrush x:Key="RuleWireRead" Color="#7878A8" />
                     <SolidColorBrush x:Key="RuleWireGate" Color="#569CD6" />
@@ -327,6 +338,12 @@
         <Setter Property="HeaderContainerStyle" Value="{StaticResource RuleNodeHeaderTheme}" />
     </Style>
 
+    <!-- The header band of an authored face: its family brush, faint. Scaffold rows carry none. -->
+    <Style Selector="Border.kindTint">
+        <Setter Property="Opacity" Value="{DynamicResource RuleKindTintOpacity}" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+
     <!-- A frame around nodes: translucent, so what it groups stays readable through it. -->
     <Style Selector="nodes|GroupingNode">
         <Setter Property="Background" Value="{DynamicResource RuleGroupFill}" />
@@ -346,8 +363,9 @@
         <Setter Property="BorderBrush" Value="{DynamicResource RuleWireWrite}" />
     </Style>
 
-    <!-- Wires by meaning: a write is solid; a read is a short dash; a gate holds rather than fires, so a
-         long dash; a logic input carries its connective's colour. Fill paints the arrow head. -->
+    <!-- Wires by meaning: a write is solid; a read is dotted; a gate holds rather than fires, so a long
+         dash; a logic input carries its connective's colour. Fill paints the arrow head. Dash units are
+         multiples of the template's 2px stroke, so read is 2 on 4 and gate 16 on 8, apart at the 0.6 fit. -->
     <Style Selector="connections|Connection">
         <Setter Property="Stroke" Value="{DynamicResource RuleWireWrite}" />
         <Setter Property="Fill" Value="{DynamicResource RuleWireWrite}" />
@@ -355,14 +373,38 @@
     <Style Selector="connections|Connection.read">
         <Setter Property="Stroke" Value="{DynamicResource RuleWireRead}" />
         <Setter Property="Fill" Value="{DynamicResource RuleWireRead}" />
-        <Setter Property="StrokeDashArray" Value="4,3" />
-        <Setter Property="StrokeThickness" Value="1.5" />
+        <Setter Property="StrokeDashArray" Value="1,2" />
     </Style>
     <Style Selector="connections|Connection.gate">
         <Setter Property="Stroke" Value="{DynamicResource RuleWireGate}" />
         <Setter Property="Fill" Value="{DynamicResource RuleWireGate}" />
         <Setter Property="StrokeDashArray" Value="8,4" />
-        <Setter Property="StrokeThickness" Value="1.5" />
+    </Style>
+
+    <!-- The legend's wire samples: the wire styles above, on a Line at the template's 2px stroke. -->
+    <Style Selector="Line.legendWrite, Line.legendRead, Line.legendGate, Line.legendAnd, Line.legendOr">
+        <Setter Property="StrokeThickness" Value="2" />
+    </Style>
+    <Style Selector="Line.legendWrite">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireWrite}" />
+    </Style>
+    <Style Selector="Line.legendRead">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireRead}" />
+        <Setter Property="StrokeDashArray" Value="1,2" />
+    </Style>
+    <Style Selector="Line.legendGate">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireGate}" />
+        <Setter Property="StrokeDashArray" Value="8,4" />
+    </Style>
+    <Style Selector="Line.legendAnd">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireAnd}" />
+    </Style>
+    <Style Selector="Line.legendOr">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireOr}" />
+    </Style>
+    <Style Selector="Line.legendFlash">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireFlash}" />
+        <Setter Property="StrokeThickness" Value="7" />
     </Style>
 
     <!-- Wires are selectable: a halo under the hovered wire says it can be picked, a wider one marks the
