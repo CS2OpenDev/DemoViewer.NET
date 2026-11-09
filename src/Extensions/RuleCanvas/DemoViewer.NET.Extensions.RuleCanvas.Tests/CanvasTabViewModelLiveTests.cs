@@ -81,7 +81,8 @@ public class CanvasTabViewModelLiveTests
             await Assert.That(Node(vm, "round_damage").LiveBadge).IsEqualTo(LiveValuesText.NoData);
             await Assert.That(Node(vm, "round_deaths").HasLive).IsFalse().Because("no track and not unbound: the run says nothing about it");
             await Assert.That(vm.Nodes.Where(n => n.IsScaffold).All(n => !n.HasLive)).IsTrue();
-            await Assert.That(intoKills.LiveTip).IsEqualTo("fired 3 times, last tick 900");
+            await Assert.That(intoKills.LiveTip).IsEqualTo("target fired 3 times, first tick 100, last tick 900")
+                .Because("a canned run with no wire tracks speaks from the target");
             await Assert.That(vm.IsLiveStale).IsFalse();
             await Assert.That(vm.HasLiveRun).IsTrue();
         }

@@ -91,6 +91,14 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
     /// <summary>What the engine's graph view could not draw as the builder describes it; empty when it drew everything.</summary>
     public IReadOnlyList<string> Diagnostics { get; init; } = [];
 
+    /// <summary>
+    ///     The engine edges each wire stands for, for a graph built from a run: a live run reads their fire
+    ///     counts and applied messages. A wire the splitting made (a guard's gate, a define's two halves)
+    ///     names the edge it was cut from. Empty for a slice and for <see cref="Empty" />.
+    /// </summary>
+    public IReadOnlyDictionary<ChainEdge, IReadOnlyList<RuleGraphEdge>> EngineEdges { get; init; } =
+        new Dictionary<ChainEdge, IReadOnlyList<RuleGraphEdge>>();
+
     private const string TemplatePlayer = "each player";
 
     /// <summary>The engine rule id of each context value by the v2 path a <c>while:</c> writes (<c>round.number</c> to <c>round_number</c>).</summary>
@@ -163,8 +171,20 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
     public static RulesetChainGraph Build(BuildResult build, IReadOnlyList<CheckedRuleset> rulesets, RulesetDoc? open = null)
     {
         ArgumentNullException.ThrowIfNull(build);
+        return Build(RuleGraph.FromBuild(build, true, TemplatePlayer), rulesets, open);
+    }
+
+    /// <param name="graph">
+    ///     The engine's view of the chain: the build's preview, or a run's graph with its players collapsed,
+    ///     whose edges then carry the fire counts behind <see cref="EngineEdges" />.
+    /// </param>
+    /// <param name="rulesets">The checked rulesets it was built from.</param>
+    /// <param name="open">The open document, as for <see cref="Build(BuildResult, IReadOnlyList{CheckedRuleset}, RulesetDoc?)" />.</param>
+    public static RulesetChainGraph Build(RuleGraph graph, IReadOnlyList<CheckedRuleset> rulesets, RulesetDoc? open = null)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(rulesets);
-        RuleGraph graph = RuleGraph.FromBuild(build, true, TemplatePlayer);
+        EdgeOrigins origins = new();
 
         // Declared entries, by the owner spelling the graph uses, and what each one's companions are called.
         Dictionary<string, RulesetDocumentNodeKey> declared = new(StringComparer.Ordinal);
@@ -372,14 +392,14 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                         // operands on the trigger edge. That read is the gate, and is drawn as one.
                         if (readBy is not null && edge.Descriptor.Kind == GraphEdgeKind.Trigger && GateText(target, readBy) is { } gateText)
                         {
-                            Add(new ChainEdge(source, target, gateText, null, edge.Descriptor.Effect, false) { IsGate = true });
+                            Add(new ChainEdge(source, target, gateText, null, edge.Descriptor.Effect, false) { IsGate = true }, edge);
                             continue;
                         }
 
-                        Add(new ChainEdge(source, target, text, edge.Descriptor.ConditionLabel, edge.Descriptor.Effect, isRead) { Guard = guard });
+                        Add(new ChainEdge(source, target, text, edge.Descriptor.ConditionLabel, edge.Descriptor.Effect, isRead) { Guard = guard }, edge);
                         if (guard is { } gate && gate != target)
                         {
-                            Add(new ChainEdge(gate, target, "while", null, edge.Descriptor.Effect, false) { IsGate = true });
+                            Add(new ChainEdge(gate, target, "while", null, edge.Descriptor.Effect, false) { IsGate = true }, edge);
                         }
                     }
                 }
@@ -397,11 +417,12 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             return key;
         }
 
-        void Add(ChainEdge edge)
+        void Add(ChainEdge chainEdge, RuleGraphEdge origin)
         {
-            if (seen.Add(edge))
+            origins.Record(chainEdge, origin);
+            if (seen.Add(chainEdge))
             {
-                edges.Add(edge);
+                edges.Add(chainEdge);
             }
         }
 
@@ -469,7 +490,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             }
         }
 
-        List<ChainNode> nodes = MergeTwinEvents(events, edges, kindByKey, ViewsByEvents(rulesets));
+        List<ChainNode> nodes = MergeTwinEvents(events, edges, kindByKey, ViewsByEvents(rulesets), origins);
         HashSet<RulesetDocumentNodeKey> emitted = [];
         foreach (RuleGraphNode node in graph.Nodes)
         {
@@ -493,10 +514,10 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
 
         if (open is not null)
         {
-            SpliceDefines(nodes, edges, open, stats);
+            SpliceDefines(nodes, edges, open, stats, origins);
         }
 
-        return new RulesetChainGraph(nodes, edges) { Diagnostics = graph.Diagnostics };
+        return new RulesetChainGraph(nodes, edges) { Diagnostics = graph.Diagnostics, EngineEdges = origins.Freeze(edges) };
     }
 
     /// <summary>
@@ -507,7 +528,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
     ///     or while:) moves with it; what the stat's own body reads stays on the stat.
     /// </summary>
     private static void SpliceDefines(List<ChainNode> nodes, List<ChainEdge> edges, RulesetDoc open,
-        Dictionary<RulesetDocumentNodeKey, CheckedStat> stats)
+        Dictionary<RulesetDocumentNodeKey, CheckedStat> stats, EdgeOrigins origins)
     {
         Dictionary<RulesetDocumentNodeKey, ChainNode> byKey = nodes.ToDictionary(n => n.Key);
         foreach ((DefineDef define, TriggerDef trigger) in RulesetDocumentGraph.TriggerDefines(open))
@@ -528,11 +549,13 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
 
             List<ChainEdge> rewritten = [];
             HashSet<ChainEdge> seen = [];
-            void Add(ChainEdge edge)
+            // Both halves of a cut wire stand for the engine edge the whole did.
+            void Add(ChainEdge next, ChainEdge from)
             {
-                if (seen.Add(edge))
+                origins.Inherit(from, next);
+                if (seen.Add(next))
                 {
-                    rewritten.Add(edge);
+                    rewritten.Add(next);
                 }
             }
 
@@ -548,7 +571,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             {
                 if (!targets.Contains(edge.Target))
                 {
-                    Add(edge);
+                    Add(edge, edge);
                     continue;
                 }
 
@@ -556,7 +579,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                 ChainNode source = byKey[edge.Source];
                 if (edge.IsGate)
                 {
-                    Add(GateIsDefines(edge.Source, edge.Label, trigger, stat, open.Id) ? edge with { Target = key } : edge);
+                    Add(GateIsDefines(edge.Source, edge.Label, trigger, stat, open.Id) ? edge with { Target = key } : edge, edge);
                     continue;
                 }
 
@@ -565,12 +588,12 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                     bool defines = BodyReads(source, trigger.Match, [trigger.Where, trigger.While], view);
                     if (defines)
                     {
-                        Add(edge with { Target = key });
+                        Add(edge with { Target = key }, edge);
                     }
 
                     if (!defines || BodyReads(source, stat.Trigger?.Match ?? [], OwnTexts(stat), view))
                     {
-                        Add(edge);
+                        Add(edge, edge);
                     }
 
                     continue;
@@ -578,16 +601,16 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
 
                 if (source.Kind != ChainNodeKind.Event)
                 {
-                    Add(edge);
+                    Add(edge, edge);
                     continue;
                 }
 
                 RulesetDocumentNodeKey? guard = edge.Guard is { } g && GateIsDefines(g, "while", trigger, stat, open.Id) ? g : null;
-                Add(edge with { Target = key, Condition = defineCondition, Guard = guard });
+                Add(edge with { Target = key, Condition = defineCondition, Guard = guard }, edge);
                 Add(new ChainEdge(key, edge.Target, "fires", HasRefinements(stat) ? Spell(stat.Trigger!) : null, edge.Effect, false)
                 {
                     Guard = guard is null ? edge.Guard : null
-                });
+                }, edge);
             }
 
             edges.Clear();
@@ -749,7 +772,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
     ///     Rewrites <paramref name="edges" /> in place and returns the event nodes in first-use order.
     /// </summary>
     private static List<ChainNode> MergeTwinEvents(Dictionary<string, RulesetDocumentNodeKey> events, List<ChainEdge> edges,
-        Dictionary<RulesetDocumentNodeKey, ChainNodeKind> kindByKey, Dictionary<string, string> views)
+        Dictionary<RulesetDocumentNodeKey, ChainNodeKind> kindByKey, Dictionary<string, string> views, EdgeOrigins origins)
     {
         Dictionary<string, List<string>> bySignature = new(StringComparer.Ordinal);
         foreach ((string name, RulesetDocumentNodeKey key) in events)
@@ -825,6 +848,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
             {
                 bool shared = !edge.IsRead && carriers[(twin.Key, edge.Target, edge.Effect, edge.Condition, edge.Guard)].SetEquals(twin.Events);
                 next = edge with { Source = twin.Key, Label = shared ? twin.Name : edge.Label };
+                origins.Inherit(edge, next);
             }
 
             if (seen.Add(next))
@@ -836,5 +860,43 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
         edges.Clear();
         edges.AddRange(rewritten);
         return nodes;
+    }
+
+    /// <summary>
+    ///     The engine edges behind each wire while the chain is built. Keyed by the wire's value, so a wire
+    ///     rewritten with <c>with</c> is a new key that inherits from the old one; one engine edge reached
+    ///     through several owners is recorded once.
+    /// </summary>
+    private sealed class EdgeOrigins
+    {
+        private readonly Dictionary<ChainEdge, HashSet<RuleGraphEdge>> _byEdge = [];
+
+        public void Record(ChainEdge edge, RuleGraphEdge origin) => Set(edge).Add(origin);
+
+        public void Inherit(ChainEdge from, ChainEdge to)
+        {
+            if (from != to && _byEdge.TryGetValue(from, out HashSet<RuleGraphEdge>? origins))
+            {
+                Set(to).UnionWith(origins);
+            }
+        }
+
+        /// <summary>The map for the wires that survived, in a stable order per wire.</summary>
+        public Dictionary<ChainEdge, IReadOnlyList<RuleGraphEdge>> Freeze(IReadOnlyList<ChainEdge> edges)
+        {
+            Dictionary<ChainEdge, IReadOnlyList<RuleGraphEdge>> frozen = [];
+            foreach (ChainEdge edge in edges)
+            {
+                if (_byEdge.TryGetValue(edge, out HashSet<RuleGraphEdge>? origins))
+                {
+                    frozen[edge] = [.. origins.OrderBy(o => o.Key, StringComparer.Ordinal)];
+                }
+            }
+
+            return frozen;
+        }
+
+        private HashSet<RuleGraphEdge> Set(ChainEdge edge) =>
+            _byEdge.TryGetValue(edge, out HashSet<RuleGraphEdge>? set) ? set : _byEdge[edge] = new HashSet<RuleGraphEdge>(ReferenceEqualityComparer.Instance);
     }
 }

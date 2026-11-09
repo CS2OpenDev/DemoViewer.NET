@@ -180,6 +180,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
     public void OnActivated(IModuleContext context)
     {
+        StartPlayhead(context);
         if (_corpus is null)
         {
             _corpus = _loadCorpus();
@@ -206,10 +207,18 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         FilesChanged(_corpus.ChangedPaths());
     }
 
-    /// <summary>Nothing is reloaded while another tab is shown; the next activation re-checks the directories.</summary>
-    public void OnDeactivated() => StopWatching();
+    /// <summary>Nothing is reloaded while another tab is shown; the next activation re-checks the directories and the playhead.</summary>
+    public void OnDeactivated()
+    {
+        StopWatching();
+        StopPlayhead();
+    }
 
-    public void Dispose() => StopWatching();
+    public void Dispose()
+    {
+        StopWatching();
+        StopPlayhead();
+    }
 
     /// <summary>
     ///     Files under the user rules directory were touched, as the watcher reports them. A file that appeared

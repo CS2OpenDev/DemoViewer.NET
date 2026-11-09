@@ -91,11 +91,37 @@ public sealed class RuleCanvasPack : IExtension
                         shell.CurrentDemoChanged += handler;
                     }
                 },
-                Context(sp)?.CreateLogger("RuleCanvas.Live"))));
+                Context(sp)?.CreateLogger("RuleCanvas.Live"),
+                () => Context(sp)?.Shell.CurrentTick ?? 0,
+                handler =>
+                {
+                    if (Context(sp)?.Shell is not { } shell)
+                    {
+                        return EmptyWatch.Instance;
+                    }
+
+                    shell.PlayheadChanged += handler;
+                    return new PlayheadWatch(shell, handler);
+                },
+                tick => Context(sp)?.Shell.SeekToTick(tick))));
     }
 
     private static IExtensionContext? Context(IServiceProvider services) =>
         services.GetKeyedService<IExtensionContext>(typeof(RuleCanvasPack));
+
+    private sealed class PlayheadWatch(IExtensionShell shell, Action handler) : IDisposable
+    {
+        public void Dispose() => shell.PlayheadChanged -= handler;
+    }
+
+    private sealed class EmptyWatch : IDisposable
+    {
+        public static EmptyWatch Instance { get; } = new();
+
+        public void Dispose()
+        {
+        }
+    }
 
     /// <inheritdoc />
     public void Contribute(IExtensionContributions contributions, IServiceProvider services)

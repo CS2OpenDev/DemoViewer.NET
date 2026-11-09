@@ -16,7 +16,9 @@ public enum CanvasKeyAction
     Duplicate,
     ClearFocusAndSelection,
     FrameSelection,
-    FitAll
+    FitAll,
+    NextFire,
+    PreviousFire
 }
 
 /// <summary>
@@ -43,6 +45,8 @@ public static class CanvasKeyMap
             Key.Escape => CanvasKeyAction.ClearFocusAndSelection,
             Key.F when bare => CanvasKeyAction.FrameSelection,
             Key.A when bare => CanvasKeyAction.FitAll,
+            Key.OemCloseBrackets when bare => CanvasKeyAction.NextFire,
+            Key.OemOpenBrackets when bare => CanvasKeyAction.PreviousFire,
             _ => CanvasKeyAction.None
         };
     }

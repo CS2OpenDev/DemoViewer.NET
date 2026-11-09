@@ -67,7 +67,7 @@ public sealed class LiveValuesService
         LiveValuesRun? run = null;
         JobRequest request = JobRequest.OnDemo(TitleFor(rulesetId), path, job =>
             {
-                run = Evaluate(job, docs);
+                run = Evaluate(job, docs, docs.FirstOrDefault(d => string.Equals(d.Id, rulesetId, StringComparison.Ordinal)));
                 return Task.CompletedTask;
             },
             new JobOptions(JobKindId, JobPriority.UserRequested, JobKey));
@@ -107,7 +107,7 @@ public sealed class LiveValuesService
     }
 
     // Runs on the queue thread holding the parse slot: nothing here awaits.
-    private static LiveValuesRun Evaluate(IDemoJobContext job, IReadOnlyList<RulesetDoc> docs)
+    private static LiveValuesRun Evaluate(IDemoJobContext job, IReadOnlyList<RulesetDoc> docs, RulesetDoc? open)
     {
         ParsedDemo parsed = job.Parsed;
         long before = Environment.WorkingSet;
@@ -120,7 +120,7 @@ public sealed class LiveValuesService
         job.CancellationToken.ThrowIfCancellationRequested();
         RulesetComposition.Result composed = RulesetComposition.Compose(docs, EmbeddedCatalog.Adapter, parsed.TickRate, built.Profile.GetType().Name);
         long peak = Math.Max(0, Environment.WorkingSet - before);
-        return LiveValuesReducer.Reduce(run, composed.Rulesets, job.DemoPath, parsed.TickRate, build.Elapsed, evaluate.Elapsed, peak);
+        return LiveValuesReducer.Reduce(run, composed.Rulesets, job.DemoPath, parsed.TickRate, build.Elapsed, evaluate.Elapsed, peak, open);
     }
 }
 

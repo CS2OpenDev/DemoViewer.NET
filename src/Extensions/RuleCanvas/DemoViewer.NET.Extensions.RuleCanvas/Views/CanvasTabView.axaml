@@ -408,9 +408,15 @@
                     <Setter Property="Location" Value="{ReflectionBinding Location, Mode=TwoWay}" />
                     <Setter Property="ContextMenu">
                         <Template>
-                            <ContextMenu>
+                            <ContextMenu Opening="OnSeekMenuOpening">
                                 <MenuItem Header="Focus this slice" Click="OnNodeFocus" />
                                 <MenuItem Header="Jump to source" Click="OnNodeJump" />
+                                <Separator />
+                                <!-- Seek the playhead to a fire of this node for the selected instance; an item that cannot
+                                     run says why in its header. -->
+                                <MenuItem Header="{ReflectionBinding SeekMenu.NextText}" IsEnabled="{ReflectionBinding SeekMenu.CanNext}" Click="OnNextFire" />
+                                <MenuItem Header="{ReflectionBinding SeekMenu.PreviousText}" IsEnabled="{ReflectionBinding SeekMenu.CanPrevious}" Click="OnPreviousFire" />
+                                <MenuItem Header="{ReflectionBinding SeekMenu.FirstText}" IsEnabled="{ReflectionBinding SeekMenu.CanFirst}" Click="OnFirstFire" />
                                 <Separator />
                                 <MenuItem Header="Duplicate" InputGesture="Ctrl+D" Click="OnNodeDuplicate" />
                                 <MenuItem Header="Delete" InputGesture="Delete" Click="OnNodeDelete" />
@@ -463,9 +469,13 @@
                             </MultiBinding>
                         </views:LabelledConnection.Text>
                         <views:LabelledConnection.ContextMenu>
-                            <ContextMenu>
+                            <ContextMenu Opening="OnSeekMenuOpening">
                                 <MenuItem Header="Remove wire" Click="OnWireRemove" />
                                 <MenuItem Header="Jump to target's source" Click="OnWireJump" />
+                                <Separator />
+                                <MenuItem Header="{Binding SeekMenu.NextText}" IsEnabled="{Binding SeekMenu.CanNext}" Click="OnNextFire" />
+                                <MenuItem Header="{Binding SeekMenu.PreviousText}" IsEnabled="{Binding SeekMenu.CanPrevious}" Click="OnPreviousFire" />
+                                <MenuItem Header="{Binding SeekMenu.FirstText}" IsEnabled="{Binding SeekMenu.CanFirst}" Click="OnFirstFire" />
                             </ContextMenu>
                         </views:LabelledConnection.ContextMenu>
                     </views:LabelledConnection>

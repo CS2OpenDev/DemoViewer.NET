@@ -243,6 +243,14 @@ public sealed class CanvasNodeFactory(
             Label = face.Label,
             View = (face as StatFace)?.View ?? (face as UndeclaredFace)?.View ?? (face as DefineFace)?.View,
             ValueType = face.ValueType,
+            Events = face switch
+            {
+                StatFace stat => stat.Events,
+                DefineFace define => define.Events,
+                UndeclaredFace undeclared => undeclared.Events,
+                ScaffoldFace scaffold => scaffold.Events,
+                _ => []
+            },
             Chips = chips,
             ChipTips = tips,
             Facets = facets,
