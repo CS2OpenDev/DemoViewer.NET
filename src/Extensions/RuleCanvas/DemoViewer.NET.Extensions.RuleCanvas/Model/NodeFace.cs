@@ -415,6 +415,25 @@ public sealed record UndeclaredFace(
     : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable);
 
 /// <summary>
+///     A stat the open document declares with no kind. The resolver cannot take it, so it is drawn from the
+///     document with a kind picker and nothing else to edit until a kind is picked.
+/// </summary>
+public sealed record DraftFace(
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
+    int SourceLine, bool IsAuthorable)
+    : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
+{
+    /// <summary>The kind a draft stat draws under, which picks the stat family colour.</summary>
+    public const string KindName = "stat";
+
+    /// <summary>
+    ///     The kinds the picker offers: those whose blank body loads as an unfinished stat. A blank tally or
+    ///     rate fails the composition, so they are written whole from the gallery instead.
+    /// </summary>
+    public static IReadOnlyList<string> PickableKinds { get; } = ["count", "sum", "capture", "flag", "compute", "streak", "bucket", "burst"];
+}
+
+/// <summary>
 ///     An engine node of the lowered chain: an event, an enrichment, a context value, an entity pull. Nothing on
 ///     it is editable. <see cref="ChainKind" /> is what part of the engine it is. <see cref="Name" /> is the
 ///     engine's name, or the event name. <see cref="IsPerPlayer" /> is whether it materializes once per player.

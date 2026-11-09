@@ -149,6 +149,9 @@ public sealed class CanvasNodeFactory(
 
                 AddReads(chips, undeclared.CrossRulesetReads);
                 break;
+            case DraftFace:
+                choices.Add(new CanvasChoiceViewModel("kind", "kind", DraftFace.PickableKinds, null, null, Field));
+                break;
             case DefineFace named:
                 // The same editors a count has, less the actor toggle and the label: a define binds no player of
                 // its own and has no label key. Its picker offers no define, since a define cannot fire on one.

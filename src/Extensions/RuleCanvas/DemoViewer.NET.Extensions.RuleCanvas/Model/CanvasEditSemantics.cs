@@ -1003,6 +1003,11 @@ public static partial class CanvasEditSemantics
             return WriteDefineField(node, key, value);
         }
 
+        if (node.IsDraft && key == "kind")
+        {
+            return PickKind(node, value);
+        }
+
         return key switch
         {
             "per" when value is not null => Set(node, "per", value),

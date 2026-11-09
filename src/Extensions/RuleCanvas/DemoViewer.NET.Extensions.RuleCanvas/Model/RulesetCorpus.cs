@@ -474,10 +474,16 @@ public sealed class RulesetCorpus
 
         // The loader keeps a document with a stray key or a wrong shape and drops the part it did not
         // understand; the engine runs what remains, so the face must say what was ignored.
+        IReadOnlySet<int> drafts = Incompleteness.DraftLines(open);
         foreach (RulesetDoc doc in docs)
         {
             foreach (RulesetDiagnostic diagnostic in _loaderDiagnostics.GetValueOrDefault(doc.Id) ?? [])
             {
+                if (ReferenceEquals(doc, open) && diagnostic.Code == RulesetDiagnosticCodes.BadKind && drafts.Contains(diagnostic.Position.Line))
+                {
+                    continue;
+                }
+
                 report.Add(new RuleDiagnostic(diagnostic.ToString(), diagnostic.Message, DiagnosticWeight.Warning, doc.Id, diagnostic.Position.Line));
             }
         }

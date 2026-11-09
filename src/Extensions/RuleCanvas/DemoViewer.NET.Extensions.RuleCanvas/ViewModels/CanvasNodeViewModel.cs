@@ -456,6 +456,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject, ILiveBadge
     /// <summary>A stat, a highlight or a define the open document declares: what the entry edits reach.</summary>
     public bool IsEntry => IsAuthorable && !IsScaffold && !IsShow && !IsParams;
 
+    /// <summary>A stat with no kind yet: drawn with a kind picker and a red badge, kept out of the composition.</summary>
+    public bool IsDraft => Face is DraftFace;
+
     public bool HasColumns => Columns.Count > 0;
 
     public bool IsCompute => Kind == "compute";
