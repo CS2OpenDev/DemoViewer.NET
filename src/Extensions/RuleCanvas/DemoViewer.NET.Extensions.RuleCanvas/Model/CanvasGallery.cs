@@ -87,13 +87,19 @@ public sealed record GalleryGroup(string Title, IReadOnlyList<GalleryItem> Items
 }
 
 /// <summary>
-///     The gallery a user drags from, in task order: prefabs for the stats most rulesets start with, the
-///     highlights, the stat kinds and the define, the gates (the engine's and the user's own flags), and the catalog's views
+///     The gallery a user drags from, in task order: the blank primitives to build from, prefabs for the
+///     stats most rulesets start with, the highlights, the stat kinds and the define, the gates (the engine's and the user's own flags), and the catalog's views
 ///     grouped by the event that fires them. Views come from the catalog; the engine gates from the one
 ///     table in <see cref="CanvasEditSemantics.GatePaths" />.
 /// </summary>
 public static class CanvasGallery
 {
+    /// <summary>The name of the Primitives stat with no kind, which places as <c>new_stat</c>.</summary>
+    public const string BlankStatName = "stat";
+
+    /// <summary>The name of the Primitives highlight, which is also the id it places under.</summary>
+    public const string BlankHighlightName = "new_highlight";
+
     /// <summary>The gate paths a ruleset writes in <c>while:</c>, in the order the gallery offers them.</summary>
     public static IReadOnlyList<string> GatePaths { get; } = [.. CanvasEditSemantics.GatePaths.Select(g => g.Path)];
 
@@ -134,6 +140,16 @@ public static class CanvasGallery
 
         List<GalleryGroup> groups =
         [
+            new GalleryGroup("Primitives",
+            [
+                new GalleryItem(GalleryItemKind.Stat, BlankStatName, "Blank stat", "A stat with no kind and no trigger; pick its kind on the face.",
+                    "per: round"),
+                new GalleryItem(GalleryItemKind.Define, "define", "Blank define", "A define with an empty on:; wire an event into it.", "on:"),
+                new GalleryItem(GalleryItemKind.Highlight, BlankHighlightName, "Blank highlight", "A highlight with an empty when:; wire a stat into it.",
+                    "when: \"\"\nper: round\nscore: 50\ntitle: \"{player.name} (round {round.number})\""),
+                new GalleryItem(GalleryItemKind.Stat, "flag", "Blank flag", "A flag with an empty when:; wire a stat into it.",
+                    "flag:\n  when: \"\"\nper: round"),
+            ]),
             new GalleryGroup("Prefabs",
             [
                 Prefab("enemy_kills", "Enemy kills", "Kills on enemies, per round.",
@@ -157,7 +173,7 @@ public static class CanvasGallery
                     "when: enemy_kills >= 3\nper: round\nscore: 80\ntitle: \"{player.name} multi-kill (round {round.number})\""),
                 Highlight("opening_kill", "Opening kill", "Fires on a player's first kill before any death in the round; reads the Opening kills prefab.",
                     "when: opening_kills >= 1\nper: round\nscore: 60\ntitle: \"{player.name} opening kill (round {round.number})\""),
-                Highlight("highlight", "Blank highlight", "A when: to fill in; wire a stat into it or type the test. Starts on the survived flag, which every ruleset can read.",
+                Highlight("highlight", "Survived highlight", "A when: to fill in; wire a stat into it or type the test. Starts on the survived flag, which every ruleset can read.",
                     "when: player.survived\nper: round\nscore: 50\ntitle: \"{player.name} (round {round.number})\""),
             ]),
             new GalleryGroup("Stats",
@@ -196,7 +212,7 @@ public static class CanvasGallery
         ];
         if (shelf.Count > 0)
         {
-            groups.Insert(2, new GalleryGroup("Your defines", shelf));
+            groups.Insert(3, new GalleryGroup("Your defines", shelf));
         }
 
         return groups;

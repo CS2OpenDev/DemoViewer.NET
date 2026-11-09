@@ -95,6 +95,8 @@ public static class Incompleteness
         bool eventValue = blankArg || stat.KindArg!.TrimStart().StartsWith("event.", StringComparison.Ordinal);
         return stat.Kind switch
         {
+            // The resolver drops a kind-less stat without a word, so it is kept out here and drawn as a draft.
+            StatKind.None => $"{stat.Id} is unfinished: pick a kind",
             StatKind.Count or StatKind.Streak or StatKind.Bucket or StatKind.Burst when blankArg =>
                 $"{stat.Id} has no trigger: give {stat.Kind.ToString().ToLowerInvariant()}: a view, such as kill",
             StatKind.Sum or StatKind.Capture when noOn && eventValue =>
