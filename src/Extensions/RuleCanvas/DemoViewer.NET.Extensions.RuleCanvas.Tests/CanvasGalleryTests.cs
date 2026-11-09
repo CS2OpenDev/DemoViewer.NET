@@ -184,4 +184,30 @@ public class CanvasGalleryTests
         vm.DropOnNode(death, vm.Nodes.Single(n => n.Id == "round_kast"));
         await Assert.That(vm.EditStatus).Contains("fires on no view");
     }
+
+    // The gallery flag read round_kills, so a flag placed in a ruleset without one arrived with an error.
+    [Test]
+    public async Task AFlagPlacedWhereNothingDeclaresRoundKills_StartsOnASurvivedTest_ThatResolves()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("bare", "ruleset: bare\ntitle: Bare\nfor: each_player\n\nstats: {}\n");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "bare";
+        vm.OnActivated(null!);
+        GalleryItem flag = vm.Gallery.Single(g => g.Title == "Stats").Items.Single(i => i.Name == "flag");
+
+        vm.PlaceItem(flag, new Point(0, 0));
+        using (Assert.Multiple())
+        {
+            await Assert.That(RulesetEdits.Field(File.ReadAllText(rules.UserPath("bare")), "new_flag", "flag.when")).IsEqualTo("player.survived");
+            await Assert.That(vm.DiagnosticEntries).IsEmpty();
+        }
+
+        using RulesTree kast = RulesTree.WithUser("player_round");
+        CanvasTabViewModel withKills = kast.NewViewModel();
+        withKills.OnActivated(null!);
+        withKills.PlaceItem(flag, new Point(0, 0));
+        await Assert.That(RulesetEdits.Field(File.ReadAllText(kast.UserPath("player_round")), "new_flag", "flag.when")).IsEqualTo("round_kills > 0")
+            .Because("a ruleset that declares round_kills keeps the gallery's own example");
+    }
 }

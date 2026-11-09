@@ -338,8 +338,15 @@ public static partial class CanvasEditSemantics
         }
 
         string body = string.Join('\n', item.Body.Split('\n').Select(l => "  " + l));
-        return EditRequest.Of(text => RulesetEdits.AddStat(text, $"{id}:\n{body}\n"), "add " + id);
+        return EditRequest.Of(text => RulesetEdits.AddStat(text, $"{id}:\n{FlagPlaceholder(item, body, text)}\n"), "add " + id);
     }
+
+    // The gallery flag reads round_kills; where nothing declares it the flag starts on a context flag
+    // every ruleset resolves, so a placed flag never arrives with an error.
+    private static string FlagPlaceholder(GalleryItem item, string body, string text) =>
+        item is { Kind: GalleryItemKind.Stat, Name: "flag" } && !RulesetEdits.StatIds(text).Contains("round_kills", StringComparer.Ordinal)
+            ? body.Replace("\"round_kills > 0\"", "\"player.survived\"", StringComparison.Ordinal)
+            : body;
 
     /// <summary>
     ///     A gallery item dropped on a node: a view retargets the trigger (the kind's own argument for a count,
