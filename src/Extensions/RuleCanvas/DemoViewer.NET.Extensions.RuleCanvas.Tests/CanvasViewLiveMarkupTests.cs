@@ -61,10 +61,12 @@ public class CanvasViewLiveMarkupTests
         XDocument view = LoadView();
         XElement theme = view.Descendants().Single(e => e.Name.LocalName == "ControlTheme" && Attribute(e, "TargetType") == "nodify:ItemContainer");
         XElement pin = theme.Descendants().Single(e => e.Name.LocalName == "MenuItem" && Attribute(e, "Click") == "OnToggleViewer");
+        XElement freeze = theme.Descendants().Single(e => e.Name.LocalName == "MenuItem" && Attribute(e, "Click") == "OnFreezeFixture");
         List<string> overflow = [.. view.Descendants().Where(e => e.Name.LocalName == "MenuFlyout").SelectMany(f => f.Elements()).Select(e => Attribute(e, "Header"))];
         using (Assert.Multiple())
         {
             await Assert.That(Attribute(pin, "Header")).IsEqualTo("{ReflectionBinding ViewerMenuText}").Because("worded for the state it changes to");
+            await Assert.That(Attribute(freeze, "Header")).IsEqualTo("Freeze value as fixture");
             await Assert.That(overflow).Contains("Pin viewers on selection");
             await Assert.That(overflow).Contains("Unpin viewers on selection");
         }

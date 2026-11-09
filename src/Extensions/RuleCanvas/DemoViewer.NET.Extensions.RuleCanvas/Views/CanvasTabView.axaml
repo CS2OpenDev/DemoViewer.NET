@@ -445,8 +445,11 @@
                                 <MenuItem Header="{ReflectionBinding SeekMenu.NextText}" IsEnabled="{ReflectionBinding SeekMenu.CanNext}" Click="OnNextFire" />
                                 <MenuItem Header="{ReflectionBinding SeekMenu.PreviousText}" IsEnabled="{ReflectionBinding SeekMenu.CanPrevious}" Click="OnPreviousFire" />
                                 <MenuItem Header="{ReflectionBinding SeekMenu.FirstText}" IsEnabled="{ReflectionBinding SeekMenu.CanFirst}" Click="OnFirstFire" />
-                                <!-- A viewer under the node from the last run, kept in the sidecar. -->
+                                <!-- A viewer under the node from the last run, kept in the sidecar; a fixture comment above
+                                     the entry from the selected instance's track. -->
                                 <MenuItem Header="{ReflectionBinding ViewerMenuText}" Click="OnToggleViewer" />
+                                <MenuItem Header="Freeze value as fixture" Click="OnFreezeFixture"
+                                          ToolTip.Tip="Write the selected instance's final value and fire count as a comment above the entry" />
                                 <Separator />
                                 <MenuItem Header="Duplicate" InputGesture="Ctrl+D" Click="OnNodeDuplicate" />
                                 <MenuItem Header="Delete" InputGesture="Delete" Click="OnNodeDelete" />

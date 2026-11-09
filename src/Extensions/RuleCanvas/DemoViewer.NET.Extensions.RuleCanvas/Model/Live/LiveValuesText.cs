@@ -194,6 +194,23 @@ public static class LiveValuesText
         return Final(track, isBool);
     }
 
+    /// <summary>
+    ///     The fixture block's lines, without their marker: the demo and the instance, the final value with
+    ///     the fires, and the date the sample was taken.
+    /// </summary>
+    public static IReadOnlyList<string> FixtureLines(NodeTrack track, LiveInstance instance, string demoName, bool isBool, DateOnly taken)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        ArgumentNullException.ThrowIfNull(instance);
+        ArgumentException.ThrowIfNullOrEmpty(demoName);
+        return
+        [
+            string.Create(_inv, $"demo {demoName}, {Name(instance)}"),
+            string.Create(_inv, $"final {Final(track, isBool)}, {Fired(track.FireCount, track.FirstTick, track.LastTick)}"),
+            "taken " + taken.ToString("yyyy-MM-dd", _inv)
+        ];
+    }
+
     private static string Fired(int fires, int? first, int? last) =>
         fires == 0 || first is null
             ? fires == 0 ? "never fired" : string.Create(_inv, $"fired {fires} times")

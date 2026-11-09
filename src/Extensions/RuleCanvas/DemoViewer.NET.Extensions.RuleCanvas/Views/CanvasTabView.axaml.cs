@@ -469,12 +469,20 @@ public partial class CanvasTabView : UserControl
         }
     }
 
-    // The node menu's viewer item: the item's DataContext is the node under the pointer.
+    // The node menu's live items: the item's DataContext is the node under the pointer.
     private void OnToggleViewer(object? sender, RoutedEventArgs e)
     {
         if (NodeOf(sender) is { } node)
         {
             _viewModel?.ToggleViewer(node);
+        }
+    }
+
+    private void OnFreezeFixture(object? sender, RoutedEventArgs e)
+    {
+        if (NodeOf(sender) is { } node)
+        {
+            _viewModel?.FreezeFixture(node);
         }
     }
 
