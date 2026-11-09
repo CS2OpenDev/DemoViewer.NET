@@ -181,8 +181,20 @@ public sealed partial class CanvasTabViewModel
             return;
         }
 
-        Apply(CanvasEditSemantics.DropOnNode(item, node, FreshId(CanvasEditSemantics.PlacedIdFor(item))));
+        string id = FreshId(CanvasEditSemantics.PlacedIdFor(item));
+        EditRequest request = CanvasEditSemantics.DropOnNode(item, node, id);
+        // A define put in front of a stat lands just left of it, where its fires wire runs.
+        if (item.Kind == GalleryItemKind.Define && !request.IsRefused && SelectedRuleset is { } selected)
+        {
+            _arranger.PlaceNext(RulesetDocumentNodeKey.Define(selected.Id, id),
+                new Avalonia.Point(node.Location.X - InterposedDefineOffset, node.Location.Y));
+        }
+
+        Apply(request);
     }
+
+    /// <summary>How far left of its stat an interposed define lands: a face's width and a wire's run.</summary>
+    public const double InterposedDefineOffset = 340;
 
     /// <summary>
     ///     A wire drawn from one node to another, as the editor reports it: the two endpoints' view models, or

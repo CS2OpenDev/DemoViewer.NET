@@ -151,6 +151,24 @@ public class DefineGestureTests
         }
     }
 
+    // The interposed define used to land wherever the arranger's free spot was, often a screen away.
+    [Test]
+    public async Task ADefinePutInFrontOfAStat_LandsJustLeftOfIt()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
+        using (rules)
+        {
+            Node(vm, "deaths").Location = new Point(900, 300);
+            vm.SaveLayoutCommand.Execute(null);
+            vm.DropOnNode(Item(vm, "Stats", "define"), Node(vm, "deaths"));
+            using (Assert.Multiple())
+            {
+                await Assert.That(Define(vm, "new_define").Location).IsEqualTo(new Point(900 - CanvasTabViewModel.InterposedDefineOffset, 300));
+                await Assert.That(Node(vm, "deaths").Location).IsEqualTo(new Point(900, 300)).Because("the stat stays where it was");
+            }
+        }
+    }
+
     [Test]
     public async Task AWireFromADefineToAStat_SetsTheStatsTrigger_AndThePreviewSaysSo()
     {
