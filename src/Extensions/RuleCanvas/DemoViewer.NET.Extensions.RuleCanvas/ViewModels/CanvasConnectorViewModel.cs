@@ -8,16 +8,81 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 
 /// <summary>
+///     What a port carries. Inputs: a trigger (<c>on:</c>), a gate (<c>while:</c>), a read (a value the
+///     body names) or a logic input (a <c>when:</c> term). Outputs: an event or define fires, a context flag
+///     holds, a stat or enrichment is a value.
+/// </summary>
+public enum PortKind
+{
+    Trigger,
+    Gate,
+    Read,
+    Logic,
+    Fire,
+    Flag,
+    Value
+}
+
+/// <summary>
 ///     An endpoint on a node face. The connector control writes <see cref="Anchor" /> in graph coordinates
 ///     as the node moves; a connection binds to the anchors of its two endpoints, never to copies of them.
 /// </summary>
 public sealed partial class CanvasConnectorViewModel : ObservableObject
 {
-    /// <summary>The label beside the endpoint: the sibling id read, or <c>value</c> for an output.</summary>
+    /// <summary>The label beside the endpoint: the input word, or the value type of an output.</summary>
     public required string Title { get; init; }
 
     /// <summary>The node the endpoint sits on, so a wire drawn between two endpoints names two nodes.</summary>
     public CanvasNodeViewModel? Owner { get; init; }
+
+    public PortKind Kind { get; init; } = PortKind.Value;
+
+    public bool IsInput => Kind is PortKind.Trigger or PortKind.Gate or PortKind.Read or PortKind.Logic;
+
+    /// <summary>The theme token the ring is drawn in: the wire kind the port takes or gives.</summary>
+    public string Token => Kind switch
+    {
+        PortKind.Trigger or PortKind.Fire => "RuleWireWrite",
+        PortKind.Gate or PortKind.Flag => "RuleWireGate",
+        PortKind.Logic => "RuleWireAnd",
+        _ => "RuleWireRead"
+    };
+
+    /// <summary>False while a wire is held from a source this port cannot take; the ring dims.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Opacity))]
+    private bool _isCompatible = true;
+
+    public double Opacity => IsCompatible ? 1 : 0.25;
+
+    /// <summary>The input word for a kind, as the face spells the key it stands for.</summary>
+    public static string TitleOf(PortKind kind) => kind switch
+    {
+        PortKind.Trigger => "on",
+        PortKind.Gate => "while",
+        PortKind.Read => "reads",
+        PortKind.Logic => "when",
+        PortKind.Fire => "fires",
+        PortKind.Flag => "holds",
+        _ => ""
+    };
+
+    /// <summary>
+    ///     Whether an input of <paramref name="input" /> takes a wire from <paramref name="source" />: a
+    ///     trigger takes what fires, a gate takes what holds or an authored bool stat (a sibling flag), a read
+    ///     or a logic input takes a value or a flag.
+    /// </summary>
+    public static bool Accepts(PortKind input, CanvasConnectorViewModel source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return input switch
+        {
+            PortKind.Trigger => source.Kind == PortKind.Fire,
+            PortKind.Gate => source.Kind == PortKind.Flag || (source.Kind == PortKind.Value && source.Owner is { ValueType: "bool", IsScaffold: false }),
+            PortKind.Read or PortKind.Logic => source.Kind is PortKind.Value or PortKind.Flag,
+            _ => false
+        };
+    }
 
     /// <summary>Written by the control as the node moves.</summary>
     [ObservableProperty]

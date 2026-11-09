@@ -52,8 +52,12 @@ public class CanvasPendingConnectionTests
         using (rules)
         {
             vm.Pending.Source = Node(vm, "enrich.kill.was_enemy_kill");
-            vm.Pending.PreviewTarget = Node(vm, "round_deaths").Inputs.FirstOrDefault() ?? (object)Node(vm, "round_deaths");
+            vm.Pending.PreviewTarget = Node(vm, "round_deaths").Inputs.Single(i => i.Kind == PortKind.Read);
             await Assert.That(vm.Pending.PreviewText).IsEqualTo("binds facet enemy");
+            vm.Pending.PreviewTarget = Node(vm, "round_deaths").Inputs.Single(i => i.Kind == PortKind.Trigger);
+            await Assert.That(vm.Pending.PreviewText).Contains("takes an event").Because("the on port refuses a value before the body rules run");
+            vm.Pending.PreviewTarget = Node(vm, "round_deaths");
+            await Assert.That(vm.Pending.PreviewText).IsEqualTo("binds facet enemy").Because("a drop on the body still reads the source");
         }
     }
 

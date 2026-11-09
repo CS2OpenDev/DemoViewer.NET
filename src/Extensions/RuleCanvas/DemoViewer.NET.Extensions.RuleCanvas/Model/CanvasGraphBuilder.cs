@@ -29,29 +29,50 @@ public static class CanvasGraphBuilder
             nodes.Add(node);
         }
 
-        // One input and one output per node, made when the first wire lands on that side.
-        Dictionary<RulesetDocumentNodeKey, CanvasConnectorViewModel> inputs = new();
+        // One input per kind a node takes and one output per node, typed by what they carry.
+        Dictionary<(RulesetDocumentNodeKey, PortKind), CanvasConnectorViewModel> inputs = new();
         Dictionary<RulesetDocumentNodeKey, CanvasConnectorViewModel> outputs = new();
-        CanvasConnectorViewModel Side(Dictionary<RulesetDocumentNodeKey, CanvasConnectorViewModel> side, RulesetDocumentNodeKey key, bool input)
+        CanvasConnectorViewModel Input(RulesetDocumentNodeKey key, PortKind kind)
         {
-            if (!side.TryGetValue(key, out CanvasConnectorViewModel? connector))
+            if (!inputs.TryGetValue((key, kind), out CanvasConnectorViewModel? connector))
             {
-                connector = new CanvasConnectorViewModel { Title = input ? "" : byKey[key].OutputTitle, Owner = byKey[key] };
-                side[key] = connector;
-                (input ? byKey[key].Inputs : byKey[key].Outputs).Add(connector);
+                connector = new CanvasConnectorViewModel { Title = CanvasConnectorViewModel.TitleOf(kind), Owner = byKey[key], Kind = kind };
+                inputs[(key, kind)] = connector;
+                byKey[key].Inputs.Add(connector);
             }
 
             return connector;
         }
 
-        // An authored node always has its ports, wired or not: a wire starts at a stat's output and ends at
-        // a highlight's input before anything reads or feeds them. Scaffolds get theirs with their first wire.
+        CanvasConnectorViewModel Output(RulesetDocumentNodeKey key)
+        {
+            if (!outputs.TryGetValue(key, out CanvasConnectorViewModel? connector))
+            {
+                CanvasNodeViewModel owner = byKey[key];
+                PortKind kind = OutputKindOf(owner);
+                connector = new CanvasConnectorViewModel
+                {
+                    Title = kind == PortKind.Value ? owner.OutputTitle : CanvasConnectorViewModel.TitleOf(kind), Owner = owner, Kind = kind
+                };
+                outputs[key] = connector;
+                owner.Outputs.Add(connector);
+            }
+
+            return connector;
+        }
+
+        // An authored node always has its ports, wired or not, so a wire can start or end there before
+        // anything feeds or reads it. Scaffolds get theirs with their first wire.
         foreach (CanvasNodeViewModel node in nodes.Where(n => n.IsAuthorable && !n.IsScaffold))
         {
-            Side(inputs, node.Key, true);
+            foreach (PortKind kind in InputKindsOf(node))
+            {
+                Input(node.Key, kind);
+            }
+
             if (!node.IsHighlight)
             {
-                Side(outputs, node.Key, false);
+                Output(node.Key);
             }
         }
 
@@ -59,7 +80,8 @@ public static class CanvasGraphBuilder
         List<CanvasConnectionViewModel> wires = new(specs.Count);
         foreach (WireSpec spec in specs)
         {
-            wires.Add(new CanvasConnectionViewModel(Side(outputs, spec.Source, false), Side(inputs, spec.Target, true),
+            PortKind into = spec.IsGate ? PortKind.Gate : spec.IsRead ? PortKind.Read : spec.IsAnd || spec.IsOr ? PortKind.Logic : PortKind.Trigger;
+            wires.Add(new CanvasConnectionViewModel(Output(spec.Source), Input(spec.Target, into),
                 spec.Text, spec.Condition, spec.IsRead, spec.IsGate, spec.IsAnd, spec.IsOr));
         }
 
@@ -81,5 +103,40 @@ public static class CanvasGraphBuilder
         }
 
         return (nodes, wires);
+    }
+
+    /// <summary>What a node gives: an event or a define fires, a context flag holds, everything else is a value.</summary>
+    public static PortKind OutputKindOf(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        return node.IsDefine || node.Ruleset == "~event" ? PortKind.Fire
+            : node.Ruleset == "~context" ? PortKind.Flag
+            : PortKind.Value;
+    }
+
+    /// <summary>
+    ///     The inputs an authored node takes, in face order: a trigger where the kind fires on one, a gate
+    ///     where <c>while:</c> applies, reads for the values its body names, a logic input for a <c>when:</c>.
+    /// </summary>
+    public static IReadOnlyList<PortKind> InputKindsOf(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (node.IsDefine)
+        {
+            return [PortKind.Trigger, PortKind.Gate];
+        }
+
+        if (node.IsHighlight)
+        {
+            return [PortKind.Logic, PortKind.Gate];
+        }
+
+        return node.Kind switch
+        {
+            "compute" => [PortKind.Read],
+            "flag" when node.Trigger is null => [PortKind.Logic, PortKind.Gate, PortKind.Read],
+            _ when node.Trigger is null => [PortKind.Gate, PortKind.Read],
+            _ => [PortKind.Trigger, PortKind.Gate, PortKind.Read]
+        };
     }
 }

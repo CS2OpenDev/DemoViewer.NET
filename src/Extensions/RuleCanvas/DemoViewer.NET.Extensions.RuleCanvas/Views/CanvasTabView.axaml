@@ -471,12 +471,14 @@
                             <nodes:Node.InputConnectorTemplate>
                                 <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
                                     <nodes:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="{Binding IsConnected}"
-                                                     Padding="4 0" MinHeight="0" VerticalAlignment="Center" />
+                                                     views:TokenBrush.BorderBrush="{Binding Token}" Opacity="{Binding Opacity}"
+                                                     ToolTip.Tip="{Binding Title}" Padding="4 0" MinHeight="0" VerticalAlignment="Center" />
                                 </DataTemplate>
                             </nodes:Node.InputConnectorTemplate>
                             <nodes:Node.OutputConnectorTemplate>
                                 <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
                                     <nodes:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="{Binding IsConnected}"
+                                                      views:TokenBrush.BorderBrush="{Binding Token}" ToolTip.Tip="{Binding Title}"
                                                       Padding="4 0" MinHeight="0" VerticalAlignment="Center" />
                                 </DataTemplate>
                             </nodes:Node.OutputConnectorTemplate>
@@ -551,8 +553,9 @@
 
                         <nodes:Node.InputConnectorTemplate>
                             <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
-                                <nodes:NodeInput Header="{Binding Title}" FontSize="11" FontFamily="monospace"
-                                                 Foreground="{DynamicResource TextValue}"
+                                <nodes:NodeInput Header="{Binding Title}" FontSize="10" FontFamily="monospace"
+                                                 Foreground="{DynamicResource RuleTextKey}"
+                                                 views:TokenBrush.BorderBrush="{Binding Token}" Opacity="{Binding Opacity}"
                                                  Anchor="{Binding Anchor, Mode=OneWayToSource}"
                                                  IsConnected="{Binding IsConnected}" />
                             </DataTemplate>
@@ -560,8 +563,9 @@
 
                         <nodes:Node.OutputConnectorTemplate>
                             <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
-                                <nodes:NodeOutput Header="{Binding Title}" FontSize="11" FontFamily="monospace"
-                                                  Foreground="{DynamicResource TextValue}"
+                                <nodes:NodeOutput Header="{Binding Title}" FontSize="10" FontFamily="monospace"
+                                                  Foreground="{DynamicResource RuleTextKey}"
+                                                  views:TokenBrush.BorderBrush="{Binding Token}"
                                                   Anchor="{Binding Anchor, Mode=OneWayToSource}"
                                                   IsConnected="{Binding IsConnected}" />
                             </DataTemplate>

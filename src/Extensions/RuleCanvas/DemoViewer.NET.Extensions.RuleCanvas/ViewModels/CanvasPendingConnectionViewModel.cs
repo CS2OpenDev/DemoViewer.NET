@@ -37,6 +37,9 @@ public sealed partial class CanvasPendingConnectionViewModel : ObservableObject
 
     public bool HasPreviewText => PreviewText.Length > 0;
 
+    /// <summary>The source connector of the held wire, or null; the canvas dims the ports that cannot take it.</summary>
+    public CanvasConnectorViewModel? SourceConnector => Source as CanvasConnectorViewModel;
+
     partial void OnSourceChanged(object? value) => Refresh();
 
     partial void OnPreviewTargetChanged(object? value) => Refresh();
@@ -47,9 +50,10 @@ public sealed partial class CanvasPendingConnectionViewModel : ObservableObject
     {
         CanvasNodeViewModel? source = NodeOf(Source);
         CanvasNodeViewModel? target = NodeOf(PreviewTarget);
+        PortKind? port = PreviewTarget is CanvasConnectorViewModel { IsInput: true } input ? input.Kind : null;
         PreviewText = source is null ? ""
             : target is null || ReferenceEquals(source, target) ? NoTargetText
-            : CanvasEditSemantics.ConnectPreview(source, target);
+            : CanvasEditSemantics.ConnectPreview(source, target, port);
     }
 
     private static CanvasNodeViewModel? NodeOf(object? endpoint) => endpoint switch

@@ -409,6 +409,46 @@ public static class CanvasEditSemantics
     ///     sets the trigger, a context flag sets <c>while:</c>, an enrichment binds the facet that reads it, a stat
     ///     into a flag extends its <c>when:</c>, and a stat into a highlight extends its <c>when:</c>.
     /// </summary>
+    /// <summary>
+    ///     A wire dropped on a typed input: the port decides what the wire must be. A trigger port takes what
+    ///     fires; a gate port takes a context flag or a sibling bool stat, written as <c>while:</c>; a read or
+    ///     logic port takes a value and falls through to the body rules. A wire into the node body, with no
+    ///     port, is read from the source as before.
+    /// </summary>
+    public static EditRequest Connect(CanvasNodeViewModel source, CanvasNodeViewModel target, PortKind? port)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+        if (port is null || !target.IsAuthorable || target.IsScaffold)
+        {
+            return Connect(source, target);
+        }
+
+        PortKind gives = CanvasGraphBuilder.OutputKindOf(source);
+        switch (port)
+        {
+            case PortKind.Trigger when gives != PortKind.Fire:
+                return EditRequest.Refuse($"The on port of {target.Title} takes an event, a view or a define; {source.Title} is a {Noun(gives)}.");
+            case PortKind.Gate when gives == PortKind.Flag:
+                return GatePathOf(source.Id) is { } path ? Gate(target, path) : EditRequest.Refuse($"{source.Id} is not a gate a ruleset can name in while:.");
+            case PortKind.Gate when gives == PortKind.Value && source is { ValueType: "bool", IsScaffold: false } && source.Ruleset == target.Ruleset:
+                return Gate(target, source.Id);
+            case PortKind.Gate:
+                return EditRequest.Refuse($"The while port of {target.Title} takes a context flag or one of your bool stats; {source.Title} is a {Noun(gives)}.");
+            case PortKind.Read or PortKind.Logic when gives == PortKind.Fire:
+                return EditRequest.Refuse($"The {CanvasConnectorViewModel.TitleOf(port.Value)} port of {target.Title} takes a value; {source.Title} fires.");
+            default:
+                return Connect(source, target);
+        }
+    }
+
+    private static string Noun(PortKind kind) => kind switch
+    {
+        PortKind.Fire => "trigger",
+        PortKind.Flag => "flag",
+        _ => "value"
+    };
+
     public static EditRequest Connect(CanvasNodeViewModel source, CanvasNodeViewModel target)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -456,11 +496,34 @@ public static class CanvasEditSemantics
         return Retarget(target, key, define.Title) with { Description = $"fire {target.Id} on {define.Title}" };
     }
 
+    /// <summary>The caption for a wire held over a typed port: the port's refusal or write, else the body's.</summary>
+    public static string ConnectPreview(CanvasNodeViewModel source, CanvasNodeViewModel target, PortKind? port)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+        if (port is null)
+        {
+            return ConnectPreview(source, target);
+        }
+
+        EditRequest request = Connect(source, target, port);
+        if (request.IsRefused)
+        {
+            return request.Refusal ?? "";
+        }
+
+        // The one write a port adds over the body rules: a sibling bool stat into while.
+        return port == PortKind.Gate && !source.IsScaffold && source is { ValueType: "bool" }
+            ? $"sets while: {source.Id}"
+            : ConnectPreview(source, target);
+    }
+
+
     /// <summary>
     ///     What a wire from <paramref name="source" /> to <paramref name="target" /> would write, in one line
     ///     for the pending wire's preview: <c>sets while: match.live</c>, <c>binds facet enemy</c>,
     ///     <c>joins when: with or round_damage &gt; 0</c>, or the refusal. Nothing is applied; the decision is
-    ///     <see cref="Connect" />'s, and the words come from the same facts it decided on.
+    ///     <see cref="Connect(CanvasNodeViewModel, CanvasNodeViewModel)" />'s, and the words come from the same facts it decided on.
     /// </summary>
     public static string ConnectPreview(CanvasNodeViewModel source, CanvasNodeViewModel target)
     {

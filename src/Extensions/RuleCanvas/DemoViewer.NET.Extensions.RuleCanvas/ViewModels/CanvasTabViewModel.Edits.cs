@@ -167,16 +167,18 @@ public sealed partial class CanvasTabViewModel
     [RelayCommand]
     private void Connect(object? endpoints)
     {
-        (CanvasNodeViewModel? source, CanvasNodeViewModel? target) = endpoints switch
+        (object? from, object? to) = endpoints switch
         {
-            Tuple<object, object> pair => (NodeOf(pair.Item1), NodeOf(pair.Item2)),
-            ValueTuple<object, object> pair => (NodeOf(pair.Item1), NodeOf(pair.Item2)),
+            Tuple<object, object> pair => (pair.Item1, pair.Item2),
+            ValueTuple<object, object> pair => (pair.Item1, pair.Item2),
             _ => (null, null)
         };
+        (CanvasNodeViewModel? source, CanvasNodeViewModel? target) = (from is null ? null : NodeOf(from), to is null ? null : NodeOf(to));
+        MarkCompatible(null);
         // A plain click on a port comes back as a wire from the port to itself.
         if (source is not null && target is not null && !ReferenceEquals(source, target))
         {
-            Connect(source, target);
+            Connect(source, target, to is CanvasConnectorViewModel { IsInput: true } port ? port.Kind : null);
         }
         else if (source is not null && target is null && IsEditable)
         {
@@ -196,13 +198,16 @@ public sealed partial class CanvasTabViewModel
         IsEditable ? CanvasEditSemantics.WireDropOptions(source) : [];
 
     /// <summary>Writes what a wire from <paramref name="source" /> to <paramref name="target" /> stands for.</summary>
-    public void Connect(CanvasNodeViewModel source, CanvasNodeViewModel target)
+    public void Connect(CanvasNodeViewModel source, CanvasNodeViewModel target) => Connect(source, target, null);
+
+    /// <summary>Writes what a wire into <paramref name="port" /> of <paramref name="target" /> stands for; no port reads the source.</summary>
+    public void Connect(CanvasNodeViewModel source, CanvasNodeViewModel target, PortKind? port)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
         if (IsEditable)
         {
-            Apply(CanvasEditSemantics.Connect(source, target));
+            Apply(CanvasEditSemantics.Connect(source, target, port));
         }
     }
 
@@ -228,7 +233,30 @@ public sealed partial class CanvasTabViewModel
     }
 
     /// <summary>The wire being dragged, written by the editor; its preview text is the semantics' answer.</summary>
-    public CanvasPendingConnectionViewModel Pending { get; } = new();
+    public CanvasPendingConnectionViewModel Pending => _pending ??= WatchPending(new CanvasPendingConnectionViewModel());
+
+    private CanvasPendingConnectionViewModel? _pending;
+
+    private CanvasPendingConnectionViewModel WatchPending(CanvasPendingConnectionViewModel pending)
+    {
+        pending.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(CanvasPendingConnectionViewModel.Source))
+            {
+                MarkCompatible(pending.SourceConnector);
+            }
+        };
+        return pending;
+    }
+
+    /// <summary>Dims every input that cannot take a wire from <paramref name="source" />; null lights them all.</summary>
+    public void MarkCompatible(CanvasConnectorViewModel? source)
+    {
+        foreach (CanvasConnectorViewModel input in Nodes.SelectMany(n => n.Inputs))
+        {
+            input.IsCompatible = source is null || CanvasConnectorViewModel.Accepts(input.Kind, source);
+        }
+    }
 
     /// <summary>The editor's wire selection, written by the editor. Delete removes them when no node is selected.</summary>
     public ObservableCollection<object> SelectedWires { get; } = [];
