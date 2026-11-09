@@ -106,6 +106,11 @@ public sealed partial class CanvasConnectionViewModel(CanvasConnectorViewModel s
     string text = "", string? condition = null, bool isRead = false, bool isGate = false, bool isAnd = false, bool isOr = false)
     : ObservableObject
 {
+    /// <summary>The hint the hover panel opens with on a wire whose condition can be edited in place.</summary>
+    public const string EditHint = "double-click to edit";
+
+    private Model.WireEdit? _conditionEdit;
+
     /// <summary>
     ///     The last live run's line for the hover panel, from the target node's track for now: how often it
     ///     fired and when last. Empty when there is no run. Set by the tab.
@@ -124,6 +129,67 @@ public sealed partial class CanvasConnectionViewModel(CanvasConnectorViewModel s
         : IsRead ? Model.Live.LiveWireKind.Read
         : IsAnd || IsOr ? Model.Live.LiveWireKind.Logic
         : Model.Live.LiveWireKind.Trigger;
+    /// <summary>
+    ///     What the wire's condition editor would edit, as the semantics decided from the wire alone; null
+    ///     until the builder sets it. Whether it may write follows the target node's editability.
+    /// </summary>
+    public Model.WireEdit? ConditionEdit
+    {
+        get => _conditionEdit;
+        set
+        {
+            if (ReferenceEquals(_conditionEdit, value))
+            {
+                return;
+            }
+
+            if (_conditionEdit?.Target is { } was)
+            {
+                was.PropertyChanged -= OnTargetChanged;
+            }
+
+            _conditionEdit = value;
+            if (value?.Target is { } target)
+            {
+                target.PropertyChanged += OnTargetChanged;
+            }
+
+            NotifyConditionEdit();
+        }
+    }
+
+    /// <summary>The wire's condition can be edited in place: the semantics allow it and the target writes.</summary>
+    public bool CanEditCondition => ConditionEdit is { IsEnabled: true, Target.IsEditable: true };
+
+    /// <summary>
+    ///     The first line of the hover panel and the Edit condition item's tooltip: the hint while editable,
+    ///     the semantics' reason when the wire has no condition, read-only when the target does not write.
+    /// </summary>
+    public string ConditionEditTip => ConditionEdit switch
+    {
+        null => "",
+        { IsEnabled: false, Reason: { } reason } => reason,
+        { Target.IsEditable: true } => EditHint,
+        _ => "a shipped ruleset is read only here"
+    };
+
+    public bool HasConditionEditTip => ConditionEditTip.Length > 0;
+
+    private void OnTargetChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(CanvasNodeViewModel.IsEditable))
+        {
+            NotifyConditionEdit();
+        }
+    }
+
+    private void NotifyConditionEdit()
+    {
+        OnPropertyChanged(nameof(ConditionEdit));
+        OnPropertyChanged(nameof(CanEditCondition));
+        OnPropertyChanged(nameof(ConditionEditTip));
+        OnPropertyChanged(nameof(HasConditionEditTip));
+    }
 
     /// <summary>A gate holding the target open while it is active; drawn dashed, labelled while.</summary>
     public bool IsGate { get; } = isGate;

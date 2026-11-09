@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DemoViewer.NET.Extensions.RuleCanvas.ViewModels"
+             xmlns:views="using:DemoViewer.NET.Extensions.RuleCanvas.Views"
              x:Class="DemoViewer.NET.Extensions.RuleCanvas.Views.InspectorView"
              x:DataType="vm:InspectorViewModel">
 
@@ -109,6 +110,19 @@
                         <TextBlock Text="{Binding DeleteRefusal}" FontSize="11" Foreground="{DynamicResource AccentCaution}"
                                    TextWrapping="Wrap" IsVisible="{Binding HasDeleteRefusal}" />
                     </StackPanel>
+                </StackPanel>
+
+                <!-- Wire mode: a selected wire and no node. The same editor the canvas opens over the label. -->
+                <StackPanel Spacing="6" IsVisible="{Binding ShowsWire}">
+                    <TextBlock Text="WIRE" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" />
+                    <TextBlock Text="{Binding WireText}" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap" />
+                    <ContentControl Content="{Binding Wire}" KeyDown="OnWireKeyDown">
+                        <ContentControl.ContentTemplate>
+                            <DataTemplate x:DataType="vm:CanvasWireEditorViewModel">
+                                <views:WireEditorView />
+                            </DataTemplate>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
                 </StackPanel>
 
                 <!-- Document mode: the header, the uses, the whole surfacing block, and a new file. -->

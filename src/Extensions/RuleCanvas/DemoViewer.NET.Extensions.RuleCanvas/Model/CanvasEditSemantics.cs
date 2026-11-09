@@ -49,12 +49,160 @@ public sealed record NodeDependants(string Id, IReadOnlyList<string> Readers, bo
 }
 
 /// <summary>
+///     What editing a wire's condition edits: the node written, the key under it, and for a logic wire into a
+///     flat <c>when:</c> the operand row the wire stands for. <see cref="Row" /> is null when the whole key is
+///     edited as text (a gate expression, a nested <c>when:</c>); <see cref="Reason" /> says why nothing can be
+///     edited through this wire.
+/// </summary>
+/// <param name="Target">The node the key is written on.</param>
+/// <param name="Key"><c>when</c> for a logic wire, <c>while</c> for a comparison gate.</param>
+/// <param name="Row">The operand row of a flat <c>when:</c>, or null for the whole text.</param>
+/// <param name="Reason">Why the wire has no editable condition, or null.</param>
+public sealed record WireEdit(CanvasNodeViewModel Target, string Key, int? Row, string? Reason)
+{
+    public bool IsEnabled => Reason is null;
+
+    public bool EditsRow => Row is not null;
+}
+
+/// <summary>
 ///     Every write decision the canvas makes, as data: a gesture or a face edit in, an <see cref="EditRequest" />
 ///     out, which the session applies. Nothing here touches a file or a view; the catalog is read for the
 ///     view a trigger names and the facet an enrichment is reached through.
 /// </summary>
 public static class CanvasEditSemantics
 {
+    /// <summary>
+    ///     What a wire's condition editor edits. A logic wire into a flag or a highlight edits the one operand
+    ///     row of its <c>when:</c> that the wire stands for, found by the lowered condition's text and then by
+    ///     the path the source is read under; a <c>when:</c> that is not flat, or whose rows do not name the
+    ///     wire, is edited whole as text. A comparison gate edits the target's <c>while:</c> as text. A read,
+    ///     a plain guard, a trigger and a define's fires wire carry no condition and say why.
+    /// </summary>
+    /// <param name="wire">The wire.</param>
+    /// <param name="whenText">The target's <c>when:</c> as written; read from its when line when null.</param>
+    public static WireEdit? WireEditOf(CanvasConnectionViewModel wire, string? whenText = null)
+    {
+        ArgumentNullException.ThrowIfNull(wire);
+        if (wire.Target.Owner is not { } target)
+        {
+            return null;
+        }
+
+        if (!target.IsAuthorable || target.IsScaffold)
+        {
+            return new WireEdit(target, "", null, "only a wire into a stat, a define or a highlight of your own ruleset can be edited");
+        }
+
+        if (wire.IsRead)
+        {
+            return new WireEdit(target, "", null, "a read has nothing to edit");
+        }
+
+        if (wire.IsGate)
+        {
+            return wire.Text == "while"
+                ? new WireEdit(target, "while", null, $"this gate is a flag; edit the flag, or pick another gate on {target.Title}")
+                : new WireEdit(target, "while", null, null);
+        }
+
+        if (wire.IsAnd || wire.IsOr)
+        {
+            whenText ??= target.Lines.FirstOrDefault(l => l.Key == "when")?.Text ?? "";
+            return new WireEdit(target, "when", WhenRowOf(wire, target, whenText), null);
+        }
+
+        if (wire.Source.Owner is { IsDefine: true } define)
+        {
+            return new WireEdit(target, "", null, $"{define.Title} is what {target.Title} fires on; pick another trigger on {target.Title}");
+        }
+
+        return new WireEdit(target, "", null, $"a trigger wire has no condition; add a where row on {target.Title}");
+    }
+
+    // The engine lowers an operand relative to the value read ("value > 2", "active"), so the row is found by
+    // the path the source is read under, and among several rows on one path by the comparison. A condition
+    // the engine spelled with the path itself matches by text first.
+    private static int? WhenRowOf(CanvasConnectionViewModel wire, CanvasNodeViewModel target, string whenText)
+    {
+        ConditionExpression when = ConditionExpression.Parse(whenText);
+        if (!when.IsFlat || when.Rows.Count == 0)
+        {
+            return null;
+        }
+
+        static string Squash(string? text) => string.Concat((text ?? "").Where(c => !char.IsWhiteSpace(c)));
+        string condition = Squash(wire.Condition);
+        for (int i = 0; i < when.Rows.Count; i++)
+        {
+            if (condition.Length > 0 && Squash(when.Rows[i].Text) == condition)
+            {
+                return i;
+            }
+        }
+
+        if (wire.Source.Owner is not { } source)
+        {
+            return null;
+        }
+
+        string read = source.IsScaffold ? source.Ruleset == "~context" ? GatePathOf(source.Id) ?? source.Id : source.Id : ReadOf(source, target);
+        ConditionExpression lowered = ConditionExpression.Parse(wire.Condition);
+        ConditionRow? operand = lowered is { IsFlat: true, Rows.Count: 1 } ? lowered.Rows[0] : null;
+        int? byPath = null;
+        for (int i = 0; i < when.Rows.Count; i++)
+        {
+            ConditionRow row = when.Rows[i];
+            if (row.Path != read)
+            {
+                continue;
+            }
+
+            if (operand is not null && row.Comparator == operand.Comparator && Squash(row.Literal) == Squash(operand.Literal))
+            {
+                return i;
+            }
+
+            byPath ??= i;
+        }
+
+        return byPath;
+    }
+
+    /// <summary>
+    ///     A gallery item dropped on a wire: the define goes in front of the target of a trigger wire, taking
+    ///     the trigger with it; a gate becomes the target's <c>while:</c>; a view retargets a trigger wire's
+    ///     target. Null when the item has no meaning on a wire and is placed on the canvas as before.
+    /// </summary>
+    public static EditRequest? DropOnWire(GalleryItem item, CanvasConnectionViewModel wire, string? freshId = null)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(wire);
+        if (wire.Target.Owner is not { } target)
+        {
+            return null;
+        }
+
+        bool trigger = IsTriggerWire(wire);
+        return item.Kind switch
+        {
+            GalleryItemKind.Gate => DropOnNode(item, target, freshId),
+            GalleryItemKind.Define when trigger => DropOnNode(item, target, freshId),
+            GalleryItemKind.Define => EditRequest.Refuse($"A define goes in front of a trigger; drop it on the wire that fires {target.Title}, or on the stat."),
+            GalleryItemKind.View when trigger => DropOnNode(item, target, freshId),
+            GalleryItemKind.View => EditRequest.Refuse($"A view retargets a trigger; drop {item.Name} on the wire that fires {target.Title}, or on the stat."),
+            _ => null
+        };
+    }
+
+    /// <summary>An event's or a define's wire into what fires on it: not a read, a gate or a logic input.</summary>
+    public static bool IsTriggerWire(CanvasConnectionViewModel wire)
+    {
+        ArgumentNullException.ThrowIfNull(wire);
+        return !wire.IsRead && !wire.IsGate && !wire.IsAnd && !wire.IsOr
+               && wire.Source.Owner is { } source && (source.IsDefine || source.Ruleset == "~event");
+    }
+
     /// <summary>The gates, in the order the gallery and the picker offer them.</summary>
     public static IReadOnlyList<GatePath> GatePaths { get; } =
     [

@@ -183,22 +183,93 @@ public class CanvasViewMarkupTests
         }
     }
 
-    // The wire's hover becomes a panel: the condition as before, then the run's fire line only when there is one.
+    // The wire's hover is a panel: how to edit it (or why not) first, the condition, then the run's fire line
+    // only when there is one.
     [Test]
-    public async Task TheWireTooltip_IsAPanel_OfTheConditionThenTheLiveLine()
+    public async Task TheWireTooltip_IsAPanel_OfTheEditHintTheConditionThenTheLiveLine()
     {
         XDocument view = LoadView();
         XElement wire = view.Descendants().Single(e => e.Name.LocalName == "LabelledConnection");
         XElement? tip = wire.Elements().SingleOrDefault(e => e.Name.LocalName == "ToolTip.Tip");
-        await Assert.That(tip).IsNotNull().Because("a property element, so the tooltip can hold two lines");
+        await Assert.That(tip).IsNotNull().Because("a property element, so the tooltip can hold several lines");
         List<XElement> lines = [.. tip!.Descendants().Where(e => e.Name.LocalName == "TextBlock")];
         using (Assert.Multiple())
         {
             await Assert.That(Attribute(wire, "ToolTip.Tip")).IsEqualTo("").Because("an attribute would override the panel");
-            await Assert.That(lines.Count).IsEqualTo(2);
-            await Assert.That(Attribute(lines[0], "Text")).IsEqualTo("{Binding Condition}");
-            await Assert.That(Attribute(lines[1], "Text")).IsEqualTo("{Binding LiveTip}");
-            await Assert.That(Attribute(lines[1], "IsVisible")).IsEqualTo("{Binding HasLiveTip}");
+            await Assert.That(lines.Count).IsEqualTo(3);
+            await Assert.That(Attribute(lines[0], "Text")).IsEqualTo("{Binding ConditionEditTip}").Because("the first line says double-click to edit, or why not");
+            await Assert.That(Attribute(lines[0], "IsVisible")).IsEqualTo("{Binding HasConditionEditTip}");
+            await Assert.That(Attribute(lines[1], "Text")).IsEqualTo("{Binding Condition}");
+            await Assert.That(Attribute(lines[2], "Text")).IsEqualTo("{Binding LiveTip}");
+            await Assert.That(Attribute(lines[2], "IsVisible")).IsEqualTo("{Binding HasLiveTip}");
+        }
+    }
+
+    // An editable wire says so under the pointer: the class the theme gives a hand cursor, and the menu item
+    // that stays visible but disabled, with the reason on its tooltip, on a wire that has no condition.
+    [Test]
+    public async Task AnEditableWire_CarriesTheEditableClass_AndItsMenuOffersEditCondition()
+    {
+        XDocument view = LoadView();
+        XElement wire = view.Descendants().Single(e => e.Name.LocalName == "LabelledConnection");
+        XElement menu = wire.Elements().Single(e => e.Name.LocalName == "LabelledConnection.ContextMenu");
+        List<XElement> items = [.. menu.Descendants().Where(e => e.Name.LocalName == "MenuItem")];
+        XElement edit = items.Single(i => Attribute(i, "Header") == "Edit condition");
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(wire, "Classes.editable")).IsEqualTo("{Binding CanEditCondition}");
+            await Assert.That(items[0]).IsSameReferenceAs(edit).Because("edit where you look: the first item on the wire");
+            await Assert.That(Attribute(edit, "Click")).IsEqualTo("OnWireEdit");
+            await Assert.That(Attribute(edit, "IsEnabled")).IsEqualTo("{Binding CanEditCondition}");
+            await Assert.That(Attribute(edit, "ToolTip.Tip")).IsEqualTo("{Binding ConditionEditTip}");
+            await Assert.That(Attribute(edit, "ToolTip.ShowOnDisabled")).IsEqualTo("True").Because("a disabled item gets no pointer events of its own");
+        }
+
+        // In the view's styles, not the theme's: a Cursor needs the platform's cursor factory, which the
+        // theme loads without in its tests.
+        XElement cursor = view.Descendants().Single(e => e.Name.LocalName == "Style" && Attribute(e, "Selector") == "connections|Connection.editable");
+        XElement setter = cursor.Elements().Single(e => e.Name.LocalName == "Setter");
+        XDocument theme = XDocument.Load(Path.Combine(ViewsFolder(), "CanvasTheme.axaml"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(setter, "Property")).IsEqualTo("Cursor");
+            await Assert.That(Attribute(setter, "Value")).IsEqualTo("Hand");
+            await Assert.That(theme.Descendants().Any(e => Attribute(e, "Property") == "Cursor")).IsFalse();
+        }
+    }
+
+    // The editor lives over the canvas, not inside the Nodify editor: a layer that takes no pointer of its
+    // own, holding one host the view places; the Inspector shows the same editor for a selected wire. Both
+    // take the body from WireEditorView, which carries the row, the text and the reason.
+    [Test]
+    public async Task TheWireEditor_IsAHostOnItsOwnLayer_AndTheInspector_ShowsTheSameBody()
+    {
+        XDocument view = LoadView();
+        XElement layer = view.Descendants().Single(e => e.Name.LocalName == "Canvas" && e.Attribute(_x + "Name")?.Value == "WireEditorLayer");
+        XElement host = layer.Elements().Single(e => e.Name.LocalName == "ContentControl");
+        XDocument inspector = XDocument.Load(Path.Combine(ViewsFolder(), "InspectorView.axaml"));
+        XElement section = inspector.Descendants().Single(e => e.Name.LocalName == "StackPanel" && Attribute(e, "IsVisible") == "{Binding ShowsWire}");
+        XDocument body = XDocument.Load(Path.Combine(ViewsFolder(), "WireEditorView.axaml"));
+        List<XElement> inside = [.. body.Descendants()];
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(layer, "IsVisible")).IsEqualTo("{Binding HasWireEditor}");
+            await Assert.That(Attribute(layer, "Background")).IsEqualTo("").Because("a background would take the pointer from the canvas");
+            await Assert.That(layer.Ancestors().Any(a => a.Name.LocalName == "NodifyEditor")).IsFalse().Because("the editor is laid over the canvas, as the toast is");
+            await Assert.That(host.Attribute(_x + "Name")?.Value).IsEqualTo("WireEditorHost");
+            await Assert.That(Attribute(host, "Content")).IsEqualTo("{Binding WireEditor}");
+            await Assert.That(Attribute(host, "KeyDown")).IsEqualTo("OnWireEditorKeyDown");
+            await Assert.That(Attribute(host, "LostFocus")).IsEqualTo("OnWireEditorLostFocus");
+            await Assert.That(host.Descendants().Count(e => e.Name.LocalName == "WireEditorView")).IsEqualTo(1);
+            await Assert.That(section.Descendants().Count(e => e.Name.LocalName == "WireEditorView")).IsEqualTo(1).Because("one body, two hosts");
+            await Assert.That(section.Descendants().Any(e => e.Name.LocalName == "ContentControl" && Attribute(e, "Content") == "{Binding Wire}" && Attribute(e, "KeyDown") == "OnWireKeyDown")).IsTrue();
+            await Assert.That(inside.Any(e => e.Name.LocalName == "TextBox" && Attribute(e, "Name") == "WireLiteral")).IsTrue();
+            await Assert.That(inside.Any(e => e.Name.LocalName == "TextBox" && Attribute(e, "Name") == "WireText" && Attribute(e, "IsVisible") == "{Binding IsText}")).IsTrue();
+            await Assert.That(inside.Any(e => e.Name.LocalName == "TextBlock" && Attribute(e, "Text") == "{Binding Reason}" && Attribute(e, "IsVisible") == "{Binding IsDisabled}")).IsTrue();
+            await Assert.That(inside.Any(e => e.Name.LocalName == "Button" && Attribute(e, "Command") == "{Binding CancelCommand}")).IsTrue();
+            await Assert.That(inside.Any(e => e.Name.LocalName == "Button" && Attribute(e, "Command") == "{Binding CommitCommand}")).IsTrue();
+            await Assert.That(inside.Where(e => e.Attribute("Foreground") is not null).All(e => Attribute(e, "Foreground").StartsWith("{DynamicResource", StringComparison.Ordinal))).IsTrue()
+                .Because("no literal colours");
         }
     }
 

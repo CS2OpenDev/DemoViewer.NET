@@ -101,6 +101,12 @@ public static class CanvasGraphBuilder
             node.PortsChanged();
         }
 
+        // Decided once per wire from the wire and its target's when: text; the view asks the wire.
+        foreach (CanvasConnectionViewModel wire in wires)
+        {
+            wire.ConditionEdit = CanvasEditSemantics.WireEditOf(wire);
+        }
+
         List<CanvasPlacement.Item> items = new(nodes.Count);
         foreach (CanvasNodeViewModel node in nodes)
         {

@@ -534,6 +534,7 @@ public sealed partial class CanvasTabViewModel
         }
 
         Inspector.Show(node, _session.Text, doc, SelectedRuleset, IsEditable, SourceDirty, _corpus?.UserDirectory is not null);
+        Inspector.ShowWire(node is null ? SelectedWires.OfType<CanvasConnectionViewModel>().FirstOrDefault(Connections.Contains) : null, BuildWireEditor);
     }
 
     // The surfacing badge on every node of the author's, from the loaded document's show: block.

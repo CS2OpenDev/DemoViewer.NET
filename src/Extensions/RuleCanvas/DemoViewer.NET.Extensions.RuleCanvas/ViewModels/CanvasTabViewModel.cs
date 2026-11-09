@@ -73,6 +73,8 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         InitLive(live);
         SelectedNodes.CollectionChanged += (_, _) => JumpToSelection();
         SelectedNodes.CollectionChanged += (_, _) => RefreshInspector();
+        SelectedWires.CollectionChanged += (_, _) => RefreshInspector();
+        Connections.CollectionChanged += OnWiresChanged;
     }
 
     /// <summary>How long the user rules directory must be quiet before a change is acted on. Read when watching starts.</summary>
