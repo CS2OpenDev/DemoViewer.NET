@@ -21,6 +21,9 @@ public sealed record WireSpec(RulesetDocumentNodeKey Source, RulesetDocumentNode
     /// <summary>For a read into a show node, the column the wire stands for; null elsewhere.</summary>
     public int? Column { get; init; }
 
+    /// <summary>For a wire out of a dependency node, the entry it leaves from; null elsewhere.</summary>
+    public string? SourceOutput { get; init; }
+
     /// <summary>The same wire as a placement edge.</summary>
     public RulesetDocumentEdge AsEdge() => new(Source, Target, Text);
 }
@@ -59,7 +62,7 @@ public static class ChainWiring
                 bool logic = !edge.IsRead && !edge.IsGate;
                 wires.Add(new WireSpec(edge.Source, edge.Target, WireText(edge),
                     string.IsNullOrWhiteSpace(edge.Condition) ? null : edge.Condition, edge.IsRead, edge.IsGate,
-                    logic && edge.Effect == EdgeEffect.Conjunction, logic && edge.Effect == EdgeEffect.Disjunction) { Column = edge.Column });
+                    logic && edge.Effect == EdgeEffect.Conjunction, logic && edge.Effect == EdgeEffect.Disjunction) { Column = edge.Column, SourceOutput = edge.Output });
             }
         }
 

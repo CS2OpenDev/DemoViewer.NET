@@ -212,16 +212,14 @@
                             <TextBlock Text="&#x25CF;" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource AccentCaution}"
                                        IsVisible="{Binding SourceDirty}"
                                        ToolTip.Tip="The source pane holds unsaved text. Save or revert it to edit on the canvas." />
-                            <!-- The diagnostics count; pressing it folds the list under the strip open. -->
+                            <!-- The diagnostics count by weight ("2 errors, 1 warning"), red while any is an error, amber
+                                 otherwise; pressing it folds the list under the strip open. -->
                             <Button Classes="ghost" Padding="6 1" MinHeight="0" VerticalAlignment="Center"
                                     Command="{Binding ToggleDiagnosticsListCommand}" IsVisible="{Binding HasDiagnostics}"
                                     ToolTip.Tip="{Binding Diagnostics}">
-                                <Border CornerRadius="8" Padding="7 0" Background="{DynamicResource AccentError}">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Text="{Binding DiagnosticCount}" FontSize="10" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
-                                        <TextBlock Text="diagnostics" FontSize="10" Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
-                                    </StackPanel>
+                                <Border CornerRadius="8" Padding="7 0" views:TokenBrush.Background="{Binding DiagnosticsToken}">
+                                    <TextBlock Text="{Binding DiagnosticSummary}" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
                                 </Border>
                             </Button>
                         </StackPanel>
@@ -433,6 +431,13 @@
                             <ContextMenu Opening="OnSeekMenuOpening">
                                 <MenuItem Header="Focus this slice" Click="OnNodeFocus" />
                                 <MenuItem Header="Jump to source" Click="OnNodeJump" />
+                                <!-- A folded dependency unfolds into its entries; a drawn entry folds its ruleset back; either
+                                     opens that ruleset in the picker. -->
+                                <MenuItem Header="{ReflectionBinding DependencyToggleText}" IsVisible="{ReflectionBinding CanToggleDependency}" Click="OnDependencyToggle" />
+                                <MenuItem Header="{ReflectionBinding OpenRulesetText}" IsVisible="{ReflectionBinding HasForeignRuleset}" Click="OnOpenRuleset" />
+                                <!-- Along the fires wires: a define to the stats on it, a stat to its define. -->
+                                <MenuItem Header="Show stats firing on this" IsVisible="{ReflectionBinding IsDefine}" Click="OnShowFiring" />
+                                <MenuItem Header="Go to define" IsVisible="{ReflectionBinding FiresOnDefine}" Click="OnGoToDefine" />
                                 <Separator />
                                 <!-- Seek the playhead to a fire of this node for the selected instance; an item that cannot
                                      run says why in its header. -->
@@ -502,6 +507,8 @@
                                           ToolTip.Tip="{Binding ConditionEditTip}" ToolTip.ShowOnDisabled="True" />
                                 <MenuItem Header="Remove wire" Click="OnWireRemove" />
                                 <MenuItem Header="Jump to target's source" Click="OnWireJump" />
+                                <MenuItem Header="Go to definition" Click="OnWireGoToDefinition" IsVisible="{Binding CanGoToDefinition}"
+                                          ToolTip.Tip="Open the ruleset this read comes from and select the entry" />
                                 <Separator />
                                 <MenuItem Header="{Binding SeekMenu.NextText}" IsEnabled="{Binding SeekMenu.CanNext}" Click="OnNextFire" />
                                 <MenuItem Header="{Binding SeekMenu.PreviousText}" IsEnabled="{Binding SeekMenu.CanPrevious}" Click="OnPreviousFire" />
@@ -601,7 +608,7 @@
                                                    Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
                                         <Border CornerRadius="8" Padding="6 0" MinWidth="16" VerticalAlignment="Center"
                                                 IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}"
-                                                views:TokenBrush.Background="{Binding DiagnosticsText, Converter={x:Static views:DiagnosticSeverityToken.Instance}}">
+                                                views:TokenBrush.Background="{Binding DiagnosticsToken}">
                                             <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
                                                        Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
                                         </Border>
@@ -648,6 +655,85 @@
                         </nodes:Node>
                     </DataTemplate>
                 </views:CanvasNodeTemplateSelector.Show>
+
+                <!-- A use: dependency folded to one node: the header names the ruleset, the chips count its entries
+                     and say when the user's copy runs, and the right rail carries one output per entry the open
+                     document reads. Expand (the menu, or a double click on the header) draws the entries in its place. -->
+                <views:CanvasNodeTemplateSelector.Dependency>
+                    <DataTemplate x:DataType="vm:CanvasNodeViewModel">
+                        <nodes:Node Input="{Binding Inputs}" Output="{Binding Outputs}" ContentPadding="10 6 10 8"
+                                    ContentBrush="{DynamicResource RuleNodeBg}" HeaderBrush="{DynamicResource RuleNodeBg}">
+                            <nodes:Node.Header>
+                                <Grid ColumnDefinitions="3,*,Auto" DoubleTapped="OnDependencyDoubleTapped">
+                                    <Border Grid.Column="0" CornerRadius="3 0 0 0" Margin="0 0 0 -1"
+                                            views:TokenBrush.Background="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="8 5 8 3" PointerPressed="OnFacePressed">
+                                        <Border CornerRadius="3" Padding="5 1" VerticalAlignment="Center" BorderThickness="1"
+                                                views:TokenBrush.BorderBrush="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}">
+                                            <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
+                                                       views:TokenBrush.Foreground="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
+                                                   Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource RuleTextKey}"
+                                                   VerticalAlignment="Center" IsVisible="{Binding ShowLabelText}" />
+                                        <Border CornerRadius="8" Padding="6 0" MinWidth="16" VerticalAlignment="Center"
+                                                IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}"
+                                                views:TokenBrush.Background="{Binding DiagnosticsToken}">
+                                            <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
+                                        </Border>
+                                    </StackPanel>
+                                    <Border Grid.Column="2" CornerRadius="3" Padding="6 1" Margin="0 5 8 3" VerticalAlignment="Center"
+                                            Background="{DynamicResource RuleLiveBadgeBg}" IsVisible="{Binding HasLive}"
+                                            ToolTip.Tip="{Binding LiveTip}">
+                                        <TextBlock Classes="liveBadge" Classes.stale="{Binding IsLiveStale}" Text="{Binding LiveBadge}"
+                                                   FontSize="11" FontFamily="monospace" VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </nodes:Node.Header>
+                            <!-- An output per entry read; its menu follows the read to where the entry is declared. -->
+                            <nodes:Node.OutputConnectorTemplate>
+                                <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
+                                    <nodes:NodeOutput Header="{Binding Title}" FontSize="10" FontFamily="monospace"
+                                                      Foreground="{DynamicResource RuleTextKey}"
+                                                      views:TokenBrush.BorderBrush="{Binding Token}"
+                                                      Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                                      IsConnected="{Binding IsConnected}">
+                                        <nodes:NodeOutput.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Go to definition" Click="OnOutputGoToDefinition" />
+                                            </ContextMenu>
+                                        </nodes:NodeOutput.ContextMenu>
+                                    </nodes:NodeOutput>
+                                </DataTemplate>
+                            </nodes:Node.OutputConnectorTemplate>
+                            <StackPanel Spacing="6" MinWidth="180" PointerPressed="OnFacePressed">
+                                <ItemsControl ItemsSource="{Binding VisibleChipItems}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CanvasChip">
+                                            <Border CornerRadius="9" Padding="7 1" Margin="0 0 4 2"
+                                                    Background="{DynamicResource RuleCanvasBg}"
+                                                    BorderBrush="{DynamicResource RuleNodeBorder}" BorderThickness="1"
+                                                    ToolTip.Tip="{Binding Tip}">
+                                                <TextBlock Text="{Binding Text}" FontSize="10" FontFamily="monospace"
+                                                           Foreground="{DynamicResource RuleTextKey}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="nothing here reads it" FontSize="11" Foreground="{DynamicResource TextMid}"
+                                           IsVisible="{Binding !Outputs.Count}" />
+                                <TextBlock Text="double-click to expand" FontSize="10" Foreground="{DynamicResource TextMid}" />
+                            </StackPanel>
+                        </nodes:Node>
+                    </DataTemplate>
+                </views:CanvasNodeTemplateSelector.Dependency>
                 <!-- A frame around nodes, drawn under them: the header drags its contents along, the content lets
                      the pointer through to the nodes, the corner thumb resizes. The title is click-to-edit. -->
                 <views:CanvasNodeTemplateSelector.Group>
@@ -714,7 +800,7 @@
                                     </TextBox>
                                     <Border CornerRadius="8" Padding="6 0" MinWidth="16" VerticalAlignment="Center"
                                             IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}"
-                                            views:TokenBrush.Background="{Binding DiagnosticsText, Converter={x:Static views:DiagnosticSeverityToken.Instance}}">
+                                            views:TokenBrush.Background="{Binding DiagnosticsToken}">
                                         <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
                                     </Border>

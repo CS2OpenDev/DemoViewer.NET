@@ -21,7 +21,8 @@ public enum CanvasKeyAction
     PreviousFire,
     GroupSelection,
     TidySelection,
-    Search
+    Search,
+    Back
 }
 
 /// <summary>
@@ -40,6 +41,7 @@ public static class CanvasKeyMap
         bool bare = modifiers == KeyModifiers.None;
         return key switch
         {
+            Key.Left when modifiers == KeyModifiers.Alt => CanvasKeyAction.Back,
             Key.Delete or Key.Back when bare => CanvasKeyAction.DeleteSelection,
             Key.Z when primary && !shift => CanvasKeyAction.Undo,
             Key.Z when primary && shift => CanvasKeyAction.Redo,

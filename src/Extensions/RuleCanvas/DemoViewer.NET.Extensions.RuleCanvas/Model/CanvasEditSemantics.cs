@@ -637,6 +637,12 @@ public static partial class CanvasEditSemantics
             return EditRequest.Refuse($"A param is read by name: write params.<name> in {target.Title}'s text.");
         }
 
+        // A folded dependency has no entry of its own to read; its entries do, once drawn.
+        if (source.IsDependency)
+        {
+            return EditRequest.Refuse($"Expand {source.Id} and wire from the entry itself; a read of another ruleset is written as {source.Id}.<entry>.");
+        }
+
         if (target.IsShow)
         {
             return ConnectShow(source, target);

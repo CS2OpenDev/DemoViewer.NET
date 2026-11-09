@@ -97,6 +97,32 @@ public static class LiveValuesText
         return string.Join('\n', lines);
     }
 
+    /// <summary>A folded dependency's badge: the fires summed over the entries the open document reads.</summary>
+    public static string Fires(int count) => Fit(string.Create(_inv, $"{count} fires"));
+
+    /// <summary>
+    ///     A folded dependency's hover text: one line per entry read, as its own tip would say it, then the sum
+    ///     of the fires. The entries are the dependency's; the instance is the one the badges show.
+    /// </summary>
+    public static string DependencyTip(IReadOnlyList<(string Entry, NodeTrack Track)> tracks, LiveInstance instance, bool stale)
+    {
+        ArgumentNullException.ThrowIfNull(tracks);
+        ArgumentNullException.ThrowIfNull(instance);
+        List<string> lines = [];
+        foreach ((string entry, NodeTrack track) in tracks)
+        {
+            lines.Add(entry + ": " + Tip(track, instance, false, false));
+        }
+
+        lines.Add(string.Create(_inv, $"sum of fires over the read entries: {tracks.Sum(t => t.Track.FireCount)}"));
+        if (stale)
+        {
+            lines.Add(StaleLine);
+        }
+
+        return string.Join('\n', lines);
+    }
+
     /// <summary>The wire's hover line from its own track, worded by what the wire carries.</summary>
     public static string WireTip(WireTrack track, LiveWireKind kind, bool stale) => WireTip(track, kind, stale, null);
 

@@ -29,6 +29,9 @@ public sealed class CanvasNodeTemplateSelector : IDataTemplate
     /// <summary>The template for a frame around nodes. A frame with no template is not drawn.</summary>
     public IDataTemplate? Group { get; set; }
 
+    /// <summary>The template for a folded <c>use:</c> dependency: one node with an output per entry read. Falls back to <see cref="Authored" />.</summary>
+    public IDataTemplate? Dependency { get; set; }
+
     public bool Match(object? data) => data is CanvasNodeViewModel or CanvasGroupViewModel;
 
     public Control? Build(object? param)
@@ -41,6 +44,7 @@ public sealed class CanvasNodeTemplateSelector : IDataTemplate
         CanvasNodeViewModel? node = param as CanvasNodeViewModel;
         IDataTemplate? template = node switch
         {
+            { IsDependency: true } => Dependency ?? Authored,
             { IsScaffold: true } => Scaffold ?? Authored,
             { IsShow: true } => Show ?? Authored,
             _ => Authored

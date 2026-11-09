@@ -53,6 +53,12 @@ public static class NodeSizeEstimator
             return Math.Clamp(ShowBaseWidth + Math.Max(0, widest - 24) * 6.5, ShowBaseWidth, 420);
         }
 
+        if (node.IsDependency)
+        {
+            int widest = Math.Max(node.Title.Length + (node.Label?.Length ?? 0) + 14, node.DependencyEntries.Max(e => (int?)e.Length) ?? 0);
+            return Math.Clamp(BaseWidth + Math.Max(0, widest - 24) * 6.5, BaseWidth, 420);
+        }
+
         if (node.IsScaffold)
         {
             string name = node.Id.StartsWith("enrich.", StringComparison.Ordinal) ? node.Id["enrich.".Length..] : node.Id;
@@ -82,6 +88,12 @@ public static class NodeSizeEstimator
         if (node.IsShow)
         {
             return HeaderHeight + ChipRowHeight + Math.Max(1, node.Columns.Count) * ColumnRowHeight + 16;
+        }
+
+        // The dependency template: a header, the chips, then one connector row per entry read on the right rail.
+        if (node.IsDependency)
+        {
+            return HeaderHeight + ChipRowHeight + Math.Max(1, node.DependencyEntries.Count) * ConnectorHeight + 16;
         }
 
         int chipCount = node.Chips.Count + node.Defaults.Count + node.TextChips.Count + (node.HasUnrendered ? 1 : 0);

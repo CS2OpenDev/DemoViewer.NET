@@ -41,7 +41,10 @@ public enum ChainNodeKind
     Show,
 
     /// <summary>The open document's <c>params:</c> block, read by every entry whose text names a param.</summary>
-    Params
+    Params,
+
+    /// <summary>A <c>use:</c> dependency folded to one node, with an output per entry the open document reads.</summary>
+    Dependency
 }
 
 /// <summary>One node of the lowered chain.</summary>
@@ -65,6 +68,9 @@ public sealed record ChainNode(RulesetDocumentNodeKey Key, ChainNodeKind Kind, s
     ///     target counters in threshold order, a highlight's <c>&lt;id&gt;.count</c>. Empty otherwise.
     /// </summary>
     public IReadOnlyList<string> Outputs { get; init; } = [];
+
+    /// <summary>For a dependency node, how many entries the folded ruleset declares; zero elsewhere.</summary>
+    public int EntryCount { get; init; }
 }
 
 /// <summary>One wire of the lowered chain, from the node that fires or is read to the node written.</summary>
@@ -92,6 +98,9 @@ public sealed record ChainEdge(RulesetDocumentNodeKey Source, RulesetDocumentNod
     ///     over the engine's lowering (<c>value &gt; 2</c>), which <see cref="Condition" /> keeps for the hover.
     /// </summary>
     public string? Authored { get; init; }
+
+    /// <summary>For a wire out of a dependency node, the entry of the folded ruleset it leaves from; null elsewhere.</summary>
+    public string? Output { get; init; }
 }
 
 /// <summary>
@@ -119,7 +128,7 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
     ///     Whether the engine lowered anything here. A chain of show and params nodes alone is drawn from the
     ///     document after a failed build, and nothing in it can run.
     /// </summary>
-    public bool IsLowered => Nodes.Any(n => n.Kind is not (ChainNodeKind.Show or ChainNodeKind.Params));
+    public bool IsLowered => Nodes.Any(n => n.Kind is not (ChainNodeKind.Show or ChainNodeKind.Params or ChainNodeKind.Dependency));
 
     private const string TemplatePlayer = "each player";
 

@@ -104,8 +104,9 @@ public sealed partial class CanvasTabViewModel
             }
         }
 
+        // A dependency drawn in full is on screen as its entries; a folded one as its node.
         return CanvasArranger.Capture(Nodes.Select(n => new KeyValuePair<RulesetDocumentNodeKey, Point>(n.Key, n.Location)),
-            Nodes.Where(n => n.IsCollapsed).Select(n => n.Key), groups);
+            Nodes.Where(n => n.IsCollapsed).Select(n => n.Key), groups, Nodes.Where(n => n.IsForeign).Select(n => n.Ruleset).Distinct(StringComparer.Ordinal));
     }
 
     private void NotifyFocus()

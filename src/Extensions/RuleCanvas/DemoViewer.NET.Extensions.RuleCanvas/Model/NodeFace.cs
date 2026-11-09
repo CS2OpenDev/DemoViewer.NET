@@ -25,7 +25,7 @@ public abstract record NodeFace(
     string? Label,
     string Per,
     string Gate,
-    IReadOnlyList<string> Diagnostics,
+    IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine,
     bool IsAuthorable)
 {
@@ -40,7 +40,10 @@ public abstract record NodeFace(
     public string? ValueType { get; init; }
 
     /// <summary>A node the engine made rather than the author: an event, an enrichment, a context value.</summary>
-    public bool IsScaffold => Key.Ruleset.StartsWith('~');
+    public bool IsScaffold => Key.Ruleset.StartsWith('~') && !Key.IsDependency;
+
+    /// <summary>A <c>use:</c> dependency folded to one node.</summary>
+    public bool IsDependency => Key.IsDependency;
 
     public bool IsHighlight => Kind == "highlight";
 
@@ -108,7 +111,7 @@ public sealed record TriggerFace(TriggerRef? On, IReadOnlyList<MatchBinding> Mat
 /// <param name="Events">The wire events the view fires on.</param>
 /// <param name="Form">The typed <c>match:</c> form over the view's facets.</param>
 public sealed record DefineFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string Name, TriggerFace Trigger, string? View, IReadOnlyList<string> Events, MatchFacetForm Form)
     : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
 {
@@ -147,7 +150,7 @@ public abstract record StatFace(
     string? Label,
     string Per,
     string Gate,
-    IReadOnlyList<string> Diagnostics,
+    IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine,
     bool IsAuthorable,
     string? View,
@@ -260,7 +263,7 @@ public abstract record StatFace(
 
 /// <summary>A <c>count:</c> of a view's events.</summary>
 public sealed record CountFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string? View, IReadOnlyList<string> Events, IReadOnlyList<string> CrossRulesetReads,
     string? KindArg, TriggerFace? Trigger, MatchFacetForm Form)
     : StatFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable, View, Events, CrossRulesetReads, KindArg, Trigger, Form);
@@ -269,7 +272,7 @@ public sealed record CountFace(
 ///     A <c>sum:</c> of an event value. <see cref="Keep" /> is the <c>keep:</c> mode, or null for the default.
 /// </summary>
 public sealed record SumFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string? View, IReadOnlyList<string> Events, IReadOnlyList<string> CrossRulesetReads,
     string? KindArg, TriggerFace? Trigger, MatchFacetForm Form, KeepMode? Keep)
     : StatFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable, View, Events, CrossRulesetReads, KindArg, Trigger, Form)
@@ -282,7 +285,7 @@ public sealed record SumFace(
 ///     for the default.
 /// </summary>
 public sealed record CaptureFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string? View, IReadOnlyList<string> Events, IReadOnlyList<string> CrossRulesetReads,
     string? KindArg, TriggerFace? Trigger, MatchFacetForm Form, KeepMode? Keep)
     : StatFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable, View, Events, CrossRulesetReads, KindArg, Trigger, Form)
@@ -295,7 +298,7 @@ public sealed record CaptureFace(
 ///     cref="OffTrigger" /> is the deactivator from <c>off:</c>, or null.
 /// </summary>
 public sealed record FlagFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string? View, IReadOnlyList<string> Events, IReadOnlyList<string> CrossRulesetReads,
     string? KindArg, TriggerFace? Trigger, MatchFacetForm Form, TriggerFace? OffTrigger)
     : StatFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable, View, Events, CrossRulesetReads, KindArg, Trigger, Form)
@@ -309,7 +312,7 @@ public sealed record FlagFace(
 ///     at the scope's end.
 /// </summary>
 public sealed record ComputeFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string? View, IReadOnlyList<string> Events, IReadOnlyList<string> CrossRulesetReads,
     string? KindArg, TriggerFace? Trigger, MatchFacetForm Form, string? Format, bool Live)
     : StatFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable, View, Events, CrossRulesetReads, KindArg, Trigger, Form)
@@ -322,7 +325,7 @@ public sealed record ComputeFace(
 ///     <c>thresholds:</c>, in document order.
 /// </summary>
 public sealed record TallyFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string? View, IReadOnlyList<string> Events, IReadOnlyList<string> CrossRulesetReads,
     string? KindArg, TriggerFace? Trigger, MatchFacetForm Form, IReadOnlyList<TallyThreshold> Thresholds)
     : StatFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable, View, Events, CrossRulesetReads, KindArg, Trigger, Form)
@@ -336,7 +339,7 @@ public sealed record TallyFace(
 ///     null.
 /// </summary>
 public sealed record StreakFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string? View, IReadOnlyList<string> Events, IReadOnlyList<string> CrossRulesetReads,
     string? KindArg, TriggerFace? Trigger, MatchFacetForm Form, string? StreakWindow, int? StreakMinStreak)
     : StatFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable, View, Events, CrossRulesetReads, KindArg, Trigger, Form)
@@ -351,7 +354,7 @@ public sealed record StreakFace(
 ///     key. <see cref="BucketReduce" /> is the <c>reduce:</c> name, or null for the implicit default.
 /// </summary>
 public sealed record BucketFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string? View, IReadOnlyList<string> Events, IReadOnlyList<string> CrossRulesetReads,
     string? KindArg, TriggerFace? Trigger, MatchFacetForm Form, string? BucketKey, IReadOnlyList<string>? BucketKeys,
     string? BucketValue, string? BucketReduce)
@@ -365,7 +368,7 @@ public sealed record BucketFace(
 ///     id. <see cref="RatePer" /> is the denominator bucket's id.
 /// </summary>
 public sealed record RateFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string? View, IReadOnlyList<string> Events, IReadOnlyList<string> CrossRulesetReads,
     string? KindArg, TriggerFace? Trigger, MatchFacetForm Form, string? RateOf, string? RatePer)
     : StatFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable, View, Events, CrossRulesetReads, KindArg, Trigger, Form);
@@ -375,7 +378,7 @@ public sealed record RateFace(
 ///     <see cref="Window" />. Both are the streak keys as written, or null for the resolver's default.
 /// </summary>
 public sealed record BurstFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string? View, IReadOnlyList<string> Events, IReadOnlyList<string> CrossRulesetReads,
     string? KindArg, TriggerFace? Trigger, MatchFacetForm Form, string? Window, int? MinStreak)
     : StatFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable, View, Events, CrossRulesetReads, KindArg, Trigger, Form)
@@ -392,7 +395,7 @@ public sealed record BurstFace(
 ///     the <c>group:</c> supersession family, or null.
 /// </summary>
 public sealed record HighlightFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, IReadOnlyList<string> CrossRulesetReads, string? When, string? Title, int? Score,
     string? HighlightKind, string? Group)
     : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
@@ -407,7 +410,7 @@ public sealed record HighlightFace(
 ///     concrete wire events; <see cref="CrossRulesetReads" /> the reads that resolve outside this ruleset.
 /// </summary>
 public sealed record UndeclaredFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string? View, IReadOnlyList<string> Events, IReadOnlyList<string> CrossRulesetReads)
     : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable);
 
@@ -417,7 +420,7 @@ public sealed record UndeclaredFace(
 ///     engine's name, or the event name. <see cref="IsPerPlayer" /> is whether it materializes once per player.
 /// </summary>
 public sealed record ScaffoldFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, ChainNodeKind ChainKind, string Name, bool IsPerPlayer)
     : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
 {
@@ -438,7 +441,7 @@ public sealed record ScaffoldFace(
 ///     is an event table's trigger as written, or null. <see cref="Columns" /> is the entries, in document order.
 /// </summary>
 public sealed record ShowFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, string Name, string? On, IReadOnlyList<ShowReference> Columns)
     : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
 {
@@ -453,11 +456,34 @@ public sealed record ShowFace(
 }
 
 /// <summary>
+///     A <c>use:</c> dependency folded to one node: the ruleset's title and entry count, one output per entry
+///     the open document reads, and the files behind it when the user's copy overrides a shipped one.
+///     <see cref="Entries" /> is the entries read, in first-use order. <see cref="UserPath" /> and
+///     <see cref="ShippedPath" /> are set together when a user copy stands in for the shipped file.
+/// </summary>
+public sealed record DependencyFace(
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
+    int SourceLine, bool IsAuthorable, string Title, int EntryCount, IReadOnlyList<string> Entries, string? UserPath, string? ShippedPath)
+    : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
+{
+    public const string KindName = "dependency";
+
+    /// <summary>The folded ruleset's id.</summary>
+    public string RulesetId => Key.Id;
+
+    /// <summary>Whether a copy in the user's rules overrides the shipped file of the same id.</summary>
+    public bool IsUserCopy => UserPath is not null && ShippedPath is not null;
+
+    /// <summary>The header's count: <c>3 entries</c>.</summary>
+    public string EntryCountText => EntryCount == 1 ? "1 entry" : EntryCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + " entries";
+}
+
+/// <summary>
 ///     The open document's <c>params:</c> block as one node: each param with its type, default and bounds,
 ///     read by every entry whose text names <c>params.&lt;name&gt;</c>.
 /// </summary>
 public sealed record ParamsFace(
-    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<RuleDiagnostic> Diagnostics,
     int SourceLine, bool IsAuthorable, IReadOnlyList<ParamDef> Params)
     : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
 {

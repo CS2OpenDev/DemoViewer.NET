@@ -85,6 +85,32 @@ public partial class CanvasViewStructureMarkupTests
         }
     }
 
+    // A folded dependency has a template of its own: the header toggles it, each output follows its read, and
+    // the container menu offers the toggle, the open and the define navigation on every node.
+    [Test]
+    public async Task TheDependencyTemplate_ExpandsOnTheHeader_AndItsOutputsGoToTheDefinition()
+    {
+        XDocument view = LoadView();
+        XElement template = view.Descendants().Single(e => e.Name.LocalName == "CanvasNodeTemplateSelector.Dependency");
+        XElement header = template.Descendants().Single(e => e.Name.LocalName == "Node.Header");
+        XElement output = template.Descendants().Single(e => e.Name.LocalName == "NodeOutput");
+        XElement theme = view.Descendants().Single(e => e.Name.LocalName == "ControlTheme" && Attribute(e, "TargetType") == "nodify:ItemContainer");
+        List<XElement> items = [.. theme.Descendants().Where(e => e.Name.LocalName == "MenuItem")];
+        XElement wireMenu = view.Descendants().Single(e => e.Name.LocalName == "LabelledConnection.ContextMenu");
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(header.Elements().Single(), "DoubleTapped")).IsEqualTo("OnDependencyDoubleTapped");
+            await Assert.That(Attribute(output, "Header")).IsEqualTo("{Binding Title}").Because("an output is titled by the entry read");
+            await Assert.That(output.Descendants().Any(e => e.Name.LocalName == "MenuItem" && Attribute(e, "Click") == "OnOutputGoToDefinition")).IsTrue();
+            await Assert.That(items.Any(i => Attribute(i, "Click") == "OnDependencyToggle" && Attribute(i, "IsVisible") == "{ReflectionBinding CanToggleDependency}")).IsTrue();
+            await Assert.That(items.Any(i => Attribute(i, "Click") == "OnOpenRuleset" && Attribute(i, "IsVisible") == "{ReflectionBinding HasForeignRuleset}")).IsTrue();
+            await Assert.That(items.Any(i => Attribute(i, "Click") == "OnShowFiring" && Attribute(i, "IsVisible") == "{ReflectionBinding IsDefine}")).IsTrue();
+            await Assert.That(items.Any(i => Attribute(i, "Click") == "OnGoToDefine" && Attribute(i, "IsVisible") == "{ReflectionBinding FiresOnDefine}")).IsTrue();
+            await Assert.That(wireMenu.Descendants().Any(e => e.Name.LocalName == "MenuItem" && Attribute(e, "Click") == "OnWireGoToDefinition"
+                                                              && Attribute(e, "IsVisible") == "{Binding CanGoToDefinition}")).IsTrue();
+        }
+    }
+
     [Test]
     public async Task TheContainerTheme_DimsByTheSearch_AndOffersGroupAndTidy()
     {

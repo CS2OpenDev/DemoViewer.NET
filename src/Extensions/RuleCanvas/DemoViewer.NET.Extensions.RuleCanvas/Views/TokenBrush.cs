@@ -104,24 +104,9 @@ public sealed class RuleKindToken : IValueConverter
         "highlight" => "RuleKindHighlight",
         "define" => "RuleKindDefine",
         "show" or "params" => "RuleKindSurface",
+        "dependency" => "RuleKindDependency",
         _ => "RuleKindStat"
     };
-
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => KeyFor(value as string);
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
-}
-
-/// <summary>
-///     The token a diagnostics badge is painted in. Composition emits only errors today; a text that calls
-///     itself a warning gets the caution colour so the day it does, the badge already reads right.
-/// </summary>
-public sealed class DiagnosticSeverityToken : IValueConverter
-{
-    public static DiagnosticSeverityToken Instance { get; } = new();
-
-    public static string KeyFor(string? text) =>
-        text is not null && text.Contains("warning", StringComparison.OrdinalIgnoreCase) ? "AccentCaution" : "AccentError";
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => KeyFor(value as string);
 

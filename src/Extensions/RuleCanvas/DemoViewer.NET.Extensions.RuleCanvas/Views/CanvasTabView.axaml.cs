@@ -392,6 +392,9 @@ public partial class CanvasTabView : UserControl
                 SearchBox.Focus();
                 SearchBox.SelectAll();
                 break;
+            case CanvasKeyAction.Back:
+                _viewModel.NavigateBackCommand.Execute(null);
+                break;
             default:
                 return;
         }
@@ -526,6 +529,68 @@ public partial class CanvasTabView : UserControl
 
     private void OnFit(object? sender, RoutedEventArgs e) => FitAll();
 
+    // The dependency node's menu, or a drawn entry's: unfold the dependency, or fold it back.
+    private void OnDependencyToggle(object? sender, RoutedEventArgs e)
+    {
+        if (NodeOf(sender) is { } node)
+        {
+            _viewModel?.ToggleDependency(node);
+        }
+    }
+
+    private void OnDependencyDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is Control { DataContext: CanvasNodeViewModel node })
+        {
+            _viewModel?.ToggleDependency(node);
+            e.Handled = true;
+        }
+    }
+
+    // Open <ruleset>: the picker switches to the dependency the node belongs to.
+    private void OnOpenRuleset(object? sender, RoutedEventArgs e)
+    {
+        if (NodeOf(sender) is { ForeignRuleset: { } ruleset })
+        {
+            _viewModel?.OpenRuleset(ruleset);
+        }
+    }
+
+    // A define's menu and a stat's: along the fires wires, one way or the other.
+    private void OnShowFiring(object? sender, RoutedEventArgs e)
+    {
+        if (NodeOf(sender) is { } node)
+        {
+            _viewModel?.ShowStatsFiringOn(node);
+        }
+    }
+
+    private void OnGoToDefine(object? sender, RoutedEventArgs e)
+    {
+        if (NodeOf(sender) is { } node)
+        {
+            _viewModel?.GoToDefine(node);
+        }
+    }
+
+    // A cross-ruleset read wire: the item's DataContext is the wire.
+    private void OnWireGoToDefinition(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { DataContext: CanvasConnectionViewModel wire })
+        {
+            _viewModel?.GoToDefinition(wire);
+        }
+    }
+
+    // A dependency output's menu: the item's DataContext is the output connector, titled by the entry.
+    private void OnOutputGoToDefinition(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { DataContext: CanvasConnectorViewModel { Owner: { } owner } port })
+        {
+            _viewModel?.GoToDefinition(owner, port.Title);
+        }
+    }
+
     // The node menu: the item's DataContext is the node under the pointer.
     private void OnNodeFocus(object? sender, RoutedEventArgs e)
     {
@@ -649,6 +714,7 @@ public partial class CanvasTabView : UserControl
         if (_viewModel is not null)
         {
             _viewModel.GraphReplaced -= FitLater;
+            _viewModel.FrameRequested -= FrameLater;
             _viewModel.JumpRequested -= JumpTo;
             _viewModel.WireDropped -= OfferNodesForWire;
             _viewModel.WireEditorOpened -= PlaceWireEditor;
@@ -660,6 +726,7 @@ public partial class CanvasTabView : UserControl
         if (_viewModel is not null)
         {
             _viewModel.GraphReplaced += FitLater;
+            _viewModel.FrameRequested += FrameLater;
             _viewModel.JumpRequested += JumpTo;
             _viewModel.WireDropped += OfferNodesForWire;
             _viewModel.WireEditorOpened += PlaceWireEditor;
@@ -755,6 +822,9 @@ public partial class CanvasTabView : UserControl
     // the view model's positions and estimated sizes rather than the containers, which may not be measured
     // yet; the editor's own FitToScreen refuses an empty extent.
     private void FitLater() => Dispatcher.UIThread.Post(FitNow, DispatcherPriority.Background);
+
+    // A navigation that switched the picker frames after the fit the fresh draw posts, so the frame wins.
+    private void FrameLater() => Dispatcher.UIThread.Post(FrameSelection, DispatcherPriority.Background);
 
     // A readable fit, never a fit-everything: the zoom stays between 0.6 and 1. When the whole chain does not
     // fit at 0.6 the viewport frames its width from the event column through the authored column, anchored

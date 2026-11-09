@@ -101,7 +101,9 @@ public class DefineGestureTests
         CanvasNodeViewModel added = vm.Nodes.Single(n => n.Key.IsDefine && n.Title == "new_define");
         using (Assert.Multiple())
         {
-            await Assert.That(vm.Diagnostics).IsEmpty();
+            await Assert.That(vm.DiagnosticEntries.All(d => !d.IsError)).IsTrue().Because(vm.Diagnostics);
+            await Assert.That(vm.DiagnosticEntries.Count(d => d.Message.Contains("nothing fires on define", StringComparison.Ordinal))).IsEqualTo(2)
+                .Because("a define nothing fires on yet is a warning at the define, not a bare node");
             await Assert.That(text).Contains("define:\n  new_define:\n    on: kill\n  new_define_2:\n    on: kill\n");
             await Assert.That(text.IndexOf("define:", StringComparison.Ordinal)).IsLessThan(text.IndexOf("\nstats:", StringComparison.Ordinal))
                 .Because("the block opens above stats:, as the loader orders them");
@@ -338,7 +340,9 @@ public class DefineGestureTests
             using (Assert.Multiple())
             {
                 await Assert.That(text).Contains("  post_plant_kill_copy:\n    on: kill\n    match: { enemy: true }\n    while: round.bomb.was_planted\n");
-                await Assert.That(vm.Diagnostics).IsEmpty();
+                await Assert.That(vm.DiagnosticEntries.All(d => !d.IsError)).IsTrue().Because(vm.Diagnostics);
+                await Assert.That(vm.Nodes.Single(n => n.Title == "post_plant_kill_copy").Diagnostics.Select(d => d.Weight)).IsEquivalentTo([DiagnosticWeight.Warning])
+                    .Because("the copy fires nothing yet, which its face says");
                 await Assert.That(vm.SelectedNodes.OfType<CanvasNodeViewModel>().Single().Title).IsEqualTo("post_plant_kill_copy");
                 await Assert.That(RulesetEdits.StatsFiringOn(text, "post_plant_kill_copy")).IsEmpty();
             }
@@ -352,7 +356,7 @@ public class DefineGestureTests
             {
                 await Assert.That(RulesetEdits.DefineNames(text)).IsEquivalentTo(["retake_kill", "post_plant_kill_copy"]);
                 await Assert.That(RulesetEdits.Field(text, "late_kills", "count")).IsEqualTo("retake_kill").Because("the stat follows the rename");
-                await Assert.That(vm.Diagnostics).IsEmpty();
+                await Assert.That(vm.DiagnosticEntries.All(d => !d.IsError)).IsTrue().Because(vm.Diagnostics);
                 await Assert.That(vm.SelectedNodes.OfType<CanvasNodeViewModel>().Single().Key).IsEqualTo(RulesetDocumentNodeKey.Define("gestures", "retake_kill"))
                     .Because("the Inspector follows the renamed node");
             }

@@ -180,13 +180,21 @@ public class CanvasVisualTests
     }
 
     [Test]
-    public async Task ADiagnosticsBadge_IsAnErrorUnlessTheTextSaysWarning()
+    public async Task ADiagnosticsBadge_IsPaintedByWeight_AndTheStripCountsByWeight()
     {
         using (Assert.Multiple())
         {
-            await Assert.That(DiagnosticSeverityToken.KeyFor("unresolved reference no_such_stat")).IsEqualTo("AccentError");
-            await Assert.That(DiagnosticSeverityToken.KeyFor("Warning: keep is ignored")).IsEqualTo("AccentCaution");
-            await Assert.That(DiagnosticSeverityToken.KeyFor(null)).IsEqualTo("AccentError");
+            await Assert.That(RuleDiagnostic.TokenFor(DiagnosticWeight.Error)).IsEqualTo("AccentError");
+            await Assert.That(RuleDiagnostic.TokenFor(DiagnosticWeight.Warning)).IsEqualTo("RuleDiagnosticWarning");
+            await Assert.That(RuleDiagnostic.WorstToken([DiagnosticWeight.Warning, DiagnosticWeight.Error])).IsEqualTo("AccentError")
+                .Because("one error outweighs any number of warnings");
+            await Assert.That(RuleDiagnostic.WorstToken([DiagnosticWeight.Warning])).IsEqualTo("RuleDiagnosticWarning");
+            await Assert.That(RuleDiagnostic.Summary([DiagnosticWeight.Error, DiagnosticWeight.Error, DiagnosticWeight.Warning])).IsEqualTo("2 errors, 1 warning");
+            await Assert.That(RuleDiagnostic.Summary([DiagnosticWeight.Error])).IsEqualTo("1 error");
+            await Assert.That(RuleDiagnostic.Summary([DiagnosticWeight.Warning, DiagnosticWeight.Warning])).IsEqualTo("2 warnings");
+            await Assert.That(RuleDiagnostic.Summary([])).IsEmpty();
+            await Assert.That(new CanvasDiagnostic(null, "x", DiagnosticWeight.Warning).Token).IsEqualTo("RuleDiagnosticWarning");
+            await Assert.That(new CanvasDiagnostic(null, "x").Token).IsEqualTo("AccentError");
         }
     }
 }

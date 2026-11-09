@@ -230,8 +230,21 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>Whether the open document declares this node; a <c>use:</c> dependency's node is drawn read-only.</summary>
     public bool IsAuthorable { get; init; } = true;
 
-    /// <summary>The diagnostics the composition raised inside this entry; empty when none.</summary>
-    public IReadOnlyList<string> Diagnostics { get; init; } = [];
+    /// <summary>
+    ///     The diagnostics the composition raised inside this entry, weighted; empty when none. Set by the
+    ///     factory from the face, and by the builder when a drawn entry turns out unwired.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDiagnostics))]
+    [NotifyPropertyChangedFor(nameof(DiagnosticsText))]
+    [NotifyPropertyChangedFor(nameof(DiagnosticsToken))]
+    [NotifyPropertyChangedFor(nameof(HasErrors))]
+    private IReadOnlyList<RuleDiagnostic> _diagnostics = [];
+
+    /// <summary>The badge's token: the error red when any of them is an error, the warning amber otherwise.</summary>
+    public string DiagnosticsToken => RuleDiagnostic.WorstToken(Diagnostics.Select(d => d.Weight));
+
+    public bool HasErrors => Diagnostics.Any(d => d.IsError);
 
     /// <summary>The values this node reads from siblings, one input connector each.</summary>
     public ObservableCollection<CanvasConnectorViewModel> Inputs { get; } = [];
@@ -382,7 +395,32 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     public bool IsDefine => Key.IsDefine;
 
     /// <summary>A node the engine made rather than the author: an event, an enrichment, a context value.</summary>
-    public bool IsScaffold => Ruleset.StartsWith('~');
+    public bool IsScaffold => Ruleset.StartsWith('~') && !IsDependency;
+
+    /// <summary>A <c>use:</c> dependency folded to one node; <see cref="Id" /> is the dependency's ruleset id.</summary>
+    public bool IsDependency => Key.IsDependency;
+
+    /// <summary>An entry of a <c>use:</c> dependency drawn in full: another ruleset's, read-only here.</summary>
+    public bool IsForeign => !IsAuthorable && !IsScaffold && !IsDependency;
+
+    /// <summary>The ruleset a Go to definition or an Open would switch the picker to, or null for the open document's own nodes.</summary>
+    public string? ForeignRuleset => IsDependency ? Id : IsForeign ? Ruleset : null;
+
+    /// <summary>The entries of the folded dependency the open document reads, one output each; empty on every other node.</summary>
+    public IReadOnlyList<string> DependencyEntries { get; init; } = [];
+
+    /// <summary>The dependency node's menu item, or the member's: fold the dependency back, or unfold it.</summary>
+    public string DependencyToggleText => IsDependency ? "Expand " + Id : IsForeign ? "Collapse " + Ruleset : "";
+
+    public bool CanToggleDependency => IsDependency || IsForeign;
+
+    /// <summary>The menu item that switches the picker to the other ruleset.</summary>
+    public string OpenRulesetText => ForeignRuleset is { } ruleset ? "Open " + ruleset : "";
+
+    public bool HasForeignRuleset => ForeignRuleset is not null;
+
+    /// <summary>A stat that fires on one of the open document's defines, so Go to define has somewhere to go.</summary>
+    public bool FiresOnDefine => Trigger is { IsDefine: true };
 
     /// <summary>A <c>show:</c> table or the scoreboard of the open document.</summary>
     public bool IsShow => Key.IsShow;
@@ -415,7 +453,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     public bool HasDiagnostics => Diagnostics.Count > 0;
 
-    public string DiagnosticsText => string.Join('\n', Diagnostics);
+    public string DiagnosticsText => string.Join('\n', Diagnostics.Select(d => d.Message));
 
     /// <summary>The compact style's facet count shows only where there are facets to count.</summary>
     public bool ShowFacetSummary => !ShowFacets && HasFacets;

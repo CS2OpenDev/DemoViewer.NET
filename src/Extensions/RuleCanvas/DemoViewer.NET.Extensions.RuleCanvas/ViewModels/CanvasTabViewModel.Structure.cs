@@ -239,6 +239,19 @@ public sealed partial class CanvasTabViewModel
         NotifyHistory();
     }
 
+    // A change made in two steps is one Undo: the step just recorded takes the later arrangement as its end.
+    private void ReplaceLayoutChange(RulesetNodeLayout before, RulesetNodeLayout after)
+    {
+        if (_layoutUndo.TryPeek(out LayoutChange? top) && ReferenceEquals(top.Before, before))
+        {
+            _layoutUndo.Pop();
+            _layoutUndo.Push(top with { After = after });
+            return;
+        }
+
+        RecordLayoutChange(before, after);
+    }
+
     private void UndoLayout()
     {
         LayoutChange change = _layoutUndo.Pop();

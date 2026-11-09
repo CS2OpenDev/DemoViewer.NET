@@ -422,6 +422,7 @@ public sealed partial class InspectorViewModel : ObservableObject
     {
         Heading = node.IsShow && node.Key.IsScoreboard ? "SCOREBOARD" : node.IsShow ? $"TABLE {node.Title}" : $"{node.KindLabel} {node.Title}";
         NodeNote = node.IsScaffold ? "An engine node; nothing on it is written by a ruleset."
+            : node.IsDependency ? $"use: [ {node.Id} ] folded to one node; Expand draws its entries, Open {node.Id} edits them."
             : !node.IsAuthorable ? $"Declared by {node.Ruleset}; open that ruleset to edit it."
             : node.IsDefine ? "A named trigger; the stats that fire on it are wired from it."
             : node.IsShow ? "A surface; wire a stat into it to add a column, remove a column's wire to drop it."

@@ -29,9 +29,10 @@ public static class CanvasGraphBuilder
             nodes.Add(node);
         }
 
-        // One input per kind a node takes and one output per node, typed by what they carry.
+        // One input per kind a node takes and one output per node, typed by what they carry; a dependency
+        // node has one output per entry read, titled by the entry.
         Dictionary<(RulesetDocumentNodeKey, PortKind), CanvasConnectorViewModel> inputs = new();
-        Dictionary<RulesetDocumentNodeKey, CanvasConnectorViewModel> outputs = new();
+        Dictionary<(RulesetDocumentNodeKey, string?), CanvasConnectorViewModel> outputs = new();
         CanvasConnectorViewModel Input(RulesetDocumentNodeKey key, PortKind kind)
         {
             if (!inputs.TryGetValue((key, kind), out CanvasConnectorViewModel? connector))
@@ -44,21 +45,30 @@ public static class CanvasGraphBuilder
             return connector;
         }
 
-        CanvasConnectorViewModel Output(RulesetDocumentNodeKey key)
+        CanvasConnectorViewModel Output(RulesetDocumentNodeKey key, string? entry = null)
         {
-            if (!outputs.TryGetValue(key, out CanvasConnectorViewModel? connector))
+            if (!outputs.TryGetValue((key, entry), out CanvasConnectorViewModel? connector))
             {
                 CanvasNodeViewModel owner = byKey[key];
                 PortKind kind = OutputKindOf(owner);
                 connector = new CanvasConnectorViewModel
                 {
-                    Title = kind == PortKind.Value ? owner.OutputTitle : CanvasConnectorViewModel.TitleOf(kind), Owner = owner, Kind = kind
+                    Title = entry ?? (kind == PortKind.Value ? owner.OutputTitle : CanvasConnectorViewModel.TitleOf(kind)), Owner = owner, Kind = kind
                 };
-                outputs[key] = connector;
+                outputs[(key, entry)] = connector;
                 owner.Outputs.Add(connector);
             }
 
             return connector;
+        }
+
+        // A dependency's outputs exist before its wires, in the order the open document reads them.
+        foreach (CanvasNodeViewModel node in nodes.Where(n => n.IsDependency))
+        {
+            foreach (string entry in node.DependencyEntries)
+            {
+                Output(node.Key, entry);
+            }
         }
 
         // An authored node always has its ports, wired or not, so a wire can start or end there before
@@ -92,7 +102,7 @@ public static class CanvasGraphBuilder
             CanvasConnectorViewModel input = spec.Column is { } column && column < target.Columns.Count && target.Columns[column].Port is { } port
                 ? port
                 : Input(spec.Target, into);
-            wires.Add(new CanvasConnectionViewModel(Output(spec.Source), input,
+            wires.Add(new CanvasConnectionViewModel(Output(spec.Source, spec.SourceOutput), input,
                 spec.Text, spec.Condition, spec.IsRead, spec.IsGate, spec.IsAnd, spec.IsOr));
         }
 
@@ -118,6 +128,17 @@ public static class CanvasGraphBuilder
             wire.ConditionEdit = CanvasEditSemantics.WireEditOf(wire);
         }
 
+        // An authored entry nothing fires and nothing reads is said on the node, as a warning, unless an
+        // error already explains it or nothing lowered at all, which is the error's doing.
+        if (composed.Chain.IsLowered)
+        {
+            HashSet<CanvasNodeViewModel> wired = [.. wires.SelectMany(w => new[] { w.Source.Owner, w.Target.Owner }).OfType<CanvasNodeViewModel>()];
+            foreach (CanvasNodeViewModel node in nodes.Where(n => n.IsAuthorable && !n.IsScaffold && !wired.Contains(n) && n.Diagnostics.Count == 0))
+            {
+                node.Diagnostics = [UnwiredWarning(node)];
+            }
+        }
+
         List<CanvasPlacement.Item> items = new(nodes.Count);
         foreach (CanvasNodeViewModel node in nodes)
         {
@@ -136,6 +157,21 @@ public static class CanvasGraphBuilder
         }
 
         return (nodes, wires);
+    }
+
+    /// <summary>The warning an unwired entry carries: what is missing, and the fix for its kind.</summary>
+    public static RuleDiagnostic UnwiredWarning(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        string message = node switch
+        {
+            { IsParams: true } => "params is unwired: no entry reads a params.<name> yet",
+            { IsShow: true } => $"{node.Title} is unwired: no column names a drawn entry",
+            { IsDefine: true } => $"define {node.Title} is unwired: nothing fires on it",
+            { IsHighlight: true } => $"{node.Title} is unwired: its when: reads no drawn stat, and nothing surfaces it",
+            _ => $"{node.Title} is unwired: nothing fires it and nothing reads it; give it a trigger, or read it from a sibling or a show: column"
+        };
+        return new RuleDiagnostic(message, message, DiagnosticWeight.Warning, node.Ruleset) { Node = node.Key };
     }
 
     /// <summary>What a node gives: an event or a define fires, a context flag holds, everything else is a value.</summary>
