@@ -85,7 +85,7 @@ public static class LiveValuesText
         string line = string.Create(_inv, $"{Name(instance)}: {fires}, final {Final(track, isBool)}");
         if (isBool && track.Series.Count > 0)
         {
-            line = string.Create(_inv, $"{line}, on {track.OnCount} times, off {track.OffCount} times at fires");
+            line = string.Create(_inv, $"{line}, on {track.OnCount} times, off {track.OffCount} times");
         }
 
         lines.Add(line);

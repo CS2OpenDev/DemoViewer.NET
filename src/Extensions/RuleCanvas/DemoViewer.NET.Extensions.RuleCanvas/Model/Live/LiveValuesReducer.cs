@@ -83,8 +83,10 @@ public static class LiveValuesReducer
         List<int> indices = [];
         foreach (RuleGraphNode node in graph.Nodes)
         {
+            // The key is a struct: a lookup miss must drop the id, not key a track by the default (null ids).
             List<RulesetDocumentNodeKey> keys = [.. node.RuleIds.Concat(node.Owners).Distinct(StringComparer.Ordinal)
-                .Select(id => declared.GetValueOrDefault(id)).OfType<RulesetDocumentNodeKey>().Distinct()];
+                .Select(id => declared.TryGetValue(id, out RulesetDocumentNodeKey key) ? key : (RulesetDocumentNodeKey?)null)
+                .OfType<RulesetDocumentNodeKey>().Distinct()];
             if (keys.Count == 0)
             {
                 continue;
@@ -114,7 +116,15 @@ public static class LiveValuesReducer
                 }
 
                 indices.Sort();
-                ValueSeries series = SeriesOf(indices, messages, snapshots, columns.TryGetValue(state, out int column) ? column : -1);
+                int column = columns.TryGetValue(state, out int found) ? found : -1;
+                if (indices.Count == 0 && column >= 0 && snapshots is not null)
+                {
+                    // An expression flag is driven by its siblings, not by an edge of its own: no message is
+                    // ever applied to it. Its series is where its snapshot column changes.
+                    ChangesOf(snapshots, column, messages.Count, indices);
+                }
+
+                ValueSeries series = SeriesOf(indices, messages, snapshots, column);
                 (int on, int off) = Transitions(series);
                 NodeTrack track = new(fires, series.Count > 0 ? series.Ticks[0] : null, series.Count > 0 ? series.Ticks[^1] : null,
                     state.GetDisplayValue(), state.GetNumericValue(), state.IsActive) { Series = series, OnCount = on, OffCount = off };
@@ -136,6 +146,25 @@ public static class LiveValuesReducer
         List<RulesetDocumentNodeKey> unbound = [.. declared.Values.Distinct().Where(k => !bound.Contains(k)).OrderBy(k => k.ToString(), StringComparer.Ordinal)];
         return new LiveValuesRun(demoPath, run.Build.Profile.GetType().Name, tickRate, firstTick, lastTick, instances, tracks, unbound,
             buildTime, evaluateTime, clock.Elapsed, peakBytes) { Wires = WireTracks(graph, rulesets, open, instances, applied, messages) };
+    }
+
+    /// <summary>The message indices at which a node's snapshot column changes value or activity, with the first row when it is already set.</summary>
+    public static void ChangesOf(EvaluationResult snapshots, int column, int messageCount, List<int> into)
+    {
+        ArgumentNullException.ThrowIfNull(snapshots);
+        ArgumentNullException.ThrowIfNull(into);
+        bool wasActive = false;
+        float? wasValue = null;
+        for (int index = 0; index < messageCount; index++)
+        {
+            NodeSnapshot snapshot = snapshots.MessageSnapshots[index, column];
+            if (snapshot.IsActive != wasActive || snapshot.NumericValue != wasValue)
+            {
+                into.Add(index);
+                wasActive = snapshot.IsActive;
+                wasValue = snapshot.NumericValue;
+            }
+        }
     }
 
     /// <summary>The value after each applied message, in index order, from the node's snapshot column; ticks alone without a column.</summary>

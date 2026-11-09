@@ -168,6 +168,11 @@ public class LiveValuesProbeTests
 
             if (rulesetId == "player_round")
             {
+                foreach (KeyValuePair<(RulesetDocumentNodeKey Key, int Instance), NodeTrack> kv in values.Nodes.Where(kv => kv.Key.Key.Id == "round_kast"))
+                {
+                    Console.WriteLine($"[live] round_kast inst {kv.Key.Instance} fires {kv.Value.FireCount} series {kv.Value.Series.Count} active {kv.Value.Series.Points.Count(p => p.Active)} on {kv.Value.OnCount} off {kv.Value.OffCount}");
+                }
+
                 await Assert.That(flags.Any(f => f.OnCount > 0)).IsTrue().Because("KAST comes on for someone");
                 await Assert.That(flags.All(f => f.OnCount + f.OffCount <= f.Series.Count)).IsTrue();
             }

@@ -111,7 +111,7 @@ public class LiveValuesTextTests
         using (Assert.Multiple())
         {
             await Assert.That(LiveValuesText.Tip(flag, _alice, true, false))
-                .IsEqualTo("Alice: fired 4 times, first tick 100, last tick 900, final on, on 2 times, off 1 times at fires");
+                .IsEqualTo("Alice: fired 4 times, first tick 100, last tick 900, final on, on 2 times, off 1 times");
             await Assert.That(LiveValuesText.Tip(new NodeTrack(0, null, null, "0", 0f, false), _alice, true, false))
                 .IsEqualTo("Alice: fired 0 times, final off").Because("no series, no counts to speak of");
         }

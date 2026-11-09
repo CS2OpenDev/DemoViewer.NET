@@ -33,7 +33,7 @@ public class CanvasTabViewModelPlayheadTests
             await Assert.That(logic.LiveKind).IsEqualTo(LiveWireKind.Logic);
             await Assert.That(logic.LiveTip).IsEqualTo("target fired 2 times, first tick 120, last tick 800").Because("no edge of its own: the target's fires, said as the target's");
             await Assert.That(LiveCanned.TriggerInto(vm, "round_deaths").LiveTip).StartsWith("target fired 2 times").Because("no track for the trigger wire itself");
-            await Assert.That(LiveCanned.Node(vm, "round_kast").LiveTip).Contains("on 1 times, off 1 times at fires");
+            await Assert.That(LiveCanned.Node(vm, "round_kast").LiveTip).Contains("on 1 times, off 1 times");
         }
     }
 
