@@ -7,7 +7,8 @@
 #   --reset     wipe the scratch directory and copy every fixture again, discarding edits made in the app
 #   --no-build  run the last Release build of the desktop app without building it
 #   --dir       the scratch directory (default $DV_TESTBED_DIR, else
-#               $HOME/.cache/demoviewer-rule-canvas-testbed/rules)
+#               $HOME/.cache/demoviewer-rule-canvas-testbed/rules); refused when it is the fixture
+#               directory or already holds files this script did not put there
 #
 # The fixtures live in src/Extensions/RuleCanvas/testbed/rules and are never edited in place. A plain run
 # copies only the fixtures missing from the scratch directory, so edits survive a relaunch.
@@ -31,17 +32,32 @@ while [ $# -gt 0 ]; do
         --dir)
             [ $# -ge 2 ] || { echo "--dir needs a path" >&2; exit 2; }
             DIR="$2"; shift 2 ;;
-        -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
         *) echo "unknown argument '$1'" >&2
            echo "usage: $0 [--reset] [--no-build] [--dir <path>]" >&2
            exit 2 ;;
     esac
 done
 
+# --reset deletes the directory, so it must be one this script made: never the fixtures themselves and
+# never a folder that already held something else, such as real user rules.
+MARKER=".rule-canvas-testbed"
+if [ -d "$DIR" ]; then
+    if [ "$(cd "$DIR" && pwd -P)" = "$(cd "$FIXTURES" && pwd -P)" ]; then
+        echo "refusing: $DIR is the fixture directory itself; pick a scratch directory" >&2
+        exit 2
+    fi
+    if [ ! -e "$DIR/$MARKER" ] && [ -n "$(ls -A "$DIR")" ]; then
+        echo "refusing: $DIR already holds files this script did not put there" >&2
+        exit 2
+    fi
+fi
+
 if [ "$RESET" -eq 1 ] && [ -d "$DIR" ]; then
     rm -rf "$DIR"
 fi
 mkdir -p "$DIR"
+touch "$DIR/$MARKER"
 
 for fixture in "$FIXTURES"/*.rules.yaml; do
     target="$DIR/$(basename "$fixture")"
