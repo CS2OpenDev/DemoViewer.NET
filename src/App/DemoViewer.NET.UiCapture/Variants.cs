@@ -170,6 +170,7 @@ public static partial class Variants
             ["rule-canvas-highlights"] = () => RuleCanvasHub(ruleset: "highlights_multikill", editable: true),
             ["rule-canvas-player-stats-focus"] = () => RuleCanvasHub(ruleset: "player_stats", focus: "TotalEnemyKills"),
             ["rule-canvas-defines"] = () => RuleCanvasHub(ruleset: "post_plant_double", editable: true),
+            ["rule-canvas-live"] = () => RuleCanvasHub(editable: true, live: true),
             // Concurrency seeded to 2 so the BACKGROUND PROCESSING section shows the RAM-risk warning (the
             // safety-critical element). The default state (1, no warning) is
             // captured by "settings".

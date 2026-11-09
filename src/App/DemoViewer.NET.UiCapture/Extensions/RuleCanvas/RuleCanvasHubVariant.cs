@@ -4,6 +4,7 @@ using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.RuleCanvas;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
+using DemoViewer.NET.Extensions.RuleCanvas.Model.Live;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules;
@@ -25,7 +26,7 @@ namespace DemoViewer.NET.UiCapture;
 public static partial class Variants
 {
     private static MainView RuleCanvasHub(bool showFacets = true, string ruleset = "player_round", bool editable = false,
-        string? focus = null)
+        string? focus = null, bool live = false)
     {
         RuleCanvasPack pack = new();
         ServiceCollection services = new();
@@ -39,8 +40,13 @@ public static partial class Variants
             Directory.CreateDirectory(user);
             string shipped = CS2DemoKit.Analysis.Yaml.RuleSetLocator.ResolveShippedRulesDirectory();
             File.Copy(Path.Combine(shipped, ruleset + ".rules.yaml"), Path.Combine(user, ruleset + ".rules.yaml"));
+            // With live on, a host that names the demo and has no queue: the strip shows the file, the badges
+            // come from the canned run below, and Re-run has nothing to run on.
+            LiveValuesHost? host = live
+                ? new LiveValuesHost(static () => null, static () => CannedDemoPath, static () => null, static action => action())
+                : null;
             services.AddSingleton(new CanvasTabViewModel(_ => true,
-                () => RulesetCorpus.Load([(shipped, "shipped"), (user, "user")]), () => Path.Combine(root, "own")));
+                () => RulesetCorpus.Load([(shipped, "shipped"), (user, "user")]), () => Path.Combine(root, "own"), null, host));
         }
 
         ServiceProvider provider = services.BuildServiceProvider();
@@ -68,7 +74,54 @@ public static partial class Variants
             canvas.FocusNode(canvas.Nodes.Single(n => n.Id == focus));
         }
 
+        if (live)
+        {
+            // A canned run stands in for the demo: badges and tooltips render without a parse or a queue.
+            canvas.OnActivated(null!);
+            canvas.ShowLiveRun(CannedLiveRun(ruleset));
+        }
+
         return new MainView { DataContext = vm };
+    }
+
+    private const string CannedDemoPath = "/demos/benchmarks/003816248937665266002_0544286934.dem";
+
+    // player_round over the reference demo, as stage 0 measured it: the game and eight players, the
+    // busiest first, with round_side left unbound so the no-data badge shows too.
+    private static LiveValuesRun CannedLiveRun(string ruleset)
+    {
+        string[] names = ["Goonicus", "fonzieguy", "Little Michael Jackson", "JAM7374", "Vitaltiger8", "zoah", "Cantgobacc", "I LOVE TANKS"];
+        List<LiveInstance> instances = [new LiveInstance(0, null, null)];
+        for (int i = 0; i < names.Length; i++)
+        {
+            instances.Add(new LiveInstance(i + 1, i, names[i]));
+        }
+
+        Dictionary<(RulesetDocumentNodeKey Key, int Instance), NodeTrack> nodes = [];
+        (string Id, int Fires, int Last, float Final)[] stats =
+        [
+            ("round_kills", 23, 89289, 1), ("round_deaths", 17, 87948, 0), ("round_assists", 6, 82350, 0),
+            ("round_damage", 78, 89289, 54), ("round_survived", 11, 87447, 1), ("round_kast_assists", 4, 83342, 0)
+        ];
+        for (int instance = 1; instance < instances.Count; instance++)
+        {
+            foreach ((string id, int fires, int last, float final) in stats)
+            {
+                int scaled = Math.Max(0, fires - instance * 2);
+                float value = instance == 1 ? final : Math.Max(0, final - instance % 3);
+                nodes[(new RulesetDocumentNodeKey(ruleset, id), instance)] =
+                    new NodeTrack(scaled, scaled == 0 ? null : 2400 + instance * 310, scaled == 0 ? null : last - instance * 1200,
+                        value.ToString(System.Globalization.CultureInfo.InvariantCulture), value, value != 0);
+            }
+
+            bool kast = instance % 2 == 1;
+            nodes[(new RulesetDocumentNodeKey(ruleset, "round_kast"), instance)] =
+                new NodeTrack(kast ? 19 : 0, kast ? 2600 : null, kast ? 88100 : null, kast ? "1" : "0", kast ? 1 : 0, kast);
+        }
+
+        return new LiveValuesRun(CannedDemoPath, "Cs2GotvProfile", 64, -1, 90568,
+            instances, nodes, [new RulesetDocumentNodeKey(ruleset, "round_side")],
+            TimeSpan.FromMilliseconds(30), TimeSpan.FromSeconds(3.7), TimeSpan.FromMilliseconds(7), 72L * 1_048_576);
     }
 
     private sealed class EverythingOn : IFeatureGate
