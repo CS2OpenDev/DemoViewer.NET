@@ -142,6 +142,11 @@ public sealed partial class InspectorViewModel : ObservableObject
     /// <summary>The names of the document's <c>show.tables</c>, for the add-to-table picker.</summary>
     public ObservableCollection<string> Tables { get; } = [];
 
+    /// <summary>The <c>params:</c> entries with their type and bounds, shown while the params node is selected.</summary>
+    public ObservableCollection<ParamEntryViewModel> Params { get; } = [];
+
+    public bool HasParams => Params.Count > 0;
+
     /// <summary>Whether a ruleset is open at all.</summary>
     [ObservableProperty]
     private bool _hasDocument;
@@ -311,6 +316,15 @@ public sealed partial class InspectorViewModel : ObservableObject
             Tables.Add(table.Name);
         }
 
+        Params.Clear();
+        if (node is { IsParams: true, Face: ParamsFace parameters })
+        {
+            foreach (ParamDef param in parameters.Params)
+            {
+                Params.Add(new ParamEntryViewModel(param, IsNodeAuthorable && editable, WriteParamField));
+            }
+        }
+
         TableToAdd = Tables.FirstOrDefault();
         if (node is not null)
         {
@@ -440,7 +454,7 @@ public sealed partial class InspectorViewModel : ObservableObject
             : !node.IsAuthorable ? $"Declared by {node.Ruleset}; open that ruleset to edit it."
             : node.IsDefine ? "A named trigger; the stats that fire on it are wired from it."
             : node.IsShow ? "A surface; wire a stat into it to add a column, remove a column's wire to drop it."
-            : node.IsParams ? "The params: block; each default is edited on the node, and the entries reading it are wired from it."
+            : node.IsParams ? "The params: block; each default is edited on the node, its type and bounds below, and the entries reading it are wired from it."
             : "";
         SurfacingHeading = node.IsShow ? "COLUMNS" : "SURFACING";
         if (node.IsDefine)
@@ -768,6 +782,18 @@ public sealed partial class InspectorViewModel : ObservableObject
             $"rename {node.Title} to {wanted}");
     }
 
+    // A param's type or bound, under the key the semantics address it by; the refusal lands on the field.
+    private void WriteParamField(InspectorFieldViewModel field, string key, string? value)
+    {
+        if (_node is not { IsParams: true } node || !CanEditNode)
+        {
+            return;
+        }
+
+        EditOutcome outcome = Apply(CanvasEditSemantics.WriteParamField(node, key, value));
+        field.Error = outcome.IsRefused ? outcome.Message ?? "" : "";
+    }
+
     private void WriteDocumentField(InspectorFieldViewModel field, string? value)
     {
         if (!IsEditable || !HasDocument)
@@ -843,6 +869,7 @@ public sealed partial class InspectorViewModel : ObservableObject
         OnPropertyChanged(nameof(HasNodeNote));
         OnPropertyChanged(nameof(HasReadOnlyNote));
         OnPropertyChanged(nameof(HasEntries));
+        OnPropertyChanged(nameof(HasParams));
         OnPropertyChanged(nameof(HasTables));
         OnPropertyChanged(nameof(HasUses));
         OnPropertyChanged(nameof(HasExports));

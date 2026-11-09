@@ -1296,9 +1296,23 @@ public static class RulesetEdits
     ///     Sets a param's <c>default:</c>, written as the author would (<c>60</c>, <c>true</c>, <c>10s</c>), in
     ///     place when the key is there and appended inside the param's mapping when it is not.
     /// </summary>
-    public static string SetParamDefault(string text, string name, string value)
+    public static string SetParamDefault(string text, string name, string value) => SetParamField(text, name, "default", value);
+
+    /// <summary>The keys a param holds, in the order the corpus writes them.</summary>
+    public static IReadOnlyList<string> ParamKeys { get; } = ["type", "default", "min", "max"];
+
+    /// <summary>
+    ///     Sets one key of a param (<c>type</c>, <c>default</c>, <c>min</c>, <c>max</c>), written as the author
+    ///     would, in place when the key is there and appended inside the param's mapping when it is not.
+    /// </summary>
+    public static string SetParamField(string text, string name, string key, string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        if (!ParamKeys.Contains(key, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException($"a param has no {key} key");
+        }
+
         RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
         YamlDocumentText doc = editor.Document;
         YamlPath param = _params.Key(name);
@@ -1307,22 +1321,48 @@ public static class RulesetEdits
             throw new InvalidOperationException($"{name} is not a param in this document");
         }
 
-        if (doc.Find(param.Key("default")) is YamlScalarNode)
+        if (doc.Find(param.Key(key)) is YamlScalarNode)
         {
-            return editor.Apply([YamlEdits.SetScalar(doc, param.Key("default"), value)]).Text;
+            return editor.Apply([YamlEdits.SetScalar(doc, param.Key(key), value)]).Text;
         }
 
-        // A new default is written raw: the writer's own append would quote a number, and a quoted
-        // default is a string the mapper refuses for an int param.
+        // A new value is written raw: the writer's own append would quote a number, and a quoted
+        // number is a string the mapper refuses for an int param.
         if (map.Style == MappingStyle.Flow)
         {
             TextEdit append = map.Children.Count > 0
-                ? new TextEdit(doc.EndOf(map.Children.Last().Value), 0, $", default: {value}", $"add {param}.default")
-                : new TextEdit((int)map.Start.Index + 1, 0, $"default: {value}", $"add {param}.default");
+                ? new TextEdit(doc.EndOf(map.Children.Last().Value), 0, $", {key}: {value}", $"add {param}.{key}")
+                : new TextEdit((int)map.Start.Index + 1, 0, $"{key}: {value}", $"add {param}.{key}");
             return editor.Apply([append]).Text;
         }
 
-        return editor.Apply([YamlEdits.AddEntry(doc, param, $"default: {value}")]).Text;
+        return editor.Apply([YamlEdits.AddEntry(doc, param, $"{key}: {value}")]).Text;
+    }
+
+    /// <summary>Removes a param's <c>min</c> or <c>max</c> when it is there; the text is unchanged otherwise. The type and the default stay.</summary>
+    public static string RemoveParamField(string text, string name, string key)
+    {
+        if (key is not ("min" or "max"))
+        {
+            throw new InvalidOperationException($"a param keeps its {key}; only min and max can be removed");
+        }
+
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        YamlPath param = _params.Key(name);
+        if (doc.Find(param) is not YamlMappingNode map)
+        {
+            throw new InvalidOperationException($"{name} is not a param in this document");
+        }
+
+        if (doc.Find(param.Key(key)) is null)
+        {
+            return text;
+        }
+
+        return map.Style == MappingStyle.Flow
+            ? editor.Apply([RemoveFlowKey(doc, map, key, param)]).Text
+            : editor.Apply([YamlEdits.RemoveKey(doc, param, key)]).Text;
     }
 
     // ---- exports: ----

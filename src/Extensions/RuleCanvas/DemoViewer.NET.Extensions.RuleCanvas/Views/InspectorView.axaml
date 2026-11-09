@@ -59,6 +59,23 @@
                 </StackPanel>
             </Border>
         </DataTemplate>
+        <!-- One params: entry: the name with its default, then its type and bounds editable. -->
+        <DataTemplate x:Key="ParamTemplate" x:DataType="vm:ParamEntryViewModel">
+            <Border CornerRadius="4" Padding="8 5" Margin="0 0 0 6" Background="{DynamicResource CardBg}"
+                    BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1">
+                <StackPanel Spacing="4">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{Binding Name}" FontSize="11" FontFamily="monospace"
+                                   Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Default}" FontSize="10" FontFamily="monospace" Foreground="{DynamicResource TextMid}"
+                                   VerticalAlignment="Center" ToolTip.Tip="The default, edited on the node" />
+                    </StackPanel>
+                    <ContentControl Content="{Binding Type}" ContentTemplate="{StaticResource FieldTemplate}" />
+                    <ContentControl Content="{Binding Min}" ContentTemplate="{StaticResource FieldTemplate}" />
+                    <ContentControl Content="{Binding Max}" ContentTemplate="{StaticResource FieldTemplate}" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
     </UserControl.Resources>
 
     <DockPanel>
@@ -90,6 +107,12 @@
                         <Button Classes="ghost" Content="{Binding ForEachFixLabel}" FontSize="11" Padding="8 3" Margin="80 0 0 0"
                                 HorizontalAlignment="Left" IsVisible="{Binding HasForEachFix}" Command="{Binding ApplyForEachFixCommand}"
                                 ToolTip.Tip="Rename the entry to hold the axis hole and write the for_each, as one undoable edit" />
+                    </StackPanel>
+
+                    <!-- The params node: each param's type and bounds; the defaults are rows on the node. -->
+                    <StackPanel Spacing="6" IsVisible="{Binding HasParams}">
+                        <TextBlock Text="PARAMS" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" />
+                        <ItemsControl ItemsSource="{Binding Params}" ItemTemplate="{StaticResource ParamTemplate}" />
                     </StackPanel>
 
                     <StackPanel Spacing="6" IsVisible="{Binding ShowsSurfacing}">
