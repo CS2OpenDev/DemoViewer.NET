@@ -155,7 +155,8 @@ public class CanvasDeleteTests
         CanvasTabViewModel vm = rules.NewViewModel();
         vm.OnActivated(null!);
         string before = File.ReadAllText(path);
-        await Assert.That(vm.Connections).IsEmpty().Because("one unresolved reference empties the composition");
+        await Assert.That(vm.Connections.All(w => w.Target.Owner is { IsShow: true })).IsTrue()
+            .Because("one unresolved reference empties the composition; only the table's column wires come from the document");
 
         vm.SelectedNodes.Add(vm.Nodes.Single(n => n.Id == "round_kast_assists"));
         vm.DeleteSelectedCommand.Execute(null);

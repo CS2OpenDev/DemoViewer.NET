@@ -891,54 +891,10 @@ public static class RulesetEdits
     }
 
     /// <summary>Adds <paramref name="ruleset" /> to <c>use:</c>, creating the list after the header when there is none.</summary>
-    public static string AddUse(string text, string ruleset)
-    {
-        if (!IsValidId(ruleset))
-        {
-            throw new InvalidOperationException($"'{ruleset}' is not a ruleset id");
-        }
-
-        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
-        YamlDocumentText doc = editor.Document;
-        YamlPath use = YamlPath.Root.Key("use");
-        switch (doc.Find(use))
-        {
-            case YamlSequenceNode seq:
-                return seq.Children.OfType<YamlScalarNode>().Any(n => n.Value == ruleset)
-                    ? text
-                    : editor.Apply([YamlEdits.AddSequenceItem(doc, use, ruleset)]).Text;
-            case YamlScalarNode:
-                editor = editor.Apply([YamlEdits.RemoveKey(doc, YamlPath.Root, "use")]);
-                doc = editor.Document;
-                break;
-            case not null:
-                throw new InvalidOperationException("use: is not a list; edit it in the YAML tab");
-        }
-
-        return editor.Apply([InsertHeaderLine(doc, "use", $"use: [{ruleset}]")]).Text;
-    }
+    public static string AddUse(string text, string ruleset) => AddListed(text, "use", ruleset);
 
     /// <summary>Removes <paramref name="ruleset" /> from <c>use:</c>; the last one takes the key with it.</summary>
-    public static string RemoveUse(string text, string ruleset)
-    {
-        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
-        YamlDocumentText doc = editor.Document;
-        YamlPath use = YamlPath.Root.Key("use");
-        if (doc.Find(use) is not YamlSequenceNode seq)
-        {
-            return text;
-        }
-
-        int index = seq.Children.ToList().FindIndex(n => (n as YamlScalarNode)?.Value == ruleset);
-        if (index < 0)
-        {
-            return text;
-        }
-
-        return seq.Children.Count == 1
-            ? editor.Apply([YamlEdits.RemoveKey(doc, YamlPath.Root, "use")]).Text
-            : editor.Apply([RemoveSequenceItem(doc, seq, index, use)]).Text;
-    }
+    public static string RemoveUse(string text, string ruleset) => RemoveListed(text, "use", ruleset);
 
     // ---- show: ----
 
@@ -1010,8 +966,335 @@ public static class RulesetEdits
             : editor.Apply([YamlEdits.RemoveKey(doc, entry, key)]).Text;
     }
 
-    /// <summary>Removes one scoreboard entry or table column; an emptied list, table or section goes with it.</summary>
-    public static string RemoveShowItem(string text, string? table, int index) => RemoveShowItems(text, [(table, index)]);
+    /// <summary>
+    ///     Removes one scoreboard entry or table column. The list it came from stays, as <c>[]</c> when it was
+    ///     the last: the table or the scoreboard is a node of its own, and a node does not go with its last wire.
+    /// </summary>
+    public static string RemoveShowItem(string text, string? table, int index) => RemoveShowItems(text, [(table, index)], keepLists: true);
+
+    /// <summary>
+    ///     Adds an empty <c>show: tables:</c> entry named <paramref name="name" /> with <paramref name="per" />
+    ///     as its grain, opening <c>show:</c> and <c>tables:</c> when the document has none.
+    /// </summary>
+    public static string AddTable(string text, string name, string per)
+    {
+        if (!IsValidId(name))
+        {
+            throw new InvalidOperationException($"'{name}' is not a valid table name: letters, digits and underscores, not starting with a digit");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(per);
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        if (doc.Find(_tables.Key(name)) is not null)
+        {
+            throw new InvalidOperationException($"show: already has a table named {name}");
+        }
+
+        string body = $"per: {per}\ncolumns: []";
+        if (HoldsBlock(doc, _tables))
+        {
+            return editor.Apply([YamlEdits.AddEntry(doc, _tables, Nest(name, body))]).Text;
+        }
+
+        if (HoldsBlock(doc, _show))
+        {
+            return editor.Apply([YamlEdits.AddEntry(doc, _show, Nest("tables", Nest(name, body)))]).Text;
+        }
+
+        if (doc.Find(_show) is not null)
+        {
+            throw new InvalidOperationException("show: is not a block mapping; edit it in the YAML tab");
+        }
+
+        return editor.Apply([YamlEdits.AddEntry(doc, YamlPath.Root, Nest("show", Nest("tables", Nest(name, body))))]).Text;
+    }
+
+    /// <summary>Removes the table <paramref name="name" /> whole; an emptied <c>tables:</c> or <c>show:</c> goes with it.</summary>
+    public static string RemoveTable(string text, string name)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        if (editor.Document.Find(_tables.Key(name)) is null)
+        {
+            throw new InvalidOperationException($"show: has no table named {name}");
+        }
+
+        return RemoveEmptiedShowLevels(editor.Apply([YamlEdits.RemoveKey(editor.Document, _tables, name)])).Text;
+    }
+
+    /// <summary>Removes the <c>scoreboard:</c> list whole; an emptied <c>show:</c> goes with it.</summary>
+    public static string RemoveScoreboard(string text)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        if (editor.Document.FindKey(_scoreboard) is null)
+        {
+            throw new InvalidOperationException("show: has no scoreboard");
+        }
+
+        return RemoveEmptiedShowLevels(editor.Apply([YamlEdits.RemoveKey(editor.Document, _show, "scoreboard")])).Text;
+    }
+
+    /// <summary>Sets a table's <c>per:</c> grain.</summary>
+    public static string SetTablePer(string text, string name, string per)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(per);
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        if (editor.Document.Find(_tables.Key(name)) is not YamlMappingNode)
+        {
+            throw new InvalidOperationException($"show: has no table named {name}");
+        }
+
+        return editor.Apply([YamlEdits.SetKey(editor.Document, _tables.Key(name), "per", per)]).Text;
+    }
+
+    /// <summary>The names under <c>show: tables:</c>, in document order.</summary>
+    public static IReadOnlyList<string> TableNames(string text) => KeysUnder(RulesetDocumentEditor.Open(text).Document, _tables);
+
+    /// <summary>The table grains the registry accepts for a ruleset's <c>for:</c>, the one a new table takes first.</summary>
+    public static IReadOnlyList<string> TableGrainsFor(string? scope) => scope switch
+    {
+        "each_team" => ["team_round", "team_match", "team_event"],
+        "match" => ["match", "match_event"],
+        "each_projectile" => ["projectile"],
+        _ => ["player_round", "player_match", "player_event"]
+    };
+
+    // Whether `path` can take a block entry: a block mapping, or a key left holding nothing.
+    private static bool HoldsBlock(YamlDocumentText doc, YamlPath path) =>
+        doc.Find(path) is YamlMappingNode { Style: not MappingStyle.Flow }
+        || (doc.FindKey(path) is not null && doc.Find(path) is YamlScalarNode { Value: null or "" });
+
+    // `key:` over `body` at one more indentation, composed at zero so the writer re-indents the whole.
+    private static string Nest(string key, string body) => key + ":\n" + string.Join('\n', body.Split('\n').Select(l => "  " + l));
+
+    // ---- params: ----
+
+    private static readonly YamlPath _params = YamlPath.Root.Key("params");
+
+    /// <summary>The names under <c>params:</c>, in document order.</summary>
+    public static IReadOnlyList<string> ParamNames(string text) => KeysUnder(RulesetDocumentEditor.Open(text).Document, _params);
+
+    /// <summary>The scalar a param holds under <paramref name="key" /> (<c>type</c>, <c>default</c>, <c>min</c>, <c>max</c>), or null.</summary>
+    public static string? ParamField(string text, string name, string key) =>
+        RulesetDocumentEditor.Open(text).Scalar(_params.Key(name).Key(key));
+
+    /// <summary>
+    ///     Sets a param's <c>default:</c>, written as the author would (<c>60</c>, <c>true</c>, <c>10s</c>), in
+    ///     place when the key is there and appended inside the param's mapping when it is not.
+    /// </summary>
+    public static string SetParamDefault(string text, string name, string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        YamlPath param = _params.Key(name);
+        if (doc.Find(param) is not YamlMappingNode map)
+        {
+            throw new InvalidOperationException($"{name} is not a param in this document");
+        }
+
+        if (doc.Find(param.Key("default")) is YamlScalarNode)
+        {
+            return editor.Apply([YamlEdits.SetScalar(doc, param.Key("default"), value)]).Text;
+        }
+
+        // A new default is written raw: the writer's own append would quote a number, and a quoted
+        // default is a string the mapper refuses for an int param.
+        if (map.Style == MappingStyle.Flow)
+        {
+            TextEdit append = map.Children.Count > 0
+                ? new TextEdit(doc.EndOf(map.Children.Last().Value), 0, $", default: {value}", $"add {param}.default")
+                : new TextEdit((int)map.Start.Index + 1, 0, $"default: {value}", $"add {param}.default");
+            return editor.Apply([append]).Text;
+        }
+
+        return editor.Apply([YamlEdits.AddEntry(doc, param, $"default: {value}")]).Text;
+    }
+
+    // ---- exports: ----
+
+    /// <summary>The <c>exports:</c> list as written; empty when the key is absent, which exports everything.</summary>
+    public static IReadOnlyList<string> Exports(string text) => Listed(text, "exports");
+
+    /// <summary>Whether the document writes an <c>exports:</c> key at all.</summary>
+    public static bool HasExports(string text) => RulesetDocumentEditor.Open(text).Document.FindKey(YamlPath.Root.Key("exports")) is not null;
+
+    /// <summary>Adds <paramref name="id" /> to <c>exports:</c>, creating the list after the header when there is none.</summary>
+    public static string AddExport(string text, string id) => AddListed(text, "exports", id);
+
+    /// <summary>Removes <paramref name="id" /> from <c>exports:</c>; the last one takes the key with it, which exports everything again.</summary>
+    public static string RemoveExport(string text, string id) => RemoveListed(text, "exports", id);
+
+    private static IReadOnlyList<string> Listed(string text, string key) =>
+        RulesetDocumentEditor.Open(text).Document.Find(YamlPath.Root.Key(key)) is YamlSequenceNode seq
+            ? [.. seq.Children.OfType<YamlScalarNode>().Select(n => n.Value ?? "")]
+            : [];
+
+    private static string AddListed(string text, string key, string id)
+    {
+        if (!IsValidId(id))
+        {
+            throw new InvalidOperationException($"'{id}' is not an id");
+        }
+
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        YamlPath list = YamlPath.Root.Key(key);
+        switch (doc.Find(list))
+        {
+            case YamlSequenceNode seq:
+                return seq.Children.OfType<YamlScalarNode>().Any(n => n.Value == id)
+                    ? text
+                    : editor.Apply([YamlEdits.AddSequenceItem(doc, list, id)]).Text;
+            case YamlScalarNode:
+                editor = editor.Apply([YamlEdits.RemoveKey(doc, YamlPath.Root, key)]);
+                doc = editor.Document;
+                break;
+            case not null:
+                throw new InvalidOperationException($"{key}: is not a list; edit it in the YAML tab");
+        }
+
+        return editor.Apply([InsertHeaderLine(doc, key, $"{key}: [{id}]")]).Text;
+    }
+
+    private static string RemoveListed(string text, string key, string id)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        YamlPath list = YamlPath.Root.Key(key);
+        if (doc.Find(list) is not YamlSequenceNode seq)
+        {
+            return text;
+        }
+
+        int index = seq.Children.ToList().FindIndex(n => (n as YamlScalarNode)?.Value == id);
+        if (index < 0)
+        {
+            return text;
+        }
+
+        return seq.Children.Count == 1
+            ? editor.Apply([YamlEdits.RemoveKey(doc, YamlPath.Root, key)]).Text
+            : editor.Apply([RemoveSequenceItem(doc, seq, index, list)]).Text;
+    }
+
+    // ---- for_each: ----
+
+    /// <summary>
+    ///     The <c>for_each:</c> axes of an entry as written: each key with its values' source texts, in
+    ///     document order; empty when the entry has none.
+    /// </summary>
+    public static IReadOnlyList<(string Key, IReadOnlyList<string> Values)> ForEachOf(string text, EntrySection section, string id)
+    {
+        YamlDocumentText doc = RulesetDocumentEditor.Open(text).Document;
+        if (doc.Find(RulesetEntryText.PathOf(section, id).Key("for_each")) is not YamlMappingNode map)
+        {
+            return [];
+        }
+
+        List<(string, IReadOnlyList<string>)> axes = [];
+        foreach ((YamlNode key, YamlNode value) in map.Children)
+        {
+            if (key is YamlScalarNode { Value: { } name })
+            {
+                IReadOnlyList<string> values = value switch
+                {
+                    YamlSequenceNode seq => [.. seq.Children.OfType<YamlScalarNode>().Select(n => n.Value ?? "")],
+                    YamlScalarNode scalar => [scalar.Value ?? ""],
+                    _ => []
+                };
+                axes.Add((name, values));
+            }
+        }
+
+        return axes;
+    }
+
+    /// <summary>
+    ///     Writes an entry's <c>for_each:</c> as the flow mapping <c>{ key: [a, b] }</c>, replacing the key
+    ///     when it is there. Every axis needs a name and at least one value, and the entry's id must hold the
+    ///     axis's <c>{key}</c> hole, or the expansion would declare the same id once per value.
+    /// </summary>
+    public static string SetForEach(string text, EntrySection section, string id, IReadOnlyList<(string Key, IReadOnlyList<string> Values)> axes)
+    {
+        ArgumentNullException.ThrowIfNull(axes);
+        if (axes.Count == 0)
+        {
+            throw new InvalidOperationException("for_each needs at least one axis");
+        }
+
+        foreach ((string key, IReadOnlyList<string> values) in axes)
+        {
+            if (!IsValidId(key))
+            {
+                throw new InvalidOperationException($"'{key}' is not a valid axis name: letters, digits and underscores, not starting with a digit");
+            }
+
+            if (values.Count == 0 || values.Any(string.IsNullOrWhiteSpace))
+            {
+                throw new InvalidOperationException($"axis {key} needs at least one value");
+            }
+
+            if (!id.Contains("{" + key + "}", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException($"{id} has no {{{key}}} hole, so every value would declare the same id; rename the entry to hold it first");
+            }
+        }
+
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlPath entry = RulesetEntryText.PathOf(section, id);
+        if (editor.Document.Find(entry) is not YamlMappingNode)
+        {
+            throw new InvalidOperationException($"{id} is not an entry of this document");
+        }
+
+        if (editor.Document.Find(entry.Key("for_each")) is not null)
+        {
+            editor = editor.Apply([YamlEdits.RemoveKey(editor.Document, entry, "for_each")]);
+        }
+
+        string flow = "{ " + string.Join(", ", axes.Select(a => $"{a.Key}: [{string.Join(", ", a.Values.Select(v => PlainOrQuoted(v.Trim(), inFlow: true)))}]")) + " }";
+        return editor.Apply([YamlEdits.AddEntry(editor.Document, entry, "for_each: " + flow)]).Text;
+    }
+
+    /// <summary>Removes an entry's <c>for_each:</c> when it has one; the text is unchanged otherwise.</summary>
+    public static string RemoveForEach(string text, EntrySection section, string id)
+    {
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlPath entry = RulesetEntryText.PathOf(section, id);
+        return editor.Document.Find(entry.Key("for_each")) is null
+            ? text
+            : editor.Apply([YamlEdits.RemoveKey(editor.Document, entry, "for_each")]).Text;
+    }
+
+    /// <summary>
+    ///     The axes an editor's text spells, one per line or semicolon: <c>weapon: ak47, awp</c>. Empty text
+    ///     is no axes; a line without a colon is refused.
+    /// </summary>
+    public static IReadOnlyList<(string Key, IReadOnlyList<string> Values)> ParseForEach(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        List<(string, IReadOnlyList<string>)> axes = [];
+        foreach (string line in text.Split(['\n', ';']).Select(l => l.Trim()).Where(l => l.Length > 0))
+        {
+            int colon = line.IndexOf(':', StringComparison.Ordinal);
+            if (colon < 0)
+            {
+                throw new InvalidOperationException($"'{line}' is not an axis: write key: value, value");
+            }
+
+            axes.Add((line[..colon].Trim(), [.. line[(colon + 1)..].Split(',').Select(v => v.Trim()).Where(v => v.Length > 0)]));
+        }
+
+        return axes;
+    }
+
+    /// <summary>The axes spelled the way <see cref="ParseForEach" /> reads them: one <c>key: a, b</c> per line.</summary>
+    public static string SpellForEach(IReadOnlyList<(string Key, IReadOnlyList<string> Values)> axes)
+    {
+        ArgumentNullException.ThrowIfNull(axes);
+        return string.Join('\n', axes.Select(a => $"{a.Key}: {string.Join(", ", a.Values)}"));
+    }
 
     /// <summary>Removes every <c>show:</c> entry that names <paramref name="id" />, by any spelling <see cref="ShowSurface.Refers" /> accepts.</summary>
     public static string RemoveShowReference(string text, string id)
@@ -1058,12 +1341,14 @@ public static class RulesetEdits
         return $"ruleset: {id}\ntitle: {PlainOrQuoted(title)}\nfor: each_player\n\nstats: {{}}\n";
     }
 
-    // Items are removed from the same text in one batch, then whatever they emptied is taken out level by level.
-    private static string RemoveShowItems(string text, IReadOnlyList<(string? Table, int Index)> items)
+    // Items are removed from the same text in one batch, then whatever they emptied is taken out level by
+    // level, or, with keepLists, an emptied list is written back as [] so its node stays.
+    private static string RemoveShowItems(string text, IReadOnlyList<(string? Table, int Index)> items, bool keepLists = false)
     {
         RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
         YamlDocumentText doc = editor.Document;
         List<TextEdit> edits = [];
+        List<YamlPath> lists = [];
         foreach (IGrouping<string?, int> hits in items.GroupBy(i => i.Table, i => i.Index))
         {
             YamlPath list = hits.Key is null ? _scoreboard : _tables.Key(hits.Key).Key("columns");
@@ -1073,11 +1358,34 @@ public static class RulesetEdits
                 throw new InvalidOperationException($"show: has no entry {indices[^1]} in {hits.Key ?? "scoreboard"}");
             }
 
+            lists.Add(list);
             edits.AddRange(RemoveSequenceItems(doc, seq, indices, list));
         }
 
         editor = editor.Apply(edits);
-        doc = editor.Document;
+        if (keepLists)
+        {
+            foreach (YamlPath list in lists)
+            {
+                doc = editor.Document;
+                // A block list whose items all went parses as an empty scalar after the colon.
+                if (doc.Find(list) is YamlScalarNode { Value: null or "" } && doc.FindKey(list) is { } key)
+                {
+                    (int start, int length) = doc.SpanOf(key);
+                    editor = editor.Apply([new TextEdit(start + length + 1, 0, " []", $"empty {list}")]);
+                }
+            }
+
+            return editor.Text;
+        }
+
+        return RemoveEmptiedShowLevels(editor).Text;
+    }
+
+    // Takes out an emptied scoreboard, each emptied table, an emptied tables: and an emptied show:, in that order.
+    private static RulesetDocumentEditor RemoveEmptiedShowLevels(RulesetDocumentEditor editor)
+    {
+        YamlDocumentText doc = editor.Document;
         if (IsEmptyCollection(doc.Find(_scoreboard)))
         {
             editor = editor.Apply([YamlEdits.RemoveKey(doc, _show, "scoreboard")]);
@@ -1104,7 +1412,7 @@ public static class RulesetEdits
             editor = editor.Apply([YamlEdits.RemoveKey(doc, YamlPath.Root, "show")]);
         }
 
-        return editor.Text;
+        return editor;
     }
 
     // A block collection whose entries were all removed parses as an empty scalar; a flow one keeps its brackets.
@@ -1139,6 +1447,13 @@ public static class RulesetEdits
     // The appended item is a flow mapping, which the writer's own append would quote as a string.
     private static TextEdit AppendFlowItem(YamlDocumentText doc, YamlSequenceNode seq, string item, YamlPath path)
     {
+        if (seq.Style == SequenceStyle.Flow && seq.Children.Count == 0)
+        {
+            // An empty `[]` becomes the block list the corpus writes, one item per line under the key.
+            (int start, int length) = doc.SpanOf(seq);
+            return new TextEdit(start, length, $"{doc.NewLine}{doc.IndentOf(start)}  - {item}", $"append to {path}");
+        }
+
         if (seq.Style == SequenceStyle.Flow)
         {
             int inner = seq.Children.Count > 0 ? doc.EndOf(seq.Children[^1]) : (int)seq.Start.Index + 1;

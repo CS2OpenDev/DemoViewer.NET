@@ -114,7 +114,7 @@ public class CanvasViewMarkupTests
             && (Attribute(e, "Background") == "{DynamicResource AccentError}"
                 || (e.Attribute(_views + "TokenBrush.Background")?.Value ?? "").Contains("DiagnosticSeverityToken", StringComparison.Ordinal)))];
         List<XElement> texts = [.. badges.SelectMany(b => b.Descendants().Where(e => e.Name.LocalName == "TextBlock"))];
-        await Assert.That(texts.Count).IsEqualTo(3).Because("the strip badge holds two texts, the node badge one");
+        await Assert.That(texts.Count).IsEqualTo(4).Because("the strip badge holds two texts, the node badge one, the show node badge one");
         foreach (XElement text in texts)
         {
             await Assert.That(Attribute(text, "Foreground")).IsEqualTo("{DynamicResource RuleDiagnosticBadgeText}").Because(Attribute(text, "Text"));

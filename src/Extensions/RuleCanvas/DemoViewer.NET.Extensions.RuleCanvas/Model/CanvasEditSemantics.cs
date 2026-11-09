@@ -1,5 +1,7 @@
 #region
 
+using System.Globalization;
+using System.Text.RegularExpressions;
 using CS2DemoKit.Analysis.Catalog;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
@@ -53,7 +55,7 @@ public sealed record NodeDependants(string Id, IReadOnlyList<string> Readers, bo
 ///     out, which the session applies. Nothing here touches a file or a view; the catalog is read for the
 ///     view a trigger names and the facet an enrichment is reached through.
 /// </summary>
-public static class CanvasEditSemantics
+public static partial class CanvasEditSemantics
 {
     /// <summary>The gates, in the order the gallery and the picker offer them.</summary>
     public static IReadOnlyList<GatePath> GatePaths { get; } =
@@ -142,7 +144,7 @@ public static class CanvasEditSemantics
             return [new GalleryItem(GalleryItemKind.Prefab, source.Id + "_count", "New count on " + source.Id, "Counts the define's firings per round.", $"count: {source.Id}\nper: round")];
         }
 
-        if (source.IsHighlight || !source.IsAuthorable)
+        if (source.IsHighlight || !source.IsAuthorable || source.IsShow || source.IsParams)
         {
             return [];
         }
@@ -172,9 +174,13 @@ public static class CanvasEditSemantics
         ];
     }
 
-    /// <summary>The node key a placed item will draw under: a define's is prefixed, every other entry's is its id.</summary>
-    public static RulesetDocumentNodeKey PlacedKeyFor(GalleryItem item, string ruleset, string id) =>
-        item.Kind == GalleryItemKind.Define ? RulesetDocumentNodeKey.Define(ruleset, id) : new RulesetDocumentNodeKey(ruleset, id);
+    /// <summary>The node key a placed item will draw under: a define's and a table's are prefixed, every other entry's is its id.</summary>
+    public static RulesetDocumentNodeKey PlacedKeyFor(GalleryItem item, string ruleset, string id) => item.Kind switch
+    {
+        GalleryItemKind.Define => RulesetDocumentNodeKey.Define(ruleset, id),
+        GalleryItemKind.Table => RulesetDocumentNodeKey.Show(ruleset, id),
+        _ => new RulesetDocumentNodeKey(ruleset, id)
+    };
 
     /// <summary>Adds a count stat on <paramref name="view" /> as <paramref name="id" />, at the end of <c>stats:</c>.</summary>
     public static EditRequest AddStat(string view, string id) =>
@@ -203,6 +209,13 @@ public static class CanvasEditSemantics
             return EditRequest.Of(text => RulesetEdits.AddDefine(text, id, item.Body), "add define " + id);
         }
 
+        if (item.Kind == GalleryItemKind.Table)
+        {
+            // The grain follows the ruleset's for:, which the registry requires it to match.
+            return EditRequest.Of(text => RulesetEdits.AddTable(text, id, RulesetEdits.TableGrainsFor(RulesetEdits.DocumentField(text, "for"))[0]),
+                "add table " + id);
+        }
+
         string body = string.Join('\n', item.Body.Split('\n').Select(l => "  " + l));
         return EditRequest.Of(text => RulesetEdits.AddStat(text, $"{id}:\n{body}\n"), "add " + id);
     }
@@ -217,7 +230,12 @@ public static class CanvasEditSemantics
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(node);
-        if (!node.IsAuthorable || node.IsHighlight)
+        if (item.Kind == GalleryItemKind.Table)
+        {
+            return EditRequest.Refuse("Drop a table on the canvas; wire stats into it to add columns.");
+        }
+
+        if (!node.IsAuthorable || node.IsHighlight || node.IsShow || node.IsParams)
         {
             return EditRequest.Refuse($"{item.Name} can only be dropped on a define or a stat of your own ruleset.");
         }
@@ -365,7 +383,15 @@ public static class CanvasEditSemantics
         List<string> refusals = [];
         foreach (CanvasNodeViewModel node in deleting)
         {
-            if (node.IsDefine)
+            if (node.IsParams)
+            {
+                refusals.Add("params: is removed in the YAML tab, with the reads that name it");
+            }
+            else if (node.IsShow)
+            {
+                // A table goes with its columns; nothing reads a table.
+            }
+            else if (node.IsDefine)
             {
                 // A define something fires on leaves those stats with no trigger; there is nothing to retarget them to.
                 IReadOnlyList<string> firing = [.. StatsFiringOn(node, composed, text).Where(s => !keys.Contains(new RulesetDocumentNodeKey(node.Ruleset, s)))];
@@ -389,7 +415,8 @@ public static class CanvasEditSemantics
             {
                 foreach (CanvasNodeViewModel node in deleting)
                 {
-                    text = node.IsDefine ? RulesetEdits.RemoveDefine(text, node.Title)
+                    text = node.IsShow ? RemoveShow(text, node)
+                        : node.IsDefine ? RulesetEdits.RemoveDefine(text, node.Title)
                         : node.IsHighlight ? RulesetEdits.RemoveHighlight(text, node.Id)
                         : RulesetEdits.RemoveStat(text, node.Id);
                 }
@@ -397,6 +424,13 @@ public static class CanvasEditSemantics
                 return text;
             },
             "delete " + string.Join(", ", deleting.Select(n => n.Title)));
+    }
+
+    /// <summary>Removes a show node's block: the table whole, or the scoreboard list.</summary>
+    public static string RemoveShow(string text, CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        return node.Key.IsScoreboard ? RulesetEdits.RemoveScoreboard(text) : RulesetEdits.RemoveTable(text, node.Title);
     }
 
     // The stats whose trigger spells the define, from the loaded document, or from the text when the document did not load.
@@ -432,7 +466,8 @@ public static class CanvasEditSemantics
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
-        if (port is null || !target.IsAuthorable || target.IsScaffold)
+        // A show node's inputs are its columns, and a wire on any of them appends one.
+        if (port is null || !target.IsAuthorable || target.IsScaffold || target.IsShow)
         {
             return Connect(source, target);
         }
@@ -466,9 +501,24 @@ public static class CanvasEditSemantics
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
-        if (!target.IsAuthorable || target.IsScaffold)
+        if (!target.IsAuthorable || target.IsScaffold || target.IsParams)
         {
-            return EditRequest.Refuse("A wire can only end on a stat, a define or a highlight of your own ruleset.");
+            return EditRequest.Refuse("A wire can only end on a stat, a define, a highlight or a table of your own ruleset.");
+        }
+
+        if (source.IsShow)
+        {
+            return EditRequest.Refuse("A table surfaces values; nothing reads a table.");
+        }
+
+        if (source.IsParams)
+        {
+            return EditRequest.Refuse($"A param is read by name: write params.<name> in {target.Title}'s text.");
+        }
+
+        if (target.IsShow)
+        {
+            return ConnectShow(source, target);
         }
 
         if (target.IsHighlight)
@@ -548,6 +598,11 @@ public static class CanvasEditSemantics
             return request.Refusal ?? "nothing to write";
         }
 
+        if (target.IsShow)
+        {
+            return $"adds column {source.Label ?? source.Id} to {target.Title}";
+        }
+
         if (target.IsHighlight)
         {
             return $"joins when: with and {ReadOf(source, target)} > 0";
@@ -583,7 +638,7 @@ public static class CanvasEditSemantics
     public static EditRequest Duplicate(CanvasNodeViewModel node, string id)
     {
         ArgumentNullException.ThrowIfNull(node);
-        if (!node.IsAuthorable || node.IsScaffold)
+        if (!node.IsEntry)
         {
             return EditRequest.Refuse("Only a stat, a define or a highlight of your own ruleset can be duplicated.");
         }
@@ -618,6 +673,24 @@ public static class CanvasEditSemantics
         if (wire.Source.Owner is not { } source || wire.Target.Owner is not { IsAuthorable: true } target)
         {
             return EditRequest.Ignore;
+        }
+
+        if (target.IsShow)
+        {
+            // The column is the wire: removing it takes the column out and keeps the table.
+            if (target.ColumnOf(wire.Target) is not { } column)
+            {
+                return EditRequest.Ignore;
+            }
+
+            string? table = target.Key.IsScoreboard ? null : target.Title;
+            return EditRequest.Of(text => RulesetEdits.RemoveShowItem(text, table, column.Reference.Index),
+                $"stop showing {column.Stat} on {target.Title}");
+        }
+
+        if (source.IsParams)
+        {
+            return EditRequest.Refuse($"{target.Title} reads a param in its text; edit the text to stop.");
         }
 
         if (source.Ruleset == "~context" && !wire.IsRead)
@@ -688,6 +761,16 @@ public static class CanvasEditSemantics
     public static EditRequest WriteField(CanvasNodeViewModel node, string key, string? value)
     {
         ArgumentNullException.ThrowIfNull(node);
+        if (node.IsShow)
+        {
+            return WriteShowField(node, key, value);
+        }
+
+        if (node.IsParams)
+        {
+            return WriteParamField(node, key, value);
+        }
+
         if (node.IsHighlight)
         {
             return WriteHighlightField(node, key, value);
@@ -745,6 +828,129 @@ public static class CanvasEditSemantics
                 value is null ? $"remove {node.Id}.{key}" : $"set {node.Id}.{key}"),
             _ => EditRequest.Ignore
         };
+    }
+
+    /// <summary>A table's one field: its <c>per:</c> grain, which cannot be emptied. The scoreboard has none.</summary>
+    public static EditRequest WriteShowField(CanvasNodeViewModel node, string key, string? value)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (key != "per" || node.Key.IsScoreboard)
+        {
+            return EditRequest.Ignore;
+        }
+
+        return value is null
+            ? EditRequest.Refuse("A table needs a per: grain; pick the one that matches the ruleset's for:.")
+            : EditRequest.Of(text => RulesetEdits.SetTablePer(text, node.Title, value), $"set table {node.Title}.per");
+    }
+
+    /// <summary>
+    ///     A params row's write: <c>param.&lt;name&gt;</c> sets that param's default, checked against its
+    ///     declared type and bounds before anything is written. A default cannot be emptied here.
+    /// </summary>
+    public static EditRequest WriteParamField(CanvasNodeViewModel node, string key, string? value)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (!key.StartsWith("param.", StringComparison.Ordinal))
+        {
+            return EditRequest.Ignore;
+        }
+
+        string name = key["param.".Length..];
+        if (value is null)
+        {
+            return EditRequest.Refuse($"{name} needs a default; remove the param in the YAML tab instead.");
+        }
+
+        ParamDef? param = (node.Face as ParamsFace)?.Params.FirstOrDefault(p => p.Name == name);
+        if (param is not null && ParamRefusal(param, value.Trim()) is { } refusal)
+        {
+            return EditRequest.Refuse(refusal);
+        }
+
+        return EditRequest.Of(text => RulesetEdits.SetParamDefault(text, name, value.Trim()), $"set params.{name}");
+    }
+
+    /// <summary>Why <paramref name="value" /> is not a default <paramref name="param" /> takes, or null when it is.</summary>
+    public static string? ParamRefusal(ParamDef param, string value)
+    {
+        ArgumentNullException.ThrowIfNull(param);
+        ArgumentNullException.ThrowIfNull(value);
+        double? number = null;
+        switch (param.Type)
+        {
+            case ParamType.Int:
+                if (!long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long whole))
+                {
+                    return $"{param.Name} is an int; {value} is not a whole number.";
+                }
+
+                number = whole;
+                break;
+            case ParamType.Float:
+                if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double real))
+                {
+                    return $"{param.Name} is a float; {value} is not a number.";
+                }
+
+                number = real;
+                break;
+            case ParamType.Bool:
+                if (value is not ("true" or "false"))
+                {
+                    return $"{param.Name} is a bool; write true or false.";
+                }
+
+                break;
+            case ParamType.Duration:
+                if (!DurationLiteral().IsMatch(value))
+                {
+                    return $"{param.Name} is a duration; write it as 10s, 0.5s or 500ms.";
+                }
+
+                break;
+        }
+
+        if (number is { } n)
+        {
+            if (param.Min is { } min && n < min)
+            {
+                return $"{param.Name} is at least {min.ToString(CultureInfo.InvariantCulture)}.";
+            }
+
+            if (param.Max is { } max && n > max)
+            {
+                return $"{param.Name} is at most {max.ToString(CultureInfo.InvariantCulture)}.";
+            }
+        }
+
+        return null;
+    }
+
+    [GeneratedRegex(@"^\d+(\.\d+)?(s|ms)$")]
+    private static partial Regex DurationLiteral();
+
+    // A stat or a highlight wired into a table becomes a column labelled by its label or id; a highlight is
+    // surfaced by its count, as the corpus writes it. An entry already a column is refused by name.
+    private static EditRequest ConnectShow(CanvasNodeViewModel source, CanvasNodeViewModel target)
+    {
+        if (source.IsScaffold || source.IsDefine || !source.IsAuthorable || source.Ruleset != target.Ruleset)
+        {
+            return EditRequest.Refuse($"{target.Title} shows stats and highlights of this ruleset; wire one of those into it.");
+        }
+
+        string reference = source.IsHighlight ? source.Id + ".count" : source.Id;
+        string label = source.Label ?? source.Id;
+        if (target.Columns.Any(c => ShowSurface.Refers(c.Stat, source.Id, source.Ruleset)))
+        {
+            return EditRequest.Refuse($"{source.Id} is already a column of {target.Title}.");
+        }
+
+        string? table = target.Key.IsScoreboard ? null : target.Title;
+        return EditRequest.Of(text => table is null
+                ? RulesetEdits.AddToScoreboard(text, reference, label)
+                : RulesetEdits.AddToTable(text, table, reference, label),
+            $"show {source.Id} on {target.Title}");
     }
 
     // A tally's table comes as one value, a row per line; see CanvasThresholdsViewModel.Serialize.

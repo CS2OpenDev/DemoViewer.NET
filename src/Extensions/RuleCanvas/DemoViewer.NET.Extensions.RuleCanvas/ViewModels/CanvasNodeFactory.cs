@@ -68,8 +68,29 @@ public sealed class CanvasNodeFactory(
         void Facet(string facet, string? value) => built?.WriteFacet(facet, value);
         void Field(string key, string? value) => built?.WriteField(key, value);
 
+        List<CanvasColumnViewModel> columns = [];
         switch (face)
         {
+            case ShowFace show:
+                chips.Add(show.Grain);
+                tips[show.Grain] = show.IsScoreboard
+                    ? "The scoreboard: one column per entry, grouped as the entries say"
+                    : "The table's grain, which must match the ruleset's for:";
+                if (show.On is { } on)
+                {
+                    chips.Add("on " + on);
+                    tips["on " + on] = "An event table: one row per firing of this trigger";
+                }
+
+                columns.AddRange(show.Columns.Select(c => new CanvasColumnViewModel(c)));
+                break;
+            case ParamsFace parameters:
+                foreach (ParamDef param in parameters.Params)
+                {
+                    fields.Add(new CanvasFieldViewModel("param." + param.Name, ParamLabel(param), ParamText(param.Default), [], null, Field));
+                }
+
+                break;
             case ScaffoldFace scaffold:
                 if (scaffold.IsPerPlayer)
                 {
@@ -258,6 +279,7 @@ public sealed class CanvasNodeFactory(
             Choices = choices,
             Thresholds = thresholds,
             Defaults = defaults,
+            Columns = columns,
             ViewActor = viewActor,
             BindsActor = bindsActor,
             Per = face.Per,
@@ -472,6 +494,25 @@ public sealed class CanvasNodeFactory(
     }
 
     private static string? KeepText(KeepMode? keep) => keep is null or KeepMode.None ? null : keep.Value.ToString().ToLowerInvariant();
+
+    // The row's label names the param and its type, with the bounds when the file sets any: `min_kills (int 2..5)`.
+    private static string ParamLabel(ParamDef param)
+    {
+        string type = param.Type.ToString().ToLowerInvariant();
+        string bounds = param.Min is null && param.Max is null
+            ? ""
+            : $" {param.Min?.ToString(CultureInfo.InvariantCulture) ?? ""}..{param.Max?.ToString(CultureInfo.InvariantCulture) ?? ""}";
+        return $"{param.Name} ({type}{bounds})";
+    }
+
+    /// <summary>A param's default as the file would spell it: <c>60</c>, <c>0.5</c>, <c>true</c>, <c>10s</c>; null for none.</summary>
+    public static string? ParamText(object? value) => value switch
+    {
+        null => null,
+        bool b => b ? "true" : "false",
+        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+        _ => value.ToString()
+    };
 
     private static string TallyMinText(TallyMin min) => min switch
     {

@@ -19,7 +19,7 @@ public class CanvasThemeTests
 {
     private static readonly string[] _tokens =
     [
-        "RuleKindEvent", "RuleKindEnrich", "RuleKindContext", "RuleKindStat", "RuleKindDerived", "RuleKindHighlight", "RuleKindDefine",
+        "RuleKindEvent", "RuleKindEnrich", "RuleKindContext", "RuleKindStat", "RuleKindDerived", "RuleKindHighlight", "RuleKindDefine", "RuleKindSurface",
         "RuleWireWrite", "RuleWireRead", "RuleWireGate", "RuleWireAnd", "RuleWireOr",
         "RuleCanvasBg", "RuleNodeBg", "RuleNodeBorder", "RuleSelection", "RuleSelectionFill", "RuleCutLine", "RuleMinimapBg",
         "RuleTextKey", "RuleWireHalo", "RuleCheckGlyph", "RuleDiagnosticBadgeText", "RuleLiveBadgeBg", "RuleLiveStale"
@@ -193,6 +193,8 @@ public class CanvasThemeTests
             await Assert.That(RuleKindToken.KeyFor("compute")).IsEqualTo("RuleKindDerived");
             await Assert.That(RuleKindToken.KeyFor("highlight")).IsEqualTo("RuleKindHighlight");
             await Assert.That(RuleKindToken.KeyFor("define")).IsEqualTo("RuleKindDefine");
+            await Assert.That(RuleKindToken.KeyFor("show")).IsEqualTo("RuleKindSurface");
+            await Assert.That(RuleKindToken.KeyFor("params")).IsEqualTo("RuleKindSurface");
             foreach (string kind in new[] { "count", "sum", "capture", "tally", "streak", "bucket", "rate", "burst" })
             {
                 await Assert.That(RuleKindToken.KeyFor(kind)).IsEqualTo("RuleKindStat").Because(kind);

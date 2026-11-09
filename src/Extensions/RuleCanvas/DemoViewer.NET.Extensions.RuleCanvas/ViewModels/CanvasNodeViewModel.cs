@@ -113,6 +113,37 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>The engine defaults the document leaves implicit, in words: <c>score 50</c>, <c>per round</c>.</summary>
     public IReadOnlyList<string> Defaults { get; init; } = [];
 
+    /// <summary>A show node's columns, in document order; empty on every other node.</summary>
+    public IReadOnlyList<CanvasColumnViewModel> Columns { get; init; } = [];
+
+    /// <summary>The column whose port is <paramref name="port" />, or null.</summary>
+    public CanvasColumnViewModel? ColumnOf(CanvasConnectorViewModel? port) =>
+        port is null ? null : Columns.FirstOrDefault(c => ReferenceEquals(c.Port, port));
+
+    /// <summary>
+    ///     Chips read from the file's text rather than the model, set by the tab after every redraw: a
+    ///     <c>for each</c> axis the loader expanded this entry from. Shown after the face's own chips.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VisibleChipItems))]
+    private IReadOnlyList<CanvasChip> _textChips = [];
+
+    /// <summary>
+    ///     The YAML keys of this entry the face does not render, as <c>key: value</c> lines, set by the tab
+    ///     after every redraw; the face shows their count as a chip whose click jumps to the YAML.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnrendered))]
+    [NotifyPropertyChangedFor(nameof(UnrenderedChip))]
+    [NotifyPropertyChangedFor(nameof(UnrenderedTip))]
+    private IReadOnlyList<string> _unrenderedKeys = [];
+
+    public bool HasUnrendered => UnrenderedKeys.Count > 0;
+
+    public string UnrenderedChip => UnrenderedKeys.Count == 0 ? "" : $"+{UnrenderedKeys.Count} in YAML";
+
+    public string UnrenderedTip => UnrenderedKeys.Count == 0 ? "" : "Keys the face does not show; click to jump to the YAML:\n" + string.Join('\n', UnrenderedKeys);
+
     /// <summary>The role the view binds to this player, or null when there is no binding to switch off.</summary>
     public string? ViewActor { get; init; }
 
@@ -151,7 +182,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     private bool? _bindsActor;
 
     /// <summary>Whether the face shows the scope and gate pickers' row: an editable stat, highlight or define.</summary>
-    public bool ShowFieldPickers => IsEditable && IsAuthorable && !IsScaffold;
+    public bool ShowFieldPickers => IsEditable && IsAuthorable && !IsScaffold && !IsShow && !IsParams;
 
     /// <summary>A define has no scope of its own; the stats firing on it keep theirs.</summary>
     public bool ShowPerPicker => ShowFieldPickers && !IsDefine;
@@ -172,7 +203,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     public bool ShowActorToggle => IsEditable && ViewActor is not null;
 
     /// <summary>The label can be edited in place on an editable stat; a highlight's title has its own line, and a define has no label key.</summary>
-    public bool CanEditLabel => IsEditable && !IsHighlight && !IsScaffold && !IsDefine;
+    public bool CanEditLabel => IsEditable && !IsHighlight && !IsScaffold && !IsDefine && !IsShow && !IsParams;
 
     public bool ShowLabelText => !IsEditingLabel && Label is not null;
 
@@ -186,8 +217,8 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
         ? [.. Chips.Where(c => !IsPickedChip(c))]
         : Chips;
 
-    /// <summary>The visible chips with their tips, for the template.</summary>
-    public IReadOnlyList<CanvasChip> VisibleChipItems => [.. VisibleChips.Select(c => new CanvasChip(c, ChipTips.GetValueOrDefault(c)))];
+    /// <summary>The visible chips with their tips, then the chips read from the text, for the template.</summary>
+    public IReadOnlyList<CanvasChip> VisibleChipItems => [.. VisibleChips.Select(c => new CanvasChip(c, ChipTips.GetValueOrDefault(c))), .. TextChips];
 
     public bool ShowExpressionText => HasExpression && !IsEditable;
 
@@ -289,6 +320,17 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     /// <summary>A node the engine made rather than the author: an event, an enrichment, a context value.</summary>
     public bool IsScaffold => Ruleset.StartsWith('~');
+
+    /// <summary>A <c>show:</c> table or the scoreboard of the open document.</summary>
+    public bool IsShow => Key.IsShow;
+
+    /// <summary>The open document's <c>params:</c> block.</summary>
+    public bool IsParams => Key.IsParams;
+
+    /// <summary>A stat, a highlight or a define the open document declares: what the entry edits reach.</summary>
+    public bool IsEntry => IsAuthorable && !IsScaffold && !IsShow && !IsParams;
+
+    public bool HasColumns => Columns.Count > 0;
 
     public bool IsCompute => Kind == "compute";
 

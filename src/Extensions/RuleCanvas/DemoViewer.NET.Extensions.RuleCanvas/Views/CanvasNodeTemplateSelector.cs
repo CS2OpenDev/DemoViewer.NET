@@ -23,12 +23,20 @@ public sealed class CanvasNodeTemplateSelector : IDataTemplate
     /// <summary>The template for an engine node. Falls back to <see cref="Authored" /> when not set.</summary>
     public IDataTemplate? Scaffold { get; set; }
 
+    /// <summary>The template for a show node: a table or the scoreboard, its columns as rows. Falls back to <see cref="Authored" />.</summary>
+    public IDataTemplate? Show { get; set; }
+
     public bool Match(object? data) => data is CanvasNodeViewModel;
 
     public Control? Build(object? param)
     {
         CanvasNodeViewModel? node = param as CanvasNodeViewModel;
-        IDataTemplate? template = node is { IsScaffold: true } ? Scaffold ?? Authored : Authored;
+        IDataTemplate? template = node switch
+        {
+            { IsScaffold: true } => Scaffold ?? Authored,
+            { IsShow: true } => Show ?? Authored,
+            _ => Authored
+        };
         return template?.Build(param);
     }
 }

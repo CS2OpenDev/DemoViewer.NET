@@ -322,9 +322,26 @@ public sealed partial class CanvasTabViewModel
     [RelayCommand]
     private void Duplicate()
     {
-        if (SelectedNodes.OfType<CanvasNodeViewModel>().FirstOrDefault(n => n.IsAuthorable && !n.IsScaffold) is { } node)
+        if (SelectedNodes.OfType<CanvasNodeViewModel>().FirstOrDefault(n => n.IsEntry) is { } node)
         {
             DuplicateNode(node);
+        }
+    }
+
+    /// <summary>Shows the YAML tab at <paramref name="node" />'s entry, which is what the unrendered-keys chip asks for.</summary>
+    public void JumpToYaml(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        ShowSource = true;
+        DockTab = 1;
+        if (!SelectedNodes.Contains(node))
+        {
+            SelectedNodes.Clear();
+            SelectedNodes.Add(node);
+        }
+        else
+        {
+            JumpToSelection();
         }
     }
 
@@ -546,10 +563,15 @@ public sealed partial class CanvasTabViewModel
         }
 
         ShowSurface surface = ShowSurface.Of(doc);
+        string text = _session.Text;
         foreach (CanvasNodeViewModel node in nodes)
         {
             // A define is not a value show: can surface.
-            node.Surfacing = node.IsAuthorable && !node.IsScaffold && !node.IsDefine ? surface.BadgeFor(node.Id) : "";
+            node.Surfacing = node.IsEntry && !node.IsDefine ? surface.BadgeFor(node.Id) : "";
+            // What the text holds that the face does not: the for_each axes and the keys no row renders.
+            EntryCoverage coverage = node.Face is { } face && text.Length > 0 ? EntryCoverage.Of(text, face) : EntryCoverage.None;
+            node.TextChips = [.. coverage.Chips.Select(c => new CanvasChip(c.Text, c.Tip))];
+            node.UnrenderedKeys = [.. coverage.Unrendered.Select(k => k.ToString())];
         }
     }
 

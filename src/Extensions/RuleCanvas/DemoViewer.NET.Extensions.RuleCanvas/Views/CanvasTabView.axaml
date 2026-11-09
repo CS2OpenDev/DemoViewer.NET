@@ -542,6 +542,73 @@
                     </DataTemplate>
                 </views:CanvasNodeTemplateSelector.Scaffold>
 
+                <!-- A show node: a table or the scoreboard. The header names it, the chips say its grain, and
+                     each column is a row with its own read port, so a stat's wire lands on the column it is. -->
+                <views:CanvasNodeTemplateSelector.Show>
+                    <DataTemplate x:DataType="vm:CanvasNodeViewModel">
+                        <nodes:Node ContentPadding="10 6 10 8" ContentBrush="{DynamicResource RuleNodeBg}" HeaderBrush="{DynamicResource RuleNodeBg}">
+                            <nodes:Node.Header>
+                                <Grid ColumnDefinitions="3,*">
+                                    <Border Grid.Column="0" CornerRadius="3 0 0 0" Margin="0 0 0 -1"
+                                            views:TokenBrush.Background="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="8 5 8 3" PointerPressed="OnFacePressed">
+                                        <Border CornerRadius="3" Padding="5 1" VerticalAlignment="Center" BorderThickness="1"
+                                                views:TokenBrush.BorderBrush="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}">
+                                            <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
+                                                       views:TokenBrush.Foreground="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
+                                                   Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
+                                        <Border CornerRadius="8" Padding="6 0" MinWidth="16" VerticalAlignment="Center"
+                                                IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}"
+                                                views:TokenBrush.Background="{Binding DiagnosticsText, Converter={x:Static views:DiagnosticSeverityToken.Instance}}">
+                                            <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                            </nodes:Node.Header>
+                            <StackPanel Spacing="6" MinWidth="200" PointerPressed="OnFacePressed">
+                                <ItemsControl ItemsSource="{Binding VisibleChipItems}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CanvasChip">
+                                            <Border CornerRadius="9" Padding="7 1" Margin="0 0 4 2"
+                                                    Background="{DynamicResource RuleCanvasBg}"
+                                                    BorderBrush="{DynamicResource RuleNodeBorder}" BorderThickness="1"
+                                                    ToolTip.Tip="{Binding Tip}">
+                                                <TextBlock Text="{Binding Text}" FontSize="10" FontFamily="monospace"
+                                                           Foreground="{DynamicResource RuleTextKey}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="no columns yet; wire a stat in" FontSize="11" Foreground="{DynamicResource TextMid}"
+                                           IsVisible="{Binding !HasColumns}" />
+                                <ItemsControl ItemsSource="{Binding Columns}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CanvasColumnViewModel">
+                                            <StackPanel Orientation="Horizontal" Spacing="6" Height="22">
+                                                <ContentControl Content="{Binding Port}" ContentTemplate="{StaticResource InlinePort}" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Label}" FontSize="11" FontFamily="monospace"
+                                                           Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Stat}" FontSize="10" FontFamily="monospace"
+                                                           Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" IsVisible="{Binding ShowsStat}" />
+                                                <TextBlock Text="{Binding Group}" FontSize="9" Foreground="{DynamicResource RuleTextKey}"
+                                                           VerticalAlignment="Center" IsVisible="{Binding HasGroup}" ToolTip.Tip="The scoreboard group the column is clustered under" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </nodes:Node>
+                    </DataTemplate>
+                </views:CanvasNodeTemplateSelector.Show>
+
                 <views:CanvasNodeTemplateSelector.Authored>
                 <DataTemplate x:DataType="vm:CanvasNodeViewModel">
                     <nodes:Node Input="{Binding RailInputs}" Output="{Binding Outputs}" ContentPadding="10 6 10 8"
@@ -635,6 +702,12 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                <!-- The keys of the entry no row renders, counted; the click jumps to the entry in the YAML. -->
+                                <Button Classes="ghost" Padding="7 1" Margin="0 0 4 2" MinHeight="0" CornerRadius="9"
+                                        IsVisible="{Binding HasUnrendered}" ToolTip.Tip="{Binding UnrenderedTip}" Click="OnUnrenderedClick">
+                                    <TextBlock Text="{Binding UnrenderedChip}" FontSize="10" FontFamily="monospace"
+                                               Foreground="{DynamicResource AccentCaution}" />
+                                </Button>
                                 <!-- The engine's defaults the document leaves implicit, dimmed so they read as not written. -->
                                 <ItemsControl ItemsSource="{Binding Defaults}" IsVisible="{Binding HasDefaults}">
                                     <ItemsControl.ItemsPanel>
