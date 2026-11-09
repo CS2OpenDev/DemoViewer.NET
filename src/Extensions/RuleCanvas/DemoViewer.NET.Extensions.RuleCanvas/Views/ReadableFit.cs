@@ -11,8 +11,9 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Views;
 ///     <see cref="MinZoom" />; when it does not fit there, the viewport frames the extent's width from its
 ///     left-most column through the authored column, anchored at the extent's top-left, so the chain reads
 ///     source to stat and what is left over is a pan down. When even that is too wide for the floor, the
-///     authored nodes' own box is framed from its top-left and the upstream is a pan left. Pure, so the rule
-///     is testable without an editor.
+///     authored nodes' own box (the surfaces included) is framed, from its top-left when it fits the floor
+///     and from its right edge when it does not, so the surfaces stay in view and the upstream is a pan
+///     left. Pure, so the rule is testable without an editor.
 /// </summary>
 /// <param name="Zoom">The viewport zoom.</param>
 /// <param name="Location">The viewport's top-left in graph coordinates.</param>
@@ -65,10 +66,14 @@ public sealed record ReadableFit(double Zoom, Point Location, bool FramesSourceT
             return new ReadableFit(Math.Min(widthFit, MaxZoom), extent.TopLeft, true);
         }
 
-        // Wider than the floor allows even from source to stat: the authored nodes' own box is framed from
-        // its top-left, so what the user edits is under the viewport and the upstream is a pan left.
+        // Wider than the floor allows even from source to stat: the authored nodes' own box, surfaces
+        // included, is framed from its top-left, so what the user edits is under the viewport and the
+        // upstream is a pan left. When even that box is too wide for the floor, it is framed from its
+        // right edge instead: the surfaces stay in view and the event side is what pans away.
         double columnFit = Math.Min(viewport.Width / Math.Max(1, column.Width), usableHeight / Math.Max(1, column.Height));
-        return new ReadableFit(Math.Clamp(columnFit, MinZoom, MaxZoom), column.TopLeft, true);
+        double zoom = Math.Clamp(columnFit, MinZoom, MaxZoom);
+        double left = column.Width * zoom > viewport.Width ? column.Right - viewport.Width / zoom : column.Left;
+        return new ReadableFit(zoom, new Point(left, column.Top), true);
     }
 
     /// <summary>
