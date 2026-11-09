@@ -133,8 +133,7 @@ public static partial class CanvasEditSemantics
             return null;
         }
 
-        string read = source.IsScaffold ? source.Ruleset == "~context" ? GatePathOf(source.Id) ?? source.Id : source.Id : ReadOf(source, target);
-        ConditionRow? row = ChainWiring.AuthoredRow(whenText, read, wire.Condition);
+        ConditionRow? row = ChainWiring.AuthoredRow(whenText, ReadPathOf(source, target), wire.Condition);
         if (row is null)
         {
             return null;
@@ -1479,6 +1478,14 @@ public static partial class CanvasEditSemantics
     }
 
     // A sibling is read by its id; a stat of another ruleset by its qualified path.
+    /// <summary>The path <paramref name="target" />'s text names <paramref name="source" /> by: a gate path, an engine id, a sibling id or ruleset.id.</summary>
+    public static string ReadPathOf(CanvasNodeViewModel source, CanvasNodeViewModel target)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+        return source.IsScaffold ? source.Ruleset == "~context" ? GatePathOf(source.Id) ?? source.Id : source.Id : ReadOf(source, target);
+    }
+
     private static string ReadOf(CanvasNodeViewModel source, CanvasNodeViewModel target) =>
         source.Ruleset == target.Ruleset ? source.Id : source.Ruleset + "." + source.Id;
 }

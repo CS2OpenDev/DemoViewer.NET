@@ -23,27 +23,29 @@
                                     HorizontalAlignment="Left" IsVisible="{Binding !IsFirst}"
                                     Command="{Binding ToggleConnectiveCommand}"
                                     ToolTip.Tip="Switch every join of this condition between and and or" />
-                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="4">
-                                <AutoCompleteBox Grid.Column="0" Text="{Binding Path}" ItemsSource="{Binding Paths}"
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="4">
+                                <ContentControl Grid.Column="0" Content="{Binding Port}" ContentTemplate="{DynamicResource InlinePort}"
+                                                VerticalAlignment="Center" />
+                                <AutoCompleteBox Grid.Column="1" Text="{Binding Path}" ItemsSource="{Binding Paths}"
                                                  TextFilter="{x:Static views:ConditionRowsView.TokenFilter}"
                                                  TextSelector="{x:Static views:ConditionRowsView.TokenSelector}"
                                                  MinimumPrefixLength="0" MaxDropDownHeight="180"
                                                  FontSize="11" FontFamily="monospace" MinWidth="120" MaxWidth="220"
                                                  Padding="4 1" MinHeight="0" PlaceholderText="path"
                                                  KeyDown="OnCompletionKeyDown" LostFocus="OnRowEditorLostFocus" />
-                                <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:CanvasConditionRowViewModel.Comparators}"
+                                <ComboBox Grid.Column="2" ItemsSource="{x:Static vm:CanvasConditionRowViewModel.Comparators}"
                                           SelectedItem="{Binding Comparator}" FontSize="11" MinWidth="62" Padding="4 1" MinHeight="0" />
-                                <CheckBox Grid.Column="2" Classes="face" IsChecked="{Binding BoolLiteral}" IsThreeState="False"
+                                <CheckBox Grid.Column="3" Classes="face" IsChecked="{Binding BoolLiteral}" IsThreeState="False"
                                           IsVisible="{Binding IsBoolLiteral}" MinHeight="0" Padding="0" Margin="0"
                                           VerticalAlignment="Center" />
-                                <TextBox Grid.Column="2" Text="{Binding Literal}" IsVisible="{Binding ShowLiteralBox}"
+                                <TextBox Grid.Column="3" Text="{Binding Literal}" IsVisible="{Binding ShowLiteralBox}"
                                          FontSize="11" FontFamily="monospace" MinWidth="56" MaxWidth="160" Padding="4 1" MinHeight="0"
                                          PlaceholderText="value" LostFocus="OnRowEditorLostFocus">
                                     <TextBox.KeyBindings>
                                         <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
                                     </TextBox.KeyBindings>
                                 </TextBox>
-                                <Button Grid.Column="3" Classes="ghost" Content="×" FontSize="11" Padding="4 0" MinHeight="0"
+                                <Button Grid.Column="4" Classes="ghost" Content="×" FontSize="11" Padding="4 0" MinHeight="0"
                                         Command="{Binding RemoveCommand}" ToolTip.Tip="Remove this row" />
                             </Grid>
                         </StackPanel>

@@ -265,7 +265,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject, ILiveBadge
     ///     an editor to sit beside, and on a face folded to its header, whose rows are not drawn; none on an
     ///     unfolded editable face, whose rows carry their own ports.
     /// </summary>
-    public IReadOnlyList<CanvasConnectorViewModel> RailInputs => IsEditable && !ShowsHeaderOnly ? [] : [.. Inputs];
+    public IReadOnlyList<CanvasConnectorViewModel> RailInputs => IsEditable && !ShowsHeaderOnly ? [] : [.. Inputs.Where(i => !i.IsRow || i.IsWired)];
 
     /// <summary>Whether the user folded this face to its header. Per node, kept in the layout sidecar.</summary>
     [ObservableProperty]

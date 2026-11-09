@@ -92,6 +92,17 @@ public static class CanvasGraphBuilder
             {
                 Output(node.Key);
             }
+
+            // Every written row of a flat where: or when: has its own ring, so a wire lands on its row.
+            foreach (CanvasExpressionViewModel line in node.Lines.Where(l => l.IsCondition))
+            {
+                PortKind kind = line.Key == "when" ? PortKind.Logic : PortKind.Read;
+                foreach (CanvasConditionRowViewModel row in line.Rows.Where(r => !r.IsPending))
+                {
+                    row.Port = new CanvasConnectorViewModel { Title = row.Path, Owner = node, Kind = kind, IsRow = true };
+                    node.Inputs.Add(row.Port);
+                }
+            }
         }
 
         IReadOnlyList<WireSpec> specs = ChainWiring.Wires(composed, byKey.Keys.ToHashSet());
@@ -102,9 +113,10 @@ public static class CanvasGraphBuilder
             CanvasNodeViewModel target = byKey[spec.Target];
             CanvasConnectorViewModel input = spec.Column is { } column && column < target.Columns.Count && target.Columns[column].Port is { } port
                 ? port
-                : Input(spec.Target, into);
-            wires.Add(new CanvasConnectionViewModel(Output(spec.Source, spec.SourceOutput), input,
-                spec.Text, spec.Condition, spec.IsRead, spec.IsGate, spec.IsAnd, spec.IsOr));
+                : RowPortOf(byKey[spec.Source], target, into, spec.Condition) ?? Input(spec.Target, into);
+            CanvasConnectorViewModel output = Output(spec.Source, spec.SourceOutput);
+            input.IsWired = output.IsWired = true;
+            wires.Add(new CanvasConnectionViewModel(output, input, spec.Text, spec.Condition, spec.IsRead, spec.IsGate, spec.IsAnd, spec.IsOr));
         }
 
         // The rows carry their ports: a where or compute line the reads, a when line the logic input.
@@ -158,6 +170,37 @@ public static class CanvasGraphBuilder
         }
 
         return (nodes, wires);
+    }
+
+    /// <summary>
+    ///     The row a read or logic wire from <paramref name="source" /> stands for on <paramref name="target" />:
+    ///     the when: row the wire's label names, or the first where: row on the path the source is read
+    ///     under. Null when no row names it (a facet's read), which lands on the line's own ring.
+    /// </summary>
+    public static CanvasConnectorViewModel? RowPortOf(CanvasNodeViewModel source, CanvasNodeViewModel target, PortKind into, string? condition)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+        if (into is not (PortKind.Read or PortKind.Logic) || source.IsDependency)
+        {
+            return null;
+        }
+
+        CanvasExpressionViewModel? line = target.Lines.FirstOrDefault(l => l.Key == (into == PortKind.Logic ? "when" : "where") && l.IsFlat);
+        if (line is null)
+        {
+            return null;
+        }
+
+        string read = CanvasEditSemantics.ReadPathOf(source, target);
+        if (into == PortKind.Logic)
+        {
+            ConditionRow? row = ChainWiring.AuthoredRow(line.Text, read, condition);
+            int index = row is null ? -1 : line.Condition.Rows.ToList().IndexOf(row);
+            return index >= 0 && index < line.Rows.Count ? line.Rows[index].Port : null;
+        }
+
+        return line.Rows.FirstOrDefault(r => r.Path == read)?.Port;
     }
 
     /// <summary>The warning an unwired entry carries: what is missing, and the fix for its kind.</summary>

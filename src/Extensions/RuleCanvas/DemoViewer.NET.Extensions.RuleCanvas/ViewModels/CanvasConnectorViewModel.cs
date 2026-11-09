@@ -37,6 +37,12 @@ public sealed partial class CanvasConnectorViewModel : ObservableObject
 
     public PortKind Kind { get; init; } = PortKind.Value;
 
+    /// <summary>A where: or when: row's own input, drawn on its row. A folded face's rail shows it only when a wire lands on it.</summary>
+    public bool IsRow { get; init; }
+
+    /// <summary>A wire lands on or leaves from this port. Set by the builder.</summary>
+    public bool IsWired { get; set; }
+
     /// <summary>The entry a folded dependency's output stands for, which a wire from it reads; null on every other port.</summary>
     public string? Entry { get; init; }
 

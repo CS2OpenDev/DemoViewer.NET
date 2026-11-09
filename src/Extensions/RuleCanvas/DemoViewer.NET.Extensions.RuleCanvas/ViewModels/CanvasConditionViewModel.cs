@@ -214,6 +214,10 @@ public sealed partial class CanvasConditionRowViewModel : ObservableObject
 
     public bool IsFirst => Index == 0;
 
+    /// <summary>The ring a wire for this row lands on; null for a row added and not written yet.</summary>
+    [ObservableProperty]
+    private CanvasConnectorViewModel? _port;
+
     /// <summary>The paths the path editor completes from.</summary>
     public IReadOnlyList<string> Paths => _owner.Paths;
 
