@@ -3,6 +3,7 @@
              xmlns:views="using:DemoViewer.NET.Extensions.RuleCanvas.Views"
              xmlns:vm="using:DemoViewer.NET.Extensions.RuleCanvas.ViewModels"
              xmlns:model="using:DemoViewer.NET.Extensions.RuleCanvas.Model"
+             xmlns:live="using:DemoViewer.NET.Extensions.RuleCanvas.Model.Live"
              xmlns:nodify="clr-namespace:Nodify.Avalonia;assembly=Nodify.Avalonia"
              xmlns:nodes="clr-namespace:Nodify.Avalonia.Nodes;assembly=Nodify.Avalonia"
              xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia"
@@ -173,6 +174,24 @@
                                 </Flyout>
                             </Button.Flyout>
                         </Button>
+                            <!-- Live values: the open demo (a click goes to the Library), the instance the badges show,
+                                 the run's state in words, and a Re-run. -->
+                            <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
+                            <Button x:Name="DemoChip" Classes="ghost" Content="{Binding DemoChipText}" FontSize="11" FontFamily="monospace" Padding="6 2"
+                                    Command="{Binding OpenLibraryCommand}"
+                                    ToolTip.Tip="The demo the values come from. Open another from the Library." />
+                            <ComboBox ItemsSource="{Binding Instances}" SelectedItem="{Binding SelectedInstance}" IsVisible="{Binding HasLiveRun}"
+                                      MinWidth="110" FontSize="11" Padding="6 2" ToolTip.Tip="Whose values the badges show: the game, or one player">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="live:LiveInstance">
+                                        <TextBlock Text="{Binding Converter={x:Static views:LiveInstanceLabel.Instance}}" FontSize="11" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Text="{Binding LiveState}" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                            <Button Classes="ghost" Content="Re-run" FontSize="11" Padding="6 2" Command="{Binding RunLiveCommand}"
+                                    ToolTip.Tip="Evaluate the drawn ruleset over the open demo now" />
+                            <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
                         <!-- A shipped ruleset: the chip says it is read only, the button beside it makes a copy. -->
                             <Border CornerRadius="3" Padding="6 1" VerticalAlignment="Center" BorderThickness="1"
                                     BorderBrush="{DynamicResource AccentCaution}" IsVisible="{Binding IsShippedRuleset}"
@@ -428,8 +447,15 @@
                                               Classes.gate="{Binding IsGate}"
                                               Classes.and="{Binding IsAnd}"
                                               Classes.or="{Binding IsOr}"
-                                              connections:BaseConnection.IsSelectable="True"
-                                              ToolTip.Tip="{Binding Condition}">
+                                              connections:BaseConnection.IsSelectable="True">
+                        <!-- Hover: the lowered condition, then the last run's fire line when there is one. -->
+                        <ToolTip.Tip>
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="{Binding Condition}" FontSize="11" FontFamily="monospace"
+                                           IsVisible="{Binding Condition, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                <TextBlock Text="{Binding LiveTip}" FontSize="11" IsVisible="{Binding HasLiveTip}" />
+                            </StackPanel>
+                        </ToolTip.Tip>
                         <views:LabelledConnection.Text>
                             <MultiBinding Converter="{x:Static views:WireLabelAtZoom.Instance}">
                                 <Binding Path="Text" />
@@ -524,7 +550,7 @@
                         <!-- Header: a stripe and an outlined pill in the kind's token, the id, the label when there
                              is one, and the diagnostics count as a badge whose tooltip carries the text. On an editable stat the label is click-to-edit. -->
                         <nodes:Node.Header>
-                            <Grid ColumnDefinitions="3,*">
+                            <Grid ColumnDefinitions="3,*,Auto">
                                 <Border Grid.Column="0" CornerRadius="3 0 0 0" Margin="0 0 0 -1"
                                         views:TokenBrush.Background="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="8 5 8 3" PointerPressed="OnFacePressed">
@@ -555,6 +581,14 @@
                                                    Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
                                     </Border>
                                 </StackPanel>
+                                <!-- The live value badge: the last run's final value for the selected instance, at the
+                                     right of the header; grey once the text was edited after the run. -->
+                                <Border Grid.Column="2" CornerRadius="3" Padding="6 1" Margin="0 5 8 3" VerticalAlignment="Center"
+                                        Background="{DynamicResource RuleLiveBadgeBg}" IsVisible="{Binding HasLive}"
+                                        ToolTip.Tip="{Binding LiveTip}">
+                                    <TextBlock Classes="liveBadge" Classes.stale="{Binding IsLiveStale}" Text="{Binding LiveBadge}"
+                                               FontSize="11" FontFamily="monospace" VerticalAlignment="Center" />
+                                </Border>
                             </Grid>
                         </nodes:Node.Header>
 
