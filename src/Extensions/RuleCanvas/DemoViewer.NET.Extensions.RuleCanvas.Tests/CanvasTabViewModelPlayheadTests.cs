@@ -180,7 +180,8 @@ public class CanvasTabViewModelPlayheadTests
         int badged = vm.Nodes.Count(n => n.HasLive);
         using (Assert.Multiple())
         {
-            await Assert.That(badged).IsEqualTo(vm.Nodes.Count).Because("every drawn node has a canned track");
+            // A folded dependency is badged from its entries' tracks, which this canned run does not hold.
+            await Assert.That(badged).IsEqualTo(vm.Nodes.Count(n => !n.IsDependency)).Because("every drawn node has a canned track");
             await Assert.That(badged).IsGreaterThan(100).Because($"player_match with its dependencies is the largest shipped canvas; {badged} are badged");
             await Assert.That(wires.Count).IsGreaterThan(100).Because($"{wires.Count} wires tracked; the chain composed");
         }
