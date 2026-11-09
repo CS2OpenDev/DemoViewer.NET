@@ -739,7 +739,7 @@ public static partial class CanvasEditSemantics
 
         if (target.IsHighlight)
         {
-            return $"joins when: with and {ReadOf(source, target)} > 0";
+            return $"joins when: with {JoinWord(target)} {ReadOf(source, target)} > 0";
         }
 
         if (source.IsDefine)
@@ -761,7 +761,7 @@ public static partial class CanvasEditSemantics
             case "~enrichment":
                 return $"binds facet {FacetReading(target.View, source.Id)?.Name}";
             default:
-                return $"joins when: with or {ReadOf(source, target)} > 0";
+                return $"joins when: with {JoinWord(target)} {ReadOf(source, target)} > 0";
         }
     }
 
@@ -1277,8 +1277,7 @@ public static partial class CanvasEditSemantics
         string read = ReadOf(source, target);
         return EditRequest.Of(text =>
         {
-            string? existing = RulesetEdits.HighlightField(text, target.Id, "when");
-            string when = string.IsNullOrWhiteSpace(existing) ? $"{read} > 0" : $"{existing} and {read} > 0";
+            string when = JoinWhen(RulesetEdits.HighlightField(text, target.Id, "when"), read);
             return RulesetEdits.SetHighlightField(text, target.Id, "when", when);
         }, $"extend {target.Id} with {read}");
     }
@@ -1345,10 +1344,34 @@ public static partial class CanvasEditSemantics
         string read = ReadOf(source, target);
         return EditRequest.Of(text =>
         {
-            string? existing = RulesetEdits.FlagWhen(text, target.Id);
-            string when = string.IsNullOrWhiteSpace(existing) ? $"{read} > 0" : $"{existing} or {read} > 0";
+            string when = JoinWhen(RulesetEdits.FlagWhen(text, target.Id), read);
             return RulesetEdits.SetFlagWhen(text, target.Id, when);
         }, $"extend {target.Id} with {read}");
+    }
+
+    // A wired operand joins the rows in the author's connective, "and" for a single row. A nested
+    // expression is parenthesised so the precedence of what was written does not change.
+    private static string JoinWhen(string? existing, string read)
+    {
+        if (string.IsNullOrWhiteSpace(existing))
+        {
+            return $"{read} > 0";
+        }
+
+        ConditionExpression parsed = ConditionExpression.Parse(existing);
+        if (parsed.IsFlat)
+        {
+            return parsed.WithRowAdded(read, ">", "0", parsed.Connective ?? ConditionConnective.And, "and");
+        }
+
+        return parsed.Error is null ? $"({existing.Trim()}) and {read} > 0" : $"{existing} and {read} > 0";
+    }
+
+    // The word the preview shows: the target's written connective, else "and".
+    private static string JoinWord(CanvasNodeViewModel target)
+    {
+        ConditionExpression? when = target.Lines.FirstOrDefault(l => l.Key == "when")?.Condition;
+        return when is { IsFlat: true, Connective: ConditionConnective.Or } ? when.ConnectiveSpelling ?? "or" : "and";
     }
 
     // A sibling is read by its id; a stat of another ruleset by its qualified path.
