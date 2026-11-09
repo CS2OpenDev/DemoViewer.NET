@@ -58,21 +58,46 @@ public sealed partial class CanvasTabViewModel
         OnPropertyChanged(nameof(DocumentText));
     }
 
+    // A layout change made since the last write is taken back first; then the writes, in the session's order.
     [RelayCommand(CanExecute = nameof(CanUndo))]
     private void Undo()
     {
-        if (SelectedRuleset is { } selected)
+        if (LayoutUndoIsNext)
         {
-            Report(_session.Undo(), selected);
+            UndoLayout();
+        }
+        else if (SelectedRuleset is { } selected)
+        {
+            _movingHistory = true;
+            try
+            {
+                Report(_session.Undo(), selected);
+            }
+            finally
+            {
+                _movingHistory = false;
+            }
         }
     }
 
     [RelayCommand(CanExecute = nameof(CanRedo))]
     private void Redo()
     {
-        if (SelectedRuleset is { } selected)
+        if (LayoutRedoIsNext)
         {
-            Report(_session.Redo(), selected);
+            RedoLayout();
+        }
+        else if (SelectedRuleset is { } selected)
+        {
+            _movingHistory = true;
+            try
+            {
+                Report(_session.Redo(), selected);
+            }
+            finally
+            {
+                _movingHistory = false;
+            }
         }
     }
 
@@ -302,13 +327,18 @@ public sealed partial class CanvasTabViewModel
     private void DeleteWires() => DisconnectWires([.. SelectedWires.OfType<CanvasConnectionViewModel>()]);
 
     /// <summary>
-    ///     The Delete key: the selected nodes' entries when any is the author's, else the selected wires. A
-    ///     selection of engine nodes alone has nothing in the file to delete.
+    ///     The Delete key: a selected frame is ungrouped and nothing else happens; else the selected nodes'
+    ///     entries when any is the author's, else the selected wires. A selection of engine nodes alone has
+    ///     nothing in the file to delete.
     /// </summary>
     [RelayCommand]
     private void DeleteSelection()
     {
-        if (SelectedNodes.OfType<CanvasNodeViewModel>().Any(n => n.IsAuthorable))
+        if (SelectedNodes.OfType<CanvasGroupViewModel>().Any())
+        {
+            UngroupSelected();
+        }
+        else if (SelectedNodes.OfType<CanvasNodeViewModel>().Any(n => n.IsAuthorable))
         {
             DeleteSelected();
         }
@@ -464,7 +494,7 @@ public sealed partial class CanvasTabViewModel
     private InspectorViewModel? _inspector;
 
     /// <summary>The Inspector over the selected node, or over the document when nothing is selected.</summary>
-    public InspectorViewModel Inspector => _inspector ??= new InspectorViewModel(ApplyForInspector, CreateRuleset, SelectByKey);
+    public InspectorViewModel Inspector => _inspector ??= new InspectorViewModel(ApplyForInspector, CreateRuleset, SelectByKey, _arranger.CarryNext);
 
     /// <summary>Whether the Inspector tab is offered in the right dock.</summary>
     [ObservableProperty]

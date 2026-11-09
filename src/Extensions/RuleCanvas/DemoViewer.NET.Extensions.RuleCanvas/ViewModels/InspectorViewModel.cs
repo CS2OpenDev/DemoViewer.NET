@@ -31,6 +31,7 @@ public sealed partial class InspectorViewModel : ObservableObject
     private readonly Func<EditRequest, EditOutcome> _apply;
     private readonly Func<string, bool> _createRuleset;
     private readonly Action<RulesetDocumentNodeKey> _select;
+    private readonly Action<RulesetDocumentNodeKey, RulesetDocumentNodeKey>? _renaming;
     private CanvasNodeViewModel? _node;
     private string _text = "";
     private ShowSurface _surface = ShowSurface.Empty;
@@ -40,11 +41,17 @@ public sealed partial class InspectorViewModel : ObservableObject
     /// <param name="apply">Applies an edit through the open session and reports it.</param>
     /// <param name="createRuleset">Writes a new ruleset under the id given and opens it; false when it could not.</param>
     /// <param name="select">Selects the node with the key given after a rename, so the Inspector follows it.</param>
-    public InspectorViewModel(Func<EditRequest, EditOutcome> apply, Func<string, bool> createRuleset, Action<RulesetDocumentNodeKey> select)
+    /// <param name="renaming">
+    ///     Told the old and the new key just before a rename is written, so the arrangement under the old key
+    ///     can follow the node; null when nothing keeps one.
+    /// </param>
+    public InspectorViewModel(Func<EditRequest, EditOutcome> apply, Func<string, bool> createRuleset, Action<RulesetDocumentNodeKey> select,
+        Action<RulesetDocumentNodeKey, RulesetDocumentNodeKey>? renaming = null)
     {
         _apply = apply ?? throw new ArgumentNullException(nameof(apply));
         _createRuleset = createRuleset ?? throw new ArgumentNullException(nameof(createRuleset));
         _select = select ?? throw new ArgumentNullException(nameof(select));
+        _renaming = renaming;
 
         Id = new InspectorFieldViewModel("id", "id", WriteNodeField, hint: "Enter renames the entry and every reference to it");
         Label = new InspectorFieldViewModel("label", "label", WriteNodeField);
@@ -446,12 +453,20 @@ public sealed partial class InspectorViewModel : ObservableObject
                 $"{(value is null ? "remove" : "set")} {node.Id}.{field.Key}")
         };
 
+        // The arrangement follows the node before the write redraws under the new key.
+        RulesetDocumentNodeKey? renamedKey = null;
+        if (field.Key == "id" && !request.IsRefused && value is { } wanted)
+        {
+            string id = wanted.Trim();
+            renamedKey = node.IsDefine ? RulesetDocumentNodeKey.Define(node.Ruleset, id) : new RulesetDocumentNodeKey(node.Ruleset, id);
+            _renaming?.Invoke(node.Key, renamedKey.Value);
+        }
+
         EditOutcome outcome = Apply(request);
         field.Error = outcome.IsRefused ? outcome.Message ?? "" : "";
-        if (outcome.IsWritten && field.Key == "id" && value is { } renamed)
+        if (outcome.IsWritten && renamedKey is { } key)
         {
-            string id = renamed.Trim();
-            _select(node.IsDefine ? RulesetDocumentNodeKey.Define(node.Ruleset, id) : new RulesetDocumentNodeKey(node.Ruleset, id));
+            _select(key);
         }
     }
 
