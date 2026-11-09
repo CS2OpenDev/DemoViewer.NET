@@ -68,7 +68,30 @@ public sealed class RuleCanvasPack : IExtension
             tabId => Context(sp)?.Shell.SelectTab(tabId) ?? false,
             static () => RulesetCorpus.Load(RulesetCorpus.DefaultDirectories()),
             () => Context(sp)?.Stores.Own(StoreRoot.Config)?.Path,
-            static action => Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(action).GetTask()));
+            static action => Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(action).GetTask(),
+            new LiveValuesHost(
+                () => Context(sp)?.Jobs,
+                () => Context(sp)?.Shell.CurrentDemoPath,
+                () => Context(sp)?.Shell.CurrentDemoHash,
+                action =>
+                {
+                    if (Context(sp) is { } context)
+                    {
+                        context.Post(action);
+                    }
+                    else
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.Post(action);
+                    }
+                },
+                handler =>
+                {
+                    if (Context(sp)?.Shell is { } shell)
+                    {
+                        shell.CurrentDemoChanged += handler;
+                    }
+                },
+                Context(sp)?.CreateLogger("RuleCanvas.Live"))));
     }
 
     private static IExtensionContext? Context(IServiceProvider services) =>
