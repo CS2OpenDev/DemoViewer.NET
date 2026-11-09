@@ -340,7 +340,7 @@ public sealed partial class InspectorViewModel : ObservableObject
         RulesetId = entry?.Id ?? "";
         RulesetSource = entry?.Source ?? "";
         ReadOnlyNote = entry is null ? ""
-            : entry.Source != "user" ? "A shipped ruleset is read only here. Edit a copy puts one in your rules."
+            : !entry.IsUser ? "A shipped ruleset is read only here. Edit a copy puts one in your rules."
             : sourceDirty ? "Save or revert the YAML tab to edit here."
             : "";
 

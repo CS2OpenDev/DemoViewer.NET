@@ -177,7 +177,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     public bool IsCompact => !ShowFacets;
 
     /// <summary>The selected ruleset is the user's own, so the canvas and the pane may write it.</summary>
-    public bool IsUserRuleset => SelectedRuleset?.Source == "user";
+    public bool IsUserRuleset => SelectedRuleset?.IsUser == true;
 
     /// <summary>The selected ruleset is shipped: read-only here, editable as a copy under the user's rules.</summary>
     public bool IsShippedRuleset => SelectedRuleset is not null && !IsUserRuleset;
@@ -438,7 +438,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
                 }
 
                 // A copy of a shipped file is a file that appeared; the user file written is re-read alone.
-                Reload(entry.Id, entry.Source == "user" ? entry.Path : null);
+                Reload(entry.Id, entry.IsUser ? entry.Path : null);
                 NotifyHistory();
                 return true;
             default:

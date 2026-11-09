@@ -354,7 +354,7 @@ public sealed partial class CanvasTabViewModel
     {
         foreach (RulesetCorpus.Entry entry in _corpus?.Entries ?? [])
         {
-            if (entry.Source != "user" || entry.Id == SelectedRuleset?.Id)
+            if (!entry.IsUser || entry.Id == SelectedRuleset?.Id)
             {
                 continue;
             }

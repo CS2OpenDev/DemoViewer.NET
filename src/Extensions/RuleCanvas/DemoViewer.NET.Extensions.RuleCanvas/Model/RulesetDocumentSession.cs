@@ -49,7 +49,7 @@ public sealed class RulesetDocumentSession
     public DateTime LoadedWriteTimeUtc { get; private set; }
 
     /// <summary>Whether the open entry is one of the user's own files, which is the only kind written.</summary>
-    public bool IsUserFile => Entry?.Source == "user";
+    public bool IsUserFile => Entry?.IsUser == true;
 
     public bool CanUndo => _undo.Count > 0;
 
