@@ -126,6 +126,30 @@ public class CanvasDeleteTests
     }
 
     [Test]
+    public async Task TheToastsCascade_WritesNothing_OnceAnotherRulesetIsOpen()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        string other = rules.User("other_round", "ruleset: other_round\ntitle: Other\nfor: each_player\nstats:\n  round_kast:\n    count: kill\n    per: round\n");
+        string otherText = File.ReadAllText(other);
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "player_round";
+        vm.OnActivated(null!);
+        vm.SelectedNodes.Add(vm.Nodes.Single(n => n.Id == "round_kast"));
+        vm.DeleteSelectedCommand.Execute(null);
+        CanvasToast? toast = vm.Toast;
+        await Assert.That(toast?.HasAction).IsTrue();
+
+        vm.SelectedRuleset = vm.Rulesets.Single(r => r.Id == "other_round");
+        toast!.Action!();
+        using (Assert.Multiple())
+        {
+            await Assert.That(File.ReadAllText(other)).IsEqualTo(otherText).Because("the cascade belongs to player_round");
+            await Assert.That(vm.Toast?.Message).Contains("The ruleset changed");
+            await Assert.That(vm.CanUndo).IsFalse();
+        }
+    }
+
+    [Test]
     public async Task ASelectionNothingNames_GoesInOneWrite()
     {
         using RulesTree rules = RulesTree.WithUser("player_round");

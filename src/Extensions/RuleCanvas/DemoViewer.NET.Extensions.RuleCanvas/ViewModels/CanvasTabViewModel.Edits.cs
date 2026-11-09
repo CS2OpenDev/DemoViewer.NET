@@ -141,7 +141,19 @@ public sealed partial class CanvasTabViewModel
         if (!Apply(request) && request.IsRefused && request.Refusal is { } refusal
             && CanvasEditSemantics.DeleteWithReferences(nodes, composed, _session.Text) is { } cascade)
         {
-            Notify(refusal, null, DeleteWithReferencesLabel, () => Apply(cascade));
+            // The toast outlives a switch of ruleset; the cascade is only for the file it was refused on.
+            string? path = _session.Entry?.Path;
+            Notify(refusal, null, DeleteWithReferencesLabel, () =>
+            {
+                if (IsEditable && path is not null && string.Equals(_session.Entry?.Path, path, StringComparison.Ordinal))
+                {
+                    Apply(cascade);
+                }
+                else
+                {
+                    Notify("The ruleset changed since that delete was refused; select the entry and delete it again.");
+                }
+            });
         }
     }
 
