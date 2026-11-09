@@ -135,7 +135,7 @@ public static class RulesetEdits
     /// <summary>Sets one scalar field of a stat (<c>while</c>, <c>on</c>, <c>count</c>), adding or replacing it.</summary>
     public static string SetField(string text, string statId, string key, string value)
     {
-        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(Unblanked(text, RulesetDocumentEditor.StatPath(statId).Key(key)));
         if (editor.Document.Find(RulesetDocumentEditor.StatPath(statId)) is not YamlMappingNode)
         {
             throw new InvalidOperationException($"{statId} is not a stat in this document");
@@ -337,10 +337,25 @@ public static class RulesetEdits
 
     private static YamlPath HighlightPath(string id) => _highlights.Key(id);
 
+    // A key with nothing after its colon parses as an empty scalar with no width, at the start of the next
+    // line; a splice there lands inside the next key. A placeholder after the colon gives it a span to replace.
+    private static string Unblanked(string text, YamlPath path)
+    {
+        YamlDocumentText doc = RulesetDocumentEditor.Open(text).Document;
+        if (doc.Find(path) is not YamlScalarNode { Style: ScalarStyle.Plain, Value: null or "" } blank
+            || doc.SpanOf(blank).Length > 0 || doc.FindKey(path) is not { } key)
+        {
+            return text;
+        }
+
+        int colon = doc.EndOf(key);
+        return colon < text.Length && text[colon] == ':' ? text.Insert(colon + 1, " _") : text;
+    }
+
     /// <summary>Sets one scalar field of a highlight (<c>when</c>, <c>per</c>, <c>title</c>, <c>score</c>), adding or replacing it.</summary>
     public static string SetHighlightField(string text, string highlightId, string key, string value)
     {
-        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(Unblanked(text, HighlightPath(highlightId).Key(key)));
         if (editor.Document.Find(HighlightPath(highlightId)) is not YamlMappingNode)
         {
             throw new InvalidOperationException($"{highlightId} is not a highlight in this document");
@@ -425,7 +440,7 @@ public static class RulesetEdits
     /// <summary>Sets one scalar field of a trigger define (<c>on</c>, <c>while</c>, <c>where</c>), adding or replacing it.</summary>
     public static string SetDefineField(string text, string name, string key, string value)
     {
-        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(Unblanked(text, DefinePath(name).Key(key)));
         if (editor.Document.Find(DefinePath(name)) is not YamlMappingNode)
         {
             throw new InvalidOperationException($"{name} is not a trigger define in this document");

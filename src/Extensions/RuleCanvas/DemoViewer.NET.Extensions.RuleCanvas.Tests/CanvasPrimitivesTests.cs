@@ -199,4 +199,63 @@ public class CanvasPrimitivesTests
             }
         }
     }
+
+    [Test]
+    public async Task AnUnfinishedCount_TakesItsTrigger_FromAnEventWire_OrAViewDrop()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open("stats:\n  plants:\n    count: bomb_planted\n    per: round\n  a:\n    count:\n    per: round\n  b:\n    count:\n    per: round\n");
+        using (rules)
+        {
+            CanvasNodeViewModel planted = vm.Nodes.Single(n => n.Ruleset == "~event" && n.Id == "bomb_planted");
+            await Assert.That(Node(vm, "a").Port(PortKind.Trigger)).IsNotNull().Because("an unfinished count is drawn with its on port");
+            vm.ConnectCommand.Execute(((object)planted.Outputs[0], (object?)Node(vm, "a").Port(PortKind.Trigger)));
+            vm.DropOnNode(vm.Gallery.Single(g => g.Title == "Views").Items.Single(i => i.Name == "kill"), Node(vm, "b"));
+            vm.PlaceItem(Item(vm, "Blank define"), new Point(0, 400));
+            planted = vm.Nodes.Single(n => n.Ruleset == "~event" && n.Id == "bomb_planted");
+            vm.ConnectCommand.Execute(((object)planted.Outputs[0], (object?)vm.Nodes.Single(n => n.IsDefine).Port(PortKind.Trigger)));
+            using (Assert.Multiple())
+            {
+                await Assert.That(RulesetEdits.DefineField(Text(rules), "new_define", "on")).IsEqualTo("bomb_planted");
+                await Assert.That(RulesetEdits.Field(Text(rules), "a", "count")).IsEqualTo("bomb_planted");
+                await Assert.That(RulesetEdits.Field(Text(rules), "b", "count")).IsEqualTo("kill");
+                await Assert.That(vm.Connections.Any(c => c.Source.Owner?.Id == "bomb_planted" && c.Target.Owner?.Id == "a")).IsTrue();
+                await Assert.That(vm.DiagnosticEntries.Select(d => d.Message).Where(m => m.Contains("no trigger", StringComparison.Ordinal))).IsEmpty();
+            }
+        }
+    }
+
+    [Test]
+    public async Task SettingAKeyWrittenWithNothingAfterItsColon_FillsItInPlace()
+    {
+        const string text = Header + "define:\n  d:\n    on:\n    while: round.active\nstats:\n  a:\n    count:\n    per: round\nhighlights:\n  h:\n    when:\n    title: t\n";
+        string written = RulesetEdits.SetField(text, "a", "count", "kill");
+        written = RulesetEdits.SetDefineField(written, "d", "on", "kill");
+        written = RulesetEdits.SetHighlightField(written, "h", "when", "a > 0");
+        await Assert.That(written).IsEqualTo(Header + "define:\n  d:\n    on: kill\n    while: round.active\nstats:\n  a:\n    count: kill\n    per: round\n"
+                                             + "highlights:\n  h:\n    when: a > 0\n    title: t\n");
+    }
+
+    [Test]
+    public async Task AStatWiredIntoABlankWhen_WritesTheFirstRow_AndTheWireEditorSetsIt()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
+        using (rules)
+        {
+            vm.PlaceItem(Item(vm, "Blank highlight"), new Point(400, 0));
+            vm.PlaceItem(Item(vm, "Blank flag"), new Point(400, 300));
+            CanvasWalkthrough.WireInto(vm, Node(vm, "kills"), Node(vm, CanvasGallery.BlankHighlightName).LogicPort!);
+            CanvasWalkthrough.WireInto(vm, Node(vm, "kills"), Node(vm, "new_flag").LogicPort!);
+            using (Assert.Multiple())
+            {
+                await Assert.That(RulesetEdits.HighlightField(Text(rules), CanvasGallery.BlankHighlightName, "when")).IsEqualTo("kills > 0");
+                await Assert.That(RulesetEdits.FlagWhen(Text(rules), "new_flag")).IsEqualTo("kills > 0");
+                await Assert.That(vm.WarningCount).IsEqualTo(0).Because(string.Join("; ", vm.DiagnosticEntries.Select(d => d.Message)));
+            }
+
+            vm.BeginEditWire(vm.Connections.Single(c => c.Source.Owner?.Id == "kills" && c.Target.Owner?.Id == CanvasGallery.BlankHighlightName));
+            vm.WireEditor!.Row!.Literal = "2";
+            vm.WireEditor.Commit();
+            await Assert.That(RulesetEdits.HighlightField(Text(rules), CanvasGallery.BlankHighlightName, "when")).IsEqualTo("kills > 2");
+        }
+    }
 }
