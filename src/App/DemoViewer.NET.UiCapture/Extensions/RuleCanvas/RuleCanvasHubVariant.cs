@@ -26,12 +26,12 @@ namespace DemoViewer.NET.UiCapture;
 public static partial class Variants
 {
     private static MainView RuleCanvasHub(bool showFacets = true, string ruleset = "player_round", bool editable = false,
-        string? focus = null, bool live = false, bool legend = false)
+        string? focus = null, bool live = false, bool legend = false, bool walkthrough = false)
     {
         RuleCanvasPack pack = new();
         ServiceCollection services = new();
         pack.Register(services);
-        if (editable)
+        if (editable || walkthrough)
         {
             // The ruleset copied into a throwaway user directory, so the face shows its editors rather than
             // the read-only text a shipped ruleset gets.
@@ -39,7 +39,11 @@ public static partial class Variants
             string user = Path.Combine(root, "user");
             Directory.CreateDirectory(user);
             string shipped = CS2DemoKit.Analysis.Yaml.RuleSetLocator.ResolveShippedRulesDirectory();
-            File.Copy(Path.Combine(shipped, ruleset + ".rules.yaml"), Path.Combine(user, ruleset + ".rules.yaml"));
+            if (!walkthrough)
+            {
+                File.Copy(Path.Combine(shipped, ruleset + ".rules.yaml"), Path.Combine(user, ruleset + ".rules.yaml"));
+            }
+
             // With live on, a host that names the demo and has no queue: the strip shows the file, the badges
             // come from the canned run below, and Re-run has nothing to run on.
             LiveValuesHost? host = live
@@ -80,6 +84,13 @@ public static partial class Variants
             // A canned run stands in for the demo: badges and tooltips render without a parse or a queue.
             canvas.OnActivated(null!);
             canvas.ShowLiveRun(CannedLiveRun(ruleset));
+        }
+
+        if (walkthrough)
+        {
+            // The walkthrough test's ruleset, built in the empty user directory through the canvas's own calls.
+            canvas.OnActivated(null!);
+            CanvasWalkthrough.BuildAll(canvas);
         }
 
         return new MainView { DataContext = vm };

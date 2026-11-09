@@ -141,7 +141,7 @@ public class CanvasConnectTests
         vm.Connect(Node(vm, "deaths"), Node(vm, "hot"));
         using (Assert.Multiple())
         {
-            await Assert.That(Text()).Contains("  hot:\n    flag: \"kills > 0 or deaths > 0\"\n    per: round");
+            await Assert.That(Text()).Contains("  hot:\n    flag: \"kills > 0 and deaths > 0\"\n    per: round");
             await Assert.That(vm.Diagnostics).IsEmpty();
             await Assert.That(vm.Connections.Any(c => c.Source.Owner?.Id == "deaths" && c.Target.Owner?.Id == "hot")).IsTrue();
         }
@@ -153,6 +153,60 @@ public class CanvasConnectTests
             await Assert.That(Text()).IsEqualTo(before).Because("a trigger flag has no when: the loader reads");
             await Assert.That(vm.EditStatus).Contains("no when:");
             await Assert.That(CanvasEditSemantics.ConnectPreview(Node(vm, "deaths"), Node(vm, "armed"))).Contains("no when:");
+        }
+    }
+
+    // A wired operand used to join with a fixed word: "or" on a flag, "and" on a highlight, which turned
+    // "a and b" into "a and b or c" and silently changed what ran.
+    [Test]
+    public async Task AWiredOperand_JoinsInTheAuthorsConnective_AndANestedWhenKeepsItsPrecedence()
+    {
+        using RulesTree rules = RulesTree.New();
+        rules.User("joins", """
+            ruleset: joins
+            title: Joins
+            for: each_player
+            stats:
+              kills:
+                count: kill
+                per: round
+              deaths:
+                count: death
+                per: round
+              both:
+                flag:
+                  when: "kills > 0 and player.alive"
+                per: round
+              nested:
+                flag:
+                  when: "(kills > 0 or player.alive) and player.traded"
+                per: round
+            highlights:
+              either:
+                when: kills > 2 or player.survived
+                per: round
+            """);
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "joins";
+        vm.OnActivated(null!);
+        string Text() => File.ReadAllText(rules.UserPath("joins"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(CanvasEditSemantics.ConnectPreview(Node(vm, "deaths"), Node(vm, "both"))).IsEqualTo("joins when: with and deaths > 0");
+            await Assert.That(CanvasEditSemantics.ConnectPreview(Node(vm, "deaths"), Node(vm, "either"))).IsEqualTo("joins when: with or deaths > 0");
+        }
+
+        vm.Connect(Node(vm, "deaths"), Node(vm, "both"));
+        vm.Connect(Node(vm, "deaths"), Node(vm, "nested"));
+        vm.Connect(Node(vm, "deaths"), Node(vm, "either"));
+        string text = Text();
+        using (Assert.Multiple())
+        {
+            await Assert.That(RulesetEdits.Field(text, "both", "flag.when")).IsEqualTo("kills > 0 and player.alive and deaths > 0");
+            await Assert.That(RulesetEdits.Field(text, "nested", "flag.when")).IsEqualTo("((kills > 0 or player.alive) and player.traded) and deaths > 0");
+            await Assert.That(RulesetEdits.HighlightField(text, "either", "when")).IsEqualTo("kills > 2 or player.survived or deaths > 0");
+            await Assert.That(vm.DiagnosticEntries.All(d => !d.IsError)).IsTrue().Because(vm.Diagnostics);
+            await Assert.That(Node(vm, "both").Lines.Single(l => l.Key == "when").IsFlat).IsTrue().Because("the rows stay editable as rows");
         }
     }
 

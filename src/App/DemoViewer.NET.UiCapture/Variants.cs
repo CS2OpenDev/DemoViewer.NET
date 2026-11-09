@@ -172,6 +172,7 @@ public static partial class Variants
             ["rule-canvas-defines"] = () => RuleCanvasHub(ruleset: "post_plant_double", editable: true),
             ["rule-canvas-live"] = () => RuleCanvasHub(editable: true, live: true),
             ["rule-canvas-legend"] = () => RuleCanvasHub(ruleset: "player_stats", legend: true),
+            ["rule-canvas-walkthrough"] = () => RuleCanvasHub(ruleset: "clutch_lab", walkthrough: true),
             // Concurrency seeded to 2 so the BACKGROUND PROCESSING section shows the RAM-risk warning (the
             // safety-critical element). The default state (1, no warning) is
             // captured by "settings".
