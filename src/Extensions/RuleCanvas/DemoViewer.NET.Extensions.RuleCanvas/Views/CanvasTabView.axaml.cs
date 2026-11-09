@@ -230,14 +230,15 @@ public partial class CanvasTabView : UserControl
     }
 
     // The editor sits centred on the wire's label, or on the wire's midpoint before the label was drawn,
-    // kept inside the canvas; the first box inside takes focus so Enter and Escape land in it.
+    // kept inside the canvas; the first box inside takes focus so Enter and Escape land in it. The layer
+    // shares the editor's cell and has no bounds of its own yet, so the editor's are the frame.
     private void PlaceWireEditor(CanvasWireEditorViewModel editor)
     {
         WireEditorHost.Measure(Size.Infinity);
         Size size = WireEditorHost.DesiredSize;
         Point anchor = AnchorOf(editor.Wire);
-        double left = Math.Clamp(anchor.X - size.Width / 2, 0, Math.Max(0, WireEditorLayer.Bounds.Width - size.Width));
-        double top = Math.Clamp(anchor.Y - size.Height / 2, 0, Math.Max(0, WireEditorLayer.Bounds.Height - size.Height));
+        double left = Math.Clamp(anchor.X - size.Width / 2, 0, Math.Max(0, Editor.Bounds.Width - size.Width));
+        double top = Math.Clamp(anchor.Y - size.Height / 2, 0, Math.Max(0, Editor.Bounds.Height - size.Height));
         Canvas.SetLeft(WireEditorHost, left);
         Canvas.SetTop(WireEditorHost, top);
         Dispatcher.UIThread.Post(FocusWireEditor, DispatcherPriority.Background);
@@ -259,19 +260,18 @@ public partial class CanvasTabView : UserControl
         }
     }
 
-    // The label's centre in the layer's coordinates when the wire's control is realised, else the midpoint of
-    // the wire's anchors taken through the viewport.
+    // The label's centre in the editor's coordinates when the wire's control is realised, else the midpoint
+    // of the wire's anchors taken through the viewport.
     private Point AnchorOf(CanvasConnectionViewModel wire)
     {
         LabelledConnection? connection = Editor.GetVisualDescendants().OfType<LabelledConnection>().FirstOrDefault(c => ReferenceEquals(c.DataContext, wire));
-        if (connection is not null && connection.TranslatePoint(connection.LabelAnchor, WireEditorLayer) is { } placed)
+        if (connection is not null && connection.TranslatePoint(connection.LabelAnchor, Editor) is { } placed)
         {
             return placed;
         }
 
         Point mid = new((wire.Source.Anchor.X + wire.Target.Anchor.X) / 2, (wire.Source.Anchor.Y + wire.Target.Anchor.Y) / 2);
-        Point inViewport = new((mid.X - Editor.ViewportLocation.X) * Editor.ViewportZoom, (mid.Y - Editor.ViewportLocation.Y) * Editor.ViewportZoom);
-        return Editor.TranslatePoint(inViewport, WireEditorLayer) ?? inViewport;
+        return new Point((mid.X - Editor.ViewportLocation.X) * Editor.ViewportZoom, (mid.Y - Editor.ViewportLocation.Y) * Editor.ViewportZoom);
     }
 
     // Nodify's editor and its containers take the release without calling the base handler, so Avalonia
