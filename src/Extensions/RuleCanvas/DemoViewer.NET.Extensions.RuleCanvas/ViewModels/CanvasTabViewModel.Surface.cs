@@ -368,6 +368,7 @@ public sealed partial class CanvasTabViewModel
         }
 
         OnPropertyChanged(nameof(DiagnosticCount));
+        OnPropertyChanged(nameof(HasDiagnostics));
         OnPropertyChanged(nameof(DiagnosticSummary));
         OnPropertyChanged(nameof(DiagnosticsToken));
         OnPropertyChanged(nameof(ErrorCount));

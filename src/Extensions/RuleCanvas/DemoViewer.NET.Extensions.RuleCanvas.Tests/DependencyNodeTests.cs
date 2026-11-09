@@ -187,6 +187,19 @@ public class DependencyNodeTests
         vm.ExpandDependency("kast");
         vm.CollapseDependency("kast");
         await Assert.That(vm.Nodes.Count(n => n.IsDependency)).IsEqualTo(1);
+
+        // A wire from the folded node itself has no entry to read; the refusal says what to do instead.
+        string text = File.ReadAllText(rules.UserPath("player_stats"));
+        vm.Connect(vm.Nodes.Single(n => n.IsDependency), vm.Nodes.Single(n => n.Id == "HLTV"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.EditStatus).Contains("Expand kast and wire from the entry itself");
+            await Assert.That(File.ReadAllText(rules.UserPath("player_stats"))).IsEqualTo(text);
+            await Assert.That(vm.Inspector.NodeNote).IsEmpty().Because("nothing is selected");
+        }
+
+        vm.SelectedNodes.Add(vm.Nodes.Single(n => n.IsDependency));
+        await Assert.That(vm.Inspector.NodeNote).Contains("use: [ kast ] folded to one node");
     }
 
     [Test]
