@@ -141,8 +141,8 @@ public class CanvasEditSemanticsTests
             await Assert.That(RulesetEdits.HighlightField(join.Transform!(withHighlight), "h", "when")).IsEqualTo("player.survived and round_survived > 0");
             await Assert.That(scaffold.IsRefused).IsTrue();
             await Assert.That(scaffold.Refusal).Contains("reads stats");
-            await Assert.That(RulesetEdits.HighlightField(foreign.Transform!(withHighlight), "h", "when"))
-                .IsEqualTo("player.survived and kast.round_kast > 0").Because("a stat of another ruleset is read by its qualified path");
+            await Assert.That(foreign.IsRefused).IsTrue().Because("the planner leaves a ruleset out of the chain when its when: reads another ruleset");
+            await Assert.That(foreign.Refusal).Contains("kast.round_kast is another ruleset's stat");
         }
     }
 

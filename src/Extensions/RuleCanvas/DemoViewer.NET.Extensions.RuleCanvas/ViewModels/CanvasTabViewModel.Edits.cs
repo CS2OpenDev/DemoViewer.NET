@@ -203,7 +203,11 @@ public sealed partial class CanvasTabViewModel
         // A plain click on a port comes back as a wire from the port to itself.
         if (source is not null && target is not null && !ReferenceEquals(source, target))
         {
-            Connect(source, target, to is CanvasConnectorViewModel { IsInput: true } port ? port.Kind : null);
+            if (IsEditable)
+            {
+                Apply(CanvasEditSemantics.Connect(source, target, to is CanvasConnectorViewModel { IsInput: true } port ? port.Kind : null,
+                    from as CanvasConnectorViewModel));
+            }
         }
         else if (source is not null && target is null && IsEditable)
         {

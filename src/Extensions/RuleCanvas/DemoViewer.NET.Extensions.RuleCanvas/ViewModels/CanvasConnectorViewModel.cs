@@ -37,6 +37,9 @@ public sealed partial class CanvasConnectorViewModel : ObservableObject
 
     public PortKind Kind { get; init; } = PortKind.Value;
 
+    /// <summary>The entry a folded dependency's output stands for, which a wire from it reads; null on every other port.</summary>
+    public string? Entry { get; init; }
+
     public bool IsInput => Kind is PortKind.Trigger or PortKind.Gate or PortKind.Read or PortKind.Logic;
 
     /// <summary>The theme token the ring is drawn in: the wire kind the port takes or gives.</summary>

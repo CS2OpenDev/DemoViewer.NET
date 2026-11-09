@@ -53,7 +53,8 @@ public static class CanvasGraphBuilder
                 PortKind kind = OutputKindOf(owner);
                 connector = new CanvasConnectorViewModel
                 {
-                    Title = entry ?? (kind == PortKind.Value ? owner.OutputTitle : CanvasConnectorViewModel.TitleOf(kind)), Owner = owner, Kind = kind
+                    Title = entry ?? (kind == PortKind.Value ? owner.OutputTitle : CanvasConnectorViewModel.TitleOf(kind)), Owner = owner, Kind = kind,
+                    Entry = owner.IsDependency ? entry : null
                 };
                 outputs[(key, entry)] = connector;
                 owner.Outputs.Add(connector);

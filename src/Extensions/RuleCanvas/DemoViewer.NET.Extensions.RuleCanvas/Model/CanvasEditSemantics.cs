@@ -583,10 +583,19 @@ public static partial class CanvasEditSemantics
     ///     logic port takes a value and falls through to the body rules. A wire into the node body, with no
     ///     port, is read from the source as before.
     /// </summary>
-    public static EditRequest Connect(CanvasNodeViewModel source, CanvasNodeViewModel target, PortKind? port)
+    public static EditRequest Connect(CanvasNodeViewModel source, CanvasNodeViewModel target, PortKind? port) =>
+        Connect(source, target, port, null);
+
+    /// <summary>
+    ///     A wire from <paramref name="output" />: a folded dependency's output names the entry it stands for, so
+    ///     the wire reads <c>&lt;ruleset&gt;.&lt;entry&gt;</c> exactly as one from that entry drawn expanded would.
+    ///     Null, or a dependency port that names no entry, is a wire from the node itself.
+    /// </summary>
+    public static EditRequest Connect(CanvasNodeViewModel source, CanvasNodeViewModel target, PortKind? port, CanvasConnectorViewModel? output)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
+        source = EntryBehind(source, output);
         // A show node's inputs are its columns, and a wire on any of them appends one.
         if (port is null || !target.IsAuthorable || target.IsScaffold || target.IsShow)
         {
@@ -610,6 +619,12 @@ public static partial class CanvasEditSemantics
                 return Connect(source, target);
         }
     }
+
+    // The dependency's entry as a read-only node of its ruleset: the same node an expansion would draw, for the rules below.
+    private static CanvasNodeViewModel EntryBehind(CanvasNodeViewModel source, CanvasConnectorViewModel? output) =>
+        source.IsDependency && output is { Entry: { Length: > 0 } entry } && ReferenceEquals(output.Owner, source)
+            ? new CanvasNodeViewModel { Id = entry, Ruleset = source.Id, Kind = "stat", IsAuthorable = false }
+            : source;
 
     private static string Noun(PortKind kind) => kind switch
     {
@@ -687,10 +702,15 @@ public static partial class CanvasEditSemantics
     }
 
     /// <summary>The caption for a wire held over a typed port: the port's refusal or write, else the body's.</summary>
-    public static string ConnectPreview(CanvasNodeViewModel source, CanvasNodeViewModel target, PortKind? port)
+    public static string ConnectPreview(CanvasNodeViewModel source, CanvasNodeViewModel target, PortKind? port) =>
+        ConnectPreview(source, target, port, null);
+
+    /// <summary>The caption for a wire held from <paramref name="output" />, which names a folded dependency's entry.</summary>
+    public static string ConnectPreview(CanvasNodeViewModel source, CanvasNodeViewModel target, PortKind? port, CanvasConnectorViewModel? output)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
+        source = EntryBehind(source, output);
         if (port is null)
         {
             return ConnectPreview(source, target);
@@ -1267,6 +1287,11 @@ public static partial class CanvasEditSemantics
             return EditRequest.Refuse("A highlight's when: reads stats; wire a stat into it.");
         }
 
+        if (CrossRulesetWhen(source, target) is { } refusal)
+        {
+            return refusal;
+        }
+
         string read = ReadOf(source, target);
         return EditRequest.Of(text =>
         {
@@ -1335,6 +1360,11 @@ public static partial class CanvasEditSemantics
             return EditRequest.Refuse($"{target.Id} fires on its trigger and has no when: to extend; test {source.Id} in its where: instead.");
         }
 
+        if (CrossRulesetWhen(source, target) is { } refusal)
+        {
+            return refusal;
+        }
+
         string read = ReadOf(source, target);
         return EditRequest.Of(text =>
         {
@@ -1343,6 +1373,12 @@ public static partial class CanvasEditSemantics
             return RulesetEdits.SetFlagWhen(text, target.Id, when);
         }, $"extend {target.Id} with {read}");
     }
+
+    // The planner gates a when: on siblings and context only; a ruleset whose when: reads another ruleset is left out of the chain.
+    private static EditRequest? CrossRulesetWhen(CanvasNodeViewModel source, CanvasNodeViewModel target) =>
+        source.Ruleset == target.Ruleset ? null
+            : EditRequest.Refuse($"{ReadOf(source, target)} is another ruleset's stat, and a when: gates only on this ruleset's own; "
+                                 + $"read it in a compute of yours (write {ReadOf(source, target)} in its text) and wire that into {target.Title}.");
 
     // A sibling is read by its id; a stat of another ruleset by its qualified path.
     private static string ReadOf(CanvasNodeViewModel source, CanvasNodeViewModel target) =>
