@@ -60,6 +60,43 @@ public sealed partial class CanvasTabViewModel
         CommitLayout(after);
     }
 
+    /// <summary>The action a refused event delete carries: <c>Detach 2 stats</c>.</summary>
+    public static string DetachLabel(IReadOnlyList<CanvasNodeViewModel> targets)
+    {
+        ArgumentNullException.ThrowIfNull(targets);
+        string noun = targets.All(t => !t.IsDefine)
+            ? targets.Count == 1 ? "stat" : "stats"
+            : targets.Count == 1 ? "entry" : "entries";
+        return $"Detach {targets.Count} {noun}";
+    }
+
+    // An event node is the chain's: deleting it means taking away the triggers that draw it, which the toast offers.
+    private void RefuseEventDelete(IReadOnlyList<CanvasNodeViewModel> events)
+    {
+        List<CanvasNodeViewModel> targets = [.. events.SelectMany(e => CanvasEditSemantics.TriggerTargets(e, Connections)).Distinct()];
+        List<EditRequest> detaches = [.. events.Select(e => CanvasEditSemantics.DetachAll(e, Connections)).OfType<EditRequest>()];
+        string names = string.Join(", ", events.Select(e => e.Id));
+        if (targets.Count == 0 || detaches.Count == 0)
+        {
+            Notify($"{names} is drawn because something reads it; it goes when nothing does.");
+            return;
+        }
+
+        string? path = _session.Entry?.Path;
+        EditRequest detach = EditRequest.Of(text => detaches.Aggregate(text, (t, d) => d.Transform!(t)), $"detach {targets.Count} from {names}");
+        Notify($"{names} drives {string.Join(", ", targets.Select(t => t.Title))}; detach them to remove it.", null, DetachLabel(targets), () =>
+        {
+            if (IsEditable && path is not null && string.Equals(_session.Entry?.Path, path, StringComparison.Ordinal))
+            {
+                Apply(detach);
+            }
+            else
+            {
+                Notify("The ruleset changed since that delete was refused; select the event and delete it again.");
+            }
+        });
+    }
+
     // Floating nodes have no text to remove: they leave the sidecar, as one undoable layout change.
     private void RemoveScaffolds(IReadOnlyList<CanvasNodeViewModel> floating)
     {

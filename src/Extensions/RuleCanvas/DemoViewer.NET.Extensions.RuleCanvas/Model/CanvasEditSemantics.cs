@@ -930,6 +930,11 @@ public static partial class CanvasEditSemantics
             return WriteFacet(target, facet, null);
         }
 
+        if (IsTriggerWire(wire) && DetachTrigger(target) is { } detach)
+        {
+            return detach;
+        }
+
         if (source.IsDefine)
         {
             return EditRequest.Refuse($"{target.Id} fires on {source.Title}; pick another trigger on the stat instead.");

@@ -147,7 +147,7 @@ public class CanvasEditSemanticsTests
     }
 
     [Test]
-    public async Task Disconnect_UngatesOrUnbinds_AndRefusesATriggerWire()
+    public async Task Disconnect_UngatesOrUnbinds_AndDetachesATriggerWire()
     {
         CanvasNodeViewModel matchLive = Engine("~context", "MatchLive", "context");
         CanvasNodeViewModel enrichment = Engine("~enrichment", "enrich.kill.was_enemy_kill", "enrich");
@@ -167,8 +167,8 @@ public class CanvasEditSemanticsTests
         {
             await Assert.That(RulesetEdits.Field(Run(ungate), "round_deaths", "while")).IsNull();
             await Assert.That(RulesetEdits.Field(Run(unbind), "round_kills", "match.enemy")).IsNull();
-            await Assert.That(trigger.IsRefused).IsTrue();
-            await Assert.That(trigger.Refusal).Contains("own definition");
+            await Assert.That(RulesetEdits.Field(Run(trigger), "round_kills", "count")).IsEqualTo("")
+                .Because("the trigger is blanked and the stat loads unfinished");
             await Assert.That(ignored.IsRefused).IsTrue();
             await Assert.That(ignored.Refusal).IsNull().Because("a wire into another ruleset's node is not reported, there is nothing to say");
         }

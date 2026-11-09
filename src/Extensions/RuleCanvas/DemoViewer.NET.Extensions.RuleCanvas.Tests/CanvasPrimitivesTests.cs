@@ -381,4 +381,103 @@ public class CanvasPrimitivesTests
                 .Because("every copy carries the scaffolds");
         }
     }
+
+    private const string KillsAndDamage = "define:\n  d:\n    on: kill\nstats:\n  kills:\n    count: kill\n    per: round\n  deaths:\n    count: death\n    per: round\n"
+                                          + "  dmg:\n    sum: event.DmgHealth\n    on: damage_dealt\n    per: round\n  via_d:\n    count: d\n    per: round\n";
+
+    private static CanvasConnectionViewModel TriggerWire(CanvasTabViewModel vm, string source, string target) =>
+        vm.Connections.Single(c => c.Source.Owner?.Id == source && c.Target.Owner?.Id == target && CanvasEditSemantics.IsTriggerWire(c));
+
+    [Test]
+    public async Task RemovingATriggerWire_DetachesTheTrigger_AndTheEntryLoadsUnfinished()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open(KillsAndDamage);
+        using (rules)
+        {
+            // Alt+click on the wire.
+            vm.DisconnectCommand.Execute(TriggerWire(vm, "player_death", "kills"));
+            // Delete with the wire selected.
+            vm.SelectedNodes.Clear();
+            vm.SelectedWires.Add(TriggerWire(vm, "player_hurt", "dmg"));
+            vm.DeleteSelectionCommand.Execute(null);
+            vm.DisconnectCommand.Execute(TriggerWire(vm, "player_death", "define.d"));
+            string text = Text(rules);
+            using (Assert.Multiple())
+            {
+                await Assert.That(RulesetEdits.Field(text, "kills", "count")).IsEqualTo("");
+                await Assert.That(RulesetEdits.Field(text, "dmg", "on")).IsEqualTo("");
+                await Assert.That(RulesetEdits.Field(text, "dmg", "sum")).IsEqualTo("event.DmgHealth").Because("only the trigger goes");
+                await Assert.That(RulesetEdits.DefineField(text, "d", "on")).IsEqualTo("").Because("an empty on: keeps it a trigger define");
+                await Assert.That(Node(vm, "kills").Port(PortKind.Trigger)).IsNotNull();
+                await Assert.That(Node(vm, "dmg").Port(PortKind.Trigger)).IsNotNull();
+                await Assert.That(vm.Nodes.Single(n => n.IsDefine).Port(PortKind.Trigger)).IsNotNull();
+                await Assert.That(vm.DiagnosticEntries.Select(d => d.Message)).Contains("kills has no trigger: give count: a view, such as kill");
+                await Assert.That(vm.ErrorCount).IsEqualTo(0);
+            }
+        }
+    }
+
+    [Test]
+    public async Task DeletingAnEventSomethingFiresOn_IsRefused_WithADetachAction()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open(KillsAndDamage);
+        using (rules)
+        {
+            string before = Text(rules);
+            vm.SelectedNodes.Clear();
+            vm.SelectedNodes.Add(vm.Nodes.Single(n => n.Ruleset == "~event" && n.Id == "player_death"));
+            vm.DeleteSelectionCommand.Execute(null);
+            CanvasToast toast = vm.Toast!;
+            using (Assert.Multiple())
+            {
+                await Assert.That(Text(rules)).IsEqualTo(before);
+                await Assert.That(toast.ActionLabel).IsEqualTo("Detach 3 entries").Because("kills, deaths and the define fire on it");
+                await Assert.That(toast.Message).Contains("player_death drives");
+            }
+
+            toast.Action!();
+            string text = Text(rules);
+            using (Assert.Multiple())
+            {
+                await Assert.That(RulesetEdits.Field(text, "kills", "count")).IsEqualTo("");
+                await Assert.That(RulesetEdits.Field(text, "deaths", "count")).IsEqualTo("");
+                await Assert.That(RulesetEdits.DefineField(text, "d", "on")).IsEqualTo("");
+                await Assert.That(RulesetEdits.Field(text, "dmg", "on")).IsEqualTo("damage_dealt").Because("another event's stat is untouched");
+                await Assert.That(vm.Nodes.Any(n => n.Ruleset == "~event" && n.Id == "player_death")).IsFalse();
+            }
+
+            vm.UndoCommand.Execute(null);
+            await Assert.That(Text(rules)).IsEqualTo(before).Because("the detach is one write");
+        }
+    }
+
+    [Test]
+    public async Task TheDetachLabel_CountsStats_OrEntries()
+    {
+        CanvasNodeViewModel stat = new() { Id = "a", Ruleset = "lab", Kind = "count", IsAuthorable = true };
+        CanvasNodeViewModel define = new() { Id = "define.d", Ruleset = "lab", Kind = "define", IsAuthorable = true };
+        using (Assert.Multiple())
+        {
+            await Assert.That(CanvasTabViewModel.DetachLabel([stat])).IsEqualTo("Detach 1 stat");
+            await Assert.That(CanvasTabViewModel.DetachLabel([stat, stat])).IsEqualTo("Detach 2 stats");
+            await Assert.That(CanvasTabViewModel.DetachLabel([stat, define])).IsEqualTo("Detach 2 entries");
+        }
+    }
+
+    [Test]
+    public async Task AWiredFloatingEvent_LeavesTheSidecar()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open(PlantsOnly);
+        using (rules)
+        {
+            vm.PlaceItem(vm.BlankEventOptions.Single(o => o.Name == "kill"), new Point(-300, 40));
+            CanvasWalkthrough.WireInto(vm, vm.Nodes.Single(n => n.Key == PlayerDeath), Node(vm, "a").Port(PortKind.Trigger)!);
+            RulesetNodeLayout saved = RulesetLayoutStore.Load(rules.UserPath("lab"));
+            using (Assert.Multiple())
+            {
+                await Assert.That(saved.Scaffolds).IsEmpty().Because("the chain draws the event now");
+                await Assert.That(saved.PositionFor(PlayerDeath)).IsEqualTo(new Point(-300, 40));
+            }
+        }
+    }
 }

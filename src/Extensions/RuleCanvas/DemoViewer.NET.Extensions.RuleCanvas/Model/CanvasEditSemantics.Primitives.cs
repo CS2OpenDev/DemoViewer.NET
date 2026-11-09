@@ -42,6 +42,55 @@ public static partial class CanvasEditSemantics
         }, $"make {id} a {kind}");
     }
 
+    /// <summary>
+    ///     Takes <paramref name="target" />'s trigger away: the trigger key is blanked, never removed, so the entry
+    ///     loads unfinished with its on port ready (a define without <c>on:</c> would load as a lookup map). Null
+    ///     for a flag, whose trigger and condition are one choice, and for a stat that fires on nothing.
+    /// </summary>
+    public static EditRequest? DetachTrigger(CanvasNodeViewModel target)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        if (!target.IsAuthorable)
+        {
+            return null;
+        }
+
+        if (target.IsDefine)
+        {
+            string name = target.Title;
+            return EditRequest.Of(text => RulesetEdits.SetDefineField(text, name, "on", ""), $"detach define {name} from its trigger");
+        }
+
+        if (target.Kind == "flag" || TriggerKeyFor(target) is not { } key)
+        {
+            return null;
+        }
+
+        string id = target.Id;
+        return EditRequest.Of(text => RulesetEdits.SetField(text, id, key, ""), $"detach {id} from its trigger");
+    }
+
+    /// <summary>
+    ///     The entries <paramref name="wires" /> say fire on <paramref name="eventNode" />, detached in one write;
+    ///     null when nothing it drives can be detached.
+    /// </summary>
+    public static EditRequest? DetachAll(CanvasNodeViewModel eventNode, IEnumerable<CanvasConnectionViewModel> wires)
+    {
+        ArgumentNullException.ThrowIfNull(eventNode);
+        ArgumentNullException.ThrowIfNull(wires);
+        List<EditRequest> detaches = [.. TriggerTargets(eventNode, wires).Select(DetachTrigger).OfType<EditRequest>()];
+        if (detaches.Count == 0)
+        {
+            return null;
+        }
+
+        return EditRequest.Of(text => detaches.Aggregate(text, (t, d) => d.Transform!(t)), $"detach {detaches.Count} from {eventNode.Id}");
+    }
+
+    /// <summary>The distinct nodes <paramref name="wires" /> carry a trigger into from <paramref name="eventNode" />.</summary>
+    public static IReadOnlyList<CanvasNodeViewModel> TriggerTargets(CanvasNodeViewModel eventNode, IEnumerable<CanvasConnectionViewModel> wires) =>
+        [.. wires.Where(w => ReferenceEquals(w.Source.Owner, eventNode) && IsTriggerWire(w)).Select(w => w.Target.Owner).OfType<CanvasNodeViewModel>().Distinct()];
+
     /// <summary>The event node a floating view is drawn as: the chain's own key for the view's event, or null for an unknown view.</summary>
     public static RulesetDocumentNodeKey? ScaffoldKey(string view) =>
         EmbeddedCatalog.Root.Views.FirstOrDefault(v => v.Name == view) is { } found ? new RulesetDocumentNodeKey("~event", found.Event) : null;
