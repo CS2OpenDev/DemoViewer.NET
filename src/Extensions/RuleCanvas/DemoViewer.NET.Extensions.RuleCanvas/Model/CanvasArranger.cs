@@ -8,10 +8,11 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 
 /// <summary>What one redraw draws and where: the composition, possibly cut to a slice, and the positions that win over the computed ones.</summary>
 /// <param name="Composed">The composition to draw: the whole chain, or the focused slice of it.</param>
-/// <param name="Layout">The positions that override the placement, per node key.</param>
+/// <param name="Layout">The positions that override the placement, per node key, with the folds and the frames.</param>
 /// <param name="HasSavedLayout">Whether the sidecar held an arrangement.</param>
 /// <param name="FocusDropped">Whether a focus named a node no longer in the chain and was cleared.</param>
-public sealed record Arrangement(RulesetCorpus.Composed Composed, RulesetNodeLayout Layout, bool HasSavedLayout, bool FocusDropped);
+/// <param name="Carried">Whether a renamed node took its arrangement to its new key, which the sidecar does not hold yet.</param>
+public sealed record Arrangement(RulesetCorpus.Composed Composed, RulesetNodeLayout Layout, bool HasSavedLayout, bool FocusDropped, bool Carried = false);
 
 /// <summary>
 ///     Where nodes go: the focus and its slice, the position a dropped entry is waiting to take, the
@@ -26,6 +27,10 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
     // focus redraw or a refused write in between does not lose the drop point.
     private readonly Dictionary<RulesetDocumentNodeKey, Point> _pending = new();
 
+    // Renames written but not yet drawn: the arrangement under the old key moves to the new one on the draw
+    // that holds it, so a rename does not send the node back to auto-layout.
+    private readonly Dictionary<RulesetDocumentNodeKey, RulesetDocumentNodeKey> _renames = new();
+
     /// <summary>The node whose slice of the chain is drawn, or null for the whole chain.</summary>
     public RulesetDocumentNodeKey? FocusKey { get; set; }
 
@@ -37,12 +42,24 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
     /// <summary>Records where the entry that the next write adds should be drawn.</summary>
     public void PlaceNext(RulesetDocumentNodeKey key, Point at) => _pending[key] = at;
 
-    /// <summary>Drops every recorded placement.</summary>
-    public void ForgetPending() => _pending.Clear();
+    /// <summary>Records that the next write renames <paramref name="from" /> to <paramref name="to" />, so its arrangement follows.</summary>
+    public void CarryNext(RulesetDocumentNodeKey from, RulesetDocumentNodeKey to) => _renames[from] = to;
+
+    /// <summary>Drops every recorded placement and rename.</summary>
+    public void ForgetPending()
+    {
+        _pending.Clear();
+        _renames.Clear();
+    }
 
     /// <summary>The on-screen positions as an arrangement, which a redraw after an edit keeps.</summary>
     public static RulesetNodeLayout Capture(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions) =>
         RulesetNodeLayout.From(positions);
+
+    /// <summary>Everything on screen as an arrangement: the positions, the folded nodes and the frames.</summary>
+    public static RulesetNodeLayout Capture(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
+        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups) =>
+        RulesetNodeLayout.From(positions, collapsed, groups);
 
     /// <summary>
     ///     Where an entry's arrangement lives: beside a user ruleset, under the extension's own folder for a
@@ -69,7 +86,7 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
     ///     whole chain does not apply to it; a focus that names a node no longer there (deleted, or another
     ///     ruleset) is dropped, and the slice's arrangement with it. The arrangement on screen wins over the
     ///     sidecar, and a pending placement over both; the sidecar alone decides on open, when nothing is on
-    ///     screen.
+    ///     screen. A recorded rename moves the old key's arrangement to the new one once the new key is drawn.
     /// </summary>
     public Arrangement Arrange(RulesetCorpus.Composed composed, string? sidecar, RulesetNodeLayout onScreen)
     {
@@ -94,10 +111,7 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
             }
         }
 
-        foreach ((RulesetDocumentNodeKey key, Point at) in onScreen.Positions)
-        {
-            layout = layout.With(key, at);
-        }
+        layout = layout.Overlaid(onScreen);
 
         // A pending placement is spent by the first draw that holds its key; one that names no node drawn
         // here (a slice, a refused write) waits for the draw that does.
@@ -108,7 +122,15 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
             _pending.Remove(key);
         }
 
-        return new Arrangement(composed, layout, saved.Count > 0, focusDropped);
+        bool carried = false;
+        foreach ((RulesetDocumentNodeKey from, RulesetDocumentNodeKey to) in _renames.Where(r => drawn.Contains(r.Value) && !drawn.Contains(r.Key)).ToList())
+        {
+            layout = layout.Renamed(from, to);
+            _renames.Remove(from);
+            carried = true;
+        }
+
+        return new Arrangement(composed, layout, !saved.IsEmpty, focusDropped, carried);
     }
 
     /// <summary>
@@ -118,12 +140,12 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
     public bool SaveLayout(string? sidecar, RulesetNodeLayout layout)
     {
         ArgumentNullException.ThrowIfNull(layout);
-        if (HasFocus || sidecar is null || layout.Count == 0)
+        if (HasFocus || sidecar is null || layout.IsEmpty)
         {
             return false;
         }
 
-        return RulesetLayoutStore.SaveSidecar(sidecar, layout) && layout.Count > 0;
+        return RulesetLayoutStore.SaveSidecar(sidecar, layout) && !layout.IsEmpty;
     }
 
     /// <summary>Drops the saved arrangement, which is the absence of a sidecar.</summary>
@@ -133,5 +155,28 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
         {
             RulesetLayoutStore.SaveSidecar(sidecar, RulesetNodeLayout.Empty);
         }
+    }
+
+    /// <summary>
+    ///     Re-places <paramref name="items" /> among themselves with the first placement's layering, inside
+    ///     the box they occupy now: the result is anchored at <paramref name="anchor" />, the box's top-left,
+    ///     and nothing outside the selection is touched. Edges to nodes outside the selection do not count.
+    /// </summary>
+    public static IReadOnlyDictionary<RulesetDocumentNodeKey, Point> Tidy(IReadOnlyList<CanvasPlacement.Item> items,
+        IReadOnlyList<RulesetDocumentEdge> edges, Point anchor)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(edges);
+        HashSet<RulesetDocumentNodeKey> keys = [.. items.Select(i => i.Key)];
+        List<RulesetDocumentEdge> inside = [.. edges.Where(e => keys.Contains(e.Source) && keys.Contains(e.Target))];
+        IReadOnlyDictionary<RulesetDocumentNodeKey, Point> placed = CanvasPlacement.Place(items, inside);
+        if (placed.Count == 0)
+        {
+            return placed;
+        }
+
+        double left = placed.Values.Min(p => p.X);
+        double top = placed.Values.Min(p => p.Y);
+        return placed.ToDictionary(p => p.Key, p => new Point(Math.Round(anchor.X + p.Value.X - left), Math.Round(anchor.Y + p.Value.Y - top)));
     }
 }

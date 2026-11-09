@@ -1,5 +1,6 @@
 #region
 
+using Avalonia;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
 
@@ -61,7 +62,11 @@ public sealed partial class CanvasTabViewModel
         FocusKey = node.Key;
     }
 
-    /// <summary>Writes every node's position to the sidecar. Bound to the editor's drag-completed command.</summary>
+    /// <summary>
+    ///     Writes every node's position, the folds and the frames to the sidecar. Bound to the editor's
+    ///     drag-completed command and the frame's resize-completed command; a member dragged out of its frame
+    ///     leaves the group here.
+    /// </summary>
     [RelayCommand]
     private void SaveLayout()
     {
@@ -71,16 +76,37 @@ public sealed partial class CanvasTabViewModel
         }
     }
 
-    /// <summary>Drops the saved arrangement and places the ruleset again.</summary>
+    /// <summary>Drops the saved arrangement and places the ruleset again. One Undo brings it back.</summary>
     [RelayCommand]
     private void ResetLayout()
     {
+        RulesetNodeLayout before = CurrentArrangement();
+        RecordLayoutChange(before, RulesetNodeLayout.Empty);
         CanvasArranger.ResetLayout(SidecarPath);
         Redraw(SelectedRuleset, keepArrangement: false);
     }
 
-    private RulesetNodeLayout CurrentArrangement() =>
-        CanvasArranger.Capture(Nodes.Select(n => new KeyValuePair<RulesetDocumentNodeKey, Avalonia.Point>(n.Key, n.Location)));
+    /// <summary>
+    ///     Everything on screen as an arrangement. A frame keeps the members still inside it: a node dragged
+    ///     clear of the frame has left the group, and a frame left with no member is gone.
+    /// </summary>
+    private RulesetNodeLayout CurrentArrangement()
+    {
+        Dictionary<RulesetDocumentNodeKey, Rect> boxes = Nodes.ToDictionary(n => n.Key, n => new Rect(n.Location, n.EstimatedSize));
+        List<CanvasGroup> groups = [];
+        foreach (CanvasGroupViewModel frame in Groups)
+        {
+            Rect rect = frame.Rect;
+            List<RulesetDocumentNodeKey> members = [.. frame.Members.Where(m => !boxes.TryGetValue(m, out Rect box) || rect.Intersects(box))];
+            if (members.Count > 0)
+            {
+                groups.Add(frame.ToGroup(members));
+            }
+        }
+
+        return CanvasArranger.Capture(Nodes.Select(n => new KeyValuePair<RulesetDocumentNodeKey, Point>(n.Key, n.Location)),
+            Nodes.Where(n => n.IsCollapsed).Select(n => n.Key), groups);
+    }
 
     private void NotifyFocus()
     {

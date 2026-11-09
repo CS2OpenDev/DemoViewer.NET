@@ -85,6 +85,12 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
     public ObservableCollection<CanvasNodeViewModel> Nodes { get; } = [];
 
+    /// <summary>The frames drawn under the nodes, from the layout sidecar.</summary>
+    public ObservableCollection<CanvasGroupViewModel> Groups { get; } = [];
+
+    /// <summary>What the editor draws: the frames first, so they sit under the nodes, then every node.</summary>
+    public ObservableCollection<object> Items { get; } = [];
+
     public ObservableCollection<CanvasConnectionViewModel> Connections { get; } = [];
 
     public ObservableCollection<RulesetCorpus.Entry> Rulesets { get; } = [];
@@ -163,9 +169,10 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     /// <summary>Canvas editors write only into the user's own file, and only while the pane holds what the file holds.</summary>
     public bool IsEditable => IsUserRuleset && !SourceDirty;
 
-    public bool CanUndo => _session.CanUndo;
+    /// <summary>A document write or a layout change can be taken back.</summary>
+    public bool CanUndo => _session.CanUndo || HasLayoutUndo;
 
-    public bool CanRedo => _session.CanRedo;
+    public bool CanRedo => _session.CanRedo || HasLayoutRedo;
 
     /// <summary>
     ///     Raised on the UI thread after the node and wire collections were drawn fresh (another ruleset, a
@@ -315,6 +322,8 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         {
             SourceDirty = false;
             EditStatus = "";
+            ClearLayoutHistory();
+            ClearSearch();
         }
 
         NotifyEditability();
@@ -406,6 +415,12 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
                 return false;
             case EditOutcomeKind.Written:
                 EditStatus = "";
+                // A fresh write ends the redo line, layout changes included; a history move keeps it.
+                if (!_movingHistory)
+                {
+                    ClearLayoutRedo();
+                }
+
                 // A copy of a shipped file is a file that appeared; the user file written is re-read alone.
                 Reload(entry.Id, entry.Source == "user" ? entry.Path : null);
                 NotifyHistory();
@@ -505,17 +520,23 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         }
     }
 
-    private void Redraw(RulesetCorpus.Entry? value, bool keepArrangement, bool recompose = true)
+    // arrangement stands in for what is on screen when given: a layout change restored by Undo, which the
+    // node positions do not hold yet. refit defaults to a fresh draw: a kept arrangement, or a restored one,
+    // leaves the viewport where it is.
+    private void Redraw(RulesetCorpus.Entry? value, bool keepArrangement, bool recompose = true, RulesetNodeLayout? arrangement = null,
+        bool? refit = null)
     {
         if (_redrawing)
         {
             return;
         }
 
-        RulesetNodeLayout current = keepArrangement ? CurrentArrangement() : RulesetNodeLayout.Empty;
+        RulesetNodeLayout current = arrangement ?? (keepArrangement ? CurrentArrangement() : RulesetNodeLayout.Empty);
         HashSet<RulesetDocumentNodeKey> selected = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Select(n => n.Key)];
 
         Nodes.Clear();
+        Groups.Clear();
+        Items.Clear();
         Connections.Clear();
         SelectedNodes.Clear();
         SelectedLine = 0;
@@ -544,26 +565,46 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         }
 
         OnPropertyChanged(nameof(SidecarPath));
-        (RulesetCorpus.Composed composed, RulesetNodeLayout layout, bool hasSaved, bool focusDropped) =
-            _arranger.Arrange(_composed, SidecarPath, current);
-        HasSavedLayout = hasSaved;
-        if (focusDropped)
+        Arrangement arranged = _arranger.Arrange(_composed, SidecarPath, current);
+        RulesetCorpus.Composed composed = arranged.Composed;
+        RulesetNodeLayout layout = arranged.Layout;
+        HasSavedLayout = arranged.HasSavedLayout;
+        if (arranged.FocusDropped)
         {
             NotifyFocus();
         }
 
         (IReadOnlyList<CanvasNodeViewModel> nodes, IReadOnlyList<CanvasConnectionViewModel> wires) =
             CanvasGraphBuilder.Build(composed, layout, _factory);
+        HashSet<RulesetDocumentNodeKey> drawn = [.. nodes.Select(n => n.Key)];
+        // Frames first, so the editor draws them under the nodes. A frame whose every member is gone is not drawn.
+        foreach (CanvasGroup group in layout.Groups.Where(g => g.Members.Any(drawn.Contains)))
+        {
+            CanvasGroupViewModel frame = new(group, _ => SaveLayout());
+            Groups.Add(frame);
+            Items.Add(frame);
+        }
+
         foreach (CanvasNodeViewModel node in nodes)
         {
             node.ShowFacets = ShowFacets;
             node.IsEditable = IsEditable && node.IsAuthorable;
+            node.IsCollapsed = layout.IsCollapsed(node.Key);
+            node.IsZoomedOut = IsZoomedOut;
+            node.IsSearchMatch = node.Matches(CanvasSearch);
             Nodes.Add(node);
+            Items.Add(node);
         }
 
         foreach (CanvasConnectionViewModel wire in wires)
         {
             Connections.Add(wire);
+        }
+
+        // The rename moved the arrangement to the new key on screen; the sidecar learns it here.
+        if (arranged.Carried)
+        {
+            SaveLayout();
         }
 
         ApplySurfacing(nodes);
@@ -581,7 +622,8 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             ? "Nothing composed; see the diagnostics."
             : $"{nodes.Count} nodes, {wires.Count} wires, {unwired} unwired";
         AfterRedraw(composed);
-        if (!keepArrangement)
+        RefreshSearchMatches();
+        if (refit ?? !keepArrangement)
         {
             GraphReplaced?.Invoke();
         }

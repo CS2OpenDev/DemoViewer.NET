@@ -298,6 +298,14 @@ public partial class CanvasTabView : UserControl
             return;
         }
 
+        // A frame shares the container theme and its node menu; its own menu is built here instead.
+        if (owner is ItemContainer { DataContext: CanvasGroupViewModel group })
+        {
+            OpenGroupMenu(group, owner);
+            e.Handled = true;
+            return;
+        }
+
         if (owner is ItemContainer { DataContext: CanvasNodeViewModel node } && _viewModel is not null && !_viewModel.SelectedNodes.Contains(node))
         {
             _viewModel.SelectedNodes.Clear();
@@ -306,6 +314,23 @@ public partial class CanvasTabView : UserControl
 
         menu.Open(owner);
         e.Handled = true;
+    }
+
+    private void OpenGroupMenu(CanvasGroupViewModel group, Control owner)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        MenuFlyout menu = new() { Placement = PlacementMode.Pointer };
+        MenuItem rename = new() { Header = "Rename group" };
+        rename.Click += (_, _) => group.BeginEditTitleCommand.Execute(null);
+        MenuItem ungroup = new() { Header = "Ungroup", InputGesture = new KeyGesture(Key.Delete) };
+        ungroup.Click += (_, _) => _viewModel.Ungroup(group);
+        menu.Items.Add(rename);
+        menu.Items.Add(ungroup);
+        menu.ShowAt(owner, true);
     }
 
     // Tunnelled: a bare Up or Down in a closed editable combo would step its selection, and the gate and
@@ -357,6 +382,16 @@ public partial class CanvasTabView : UserControl
             case CanvasKeyAction.PreviousFire:
                 _viewModel.PreviousFireCommand.Execute(null);
                 break;
+            case CanvasKeyAction.GroupSelection:
+                GroupSelection();
+                break;
+            case CanvasKeyAction.TidySelection:
+                _viewModel.TidySelectionCommand.Execute(null);
+                break;
+            case CanvasKeyAction.Search:
+                SearchBox.Focus();
+                SearchBox.SelectAll();
+                break;
             default:
                 return;
         }
@@ -378,6 +413,66 @@ public partial class CanvasTabView : UserControl
     private void OnPreviousFire(object? sender, RoutedEventArgs e) => _viewModel?.PreviousFireCommand.Execute((sender as MenuItem)?.DataContext);
 
     private void OnFirstFire(object? sender, RoutedEventArgs e) => _viewModel?.FirstFireCommand.Execute((sender as MenuItem)?.DataContext);
+    // The search box: Enter frames the next match and selects it, Escape clears and hands focus back to the editor.
+    private void OnSearchKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case Key.Enter:
+                if (_viewModel.AdvanceSearch() is not null)
+                {
+                    FrameSelection();
+                }
+
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                _viewModel.ClearSearchCommand.Execute(null);
+                Editor.Focus();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    // The frame goes around the measured selection where the containers have a size; the estimate otherwise.
+    private void GroupSelection()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        List<CanvasNodeViewModel> selected = [.. _viewModel.SelectedNodes.OfType<CanvasNodeViewModel>()];
+        _viewModel.GroupSelection(selected.Count >= 2 ? BoundsOf(selected) : null);
+    }
+
+    private void OnGroupSelection(object? sender, RoutedEventArgs e) => GroupSelection();
+
+    private void OnTidySelection(object? sender, RoutedEventArgs e) => _viewModel?.TidySelectionCommand.Execute(null);
+
+    private void OnCollapseToggle(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { DataContext: CanvasNodeViewModel node })
+        {
+            _viewModel?.ToggleCollapse(node);
+        }
+    }
+
+    // A double click on the header folds the face; one on an editor in the header is that editor's.
+    private void OnHeaderDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is Control { DataContext: CanvasNodeViewModel node } header
+            && !(e.Source as Visual)?.GetSelfAndVisualAncestors().TakeWhile(v => !ReferenceEquals(v, header)).Any(v => v is TextBox or Button or ComboBox) == true)
+        {
+            _viewModel?.ToggleCollapse(node);
+            e.Handled = true;
+        }
+    }
 
     // A typed literal is written when its editor loses focus; Enter is a key binding on the editor itself.
     private void OnFacetEditorLostFocus(object? sender, RoutedEventArgs e)

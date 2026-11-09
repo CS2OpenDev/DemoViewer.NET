@@ -249,9 +249,66 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     /// <summary>
     ///     The inputs the node frame stacks on its left: every input on a read-only face, where no row holds
-    ///     an editor to sit beside; none on an editable face, whose rows carry their own ports.
+    ///     an editor to sit beside, and on a face folded to its header, whose rows are not drawn; none on an
+    ///     unfolded editable face, whose rows carry their own ports.
     /// </summary>
-    public IReadOnlyList<CanvasConnectorViewModel> RailInputs => IsEditable ? [] : [.. Inputs];
+    public IReadOnlyList<CanvasConnectorViewModel> RailInputs => IsEditable && !ShowsHeaderOnly ? [] : [.. Inputs];
+
+    /// <summary>Whether the user folded this face to its header. Per node, kept in the layout sidecar.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsHeaderOnly))]
+    [NotifyPropertyChangedFor(nameof(ShowsFace))]
+    [NotifyPropertyChangedFor(nameof(RailInputs))]
+    [NotifyPropertyChangedFor(nameof(CollapseGlyph))]
+    [NotifyPropertyChangedFor(nameof(CollapseTip))]
+    private bool _isCollapsed;
+
+    /// <summary>
+    ///     Whether the viewport is zoomed out past the level of detail, set by the tab for every node at once
+    ///     when the threshold is crossed. Every face then reads as a block; a fold the user made stays folded.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsHeaderOnly))]
+    [NotifyPropertyChangedFor(nameof(ShowsFace))]
+    [NotifyPropertyChangedFor(nameof(RailInputs))]
+    private bool _isZoomedOut;
+
+    /// <summary>The face is drawn as its header alone: folded by the user, or zoomed out past the level of detail.</summary>
+    public bool ShowsHeaderOnly => IsCollapsed || IsZoomedOut;
+
+    public bool ShowsFace => !ShowsHeaderOnly;
+
+    /// <summary>The header chevron: pointing right while folded, down while open.</summary>
+    public string CollapseGlyph => IsCollapsed ? "▸" : "▾";
+
+    public string CollapseTip => IsCollapsed ? "Unfold the face" : "Fold to the header";
+
+    /// <summary>False while a search is on and this node does not match it; the container dims.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DimOpacity))]
+    private bool _isSearchMatch = true;
+
+    /// <summary>The container's opacity: full for a match or no search, the port-dimming level otherwise.</summary>
+    public double DimOpacity => IsSearchMatch ? 1 : 0.25;
+
+    /// <summary>
+    ///     Whether <paramref name="query" /> names this node: by id, label, the event or view it fires on, or a
+    ///     define's name, case-insensitively. Empty matches everything.
+    /// </summary>
+    public bool Matches(string? query)
+    {
+        string text = (query ?? "").Trim();
+        if (text.Length == 0)
+        {
+            return true;
+        }
+
+        return Has(Id) || Has(Title) || Has(Label) || Has(View) || Has(Trigger?.Selected?.Display)
+               || (Face as DefineFace)?.Events.Any(Has) == true || (Face as StatFace)?.Events.Any(Has) == true
+               || (Face as ScaffoldFace)?.Events.Any(Has) == true;
+
+        bool Has(string? value) => value is not null && value.Contains(text, StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>Raised by the builder once the ports exist, so the rows and the rail pick them up.</summary>
     public void PortsChanged()
