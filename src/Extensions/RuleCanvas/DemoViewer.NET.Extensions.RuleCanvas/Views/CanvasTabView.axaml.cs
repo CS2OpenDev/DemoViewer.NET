@@ -91,7 +91,8 @@ public partial class CanvasTabView : UserControl
     private void OnEditorDragOver(object? sender, DragEventArgs e) =>
         e.DragEffects = _dragging is null || _viewModel is not { IsEditable: true } ? DragDropEffects.None : DragDropEffects.Copy;
 
-    // A drop on a node's container goes to that node; anywhere else on the canvas places a new entry there.
+    // A drop on a node's container goes to that node; on a wire, to the wire; anywhere else on the canvas
+    // places a new entry there.
     private void OnEditorDrop(object? sender, DragEventArgs e)
     {
         if (_dragging is not { } item || _viewModel is null)
@@ -106,11 +107,26 @@ public partial class CanvasTabView : UserControl
         {
             _viewModel.DropOnNode(item, node);
         }
+        else if (WireAt(e.Source as Visual, e.GetPosition(Editor)) is { } wire)
+        {
+            _viewModel.DropOnWire(item, wire, Editor.GetLocationInsideEditor(e));
+        }
         else
         {
             _viewModel.PlaceItem(item, Editor.GetLocationInsideEditor(e));
         }
     }
+
+    // The wire under a point: the event's own source when it is one, else the editor's hit test. Nodify's
+    // connections live in the editor's connections layer and hit-test by their stroke.
+    private CanvasConnectionViewModel? WireAt(Visual? source, Point at)
+    {
+        LabelledConnection? connection = WireOf(source) ?? WireOf(Editor.InputHitTest(at) as Visual);
+        return connection?.DataContext as CanvasConnectionViewModel;
+    }
+
+    private static LabelledConnection? WireOf(Visual? source) =>
+        source?.GetSelfAndVisualAncestors().OfType<LabelledConnection>().FirstOrDefault();
 
     // The node container starts a drag on any press it sees and captures the pointer, after which a picker
     // inside the face never gets the release that opens it. A left press on an editor stops at the face; a
@@ -143,13 +159,119 @@ public partial class CanvasTabView : UserControl
     }
 
     // The menu opens on the release, by which time the pointer may be elsewhere; the press is the spot.
+    // Tunnelled, so a press while the wire editor is open commits it and goes no further: the canvas
+    // neither pans nor selects under an open editor. A double-click on a wire opens its editor.
     private void OnEditorPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (e.GetCurrentPoint(Editor).Properties.IsRightButtonPressed)
+        if (_viewModel is { HasWireEditor: true })
+        {
+            _viewModel.CommitWireEditorCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        PointerPointProperties properties = e.GetCurrentPoint(Editor).Properties;
+        if (properties.IsRightButtonPressed)
         {
             _menuAt = Editor.GetLocationInsideEditor(e);
             _rightPressAt = e.GetPosition(this);
         }
+        else if (properties.IsLeftButtonPressed && e.ClickCount == 2 && _viewModel is not null
+                 && WireOf(e.Source as Visual)?.DataContext is CanvasConnectionViewModel wire)
+        {
+            _viewModel.BeginEditWire(wire);
+            e.Handled = true;
+        }
+    }
+
+    // The wire menu's Edit condition: the item's DataContext is the wire.
+    private void OnWireEdit(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { DataContext: CanvasConnectionViewModel wire })
+        {
+            _viewModel?.BeginEditWire(wire);
+        }
+    }
+
+    // Enter writes once any list inside is closed; with one open, Enter picks from it. Escape closes without a write.
+    private void OnWireEditorKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_viewModel is null || e.KeyModifiers != KeyModifiers.None)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case Key.Escape:
+                _viewModel.CancelWireEditorCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.Enter when e.Source is not AutoCompleteBox { IsDropDownOpen: true } and not ComboBox { IsDropDownOpen: true }:
+                _viewModel.CommitWireEditorCommand.Execute(null);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    // Focus leaving the editor altogether writes, as a face editor does; focus moving between its own boxes does not.
+    private void OnWireEditorLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not { HasWireEditor: true })
+        {
+            return;
+        }
+
+        Visual? focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() as Visual;
+        if (focused is null || !focused.GetSelfAndVisualAncestors().Contains(WireEditorHost))
+        {
+            _viewModel.CommitWireEditorCommand.Execute(null);
+        }
+    }
+
+    // The editor sits centred on the wire's label, or on the wire's midpoint before the label was drawn,
+    // kept inside the canvas; the first box inside takes focus so Enter and Escape land in it.
+    private void PlaceWireEditor(CanvasWireEditorViewModel editor)
+    {
+        WireEditorHost.Measure(Size.Infinity);
+        Size size = WireEditorHost.DesiredSize;
+        Point anchor = AnchorOf(editor.Wire);
+        double left = Math.Clamp(anchor.X - size.Width / 2, 0, Math.Max(0, WireEditorLayer.Bounds.Width - size.Width));
+        double top = Math.Clamp(anchor.Y - size.Height / 2, 0, Math.Max(0, WireEditorLayer.Bounds.Height - size.Height));
+        Canvas.SetLeft(WireEditorHost, left);
+        Canvas.SetTop(WireEditorHost, top);
+        Dispatcher.UIThread.Post(FocusWireEditor, DispatcherPriority.Background);
+    }
+
+    private void FocusWireEditor()
+    {
+        if (_viewModel is not { HasWireEditor: true })
+        {
+            return;
+        }
+
+        List<Control> boxes = [.. WireEditorHost.GetVisualDescendants().OfType<Control>().Where(c => c is TextBox or AutoCompleteBox && c.IsEffectivelyVisible)];
+        Control target = boxes.FirstOrDefault(b => b.Name == "WireLiteral") ?? boxes.FirstOrDefault() ?? WireEditorHost;
+        target.Focus();
+        if (target is TextBox box)
+        {
+            box.SelectAll();
+        }
+    }
+
+    // The label's centre in the layer's coordinates when the wire's control is realised, else the midpoint of
+    // the wire's anchors taken through the viewport.
+    private Point AnchorOf(CanvasConnectionViewModel wire)
+    {
+        LabelledConnection? connection = Editor.GetVisualDescendants().OfType<LabelledConnection>().FirstOrDefault(c => ReferenceEquals(c.DataContext, wire));
+        if (connection is not null && connection.TranslatePoint(connection.LabelAnchor, WireEditorLayer) is { } placed)
+        {
+            return placed;
+        }
+
+        Point mid = new((wire.Source.Anchor.X + wire.Target.Anchor.X) / 2, (wire.Source.Anchor.Y + wire.Target.Anchor.Y) / 2);
+        Point inViewport = new((mid.X - Editor.ViewportLocation.X) * Editor.ViewportZoom, (mid.Y - Editor.ViewportLocation.Y) * Editor.ViewportZoom);
+        return Editor.TranslatePoint(inViewport, WireEditorLayer) ?? inViewport;
     }
 
     // Nodify's editor and its containers take the release without calling the base handler, so Avalonia
@@ -403,6 +525,7 @@ public partial class CanvasTabView : UserControl
             _viewModel.GraphReplaced -= FitLater;
             _viewModel.JumpRequested -= JumpTo;
             _viewModel.WireDropped -= OfferNodesForWire;
+            _viewModel.WireEditorOpened -= PlaceWireEditor;
             _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
 
@@ -413,6 +536,7 @@ public partial class CanvasTabView : UserControl
             _viewModel.GraphReplaced += FitLater;
             _viewModel.JumpRequested += JumpTo;
             _viewModel.WireDropped += OfferNodesForWire;
+            _viewModel.WireEditorOpened += PlaceWireEditor;
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
             // The unsaved text when the pane is dirty: a tab switch rebuilds this view over the same view model.
             Source.Text = _viewModel.SourceText;

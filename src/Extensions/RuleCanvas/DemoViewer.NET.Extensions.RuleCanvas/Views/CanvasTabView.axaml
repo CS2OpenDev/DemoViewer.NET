@@ -29,6 +29,11 @@
     <UserControl.Styles>
         <StyleInclude Source="avares://Nodify.Avalonia/Themes/Controls.xaml" />
         <StyleInclude Source="avares://DemoViewer.NET.Extensions.RuleCanvas/Views/CanvasTheme.axaml" />
+        <!-- A wire whose condition can be edited in place says so under the pointer; the hover halo is the
+             theme's. Here and not in the theme: a cursor needs the platform, which the theme's tests lack. -->
+        <Style Selector="connections|Connection.editable">
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
     </UserControl.Styles>
 
     <UserControl.KeyBindings>
@@ -430,7 +435,8 @@
             </nodify:NodifyEditor.ItemContainerTheme>
 
             <!-- A wire: selectable, with its own menu. Hover and selection halos are in CanvasTheme.axaml. The
-                 label goes through WireLabelAtZoom so it hides under 0.7, where 10px would render under 7px. -->
+                 label goes through WireLabelAtZoom so it hides under 0.7, where 10px would render under 7px.
+                 A double-click, or Edit condition, opens the condition editor over the label (the view places it). -->
             <nodify:NodifyEditor.ConnectionTemplate>
                 <DataTemplate x:DataType="vm:CanvasConnectionViewModel">
                     <views:LabelledConnection Source="{Binding Source.Anchor}"
@@ -447,10 +453,12 @@
                                               Classes.gate="{Binding IsGate}"
                                               Classes.and="{Binding IsAnd}"
                                               Classes.or="{Binding IsOr}"
+                                              Classes.editable="{Binding CanEditCondition}"
                                               connections:BaseConnection.IsSelectable="True">
-                        <!-- Hover: the lowered condition, then the last run's fire line when there is one. -->
+                        <!-- Hover: how to edit (or why not), the lowered condition, then the last run's fire line when there is one. -->
                         <ToolTip.Tip>
                             <StackPanel Spacing="3">
+                                <TextBlock Text="{Binding ConditionEditTip}" FontSize="11" IsVisible="{Binding HasConditionEditTip}" />
                                 <TextBlock Text="{Binding Condition}" FontSize="11" FontFamily="monospace"
                                            IsVisible="{Binding Condition, Converter={x:Static ObjectConverters.IsNotNull}}" />
                                 <TextBlock Text="{Binding LiveTip}" FontSize="11" IsVisible="{Binding HasLiveTip}" />
@@ -464,6 +472,8 @@
                         </views:LabelledConnection.Text>
                         <views:LabelledConnection.ContextMenu>
                             <ContextMenu>
+                                <MenuItem Header="Edit condition" Click="OnWireEdit" IsEnabled="{Binding CanEditCondition}"
+                                          ToolTip.Tip="{Binding ConditionEditTip}" ToolTip.ShowOnDisabled="True" />
                                 <MenuItem Header="Remove wire" Click="OnWireRemove" />
                                 <MenuItem Header="Jump to target's source" Click="OnWireJump" />
                             </ContextMenu>
@@ -950,6 +960,61 @@
                 </Style>
             </nodify:Minimap.Styles>
         </nodify:Minimap>
+
+        <!-- The condition editor opened on a wire, placed by the view over the wire's label: one operand row
+             of the target's when:, the whole while: or when: as text, or the reason the wire has none. Enter
+             commits, Escape cancels, a press anywhere else on the canvas commits and goes no further. -->
+        <Canvas x:Name="WireEditorLayer" IsVisible="{Binding HasWireEditor}">
+            <ContentControl x:Name="WireEditorHost" Content="{Binding WireEditor}" Focusable="True"
+                            KeyDown="OnWireEditorKeyDown" LostFocus="OnWireEditorLostFocus">
+                <ContentControl.ContentTemplate>
+                    <DataTemplate x:DataType="vm:CanvasWireEditorViewModel">
+                        <Border Classes="wireEditor" Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderAccent}"
+                                BorderThickness="1" CornerRadius="4" Padding="8 6" MinWidth="220" MaxWidth="420">
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="{Binding Title}" FontSize="10" LetterSpacing="1" FontFamily="monospace"
+                                           Foreground="{DynamicResource RuleTextKey}" />
+                                <!-- One row: path, comparator, literal; the row commits itself the way a face row does. -->
+                                <ContentControl Content="{Binding Row}" IsVisible="{Binding IsRow}">
+                                    <ContentControl.ContentTemplate>
+                                        <DataTemplate x:DataType="vm:CanvasConditionRowViewModel">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+                                                <AutoCompleteBox Grid.Column="0" Text="{Binding Path}" ItemsSource="{Binding Paths}"
+                                                                 TextFilter="{x:Static views:ConditionRowsView.TokenFilter}"
+                                                                 TextSelector="{x:Static views:ConditionRowsView.TokenSelector}"
+                                                                 MinimumPrefixLength="0" MaxDropDownHeight="180"
+                                                                 FontSize="11" FontFamily="monospace" MinWidth="120" MaxWidth="220"
+                                                                 Padding="4 1" MinHeight="0" PlaceholderText="path" />
+                                                <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:CanvasConditionRowViewModel.Comparators}"
+                                                          SelectedItem="{Binding Comparator}" FontSize="11" MinWidth="62" Padding="4 1" MinHeight="0" />
+                                                <CheckBox Grid.Column="2" Classes="face" IsChecked="{Binding BoolLiteral}" IsThreeState="False"
+                                                          IsVisible="{Binding IsBoolLiteral}" MinHeight="0" Padding="0" Margin="0" VerticalAlignment="Center" />
+                                                <TextBox Grid.Column="2" Name="WireLiteral" Text="{Binding Literal}" IsVisible="{Binding ShowLiteralBox}"
+                                                         FontSize="11" FontFamily="monospace" MinWidth="56" MaxWidth="160" Padding="4 1" MinHeight="0"
+                                                         PlaceholderText="value" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ContentControl.ContentTemplate>
+                                </ContentControl>
+                                <!-- The whole key as text: a gate expression, or a when: that is not a flat list. -->
+                                <TextBox Name="WireText" Text="{Binding Text}" IsVisible="{Binding IsText}" FontSize="11" FontFamily="monospace"
+                                         MinWidth="200" MaxWidth="400" Padding="4 1" MinHeight="0" TextWrapping="Wrap" AcceptsReturn="False" />
+                                <TextBlock Text="{Binding Note}" FontSize="10" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
+                                           IsVisible="{Binding HasNote}" />
+                                <TextBlock Text="{Binding Reason}" FontSize="11" Foreground="{DynamicResource TextValue}" TextWrapping="Wrap"
+                                           IsVisible="{Binding IsDisabled}" />
+                                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                                    <Button Classes="ghost" Content="Cancel" FontSize="10" Padding="6 1" MinHeight="0"
+                                            Command="{Binding CancelCommand}" ToolTip.Tip="Close without writing (Esc)" />
+                                    <Button Classes="primary" Content="OK" FontSize="10" Padding="8 1" MinHeight="0"
+                                            Command="{Binding CommitCommand}" IsVisible="{Binding !IsDisabled}" ToolTip.Tip="Write and close (Enter)" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ContentControl.ContentTemplate>
+            </ContentControl>
+        </Canvas>
 
         <!-- Over the editor, with no background of its own so the canvas still takes the pointer: the toast by
              the strip's edge, the minimap in the corner, and the cards for a canvas with nothing to draw. -->
