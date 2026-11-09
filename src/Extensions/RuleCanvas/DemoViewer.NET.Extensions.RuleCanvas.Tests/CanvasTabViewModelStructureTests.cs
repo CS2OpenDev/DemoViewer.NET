@@ -580,7 +580,7 @@ public class CanvasTabViewModelStructureTests
         frame.Size = new Size(7, 8);
         using (Assert.Multiple())
         {
-            await Assert.That(CanvasGroupViewModel.DimOpacity).IsEqualTo(1);
+            await Assert.That(frame.DimOpacity).IsEqualTo(1);
             await Assert.That(frame.Rect).IsEqualTo(new Rect(5, 6, 7, 8));
             await Assert.That(changed).Contains(nameof(CanvasGroupViewModel.Location));
             await Assert.That(changed).Contains(nameof(CanvasGroupViewModel.Size));

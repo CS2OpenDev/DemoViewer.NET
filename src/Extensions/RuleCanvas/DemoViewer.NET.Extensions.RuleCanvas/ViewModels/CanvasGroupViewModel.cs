@@ -65,8 +65,12 @@ public sealed partial class CanvasGroupViewModel : ObservableObject
 
     public bool ShowTitleText => !IsEditingTitle;
 
-    /// <summary>A frame is never dimmed by a search; only nodes are.</summary>
-    public static double DimOpacity => 1;
+    /// <summary>
+    ///     A frame is never dimmed by a search; only nodes are. An instance property, since the container theme
+    ///     binds it on frames and nodes alike.
+    /// </summary>
+    [ObservableProperty]
+    private double _dimOpacity = 1;
 
     /// <summary>The frame as the layout stores it, with the members it still holds.</summary>
     public CanvasGroup ToGroup(IEnumerable<RulesetDocumentNodeKey> members) => new(Title, [.. members], Rect);
