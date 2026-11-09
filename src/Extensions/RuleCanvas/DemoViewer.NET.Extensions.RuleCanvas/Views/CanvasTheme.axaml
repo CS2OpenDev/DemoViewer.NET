@@ -47,6 +47,10 @@
                     <SolidColorBrush x:Key="RuleCheckGlyph" Color="#FCFCFE" />
                     <!-- 10px text on an AccentError or AccentCaution badge; TextOnAccent is 3.30 on the light error red. -->
                     <SolidColorBrush x:Key="RuleDiagnosticBadgeText" Color="#FCFCFE" />
+                    <!-- The live value badge in the node header: a tint off RuleNodeBg, and the grey its text takes
+                         when the run predates the text drawn. -->
+                    <SolidColorBrush x:Key="RuleLiveBadgeBg" Color="#E6E7F3" />
+                    <SolidColorBrush x:Key="RuleLiveStale" Color="#7E8099" />
                     <!-- Minimap items are the kind tokens, which are tuned for text on the face; at full strength
                          on the light minimap they shout, so light draws them at 55%. -->
                     <x:Double x:Key="RuleMinimapItemOpacity">0.55</x:Double>
@@ -104,6 +108,8 @@
                     <SolidColorBrush x:Key="RuleWireHalo" Color="#99A0A0F0" />
                     <SolidColorBrush x:Key="RuleCheckGlyph" Color="#12121E" />
                     <SolidColorBrush x:Key="RuleDiagnosticBadgeText" Color="#0C0C1A" />
+                    <SolidColorBrush x:Key="RuleLiveBadgeBg" Color="#24243C" />
+                    <SolidColorBrush x:Key="RuleLiveStale" Color="#6E6E8C" />
                     <x:Double x:Key="RuleMinimapItemOpacity">1</x:Double>
                     <StaticResource x:Key="Node.BackgroundBrush" ResourceKey="RuleNodeBg" />
                     <StaticResource x:Key="Node.ContentBrush" ResourceKey="RuleNodeBg" />
@@ -230,6 +236,14 @@
     </Style>
     <Style Selector="CheckBox.face:unchecked /template/ Border#NormalRectangle">
         <Setter Property="BorderBrush" Value="{DynamicResource RuleWireWrite}" />
+    </Style>
+
+    <!-- The live value badge's text: the value colour while current, the stale grey once the text moved on. -->
+    <Style Selector="TextBlock.liveBadge">
+        <Setter Property="Foreground" Value="{DynamicResource TextValue}" />
+    </Style>
+    <Style Selector="TextBlock.liveBadge.stale">
+        <Setter Property="Foreground" Value="{DynamicResource RuleLiveStale}" />
     </Style>
 
     <!-- A card centred over the canvas for a state with nothing to draw. -->

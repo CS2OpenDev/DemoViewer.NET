@@ -1,6 +1,7 @@
 #region
 
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
+using DemoViewer.NET.Extensions.RuleCanvas.Model.Live;
 using DemoViewer.NET.Extensions.RuleCanvas.Modules;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +48,9 @@ public sealed class RuleCanvasPack : IExtension
     /// <inheritdoc />
     public IEnumerable<ExtensionFeature> Features => _features;
 
+    /// <summary>The one job the canvas queues: evaluating the drawn ruleset over the open demo.</summary>
+    public IEnumerable<ExtensionJobKind> JobKinds => [LiveValuesService.JobKind];
+
     /// <summary>
     ///     The hub: one strip tab whose rail lists every section that names <see cref="HubId" />. Order 6 sits
     ///     after Authoring (5), which is where the ruleset this canvas will draw is written today.
@@ -64,7 +68,30 @@ public sealed class RuleCanvasPack : IExtension
             tabId => Context(sp)?.Shell.SelectTab(tabId) ?? false,
             static () => RulesetCorpus.Load(RulesetCorpus.DefaultDirectories()),
             () => Context(sp)?.Stores.Own(StoreRoot.Config)?.Path,
-            static action => Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(action).GetTask()));
+            static action => Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(action).GetTask(),
+            new LiveValuesHost(
+                () => Context(sp)?.Jobs,
+                () => Context(sp)?.Shell.CurrentDemoPath,
+                () => Context(sp)?.Shell.CurrentDemoHash,
+                action =>
+                {
+                    if (Context(sp) is { } context)
+                    {
+                        context.Post(action);
+                    }
+                    else
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.Post(action);
+                    }
+                },
+                handler =>
+                {
+                    if (Context(sp)?.Shell is { } shell)
+                    {
+                        shell.CurrentDemoChanged += handler;
+                    }
+                },
+                Context(sp)?.CreateLogger("RuleCanvas.Live"))));
     }
 
     private static IExtensionContext? Context(IServiceProvider services) =>

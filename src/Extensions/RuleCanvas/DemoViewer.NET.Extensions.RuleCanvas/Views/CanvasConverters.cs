@@ -56,3 +56,14 @@ public sealed class WireLabelAtZoom : IMultiValueConverter
         return Of(text, zoom);
     }
 }
+
+/// <summary>The instance picker's label: the player's name, or <c>game</c> for the game instance.</summary>
+public sealed class LiveInstanceLabel : IValueConverter
+{
+    public static LiveInstanceLabel Instance { get; } = new();
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is Model.Live.LiveInstance instance ? Model.Live.LiveValuesText.Name(instance) : "";
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+}

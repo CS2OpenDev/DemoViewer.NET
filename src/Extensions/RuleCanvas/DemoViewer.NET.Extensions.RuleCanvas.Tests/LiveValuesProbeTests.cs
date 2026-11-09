@@ -22,6 +22,7 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 ///     Skips without the demo. One heavy parse machine-wide, so not in parallel.
 /// </summary>
 [NotInParallel]
+[Category("RealDemo")]
 public class LiveValuesProbeTests
 {
     private const string Demo = "003816248937665266002_0544286934.dem";

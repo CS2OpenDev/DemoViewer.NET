@@ -160,6 +160,75 @@ public class CanvasViewMarkupTests
         }
     }
 
+    // The badge is the one always-visible addition of live values: at the header's right, hidden without a
+    // run, its text greyed through the stale class, the whole story on its tooltip.
+    [Test]
+    public async Task TheLiveBadge_SitsAtTheRightOfTheHeader_HiddenWithoutARun_GreyWhenStale()
+    {
+        XDocument view = LoadView();
+        XElement badge = view.Descendants().Single(e => e.Name.LocalName == "Border" && Attribute(e, "IsVisible") == "{Binding HasLive}");
+        XElement text = badge.Elements().Single(e => e.Name.LocalName == "TextBlock");
+        XElement header = badge.Ancestors().First(a => a.Name.LocalName == "Grid");
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(header, "ColumnDefinitions")).IsEqualTo("3,*,Auto").Because("the stripe, the title group, the badge");
+            await Assert.That(Attribute(badge, "Grid.Column")).IsEqualTo("2");
+            await Assert.That(Attribute(badge, "ToolTip.Tip")).IsEqualTo("{Binding LiveTip}");
+            await Assert.That(Attribute(badge, "Background")).IsEqualTo("{DynamicResource RuleLiveBadgeBg}");
+            await Assert.That(Attribute(text, "Text")).IsEqualTo("{Binding LiveBadge}");
+            await Assert.That(Attribute(text, "FontFamily")).IsEqualTo("monospace");
+            await Assert.That(Attribute(text, "Classes").Split(' ')).Contains("liveBadge").Because("the theme styles the foreground by class, never a literal");
+            await Assert.That(Attribute(text, "Classes.stale")).IsEqualTo("{Binding IsLiveStale}");
+            await Assert.That(header.Ancestors().Any(a => a.Name.LocalName == "Node.Header")).IsTrue();
+        }
+    }
+
+    // The wire's hover becomes a panel: the condition as before, then the run's fire line only when there is one.
+    [Test]
+    public async Task TheWireTooltip_IsAPanel_OfTheConditionThenTheLiveLine()
+    {
+        XDocument view = LoadView();
+        XElement wire = view.Descendants().Single(e => e.Name.LocalName == "LabelledConnection");
+        XElement? tip = wire.Elements().SingleOrDefault(e => e.Name.LocalName == "ToolTip.Tip");
+        await Assert.That(tip).IsNotNull().Because("a property element, so the tooltip can hold two lines");
+        List<XElement> lines = [.. tip!.Descendants().Where(e => e.Name.LocalName == "TextBlock")];
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(wire, "ToolTip.Tip")).IsEqualTo("").Because("an attribute would override the panel");
+            await Assert.That(lines.Count).IsEqualTo(2);
+            await Assert.That(Attribute(lines[0], "Text")).IsEqualTo("{Binding Condition}");
+            await Assert.That(Attribute(lines[1], "Text")).IsEqualTo("{Binding LiveTip}");
+            await Assert.That(Attribute(lines[1], "IsVisible")).IsEqualTo("{Binding HasLiveTip}");
+        }
+    }
+
+    // The strip's live group follows the ruleset picker: the demo chip, the instance picker, the state, Re-run.
+    [Test]
+    public async Task TheStrip_HasTheLiveGroup_AfterTheRulesetPicker()
+    {
+        XDocument view = LoadView();
+        List<XElement> all = [.. view.Descendants()];
+        XElement picker = all.Single(e => e.Name.LocalName == "ComboBox" && Attribute(e, "ItemsSource") == "{Binding Rulesets}");
+        XElement chip = all.Single(e => e.Name.LocalName == "Button" && e.Attribute(_x + "Name")?.Value == "DemoChip");
+        XElement instances = all.Single(e => e.Name.LocalName == "ComboBox" && Attribute(e, "ItemsSource") == "{Binding Instances}");
+        XElement state = all.Single(e => e.Name.LocalName == "TextBlock" && Attribute(e, "Text") == "{Binding LiveState}");
+        XElement rerun = all.Single(e => e.Name.LocalName == "Button" && Attribute(e, "Command") == "{Binding RunLiveCommand}");
+        using (Assert.Multiple())
+        {
+            await Assert.That(all.IndexOf(picker)).IsLessThan(all.IndexOf(chip));
+            await Assert.That(chip.Parent).IsSameReferenceAs(picker.Parent).Because("the same fixed group, in the Auto column");
+            await Assert.That(Attribute(chip, "Content")).IsEqualTo("{Binding DemoChipText}");
+            await Assert.That(Attribute(chip, "Command")).IsEqualTo("{Binding OpenLibraryCommand}");
+            await Assert.That(Attribute(instances, "SelectedItem")).IsEqualTo("{Binding SelectedInstance}");
+            await Assert.That(Attribute(instances, "IsVisible")).IsEqualTo("{Binding HasLiveRun}").Because("no run, nothing to pick");
+            await Assert.That(instances.Descendants().Single(e => e.Name.LocalName == "TextBlock").Attribute("Text")?.Value)
+                .Contains("LiveInstanceLabel").Because("the game instance has no name of its own");
+            await Assert.That(state.Parent).IsSameReferenceAs(picker.Parent);
+            await Assert.That(Attribute(rerun, "Content")).IsEqualTo("Re-run");
+            await Assert.That(Attribute(rerun, "IsEnabled")).IsEqualTo("").Because("the command's CanExecute drives it");
+        }
+    }
+
     private static string ViewsFolder()
     {
         DirectoryInfo? dir = new(AppContext.BaseDirectory);

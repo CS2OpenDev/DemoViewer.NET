@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
+using DemoViewer.NET.Extensions.RuleCanvas.Model.Live;
 using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
@@ -57,14 +58,19 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     ///     watched at all: a report run where the watcher fires would race the thread that edits, so a test
     ///     that wants the watcher passes a marshal that runs the report inline and drives it alone.
     /// </param>
+    /// <param name="live">
+    ///     The host's queue and open demo, for live values; null means no demo is ever open here and the
+    ///     canvas draws without badges.
+    /// </param>
     public CanvasTabViewModel(Func<string, bool> selectTab, Func<RulesetCorpus> loadCorpus, Func<string?> layoutFolder,
-        Func<Action, Task>? marshal = null)
+        Func<Action, Task>? marshal = null, LiveValuesHost? live = null)
     {
         _selectTab = selectTab ?? throw new ArgumentNullException(nameof(selectTab));
         _loadCorpus = loadCorpus ?? throw new ArgumentNullException(nameof(loadCorpus));
         _arranger = new CanvasArranger(layoutFolder ?? throw new ArgumentNullException(nameof(layoutFolder)));
         _factory = new CanvasNodeFactory(WriteFacet, WriteField);
         _marshal = marshal;
+        InitLive(live);
         SelectedNodes.CollectionChanged += (_, _) => JumpToSelection();
         SelectedNodes.CollectionChanged += (_, _) => RefreshInspector();
     }
@@ -399,9 +405,13 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     }
 
     // After a write: the file written is re-read alone when the corpus knows it, every file otherwise, and
-    // the selected ruleset is redrawn with its arrangement and selection kept.
-    private void Reload(string id, string? writtenPath = null) =>
+    // the selected ruleset is redrawn with its arrangement and selection kept. The live run, now stale, is
+    // replaced after the pause.
+    private void Reload(string id, string? writtenPath = null)
+    {
         Refresh(id, () => (writtenPath is null ? null : _corpus?.Replace(writtenPath)) ?? _loadCorpus());
+        ScheduleLiveRun();
+    }
 
     // Takes the corpus load gives, refills the picker, and redraws id (or selects one when nothing was).
     private void Refresh(string? id, Func<RulesetCorpus> load)
@@ -507,6 +517,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             NotifyHistory();
             AfterRedraw(null);
             RefreshInspector();
+            SyncLive(null, recompose, [], []);
             return;
         }
 
@@ -545,6 +556,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         }
 
         ApplySurfacing(nodes);
+        SyncLive(value, recompose, nodes, wires);
         foreach (CanvasNodeViewModel node in nodes.Where(n => selected.Contains(n.Key)))
         {
             SelectedNodes.Add(node);

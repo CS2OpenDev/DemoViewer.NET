@@ -264,6 +264,24 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>Whether <c>show:</c> references this entry somewhere.</summary>
     public bool IsSurfaced => Surfacing.StartsWith("shown", StringComparison.Ordinal);
 
+    /// <summary>
+    ///     The header's value badge from the last live run, for the selected instance: the final value, or
+    ///     <c>no data</c>; empty when there is no run or the node has no track. Set by the tab, not computed.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLive))]
+    private string _liveBadge = "";
+
+    /// <summary>What the badge says on hover: the instance, the fire count, the first and last tick, the final value.</summary>
+    [ObservableProperty]
+    private string _liveTip = "";
+
+    /// <summary>True when the badge comes from a run over text that has since changed; the badge greys.</summary>
+    [ObservableProperty]
+    private bool _isLiveStale;
+
+    public bool HasLive => LiveBadge.Length > 0;
+
     public bool IsHighlight => Kind == "highlight";
 
     /// <summary>A trigger-bodied <c>define:</c> of the open document; its stats fire through it.</summary>

@@ -102,9 +102,20 @@ public sealed partial class CanvasConnectorViewModel : ObservableObject
 /// <param name="isGate">A gate holding the target open while it is active; drawn as a long dash.</param>
 /// <param name="isAnd">A logic input the target conjoins; drawn in the and colour.</param>
 /// <param name="isOr">A logic input the target disjoins; drawn in the or colour.</param>
-public sealed class CanvasConnectionViewModel(CanvasConnectorViewModel source, CanvasConnectorViewModel target,
+public sealed partial class CanvasConnectionViewModel(CanvasConnectorViewModel source, CanvasConnectorViewModel target,
     string text = "", string? condition = null, bool isRead = false, bool isGate = false, bool isAnd = false, bool isOr = false)
+    : ObservableObject
 {
+    /// <summary>
+    ///     The last live run's line for the hover panel, from the target node's track for now: how often it
+    ///     fired and when last. Empty when there is no run. Set by the tab.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLiveTip))]
+    private string _liveTip = "";
+
+    public bool HasLiveTip => LiveTip.Length > 0;
+
     /// <summary>A gate holding the target open while it is active; drawn dashed, labelled while.</summary>
     public bool IsGate { get; } = isGate;
 
