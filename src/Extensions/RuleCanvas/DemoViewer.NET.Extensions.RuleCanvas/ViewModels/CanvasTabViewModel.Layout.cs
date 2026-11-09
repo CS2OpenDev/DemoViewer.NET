@@ -105,7 +105,7 @@ public sealed partial class CanvasTabViewModel
         }
 
         return CanvasArranger.Capture(Nodes.Select(n => new KeyValuePair<RulesetDocumentNodeKey, Point>(n.Key, n.Location)),
-            Nodes.Where(n => n.IsCollapsed).Select(n => n.Key), groups);
+            Nodes.Where(n => n.IsCollapsed).Select(n => n.Key), groups, Nodes.Where(n => n.IsViewerPinned).Select(n => n.Key));
     }
 
     private void NotifyFocus()

@@ -306,8 +306,10 @@ public sealed partial class CanvasTabViewModel
     // text against the run's, and the badges are put back on the fresh view models.
     private void SyncLive(RulesetCorpus.Entry? value, bool recompose, IEnumerable<CanvasNodeViewModel> nodes, IEnumerable<CanvasConnectionViewModel> wires)
     {
+        // No run was ever accepted: nothing to badge, but a pinned viewer still gets its panel.
         if (_liveRulesetId is null)
         {
+            ApplyLive(nodes, wires);
             NotifyLiveState();
             return;
         }
@@ -341,6 +343,7 @@ public sealed partial class CanvasTabViewModel
                 node.LiveBadge = "";
                 node.LiveTip = "";
                 node.IsLiveStale = false;
+                node.LiveViewer = ViewerFor(node, null, null, null, false, null);
             }
 
             foreach (CanvasConnectionViewModel wire in wires)
@@ -357,9 +360,11 @@ public sealed partial class CanvasTabViewModel
         foreach (CanvasNodeViewModel node in nodes)
         {
             bool isBool = node.ValueType == "bool";
-            if (TrackFor(run, node.Key, instance.Index) is { } track)
+            NodeTrack? track = TrackFor(run, node.Key, instance.Index);
+            node.LiveViewer = ViewerFor(node, run, instance, track, stale, tick);
+            if (track is not null)
             {
-                LiveNodeBinding binding = new(node, track, isBool);
+                LiveNodeBinding binding = new(node, track, isBool) { Viewer = node.LiveViewer };
                 _liveNodes.Add(binding);
                 binding.Show(instance, stale, tick);
                 node.IsLiveStale = stale;
@@ -526,8 +531,12 @@ public sealed partial class CanvasTabViewModel
         private LiveInstance? _instance;
         private string _rest = "";
 
+        /// <summary>The pinned viewer under the node, whose marker follows the playhead; null when none is pinned.</summary>
+        public CanvasLiveViewerViewModel? Viewer { get; init; }
+
         public void Show(LiveInstance instance, bool stale, int? tick)
         {
+            Viewer?.SetPlayhead(tick);
             int index = tick is { } at && track.Series.Count > 0 ? track.Series.IndexAt(at) : int.MaxValue;
             bool same = stale == _stale && ReferenceEquals(instance, _instance);
             if (index == _shown && same)

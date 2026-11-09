@@ -283,6 +283,31 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     public string CollapseTip => IsCollapsed ? "Unfold the face" : "Fold to the header";
 
+    /// <summary>
+    ///     Whether the user pinned a live value viewer under this node. Per node, kept in the layout sidecar
+    ///     beside the fold. The viewer sits in the node's footer, so it stays attached when the face is folded.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ViewerMenuText))]
+    private bool _isViewerPinned;
+
+    /// <summary>The node menu's item for the viewer, worded for the state it would change to.</summary>
+    public string ViewerMenuText => IsViewerPinned ? "Unpin viewer" : "Pin viewer";
+
+    /// <summary>
+    ///     The viewer's content from the last run, set by the tab while the viewer is pinned; null otherwise. A
+    ///     pinned node with no run or no track gets a viewer that says so.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsViewer))]
+    [NotifyPropertyChangedFor(nameof(VisibleViewer))]
+    private CanvasLiveViewerViewModel? _liveViewer;
+
+    public bool ShowsViewer => IsViewerPinned && LiveViewer is not null;
+
+    /// <summary>The viewer while it shows, else null: the node's footer, which draws nothing for null.</summary>
+    public CanvasLiveViewerViewModel? VisibleViewer => ShowsViewer ? LiveViewer : null;
+
     /// <summary>False while a search is on and this node does not match it; the container dims.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DimOpacity))]
@@ -535,6 +560,12 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     }
 
     partial void OnShowFacetsChanged(bool value) => OnPropertyChanged(nameof(ShowFacetSummary));
+
+    partial void OnIsViewerPinnedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowsViewer));
+        OnPropertyChanged(nameof(VisibleViewer));
+    }
 
     partial void OnSurfacingChanged(string value) => OnPropertyChanged(nameof(IsSurfaced));
 

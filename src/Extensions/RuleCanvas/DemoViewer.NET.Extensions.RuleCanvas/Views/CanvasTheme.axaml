@@ -256,6 +256,28 @@
         <Setter Property="Foreground" Value="{DynamicResource RuleLiveStale}" />
     </Style>
 
+    <!-- The pinned viewer under a node: the whole panel dims when the run is stale; in its breakdown the
+         selected instance's row is the selection token and the others the read-wire grey. -->
+    <Style Selector="Border.liveViewer">
+        <Setter Property="Background" Value="{DynamicResource RuleNodeBg}" />
+    </Style>
+    <Style Selector="Border.liveViewer.stale">
+        <Setter Property="Opacity" Value="0.6" />
+    </Style>
+    <Style Selector="Border.viewerBar">
+        <Setter Property="Background" Value="{DynamicResource RuleWireRead}" />
+    </Style>
+    <Style Selector="Border.viewerBar.selected">
+        <Setter Property="Background" Value="{DynamicResource RuleSelection}" />
+    </Style>
+    <Style Selector="TextBlock.viewerName">
+        <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
+    </Style>
+    <Style Selector="TextBlock.viewerName.selected">
+        <Setter Property="Foreground" Value="{DynamicResource TextValue}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
     <!-- A card centred over the canvas for a state with nothing to draw. -->
     <Style Selector="Border.emptyCard">
         <Setter Property="HorizontalAlignment" Value="Center" />

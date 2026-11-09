@@ -52,28 +52,34 @@ public sealed class RulesetNodeLayout
     private readonly Dictionary<RulesetDocumentNodeKey, Point> _positions;
     private readonly HashSet<RulesetDocumentNodeKey> _collapsed;
     private readonly List<CanvasGroup> _groups;
+    private readonly HashSet<RulesetDocumentNodeKey> _pinned;
 
-    private RulesetNodeLayout(Dictionary<RulesetDocumentNodeKey, Point> positions, HashSet<RulesetDocumentNodeKey> collapsed, List<CanvasGroup> groups)
+    private RulesetNodeLayout(Dictionary<RulesetDocumentNodeKey, Point> positions, HashSet<RulesetDocumentNodeKey> collapsed, List<CanvasGroup> groups,
+        HashSet<RulesetDocumentNodeKey> pinned)
     {
         _positions = positions;
         _collapsed = collapsed;
         _groups = groups;
+        _pinned = pinned;
     }
 
     /// <summary>The answer for a ruleset with no sidecar, which is every ruleset until one is dragged.</summary>
-    public static RulesetNodeLayout Empty { get; } = new([], [], []);
+    public static RulesetNodeLayout Empty { get; } = new([], [], [], []);
 
     /// <summary>How many nodes carry a stored position, including ones the current graph does not draw.</summary>
     public int Count => _positions.Count;
 
-    /// <summary>Whether there is nothing stored at all: no position, no collapsed node, no group.</summary>
-    public bool IsEmpty => _positions.Count == 0 && _collapsed.Count == 0 && _groups.Count == 0;
+    /// <summary>Whether there is nothing stored at all: no position, no collapsed node, no group, no pinned viewer.</summary>
+    public bool IsEmpty => _positions.Count == 0 && _collapsed.Count == 0 && _groups.Count == 0 && _pinned.Count == 0;
 
     /// <summary>Every stored position, in no meaningful order.</summary>
     public IReadOnlyDictionary<RulesetDocumentNodeKey, Point> Positions => _positions;
 
     /// <summary>The nodes folded to their header.</summary>
     public IReadOnlySet<RulesetDocumentNodeKey> Collapsed => _collapsed;
+
+    /// <summary>The nodes with a live value viewer pinned under them.</summary>
+    public IReadOnlySet<RulesetDocumentNodeKey> Pinned => _pinned;
 
     /// <summary>The frames drawn, in the order they were made.</summary>
     public IReadOnlyList<CanvasGroup> Groups => _groups;
@@ -86,11 +92,17 @@ public sealed class RulesetNodeLayout
 
     /// <summary>Builds a layout from everything a canvas holds. A member of two groups stays in the later one.</summary>
     public static RulesetNodeLayout From(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
-        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups)
+        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups) =>
+        From(positions, collapsed, groups, []);
+
+    /// <summary>As <see cref="From(IEnumerable{KeyValuePair{RulesetDocumentNodeKey, Point}}, IEnumerable{RulesetDocumentNodeKey}, IEnumerable{CanvasGroup})" />, with the nodes whose viewer is pinned.</summary>
+    public static RulesetNodeLayout From(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
+        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups, IEnumerable<RulesetDocumentNodeKey> pinned)
     {
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(collapsed);
         ArgumentNullException.ThrowIfNull(groups);
+        ArgumentNullException.ThrowIfNull(pinned);
 
         Dictionary<RulesetDocumentNodeKey, Point> map = [];
         foreach ((RulesetDocumentNodeKey key, Point at) in positions)
@@ -98,7 +110,7 @@ public sealed class RulesetNodeLayout
             map[key] = at;
         }
 
-        RulesetNodeLayout layout = new(map, [.. collapsed], []);
+        RulesetNodeLayout layout = new(map, [.. collapsed], [], [.. pinned]);
         foreach (CanvasGroup group in groups)
         {
             layout = layout.WithGroup(group);
@@ -125,6 +137,9 @@ public sealed class RulesetNodeLayout
     /// <summary>Whether the user folded <paramref name="key" /> to its header.</summary>
     public bool IsCollapsed(RulesetDocumentNodeKey key) => _collapsed.Contains(key);
 
+    /// <summary>Whether the user pinned a live value viewer under <paramref name="key" />.</summary>
+    public bool IsPinned(RulesetDocumentNodeKey key) => _pinned.Contains(key);
+
     /// <summary>The group <paramref name="key" /> is inside, or null.</summary>
     public CanvasGroup? GroupOf(RulesetDocumentNodeKey key) => _groups.FirstOrDefault(g => g.Contains(key));
 
@@ -139,10 +154,10 @@ public sealed class RulesetNodeLayout
             [key] = position
         };
 
-        return new RulesetNodeLayout(map, _collapsed, _groups);
+        return new RulesetNodeLayout(map, _collapsed, _groups, _pinned);
     }
 
-    /// <summary>A copy with <paramref name="key" /> back on auto-layout. Its collapse flag and group stay.</summary>
+    /// <summary>A copy with <paramref name="key" /> back on auto-layout. Its collapse flag, viewer and group stay.</summary>
     /// <param name="key">The node to forget.</param>
     /// <returns>The new layout; this one is unchanged.</returns>
     public RulesetNodeLayout Without(RulesetDocumentNodeKey key)
@@ -154,7 +169,7 @@ public sealed class RulesetNodeLayout
 
         Dictionary<RulesetDocumentNodeKey, Point> map = new(_positions);
         map.Remove(key);
-        RulesetNodeLayout layout = new(map, _collapsed, _groups);
+        RulesetNodeLayout layout = new(map, _collapsed, _groups, _pinned);
         return layout.IsEmpty ? Empty : layout;
     }
 
@@ -166,8 +181,26 @@ public sealed class RulesetNodeLayout
             return this;
         }
 
-        HashSet<RulesetDocumentNodeKey> set = new(_collapsed);
-        if (collapsed)
+        RulesetNodeLayout layout = new(_positions, Toggled(_collapsed, key, collapsed), _groups, _pinned);
+        return layout.IsEmpty ? Empty : layout;
+    }
+
+    /// <summary>A copy with a viewer pinned under <paramref name="key" />, or taken away.</summary>
+    public RulesetNodeLayout WithPinned(RulesetDocumentNodeKey key, bool pinned)
+    {
+        if (_pinned.Contains(key) == pinned)
+        {
+            return this;
+        }
+
+        RulesetNodeLayout layout = new(_positions, _collapsed, _groups, Toggled(_pinned, key, pinned));
+        return layout.IsEmpty ? Empty : layout;
+    }
+
+    private static HashSet<RulesetDocumentNodeKey> Toggled(HashSet<RulesetDocumentNodeKey> source, RulesetDocumentNodeKey key, bool present)
+    {
+        HashSet<RulesetDocumentNodeKey> set = new(source);
+        if (present)
         {
             set.Add(key);
         }
@@ -176,8 +209,7 @@ public sealed class RulesetNodeLayout
             set.Remove(key);
         }
 
-        RulesetNodeLayout layout = new(_positions, set, _groups);
-        return layout.IsEmpty ? Empty : layout;
+        return set;
     }
 
     /// <summary>
@@ -204,7 +236,7 @@ public sealed class RulesetNodeLayout
         }
 
         groups.Add(group with { Members = members });
-        return new RulesetNodeLayout(_positions, _collapsed, groups);
+        return new RulesetNodeLayout(_positions, _collapsed, groups, _pinned);
     }
 
     /// <summary>A copy without the group framing <paramref name="group" />'s members; the nodes stay where they are.</summary>
@@ -217,14 +249,14 @@ public sealed class RulesetNodeLayout
             return this;
         }
 
-        RulesetNodeLayout layout = new(_positions, _collapsed, groups);
+        RulesetNodeLayout layout = new(_positions, _collapsed, groups, _pinned);
         return layout.IsEmpty ? Empty : layout;
     }
 
     /// <summary>
     ///     A copy where everything stored under <paramref name="from" /> is stored under <paramref name="to" />:
-    ///     the position, the collapse flag and the group membership. The rename of an entry is a document
-    ///     edit; its arrangement is not, and this is what keeps it.
+    ///     the position, the collapse flag, the pinned viewer and the group membership. The rename of an entry
+    ///     is a document edit; its arrangement is not, and this is what keeps it.
     /// </summary>
     public RulesetNodeLayout Renamed(RulesetDocumentNodeKey from, RulesetDocumentNodeKey to)
     {
@@ -245,17 +277,23 @@ public sealed class RulesetNodeLayout
             set.Add(to);
         }
 
+        HashSet<RulesetDocumentNodeKey> pinned = new(_pinned);
+        if (pinned.Remove(from))
+        {
+            pinned.Add(to);
+        }
+
         List<CanvasGroup> groups = [.. _groups.Select(g => g.Contains(from)
             ? g with { Members = [.. g.Members.Select(m => m == from ? to : m).Distinct()] }
             : g)];
-        return new RulesetNodeLayout(map, set, groups);
+        return new RulesetNodeLayout(map, set, groups, pinned);
     }
 
     /// <summary>
     ///     This layout with <paramref name="over" />'s positions winning per node and, when <paramref name="over" />
-    ///     stores anything at all, its collapse flags and groups replacing this one's: what is on screen is the
-    ///     whole truth about folds and frames, while a position missing on screen may still be a stale entry
-    ///     worth keeping.
+    ///     stores anything at all, its collapse flags, pinned viewers and groups replacing this one's: what is on
+    ///     screen is the whole truth about folds, viewers and frames, while a position missing on screen may still
+    ///     be a stale entry worth keeping.
     /// </summary>
     public RulesetNodeLayout Overlaid(RulesetNodeLayout over)
     {
@@ -271,7 +309,7 @@ public sealed class RulesetNodeLayout
             map[key] = at;
         }
 
-        return new RulesetNodeLayout(map, over._collapsed, over._groups);
+        return new RulesetNodeLayout(map, over._collapsed, over._groups, over._pinned);
     }
 }
 
@@ -298,10 +336,11 @@ public sealed class RulesetNodeLayout
 ///         here, so changing how a node key DISPLAYS cannot silently repoint every stored position.
 ///     </para>
 ///     <para>
-///         The shape is additive over the positions-only sidecar: a node entry may carry <c>collapsed</c>
-///         beside <c>x</c> and <c>y</c>, or instead of them, and a <c>groups</c> array may follow the nodes.
-///         A reader of the old shape asks only for <c>x</c> and <c>y</c>, so it places every node this writer
-///         placed and skips the rest; a layout with no fold and no frame is written exactly as before.
+///         The shape is additive over the positions-only sidecar: a node entry may carry <c>collapsed</c> and
+///         <c>viewer</c> beside <c>x</c> and <c>y</c>, or instead of them, and a <c>groups</c> array may follow
+///         the nodes. A reader of the old shape asks only for <c>x</c> and <c>y</c>, so it places every node this
+///         writer placed and skips the rest; a layout with no fold, no viewer and no frame is written exactly as
+///         before.
 ///     </para>
 /// </summary>
 public static class RulesetLayoutStore
@@ -321,6 +360,7 @@ public static class RulesetLayoutStore
     private const string WidthProperty = "width";
     private const string HeightProperty = "height";
     private const string CollapsedProperty = "collapsed";
+    private const string ViewerProperty = "viewer";
     private const string TitleProperty = "title";
     private const string MembersProperty = "members";
 
@@ -468,6 +508,7 @@ public static class RulesetLayoutStore
 
             Dictionary<RulesetDocumentNodeKey, Point> map = [];
             HashSet<RulesetDocumentNodeKey> collapsed = [];
+            HashSet<RulesetDocumentNodeKey> pinned = [];
             foreach (JsonProperty entry in nodes.EnumerateObject())
             {
                 // Everything an entry needs is checked before it is taken, so a bad one falls out
@@ -487,6 +528,11 @@ public static class RulesetLayoutStore
                 {
                     collapsed.Add(key);
                 }
+
+                if (entry.Value.TryGetProperty(ViewerProperty, out JsonElement viewer) && viewer.ValueKind == JsonValueKind.True)
+                {
+                    pinned.Add(key);
+                }
             }
 
             List<CanvasGroup> groups = [];
@@ -501,7 +547,7 @@ public static class RulesetLayoutStore
                 }
             }
 
-            return RulesetNodeLayout.From(map, collapsed, groups);
+            return RulesetNodeLayout.From(map, collapsed, groups, pinned);
         }
         catch (JsonException)
         {
@@ -526,7 +572,7 @@ public static class RulesetLayoutStore
             writer.WriteNumber(VersionProperty, CurrentVersion);
             writer.WriteStartObject(NodesProperty);
 
-            foreach ((string name, Point? at, bool collapsed) in WritableNodes(layout))
+            foreach ((string name, Point? at, bool collapsed, bool pinned) in WritableNodes(layout))
             {
                 writer.WriteStartObject(name);
                 if (at is { } position)
@@ -538,6 +584,11 @@ public static class RulesetLayoutStore
                 if (collapsed)
                 {
                     writer.WriteBoolean(CollapsedProperty, true);
+                }
+
+                if (pinned)
+                {
+                    writer.WriteBoolean(ViewerProperty, true);
                 }
 
                 writer.WriteEndObject();
@@ -580,32 +631,32 @@ public static class RulesetLayoutStore
     private static double Round(double value) => Math.Round(value, Decimals, MidpointRounding.AwayFromZero);
 
     /// <summary>
-    ///     The node entries that can be written at all, sorted: a finite position, a collapse flag, or both.
-    ///     A non-finite coordinate is dropped here rather than at the writer, which rejects one by throwing,
-    ///     and a node placed at NaN is nowhere anyway.
+    ///     The node entries that can be written at all, sorted: a finite position, a collapse flag, a pinned
+    ///     viewer, or any of them together. A non-finite coordinate is dropped here rather than at the writer,
+    ///     which rejects one by throwing, and a node placed at NaN is nowhere anyway.
     /// </summary>
-    private static IEnumerable<(string Name, Point? At, bool Collapsed)> WritableNodes(RulesetNodeLayout layout)
+    private static IEnumerable<(string Name, Point? At, bool Collapsed, bool Pinned)> WritableNodes(RulesetNodeLayout layout)
     {
-        Dictionary<string, (Point? At, bool Collapsed)> entries = new(StringComparer.Ordinal);
+        Dictionary<string, (Point? At, bool Collapsed, bool Pinned)> entries = new(StringComparer.Ordinal);
         foreach ((RulesetDocumentNodeKey key, Point at) in layout.Positions)
         {
             string name = FormatKey(key);
             if (name.Length > 0 && double.IsFinite(at.X) && double.IsFinite(at.Y))
             {
-                entries[name] = (at, layout.IsCollapsed(key));
+                entries[name] = (at, layout.IsCollapsed(key), layout.IsPinned(key));
             }
         }
 
-        foreach (RulesetDocumentNodeKey key in layout.Collapsed)
+        foreach (RulesetDocumentNodeKey key in layout.Collapsed.Concat(layout.Pinned))
         {
             string name = FormatKey(key);
             if (name.Length > 0 && !entries.ContainsKey(name))
             {
-                entries[name] = (null, true);
+                entries[name] = (null, layout.IsCollapsed(key), layout.IsPinned(key));
             }
         }
 
-        return entries.OrderBy(e => e.Key, StringComparer.Ordinal).Select(e => (e.Key, e.Value.At, e.Value.Collapsed));
+        return entries.OrderBy(e => e.Key, StringComparer.Ordinal).Select(e => (e.Key, e.Value.At, e.Value.Collapsed, e.Value.Pinned));
     }
 
     /// <summary>The groups that can be written: a finite frame around at least one writable key, in stored order.</summary>

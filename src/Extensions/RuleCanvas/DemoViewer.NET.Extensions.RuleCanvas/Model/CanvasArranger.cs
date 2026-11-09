@@ -61,6 +61,11 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
         IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups) =>
         RulesetNodeLayout.From(positions, collapsed, groups);
 
+    /// <summary>Everything on screen as an arrangement, the nodes with a pinned viewer included.</summary>
+    public static RulesetNodeLayout Capture(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
+        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups, IEnumerable<RulesetDocumentNodeKey> pinned) =>
+        RulesetNodeLayout.From(positions, collapsed, groups, pinned);
+
     /// <summary>
     ///     Where an entry's arrangement lives: beside a user ruleset, under the extension's own folder for a
     ///     shipped one since its directory is not ours to write, or null when there is nowhere to keep it.

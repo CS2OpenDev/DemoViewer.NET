@@ -463,6 +463,15 @@ public partial class CanvasTabView : UserControl
         }
     }
 
+    // The node menu's viewer item: the item's DataContext is the node under the pointer.
+    private void OnToggleViewer(object? sender, RoutedEventArgs e)
+    {
+        if (NodeOf(sender) is { } node)
+        {
+            _viewModel?.ToggleViewer(node);
+        }
+    }
+
     // A double click on the header folds the face; one on an editor in the header is that editor's.
     private void OnHeaderDoubleTapped(object? sender, TappedEventArgs e)
     {

@@ -21,6 +21,12 @@ public static class LiveValuesText
     /// <summary>The audit's budget for an always-visible badge.</summary>
     public const int BadgeLength = 12;
 
+    /// <summary>Said in a pinned viewer whose series was thinned to the cap, so the sparkline is not every fire.</summary>
+    public const string Sampled = "(sampled)";
+
+    /// <summary>A pinned viewer's text before the first run.</summary>
+    public const string NoRun = "no run yet";
+
     private static readonly CultureInfo _inv = CultureInfo.InvariantCulture;
 
     /// <summary>The final value, short: on/off for a bool, the display or numeric value otherwise, cut to <see cref="BadgeLength" />.</summary>
@@ -164,6 +170,28 @@ public static class LiveValuesText
     {
         ArgumentNullException.ThrowIfNull(instance);
         return instance.Name ?? (instance.Slot is { } slot ? string.Create(_inv, $"slot {slot}") : "game");
+    }
+
+    /// <summary>A pinned viewer's fire line: the count, the first and last tick, and for a define the stats it sums.</summary>
+    public static string ViewerFires(NodeTrack track)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        string fires = Fired(track.FireCount, track.FirstTick, track.LastTick);
+        return track.ViaStats is { } via ? string.Create(_inv, $"{fires} via {via} {(via == 1 ? "stat" : "stats")}") : fires;
+    }
+
+    /// <summary>A pinned viewer's value line: <c>final 23</c>, or <c>final on</c> for a bool.</summary>
+    public static string ViewerFinal(NodeTrack track, bool isBool)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        return "final " + Final(track, isBool);
+    }
+
+    /// <summary>A breakdown row's value: the instance's final value, unshortened.</summary>
+    public static string BreakdownValue(NodeTrack track, bool isBool)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+        return Final(track, isBool);
     }
 
     private static string Fired(int fires, int? first, int? last) =>
