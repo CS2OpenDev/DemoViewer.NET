@@ -25,8 +25,18 @@ public sealed class RulesetCorpus
     /// <param name="Id">The <c>ruleset:</c> key.</param>
     /// <param name="Title">The <c>title:</c>, or the id when there is none.</param>
     /// <param name="Path">The file.</param>
-    /// <param name="Source">Where it came from: <c>shipped</c> or <c>user</c>.</param>
-    public sealed record Entry(string Id, string Title, string Path, string Source);
+    /// <param name="Source">Where it came from: <c>shipped</c>, <c>user</c>, or <c>testbed</c> for a user directory an environment variable points at.</param>
+    public sealed record Entry(string Id, string Title, string Path, string Source)
+    {
+        /// <summary>Whether the file is in the user's directory, which is the only kind the canvas writes.</summary>
+        public bool IsUser => IsUserSource(Source);
+    }
+
+    /// <summary>The tag of the user directory when <c>CS2DEMOKIT_USER_RULES_DIR</c> or its legacy name moves it.</summary>
+    public const string TestbedSource = "testbed";
+
+    /// <summary>Whether <paramref name="source" /> tags the user's editable directory.</summary>
+    public static bool IsUserSource(string source) => source is "user" or TestbedSource;
 
     /// <summary>What composing one ruleset produced.</summary>
     /// <param name="Graph">The nodes and edges; the declared entries alone, unwired, when the composition failed.</param>
@@ -54,6 +64,12 @@ public sealed class RulesetCorpus
         ///     live run evaluates in place of <see cref="Documents" />. Empty when nothing composed.
         /// </summary>
         public IReadOnlyList<RulesetDoc> Evaluable { get; init; } = [];
+
+        /// <summary>
+        ///     The key lines of the open document's entries the loader dropped. The document does not hold them,
+        ///     so without these a dropped entry's lines read as the end of the entry above it.
+        /// </summary>
+        public IReadOnlyList<int> DroppedLines { get; init; } = [];
 
         /// <summary>The id of the document composed, whose show: and params: blocks are drawn; null when nothing loaded.</summary>
         public string? OpenId { get; init; }
@@ -102,7 +118,7 @@ public sealed class RulesetCorpus
 
     // Every file that loaded, in directory order, overridden ones included, so one file can be re-read
     // without a walk and a user file that loses a shipped id hands the shipped entry back.
-    private sealed record LoadedFile(string Path, string Source, RulesetDoc Doc, IReadOnlyList<RulesetDiagnostic> Diagnostics);
+    private sealed record LoadedFile(string Path, string Source, RulesetDoc Doc, IReadOnlyList<RulesetDiagnostic> Diagnostics, string Text);
 
     private readonly IReadOnlyList<(string Directory, string Source)> _directories;
     private readonly List<LoadedFile> _files;
@@ -140,7 +156,7 @@ public sealed class RulesetCorpus
             int existing = entries.FindIndex(e => e.Id == doc.Id);
             if (existing >= 0)
             {
-                if (entries[existing].Source == "shipped" && file.Source == "user")
+                if (entries[existing].Source == "shipped" && IsUserSource(file.Source))
                 {
                     _overrides[doc.Id] = (file.Path, entries[existing].Path);
                 }
@@ -212,8 +228,20 @@ public sealed class RulesetCorpus
     /// <summary>The ids whose file in the user's rules overrides a shipped file of the same id, with both paths.</summary>
     public IReadOnlyDictionary<string, (string UserPath, string ShippedPath)> Overrides => _overrides;
 
-    /// <summary>The directory tagged <c>user</c>, where an editable copy of a shipped ruleset goes, or null.</summary>
+    /// <summary>The directory tagged <c>user</c> or <c>testbed</c>, where an editable copy of a shipped ruleset goes, or null.</summary>
     public string? UserDirectory { get; }
+
+    /// <summary>
+    ///     The user directory's tag: <see cref="TestbedSource" /> when an environment variable moves the user
+    ///     rules, so the picker says which folder is live, and <c>user</c> otherwise. The engine's precedence.
+    /// </summary>
+    public static string UserSourceTag(Func<string, string?> environment)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        return !string.IsNullOrEmpty(environment(RuleSetLocator.UserRulesDirEnvVar) ?? environment("DEMOVIEWER_USER_RULES_DIR"))
+            ? TestbedSource
+            : "user";
+    }
 
     /// <summary>
     ///     The directories the app reads rulesets from, in the order they are offered: the shipped set, then
@@ -241,7 +269,7 @@ public sealed class RulesetCorpus
                 string user = RuleSetLocator.EnsureUserRulesDirectory(shipped);
                 if (!string.Equals(user, shipped, StringComparison.OrdinalIgnoreCase))
                 {
-                    dirs.Add((user, "user"));
+                    dirs.Add((user, UserSourceTag(Environment.GetEnvironmentVariable)));
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -264,7 +292,7 @@ public sealed class RulesetCorpus
         string? userDirectory = null;
         foreach ((string directory, string source) in dirs)
         {
-            if (source == "user")
+            if (IsUserSource(source))
             {
                 userDirectory ??= directory;
             }
@@ -363,7 +391,9 @@ public sealed class RulesetCorpus
     private string? SourceOf(string path)
     {
         string? directory = Path.GetDirectoryName(path);
-        return directory is not null && UserDirectory is not null && SamePath(directory, UserDirectory) ? "user" : "shipped";
+        return directory is not null && UserDirectory is not null && SamePath(directory, UserDirectory)
+            ? _directories.First(d => SamePath(d.Directory, UserDirectory)).Source
+            : "shipped";
     }
 
     private static bool SamePath(string a, string b) =>
@@ -376,10 +406,11 @@ public sealed class RulesetCorpus
         readAt[Path.GetFullPath(path)] = WriteTimeOf(path);
         try
         {
-            RulesetDocumentLoader.Outcome outcome = RulesetDocumentLoader.Load(File.ReadAllText(path), path);
+            string text = File.ReadAllText(path);
+            RulesetDocumentLoader.Outcome outcome = RulesetDocumentLoader.Load(text, path);
             if (outcome.Doc is { } doc)
             {
-                return new LoadedFile(path, source, doc, outcome.Diagnostics);
+                return new LoadedFile(path, source, doc, outcome.Diagnostics, text);
             }
 
             failures.Add((path, string.Join("; ", outcome.Diagnostics.Select(d => d.Message))));
@@ -533,6 +564,7 @@ public sealed class RulesetCorpus
         {
             OpenId = open.Id,
             Evaluable = evaluable,
+            DroppedLines = [.. DroppedEntries.Of(_files.Last(f => f.Doc.Id == open.Id).Text, open, report).Select(d => d.Line)],
             Overrides = _overrides.Where(o => taking.ContainsKey(o.Key)).ToDictionary(o => o.Key, o => o.Value, StringComparer.Ordinal)
         };
     }

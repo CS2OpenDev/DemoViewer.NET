@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=../../../../../rules/cs2demokit-rules.schema.json
+#
+# Testbed: highlights. tb_double reads a count against a threshold, tb_clean_double reads a flag.
+# Both carry when, title, score and group; they share group tb_multi, so a round that fires both
+# surfaces only the higher score.
+ruleset: tb_highlights
+title: "TB Highlights"
+summary: Two highlights with when, title, score and group, one over a count and one over a flag.
+for: each_player
+
+stats:
+  hl_kills:
+    count: kill
+    match: { enemy: true }
+    while: round.active
+    per: round
+
+  clean_double:
+    flag:
+      when: "hl_kills >= 2 and player.survived"
+    per: round
+
+highlights:
+  tb_double:
+    when: hl_kills >= 2
+    per: round
+    score: 40
+    group: tb_multi
+    title: "TB double for {player.name} (round {round.number})"
+
+  tb_clean_double:
+    when: clean_double
+    per: round
+    score: 60
+    group: tb_multi
+    title: "TB clean double for {player.name} (round {round.number})"

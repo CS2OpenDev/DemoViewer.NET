@@ -150,7 +150,7 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
             return null;
         }
 
-        if (entry.Source == "user")
+        if (entry.IsUser)
         {
             return RulesetLayoutStore.SidecarPathFor(entry.Path);
         }

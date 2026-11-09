@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=../../../../../rules/cs2demokit-rules.schema.json
+#
+# Testbed: trigger defines. enemy_hs_kill is a define on kill with facets, fired on by two stats;
+# live_kill carries its own while: match.live. Look at the define nodes, the wires from each define
+# to the stats that count or capture on it, and the Inspector's list of firing stats.
+ruleset: tb_defines
+title: "TB Defines"
+summary: A trigger define with facets and two stats firing on it, and a define with its own while.
+for: each_player
+
+define:
+  enemy_hs_kill:
+    on: kill
+    match: { enemy: true, headshot: true }
+
+  live_kill:
+    on: kill
+    match: { enemy: true }
+    while: match.live
+
+stats:
+  hs_kills:
+    count: enemy_hs_kill
+    per: round
+
+  last_hs_tick:
+    capture: event.tick
+    on: enemy_hs_kill
+    keep: last
+    per: round
+
+  live_kills:
+    count: live_kill
+    per: round

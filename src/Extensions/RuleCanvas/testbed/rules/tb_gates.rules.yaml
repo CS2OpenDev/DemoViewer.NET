@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=../../../../../rules/cs2demokit-rules.schema.json
+#
+# Testbed: gates. live_deaths draws a MatchLive context node wired into it, active_kills a round.active
+# gate, numbered_assists an expression gate. either_side reads two siblings joined by or, both_sides
+# two joined by and: each when row should be a read wire from its sibling.
+ruleset: tb_gates
+title: "TB Gates"
+summary: while gates on context flags and on an expression, and when rows joined by or and by and.
+for: each_player
+
+stats:
+  live_deaths:
+    count: death
+    while: match.live
+    per: round
+
+  active_kills:
+    count: kill
+    match: { enemy: true }
+    while: round.active
+    per: round
+
+  numbered_assists:
+    count: assist
+    while: "round.number > 0"
+    per: round
+
+  either_side:
+    flag:
+      when: "live_deaths > 0 or active_kills > 0"
+    per: round
+
+  both_sides:
+    flag:
+      when: "active_kills > 0 and numbered_assists > 0"
+    per: round
