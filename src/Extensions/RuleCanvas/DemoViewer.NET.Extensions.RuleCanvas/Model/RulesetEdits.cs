@@ -536,11 +536,13 @@ public static class RulesetEdits
     ///     Renames a define and rewrites every stat whose trigger key spells it, and every reference token to
     ///     it in the sibling expressions and titles <see cref="RenameStat" /> rewrites. Only the tokens move.
     /// </summary>
-    public static string RenameDefine(string text, string oldName, string newName)
+    public static string RenameDefine(string text, string oldName, string newName) => RenameDefineAs(text, oldName, newName, allowHoles: false);
+
+    private static string RenameDefineAs(string text, string oldName, string newName, bool allowHoles)
     {
         ArgumentNullException.ThrowIfNull(newName);
         newName = newName.Trim();
-        if (!IsValidId(newName))
+        if (!(allowHoles ? IsValidTemplateId(newName) : IsValidId(newName)))
         {
             throw new InvalidOperationException($"'{newName}' is not a valid id: letters, digits and underscores, not starting with a digit");
         }
@@ -565,6 +567,7 @@ public static class RulesetEdits
         string ruleset = (doc.Find(YamlPath.Root.Key("ruleset")) as YamlScalarNode)?.Value ?? "";
         (int start, int length) = doc.SpanOf(key);
         List<TextEdit> edits = [new TextEdit(start, length, newName, $"rename {oldName}")];
+        List<string> referrers = [];
         foreach (string id in KeysUnder(doc, _stats))
         {
             foreach (string trigger in _triggerKeys)
@@ -573,11 +576,15 @@ public static class RulesetEdits
                 if (doc.Find(site) is YamlScalarNode { Value: { } value } && value.Trim() == oldName)
                 {
                     edits.Add(YamlEdits.SetScalar(doc, site, newName));
+                    if (!referrers.Contains(id))
+                    {
+                        referrers.Add(id);
+                    }
                 }
             }
         }
 
-        foreach ((_, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: false))
+        foreach ((string owner, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: false))
         {
             if (doc.Find(site) is YamlScalarNode { Value: { } value } && !_triggerKeys.Contains(site.Segments[^1].Key))
             {
@@ -585,8 +592,18 @@ public static class RulesetEdits
                 if (rewritten != value)
                 {
                     edits.Add(YamlEdits.SetScalar(doc, site, rewritten));
+                    if (!referrers.Contains(owner))
+                    {
+                        referrers.Add(owner);
+                    }
                 }
             }
+        }
+
+        // A template declares its expansions, not itself, so a stat firing on it would fire on nothing.
+        if (referrers.Count > 0 && newName.Contains('{'))
+        {
+            throw new InvalidOperationException($"{oldName} is fired on or read by {string.Join(", ", referrers)}; a template has no name to fire on, so retarget them first");
         }
 
         return editor.Apply(edits).Text;
@@ -625,6 +642,92 @@ public static class RulesetEdits
     public static string RenameHighlight(string text, string oldId, string newId) => Rename(text, _highlights, oldId, newId, "highlight");
 
     /// <summary>
+    ///     Renames an entry of <paramref name="section" /> as <see cref="RenameStat" />, <see cref="RenameHighlight" />
+    ///     or <see cref="RenameDefine" /> would, but to a template id too: <c>kills_{weapon}</c>, the shape a
+    ///     <c>for_each:</c> needs. The holes are kept as text in every rewritten reference.
+    /// </summary>
+    public static string RenameEntry(string text, EntrySection section, string oldId, string newId) => section switch
+    {
+        EntrySection.Highlight => Rename(text, _highlights, oldId, newId, "highlight", allowHoles: true),
+        EntrySection.Define => RenameDefineAs(text, oldId, newId, allowHoles: true),
+        _ => Rename(text, _stats, oldId, newId, "stat", allowHoles: true)
+    };
+
+    /// <summary>Whether <paramref name="id" /> is a valid id once every <c>{key}</c> hole, each a valid id itself, stands for a value.</summary>
+    public static bool IsValidTemplateId(string? id)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            return false;
+        }
+
+        System.Text.StringBuilder plain = new(id.Length);
+        int i = 0;
+        while (i < id.Length)
+        {
+            if (id[i] != '{')
+            {
+                plain.Append(id[i++]);
+                continue;
+            }
+
+            int close = id.IndexOf('}', i + 1);
+            if (close < 0 || !IsValidId(id[(i + 1)..close]))
+            {
+                return false;
+            }
+
+            plain.Append('x');
+            i = close + 1;
+        }
+
+        return IsValidId(plain.ToString());
+    }
+
+    /// <summary>The <c>{key}</c> holes of <paramref name="id" />, in order; empty for a plain id.</summary>
+    public static IReadOnlyList<string> HolesOf(string id)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+        List<string> holes = [];
+        int i = 0;
+        while ((i = id.IndexOf('{', i)) >= 0)
+        {
+            int close = id.IndexOf('}', i + 1);
+            if (close < 0)
+            {
+                break;
+            }
+
+            holes.Add(id[(i + 1)..close]);
+            i = close + 1;
+        }
+
+        return holes;
+    }
+
+    /// <summary>
+    ///     The id an entry needs to take the <c>for_each:</c> axes <paramref name="keys" />: null when
+    ///     <paramref name="id" /> already holds every axis's hole, else the id with <c>_{key}</c> appended for
+    ///     each hole it lacks. An id holding a hole none of the axes names is refused: the fix would be a
+    ///     different expansion, not this one.
+    /// </summary>
+    public static string? ForEachIdFix(string id, IEnumerable<string> keys)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+        ArgumentNullException.ThrowIfNull(keys);
+        List<string> wanted = [.. keys];
+        IReadOnlyList<string> holes = HolesOf(id);
+        if (holes.FirstOrDefault(h => !wanted.Contains(h, StringComparer.Ordinal)) is { } other)
+        {
+            string named = string.Join(", ", wanted.Select(k => "{" + k + "}"));
+            throw new InvalidOperationException($"{id} already has a {{{other}}} hole, which no axis names; rename it to hold {named} first");
+        }
+
+        List<string> missing = [.. wanted.Where(k => !holes.Contains(k, StringComparer.Ordinal))];
+        return missing.Count == 0 ? null : id + string.Concat(missing.Select(k => "_{" + k + "}"));
+    }
+
+    /// <summary>
     ///     The ids of the sibling entries whose expressions read <paramref name="id" />, in document order. The
     ///     <c>show:</c> block is not a sibling; <see cref="ShowSurface" /> answers for it.
     /// </summary>
@@ -648,11 +751,11 @@ public static class RulesetEdits
     private static string Rewrite(string value, string oldId, string newId, string ruleset, bool isTemplate) =>
         isTemplate ? RewriteTitleHoles(value, oldId, newId, ruleset) : RewriteReferences(value, oldId, newId, ruleset);
 
-    private static string Rename(string text, YamlPath section, string oldId, string newId, string what)
+    private static string Rename(string text, YamlPath section, string oldId, string newId, string what, bool allowHoles = false)
     {
         ArgumentNullException.ThrowIfNull(newId);
         newId = newId.Trim();
-        if (!IsValidId(newId))
+        if (!(allowHoles ? IsValidTemplateId(newId) : IsValidId(newId)))
         {
             throw new InvalidOperationException($"'{newId}' is not a valid id: letters, digits and underscores, not starting with a digit");
         }
@@ -677,7 +780,8 @@ public static class RulesetEdits
         string ruleset = (doc.Find(YamlPath.Root.Key("ruleset")) as YamlScalarNode)?.Value ?? "";
         (int start, int length) = doc.SpanOf(key);
         List<TextEdit> edits = [new TextEdit(start, length, newId, $"rename {oldId}")];
-        foreach ((_, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: true))
+        List<string> referrers = [];
+        foreach ((string owner, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: true))
         {
             if (doc.Find(site) is YamlScalarNode { Value: { } value })
             {
@@ -685,8 +789,18 @@ public static class RulesetEdits
                 if (rewritten != value)
                 {
                     edits.Add(YamlEdits.SetScalar(doc, site, rewritten));
+                    if (!referrers.Contains(owner))
+                    {
+                        referrers.Add(owner);
+                    }
                 }
             }
+        }
+
+        // A template declares its expansions, not itself, so a reference to it would resolve to nothing.
+        if (referrers.Count > 0 && newId.Contains('{'))
+        {
+            throw new InvalidOperationException($"{oldId} is read by {string.Join(", ", referrers)}; a template has no name to read, so change them first");
         }
 
         return editor.Apply(edits).Text;

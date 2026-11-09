@@ -200,6 +200,19 @@ public sealed partial class InspectorViewModel : ObservableObject
     [ObservableProperty]
     private string _deleteRefusal = "";
 
+    // The for_each write refused for want of a hole, kept so the fix button can rename the id and write the axes as one edit.
+    private sealed record ForEachFix(CanvasNodeViewModel Node, EntrySection Section, string Id, string FixedId,
+        IReadOnlyList<(string Key, IReadOnlyList<string> Values)> Axes);
+
+    private ForEachFix? _forEachFix;
+
+    /// <summary>The fix offered under a refused <c>for_each:</c>: <c>Rename id to kills_{weapon}</c>; empty when none is pending.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasForEachFix))]
+    private string _forEachFixLabel = "";
+
+    public bool HasForEachFix => ForEachFixLabel.Length > 0;
+
     public bool ShowsDocument => HasDocument && !HasNode && Wire is null;
 
     /// <summary>The condition editor over the selected wire, with no node selected; null otherwise.</summary>
@@ -276,6 +289,8 @@ public sealed partial class InspectorViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(text);
         _node = node;
         _text = text;
+        _forEachFix = null;
+        ForEachFixLabel = "";
         _surface = ShowSurface.Of(doc);
         _ids = Try(() => RulesetEdits.EntryIds(text)) ?? [];
         HasDocument = entry is not null;
@@ -643,16 +658,78 @@ public sealed partial class InspectorViewModel : ObservableObject
         }
 
         IReadOnlyList<(string Key, IReadOnlyList<string> Values)> axes;
+        string? fixedId;
         try
         {
             axes = RulesetEdits.ParseForEach(value);
+            fixedId = RulesetEdits.ForEachIdFix(id, axes.Select(a => a.Key));
         }
         catch (InvalidOperationException ex)
         {
             return EditRequest.Refuse(ex.Message);
         }
 
-        return EditRequest.Of(t => RulesetEdits.SetForEach(t, section, id, axes), $"set {id}.for_each");
+        if (fixedId is null)
+        {
+            return EditRequest.Of(t => RulesetEdits.SetForEach(t, section, id, axes), $"set {id}.for_each");
+        }
+
+        // An id with no hole would declare the same id once per value; the rename that gives it one is offered as the fix.
+        _forEachFix = new ForEachFix(node, section, id, fixedId, axes);
+        ForEachFixLabel = $"Rename id to {fixedId}";
+        IReadOnlyList<string> holes = RulesetEdits.HolesOf(id);
+        string missing = string.Join(" and ", axes.Select(a => a.Key).Where(k => !holes.Contains(k, StringComparer.Ordinal)).Select(k => "{" + k + "}"));
+        return EditRequest.Refuse($"{id} has no {missing} hole, so every value would declare the same id; rename it to {fixedId} to expand it.");
+    }
+
+    /// <summary>
+    ///     Renames the entry to the id with the hole and writes the refused <c>for_each:</c>, as one edit and
+    ///     one Undo. Refused while a sibling or <c>show:</c> names the entry: a template has no name to read.
+    /// </summary>
+    [RelayCommand]
+    private void ApplyForEachFix()
+    {
+        if (_forEachFix is not { } fix || _node is not { } node || !ReferenceEquals(node, fix.Node) || !CanEditNode)
+        {
+            return;
+        }
+
+        IReadOnlyList<string> readers = (fix.Section == EntrySection.Define
+            ? Try(() => RulesetEdits.StatsFiringOn(_text, fix.Id))
+            : Try(() => RulesetEdits.SiblingReaders(_text, fix.Id))) ?? [];
+        IReadOnlyList<ShowReference> shown = _surface.ReferencesTo(fix.Id);
+        if (readers.Count > 0 || shown.Count > 0)
+        {
+            List<string> by = [];
+            if (readers.Count > 0)
+            {
+                by.Add("read by " + string.Join(", ", readers));
+            }
+
+            if (shown.Count > 0)
+            {
+                by.Add("shown on " + string.Join(", ", shown.Select(s => s.Surface).Distinct()));
+            }
+
+            ForEach.Error = $"{fix.Id} is {string.Join(" and ", by)}; a template has no name to read. Change them first.";
+            return;
+        }
+
+        // The arrangement follows the first expansion, which is where the eye looks for the entry next.
+        string first = fix.Axes.Aggregate(fix.FixedId, (id, axis) => id.Replace("{" + axis.Key + "}", axis.Values[0], StringComparison.Ordinal));
+        RulesetDocumentNodeKey carried = fix.Section == EntrySection.Define ? RulesetDocumentNodeKey.Define(node.Ruleset, first) : new RulesetDocumentNodeKey(node.Ruleset, first);
+        _renaming?.Invoke(node.Key, carried);
+        EditOutcome outcome = Apply(EditRequest.Of(
+            t => RulesetEdits.SetForEach(RulesetEdits.RenameEntry(t, fix.Section, fix.Id, fix.FixedId), fix.Section, fix.FixedId, fix.Axes),
+            $"expand {fix.Id} as {fix.FixedId}"));
+        if (outcome.IsRefused)
+        {
+            ForEach.Error = outcome.Message ?? "";
+        }
+        else if (outcome.IsWritten)
+        {
+            _select(carried);
+        }
     }
 
     // A table's name is its show: key alone; the sidecar position follows through the same carry an entry's does.
