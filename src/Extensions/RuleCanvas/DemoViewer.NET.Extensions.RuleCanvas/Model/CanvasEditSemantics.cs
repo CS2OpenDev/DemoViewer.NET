@@ -536,15 +536,83 @@ public static partial class CanvasEditSemantics
             {
                 foreach (CanvasNodeViewModel node in deleting)
                 {
-                    text = node.IsShow ? RemoveShow(text, node)
-                        : node.IsDefine ? RulesetEdits.RemoveDefine(text, node.Title)
-                        : node.IsHighlight ? RulesetEdits.RemoveHighlight(text, node.Id)
-                        : RulesetEdits.RemoveStat(text, node.Id);
+                    text = RemoveEntry(text, node, false);
                 }
 
                 return text;
             },
             "delete " + string.Join(", ", deleting.Select(n => n.Title)));
+    }
+
+    /// <summary>
+    ///     The cascade a refused delete offers, the Inspector's and the Delete key's alike: every entry in
+    ///     <paramref name="nodes" /> goes with the <c>show:</c> entries that surface it, in one write. Null
+    ///     when a sibling reads one, a stat fires on a define among them, the selection holds the params, or
+    ///     nothing but tables is selected: those still refuse.
+    /// </summary>
+    public static EditRequest? DeleteWithReferences(IReadOnlyList<CanvasNodeViewModel> nodes, RulesetCorpus.Composed composed, string? text = null)
+    {
+        ArgumentNullException.ThrowIfNull(nodes);
+        ArgumentNullException.ThrowIfNull(composed);
+        List<CanvasNodeViewModel> deleting = [.. nodes.Where(n => n.IsAuthorable && !n.IsScaffold)];
+        if (deleting.Count == 0 || deleting.Any(n => n.IsParams))
+        {
+            return null;
+        }
+
+        HashSet<RulesetDocumentNodeKey> keys = [.. deleting.Select(n => n.Key)];
+        bool shown = false;
+        foreach (CanvasNodeViewModel node in deleting.Where(n => !n.IsShow))
+        {
+            if (node.IsDefine)
+            {
+                if (StatsFiringOn(node, composed, text).Any(s => !keys.Contains(new RulesetDocumentNodeKey(node.Ruleset, s))))
+                {
+                    return null;
+                }
+
+                continue;
+            }
+
+            NodeDependants dependants = Dependants(node, composed, keys, text);
+            if (dependants.Readers.Count > 0)
+            {
+                return null;
+            }
+
+            shown |= dependants.Scoreboard || dependants.Tables.Count > 0;
+        }
+
+        if (!shown)
+        {
+            return null;
+        }
+
+        return EditRequest.Of(t =>
+            {
+                foreach (CanvasNodeViewModel node in deleting)
+                {
+                    t = RemoveEntry(t, node, true);
+                }
+
+                return t;
+            },
+            "delete " + string.Join(", ", deleting.Select(n => n.Title)) + " with references");
+    }
+
+    /// <summary>Removes <paramref name="node" />'s block from whichever section declares it, and first its <c>show:</c> entries when <paramref name="withReferences" />.</summary>
+    public static string RemoveEntry(string text, CanvasNodeViewModel node, bool withReferences)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (withReferences && !node.IsShow && !node.IsDefine)
+        {
+            text = RulesetEdits.RemoveShowReference(text, node.Id);
+        }
+
+        return node.IsShow ? RemoveShow(text, node)
+            : node.IsDefine ? RulesetEdits.RemoveDefine(text, node.Title)
+            : node.IsHighlight ? RulesetEdits.RemoveHighlight(text, node.Id)
+            : RulesetEdits.RemoveStat(text, node.Id);
     }
 
     /// <summary>Removes a show node's block: the table whole, or the scoreboard list.</summary>

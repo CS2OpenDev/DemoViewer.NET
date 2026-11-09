@@ -388,18 +388,7 @@ public sealed partial class InspectorViewModel : ObservableObject
         }
 
         bool cascade = _showReferences > 0 && !node.IsShow;
-        Apply(EditRequest.Of(t =>
-        {
-            if (cascade)
-            {
-                t = RulesetEdits.RemoveShowReference(t, node.Id);
-            }
-
-            return node.IsShow ? CanvasEditSemantics.RemoveShow(t, node)
-                : node.IsDefine ? RulesetEdits.RemoveDefine(t, node.Title)
-                : node.IsHighlight ? RulesetEdits.RemoveHighlight(t, node.Id)
-                : RulesetEdits.RemoveStat(t, node.Id);
-        }, "delete " + node.Title));
+        Apply(EditRequest.Of(t => CanvasEditSemantics.RemoveEntry(t, node, cascade), "delete " + node.Title));
     }
 
     /// <summary>Removes the selected entry's fixture comment; Undo puts it back.</summary>

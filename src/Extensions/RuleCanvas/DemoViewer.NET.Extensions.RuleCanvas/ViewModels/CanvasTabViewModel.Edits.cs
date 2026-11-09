@@ -114,14 +114,24 @@ public sealed partial class CanvasTabViewModel
         Report(_corpus.CopyToUser(selected), selected);
     }
 
+    /// <summary>The action a refused Delete carries when the only dependants are show: entries, as the Inspector offers it.</summary>
+    public const string DeleteWithReferencesLabel = "Delete with references";
+
     /// <summary>Removes the selected node's entry from the document.</summary>
     [RelayCommand]
     private void DeleteSelected()
     {
         List<CanvasNodeViewModel> nodes = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n.IsAuthorable)];
-        if (IsEditable && nodes.Count > 0 && _composed is { } composed)
+        if (!IsEditable || nodes.Count == 0 || _composed is not { } composed)
         {
-            Apply(CanvasEditSemantics.Delete(nodes, composed, _session.Text));
+            return;
+        }
+
+        EditRequest request = CanvasEditSemantics.Delete(nodes, composed, _session.Text);
+        if (!Apply(request) && request.IsRefused && request.Refusal is { } refusal
+            && CanvasEditSemantics.DeleteWithReferences(nodes, composed, _session.Text) is { } cascade)
+        {
+            Notify(refusal, null, DeleteWithReferencesLabel, () => Apply(cascade));
         }
     }
 

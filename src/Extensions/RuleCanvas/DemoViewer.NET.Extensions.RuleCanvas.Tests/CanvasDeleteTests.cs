@@ -75,6 +75,57 @@ public class CanvasDeleteTests
     }
 
     [Test]
+    public async Task ARefusedDelete_ShownOnly_CarriesTheInspectorsCascade_OnTheToast()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        string path = rules.UserPath("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        string before = File.ReadAllText(path);
+
+        // Read by a sibling: refused both ways, nothing offered.
+        vm.SelectedNodes.Add(vm.Nodes.Single(n => n.Id == "round_kills"));
+        vm.DeleteSelectedCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Toast?.HasAction).IsFalse();
+            await Assert.That(vm.Inspector.CanDelete).IsFalse();
+        }
+
+        // Shown only: the key refuses by default and its toast offers the cascade the Inspector's Delete runs.
+        vm.SelectedNodes.Clear();
+        vm.SelectedNodes.Add(vm.Nodes.Single(n => n.Id == "round_kast"));
+        string inspectorLabel = vm.Inspector.DeleteLabel;
+        vm.DeleteSelectedCommand.Execute(null);
+        CanvasToast? toast = vm.Toast;
+        using (Assert.Multiple())
+        {
+            await Assert.That(File.ReadAllText(path)).IsEqualTo(before);
+            await Assert.That(toast?.Message).IsEqualTo("round_kast is shown in table player_round");
+            await Assert.That(toast?.HasAction).IsTrue();
+            await Assert.That(toast?.ActionLabel).IsEqualTo(CanvasTabViewModel.DeleteWithReferencesLabel);
+            await Assert.That(inspectorLabel).IsEqualTo("Delete and remove its reference");
+        }
+
+        toast!.Action!();
+        string viaToast = File.ReadAllText(path);
+        using (Assert.Multiple())
+        {
+            await Assert.That(viaToast).DoesNotContain("  round_kast:");
+            await Assert.That(viaToast).DoesNotContain("stat: round_kast");
+            await Assert.That(vm.Nodes.Any(n => n.Id == "round_kast")).IsFalse();
+        }
+
+        vm.UndoCommand.Execute(null);
+        await Assert.That(File.ReadAllText(path)).IsEqualTo(before).Because("the cascade is one write");
+
+        vm.SelectedNodes.Clear();
+        vm.SelectedNodes.Add(vm.Nodes.Single(n => n.Id == "round_kast"));
+        vm.Inspector.DeleteCommand.Execute(null);
+        await Assert.That(File.ReadAllText(path)).IsEqualTo(viaToast).Because("the key's cascade and the Inspector's are one write");
+    }
+
+    [Test]
     public async Task ASelectionNothingNames_GoesInOneWrite()
     {
         using RulesTree rules = RulesTree.WithUser("player_round");

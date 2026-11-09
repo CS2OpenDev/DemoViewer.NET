@@ -31,7 +31,12 @@ public enum CanvasEmptyState
 /// <param name="Message">The text.</param>
 /// <param name="At">Where on the canvas the edit was asked for, in graph coordinates, or null for the strip.</param>
 /// <param name="Sequence">Distinguishes a repeated message from the one before it, so the view shows it again.</param>
-public sealed record CanvasToast(string Message, Point? At, int Sequence);
+/// <param name="ActionLabel">The one button the toast offers beside its close, or null.</param>
+/// <param name="Action">What that button does; the toast goes after.</param>
+public sealed record CanvasToast(string Message, Point? At, int Sequence, string? ActionLabel = null, Action? Action = null)
+{
+    public bool HasAction => ActionLabel is { Length: > 0 } && Action is not null;
+}
 
 /// <summary>One line of the strip's diagnostics list.</summary>
 /// <param name="Node">The node the diagnostic is inside, or null for one about the ruleset as a whole.</param>
@@ -309,6 +314,15 @@ public sealed partial class CanvasTabViewModel
     {
         ArgumentException.ThrowIfNullOrEmpty(message);
         Toast = new CanvasToast(message, at, ++_toastSequence);
+    }
+
+    /// <summary>Says <paramref name="message" /> on the toast with one action button, <paramref name="actionLabel" />, that runs <paramref name="action" />.</summary>
+    public void Notify(string message, Point? at, string actionLabel, Action action)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(message);
+        ArgumentException.ThrowIfNullOrEmpty(actionLabel);
+        ArgumentNullException.ThrowIfNull(action);
+        Toast = new CanvasToast(message, at, ++_toastSequence, actionLabel, action);
     }
 
     /// <summary>Where <paramref name="item" /> lands when added without a drop point: the arranger's column rule over the nodes drawn.</summary>
