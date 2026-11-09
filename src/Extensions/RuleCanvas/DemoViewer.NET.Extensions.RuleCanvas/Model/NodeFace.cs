@@ -40,7 +40,10 @@ public abstract record NodeFace(
     public string? ValueType { get; init; }
 
     /// <summary>A node the engine made rather than the author: an event, an enrichment, a context value.</summary>
-    public bool IsScaffold => Key.Ruleset.StartsWith('~');
+    public bool IsScaffold => Key.Ruleset.StartsWith('~') && !Key.IsDependency;
+
+    /// <summary>A <c>use:</c> dependency folded to one node.</summary>
+    public bool IsDependency => Key.IsDependency;
 
     public bool IsHighlight => Kind == "highlight";
 
@@ -450,6 +453,29 @@ public sealed record ShowFace(
     public string Grain => IsScoreboard ? "scoreboard" : Per.Length == 0 ? "table" : "per " + Per;
 
     public override IReadOnlyList<string> CoveredKeys => ["per", "on", "columns"];
+}
+
+/// <summary>
+///     A <c>use:</c> dependency folded to one node: the ruleset's title and entry count, one output per entry
+///     the open document reads, and the files behind it when the user's copy overrides a shipped one.
+///     <see cref="Entries" /> is the entries read, in first-use order. <see cref="UserPath" /> and
+///     <see cref="ShippedPath" /> are set together when a user copy stands in for the shipped file.
+/// </summary>
+public sealed record DependencyFace(
+    RulesetDocumentNodeKey Key, string Kind, string? Label, string Per, string Gate, IReadOnlyList<string> Diagnostics,
+    int SourceLine, bool IsAuthorable, string Title, int EntryCount, IReadOnlyList<string> Entries, string? UserPath, string? ShippedPath)
+    : NodeFace(Key, Kind, Label, Per, Gate, Diagnostics, SourceLine, IsAuthorable)
+{
+    public const string KindName = "dependency";
+
+    /// <summary>The folded ruleset's id.</summary>
+    public string RulesetId => Key.Id;
+
+    /// <summary>Whether a copy in the user's rules overrides the shipped file of the same id.</summary>
+    public bool IsUserCopy => UserPath is not null && ShippedPath is not null;
+
+    /// <summary>The header's count: <c>3 entries</c>.</summary>
+    public string EntryCountText => EntryCount == 1 ? "1 entry" : EntryCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + " entries";
 }
 
 /// <summary>

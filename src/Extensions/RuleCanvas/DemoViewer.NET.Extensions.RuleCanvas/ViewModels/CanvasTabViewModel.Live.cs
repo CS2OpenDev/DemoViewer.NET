@@ -357,7 +357,11 @@ public sealed partial class CanvasTabViewModel
         foreach (CanvasNodeViewModel node in nodes)
         {
             bool isBool = node.ValueType == "bool";
-            if (TrackFor(run, node.Key, instance.Index) is { } track)
+            if (node.IsDependency)
+            {
+                ShowDependencyLive(node, run, instance, stale);
+            }
+            else if (TrackFor(run, node.Key, instance.Index) is { } track)
             {
                 LiveNodeBinding binding = new(node, track, isBool);
                 _liveNodes.Add(binding);
@@ -391,6 +395,33 @@ public sealed partial class CanvasTabViewModel
                 wire.LiveTip = WireFallback(run, wire, instance.Index, stale);
             }
         }
+    }
+
+    // A folded dependency speaks for the entries the open document reads: the fires summed on the badge,
+    // one line per entry on the tip. Nothing when the run tracked none of them.
+    private static void ShowDependencyLive(CanvasNodeViewModel node, LiveValuesRun run, LiveInstance instance, bool stale)
+    {
+        List<(string Entry, NodeTrack Track)> tracks = [];
+        foreach (string entry in node.DependencyEntries)
+        {
+            if (TrackFor(run, new RulesetDocumentNodeKey(node.Id, entry), instance.Index) is { } track)
+            {
+                tracks.Add((entry, track));
+            }
+        }
+
+        if (tracks.Count == 0)
+        {
+            node.LiveBadge = "";
+            node.LiveTip = "";
+            node.IsLiveStale = false;
+            return;
+        }
+
+        int fires = tracks.Sum(t => t.Track.FireCount);
+        node.LiveBadge = LiveValuesText.Fires(fires);
+        node.LiveTip = LiveValuesText.DependencyTip(tracks, instance, stale);
+        node.IsLiveStale = stale;
     }
 
     // A wire with no engine edge of its own speaks from a node at one of its ends.

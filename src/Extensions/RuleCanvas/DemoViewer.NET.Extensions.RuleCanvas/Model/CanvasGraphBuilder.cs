@@ -29,9 +29,10 @@ public static class CanvasGraphBuilder
             nodes.Add(node);
         }
 
-        // One input per kind a node takes and one output per node, typed by what they carry.
+        // One input per kind a node takes and one output per node, typed by what they carry; a dependency
+        // node has one output per entry read, titled by the entry.
         Dictionary<(RulesetDocumentNodeKey, PortKind), CanvasConnectorViewModel> inputs = new();
-        Dictionary<RulesetDocumentNodeKey, CanvasConnectorViewModel> outputs = new();
+        Dictionary<(RulesetDocumentNodeKey, string?), CanvasConnectorViewModel> outputs = new();
         CanvasConnectorViewModel Input(RulesetDocumentNodeKey key, PortKind kind)
         {
             if (!inputs.TryGetValue((key, kind), out CanvasConnectorViewModel? connector))
@@ -44,21 +45,30 @@ public static class CanvasGraphBuilder
             return connector;
         }
 
-        CanvasConnectorViewModel Output(RulesetDocumentNodeKey key)
+        CanvasConnectorViewModel Output(RulesetDocumentNodeKey key, string? entry = null)
         {
-            if (!outputs.TryGetValue(key, out CanvasConnectorViewModel? connector))
+            if (!outputs.TryGetValue((key, entry), out CanvasConnectorViewModel? connector))
             {
                 CanvasNodeViewModel owner = byKey[key];
                 PortKind kind = OutputKindOf(owner);
                 connector = new CanvasConnectorViewModel
                 {
-                    Title = kind == PortKind.Value ? owner.OutputTitle : CanvasConnectorViewModel.TitleOf(kind), Owner = owner, Kind = kind
+                    Title = entry ?? (kind == PortKind.Value ? owner.OutputTitle : CanvasConnectorViewModel.TitleOf(kind)), Owner = owner, Kind = kind
                 };
-                outputs[key] = connector;
+                outputs[(key, entry)] = connector;
                 owner.Outputs.Add(connector);
             }
 
             return connector;
+        }
+
+        // A dependency's outputs exist before its wires, in the order the open document reads them.
+        foreach (CanvasNodeViewModel node in nodes.Where(n => n.IsDependency))
+        {
+            foreach (string entry in node.DependencyEntries)
+            {
+                Output(node.Key, entry);
+            }
         }
 
         // An authored node always has its ports, wired or not, so a wire can start or end there before
@@ -92,7 +102,7 @@ public static class CanvasGraphBuilder
             CanvasConnectorViewModel input = spec.Column is { } column && column < target.Columns.Count && target.Columns[column].Port is { } port
                 ? port
                 : Input(spec.Target, into);
-            wires.Add(new CanvasConnectionViewModel(Output(spec.Source), input,
+            wires.Add(new CanvasConnectionViewModel(Output(spec.Source, spec.SourceOutput), input,
                 spec.Text, spec.Condition, spec.IsRead, spec.IsGate, spec.IsAnd, spec.IsOr));
         }
 

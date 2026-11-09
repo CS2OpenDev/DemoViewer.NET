@@ -52,22 +52,25 @@ public sealed class RulesetNodeLayout
     private readonly Dictionary<RulesetDocumentNodeKey, Point> _positions;
     private readonly HashSet<RulesetDocumentNodeKey> _collapsed;
     private readonly List<CanvasGroup> _groups;
+    private readonly HashSet<string> _expanded;
 
-    private RulesetNodeLayout(Dictionary<RulesetDocumentNodeKey, Point> positions, HashSet<RulesetDocumentNodeKey> collapsed, List<CanvasGroup> groups)
+    private RulesetNodeLayout(Dictionary<RulesetDocumentNodeKey, Point> positions, HashSet<RulesetDocumentNodeKey> collapsed, List<CanvasGroup> groups,
+        HashSet<string> expanded)
     {
         _positions = positions;
         _collapsed = collapsed;
         _groups = groups;
+        _expanded = expanded;
     }
 
     /// <summary>The answer for a ruleset with no sidecar, which is every ruleset until one is dragged.</summary>
-    public static RulesetNodeLayout Empty { get; } = new([], [], []);
+    public static RulesetNodeLayout Empty { get; } = new([], [], [], new HashSet<string>(StringComparer.Ordinal));
 
     /// <summary>How many nodes carry a stored position, including ones the current graph does not draw.</summary>
     public int Count => _positions.Count;
 
-    /// <summary>Whether there is nothing stored at all: no position, no collapsed node, no group.</summary>
-    public bool IsEmpty => _positions.Count == 0 && _collapsed.Count == 0 && _groups.Count == 0;
+    /// <summary>Whether there is nothing stored at all: no position, no collapsed node, no group, no expanded dependency.</summary>
+    public bool IsEmpty => _positions.Count == 0 && _collapsed.Count == 0 && _groups.Count == 0 && _expanded.Count == 0;
 
     /// <summary>Every stored position, in no meaningful order.</summary>
     public IReadOnlyDictionary<RulesetDocumentNodeKey, Point> Positions => _positions;
@@ -78,6 +81,9 @@ public sealed class RulesetNodeLayout
     /// <summary>The frames drawn, in the order they were made.</summary>
     public IReadOnlyList<CanvasGroup> Groups => _groups;
 
+    /// <summary>The <c>use:</c> dependencies drawn in full rather than folded to one node, by ruleset id.</summary>
+    public IReadOnlySet<string> Expanded => _expanded;
+
     /// <summary>Builds a layout from the positions a canvas holds. A later duplicate of a key wins.</summary>
     /// <param name="positions">The node-to-position pairs to store.</param>
     /// <returns>The layout, or <see cref="Empty" /> when there is nothing to store.</returns>
@@ -86,11 +92,17 @@ public sealed class RulesetNodeLayout
 
     /// <summary>Builds a layout from everything a canvas holds. A member of two groups stays in the later one.</summary>
     public static RulesetNodeLayout From(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
-        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups)
+        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups) =>
+        From(positions, collapsed, groups, []);
+
+    /// <summary>Builds a layout from everything a canvas holds, the expanded dependencies included.</summary>
+    public static RulesetNodeLayout From(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
+        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups, IEnumerable<string> expanded)
     {
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(collapsed);
         ArgumentNullException.ThrowIfNull(groups);
+        ArgumentNullException.ThrowIfNull(expanded);
 
         Dictionary<RulesetDocumentNodeKey, Point> map = [];
         foreach ((RulesetDocumentNodeKey key, Point at) in positions)
@@ -98,7 +110,7 @@ public sealed class RulesetNodeLayout
             map[key] = at;
         }
 
-        RulesetNodeLayout layout = new(map, [.. collapsed], []);
+        RulesetNodeLayout layout = new(map, [.. collapsed], [], new HashSet<string>(expanded, StringComparer.Ordinal));
         foreach (CanvasGroup group in groups)
         {
             layout = layout.WithGroup(group);
@@ -125,6 +137,32 @@ public sealed class RulesetNodeLayout
     /// <summary>Whether the user folded <paramref name="key" /> to its header.</summary>
     public bool IsCollapsed(RulesetDocumentNodeKey key) => _collapsed.Contains(key);
 
+    /// <summary>Whether the user unfolded the dependency <paramref name="ruleset" /> into its entries.</summary>
+    public bool IsExpanded(string ruleset) => _expanded.Contains(ruleset);
+
+    /// <summary>A copy with the dependency <paramref name="ruleset" /> expanded or folded.</summary>
+    public RulesetNodeLayout WithExpanded(string ruleset, bool expanded)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(ruleset);
+        if (_expanded.Contains(ruleset) == expanded)
+        {
+            return this;
+        }
+
+        HashSet<string> set = new(_expanded, StringComparer.Ordinal);
+        if (expanded)
+        {
+            set.Add(ruleset);
+        }
+        else
+        {
+            set.Remove(ruleset);
+        }
+
+        RulesetNodeLayout layout = new(_positions, _collapsed, _groups, set);
+        return layout.IsEmpty ? Empty : layout;
+    }
+
     /// <summary>The group <paramref name="key" /> is inside, or null.</summary>
     public CanvasGroup? GroupOf(RulesetDocumentNodeKey key) => _groups.FirstOrDefault(g => g.Contains(key));
 
@@ -139,7 +177,7 @@ public sealed class RulesetNodeLayout
             [key] = position
         };
 
-        return new RulesetNodeLayout(map, _collapsed, _groups);
+        return new RulesetNodeLayout(map, _collapsed, _groups, _expanded);
     }
 
     /// <summary>A copy with <paramref name="key" /> back on auto-layout. Its collapse flag and group stay.</summary>
@@ -154,7 +192,7 @@ public sealed class RulesetNodeLayout
 
         Dictionary<RulesetDocumentNodeKey, Point> map = new(_positions);
         map.Remove(key);
-        RulesetNodeLayout layout = new(map, _collapsed, _groups);
+        RulesetNodeLayout layout = new(map, _collapsed, _groups, _expanded);
         return layout.IsEmpty ? Empty : layout;
     }
 
@@ -176,7 +214,7 @@ public sealed class RulesetNodeLayout
             set.Remove(key);
         }
 
-        RulesetNodeLayout layout = new(_positions, set, _groups);
+        RulesetNodeLayout layout = new(_positions, set, _groups, _expanded);
         return layout.IsEmpty ? Empty : layout;
     }
 
@@ -204,7 +242,7 @@ public sealed class RulesetNodeLayout
         }
 
         groups.Add(group with { Members = members });
-        return new RulesetNodeLayout(_positions, _collapsed, groups);
+        return new RulesetNodeLayout(_positions, _collapsed, groups, _expanded);
     }
 
     /// <summary>A copy without the group framing <paramref name="group" />'s members; the nodes stay where they are.</summary>
@@ -217,7 +255,7 @@ public sealed class RulesetNodeLayout
             return this;
         }
 
-        RulesetNodeLayout layout = new(_positions, _collapsed, groups);
+        RulesetNodeLayout layout = new(_positions, _collapsed, groups, _expanded);
         return layout.IsEmpty ? Empty : layout;
     }
 
@@ -248,14 +286,14 @@ public sealed class RulesetNodeLayout
         List<CanvasGroup> groups = [.. _groups.Select(g => g.Contains(from)
             ? g with { Members = [.. g.Members.Select(m => m == from ? to : m).Distinct()] }
             : g)];
-        return new RulesetNodeLayout(map, set, groups);
+        return new RulesetNodeLayout(map, set, groups, _expanded);
     }
 
     /// <summary>
     ///     This layout with <paramref name="over" />'s positions winning per node and, when <paramref name="over" />
-    ///     stores anything at all, its collapse flags and groups replacing this one's: what is on screen is the
-    ///     whole truth about folds and frames, while a position missing on screen may still be a stale entry
-    ///     worth keeping.
+    ///     stores anything at all, its collapse flags, groups and expanded dependencies replacing this one's: what
+    ///     is on screen is the whole truth about folds, frames and unfolded dependencies, while a position missing
+    ///     on screen may still be a stale entry worth keeping.
     /// </summary>
     public RulesetNodeLayout Overlaid(RulesetNodeLayout over)
     {
@@ -271,7 +309,7 @@ public sealed class RulesetNodeLayout
             map[key] = at;
         }
 
-        return new RulesetNodeLayout(map, over._collapsed, over._groups);
+        return new RulesetNodeLayout(map, over._collapsed, over._groups, over._expanded);
     }
 }
 
@@ -299,9 +337,10 @@ public sealed class RulesetNodeLayout
 ///     </para>
 ///     <para>
 ///         The shape is additive over the positions-only sidecar: a node entry may carry <c>collapsed</c>
-///         beside <c>x</c> and <c>y</c>, or instead of them, and a <c>groups</c> array may follow the nodes.
-///         A reader of the old shape asks only for <c>x</c> and <c>y</c>, so it places every node this writer
-///         placed and skips the rest; a layout with no fold and no frame is written exactly as before.
+///         beside <c>x</c> and <c>y</c>, or instead of them, and a <c>groups</c> array and an <c>expanded</c>
+///         array of dependency ids may follow the nodes. A reader of the old shape asks only for <c>x</c> and
+///         <c>y</c>, so it places every node this writer placed and skips the rest; a layout with no fold, no
+///         frame and no expanded dependency is written exactly as before.
 ///     </para>
 /// </summary>
 public static class RulesetLayoutStore
@@ -316,6 +355,7 @@ public static class RulesetLayoutStore
     private const string VersionProperty = "version";
     private const string NodesProperty = "nodes";
     private const string GroupsProperty = "groups";
+    private const string ExpandedProperty = "expanded";
     private const string XProperty = "x";
     private const string YProperty = "y";
     private const string WidthProperty = "width";
@@ -408,7 +448,7 @@ public static class RulesetLayoutStore
             // A layout with no writable entry is the same state as no layout, and is stored the same
             // way: as the absence of a file. Otherwise a ruleset whose every coordinate came back
             // non-finite would keep a sidecar that stores nothing.
-            if (!WritableNodes(layout).Any() && !WritableGroups(layout).Any())
+            if (!WritableNodes(layout).Any() && !WritableGroups(layout).Any() && layout.Expanded.Count == 0)
             {
                 if (File.Exists(sidecar))
                 {
@@ -501,7 +541,19 @@ public static class RulesetLayoutStore
                 }
             }
 
-            return RulesetNodeLayout.From(map, collapsed, groups);
+            List<string> expanded = [];
+            if (document.RootElement.TryGetProperty(ExpandedProperty, out JsonElement ids) && ids.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement id in ids.EnumerateArray())
+                {
+                    if (id.ValueKind == JsonValueKind.String && id.GetString() is { Length: > 0 } ruleset)
+                    {
+                        expanded.Add(ruleset);
+                    }
+                }
+            }
+
+            return RulesetNodeLayout.From(map, collapsed, groups, expanded);
         }
         catch (JsonException)
         {
@@ -566,6 +618,18 @@ public static class RulesetLayoutStore
                     writer.WriteNumber(WidthProperty, Round(rect.Width));
                     writer.WriteNumber(HeightProperty, Round(rect.Height));
                     writer.WriteEndObject();
+                }
+
+                writer.WriteEndArray();
+            }
+
+            // Absent rather than empty, as the groups are.
+            if (layout.Expanded.Count > 0)
+            {
+                writer.WriteStartArray(ExpandedProperty);
+                foreach (string ruleset in layout.Expanded.Order(StringComparer.Ordinal))
+                {
+                    writer.WriteStringValue(ruleset);
                 }
 
                 writer.WriteEndArray();

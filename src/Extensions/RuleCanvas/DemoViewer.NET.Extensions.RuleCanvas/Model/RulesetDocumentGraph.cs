@@ -38,6 +38,12 @@ public readonly record struct RulesetDocumentNodeKey(string Ruleset, string Id)
     /// <summary>The show node id of the scoreboard; a table is keyed by its own name.</summary>
     public const string ScoreboardName = "scoreboard";
 
+    /// <summary>The ruleset part of a folded <c>use:</c> dependency's key; the id is the dependency's ruleset id.</summary>
+    public const string DependencyRuleset = "~use";
+
+    /// <summary>Whether this key names a <c>use:</c> dependency folded to one node.</summary>
+    public bool IsDependency => Ruleset == DependencyRuleset;
+
     /// <summary>Whether this key names a trigger-bodied <c>define:</c> rather than a stat or a highlight.</summary>
     public bool IsDefine => Id.StartsWith(DefinePrefix, StringComparison.Ordinal);
 
@@ -64,6 +70,9 @@ public readonly record struct RulesetDocumentNodeKey(string Ruleset, string Id)
 
     /// <summary>The key of the <c>params:</c> node of <paramref name="ruleset" />.</summary>
     public static RulesetDocumentNodeKey Params(string ruleset) => new(ruleset, ParamsId);
+
+    /// <summary>The key of the node the dependency <paramref name="ruleset" /> folds to.</summary>
+    public static RulesetDocumentNodeKey Dependency(string ruleset) => new(DependencyRuleset, ruleset);
 
     /// <summary>Formats as the qualified read an author would write from another ruleset.</summary>
     /// <returns>The <c>ruleset.id</c> form.</returns>

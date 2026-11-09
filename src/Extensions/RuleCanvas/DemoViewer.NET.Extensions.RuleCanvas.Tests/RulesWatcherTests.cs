@@ -258,6 +258,7 @@ public class RulesWatcherTests
         vm.OnActivated(null!);
         await Assert.That(vm.SelectedRuleset?.Id).IsEqualTo("player_stats");
         string kast = rules.UserPath("kast");
+        vm.ExpandDependency("kast");
         string kastNode = vm.Nodes.First(n => n.Ruleset == "kast").Id;
         WriteExternally(kast, RulesetEdits.SetField(File.ReadAllText(kast), kastNode, "label", "From kast!"));
 
@@ -349,6 +350,7 @@ public class RulesWatcherTests
         vm.PreferredRulesetId = "player_stats";
         vm.OnActivated(null!);
         string kast = rules.UserPath("kast");
+        vm.ExpandDependency("kast");
         string kastNode = vm.Nodes.First(n => n.Ruleset == "kast").Id;
         vm.OnDeactivated();
         WriteExternally(kast, RulesetEdits.SetField(File.ReadAllText(kast), kastNode, "label", "From kast!"));
@@ -372,6 +374,7 @@ public class RulesWatcherTests
         vm.OnActivated(null!);
         vm.SourceEdited(vm.DocumentText + "# typing\n");
         string kast = rules.UserPath("kast");
+        vm.ExpandDependency("kast");
         string kastNode = vm.Nodes.First(n => n.Ruleset == "kast").Id;
         WriteExternally(kast, RulesetEdits.SetField(File.ReadAllText(kast), kastNode, "label", "From kast!"));
         string fresh = rules.User("fresh", Fresh);
@@ -404,6 +407,7 @@ public class RulesWatcherTests
         string typed = vm.DocumentText + "# typing\n";
         vm.SourceEdited(typed);
         string kast = rules.UserPath("kast");
+        vm.ExpandDependency("kast");
         string kastNode = vm.Nodes.First(n => n.Ruleset == "kast").Id;
         WriteExternally(kast, RulesetEdits.SetField(File.ReadAllText(kast), kastNode, "label", "From kast!"));
         string fresh = rules.User("fresh", Fresh);

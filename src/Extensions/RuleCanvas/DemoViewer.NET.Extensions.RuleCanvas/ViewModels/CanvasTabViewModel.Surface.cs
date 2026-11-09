@@ -145,7 +145,7 @@ public sealed partial class CanvasTabViewModel
     [RelayCommand]
     private void ClearGallerySearch() => GallerySearch = "";
 
-    /// <summary>Selects the node a diagnostic is inside, which also jumps the source pane to it.</summary>
+    /// <summary>Selects and frames the node a diagnostic is inside, which also jumps the source pane to it.</summary>
     [RelayCommand]
     private void SelectDiagnostic(CanvasDiagnostic? diagnostic)
     {
@@ -153,6 +153,7 @@ public sealed partial class CanvasTabViewModel
         {
             SelectedNodes.Clear();
             SelectedNodes.Add(node);
+            FrameRequested?.Invoke();
         }
     }
 

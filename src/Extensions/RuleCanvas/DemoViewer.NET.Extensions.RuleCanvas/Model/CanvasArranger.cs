@@ -56,10 +56,10 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
     public static RulesetNodeLayout Capture(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions) =>
         RulesetNodeLayout.From(positions);
 
-    /// <summary>Everything on screen as an arrangement: the positions, the folded nodes and the frames.</summary>
+    /// <summary>Everything on screen as an arrangement: the positions, the folded nodes, the frames and the dependencies drawn in full.</summary>
     public static RulesetNodeLayout Capture(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
-        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups) =>
-        RulesetNodeLayout.From(positions, collapsed, groups);
+        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups, IEnumerable<string>? expanded = null) =>
+        RulesetNodeLayout.From(positions, collapsed, groups, expanded ?? []);
 
     /// <summary>
     ///     Where an entry's arrangement lives: beside a user ruleset, under the extension's own folder for a
@@ -87,12 +87,15 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
     ///     ruleset) is dropped, and the slice's arrangement with it. The arrangement on screen wins over the
     ///     sidecar, and a pending placement over both; the sidecar alone decides on open, when nothing is on
     ///     screen. A recorded rename moves the old key's arrangement to the new one once the new key is drawn.
+    ///     Every <c>use:</c> dependency the arrangement does not list as expanded is folded to one node first.
     /// </summary>
     public Arrangement Arrange(RulesetCorpus.Composed composed, string? sidecar, RulesetNodeLayout onScreen)
     {
         ArgumentNullException.ThrowIfNull(composed);
         ArgumentNullException.ThrowIfNull(onScreen);
         RulesetNodeLayout saved = sidecar is null ? RulesetNodeLayout.Empty : RulesetLayoutStore.LoadSidecar(sidecar);
+        // A slice shows part of the chain, so what is on screen while focused says nothing about the folds.
+        composed = DependencyFolding.Fold(composed, (FocusKey is null ? saved.Overlaid(onScreen) : saved).Expanded);
         RulesetNodeLayout layout = saved;
         bool focusDropped = false;
         if (FocusKey is { } focusKey)

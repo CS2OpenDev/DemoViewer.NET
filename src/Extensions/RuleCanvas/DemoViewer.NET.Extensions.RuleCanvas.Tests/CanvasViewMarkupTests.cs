@@ -114,7 +114,7 @@ public class CanvasViewMarkupTests
             && (Attribute(e, "Background") == "{DynamicResource AccentError}"
                 || (e.Attribute(_views + "TokenBrush.Background")?.Value ?? "").Contains("DiagnosticSeverityToken", StringComparison.Ordinal)))];
         List<XElement> texts = [.. badges.SelectMany(b => b.Descendants().Where(e => e.Name.LocalName == "TextBlock"))];
-        await Assert.That(texts.Count).IsEqualTo(4).Because("the strip badge holds two texts, the node badge one, the show node badge one");
+        await Assert.That(texts.Count).IsEqualTo(5).Because("the strip badge holds two texts, the node badge one, the show node badge one, the dependency badge one");
         foreach (XElement text in texts)
         {
             await Assert.That(Attribute(text, "Foreground")).IsEqualTo("{DynamicResource RuleDiagnosticBadgeText}").Because(Attribute(text, "Text"));
@@ -166,7 +166,10 @@ public class CanvasViewMarkupTests
     public async Task TheLiveBadge_SitsAtTheRightOfTheHeader_HiddenWithoutARun_GreyWhenStale()
     {
         XDocument view = LoadView();
-        XElement badge = view.Descendants().Single(e => e.Name.LocalName == "Border" && Attribute(e, "IsVisible") == "{Binding HasLive}");
+        XElement authored = view.Descendants().Single(e => e.Name.LocalName == "CanvasNodeTemplateSelector.Authored");
+        XElement badge = authored.Descendants().Single(e => e.Name.LocalName == "Border" && Attribute(e, "IsVisible") == "{Binding HasLive}");
+        await Assert.That(view.Descendants().Count(e => e.Name.LocalName == "Border" && Attribute(e, "IsVisible") == "{Binding HasLive}")).IsEqualTo(2)
+            .Because("the dependency template carries the same badge");
         XElement text = badge.Elements().Single(e => e.Name.LocalName == "TextBlock");
         XElement header = badge.Ancestors().First(a => a.Name.LocalName == "Grid");
         using (Assert.Multiple())

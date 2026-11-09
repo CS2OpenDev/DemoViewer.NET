@@ -91,6 +91,16 @@ public sealed class CanvasNodeFactory(
                 }
 
                 break;
+            case DependencyFace dependency:
+                chips.Add(dependency.EntryCountText);
+                tips[dependency.EntryCountText] = $"use: [ {dependency.RulesetId} ] folded to one node; Expand draws its entries, Open {dependency.RulesetId} switches to it";
+                if (dependency.IsUserCopy)
+                {
+                    chips.Add("your copy");
+                    tips["your copy"] = $"Your copy overrides the shipped ruleset of this id.\nyours: {dependency.UserPath}\nshipped: {dependency.ShippedPath}";
+                }
+
+                break;
             case ScaffoldFace scaffold:
                 if (scaffold.IsPerPlayer)
                 {
@@ -235,7 +245,7 @@ public sealed class CanvasNodeFactory(
                 break;
         }
 
-        if (!face.IsAuthorable && !face.IsScaffold)
+        if (!face.IsAuthorable && !face.IsScaffold && !face.IsDependency)
         {
             chips.Add("from " + face.Ruleset);
         }
@@ -288,6 +298,7 @@ public sealed class CanvasNodeFactory(
             Thresholds = thresholds,
             Defaults = defaults,
             Columns = columns,
+            DependencyEntries = (face as DependencyFace)?.Entries ?? [],
             ViewActor = viewActor,
             BindsActor = bindsActor,
             Per = face.Per,

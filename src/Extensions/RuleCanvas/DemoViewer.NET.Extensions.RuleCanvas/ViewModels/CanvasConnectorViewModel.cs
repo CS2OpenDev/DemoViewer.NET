@@ -211,4 +211,7 @@ public sealed partial class CanvasConnectionViewModel(CanvasConnectorViewModel s
     public bool IsRead { get; } = isRead;
 
     public bool HasText => Text.Length > 0;
+
+    /// <summary>A read from another ruleset's entry, through a dependency node's output or a drawn foreign node: Go to definition can follow it.</summary>
+    public bool CanGoToDefinition => Source.Owner is { ForeignRuleset: not null };
 }

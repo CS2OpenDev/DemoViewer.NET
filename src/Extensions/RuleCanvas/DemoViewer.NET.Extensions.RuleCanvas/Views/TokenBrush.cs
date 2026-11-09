@@ -104,6 +104,7 @@ public sealed class RuleKindToken : IValueConverter
         "highlight" => "RuleKindHighlight",
         "define" => "RuleKindDefine",
         "show" or "params" => "RuleKindSurface",
+        "dependency" => "RuleKindDependency",
         _ => "RuleKindStat"
     };
 

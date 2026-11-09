@@ -46,6 +46,16 @@ public sealed class RulesetCorpus
         /// <summary>The open document, or null when it is not among the documents.</summary>
         public RulesetDoc? Open => OpenId is { } id && Documents.TryGetValue(id, out RulesetDoc? doc) ? doc : null;
 
+        /// <summary>
+        ///     The documents taking part whose file in the user's rules overrides a shipped file of the same id,
+        ///     with both paths, so a dependency node can say which copy runs.
+        /// </summary>
+        public IReadOnlyDictionary<string, (string UserPath, string ShippedPath)> Overrides { get; init; } =
+            new Dictionary<string, (string, string)>(StringComparer.Ordinal);
+
+        /// <summary>The ids of the <c>use:</c> dependencies taking part: every document but the open one.</summary>
+        public IEnumerable<string> DependencyIds => Documents.Keys.Where(id => id != OpenId);
+
         /// <summary>Every key a redraw gives a node: the declared entries and the chain's own, scaffolds and surfaces alike.</summary>
         public IEnumerable<RulesetDocumentNodeKey> DrawnKeys => Graph.Nodes.Select(n => n.Key).Concat(Chain.Nodes.Select(n => n.Key)).Distinct();
 
@@ -88,6 +98,9 @@ public sealed class RulesetCorpus
     // What the loader said about each document it still loaded: a stray key, a wrong shape. By id, as _docs.
     private readonly Dictionary<string, IReadOnlyList<RulesetDiagnostic>> _loaderDiagnostics;
 
+    // The ids whose user file stands in for a shipped one: the user's path and the shipped path it hides.
+    private readonly Dictionary<string, (string UserPath, string ShippedPath)> _overrides;
+
     /// <summary>The demo-source profile every demo-less composition runs under, by the id the catalog keys its views on.</summary>
     internal static string ProfileName => DemoSourceProfileRegistry.DefaultFallback.GetType().Name;
 
@@ -102,6 +115,7 @@ public sealed class RulesetCorpus
         List<Entry> entries = [];
         _docs = new Dictionary<string, RulesetDoc>(StringComparer.Ordinal);
         _loaderDiagnostics = new Dictionary<string, IReadOnlyList<RulesetDiagnostic>>(StringComparer.Ordinal);
+        _overrides = new Dictionary<string, (string, string)>(StringComparer.Ordinal);
         foreach (LoadedFile file in files)
         {
             // A later directory overrides an earlier one by id, which is the host's own rule: a user file
@@ -111,6 +125,11 @@ public sealed class RulesetCorpus
             int existing = entries.FindIndex(e => e.Id == doc.Id);
             if (existing >= 0)
             {
+                if (entries[existing].Source == "shipped" && file.Source == "user")
+                {
+                    _overrides[doc.Id] = (file.Path, entries[existing].Path);
+                }
+
                 entries[existing] = entry;
             }
             else
@@ -160,6 +179,9 @@ public sealed class RulesetCorpus
 
     /// <summary>The loadable rulesets in the order their directories were given, a later directory's file replacing an earlier one with the same id.</summary>
     public IReadOnlyList<Entry> Entries { get; }
+
+    /// <summary>The ids whose file in the user's rules overrides a shipped file of the same id, with both paths.</summary>
+    public IReadOnlyDictionary<string, (string UserPath, string ShippedPath)> Overrides => _overrides;
 
     /// <summary>The directory tagged <c>user</c>, where an editable copy of a shipped ruleset goes, or null.</summary>
     public string? UserDirectory { get; }
@@ -481,7 +503,11 @@ public sealed class RulesetCorpus
             }
         }
 
-        return new Composed(graph, taking, diagnostics, positioned, chain) { OpenId = open.Id };
+        return new Composed(graph, taking, diagnostics, positioned, chain)
+        {
+            OpenId = open.Id,
+            Overrides = _overrides.Where(o => taking.ContainsKey(o.Key)).ToDictionary(o => o.Key, o => o.Value, StringComparer.Ordinal)
+        };
     }
 
     /// <summary>

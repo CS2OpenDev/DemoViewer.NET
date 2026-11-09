@@ -52,6 +52,9 @@ public static class NodeFaceBuilder
                     faces.Add(new ParamsFace(node.Key, ParamsFace.KindName, null, "", "", [.. diagnostics[node.Key]],
                         openDoc.Params.Count > 0 ? openDoc.Params[0].Position.Line : 0, true, openDoc.Params) { Vocabulary = vocabulary });
                     break;
+                case ChainNodeKind.Dependency:
+                    faces.Add(Dependency(node, composed));
+                    break;
                 default:
                     faces.Add(new ScaffoldFace(node.Key, CanvasEditSemantics.ScaffoldKind(node.Kind), null, "", "", [], 0, false,
                         node.Kind, node.Name, node.IsPerPlayer) { Events = node.Events, IsPerTeam = node.IsPerTeam, IsRoundFact = node.IsRoundFact });
@@ -60,6 +63,23 @@ public static class NodeFaceBuilder
         }
 
         return faces;
+    }
+
+    /// <summary>
+    ///     The face of one folded dependency: its title, its entry count, the entries read, the two files when
+    ///     the user's copy overrides the shipped one, and every diagnostic raised inside that ruleset.
+    /// </summary>
+    public static DependencyFace Dependency(ChainNode node, RulesetCorpus.Composed composed)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        ArgumentNullException.ThrowIfNull(composed);
+        string id = node.Key.Id;
+        composed.Documents.TryGetValue(id, out RulesetDoc? doc);
+        string title = string.IsNullOrWhiteSpace(doc?.Title) ? id : doc!.Title;
+        (string UserPath, string ShippedPath)? files = composed.Overrides.TryGetValue(id, out (string UserPath, string ShippedPath) found) ? found : null;
+        List<string> diagnostics = [.. composed.PositionedDiagnostics.Where(d => d.RulesetId == id).Select(d => d.Message).Distinct(StringComparer.Ordinal)];
+        return new DependencyFace(node.Key, DependencyFace.KindName, string.Equals(title, id, StringComparison.Ordinal) ? null : title, "", "",
+            diagnostics, 0, false, title, node.EntryCount, node.Outputs, files?.UserPath, files?.ShippedPath);
     }
 
     /// <summary>The face of one show node: a table's columns and grain, or the scoreboard's entries.</summary>

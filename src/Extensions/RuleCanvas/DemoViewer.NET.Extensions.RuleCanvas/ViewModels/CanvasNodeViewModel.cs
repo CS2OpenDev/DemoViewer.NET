@@ -382,7 +382,32 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     public bool IsDefine => Key.IsDefine;
 
     /// <summary>A node the engine made rather than the author: an event, an enrichment, a context value.</summary>
-    public bool IsScaffold => Ruleset.StartsWith('~');
+    public bool IsScaffold => Ruleset.StartsWith('~') && !IsDependency;
+
+    /// <summary>A <c>use:</c> dependency folded to one node; <see cref="Id" /> is the dependency's ruleset id.</summary>
+    public bool IsDependency => Key.IsDependency;
+
+    /// <summary>An entry of a <c>use:</c> dependency drawn in full: another ruleset's, read-only here.</summary>
+    public bool IsForeign => !IsAuthorable && !IsScaffold && !IsDependency;
+
+    /// <summary>The ruleset a Go to definition or an Open would switch the picker to, or null for the open document's own nodes.</summary>
+    public string? ForeignRuleset => IsDependency ? Id : IsForeign ? Ruleset : null;
+
+    /// <summary>The entries of the folded dependency the open document reads, one output each; empty on every other node.</summary>
+    public IReadOnlyList<string> DependencyEntries { get; init; } = [];
+
+    /// <summary>The dependency node's menu item, or the member's: fold the dependency back, or unfold it.</summary>
+    public string DependencyToggleText => IsDependency ? "Expand " + Id : IsForeign ? "Collapse " + Ruleset : "";
+
+    public bool CanToggleDependency => IsDependency || IsForeign;
+
+    /// <summary>The menu item that switches the picker to the other ruleset.</summary>
+    public string OpenRulesetText => ForeignRuleset is { } ruleset ? "Open " + ruleset : "";
+
+    public bool HasForeignRuleset => ForeignRuleset is not null;
+
+    /// <summary>A stat that fires on one of the open document's defines, so Go to define has somewhere to go.</summary>
+    public bool FiresOnDefine => Trigger is { IsDefine: true };
 
     /// <summary>A <c>show:</c> table or the scoreboard of the open document.</summary>
     public bool IsShow => Key.IsShow;
