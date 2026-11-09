@@ -44,11 +44,21 @@ public sealed partial class CanvasTabViewModel
         }
 
         // Refused with the loader's reason when the text no longer loads as this ruleset; the pane stays dirty.
-        if (Report(_session.Save(_pendingSourceText), selected))
+        string text = _pendingSourceText;
+        if (Report(_session.Save(text), selected))
         {
             SourceDirty = false;
+            int warnings = RulesetCorpus.LoaderWarningCount(text, selected.Path);
+            if (warnings > 0)
+            {
+                Notify(SavedWithWarnings(warnings), null, "Show", () => ShowDiagnosticsList = true);
+            }
         }
     }
+
+    /// <summary>What the toast says after a save the loader kept with warnings: <c>saved, 2 warnings</c>.</summary>
+    public static string SavedWithWarnings(int count) =>
+        string.Create(System.Globalization.CultureInfo.InvariantCulture, $"saved, {count} warning{(count == 1 ? "" : "s")}");
 
     /// <summary>Drops the source pane's unsaved text; the view puts the file's text back.</summary>
     [RelayCommand]
@@ -114,14 +124,36 @@ public sealed partial class CanvasTabViewModel
         Report(_corpus.CopyToUser(selected), selected);
     }
 
+    /// <summary>The action a refused Delete carries when the only dependants are show: entries, as the Inspector offers it.</summary>
+    public const string DeleteWithReferencesLabel = "Delete with references";
+
     /// <summary>Removes the selected node's entry from the document.</summary>
     [RelayCommand]
     private void DeleteSelected()
     {
         List<CanvasNodeViewModel> nodes = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n.IsAuthorable)];
-        if (IsEditable && nodes.Count > 0 && _composed is { } composed)
+        if (!IsEditable || nodes.Count == 0 || _composed is not { } composed)
         {
-            Apply(CanvasEditSemantics.Delete(nodes, composed, _session.Text));
+            return;
+        }
+
+        EditRequest request = CanvasEditSemantics.Delete(nodes, composed, _session.Text);
+        if (!Apply(request) && request.IsRefused && request.Refusal is { } refusal
+            && CanvasEditSemantics.DeleteWithReferences(nodes, composed, _session.Text) is { } cascade)
+        {
+            // The toast outlives a switch of ruleset; the cascade is only for the file it was refused on.
+            string? path = _session.Entry?.Path;
+            Notify(refusal, null, DeleteWithReferencesLabel, () =>
+            {
+                if (IsEditable && path is not null && string.Equals(_session.Entry?.Path, path, StringComparison.Ordinal))
+                {
+                    Apply(cascade);
+                }
+                else
+                {
+                    Notify("The ruleset changed since that delete was refused; select the entry and delete it again.");
+                }
+            });
         }
     }
 
@@ -203,7 +235,11 @@ public sealed partial class CanvasTabViewModel
         // A plain click on a port comes back as a wire from the port to itself.
         if (source is not null && target is not null && !ReferenceEquals(source, target))
         {
-            Connect(source, target, to is CanvasConnectorViewModel { IsInput: true } port ? port.Kind : null);
+            if (IsEditable)
+            {
+                Apply(CanvasEditSemantics.Connect(source, target, to is CanvasConnectorViewModel { IsInput: true } port ? port.Kind : null,
+                    from as CanvasConnectorViewModel));
+            }
         }
         else if (source is not null && target is null && IsEditable)
         {
@@ -601,10 +637,18 @@ public sealed partial class CanvasTabViewModel
             node.Surfacing = node.IsEntry && !node.IsDefine ? surface.BadgeFor(node.Id) : "";
             // What the text holds that the face does not: the for_each axes and the keys no row renders.
             EntryCoverage coverage = node.Face is { } face && text.Length > 0 ? EntryCoverage.Of(text, face) : EntryCoverage.None;
-            node.TextChips = [.. coverage.Chips.Select(c => new CanvasChip(c.Text, c.Tip))];
+            IReadOnlyList<string> fixture = CanvasEditSemantics.FixtureOf(node, text);
+            node.TextChips =
+            [
+                .. coverage.Chips.Select(c => new CanvasChip(c.Text, c.Tip)),
+                .. fixture.Count > 0 ? [new CanvasChip(FixtureChip, "fixture: " + string.Join("\n", fixture))] : Array.Empty<CanvasChip>()
+            ];
             node.UnrenderedKeys = [.. coverage.Unrendered.Select(k => k.ToString())];
         }
     }
+
+    /// <summary>The chip a node with a frozen fixture comment carries; its tooltip holds the fixture's lines.</summary>
+    public const string FixtureChip = "fixture";
 
     private EditOutcome ApplyForInspector(EditRequest request)
     {

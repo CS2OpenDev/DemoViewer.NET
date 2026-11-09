@@ -109,6 +109,40 @@
                                 ToolTip.Tip="Rename the entry to hold the axis hole and write the for_each, as one undoable edit" />
                     </StackPanel>
 
+                    <!-- A define: the stats that fire on it, each selecting that stat. -->
+                    <StackPanel Spacing="2" IsVisible="{Binding HasFiredBy}">
+                        <TextBlock Text="{Binding FiredByHeading}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" />
+                        <ItemsControl ItemsSource="{Binding FiredBy}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Button Classes="ghost" Content="{Binding}" FontSize="11" FontFamily="monospace" Padding="6 1" MinHeight="0"
+                                            HorizontalAlignment="Left"
+                                            Command="{Binding $parent[ItemsControl].((vm:InspectorViewModel)DataContext).SelectFiringCommand}"
+                                            CommandParameter="{Binding}" ToolTip.Tip="Select this stat" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- A frozen fixture: the comment's lines as written, read only; Clear takes the block out, Undo puts it back. -->
+                    <StackPanel Spacing="4" IsVisible="{Binding HasFixture}">
+                        <TextBlock Text="FIXTURE" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" />
+                        <Border CornerRadius="4" Padding="8 5" Background="{DynamicResource CardBg}"
+                                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1">
+                            <ItemsControl ItemsSource="{Binding Fixture}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <SelectableTextBlock Text="{Binding}" FontSize="11" FontFamily="monospace" TextWrapping="Wrap"
+                                                             Foreground="{DynamicResource TextValue}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                        <Button Classes="ghost" Content="Clear fixture" FontSize="11" Padding="8 3" HorizontalAlignment="Left"
+                                Command="{Binding ClearFixtureCommand}" IsEnabled="{Binding CanClearFixture}"
+                                ToolTip.Tip="Remove the fixture comment above this entry; Undo puts it back" />
+                    </StackPanel>
+
                     <!-- The params node: each param's type and bounds; the defaults are rows on the node. -->
                     <StackPanel Spacing="6" IsVisible="{Binding HasParams}">
                         <TextBlock Text="PARAMS" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" />

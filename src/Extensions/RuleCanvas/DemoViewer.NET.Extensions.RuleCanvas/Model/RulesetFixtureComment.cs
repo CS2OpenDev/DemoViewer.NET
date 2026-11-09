@@ -37,6 +37,25 @@ public static class RulesetFixtureComment
         return editor.Apply([new TextEdit(blockStart, lineStart - blockStart, block, "fixture comment")]).Text;
     }
 
+    /// <summary>Removes the fixture block above <paramref name="id" />; the text as it was when there is none or no such entry.</summary>
+    public static string Clear(string text, EntrySection section, string id)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (!text.Contains(Marker, StringComparison.Ordinal))
+        {
+            return text;
+        }
+
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        if (editor.Document.FindKey(RulesetEntryText.PathOf(section, id)) is null)
+        {
+            return text;
+        }
+
+        (int blockStart, int lineStart) = BlockBefore(editor.Document, section, id);
+        return blockStart == lineStart ? text : editor.Apply([new TextEdit(blockStart, lineStart - blockStart, "", "clear fixture comment")]).Text;
+    }
+
     /// <summary>The fixture lines above <paramref name="id" /> without their marker, in order; empty when there is no block or no entry.</summary>
     public static IReadOnlyList<string> Read(string text, EntrySection section, string id)
     {

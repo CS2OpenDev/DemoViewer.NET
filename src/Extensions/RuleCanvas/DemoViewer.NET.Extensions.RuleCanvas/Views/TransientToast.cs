@@ -24,6 +24,12 @@ public sealed class TransientToast : TemplatedControl
     public static readonly StyledProperty<string> MessageProperty =
         AvaloniaProperty.Register<TransientToast, string>(nameof(Message), "");
 
+    public static readonly StyledProperty<string> ActionLabelProperty =
+        AvaloniaProperty.Register<TransientToast, string>(nameof(ActionLabel), "");
+
+    public static readonly StyledProperty<bool> HasActionProperty =
+        AvaloniaProperty.Register<TransientToast, bool>(nameof(HasAction));
+
     public static readonly StyledProperty<TimeSpan> LifetimeProperty =
         AvaloniaProperty.Register<TransientToast, TimeSpan>(nameof(Lifetime), TimeSpan.FromSeconds(5));
 
@@ -61,6 +67,27 @@ public sealed class TransientToast : TemplatedControl
         set => SetValue(MessageProperty, value);
     }
 
+    /// <summary>The action button's text, for the template; empty when the toast offers none.</summary>
+    public string ActionLabel
+    {
+        get => GetValue(ActionLabelProperty);
+        set => SetValue(ActionLabelProperty, value);
+    }
+
+    public bool HasAction
+    {
+        get => GetValue(HasActionProperty);
+        set => SetValue(HasActionProperty, value);
+    }
+
+    /// <summary>Runs the toast's action and hides it; nothing when it offers none.</summary>
+    public void Act()
+    {
+        Action? action = Toast?.Action;
+        Dismiss();
+        action?.Invoke();
+    }
+
     /// <summary>How long a message stays. Zero or less keeps it until dismissed.</summary>
     public TimeSpan Lifetime
     {
@@ -83,6 +110,11 @@ public sealed class TransientToast : TemplatedControl
         {
             close.Click += (_, _) => Dismiss();
         }
+
+        if (e.NameScope.Find<Button>("PART_Action") is { } act)
+        {
+            act.Click += (_, _) => Act();
+        }
     }
 
     private void Arrive()
@@ -96,6 +128,8 @@ public sealed class TransientToast : TemplatedControl
         }
 
         Message = toast.Message;
+        ActionLabel = toast.ActionLabel ?? "";
+        HasAction = toast.HasAction;
         IsVisible = true;
         if (Lifetime > TimeSpan.Zero)
         {

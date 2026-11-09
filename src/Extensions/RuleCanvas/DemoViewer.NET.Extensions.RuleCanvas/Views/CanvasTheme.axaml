@@ -196,11 +196,14 @@
                     <ControlTemplate>
                         <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderAccent}" BorderThickness="1"
                                 CornerRadius="4" Padding="0">
-                            <Grid ColumnDefinitions="3,*,Auto">
+                            <Grid ColumnDefinitions="3,*,Auto,Auto">
                                 <Border Grid.Column="0" Background="{DynamicResource AccentCaution}" CornerRadius="3 0 0 3" />
                                 <TextBlock Grid.Column="1" Text="{TemplateBinding Message}" FontSize="12" TextWrapping="Wrap"
                                            Foreground="{DynamicResource TextValue}" Margin="10 7" VerticalAlignment="Center" />
-                                <Button Grid.Column="2" Name="PART_Close" Content="×" Background="Transparent" BorderThickness="0"
+                                <Button Grid.Column="2" Name="PART_Action" Classes="ghost" Content="{TemplateBinding ActionLabel}"
+                                        IsVisible="{TemplateBinding HasAction}" FontSize="11" Padding="8 2" MinHeight="0" Margin="0 0 2 0"
+                                        VerticalAlignment="Center" Foreground="{DynamicResource TextValue}" />
+                                <Button Grid.Column="3" Name="PART_Close" Content="×" Background="Transparent" BorderThickness="0"
                                         Foreground="{DynamicResource TextMid}" Padding="6 2" Margin="0 2 4 0" VerticalAlignment="Top"
                                         ToolTip.Tip="Dismiss (Esc)" />
                             </Grid>

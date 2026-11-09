@@ -699,5 +699,12 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             SelectedLine = node.SourceLine;
             JumpRequested?.Invoke(node.SourceLine);
         }
+        // A folded dependency is declared by the open document's use: line.
+        else if (SelectedNodes.OfType<CanvasNodeViewModel>().FirstOrDefault(n => n.IsDependency) is { } dependency
+                 && RulesetEntryText.UseLineOf(_session.Text, dependency.Id) is > 0 and var line)
+        {
+            SelectedLine = line;
+            JumpRequested?.Invoke(line);
+        }
     }
 }

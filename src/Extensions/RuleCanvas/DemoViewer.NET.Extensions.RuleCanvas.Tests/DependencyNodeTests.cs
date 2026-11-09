@@ -203,6 +203,50 @@ public class DependencyNodeTests
     }
 
     [Test]
+    public async Task AWireFromADependencyOutput_ReadsTheEntryItNames_AsTheExpandedEntryWould()
+    {
+        using RulesTree rules = RulesetCorpusReplaceTests.CorpusWithUser("player_stats");
+        string path = rules.UserPath("player_stats");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "player_stats";
+        vm.OnActivated(null!);
+        string before = File.ReadAllText(path);
+
+        vm.ToggleDependency(vm.Nodes.Single(n => n.IsDependency));
+        vm.Connect(vm.Nodes.Single(n => n.IsForeign && n.Id == "kast_pct"), vm.Nodes.Single(n => n.Id == "opening_kill"));
+        string expanded = vm.EditStatus;
+        vm.UndoCommand.Execute(null);
+        await Assert.That(vm.Nodes.Any(n => n.IsDependency)).IsTrue();
+
+        CanvasNodeViewModel dependency = vm.Nodes.Single(n => n.IsDependency);
+        CanvasConnectorViewModel output = dependency.Outputs.Single(o => o.Entry == "kast_pct");
+        CanvasNodeViewModel highlight = vm.Nodes.Single(n => n.Id == "opening_kill");
+        vm.Pending.Source = output;
+        vm.Pending.PreviewTarget = highlight;
+        string preview = vm.Pending.PreviewText;
+        vm.ConnectCommand.Execute(((object)output, (object?)highlight));
+        using (Assert.Multiple())
+        {
+            await Assert.That(expanded).Contains("kast.kast_pct is another ruleset's stat");
+            await Assert.That(vm.EditStatus).IsEqualTo(expanded).Because("the folded output reads the entry it names, as the drawn entry does");
+            await Assert.That(preview).IsEqualTo(expanded);
+            await Assert.That(File.ReadAllText(path)).IsEqualTo(before).Because("a when: that reads another ruleset takes the ruleset out of the chain");
+            await Assert.That(dependency.Outputs.All(o => o.Entry is not null)).IsTrue();
+            await Assert.That(highlight.Outputs.All(o => o.Entry is null)).IsTrue();
+        }
+
+        // A compute reads its operands in its own text, folded or not; the body of the node still names no entry.
+        vm.ConnectCommand.Execute(((object)output, (object?)vm.Nodes.Single(n => n.Id == "HLTV")));
+        await Assert.That(vm.EditStatus).Contains("reads its operands in its own text");
+        vm.ConnectCommand.Execute(((object)dependency, (object?)vm.Nodes.Single(n => n.Id == "HLTV")));
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.EditStatus).Contains("Expand kast and wire from the entry itself");
+            await Assert.That(File.ReadAllText(path)).IsEqualTo(before);
+        }
+    }
+
+    [Test]
     public async Task TheDependencyNode_CarriesTheLiveFiresOfTheEntriesRead()
     {
         using RulesTree rules = RulesetCorpusReplaceTests.CorpusWithUser("player_stats");

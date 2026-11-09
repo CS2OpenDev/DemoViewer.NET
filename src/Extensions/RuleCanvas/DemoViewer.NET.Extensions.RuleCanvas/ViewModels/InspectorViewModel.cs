@@ -218,6 +218,31 @@ public sealed partial class InspectorViewModel : ObservableObject
 
     public bool HasForEachFix => ForEachFixLabel.Length > 0;
 
+    /// <summary>The frozen fixture above the selected entry, one line each as the comment holds them; empty when it has none.</summary>
+    public ObservableCollection<string> Fixture { get; } = [];
+
+    public bool HasFixture => Fixture.Count > 0;
+
+    public bool CanClearFixture => HasFixture && CanEditNode;
+
+    /// <summary>The stats of the open ruleset that fire on the selected define, in document order.</summary>
+    public ObservableCollection<string> FiredBy { get; } = [];
+
+    public bool HasFiredBy => FiredBy.Count > 0;
+
+    /// <summary>The define's heading over that list: <c>fired by 2 stats</c>.</summary>
+    public string FiredByHeading => FiredBy.Count == 1 ? "fired by 1 stat" : $"fired by {FiredBy.Count} stats";
+
+    /// <summary>Selects the stat <paramref name="id" /> of the define's ruleset, which frames it and jumps the YAML tab.</summary>
+    [RelayCommand]
+    private void SelectFiring(string? id)
+    {
+        if (_node is { } define && !string.IsNullOrEmpty(id))
+        {
+            _select(new RulesetDocumentNodeKey(define.Ruleset, id));
+        }
+    }
+
     public bool ShowsDocument => HasDocument && !HasNode && Wire is null;
 
     /// <summary>The condition editor over the selected wire, with no node selected; null otherwise.</summary>
@@ -325,6 +350,13 @@ public sealed partial class InspectorViewModel : ObservableObject
             }
         }
 
+        FiredBy.Clear();
+        Fixture.Clear();
+        foreach (string line in node is null ? [] : CanvasEditSemantics.FixtureOf(node, text))
+        {
+            Fixture.Add(line);
+        }
+
         TableToAdd = Tables.FirstOrDefault();
         if (node is not null)
         {
@@ -375,18 +407,17 @@ public sealed partial class InspectorViewModel : ObservableObject
         }
 
         bool cascade = _showReferences > 0 && !node.IsShow;
-        Apply(EditRequest.Of(t =>
-        {
-            if (cascade)
-            {
-                t = RulesetEdits.RemoveShowReference(t, node.Id);
-            }
+        Apply(EditRequest.Of(t => CanvasEditSemantics.RemoveEntry(t, node, cascade), "delete " + node.Title));
+    }
 
-            return node.IsShow ? CanvasEditSemantics.RemoveShow(t, node)
-                : node.IsDefine ? RulesetEdits.RemoveDefine(t, node.Title)
-                : node.IsHighlight ? RulesetEdits.RemoveHighlight(t, node.Id)
-                : RulesetEdits.RemoveStat(t, node.Id);
-        }, "delete " + node.Title));
+    /// <summary>Removes the selected entry's fixture comment; Undo puts it back.</summary>
+    [RelayCommand]
+    private void ClearFixture()
+    {
+        if (_node is { } node && CanClearFixture)
+        {
+            Apply(CanvasEditSemantics.ClearFixture(node));
+        }
     }
 
     [RelayCommand]
@@ -532,6 +563,11 @@ public sealed partial class InspectorViewModel : ObservableObject
         _showReferences = 0;
         FillEntries([]);
         IReadOnlyList<string> firing = Try(() => RulesetEdits.StatsFiringOn(_text, name)) ?? [];
+        foreach (string id in firing)
+        {
+            FiredBy.Add(id);
+        }
+
         DeleteRefusal = firing.Count == 0 ? "" : $"{name} is fired on by {string.Join(", ", firing)}; retarget them first.";
         DeleteLabel = "Delete";
     }
@@ -876,6 +912,10 @@ public sealed partial class InspectorViewModel : ObservableObject
         OnPropertyChanged(nameof(HasExports));
         OnPropertyChanged(nameof(CanDelete));
         OnPropertyChanged(nameof(HasDeleteRefusal));
+        OnPropertyChanged(nameof(HasFixture));
+        OnPropertyChanged(nameof(HasFiredBy));
+        OnPropertyChanged(nameof(FiredByHeading));
+        OnPropertyChanged(nameof(CanClearFixture));
         DeleteCommand.NotifyCanExecuteChanged();
     }
 

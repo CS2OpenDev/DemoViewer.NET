@@ -31,15 +31,21 @@ public enum CanvasEmptyState
 /// <param name="Message">The text.</param>
 /// <param name="At">Where on the canvas the edit was asked for, in graph coordinates, or null for the strip.</param>
 /// <param name="Sequence">Distinguishes a repeated message from the one before it, so the view shows it again.</param>
-public sealed record CanvasToast(string Message, Point? At, int Sequence);
+/// <param name="ActionLabel">The one button the toast offers beside its close, or null.</param>
+/// <param name="Action">What that button does; the toast goes after.</param>
+public sealed record CanvasToast(string Message, Point? At, int Sequence, string? ActionLabel = null, Action? Action = null)
+{
+    public bool HasAction => ActionLabel is { Length: > 0 } && Action is not null;
+}
 
 /// <summary>One line of the strip's diagnostics list.</summary>
 /// <param name="Node">The node the diagnostic is inside, or null for one about the ruleset as a whole.</param>
 /// <param name="Message">The text.</param>
 /// <param name="Weight">Error or warning, which paints the line's stripe.</param>
-public sealed record CanvasDiagnostic(CanvasNodeViewModel? Node, string Message, DiagnosticWeight Weight = DiagnosticWeight.Error)
+/// <param name="Line">The line in the open file a line with no node jumps the YAML tab to; zero for none.</param>
+public sealed record CanvasDiagnostic(CanvasNodeViewModel? Node, string Message, DiagnosticWeight Weight = DiagnosticWeight.Error, int Line = 0)
 {
-    public string Where => Node?.Id ?? "ruleset";
+    public string Where => Node?.Id ?? (Line > 0 ? "line " + Line.ToString(System.Globalization.CultureInfo.InvariantCulture) : "ruleset");
 
     /// <summary>The token the weight is painted in.</summary>
     public string Token => RuleDiagnostic.TokenFor(Weight);
@@ -167,6 +173,13 @@ public sealed partial class CanvasTabViewModel
             SelectedNodes.Clear();
             SelectedNodes.Add(node);
             FrameRequested?.Invoke();
+        }
+        else if (diagnostic is { Node: null, Line: > 0 } positioned)
+        {
+            ShowSource = true;
+            DockTab = 1;
+            SelectedLine = positioned.Line;
+            JumpRequested?.Invoke(positioned.Line);
         }
     }
 
@@ -303,6 +316,15 @@ public sealed partial class CanvasTabViewModel
         Toast = new CanvasToast(message, at, ++_toastSequence);
     }
 
+    /// <summary>Says <paramref name="message" /> on the toast with one action button, <paramref name="actionLabel" />, that runs <paramref name="action" />.</summary>
+    public void Notify(string message, Point? at, string actionLabel, Action action)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(message);
+        ArgumentException.ThrowIfNullOrEmpty(actionLabel);
+        ArgumentNullException.ThrowIfNull(action);
+        Toast = new CanvasToast(message, at, ++_toastSequence, actionLabel, action);
+    }
+
     /// <summary>Where <paramref name="item" /> lands when added without a drop point: the arranger's column rule over the nodes drawn.</summary>
     public Point NextFreeSpot(GalleryItem item)
     {
@@ -361,6 +383,16 @@ public sealed partial class CanvasTabViewModel
             {
                 DiagnosticEntries.Add(new CanvasDiagnostic(node, diagnostic.Message, diagnostic.Weight));
                 filed.Add(diagnostic);
+            }
+        }
+
+        // An entry the loader dropped has no node; its error stands in for the loader's lines inside it.
+        if (composed?.Open is { } open && SelectedRuleset?.Id == open.Id && _session.Text.Length > 0)
+        {
+            foreach (DroppedEntry dropped in DroppedEntries.Of(_session.Text, open, composed.Report))
+            {
+                DiagnosticEntries.Add(new CanvasDiagnostic(null, dropped.Diagnostic.Message, DiagnosticWeight.Error, dropped.Line));
+                filed.UnionWith(dropped.Consumed);
             }
         }
 

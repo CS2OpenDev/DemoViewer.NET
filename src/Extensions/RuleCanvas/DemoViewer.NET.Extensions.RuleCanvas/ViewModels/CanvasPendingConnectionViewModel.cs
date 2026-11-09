@@ -53,7 +53,7 @@ public sealed partial class CanvasPendingConnectionViewModel : ObservableObject
         PortKind? port = PreviewTarget is CanvasConnectorViewModel { IsInput: true } input ? input.Kind : null;
         PreviewText = source is null ? ""
             : target is null || ReferenceEquals(source, target) ? NoTargetText
-            : CanvasEditSemantics.ConnectPreview(source, target, port);
+            : CanvasEditSemantics.ConnectPreview(source, target, port, SourceConnector);
     }
 
     private static CanvasNodeViewModel? NodeOf(object? endpoint) => endpoint switch

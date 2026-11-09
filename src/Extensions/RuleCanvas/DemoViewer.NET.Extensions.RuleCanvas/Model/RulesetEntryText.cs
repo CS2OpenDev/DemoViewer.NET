@@ -43,6 +43,29 @@ public static class RulesetEntryText
     /// <exception cref="InvalidOperationException">The define is not in the document.</exception>
     public static string DefineBodyOf(string text, string name) => BodyAt(text, _define.Key(name), name);
 
+    /// <summary>The 1-based line of <paramref name="ruleset" /> in the document's <c>use:</c> list, or of the key itself; zero when neither is there.</summary>
+    public static int UseLineOf(string text, string ruleset)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        YamlDocumentText doc;
+        try
+        {
+            doc = RulesetDocumentEditor.Open(text).Document;
+        }
+        catch (Exception ex) when (ex is YamlDotNet.Core.YamlException or InvalidOperationException)
+        {
+            return 0;
+        }
+
+        YamlPath use = YamlPath.Root.Key("use");
+        if (doc.Find(use) is YamlSequenceNode list && list.Children.OfType<YamlScalarNode>().FirstOrDefault(n => n.Value == ruleset) is { } item)
+        {
+            return (int)item.Start.Line;
+        }
+
+        return doc.FindKey(use) is { } key ? (int)key.Start.Line : 0;
+    }
+
     /// <summary>The path of <paramref name="id" />'s entry in <paramref name="section" />.</summary>
     public static YamlPath PathOf(EntrySection section, string id) => section switch
     {
