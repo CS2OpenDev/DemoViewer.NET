@@ -138,6 +138,9 @@ public class CanvasSurfaceTests
         await Assert.That(vm.Nodes.Any(n => n.Id == "highlight" && n.IsHighlight)).IsTrue();
         vm.QuickStartCommand.Execute("prefab");
         await Assert.That(vm.Nodes.Any(n => n.Id == "enemy_kills")).IsTrue();
+        vm.QuickStartCommand.Execute("flag");
+        await Assert.That(RulesetEdits.FlagWhen(File.ReadAllText(rules.UserPath("player_round")), "new_flag_2")).IsNotEqualTo("")
+            .Because("the quick start is the Stats flag with its test, not the blank primitive");
     }
 
     [Test]

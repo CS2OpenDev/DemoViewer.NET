@@ -221,7 +221,7 @@ public sealed partial class CanvasTabViewModel
         GalleryItem? item = which switch
         {
             "prefab" => Gallery.SelectMany(g => g.Items).FirstOrDefault(i => i.Kind == GalleryItemKind.Prefab && i.Name == "enemy_kills"),
-            "flag" => Gallery.SelectMany(g => g.Items).FirstOrDefault(i => i.Kind == GalleryItemKind.Stat && i.Name == "flag"),
+            "flag" => Gallery.FirstOrDefault(g => g.Title == "Stats")?.Items.FirstOrDefault(i => i.Kind == GalleryItemKind.Stat && i.Name == "flag"),
             "highlight" => Gallery.SelectMany(g => g.Items).FirstOrDefault(i => i.Kind == GalleryItemKind.Highlight && i.Name == "highlight"),
             _ => null
         };
