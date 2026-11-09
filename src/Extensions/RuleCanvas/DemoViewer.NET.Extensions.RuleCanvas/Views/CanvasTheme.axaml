@@ -360,8 +360,9 @@
         <Setter Property="BorderBrush" Value="{DynamicResource RuleWireWrite}" />
     </Style>
 
-    <!-- Wires by meaning: a write is solid; a read is a short dash; a gate holds rather than fires, so a
-         long dash; a logic input carries its connective's colour. Fill paints the arrow head. -->
+    <!-- Wires by meaning: a write is solid; a read is dotted; a gate holds rather than fires, so a long
+         dash; a logic input carries its connective's colour. Fill paints the arrow head. Dash units are
+         multiples of the template's 2px stroke, so read is 2 on 4 and gate 16 on 8, apart at the 0.6 fit. -->
     <Style Selector="connections|Connection">
         <Setter Property="Stroke" Value="{DynamicResource RuleWireWrite}" />
         <Setter Property="Fill" Value="{DynamicResource RuleWireWrite}" />
@@ -369,14 +370,12 @@
     <Style Selector="connections|Connection.read">
         <Setter Property="Stroke" Value="{DynamicResource RuleWireRead}" />
         <Setter Property="Fill" Value="{DynamicResource RuleWireRead}" />
-        <Setter Property="StrokeDashArray" Value="4,3" />
-        <Setter Property="StrokeThickness" Value="1.5" />
+        <Setter Property="StrokeDashArray" Value="1,2" />
     </Style>
     <Style Selector="connections|Connection.gate">
         <Setter Property="Stroke" Value="{DynamicResource RuleWireGate}" />
         <Setter Property="Fill" Value="{DynamicResource RuleWireGate}" />
         <Setter Property="StrokeDashArray" Value="8,4" />
-        <Setter Property="StrokeThickness" Value="1.5" />
     </Style>
 
     <!-- Wires are selectable: a halo under the hovered wire says it can be picked, a wider one marks the

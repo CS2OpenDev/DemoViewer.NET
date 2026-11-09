@@ -352,6 +352,46 @@ public class CanvasThemeTests
         }
     }
 
+    internal static IReadOnlyList<double> DashOf(Styles styles, string selectorEnd)
+    {
+        Style style = styles.OfType<Style>().Single(s => s.Selector?.ToString().EndsWith(selectorEnd, StringComparison.Ordinal) == true);
+        Setter dash = style.Setters.OfType<Setter>().Single(s => s.Property?.Name == "StrokeDashArray");
+        return [.. ((IEnumerable<double>)dash.Value!)];
+    }
+
+    // The two dashed wires must not read alike at the opening fit (zoom 0.6): a dotted read, a long-dashed gate.
+    [Test]
+    public async Task TheReadAndGateWires_DifferInDashShape_AtTheOpeningZoom()
+    {
+        Styles styles = LoadTheme();
+        IReadOnlyList<double> read = DashOf(styles, "Connection.read");
+        IReadOnlyList<double> gate = DashOf(styles, "Connection.gate");
+        WireStroke(out double stroke);
+        const double fit = 0.6;
+        double readDash = read[0] * stroke * fit, gateDash = gate[0] * stroke * fit;
+        using (Assert.Multiple())
+        {
+            await Assert.That(readDash).IsLessThanOrEqualTo(1.5).Because("a read is dotted on screen");
+            await Assert.That(gateDash / readDash).IsGreaterThanOrEqualTo(4).Because("a gate's dash is several dots long");
+            await Assert.That(read[1] / read[0]).IsGreaterThan(1).Because("a read's gap outruns its dot");
+            await Assert.That(gate[1] / gate[0]).IsLessThan(1).Because("a gate's dash outruns its gap");
+            foreach (string wire in new[] { "Connection.read", "Connection.gate" })
+            {
+                Style style = styles.OfType<Style>().Single(s => s.Selector?.ToString().EndsWith(wire, StringComparison.Ordinal) == true);
+                await Assert.That(style.Setters.OfType<Setter>().Any(s => s.Property?.Name == "StrokeThickness")).IsFalse()
+                    .Because("the template's local StrokeThickness wins over a style setter, so one here is dead");
+            }
+        }
+    }
+
+    // The wire template's stroke, which the dash units multiply.
+    private static void WireStroke(out double stroke)
+    {
+        System.Xml.Linq.XDocument view = System.Xml.Linq.XDocument.Load(Path.Combine(FindViews(Path.GetDirectoryName(typeof(CanvasThemeTests).Assembly.Location)!)!, "CanvasTabView.axaml"));
+        System.Xml.Linq.XElement wire = view.Descendants().Single(e => e.Name.LocalName == "LabelledConnection");
+        stroke = double.Parse(wire.Attribute("StrokeThickness")!.Value, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     private static string? FindViews(string start)
     {
         DirectoryInfo? dir = new(start);

@@ -390,8 +390,8 @@ Contrast is WCAG 2 relative luminance, measured where the token is used: a kind 
 | `RuleKindDependency` | `#B7A3B7` | `#775E77` | A folded `use:` dependency. Muted. | 7.53 / 5.61 |
 | `RuleKindTintOpacity` | `0.12` | `0.08` | A double: the family brush's opacity in the header band over `RuleNodeBg`. The pill text holds 4.5:1 on the band too (lowest 6.13 / 4.97). | |
 | `RuleWireWrite` | `#9090B0` | `#5A5E7C` | A write wire (an event firing a stat), solid; also the port rings. | 6.28 / 5.55 |
-| `RuleWireRead` | `#7878A8` | `#50507C` | A read wire (a sibling's value), dashed 4,3. | 4.66 / 6.65 |
-| `RuleWireGate` | `#569CD6` | `#1565C0` | A gate wire (a `while:` holding a stat open), dashed 8,4; the context kind's colour. | 6.58 / 5.06 |
+| `RuleWireRead` | `#7878A8` | `#50507C` | A read wire (a sibling's value), dotted 1,2 (2px on 4px at the 2px stroke). | 4.66 / 6.65 |
+| `RuleWireGate` | `#569CD6` | `#1565C0` | A gate wire (a `while:` holding a stat open), dashed 8,4 (16px on 8px). | 6.58 / 5.06 |
 | `RuleWireAnd` | `#4CAF50` | `#2E7D32` | A conjunction input of a flag. Mirrors `StatPositive`. | 6.98 / 4.51 |
 | `RuleWireOr` | `#D98A3F` | `#B45309` | A disjunction input of a flag. Dark mirrors `StatNegativeSoft`. | 7.07 / 4.42 |
 | `RuleCanvasBg` | `#0C0C1A` | `#EFF0F7` | The editor background. Mirrors `PanelBg`. | |
