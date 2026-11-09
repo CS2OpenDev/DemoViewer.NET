@@ -12,7 +12,14 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 /// <param name="HasSavedLayout">Whether the sidecar held an arrangement.</param>
 /// <param name="FocusDropped">Whether a focus named a node no longer in the chain and was cleared.</param>
 /// <param name="Carried">Whether a renamed node took its arrangement to its new key, which the sidecar does not hold yet.</param>
-public sealed record Arrangement(RulesetCorpus.Composed Composed, RulesetNodeLayout Layout, bool HasSavedLayout, bool FocusDropped, bool Carried = false);
+public sealed record Arrangement(RulesetCorpus.Composed Composed, RulesetNodeLayout Layout, bool HasSavedLayout, bool FocusDropped, bool Carried = false)
+{
+    /// <summary>
+    ///     While focused, the saved frames whose every member is in the slice: drawn read-only around the
+    ///     slice's own positions, since the saved rectangles belong to the whole chain. Empty otherwise.
+    /// </summary>
+    public IReadOnlyList<CanvasGroup> SliceFrames { get; init; } = [];
+}
 
 /// <summary>
 ///     Where nodes go: the focus and its slice, the position a dropped entry is waiting to take, the
@@ -109,12 +116,15 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
         composed = DependencyFolding.Fold(composed, (FocusKey is null ? saved.Overlaid(onScreen) : saved).Expanded);
         RulesetNodeLayout layout = saved;
         bool focusDropped = false;
+        List<CanvasGroup> sliceFrames = [];
         if (FocusKey is { } focusKey)
         {
             if (composed.Focused(focusKey) is { } focused)
             {
                 composed = focused;
                 layout = RulesetNodeLayout.Empty;
+                HashSet<RulesetDocumentNodeKey> inSlice = [.. composed.DrawnKeys];
+                sliceFrames = [.. saved.Groups.Where(g => g.Members.All(inSlice.Contains))];
             }
             else
             {
@@ -144,7 +154,7 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
             carried = true;
         }
 
-        return new Arrangement(composed, layout, !saved.IsEmpty, focusDropped, carried);
+        return new Arrangement(composed, layout, !saved.IsEmpty, focusDropped, carried) { SliceFrames = sliceFrames };
     }
 
     /// <summary>

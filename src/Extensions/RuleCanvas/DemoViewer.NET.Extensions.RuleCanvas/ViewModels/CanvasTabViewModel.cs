@@ -1,6 +1,7 @@
 #region
 
 using System.Collections.ObjectModel;
+using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
@@ -582,6 +583,17 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         foreach (CanvasGroup group in layout.Groups.Where(g => g.Members.Any(drawn.Contains)))
         {
             CanvasGroupViewModel frame = new(group, _ => SaveLayout());
+            Groups.Add(frame);
+            Items.Add(frame);
+        }
+
+        // On a slice, the saved frames whose members are all here, around the slice's own positions and
+        // read-only: the slice's placement is never written, so neither is a frame drawn on it.
+        Dictionary<RulesetDocumentNodeKey, CanvasNodeViewModel> placedNodes = nodes.ToDictionary(n => n.Key);
+        foreach (CanvasGroup group in arranged.SliceFrames)
+        {
+            Rect box = BoxOf([.. group.Members.Select(m => placedNodes[m])]);
+            CanvasGroupViewModel frame = new(group with { Rect = FrameAround(box) }) { IsReadOnly = true };
             Groups.Add(frame);
             Items.Add(frame);
         }
