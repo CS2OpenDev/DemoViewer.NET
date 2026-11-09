@@ -792,6 +792,7 @@ public partial class CanvasTabView : UserControl
             _viewModel.FrameRequested -= FrameLater;
             _viewModel.JumpRequested -= JumpTo;
             _viewModel.WireDropped -= OfferNodesForWire;
+            _viewModel.EventPickRequested -= OfferViewsForEvent;
             _viewModel.WireEditorOpened -= PlaceWireEditor;
             _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         }
@@ -804,6 +805,7 @@ public partial class CanvasTabView : UserControl
             _viewModel.FrameRequested += FrameLater;
             _viewModel.JumpRequested += JumpTo;
             _viewModel.WireDropped += OfferNodesForWire;
+            _viewModel.EventPickRequested += OfferViewsForEvent;
             _viewModel.WireEditorOpened += PlaceWireEditor;
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
             // The unsaved text when the pane is dirty: a tab switch rebuilds this view over the same view model.
@@ -843,6 +845,31 @@ public partial class CanvasTabView : UserControl
         {
             menu.ShowAt(Editor, true);
         }
+    }
+
+    // The Blank event dropped at a point: a menu of the views by their event; the pick lands where it was dropped.
+    private void OfferViewsForEvent(Point at)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        MenuFlyout menu = new() { Placement = PlacementMode.Pointer };
+        foreach (IGrouping<string, GalleryItem> byEvent in _viewModel.BlankEventOptions.GroupBy(o => o.Hint))
+        {
+            MenuItem group = new() { Header = byEvent.Key };
+            foreach (GalleryItem option in byEvent)
+            {
+                MenuItem item = new() { Header = option.Title, Tag = option };
+                item.Click += (_, _) => _viewModel.PlaceItem(option, at);
+                group.Items.Add(item);
+            }
+
+            menu.Items.Add(group);
+        }
+
+        menu.ShowAt(Editor, true);
     }
 
     // One item per view under Add stat on. Named rather than bound: the items need the press location,

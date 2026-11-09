@@ -254,11 +254,14 @@ public class DefineGestureTests
             vm.DisconnectCommand.Execute(read);
             await Assert.That(RulesetEdits.DefineFacetKeys(Text(rules), "post_plant_kill")).IsEmpty();
 
-            string before = Text(rules);
             CanvasConnectionViewModel fires = vm.Connections.First(c => c.Source.Owner?.IsDefine == true && c.Text == "fires");
+            string detached = fires.Target.Owner!.Id;
             vm.DisconnectCommand.Execute(fires);
-            await Assert.That(Text(rules)).IsEqualTo(before).Because("the fires wire is the stat's trigger");
-            await Assert.That(vm.EditStatus).Contains("pick another trigger");
+            using (Assert.Multiple())
+            {
+                await Assert.That(RulesetEdits.Field(Text(rules), detached, "count")).IsEqualTo("").Because("the fires wire is the stat's trigger, and removing it detaches the stat");
+                await Assert.That(RulesetEdits.DefineNames(Text(rules))).Contains("post_plant_kill").Because("the define stays");
+            }
         }
     }
 

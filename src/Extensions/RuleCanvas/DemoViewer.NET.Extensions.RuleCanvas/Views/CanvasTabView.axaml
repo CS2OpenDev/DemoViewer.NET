@@ -935,6 +935,11 @@
                                         <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
                                     </Border>
+                                    <Border CornerRadius="3" Padding="5 1" VerticalAlignment="Center" IsVisible="{Binding IsDraft}"
+                                            Background="{DynamicResource AccentError}">
+                                        <TextBlock Text="unfinished: pick a kind" FontSize="10" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
+                                    </Border>
                                 </StackPanel>
                                 <!-- The live value badge: the last run's final value for the selected instance, at the
                                      right of the header; grey once the text was edited after the run. -->

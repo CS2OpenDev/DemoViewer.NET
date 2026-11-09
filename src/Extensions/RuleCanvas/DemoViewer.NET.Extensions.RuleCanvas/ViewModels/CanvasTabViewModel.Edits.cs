@@ -131,6 +131,18 @@ public sealed partial class CanvasTabViewModel
     [RelayCommand]
     private void DeleteSelected()
     {
+        List<CanvasNodeViewModel> floating = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n.IsFloating)];
+        if (IsEditable && floating.Count > 0)
+        {
+            RemoveScaffolds(floating);
+        }
+
+        List<CanvasNodeViewModel> events = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n is { Ruleset: "~event", IsFloating: false })];
+        if (IsEditable && events.Count > 0)
+        {
+            RefuseEventDelete(events);
+        }
+
         List<CanvasNodeViewModel> nodes = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n.IsAuthorable)];
         if (!IsEditable || nodes.Count == 0 || _composed is not { } composed)
         {
@@ -176,6 +188,12 @@ public sealed partial class CanvasTabViewModel
         ArgumentNullException.ThrowIfNull(item);
         if (!IsEditable || SelectedRuleset is not { } selected)
         {
+            return;
+        }
+
+        if (item.Kind == GalleryItemKind.Event)
+        {
+            PlaceEvent(item, at);
             return;
         }
 
@@ -247,10 +265,11 @@ public sealed partial class CanvasTabViewModel
         // A plain click on a port comes back as a wire from the port to itself.
         if (source is not null && target is not null && !ReferenceEquals(source, target))
         {
-            if (IsEditable)
+            if (IsEditable && Apply(CanvasEditSemantics.Connect(source, target, to is CanvasConnectorViewModel { IsInput: true } port ? port.Kind : null,
+                    from as CanvasConnectorViewModel)) && source.IsFloating)
             {
-                Apply(CanvasEditSemantics.Connect(source, target, to is CanvasConnectorViewModel { IsInput: true } port ? port.Kind : null,
-                    from as CanvasConnectorViewModel));
+                // The chain draws the event now; the sidecar stops keeping it as a floating node.
+                SaveLayout();
             }
         }
         else if (source is not null && target is null && IsEditable)
@@ -378,7 +397,8 @@ public sealed partial class CanvasTabViewModel
 
     /// <summary>
     ///     The Delete key: a selected frame is ungrouped and nothing else happens; else the selected nodes'
-    ///     entries when any is the author's, else the selected wires. A selection of engine nodes alone has
+    ///     entries when any is the author's or an event, else the selected wires. An event node goes from the
+    ///     sidecar when it floats, and offers to detach what fires on it otherwise; other engine nodes have
     ///     nothing in the file to delete.
     /// </summary>
     [RelayCommand]
@@ -388,7 +408,7 @@ public sealed partial class CanvasTabViewModel
         {
             UngroupSelected();
         }
-        else if (SelectedNodes.OfType<CanvasNodeViewModel>().Any(n => n.IsAuthorable))
+        else if (SelectedNodes.OfType<CanvasNodeViewModel>().Any(n => n.IsAuthorable || n.Ruleset == "~event"))
         {
             DeleteSelected();
         }

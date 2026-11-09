@@ -25,7 +25,9 @@ public static class Incompleteness
         {
             if (StatMessage(stat) is { } message)
             {
-                found.Add(At(doc, new RulesetDocumentNodeKey(doc.Id, stat.Id), stat.Position.Line, message));
+                // A stat with no kind cannot run at all; the others run once their one missing piece is given.
+                found.Add(At(doc, new RulesetDocumentNodeKey(doc.Id, stat.Id), stat.Position.Line, message,
+                    stat.Kind == StatKind.None ? DiagnosticWeight.Error : DiagnosticWeight.Warning));
             }
         }
 
@@ -95,6 +97,8 @@ public static class Incompleteness
         bool eventValue = blankArg || stat.KindArg!.TrimStart().StartsWith("event.", StringComparison.Ordinal);
         return stat.Kind switch
         {
+            // The resolver drops a kind-less stat without a word, so it is kept out here and drawn as a draft.
+            StatKind.None => $"{stat.Id} is unfinished: pick a kind",
             StatKind.Count or StatKind.Streak or StatKind.Bucket or StatKind.Burst when blankArg =>
                 $"{stat.Id} has no trigger: give {stat.Kind.ToString().ToLowerInvariant()}: a view, such as kill",
             StatKind.Sum or StatKind.Capture when noOn && eventValue =>
@@ -107,8 +111,16 @@ public static class Incompleteness
         };
     }
 
-    private static RuleDiagnostic At(RulesetDoc doc, RulesetDocumentNodeKey key, int line, string message) =>
-        new($"{Path.GetFileName(doc.Position.File ?? doc.Id + ".rules.yaml")}({line}): {message}", message, DiagnosticWeight.Warning, doc.Id, line)
+    /// <summary>The lines of the stats with no kind, whose loader warning the draft's own error replaces.</summary>
+    public static IReadOnlySet<int> DraftLines(RulesetDoc doc)
+    {
+        ArgumentNullException.ThrowIfNull(doc);
+        return doc.Stats.Where(s => s.Kind == StatKind.None).Select(s => s.Position.Line).ToHashSet();
+    }
+
+    private static RuleDiagnostic At(RulesetDoc doc, RulesetDocumentNodeKey key, int line, string message,
+        DiagnosticWeight weight = DiagnosticWeight.Warning) =>
+        new($"{Path.GetFileName(doc.Position.File ?? doc.Id + ".rules.yaml")}({line}): {message}", message, weight, doc.Id, line)
         {
             Node = key
         };

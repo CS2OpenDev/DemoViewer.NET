@@ -21,7 +21,7 @@ public class CanvasSurfaceTests
         IReadOnlyList<GalleryGroup> gallery = CanvasGallery.Build(EmbeddedCatalog.Root);
         using (Assert.Multiple())
         {
-            await Assert.That(string.Join(",", gallery.Select(g => g.Title))).IsEqualTo("Prefabs,Highlights,Stats,Surfacing,Gates,Views");
+            await Assert.That(string.Join(",", gallery.Select(g => g.Title))).IsEqualTo("Primitives,Prefabs,Highlights,Stats,Surfacing,Gates,Views");
             await Assert.That(gallery.Single(g => g.Title == "Stats").Items.Select(i => i.Name))
                 .IsEquivalentTo(["count", "sum", "capture", "flag", "compute", "tally", "streak", "bucket", "rate", "burst", "define"]);
             GalleryGroup views = gallery.Single(g => g.Title == "Views");
@@ -138,6 +138,9 @@ public class CanvasSurfaceTests
         await Assert.That(vm.Nodes.Any(n => n.Id == "highlight" && n.IsHighlight)).IsTrue();
         vm.QuickStartCommand.Execute("prefab");
         await Assert.That(vm.Nodes.Any(n => n.Id == "enemy_kills")).IsTrue();
+        vm.QuickStartCommand.Execute("flag");
+        await Assert.That(RulesetEdits.FlagWhen(File.ReadAllText(rules.UserPath("player_round")), "new_flag_2")).IsNotEqualTo("")
+            .Because("the quick start is the Stats flag with its test, not the blank primitive");
     }
 
     [Test]

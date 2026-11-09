@@ -749,6 +749,7 @@ public static partial class CanvasEditSemantics
 
         return source.Ruleset switch
         {
+            "~event" when source.FloatingView is { } floating => ConnectFloating(floating, target),
             "~event" => ConnectEvent(source.Id, target),
             "~context" => GatePathOf(source.Id) is { } gate
                 ? Gate(target, gate)
@@ -836,6 +837,8 @@ public static partial class CanvasEditSemantics
 
         switch (source.Ruleset)
         {
+            case "~event" when source.FloatingView is { } floating:
+                return $"sets {TriggerKeyFor(target)}: {floating}";
             case "~event":
             {
                 IReadOnlyList<string> views = ViewsFiredBy(source.Id);
@@ -926,6 +929,11 @@ public static partial class CanvasEditSemantics
             return WriteFacet(target, facet, null);
         }
 
+        if (IsTriggerWire(wire) && DetachTrigger(target) is { } detach)
+        {
+            return detach;
+        }
+
         if (source.IsDefine)
         {
             return EditRequest.Refuse($"{target.Id} fires on {source.Title}; pick another trigger on the stat instead.");
@@ -1000,6 +1008,11 @@ public static partial class CanvasEditSemantics
         if (node.IsDefine)
         {
             return WriteDefineField(node, key, value);
+        }
+
+        if (node.IsDraft && key == "kind")
+        {
+            return PickKind(node, value);
         }
 
         return key switch

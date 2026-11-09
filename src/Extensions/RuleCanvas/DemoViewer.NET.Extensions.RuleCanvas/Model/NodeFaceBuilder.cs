@@ -135,6 +135,11 @@ public static class NodeFaceBuilder
         }
 
         string per = PerText(stat.Per);
+        if (stat.Kind == StatKind.None)
+        {
+            return new DraftFace(node.Key, DraftFace.KindName, label, per, "", diagnostics, line, node.IsAuthorable);
+        }
+
         string gate = string.IsNullOrWhiteSpace(stat.Trigger?.While) ? "" : stat.Trigger.While;
         TriggerFace? trigger = TriggerFace.From(stat.Trigger);
         // The typed form: every facet the view offers, the bound ones as rows, the rest offered by the

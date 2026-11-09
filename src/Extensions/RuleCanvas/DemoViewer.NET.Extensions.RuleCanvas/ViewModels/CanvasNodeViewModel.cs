@@ -456,6 +456,15 @@ public sealed partial class CanvasNodeViewModel : ObservableObject, ILiveBadge
     /// <summary>A stat, a highlight or a define the open document declares: what the entry edits reach.</summary>
     public bool IsEntry => IsAuthorable && !IsScaffold && !IsShow && !IsParams;
 
+    /// <summary>The view a floating event node placed from the gallery stands for; null for every other node.</summary>
+    public string? FloatingView { get; set; }
+
+    /// <summary>A floating event node: kept in the layout sidecar, drawn until a stat fires on its event.</summary>
+    public bool IsFloating => FloatingView is not null;
+
+    /// <summary>A stat with no kind yet: drawn with a kind picker and a red badge, kept out of the composition.</summary>
+    public bool IsDraft => Face is DraftFace;
+
     public bool HasColumns => Columns.Count > 0;
 
     public bool IsCompute => Kind == "compute";

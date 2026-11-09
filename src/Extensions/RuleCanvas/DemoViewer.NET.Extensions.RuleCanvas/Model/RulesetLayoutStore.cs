@@ -8,6 +8,11 @@ using Avalonia;
 
 namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 
+/// <summary>A floating event node placed from the gallery: the view it stands for and where it sits.</summary>
+/// <param name="View">The catalog view, whose event the node is drawn as.</param>
+/// <param name="At">Its position on the canvas.</param>
+public sealed record CanvasScaffold(string View, Point At);
+
 /// <summary>
 ///     A frame the user drew around some nodes: its title, the nodes inside it by layout key, and where it
 ///     sits. Layout only; the file never sees it. A group is identified by its member set, which is why
@@ -54,15 +59,17 @@ public sealed class RulesetNodeLayout
     private readonly List<CanvasGroup> _groups;
     private readonly HashSet<RulesetDocumentNodeKey> _pinned;
     private readonly HashSet<string> _expanded;
+    private readonly List<CanvasScaffold> _scaffolds;
 
     private RulesetNodeLayout(Dictionary<RulesetDocumentNodeKey, Point> positions, HashSet<RulesetDocumentNodeKey> collapsed, List<CanvasGroup> groups,
-        HashSet<RulesetDocumentNodeKey> pinned, HashSet<string> expanded)
+        HashSet<RulesetDocumentNodeKey> pinned, HashSet<string> expanded, List<CanvasScaffold>? scaffolds = null)
     {
         _positions = positions;
         _collapsed = collapsed;
         _groups = groups;
         _pinned = pinned;
         _expanded = expanded;
+        _scaffolds = scaffolds ?? [];
     }
 
     /// <summary>The answer for a ruleset with no sidecar, which is every ruleset until one is dragged.</summary>
@@ -72,7 +79,8 @@ public sealed class RulesetNodeLayout
     public int Count => _positions.Count;
 
     /// <summary>Whether there is nothing stored at all: no position, no collapsed node, no group, no pinned viewer, no expanded dependency.</summary>
-    public bool IsEmpty => _positions.Count == 0 && _collapsed.Count == 0 && _groups.Count == 0 && _pinned.Count == 0 && _expanded.Count == 0;
+    public bool IsEmpty => _positions.Count == 0 && _collapsed.Count == 0 && _groups.Count == 0 && _pinned.Count == 0 && _expanded.Count == 0
+                           && _scaffolds.Count == 0;
 
     /// <summary>Every stored position, in no meaningful order.</summary>
     public IReadOnlyDictionary<RulesetDocumentNodeKey, Point> Positions => _positions;
@@ -88,6 +96,29 @@ public sealed class RulesetNodeLayout
 
     /// <summary>The frames drawn, in the order they were made.</summary>
     public IReadOnlyList<CanvasGroup> Groups => _groups;
+
+    /// <summary>The floating event nodes placed from the gallery, in placement order.</summary>
+    public IReadOnlyList<CanvasScaffold> Scaffolds => _scaffolds;
+
+    /// <summary>A copy with <paramref name="scaffold" /> added, replacing one for the same view.</summary>
+    public RulesetNodeLayout WithScaffold(CanvasScaffold scaffold)
+    {
+        ArgumentNullException.ThrowIfNull(scaffold);
+        return new RulesetNodeLayout(_positions, _collapsed, _groups, _pinned, _expanded,
+            [.. _scaffolds.Where(s => s.View != scaffold.View), scaffold]);
+    }
+
+    /// <summary>A copy without the floating node for <paramref name="view" />; this one when there is none.</summary>
+    public RulesetNodeLayout WithoutScaffold(string view)
+    {
+        if (_scaffolds.All(s => s.View != view))
+        {
+            return this;
+        }
+
+        RulesetNodeLayout layout = new(_positions, _collapsed, _groups, _pinned, _expanded, [.. _scaffolds.Where(s => s.View != view)]);
+        return layout.IsEmpty ? Empty : layout;
+    }
 
     /// <summary>Builds a layout from the positions a canvas holds. A later duplicate of a key wins.</summary>
     /// <param name="positions">The node-to-position pairs to store.</param>
@@ -113,8 +144,15 @@ public sealed class RulesetNodeLayout
     /// <summary>Builds a layout from everything a canvas holds: positions, folds, frames, pinned viewers and unfolded dependencies.</summary>
     public static RulesetNodeLayout From(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
         IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups, IEnumerable<RulesetDocumentNodeKey> pinned,
-        IEnumerable<string> expanded)
+        IEnumerable<string> expanded) =>
+        From(positions, collapsed, groups, pinned, expanded, []);
+
+    /// <summary>As the five-argument form, with the floating event nodes.</summary>
+    public static RulesetNodeLayout From(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
+        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups, IEnumerable<RulesetDocumentNodeKey> pinned,
+        IEnumerable<string> expanded, IEnumerable<CanvasScaffold> scaffolds)
     {
+        ArgumentNullException.ThrowIfNull(scaffolds);
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(collapsed);
         ArgumentNullException.ThrowIfNull(groups);
@@ -127,7 +165,8 @@ public sealed class RulesetNodeLayout
             map[key] = at;
         }
 
-        RulesetNodeLayout layout = new(map, [.. collapsed], [], [.. pinned], new HashSet<string>(expanded, StringComparer.Ordinal));
+        RulesetNodeLayout layout = new(map, [.. collapsed], [], [.. pinned], new HashSet<string>(expanded, StringComparer.Ordinal),
+            [.. scaffolds.GroupBy(s => s.View, StringComparer.Ordinal).Select(g => g.Last())]);
         foreach (CanvasGroup group in groups)
         {
             layout = layout.WithGroup(group);
@@ -171,7 +210,7 @@ public sealed class RulesetNodeLayout
             [key] = position
         };
 
-        return new RulesetNodeLayout(map, _collapsed, _groups, _pinned, _expanded);
+        return new RulesetNodeLayout(map, _collapsed, _groups, _pinned, _expanded, _scaffolds);
     }
 
     /// <summary>A copy with <paramref name="key" /> back on auto-layout. Its collapse flag, viewer and group stay.</summary>
@@ -186,7 +225,7 @@ public sealed class RulesetNodeLayout
 
         Dictionary<RulesetDocumentNodeKey, Point> map = new(_positions);
         map.Remove(key);
-        RulesetNodeLayout layout = new(map, _collapsed, _groups, _pinned, _expanded);
+        RulesetNodeLayout layout = new(map, _collapsed, _groups, _pinned, _expanded, _scaffolds);
         return layout.IsEmpty ? Empty : layout;
     }
 
@@ -198,7 +237,7 @@ public sealed class RulesetNodeLayout
             return this;
         }
 
-        RulesetNodeLayout layout = new(_positions, Toggled(_collapsed, key, collapsed), _groups, _pinned, _expanded);
+        RulesetNodeLayout layout = new(_positions, Toggled(_collapsed, key, collapsed), _groups, _pinned, _expanded, _scaffolds);
         return layout.IsEmpty ? Empty : layout;
     }
 
@@ -210,7 +249,7 @@ public sealed class RulesetNodeLayout
             return this;
         }
 
-        RulesetNodeLayout layout = new(_positions, _collapsed, _groups, Toggled(_pinned, key, pinned), _expanded);
+        RulesetNodeLayout layout = new(_positions, _collapsed, _groups, Toggled(_pinned, key, pinned), _expanded, _scaffolds);
         return layout.IsEmpty ? Empty : layout;
     }
 
@@ -236,7 +275,7 @@ public sealed class RulesetNodeLayout
             set.Remove(ruleset);
         }
 
-        RulesetNodeLayout layout = new(_positions, _collapsed, _groups, _pinned, set);
+        RulesetNodeLayout layout = new(_positions, _collapsed, _groups, _pinned, set, _scaffolds);
         return layout.IsEmpty ? Empty : layout;
     }
 
@@ -279,7 +318,7 @@ public sealed class RulesetNodeLayout
         }
 
         groups.Add(group with { Members = members });
-        return new RulesetNodeLayout(_positions, _collapsed, groups, _pinned, _expanded);
+        return new RulesetNodeLayout(_positions, _collapsed, groups, _pinned, _expanded, _scaffolds);
     }
 
     /// <summary>A copy without the group framing <paramref name="group" />'s members; the nodes stay where they are.</summary>
@@ -292,7 +331,7 @@ public sealed class RulesetNodeLayout
             return this;
         }
 
-        RulesetNodeLayout layout = new(_positions, _collapsed, groups, _pinned, _expanded);
+        RulesetNodeLayout layout = new(_positions, _collapsed, groups, _pinned, _expanded, _scaffolds);
         return layout.IsEmpty ? Empty : layout;
     }
 
@@ -329,7 +368,7 @@ public sealed class RulesetNodeLayout
         List<CanvasGroup> groups = [.. _groups.Select(g => g.Contains(from)
             ? g with { Members = [.. g.Members.Select(m => m == from ? to : m).Distinct()] }
             : g)];
-        return new RulesetNodeLayout(map, set, groups, pinned, _expanded);
+        return new RulesetNodeLayout(map, set, groups, pinned, _expanded, _scaffolds);
     }
 
     /// <summary>
@@ -352,7 +391,7 @@ public sealed class RulesetNodeLayout
             map[key] = at;
         }
 
-        return new RulesetNodeLayout(map, over._collapsed, over._groups, over._pinned, over._expanded);
+        return new RulesetNodeLayout(map, over._collapsed, over._groups, over._pinned, over._expanded, over._scaffolds);
     }
 }
 
@@ -407,6 +446,8 @@ public static class RulesetLayoutStore
     private const string ViewerProperty = "viewer";
     private const string TitleProperty = "title";
     private const string MembersProperty = "members";
+    private const string ScaffoldsProperty = "scaffolds";
+    private const string ViewProperty = "view";
 
     // Canvas coordinates are graph units for a node box, so two decimals is past the point of
     // visible difference. Rounding keeps a dragged node from rewriting its line as
@@ -492,7 +533,7 @@ public static class RulesetLayoutStore
             // A layout with no writable entry is the same state as no layout, and is stored the same
             // way: as the absence of a file. Otherwise a ruleset whose every coordinate came back
             // non-finite would keep a sidecar that stores nothing.
-            if (!WritableNodes(layout).Any() && !WritableGroups(layout).Any() && layout.Expanded.Count == 0)
+            if (!WritableNodes(layout).Any() && !WritableGroups(layout).Any() && layout.Expanded.Count == 0 && !WritableScaffolds(layout).Any())
             {
                 if (File.Exists(sidecar))
                 {
@@ -603,7 +644,21 @@ public static class RulesetLayoutStore
                 }
             }
 
-            return RulesetNodeLayout.From(map, collapsed, groups, pinned, expanded);
+            List<CanvasScaffold> scaffolds = [];
+            if (document.RootElement.TryGetProperty(ScaffoldsProperty, out JsonElement floating) && floating.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement scaffold in floating.EnumerateArray())
+                {
+                    if (scaffold.ValueKind == JsonValueKind.Object && scaffold.TryGetProperty(ViewProperty, out JsonElement view)
+                        && view.ValueKind == JsonValueKind.String && view.GetString() is { Length: > 0 } name
+                        && TryReadNumber(scaffold, XProperty, out double sx) && TryReadNumber(scaffold, YProperty, out double sy))
+                    {
+                        scaffolds.Add(new CanvasScaffold(name, new Point(sx, sy)));
+                    }
+                }
+            }
+
+            return RulesetNodeLayout.From(map, collapsed, groups, pinned, expanded, scaffolds);
         }
         catch (JsonException)
         {
@@ -679,6 +734,22 @@ public static class RulesetLayoutStore
             }
 
             // Absent rather than empty, as the groups are.
+            List<CanvasScaffold> scaffolds = [.. WritableScaffolds(layout)];
+            if (scaffolds.Count > 0)
+            {
+                writer.WriteStartArray(ScaffoldsProperty);
+                foreach (CanvasScaffold scaffold in scaffolds)
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString(ViewProperty, scaffold.View);
+                    writer.WriteNumber(XProperty, Round(scaffold.At.X));
+                    writer.WriteNumber(YProperty, Round(scaffold.At.Y));
+                    writer.WriteEndObject();
+                }
+
+                writer.WriteEndArray();
+            }
+
             if (layout.Expanded.Count > 0)
             {
                 writer.WriteStartArray(ExpandedProperty);
@@ -726,6 +797,9 @@ public static class RulesetLayoutStore
 
         return entries.OrderBy(e => e.Key, StringComparer.Ordinal).Select(e => (e.Key, e.Value.At, e.Value.Collapsed, e.Value.Pinned));
     }
+
+    private static IEnumerable<CanvasScaffold> WritableScaffolds(RulesetNodeLayout layout) =>
+        layout.Scaffolds.Where(s => s.View.Length > 0 && double.IsFinite(s.At.X) && double.IsFinite(s.At.Y));
 
     /// <summary>The groups that can be written: a finite frame around at least one writable key, in stored order.</summary>
     private static IEnumerable<(string Title, List<string> Members, Rect Rect)> WritableGroups(RulesetNodeLayout layout)
