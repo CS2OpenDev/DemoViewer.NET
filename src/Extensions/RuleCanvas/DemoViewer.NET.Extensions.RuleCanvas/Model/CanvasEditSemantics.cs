@@ -125,50 +125,23 @@ public static partial class CanvasEditSemantics
     // The engine lowers an operand relative to the value read ("value > 2", "active"), so the row is found by
     // the path the source is read under, and among several rows on one path by the comparison. A condition
     // the engine spelled with the path itself matches by text first.
+    // The same lookup the chain uses for the wire's label, so the editor opens the row the label shows.
     private static int? WhenRowOf(CanvasConnectionViewModel wire, CanvasNodeViewModel target, string whenText)
     {
-        ConditionExpression when = ConditionExpression.Parse(whenText);
-        if (!when.IsFlat || when.Rows.Count == 0)
-        {
-            return null;
-        }
-
-        static string Squash(string? text) => string.Concat((text ?? "").Where(c => !char.IsWhiteSpace(c)));
-        string condition = Squash(wire.Condition);
-        for (int i = 0; i < when.Rows.Count; i++)
-        {
-            if (condition.Length > 0 && Squash(when.Rows[i].Text) == condition)
-            {
-                return i;
-            }
-        }
-
         if (wire.Source.Owner is not { } source)
         {
             return null;
         }
 
         string read = source.IsScaffold ? source.Ruleset == "~context" ? GatePathOf(source.Id) ?? source.Id : source.Id : ReadOf(source, target);
-        ConditionExpression lowered = ConditionExpression.Parse(wire.Condition);
-        ConditionRow? operand = lowered is { IsFlat: true, Rows.Count: 1 } ? lowered.Rows[0] : null;
-        int? byPath = null;
-        for (int i = 0; i < when.Rows.Count; i++)
+        ConditionRow? row = ChainWiring.AuthoredRow(whenText, read, wire.Condition);
+        if (row is null)
         {
-            ConditionRow row = when.Rows[i];
-            if (row.Path != read)
-            {
-                continue;
-            }
-
-            if (operand is not null && row.Comparator == operand.Comparator && Squash(row.Literal) == Squash(operand.Literal))
-            {
-                return i;
-            }
-
-            byPath ??= i;
+            return null;
         }
 
-        return byPath;
+        int index = ConditionExpression.Parse(whenText).Rows.ToList().IndexOf(row);
+        return index < 0 ? null : index;
     }
 
     /// <summary>

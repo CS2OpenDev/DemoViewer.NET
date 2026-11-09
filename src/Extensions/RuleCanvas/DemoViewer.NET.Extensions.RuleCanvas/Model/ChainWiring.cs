@@ -89,9 +89,50 @@ public static class ChainWiring
         {
             EdgeEffect.Activate => edge.Label + " on",
             EdgeEffect.Deactivate => edge.Label + " off",
-            EdgeEffect.Conjunction => "and " + (edge.Condition ?? ""),
-            EdgeEffect.Disjunction => "or " + (edge.Condition ?? ""),
+            EdgeEffect.Conjunction => "and " + (edge.Authored ?? edge.Condition ?? ""),
+            EdgeEffect.Disjunction => "or " + (edge.Authored ?? edge.Condition ?? ""),
             _ => edge.Label
         };
+    }
+
+    /// <summary>
+    ///     The row of a flat <c>when:</c> a logic wire stands for: the row spelled exactly as the engine's
+    ///     lowered condition, else the row on the path the source is read under with the same comparator
+    ///     and literal, else the first row on that path. Null for a nested condition or no match.
+    /// </summary>
+    public static ConditionRow? AuthoredRow(string? whenText, string readPath, string? lowered)
+    {
+        ArgumentNullException.ThrowIfNull(readPath);
+        ConditionExpression when = ConditionExpression.Parse(whenText);
+        if (!when.IsFlat || when.Rows.Count == 0)
+        {
+            return null;
+        }
+
+        static string Squash(string? text) => string.Concat((text ?? "").Where(c => !char.IsWhiteSpace(c)));
+        string condition = Squash(lowered);
+        if (condition.Length > 0)
+        {
+            ConditionRow? spelled = when.Rows.FirstOrDefault(r => Squash(r.Text) == condition);
+            if (spelled is not null)
+            {
+                return spelled;
+            }
+        }
+
+        ConditionExpression loweredRows = ConditionExpression.Parse(lowered);
+        ConditionRow? operand = loweredRows is { IsFlat: true, Rows.Count: 1 } ? loweredRows.Rows[0] : null;
+        ConditionRow? byPath = null;
+        foreach (ConditionRow row in when.Rows.Where(r => r.Path == readPath))
+        {
+            if (operand is not null && row.Comparator == operand.Comparator && Squash(row.Literal) == Squash(operand.Literal))
+            {
+                return row;
+            }
+
+            byPath ??= row;
+        }
+
+        return byPath;
     }
 }

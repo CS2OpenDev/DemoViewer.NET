@@ -85,6 +85,13 @@ public sealed record ChainEdge(RulesetDocumentNodeKey Source, RulesetDocumentNod
 
     /// <summary>For a read into a show node, the index of the column the wire stands for; null elsewhere.</summary>
     public int? Column { get; init; }
+
+    /// <summary>
+    ///     For a logic input, the operand row as the target's <c>when:</c> spells it (<c>round_kills &gt; 2</c>);
+    ///     null when the row was not found or the target is not in the open document. The label reads this
+    ///     over the engine's lowering (<c>value &gt; 2</c>), which <see cref="Condition" /> keeps for the hover.
+    /// </summary>
+    public string? Authored { get; init; }
 }
 
 /// <summary>
@@ -411,7 +418,10 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
                             continue;
                         }
 
-                        Add(new ChainEdge(source, target, text, edge.Descriptor.ConditionLabel, edge.Descriptor.Effect, isRead) { Guard = guard }, edge);
+                        string? authored = edge.Descriptor.Effect is EdgeEffect.Conjunction or EdgeEffect.Disjunction
+                            ? AuthoredOperand(open, source, target, edge.Descriptor.ConditionLabel)
+                            : null;
+                        Add(new ChainEdge(source, target, text, edge.Descriptor.ConditionLabel, edge.Descriptor.Effect, isRead) { Guard = guard, Authored = authored }, edge);
                         if (guard is { } gate && gate != target)
                         {
                             Add(new ChainEdge(gate, target, "while", null, edge.Descriptor.Effect, false) { IsGate = true }, edge);
@@ -540,6 +550,28 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
     ///     The document blocks the engine has no node for: the params node ahead of the declared entries
     ///     that read it, the show nodes after the entries they surface. Wires only to nodes already drawn.
     /// </summary>
+    // The operand row of the target's when: that this logic wire stands for, as written. Only the open
+    // document's text is at hand; a dependency's wire keeps the engine's label.
+    private static string? AuthoredOperand(RulesetDoc? open, RulesetDocumentNodeKey source, RulesetDocumentNodeKey target, string? lowered)
+    {
+        if (open is null || target.Ruleset != open.Id)
+        {
+            return null;
+        }
+
+        string? when = open.Highlights.FirstOrDefault(h => h.Id == target.Id)?.When
+                       ?? open.Stats.FirstOrDefault(s => s.Id == target.Id && s.Kind == StatKind.Flag)?.KindArg;
+        if (string.IsNullOrWhiteSpace(when))
+        {
+            return null;
+        }
+
+        string read = source.Ruleset == "~context"
+            ? CanvasEditSemantics.GatePathOf(source.Id) ?? source.Id
+            : source.Ruleset == target.Ruleset ? source.Id : source.Ruleset + "." + source.Id;
+        return ChainWiring.AuthoredRow(when, read, lowered)?.Text;
+    }
+
     private static void SpliceSurfaces(List<ChainNode> nodes, List<ChainEdge> edges, RulesetDoc open)
     {
         HashSet<RulesetDocumentNodeKey> declared = [.. nodes.Where(n => n.Kind == ChainNodeKind.Declared).Select(n => n.Key)];
