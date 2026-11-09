@@ -116,6 +116,15 @@ public sealed partial class CanvasConnectionViewModel(CanvasConnectorViewModel s
 
     public bool HasLiveTip => LiveTip.Length > 0;
 
+    /// <summary>The menu's seek items, filled by the tab when the menu opens.</summary>
+    public CanvasSeekMenuViewModel SeekMenu { get; } = new();
+
+    /// <summary>What the wire carries, as the live run keys its track.</summary>
+    public Model.Live.LiveWireKind LiveKind => IsGate ? Model.Live.LiveWireKind.Gate
+        : IsRead ? Model.Live.LiveWireKind.Read
+        : IsAnd || IsOr ? Model.Live.LiveWireKind.Logic
+        : Model.Live.LiveWireKind.Trigger;
+
     /// <summary>A gate holding the target open while it is active; drawn dashed, labelled while.</summary>
     public bool IsGate { get; } = isGate;
 

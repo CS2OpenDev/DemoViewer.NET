@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.Model.Live;
+using DemoViewer.NET.Modules.Abstractions;
 
 #endregion
 
@@ -16,7 +17,8 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 ///     Live values: the drawn ruleset evaluated over the open demo, kept as one <see cref="LiveValuesRun" />
 ///     and shown as a badge on every node and a line on every wire for the selected instance. A write marks
 ///     the run stale and queues a replacement after a pause; a ruleset or demo switch drops it. The run is
-///     re-applied after every redraw, since a redraw rebuilds the node view models.
+///     re-applied after every redraw, since a redraw rebuilds the node view models. While the tab is active
+///     the badges follow the shell's playhead, and the menus seek it to a fire.
 /// </summary>
 public sealed partial class CanvasTabViewModel
 {
@@ -26,11 +28,21 @@ public sealed partial class CanvasTabViewModel
     private LiveValuesService _liveService = null!;
     private Func<string?> _demoPath = null!;
     private Action<Action> _post = null!;
+    private Func<int>? _currentTick;
+    private Func<Action, IDisposable>? _watchPlayhead;
+    private Action<int>? _seekToTick;
+    private IDisposable? _playheadWatch;
+    private IModuleContext? _moduleContext;
     private string? _liveRulesetId;
     private string _liveFingerprint = "";
     private int _liveGeneration;
     private CancellationTokenSource? _liveDelay;
     private CancellationTokenSource? _liveRunCts;
+
+    // What the playhead update walks: each badged node with its track, and the index of the point it
+    // shows, so a tick that moves nothing costs a binary search and no string.
+    private readonly List<LiveNodeBinding> _liveNodes = [];
+    private readonly List<LiveWireBinding> _liveWires = [];
 
     /// <summary>The last run accepted, or null. One per canvas; the next replaces it.</summary>
     [ObservableProperty]
@@ -48,6 +60,10 @@ public sealed partial class CanvasTabViewModel
     [ObservableProperty]
     private bool _isLiveRunning;
 
+    /// <summary>The shell's playhead tick while this tab is active and the host has a clock; null otherwise.</summary>
+    [ObservableProperty]
+    private int? _playheadTick;
+
     /// <summary>The run's instances, the game first, for the picker.</summary>
     public ObservableCollection<LiveInstance> Instances { get; } = [];
 
@@ -61,7 +77,9 @@ public sealed partial class CanvasTabViewModel
 
     public bool HasLiveRun => LiveRun is not null;
 
-    /// <summary>The strip's demo chip: the open demo's file name, or that none is open.</summary>
+    /// <summary>True while the tab listens to the shell's playhead.</summary>
+    public bool IsWatchingPlayhead => _playheadWatch is not null;
+
     /// <summary>The open demo's name, cut to fit the strip; the full name is the chip's tooltip.</summary>
     public string DemoChipText => _demoPath() is { } path ? ShortDemoName(Path.GetFileNameWithoutExtension(path)) : "no demo open";
 
@@ -70,9 +88,9 @@ public sealed partial class CanvasTabViewModel
 
     // Demo files are named by long ids; the strip keeps the start and the end so two look different.
     public static string ShortDemoName(string stem) =>
-        stem.Length <= 18 ? stem : string.Concat(stem.AsSpan(0, 9), "\u2026", stem.AsSpan(stem.Length - 6));
+        stem.Length <= 18 ? stem : string.Concat(stem.AsSpan(0, 9), "…", stem.AsSpan(stem.Length - 6));
 
-    /// <summary>The strip's live state, in words.</summary>
+    /// <summary>The strip's live state, in words; with a clock, where the values are read from.</summary>
     public string LiveState
     {
         get
@@ -87,12 +105,13 @@ public sealed partial class CanvasTabViewModel
                 return "evaluating";
             }
 
-            if (LiveRun is null)
+            if (LiveRun is not { } run)
             {
                 return "no values yet";
             }
 
-            return IsLiveStale ? "stale: edited since the run" : "values ready";
+            string state = IsLiveStale ? "stale: edited since the run" : "values ready";
+            return PlayheadTick is null ? state : state + ", " + LiveValuesText.Position(PlayheadTick, run);
         }
     }
 
@@ -105,7 +124,48 @@ public sealed partial class CanvasTabViewModel
             live?.DemoHash ?? (static () => null), live?.Log);
         _demoPath = live?.DemoPath ?? (static () => null);
         _post = live?.Post ?? (static action => action());
+        _currentTick = live?.CurrentTick;
+        _watchPlayhead = live?.WatchPlayhead;
+        _seekToTick = live?.SeekToTick;
         live?.OnDemoChanged?.Invoke(DemoChanged);
+    }
+
+    // The host joins the playhead hub only while listened to, so the watch lives from activation to deactivation.
+    private void StartPlayhead(IModuleContext? context)
+    {
+        _moduleContext = context;
+        if (_playheadWatch is null && _watchPlayhead is not null)
+        {
+            _playheadWatch = _watchPlayhead(OnPlayhead);
+            OnPlayhead();
+        }
+    }
+
+    private void StopPlayhead()
+    {
+        _playheadWatch?.Dispose();
+        _playheadWatch = null;
+        if (PlayheadTick is not null)
+        {
+            PlayheadTick = null;
+        }
+    }
+
+    // Runs once per rendered frame during playback: only what the tick moved is re-said.
+    private void OnPlayhead()
+    {
+        if (_currentTick is null)
+        {
+            return;
+        }
+
+        int tick = _currentTick();
+        if (PlayheadTick == tick)
+        {
+            return;
+        }
+
+        PlayheadTick = tick;
     }
 
     /// <summary>Opens the host's Library tab, where a demo is opened from.</summary>
@@ -267,8 +327,11 @@ public sealed partial class CanvasTabViewModel
         NotifyLiveState();
     }
 
+    // The full pass: every node and wire gets its text for the instance, and the playhead bindings are rebuilt.
     private void ApplyLive(IEnumerable<CanvasNodeViewModel> nodes, IEnumerable<CanvasConnectionViewModel> wires)
     {
+        _liveNodes.Clear();
+        _liveWires.Clear();
         LiveValuesRun? run = LiveRun;
         LiveInstance? instance = SelectedInstance;
         if (run is null || instance is null)
@@ -290,13 +353,15 @@ public sealed partial class CanvasTabViewModel
 
         HashSet<RulesetDocumentNodeKey> unbound = [.. run.Unbound];
         bool stale = IsLiveStale;
+        int? tick = TickInRun(run);
         foreach (CanvasNodeViewModel node in nodes)
         {
             bool isBool = node.ValueType == "bool";
             if (TrackFor(run, node.Key, instance.Index) is { } track)
             {
-                node.LiveBadge = LiveValuesText.Badge(track, isBool);
-                node.LiveTip = LiveValuesText.Tip(track, instance, isBool, stale);
+                LiveNodeBinding binding = new(node, track, isBool);
+                _liveNodes.Add(binding);
+                binding.Show(instance, stale, tick);
                 node.IsLiveStale = stale;
             }
             else if (unbound.Contains(node.Key))
@@ -315,17 +380,76 @@ public sealed partial class CanvasTabViewModel
 
         foreach (CanvasConnectionViewModel wire in wires)
         {
-            wire.LiveTip = wire.Target.Owner is { } target && TrackFor(run, target.Key, instance.Index) is { } track
-                ? LiveValuesText.WireTip(track, stale)
-                : "";
+            if (WireTrackFor(run, wire, instance.Index) is { } own)
+            {
+                LiveWireBinding binding = new(wire, own, wire.LiveKind);
+                _liveWires.Add(binding);
+                binding.Show(stale, tick);
+            }
+            else
+            {
+                wire.LiveTip = WireFallback(run, wire, instance.Index, stale);
+            }
         }
     }
+
+    // A wire with no engine edge of its own speaks from a node at one of its ends.
+    private static string WireFallback(LiveValuesRun run, CanvasConnectionViewModel wire, int instance, bool stale)
+    {
+        if (wire.LiveKind == LiveWireKind.Read && wire.Source.Owner is { } source && TrackFor(run, source.Key, instance) is { } sourceTrack)
+        {
+            return LiveValuesText.ReadFallback(sourceTrack, source.ValueType == "bool", stale);
+        }
+
+        return wire.Target.Owner is { } target && TrackFor(run, target.Key, instance) is { } targetTrack
+            ? LiveValuesText.TargetFallback(targetTrack, stale)
+            : "";
+    }
+
+    // The playhead moved: one pass over the bindings, no node or wire re-created, nothing recomposed.
+    private void ApplyPlayhead()
+    {
+        LiveValuesRun? run = LiveRun;
+        LiveInstance? instance = SelectedInstance;
+        if (run is null || instance is null)
+        {
+            return;
+        }
+
+        int? tick = TickInRun(run);
+        bool stale = IsLiveStale;
+        foreach (LiveNodeBinding binding in _liveNodes)
+        {
+            binding.Show(instance, stale, tick);
+        }
+
+        foreach (LiveWireBinding binding in _liveWires)
+        {
+            binding.Show(stale, tick);
+        }
+    }
+
+    // The playhead's tick while it lies inside the run; null means the badges show final values.
+    private int? TickInRun(LiveValuesRun run) => PlayheadTick is { } tick && run.Covers(tick) ? tick : null;
 
     // A node kept once for the game has that one track under every instance.
     private static NodeTrack? TrackFor(LiveValuesRun run, RulesetDocumentNodeKey key, int instance) =>
         run.Nodes.TryGetValue((key, instance), out NodeTrack? own) ? own
         : run.Nodes.TryGetValue((key, 0), out NodeTrack? game) ? game
         : null;
+
+    private static WireTrack? WireTrackFor(LiveValuesRun run, CanvasConnectionViewModel wire, int instance)
+    {
+        if (wire.Source.Owner is not { } source || wire.Target.Owner is not { } target)
+        {
+            return null;
+        }
+
+        LiveWireKey key = new(source.Key, target.Key, wire.LiveKind);
+        return run.Wires.TryGetValue((key, instance), out WireTrack? own) ? own
+            : run.Wires.TryGetValue((key, 0), out WireTrack? game) ? game
+            : null;
+    }
 
     // The composed documents' texts as the files hold them, so a write and its undo compare equal to the run's.
     private string Fingerprint()
@@ -385,5 +509,75 @@ public sealed partial class CanvasTabViewModel
     {
         OnPropertyChanged(nameof(HasLiveRun));
         OnPropertyChanged(nameof(LiveState));
+    }
+
+    partial void OnPlayheadTickChanged(int? value)
+    {
+        ApplyPlayhead();
+        OnPropertyChanged(nameof(LiveState));
+    }
+
+    // One badged node: the point shown is remembered, so a tick that lands on the same fire is free.
+    // The final part of the tip is kept between playhead moves; a move writes one line and one join.
+    private sealed class LiveNodeBinding(CanvasNodeViewModel node, NodeTrack track, bool isBool)
+    {
+        private int _shown = int.MinValue;
+        private bool _stale;
+        private LiveInstance? _instance;
+        private string _rest = "";
+
+        public void Show(LiveInstance instance, bool stale, int? tick)
+        {
+            int index = tick is { } at && track.Series.Count > 0 ? track.Series.IndexAt(at) : int.MaxValue;
+            bool same = stale == _stale && ReferenceEquals(instance, _instance);
+            if (index == _shown && same)
+            {
+                return;
+            }
+
+            if (!same || _instance is null)
+            {
+                _rest = LiveValuesText.Tip(track, instance, isBool, stale);
+                _stale = stale;
+                _instance = instance;
+            }
+
+            _shown = index;
+            if (tick is { } t && index != int.MaxValue)
+            {
+                node.LiveBadge = LiveValuesText.BadgeAt(track, isBool, index);
+                node.LiveTip = LiveValuesText.PlayheadLine(track, isBool, t, index) + "\n" + _rest;
+            }
+            else
+            {
+                node.LiveBadge = LiveValuesText.Badge(track, isBool);
+                node.LiveTip = _rest;
+            }
+        }
+    }
+
+    private sealed class LiveWireBinding(CanvasConnectionViewModel wire, WireTrack track, LiveWireKind kind)
+    {
+        private int _shown = int.MinValue;
+        private bool _stale;
+        private string? _rest;
+
+        public void Show(bool stale, int? tick)
+        {
+            int count = tick is { } at && track.Ticks.Count > 0 ? track.Ticks.CountThrough(at) : int.MaxValue;
+            if (count == _shown && stale == _stale && _rest is not null)
+            {
+                return;
+            }
+
+            if (_rest is null || stale != _stale)
+            {
+                _rest = LiveValuesText.WireTip(track, kind, stale);
+                _stale = stale;
+            }
+
+            _shown = count;
+            wire.LiveTip = tick is { } t && count != int.MaxValue ? LiveValuesText.FiresByLine(count, t) + "\n" + _rest : _rest;
+        }
     }
 }

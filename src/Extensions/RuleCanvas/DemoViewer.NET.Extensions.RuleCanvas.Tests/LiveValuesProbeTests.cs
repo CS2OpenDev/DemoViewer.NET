@@ -101,4 +101,87 @@ public class LiveValuesProbeTests
             await Assert.That(onlyDrawn.Where(k => !k.StartsWith('~'))).IsEmpty().Because("every declared key the canvas draws exists in the demo build");
         }
     }
+
+    // Stage 2: every drawn wire has a track for the players that materialised, a gate's open count never
+    // exceeds the trigger's message count, a flag's on count is seen at its fires, the series follow the
+    // fire ticks, and a define sums the stats that fire on it.
+    [Test]
+    [Arguments("player_round")]
+    [Arguments("highlights_clutch")]
+    public async Task TheReferenceDemo_TracksEveryWire_GatesHonestly_AndSumsDefines(string rulesetId)
+    {
+        string path = DemoTestHelper.RequireDemo(Demo);
+        ParsedDemo demo = DemoTestHelper.GetOrParse(path);
+        RulesetCorpus corpus = RulesetCorpus.Load([(RulesTree.RepoRulesDirectory, "shipped")]);
+        RulesetCorpus.Composed drawn = corpus.Compose(rulesetId);
+        List<RulesetDoc> docs = [.. drawn.Documents.Values];
+        var built = DemoAnalysis.Build(demo, docs);
+        AnalysisRun run = DemoAnalysis.Evaluate(demo, built, new AnalysisOptions { CaptureSnapshots = true });
+        RulesetComposition.Result composed = RulesetComposition.Compose(docs, EmbeddedCatalog.Adapter, demo.TickRate, built.Profile.GetType().Name);
+        LiveValuesRun values = LiveValuesReducer.Reduce(run, composed.Rulesets, path, demo.TickRate, TimeSpan.Zero, TimeSpan.Zero, 0, drawn.Documents[rulesetId]);
+
+        HashSet<LiveWireKey> drawnWires = [.. drawn.Chain.Edges.Select(e => new LiveWireKey(e.Source, e.Target, LiveValuesReducer.KindOf(e)))];
+        List<LiveWireKey> tracked = [.. values.Wires.Keys.Select(k => k.Wire).Distinct()];
+        List<LiveWireKey> untracked = [.. drawnWires.Where(w => !tracked.Contains(w) && w.Kind != LiveWireKind.Read && w.Kind != LiveWireKind.Logic)];
+        List<KeyValuePair<(LiveWireKey Wire, int Instance), WireTrack>> gates = [.. values.Wires.Where(kv => kv.Key.Wire.Kind == LiveWireKind.Gate)];
+        List<NodeTrack> fired = [.. values.Nodes.Values.Where(t => t.FireCount > 0)];
+        List<NodeTrack> flags = [.. values.Nodes.Where(kv => kv.Key.Key.Id == "round_kast").Select(kv => kv.Value)];
+        List<KeyValuePair<(RulesetDocumentNodeKey Key, int Instance), NodeTrack>> defines = [.. values.Nodes.Where(kv => kv.Key.Key.IsDefine)];
+
+        Console.WriteLine($"[live] {rulesetId}: {tracked.Count} of {drawnWires.Count} drawn wires tracked; untracked triggers/gates: {string.Join(", ", untracked.Select(w => $"{w.Source.Id}->{w.Target.Id}/{w.Kind}"))}");
+        foreach (KeyValuePair<(LiveWireKey Wire, int Instance), WireTrack> gate in gates.Take(4))
+        {
+            Console.WriteLine($"[live] gate {gate.Key.Wire.Source.Id}->{gate.Key.Wire.Target.Id}@{values.Instances[gate.Key.Instance].Name ?? "game"}: {LiveValuesText.WireTip(gate.Value, LiveWireKind.Gate, false)}");
+        }
+
+        foreach (KeyValuePair<(RulesetDocumentNodeKey Key, int Instance), NodeTrack> define in defines.Take(4))
+        {
+            Console.WriteLine($"[live] define {define.Key.Key.Name}@{values.Instances[define.Key.Instance].Name ?? "game"}: {LiveValuesText.Tip(define.Value, values.Instances[define.Key.Instance], false, false)}");
+        }
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(tracked).IsNotEmpty();
+            await Assert.That(tracked.Where(w => !drawnWires.Contains(w))).IsEmpty().Because("every track sits on a drawn wire");
+            await Assert.That(untracked).IsEmpty().Because("every trigger and gate wire the canvas draws has an engine edge in the demo build");
+            await Assert.That(gates).IsNotEmpty();
+            foreach (KeyValuePair<(LiveWireKey Wire, int Instance), WireTrack> gate in gates)
+            {
+                await Assert.That(gate.Value.TriggerCount is null || gate.Value.FireCount <= gate.Value.TriggerCount).IsTrue()
+                    .Because($"{gate.Key.Wire.Source.Id}->{gate.Key.Wire.Target.Id}: open on {gate.Value.FireCount} of {gate.Value.TriggerCount}");
+            }
+
+            foreach (NodeTrack track in fired)
+            {
+                await Assert.That(track.Series.Count).IsGreaterThan(0).Because("a node that fired has a series");
+                await Assert.That(track.Series.Ticks[0]).IsEqualTo(track.FirstTick!.Value);
+                await Assert.That(track.Series.Ticks[^1]).IsEqualTo(track.LastTick!.Value);
+                await Assert.That(track.Series.IsSampled || track.Series.Count == track.FireCount || track.Series.Count <= track.FireCount).IsTrue();
+            }
+
+            foreach (WireTrack track in values.Wires.Values.Where(t => t.FireCount > 0))
+            {
+                await Assert.That(track.Ticks.Count).IsGreaterThan(0);
+                await Assert.That(track.Ticks.Count <= track.FireCount).IsTrue();
+                await Assert.That(track.Ticks.IsSampled || track.Ticks.Count == track.FireCount).IsTrue().Because("an unsampled list has one tick per fire");
+            }
+
+            if (rulesetId == "player_round")
+            {
+                await Assert.That(flags.Any(f => f.OnCount > 0)).IsTrue().Because("KAST comes on for someone");
+                await Assert.That(flags.All(f => f.OnCount + f.OffCount <= f.Series.Count)).IsTrue();
+            }
+            else
+            {
+                await Assert.That(defines).IsNotEmpty().Because("ct_retake_kill fires retake_kills");
+                foreach (KeyValuePair<(RulesetDocumentNodeKey Key, int Instance), NodeTrack> define in defines)
+                {
+                    int sum = RulesetDocumentGraph.StatsFiringOn(drawn.Documents[rulesetId], define.Key.Key.Name)
+                        .Sum(stat => values.Nodes.GetValueOrDefault((new RulesetDocumentNodeKey(rulesetId, stat), define.Key.Instance))?.FireCount ?? 0);
+                    await Assert.That(define.Value.FireCount).IsEqualTo(sum);
+                    await Assert.That(define.Value.ViaStats).IsEqualTo(RulesetDocumentGraph.StatsFiringOn(drawn.Documents[rulesetId], define.Key.Key.Name).Count);
+                }
+            }
+        }
+    }
 }
