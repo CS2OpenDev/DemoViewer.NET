@@ -132,7 +132,7 @@ public class RuleCanvasHubTests
                     await Assert.That(containers).IsEqualTo(26)
                         .Because("eight stats, ten engine nodes they run through, and the eight events that fire them");
                     await Assert.That(wires).IsEqualTo(34).Because("every distinct event, gate, read and logic wire of the chain, with the three round-end events merged into one");
-                    await Assert.That(connectors).IsEqualTo(44).Because("every authored node has both ports; a scaffold has one per side a wire lands on");
+                    await Assert.That(connectors).IsEqualTo(61).Because("an authored node has one input per kind it takes and a typed output; a scaffold has one per side a wire lands on");
                     await Assert.That(texts).Contains("round_kast");
                     await Assert.That(texts).Contains("enemy").Because("the detailed style shows the facet rows");
                     await Assert.That(texts).Contains("while player.alive").Because("the gate is a chip on a shipped ruleset");
