@@ -37,9 +37,10 @@ public sealed record CanvasToast(string Message, Point? At, int Sequence);
 /// <param name="Node">The node the diagnostic is inside, or null for one about the ruleset as a whole.</param>
 /// <param name="Message">The text.</param>
 /// <param name="Weight">Error or warning, which paints the line's stripe.</param>
-public sealed record CanvasDiagnostic(CanvasNodeViewModel? Node, string Message, DiagnosticWeight Weight = DiagnosticWeight.Error)
+/// <param name="Line">The line in the open file a line with no node jumps the YAML tab to; zero for none.</param>
+public sealed record CanvasDiagnostic(CanvasNodeViewModel? Node, string Message, DiagnosticWeight Weight = DiagnosticWeight.Error, int Line = 0)
 {
-    public string Where => Node?.Id ?? "ruleset";
+    public string Where => Node?.Id ?? (Line > 0 ? "line " + Line.ToString(System.Globalization.CultureInfo.InvariantCulture) : "ruleset");
 
     /// <summary>The token the weight is painted in.</summary>
     public string Token => RuleDiagnostic.TokenFor(Weight);
@@ -167,6 +168,13 @@ public sealed partial class CanvasTabViewModel
             SelectedNodes.Clear();
             SelectedNodes.Add(node);
             FrameRequested?.Invoke();
+        }
+        else if (diagnostic is { Node: null, Line: > 0 } positioned)
+        {
+            ShowSource = true;
+            DockTab = 1;
+            SelectedLine = positioned.Line;
+            JumpRequested?.Invoke(positioned.Line);
         }
     }
 
@@ -361,6 +369,16 @@ public sealed partial class CanvasTabViewModel
             {
                 DiagnosticEntries.Add(new CanvasDiagnostic(node, diagnostic.Message, diagnostic.Weight));
                 filed.Add(diagnostic);
+            }
+        }
+
+        // An entry the loader dropped has no node; its error stands in for the loader's lines inside it.
+        if (composed?.Open is { } open && SelectedRuleset?.Id == open.Id && _session.Text.Length > 0)
+        {
+            foreach (DroppedEntry dropped in DroppedEntries.Of(_session.Text, open, composed.Report))
+            {
+                DiagnosticEntries.Add(new CanvasDiagnostic(null, dropped.Diagnostic.Message, DiagnosticWeight.Error, dropped.Line));
+                filed.UnionWith(dropped.Consumed);
             }
         }
 
