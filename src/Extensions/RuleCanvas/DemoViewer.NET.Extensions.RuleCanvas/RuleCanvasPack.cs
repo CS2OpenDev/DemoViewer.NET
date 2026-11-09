@@ -1,6 +1,7 @@
 #region
 
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
+using DemoViewer.NET.Extensions.RuleCanvas.Model.Live;
 using DemoViewer.NET.Extensions.RuleCanvas.Modules;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,6 +47,9 @@ public sealed class RuleCanvasPack : IExtension
 
     /// <inheritdoc />
     public IEnumerable<ExtensionFeature> Features => _features;
+
+    /// <summary>The one job the canvas queues: evaluating the drawn ruleset over the open demo.</summary>
+    public IEnumerable<ExtensionJobKind> JobKinds => [LiveValuesService.JobKind];
 
     /// <summary>
     ///     The hub: one strip tab whose rail lists every section that names <see cref="HubId" />. Order 6 sits
