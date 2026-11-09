@@ -29,14 +29,41 @@ public readonly record struct RulesetDocumentNodeKey(string Ruleset, string Id)
     /// <summary>What a define node's id starts with; a stat id cannot hold a dot, so the two never collide.</summary>
     public const string DefinePrefix = "define.";
 
+    /// <summary>What a <c>show:</c> node's id starts with: a table's name, or <c>scoreboard</c>.</summary>
+    public const string ShowPrefix = "show.";
+
+    /// <summary>The id of the one node that stands for the document's <c>params:</c> block.</summary>
+    public const string ParamsId = "params.";
+
+    /// <summary>The show node id of the scoreboard; a table is keyed by its own name.</summary>
+    public const string ScoreboardName = "scoreboard";
+
     /// <summary>Whether this key names a trigger-bodied <c>define:</c> rather than a stat or a highlight.</summary>
     public bool IsDefine => Id.StartsWith(DefinePrefix, StringComparison.Ordinal);
 
-    /// <summary>The define's name for a define key; the id itself otherwise.</summary>
-    public string Name => IsDefine ? Id[DefinePrefix.Length..] : Id;
+    /// <summary>Whether this key names a <c>show:</c> table or the scoreboard.</summary>
+    public bool IsShow => Id.StartsWith(ShowPrefix, StringComparison.Ordinal);
+
+    /// <summary>Whether this key names the document's <c>params:</c> block.</summary>
+    public bool IsParams => Id == ParamsId;
+
+    /// <summary>Whether this key is a show node for the scoreboard rather than a table.</summary>
+    public bool IsScoreboard => IsShow && Name == ScoreboardName;
+
+    /// <summary>The define's name, the table's name or <c>params</c> for those keys; the id itself otherwise.</summary>
+    public string Name => IsDefine ? Id[DefinePrefix.Length..] : IsShow ? Id[ShowPrefix.Length..] : IsParams ? "params" : Id;
 
     /// <summary>The key of the define <paramref name="name" /> declared by <paramref name="ruleset" />.</summary>
     public static RulesetDocumentNodeKey Define(string ruleset, string name) => new(ruleset, DefinePrefix + name);
+
+    /// <summary>The key of the <c>show:</c> table <paramref name="name" /> of <paramref name="ruleset" />.</summary>
+    public static RulesetDocumentNodeKey Show(string ruleset, string name) => new(ruleset, ShowPrefix + name);
+
+    /// <summary>The key of the scoreboard node of <paramref name="ruleset" />.</summary>
+    public static RulesetDocumentNodeKey Scoreboard(string ruleset) => Show(ruleset, ScoreboardName);
+
+    /// <summary>The key of the <c>params:</c> node of <paramref name="ruleset" />.</summary>
+    public static RulesetDocumentNodeKey Params(string ruleset) => new(ruleset, ParamsId);
 
     /// <summary>Formats as the qualified read an author would write from another ruleset.</summary>
     /// <returns>The <c>ruleset.id</c> form.</returns>

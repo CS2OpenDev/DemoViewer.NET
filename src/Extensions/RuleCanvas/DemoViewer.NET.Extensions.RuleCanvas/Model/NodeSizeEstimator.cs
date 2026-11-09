@@ -40,9 +40,19 @@ public static class NodeSizeEstimator
         return new Size(WidthOf(node), HeightOf(node));
     }
 
+    // The show template: a header, the chips, then one 22px row per column with its port, label and reference.
+    private const double ShowBaseWidth = 240;
+    private const double ColumnRowHeight = 22;
+
     public static double WidthOf(CanvasNodeViewModel node)
     {
         ArgumentNullException.ThrowIfNull(node);
+        if (node.IsShow)
+        {
+            int widest = Math.Max(node.Title.Length + 10, node.Columns.Max(c => (int?)(c.Label.Length + (c.ShowsStat ? c.Stat.Length + 3 : 0))) ?? 0);
+            return Math.Clamp(ShowBaseWidth + Math.Max(0, widest - 24) * 6.5, ShowBaseWidth, 420);
+        }
+
         if (node.IsScaffold)
         {
             string name = node.Id.StartsWith("enrich.", StringComparison.Ordinal) ? node.Id["enrich.".Length..] : node.Id;
@@ -69,7 +79,12 @@ public static class NodeSizeEstimator
             return ScaffoldHeight;
         }
 
-        int chipCount = node.Chips.Count + node.Defaults.Count;
+        if (node.IsShow)
+        {
+            return HeaderHeight + ChipRowHeight + Math.Max(1, node.Columns.Count) * ColumnRowHeight + 16;
+        }
+
+        int chipCount = node.Chips.Count + node.Defaults.Count + node.TextChips.Count + (node.HasUnrendered ? 1 : 0);
         double chips = chipCount == 0 ? 0 : ChipRowHeight * Math.Ceiling(chipCount / 3.0);
         double rows = Math.Max((node.Facets.Count + node.FixedRows.Count) * FacetRowHeight,
             Math.Max(node.Inputs.Count, node.Outputs.Count) * ConnectorHeight);

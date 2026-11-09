@@ -28,6 +28,10 @@ public sealed partial class InspectorViewModel : ObservableObject
     /// <summary>The kinds a highlight can be; the empty one is the default reel.</summary>
     public static IReadOnlyList<string> HighlightKindOptions { get; } = ["", "highlight", "funny", "lowlight", "hidden"];
 
+    /// <summary>Every grain the table registry knows; the one picked has to match the ruleset's <c>for:</c>.</summary>
+    public static IReadOnlyList<string> TableGrainOptions { get; } =
+        ["player_round", "player_match", "match", "team_round", "team_match", "player_event", "team_event", "match_event", "projectile"];
+
     private readonly Func<EditRequest, EditOutcome> _apply;
     private readonly Func<string, bool> _createRuleset;
     private readonly Action<RulesetDocumentNodeKey> _select;
@@ -56,7 +60,10 @@ public sealed partial class InspectorViewModel : ObservableObject
         Score = new InspectorFieldViewModel("score", "score", WriteNodeField);
         Group = new InspectorFieldViewModel("group", "group", WriteNodeField, hint: "highlights of one group supersede each other");
         HighlightKind = new InspectorFieldViewModel("kind", "kind", WriteNodeField, HighlightKindOptions);
-        NodeFields = [Id, Label, Title, Per, Gate, Format, Keep, Score, Group, HighlightKind];
+        ForEach = new InspectorFieldViewModel("for_each", "for each", WriteNodeField,
+            hint: "axes as key: value, value, separated by ;  the id must hold {key}; empty removes for_each");
+        TablePer = new InspectorFieldViewModel("per", "per", WriteNodeField, TableGrainOptions, "the table's grain, which must match the ruleset's for:");
+        NodeFields = [Id, Label, Title, Per, TablePer, Gate, Format, Keep, Score, Group, HighlightKind, ForEach];
 
         DocumentTitle = new InspectorFieldViewModel("title", "title", WriteDocumentField);
         Summary = new InspectorFieldViewModel("summary", "summary", WriteDocumentField);
@@ -84,6 +91,12 @@ public sealed partial class InspectorViewModel : ObservableObject
 
     public InspectorFieldViewModel HighlightKind { get; }
 
+    /// <summary>The <c>for_each:</c> axes of a stat or a highlight, as <c>key: value, value</c> lines; empty for none.</summary>
+    public InspectorFieldViewModel ForEach { get; }
+
+    /// <summary>A table's grain; the scoreboard and every other node hide it.</summary>
+    public InspectorFieldViewModel TablePer { get; }
+
     /// <summary>The node's fields in display order; each is visible only for the kinds that have it.</summary>
     public IReadOnlyList<InspectorFieldViewModel> NodeFields { get; }
 
@@ -97,6 +110,24 @@ public sealed partial class InspectorViewModel : ObservableObject
 
     /// <summary>The <c>use:</c> list as written.</summary>
     public ObservableCollection<string> Uses { get; } = [];
+
+    /// <summary>The <c>exports:</c> list as written; empty when the key is absent, which exports every entry.</summary>
+    public ObservableCollection<string> Exports { get; } = [];
+
+    /// <summary>The <c>use:</c> list in a line: <c>uses 2 rulesets: kast, player_stats</c>, or <c>uses no other ruleset</c>.</summary>
+    [ObservableProperty]
+    private string _usesSummary = "";
+
+    /// <summary>What the exports section says under its list: everything is exported, or only the listed ids.</summary>
+    [ObservableProperty]
+    private string _exportsNote = "";
+
+    [ObservableProperty]
+    private string _exportToAdd = "";
+
+    /// <summary>The heading over the entries list: the node's columns, or where an entry is surfaced.</summary>
+    [ObservableProperty]
+    private string _surfacingHeading = "SURFACING";
 
     /// <summary>The surfacing entries shown: the selected node's, or every one of the document.</summary>
     public ObservableCollection<ShowEntryViewModel> Entries { get; } = [];
@@ -214,6 +245,8 @@ public sealed partial class InspectorViewModel : ObservableObject
 
     public bool HasUses => Uses.Count > 0;
 
+    public bool HasExports => Exports.Count > 0;
+
     public bool CanDelete => CanEditNode && DeleteRefusal.Length == 0;
 
     public bool HasDeleteRefusal => DeleteRefusal.Length > 0;
@@ -269,11 +302,11 @@ public sealed partial class InspectorViewModel : ObservableObject
         NotifyShape();
     }
 
-    /// <summary>A define is a trigger, not a value, so <c>show:</c> has nothing to surface for it.</summary>
-    public bool CanSurfaceNode => CanEditNode && _node is { IsDefine: false };
+    /// <summary>A define is a trigger, not a value, so <c>show:</c> has nothing to surface for it; a show node is the surface.</summary>
+    public bool CanSurfaceNode => CanEditNode && _node is { IsDefine: false, IsShow: false, IsParams: false };
 
-    /// <summary>The surfacing block shows for an authorable stat or highlight; a define has none.</summary>
-    public bool ShowsSurfacing => IsNodeAuthorable && _node is { IsDefine: false };
+    /// <summary>The surfacing block shows for an authorable stat or highlight, and a show node's columns in its place.</summary>
+    public bool ShowsSurfacing => IsNodeAuthorable && _node is { IsDefine: false, IsParams: false };
 
     [RelayCommand]
     private void AddToScoreboard()
@@ -305,7 +338,7 @@ public sealed partial class InspectorViewModel : ObservableObject
             return;
         }
 
-        bool cascade = _showReferences > 0;
+        bool cascade = _showReferences > 0 && !node.IsShow;
         Apply(EditRequest.Of(t =>
         {
             if (cascade)
@@ -313,10 +346,35 @@ public sealed partial class InspectorViewModel : ObservableObject
                 t = RulesetEdits.RemoveShowReference(t, node.Id);
             }
 
-            return node.IsDefine ? RulesetEdits.RemoveDefine(t, node.Title)
+            return node.IsShow ? CanvasEditSemantics.RemoveShow(t, node)
+                : node.IsDefine ? RulesetEdits.RemoveDefine(t, node.Title)
                 : node.IsHighlight ? RulesetEdits.RemoveHighlight(t, node.Id)
                 : RulesetEdits.RemoveStat(t, node.Id);
         }, "delete " + node.Title));
+    }
+
+    [RelayCommand]
+    private void AddExport()
+    {
+        string id = ExportToAdd.Trim();
+        if (!IsEditable || id.Length == 0)
+        {
+            return;
+        }
+
+        if (Apply(EditRequest.Of(t => RulesetEdits.AddExport(t, id), "export " + id)).IsWritten)
+        {
+            ExportToAdd = "";
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveExport(string? id)
+    {
+        if (IsEditable && !string.IsNullOrEmpty(id))
+        {
+            Apply(EditRequest.Of(t => RulesetEdits.RemoveExport(t, id), "stop exporting " + id));
+        }
     }
 
     [RelayCommand]
@@ -355,19 +413,33 @@ public sealed partial class InspectorViewModel : ObservableObject
 
     private void ShowNode(CanvasNodeViewModel node)
     {
-        Heading = $"{node.KindLabel} {node.Title}";
+        Heading = node.IsShow && node.Key.IsScoreboard ? "SCOREBOARD" : node.IsShow ? $"TABLE {node.Title}" : $"{node.KindLabel} {node.Title}";
         NodeNote = node.IsScaffold ? "An engine node; nothing on it is written by a ruleset."
             : !node.IsAuthorable ? $"Declared by {node.Ruleset}; open that ruleset to edit it."
             : node.IsDefine ? "A named trigger; the stats that fire on it are wired from it."
+            : node.IsShow ? "A surface; wire a stat into it to add a column, remove a column's wire to drop it."
+            : node.IsParams ? "The params: block; each default is edited on the node, and the entries reading it are wired from it."
             : "";
+        SurfacingHeading = node.IsShow ? "COLUMNS" : "SURFACING";
         if (node.IsDefine)
         {
             ShowDefine(node);
             return;
         }
 
+        if (node.IsShow || node.IsParams)
+        {
+            ShowSurfaceNode(node);
+            return;
+        }
+
         bool stat = !node.IsHighlight;
+        // An expanded entry is edited through its template, which is where its keys are.
+        EntrySection section = RulesetEntryText.SectionOf(node.Key, node.IsHighlight);
+        string entryId = Try(() => RulesetEntryText.TemplateOf(_text, section, node.Id)) ?? node.Id;
         Id.Load(node.Id, IsNodeAuthorable);
+        TablePer.Load(null, false);
+        ForEach.Load(RulesetEdits.SpellForEach(Try(() => RulesetEdits.ForEachOf(_text, section, entryId)) ?? []), IsNodeAuthorable);
         Label.Load(stat ? Field(node.Id, "label") : null, stat && IsNodeAuthorable);
         Per.Load(stat ? Field(node.Id, "per") : HighlightField(node.Id, "per"), IsNodeAuthorable);
         Gate.Load(stat ? Field(node.Id, "while") : null, stat && IsNodeAuthorable);
@@ -405,6 +477,8 @@ public sealed partial class InspectorViewModel : ObservableObject
         Id.Load(name, IsNodeAuthorable);
         Label.Load(null, false);
         Per.Load(null, false);
+        TablePer.Load(null, false);
+        ForEach.Load(null, false);
         Gate.Load(Try(() => RulesetEdits.DefineField(_text, name, "while")), IsNodeAuthorable);
         Format.Load(null, false);
         Keep.Load(null, false);
@@ -425,11 +499,41 @@ public sealed partial class InspectorViewModel : ObservableObject
         DeleteLabel = "Delete";
     }
 
+    // A table has its grain and its columns; the scoreboard its entries; the params node nothing the
+    // Inspector edits, since each default is a row on the node. Neither has an id to rename.
+    private void ShowSurfaceNode(CanvasNodeViewModel node)
+    {
+        Id.Load(node.Title, false);
+        Label.Load(null, false);
+        Per.Load(null, false);
+        TablePer.Load(node.IsShow && !node.Key.IsScoreboard ? node.Per : null, node.IsShow && !node.Key.IsScoreboard && IsNodeAuthorable);
+        ForEach.Load(null, false);
+        Gate.Load(null, false);
+        Format.Load(null, false);
+        Keep.Load(null, false);
+        Title.Load(null, false);
+        Score.Load(null, false);
+        Group.Load(null, false);
+        HighlightKind.Load(null, false);
+        foreach (InspectorFieldViewModel field in NodeFields)
+        {
+            field.IsEditable = CanEditNode;
+        }
+
+        IReadOnlyList<ShowReference> columns = node.IsShow ? [.. node.Columns.Select(c => c.Reference)] : [];
+        Surfacing = node.IsShow ? columns.Count switch { 0 => "no columns yet; wire a stat in", 1 => "1 column", var n => $"{n} columns" } : "";
+        _showReferences = 0;
+        FillEntries(columns);
+        DeleteRefusal = node.IsParams ? "params: is removed in the YAML tab, with the reads that name it." : "";
+        DeleteLabel = node.IsShow && !node.Key.IsScoreboard ? "Delete table" : node.IsShow ? "Delete scoreboard" : "Delete";
+    }
+
     private void ShowDocument(RulesetCorpus.Entry? entry)
     {
         Heading = entry is null ? "No ruleset open" : "RULESET " + entry.Id;
         NodeNote = "";
         Surfacing = "";
+        SurfacingHeading = "SURFACING";
         _showReferences = 0;
         DeleteRefusal = "";
         DeleteLabel = "Delete";
@@ -447,6 +551,21 @@ public sealed partial class InspectorViewModel : ObservableObject
         {
             Uses.Add(use);
         }
+
+        UsesSummary = entry is null ? ""
+            : uses.Count == 0 ? "uses no other ruleset"
+            : $"uses {uses.Count} {(uses.Count == 1 ? "ruleset" : "rulesets")}: {string.Join(", ", uses)}";
+
+        Exports.Clear();
+        IReadOnlyList<string> exports = entry is null ? [] : Try(() => RulesetEdits.Exports(_text)) ?? [];
+        foreach (string export in exports)
+        {
+            Exports.Add(export);
+        }
+
+        ExportsNote = entry is null ? ""
+            : exports.Count == 0 ? "Every stat and highlight is exported; list ids here to make the rest private."
+            : "Only these can be read as " + entry.Id + ".<id> from other rulesets.";
 
         FillEntries([.. _surface.All]);
     }
@@ -470,7 +589,9 @@ public sealed partial class InspectorViewModel : ObservableObject
 
         EditRequest request = field.Key switch
         {
+            _ when node.IsShow || node.IsParams => CanvasEditSemantics.WriteField(node, field.Key, value),
             "id" => RenameRequest(node, value),
+            "for_each" => ForEachRequest(node, value),
             _ when node.IsDefine => CanvasEditSemantics.WriteDefineField(node, field.Key, value),
             "per" when value is null => EditRequest.Refuse("per cannot be empty; a stat is kept per round or per match."),
             _ when node.IsHighlight => EditRequest.Of(t => value is null
@@ -490,6 +611,29 @@ public sealed partial class InspectorViewModel : ObservableObject
             string id = renamed.Trim();
             _select(node.IsDefine ? RulesetDocumentNodeKey.Define(node.Ruleset, id) : new RulesetDocumentNodeKey(node.Ruleset, id));
         }
+    }
+
+    // The axes go on the entry the text declares: the node's own, or the template it was expanded from.
+    private EditRequest ForEachRequest(CanvasNodeViewModel node, string? value)
+    {
+        EntrySection section = RulesetEntryText.SectionOf(node.Key, node.IsHighlight);
+        string id = Try(() => RulesetEntryText.TemplateOf(_text, section, node.Id)) ?? node.Id;
+        if (value is null)
+        {
+            return EditRequest.Of(t => RulesetEdits.RemoveForEach(t, section, id), $"remove {id}.for_each");
+        }
+
+        IReadOnlyList<(string Key, IReadOnlyList<string> Values)> axes;
+        try
+        {
+            axes = RulesetEdits.ParseForEach(value);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return EditRequest.Refuse(ex.Message);
+        }
+
+        return EditRequest.Of(t => RulesetEdits.SetForEach(t, section, id, axes), $"set {id}.for_each");
     }
 
     private EditRequest RenameRequest(CanvasNodeViewModel node, string? value)
@@ -584,6 +728,7 @@ public sealed partial class InspectorViewModel : ObservableObject
         OnPropertyChanged(nameof(HasEntries));
         OnPropertyChanged(nameof(HasTables));
         OnPropertyChanged(nameof(HasUses));
+        OnPropertyChanged(nameof(HasExports));
         OnPropertyChanged(nameof(CanDelete));
         OnPropertyChanged(nameof(HasDeleteRefusal));
         DeleteCommand.NotifyCanExecuteChanged();

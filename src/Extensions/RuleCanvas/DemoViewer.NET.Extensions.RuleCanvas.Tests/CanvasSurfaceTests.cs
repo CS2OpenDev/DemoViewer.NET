@@ -21,7 +21,7 @@ public class CanvasSurfaceTests
         IReadOnlyList<GalleryGroup> gallery = CanvasGallery.Build(EmbeddedCatalog.Root);
         using (Assert.Multiple())
         {
-            await Assert.That(string.Join(",", gallery.Select(g => g.Title))).IsEqualTo("Prefabs,Highlights,Stats,Gates,Views");
+            await Assert.That(string.Join(",", gallery.Select(g => g.Title))).IsEqualTo("Prefabs,Highlights,Stats,Surfacing,Gates,Views");
             await Assert.That(gallery.Single(g => g.Title == "Stats").Items.Select(i => i.Name))
                 .IsEquivalentTo(["count", "sum", "capture", "flag", "compute", "tally", "streak", "bucket", "rate", "burst", "define"]);
             GalleryGroup views = gallery.Single(g => g.Title == "Views");

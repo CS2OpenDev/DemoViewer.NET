@@ -419,6 +419,16 @@ public partial class CanvasTabView : UserControl
 
     private void OnAddHighlightAt(object? sender, RoutedEventArgs e) => _viewModel?.AddHighlightAt(_menuAt);
 
+    // The unrendered-keys chip: the YAML tab comes to the front at the entry, so the keys are read where they are.
+    private void OnUnrenderedClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { DataContext: CanvasNodeViewModel node })
+        {
+            _viewModel?.JumpToYaml(node);
+            e.Handled = true;
+        }
+    }
+
     private void OnFit(object? sender, RoutedEventArgs e) => FitAll();
 
     // The node menu: the item's DataContext is the node under the pointer.

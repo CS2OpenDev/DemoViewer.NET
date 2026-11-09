@@ -24,7 +24,7 @@ public class NodeFaceTests
         NodeFace Face(string id) => faces.Single(f => f.Id == id);
         using (Assert.Multiple())
         {
-            await Assert.That(faces.Count).IsEqualTo(26).Because("eight declared nodes and the chain's eighteen engine nodes");
+            await Assert.That(faces.Count).IsEqualTo(27).Because("eight declared nodes, the chain's eighteen engine nodes and the player_round table");
             await Assert.That(Face("round_kills")).IsTypeOf<CountFace>();
             await Assert.That(Face("round_damage")).IsTypeOf<SumFace>();
             await Assert.That(Face("round_side")).IsTypeOf<CaptureFace>();
@@ -262,7 +262,7 @@ public class NodeFaceTests
             RulesetCorpus.Composed composed = corpus.Compose(entry.Id);
             IReadOnlyList<NodeFace> faces = NodeFaceBuilder.Build(composed);
             await Assert.That(faces.Select(f => f.Key).Distinct().Count()).IsEqualTo(faces.Count).Because(entry.Id + " keys are distinct");
-            await Assert.That(faces.Count(f => !f.IsScaffold)).IsEqualTo(composed.Graph.Nodes.Count).Because(entry.Id);
+            await Assert.That(faces.Count(f => !f.IsScaffold && !f.IsShow && !f.IsParams)).IsEqualTo(composed.Graph.Nodes.Count).Because(entry.Id);
             undeclared.AddRange(faces.OfType<UndeclaredFace>().Select(f => f.Key.ToString()));
         }
 

@@ -74,7 +74,7 @@ public class RulesetChainGraphTests
             await Assert.That(chain.Edges.Any(e => e.Source == e.Target)).IsFalse().Because("a round reset is not a wire");
             await Assert.That(chain.Nodes.Where(n => n.Kind == ChainNodeKind.External)).IsEmpty()
                 .Because("external state is where the walk stops; everything writes it");
-            await Assert.That(chain.Nodes.Count).IsEqualTo(26)
+            await Assert.That(chain.Nodes.Count(n => n.Kind is not (ChainNodeKind.Show or ChainNodeKind.Params))).IsEqualTo(26)
                 .Because("the Workbench's 18 non-root nodes plus eight events: the root's seven, and the three round ends "
                          + "that fire round_survived through the Alive guard merged into one round_ended, which also "
                          + "absorbs the cs_win_panel_match that ends MatchLive");
@@ -228,7 +228,7 @@ public class RulesetChainGraphTests
     {
         RulesetChainGraph chain = Compose("player_stats").Chain;
         int twins = chain.Nodes.Count(n => n.Kind == ChainNodeKind.Event && n.Events.Count > 1);
-        int wires = chain.Edges.Count(e => !e.IsGate);
+        int wires = chain.Edges.Count(e => !e.IsGate && !e.Target.IsShow && !e.Source.IsParams);
         Console.WriteLine($"[chain] player_stats nodes={chain.Nodes.Count} edges={chain.Edges.Count} wires={wires} merged-events={twins}");
         using (Assert.Multiple())
         {
@@ -414,7 +414,7 @@ public class RulesetChainGraphTests
         RulesetDocumentNode Node(string id) => composed.Graph.Nodes.Single(n => n.Key.Id == id);
         using (Assert.Multiple())
         {
-            await Assert.That(composed.Chain.Nodes).IsEmpty().Because("nothing lowered");
+            await Assert.That(composed.Chain.Nodes.All(n => n.Kind == ChainNodeKind.Show)).IsTrue().Because("nothing lowered; the table is drawn from the document");
             await Assert.That(composed.Graph.Nodes.Count).IsEqualTo(8).Because("every stats: entry of the document is still a node");
             await Assert.That(composed.Graph.Edges).IsEmpty().Because("no checked model, so no resolved read to draw");
             await Assert.That(composed.Diagnostics.Any(d => d.Contains("no_such_stat", StringComparison.Ordinal))).IsTrue();
@@ -446,7 +446,7 @@ public class RulesetChainGraphTests
         using (Assert.Multiple())
         {
             await Assert.That(corpus.Failures).IsEmpty().Because("the edit keeps the file loadable");
-            await Assert.That(composed.Chain.Nodes).IsEmpty().Because(string.Join("; ", composed.Diagnostics));
+            await Assert.That(composed.Chain.Nodes.All(n => n.Kind == ChainNodeKind.Show)).IsTrue().Because(string.Join("; ", composed.Diagnostics));
             await Assert.That(composed.Graph.Nodes.Count(n => n.Key.Ruleset == "player_stats")).IsGreaterThanOrEqualTo(50)
                 .Because("the open document's entries are all drawn");
             await Assert.That(composed.Graph.Nodes.Count(n => n.Key.Ruleset == "kast")).IsGreaterThanOrEqualTo(15)
@@ -534,7 +534,7 @@ public class RulesetChainGraphTests
         using (Assert.Multiple())
         {
             await Assert.That(composed.Diagnostics).IsEmpty();
-            await Assert.That(chain.Nodes.Count).IsEqualTo(25).Because("the 24 nodes the engine lowers plus the define");
+            await Assert.That(chain.Nodes.Count(n => n.Kind is not (ChainNodeKind.Show or ChainNodeKind.Params))).IsEqualTo(25).Because("the 24 nodes the engine lowers plus the define");
             await Assert.That(node.Kind).IsEqualTo(ChainNodeKind.Declared);
             await Assert.That(node.Name).IsEqualTo("ct_retake_kill");
             await Assert.That(node.IsPerPlayer).IsTrue().Because("it materializes with the stats that fire on it");
@@ -577,7 +577,7 @@ public class RulesetChainGraphTests
         using (Assert.Multiple())
         {
             await Assert.That(composed.Diagnostics).IsEmpty();
-            await Assert.That(chain.Nodes.Count).IsEqualTo(10).Because("nine lowered nodes plus the define");
+            await Assert.That(chain.Nodes.Count(n => n.Kind is not (ChainNodeKind.Show or ChainNodeKind.Params))).IsEqualTo(10).Because("nine lowered nodes plus the define");
             await Assert.That(chain.Edges.Count(e => e.Target == define && !e.IsRead && !e.IsGate)).IsEqualTo(1).Because("one event wire into the define");
             await Assert.That(chain.Edges.Count(e => e.Target == define && e.IsGate)).IsEqualTo(1);
             await Assert.That(chain.Edges.Where(e => e.Source == define).Select(e => (e.Target.Id, e.Label)))

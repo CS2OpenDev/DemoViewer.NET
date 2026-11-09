@@ -116,7 +116,7 @@ public sealed partial class CanvasTabViewModel
     }
 
     /// <summary>A run can be asked for while a demo is open and the drawn ruleset composes.</summary>
-    public bool CanRunLive => HasDemo && SelectedRuleset is not null && _composed is { } composed && composed.Chain.Nodes.Count > 0;
+    public bool CanRunLive => HasDemo && SelectedRuleset is not null && _composed is { } composed && composed.Chain.IsLowered;
 
     private void InitLive(LiveValuesHost? live)
     {
@@ -215,7 +215,7 @@ public sealed partial class CanvasTabViewModel
 
     private async Task RunLiveAsync()
     {
-        if (SelectedRuleset is not { } selected || _composed is not { } composed || composed.Chain.Nodes.Count == 0 || !HasDemo)
+        if (SelectedRuleset is not { } selected || _composed is not { } composed || !composed.Chain.IsLowered || !HasDemo)
         {
             return;
         }

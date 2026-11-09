@@ -145,7 +145,10 @@ public class CanvasTabViewModelPlayheadTests
     // One playhead update walks every badged node and wire of player_match with its dependencies, the
     // largest shipped canvas: a binary search each, and a string only where the fire shown changed.
     // Stepping the tick so most of them change every time.
+    // A Stopwatch budget belongs to the Budget tier: the standard lane runs on a shared box and must not
+    // fail on timing. Measured 0.32 ms alone and 1.05 ms during a four-way merge build.
     [Test]
+    [Category("Budget")]
     [NotInParallel]
     public async Task OnePlayheadUpdate_OverPlayerMatch_StaysUnderAMillisecond()
     {

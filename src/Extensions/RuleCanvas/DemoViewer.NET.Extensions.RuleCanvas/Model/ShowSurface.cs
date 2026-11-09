@@ -24,7 +24,14 @@ public sealed record ShowReference(string? Table, int Index, string Stat, string
 }
 
 /// <summary>One <c>tables:</c> entry: its name, its grain and its columns.</summary>
-public sealed record ShowTable(string Name, string Per, IReadOnlyList<ShowReference> Columns);
+public sealed record ShowTable(string Name, string Per, IReadOnlyList<ShowReference> Columns)
+{
+    /// <summary>An event table's <c>on:</c> trigger as the author spelled it; null on every other grain.</summary>
+    public string? On { get; init; }
+
+    /// <summary>The table's line in its file; zero when unknown.</summary>
+    public int SourceLine { get; init; }
+}
 
 /// <summary>
 ///     Which entries a ruleset's <c>show:</c> block surfaces and where, read from the loaded document so
@@ -79,11 +86,20 @@ public sealed class ShowSurface
                 columns.Add(new ShowReference(table.Name, i, column.Stat, column.Label, null));
             }
 
-            tables.Add(new ShowTable(table.Name, table.Per ?? "", columns));
+            tables.Add(new ShowTable(table.Name, table.Per ?? "", columns)
+            {
+                On = string.IsNullOrWhiteSpace(table.On) ? null : table.On, SourceLine = table.Position.Line
+            });
         }
 
-        return new ShowSurface(doc.Id, scoreboard, tables);
+        return new ShowSurface(doc.Id, scoreboard, tables) { ScoreboardLine = show.Position.Line };
     }
+
+    /// <summary>The line the <c>show:</c> block starts on, which is where the scoreboard node jumps to; zero when unknown.</summary>
+    public int ScoreboardLine { get; init; }
+
+    /// <summary>The table named <paramref name="name" />, or null.</summary>
+    public ShowTable? Table(string name) => Tables.FirstOrDefault(t => t.Name == name);
 
     /// <summary>Whether <paramref name="stat" /> as written in <c>show:</c> names the entry <paramref name="id" />.</summary>
     public static bool Refers(string stat, string id, string rulesetId)

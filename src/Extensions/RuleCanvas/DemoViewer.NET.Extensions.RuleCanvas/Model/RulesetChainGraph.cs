@@ -35,7 +35,13 @@ public enum ChainNodeKind
     External,
 
     /// <summary>Anything else the builder made.</summary>
-    Other
+    Other,
+
+    /// <summary>A <c>show:</c> table or the scoreboard of the open document, read from the entries it surfaces.</summary>
+    Show,
+
+    /// <summary>The open document's <c>params:</c> block, read by every entry whose text names a param.</summary>
+    Params
 }
 
 /// <summary>One node of the lowered chain.</summary>
@@ -76,6 +82,9 @@ public sealed record ChainEdge(RulesetDocumentNodeKey Source, RulesetDocumentNod
 
     /// <summary>A guard holding a write open rather than a write: drawn from the guard to the gated node, dashed.</summary>
     public bool IsGate { get; init; }
+
+    /// <summary>For a read into a show node, the index of the column the wire stands for; null elsewhere.</summary>
+    public int? Column { get; init; }
 }
 
 /// <summary>
@@ -98,6 +107,12 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
     /// </summary>
     public IReadOnlyDictionary<ChainEdge, IReadOnlyList<RuleGraphEdge>> EngineEdges { get; init; } =
         new Dictionary<ChainEdge, IReadOnlyList<RuleGraphEdge>>();
+
+    /// <summary>
+    ///     Whether the engine lowered anything here. A chain of show and params nodes alone is drawn from the
+    ///     document after a failed build, and nothing in it can run.
+    /// </summary>
+    public bool IsLowered => Nodes.Any(n => n.Kind is not (ChainNodeKind.Show or ChainNodeKind.Params));
 
     private const string TemplatePlayer = "each player";
 
@@ -515,9 +530,27 @@ public sealed record RulesetChainGraph(IReadOnlyList<ChainNode> Nodes, IReadOnly
         if (open is not null)
         {
             SpliceDefines(nodes, edges, open, stats, origins);
+            SpliceSurfaces(nodes, edges, open);
         }
 
         return new RulesetChainGraph(nodes, edges) { Diagnostics = graph.Diagnostics, EngineEdges = origins.Freeze(edges) };
+    }
+
+    /// <summary>
+    ///     The document blocks the engine has no node for: the params node ahead of the declared entries
+    ///     that read it, the show nodes after the entries they surface. Wires only to nodes already drawn.
+    /// </summary>
+    private static void SpliceSurfaces(List<ChainNode> nodes, List<ChainEdge> edges, RulesetDoc open)
+    {
+        HashSet<RulesetDocumentNodeKey> declared = [.. nodes.Where(n => n.Kind == ChainNodeKind.Declared).Select(n => n.Key)];
+        if (SurfaceNodes.ParamsNode(open) is { } parameters)
+        {
+            nodes.Insert(0, parameters);
+            edges.AddRange(SurfaceNodes.ParamsEdges(open, declared));
+        }
+
+        nodes.AddRange(SurfaceNodes.ShowNodes(open));
+        edges.AddRange(SurfaceNodes.ShowEdges(open, declared));
     }
 
     /// <summary>

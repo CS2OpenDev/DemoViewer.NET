@@ -34,16 +34,47 @@ public static class NodeFaceBuilder
 
         // The engine's own nodes come after the declared ones: the events, the enrichments and the context
         // values the chain runs through. A declared node the chain also names is the same node.
+        RulesetDoc? openDoc = composed.Open;
+        ShowSurface surface = ShowSurface.Of(openDoc);
         foreach (ChainNode node in composed.Chain.Nodes)
         {
-            if (node.Kind != ChainNodeKind.Declared && keys.Add(node.Key))
+            if (node.Kind == ChainNodeKind.Declared || !keys.Add(node.Key))
             {
-                faces.Add(new ScaffoldFace(node.Key, CanvasEditSemantics.ScaffoldKind(node.Kind), null, "", "", [], 0, false,
-                    node.Kind, node.Name, node.IsPerPlayer) { Events = node.Events, IsPerTeam = node.IsPerTeam, IsRoundFact = node.IsRoundFact });
+                continue;
+            }
+
+            switch (node.Kind)
+            {
+                case ChainNodeKind.Show when openDoc is not null:
+                    faces.Add(Show(node.Key, surface, [.. diagnostics[node.Key]]) with { Vocabulary = vocabulary });
+                    break;
+                case ChainNodeKind.Params when openDoc is not null:
+                    faces.Add(new ParamsFace(node.Key, ParamsFace.KindName, null, "", "", [.. diagnostics[node.Key]],
+                        openDoc.Params.Count > 0 ? openDoc.Params[0].Position.Line : 0, true, openDoc.Params) { Vocabulary = vocabulary });
+                    break;
+                default:
+                    faces.Add(new ScaffoldFace(node.Key, CanvasEditSemantics.ScaffoldKind(node.Kind), null, "", "", [], 0, false,
+                        node.Kind, node.Name, node.IsPerPlayer) { Events = node.Events, IsPerTeam = node.IsPerTeam, IsRoundFact = node.IsRoundFact });
+                    break;
             }
         }
 
         return faces;
+    }
+
+    /// <summary>The face of one show node: a table's columns and grain, or the scoreboard's entries.</summary>
+    public static ShowFace Show(RulesetDocumentNodeKey key, ShowSurface surface, IReadOnlyList<string> diagnostics)
+    {
+        ArgumentNullException.ThrowIfNull(surface);
+        if (key.IsScoreboard)
+        {
+            return new ShowFace(key, ShowFace.KindName, null, "", "", diagnostics, surface.ScoreboardLine, true,
+                RulesetDocumentNodeKey.ScoreboardName, null, surface.Scoreboard);
+        }
+
+        ShowTable? table = surface.Table(key.Name);
+        return new ShowFace(key, ShowFace.KindName, null, table?.Per ?? "", "", diagnostics, table?.SourceLine ?? 0, true,
+            key.Name, table?.On, table?.Columns ?? []);
     }
 
     /// <summary>The face of one declared node, from its document entry when the document holds one under its id.</summary>

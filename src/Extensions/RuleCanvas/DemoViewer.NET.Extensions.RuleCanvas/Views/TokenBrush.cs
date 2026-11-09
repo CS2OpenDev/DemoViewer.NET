@@ -103,6 +103,7 @@ public sealed class RuleKindToken : IValueConverter
         "flag" or "compute" => "RuleKindDerived",
         "highlight" => "RuleKindHighlight",
         "define" => "RuleKindDefine",
+        "show" or "params" => "RuleKindSurface",
         _ => "RuleKindStat"
     };
 

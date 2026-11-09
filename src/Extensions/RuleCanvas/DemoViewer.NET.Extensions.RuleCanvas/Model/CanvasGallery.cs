@@ -28,7 +28,10 @@ public enum GalleryItemKind
     ///     A named trigger; placed on the canvas as a new <c>define:</c> entry, or dropped on a stat to put a new
     ///     define, firing on the stat's own trigger, in front of it.
     /// </summary>
-    Define
+    Define,
+
+    /// <summary>A <c>show:</c> table; placed on the canvas as an empty table on the ruleset's grain, to wire stats into.</summary>
+    Table
 }
 
 /// <summary>One thing the gallery offers to drag.</summary>
@@ -170,6 +173,11 @@ public static class CanvasGallery
                     "burst: kill\nmatch: { enemy: true }\nwindow: \"3s\"\nmin_streak: 2"),
                 new GalleryItem(GalleryItemKind.Define, "define", "define",
                     "A named trigger: a view with its own match, while and where, that stats fire on.", "on: kill"),
+            ]),
+            new GalleryGroup("Surfacing",
+            [
+                new GalleryItem(GalleryItemKind.Table, "table", "Table",
+                    "An export table on the ruleset's grain, with no columns yet; wire a stat into it to add one.", "per: player_round\ncolumns: []")
             ]),
             new GalleryGroup("Gates", [.. engineGates, .. ownFlags], gateSections),
             new GalleryGroup("Views", views, viewSections, ExpandedByDefault: false)

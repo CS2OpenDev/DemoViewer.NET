@@ -40,6 +40,15 @@ public sealed class RulesetCorpus
         IReadOnlyList<(string RulesetId, int Line, string Message)> PositionedDiagnostics,
         RulesetChainGraph Chain)
     {
+        /// <summary>The id of the document composed, whose show: and params: blocks are drawn; null when nothing loaded.</summary>
+        public string? OpenId { get; init; }
+
+        /// <summary>The open document, or null when it is not among the documents.</summary>
+        public RulesetDoc? Open => OpenId is { } id && Documents.TryGetValue(id, out RulesetDoc? doc) ? doc : null;
+
+        /// <summary>Every key a redraw gives a node: the declared entries and the chain's own, scaffolds and surfaces alike.</summary>
+        public IEnumerable<RulesetDocumentNodeKey> DrawnKeys => Graph.Nodes.Select(n => n.Key).Concat(Chain.Nodes.Select(n => n.Key)).Distinct();
+
         /// <summary>
         ///     This composition cut down to one node's slice of the chain, or null when the key names no node
         ///     of it. Declared entries outside the slice are left out too, so the canvas draws the slice alone.
@@ -374,7 +383,7 @@ public sealed class RulesetCorpus
         if (!_docs.TryGetValue(id, out RulesetDoc? open))
         {
             return new Composed(RulesetDocumentGraph.Empty, new Dictionary<string, RulesetDoc>(StringComparer.Ordinal),
-                [$"{id} is not a loaded ruleset"], [], RulesetChainGraph.Empty);
+                [$"{id} is not a loaded ruleset"], [], RulesetChainGraph.Empty) { OpenId = id };
         }
 
         List<RulesetDoc> docs = [open];
@@ -456,7 +465,23 @@ public sealed class RulesetCorpus
             }
         }
 
-        return new Composed(graph, taking, diagnostics, positioned, chain);
+        // A build that failed, or never ran, still has the document's show: and params: blocks to draw.
+        if (chain.Nodes.Count == 0)
+        {
+            List<ChainNode> surfaces = [.. SurfaceNodes.ShowNodes(open)];
+            if (SurfaceNodes.ParamsNode(open) is { } parameters)
+            {
+                surfaces.Insert(0, parameters);
+            }
+
+            if (surfaces.Count > 0)
+            {
+                HashSet<RulesetDocumentNodeKey> declared = [.. graph.Nodes.Select(n => n.Key)];
+                chain = new RulesetChainGraph(surfaces, [.. SurfaceNodes.ParamsEdges(open, declared), .. SurfaceNodes.ShowEdges(open, declared)]);
+            }
+        }
+
+        return new Composed(graph, taking, diagnostics, positioned, chain) { OpenId = open.Id };
     }
 
     /// <summary>

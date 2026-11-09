@@ -87,7 +87,7 @@
                     </StackPanel>
 
                     <StackPanel Spacing="6" IsVisible="{Binding ShowsSurfacing}">
-                        <TextBlock Text="SURFACING" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" />
+                        <TextBlock Text="{Binding SurfacingHeading}" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" />
                         <TextBlock Text="{Binding Surfacing}" FontSize="11" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap" />
                         <ItemsControl ItemsSource="{Binding Entries}" ItemTemplate="{StaticResource EntryTemplate}" />
                         <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding CanSurfaceNode}">
@@ -142,8 +142,11 @@
 
                     <StackPanel Spacing="4">
                         <TextBlock Text="USES" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" Margin="0 0 0 4" />
-                        <TextBlock Text="No other ruleset is read." FontSize="11" Foreground="{DynamicResource TextDim}"
-                                   IsVisible="{Binding !HasUses}" />
+                        <!-- The use: list in one chip, which is what the strip would say about the document. -->
+                        <Border CornerRadius="9" Padding="7 1" HorizontalAlignment="Left" Margin="0 0 0 2"
+                                Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1">
+                            <TextBlock Text="{Binding UsesSummary}" FontSize="10" FontFamily="monospace" Foreground="{DynamicResource TextMid}" />
+                        </Border>
                         <ItemsControl ItemsSource="{Binding Uses}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="x:String">
@@ -164,6 +167,35 @@
                                      Padding="6 3" MinHeight="0">
                                 <TextBox.KeyBindings>
                                     <KeyBinding Gesture="Enter" Command="{Binding AddUseCommand}" />
+                                </TextBox.KeyBindings>
+                            </TextBox>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <!-- exports: an absent key exports everything; a list makes the rest private. -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="EXPORTS" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextDim}" Margin="0 0 0 4" />
+                        <TextBlock Text="{Binding ExportsNote}" FontSize="11" Foreground="{DynamicResource TextDim}" TextWrapping="Wrap" />
+                        <ItemsControl ItemsSource="{Binding Exports}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <DockPanel Margin="0 1">
+                                        <Button DockPanel.Dock="Right" Classes="ghost" Content="×" FontSize="11" Padding="4 0" MinHeight="0"
+                                                Command="{Binding $parent[ItemsControl].((vm:InspectorViewModel)DataContext).RemoveExportCommand}"
+                                                CommandParameter="{Binding}" ToolTip.Tip="Stop exporting this id" />
+                                        <TextBlock Text="{Binding}" FontSize="12" FontFamily="monospace"
+                                                   Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <DockPanel IsVisible="{Binding IsEditable}">
+                            <Button DockPanel.Dock="Right" Classes="ghost" Content="Export" FontSize="11" Padding="8 3" Margin="6 0 0 0"
+                                    Command="{Binding AddExportCommand}" ToolTip.Tip="Add a stat or highlight id other rulesets may read" />
+                            <TextBox Text="{Binding ExportToAdd}" Watermark="stat or highlight id" FontSize="12" FontFamily="monospace"
+                                     Padding="6 3" MinHeight="0">
+                                <TextBox.KeyBindings>
+                                    <KeyBinding Gesture="Enter" Command="{Binding AddExportCommand}" />
                                 </TextBox.KeyBindings>
                             </TextBox>
                         </DockPanel>

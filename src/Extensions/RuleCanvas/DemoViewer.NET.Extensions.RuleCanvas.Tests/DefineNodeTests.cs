@@ -310,7 +310,8 @@ public class DefineNodeTests
         IReadOnlyList<NodeFace> faces = NodeFaceBuilder.Build(composed);
         using (Assert.Multiple())
         {
-            await Assert.That(composed.Chain.Nodes).IsEmpty().Because("nothing lowered");
+            await Assert.That(composed.Chain.Nodes.All(n => n.Kind is ChainNodeKind.Show or ChainNodeKind.Params)).IsTrue()
+                .Because("nothing lowered; only the document's own show: and params: blocks are drawn");
             await Assert.That(composed.Graph.Nodes.Single(n => n.Key == key).View).IsEqualTo("kill").Because("the on: names a catalog view");
             await Assert.That(composed.Graph.Edges.Where(e => e.Source == key).Select(e => e.Target.Id)).IsEquivalentTo(["post_plant_kills", "kill_ticks"]);
             await Assert.That(faces.OfType<DefineFace>().Single().Gate).IsEqualTo("round.bomb.was_planted");

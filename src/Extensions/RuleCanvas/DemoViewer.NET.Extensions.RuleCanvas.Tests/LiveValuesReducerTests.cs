@@ -37,10 +37,15 @@ public class LiveValuesReducerTests
     public async Task EveryDrawnWire_NamesTheEngineEdgesItWasCutFrom()
     {
         RulesetChainGraph chain = Compose("player_round").Chain;
+        // Show and params wires come from the document, not the engine; they carry no track by design.
+        HashSet<RulesetDocumentNodeKey> surfaces = [.. chain.Nodes
+            .Where(n => n.Kind is ChainNodeKind.Show or ChainNodeKind.Params)
+            .Select(n => n.Key)];
+        IEnumerable<ChainEdge> lowered = chain.Edges.Where(e => !surfaces.Contains(e.Source) && !surfaces.Contains(e.Target));
         using (Assert.Multiple())
         {
-            await Assert.That(chain.Edges).IsNotEmpty();
-            await Assert.That(chain.Edges.Where(e => !chain.EngineEdges.ContainsKey(e))).IsEmpty().Because("a wire with no edge behind it could never carry a track");
+            await Assert.That(lowered).IsNotEmpty();
+            await Assert.That(lowered.Where(e => !chain.EngineEdges.ContainsKey(e))).IsEmpty().Because("a wire with no edge behind it could never carry a track");
             await Assert.That(chain.EngineEdges.Values.All(list => list.Count > 0)).IsTrue();
             await Assert.That(chain.EngineEdges.Values.SelectMany(l => l).Any(e => e.Descriptor.Edge is not null)).IsTrue()
                 .Because("the preview materialises the template, so its rows carry real engine edges");

@@ -65,12 +65,19 @@ public static class CanvasGraphBuilder
         // anything feeds or reads it. Scaffolds get theirs with their first wire.
         foreach (CanvasNodeViewModel node in nodes.Where(n => n.IsAuthorable && !n.IsScaffold))
         {
+            // A show node takes one read input per column, so each column's wire lands on its own row.
+            foreach (CanvasColumnViewModel column in node.Columns)
+            {
+                column.Port = new CanvasConnectorViewModel { Title = column.Label, Owner = node, Kind = PortKind.Read };
+                node.Inputs.Add(column.Port);
+            }
+
             foreach (PortKind kind in InputKindsOf(node))
             {
                 Input(node.Key, kind);
             }
 
-            if (!node.IsHighlight)
+            if (!node.IsHighlight && !node.IsShow)
             {
                 Output(node.Key);
             }
@@ -81,7 +88,11 @@ public static class CanvasGraphBuilder
         foreach (WireSpec spec in specs)
         {
             PortKind into = spec.IsGate ? PortKind.Gate : spec.IsRead ? PortKind.Read : spec.IsAnd || spec.IsOr ? PortKind.Logic : PortKind.Trigger;
-            wires.Add(new CanvasConnectionViewModel(Output(spec.Source), Input(spec.Target, into),
+            CanvasNodeViewModel target = byKey[spec.Target];
+            CanvasConnectorViewModel input = spec.Column is { } column && column < target.Columns.Count && target.Columns[column].Port is { } port
+                ? port
+                : Input(spec.Target, into);
+            wires.Add(new CanvasConnectionViewModel(Output(spec.Source), input,
                 spec.Text, spec.Condition, spec.IsRead, spec.IsGate, spec.IsAnd, spec.IsOr));
         }
 
@@ -143,6 +154,12 @@ public static class CanvasGraphBuilder
     public static IReadOnlyList<PortKind> InputKindsOf(CanvasNodeViewModel node)
     {
         ArgumentNullException.ThrowIfNull(node);
+        if (node.IsShow || node.IsParams)
+        {
+            // A show node's inputs are its columns, made by the builder; a params node reads nothing.
+            return [];
+        }
+
         if (node.IsDefine)
         {
             return [PortKind.Trigger, PortKind.Gate];

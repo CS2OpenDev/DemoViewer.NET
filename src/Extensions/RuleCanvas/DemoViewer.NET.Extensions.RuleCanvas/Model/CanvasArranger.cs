@@ -101,7 +101,7 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
 
         // A pending placement is spent by the first draw that holds its key; one that names no node drawn
         // here (a slice, a refused write) waits for the draw that does.
-        HashSet<RulesetDocumentNodeKey> drawn = [.. composed.Graph.Nodes.Select(n => n.Key)];
+        HashSet<RulesetDocumentNodeKey> drawn = [.. composed.DrawnKeys];
         foreach ((RulesetDocumentNodeKey key, Point at) in _pending.Where(p => drawn.Contains(p.Key)).ToList())
         {
             layout = layout.With(key, at);

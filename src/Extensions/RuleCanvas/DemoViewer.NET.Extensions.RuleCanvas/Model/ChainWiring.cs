@@ -18,6 +18,9 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 public sealed record WireSpec(RulesetDocumentNodeKey Source, RulesetDocumentNodeKey Target, string Text, string? Condition, bool IsRead,
     bool IsGate = false, bool IsAnd = false, bool IsOr = false)
 {
+    /// <summary>For a read into a show node, the column the wire stands for; null elsewhere.</summary>
+    public int? Column { get; init; }
+
     /// <summary>The same wire as a placement edge.</summary>
     public RulesetDocumentEdge AsEdge() => new(Source, Target, Text);
 }
@@ -34,30 +37,29 @@ public static class ChainWiring
         ArgumentNullException.ThrowIfNull(composed);
         ArgumentNullException.ThrowIfNull(drawn);
         List<WireSpec> wires = [];
-        if (composed.Chain.Edges.Count > 0)
+        // A chain of surface nodes alone (a failed build) carries no declared wires; the document's reads stand in.
+        if (!composed.Chain.IsLowered)
         {
-            foreach (ChainEdge edge in composed.Chain.Edges)
+            HashSet<(RulesetDocumentNodeKey, RulesetDocumentNodeKey)> seen = [];
+            foreach (RulesetDocumentEdge edge in composed.Graph.Edges)
             {
-                if (drawn.Contains(edge.Source) && drawn.Contains(edge.Target))
+                if (drawn.Contains(edge.Source) && drawn.Contains(edge.Target) && seen.Add((edge.Source, edge.Target)))
                 {
-                    // The connective classes are exclusive with read and gate, as WireText is.
-                    bool logic = !edge.IsRead && !edge.IsGate;
-                    wires.Add(new WireSpec(edge.Source, edge.Target, WireText(edge),
-                        string.IsNullOrWhiteSpace(edge.Condition) ? null : edge.Condition, edge.IsRead, edge.IsGate,
-                        logic && edge.Effect == EdgeEffect.Conjunction, logic && edge.Effect == EdgeEffect.Disjunction));
+                    // A define fires the stat; everything else in the document graph is a read.
+                    wires.Add(new WireSpec(edge.Source, edge.Target, edge.Reference, null, !edge.Source.IsDefine));
                 }
             }
-
-            return wires;
         }
 
-        HashSet<(RulesetDocumentNodeKey, RulesetDocumentNodeKey)> seen = [];
-        foreach (RulesetDocumentEdge edge in composed.Graph.Edges)
+        foreach (ChainEdge edge in composed.Chain.Edges)
         {
-            if (drawn.Contains(edge.Source) && drawn.Contains(edge.Target) && seen.Add((edge.Source, edge.Target)))
+            if (drawn.Contains(edge.Source) && drawn.Contains(edge.Target))
             {
-                // A define fires the stat; everything else in the document graph is a read.
-                wires.Add(new WireSpec(edge.Source, edge.Target, edge.Reference, null, !edge.Source.IsDefine));
+                // The connective classes are exclusive with read and gate, as WireText is.
+                bool logic = !edge.IsRead && !edge.IsGate;
+                wires.Add(new WireSpec(edge.Source, edge.Target, WireText(edge),
+                    string.IsNullOrWhiteSpace(edge.Condition) ? null : edge.Condition, edge.IsRead, edge.IsGate,
+                    logic && edge.Effect == EdgeEffect.Conjunction, logic && edge.Effect == EdgeEffect.Disjunction) { Column = edge.Column });
             }
         }
 
