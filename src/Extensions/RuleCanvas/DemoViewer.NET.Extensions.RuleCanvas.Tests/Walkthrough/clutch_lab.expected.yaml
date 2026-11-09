@@ -1,0 +1,39 @@
+ruleset: clutch_lab
+title: clutch lab
+for: each_player
+
+define:
+  clean_kill:
+    on: kill
+    while: round.active
+
+stats:
+  enemy_kills:
+    count: clean_kill
+    per: round
+    match: { enemy: true, headshot: true }
+    where: event.AttackerBlind == true
+  damage_dealt:
+    sum: event.DmgHealth
+    on: damage_dealt
+    match: { enemy: true }
+    per: round
+  impact:
+    flag:
+      when: "enemy_kills > 0 or damage_dealt > 0 or player.survived"
+    per: round
+highlights:
+  enemy_kills_highlight:
+    when: enemy_kills > 2
+    per: round
+    score: 70
+    title: "{player.name} clean clutch kills (round {round.number})"
+    kind: funny
+show:
+  tables:
+    new_table:
+      per: player_round
+      columns:
+        - { stat: enemy_kills, label: Clean kills }
+        - { stat: damage_dealt, label: Damage }
+        - { stat: impact, label: impact }
