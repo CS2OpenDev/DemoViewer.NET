@@ -1116,6 +1116,40 @@ public static class RulesetEdits
     /// <summary>The names under <c>show: tables:</c>, in document order.</summary>
     public static IReadOnlyList<string> TableNames(string text) => KeysUnder(RulesetDocumentEditor.Open(text).Document, _tables);
 
+    /// <summary>
+    ///     Renames the table <paramref name="oldName" />. Only the key moves: a table's name is its map key
+    ///     under <c>tables:</c>, and nothing else in the language refers to it.
+    /// </summary>
+    public static string RenameTable(string text, string oldName, string newName)
+    {
+        ArgumentNullException.ThrowIfNull(newName);
+        newName = newName.Trim();
+        if (!IsValidId(newName))
+        {
+            throw new InvalidOperationException($"'{newName}' is not a valid table name: letters, digits and underscores, not starting with a digit");
+        }
+
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        if (doc.FindKey(_tables.Key(oldName)) is not { } key)
+        {
+            throw new InvalidOperationException($"show: has no table named {oldName}");
+        }
+
+        if (oldName == newName)
+        {
+            return text;
+        }
+
+        if (doc.Find(_tables.Key(newName)) is not null)
+        {
+            throw new InvalidOperationException($"show: already has a table named {newName}");
+        }
+
+        (int start, int length) = doc.SpanOf(key);
+        return editor.Apply([new TextEdit(start, length, newName, $"rename table {oldName}")]).Text;
+    }
+
     /// <summary>The table grains the registry accepts for a ruleset's <c>for:</c>, the one a new table takes first.</summary>
     public static IReadOnlyList<string> TableGrainsFor(string? scope) => scope switch
     {

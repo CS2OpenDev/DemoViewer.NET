@@ -506,14 +506,15 @@ public sealed partial class InspectorViewModel : ObservableObject
         DeleteLabel = "Delete";
     }
 
-    // A table has its grain and its columns; the scoreboard its entries; the params node nothing the
-    // Inspector edits, since each default is a row on the node. Neither has an id to rename.
+    // A table has its name, its grain and its columns; the scoreboard its entries; the params node nothing
+    // the Inspector edits, since each default is a row on the node. Only the table has an id to rename.
     private void ShowSurfaceNode(CanvasNodeViewModel node)
     {
-        Id.Load(node.Title, false);
+        bool table = node.IsShow && !node.Key.IsScoreboard;
+        Id.Load(node.Title, table && IsNodeAuthorable);
         Label.Load(null, false);
         Per.Load(null, false);
-        TablePer.Load(node.IsShow && !node.Key.IsScoreboard ? node.Per : null, node.IsShow && !node.Key.IsScoreboard && IsNodeAuthorable);
+        TablePer.Load(table ? node.Per : null, table && IsNodeAuthorable);
         ForEach.Load(null, false);
         Gate.Load(null, false);
         Format.Load(null, false);
@@ -596,6 +597,7 @@ public sealed partial class InspectorViewModel : ObservableObject
 
         EditRequest request = field.Key switch
         {
+            "id" when node.IsShow && !node.Key.IsScoreboard => RenameTableRequest(node, value),
             _ when node.IsShow || node.IsParams => CanvasEditSemantics.WriteField(node, field.Key, value),
             "id" => RenameRequest(node, value),
             "for_each" => ForEachRequest(node, value),
@@ -616,7 +618,9 @@ public sealed partial class InspectorViewModel : ObservableObject
         if (field.Key == "id" && !request.IsRefused && value is { } wanted)
         {
             string id = wanted.Trim();
-            renamedKey = node.IsDefine ? RulesetDocumentNodeKey.Define(node.Ruleset, id) : new RulesetDocumentNodeKey(node.Ruleset, id);
+            renamedKey = node.IsDefine ? RulesetDocumentNodeKey.Define(node.Ruleset, id)
+                : node.IsShow ? RulesetDocumentNodeKey.Show(node.Ruleset, id)
+                : new RulesetDocumentNodeKey(node.Ruleset, id);
             _renaming?.Invoke(node.Key, renamedKey.Value);
         }
 
@@ -649,6 +653,23 @@ public sealed partial class InspectorViewModel : ObservableObject
         }
 
         return EditRequest.Of(t => RulesetEdits.SetForEach(t, section, id, axes), $"set {id}.for_each");
+    }
+
+    // A table's name is its show: key alone; the sidecar position follows through the same carry an entry's does.
+    private EditRequest RenameTableRequest(CanvasNodeViewModel node, string? value)
+    {
+        string wanted = (value ?? "").Trim();
+        if (!RulesetEdits.IsValidId(wanted))
+        {
+            return EditRequest.Refuse($"'{wanted}' is not a valid table name: letters, digits and underscores, not starting with a digit.");
+        }
+
+        if (wanted != node.Title && (Try(() => RulesetEdits.TableNames(_text)) ?? []).Contains(wanted, StringComparer.Ordinal))
+        {
+            return EditRequest.Refuse($"show: already has a table named {wanted}.");
+        }
+
+        return EditRequest.Of(t => RulesetEdits.RenameTable(t, node.Title, wanted), $"rename table {node.Title} to {wanted}");
     }
 
     private EditRequest RenameRequest(CanvasNodeViewModel node, string? value)
