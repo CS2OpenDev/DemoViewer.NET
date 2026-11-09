@@ -150,4 +150,45 @@ public class CanvasKeyFocusTests
             window.Close();
         });
     }
+
+    [Test]
+    public async Task WithFocusOutsideTheCanvas_AClickOnANodeHandsTheKeysToTheEditor()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using RulesTree rules = RulesTree.WithUser("player_round");
+            CanvasTabViewModel vm = rules.NewViewModel();
+            vm.OnActivated(null!);
+            CanvasTabView view = new() { DataContext = vm };
+            TextBox outside = new() { Width = 200 };
+            DockPanel host = new();
+            DockPanel.SetDock(outside, Dock.Top);
+            host.Children.Add(outside);
+            host.Children.Add(view);
+            Window window = new() { Width = 1600, Height = 900, Content = host };
+            window.Show();
+            Pump();
+            NodifyEditor editor = view.GetVisualDescendants().OfType<NodifyEditor>().First();
+            CanvasNodeViewModel kills = vm.Nodes.Single(n => n.Id == "round_kills");
+            editor.ViewportZoom = 1;
+            editor.ViewportLocation = new Point(kills.Location.X - 100, kills.Location.Y - 100);
+            Pump();
+            outside.Focus();
+            Point at = Header(editor, window, kills);
+            window.MouseMove(at);
+            window.MouseDown(at, MouseButton.Left);
+            window.MouseUp(at, MouseButton.Left);
+            Pump();
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.SelectedNodes).Contains(kills);
+                await Assert.That(editor.IsKeyboardFocusWithin).IsTrue().Because("focus after the click: " + Focused(window));
+            }
+
+            window.KeyPressQwerty(PhysicalKey.D, RawInputModifiers.Meta);
+            Pump();
+            await Assert.That(vm.Nodes.Any(n => n.Id == "round_kills_copy")).IsTrue();
+            window.Close();
+        });
+    }
 }
