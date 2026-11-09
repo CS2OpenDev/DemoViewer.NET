@@ -338,14 +338,21 @@ public static class RulesetEdits
     private static YamlPath HighlightPath(string id) => _highlights.Key(id);
 
     // A key with nothing after its colon parses as an empty scalar with no width, at the start of the next
-    // line; a splice there lands inside the next key. A placeholder after the colon gives it a span to replace.
+    // line; a splice there lands inside the next key. An empty "" keeps its quotes through a splice. Either is
+    // swapped for a plain placeholder first, so the value lands on the key's line and is quoted only if it must be.
     private static string Unblanked(string text, YamlPath path)
     {
         YamlDocumentText doc = RulesetDocumentEditor.Open(text).Document;
-        if (doc.Find(path) is not YamlScalarNode { Style: ScalarStyle.Plain, Value: null or "" } blank
-            || doc.SpanOf(blank).Length > 0 || doc.FindKey(path) is not { } key)
+        if (doc.Find(path) is not YamlScalarNode { Value: null or "", Style: ScalarStyle.Plain or ScalarStyle.DoubleQuoted or ScalarStyle.SingleQuoted } blank
+            || doc.FindKey(path) is not { } key)
         {
             return text;
+        }
+
+        (int start, int length) = doc.SpanOf(blank);
+        if (length > 0)
+        {
+            return text.Remove(start, length).Insert(start, "_");
         }
 
         int colon = doc.EndOf(key);

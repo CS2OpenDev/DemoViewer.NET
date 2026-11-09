@@ -236,6 +236,15 @@ public class CanvasPrimitivesTests
     }
 
     [Test]
+    public async Task SettingAnEmptyQuotedValue_WritesThePlainValue()
+    {
+        const string text = Header + "stats:\n  a:\n    per: round\n    count: \"\"\nhighlights:\n  h:\n    when: ''\n    title: t\n";
+        string written = RulesetEdits.SetField(text, "a", "count", "kill");
+        written = RulesetEdits.SetHighlightField(written, "h", "when", "a > 0");
+        await Assert.That(written).IsEqualTo(Header + "stats:\n  a:\n    per: round\n    count: kill\nhighlights:\n  h:\n    when: a > 0\n    title: t\n");
+    }
+
+    [Test]
     public async Task AStatWiredIntoABlankWhen_WritesTheFirstRow_AndTheWireEditorSetsIt()
     {
         (RulesTree rules, CanvasTabViewModel vm) = Open();
