@@ -545,12 +545,11 @@ public sealed partial class CanvasNodeViewModel : ObservableObject, ILiveBadge
             return;
         }
 
+        // Off before the write: the redraw takes the focused box away, and its lost-focus commit must find nothing to do.
+        IsEditingTitle = false;
         string text = TitleText.Trim();
         TitleError = text == Title ? "" : _rename(text);
-        if (TitleError.Length == 0)
-        {
-            IsEditingTitle = false;
-        }
+        IsEditingTitle = TitleError.Length > 0;
     }
 
     [RelayCommand]

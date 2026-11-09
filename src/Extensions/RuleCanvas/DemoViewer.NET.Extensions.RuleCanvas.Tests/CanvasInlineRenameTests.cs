@@ -144,6 +144,31 @@ public class CanvasInlineRenameTests
 
             ContextMenu menu = ((Control)editor.ContainerFromItem(kills)!).ContextMenu!;
             await Assert.That(menu.Items.OfType<MenuItem>().Any(m => m.Header as string == "Rename")).IsTrue();
+
+            string before = File.ReadAllText(rules.UserPath("player_round"));
+            // A press elsewhere first, so the headless clock does not count these as the third and fourth click.
+            window.MouseDown(new Point(4, 4), MouseButton.Left);
+            window.MouseUp(new Point(4, 4), MouseButton.Left);
+            window.MouseMove(at);
+            window.MouseDown(at, MouseButton.Left);
+            window.MouseUp(at, MouseButton.Left);
+            window.MouseDown(at, MouseButton.Left);
+            window.MouseUp(at, MouseButton.Left);
+            Pump();
+            await Assert.That(kills.ShowTitleEditor).IsTrue();
+            box.Text = "enemy_kills";
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Pump();
+            string text = File.ReadAllText(rules.UserPath("player_round"));
+            using (Assert.Multiple())
+            {
+                await Assert.That(RulesetEdits.StatIds(text)).Contains("enemy_kills").Because("Enter in the box renamed the entry");
+                await Assert.That(vm.EditStatus).IsEmpty().Because("the redraw that took the box away did not commit a second time");
+                await Assert.That(vm.Toast).IsNull();
+            }
+
+            vm.UndoCommand.Execute(null);
+            await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).IsEqualTo(before).Because("one Undo restores the old name");
             window.Close();
         });
     }
