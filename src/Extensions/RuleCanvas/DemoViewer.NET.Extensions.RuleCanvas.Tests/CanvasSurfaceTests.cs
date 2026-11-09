@@ -82,6 +82,41 @@ public class CanvasSurfaceTests
         await Assert.That(vm.IsGallerySearching).IsFalse();
     }
 
+    // The strip is one row and full at 1600 px; the view says when it is narrower, and the status drops to the
+    // node count alone until it widens again. A redraw while narrow keeps the short form.
+    [Test]
+    public async Task TheStatus_KeepsTheNodeCountAlone_WhileTheStripIsNarrow()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        int nodes = vm.Nodes.Count;
+        int wires = vm.Connections.Count;
+        string full = vm.Status;
+        using (Assert.Multiple())
+        {
+            await Assert.That(full).IsEqualTo($"{nodes} nodes, {wires} wires").Because("unwired entries are diagnostics, not a strip number");
+        }
+
+        vm.IsStripNarrow = true;
+        await Assert.That(vm.Status).IsEqualTo($"{nodes} nodes");
+
+        vm.FocusKey = vm.Nodes.Single(n => n.Id == "round_kills").Key;
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Status).IsEqualTo($"{vm.Nodes.Count} nodes").Because("a redraw while narrow stays short");
+            await Assert.That(vm.Nodes.Count).IsLessThan(nodes);
+        }
+
+        vm.FocusKey = null;
+        vm.IsStripNarrow = false;
+        await Assert.That(vm.Status).IsEqualTo(full);
+
+        vm.SelectedRuleset = null;
+        vm.IsStripNarrow = true;
+        await Assert.That(vm.Status).IsEqualTo(full).Because("with nothing drawn there is no count to reword; the last words stay");
+    }
+
     [Test]
     public async Task AddItem_PlacesUnderTheAuthoredNodes_AndQuickStartsPlaceTheirItems()
     {

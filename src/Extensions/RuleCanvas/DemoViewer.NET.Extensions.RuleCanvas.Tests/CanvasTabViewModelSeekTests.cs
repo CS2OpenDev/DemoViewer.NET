@@ -17,6 +17,37 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 /// </summary>
 public class CanvasTabViewModelSeekTests
 {
+    // The next and previous headers end in the key that does the same on the selection, after the gap the
+    // gesture column would leave; a KeyGesture has no name for the bracket keys.
+    private static string Next(string header) => LiveValuesText.WithKeyHint(header, CanvasSeekMenuViewModel.NextKey);
+
+    private static string Previous(string header) => LiveValuesText.WithKeyHint(header, CanvasSeekMenuViewModel.PreviousKey);
+
+    [Test]
+    public async Task TheSeekHeaders_EndInTheBracketKey_AndTheFirstFireHasNone()
+    {
+        CanvasSeekMenuViewModel menu = new();
+        using (Assert.Multiple())
+        {
+            await Assert.That(menu.NextText).IsEqualTo("Next fire        ]");
+            await Assert.That(menu.PreviousText).IsEqualTo("Previous fire        [");
+            await Assert.That(menu.FirstText).IsEqualTo("First fire");
+            await Assert.That(LiveValuesText.WithKeyHint("Next fire (no run yet)", "]")).IsEqualTo("Next fire (no run yet)        ]")
+                .Because("the reason stays in the header; the key rides after it");
+            await Assert.That(CanvasSeekMenuViewModel.NextKey).IsEqualTo("]");
+            await Assert.That(CanvasSeekMenuViewModel.PreviousKey).IsEqualTo("[");
+        }
+
+        menu.Set("Next event", true, "Previous event (no demo open)", false, "First fire (events are not tracked)", false);
+        using (Assert.Multiple())
+        {
+            await Assert.That(menu.NextText).IsEqualTo("Next event        ]");
+            await Assert.That(menu.PreviousText).IsEqualTo("Previous event (no demo open)        [");
+            await Assert.That(menu.FirstText).IsEqualTo("First fire (events are not tracked)");
+            await Assert.That(menu.CanPrevious).IsFalse();
+        }
+    }
+
     [Test]
     public async Task NextPreviousAndFirst_SeekTheShell_FromThePlayhead()
     {
@@ -87,7 +118,7 @@ public class CanvasTabViewModelSeekTests
         vm.RefreshSeekMenu(kills);
         using (Assert.Multiple())
         {
-            await Assert.That(kills.SeekMenu.NextText).IsEqualTo("Next fire (no run yet)");
+            await Assert.That(kills.SeekMenu.NextText).IsEqualTo(Next("Next fire (no run yet)"));
             await Assert.That(kills.SeekMenu.CanNext).IsFalse();
             await Assert.That(kills.SeekMenu.CanPrevious).IsFalse();
             await Assert.That(kills.SeekMenu.FirstText).IsEqualTo("First fire (no run yet)");
@@ -98,9 +129,9 @@ public class CanvasTabViewModelSeekTests
         vm.RefreshSeekMenu(kills);
         using (Assert.Multiple())
         {
-            await Assert.That(kills.SeekMenu.NextText).IsEqualTo("Next fire (none after tick 900)");
+            await Assert.That(kills.SeekMenu.NextText).IsEqualTo(Next("Next fire (none after tick 900)"));
             await Assert.That(kills.SeekMenu.CanNext).IsFalse();
-            await Assert.That(kills.SeekMenu.PreviousText).IsEqualTo("Previous fire");
+            await Assert.That(kills.SeekMenu.PreviousText).IsEqualTo(Previous("Previous fire"));
             await Assert.That(kills.SeekMenu.CanPrevious).IsTrue();
             await Assert.That(kills.SeekMenu.FirstText).IsEqualTo("First fire");
             await Assert.That(kills.SeekMenu.CanFirst).IsTrue();
@@ -108,19 +139,19 @@ public class CanvasTabViewModelSeekTests
 
         shell.MoveTo(100);
         vm.RefreshSeekMenu(kills);
-        await Assert.That(kills.SeekMenu.PreviousText).IsEqualTo("Previous fire (none before tick 100)");
+        await Assert.That(kills.SeekMenu.PreviousText).IsEqualTo(Previous("Previous fire (none before tick 100)"));
 
         CanvasNodeViewModel damage = LiveCanned.Node(vm, "round_damage");
         vm.RefreshSeekMenu(damage);
-        await Assert.That(damage.SeekMenu.NextText).IsEqualTo("Next fire (no data)").Because("the run says nothing about it");
+        await Assert.That(damage.SeekMenu.NextText).IsEqualTo(Next("Next fire (no data)")).Because("the run says nothing about it");
 
         CanvasConnectionViewModel gate = LiveCanned.GateInto(vm, "round_deaths");
         shell.MoveTo(300);
         vm.RefreshSeekMenu(gate);
         using (Assert.Multiple())
         {
-            await Assert.That(gate.SeekMenu.NextText).IsEqualTo("Next fire");
-            await Assert.That(gate.SeekMenu.PreviousText).IsEqualTo("Previous fire (none before tick 300)");
+            await Assert.That(gate.SeekMenu.NextText).IsEqualTo(Next("Next fire"));
+            await Assert.That(gate.SeekMenu.PreviousText).IsEqualTo(Previous("Previous fire (none before tick 300)"));
         }
 
         vm.SelectedInstance = vm.Instances.Single(i => i.Name == "Bob");
@@ -147,7 +178,7 @@ public class CanvasTabViewModelSeekTests
         vm.RefreshSeekMenu(kills);
         using (Assert.Multiple())
         {
-            await Assert.That(kills.SeekMenu.NextText).IsEqualTo("Next fire (sampled)");
+            await Assert.That(kills.SeekMenu.NextText).IsEqualTo(Next("Next fire (sampled)"));
             await Assert.That(kills.SeekMenu.CanNext).IsTrue();
             await Assert.That(kills.SeekMenu.FirstText).IsEqualTo("First fire (sampled)");
         }
@@ -166,7 +197,7 @@ public class CanvasTabViewModelSeekTests
         vm.NextFireCommand.Execute(kills);
         using (Assert.Multiple())
         {
-            await Assert.That(kills.SeekMenu.NextText).IsEqualTo("Next fire (no demo open)");
+            await Assert.That(kills.SeekMenu.NextText).IsEqualTo(Next("Next fire (no demo open)"));
             await Assert.That(kills.SeekMenu.CanNext).IsFalse();
             await Assert.That(kills.SeekMenu.CanFirst).IsFalse();
             await Assert.That(shell.Seeks).IsEmpty();
@@ -184,9 +215,9 @@ public class CanvasTabViewModelSeekTests
         using (Assert.Multiple())
         {
             await Assert.That(death.Events).IsEquivalentTo(["player_death"]);
-            await Assert.That(death.SeekMenu.NextText).IsEqualTo("Next event");
+            await Assert.That(death.SeekMenu.NextText).IsEqualTo(Next("Next event"));
             await Assert.That(death.SeekMenu.CanNext).IsTrue();
-            await Assert.That(death.SeekMenu.PreviousText).IsEqualTo("Previous event");
+            await Assert.That(death.SeekMenu.PreviousText).IsEqualTo(Previous("Previous event"));
             await Assert.That(death.SeekMenu.FirstText).IsEqualTo("First fire (events are not tracked)");
             await Assert.That(death.SeekMenu.CanFirst).IsFalse();
         }
@@ -205,6 +236,6 @@ public class CanvasTabViewModelSeekTests
         bare.OnActivated(null!);
         CanvasNodeViewModel noHost = bare.Nodes.Single(n => n.IsScaffold && n.Id == "player_death");
         bare.RefreshSeekMenu(noHost);
-        await Assert.That(noHost.SeekMenu.NextText).IsEqualTo("Next event (no host navigator)");
+        await Assert.That(noHost.SeekMenu.NextText).IsEqualTo(Next("Next event (no host navigator)"));
     }
 }

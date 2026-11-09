@@ -211,4 +211,27 @@ public class LiveValuesTextTests
             await Assert.That(new CanvasConnectionViewModel(a, b, isOr: true).LiveKind).IsEqualTo(LiveWireKind.Logic);
         }
     }
+
+    // The hover panel leads with what the label says; the engine's lowering is a second line only when it
+    // reads differently, so a wire whose label already spells the test says it once.
+    [Test]
+    public async Task AWiresEngineLine_IsTheLowering_OnlyWhenItDiffersFromTheLabel()
+    {
+        CanvasConnectorViewModel a = new() { Title = "a" };
+        CanvasConnectorViewModel b = new() { Title = "b" };
+        using (Assert.Multiple())
+        {
+            await Assert.That(new CanvasConnectionViewModel(a, b, "and round_kills > 2", "value > 2", isAnd: true).EngineLine).IsEqualTo("engine: value > 2");
+            await Assert.That(new CanvasConnectionViewModel(a, b, "and value > 2", "value > 2", isAnd: true).EngineLine).IsEmpty()
+                .Because("the label already spells the lowering");
+            await Assert.That(new CanvasConnectionViewModel(a, b, "or value>2", "value > 2", isOr: true).HasEngineLine).IsFalse()
+                .Because("whitespace is not a difference");
+            await Assert.That(new CanvasConnectionViewModel(a, b, "while match.live", "match.live", isGate: true).HasEngineLine).IsFalse();
+            await Assert.That(new CanvasConnectionViewModel(a, b, "while round.number > 0", "RoundNumber > 0", isGate: true).EngineLine).IsEqualTo("engine: RoundNumber > 0");
+            await Assert.That(new CanvasConnectionViewModel(a, b, "player_death", "enemy: true; where enrich.kill.was_enemy_kill == true").EngineLine)
+                .IsEqualTo("engine: enemy: true; where enrich.kill.was_enemy_kill == true").Because("a trigger's facets are the engine's, not the label's");
+            await Assert.That(new CanvasConnectionViewModel(a, b, "reads", null, isRead: true).HasEngineLine).IsFalse().Because("no condition, no line");
+            await Assert.That(new CanvasConnectionViewModel(a, b, "reads", null, isRead: true).HasText).IsTrue();
+        }
+    }
 }

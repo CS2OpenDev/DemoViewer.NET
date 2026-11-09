@@ -536,11 +536,13 @@ public static class RulesetEdits
     ///     Renames a define and rewrites every stat whose trigger key spells it, and every reference token to
     ///     it in the sibling expressions and titles <see cref="RenameStat" /> rewrites. Only the tokens move.
     /// </summary>
-    public static string RenameDefine(string text, string oldName, string newName)
+    public static string RenameDefine(string text, string oldName, string newName) => RenameDefineAs(text, oldName, newName, allowHoles: false);
+
+    private static string RenameDefineAs(string text, string oldName, string newName, bool allowHoles)
     {
         ArgumentNullException.ThrowIfNull(newName);
         newName = newName.Trim();
-        if (!IsValidId(newName))
+        if (!(allowHoles ? IsValidTemplateId(newName) : IsValidId(newName)))
         {
             throw new InvalidOperationException($"'{newName}' is not a valid id: letters, digits and underscores, not starting with a digit");
         }
@@ -565,6 +567,7 @@ public static class RulesetEdits
         string ruleset = (doc.Find(YamlPath.Root.Key("ruleset")) as YamlScalarNode)?.Value ?? "";
         (int start, int length) = doc.SpanOf(key);
         List<TextEdit> edits = [new TextEdit(start, length, newName, $"rename {oldName}")];
+        List<string> referrers = [];
         foreach (string id in KeysUnder(doc, _stats))
         {
             foreach (string trigger in _triggerKeys)
@@ -573,11 +576,15 @@ public static class RulesetEdits
                 if (doc.Find(site) is YamlScalarNode { Value: { } value } && value.Trim() == oldName)
                 {
                     edits.Add(YamlEdits.SetScalar(doc, site, newName));
+                    if (!referrers.Contains(id))
+                    {
+                        referrers.Add(id);
+                    }
                 }
             }
         }
 
-        foreach ((_, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: false))
+        foreach ((string owner, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: false))
         {
             if (doc.Find(site) is YamlScalarNode { Value: { } value } && !_triggerKeys.Contains(site.Segments[^1].Key))
             {
@@ -585,8 +592,18 @@ public static class RulesetEdits
                 if (rewritten != value)
                 {
                     edits.Add(YamlEdits.SetScalar(doc, site, rewritten));
+                    if (!referrers.Contains(owner))
+                    {
+                        referrers.Add(owner);
+                    }
                 }
             }
+        }
+
+        // A template declares its expansions, not itself, so a stat firing on it would fire on nothing.
+        if (referrers.Count > 0 && newName.Contains('{'))
+        {
+            throw new InvalidOperationException($"{oldName} is fired on or read by {string.Join(", ", referrers)}; a template has no name to fire on, so retarget them first");
         }
 
         return editor.Apply(edits).Text;
@@ -625,6 +642,92 @@ public static class RulesetEdits
     public static string RenameHighlight(string text, string oldId, string newId) => Rename(text, _highlights, oldId, newId, "highlight");
 
     /// <summary>
+    ///     Renames an entry of <paramref name="section" /> as <see cref="RenameStat" />, <see cref="RenameHighlight" />
+    ///     or <see cref="RenameDefine" /> would, but to a template id too: <c>kills_{weapon}</c>, the shape a
+    ///     <c>for_each:</c> needs. The holes are kept as text in every rewritten reference.
+    /// </summary>
+    public static string RenameEntry(string text, EntrySection section, string oldId, string newId) => section switch
+    {
+        EntrySection.Highlight => Rename(text, _highlights, oldId, newId, "highlight", allowHoles: true),
+        EntrySection.Define => RenameDefineAs(text, oldId, newId, allowHoles: true),
+        _ => Rename(text, _stats, oldId, newId, "stat", allowHoles: true)
+    };
+
+    /// <summary>Whether <paramref name="id" /> is a valid id once every <c>{key}</c> hole, each a valid id itself, stands for a value.</summary>
+    public static bool IsValidTemplateId(string? id)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            return false;
+        }
+
+        System.Text.StringBuilder plain = new(id.Length);
+        int i = 0;
+        while (i < id.Length)
+        {
+            if (id[i] != '{')
+            {
+                plain.Append(id[i++]);
+                continue;
+            }
+
+            int close = id.IndexOf('}', i + 1);
+            if (close < 0 || !IsValidId(id[(i + 1)..close]))
+            {
+                return false;
+            }
+
+            plain.Append('x');
+            i = close + 1;
+        }
+
+        return IsValidId(plain.ToString());
+    }
+
+    /// <summary>The <c>{key}</c> holes of <paramref name="id" />, in order; empty for a plain id.</summary>
+    public static IReadOnlyList<string> HolesOf(string id)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+        List<string> holes = [];
+        int i = 0;
+        while ((i = id.IndexOf('{', i)) >= 0)
+        {
+            int close = id.IndexOf('}', i + 1);
+            if (close < 0)
+            {
+                break;
+            }
+
+            holes.Add(id[(i + 1)..close]);
+            i = close + 1;
+        }
+
+        return holes;
+    }
+
+    /// <summary>
+    ///     The id an entry needs to take the <c>for_each:</c> axes <paramref name="keys" />: null when
+    ///     <paramref name="id" /> already holds every axis's hole, else the id with <c>_{key}</c> appended for
+    ///     each hole it lacks. An id holding a hole none of the axes names is refused: the fix would be a
+    ///     different expansion, not this one.
+    /// </summary>
+    public static string? ForEachIdFix(string id, IEnumerable<string> keys)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+        ArgumentNullException.ThrowIfNull(keys);
+        List<string> wanted = [.. keys];
+        IReadOnlyList<string> holes = HolesOf(id);
+        if (holes.FirstOrDefault(h => !wanted.Contains(h, StringComparer.Ordinal)) is { } other)
+        {
+            string named = string.Join(", ", wanted.Select(k => "{" + k + "}"));
+            throw new InvalidOperationException($"{id} already has a {{{other}}} hole, which no axis names; rename it to hold {named} first");
+        }
+
+        List<string> missing = [.. wanted.Where(k => !holes.Contains(k, StringComparer.Ordinal))];
+        return missing.Count == 0 ? null : id + string.Concat(missing.Select(k => "_{" + k + "}"));
+    }
+
+    /// <summary>
     ///     The ids of the sibling entries whose expressions read <paramref name="id" />, in document order. The
     ///     <c>show:</c> block is not a sibling; <see cref="ShowSurface" /> answers for it.
     /// </summary>
@@ -648,11 +751,11 @@ public static class RulesetEdits
     private static string Rewrite(string value, string oldId, string newId, string ruleset, bool isTemplate) =>
         isTemplate ? RewriteTitleHoles(value, oldId, newId, ruleset) : RewriteReferences(value, oldId, newId, ruleset);
 
-    private static string Rename(string text, YamlPath section, string oldId, string newId, string what)
+    private static string Rename(string text, YamlPath section, string oldId, string newId, string what, bool allowHoles = false)
     {
         ArgumentNullException.ThrowIfNull(newId);
         newId = newId.Trim();
-        if (!IsValidId(newId))
+        if (!(allowHoles ? IsValidTemplateId(newId) : IsValidId(newId)))
         {
             throw new InvalidOperationException($"'{newId}' is not a valid id: letters, digits and underscores, not starting with a digit");
         }
@@ -677,7 +780,8 @@ public static class RulesetEdits
         string ruleset = (doc.Find(YamlPath.Root.Key("ruleset")) as YamlScalarNode)?.Value ?? "";
         (int start, int length) = doc.SpanOf(key);
         List<TextEdit> edits = [new TextEdit(start, length, newId, $"rename {oldId}")];
-        foreach ((_, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: true))
+        List<string> referrers = [];
+        foreach ((string owner, YamlPath site, bool isTemplate) in ReferenceSites(doc, includeShow: true))
         {
             if (doc.Find(site) is YamlScalarNode { Value: { } value })
             {
@@ -685,8 +789,18 @@ public static class RulesetEdits
                 if (rewritten != value)
                 {
                     edits.Add(YamlEdits.SetScalar(doc, site, rewritten));
+                    if (!referrers.Contains(owner))
+                    {
+                        referrers.Add(owner);
+                    }
                 }
             }
+        }
+
+        // A template declares its expansions, not itself, so a reference to it would resolve to nothing.
+        if (referrers.Count > 0 && newId.Contains('{'))
+        {
+            throw new InvalidOperationException($"{oldId} is read by {string.Join(", ", referrers)}; a template has no name to read, so change them first");
         }
 
         return editor.Apply(edits).Text;
@@ -940,9 +1054,23 @@ public static class RulesetEdits
         return editor.Apply([AddUnder(doc, tablePath, "columns", item)]).Text;
     }
 
-    /// <summary>Sets or, on null, removes <c>label:</c> or <c>group:</c> of one scoreboard entry or table column.</summary>
+    /// <summary>
+    ///     Sets or, on null, removes <c>label:</c>, <c>group:</c> or <c>as:</c> of one scoreboard entry or table
+    ///     column. An <c>as:</c> outside <see cref="ShowReference.AsOptions" /> is refused; <c>boards:</c> is a
+    ///     list and goes through <see cref="SetShowEntryBoards" />.
+    /// </summary>
     public static string SetShowEntryField(string text, string? table, int index, string key, string? value)
     {
+        if (key == "boards")
+        {
+            throw new InvalidOperationException("boards: is a list; use SetShowEntryBoards");
+        }
+
+        if (key == "as" && value is not null && !ShowReference.AsOptions.Contains(value, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException($"as: takes {string.Join(", ", ShowReference.AsOptions)}; not '{value}'");
+        }
+
         RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
         YamlDocumentText doc = editor.Document;
         YamlPath entry = (table is null ? _scoreboard : _tables.Key(table).Key("columns")).Index(index);
@@ -964,6 +1092,58 @@ public static class RulesetEdits
         return map.Style == MappingStyle.Flow
             ? editor.Apply([RemoveFlowKey(doc, map, key, entry)]).Text
             : editor.Apply([YamlEdits.RemoveKey(doc, entry, key)]).Text;
+    }
+
+    /// <summary>
+    ///     Sets or, on null or empty, removes the <c>boards:</c> override of one scoreboard entry, written as
+    ///     the flow list <c>[round, match]</c>. Each board must be one of <see cref="ShowReference.BoardOptions" />.
+    /// </summary>
+    public static string SetShowEntryBoards(string text, int index, IReadOnlyList<string>? boards)
+    {
+        List<string> wanted = [.. (boards ?? []).Select(b => b.Trim()).Where(b => b.Length > 0).Distinct(StringComparer.Ordinal)];
+        if (wanted.FirstOrDefault(b => !ShowReference.BoardOptions.Contains(b, StringComparer.Ordinal)) is { } unknown)
+        {
+            throw new InvalidOperationException($"boards: takes {string.Join(", ", ShowReference.BoardOptions)}; not '{unknown}'");
+        }
+
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        YamlPath entry = _scoreboard.Index(index);
+        if (doc.Find(entry) is not YamlMappingNode map)
+        {
+            throw new InvalidOperationException($"show: has no entry {index} in scoreboard");
+        }
+
+        YamlNode? existing = doc.Find(entry.Key("boards"));
+        if (wanted.Count == 0)
+        {
+            if (existing is null)
+            {
+                return text;
+            }
+
+            return map.Style == MappingStyle.Flow
+                ? editor.Apply([RemoveFlowKey(doc, map, "boards", entry)]).Text
+                : editor.Apply([YamlEdits.RemoveKey(doc, entry, "boards")]).Text;
+        }
+
+        // Written raw: the writer's own append would quote the list as a string.
+        string flow = "[" + string.Join(", ", wanted) + "]";
+        if (existing is not null)
+        {
+            (int start, int length) = doc.SpanOf(existing);
+            return editor.Apply([new TextEdit(start, length, flow, $"set {entry}.boards")]).Text;
+        }
+
+        if (map.Style == MappingStyle.Flow)
+        {
+            TextEdit append = map.Children.Count > 0
+                ? new TextEdit(doc.EndOf(map.Children.Last().Value), 0, $", boards: {flow}", $"add {entry}.boards")
+                : new TextEdit((int)map.Start.Index + 1, 0, $"boards: {flow}", $"add {entry}.boards");
+            return editor.Apply([append]).Text;
+        }
+
+        return editor.Apply([YamlEdits.AddEntry(doc, entry, $"boards: {flow}")]).Text;
     }
 
     /// <summary>
@@ -1050,6 +1230,40 @@ public static class RulesetEdits
     /// <summary>The names under <c>show: tables:</c>, in document order.</summary>
     public static IReadOnlyList<string> TableNames(string text) => KeysUnder(RulesetDocumentEditor.Open(text).Document, _tables);
 
+    /// <summary>
+    ///     Renames the table <paramref name="oldName" />. Only the key moves: a table's name is its map key
+    ///     under <c>tables:</c>, and nothing else in the language refers to it.
+    /// </summary>
+    public static string RenameTable(string text, string oldName, string newName)
+    {
+        ArgumentNullException.ThrowIfNull(newName);
+        newName = newName.Trim();
+        if (!IsValidId(newName))
+        {
+            throw new InvalidOperationException($"'{newName}' is not a valid table name: letters, digits and underscores, not starting with a digit");
+        }
+
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        if (doc.FindKey(_tables.Key(oldName)) is not { } key)
+        {
+            throw new InvalidOperationException($"show: has no table named {oldName}");
+        }
+
+        if (oldName == newName)
+        {
+            return text;
+        }
+
+        if (doc.Find(_tables.Key(newName)) is not null)
+        {
+            throw new InvalidOperationException($"show: already has a table named {newName}");
+        }
+
+        (int start, int length) = doc.SpanOf(key);
+        return editor.Apply([new TextEdit(start, length, newName, $"rename table {oldName}")]).Text;
+    }
+
     /// <summary>The table grains the registry accepts for a ruleset's <c>for:</c>, the one a new table takes first.</summary>
     public static IReadOnlyList<string> TableGrainsFor(string? scope) => scope switch
     {
@@ -1082,9 +1296,23 @@ public static class RulesetEdits
     ///     Sets a param's <c>default:</c>, written as the author would (<c>60</c>, <c>true</c>, <c>10s</c>), in
     ///     place when the key is there and appended inside the param's mapping when it is not.
     /// </summary>
-    public static string SetParamDefault(string text, string name, string value)
+    public static string SetParamDefault(string text, string name, string value) => SetParamField(text, name, "default", value);
+
+    /// <summary>The keys a param holds, in the order the corpus writes them.</summary>
+    public static IReadOnlyList<string> ParamKeys { get; } = ["type", "default", "min", "max"];
+
+    /// <summary>
+    ///     Sets one key of a param (<c>type</c>, <c>default</c>, <c>min</c>, <c>max</c>), written as the author
+    ///     would, in place when the key is there and appended inside the param's mapping when it is not.
+    /// </summary>
+    public static string SetParamField(string text, string name, string key, string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        if (!ParamKeys.Contains(key, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException($"a param has no {key} key");
+        }
+
         RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
         YamlDocumentText doc = editor.Document;
         YamlPath param = _params.Key(name);
@@ -1093,22 +1321,48 @@ public static class RulesetEdits
             throw new InvalidOperationException($"{name} is not a param in this document");
         }
 
-        if (doc.Find(param.Key("default")) is YamlScalarNode)
+        if (doc.Find(param.Key(key)) is YamlScalarNode)
         {
-            return editor.Apply([YamlEdits.SetScalar(doc, param.Key("default"), value)]).Text;
+            return editor.Apply([YamlEdits.SetScalar(doc, param.Key(key), value)]).Text;
         }
 
-        // A new default is written raw: the writer's own append would quote a number, and a quoted
-        // default is a string the mapper refuses for an int param.
+        // A new value is written raw: the writer's own append would quote a number, and a quoted
+        // number is a string the mapper refuses for an int param.
         if (map.Style == MappingStyle.Flow)
         {
             TextEdit append = map.Children.Count > 0
-                ? new TextEdit(doc.EndOf(map.Children.Last().Value), 0, $", default: {value}", $"add {param}.default")
-                : new TextEdit((int)map.Start.Index + 1, 0, $"default: {value}", $"add {param}.default");
+                ? new TextEdit(doc.EndOf(map.Children.Last().Value), 0, $", {key}: {value}", $"add {param}.{key}")
+                : new TextEdit((int)map.Start.Index + 1, 0, $"{key}: {value}", $"add {param}.{key}");
             return editor.Apply([append]).Text;
         }
 
-        return editor.Apply([YamlEdits.AddEntry(doc, param, $"default: {value}")]).Text;
+        return editor.Apply([YamlEdits.AddEntry(doc, param, $"{key}: {value}")]).Text;
+    }
+
+    /// <summary>Removes a param's <c>min</c> or <c>max</c> when it is there; the text is unchanged otherwise. The type and the default stay.</summary>
+    public static string RemoveParamField(string text, string name, string key)
+    {
+        if (key is not ("min" or "max"))
+        {
+            throw new InvalidOperationException($"a param keeps its {key}; only min and max can be removed");
+        }
+
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        YamlPath param = _params.Key(name);
+        if (doc.Find(param) is not YamlMappingNode map)
+        {
+            throw new InvalidOperationException($"{name} is not a param in this document");
+        }
+
+        if (doc.Find(param.Key(key)) is null)
+        {
+            return text;
+        }
+
+        return map.Style == MappingStyle.Flow
+            ? editor.Apply([RemoveFlowKey(doc, map, key, param)]).Text
+            : editor.Apply([YamlEdits.RemoveKey(doc, param, key)]).Text;
     }
 
     // ---- exports: ----

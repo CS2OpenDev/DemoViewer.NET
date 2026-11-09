@@ -191,6 +191,20 @@ public static class LiveValuesText
         return sampled ? text + " (sampled)" : text;
     }
 
+    /// <summary>The gap between a menu header and the key hint after it, where the gesture column would be.</summary>
+    public const string KeyHintGap = "        ";
+
+    /// <summary>
+    ///     <paramref name="text" /> with <paramref name="key" /> after the gap, as the gesture column would show
+    ///     it: a KeyGesture has no name for the bracket keys, so the hint rides in the header text.
+    /// </summary>
+    public static string WithKeyHint(string text, string key)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        return text + KeyHintGap + key;
+    }
+
     /// <summary>The instance picker's label: the player's name, or <c>game</c>.</summary>
     public static string Name(LiveInstance instance)
     {

@@ -452,7 +452,7 @@ public sealed record ShowFace(
     /// <summary>The table's grain, named: <c>per player_round</c>, or <c>scoreboard</c>.</summary>
     public string Grain => IsScoreboard ? "scoreboard" : Per.Length == 0 ? "table" : "per " + Per;
 
-    public override IReadOnlyList<string> CoveredKeys => ["per", "on", "columns"];
+    public override IReadOnlyList<string> CoveredKeys => ["per", "on", "columns", "boards", "as"];
 }
 
 /// <summary>

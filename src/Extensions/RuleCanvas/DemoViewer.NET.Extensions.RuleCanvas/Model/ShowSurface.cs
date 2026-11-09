@@ -17,7 +17,28 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 /// <param name="Group">The scoreboard <c>group:</c>, or null; a column has none.</param>
 public sealed record ShowReference(string? Table, int Index, string Stat, string? Label, string? Group)
 {
+    /// <summary>The values <c>as:</c> takes, in the schema's order.</summary>
+    public static IReadOnlyList<string> AsOptions { get; } = ["ticks", "seconds", "time"];
+
+    /// <summary>The boards a scoreboard entry can name.</summary>
+    public static IReadOnlyList<string> BoardOptions { get; } = ["round", "match"];
+
+    /// <summary>The scoreboard <c>boards:</c> override as written, or null for the default from the stat's <c>per:</c>; a column has none.</summary>
+    public IReadOnlyList<string>? Boards { get; init; }
+
+    /// <summary>The <c>as:</c> display format (<c>ticks</c>, <c>seconds</c>, <c>time</c>), or null for the raw value.</summary>
+    public string? As { get; init; }
+
     public bool IsScoreboard => Table is null;
+
+    /// <summary>The <c>as:</c> format as the file spells it, or null for <see cref="ColumnValueFormat.None" />.</summary>
+    public static string? AsText(ColumnValueFormat format) => format switch
+    {
+        ColumnValueFormat.Ticks => "ticks",
+        ColumnValueFormat.Seconds => "seconds",
+        ColumnValueFormat.Time => "time",
+        _ => null
+    };
 
     /// <summary>Where the entry shows, in words: <c>scoreboard</c> or the table's name.</summary>
     public string Surface => Table ?? "scoreboard";
@@ -73,7 +94,10 @@ public sealed class ShowSurface
         for (int i = 0; i < show.Scoreboard.Count; i++)
         {
             ScoreboardEntry entry = show.Scoreboard[i];
-            scoreboard.Add(new ShowReference(null, i, entry.Stat, entry.Label, entry.Group));
+            scoreboard.Add(new ShowReference(null, i, entry.Stat, entry.Label, entry.Group)
+            {
+                Boards = entry.Boards is { Count: > 0 } boards ? boards : null, As = ShowReference.AsText(entry.As)
+            });
         }
 
         List<ShowTable> tables = [];
@@ -83,7 +107,7 @@ public sealed class ShowSurface
             for (int i = 0; i < table.Columns.Count; i++)
             {
                 TableColumn column = table.Columns[i];
-                columns.Add(new ShowReference(table.Name, i, column.Stat, column.Label, null));
+                columns.Add(new ShowReference(table.Name, i, column.Stat, column.Label, null) { As = ShowReference.AsText(column.As) });
             }
 
             tables.Add(new ShowTable(table.Name, table.Per ?? "", columns)

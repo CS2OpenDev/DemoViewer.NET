@@ -212,7 +212,8 @@ public class ShowNodeTests
                 await Assert.That(inspector.TablePer.IsVisible).IsTrue();
                 await Assert.That(inspector.TablePer.Text).IsEqualTo("player_round");
                 await Assert.That(inspector.Per.IsVisible).IsFalse();
-                await Assert.That(inspector.Id.IsVisible).IsFalse().Because("a table is not renamed here");
+                await Assert.That(inspector.Id.IsVisible).IsTrue().Because("a table's name is renamed from the Inspector");
+                await Assert.That(inspector.Id.Text).IsEqualTo("player_round");
                 await Assert.That(inspector.CanSurfaceNode).IsFalse();
                 await Assert.That(inspector.DeleteLabel).IsEqualTo("Delete table");
                 await Assert.That(inspector.CanDelete).IsTrue();
@@ -285,6 +286,84 @@ public class ShowNodeTests
                 await Assert.That(CanvasConnectorViewModel.Accepts(PortKind.Read, kills.Outputs[0])).IsTrue();
                 await Assert.That(CanvasConnectorViewModel.Accepts(PortKind.Read, death.Outputs[0])).IsFalse().Because("an event fires; a column is a value");
             }
+        }
+    }
+
+    // A table's name is its show: key and nothing else refers to it, so the rename is the key alone; the
+    // arrangement under show.<old> follows the node to show.<new> as an entry's does.
+    [Test]
+    public async Task RenamingATable_FromTheInspector_MovesTheShowKey_AndKeepsItsPlace()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
+        using (rules)
+        {
+            string before = File.ReadAllText(rules.UserPath("player_round"));
+            CanvasNodeViewModel table = Table(vm, "player_round");
+            table.Location = new Point(1500, 250);
+            vm.SaveLayoutCommand.Execute(null);
+            vm.SelectedNodes.Add(table);
+            InspectorViewModel inspector = vm.Inspector;
+
+            inspector.Id.Text = "round_table";
+            inspector.Id.Commit();
+            string text = File.ReadAllText(rules.UserPath("player_round"));
+            RulesetDocumentNodeKey renamed = RulesetDocumentNodeKey.Show("player_round", "round_table");
+            using (Assert.Multiple())
+            {
+                await Assert.That(inspector.Id.Error).IsEmpty();
+                await Assert.That(text).Contains("  tables:\n    round_table:\n      per: player_round\n");
+                await Assert.That(text.Replace("    round_table:\n", "    player_round:\n", StringComparison.Ordinal)).IsEqualTo(before).Because("only the key moved");
+                await Assert.That(RulesetEdits.TableNames(text)).IsEquivalentTo(["round_table"]);
+                await Assert.That(Table(vm, "round_table").Location).IsEqualTo(new Point(1500, 250)).Because("the node keeps its place under its new name");
+                await Assert.That(Table(vm, "round_table").Columns.Count).IsEqualTo(7);
+                await Assert.That(vm.SelectedNodes.OfType<CanvasNodeViewModel>().Single().Key).IsEqualTo(renamed).Because("the Inspector follows the renamed node");
+                await Assert.That(inspector.Heading).IsEqualTo("TABLE round_table");
+                await Assert.That(RulesetLayoutStore.Load(rules.UserPath("player_round")).PositionFor(renamed)).IsEqualTo(new Point(1500, 250));
+                await Assert.That(vm.Nodes.Single(n => n.Id == "round_kills").Surfacing).IsEqualTo("shown: round_table as kills");
+            }
+
+            inspector.Id.Text = "1bad";
+            inspector.Id.Commit();
+            await Assert.That(inspector.Id.Error).Contains("not a valid table name");
+            await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).IsEqualTo(text);
+
+            vm.UndoCommand.Execute(null);
+            await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).IsEqualTo(before);
+            await Assert.That(vm.Nodes.Any(n => n.IsShow && n.Title == "player_round")).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task RenameTable_RoundTrips_OverEveryShippedTable_AndRefusesACollision()
+    {
+        RulesetCorpus corpus = RulesetCorpus.Load([(RulesTree.RepoRulesDirectory, "shipped")]);
+        int tables = 0;
+        foreach (RulesetCorpus.Entry entry in corpus.Entries)
+        {
+            string text = File.ReadAllText(entry.Path);
+            foreach (string name in RulesetEdits.TableNames(text))
+            {
+                tables++;
+                string renamed = RulesetEdits.RenameTable(text, name, name + "_x");
+                using (Assert.Multiple())
+                {
+                    await Assert.That(RulesetEdits.TableNames(renamed)).Contains(name + "_x").Because(entry.Id);
+                    await Assert.That(RulesetEdits.TableNames(renamed)).DoesNotContain(name).Because(entry.Id);
+                    await Assert.That(RulesetCorpus.WhyNotLoadable(renamed, entry.Path, entry.Id)).IsNull().Because(entry.Id);
+                    await Assert.That(RulesetEdits.RenameTable(renamed, name + "_x", name)).IsEqualTo(text).Because(entry.Id + " round-trips");
+                    await Assert.That(RulesetEdits.RenameTable(text, name, name)).IsEqualTo(text);
+                }
+            }
+        }
+
+        await Assert.That(tables).IsGreaterThan(3);
+        string kast = File.ReadAllText(Path.Combine(RulesTree.RepoRulesDirectory, "kast.rules.yaml"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(() => RulesetEdits.RenameTable(kast, "nope", "x")).Throws<InvalidOperationException>();
+            await Assert.That(() => RulesetEdits.RenameTable(kast, "kast_game_totals", "2k")).Throws<InvalidOperationException>();
+            string two = RulesetEdits.AddTable(kast, "other", "player_match");
+            await Assert.That(() => RulesetEdits.RenameTable(two, "other", "kast_game_totals")).Throws<InvalidOperationException>();
         }
     }
 }
