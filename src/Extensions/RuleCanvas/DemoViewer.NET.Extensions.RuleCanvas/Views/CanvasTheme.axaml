@@ -335,6 +335,12 @@
         <Setter Property="HeaderContainerStyle" Value="{StaticResource RuleNodeHeaderTheme}" />
     </Style>
 
+    <!-- The header band of an authored face: its family brush, faint. Scaffold rows carry none. -->
+    <Style Selector="Border.kindTint">
+        <Setter Property="Opacity" Value="{DynamicResource RuleKindTintOpacity}" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+
     <!-- A frame around nodes: translucent, so what it groups stays readable through it. -->
     <Style Selector="nodes|GroupingNode">
         <Setter Property="Background" Value="{DynamicResource RuleGroupFill}" />
