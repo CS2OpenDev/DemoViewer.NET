@@ -15,12 +15,72 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 public sealed record Arrangement(RulesetCorpus.Composed Composed, RulesetNodeLayout Layout, bool HasSavedLayout, bool FocusDropped, bool Carried = false);
 
 /// <summary>
+///     The column of the canvas a node reads in: the first placement flows left to right from the events
+///     through the defines and the entries to the show nodes, and an item added without a drop point joins
+///     the column its kind belongs to.
+/// </summary>
+public enum PlacementColumn
+{
+    /// <summary>The named triggers, between the events and the entries.</summary>
+    Define,
+
+    /// <summary>The stats and highlights the document declares.</summary>
+    Entry,
+
+    /// <summary>The tables and the scoreboard, right of everything they surface.</summary>
+    Show
+}
+
+/// <summary>
 ///     Where nodes go: the focus and its slice, the position a dropped entry is waiting to take, the
 ///     arrangement on screen, and the sidecar an arrangement is kept in. No view model and no Avalonia
 ///     beyond the point a position is.
 /// </summary>
 public sealed class CanvasArranger(Func<string?> layoutFolder)
 {
+    private const double StackGap = 40;
+    private const double ColumnGap = 140;
+    private const double DefineWidth = 360;
+
+    /// <summary>The column a gallery item lands in when it is added without a drop point.</summary>
+    public static PlacementColumn ColumnOf(GalleryItemKind kind) => kind switch
+    {
+        GalleryItemKind.Define => PlacementColumn.Define,
+        GalleryItemKind.Table => PlacementColumn.Show,
+        _ => PlacementColumn.Entry
+    };
+
+    /// <summary>
+    ///     Where an item added without a drop point goes: under the lowest node of its column, level with the
+    ///     column's left edge. An empty column opens beside the entries, a define one layer left of them and
+    ///     a show node one layer right, at the entries' top; with nothing in any column, below everything
+    ///     drawn, or the origin on an empty canvas. A node in no column (an engine node) only counts there.
+    /// </summary>
+    public static Point NextFreeSpot(PlacementColumn column, IReadOnlyList<(PlacementColumn? Column, Rect Box)> nodes)
+    {
+        ArgumentNullException.ThrowIfNull(nodes);
+        List<Rect> mine = [.. nodes.Where(n => n.Column == column).Select(n => n.Box)];
+        if (mine.Count > 0)
+        {
+            return new Point(mine.Min(b => b.X), mine.Max(b => b.Bottom) + StackGap);
+        }
+
+        List<Rect> entries = [.. nodes.Where(n => n.Column == PlacementColumn.Entry).Select(n => n.Box)];
+        if (entries.Count > 0 && column != PlacementColumn.Entry)
+        {
+            double top = entries.Min(b => b.Y);
+            return column == PlacementColumn.Show
+                ? new Point(entries.Max(b => b.Right) + ColumnGap, top)
+                : new Point(entries.Min(b => b.X) - ColumnGap - DefineWidth, top);
+        }
+
+        if (nodes.Count == 0)
+        {
+            return new Point(0, 0);
+        }
+
+        return new Point(nodes.Min(n => n.Box.X), nodes.Max(n => n.Box.Bottom) + StackGap);
+    }
     private readonly Func<string?> _layoutFolder = layoutFolder ?? throw new ArgumentNullException(nameof(layoutFolder));
 
     // Where a dropped entry should land, by the key it will get. Kept until a redraw draws that key, so a

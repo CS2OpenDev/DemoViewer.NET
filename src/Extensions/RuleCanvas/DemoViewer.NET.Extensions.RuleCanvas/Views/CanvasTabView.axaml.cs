@@ -413,6 +413,15 @@ public partial class CanvasTabView : UserControl
     private void OnPreviousFire(object? sender, RoutedEventArgs e) => _viewModel?.PreviousFireCommand.Execute((sender as MenuItem)?.DataContext);
 
     private void OnFirstFire(object? sender, RoutedEventArgs e) => _viewModel?.FirstFireCommand.Execute((sender as MenuItem)?.DataContext);
+    // The strip's full count line needs the width it was laid out for; under the threshold the node count alone stays.
+    private void OnViewSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (_viewModel is not null)
+        {
+            _viewModel.IsStripNarrow = e.NewSize.Width < CanvasTabViewModel.NarrowStripWidth;
+        }
+    }
+
     // The search box: Enter frames the next match and selects it, Escape clears and hands focus back to the editor.
     private void OnSearchKeyDown(object? sender, KeyEventArgs e)
     {
@@ -667,6 +676,10 @@ public partial class CanvasTabView : UserControl
             // The unsaved text when the pane is dirty: a tab switch rebuilds this view over the same view model.
             Source.Text = _viewModel.SourceText;
             FillAddStatMenu(_viewModel.Views);
+            if (Bounds.Width > 0)
+            {
+                _viewModel.IsStripNarrow = Bounds.Width < CanvasTabViewModel.NarrowStripWidth;
+            }
         }
     }
 

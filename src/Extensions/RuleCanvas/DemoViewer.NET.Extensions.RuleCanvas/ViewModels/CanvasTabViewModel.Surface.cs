@@ -158,7 +158,8 @@ public sealed partial class CanvasTabViewModel
 
     /// <summary>
     ///     Adds a gallery item without a drop point: the keyboard path through the + Add flyout and the empty
-    ///     ruleset's quick starts. It lands under the lowest authored node, at the left-most column.
+    ///     ruleset's quick starts. It lands under the lowest node of its kind's column: a define among the
+    ///     defines, a table right of the entries, anything else among the entries.
     /// </summary>
     [RelayCommand]
     private void AddItem(GalleryItem? item)
@@ -176,7 +177,7 @@ public sealed partial class CanvasTabViewModel
             return;
         }
 
-        PlaceItem(item, NextFreeSpot());
+        PlaceItem(item, NextFreeSpot(item));
     }
 
     /// <summary>A quick start from the empty ruleset's watermark: the Enemy kills prefab, a flag, or a blank highlight.</summary>
@@ -288,17 +289,21 @@ public sealed partial class CanvasTabViewModel
         Toast = new CanvasToast(message, at, ++_toastSequence);
     }
 
-    // Below the lowest authored node and level with the left-most, or the origin on an empty canvas.
-    private Point NextFreeSpot()
+    /// <summary>Where <paramref name="item" /> lands when added without a drop point: the arranger's column rule over the nodes drawn.</summary>
+    public Point NextFreeSpot(GalleryItem item)
     {
-        List<CanvasNodeViewModel> authored = [.. Nodes.Where(n => n.IsAuthorable)];
-        if (authored.Count == 0)
-        {
-            return Nodes.Count == 0 ? new Point(0, 0) : new Point(Nodes.Min(n => n.Location.X), Nodes.Max(n => n.Location.Y + n.EstimatedSize.Height) + 40);
-        }
-
-        return new Point(authored.Min(n => n.Location.X), authored.Max(n => n.Location.Y + n.EstimatedSize.Height) + 40);
+        ArgumentNullException.ThrowIfNull(item);
+        List<(PlacementColumn? Column, Rect Box)> boxes = [.. Nodes.Select(n => (ColumnOf(n), new Rect(n.Location, n.EstimatedSize)))];
+        return CanvasArranger.NextFreeSpot(CanvasArranger.ColumnOf(item.Kind), boxes);
     }
+
+    // The column a drawn node reads in; an engine node and the params block are in none.
+    private static PlacementColumn? ColumnOf(CanvasNodeViewModel node) =>
+        node.IsScaffold || node.IsParams ? null
+        : node.IsDefine ? PlacementColumn.Define
+        : node.IsShow ? PlacementColumn.Show
+        : node.IsAuthorable ? PlacementColumn.Entry
+        : null;
 
     // The trigger defines of the user's other rulesets, read from disk: small files, and a redraw already
     // follows every change to them. A file that cannot be read offers nothing.

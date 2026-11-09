@@ -112,6 +112,20 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     [ObservableProperty]
     private string _status = "";
 
+    /// <summary>The view width under which the strip keeps the node count alone; the view sets <see cref="IsStripNarrow" /> from it.</summary>
+    public const double NarrowStripWidth = 1500;
+
+    /// <summary>
+    ///     True while the view is narrower than the strip needs for the full count line, set by the view at
+    ///     <see cref="NarrowStripWidth" />. The status then reads <c>27 nodes</c> instead of the counts of
+    ///     nodes, wires and unwired nodes; nothing else on the strip changes.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isStripNarrow;
+
+    // The last draw's counts, so the status can be reworded when the strip narrows or widens; null while nothing is drawn.
+    private (int Nodes, int Wires, int Unwired)? _counts;
+
     /// <summary>The composition's diagnostics, one per line, or empty.</summary>
     [ObservableProperty]
     private string _diagnostics = "";
@@ -534,6 +548,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         RulesetNodeLayout current = arrangement ?? (keepArrangement ? CurrentArrangement() : RulesetNodeLayout.Empty);
         HashSet<RulesetDocumentNodeKey> selected = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Select(n => n.Key)];
 
+        _counts = null;
         Nodes.Clear();
         Groups.Clear();
         Items.Clear();
@@ -618,14 +633,26 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         Diagnostics = string.Join('\n', composed.Diagnostics);
         HashSet<CanvasNodeViewModel> wired = [.. wires.SelectMany(w => new[] { w.Source.Owner, w.Target.Owner }).OfType<CanvasNodeViewModel>()];
         int unwired = nodes.Count(n => !wired.Contains(n));
-        Status = nodes.Count == 0
-            ? "Nothing composed; see the diagnostics."
-            : $"{nodes.Count} nodes, {wires.Count} wires, {unwired} unwired";
+        _counts = nodes.Count == 0 ? null : (nodes.Count, wires.Count, unwired);
+        Status = _counts is null ? "Nothing composed; see the diagnostics." : CountStatus();
         AfterRedraw(composed);
         RefreshSearchMatches();
         if (refit ?? !keepArrangement)
         {
             GraphReplaced?.Invoke();
+        }
+    }
+
+    // The counts as the strip has room for: the whole line, or the node count alone while narrow.
+    private string CountStatus() => _counts is not { } counts ? ""
+        : IsStripNarrow ? $"{counts.Nodes} nodes"
+        : $"{counts.Nodes} nodes, {counts.Wires} wires, {counts.Unwired} unwired";
+
+    partial void OnIsStripNarrowChanged(bool value)
+    {
+        if (_counts is not null)
+        {
+            Status = CountStatus();
         }
     }
 

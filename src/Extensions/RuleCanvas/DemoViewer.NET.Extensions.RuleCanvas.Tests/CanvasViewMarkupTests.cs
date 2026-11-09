@@ -85,6 +85,24 @@ public class CanvasViewMarkupTests
         }
     }
 
+    // The view hands its width to the view model through one bool; the status is the only strip text that reads
+    // it, by rewording itself, and no other strip control binds it.
+    [Test]
+    public async Task TheView_SetsTheNarrowStripBool_AndOnlyTheStatusReadsIt()
+    {
+        XDocument view = LoadView();
+        XElement root = view.Root!;
+        List<XElement> all = [.. view.Descendants()];
+        using (Assert.Multiple())
+        {
+            await Assert.That(root.Name.LocalName).IsEqualTo("UserControl");
+            await Assert.That(Attribute(root, "SizeChanged")).IsEqualTo("OnViewSizeChanged").Because("the view's own width decides, at one threshold");
+            await Assert.That(all.Count(e => Attribute(e, "Text") == "{Binding Status}")).IsEqualTo(1).Because("one status text, reworded, not two");
+            await Assert.That(all.Any(e => e.Attributes().Any(a => a.Value.Contains("IsStripNarrow", StringComparison.Ordinal)))).IsFalse()
+                .Because("nothing on the strip binds the bool; the view model rewords the status from it");
+        }
+    }
+
     // A horizontal StackPanel measures its children unbounded, so the status ran under the right-docked buttons.
     [Test]
     public async Task TheStripStatus_SitsInAStarColumn_AndTrims()

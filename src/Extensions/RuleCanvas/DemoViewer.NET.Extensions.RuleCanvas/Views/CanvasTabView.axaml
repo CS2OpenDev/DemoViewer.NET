@@ -9,7 +9,8 @@
              xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia"
              xmlns:ae="using:AvaloniaEdit"
              x:Class="DemoViewer.NET.Extensions.RuleCanvas.Views.CanvasTabView"
-             x:DataType="vm:CanvasTabViewModel">
+             x:DataType="vm:CanvasTabViewModel"
+             SizeChanged="OnViewSizeChanged">
     <UserControl.Resources>
         <DataTemplate x:Key="InlinePort" x:DataType="vm:CanvasConnectorViewModel">
             <nodes:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="{Binding IsConnected}"
