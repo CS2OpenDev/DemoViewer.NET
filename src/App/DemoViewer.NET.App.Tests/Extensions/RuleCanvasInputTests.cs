@@ -602,22 +602,26 @@ public class RuleCanvasInputTests
             new Point((graph.X - editor.ViewportLocation.X) * editor.ViewportZoom, (graph.Y - editor.ViewportLocation.Y) * editor.ViewportZoom),
             window) ?? throw new InvalidOperationException("editor is not in the window");
 
-    // A window point the wire's own stroke takes: the curve passes through the anchors' midpoint, and the
-    // stroke is two pixels wide, so the scan around it absorbs the arrow offsets and rounding.
+    // A window point the wire's own stroke takes and no node covers. The curve passes through the anchors'
+    // midpoint, so the scan starts there and widens along the wire, since the arranger may seat a face over
+    // the exact middle.
     private static Point OnWire(Nodify.Avalonia.NodifyEditor editor, Window window, CanvasConnectionViewModel wire)
     {
         Point middle = InWindow(editor, window, Midpoint(wire));
-        foreach (double dy in new[] { 0, 1, -1, 2, -2, 3, -3, 4, -4 })
+        foreach (double dx in new[] { 0, 10, -10, 20, -20, 35, -35, 50, -50, 70, -70 })
         {
-            Point at = middle + new Vector(0, dy);
-            if (window.InputHitTest(at) is Visual hit
-                && hit.GetSelfAndVisualAncestors().OfType<LabelledConnection>().Any(c => ReferenceEquals(c.DataContext, wire)))
+            foreach (double dy in Enumerable.Range(0, 61).Select(i => (i % 2 == 0 ? 1 : -1) * ((i + 1) / 2)))
             {
-                return at;
+                Point at = middle + new Vector(dx, dy);
+                if (window.InputHitTest(at) is Visual hit
+                    && hit.GetSelfAndVisualAncestors().OfType<LabelledConnection>().Any(c => ReferenceEquals(c.DataContext, wire)))
+                {
+                    return at;
+                }
             }
         }
 
-        throw new InvalidOperationException("the wire is not under its midpoint");
+        throw new InvalidOperationException("the wire is not under its midpoint or anywhere near it");
     }
 
     // A point over the canvas that no node container covers, scanned over a grid of the editor's bounds.
