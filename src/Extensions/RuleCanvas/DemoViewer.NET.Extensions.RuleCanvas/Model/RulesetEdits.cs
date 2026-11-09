@@ -1253,9 +1253,16 @@ public static class RulesetEdits
             editor = editor.Apply([YamlEdits.RemoveKey(editor.Document, entry, "for_each")]);
         }
 
-        string flow = "{ " + string.Join(", ", axes.Select(a => $"{a.Key}: [{string.Join(", ", a.Values.Select(v => PlainOrQuoted(v.Trim(), inFlow: true)))}]")) + " }";
+        string flow = "{ " + string.Join(", ", axes.Select(a => $"{a.Key}: [{string.Join(", ", a.Values.Select(v => ForEachValue(v.Trim())))}]")) + " }";
         return editor.Apply([YamlEdits.AddEntry(editor.Document, entry, "for_each: " + flow)]).Text;
     }
+
+    // A value is a literal the expander substitutes as text: a word or a number stays plain, so 7 reads as a
+    // number and ak47 as a string; anything else is quoted.
+    private static string ForEachValue(string value) =>
+        value.Length > 0 && value.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '.' or '-')
+            ? value
+            : "\"" + value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
 
     /// <summary>Removes an entry's <c>for_each:</c> when it has one; the text is unchanged otherwise.</summary>
     public static string RemoveForEach(string text, EntrySection section, string id)
@@ -1283,11 +1290,15 @@ public static class RulesetEdits
                 throw new InvalidOperationException($"'{line}' is not an axis: write key: value, value");
             }
 
-            axes.Add((line[..colon].Trim(), [.. line[(colon + 1)..].Split(',').Select(v => v.Trim()).Where(v => v.Length > 0)]));
+            axes.Add((line[..colon].Trim(), [.. line[(colon + 1)..].Split(',').Select(v => Unquote(v.Trim())).Where(v => v.Length > 0)]));
         }
 
         return axes;
     }
+
+    // A value typed with its quotes is the value inside them; the writer quotes again where YAML needs it.
+    private static string Unquote(string value) =>
+        value.Length >= 2 && (value[0] == '"' && value[^1] == '"' || value[0] == '\'' && value[^1] == '\'') ? value[1..^1] : value;
 
     /// <summary>The axes spelled the way <see cref="ParseForEach" /> reads them: one <c>key: a, b</c> per line.</summary>
     public static string SpellForEach(IReadOnlyList<(string Key, IReadOnlyList<string> Values)> axes)
