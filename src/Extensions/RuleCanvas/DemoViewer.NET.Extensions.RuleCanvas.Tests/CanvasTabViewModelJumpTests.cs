@@ -14,6 +14,52 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 public class CanvasTabViewModelJumpTests
 {
     [Test]
+    public async Task SelectingAFoldedDependency_JumpsToItsUseLine()
+    {
+        CanvasTabViewModel vm = new(_ => true,
+            () => RulesetCorpus.Load([(RulesTree.RepoRulesDirectory, "shipped")]), () => null);
+        vm.PreferredRulesetId = "player_stats";
+        List<int> jumps = [];
+        vm.JumpRequested += jumps.Add;
+        vm.OnActivated(null!);
+
+        vm.SelectedNodes.Add(vm.Nodes.Single(n => n.IsDependency));
+        string[] lines = vm.DocumentText.Split('\n');
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SelectedLine).IsGreaterThan(0);
+            await Assert.That(lines[vm.SelectedLine - 1]).StartsWith("use: [ kast ]");
+            await Assert.That(jumps).IsEquivalentTo([vm.SelectedLine]);
+            await Assert.That(RulesetEntryText.UseLineOf("use:\n  - a\n  - kast\n", "kast")).IsEqualTo(3);
+            await Assert.That(RulesetEntryText.UseLineOf("ruleset: x\n", "kast")).IsEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task ADefine_ListsTheStatsFiringOnIt_AndEachSelectsItsStat()
+    {
+        CanvasTabViewModel vm = new(_ => true,
+            () => RulesetCorpus.Load([(RulesTree.RepoRulesDirectory, "shipped")]), () => null);
+        vm.PreferredRulesetId = "highlights_clutch";
+        vm.OnActivated(null!);
+
+        vm.SelectedNodes.Add(vm.Nodes.Single(n => n.IsDefine && n.Title == "ct_retake_kill"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Inspector.HasFiredBy).IsTrue();
+            await Assert.That(vm.Inspector.FiredBy).Contains("retake_kills");
+            await Assert.That(vm.Inspector.FiredByHeading).IsEqualTo(vm.Inspector.FiredBy.Count == 1 ? "fired by 1 stat" : $"fired by {vm.Inspector.FiredBy.Count} stats");
+        }
+
+        vm.Inspector.SelectFiringCommand.Execute("retake_kills");
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.SelectedNodes.OfType<CanvasNodeViewModel>().Select(n => n.Id)).IsEquivalentTo(["retake_kills"]);
+            await Assert.That(vm.Inspector.HasFiredBy).IsFalse().Because("a stat lists nothing firing on it");
+        }
+    }
+
+    [Test]
     public async Task SelectingANode_JumpsToTheLineThatDeclaresIt()
     {
         CanvasTabViewModel vm = new(_ => true,

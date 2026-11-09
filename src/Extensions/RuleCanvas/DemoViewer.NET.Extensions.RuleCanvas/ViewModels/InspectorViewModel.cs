@@ -225,6 +225,24 @@ public sealed partial class InspectorViewModel : ObservableObject
 
     public bool CanClearFixture => HasFixture && CanEditNode;
 
+    /// <summary>The stats of the open ruleset that fire on the selected define, in document order.</summary>
+    public ObservableCollection<string> FiredBy { get; } = [];
+
+    public bool HasFiredBy => FiredBy.Count > 0;
+
+    /// <summary>The define's heading over that list: <c>fired by 2 stats</c>.</summary>
+    public string FiredByHeading => FiredBy.Count == 1 ? "fired by 1 stat" : $"fired by {FiredBy.Count} stats";
+
+    /// <summary>Selects the stat <paramref name="id" /> of the define's ruleset, which frames it and jumps the YAML tab.</summary>
+    [RelayCommand]
+    private void SelectFiring(string? id)
+    {
+        if (_node is { } define && !string.IsNullOrEmpty(id))
+        {
+            _select(new RulesetDocumentNodeKey(define.Ruleset, id));
+        }
+    }
+
     public bool ShowsDocument => HasDocument && !HasNode && Wire is null;
 
     /// <summary>The condition editor over the selected wire, with no node selected; null otherwise.</summary>
@@ -332,6 +350,7 @@ public sealed partial class InspectorViewModel : ObservableObject
             }
         }
 
+        FiredBy.Clear();
         Fixture.Clear();
         foreach (string line in node is null ? [] : CanvasEditSemantics.FixtureOf(node, text))
         {
@@ -544,6 +563,11 @@ public sealed partial class InspectorViewModel : ObservableObject
         _showReferences = 0;
         FillEntries([]);
         IReadOnlyList<string> firing = Try(() => RulesetEdits.StatsFiringOn(_text, name)) ?? [];
+        foreach (string id in firing)
+        {
+            FiredBy.Add(id);
+        }
+
         DeleteRefusal = firing.Count == 0 ? "" : $"{name} is fired on by {string.Join(", ", firing)}; retarget them first.";
         DeleteLabel = "Delete";
     }
@@ -889,6 +913,8 @@ public sealed partial class InspectorViewModel : ObservableObject
         OnPropertyChanged(nameof(CanDelete));
         OnPropertyChanged(nameof(HasDeleteRefusal));
         OnPropertyChanged(nameof(HasFixture));
+        OnPropertyChanged(nameof(HasFiredBy));
+        OnPropertyChanged(nameof(FiredByHeading));
         OnPropertyChanged(nameof(CanClearFixture));
         DeleteCommand.NotifyCanExecuteChanged();
     }
