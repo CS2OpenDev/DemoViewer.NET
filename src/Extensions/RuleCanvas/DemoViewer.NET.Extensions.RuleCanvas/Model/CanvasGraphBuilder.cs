@@ -122,7 +122,7 @@ public static class CanvasGraphBuilder
         foreach (CanvasNodeViewModel node in nodes)
         {
             node.EstimatedSize = NodeSizeEstimator.Estimate(node);
-            items.Add(new CanvasPlacement.Item(node.Key, node.EstimatedSize.Width, node.EstimatedSize.Height));
+            items.Add(new CanvasPlacement.Item(node.Key, node.EstimatedSize.Width, node.EstimatedSize.Height, RoleOf(node)));
         }
 
         IReadOnlyDictionary<RulesetDocumentNodeKey, Avalonia.Point> placed =
@@ -136,6 +136,13 @@ public static class CanvasGraphBuilder
         }
 
         return (nodes, wires);
+    }
+
+    /// <summary>The placement's role for a node: the key's, except that a highlight's face is what tells it from a stat.</summary>
+    public static CanvasNodeRole RoleOf(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        return node.IsHighlight ? CanvasNodeRole.Highlight : CanvasPlacement.RoleOf(node.Key);
     }
 
     /// <summary>What a node gives: an event or a define fires, a context flag holds, everything else is a value.</summary>
