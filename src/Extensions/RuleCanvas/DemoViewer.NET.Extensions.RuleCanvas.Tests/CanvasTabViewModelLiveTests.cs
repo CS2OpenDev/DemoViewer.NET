@@ -49,10 +49,11 @@ public class CanvasTabViewModelLiveTests
             "valve_demo_2", "", "", DemoProfile.Unknown);
     }
 
-    private static CanvasTabViewModel WithHost(RulesTree rules, IExtensionJobs jobs, Func<string?> demoPath, Action<Action>? onDemoChanged = null)
+    private static CanvasTabViewModel WithHost(RulesTree rules, IExtensionJobs jobs, Func<string?> demoPath, Action<Action>? onDemoChanged = null,
+        Func<string?>? demoHash = null, Func<string, bool>? selectTab = null)
     {
-        CanvasTabViewModel vm = new(_ => true, rules.Load, () => rules.OwnFolder, null,
-            new LiveValuesHost(() => jobs, demoPath, () => "hash", static a => a(), onDemoChanged)) { LiveAutoRunDelay = TimeSpan.Zero };
+        CanvasTabViewModel vm = new(selectTab ?? (_ => true), rules.Load, () => rules.OwnFolder, null,
+            new LiveValuesHost(() => jobs, demoPath, demoHash ?? (static () => "hash"), static a => a(), onDemoChanged)) { LiveAutoRunDelay = TimeSpan.Zero };
         vm.OnActivated(null!);
         return vm;
     }
@@ -295,6 +296,39 @@ public class CanvasTabViewModelLiveTests
             await Assert.That(vm.IsLiveRunning).IsFalse();
             await Assert.That(vm.Nodes.All(n => !n.HasLive)).IsTrue();
         }
+    }
+
+    [Test]
+    public async Task ARunArrivingAfterTheDemoChanged_IsIgnored()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        DeferredJobs jobs = new(SyntheticDemo());
+        string hash = "first";
+        CanvasTabViewModel vm = WithHost(rules, jobs, () => DemoPath, demoHash: () => hash);
+        Task run = vm.RunLiveCommand.ExecuteAsync(null);
+        hash = "second";
+        jobs.Release();
+        await run;
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.LiveRun).IsNull().Because("the run is for the demo that was open when it was queued");
+            await Assert.That(vm.IsLiveRunning).IsFalse();
+            await Assert.That(vm.LiveState).IsEqualTo("no values yet");
+        }
+    }
+
+    [Test]
+    public async Task TheDemoChip_OpensTheLibraryTab()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        List<string> selected = [];
+        CanvasTabViewModel vm = WithHost(rules, new InlineJobs(), () => null, selectTab: id =>
+        {
+            selected.Add(id);
+            return true;
+        });
+        vm.OpenLibraryCommand.Execute(null);
+        await Assert.That(selected).IsEquivalentTo([CanvasTabViewModel.LibraryTabId]);
     }
 
     [Test]
