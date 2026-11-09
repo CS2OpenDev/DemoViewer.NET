@@ -16,7 +16,7 @@ public class CanvasPortTests
 {
     private static CanvasNodeViewModel Node(CanvasTabViewModel vm, string id) => vm.Nodes.Single(n => n.Id == id && !n.IsScaffold);
 
-    private static IReadOnlyList<string> InputTitles(CanvasNodeViewModel node) => [.. node.Inputs.Select(i => i.Title)];
+    private static IReadOnlyList<string> InputTitles(CanvasNodeViewModel node) => [.. node.Inputs.Where(i => !i.IsRow).Select(i => i.Title)];
 
     [Test]
     public async Task AuthoredNodes_CarryOnePortPerKindTheyTake_AndATypedOutput()
@@ -54,7 +54,8 @@ public class CanvasPortTests
             await Assert.That(intoDeaths.Single(w => w.IsGate).Target.Kind).IsEqualTo(PortKind.Gate).Because("the match.live gate lands on while");
             await Assert.That(intoDeaths.Single(w => !w.IsGate && !w.IsRead).Target.Kind).IsEqualTo(PortKind.Trigger).Because("the death event lands on on");
             await Assert.That(intoKast.Where(w => w.IsOr).Select(w => w.Target.Kind).Distinct()).IsEquivalentTo([PortKind.Logic]).Because("or inputs land on when");
-            await Assert.That(intoKast.Where(w => w.IsOr).Select(w => w.Target).Distinct().Count()).IsEqualTo(1).Because("one port per kind: every or input shares the when port");
+            await Assert.That(intoKast.Where(w => w.IsOr).Select(w => w.Target).Distinct().Count()).IsEqualTo(4).Because("each or input lands on its own when row");
+            await Assert.That(intoKast.Where(w => w.IsOr).All(w => w.Target.IsRow)).IsTrue();
         }
     }
 

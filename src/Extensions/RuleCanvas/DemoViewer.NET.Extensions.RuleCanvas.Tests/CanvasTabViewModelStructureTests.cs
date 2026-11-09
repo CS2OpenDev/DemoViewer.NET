@@ -80,6 +80,7 @@ public class CanvasTabViewModelStructureTests
         Select(vm, "round_kills");
         vm.GroupSelectionCommand.Execute(null);
         await Assert.That(vm.Groups).IsEmpty().Because("a frame around one node frames nothing");
+        await Assert.That(vm.Toast?.Message).IsEqualTo(CanvasTabViewModel.GroupNeedsTwo).Because("the refusal says how to select a second node");
 
         Select(vm, "round_kills", "round_deaths");
         vm.GroupSelectionCommand.Execute(null);

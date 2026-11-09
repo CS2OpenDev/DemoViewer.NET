@@ -37,6 +37,12 @@ public sealed partial class CanvasConnectorViewModel : ObservableObject
 
     public PortKind Kind { get; init; } = PortKind.Value;
 
+    /// <summary>A where: or when: row's own input, drawn on its row. A folded face's rail shows it only when a wire lands on it.</summary>
+    public bool IsRow { get; init; }
+
+    /// <summary>A wire lands on or leaves from this port. Set by the builder.</summary>
+    public bool IsWired { get; set; }
+
     /// <summary>The entry a folded dependency's output stands for, which a wire from it reads; null on every other port.</summary>
     public string? Entry { get; init; }
 
@@ -56,7 +62,17 @@ public sealed partial class CanvasConnectorViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Opacity))]
     private bool _isCompatible = true;
 
-    public double Opacity => IsCompatible ? 1 : 0.25;
+    /// <summary>True while a held wire or gallery item can land here; the ring gains a halo in its kind's colour.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LitToken))]
+    private bool _isLit;
+
+    public double Opacity => IsCompatible ? 1 : DimmedOpacity;
+
+    public const double DimmedOpacity = 0.3;
+
+    /// <summary>The halo's token while lit; null clears it.</summary>
+    public string? LitToken => IsLit ? Token : null;
 
     /// <summary>The input word for a kind, as the face spells the key it stands for.</summary>
     public static string TitleOf(PortKind kind) => kind switch

@@ -69,8 +69,7 @@ public partial class CanvasTabView : UserControl
             return;
         }
 
-        _dragging = item;
-        _viewModel?.MarkCompatibleFor(item);
+        BeginGalleryDrag(item);
         DataTransfer payload = new();
         payload.Add(DataTransferItem.CreateText(item.Name));
         try
@@ -83,9 +82,21 @@ public partial class CanvasTabView : UserControl
         }
         finally
         {
-            _dragging = null;
-            _viewModel?.MarkCompatible(null);
+            EndGalleryDrag();
         }
+    }
+
+    // The platform drag loop owns the pointer from here to the drop; the headless tests enter at these two.
+    internal void BeginGalleryDrag(GalleryItem item)
+    {
+        _dragging = item;
+        _viewModel?.MarkCompatibleFor(item);
+    }
+
+    internal void EndGalleryDrag()
+    {
+        _dragging = null;
+        _viewModel?.MarkCompatible(null);
     }
 
     private void OnEditorDragOver(object? sender, DragEventArgs e) =>
@@ -117,12 +128,34 @@ public partial class CanvasTabView : UserControl
         }
     }
 
-    // The wire under a point: the event's own source when it is one, else the editor's hit test. Nodify's
-    // connections live in the editor's connections layer and hit-test by their stroke.
+    // The wire under a point, or within WireReach of it: a stroke is two pixels wide and a hand drop rarely
+    // lands on it. Nearer rings win, so of two close wires the one under the pointer is taken.
     private CanvasConnectionViewModel? WireAt(Visual? source, Point at)
     {
-        LabelledConnection? connection = WireOf(source) ?? WireOf(Editor.InputHitTest(at) as Visual);
+        LabelledConnection? connection = WireOf(source);
+        foreach (Vector offset in WireProbe)
+        {
+            connection ??= WireOf(Editor.InputHitTest(at + offset) as Visual);
+        }
+
         return connection?.DataContext as CanvasConnectionViewModel;
+    }
+
+    private const double WireReach = 8;
+
+    private static readonly Vector[] WireProbe = [.. Rings()];
+
+    private static IEnumerable<Vector> Rings()
+    {
+        yield return default;
+        for (double r = 2; r <= WireReach; r += 2)
+        {
+            for (int step = 0; step < 8; step++)
+            {
+                double a = step * Math.PI / 4;
+                yield return new Vector(Math.Round(r * Math.Cos(a)), Math.Round(r * Math.Sin(a)));
+            }
+        }
     }
 
     private static LabelledConnection? WireOf(Visual? source) =>
@@ -180,6 +213,14 @@ public partial class CanvasTabView : UserControl
                  && WireOf(e.Source as Visual)?.DataContext is CanvasConnectionViewModel wire)
         {
             _viewModel.BeginEditWire(wire);
+            e.Handled = true;
+        }
+        else if (properties.IsLeftButtonPressed && e.ClickCount == 2
+                 && (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<TextBlock>().FirstOrDefault(t => t.Name == "NodeTitle")
+                     ?.DataContext is CanvasNodeViewModel { CanRename: true } titled)
+        {
+            // Here and not on DoubleTapped: the container captures the press, so no tap gesture reaches the header.
+            titled.BeginEditTitle();
             e.Handled = true;
         }
     }
@@ -427,7 +468,7 @@ public partial class CanvasTabView : UserControl
     {
         if (_viewModel is not null)
         {
-            _viewModel.IsStripNarrow = e.NewSize.Width < CanvasTabViewModel.NarrowStripWidth;
+            _viewModel.SetStripWidth(e.NewSize.Width);
         }
     }
 
@@ -640,6 +681,8 @@ public partial class CanvasTabView : UserControl
         }
     }
 
+    private void OnNodeRename(object? sender, RoutedEventArgs e) => NodeOf(sender)?.BeginEditTitle();
+
     private void OnNodeDuplicate(object? sender, RoutedEventArgs e)
     {
         if (NodeOf(sender) is { } node)
@@ -768,7 +811,7 @@ public partial class CanvasTabView : UserControl
             FillAddStatMenu(_viewModel.Views);
             if (Bounds.Width > 0)
             {
-                _viewModel.IsStripNarrow = Bounds.Width < CanvasTabViewModel.NarrowStripWidth;
+                _viewModel.SetStripWidth(Bounds.Width);
             }
         }
     }

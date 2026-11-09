@@ -339,6 +339,7 @@ public sealed partial class CanvasTabViewModel
         {
             input.IsCompatible = takes is { } kind && input.Kind == kind && input.Owner is { IsAuthorable: true, IsScaffold: false } owner
                                  && !(item.Kind == GalleryItemKind.Define && owner.IsDefine);
+            input.IsLit = input.IsCompatible;
         }
     }
 
@@ -348,6 +349,7 @@ public sealed partial class CanvasTabViewModel
         foreach (CanvasConnectorViewModel input in Nodes.SelectMany(n => n.Inputs))
         {
             input.IsCompatible = source is null || CanvasConnectorViewModel.Accepts(input.Kind, source);
+            input.IsLit = source is not null && input.IsCompatible;
         }
     }
 
@@ -546,6 +548,29 @@ public sealed partial class CanvasTabViewModel
         {
             Apply(CanvasEditSemantics.WriteField(node, key, value));
         }
+    }
+
+    /// <summary>
+    ///     Renames <paramref name="node" />'s entry to <paramref name="wanted" /> through the Inspector's id field,
+    ///     so references are rewritten and the arrangement follows. The refusal, or empty when written.
+    /// </summary>
+    public string RenameNode(CanvasNodeViewModel node, string wanted)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (!IsEditable || !node.IsEntry)
+        {
+            return "Only an entry of your own ruleset can be renamed.";
+        }
+
+        if (SelectedNodes.Count != 1 || !ReferenceEquals(SelectedNodes[0], node))
+        {
+            SelectedNodes.Clear();
+            SelectedNodes.Add(node);
+        }
+
+        Inspector.Id.Text = wanted;
+        Inspector.Id.Commit();
+        return Inspector.Id.Error;
     }
 
     private bool Apply(EditRequest request) =>
