@@ -57,15 +57,6 @@
                                 ToolTip.Tip="Redo (Ctrl+Shift+Z)" />
                         <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
 
-                        <!-- The canvas search: nodes the text does not name dim; Enter frames the next match, Escape clears. -->
-                        <TextBox x:Name="SearchBox" Text="{Binding CanvasSearch}" PlaceholderText="Find node (Ctrl+F)" FontSize="12"
-                                 Padding="6 2" MinHeight="0" Width="170" VerticalAlignment="Center" KeyDown="OnSearchKeyDown"
-                                 ToolTip.Tip="Filter the canvas by id, label, event or define name; Enter frames each match in turn" />
-                        <TextBlock Text="{Binding SearchSummary}" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
-                                   IsVisible="{Binding IsSearching}" />
-                        <Button Classes="icon-btn" Content="×" Margin="0" IsVisible="{Binding IsSearching}"
-                                Command="{Binding ClearSearchCommand}" ToolTip.Tip="Clear the search (Esc)" />
-                        <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
 
                         <!-- The keyboard path into the gallery: the same searchable list, each item a button. -->
                         <Button Classes="ghost" Content="+ Add" FontSize="12" Padding="8 3" IsEnabled="{Binding IsEditable}"
@@ -134,9 +125,6 @@
                         <ToggleButton Classes="panel" Content="Inspector" IsChecked="{Binding ShowInspector}"
                                       ToolTip.Tip="Show or hide the Inspector, which edits every key of the selected node" />
                         <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
-                        <Button Classes="ghost" Content="Reset arrangement" FontSize="12" Padding="8 3"
-                                Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding HasSavedLayout}"
-                                ToolTip.Tip="{Binding SidecarPath}" />
                         <Button Classes="ghost" Content="Open Authoring" FontSize="12" Padding="8 3"
                                 Command="{Binding OpenAuthoringCommand}" />
                         <Button Classes="icon-btn" Content="&#x22EF;" FontSize="15" Padding="5 0" ToolTip.Tip="More">
@@ -148,6 +136,8 @@
                                     <MenuItem Header="Minimap" Command="{Binding ToggleMinimapCommand}" />
                                     <MenuItem Header="Diagnostics list" Command="{Binding ToggleDiagnosticsListCommand}" />
                                     <Separator />
+                                    <MenuItem Header="Reset arrangement" Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding HasSavedLayout}"
+                                              ToolTip.Tip="{Binding SidecarPath}" />
                                     <MenuItem Header="Delete selected" Command="{Binding DeleteSelectedCommand}" />
                                     <MenuItem Header="Group selection" InputGesture="Ctrl+G" Command="{Binding GroupSelectionCommand}" />
                                     <MenuItem Header="Tidy selection" InputGesture="Ctrl+Shift+T" Command="{Binding TidySelectionCommand}" />
@@ -162,7 +152,7 @@
                     <Grid Grid.Column="0" ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0 0 8 0" VerticalAlignment="Center">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <ComboBox ItemsSource="{Binding Rulesets}" SelectedItem="{Binding SelectedRuleset}"
-                                      MinWidth="240" FontSize="12" Padding="8 3" ToolTip.Tip="The ruleset drawn">
+                                      MinWidth="210" FontSize="12" Padding="8 3" ToolTip.Tip="The ruleset drawn">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate x:DataType="model:RulesetCorpus+Entry">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -197,17 +187,18 @@
                             <Button x:Name="DemoChip" Classes="ghost" Content="{Binding DemoChipText}" FontSize="11" FontFamily="monospace" Padding="6 2"
                                     Command="{Binding OpenLibraryCommand}" ToolTip.Tip="{Binding DemoFileName, TargetNullValue='No demo is open; the Library opens one.'}" />
                             <ComboBox ItemsSource="{Binding Instances}" SelectedItem="{Binding SelectedInstance}" IsVisible="{Binding HasLiveRun}"
-                                      MinWidth="110" FontSize="11" Padding="6 2" ToolTip.Tip="Whose values the badges show: the game, or one player">
+                                      MinWidth="96" FontSize="11" Padding="6 2" ToolTip.Tip="Whose values the badges show: the game, or one player">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate x:DataType="live:LiveInstance">
                                         <TextBlock Text="{Binding Converter={x:Static views:LiveInstanceLabel.Instance}}" FontSize="11" />
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
+                            <!-- With no demo the chip already says so; the state and Re-run would only repeat it and crowd the strip. -->
                             <TextBlock Text="{Binding LiveState}" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
-                                       MaxWidth="180" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LiveState}" />
+                                       MaxWidth="150" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LiveState}" IsVisible="{Binding HasDemo}" />
                             <Button Classes="ghost" Content="Re-run" FontSize="11" Padding="6 2" Command="{Binding RunLiveCommand}"
-                                    ToolTip.Tip="Evaluate the drawn ruleset over the open demo now" />
+                                    IsVisible="{Binding HasDemo}" ToolTip.Tip="Evaluate the drawn ruleset over the open demo now" />
                             <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
                         <!-- A shipped ruleset: the chip says it is read only, the button beside it makes a copy. -->
                             <Border CornerRadius="3" Padding="6 1" VerticalAlignment="Center" BorderThickness="1"
@@ -235,6 +226,17 @@
                             </Button>
                         </StackPanel>
                         <DockPanel Grid.Column="1" VerticalAlignment="Center">
+                            <!-- The canvas search sits in the star column so it gives way before the buttons do: nodes the
+                                 text does not name dim; Enter frames the next match, Escape clears. -->
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8 0 0 0">
+                                <TextBox x:Name="SearchBox" Text="{Binding CanvasSearch}" PlaceholderText="Find node (Ctrl+F)" FontSize="12"
+                                         Padding="6 2" MinHeight="0" MinWidth="90" MaxWidth="170" VerticalAlignment="Center" KeyDown="OnSearchKeyDown"
+                                         ToolTip.Tip="Filter the canvas by id, label, event or define name; Enter frames each match in turn" />
+                                <TextBlock Text="{Binding SearchSummary}" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
+                                           IsVisible="{Binding IsSearching}" />
+                                <Button Classes="icon-btn" Content="×" Margin="0" IsVisible="{Binding IsSearching}"
+                                        Command="{Binding ClearSearchCommand}" ToolTip.Tip="Clear the search (Esc)" />
+                            </StackPanel>
                             <TextBlock DockPanel.Dock="Left" FontSize="12" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
                                        Text="{Binding Status}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Status}" Margin="0 0 8 0" />
                             <TextBlock IsVisible="{Binding AuthoringUnavailable}" FontSize="12" VerticalAlignment="Center"
