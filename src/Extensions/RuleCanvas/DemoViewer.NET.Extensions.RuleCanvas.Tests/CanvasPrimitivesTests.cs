@@ -489,4 +489,53 @@ public class CanvasPrimitivesTests
             }
         }
     }
+
+    [Test]
+    public async Task AStatAndAHighlight_AreBuiltFromPrimitivesAlone()
+    {
+        using RulesTree rules = RulesTree.New();
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        vm.NewRulesetName = "prims";
+        await Assert.That(vm.CreateNewRuleset(false)).IsTrue().Because(vm.EditStatus);
+        string Written() => File.ReadAllText(rules.UserPath("prims"));
+        CanvasNodeViewModel Stat() => vm.Nodes.Single(n => n.Id == "new_stat" && n.IsEntry);
+
+        // A blank stat, then its kind.
+        vm.PlaceItem(Item(vm, "Blank stat"), new Point(400, 100));
+        await Assert.That(Stat().IsDraft).IsTrue();
+        CanvasChoiceViewModel kind = Stat().Choices.Single(c => c.Key == "kind");
+        kind.Selected = kind.Options.Single(o => o.Value == "count");
+        await Assert.That(Stat().Port(PortKind.Trigger)).IsNotNull();
+
+        // The kill view's event, floating, wired into the on port.
+        Point? asked = null;
+        vm.EventPickRequested += at => asked = at;
+        vm.PlaceItem(Item(vm, "Blank event"), new Point(0, 100));
+        vm.PlaceItem(vm.BlankEventOptions.Single(o => o.Name == "kill"), asked!.Value);
+        CanvasWalkthrough.WireInto(vm, vm.Nodes.Single(n => n.IsFloating), Stat().Port(PortKind.Trigger)!);
+        await Assert.That(vm.Nodes.Count(n => n.Ruleset == "~event")).IsEqualTo(1).Because("the chain's player_death took the floating node's place");
+
+        // A facet from the picker.
+        Stat().FacetToAdd = "enemy";
+
+        // A blank highlight, the stat wired into its when, the threshold set in the wire editor.
+        vm.PlaceItem(Item(vm, "Blank highlight"), new Point(900, 100));
+        CanvasWalkthrough.WireInto(vm, Stat(), vm.Nodes.Single(n => n.Id == CanvasGallery.BlankHighlightName).LogicPort!);
+        vm.BeginEditWire(vm.Connections.Single(c => c.Source.Owner?.Id == "new_stat" && c.Target.Owner?.Id == CanvasGallery.BlankHighlightName));
+        vm.WireEditor!.Row!.Literal = "2";
+        vm.WireEditor.Commit();
+
+        RulesetCorpus.Composed composed = rules.Load().Compose("prims");
+        using (Assert.Multiple())
+        {
+            await Assert.That(Written()).EndsWith("\n  new_stat:\n    per: round\n    count: kill\n    match: { enemy: true }\n"
+                                                  + "highlights:\n  new_highlight:\n    when: new_stat > 2\n    per: round\n    score: 50\n"
+                                                  + "    title: \"{player.name} (round {round.number})\"\n");
+            await Assert.That(vm.DiagnosticEntries.Select(d => d.Message)).IsEmpty();
+            await Assert.That(composed.Chain.IsLowered).IsTrue();
+            await Assert.That(vm.Connections.Any(c => c.Source.Owner?.Id == "player_death" && c.Target.Owner?.Id == "new_stat")).IsTrue();
+            await Assert.That(RulesetLayoutStore.Load(rules.UserPath("prims")).Scaffolds).IsEmpty();
+        }
+    }
 }
