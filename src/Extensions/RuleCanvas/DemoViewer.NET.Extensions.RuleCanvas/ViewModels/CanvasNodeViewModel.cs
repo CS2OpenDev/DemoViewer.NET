@@ -230,8 +230,21 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>Whether the open document declares this node; a <c>use:</c> dependency's node is drawn read-only.</summary>
     public bool IsAuthorable { get; init; } = true;
 
-    /// <summary>The diagnostics the composition raised inside this entry; empty when none.</summary>
-    public IReadOnlyList<string> Diagnostics { get; init; } = [];
+    /// <summary>
+    ///     The diagnostics the composition raised inside this entry, weighted; empty when none. Set by the
+    ///     factory from the face, and by the builder when a drawn entry turns out unwired.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDiagnostics))]
+    [NotifyPropertyChangedFor(nameof(DiagnosticsText))]
+    [NotifyPropertyChangedFor(nameof(DiagnosticsToken))]
+    [NotifyPropertyChangedFor(nameof(HasErrors))]
+    private IReadOnlyList<RuleDiagnostic> _diagnostics = [];
+
+    /// <summary>The badge's token: the error red when any of them is an error, the warning amber otherwise.</summary>
+    public string DiagnosticsToken => RuleDiagnostic.WorstToken(Diagnostics.Select(d => d.Weight));
+
+    public bool HasErrors => Diagnostics.Any(d => d.IsError);
 
     /// <summary>The values this node reads from siblings, one input connector each.</summary>
     public ObservableCollection<CanvasConnectorViewModel> Inputs { get; } = [];
@@ -440,7 +453,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     public bool HasDiagnostics => Diagnostics.Count > 0;
 
-    public string DiagnosticsText => string.Join('\n', Diagnostics);
+    public string DiagnosticsText => string.Join('\n', Diagnostics.Select(d => d.Message));
 
     /// <summary>The compact style's facet count shows only where there are facets to count.</summary>
     public bool ShowFacetSummary => !ShowFacets && HasFacets;

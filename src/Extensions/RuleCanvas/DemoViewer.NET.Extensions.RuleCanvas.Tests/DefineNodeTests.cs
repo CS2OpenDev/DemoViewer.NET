@@ -153,7 +153,8 @@ public class DefineNodeTests
         RulesetDocumentNode lonely = composed.Graph.Nodes.Single(n => n.IsDefine);
         using (Assert.Multiple())
         {
-            await Assert.That(composed.Diagnostics).IsEmpty();
+            await Assert.That(composed.Report.Select(r => (r.Weight, r.Node))).IsEquivalentTo([(DiagnosticWeight.Warning, (RulesetDocumentNodeKey?)lonely.Key)])
+                .Because("the only thing to say is that nothing fires on lonely, and it is said at the define");
             await Assert.That(lonely.Key).IsEqualTo(RulesetDocumentNodeKey.Define("top", "lonely"));
             await Assert.That(lonely.View).IsEqualTo("death").Because("nothing fires on it, so the catalog answers for the spelling");
             await Assert.That(lonely.Events).IsEquivalentTo(["player_death"]);

@@ -86,7 +86,7 @@ public class DependencyNodeTests
             await Assert.That(folded.Chain.IsLowered).IsFalse();
             await Assert.That(folded.Chain.Nodes.Any(n => n.Kind == ChainNodeKind.Dependency)).IsTrue();
             await Assert.That(face.EntryCount).IsGreaterThan(15);
-            await Assert.That(face.Diagnostics.Any(d => d.Contains("no_such_stat", StringComparison.Ordinal))).IsTrue()
+            await Assert.That(face.Diagnostics.Any(d => d.Message.Contains("no_such_stat", StringComparison.Ordinal) && d.IsError)).IsTrue()
                 .Because("the dependency's own diagnostics land on its node rather than on a blank canvas");
             await Assert.That(face.IsAuthorable).IsFalse();
             await Assert.That(face.IsScaffold).IsFalse();

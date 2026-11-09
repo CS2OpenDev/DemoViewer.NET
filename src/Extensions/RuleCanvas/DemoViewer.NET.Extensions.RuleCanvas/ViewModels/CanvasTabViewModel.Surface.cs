@@ -36,12 +36,15 @@ public sealed record CanvasToast(string Message, Point? At, int Sequence);
 /// <summary>One line of the strip's diagnostics list.</summary>
 /// <param name="Node">The node the diagnostic is inside, or null for one about the ruleset as a whole.</param>
 /// <param name="Message">The text.</param>
-public sealed record CanvasDiagnostic(CanvasNodeViewModel? Node, string Message)
+/// <param name="Weight">Error or warning, which paints the line's stripe.</param>
+public sealed record CanvasDiagnostic(CanvasNodeViewModel? Node, string Message, DiagnosticWeight Weight = DiagnosticWeight.Error)
 {
     public string Where => Node?.Id ?? "ruleset";
 
-    /// <summary>The token the severity is painted in; composition emits errors, a text that says warning gets caution.</summary>
-    public string Token => Message.Contains("warning", StringComparison.OrdinalIgnoreCase) ? "AccentCaution" : "AccentError";
+    /// <summary>The token the weight is painted in.</summary>
+    public string Token => RuleDiagnostic.TokenFor(Weight);
+
+    public bool IsError => Weight == DiagnosticWeight.Error;
 }
 
 /// <summary>
@@ -120,6 +123,16 @@ public sealed partial class CanvasTabViewModel
     public bool IsGallerySearching => GallerySearch.Trim().Length > 0;
 
     public int DiagnosticCount => DiagnosticEntries.Count;
+
+    /// <summary>The strip's count, by weight: <c>2 errors, 1 warning</c>.</summary>
+    public string DiagnosticSummary => RuleDiagnostic.Summary(DiagnosticEntries.Select(d => d.Weight));
+
+    /// <summary>The strip badge's token: the error red when any line is an error, the warning amber otherwise.</summary>
+    public string DiagnosticsToken => RuleDiagnostic.WorstToken(DiagnosticEntries.Select(d => d.Weight));
+
+    public int ErrorCount => DiagnosticEntries.Count(d => d.IsError);
+
+    public int WarningCount => DiagnosticEntries.Count(d => !d.IsError);
 
     public bool HasEmptyState => EmptyState != CanvasEmptyState.None;
 
@@ -335,25 +348,30 @@ public sealed partial class CanvasTabViewModel
     {
         Gallery = CanvasGallery.Build(EmbeddedCatalog.Root, Nodes.Where(n => n.IsAuthorable && n.Kind == "flag").Select(n => n.Id), YourDefines());
         DiagnosticEntries.Clear();
-        HashSet<string> inNodes = new(StringComparer.Ordinal);
+        // A line filed on a node is listed under it once; what no node holds is the ruleset's.
+        HashSet<RuleDiagnostic> filed = [];
         foreach (CanvasNodeViewModel node in Nodes)
         {
-            foreach (string message in node.Diagnostics)
+            foreach (RuleDiagnostic diagnostic in node.Diagnostics)
             {
-                DiagnosticEntries.Add(new CanvasDiagnostic(node, message));
-                inNodes.Add(message);
+                DiagnosticEntries.Add(new CanvasDiagnostic(node, diagnostic.Message, diagnostic.Weight));
+                filed.Add(diagnostic);
             }
         }
 
-        foreach (string message in composed?.Diagnostics ?? [])
+        foreach (RuleDiagnostic diagnostic in composed?.Report ?? [])
         {
-            if (!inNodes.Contains(message) && !DiagnosticEntries.Any(d => d.Node is not null && message.Contains(d.Message, StringComparison.Ordinal)))
+            if (!filed.Contains(diagnostic) && !DiagnosticEntries.Any(d => d.Node is not null && diagnostic.Text.Contains(d.Message, StringComparison.Ordinal)))
             {
-                DiagnosticEntries.Add(new CanvasDiagnostic(null, message));
+                DiagnosticEntries.Add(new CanvasDiagnostic(null, diagnostic.Text, diagnostic.Weight));
             }
         }
 
         OnPropertyChanged(nameof(DiagnosticCount));
+        OnPropertyChanged(nameof(DiagnosticSummary));
+        OnPropertyChanged(nameof(DiagnosticsToken));
+        OnPropertyChanged(nameof(ErrorCount));
+        OnPropertyChanged(nameof(WarningCount));
         OnPropertyChanged(nameof(CanCreateRuleset));
         OnPropertyChanged(nameof(RulesFolder));
         if (SelectedRuleset is null)

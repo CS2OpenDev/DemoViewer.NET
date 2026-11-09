@@ -47,8 +47,10 @@
                     <SolidColorBrush x:Key="RuleWireHalo" Color="#B34A4A9E" />
                     <!-- The tick in a checked face checkbox, on RuleSelection: TextOnAccent is 2.44 there in light. -->
                     <SolidColorBrush x:Key="RuleCheckGlyph" Color="#FCFCFE" />
-                    <!-- 10px text on an AccentError or AccentCaution badge; TextOnAccent is 3.30 on the light error red. -->
+                    <!-- 10px text on an AccentError or RuleDiagnosticWarning badge; TextOnAccent is 3.30 on the light error red. -->
                     <SolidColorBrush x:Key="RuleDiagnosticBadgeText" Color="#FCFCFE" />
+                    <!-- A warning badge: the engine tolerated it, so amber beside the error red, dark enough for the badge text. -->
+                    <SolidColorBrush x:Key="RuleDiagnosticWarning" Color="#A15C00" />
                     <!-- The live value badge in the node header: a tint off RuleNodeBg, and the grey its text takes
                          when the run predates the text drawn. -->
                     <SolidColorBrush x:Key="RuleLiveBadgeBg" Color="#E6E7F3" />
@@ -117,6 +119,7 @@
                     <SolidColorBrush x:Key="RuleWireHalo" Color="#99A0A0F0" />
                     <SolidColorBrush x:Key="RuleCheckGlyph" Color="#12121E" />
                     <SolidColorBrush x:Key="RuleDiagnosticBadgeText" Color="#0C0C1A" />
+                    <SolidColorBrush x:Key="RuleDiagnosticWarning" Color="#E0A030" />
                     <SolidColorBrush x:Key="RuleLiveBadgeBg" Color="#24243C" />
                     <SolidColorBrush x:Key="RuleLiveStale" Color="#6E6E8C" />
                     <SolidColorBrush x:Key="RuleGroupFill" Color="#1A8A8AE0" />

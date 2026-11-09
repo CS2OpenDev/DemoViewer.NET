@@ -22,7 +22,7 @@ public class CanvasThemeTests
         "RuleKindEvent", "RuleKindEnrich", "RuleKindContext", "RuleKindStat", "RuleKindDerived", "RuleKindHighlight", "RuleKindDefine", "RuleKindSurface", "RuleKindDependency",
         "RuleWireWrite", "RuleWireRead", "RuleWireGate", "RuleWireAnd", "RuleWireOr",
         "RuleCanvasBg", "RuleNodeBg", "RuleNodeBorder", "RuleSelection", "RuleSelectionFill", "RuleCutLine", "RuleMinimapBg",
-        "RuleTextKey", "RuleWireHalo", "RuleCheckGlyph", "RuleDiagnosticBadgeText", "RuleLiveBadgeBg", "RuleLiveStale",
+        "RuleTextKey", "RuleWireHalo", "RuleCheckGlyph", "RuleDiagnosticBadgeText", "RuleDiagnosticWarning", "RuleLiveBadgeBg", "RuleLiveStale",
         "RuleGroupFill", "RuleGroupHeaderBg", "RuleGroupBorder"
     ];
 

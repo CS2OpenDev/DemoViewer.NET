@@ -154,7 +154,8 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     [ObservableProperty]
     private bool _hasSavedLayout;
 
-    public bool HasDiagnostics => Diagnostics.Length > 0;
+    /// <summary>Whether the strip has a badge to show: any line in the list, the unwired warnings included.</summary>
+    public bool HasDiagnostics => DiagnosticEntries.Count > 0;
 
     public bool HasEditStatus => EditStatus.Length > 0;
 
@@ -616,11 +617,10 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
 
         RefreshInspector();
         Diagnostics = string.Join('\n', composed.Diagnostics);
-        HashSet<CanvasNodeViewModel> wired = [.. wires.SelectMany(w => new[] { w.Source.Owner, w.Target.Owner }).OfType<CanvasNodeViewModel>()];
-        int unwired = nodes.Count(n => !wired.Contains(n));
+        // An unwired entry is a warning on the node, counted with the diagnostics, not a bare number on the strip.
         Status = nodes.Count == 0
             ? "Nothing composed; see the diagnostics."
-            : $"{nodes.Count} nodes, {wires.Count} wires, {unwired} unwired";
+            : $"{nodes.Count} nodes, {wires.Count} wires";
         AfterRedraw(composed);
         RefreshSearchMatches();
         if (refit ?? !keepArrangement)

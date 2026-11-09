@@ -307,7 +307,7 @@ public class RulesetDocumentGraphCorpusTests
         }
 
         // The stray key inside kills is filed on its node; the top-level one and the dropped tally stay at the document.
-        ILookup<RulesetDocumentNodeKey, string> byNode = NodeFaceBuilder.DiagnosticsByNode(composed);
+        ILookup<RulesetDocumentNodeKey, RuleDiagnostic> byNode = NodeFaceBuilder.DiagnosticsByNode(composed);
         await Assert.That(byNode[new RulesetDocumentNodeKey("noisy", "kills")]).IsNotEmpty();
 
         using CanvasTabViewModel vm = rules.NewViewModel();
@@ -347,15 +347,15 @@ public class RulesetDocumentGraphCorpusTests
               stray: true
             """);
         RulesetCorpus.Composed composed = rules.Load().Compose("tail");
-        ILookup<RulesetDocumentNodeKey, string> byNode = NodeFaceBuilder.DiagnosticsByNode(composed);
+        ILookup<RulesetDocumentNodeKey, RuleDiagnostic> byNode = NodeFaceBuilder.DiagnosticsByNode(composed);
         RulesetDocumentNodeKey deaths = new("tail", "deaths");
         using (Assert.Multiple())
         {
             await Assert.That(composed.PositionedDiagnostics.Any(d => d.Line == 11 && d.Message.Contains("nonsense", StringComparison.Ordinal))).IsTrue();
             await Assert.That(composed.PositionedDiagnostics.Any(d => d.Line == 15 && d.Message.Contains("stray", StringComparison.Ordinal))).IsTrue()
                 .Because(string.Join("; ", composed.PositionedDiagnostics.Select(d => $"{d.Line}: {d.Message}")));
-            await Assert.That(byNode[deaths].Any(m => m.Contains("nonsense", StringComparison.Ordinal))).IsTrue().Because("inside the entry");
-            await Assert.That(byNode[deaths].Any(m => m.Contains("stray", StringComparison.Ordinal))).IsFalse().Because("inside show:, after the entry");
+            await Assert.That(byNode[deaths].Any(m => m.Message.Contains("nonsense", StringComparison.Ordinal))).IsTrue().Because("inside the entry");
+            await Assert.That(byNode[deaths].Any(m => m.Message.Contains("stray", StringComparison.Ordinal))).IsFalse().Because("inside show:, after the entry");
             await Assert.That(byNode[new RulesetDocumentNodeKey("tail", "kills")]).IsEmpty();
         }
 

@@ -105,16 +105,25 @@ public class CanvasViewMarkupTests
         }
     }
 
-    // TextOnAccent is 3.30:1 on the light error red; the badge text is the token measured for both badges.
+    // TextOnAccent is 3.30:1 on the light error red; the badge text is the token measured for both badges. Every
+    // badge is painted by the weight behind it, never a fixed red.
     [Test]
-    public async Task EveryDiagnosticsBadge_UsesTheBadgeTextToken()
+    public async Task EveryDiagnosticsBadge_UsesTheBadgeTextToken_AndIsPaintedByWeight()
     {
         XDocument view = LoadView();
         List<XElement> badges = [.. view.Descendants().Where(e => e.Name.LocalName == "Border"
-            && (Attribute(e, "Background") == "{DynamicResource AccentError}"
-                || (e.Attribute(_views + "TokenBrush.Background")?.Value ?? "").Contains("DiagnosticSeverityToken", StringComparison.Ordinal)))];
+            && e.Attribute(_views + "TokenBrush.Background")?.Value == "{Binding DiagnosticsToken}")];
         List<XElement> texts = [.. badges.SelectMany(b => b.Descendants().Where(e => e.Name.LocalName == "TextBlock"))];
-        await Assert.That(texts.Count).IsEqualTo(5).Because("the strip badge holds two texts, the node badge one, the show node badge one, the dependency badge one");
+        using (Assert.Multiple())
+        {
+            await Assert.That(badges.Count).IsEqualTo(4).Because("the strip badge, the node badge, the show node badge, the dependency badge");
+            await Assert.That(texts.Count).IsEqualTo(4);
+            await Assert.That(texts.Any(t => Attribute(t, "Text") == "{Binding DiagnosticSummary}")).IsTrue().Because("the strip says 2 errors, 1 warning");
+            await Assert.That(view.Descendants().Any(e => e.Name.LocalName == "Border" && Attribute(e, "Background") == "{DynamicResource AccentError}"
+                                                          && e.Descendants().Any(d => Attribute(d, "Text").Contains("Diagnostic", StringComparison.Ordinal)))).IsFalse()
+                .Because("no diagnostics badge is a fixed red");
+        }
+
         foreach (XElement text in texts)
         {
             await Assert.That(Attribute(text, "Foreground")).IsEqualTo("{DynamicResource RuleDiagnosticBadgeText}").Because(Attribute(text, "Text"));

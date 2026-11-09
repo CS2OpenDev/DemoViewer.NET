@@ -5,6 +5,7 @@ using CS2DemoKit.Analysis.Graphs;
 using CS2DemoKit.Analysis.Plugins;
 using CS2DemoKit.Analysis.Profiles;
 using CS2DemoKit.Analysis.Registry;
+using CS2DemoKit.Analysis.Rules;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Analysis.Yaml;
@@ -30,16 +31,30 @@ public sealed class RulesetCorpus
     /// <summary>What composing one ruleset produced.</summary>
     /// <param name="Graph">The nodes and edges; the declared entries alone, unwired, when the composition failed.</param>
     /// <param name="Documents">Every document that took part, by id, for the chips and facets a checked stat does not carry.</param>
-    /// <param name="Diagnostics">The composition's diagnostics and the loader's for every document taking part, as text.</param>
-    /// <param name="PositionedDiagnostics">The same diagnostics that carry a line, with the ruleset they are about.</param>
-    /// <param name="Chain">The engine's lowered chain for the same documents; empty when the build failed, which the diagnostics then say.</param>
+    /// <param name="Report">
+    ///     Everything said about the composition, weighted: the composition's own diagnostics, the loader's for
+    ///     every document taking part, the build's skips, and the canvas's warnings about unfinished entries.
+    /// </param>
+    /// <param name="Chain">The engine's lowered chain for the same documents; empty when the build failed, which the report then says.</param>
     public sealed record Composed(
         RulesetDocumentGraph Graph,
         IReadOnlyDictionary<string, RulesetDoc> Documents,
-        IReadOnlyList<string> Diagnostics,
-        IReadOnlyList<(string RulesetId, int Line, string Message)> PositionedDiagnostics,
+        IReadOnlyList<RuleDiagnostic> Report,
         RulesetChainGraph Chain)
     {
+        /// <summary>The report as text, one line each.</summary>
+        public IReadOnlyList<string> Diagnostics { get; } = [.. Report.Select(r => r.Text)];
+
+        /// <summary>The report's entries that carry a line, with the ruleset they are about.</summary>
+        public IReadOnlyList<(string RulesetId, int Line, string Message)> PositionedDiagnostics { get; } =
+            [.. Report.Where(r => r.IsPositioned).Select(r => (r.RulesetId!, r.Line, r.Message))];
+
+        /// <summary>
+        ///     The documents as the engine can take them: the open one without its unfinished entries, which a
+        ///     live run evaluates in place of <see cref="Documents" />. Empty when nothing composed.
+        /// </summary>
+        public IReadOnlyList<RulesetDoc> Evaluable { get; init; } = [];
+
         /// <summary>The id of the document composed, whose show: and params: blocks are drawn; null when nothing loaded.</summary>
         public string? OpenId { get; init; }
 
@@ -405,7 +420,7 @@ public sealed class RulesetCorpus
         if (!_docs.TryGetValue(id, out RulesetDoc? open))
         {
             return new Composed(RulesetDocumentGraph.Empty, new Dictionary<string, RulesetDoc>(StringComparer.Ordinal),
-                [$"{id} is not a loaded ruleset"], [], RulesetChainGraph.Empty) { OpenId = id };
+                [RuleDiagnostic.Of($"{id} is not a loaded ruleset", DiagnosticWeight.Error)], RulesetChainGraph.Empty) { OpenId = id };
         }
 
         List<RulesetDoc> docs = [open];
@@ -425,23 +440,22 @@ public sealed class RulesetCorpus
             }
         }
 
-        RulesetComposition.Result composed = RulesetComposition.Compose(docs, EmbeddedCatalog.Adapter, 64.0, ProfileName);
-        List<string> diagnostics = [.. composed.Diagnostics.Select(d => d.ToString() ?? "")];
-        List<(string, int, string)> positioned = [];
+        // An unfinished entry of the open document is a warning at the entry, not a failed composition:
+        // the entries the resolver cannot take are kept out of what it is handed and drawn from the document.
+        List<RuleDiagnostic> report = [.. Incompleteness.Of(open)];
+        List<RulesetDoc> evaluable = [Incompleteness.Stripped(open), .. docs.Skip(1)];
+        HashSet<RulesetDocumentNodeKey> undrawn = [.. Incompleteness.StrippedKeys(open)];
+
+        RulesetComposition.Result composed = RulesetComposition.Compose(evaluable, EmbeddedCatalog.Adapter, 64.0, ProfileName);
         foreach (RulesetCompositionDiagnostic diagnostic in composed.AttributedDiagnostics)
         {
-            if (diagnostic.Position is not { Line: > 0 } position)
-            {
-                continue;
-            }
-
             // A cross-ruleset cycle is attributed to no ruleset; its file still names one.
+            int line = diagnostic.Position is { Line: > 0 } at ? at.Line : 0;
+            string? file = line > 0 ? diagnostic.Position.File : null;
             string? ruleset = diagnostic.RulesetId
-                              ?? taking.Values.FirstOrDefault(d => position.File is not null && d.Position.File == position.File)?.Id;
-            if (ruleset is not null)
-            {
-                positioned.Add((ruleset, position.Line, diagnostic.Message));
-            }
+                              ?? taking.Values.FirstOrDefault(d => file is not null && d.Position.File == file)?.Id;
+            report.Add(new RuleDiagnostic(diagnostic.ToString() ?? diagnostic.Message, diagnostic.Message, WeightOf(diagnostic.Severity),
+                ruleset, ruleset is null ? 0 : line));
         }
 
         // The loader keeps a document with a stray key or a wrong shape and drops the part it did not
@@ -450,11 +464,7 @@ public sealed class RulesetCorpus
         {
             foreach (RulesetDiagnostic diagnostic in _loaderDiagnostics.GetValueOrDefault(doc.Id) ?? [])
             {
-                diagnostics.Add(diagnostic.ToString());
-                if (diagnostic.Position.Line > 0)
-                {
-                    positioned.Add((doc.Id, diagnostic.Position.Line, diagnostic.Message));
-                }
+                report.Add(new RuleDiagnostic(diagnostic.ToString(), diagnostic.Message, DiagnosticWeight.Warning, doc.Id, diagnostic.Position.Line));
             }
         }
 
@@ -473,19 +483,21 @@ public sealed class RulesetCorpus
                 chain = RulesetChainGraph.Build(build, composed.Rulesets, open);
                 foreach (string message in chain.Diagnostics)
                 {
-                    diagnostics.Add("The rule graph could not draw everything: " + message);
+                    report.Add(RuleDiagnostic.Of("The rule graph could not draw everything: " + message, DiagnosticWeight.Warning));
                 }
 
-                graph = WithBuildSkips(graph, docs, open.Id, build, diagnostics, positioned);
+                undrawn.UnionWith(BuildSkips(build, report));
             }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or NotSupportedException
                                            or KeyNotFoundException or InvalidCastException or NullReferenceException)
             {
                 // A document the resolver passed can still fail to lower; the canvas then draws the declared
                 // entries alone and says why.
-                diagnostics.Add("The rule chain could not be built: " + ex.Message);
+                report.Add(RuleDiagnostic.Of("The rule chain could not be built: " + ex.Message, DiagnosticWeight.Error));
             }
         }
+
+        graph = WithUndrawn(graph, docs, open.Id, undrawn);
 
         // A build that failed, or never ran, still has the document's show: and params: blocks to draw.
         if (chain.Nodes.Count == 0)
@@ -503,33 +515,31 @@ public sealed class RulesetCorpus
             }
         }
 
-        return new Composed(graph, taking, diagnostics, positioned, chain)
+        return new Composed(graph, taking, report, chain)
         {
             OpenId = open.Id,
+            Evaluable = evaluable,
             Overrides = _overrides.Where(o => taking.ContainsKey(o.Key)).ToDictionary(o => o.Key, o => o.Value, StringComparer.Ordinal)
         };
     }
+
+    // Composition emits errors; a lint tier would come as warnings, and nothing else is a blank canvas.
+    private static DiagnosticWeight WeightOf(DiagnosticSeverity severity) =>
+        severity == DiagnosticSeverity.Error ? DiagnosticWeight.Error : DiagnosticWeight.Warning;
 
     /// <summary>
     ///     Says what the build skipped or dropped, at the entry it is about, so the text lands on the node and
     ///     in the strip: every coverage skip (a view that does not bind on the profile, a tally target or a
     ///     reader skipped with it, a contact read with no geometry) and every ruleset that could not be
-    ///     lowered. A skipped entry the checked set no longer holds is drawn from its document, unwired.
+    ///     lowered. An entry that cannot run is an error. Returns the entries skipped, to draw from the document.
     /// </summary>
-    private static RulesetDocumentGraph WithBuildSkips(RulesetDocumentGraph graph, IReadOnlyList<RulesetDoc> docs, string openId,
-        BuildResult build, List<string> diagnostics, List<(string, int, string)> positioned)
+    private static IEnumerable<RulesetDocumentNodeKey> BuildSkips(BuildResult build, List<RuleDiagnostic> report)
     {
-        HashSet<RulesetDocumentNodeKey> skipped = [];
         foreach (RulesetCoverageDiagnostic skip in build.RulesetCoverage ?? [])
         {
             string text = CoverageText(skip);
-            diagnostics.Add(text);
-            if (skip.Position.Line > 0)
-            {
-                positioned.Add((skip.Ruleset.Id, skip.Position.Line, text));
-            }
-
-            skipped.Add(new RulesetDocumentNodeKey(skip.Ruleset.Id, skip.NodeId));
+            report.Add(new RuleDiagnostic(text, text, DiagnosticWeight.Error, skip.Ruleset.Id, skip.Position.Line));
+            yield return new RulesetDocumentNodeKey(skip.Ruleset.Id, skip.NodeId);
         }
 
         foreach (ExcludedRuleset excluded in build.ExcludedRulesets)
@@ -537,21 +547,24 @@ public sealed class RulesetCorpus
             foreach (RulesetCompositionDiagnostic reason in excluded.Diagnostics)
             {
                 string text = $"{excluded.Id} is left out of the chain: {Plain(reason.Message)}";
-                diagnostics.Add(text);
-                if (reason.Position is { Line: > 0 } position)
-                {
-                    positioned.Add((reason.RulesetId ?? excluded.Id, position.Line, text));
-                }
+                report.Add(new RuleDiagnostic(text, text, DiagnosticWeight.Error, reason.RulesetId ?? excluded.Id,
+                    reason.Position is { Line: > 0 } position ? position.Line : 0));
             }
         }
+    }
 
-        skipped.ExceptWith(graph.Nodes.Select(n => n.Key));
-        if (skipped.Count == 0)
+    // An entry the checked set does not hold (skipped by the build, or kept out as unfinished) is drawn from
+    // its document, unwired, so its warning has a node to sit on.
+    private static RulesetDocumentGraph WithUndrawn(RulesetDocumentGraph graph, IReadOnlyList<RulesetDoc> docs, string openId,
+        HashSet<RulesetDocumentNodeKey> keys)
+    {
+        keys.ExceptWith(graph.Nodes.Select(n => n.Key));
+        if (keys.Count == 0)
         {
             return graph;
         }
 
-        IEnumerable<RulesetDocumentNode> undrawn = RulesetDocumentGraph.FromDocuments(docs, openId).Nodes.Where(n => skipped.Contains(n.Key));
+        IEnumerable<RulesetDocumentNode> undrawn = RulesetDocumentGraph.FromDocuments(docs, openId).Nodes.Where(n => keys.Contains(n.Key));
         return new RulesetDocumentGraph([.. graph.Nodes, .. undrawn], graph.Edges);
     }
 

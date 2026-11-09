@@ -17,7 +17,7 @@ public static class NodeFaceBuilder
     public static IReadOnlyList<NodeFace> Build(RulesetCorpus.Composed composed)
     {
         ArgumentNullException.ThrowIfNull(composed);
-        ILookup<RulesetDocumentNodeKey, string> diagnostics = DiagnosticsByNode(composed);
+        ILookup<RulesetDocumentNodeKey, RuleDiagnostic> diagnostics = DiagnosticsByNode(composed);
         List<NodeFace> faces = new(composed.Graph.Nodes.Count + composed.Chain.Nodes.Count);
         HashSet<RulesetDocumentNodeKey> keys = [];
         string? open = composed.Graph.Nodes.FirstOrDefault(n => n.IsAuthorable)?.Key.Ruleset;
@@ -77,13 +77,13 @@ public static class NodeFaceBuilder
         composed.Documents.TryGetValue(id, out RulesetDoc? doc);
         string title = string.IsNullOrWhiteSpace(doc?.Title) ? id : doc!.Title;
         (string UserPath, string ShippedPath)? files = composed.Overrides.TryGetValue(id, out (string UserPath, string ShippedPath) found) ? found : null;
-        List<string> diagnostics = [.. composed.PositionedDiagnostics.Where(d => d.RulesetId == id).Select(d => d.Message).Distinct(StringComparer.Ordinal)];
+        List<RuleDiagnostic> diagnostics = [.. composed.Report.Where(d => d.RulesetId == id).Distinct()];
         return new DependencyFace(node.Key, DependencyFace.KindName, string.Equals(title, id, StringComparison.Ordinal) ? null : title, "", "",
             diagnostics, 0, false, title, node.EntryCount, node.Outputs, files?.UserPath, files?.ShippedPath);
     }
 
     /// <summary>The face of one show node: a table's columns and grain, or the scoreboard's entries.</summary>
-    public static ShowFace Show(RulesetDocumentNodeKey key, ShowSurface surface, IReadOnlyList<string> diagnostics)
+    public static ShowFace Show(RulesetDocumentNodeKey key, ShowSurface surface, IReadOnlyList<RuleDiagnostic> diagnostics)
     {
         ArgumentNullException.ThrowIfNull(surface);
         if (key.IsScoreboard)
@@ -99,7 +99,7 @@ public static class NodeFaceBuilder
 
     /// <summary>The face of one declared node, from its document entry when the document holds one under its id.</summary>
     public static NodeFace Declared(RulesetDocumentNode node, IReadOnlyDictionary<string, RulesetDoc> documents,
-        IReadOnlyList<string> diagnostics)
+        IReadOnlyList<RuleDiagnostic> diagnostics)
     {
         ArgumentNullException.ThrowIfNull(node);
         ArgumentNullException.ThrowIfNull(documents);
@@ -174,7 +174,7 @@ public static class NodeFaceBuilder
 
     /// <summary>The face of one trigger-bodied define, from its body; the view and events come from the graph node.</summary>
     public static DefineFace Define(RulesetDocumentNodeKey key, DefineDef define, TriggerDef trigger, string? view,
-        IReadOnlyList<string> events, IReadOnlyList<string> diagnostics, bool authorable)
+        IReadOnlyList<string> events, IReadOnlyList<RuleDiagnostic> diagnostics, bool authorable)
     {
         ArgumentNullException.ThrowIfNull(define);
         ArgumentNullException.ThrowIfNull(trigger);
@@ -190,16 +190,33 @@ public static class NodeFaceBuilder
     ///     from its start line to the next thing the document declares: the next stat, highlight or trigger
     ///     define, or a list define, a param, a cadence or the <c>show:</c> block, which closes the section. A diagnostic
     ///     outside every entry, before the first or inside another block, stays at the document level, as
-    ///     does one inside an entry the graph does not draw.
+    ///     does one inside an entry the graph does not draw. A diagnostic that names its node outright is
+    ///     filed there without the line walk.
     /// </summary>
-    public static ILookup<RulesetDocumentNodeKey, string> DiagnosticsByNode(RulesetCorpus.Composed composed)
+    public static ILookup<RulesetDocumentNodeKey, RuleDiagnostic> DiagnosticsByNode(RulesetCorpus.Composed composed)
     {
         ArgumentNullException.ThrowIfNull(composed);
-        HashSet<RulesetDocumentNodeKey> drawn = [.. composed.Graph.Nodes.Select(n => n.Key)];
+        HashSet<RulesetDocumentNodeKey> drawn = [.. composed.Graph.Nodes.Select(n => n.Key), .. composed.Chain.Nodes.Select(n => n.Key)];
         Dictionary<string, List<(int Line, RulesetDocumentNodeKey? Opens)>> marks = new(StringComparer.Ordinal);
-        List<(RulesetDocumentNodeKey Key, string Message)> filed = [];
-        foreach ((string rulesetId, int line, string message) in composed.PositionedDiagnostics)
+        List<(RulesetDocumentNodeKey Key, RuleDiagnostic Diagnostic)> filed = [];
+        foreach (RuleDiagnostic diagnostic in composed.Report)
         {
+            if (diagnostic.Node is { } named)
+            {
+                if (drawn.Contains(named))
+                {
+                    filed.Add((named, diagnostic));
+                }
+
+                continue;
+            }
+
+            if (!diagnostic.IsPositioned)
+            {
+                continue;
+            }
+
+            string rulesetId = diagnostic.RulesetId!;
             if (!marks.TryGetValue(rulesetId, out List<(int Line, RulesetDocumentNodeKey? Opens)>? lines))
             {
                 lines = composed.Documents.TryGetValue(rulesetId, out RulesetDoc? doc) ? Marks(doc) : [];
@@ -207,14 +224,14 @@ public static class NodeFaceBuilder
             }
 
             // The last mark at or before the line says what the line is inside: an entry, or something else.
-            int at = lines.FindLastIndex(m => m.Line <= line);
-            if (at >= 0 && lines[at].Opens is { } key && drawn.Contains(key))
+            int at = lines.FindLastIndex(m => m.Line <= diagnostic.Line);
+            if (at >= 0 && lines[at].Opens is { } key && composed.Graph.Nodes.Any(n => n.Key == key))
             {
-                filed.Add((key, message));
+                filed.Add((key, diagnostic));
             }
         }
 
-        return filed.ToLookup(f => f.Key, f => f.Message);
+        return filed.ToLookup(f => f.Key, f => f.Diagnostic);
     }
 
     // Every line the document opens something on, in file order: an entry with its key, anything else with none.

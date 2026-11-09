@@ -231,7 +231,8 @@ public sealed partial class CanvasTabViewModel
         LiveValuesRun? run;
         try
         {
-            run = await _liveService.RunAsync(selected.Id, [.. composed.Documents.Values], cts.Token);
+            // The documents as the engine takes them: an unfinished entry of the open one is left out.
+            run = await _liveService.RunAsync(selected.Id, composed.Evaluable.Count > 0 ? composed.Evaluable : [.. composed.Documents.Values], cts.Token);
         }
         finally
         {

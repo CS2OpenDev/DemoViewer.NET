@@ -212,16 +212,14 @@
                             <TextBlock Text="&#x25CF;" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource AccentCaution}"
                                        IsVisible="{Binding SourceDirty}"
                                        ToolTip.Tip="The source pane holds unsaved text. Save or revert it to edit on the canvas." />
-                            <!-- The diagnostics count; pressing it folds the list under the strip open. -->
+                            <!-- The diagnostics count by weight ("2 errors, 1 warning"), red while any is an error, amber
+                                 otherwise; pressing it folds the list under the strip open. -->
                             <Button Classes="ghost" Padding="6 1" MinHeight="0" VerticalAlignment="Center"
                                     Command="{Binding ToggleDiagnosticsListCommand}" IsVisible="{Binding HasDiagnostics}"
                                     ToolTip.Tip="{Binding Diagnostics}">
-                                <Border CornerRadius="8" Padding="7 0" Background="{DynamicResource AccentError}">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Text="{Binding DiagnosticCount}" FontSize="10" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
-                                        <TextBlock Text="diagnostics" FontSize="10" Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
-                                    </StackPanel>
+                                <Border CornerRadius="8" Padding="7 0" views:TokenBrush.Background="{Binding DiagnosticsToken}">
+                                    <TextBlock Text="{Binding DiagnosticSummary}" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
                                 </Border>
                             </Button>
                         </StackPanel>
@@ -610,7 +608,7 @@
                                                    Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
                                         <Border CornerRadius="8" Padding="6 0" MinWidth="16" VerticalAlignment="Center"
                                                 IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}"
-                                                views:TokenBrush.Background="{Binding DiagnosticsText, Converter={x:Static views:DiagnosticSeverityToken.Instance}}">
+                                                views:TokenBrush.Background="{Binding DiagnosticsToken}">
                                             <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
                                                        Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
                                         </Border>
@@ -681,7 +679,7 @@
                                                    VerticalAlignment="Center" IsVisible="{Binding ShowLabelText}" />
                                         <Border CornerRadius="8" Padding="6 0" MinWidth="16" VerticalAlignment="Center"
                                                 IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}"
-                                                views:TokenBrush.Background="{Binding DiagnosticsText, Converter={x:Static views:DiagnosticSeverityToken.Instance}}">
+                                                views:TokenBrush.Background="{Binding DiagnosticsToken}">
                                             <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
                                                        Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
                                         </Border>
@@ -802,7 +800,7 @@
                                     </TextBox>
                                     <Border CornerRadius="8" Padding="6 0" MinWidth="16" VerticalAlignment="Center"
                                             IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}"
-                                            views:TokenBrush.Background="{Binding DiagnosticsText, Converter={x:Static views:DiagnosticSeverityToken.Instance}}">
+                                            views:TokenBrush.Background="{Binding DiagnosticsToken}">
                                         <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
                                     </Border>

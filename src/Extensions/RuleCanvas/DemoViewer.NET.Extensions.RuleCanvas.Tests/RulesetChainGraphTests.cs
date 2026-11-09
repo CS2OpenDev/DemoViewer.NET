@@ -472,7 +472,7 @@ public class RulesetChainGraphTests
         string[] lines = File.ReadAllLines(Path.Combine(RulesTree.RepoRulesDirectory, "aim_rating.rules.yaml"));
         int line = Array.FindIndex(lines, l => l.StartsWith("  first_contacts:", StringComparison.Ordinal)) + 1;
         RulesetDocumentNodeKey key = new("aim_rating", "first_contacts");
-        ILookup<RulesetDocumentNodeKey, string> byNode = NodeFaceBuilder.DiagnosticsByNode(composed);
+        ILookup<RulesetDocumentNodeKey, RuleDiagnostic> byNode = NodeFaceBuilder.DiagnosticsByNode(composed);
         using (Assert.Multiple())
         {
             await Assert.That(line).IsGreaterThan(1);
@@ -481,7 +481,7 @@ public class RulesetChainGraphTests
                                                                        && d.Message.StartsWith("first_contacts:", StringComparison.Ordinal)
                                                                        && d.Message.Contains("enemy_spotted", StringComparison.Ordinal)))
                 .IsTrue().Because(string.Join("; ", composed.Diagnostics));
-            await Assert.That(byNode[key].Any(m => m.Contains("enemy_spotted", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(byNode[key].Any(m => m.Message.Contains("enemy_spotted", StringComparison.Ordinal))).IsTrue();
             await Assert.That(composed.Diagnostics.Any(d => d.StartsWith("enemy_seen_round:", StringComparison.Ordinal))).IsTrue()
                 .Because("the flag on enemy_spotted is reported too");
             await Assert.That(composed.Diagnostics.Any(d => d.Contains((char)0x2014))).IsFalse();
