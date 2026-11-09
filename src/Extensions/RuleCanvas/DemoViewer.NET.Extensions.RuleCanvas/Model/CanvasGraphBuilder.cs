@@ -85,6 +85,22 @@ public static class CanvasGraphBuilder
                 spec.Text, spec.Condition, spec.IsRead, spec.IsGate, spec.IsAnd, spec.IsOr));
         }
 
+        // The rows carry their ports: a where or compute line the reads, a when line the logic input.
+        foreach (CanvasNodeViewModel node in nodes)
+        {
+            foreach (CanvasExpressionViewModel line in node.Lines)
+            {
+                line.Port = line.Key switch
+                {
+                    "where" or "compute" => node.ReadPort,
+                    "when" => node.LogicPort,
+                    _ => null
+                };
+            }
+
+            node.PortsChanged();
+        }
+
         List<CanvasPlacement.Item> items = new(nodes.Count);
         foreach (CanvasNodeViewModel node in nodes)
         {
@@ -128,7 +144,7 @@ public static class CanvasGraphBuilder
 
         if (node.IsHighlight)
         {
-            return [PortKind.Logic, PortKind.Gate];
+            return [PortKind.Logic];
         }
 
         return node.Kind switch

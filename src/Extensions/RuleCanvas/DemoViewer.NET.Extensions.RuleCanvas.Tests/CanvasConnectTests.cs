@@ -45,7 +45,7 @@ public class CanvasConnectTests
         using (Assert.Multiple())
         {
             await Assert.That(RulesetEdits.HighlightField(text, "round_kills_highlight", "when")).IsEqualTo("round_kills > 0");
-            await Assert.That(highlight.Inputs.Select(i => i.Kind)).IsEquivalentTo([PortKind.Logic, PortKind.Gate]).Because("a highlight takes a when input and a gate");
+            await Assert.That(highlight.Inputs.Select(i => i.Kind)).IsEquivalentTo([PortKind.Logic]).Because("a highlight takes a when input");
             await Assert.That(vm.Connections.Any(w => ReferenceEquals(w.Source.Owner, vm.Nodes.Single(n => n.Id == "round_kills")) && ReferenceEquals(w.Target.Owner, highlight))).IsTrue()
                 .Because("the new highlight is wired from the stat it reads");
             await Assert.That(vm.WireDropOptions(highlight)).IsEmpty().Because("nothing starts from a highlight");

@@ -102,4 +102,47 @@ public class CanvasPortTests
         vm.Pending.Source = null;
         await Assert.That(kills.Inputs.All(i => i.IsCompatible)).IsTrue().Because("a dropped or cancelled wire lights every port again");
     }
+
+    // The rows carry their ports on an editable face and the frame stacks them on a read-only one; a dragged
+    // gallery item lights only the ports it can land on; a bool stat's wire offers a gated count.
+    [Test]
+    public async Task Ports_SitBesideTheirRows_AndAGalleryDragLightsTheOnesItCanLandOn()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        CanvasNodeViewModel kills = Node(vm, "round_kills");
+        CanvasNodeViewModel kast = Node(vm, "round_kast");
+        using (Assert.Multiple())
+        {
+            await Assert.That(kills.TriggerPort?.Kind).IsEqualTo(PortKind.Trigger);
+            await Assert.That(kills.GatePort?.Kind).IsEqualTo(PortKind.Gate);
+            await Assert.That(kills.Lines.Single(l => l.Key == "where").Port).IsSameReferenceAs(kills.ReadPort).Because("the where line carries the reads port");
+            await Assert.That(kast.Lines.Single(l => l.Key == "when").Port).IsSameReferenceAs(kast.LogicPort).Because("the when line carries the logic port");
+            await Assert.That(kills.RailInputs).IsEmpty().Because("an editable face puts its ports on its rows");
+        }
+
+        kills.IsEditable = false;
+        await Assert.That(kills.RailInputs.Count).IsEqualTo(3).Because("a read-only face has no rows to hold them, so the frame stacks them");
+        kills.IsEditable = true;
+
+        GalleryItem gate = vm.Gallery.Single(g => g.Title == "Gates").Items.First(i => i.Name == "match.live");
+        vm.MarkCompatibleFor(gate);
+        using (Assert.Multiple())
+        {
+            await Assert.That(kills.GatePort!.IsCompatible).IsTrue();
+            await Assert.That(kills.TriggerPort!.IsCompatible).IsFalse();
+            await Assert.That(kills.ReadPort!.IsCompatible).IsFalse();
+        }
+
+        GalleryItem define = vm.Gallery.Single(g => g.Title == "Stats").Items.Single(i => i.Kind == GalleryItemKind.Define);
+        vm.MarkCompatibleFor(define);
+        await Assert.That(kills.TriggerPort!.IsCompatible).IsTrue().Because("a define lands on a stat's on port");
+
+        vm.MarkCompatible(null);
+        await Assert.That(kills.Inputs.All(i => i.IsCompatible)).IsTrue();
+
+        await Assert.That(vm.WireDropOptions(kast).Select(o => o.Title)).Contains("New count while round_kast")
+            .Because("a bool stat's output can hold a new stat open");
+    }
 }

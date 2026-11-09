@@ -9,6 +9,13 @@
              xmlns:ae="using:AvaloniaEdit"
              x:Class="DemoViewer.NET.Extensions.RuleCanvas.Views.CanvasTabView"
              x:DataType="vm:CanvasTabViewModel">
+    <UserControl.Resources>
+        <DataTemplate x:Key="InlinePort" x:DataType="vm:CanvasConnectorViewModel">
+            <nodes:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="{Binding IsConnected}"
+                             views:TokenBrush.BorderBrush="{Binding Token}" Opacity="{Binding Opacity}" ToolTip.Tip="{Binding Title}"
+                             Padding="0" MinHeight="0" Margin="-15 0 0 0" VerticalAlignment="Center" />
+        </DataTemplate>
+    </UserControl.Resources>
 
     <!--
       THE CANVAS SECTION: a strip over a Nodify editor. The strip picks the ruleset, reports what was
@@ -511,7 +518,7 @@
 
                 <views:CanvasNodeTemplateSelector.Authored>
                 <DataTemplate x:DataType="vm:CanvasNodeViewModel">
-                    <nodes:Node Input="{Binding Inputs}" Output="{Binding Outputs}" ContentPadding="10 6 10 8"
+                    <nodes:Node Input="{Binding RailInputs}" Output="{Binding Outputs}" ContentPadding="10 6 10 8"
                                 ContentBrush="{DynamicResource RuleNodeBg}" HeaderBrush="{DynamicResource RuleNodeBg}">
 
                         <!-- Header: a stripe and an outlined pill in the kind's token, the id, the label when there
@@ -617,6 +624,7 @@
                             <!-- The trigger as a picker while editable: the spelling the author wrote, over the catalog's
                                  views by event, the raw events and the document's defines. -->
                             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowTriggerPicker}">
+                                <ContentControl Content="{Binding TriggerPort}" ContentTemplate="{StaticResource InlinePort}" VerticalAlignment="Center" />
                                 <TextBlock Text="on" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
                                 <ComboBox ItemsSource="{Binding Trigger.Options}" SelectedItem="{Binding Trigger.Selected}"
                                           PlaceholderText="pick a trigger…" FontSize="11" MinWidth="190" Padding="6 1" MinHeight="0"
@@ -820,6 +828,8 @@
                                  context paths and the ruleset's flags and takes any text the file could hold. A define
                                  has no scope, so its row holds the gate alone. -->
                             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowFieldPickers}">
+                                <ContentControl Content="{Binding GatePort}" ContentTemplate="{StaticResource InlinePort}" VerticalAlignment="Center"
+                                                IsVisible="{Binding ShowGatePicker}" />
                                 <TextBlock Text="per" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center"
                                            IsVisible="{Binding ShowPerPicker}" />
                                 <ComboBox ItemsSource="{x:Static vm:CanvasNodeViewModel.PerOptions}" SelectedItem="{Binding Per}"
@@ -846,10 +856,12 @@
                             <ItemsControl ItemsSource="{Binding Lines}" IsVisible="{Binding ShowLines}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:CanvasExpressionViewModel">
-                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0 1">
-                                            <TextBlock Grid.Column="0" Text="{Binding Prefix}" FontSize="10" MinWidth="34"
+                                        <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="6" Margin="0 1">
+                                            <ContentControl Grid.Column="0" Content="{Binding Port}" ContentTemplate="{StaticResource InlinePort}"
+                                                            VerticalAlignment="Top" Margin="0 2 0 0" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Prefix}" FontSize="10" MinWidth="34"
                                                        Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Top" Margin="0 3 0 0" />
-                                            <views:ConditionRowsView Grid.Column="1" />
+                                            <views:ConditionRowsView Grid.Column="2" />
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>

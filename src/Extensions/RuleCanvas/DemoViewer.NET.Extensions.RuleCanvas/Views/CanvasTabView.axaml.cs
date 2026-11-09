@@ -70,6 +70,7 @@ public partial class CanvasTabView : UserControl
         }
 
         _dragging = item;
+        _viewModel?.MarkCompatibleFor(item);
         DataTransfer payload = new();
         payload.Add(DataTransferItem.CreateText(item.Name));
         try
@@ -83,6 +84,7 @@ public partial class CanvasTabView : UserControl
         finally
         {
             _dragging = null;
+            _viewModel?.MarkCompatible(null);
         }
     }
 

@@ -148,6 +148,19 @@ public static class CanvasEditSemantics
         }
 
         string read = source.Id;
+        if (source.ValueType == "bool")
+        {
+            return
+            [
+                new GalleryItem(GalleryItemKind.Highlight, read + "_highlight", "New highlight when " + read, "A highlight that fires when the flag holds in the scope.",
+                    $"when: {read}\nper: round\nscore: 50\ntitle: \"{{player.name}} {read} (round {{round.number}})\""),
+                new GalleryItem(GalleryItemKind.Prefab, read + "_gated", "New count while " + read, "A kill count held open by the flag.",
+                    $"count: kill\nmatch: {{ enemy: true }}\nwhile: {read}\nper: round"),
+                new GalleryItem(GalleryItemKind.Prefab, read + "_compute", "New compute from " + read, "A formula over the flag, to edit on the face.",
+                    $"compute: \"{read}\"\nper: round")
+            ];
+        }
+
         return
         [
             new GalleryItem(GalleryItemKind.Highlight, read + "_highlight", "New highlight when " + read + " > 0", "A highlight that fires when the stat is above zero in the scope.",

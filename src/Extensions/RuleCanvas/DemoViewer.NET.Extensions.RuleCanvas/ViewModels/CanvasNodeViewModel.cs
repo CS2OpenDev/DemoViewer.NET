@@ -205,6 +205,33 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
     /// <summary>The values this node reads from siblings, one input connector each.</summary>
     public ObservableCollection<CanvasConnectorViewModel> Inputs { get; } = [];
 
+    /// <summary>The input of one kind, or null when the node takes none of it.</summary>
+    public CanvasConnectorViewModel? Port(PortKind kind) => Inputs.FirstOrDefault(i => i.Kind == kind);
+
+    public CanvasConnectorViewModel? TriggerPort => Port(PortKind.Trigger);
+
+    public CanvasConnectorViewModel? GatePort => Port(PortKind.Gate);
+
+    public CanvasConnectorViewModel? ReadPort => Port(PortKind.Read);
+
+    public CanvasConnectorViewModel? LogicPort => Port(PortKind.Logic);
+
+    /// <summary>
+    ///     The inputs the node frame stacks on its left: every input on a read-only face, where no row holds
+    ///     an editor to sit beside; none on an editable face, whose rows carry their own ports.
+    /// </summary>
+    public IReadOnlyList<CanvasConnectorViewModel> RailInputs => IsEditable ? [] : [.. Inputs];
+
+    /// <summary>Raised by the builder once the ports exist, so the rows and the rail pick them up.</summary>
+    public void PortsChanged()
+    {
+        OnPropertyChanged(nameof(TriggerPort));
+        OnPropertyChanged(nameof(GatePort));
+        OnPropertyChanged(nameof(ReadPort));
+        OnPropertyChanged(nameof(LogicPort));
+        OnPropertyChanged(nameof(RailInputs));
+    }
+
     /// <summary>The value this node produces, when a sibling reads it.</summary>
     public ObservableCollection<CanvasConnectorViewModel> Outputs { get; } = [];
 
@@ -390,6 +417,7 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     partial void OnIsEditableChanged(bool value)
     {
+        OnPropertyChanged(nameof(RailInputs));
         foreach (CanvasFacetViewModel facet in Facets)
         {
             facet.IsEditable = value;

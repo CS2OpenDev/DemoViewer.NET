@@ -249,6 +249,26 @@ public sealed partial class CanvasTabViewModel
         return pending;
     }
 
+    /// <summary>
+    ///     Dims every input a dragged gallery item cannot land on: a gate lands on while ports, a view or a
+    ///     define on the on port of a stat; anything else is placed on the canvas, so every port dims.
+    /// </summary>
+    public void MarkCompatibleFor(GalleryItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        PortKind? takes = item.Kind switch
+        {
+            GalleryItemKind.Gate => PortKind.Gate,
+            GalleryItemKind.View or GalleryItemKind.Define => PortKind.Trigger,
+            _ => null
+        };
+        foreach (CanvasConnectorViewModel input in Nodes.SelectMany(n => n.Inputs))
+        {
+            input.IsCompatible = takes is { } kind && input.Kind == kind && input.Owner is { IsAuthorable: true, IsScaffold: false } owner
+                                 && !(item.Kind == GalleryItemKind.Define && owner.IsDefine);
+        }
+    }
+
     /// <summary>Dims every input that cannot take a wire from <paramref name="source" />; null lights them all.</summary>
     public void MarkCompatible(CanvasConnectorViewModel? source)
     {

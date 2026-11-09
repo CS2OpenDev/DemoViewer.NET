@@ -103,6 +103,10 @@ public sealed partial class CanvasExpressionViewModel : ObservableObject
     [ObservableProperty]
     private CanvasExpressionContext? _context;
 
+    /// <summary>The input that sits beside this line: reads for a where or a compute, the logic input for a when.</summary>
+    [ObservableProperty]
+    private CanvasConnectorViewModel? _port;
+
     [RelayCommand]
     public void AddRow() => Builder.AddRow();
 
