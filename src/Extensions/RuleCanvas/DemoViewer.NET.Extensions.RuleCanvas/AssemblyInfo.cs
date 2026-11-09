@@ -8,3 +8,4 @@ using System.Runtime.CompilerServices;
 // Book's; see the app's AssemblyInfo.
 [assembly: InternalsVisibleTo("DemoViewer.NET.App.Tests")]
 [assembly: InternalsVisibleTo("DemoViewer.NET.UiCapture")]
+[assembly: InternalsVisibleTo("DemoViewer.NET.Extensions.RuleCanvas.Tests")]

@@ -69,8 +69,7 @@ public partial class CanvasTabView : UserControl
             return;
         }
 
-        _dragging = item;
-        _viewModel?.MarkCompatibleFor(item);
+        BeginGalleryDrag(item);
         DataTransfer payload = new();
         payload.Add(DataTransferItem.CreateText(item.Name));
         try
@@ -83,9 +82,21 @@ public partial class CanvasTabView : UserControl
         }
         finally
         {
-            _dragging = null;
-            _viewModel?.MarkCompatible(null);
+            EndGalleryDrag();
         }
+    }
+
+    // The platform drag loop owns the pointer from here to the drop; the headless tests enter at these two.
+    internal void BeginGalleryDrag(GalleryItem item)
+    {
+        _dragging = item;
+        _viewModel?.MarkCompatibleFor(item);
+    }
+
+    internal void EndGalleryDrag()
+    {
+        _dragging = null;
+        _viewModel?.MarkCompatible(null);
     }
 
     private void OnEditorDragOver(object? sender, DragEventArgs e) =>
