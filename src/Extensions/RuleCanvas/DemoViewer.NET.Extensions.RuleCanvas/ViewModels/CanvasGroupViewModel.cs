@@ -35,6 +35,9 @@ public sealed partial class CanvasGroupViewModel : ObservableObject
     /// <summary>The nodes inside, by layout key, as stored. Dragging a node out is applied when the layout is captured.</summary>
     public IReadOnlyList<RulesetDocumentNodeKey> Members { get; }
 
+    /// <summary>A frame drawn on a focused slice: its title cannot be edited, and nothing about it is written.</summary>
+    public bool IsReadOnly { get; init; }
+
     /// <summary>What the header says.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HeaderText))]
@@ -78,6 +81,11 @@ public sealed partial class CanvasGroupViewModel : ObservableObject
     [RelayCommand]
     private void BeginEditTitle()
     {
+        if (IsReadOnly)
+        {
+            return;
+        }
+
         TitleText = Title;
         IsEditingTitle = true;
     }

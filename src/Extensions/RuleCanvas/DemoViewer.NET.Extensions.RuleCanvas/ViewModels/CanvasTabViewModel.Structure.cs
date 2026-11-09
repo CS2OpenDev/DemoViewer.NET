@@ -23,6 +23,13 @@ public sealed partial class CanvasTabViewModel
     private const double GroupPad = 24;
     private const double GroupHeader = 30;
 
+    /// <summary>What the toast says when a frame is made, changed or removed while a slice is focused.</summary>
+    public const string FramesReadOnlyWhileFocused = "Frames are read-only while a slice is focused; clear the focus to change them";
+
+    // The frame around a box of nodes: the pad on every side and the header above.
+    private static Rect FrameAround(Rect box) =>
+        new(box.X - GroupPad, box.Y - GroupPad - GroupHeader, box.Width + 2 * GroupPad, box.Height + 2 * GroupPad + GroupHeader);
+
     // A layout change: the arrangement before and after, and how deep the session's undo stack was when it
     // was made, which orders it against document writes.
     private sealed record LayoutChange(RulesetNodeLayout Before, RulesetNodeLayout After, int Depth);
@@ -77,15 +84,20 @@ public sealed partial class CanvasTabViewModel
     /// </summary>
     public void GroupSelection(Rect? bounds)
     {
+        if (HasFocus)
+        {
+            Notify(FramesReadOnlyWhileFocused);
+            return;
+        }
+
         List<CanvasNodeViewModel> nodes = [.. SelectedNodes.OfType<CanvasNodeViewModel>()];
-        if (nodes.Count < 2 || HasFocus)
+        if (nodes.Count < 2)
         {
             return;
         }
 
         Rect box = bounds ?? BoxOf(nodes);
-        Rect frame = new(box.X - GroupPad, box.Y - GroupPad - GroupHeader, box.Width + 2 * GroupPad, box.Height + 2 * GroupPad + GroupHeader);
-        CanvasGroup group = new(CommonView(nodes) ?? "Group", [.. nodes.Select(n => n.Key)], frame);
+        CanvasGroup group = new(CommonView(nodes) ?? "Group", [.. nodes.Select(n => n.Key)], FrameAround(box));
         RulesetNodeLayout before = CurrentArrangement();
         RulesetNodeLayout after = before.WithGroup(group);
         RecordLayoutChange(before, after);
@@ -96,6 +108,12 @@ public sealed partial class CanvasTabViewModel
     public void Ungroup(CanvasGroupViewModel frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
+        if (HasFocus)
+        {
+            Notify(FramesReadOnlyWhileFocused);
+            return;
+        }
+
         RulesetNodeLayout before = CurrentArrangement();
         RulesetNodeLayout after = before.WithoutGroup(frame.ToGroup(frame.Members));
         if (ReferenceEquals(after, before))
@@ -113,6 +131,12 @@ public sealed partial class CanvasTabViewModel
         List<CanvasGroupViewModel> frames = [.. SelectedNodes.OfType<CanvasGroupViewModel>()];
         if (frames.Count == 0)
         {
+            return;
+        }
+
+        if (HasFocus)
+        {
+            Notify(FramesReadOnlyWhileFocused);
             return;
         }
 
