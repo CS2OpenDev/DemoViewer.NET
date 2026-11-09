@@ -211,4 +211,21 @@ public sealed partial class CanvasConnectionViewModel(CanvasConnectorViewModel s
     public bool IsRead { get; } = isRead;
 
     public bool HasText => Text.Length > 0;
+
+    /// <summary>
+    ///     The hover panel's second line: the engine's lowering of the wire (<c>engine: value &gt; 2</c>) when
+    ///     it differs from what the label says; empty when there is no condition or the label already spells it.
+    /// </summary>
+    public string EngineLine => Condition is { } lowered && Squash(Operand(Text)) != Squash(lowered) ? "engine: " + lowered : "";
+
+    public bool HasEngineLine => EngineLine.Length > 0;
+
+    // The label's operand without its connective: "and round_kills > 2" and "while match.live" both name their test.
+    private static string Operand(string label) =>
+        label.StartsWith("and ", StringComparison.Ordinal) ? label[4..]
+        : label.StartsWith("or ", StringComparison.Ordinal) ? label[3..]
+        : label.StartsWith("while ", StringComparison.Ordinal) ? label[6..]
+        : label;
+
+    private static string Squash(string value) => string.Concat(value.Where(c => !char.IsWhiteSpace(c)));
 }

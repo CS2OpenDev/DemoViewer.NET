@@ -183,10 +183,10 @@ public class CanvasViewMarkupTests
         }
     }
 
-    // The wire's hover is a panel: how to edit it (or why not) first, the condition, then the run's fire line
-    // only when there is one.
+    // The wire's hover is a panel: what the label says first, the engine's lowering only when it differs, the
+    // run's fire line only when there is one, then how to edit it (or why not).
     [Test]
-    public async Task TheWireTooltip_IsAPanel_OfTheEditHintTheConditionThenTheLiveLine()
+    public async Task TheWireTooltip_IsAPanel_OfTheAuthoredTextTheEngineLineTheLiveLineThenTheEditHint()
     {
         XDocument view = LoadView();
         XElement wire = view.Descendants().Single(e => e.Name.LocalName == "LabelledConnection");
@@ -196,12 +196,16 @@ public class CanvasViewMarkupTests
         using (Assert.Multiple())
         {
             await Assert.That(Attribute(wire, "ToolTip.Tip")).IsEqualTo("").Because("an attribute would override the panel");
-            await Assert.That(lines.Count).IsEqualTo(3);
-            await Assert.That(Attribute(lines[0], "Text")).IsEqualTo("{Binding ConditionEditTip}").Because("the first line says double-click to edit, or why not");
-            await Assert.That(Attribute(lines[0], "IsVisible")).IsEqualTo("{Binding HasConditionEditTip}");
-            await Assert.That(Attribute(lines[1], "Text")).IsEqualTo("{Binding Condition}");
+            await Assert.That(lines.Count).IsEqualTo(4);
+            await Assert.That(Attribute(lines[0], "Text")).IsEqualTo("{Binding Text}").Because("the first line is the authored operand or gate, what the label says");
+            await Assert.That(Attribute(lines[0], "IsVisible")).IsEqualTo("{Binding HasText}");
+            await Assert.That(Attribute(lines[1], "Text")).IsEqualTo("{Binding EngineLine}").Because("the lowering comes second, and only when it differs");
+            await Assert.That(Attribute(lines[1], "IsVisible")).IsEqualTo("{Binding HasEngineLine}");
             await Assert.That(Attribute(lines[2], "Text")).IsEqualTo("{Binding LiveTip}");
             await Assert.That(Attribute(lines[2], "IsVisible")).IsEqualTo("{Binding HasLiveTip}");
+            await Assert.That(Attribute(lines[3], "Text")).IsEqualTo("{Binding ConditionEditTip}").Because("how to edit, or why not, closes the panel");
+            await Assert.That(Attribute(lines[3], "IsVisible")).IsEqualTo("{Binding HasConditionEditTip}");
+            await Assert.That(lines.Any(l => Attribute(l, "Text") == "{Binding Condition}")).IsFalse().Because("the raw lowering no longer leads");
         }
     }
 

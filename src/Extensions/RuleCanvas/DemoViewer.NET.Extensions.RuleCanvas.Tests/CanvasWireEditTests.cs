@@ -96,6 +96,7 @@ public class CanvasWireEditTests
             CanvasConnectionViewModel trigger = vm.Connections.Single(c => c.Source.Owner?.Ruleset == "~event" && c.Target.Owner?.Id == "round_kills");
             using (Assert.Multiple())
             {
+                await Assert.That(trigger.HasEngineLine).IsEqualTo(trigger.Condition is not null).Because("an event label never spells the engine's facets");
                 await Assert.That(first.ConditionEdit).IsEqualTo(new WireEdit(Node(vm, "round_kast"), "when", 0, null));
                 await Assert.That(first.CanEditCondition).IsTrue();
                 await Assert.That(first.ConditionEditTip).IsEqualTo(CanvasConnectionViewModel.EditHint);

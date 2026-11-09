@@ -481,13 +481,14 @@
                                               Classes.or="{Binding IsOr}"
                                               Classes.editable="{Binding CanEditCondition}"
                                               connections:BaseConnection.IsSelectable="True">
-                        <!-- Hover: how to edit (or why not), the lowered condition, then the last run's fire line when there is one. -->
+                        <!-- Hover: what the label says (the authored operand or gate), the engine's lowering when it differs,
+                             the last run's fire line when there is one, then how to edit (or why not). -->
                         <ToolTip.Tip>
                             <StackPanel Spacing="3">
-                                <TextBlock Text="{Binding ConditionEditTip}" FontSize="11" IsVisible="{Binding HasConditionEditTip}" />
-                                <TextBlock Text="{Binding Condition}" FontSize="11" FontFamily="monospace"
-                                           IsVisible="{Binding Condition, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                <TextBlock Text="{Binding Text}" FontSize="11" FontFamily="monospace" IsVisible="{Binding HasText}" />
+                                <TextBlock Text="{Binding EngineLine}" FontSize="11" FontFamily="monospace" IsVisible="{Binding HasEngineLine}" />
                                 <TextBlock Text="{Binding LiveTip}" FontSize="11" IsVisible="{Binding HasLiveTip}" />
+                                <TextBlock Text="{Binding ConditionEditTip}" FontSize="11" IsVisible="{Binding HasConditionEditTip}" />
                             </StackPanel>
                         </ToolTip.Tip>
                         <views:LabelledConnection.Text>
