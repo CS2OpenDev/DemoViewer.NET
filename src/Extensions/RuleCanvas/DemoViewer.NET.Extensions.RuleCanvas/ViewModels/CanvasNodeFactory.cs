@@ -18,9 +18,11 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 /// </summary>
 /// <param name="writeFacet">Writes a facet of the node: a value to set, or null to remove it. Null writes nowhere.</param>
 /// <param name="writeField">Writes a field of the node: a value to set, or null to remove it. Null writes nowhere.</param>
+/// <param name="rename">Renames the node's entry; returns the refusal, or empty when written. Null renames nothing.</param>
 public sealed class CanvasNodeFactory(
     Action<CanvasNodeViewModel, string, string?>? writeFacet = null,
-    Action<CanvasNodeViewModel, string, string?>? writeField = null)
+    Action<CanvasNodeViewModel, string, string?>? writeField = null,
+    Func<CanvasNodeViewModel, string, string>? rename = null)
 {
     /// <summary>The <c>keep:</c> modes a capture or a sum can name.</summary>
     public static IReadOnlyList<string> KeepOptions { get; } = ["first", "last", "list", "min", "max"];
@@ -312,7 +314,8 @@ public sealed class CanvasNodeFactory(
             Diagnostics = face.Diagnostics
         };
         CanvasNodeViewModel node = built;
-        node.AttachWriters((facet, value) => writeFacet?.Invoke(node, facet, value), (key, value) => writeField?.Invoke(node, key, value));
+        node.AttachWriters((facet, value) => writeFacet?.Invoke(node, facet, value), (key, value) => writeField?.Invoke(node, key, value),
+            rename is null ? null : wanted => rename(node, wanted));
         return node;
     }
 

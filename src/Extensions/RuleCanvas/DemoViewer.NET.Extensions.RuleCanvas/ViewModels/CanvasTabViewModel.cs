@@ -69,7 +69,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         _selectTab = selectTab ?? throw new ArgumentNullException(nameof(selectTab));
         _loadCorpus = loadCorpus ?? throw new ArgumentNullException(nameof(loadCorpus));
         _arranger = new CanvasArranger(layoutFolder ?? throw new ArgumentNullException(nameof(layoutFolder)));
-        _factory = new CanvasNodeFactory(WriteFacet, WriteField);
+        _factory = new CanvasNodeFactory(WriteFacet, WriteField, RenameNode);
         _marshal = marshal;
         InitLive(live);
         SelectedNodes.CollectionChanged += (_, _) => JumpToSelection();

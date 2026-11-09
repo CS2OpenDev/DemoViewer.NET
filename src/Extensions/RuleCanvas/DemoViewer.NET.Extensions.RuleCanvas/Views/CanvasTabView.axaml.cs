@@ -215,6 +215,14 @@ public partial class CanvasTabView : UserControl
             _viewModel.BeginEditWire(wire);
             e.Handled = true;
         }
+        else if (properties.IsLeftButtonPressed && e.ClickCount == 2
+                 && (e.Source as Visual)?.GetSelfAndVisualAncestors().OfType<TextBlock>().FirstOrDefault(t => t.Name == "NodeTitle")
+                     ?.DataContext is CanvasNodeViewModel { CanRename: true } titled)
+        {
+            // Here and not on DoubleTapped: the container captures the press, so no tap gesture reaches the header.
+            titled.BeginEditTitle();
+            e.Handled = true;
+        }
     }
 
     // The wire menu's Edit condition: the item's DataContext is the wire.
@@ -672,6 +680,8 @@ public partial class CanvasTabView : UserControl
             JumpToNode(node);
         }
     }
+
+    private void OnNodeRename(object? sender, RoutedEventArgs e) => NodeOf(sender)?.BeginEditTitle();
 
     private void OnNodeDuplicate(object? sender, RoutedEventArgs e)
     {

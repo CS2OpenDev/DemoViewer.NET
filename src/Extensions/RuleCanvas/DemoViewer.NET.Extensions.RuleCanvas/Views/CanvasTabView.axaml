@@ -467,6 +467,7 @@
                                 <MenuItem Header="Freeze value as fixture" Click="OnFreezeFixture"
                                           ToolTip.Tip="Write the selected instance's final value and fire count as a comment above the entry" />
                                 <Separator />
+                                <MenuItem Header="Rename" IsEnabled="{ReflectionBinding CanRename}" Click="OnNodeRename" />
                                 <MenuItem Header="Duplicate" InputGesture="{views:PrimaryGesture Ctrl+D}" Click="OnNodeDuplicate" />
                                 <MenuItem Header="Delete" InputGesture="Delete" Click="OnNodeDelete" />
                                 <Separator />
@@ -874,8 +875,20 @@
                                         <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
                                                    views:TokenBrush.Foreground="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
                                     </Border>
-                                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
-                                               Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="NodeTitle" Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
+                                               Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center"
+                                               IsVisible="{Binding ShowTitleText}" />
+                                    <TextBox x:Name="NodeTitleEditor" Text="{Binding TitleText}" FontSize="12" FontFamily="monospace" MinWidth="120"
+                                             Padding="4 1" MinHeight="0" IsVisible="{Binding ShowTitleEditor}" VerticalAlignment="Center"
+                                             views:FaceBehaviors.FocusWhenShown="True"
+                                             views:FaceBehaviors.CommitOnLostFocus="{Binding CommitTitleCommand}">
+                                        <TextBox.KeyBindings>
+                                            <KeyBinding Gesture="Enter" Command="{Binding CommitTitleCommand}" />
+                                            <KeyBinding Gesture="Escape" Command="{Binding CancelTitleCommand}" />
+                                        </TextBox.KeyBindings>
+                                    </TextBox>
+                                    <TextBlock Text="{Binding TitleError}" FontSize="10" Foreground="{DynamicResource AccentCaution}" TextWrapping="Wrap"
+                                               MaxWidth="200" VerticalAlignment="Center" IsVisible="{Binding HasTitleError}" />
                                     <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource RuleTextKey}"
                                                VerticalAlignment="Center" IsVisible="{Binding ShowLabelText}" />
                                     <Button Classes="ghost" Content="✎" FontSize="10" Padding="3 0" MinHeight="0" VerticalAlignment="Center"

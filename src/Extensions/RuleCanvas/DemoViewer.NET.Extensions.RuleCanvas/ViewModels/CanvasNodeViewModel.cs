@@ -494,10 +494,71 @@ public sealed partial class CanvasNodeViewModel : ObservableObject, ILiveBadge
     };
 
     /// <summary>Hooks the writers: facet rows and the add-facet picker, then the scope, gate and expression editors.</summary>
-    public void AttachWriters(Action<string, string?> writeFacet, Action<string, string?> writeField)
+    public void AttachWriters(Action<string, string?> writeFacet, Action<string, string?> writeField, Func<string, string>? rename = null)
     {
         _writeFacet = writeFacet;
         _writeField = writeField;
+        _rename = rename;
+    }
+
+    private Func<string, string>? _rename;
+
+    /// <summary>Whether the title can be edited in place: an entry of the user's own ruleset.</summary>
+    public bool CanRename => IsEditable && IsEntry && _rename is not null;
+
+    /// <summary>The title is being edited on the face.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowTitleText), nameof(ShowTitleEditor))]
+    private bool _isEditingTitle;
+
+    [ObservableProperty]
+    private string _titleText = "";
+
+    /// <summary>Why the last name typed was not written, shown under the editor; empty otherwise.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTitleError))]
+    private string _titleError = "";
+
+    public bool HasTitleError => TitleError.Length > 0;
+
+    public bool ShowTitleText => !ShowTitleEditor;
+
+    public bool ShowTitleEditor => IsEditingTitle && CanRename;
+
+    [RelayCommand]
+    public void BeginEditTitle()
+    {
+        if (CanRename)
+        {
+            TitleText = Title;
+            TitleError = "";
+            IsEditingTitle = true;
+        }
+    }
+
+    /// <summary>Renames through the Inspector's path, references included. A refusal keeps the editor open with the reason.</summary>
+    [RelayCommand]
+    public void CommitTitle()
+    {
+        if (!IsEditingTitle || _rename is null)
+        {
+            return;
+        }
+
+        string text = TitleText.Trim();
+        TitleError = text == Title ? "" : _rename(text);
+        if (TitleError.Length == 0)
+        {
+            IsEditingTitle = false;
+        }
+    }
+
+    [RelayCommand]
+    public void CancelTitle()
+    {
+        IsEditingTitle = false;
+        TitleError = "";
+        TitleText = Title;
     }
 
     /// <summary>What a field editor calls: a value to set, or null to remove the field.</summary>
@@ -653,6 +714,9 @@ public sealed partial class CanvasNodeViewModel : ObservableObject, ILiveBadge
         OnPropertyChanged(nameof(ShowActorToggle));
         OnPropertyChanged(nameof(CanEditLabel));
         OnPropertyChanged(nameof(ShowLabelEditor));
+        OnPropertyChanged(nameof(CanRename));
+        OnPropertyChanged(nameof(ShowTitleText));
+        OnPropertyChanged(nameof(ShowTitleEditor));
         OnPropertyChanged(nameof(VisibleChips));
         OnPropertyChanged(nameof(VisibleChipItems));
         OnPropertyChanged(nameof(ShowExpressionText));
