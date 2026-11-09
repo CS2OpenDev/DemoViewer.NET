@@ -24,6 +24,25 @@ public class CanvasWalkthroughTests
     // The writer leaves a space after an empty block's colon; an editor strips it from the committed file.
     private static List<string> Lines(string text) => [.. text.Replace("\r\n", "\n").TrimEnd('\n').Split('\n').Select(l => l.TrimEnd())];
 
+    // The UI capture runs the whole walkthrough beside the shipped corpus, which this lane can check and it cannot.
+    [Test]
+    public async Task TheWholeWalkthrough_BuildsTheSameFile_BesideTheShippedCorpus()
+    {
+        using RulesTree rules = RulesTree.New();
+        CanvasTabViewModel vm = new(_ => true, () => RulesetCorpus.Load([(RulesTree.RepoRulesDirectory, "shipped"), (rules.UserDirectory, "user")]),
+            () => rules.OwnFolder) { PreferredRulesetId = CanvasWalkthrough.RulesetId };
+        vm.OnActivated(null!);
+
+        CanvasWalkthrough.BuildAll(vm);
+        using (Assert.Multiple())
+        {
+            await Assert.That(string.Join('\n', Lines(File.ReadAllText(rules.UserPath(CanvasWalkthrough.RulesetId)))))
+                .IsEqualTo(string.Join('\n', Lines(File.ReadAllText(ExpectedPath))));
+            await Assert.That(vm.SelectedRuleset?.Id).IsEqualTo(CanvasWalkthrough.RulesetId);
+            await Assert.That(vm.Groups.Single().Title).IsEqualTo("kills");
+        }
+    }
+
     [Test]
     public async Task AModeratelyComplexRule_IsAuthoredFromNothing_WithTheCanvasAlone()
     {
