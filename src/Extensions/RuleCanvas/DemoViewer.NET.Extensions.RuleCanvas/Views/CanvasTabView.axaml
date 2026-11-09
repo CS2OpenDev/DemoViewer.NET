@@ -15,10 +15,16 @@
         <!-- The ring sits at the row's start, inside the node's content padding, where the output ring and a
              table's column rings sit too. Nodify clips the content presenter, so a ring hung out over the
              border is cut away. -->
+        <!-- While a held item can land here, a halo in the port's own colour sits over the ring at its size,
+             so lighting a port never moves the row. -->
         <DataTemplate x:Key="InlinePort" x:DataType="vm:CanvasConnectorViewModel">
-            <nodes:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="{Binding IsConnected}"
-                             views:TokenBrush.BorderBrush="{Binding Token}" Opacity="{Binding Opacity}" ToolTip.Tip="{Binding Title}"
-                             Padding="0" MinHeight="0" Margin="0" VerticalAlignment="Center" />
+            <Panel Opacity="{Binding Opacity}" VerticalAlignment="Center">
+                <nodes:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="{Binding IsConnected}"
+                                 views:TokenBrush.BorderBrush="{Binding Token}" ToolTip.Tip="{Binding Title}"
+                                 Padding="0" MinHeight="0" Margin="0" VerticalAlignment="Center" />
+                <Border x:Name="PortHalo" BorderThickness="2" CornerRadius="999" IsHitTestVisible="False" Margin="0"
+                        views:TokenBrush.BorderBrush="{Binding LitToken}" IsVisible="{Binding IsLit}" />
+            </Panel>
         </DataTemplate>
     </UserControl.Resources>
 

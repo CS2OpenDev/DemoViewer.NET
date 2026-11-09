@@ -324,4 +324,48 @@ public class CanvasGalleryDropTests
             c.Window.Close();
         });
     }
+
+    // The halo and the dimmed ring of one inline port, as drawn: the template's Panel holds both.
+    private static (Panel Port, Border Halo) PortOf(Canvas c, CanvasConnectorViewModel connector)
+    {
+        Border halo = c.View.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "PortHalo" && ReferenceEquals(b.DataContext, connector));
+        return ((Panel)halo.GetVisualParent()!, halo);
+    }
+
+    [Test]
+    public async Task DuringAGalleryGateDrag_WhilePortsWearAHalo_AndTheOtherPortsDim()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using RulesTree rules = RulesTree.WithUser("player_round");
+            CanvasTabViewModel vm = rules.NewViewModel();
+            vm.OnActivated(null!);
+            Canvas c = Show(vm);
+            CanvasNodeViewModel kills = vm.Nodes.Single(n => n.Id == "round_kills");
+            Reveal(c, kills.Location);
+
+            c.View.BeginGalleryDrag(Item(vm, "Gates", "match.live"));
+            Pump();
+            (Panel gate, Border gateHalo) = PortOf(c, kills.GatePort!);
+            (Panel trigger, Border triggerHalo) = PortOf(c, kills.TriggerPort!);
+            using (Assert.Multiple())
+            {
+                await Assert.That(gateHalo.IsVisible).IsTrue().Because("the while port can take the gate");
+                await Assert.That(gateHalo.BorderBrush).IsNotNull().Because("the halo is drawn in the gate wire's token");
+                await Assert.That(gate.Opacity).IsEqualTo(1d);
+                await Assert.That(triggerHalo.IsVisible).IsFalse();
+                await Assert.That(trigger.Opacity).IsEqualTo(CanvasConnectorViewModel.DimmedOpacity);
+            }
+
+            c.View.EndGalleryDrag();
+            Pump();
+            using (Assert.Multiple())
+            {
+                await Assert.That(gateHalo.IsVisible).IsFalse().Because("the drag ended");
+                await Assert.That(trigger.Opacity).IsEqualTo(1d);
+            }
+
+            c.Window.Close();
+        });
+    }
 }

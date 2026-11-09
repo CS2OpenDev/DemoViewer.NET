@@ -339,6 +339,7 @@ public sealed partial class CanvasTabViewModel
         {
             input.IsCompatible = takes is { } kind && input.Kind == kind && input.Owner is { IsAuthorable: true, IsScaffold: false } owner
                                  && !(item.Kind == GalleryItemKind.Define && owner.IsDefine);
+            input.IsLit = input.IsCompatible;
         }
     }
 
@@ -348,6 +349,7 @@ public sealed partial class CanvasTabViewModel
         foreach (CanvasConnectorViewModel input in Nodes.SelectMany(n => n.Inputs))
         {
             input.IsCompatible = source is null || CanvasConnectorViewModel.Accepts(input.Kind, source);
+            input.IsLit = source is not null && input.IsCompatible;
         }
     }
 
