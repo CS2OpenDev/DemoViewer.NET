@@ -4,6 +4,7 @@ using CS2DemoKit.Analysis.Profiles;
 using CS2DemoKit.Analysis.RulesetsV2.Resolve;
 using CS2DemoKit.Analysis.Yaml;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
+using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 
 #endregion
 
@@ -104,6 +105,35 @@ public class FixtureRulesetsTests
             await Assert.That(composed.Graph.Nodes.Select(n => n.Key.Id)).Contains("ok_kills");
             await Assert.That(composed.Graph.Nodes.Select(n => n.Key.Id)).DoesNotContain("bad");
             await Assert.That(composed.Chain.Edges.Any(e => e.Target.Id == "ok_kills" && !e.IsRead)).IsTrue().Because("the whole stat still lowers and is wired");
+        }
+    }
+
+    /// <summary>
+    ///     What the canvas's list shows for tb_incomplete, which is what a manual script expects: the dropped
+    ///     entry is an error at its line that carries the loader's warning, and the rest are warnings on their nodes.
+    /// </summary>
+    [Test]
+    public async Task TheIncompleteFixture_InTheCanvasList_ShowsOneErrorAndThreeWarnings()
+    {
+        using RulesTree rules = RulesTree.New();
+        string path = RulesTree.Touch(rules.UserPath("tb_incomplete"), File.ReadAllText(Path.Combine(TestbedDirectory, "tb_incomplete.rules.yaml")));
+        int badLine = Array.IndexOf(File.ReadAllLines(path), "  bad: 5") + 1;
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "tb_incomplete";
+        vm.OnActivated(null!);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.DiagnosticEntries.Select(d => (d.Message, d.IsError, d.Node?.Id, d.Line))).IsEquivalentTo(
+            [
+                ("bad did not load: stat 'bad' must be a map with a kind key", true, (string?)null, badLine),
+                ("no_trigger has no trigger: add on: with a view, such as damage_dealt", false, "no_trigger", 0),
+                ("blank_when has a blank when: type the test, or wire a stat into its when port", false, "blank_when", 0),
+                ("unknown key 'frobnicate' in stat 'odd_key'", false, "odd_key", 0)
+            ]);
+            await Assert.That(vm.ErrorCount).IsEqualTo(1);
+            await Assert.That(vm.Nodes.Single(n => n.Id == "no_trigger").Diagnostics.Select(d => d.Message))
+                .IsEquivalentTo(["no_trigger has no trigger: add on: with a view, such as damage_dealt"])
+                .Because("the dropped entry below it closes its span, so the loader's line about bad is not filed on it");
         }
     }
 

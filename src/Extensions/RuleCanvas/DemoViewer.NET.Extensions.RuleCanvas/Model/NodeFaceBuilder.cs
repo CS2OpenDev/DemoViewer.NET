@@ -188,7 +188,7 @@ public static class NodeFaceBuilder
     /// <summary>
     ///     Files each composition diagnostic under the node whose entry contains its line. An entry runs
     ///     from its start line to the next thing the document declares: the next stat, highlight or trigger
-    ///     define, or a list define, a param, a cadence or the <c>show:</c> block, which closes the section. A diagnostic
+    ///     define, or a list define, a param, a cadence, an entry the loader dropped, or the <c>show:</c> block, which closes the section. A diagnostic
     ///     outside every entry, before the first or inside another block, stays at the document level, as
     ///     does one inside an entry the graph does not draw. A diagnostic that names its node outright is
     ///     filed there without the line walk.
@@ -220,6 +220,12 @@ public static class NodeFaceBuilder
             if (!marks.TryGetValue(rulesetId, out List<(int Line, RulesetDocumentNodeKey? Opens)>? lines))
             {
                 lines = composed.Documents.TryGetValue(rulesetId, out RulesetDoc? doc) ? Marks(doc) : [];
+                if (rulesetId == composed.OpenId && composed.DroppedLines.Count > 0)
+                {
+                    lines.AddRange(composed.DroppedLines.Select(l => (l, (RulesetDocumentNodeKey?)null)));
+                    lines.Sort((a, b) => a.Line.CompareTo(b.Line));
+                }
+
                 marks[rulesetId] = lines;
             }
 

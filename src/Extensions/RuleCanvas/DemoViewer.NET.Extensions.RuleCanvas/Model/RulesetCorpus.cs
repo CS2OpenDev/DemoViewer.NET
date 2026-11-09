@@ -65,6 +65,12 @@ public sealed class RulesetCorpus
         /// </summary>
         public IReadOnlyList<RulesetDoc> Evaluable { get; init; } = [];
 
+        /// <summary>
+        ///     The key lines of the open document's entries the loader dropped. The document does not hold them,
+        ///     so without these a dropped entry's lines read as the end of the entry above it.
+        /// </summary>
+        public IReadOnlyList<int> DroppedLines { get; init; } = [];
+
         /// <summary>The id of the document composed, whose show: and params: blocks are drawn; null when nothing loaded.</summary>
         public string? OpenId { get; init; }
 
@@ -112,7 +118,7 @@ public sealed class RulesetCorpus
 
     // Every file that loaded, in directory order, overridden ones included, so one file can be re-read
     // without a walk and a user file that loses a shipped id hands the shipped entry back.
-    private sealed record LoadedFile(string Path, string Source, RulesetDoc Doc, IReadOnlyList<RulesetDiagnostic> Diagnostics);
+    private sealed record LoadedFile(string Path, string Source, RulesetDoc Doc, IReadOnlyList<RulesetDiagnostic> Diagnostics, string Text);
 
     private readonly IReadOnlyList<(string Directory, string Source)> _directories;
     private readonly List<LoadedFile> _files;
@@ -400,10 +406,11 @@ public sealed class RulesetCorpus
         readAt[Path.GetFullPath(path)] = WriteTimeOf(path);
         try
         {
-            RulesetDocumentLoader.Outcome outcome = RulesetDocumentLoader.Load(File.ReadAllText(path), path);
+            string text = File.ReadAllText(path);
+            RulesetDocumentLoader.Outcome outcome = RulesetDocumentLoader.Load(text, path);
             if (outcome.Doc is { } doc)
             {
-                return new LoadedFile(path, source, doc, outcome.Diagnostics);
+                return new LoadedFile(path, source, doc, outcome.Diagnostics, text);
             }
 
             failures.Add((path, string.Join("; ", outcome.Diagnostics.Select(d => d.Message))));
@@ -557,6 +564,7 @@ public sealed class RulesetCorpus
         {
             OpenId = open.Id,
             Evaluable = evaluable,
+            DroppedLines = [.. DroppedEntries.Of(_files.Last(f => f.Doc.Id == open.Id).Text, open, report).Select(d => d.Line)],
             Overrides = _overrides.Where(o => taking.ContainsKey(o.Key)).ToDictionary(o => o.Key, o => o.Value, StringComparer.Ordinal)
         };
     }
