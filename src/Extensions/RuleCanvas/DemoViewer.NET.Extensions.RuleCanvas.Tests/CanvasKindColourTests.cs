@@ -116,6 +116,58 @@ public class CanvasKindColourTests
         }
     }
 
+    [Test]
+    public async Task TheLegend_IsOffByDefault_AndKeepsItsStateAcrossRulesets()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        rules.User("other", "ruleset: other\ntitle: Other\nstats:\n  k:\n    count: kill\n    per: round\n");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        bool initially = vm.ShowLegend;
+        vm.ToggleLegendCommand.Execute(null);
+        bool toggled = vm.ShowLegend;
+        vm.SelectedRuleset = vm.Rulesets.Single(r => r.Id == "other");
+        using (Assert.Multiple())
+        {
+            await Assert.That(initially).IsFalse();
+            await Assert.That(toggled).IsTrue();
+            await Assert.That(vm.ShowLegend).IsTrue().Because("remembered for the session, not per ruleset");
+        }
+    }
+
+    // The legend is one item in the overflow menu, not a strip button, and lists every family and wire in the
+    // tokens and dash styles the canvas draws with.
+    [Test]
+    public async Task TheLegend_ListsEveryFamilyAndWire_InTheCanvasTokens()
+    {
+        XDocument view = Load("CanvasTabView.axaml");
+        XElement legend = view.Descendants().Single(e => e.Attribute(XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value == "Legend");
+        XElement toggle = view.Descendants().Single(e => e.Name.LocalName == "MenuItem" && Attribute(e, "Header") == "Legend");
+        List<string> swatches = [.. legend.Descendants().Where(e => e.Name.LocalName == "Border" && Attribute(e, "Width") == "10")
+            .Select(e => Attribute(e, "Background"))];
+        List<string> lines = [.. legend.Descendants().Where(e => e.Name.LocalName == "Line").Select(e => Attribute(e, "Classes"))];
+        Avalonia.Styling.Styles theme = CanvasThemeTests.LoadTheme();
+        List<string> selectors = [.. theme.OfType<Avalonia.Styling.Style>().Select(s => s.Selector?.ToString() ?? "")];
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(legend, "IsVisible")).IsEqualTo("{Binding ShowLegend}");
+            await Assert.That(Attribute(legend, "IsHitTestVisible")).IsEqualTo("False").Because("a reading aid over the editor takes no pointer");
+            await Assert.That(Attribute(toggle, "Command")).IsEqualTo("{Binding ToggleLegendCommand}");
+            await Assert.That(toggle.Ancestors().Any(a => a.Name.LocalName == "MenuFlyout")).IsTrue().Because("the strip is full; the toggle lives in the overflow");
+            await Assert.That(view.Descendants().Any(e => e.Name.LocalName is "ToggleButton" or "Button" && Attribute(e, "Command") == "{Binding ToggleLegendCommand}"))
+                .IsFalse();
+            await Assert.That(swatches).IsEquivalentTo(RuleKindToken.Kinds.Select(RuleKindToken.KeyFor).Distinct().Select(k => "{DynamicResource " + k + "}"));
+            await Assert.That(lines).IsEquivalentTo(["legendWrite", "legendRead", "legendGate", "legendAnd", "legendOr", "legendFlash"]);
+            foreach (string line in lines)
+            {
+                await Assert.That(selectors.Any(s => s.Contains("Line." + line, StringComparison.Ordinal))).IsTrue().Because(line + " is styled in the theme");
+            }
+
+            await Assert.That(CanvasThemeTests.DashOf(theme, "Line.legendRead")).IsEquivalentTo(CanvasThemeTests.DashOf(theme, "Connection.read"));
+            await Assert.That(CanvasThemeTests.DashOf(theme, "Line.legendGate")).IsEquivalentTo(CanvasThemeTests.DashOf(theme, "Connection.gate"));
+        }
+    }
+
     internal static string ViewsFolder()
     {
         DirectoryInfo? dir = new(AppContext.BaseDirectory);

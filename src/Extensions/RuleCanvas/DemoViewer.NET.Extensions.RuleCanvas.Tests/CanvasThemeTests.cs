@@ -32,7 +32,7 @@ public class CanvasThemeTests
         "NodifyEditor", "ItemContainer", "Node", "NodeInput", "Connection", "PendingConnection", "Minimap", "GroupingNode"
     ];
 
-    private static Styles LoadTheme()
+    internal static Styles LoadTheme()
     {
         // The compiled loader builds the styles without a platform; the public loader wants the asset service.
         System.Reflection.MethodInfo tryLoad = typeof(CanvasTabView).Assembly.GetType("CompiledAvaloniaXaml.!XamlLoader")!

@@ -378,6 +378,32 @@
         <Setter Property="StrokeDashArray" Value="8,4" />
     </Style>
 
+    <!-- The legend's wire samples: the wire styles above, on a Line at the template's 2px stroke. -->
+    <Style Selector="Line.legendWrite, Line.legendRead, Line.legendGate, Line.legendAnd, Line.legendOr">
+        <Setter Property="StrokeThickness" Value="2" />
+    </Style>
+    <Style Selector="Line.legendWrite">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireWrite}" />
+    </Style>
+    <Style Selector="Line.legendRead">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireRead}" />
+        <Setter Property="StrokeDashArray" Value="1,2" />
+    </Style>
+    <Style Selector="Line.legendGate">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireGate}" />
+        <Setter Property="StrokeDashArray" Value="8,4" />
+    </Style>
+    <Style Selector="Line.legendAnd">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireAnd}" />
+    </Style>
+    <Style Selector="Line.legendOr">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireOr}" />
+    </Style>
+    <Style Selector="Line.legendFlash">
+        <Setter Property="Stroke" Value="{DynamicResource RuleWireFlash}" />
+        <Setter Property="StrokeThickness" Value="7" />
+    </Style>
+
     <!-- Wires are selectable: a halo under the hovered wire says it can be picked, a wider one marks the
          selection. RuleWireHalo carries its own alpha, so the stroke on top stays readable. -->
     <Style Selector="connections|Connection:pointerover">

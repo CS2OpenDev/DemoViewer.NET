@@ -98,6 +98,10 @@ public sealed partial class CanvasTabViewModel
     [ObservableProperty]
     private bool _showMinimap = true;
 
+    /// <summary>The legend over the canvas: off by default, kept for the tab's life, never saved.</summary>
+    [ObservableProperty]
+    private bool _showLegend;
+
     /// <summary>Why the canvas shows no graph, or <see cref="CanvasEmptyState.None" />.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasEmptyState))]
@@ -151,6 +155,9 @@ public sealed partial class CanvasTabViewModel
 
     [RelayCommand]
     private void ToggleMinimap() => ShowMinimap = !ShowMinimap;
+
+    [RelayCommand]
+    private void ToggleLegend() => ShowLegend = !ShowLegend;
 
     [RelayCommand]
     private void ToggleDiagnosticsList() => ShowDiagnosticsList = !ShowDiagnosticsList;

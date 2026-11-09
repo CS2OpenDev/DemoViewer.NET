@@ -138,6 +138,7 @@
                                     <MenuItem Header="Detailed faces" Command="{Binding SetStyleCommand}" CommandParameter="detailed" />
                                     <Separator />
                                     <MenuItem Header="Minimap" Command="{Binding ToggleMinimapCommand}" />
+                                    <MenuItem Header="Legend" Command="{Binding ToggleLegendCommand}" />
                                     <MenuItem Header="Diagnostics list" Command="{Binding ToggleDiagnosticsListCommand}" />
                                     <Separator />
                                     <MenuItem Header="Reset arrangement" Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding HasSavedLayout}"
@@ -1264,6 +1265,111 @@
                 </Style>
             </nodify:Minimap.Styles>
         </nodify:Minimap>
+
+        <!-- The legend, top-right, off by default: the node families and the wire kinds, in the same tokens
+             and dash styles the canvas draws with. A reading aid only; nothing on it is clickable. -->
+        <Border x:Name="Legend" IsVisible="{Binding ShowLegend}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12"
+                CornerRadius="4" Padding="10 8" Background="{DynamicResource PanelBg}" Opacity="0.95"
+                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" IsHitTestVisible="False">
+            <StackPanel Spacing="3">
+                <TextBlock Text="NODES" FontSize="10" LetterSpacing="1" Foreground="{DynamicResource TextMid}" />
+                <StackPanel x:Name="LegendNodes" Spacing="3">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindEvent}" />
+                        <TextBlock Text="event" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindEvent}" VerticalAlignment="Center" />
+                        <TextBlock Text="what fires" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindEnrich}" />
+                        <TextBlock Text="enrich" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindEnrich}" VerticalAlignment="Center" />
+                        <TextBlock Text="an engine enrichment" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindContext}" />
+                        <TextBlock Text="context" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindContext}" VerticalAlignment="Center" />
+                        <TextBlock Text="an engine flag" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindStat}" />
+                        <TextBlock Text="count, sum" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindStat}" VerticalAlignment="Center" />
+                        <TextBlock Text="accumulates" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindCapture}" />
+                        <TextBlock Text="capture" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindCapture}" VerticalAlignment="Center" />
+                        <TextBlock Text="keeps the last value" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindFlag}" />
+                        <TextBlock Text="flag" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindFlag}" VerticalAlignment="Center" />
+                        <TextBlock Text="true or false" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindDerived}" />
+                        <TextBlock Text="compute, rate" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindDerived}" VerticalAlignment="Center" />
+                        <TextBlock Text="derived from siblings" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindShaped}" />
+                        <TextBlock Text="tally, streak, bucket, burst" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindShaped}" VerticalAlignment="Center" />
+                        <TextBlock Text="shaped counts" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindHighlight}" />
+                        <TextBlock Text="highlight" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindHighlight}" VerticalAlignment="Center" />
+                        <TextBlock Text="a moment" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindDefine}" />
+                        <TextBlock Text="define" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindDefine}" VerticalAlignment="Center" />
+                        <TextBlock Text="a named trigger" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindSurface}" />
+                        <TextBlock Text="table, params" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindSurface}" VerticalAlignment="Center" />
+                        <TextBlock Text="surfaces" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindDependency}" />
+                        <TextBlock Text="dependency" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindDependency}" VerticalAlignment="Center" />
+                        <TextBlock Text="another ruleset" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+                <TextBlock Text="WIRES" FontSize="10" LetterSpacing="1" Foreground="{DynamicResource TextMid}" Margin="0 6 0 0" />
+                <StackPanel x:Name="LegendWires" Spacing="3">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Line Classes="legendWrite" StartPoint="0,6" EndPoint="28,6" Width="28" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="write" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="an event fires a stat" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Line Classes="legendRead" StartPoint="0,6" EndPoint="28,6" Width="28" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="read" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="a sibling's value" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Line Classes="legendGate" StartPoint="0,6" EndPoint="28,6" Width="28" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="gate" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="while: holds it open" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Line Classes="legendAnd" StartPoint="0,6" EndPoint="28,6" Width="28" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="and" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="every input holds" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Line Classes="legendOr" StartPoint="0,6" EndPoint="28,6" Width="28" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="or" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="any input holds" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Line Classes="legendFlash" StartPoint="0,6" EndPoint="28,6" Width="28" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="flash" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="fired at the stepped tick" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
 
         <!-- The condition editor opened on a wire, placed by the view over the wire's label: one operand row
              of the target's when:, the whole while: or when: as text, or the reason the wire has none. Enter
