@@ -245,6 +245,26 @@ public class ShowNodeTests
     }
 
     [Test]
+    public async Task AFailedBuild_StillDrawsTheTableFromTheDocument_AndIsNotLowered()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        string path = rules.UserPath("player_round");
+        File.WriteAllText(path, RulesetEdits.AddStat(File.ReadAllText(path), "broken:\n  flag:\n    when: \"no_such_stat > 0\"\n  per: round\n"));
+        RulesetCorpus.Composed composed = rules.Load().Compose("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        using (Assert.Multiple())
+        {
+            await Assert.That(composed.Chain.IsLowered).IsFalse();
+            await Assert.That(composed.Chain.Nodes.Select(n => n.Kind)).IsEquivalentTo([ChainNodeKind.Show]);
+            await Assert.That(composed.Chain.Edges.Count).IsEqualTo(7).Because("the columns still wire from the document's entries");
+            await Assert.That(vm.CanRunLive).IsFalse().Because("nothing lowered, so nothing can run");
+            await Assert.That(Table(vm, "player_round").Columns.Count).IsEqualTo(7);
+            await Assert.That(vm.Connections.Count(w => w.Target.Owner is { IsShow: true })).IsEqualTo(7);
+        }
+    }
+
+    [Test]
     public async Task ATableTakesNothingButAStatOrHighlight_AndNothingStartsFromIt()
     {
         (RulesTree rules, CanvasTabViewModel vm) = Open();

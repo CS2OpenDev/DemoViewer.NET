@@ -38,8 +38,7 @@ public static class ChainWiring
         ArgumentNullException.ThrowIfNull(drawn);
         List<WireSpec> wires = [];
         // A chain of surface nodes alone (a failed build) carries no declared wires; the document's reads stand in.
-        bool lowered = composed.Chain.Nodes.Any(n => n.Kind is not (ChainNodeKind.Show or ChainNodeKind.Params));
-        if (!lowered)
+        if (!composed.Chain.IsLowered)
         {
             HashSet<(RulesetDocumentNodeKey, RulesetDocumentNodeKey)> seen = [];
             foreach (RulesetDocumentEdge edge in composed.Graph.Edges)
