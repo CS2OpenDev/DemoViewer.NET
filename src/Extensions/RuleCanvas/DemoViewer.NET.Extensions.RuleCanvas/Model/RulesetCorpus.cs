@@ -192,6 +192,20 @@ public sealed class RulesetCorpus
         return outcome.Doc.Id == expectedId ? null : $"the ruleset: key changed to {outcome.Doc.Id}; rename the file to match it instead";
     }
 
+    /// <summary>How many lines the loader says about <paramref name="text" /> while still loading it; zero when it does not load.</summary>
+    public static int LoaderWarningCount(string text, string path)
+    {
+        try
+        {
+            RulesetDocumentLoader.Outcome outcome = RulesetDocumentLoader.Load(text, path);
+            return outcome.Doc is null ? 0 : outcome.Diagnostics.Count;
+        }
+        catch (Exception ex) when (ex is YamlDotNet.Core.YamlException or InvalidOperationException)
+        {
+            return 0;
+        }
+    }
+
     /// <summary>The loadable rulesets in the order their directories were given, a later directory's file replacing an earlier one with the same id.</summary>
     public IReadOnlyList<Entry> Entries { get; }
 

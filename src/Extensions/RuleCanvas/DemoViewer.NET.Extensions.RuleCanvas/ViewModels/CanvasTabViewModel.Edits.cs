@@ -44,11 +44,21 @@ public sealed partial class CanvasTabViewModel
         }
 
         // Refused with the loader's reason when the text no longer loads as this ruleset; the pane stays dirty.
-        if (Report(_session.Save(_pendingSourceText), selected))
+        string text = _pendingSourceText;
+        if (Report(_session.Save(text), selected))
         {
             SourceDirty = false;
+            int warnings = RulesetCorpus.LoaderWarningCount(text, selected.Path);
+            if (warnings > 0)
+            {
+                Notify(SavedWithWarnings(warnings), null, "Show", () => ShowDiagnosticsList = true);
+            }
         }
     }
+
+    /// <summary>What the toast says after a save the loader kept with warnings: <c>saved, 2 warnings</c>.</summary>
+    public static string SavedWithWarnings(int count) =>
+        string.Create(System.Globalization.CultureInfo.InvariantCulture, $"saved, {count} warning{(count == 1 ? "" : "s")}");
 
     /// <summary>Drops the source pane's unsaved text; the view puts the file's text back.</summary>
     [RelayCommand]

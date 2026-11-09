@@ -210,6 +210,38 @@ public class CanvasTabViewModelEditTests
     }
 
     [Test]
+    public async Task ASaveTheLoaderKeepsWithWarnings_SaysSo_AndOpensTheListOnClick()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+
+        vm.SourceEdited(vm.DocumentText + "\n# a clean comment\n");
+        vm.SaveSourceCommand.Execute(null);
+        await Assert.That(vm.Toast).IsNull().Because("a clean save says nothing");
+
+        vm.SourceEdited(vm.DocumentText.Replace("stats:\n", "stats:\n  noisy:\n    count: kill\n    frobnicate: 1\n    per: fortnight\n", StringComparison.Ordinal));
+        vm.SaveSourceCommand.Execute(null);
+        CanvasToast? toast = vm.Toast;
+        using (Assert.Multiple())
+        {
+            await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).Contains("frobnicate");
+            await Assert.That(vm.SourceDirty).IsFalse();
+            await Assert.That(vm.EditStatus).IsEqualTo("");
+            await Assert.That(toast?.Message).IsEqualTo("saved, 2 warnings");
+            await Assert.That(toast?.HasAction).IsTrue();
+            await Assert.That(vm.ShowDiagnosticsList).IsFalse();
+        }
+
+        toast!.Action!();
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.ShowDiagnosticsList).IsTrue();
+            await Assert.That(CanvasTabViewModel.SavedWithWarnings(1)).IsEqualTo("saved, 1 warning");
+        }
+    }
+
+    [Test]
     public async Task SavingTextThatNoLongerLoads_IsRefused_AndThePaneStaysDirty()
     {
         using RulesTree rules = RulesTree.WithUser("player_round");
