@@ -229,12 +229,33 @@ public partial class CanvasTabView : UserControl
             case CanvasKeyAction.FitAll:
                 FitAll();
                 break;
+            case CanvasKeyAction.NextFire:
+                _viewModel.NextFireCommand.Execute(null);
+                break;
+            case CanvasKeyAction.PreviousFire:
+                _viewModel.PreviousFireCommand.Execute(null);
+                break;
             default:
                 return;
         }
 
         e.Handled = true;
     }
+
+    // A node's or a wire's menu is opening: its seek items are worded for the run and the playhead now.
+    private void OnSeekMenuOpening(object? sender, CancelEventArgs e)
+    {
+        if (sender is ContextMenu menu)
+        {
+            _viewModel?.RefreshSeekMenu(menu.DataContext);
+        }
+    }
+
+    private void OnNextFire(object? sender, RoutedEventArgs e) => _viewModel?.NextFireCommand.Execute((sender as MenuItem)?.DataContext);
+
+    private void OnPreviousFire(object? sender, RoutedEventArgs e) => _viewModel?.PreviousFireCommand.Execute((sender as MenuItem)?.DataContext);
+
+    private void OnFirstFire(object? sender, RoutedEventArgs e) => _viewModel?.FirstFireCommand.Execute((sender as MenuItem)?.DataContext);
 
     // A typed literal is written when its editor loses focus; Enter is a key binding on the editor itself.
     private void OnFacetEditorLostFocus(object? sender, RoutedEventArgs e)

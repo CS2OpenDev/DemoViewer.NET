@@ -282,6 +282,12 @@ public sealed partial class CanvasNodeViewModel : ObservableObject
 
     public bool HasLive => LiveBadge.Length > 0;
 
+    /// <summary>The menu's seek items, filled by the tab when the menu opens.</summary>
+    public CanvasSeekMenuViewModel SeekMenu { get; } = new();
+
+    /// <summary>The wire events this node fires on: the event node's own, or the stat's view's. Empty when unknown.</summary>
+    public IReadOnlyList<string> Events { get; init; } = [];
+
     public bool IsHighlight => Kind == "highlight";
 
     /// <summary>A trigger-bodied <c>define:</c> of the open document; its stats fire through it.</summary>
