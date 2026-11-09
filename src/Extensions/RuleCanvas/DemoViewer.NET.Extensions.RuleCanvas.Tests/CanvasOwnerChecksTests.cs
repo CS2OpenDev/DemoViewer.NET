@@ -58,4 +58,23 @@ public class CanvasOwnerChecksTests
             }
         }
     }
+
+    [Test]
+    public async Task ClearingTheSumValueOnRoundDamage_IsRefusedWithANotice_AndTheFileIsUntouched()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
+        using (rules)
+        {
+            string before = Text(rules);
+            CanvasFieldViewModel sum = Node(vm, "round_damage").Fields.Single(f => f.Key == "sum");
+            sum.Text = "";
+            sum.Commit();
+            using (Assert.Multiple())
+            {
+                await Assert.That(Text(rules)).IsEqualTo(before);
+                await Assert.That(vm.EditStatus).Contains("needs a value");
+                await Assert.That(vm.CanUndo).IsFalse().Because("nothing was written, so there is nothing to undo");
+            }
+        }
+    }
 }
