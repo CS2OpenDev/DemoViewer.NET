@@ -205,6 +205,7 @@ public sealed partial class CanvasTabViewModel
         LiveRun = null;
         Instances.Clear();
         SelectedInstance = null;
+        IsStepMode = false;
         if (had)
         {
             ApplyLive(Nodes, Connections);
@@ -307,8 +308,10 @@ public sealed partial class CanvasTabViewModel
     // text against the run's, and the badges are put back on the fresh view models.
     private void SyncLive(RulesetCorpus.Entry? value, bool recompose, IEnumerable<CanvasNodeViewModel> nodes, IEnumerable<CanvasConnectionViewModel> wires)
     {
+        // No run was ever accepted: nothing to badge, but a pinned viewer still gets its panel.
         if (_liveRulesetId is null)
         {
+            ApplyLive(nodes, wires);
             NotifyLiveState();
             return;
         }
@@ -333,6 +336,8 @@ public sealed partial class CanvasTabViewModel
     {
         _liveNodes.Clear();
         _liveWires.Clear();
+        _stepTicks = null;
+        ClearFlash();
         LiveValuesRun? run = LiveRun;
         LiveInstance? instance = SelectedInstance;
         if (run is null || instance is null)
@@ -342,6 +347,13 @@ public sealed partial class CanvasTabViewModel
                 node.LiveBadge = "";
                 node.LiveTip = "";
                 node.IsLiveStale = false;
+                node.LiveViewer = ViewerFor(node, null, null, null, false, null);
+                foreach (CanvasColumnViewModel column in node.Columns)
+                {
+                    column.LiveBadge = "";
+                    column.LiveTip = "";
+                    column.IsLiveStale = false;
+                }
             }
 
             foreach (CanvasConnectionViewModel wire in wires)
@@ -358,13 +370,15 @@ public sealed partial class CanvasTabViewModel
         foreach (CanvasNodeViewModel node in nodes)
         {
             bool isBool = node.ValueType == "bool";
+            NodeTrack? track = TrackFor(run, node.Key, instance.Index);
+            node.LiveViewer = ViewerFor(node, run, instance, track, stale, tick);
             if (node.IsDependency)
             {
                 ShowDependencyLive(node, run, instance, stale);
             }
-            else if (TrackFor(run, node.Key, instance.Index) is { } track)
+            else if (track is not null)
             {
-                LiveNodeBinding binding = new(node, track, isBool);
+                LiveNodeBinding binding = new(node, track, isBool) { Viewer = node.LiveViewer };
                 _liveNodes.Add(binding);
                 binding.Show(instance, stale, tick);
                 node.IsLiveStale = stale;
@@ -383,7 +397,8 @@ public sealed partial class CanvasTabViewModel
             }
         }
 
-        foreach (CanvasConnectionViewModel wire in wires)
+        List<CanvasConnectionViewModel> wireList = [.. wires];
+        foreach (CanvasConnectionViewModel wire in wireList)
         {
             if (WireTrackFor(run, wire, instance.Index) is { } own)
             {
@@ -396,6 +411,41 @@ public sealed partial class CanvasTabViewModel
                 wire.LiveTip = WireFallback(run, wire, instance.Index, stale);
             }
         }
+
+        // A show node's column carries the surfaced stat's badge: the stat at the other end of its wire, or
+        // the stat the column names when nothing is wired to it.
+        List<CanvasNodeViewModel> nodeList = [.. nodes];
+        foreach (CanvasNodeViewModel show in nodeList.Where(n => n.IsShow))
+        {
+            foreach (CanvasColumnViewModel column in show.Columns)
+            {
+                CanvasNodeViewModel? stat = SurfacedStat(column, show, nodeList, wireList);
+                if (stat is not null && TrackFor(run, stat.Key, instance.Index) is { } track)
+                {
+                    LiveNodeBinding binding = new(column, track, stat.ValueType == "bool");
+                    _liveNodes.Add(binding);
+                    binding.Show(instance, stale, tick);
+                    column.IsLiveStale = stale;
+                }
+                else
+                {
+                    column.LiveBadge = "";
+                    column.LiveTip = "";
+                    column.IsLiveStale = false;
+                }
+            }
+        }
+    }
+
+    private static CanvasNodeViewModel? SurfacedStat(CanvasColumnViewModel column, CanvasNodeViewModel show,
+        List<CanvasNodeViewModel> nodes, List<CanvasConnectionViewModel> wires)
+    {
+        if (column.Port is { } port && wires.FirstOrDefault(w => ReferenceEquals(w.Target, port))?.Source.Owner is { } wired)
+        {
+            return wired;
+        }
+
+        return nodes.FirstOrDefault(n => n.IsEntry && !n.IsDefine && ShowSurface.Refers(column.Stat, n.Id, show.Ruleset));
     }
 
     // A folded dependency speaks for the entries the open document reads: the fires summed on the badge,
@@ -525,6 +575,7 @@ public sealed partial class CanvasTabViewModel
         OnPropertyChanged(nameof(LiveState));
         OnPropertyChanged(nameof(CanRunLive));
         RunLiveCommand.NotifyCanExecuteChanged();
+        NotifyStep();
     }
 
     partial void OnSelectedInstanceChanged(LiveInstance? value) => ApplyLive(Nodes, Connections);
@@ -549,17 +600,21 @@ public sealed partial class CanvasTabViewModel
         OnPropertyChanged(nameof(LiveState));
     }
 
-    // One badged node: the point shown is remembered, so a tick that lands on the same fire is free.
-    // The final part of the tip is kept between playhead moves; a move writes one line and one join.
-    private sealed class LiveNodeBinding(CanvasNodeViewModel node, NodeTrack track, bool isBool)
+    // One badge, on a node or a show column: the point shown is remembered, so a tick that lands on the same
+    // fire is free. The final part of the tip is kept between playhead moves; a move writes one line and one join.
+    private sealed class LiveNodeBinding(ILiveBadge node, NodeTrack track, bool isBool)
     {
         private int _shown = int.MinValue;
         private bool _stale;
         private LiveInstance? _instance;
         private string _rest = "";
 
+        /// <summary>The pinned viewer under the node, whose marker follows the playhead; null when none is pinned.</summary>
+        public CanvasLiveViewerViewModel? Viewer { get; init; }
+
         public void Show(LiveInstance instance, bool stale, int? tick)
         {
+            Viewer?.SetPlayhead(tick);
             int index = tick is { } at && track.Series.Count > 0 ? track.Series.IndexAt(at) : int.MaxValue;
             bool same = stale == _stale && ReferenceEquals(instance, _instance);
             if (index == _shown && same)

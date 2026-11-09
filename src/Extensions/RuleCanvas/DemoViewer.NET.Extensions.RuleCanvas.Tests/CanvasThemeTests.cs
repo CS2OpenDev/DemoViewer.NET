@@ -111,14 +111,15 @@ public class CanvasThemeTests
             await Assert.That(selectors.Any(s => s.Contains("CheckBox.face:checked", StringComparison.Ordinal) && s.EndsWith("Path#CheckGlyph", StringComparison.Ordinal)))
                 .IsTrue().Because("the tick takes RuleCheckGlyph");
 
-            // The halo under a hovered or selected wire is the token, not a literal.
+            // The halo under a hovered or selected wire is the token, not a literal; the step flash is the third halo, in its own token.
             List<Style> halos = [.. styles.OfType<Style>().Where(s => s.Setters.OfType<Setter>().Any(x => x.Property?.Name == "OutlineBrush"))];
-            await Assert.That(halos.Count).IsEqualTo(2).Because("a hover halo and a selection halo");
+            await Assert.That(halos.Count).IsEqualTo(3).Because("a hover halo, a selection halo and the step flash");
             foreach (Style halo in halos)
             {
                 Setter brush = halo.Setters.OfType<Setter>().Single(x => x.Property?.Name == "OutlineBrush");
-                await Assert.That(brush.Value is DynamicResourceExtension { ResourceKey: "RuleWireHalo" }).IsTrue()
-                    .Because(halo.Selector?.ToString() ?? "halo");
+                string selector = halo.Selector?.ToString() ?? "halo";
+                string token = selector.EndsWith(".flash", StringComparison.Ordinal) ? "RuleWireFlash" : "RuleWireHalo";
+                await Assert.That(brush.Value is DynamicResourceExtension extension && (string?)extension.ResourceKey == token).IsTrue().Because(selector);
             }
 
             foreach (string theme in new[] { "NodifyEditor.SelectionRectangleTheme", "NodifyEditor.CuttingLineTheme", "NodifyEditor.PushedAreaTheme" })

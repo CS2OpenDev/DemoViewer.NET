@@ -177,8 +177,8 @@ public class CanvasViewMarkupTests
         XDocument view = LoadView();
         XElement authored = view.Descendants().Single(e => e.Name.LocalName == "CanvasNodeTemplateSelector.Authored");
         XElement badge = authored.Descendants().Single(e => e.Name.LocalName == "Border" && Attribute(e, "IsVisible") == "{Binding HasLive}");
-        await Assert.That(view.Descendants().Count(e => e.Name.LocalName == "Border" && Attribute(e, "IsVisible") == "{Binding HasLive}")).IsEqualTo(2)
-            .Because("the dependency template carries the same badge");
+        await Assert.That(view.Descendants().Count(e => e.Name.LocalName == "Border" && Attribute(e, "IsVisible") == "{Binding HasLive}")).IsEqualTo(3)
+            .Because("the dependency and show templates carry the same badge");
         XElement text = badge.Elements().Single(e => e.Name.LocalName == "TextBlock");
         XElement header = badge.Ancestors().First(a => a.Name.LocalName == "Grid");
         using (Assert.Multiple())

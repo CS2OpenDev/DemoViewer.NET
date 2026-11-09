@@ -59,7 +59,18 @@ public sealed class CanvasArranger(Func<string?> layoutFolder)
     /// <summary>Everything on screen as an arrangement: the positions, the folded nodes, the frames and the dependencies drawn in full.</summary>
     public static RulesetNodeLayout Capture(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
         IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups, IEnumerable<string>? expanded = null) =>
-        RulesetNodeLayout.From(positions, collapsed, groups, expanded ?? []);
+        RulesetNodeLayout.From(positions, collapsed, groups, Array.Empty<RulesetDocumentNodeKey>(), expanded ?? []);
+
+    /// <summary>Everything on screen as an arrangement, the nodes with a pinned viewer included.</summary>
+    public static RulesetNodeLayout Capture(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
+        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups, IEnumerable<RulesetDocumentNodeKey> pinned) =>
+        RulesetNodeLayout.From(positions, collapsed, groups, pinned, Array.Empty<string>());
+
+    /// <summary>Everything on screen as an arrangement: positions, folds, frames, pinned viewers and the dependencies drawn in full.</summary>
+    public static RulesetNodeLayout Capture(IEnumerable<KeyValuePair<RulesetDocumentNodeKey, Point>> positions,
+        IEnumerable<RulesetDocumentNodeKey> collapsed, IEnumerable<CanvasGroup> groups, IEnumerable<RulesetDocumentNodeKey> pinned,
+        IEnumerable<string> expanded) =>
+        RulesetNodeLayout.From(positions, collapsed, groups, pinned, expanded);
 
     /// <summary>
     ///     Where an entry's arrangement lives: beside a user ruleset, under the extension's own folder for a

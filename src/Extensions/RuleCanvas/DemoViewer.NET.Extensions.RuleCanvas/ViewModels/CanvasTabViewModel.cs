@@ -591,6 +591,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             node.ShowFacets = ShowFacets;
             node.IsEditable = IsEditable && node.IsAuthorable;
             node.IsCollapsed = layout.IsCollapsed(node.Key);
+            node.IsViewerPinned = layout.IsPinned(node.Key);
             node.IsZoomedOut = IsZoomedOut;
             node.IsSearchMatch = node.Matches(CanvasSearch);
             Nodes.Add(node);

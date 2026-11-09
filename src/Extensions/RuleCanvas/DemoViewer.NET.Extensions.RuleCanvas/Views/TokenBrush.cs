@@ -34,8 +34,14 @@ public static class TokenBrush
     public static readonly AttachedProperty<string?> FillProperty =
         AvaloniaProperty.RegisterAttached<Control, string?>("Fill", typeof(TokenBrush));
 
+    /// <summary>The token key painted as a shape's stroke.</summary>
+    public static readonly AttachedProperty<string?> StrokeProperty =
+        AvaloniaProperty.RegisterAttached<Control, string?>("Stroke", typeof(TokenBrush));
+
     static TokenBrush()
     {
+        StrokeProperty.Changed.AddClassHandler<Control>((control, args) =>
+            Apply(control, args.NewValue as string, Shape.StrokeProperty));
         BackgroundProperty.Changed.AddClassHandler<Control>((control, args) =>
             Apply(control, args.NewValue as string, Border.BackgroundProperty, Panel.BackgroundProperty, TemplatedControl.BackgroundProperty));
         ForegroundProperty.Changed.AddClassHandler<Control>((control, args) =>
@@ -61,6 +67,10 @@ public static class TokenBrush
     public static string? GetFill(Control control) => control.GetValue(FillProperty);
 
     public static void SetFill(Control control, string? value) => control.SetValue(FillProperty, value);
+
+    public static string? GetStroke(Control control) => control.GetValue(StrokeProperty);
+
+    public static void SetStroke(Control control, string? value) => control.SetValue(StrokeProperty, value);
 
     // The first of the candidate properties the control's type declares is the one bound.
     private static void Apply(Control control, string? key, params AvaloniaProperty[] candidates)

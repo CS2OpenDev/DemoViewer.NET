@@ -141,6 +141,8 @@
                                     <MenuItem Header="Delete selected" Command="{Binding DeleteSelectedCommand}" />
                                     <MenuItem Header="Group selection" InputGesture="Ctrl+G" Command="{Binding GroupSelectionCommand}" />
                                     <MenuItem Header="Tidy selection" InputGesture="Ctrl+Shift+T" Command="{Binding TidySelectionCommand}" />
+                                    <MenuItem Header="Pin viewers on selection" Command="{Binding PinSelectedViewersCommand}" />
+                                    <MenuItem Header="Unpin viewers on selection" Command="{Binding UnpinSelectedViewersCommand}" />
                                     <MenuItem Header="Edit a copy" Command="{Binding EditCopyCommand}" IsVisible="{Binding IsShippedRuleset}" />
                                     <MenuItem Header="New ruleset with a starter stat" Command="{Binding NewRulesetCommand}" />
                                     <MenuItem Header="Open rules folder" Command="{Binding OpenRulesFolderCommand}" />
@@ -199,6 +201,10 @@
                                        MaxWidth="150" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LiveState}" IsVisible="{Binding HasDemo}" />
                             <Button Classes="ghost" Content="Re-run" FontSize="11" Padding="6 2" Command="{Binding RunLiveCommand}"
                                     IsVisible="{Binding HasDemo}" ToolTip.Tip="Evaluate the drawn ruleset over the open demo now" />
+                            <!-- Step mode: . and , move the playhead from fire to fire over the drawn nodes; off without a run. -->
+                            <ToggleButton Classes="panel" Content="Step" FontSize="11" Padding="6 2" IsChecked="{Binding IsStepMode}"
+                                          IsEnabled="{Binding CanStep}" IsVisible="{Binding HasDemo}"
+                                          ToolTip.Tip="{Binding StepTip}" ToolTip.ShowOnDisabled="True" />
                             <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
                         <!-- A shipped ruleset: the chip says it is read only, the button beside it makes a copy. -->
                             <Border CornerRadius="3" Padding="6 1" VerticalAlignment="Center" BorderThickness="1"
@@ -444,6 +450,11 @@
                                 <MenuItem Header="{ReflectionBinding SeekMenu.NextText}" IsEnabled="{ReflectionBinding SeekMenu.CanNext}" Click="OnNextFire" />
                                 <MenuItem Header="{ReflectionBinding SeekMenu.PreviousText}" IsEnabled="{ReflectionBinding SeekMenu.CanPrevious}" Click="OnPreviousFire" />
                                 <MenuItem Header="{ReflectionBinding SeekMenu.FirstText}" IsEnabled="{ReflectionBinding SeekMenu.CanFirst}" Click="OnFirstFire" />
+                                <!-- A viewer under the node from the last run, kept in the sidecar; a fixture comment above
+                                     the entry from the selected instance's track. -->
+                                <MenuItem Header="{ReflectionBinding ViewerMenuText}" Click="OnToggleViewer" />
+                                <MenuItem Header="Freeze value as fixture" Click="OnFreezeFixture"
+                                          ToolTip.Tip="Write the selected instance's final value and fire count as a comment above the entry" />
                                 <Separator />
                                 <MenuItem Header="Duplicate" InputGesture="Ctrl+D" Click="OnNodeDuplicate" />
                                 <MenuItem Header="Delete" InputGesture="Delete" Click="OnNodeDelete" />
@@ -485,6 +496,7 @@
                                               Classes.and="{Binding IsAnd}"
                                               Classes.or="{Binding IsOr}"
                                               Classes.editable="{Binding CanEditCondition}"
+                                              Classes.flash="{Binding IsFlashing}"
                                               connections:BaseConnection.IsSelectable="True">
                         <!-- Hover: how to edit (or why not), the lowered condition, then the last run's fire line when there is one. -->
                         <ToolTip.Tip>
@@ -647,6 +659,12 @@
                                                            Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" IsVisible="{Binding ShowsStat}" />
                                                 <TextBlock Text="{Binding Group}" FontSize="9" Foreground="{DynamicResource RuleTextKey}"
                                                            VerticalAlignment="Center" IsVisible="{Binding HasGroup}" ToolTip.Tip="The scoreboard group the column is clustered under" />
+                                                <!-- The surfaced stat's live value for the selected instance, so the table reads as a table. -->
+                                                <Border CornerRadius="3" Padding="5 0" VerticalAlignment="Center" Background="{DynamicResource RuleLiveBadgeBg}"
+                                                        IsVisible="{Binding HasLive}" ToolTip.Tip="{Binding LiveTip}">
+                                                    <TextBlock Classes="liveBadge" Classes.stale="{Binding IsLiveStale}" Text="{Binding LiveBadge}"
+                                                               FontSize="10" FontFamily="monospace" VerticalAlignment="Center" />
+                                                </Border>
                                             </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -766,7 +784,51 @@
                 <views:CanvasNodeTemplateSelector.Authored>
                 <DataTemplate x:DataType="vm:CanvasNodeViewModel">
                     <nodes:Node Input="{Binding RailInputs}" Output="{Binding Outputs}" ContentPadding="10 6 10 8"
-                                ContentBrush="{DynamicResource RuleNodeBg}" HeaderBrush="{DynamicResource RuleNodeBg}">
+                                ContentBrush="{DynamicResource RuleNodeBg}" HeaderBrush="{DynamicResource RuleNodeBg}"
+                                Footer="{Binding VisibleViewer}" FooterBrush="{DynamicResource RuleNodeBg}">
+
+                        <!-- The pinned viewer, in the footer so it stays attached under a folded header: a stepped
+                             sparkline of the stored series in the kind's token with the playhead as a marker, the fires,
+                             the final value, (sampled) when the series was thinned, and a per-player bar list. The
+                             whole panel dims with the badges when the run is stale. Null footer, no panel. -->
+                        <nodes:Node.FooterTemplate>
+                            <DataTemplate x:DataType="vm:CanvasLiveViewerViewModel">
+                                <Border Classes="liveViewer" Classes.stale="{Binding IsStale}" Padding="10 6 10 8" BorderThickness="0 1 0 0"
+                                        BorderBrush="{DynamicResource RuleNodeBorder}" PointerPressed="OnFacePressed">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{Binding Message}" FontSize="11" Foreground="{DynamicResource TextMid}" IsVisible="{Binding HasMessage}" />
+                                        <Grid Width="160" Height="36" HorizontalAlignment="Left" IsVisible="{Binding HasSeries}"
+                                              Background="{DynamicResource RuleLiveBadgeBg}">
+                                            <Polyline Points="{Binding SparkPoints}" StrokeThickness="1.5" StrokeJoin="Round"
+                                                      views:TokenBrush.Stroke="{Binding $parent[nodes:Node].((vm:CanvasNodeViewModel)DataContext).Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                            <Border Width="1" HorizontalAlignment="Left" Margin="{Binding PlayheadMargin}" IsVisible="{Binding HasPlayhead}"
+                                                    Background="{DynamicResource RuleSelection}" ToolTip.Tip="The playhead" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding Fires}" FontSize="10" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap" MaxWidth="240"
+                                                   IsVisible="{Binding !HasMessage}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !HasMessage}">
+                                            <TextBlock Classes="liveBadge" Classes.stale="{Binding IsStale}" Text="{Binding FinalText}" FontSize="11" FontFamily="monospace" />
+                                            <TextBlock Text="{Binding SampledNote}" FontSize="10" Foreground="{DynamicResource AccentCaution}" IsVisible="{Binding IsSampled}"
+                                                       ToolTip.Tip="The run kept every k-th fire above the cap; the count stays exact" />
+                                        </StackPanel>
+                                        <ItemsControl ItemsSource="{Binding Breakdown}" IsVisible="{Binding HasBreakdown}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:CanvasViewerBar">
+                                                    <Grid ColumnDefinitions="72,90,Auto" ColumnSpacing="6" Height="14">
+                                                        <TextBlock Grid.Column="0" Classes="viewerName" Classes.selected="{Binding IsSelected}" Text="{Binding Name}"
+                                                                   FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding Name}" />
+                                                        <Border Grid.Column="1" Classes="viewerBar" Classes.selected="{Binding IsSelected}" Height="6" CornerRadius="2"
+                                                                Width="{Binding BarWidth}" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="2" Text="{Binding Value}" FontSize="10" FontFamily="monospace"
+                                                                   Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </nodes:Node.FooterTemplate>
 
                         <!-- Header: a stripe and an outlined pill in the kind's token, the id, the label when there
                              is one, and the diagnostics count as a badge whose tooltip carries the text. On an editable stat the label is click-to-edit. -->

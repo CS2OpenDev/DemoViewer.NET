@@ -382,6 +382,12 @@ public partial class CanvasTabView : UserControl
             case CanvasKeyAction.PreviousFire:
                 _viewModel.PreviousFireCommand.Execute(null);
                 break;
+            case CanvasKeyAction.StepForward:
+                _viewModel.StepForwardCommand.Execute(null);
+                break;
+            case CanvasKeyAction.StepBack:
+                _viewModel.StepBackCommand.Execute(null);
+                break;
             case CanvasKeyAction.GroupSelection:
                 GroupSelection();
                 break;
@@ -463,6 +469,23 @@ public partial class CanvasTabView : UserControl
         if (sender is Control { DataContext: CanvasNodeViewModel node })
         {
             _viewModel?.ToggleCollapse(node);
+        }
+    }
+
+    // The node menu's live items: the item's DataContext is the node under the pointer.
+    private void OnToggleViewer(object? sender, RoutedEventArgs e)
+    {
+        if (NodeOf(sender) is { } node)
+        {
+            _viewModel?.ToggleViewer(node);
+        }
+    }
+
+    private void OnFreezeFixture(object? sender, RoutedEventArgs e)
+    {
+        if (NodeOf(sender) is { } node)
+        {
+            _viewModel?.FreezeFixture(node);
         }
     }
 
