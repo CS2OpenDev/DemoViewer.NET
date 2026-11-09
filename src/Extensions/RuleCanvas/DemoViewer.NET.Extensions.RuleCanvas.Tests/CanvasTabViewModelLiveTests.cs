@@ -229,7 +229,10 @@ public class CanvasTabViewModelLiveTests
         CanvasTabViewModel vm = WithHost(rules, jobs, () => DemoPath);
         using (Assert.Multiple())
         {
-            await Assert.That(vm.DemoChipText).IsEqualTo("one.dem");
+            await Assert.That(vm.DemoChipText).IsEqualTo("one").Because("the chip shows the stem; the full name is its tooltip");
+            await Assert.That(vm.DemoFileName).IsEqualTo("one.dem");
+            await Assert.That(CanvasTabViewModel.ShortDemoName("003816248937665266002_0544286934")).IsEqualTo("003816248\u2026286934")
+                .Because("a long demo id keeps its start and end so two stay distinguishable");
             await Assert.That(vm.LiveState).IsEqualTo("no values yet");
             await Assert.That(vm.CanRunLive).IsTrue();
         }
@@ -239,7 +242,7 @@ public class CanvasTabViewModelLiveTests
         {
             await Assert.That(vm.LiveRun).IsNotNull();
             await Assert.That(vm.IsLiveRunning).IsFalse();
-            await Assert.That(vm.LiveState).IsEqualTo("values from one.dem");
+            await Assert.That(vm.LiveState).IsEqualTo("values ready");
             await Assert.That(vm.Instances.Count).IsEqualTo(1).Because("players materialise from events, and a demo with no frames has none");
             await Assert.That(vm.SelectedInstance?.Slot).IsNull().Because("with no player the game is the default");
             await Assert.That(Node(vm, "round_kills").LiveBadge).IsNotEmpty().Because("a track with no fires still has a final value");
@@ -272,7 +275,7 @@ public class CanvasTabViewModelLiveTests
             await Assert.That(jobs.Submitted.Count).IsEqualTo(1);
             await Assert.That(vm.IsLiveStale).IsFalse().Because("the replacement evaluated the written text");
             await Assert.That(vm.LiveRun?.DemoPath).IsEqualTo(DemoPath);
-            await Assert.That(vm.LiveState).IsEqualTo("values from one.dem");
+            await Assert.That(vm.LiveState).IsEqualTo("values ready");
         }
     }
 

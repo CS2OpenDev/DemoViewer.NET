@@ -178,8 +178,7 @@
                                  the run's state in words, and a Re-run. -->
                             <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
                             <Button x:Name="DemoChip" Classes="ghost" Content="{Binding DemoChipText}" FontSize="11" FontFamily="monospace" Padding="6 2"
-                                    Command="{Binding OpenLibraryCommand}"
-                                    ToolTip.Tip="The demo the values come from. Open another from the Library." />
+                                    Command="{Binding OpenLibraryCommand}" ToolTip.Tip="{Binding DemoFileName, TargetNullValue='No demo is open; the Library opens one.'}" />
                             <ComboBox ItemsSource="{Binding Instances}" SelectedItem="{Binding SelectedInstance}" IsVisible="{Binding HasLiveRun}"
                                       MinWidth="110" FontSize="11" Padding="6 2" ToolTip.Tip="Whose values the badges show: the game, or one player">
                                 <ComboBox.ItemTemplate>
@@ -188,7 +187,8 @@
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
-                            <TextBlock Text="{Binding LiveState}" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding LiveState}" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
+                                       MaxWidth="180" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LiveState}" />
                             <Button Classes="ghost" Content="Re-run" FontSize="11" Padding="6 2" Command="{Binding RunLiveCommand}"
                                     ToolTip.Tip="Evaluate the drawn ruleset over the open demo now" />
                             <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />

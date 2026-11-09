@@ -62,7 +62,15 @@ public sealed partial class CanvasTabViewModel
     public bool HasLiveRun => LiveRun is not null;
 
     /// <summary>The strip's demo chip: the open demo's file name, or that none is open.</summary>
-    public string DemoChipText => _demoPath() is { } path ? Path.GetFileName(path) : "no demo open";
+    /// <summary>The open demo's name, cut to fit the strip; the full name is the chip's tooltip.</summary>
+    public string DemoChipText => _demoPath() is { } path ? ShortDemoName(Path.GetFileNameWithoutExtension(path)) : "no demo open";
+
+    /// <summary>The open demo's full file name, or null.</summary>
+    public string? DemoFileName => _demoPath() is { } path ? Path.GetFileName(path) : null;
+
+    // Demo files are named by long ids; the strip keeps the start and the end so two look different.
+    public static string ShortDemoName(string stem) =>
+        stem.Length <= 18 ? stem : string.Concat(stem.AsSpan(0, 9), "\u2026", stem.AsSpan(stem.Length - 6));
 
     /// <summary>The strip's live state, in words.</summary>
     public string LiveState
@@ -84,7 +92,7 @@ public sealed partial class CanvasTabViewModel
                 return "no values yet";
             }
 
-            return IsLiveStale ? "stale: edited since the run" : "values from " + Path.GetFileName(LiveRun.DemoPath);
+            return IsLiveStale ? "stale: edited since the run" : "values ready";
         }
     }
 
