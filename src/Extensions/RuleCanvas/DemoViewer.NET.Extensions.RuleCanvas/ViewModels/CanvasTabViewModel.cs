@@ -124,6 +124,33 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     [ObservableProperty]
     private bool _isStripNarrow;
 
+    /// <summary>The view width under which Focus, the panel toggles and Open Authoring move into the overflow menu.</summary>
+    public const double CompactStripWidth = 1360;
+
+    /// <summary>The view width under which the live state words and the shipped chip go and the picker narrows.</summary>
+    public const double TightStripWidth = 1150;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsStripRoomy))]
+    private bool _isStripCompact;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsStripLoose))]
+    private bool _isStripTight;
+
+    /// <summary>The secondary buttons stand on the strip rather than in the overflow menu.</summary>
+    public bool IsStripRoomy => !IsStripCompact;
+
+    public bool IsStripLoose => !IsStripTight;
+
+    /// <summary>Sets every strip tier from the view's width.</summary>
+    public void SetStripWidth(double width)
+    {
+        IsStripNarrow = width < NarrowStripWidth;
+        IsStripCompact = width < CompactStripWidth;
+        IsStripTight = width < TightStripWidth;
+    }
+
     // The last draw's counts, so the status can be reworded when the strip narrows or widens; null while nothing is drawn.
     private (int Nodes, int Wires)? _counts;
 

@@ -468,7 +468,7 @@ public partial class CanvasTabView : UserControl
     {
         if (_viewModel is not null)
         {
-            _viewModel.IsStripNarrow = e.NewSize.Width < CanvasTabViewModel.NarrowStripWidth;
+            _viewModel.SetStripWidth(e.NewSize.Width);
         }
     }
 
@@ -811,7 +811,7 @@ public partial class CanvasTabView : UserControl
             FillAddStatMenu(_viewModel.Views);
             if (Bounds.Width > 0)
             {
-                _viewModel.IsStripNarrow = Bounds.Width < CanvasTabViewModel.NarrowStripWidth;
+                _viewModel.SetStripWidth(Bounds.Width);
             }
         }
     }
