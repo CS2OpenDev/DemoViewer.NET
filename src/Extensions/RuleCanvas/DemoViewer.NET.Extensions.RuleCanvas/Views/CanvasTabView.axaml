@@ -969,47 +969,9 @@
                             KeyDown="OnWireEditorKeyDown" LostFocus="OnWireEditorLostFocus">
                 <ContentControl.ContentTemplate>
                     <DataTemplate x:DataType="vm:CanvasWireEditorViewModel">
-                        <Border Classes="wireEditor" Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderAccent}"
+                        <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderAccent}"
                                 BorderThickness="1" CornerRadius="4" Padding="8 6" MinWidth="220" MaxWidth="420">
-                            <StackPanel Spacing="5">
-                                <TextBlock Text="{Binding Title}" FontSize="10" LetterSpacing="1" FontFamily="monospace"
-                                           Foreground="{DynamicResource RuleTextKey}" />
-                                <!-- One row: path, comparator, literal; the row commits itself the way a face row does. -->
-                                <ContentControl Content="{Binding Row}" IsVisible="{Binding IsRow}">
-                                    <ContentControl.ContentTemplate>
-                                        <DataTemplate x:DataType="vm:CanvasConditionRowViewModel">
-                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
-                                                <AutoCompleteBox Grid.Column="0" Text="{Binding Path}" ItemsSource="{Binding Paths}"
-                                                                 TextFilter="{x:Static views:ConditionRowsView.TokenFilter}"
-                                                                 TextSelector="{x:Static views:ConditionRowsView.TokenSelector}"
-                                                                 MinimumPrefixLength="0" MaxDropDownHeight="180"
-                                                                 FontSize="11" FontFamily="monospace" MinWidth="120" MaxWidth="220"
-                                                                 Padding="4 1" MinHeight="0" PlaceholderText="path" />
-                                                <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:CanvasConditionRowViewModel.Comparators}"
-                                                          SelectedItem="{Binding Comparator}" FontSize="11" MinWidth="62" Padding="4 1" MinHeight="0" />
-                                                <CheckBox Grid.Column="2" Classes="face" IsChecked="{Binding BoolLiteral}" IsThreeState="False"
-                                                          IsVisible="{Binding IsBoolLiteral}" MinHeight="0" Padding="0" Margin="0" VerticalAlignment="Center" />
-                                                <TextBox Grid.Column="2" Name="WireLiteral" Text="{Binding Literal}" IsVisible="{Binding ShowLiteralBox}"
-                                                         FontSize="11" FontFamily="monospace" MinWidth="56" MaxWidth="160" Padding="4 1" MinHeight="0"
-                                                         PlaceholderText="value" />
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ContentControl.ContentTemplate>
-                                </ContentControl>
-                                <!-- The whole key as text: a gate expression, or a when: that is not a flat list. -->
-                                <TextBox Name="WireText" Text="{Binding Text}" IsVisible="{Binding IsText}" FontSize="11" FontFamily="monospace"
-                                         MinWidth="200" MaxWidth="400" Padding="4 1" MinHeight="0" TextWrapping="Wrap" AcceptsReturn="False" />
-                                <TextBlock Text="{Binding Note}" FontSize="10" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
-                                           IsVisible="{Binding HasNote}" />
-                                <TextBlock Text="{Binding Reason}" FontSize="11" Foreground="{DynamicResource TextValue}" TextWrapping="Wrap"
-                                           IsVisible="{Binding IsDisabled}" />
-                                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
-                                    <Button Classes="ghost" Content="Cancel" FontSize="10" Padding="6 1" MinHeight="0"
-                                            Command="{Binding CancelCommand}" ToolTip.Tip="Close without writing (Esc)" />
-                                    <Button Classes="primary" Content="OK" FontSize="10" Padding="8 1" MinHeight="0"
-                                            Command="{Binding CommitCommand}" IsVisible="{Binding !IsDisabled}" ToolTip.Tip="Write and close (Enter)" />
-                                </StackPanel>
-                            </StackPanel>
+                            <views:WireEditorView />
                         </Border>
                     </DataTemplate>
                 </ContentControl.ContentTemplate>

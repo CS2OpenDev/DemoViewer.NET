@@ -307,6 +307,58 @@ public class CanvasWireEditTests
     }
 
     [Test]
+    public async Task ASelectedWire_ShowsItsEditorInTheInspector_AndTheWriteGoesThroughIt()
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = OpenPlayerRound();
+        using (rules)
+        {
+            string before = File.ReadAllText(rules.UserPath("player_round"));
+            await Assert.That(vm.Inspector.ShowsWire).IsFalse();
+            await Assert.That(vm.Inspector.Heading).IsEqualTo("RULESET player_round");
+
+            vm.SelectedWires.Add(Wire(vm, "round_kills", "round_kast"));
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.Inspector.ShowsWire).IsTrue();
+                await Assert.That(vm.Inspector.ShowsDocument).IsFalse();
+                await Assert.That(vm.Inspector.Heading).IsEqualTo("WIRE round_kills to round_kast");
+                await Assert.That(vm.Inspector.WireText).StartsWith("or ");
+                await Assert.That(vm.Inspector.Wire!.IsRow).IsTrue();
+                await Assert.That(vm.Inspector.Wire.Row!.Path).IsEqualTo("round_kills");
+            }
+
+            // Escape puts the file's row back without a write.
+            vm.Inspector.Wire.Row.Literal = "7";
+            vm.Inspector.Wire.Cancel();
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.Inspector.Wire!.Row!.Literal).IsEqualTo("0");
+                await Assert.That(File.ReadAllText(rules.UserPath("player_round"))).IsEqualTo(before);
+            }
+
+            vm.Inspector.Wire.Row.Literal = "1";
+            vm.Inspector.Wire.Commit();
+            using (Assert.Multiple())
+            {
+                await Assert.That(File.ReadAllText(rules.UserPath("player_round")))
+                    .IsEqualTo(before.Replace("\"round_kills > 0 or", "\"round_kills > 1 or", StringComparison.Ordinal));
+                await Assert.That(vm.SelectedWires).IsEmpty().Because("the redraw replaced the wires, so the selection is gone");
+                await Assert.That(vm.Inspector.ShowsWire).IsFalse();
+                await Assert.That(vm.Inspector.ShowsDocument).IsTrue();
+            }
+
+            // A node selected alongside a wire wins the Inspector.
+            vm.SelectedWires.Add(Wire(vm, "round_kills", "round_kast"));
+            vm.SelectedNodes.Add(Node(vm, "round_deaths"));
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.Inspector.ShowsWire).IsFalse();
+                await Assert.That(vm.Inspector.Heading).IsEqualTo("COUNT round_deaths");
+            }
+        }
+    }
+
+    [Test]
     public async Task AWriteOnTheFace_ClosesAnOpenWireEditor()
     {
         (RulesTree rules, CanvasTabViewModel vm) = OpenPlayerRound();

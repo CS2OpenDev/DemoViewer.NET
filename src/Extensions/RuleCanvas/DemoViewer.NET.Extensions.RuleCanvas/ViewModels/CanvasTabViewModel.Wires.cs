@@ -16,7 +16,6 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 public sealed partial class CanvasTabViewModel
 {
     private CanvasWireEditorViewModel? _wireEditor;
-    private bool _watchingWires;
 
     /// <summary>The condition editor open on a wire, or null.</summary>
     public CanvasWireEditorViewModel? WireEditor
@@ -43,10 +42,22 @@ public sealed partial class CanvasTabViewModel
     public void BeginEditWire(CanvasConnectionViewModel wire)
     {
         ArgumentNullException.ThrowIfNull(wire);
+        WireEditor = null;
+        if (BuildWireEditor(wire, CloseWireEditor) is { } editor)
+        {
+            WireEditor = editor;
+            WireEditorOpened?.Invoke(editor);
+        }
+    }
+
+    // The editor over a wire, for the canvas and the Inspector alike: the semantics' decision, with the
+    // surface's own refusal in front of it while the file cannot be written here.
+    private CanvasWireEditorViewModel? BuildWireEditor(CanvasConnectionViewModel wire, Action close)
+    {
         WireEdit? edit = wire.ConditionEdit ?? CanvasEditSemantics.WireEditOf(wire);
         if (edit is null)
         {
-            return;
+            return null;
         }
 
         if (!IsEditable && edit.IsEnabled)
@@ -54,17 +65,13 @@ public sealed partial class CanvasTabViewModel
             edit = edit with { Reason = IsUserRuleset ? "Save or revert the YAML tab to edit here." : "a shipped ruleset is read only here" };
         }
 
-        WatchWires();
-        WireEditor = null;
         string current = edit.Key switch
         {
             "when" => edit.Target.Lines.FirstOrDefault(l => l.Key == "when")?.Text ?? "",
             "while" => edit.Target.Gate,
             _ => ""
         };
-        CanvasWireEditorViewModel editor = new(wire, edit, current, CloseWireEditor);
-        WireEditor = editor;
-        WireEditorOpened?.Invoke(editor);
+        return new CanvasWireEditorViewModel(wire, edit, current, close);
     }
 
     /// <summary>Opens the editor on the wire the menu or the gesture named.</summary>
@@ -87,23 +94,18 @@ public sealed partial class CanvasTabViewModel
 
     private void CloseWireEditor() => WireEditor = null;
 
-    // The redraw after a write clears the wires; an editor over a wire that is gone has nothing to write to.
-    private void WatchWires()
-    {
-        if (_watchingWires)
-        {
-            return;
-        }
-
-        _watchingWires = true;
-        Connections.CollectionChanged += OnWiresChanged;
-    }
-
+    // The redraw after a write replaces the wires: an editor over a wire that is gone has nothing to write
+    // to, and a selection of gone wires would show the Inspector a stale target.
     private void OnWiresChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (WireEditor is { } editor && !Connections.Contains(editor.Wire))
         {
             WireEditor = null;
+        }
+
+        foreach (object stale in SelectedWires.Where(w => !Connections.Contains(w)).ToList())
+        {
+            SelectedWires.Remove(stale);
         }
     }
 

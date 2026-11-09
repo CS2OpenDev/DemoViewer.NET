@@ -239,14 +239,18 @@ public class CanvasViewMarkupTests
     }
 
     // The editor lives over the canvas, not inside the Nodify editor: a layer that takes no pointer of its
-    // own, holding one host the view places, whose template carries the row, the text and the reason.
+    // own, holding one host the view places; the Inspector shows the same editor for a selected wire. Both
+    // take the body from WireEditorView, which carries the row, the text and the reason.
     [Test]
-    public async Task TheWireEditor_IsAHostOnItsOwnLayer_WithTheRowTheTextAndTheReason()
+    public async Task TheWireEditor_IsAHostOnItsOwnLayer_AndTheInspector_ShowsTheSameBody()
     {
         XDocument view = LoadView();
         XElement layer = view.Descendants().Single(e => e.Name.LocalName == "Canvas" && e.Attribute(_x + "Name")?.Value == "WireEditorLayer");
         XElement host = layer.Elements().Single(e => e.Name.LocalName == "ContentControl");
-        List<XElement> inside = [.. host.Descendants()];
+        XDocument inspector = XDocument.Load(Path.Combine(ViewsFolder(), "InspectorView.axaml"));
+        XElement section = inspector.Descendants().Single(e => e.Name.LocalName == "StackPanel" && Attribute(e, "IsVisible") == "{Binding ShowsWire}");
+        XDocument body = XDocument.Load(Path.Combine(ViewsFolder(), "WireEditorView.axaml"));
+        List<XElement> inside = [.. body.Descendants()];
         using (Assert.Multiple())
         {
             await Assert.That(Attribute(layer, "IsVisible")).IsEqualTo("{Binding HasWireEditor}");
@@ -256,6 +260,9 @@ public class CanvasViewMarkupTests
             await Assert.That(Attribute(host, "Content")).IsEqualTo("{Binding WireEditor}");
             await Assert.That(Attribute(host, "KeyDown")).IsEqualTo("OnWireEditorKeyDown");
             await Assert.That(Attribute(host, "LostFocus")).IsEqualTo("OnWireEditorLostFocus");
+            await Assert.That(host.Descendants().Count(e => e.Name.LocalName == "WireEditorView")).IsEqualTo(1);
+            await Assert.That(section.Descendants().Count(e => e.Name.LocalName == "WireEditorView")).IsEqualTo(1).Because("one body, two hosts");
+            await Assert.That(section.Descendants().Any(e => e.Name.LocalName == "ContentControl" && Attribute(e, "Content") == "{Binding Wire}" && Attribute(e, "KeyDown") == "OnWireKeyDown")).IsTrue();
             await Assert.That(inside.Any(e => e.Name.LocalName == "TextBox" && Attribute(e, "Name") == "WireLiteral")).IsTrue();
             await Assert.That(inside.Any(e => e.Name.LocalName == "TextBox" && Attribute(e, "Name") == "WireText" && Attribute(e, "IsVisible") == "{Binding IsText}")).IsTrue();
             await Assert.That(inside.Any(e => e.Name.LocalName == "TextBlock" && Attribute(e, "Text") == "{Binding Reason}" && Attribute(e, "IsVisible") == "{Binding IsDisabled}")).IsTrue();

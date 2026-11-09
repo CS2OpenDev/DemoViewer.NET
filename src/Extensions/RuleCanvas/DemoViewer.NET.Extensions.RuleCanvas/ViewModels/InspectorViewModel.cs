@@ -162,7 +162,44 @@ public sealed partial class InspectorViewModel : ObservableObject
     [ObservableProperty]
     private string _deleteRefusal = "";
 
-    public bool ShowsDocument => HasDocument && !HasNode;
+    public bool ShowsDocument => HasDocument && !HasNode && Wire is null;
+
+    /// <summary>The condition editor over the selected wire, with no node selected; null otherwise.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsWire))]
+    [NotifyPropertyChangedFor(nameof(ShowsDocument))]
+    private CanvasWireEditorViewModel? _wire;
+
+    /// <summary>What the selected wire says, for the section's first line.</summary>
+    [ObservableProperty]
+    private string _wireText = "";
+
+    public bool ShowsWire => HasDocument && !HasNode && Wire is not null;
+
+    /// <summary>
+    ///     Shows the editor over <paramref name="wire" /> under the document, or drops it on null. Called by the
+    ///     tab after <see cref="Show" /> with the first selected wire when no node is selected. Escape in the
+    ///     editor rebuilds it from the file through <paramref name="build" />, which is the revert.
+    /// </summary>
+    public void ShowWire(CanvasConnectionViewModel? wire, Func<CanvasConnectionViewModel, Action, CanvasWireEditorViewModel?> build)
+    {
+        ArgumentNullException.ThrowIfNull(build);
+        if (wire is null || HasNode)
+        {
+            Wire = null;
+            WireText = "";
+            if (!HasNode)
+            {
+                Heading = HasDocument ? "RULESET " + RulesetId : "No ruleset open";
+            }
+
+            return;
+        }
+
+        Wire = build(wire, () => ShowWire(wire, build));
+        WireText = wire.Text;
+        Heading = $"WIRE {wire.Source.Owner?.Title} to {wire.Target.Owner?.Title}";
+    }
 
     /// <summary>The Inspector has a node it can write: authorable and the surface editable.</summary>
     public bool CanEditNode => HasNode && IsNodeAuthorable && IsEditable;
@@ -538,6 +575,7 @@ public sealed partial class InspectorViewModel : ObservableObject
     private void NotifyShape()
     {
         OnPropertyChanged(nameof(ShowsDocument));
+        OnPropertyChanged(nameof(ShowsWire));
         OnPropertyChanged(nameof(CanEditNode));
         OnPropertyChanged(nameof(CanSurfaceNode));
         OnPropertyChanged(nameof(ShowsSurfacing));

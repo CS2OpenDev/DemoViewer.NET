@@ -85,21 +85,29 @@ public sealed partial class CanvasWireEditorViewModel : ObservableObject
     /// <summary>Closes the editor. Set by the tab.</summary>
     public Action Close { get; }
 
-    /// <summary>Writes the row or the text when it changed, then closes. Enter and focus loss.</summary>
+    /// <summary>
+    ///     Writes the row or the text when it changed. Enter and focus loss. A write redraws the chain, which
+    ///     closes the editor from outside; a refused write leaves it open with the text to fix; nothing to
+    ///     write closes it here.
+    /// </summary>
     [RelayCommand]
     public void Commit()
     {
         if (IsRow)
         {
-            Row!.TryCommit();
+            if (!Row!.TryCommit())
+            {
+                Close();
+            }
+
+            return;
         }
-        else if (IsText && Target.IsEditable)
+
+        if (IsText && Target.IsEditable && Text.Trim() != _original.Trim())
         {
             string text = Text.Trim();
-            if (text != _original.Trim())
-            {
-                Target.WriteField(Edit.Key, text.Length == 0 ? null : text);
-            }
+            Target.WriteField(Edit.Key, text.Length == 0 ? null : text);
+            return;
         }
 
         Close();
