@@ -691,11 +691,15 @@ public sealed partial class InspectorViewModel : ObservableObject
 
     private void WriteShowEntry(ShowReference reference, string key, string? value)
     {
-        if (IsEditable)
+        if (!IsEditable)
         {
-            Apply(EditRequest.Of(t => RulesetEdits.SetShowEntryField(t, reference.Table, reference.Index, key, value),
-                $"{(value is null ? "remove" : "set")} {reference.Surface} {reference.Stat} {key}"));
+            return;
         }
+
+        string what = $"{(value is null ? "remove" : "set")} {reference.Surface} {reference.Stat} {key}";
+        Apply(key == "boards"
+            ? EditRequest.Of(t => RulesetEdits.SetShowEntryBoards(t, reference.Index, ShowEntryViewModel.ParseBoards(value)), what)
+            : EditRequest.Of(t => RulesetEdits.SetShowEntryField(t, reference.Table, reference.Index, key, value), what));
     }
 
     private void RemoveShowEntry(ShowReference reference)

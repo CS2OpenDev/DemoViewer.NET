@@ -940,9 +940,23 @@ public static class RulesetEdits
         return editor.Apply([AddUnder(doc, tablePath, "columns", item)]).Text;
     }
 
-    /// <summary>Sets or, on null, removes <c>label:</c> or <c>group:</c> of one scoreboard entry or table column.</summary>
+    /// <summary>
+    ///     Sets or, on null, removes <c>label:</c>, <c>group:</c> or <c>as:</c> of one scoreboard entry or table
+    ///     column. An <c>as:</c> outside <see cref="ShowReference.AsOptions" /> is refused; <c>boards:</c> is a
+    ///     list and goes through <see cref="SetShowEntryBoards" />.
+    /// </summary>
     public static string SetShowEntryField(string text, string? table, int index, string key, string? value)
     {
+        if (key == "boards")
+        {
+            throw new InvalidOperationException("boards: is a list; use SetShowEntryBoards");
+        }
+
+        if (key == "as" && value is not null && !ShowReference.AsOptions.Contains(value, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException($"as: takes {string.Join(", ", ShowReference.AsOptions)}; not '{value}'");
+        }
+
         RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
         YamlDocumentText doc = editor.Document;
         YamlPath entry = (table is null ? _scoreboard : _tables.Key(table).Key("columns")).Index(index);
@@ -964,6 +978,58 @@ public static class RulesetEdits
         return map.Style == MappingStyle.Flow
             ? editor.Apply([RemoveFlowKey(doc, map, key, entry)]).Text
             : editor.Apply([YamlEdits.RemoveKey(doc, entry, key)]).Text;
+    }
+
+    /// <summary>
+    ///     Sets or, on null or empty, removes the <c>boards:</c> override of one scoreboard entry, written as
+    ///     the flow list <c>[round, match]</c>. Each board must be one of <see cref="ShowReference.BoardOptions" />.
+    /// </summary>
+    public static string SetShowEntryBoards(string text, int index, IReadOnlyList<string>? boards)
+    {
+        List<string> wanted = [.. (boards ?? []).Select(b => b.Trim()).Where(b => b.Length > 0).Distinct(StringComparer.Ordinal)];
+        if (wanted.FirstOrDefault(b => !ShowReference.BoardOptions.Contains(b, StringComparer.Ordinal)) is { } unknown)
+        {
+            throw new InvalidOperationException($"boards: takes {string.Join(", ", ShowReference.BoardOptions)}; not '{unknown}'");
+        }
+
+        RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
+        YamlDocumentText doc = editor.Document;
+        YamlPath entry = _scoreboard.Index(index);
+        if (doc.Find(entry) is not YamlMappingNode map)
+        {
+            throw new InvalidOperationException($"show: has no entry {index} in scoreboard");
+        }
+
+        YamlNode? existing = doc.Find(entry.Key("boards"));
+        if (wanted.Count == 0)
+        {
+            if (existing is null)
+            {
+                return text;
+            }
+
+            return map.Style == MappingStyle.Flow
+                ? editor.Apply([RemoveFlowKey(doc, map, "boards", entry)]).Text
+                : editor.Apply([YamlEdits.RemoveKey(doc, entry, "boards")]).Text;
+        }
+
+        // Written raw: the writer's own append would quote the list as a string.
+        string flow = "[" + string.Join(", ", wanted) + "]";
+        if (existing is not null)
+        {
+            (int start, int length) = doc.SpanOf(existing);
+            return editor.Apply([new TextEdit(start, length, flow, $"set {entry}.boards")]).Text;
+        }
+
+        if (map.Style == MappingStyle.Flow)
+        {
+            TextEdit append = map.Children.Count > 0
+                ? new TextEdit(doc.EndOf(map.Children.Last().Value), 0, $", boards: {flow}", $"add {entry}.boards")
+                : new TextEdit((int)map.Start.Index + 1, 0, $"boards: {flow}", $"add {entry}.boards");
+            return editor.Apply([append]).Text;
+        }
+
+        return editor.Apply([YamlEdits.AddEntry(doc, entry, $"boards: {flow}")]).Text;
     }
 
     /// <summary>

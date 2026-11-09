@@ -26,6 +26,16 @@ public sealed partial class CanvasColumnViewModel(ShowReference reference) : Obs
 
     public bool HasGroup => Group.Length > 0;
 
+    /// <summary>The <c>as:</c> chip: <c>as seconds</c>, or empty for the raw value.</summary>
+    public string AsChip => Reference.As is { } format ? "as " + format : "";
+
+    public bool HasAs => Reference.As is not null;
+
+    /// <summary>The scoreboard <c>boards:</c> chip: <c>boards round, match</c>, or empty for the default from the stat's <c>per:</c>.</summary>
+    public string BoardsChip => Reference.Boards is { Count: > 0 } boards ? "boards " + string.Join(", ", boards) : "";
+
+    public bool HasBoards => Reference.Boards is { Count: > 0 };
+
     /// <summary>Whether the label differs from the reference, so both are worth showing.</summary>
     public bool ShowsStat => !string.Equals(Label, Stat, StringComparison.Ordinal);
 

@@ -640,6 +640,17 @@
                                                            Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" IsVisible="{Binding ShowsStat}" />
                                                 <TextBlock Text="{Binding Group}" FontSize="9" Foreground="{DynamicResource RuleTextKey}"
                                                            VerticalAlignment="Center" IsVisible="{Binding HasGroup}" ToolTip.Tip="The scoreboard group the column is clustered under" />
+                                                <!-- as: and boards: as chips on the row, so a formatted or re-boarded column says so where it is. -->
+                                                <Border CornerRadius="9" Padding="5 0" VerticalAlignment="Center" IsVisible="{Binding HasAs}"
+                                                        Background="{DynamicResource RuleCanvasBg}" BorderBrush="{DynamicResource RuleNodeBorder}" BorderThickness="1"
+                                                        ToolTip.Tip="as: the display of a tick-valued column">
+                                                    <TextBlock Text="{Binding AsChip}" FontSize="9" FontFamily="monospace" Foreground="{DynamicResource RuleTextKey}" />
+                                                </Border>
+                                                <Border CornerRadius="9" Padding="5 0" VerticalAlignment="Center" IsVisible="{Binding HasBoards}"
+                                                        Background="{DynamicResource RuleCanvasBg}" BorderBrush="{DynamicResource RuleNodeBorder}" BorderThickness="1"
+                                                        ToolTip.Tip="boards: overrides the board the stat's per: would put the column on">
+                                                    <TextBlock Text="{Binding BoardsChip}" FontSize="9" FontFamily="monospace" Foreground="{DynamicResource RuleTextKey}" />
+                                                </Border>
                                             </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

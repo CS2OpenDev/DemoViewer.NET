@@ -37,7 +37,7 @@
             </StackPanel>
         </DataTemplate>
 
-        <!-- One show: entry: where it shows and what it references, with its label and group editable. -->
+        <!-- One show: entry: where it shows and what it references, with its label, group, as and boards editable. -->
         <DataTemplate x:Key="EntryTemplate" x:DataType="vm:ShowEntryViewModel">
             <Border CornerRadius="4" Padding="8 5" Margin="0 0 0 6" Background="{DynamicResource CardBg}"
                     BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1">
@@ -54,6 +54,8 @@
                     </DockPanel>
                     <ContentControl Content="{Binding Label}" ContentTemplate="{StaticResource FieldTemplate}" />
                     <ContentControl Content="{Binding Group}" ContentTemplate="{StaticResource FieldTemplate}" />
+                    <ContentControl Content="{Binding As}" ContentTemplate="{StaticResource FieldTemplate}" />
+                    <ContentControl Content="{Binding Boards}" ContentTemplate="{StaticResource FieldTemplate}" />
                 </StackPanel>
             </Border>
         </DataTemplate>
