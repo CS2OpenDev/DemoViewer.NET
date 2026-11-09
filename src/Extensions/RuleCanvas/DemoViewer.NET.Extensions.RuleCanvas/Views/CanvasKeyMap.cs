@@ -19,6 +19,8 @@ public enum CanvasKeyAction
     FitAll,
     NextFire,
     PreviousFire,
+    StepForward,
+    StepBack,
     GroupSelection,
     TidySelection,
     Search
@@ -53,6 +55,8 @@ public static class CanvasKeyMap
             Key.A when bare => CanvasKeyAction.FitAll,
             Key.OemCloseBrackets when bare => CanvasKeyAction.NextFire,
             Key.OemOpenBrackets when bare => CanvasKeyAction.PreviousFire,
+            Key.OemPeriod when bare => CanvasKeyAction.StepForward,
+            Key.OemComma when bare => CanvasKeyAction.StepBack,
             _ => CanvasKeyAction.None
         };
     }

@@ -205,6 +205,7 @@ public sealed partial class CanvasTabViewModel
         LiveRun = null;
         Instances.Clear();
         SelectedInstance = null;
+        IsStepMode = false;
         if (had)
         {
             ApplyLive(Nodes, Connections);
@@ -334,6 +335,8 @@ public sealed partial class CanvasTabViewModel
     {
         _liveNodes.Clear();
         _liveWires.Clear();
+        _stepTicks = null;
+        ClearFlash();
         LiveValuesRun? run = LiveRun;
         LiveInstance? instance = SelectedInstance;
         if (run is null || instance is null)
@@ -498,6 +501,7 @@ public sealed partial class CanvasTabViewModel
         OnPropertyChanged(nameof(LiveState));
         OnPropertyChanged(nameof(CanRunLive));
         RunLiveCommand.NotifyCanExecuteChanged();
+        NotifyStep();
     }
 
     partial void OnSelectedInstanceChanged(LiveInstance? value) => ApplyLive(Nodes, Connections);

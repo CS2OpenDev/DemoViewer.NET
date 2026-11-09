@@ -382,6 +382,12 @@ public partial class CanvasTabView : UserControl
             case CanvasKeyAction.PreviousFire:
                 _viewModel.PreviousFireCommand.Execute(null);
                 break;
+            case CanvasKeyAction.StepForward:
+                _viewModel.StepForwardCommand.Execute(null);
+                break;
+            case CanvasKeyAction.StepBack:
+                _viewModel.StepBackCommand.Execute(null);
+                break;
             case CanvasKeyAction.GroupSelection:
                 GroupSelection();
                 break;

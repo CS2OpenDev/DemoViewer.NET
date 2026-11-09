@@ -52,6 +52,9 @@
                          when the run predates the text drawn. -->
                     <SolidColorBrush x:Key="RuleLiveBadgeBg" Color="#E6E7F3" />
                     <SolidColorBrush x:Key="RuleLiveStale" Color="#7E8099" />
+                    <!-- The halo under a wire that fired at a stepped tick, for 300 ms: the or hue with its own alpha,
+                         so it reads apart from the selection halo. -->
+                    <SolidColorBrush x:Key="RuleWireFlash" Color="#D9B45309" />
                     <!-- A frame around nodes: a translucent fill off the selection hue so the canvas and the wires
                          show through, a header one step denser, and a border that reads as chrome, not as a kind. -->
                     <SolidColorBrush x:Key="RuleGroupFill" Color="#144A4A9E" />
@@ -117,6 +120,7 @@
                     <SolidColorBrush x:Key="RuleDiagnosticBadgeText" Color="#0C0C1A" />
                     <SolidColorBrush x:Key="RuleLiveBadgeBg" Color="#24243C" />
                     <SolidColorBrush x:Key="RuleLiveStale" Color="#6E6E8C" />
+                    <SolidColorBrush x:Key="RuleWireFlash" Color="#D9FFA657" />
                     <SolidColorBrush x:Key="RuleGroupFill" Color="#1A8A8AE0" />
                     <SolidColorBrush x:Key="RuleGroupHeaderBg" Color="#388A8AE0" />
                     <SolidColorBrush x:Key="RuleGroupBorder" Color="#4C4C84" />
@@ -362,6 +366,13 @@
     <Style Selector="connections|Connection[(connections|BaseConnection.IsSelected)=true]">
         <Setter Property="OutlineThickness" Value="5" />
         <Setter Property="OutlineBrush" Value="{DynamicResource RuleWireHalo}" />
+    </Style>
+
+    <!-- A wire that fired at the tick a step landed on: the one transient paint, cleared after 300 ms. After
+         the selection style, so a flashing selected wire shows the flash. -->
+    <Style Selector="connections|Connection.flash">
+        <Setter Property="OutlineThickness" Value="7" />
+        <Setter Property="OutlineBrush" Value="{DynamicResource RuleWireFlash}" />
     </Style>
 
     <Style Selector="connections|Connection.and">

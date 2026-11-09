@@ -201,6 +201,10 @@
                                        MaxWidth="150" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LiveState}" IsVisible="{Binding HasDemo}" />
                             <Button Classes="ghost" Content="Re-run" FontSize="11" Padding="6 2" Command="{Binding RunLiveCommand}"
                                     IsVisible="{Binding HasDemo}" ToolTip.Tip="Evaluate the drawn ruleset over the open demo now" />
+                            <!-- Step mode: . and , move the playhead from fire to fire over the drawn nodes; off without a run. -->
+                            <ToggleButton Classes="panel" Content="Step" FontSize="11" Padding="6 2" IsChecked="{Binding IsStepMode}"
+                                          IsEnabled="{Binding CanStep}" IsVisible="{Binding HasDemo}"
+                                          ToolTip.Tip="{Binding StepTip}" ToolTip.ShowOnDisabled="True" />
                             <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
                         <!-- A shipped ruleset: the chip says it is read only, the button beside it makes a copy. -->
                             <Border CornerRadius="3" Padding="6 1" VerticalAlignment="Center" BorderThickness="1"
@@ -484,6 +488,7 @@
                                               Classes.and="{Binding IsAnd}"
                                               Classes.or="{Binding IsOr}"
                                               Classes.editable="{Binding CanEditCondition}"
+                                              Classes.flash="{Binding IsFlashing}"
                                               connections:BaseConnection.IsSelectable="True">
                         <!-- Hover: how to edit (or why not), the lowered condition, then the last run's fire line when there is one. -->
                         <ToolTip.Tip>

@@ -117,14 +117,20 @@ public sealed partial class CanvasTabViewModel
         };
         if (tick is { } to)
         {
-            if (_seekToTick is not null)
-            {
-                _seekToTick(to);
-            }
-            else
-            {
-                _moduleContext?.RequestSeekToTick(to);
-            }
+            SeekTo(to);
+        }
+    }
+
+    // The shell's clock when the host hands one, the module context's otherwise.
+    private void SeekTo(int tick)
+    {
+        if (_seekToTick is not null)
+        {
+            _seekToTick(tick);
+        }
+        else
+        {
+            _moduleContext?.RequestSeekToTick(tick);
         }
     }
 

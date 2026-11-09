@@ -13,6 +13,7 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 /// </summary>
 public class CanvasViewLiveMarkupTests
 {
+    private static readonly XNamespace _x = "http://schemas.microsoft.com/winfx/2006/xaml";
     private static readonly XNamespace _views = "using:DemoViewer.NET.Extensions.RuleCanvas.Views";
 
     private static XDocument LoadView() => XDocument.Load(Path.Combine(ViewsFolder(), "CanvasTabView.axaml"));
@@ -80,6 +81,31 @@ public class CanvasViewLiveMarkupTests
             await Assert.That(selectors).Contains("Border.viewerBar");
             await Assert.That(selectors).Contains("Border.viewerBar.selected");
             await Assert.That(selectors).Contains("TextBlock.viewerName.selected");
+        }
+    }
+
+    // Step is one small toggle in the live group, off without a run with the reason on its tooltip; the wire
+    // binds the flash class, which the theme halos in its own token, defined for both themes.
+    [Test]
+    public async Task TheStrip_HasTheStepToggle_AndTheWireFlashIsAClassTheThemeStyles()
+    {
+        XDocument view = LoadView();
+        XDocument theme = LoadTheme();
+        XElement step = view.Descendants().Single(e => e.Name.LocalName == "ToggleButton" && Attribute(e, "IsChecked") == "{Binding IsStepMode}");
+        XElement rerun = view.Descendants().Single(e => e.Name.LocalName == "Button" && Attribute(e, "Command") == "{Binding RunLiveCommand}");
+        XElement wire = view.Descendants().Single(e => e.Name.LocalName == "LabelledConnection");
+        XElement flash = theme.Descendants().Single(e => e.Name.LocalName == "Style" && Attribute(e, "Selector") == "connections|Connection.flash");
+        List<XElement> tokens = [.. theme.Descendants().Where(e => e.Attribute(_x + "Key")?.Value == "RuleWireFlash")];
+        using (Assert.Multiple())
+        {
+            await Assert.That(step.Parent).IsSameReferenceAs(rerun.Parent).Because("the live group, not a new column");
+            await Assert.That(Attribute(step, "Content")).IsEqualTo("Step");
+            await Assert.That(Attribute(step, "IsEnabled")).IsEqualTo("{Binding CanStep}");
+            await Assert.That(Attribute(step, "ToolTip.Tip")).IsEqualTo("{Binding StepTip}");
+            await Assert.That(Attribute(step, "ToolTip.ShowOnDisabled")).IsEqualTo("True").Because("the reason it is off is on the tooltip");
+            await Assert.That(Attribute(wire, "Classes.flash")).IsEqualTo("{Binding IsFlashing}");
+            await Assert.That(flash.Elements().Any(s => Attribute(s, "Property") == "OutlineBrush" && Attribute(s, "Value") == "{DynamicResource RuleWireFlash}")).IsTrue();
+            await Assert.That(tokens.Count).IsEqualTo(2).Because("light and dark");
         }
     }
 

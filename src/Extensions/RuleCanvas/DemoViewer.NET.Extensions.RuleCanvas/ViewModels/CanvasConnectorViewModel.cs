@@ -121,6 +121,10 @@ public sealed partial class CanvasConnectionViewModel(CanvasConnectorViewModel s
 
     public bool HasLiveTip => LiveTip.Length > 0;
 
+    /// <summary>True for the moment after a step landed on a tick this wire fired at; the template sets the flash class from it.</summary>
+    [ObservableProperty]
+    private bool _isFlashing;
+
     /// <summary>The menu's seek items, filled by the tab when the menu opens.</summary>
     public CanvasSeekMenuViewModel SeekMenu { get; } = new();
 
