@@ -12,10 +12,13 @@
              x:DataType="vm:CanvasTabViewModel"
              SizeChanged="OnViewSizeChanged">
     <UserControl.Resources>
+        <!-- The ring sits at the row's start, inside the node's content padding, where the output ring and a
+             table's column rings sit too. Nodify clips the content presenter, so a ring hung out over the
+             border is cut away. -->
         <DataTemplate x:Key="InlinePort" x:DataType="vm:CanvasConnectorViewModel">
             <nodes:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="{Binding IsConnected}"
                              views:TokenBrush.BorderBrush="{Binding Token}" Opacity="{Binding Opacity}" ToolTip.Tip="{Binding Title}"
-                             Padding="0" MinHeight="0" Margin="-15 0 0 0" VerticalAlignment="Center" />
+                             Padding="0" MinHeight="0" Margin="0" VerticalAlignment="Center" />
         </DataTemplate>
     </UserControl.Resources>
 
