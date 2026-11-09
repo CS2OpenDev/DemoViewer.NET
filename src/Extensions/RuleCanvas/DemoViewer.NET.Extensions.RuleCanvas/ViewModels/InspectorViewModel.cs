@@ -218,6 +218,13 @@ public sealed partial class InspectorViewModel : ObservableObject
 
     public bool HasForEachFix => ForEachFixLabel.Length > 0;
 
+    /// <summary>The frozen fixture above the selected entry, one line each as the comment holds them; empty when it has none.</summary>
+    public ObservableCollection<string> Fixture { get; } = [];
+
+    public bool HasFixture => Fixture.Count > 0;
+
+    public bool CanClearFixture => HasFixture && CanEditNode;
+
     public bool ShowsDocument => HasDocument && !HasNode && Wire is null;
 
     /// <summary>The condition editor over the selected wire, with no node selected; null otherwise.</summary>
@@ -325,6 +332,12 @@ public sealed partial class InspectorViewModel : ObservableObject
             }
         }
 
+        Fixture.Clear();
+        foreach (string line in node is null ? [] : CanvasEditSemantics.FixtureOf(node, text))
+        {
+            Fixture.Add(line);
+        }
+
         TableToAdd = Tables.FirstOrDefault();
         if (node is not null)
         {
@@ -387,6 +400,16 @@ public sealed partial class InspectorViewModel : ObservableObject
                 : node.IsHighlight ? RulesetEdits.RemoveHighlight(t, node.Id)
                 : RulesetEdits.RemoveStat(t, node.Id);
         }, "delete " + node.Title));
+    }
+
+    /// <summary>Removes the selected entry's fixture comment; Undo puts it back.</summary>
+    [RelayCommand]
+    private void ClearFixture()
+    {
+        if (_node is { } node && CanClearFixture)
+        {
+            Apply(CanvasEditSemantics.ClearFixture(node));
+        }
     }
 
     [RelayCommand]
@@ -876,6 +899,8 @@ public sealed partial class InspectorViewModel : ObservableObject
         OnPropertyChanged(nameof(HasExports));
         OnPropertyChanged(nameof(CanDelete));
         OnPropertyChanged(nameof(HasDeleteRefusal));
+        OnPropertyChanged(nameof(HasFixture));
+        OnPropertyChanged(nameof(CanClearFixture));
         DeleteCommand.NotifyCanExecuteChanged();
     }
 

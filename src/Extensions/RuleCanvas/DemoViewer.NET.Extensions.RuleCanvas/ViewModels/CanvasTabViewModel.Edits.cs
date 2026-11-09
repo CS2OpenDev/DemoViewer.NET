@@ -605,10 +605,18 @@ public sealed partial class CanvasTabViewModel
             node.Surfacing = node.IsEntry && !node.IsDefine ? surface.BadgeFor(node.Id) : "";
             // What the text holds that the face does not: the for_each axes and the keys no row renders.
             EntryCoverage coverage = node.Face is { } face && text.Length > 0 ? EntryCoverage.Of(text, face) : EntryCoverage.None;
-            node.TextChips = [.. coverage.Chips.Select(c => new CanvasChip(c.Text, c.Tip))];
+            IReadOnlyList<string> fixture = CanvasEditSemantics.FixtureOf(node, text);
+            node.TextChips =
+            [
+                .. coverage.Chips.Select(c => new CanvasChip(c.Text, c.Tip)),
+                .. fixture.Count > 0 ? [new CanvasChip(FixtureChip, "fixture: " + string.Join("\n", fixture))] : Array.Empty<CanvasChip>()
+            ];
             node.UnrenderedKeys = [.. coverage.Unrendered.Select(k => k.ToString())];
         }
     }
+
+    /// <summary>The chip a node with a frozen fixture comment carries; its tooltip holds the fixture's lines.</summary>
+    public const string FixtureChip = "fixture";
 
     private EditOutcome ApplyForInspector(EditRequest request)
     {

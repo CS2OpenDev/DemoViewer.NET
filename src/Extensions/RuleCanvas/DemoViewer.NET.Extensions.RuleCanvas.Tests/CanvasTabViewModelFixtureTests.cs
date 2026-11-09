@@ -51,6 +51,58 @@ public class CanvasTabViewModelFixtureTests
     }
 
     [Test]
+    public async Task AFrozenFixture_ShowsInTheInspectorAndOnTheFace_AndClearIsUndoable()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        (CanvasTabViewModel vm, _) = LiveCanned.Open(rules);
+        vm.Today = () => _day;
+        vm.ShowLiveRun(LiveCanned.Run(vm));
+        string path = rules.UserPath("player_round");
+        string before = File.ReadAllText(path);
+        await Assert.That(LiveCanned.Node(vm, "round_kills").TextChips.Any(c => c.Text == CanvasTabViewModel.FixtureChip)).IsFalse();
+
+        vm.FreezeFixture(LiveCanned.Node(vm, "round_kills"));
+        CanvasNodeViewModel node = LiveCanned.Node(vm, "round_kills");
+        vm.SelectedNodes.Add(node);
+        CanvasChip? chip = node.TextChips.SingleOrDefault(c => c.Text == CanvasTabViewModel.FixtureChip);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Inspector.HasFixture).IsTrue();
+            await Assert.That(vm.Inspector.Fixture).IsEquivalentTo(["demo one, Alice", "final 3, fired 3 times, first tick 100, last tick 900", "taken 2026-11-09"]);
+            await Assert.That(vm.Inspector.CanClearFixture).IsTrue();
+            await Assert.That(chip?.Tip).Contains("final 3").Because("the chip's tooltip carries the value");
+            await Assert.That(LiveCanned.Node(vm, "round_deaths").TextChips.Any(c => c.Text == CanvasTabViewModel.FixtureChip)).IsFalse();
+        }
+
+        vm.Inspector.ClearFixtureCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(File.ReadAllText(path)).IsEqualTo(before);
+            await Assert.That(vm.Inspector.HasFixture).IsFalse();
+            await Assert.That(LiveCanned.Node(vm, "round_kills").TextChips.Any(c => c.Text == CanvasTabViewModel.FixtureChip)).IsFalse();
+        }
+
+        vm.UndoCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(File.ReadAllText(path)).Contains("# fixture: demo one, Alice");
+            await Assert.That(vm.Inspector.HasFixture).IsTrue().Because("Undo puts the block back and the Inspector re-reads it");
+        }
+    }
+
+    [Test]
+    public async Task ClearingAFixture_LeavesOtherCommentsAndAnEntryWithoutOne()
+    {
+        const string text = "stats:\n  # a note\n  # fixture: demo one, Alice\n  # fixture: taken 2026-11-09\n  kills:\n    count: kill\n  deaths:\n    count: death\n";
+        using (Assert.Multiple())
+        {
+            await Assert.That(RulesetFixtureComment.Clear(text, EntrySection.Stat, "kills")).IsEqualTo("stats:\n  # a note\n  kills:\n    count: kill\n  deaths:\n    count: death\n");
+            await Assert.That(RulesetFixtureComment.Clear(text, EntrySection.Stat, "deaths")).IsEqualTo(text);
+            await Assert.That(RulesetFixtureComment.Clear(text, EntrySection.Stat, "nothing")).IsEqualTo(text);
+        }
+    }
+
+    [Test]
     public async Task Freeze_SaysWhyItWroteNothing()
     {
         using RulesTree rules = RulesTree.WithUser("player_round");
