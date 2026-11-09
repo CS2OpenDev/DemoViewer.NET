@@ -347,6 +347,12 @@ public sealed partial class CanvasTabViewModel
                 node.LiveTip = "";
                 node.IsLiveStale = false;
                 node.LiveViewer = ViewerFor(node, null, null, null, false, null);
+                foreach (CanvasColumnViewModel column in node.Columns)
+                {
+                    column.LiveBadge = "";
+                    column.LiveTip = "";
+                    column.IsLiveStale = false;
+                }
             }
 
             foreach (CanvasConnectionViewModel wire in wires)
@@ -386,7 +392,8 @@ public sealed partial class CanvasTabViewModel
             }
         }
 
-        foreach (CanvasConnectionViewModel wire in wires)
+        List<CanvasConnectionViewModel> wireList = [.. wires];
+        foreach (CanvasConnectionViewModel wire in wireList)
         {
             if (WireTrackFor(run, wire, instance.Index) is { } own)
             {
@@ -399,6 +406,41 @@ public sealed partial class CanvasTabViewModel
                 wire.LiveTip = WireFallback(run, wire, instance.Index, stale);
             }
         }
+
+        // A show node's column carries the surfaced stat's badge: the stat at the other end of its wire, or
+        // the stat the column names when nothing is wired to it.
+        List<CanvasNodeViewModel> nodeList = [.. nodes];
+        foreach (CanvasNodeViewModel show in nodeList.Where(n => n.IsShow))
+        {
+            foreach (CanvasColumnViewModel column in show.Columns)
+            {
+                CanvasNodeViewModel? stat = SurfacedStat(column, show, nodeList, wireList);
+                if (stat is not null && TrackFor(run, stat.Key, instance.Index) is { } track)
+                {
+                    LiveNodeBinding binding = new(column, track, stat.ValueType == "bool");
+                    _liveNodes.Add(binding);
+                    binding.Show(instance, stale, tick);
+                    column.IsLiveStale = stale;
+                }
+                else
+                {
+                    column.LiveBadge = "";
+                    column.LiveTip = "";
+                    column.IsLiveStale = false;
+                }
+            }
+        }
+    }
+
+    private static CanvasNodeViewModel? SurfacedStat(CanvasColumnViewModel column, CanvasNodeViewModel show,
+        List<CanvasNodeViewModel> nodes, List<CanvasConnectionViewModel> wires)
+    {
+        if (column.Port is { } port && wires.FirstOrDefault(w => ReferenceEquals(w.Target, port))?.Source.Owner is { } wired)
+        {
+            return wired;
+        }
+
+        return nodes.FirstOrDefault(n => n.IsEntry && !n.IsDefine && ShowSurface.Refers(column.Stat, n.Id, show.Ruleset));
     }
 
     // A wire with no engine edge of its own speaks from a node at one of its ends.
@@ -526,9 +568,9 @@ public sealed partial class CanvasTabViewModel
         OnPropertyChanged(nameof(LiveState));
     }
 
-    // One badged node: the point shown is remembered, so a tick that lands on the same fire is free.
-    // The final part of the tip is kept between playhead moves; a move writes one line and one join.
-    private sealed class LiveNodeBinding(CanvasNodeViewModel node, NodeTrack track, bool isBool)
+    // One badge, on a node or a show column: the point shown is remembered, so a tick that lands on the same
+    // fire is free. The final part of the tip is kept between playhead moves; a move writes one line and one join.
+    private sealed class LiveNodeBinding(ILiveBadge node, NodeTrack track, bool isBool)
     {
         private int _shown = int.MinValue;
         private bool _stale;

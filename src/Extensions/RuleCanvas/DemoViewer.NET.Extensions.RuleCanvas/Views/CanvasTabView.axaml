@@ -652,6 +652,12 @@
                                                            Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" IsVisible="{Binding ShowsStat}" />
                                                 <TextBlock Text="{Binding Group}" FontSize="9" Foreground="{DynamicResource RuleTextKey}"
                                                            VerticalAlignment="Center" IsVisible="{Binding HasGroup}" ToolTip.Tip="The scoreboard group the column is clustered under" />
+                                                <!-- The surfaced stat's live value for the selected instance, so the table reads as a table. -->
+                                                <Border CornerRadius="3" Padding="5 0" VerticalAlignment="Center" Background="{DynamicResource RuleLiveBadgeBg}"
+                                                        IsVisible="{Binding HasLive}" ToolTip.Tip="{Binding LiveTip}">
+                                                    <TextBlock Classes="liveBadge" Classes.stale="{Binding IsLiveStale}" Text="{Binding LiveBadge}"
+                                                               FontSize="10" FontFamily="monospace" VerticalAlignment="Center" />
+                                                </Border>
                                             </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

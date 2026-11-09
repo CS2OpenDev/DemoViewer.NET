@@ -24,7 +24,7 @@ public sealed record CanvasChip(string Text, string? Tip)
 ///     a typed form on the node face, scoped to the view the node fires on. While editable, the trigger,
 ///     the scope and the gate are pickers in place of their chips, and every kind-specific key is a row.
 /// </summary>
-public sealed partial class CanvasNodeViewModel : ObservableObject
+public sealed partial class CanvasNodeViewModel : ObservableObject, ILiveBadge
 {
     private Action<string, string?>? _writeFacet;
     private Action<string, string?>? _writeField;

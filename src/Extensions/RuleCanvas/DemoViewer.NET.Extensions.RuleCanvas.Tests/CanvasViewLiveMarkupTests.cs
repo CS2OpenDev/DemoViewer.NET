@@ -86,6 +86,25 @@ public class CanvasViewLiveMarkupTests
         }
     }
 
+    // A show node's column row carries the surfaced stat's badge, the same class and tokens as the header's.
+    [Test]
+    public async Task TheShowColumnRow_CarriesTheSurfacedStatsBadge()
+    {
+        XDocument view = LoadView();
+        XElement show = view.Descendants().Single(e => e.Name.LocalName == "CanvasNodeTemplateSelector.Show");
+        XElement row = show.Descendants().Single(e => e.Name.LocalName == "DataTemplate" && e.Attribute(_x + "DataType")?.Value == "vm:CanvasColumnViewModel");
+        XElement badge = row.Descendants().Single(e => e.Name.LocalName == "Border" && Attribute(e, "IsVisible") == "{Binding HasLive}");
+        XElement text = badge.Elements().Single(e => e.Name.LocalName == "TextBlock");
+        using (Assert.Multiple())
+        {
+            await Assert.That(Attribute(badge, "Background")).IsEqualTo("{DynamicResource RuleLiveBadgeBg}");
+            await Assert.That(Attribute(badge, "ToolTip.Tip")).IsEqualTo("{Binding LiveTip}");
+            await Assert.That(Attribute(text, "Text")).IsEqualTo("{Binding LiveBadge}");
+            await Assert.That(Attribute(text, "Classes").Split(' ')).Contains("liveBadge");
+            await Assert.That(Attribute(text, "Classes.stale")).IsEqualTo("{Binding IsLiveStale}");
+        }
+    }
+
     // Step is one small toggle in the live group, off without a run with the reason on its tooltip; the wire
     // binds the flash class, which the theme halos in its own token, defined for both themes.
     [Test]
