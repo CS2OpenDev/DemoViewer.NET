@@ -230,4 +230,98 @@ public class CanvasGalleryDropTests
             c.Window.Close();
         });
     }
+
+    [Test]
+    public async Task ADefineDroppedOnEmptyCanvas_AddsADefine()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using RulesTree rules = RulesTree.WithUser("player_round");
+            CanvasTabViewModel vm = rules.NewViewModel();
+            vm.OnActivated(null!);
+            Canvas c = Show(vm);
+
+            Drop(c, DefineItem(vm), EmptyCanvas(c));
+
+            await Assert.That(RulesetEdits.DefineNames(File.ReadAllText(rules.UserPath("player_round")))).Contains("new_define").Because(vm.EditStatus);
+            c.Window.Close();
+        });
+    }
+
+    [Test]
+    public async Task ADefineDroppedOnAStat_PutsADefineInFrontOfIt()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using RulesTree rules = RulesTree.WithUser("player_round");
+            CanvasTabViewModel vm = rules.NewViewModel();
+            vm.OnActivated(null!);
+            Canvas c = Show(vm);
+
+            Drop(c, DefineItem(vm), OnHeader(c, vm.Nodes.Single(n => n.Id == "round_kills")));
+
+            string text = File.ReadAllText(rules.UserPath("player_round"));
+            using (Assert.Multiple())
+            {
+                await Assert.That(RulesetEdits.DefineNames(text)).Contains("new_define").Because(vm.EditStatus);
+                await Assert.That(RulesetEdits.Field(text, "round_kills", "count")).IsEqualTo("new_define");
+            }
+
+            c.Window.Close();
+        });
+    }
+
+    [Test]
+    public async Task ADefineDroppedBesideAnEventWire_PutsADefineInFrontOfItsTarget()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using RulesTree rules = RulesTree.WithUser("player_round");
+            CanvasTabViewModel vm = rules.NewViewModel();
+            vm.OnActivated(null!);
+            Canvas c = Show(vm);
+
+            Drop(c, DefineItem(vm), NearWire(c, TriggerWireInto(vm, "round_kills")));
+
+            string text = File.ReadAllText(rules.UserPath("player_round"));
+            await Assert.That(RulesetEdits.Field(text, "round_kills", "count")).IsEqualTo("new_define").Because(vm.EditStatus);
+            c.Window.Close();
+        });
+    }
+
+    [Test]
+    public async Task AGateDroppedBesideAWire_GatesItsTarget()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using RulesTree rules = RulesTree.WithUser("player_round");
+            CanvasTabViewModel vm = rules.NewViewModel();
+            vm.OnActivated(null!);
+            Canvas c = Show(vm);
+
+            Drop(c, Item(vm, "Gates", "round.active"), NearWire(c, TriggerWireInto(vm, "round_kills")));
+
+            await Assert.That(RulesetEdits.Field(File.ReadAllText(rules.UserPath("player_round")), "round_kills", "while")).IsEqualTo("round.active")
+                .Because(vm.EditStatus);
+            c.Window.Close();
+        });
+    }
+
+    [Test]
+    public async Task AViewDroppedBesideATriggerWire_RetargetsItsTarget()
+    {
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            using RulesTree rules = RulesTree.WithUser("player_round");
+            CanvasTabViewModel vm = rules.NewViewModel();
+            vm.OnActivated(null!);
+            Canvas c = Show(vm);
+
+            Drop(c, Item(vm, "Views", "death"), NearWire(c, TriggerWireInto(vm, "round_kills")));
+
+            await Assert.That(RulesetEdits.Field(File.ReadAllText(rules.UserPath("player_round")), "round_kills", "count")).IsEqualTo("death")
+                .Because(vm.EditStatus);
+            c.Window.Close();
+        });
+    }
 }

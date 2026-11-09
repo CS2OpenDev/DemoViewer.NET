@@ -128,12 +128,34 @@ public partial class CanvasTabView : UserControl
         }
     }
 
-    // The wire under a point: the event's own source when it is one, else the editor's hit test. Nodify's
-    // connections live in the editor's connections layer and hit-test by their stroke.
+    // The wire under a point, or within WireReach of it: a stroke is two pixels wide and a hand drop rarely
+    // lands on it. Nearer rings win, so of two close wires the one under the pointer is taken.
     private CanvasConnectionViewModel? WireAt(Visual? source, Point at)
     {
-        LabelledConnection? connection = WireOf(source) ?? WireOf(Editor.InputHitTest(at) as Visual);
+        LabelledConnection? connection = WireOf(source);
+        foreach (Vector offset in WireProbe)
+        {
+            connection ??= WireOf(Editor.InputHitTest(at + offset) as Visual);
+        }
+
         return connection?.DataContext as CanvasConnectionViewModel;
+    }
+
+    private const double WireReach = 8;
+
+    private static readonly Vector[] WireProbe = [.. Rings()];
+
+    private static IEnumerable<Vector> Rings()
+    {
+        yield return default;
+        for (double r = 2; r <= WireReach; r += 2)
+        {
+            for (int step = 0; step < 8; step++)
+            {
+                double a = step * Math.PI / 4;
+                yield return new Vector(Math.Round(r * Math.Cos(a)), Math.Round(r * Math.Sin(a)));
+            }
+        }
     }
 
     private static LabelledConnection? WireOf(Visual? source) =>
