@@ -37,7 +37,8 @@ public enum GalleryItemKind
 /// <param name="Title">What the gallery shows.</param>
 /// <param name="Hint">One line on what it is, shown under the title.</param>
 /// <param name="Body">For a stat or a prefab, the entry's body at one indentation, without its id line.</param>
-public sealed record GalleryItem(GalleryItemKind Kind, string Name, string Title, string Hint, string? Body = null)
+/// <param name="CopiesName">Placed under its own name (a copy of the user's entry) rather than a fresh <c>new_</c> id.</param>
+public sealed record GalleryItem(GalleryItemKind Kind, string Name, string Title, string Hint, string? Body = null, bool CopiesName = false)
 {
     public string KindLabel => Kind.ToString().ToUpperInvariant();
 
@@ -86,10 +87,20 @@ public static class CanvasGallery
 
     /// <param name="catalog">The catalog whose views the Views group lists.</param>
     /// <param name="flags">The flag stat ids of the open ruleset, each offered as a gate under "Your flags".</param>
-    public static IReadOnlyList<GalleryGroup> Build(CatalogRoot catalog, IEnumerable<string> flags)
+    public static IReadOnlyList<GalleryGroup> Build(CatalogRoot catalog, IEnumerable<string> flags) => Build(catalog, flags, []);
+
+    /// <param name="catalog">The catalog whose views the Views group lists.</param>
+    /// <param name="flags">The flag stat ids of the open ruleset, each offered as a gate under "Your flags".</param>
+    /// <param name="yourDefines">
+    ///     The trigger defines of the user's other rulesets, each a copy into the open one; the engine scopes
+    ///     a define to its document, so sharing one is copying it. No group when there are none.
+    /// </param>
+    public static IReadOnlyList<GalleryGroup> Build(CatalogRoot catalog, IEnumerable<string> flags, IEnumerable<GalleryItem> yourDefines)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(flags);
+        ArgumentNullException.ThrowIfNull(yourDefines);
+        List<GalleryItem> shelf = [.. yourDefines];
         List<GalleryItem> engineGates = [.. CanvasEditSemantics.GatePaths.Select(g => Gate(g.Path, g.Hint))];
         List<GalleryItem> ownFlags = [.. flags.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
             .Select(id => Gate(id, $"while your flag {id} holds"))];
@@ -106,7 +117,7 @@ public static class CanvasGallery
                 .Select(g => new GallerySection(g.Key, [.. g.OrderBy(v => v.Name, StringComparer.Ordinal).Select(ViewItem)]))
         ];
 
-        return
+        List<GalleryGroup> groups =
         [
             new GalleryGroup("Prefabs",
             [
@@ -163,6 +174,46 @@ public static class CanvasGallery
             new GalleryGroup("Gates", [.. engineGates, .. ownFlags], gateSections),
             new GalleryGroup("Views", views, viewSections, ExpandedByDefault: false)
         ];
+        if (shelf.Count > 0)
+        {
+            groups.Insert(2, new GalleryGroup("Your defines", shelf));
+        }
+
+        return groups;
+    }
+
+    /// <summary>
+    ///     The trigger defines of one of the user's other rulesets as shelf items: the body as the file holds
+    ///     it, placed under the define's own name. A define that is not a trigger (a list, a macro, a map) is skipped.
+    /// </summary>
+    /// <param name="rulesetId">The ruleset the text belongs to, named in the hint.</param>
+    /// <param name="text">That ruleset's text.</param>
+    public static IReadOnlyList<GalleryItem> DefinesOf(string rulesetId, string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        List<GalleryItem> items = [];
+        foreach (string name in RulesetEdits.DefineNames(text))
+        {
+            string body;
+            try
+            {
+                body = RulesetEntryText.DefineBodyOf(text, name);
+            }
+            catch (InvalidOperationException)
+            {
+                continue;
+            }
+
+            if (!body.Split('\n').Any(l => l.TrimStart().StartsWith("on:", StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
+            string first = body.Split('\n')[0].Trim();
+            items.Add(new GalleryItem(GalleryItemKind.Define, name, name, $"from {rulesetId}: {first}; dropped here as a copy", body, CopiesName: true));
+        }
+
+        return items;
     }
 
     /// <summary>

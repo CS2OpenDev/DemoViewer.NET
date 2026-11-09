@@ -14,6 +14,67 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 /// </summary>
 public class CanvasGalleryTests
 {
+    // Your defines: the trigger defines of the user's other rulesets, copied in under their own name on a
+    // drop; on a stat the copy is interposed and the stat fires on it. The open ruleset's own defines and
+    // non-trigger defines stay off the shelf.
+    [Test]
+    public async Task TheGallery_ShelvesTheUsersOtherDefines_AndADropCopiesOne()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        rules.User("clutch_lib", """
+            ruleset: clutch_lib
+            title: Clutch lib
+            for: each_player
+
+            define:
+              post_plant_kill:
+                on: kill
+                match: { enemy: true }
+                while: round.bomb.was_planted
+              util_weapons: [hegrenade, inferno]
+
+            stats:
+              pp_kills:
+                count: post_plant_kill
+                per: round
+            """);
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        vm.SelectedRuleset = vm.Rulesets.Single(r => r.Id == "player_round");
+
+        GalleryGroup shelf = vm.Gallery.Single(g => g.Title == "Your defines");
+        GalleryItem item = shelf.Items.Single();
+        using (Assert.Multiple())
+        {
+            await Assert.That(item.Name).IsEqualTo("post_plant_kill");
+            await Assert.That(item.CopiesName).IsTrue();
+            await Assert.That(item.Hint).Contains("from clutch_lib");
+            await Assert.That(item.Body).Contains("while: round.bomb.was_planted");
+        }
+
+        vm.PlaceItem(item, new Avalonia.Point(500, 500));
+        string text = File.ReadAllText(rules.UserPath("player_round"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(RulesetEdits.DefineNames(text)).IsEquivalentTo(["post_plant_kill"]);
+            await Assert.That(RulesetEdits.DefineField(text, "post_plant_kill", "while")).IsEqualTo("round.bomb.was_planted");
+            await Assert.That(vm.Nodes.Any(n => n.IsDefine && n.Title == "post_plant_kill")).IsTrue();
+            await Assert.That(vm.Gallery.Any(g => g.Title == "Your defines")).IsTrue().Because("the shelf lists the other ruleset's define whether or not a copy exists here");
+        }
+
+        vm.DropOnNode(item, vm.Nodes.Single(n => n.Id == "round_kills"));
+        text = File.ReadAllText(rules.UserPath("player_round"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(RulesetEdits.DefineNames(text)).IsEquivalentTo(["post_plant_kill", "post_plant_kill_2"]);
+            await Assert.That(RulesetEdits.Field(text, "round_kills", "count")).IsEqualTo("post_plant_kill_2").Because("the stat fires on the fresh copy");
+        }
+
+        vm.SelectedRuleset = vm.Rulesets.Single(r => r.Id == "clutch_lib");
+        await Assert.That(vm.Gallery.Single(g => g.Title == "Your defines").Items.Select(i => i.Name)).IsEquivalentTo(["post_plant_kill", "post_plant_kill_2"])
+            .Because("from the other side the copies are the shelf, and a ruleset's own defines are its nodes");
+    }
+
     [Test]
     public async Task TheGallery_OffersStatsViewsGatesAndPrefabs()
     {

@@ -109,7 +109,7 @@ public static class CanvasEditSemantics
 
     /// <summary>The id a placed gallery item asks for: a prefab or a highlight keeps its name, a kind, a view or the define is <c>new_</c> it.</summary>
     public static string PlacedIdFor(GalleryItem item) =>
-        item.Kind is GalleryItemKind.Prefab or GalleryItemKind.Highlight ? item.Name : "new_" + item.Name;
+        item.Kind is GalleryItemKind.Prefab or GalleryItemKind.Highlight || item.CopiesName ? item.Name : "new_" + item.Name;
 
     /// <summary>
     ///     The nodes a wire from <paramref name="source" /> can start when it is dropped on empty canvas, as
@@ -215,6 +215,8 @@ public static class CanvasEditSemantics
             GalleryItemKind.View when TriggerKeyFor(node) is { } key => Retarget(node, key, item.Name),
             GalleryItemKind.View => EditRequest.Refuse($"A {node.Kind} fires on no view; {item.Name} goes on a stat that has a trigger."),
             GalleryItemKind.Define when node.IsDefine => EditRequest.Refuse("A define cannot fire on a define; drop it on a stat or on the canvas."),
+            GalleryItemKind.Define when item is { CopiesName: true, Body: not null } && freshId is not null && TriggerKeyFor(node) is { } key =>
+                CopyDefineInFront(item, node, key, freshId),
             GalleryItemKind.Define when freshId is not null && TriggerKeyFor(node) is { } key => InterposeDefine(node, key, freshId),
             GalleryItemKind.Define => EditRequest.Refuse($"A {node.Kind} fires on no view, so no define can stand in front of it."),
             _ => EditRequest.Refuse($"Drop {item.Title} on the canvas to add it as a stat.")
@@ -248,6 +250,14 @@ public static class CanvasEditSemantics
 
     // A new define takes the stat's trigger spelling as its on:, and the stat fires on the define: nothing changes
     // in what runs, and the condition now has a node to grow on. A stat already firing on a define keeps it.
+    // A define from another ruleset, copied in under a free name, with the stat retargeted onto the copy.
+    private static EditRequest CopyDefineInFront(GalleryItem item, CanvasNodeViewModel node, string key, string freshId)
+    {
+        EditRequest retarget = Retarget(node, key, freshId);
+        return EditRequest.Of(text => retarget.Transform!(RulesetEdits.AddDefine(text, freshId, item.Body!)),
+            $"copy define {item.Name} in front of {node.Id}");
+    }
+
     private static EditRequest InterposeDefine(CanvasNodeViewModel node, string key, string freshId)
     {
         if (node.Face is StatFace { Define: not null } face)

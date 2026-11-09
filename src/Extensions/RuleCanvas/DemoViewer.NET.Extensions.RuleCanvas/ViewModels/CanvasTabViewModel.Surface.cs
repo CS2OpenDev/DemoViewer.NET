@@ -300,11 +300,39 @@ public sealed partial class CanvasTabViewModel
         return new Point(authored.Min(n => n.Location.X), authored.Max(n => n.Location.Y + n.EstimatedSize.Height) + 40);
     }
 
+    // The trigger defines of the user's other rulesets, read from disk: small files, and a redraw already
+    // follows every change to them. A file that cannot be read offers nothing.
+    private IEnumerable<GalleryItem> YourDefines()
+    {
+        foreach (RulesetCorpus.Entry entry in _corpus?.Entries ?? [])
+        {
+            if (entry.Source != "user" || entry.Id == SelectedRuleset?.Id)
+            {
+                continue;
+            }
+
+            string text;
+            try
+            {
+                text = File.ReadAllText(entry.Path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                continue;
+            }
+
+            foreach (GalleryItem item in CanvasGallery.DefinesOf(entry.Id, text))
+            {
+                yield return item;
+            }
+        }
+    }
+
     // Called after every redraw: the gallery gets the ruleset's flags, the diagnostics list its lines, and the
     // empty state is decided from what was drawn.
     private void AfterRedraw(RulesetCorpus.Composed? composed)
     {
-        Gallery = CanvasGallery.Build(EmbeddedCatalog.Root, Nodes.Where(n => n.IsAuthorable && n.Kind == "flag").Select(n => n.Id));
+        Gallery = CanvasGallery.Build(EmbeddedCatalog.Root, Nodes.Where(n => n.IsAuthorable && n.Kind == "flag").Select(n => n.Id), YourDefines());
         DiagnosticEntries.Clear();
         HashSet<string> inNodes = new(StringComparer.Ordinal);
         foreach (CanvasNodeViewModel node in Nodes)
