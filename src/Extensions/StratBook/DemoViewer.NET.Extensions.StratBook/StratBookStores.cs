@@ -33,6 +33,7 @@ internal static class StratBookStores
     public const string WatchedSituations = "watched-situations";
     public const string VetoHistory = "veto-history";
     public const string ScoutingReportNotes = "scouting-report-notes";
+    public const string TeamRanks = "team-ranks";
 
     // The notes file's name before the 2026-11 rename (the feature was the Opponent Dossier).
     public const string ScoutingReportNotesOldName = "scouting-report-notes-old-name";
@@ -53,6 +54,7 @@ internal static class StratBookStores
         new(VetoHistory, "Veto history", StoreRoot.Config, [VetoHistoryStore.FileName], IsUserWork: true),
         new(ScoutingReportNotes, "Scouting report notes", StoreRoot.Config, [ScoutingReportNotesStore.FileName],
             IsUserWork: true),
+        new(TeamRanks, "Team ranks", StoreRoot.Config, [TeamRanksStore.FileName], IsUserWork: true),
 
         // ── Config root: the old layout, read once to copy into the extension's own folder ──
         new(ScoutingReportNotesOldName, "Scouting report notes (old layout)", StoreRoot.Config,
@@ -95,6 +97,7 @@ internal static class StratBookStores
         sp.GetService<TagPaletteStore>()?.Reload();
         sp.GetService<ScoutingReportNotesStore>()?.Reload();
         sp.GetService<VetoHistoryStore>()?.Reload();
+        sp.GetService<TeamRanksStore>()?.Reload();
         sp.GetService<WatchedSituationsService>()?.Reload();
         sp.GetService<StratMiningService>()?.ResetState();
         sp.GetService<ProfileStore>()?.Reload();

@@ -145,6 +145,10 @@ public class StratBookStoresTests
             OpponentTeamId = Guid.NewGuid(), Order = 0, Map = "de_dust2"
         });
 
+        // team-ranks.json: real API.
+        new TeamRanksStore(StoredFile.At(Path.Combine(configRoot, TeamRanksStore.FileName))).Set(Guid.NewGuid(),
+            RankSystem.Hltv, 12, new DateOnly(2026, 11, 9));
+
         // scouting-report-notes.json: real API.
         new ScoutingReportNotesStore(StoredFile.At(Path.Combine(configRoot, ScoutingReportNotesStore.FileName))).AddNote(
             Guid.NewGuid(), "a note");

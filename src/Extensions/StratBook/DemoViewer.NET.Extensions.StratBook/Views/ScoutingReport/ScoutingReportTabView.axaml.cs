@@ -25,6 +25,15 @@ public partial class ScoutingReportTabView : UserControl
     /// <summary>Builds the view.</summary>
     public ScoutingReportTabView() => InitializeComponent();
 
+    // A rank box that loses focus commits what was typed, the same as Enter.
+    private static void OnRankLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox { DataContext: RankFieldViewModel rank })
+        {
+            rank.Commit();
+        }
+    }
+
     private void OnFindingEditGotFocus(object? sender, FocusChangedEventArgs e)
     {
         if (sender is TextBox { DataContext: ScoutingReportFindingViewModel row })

@@ -154,8 +154,13 @@ public sealed partial class MapPoolRowViewModel : ObservableObject
 /// <param name="Won">Won.</param>
 /// <param name="IsSelectedMap">On the map in view.</param>
 /// <param name="ToolTip">"de_nuke · 2026-03-11 · won".</param>
-public sealed record TimelineDotViewModel(double X, double Y, bool Won, bool IsSelectedMap, string ToolTip)
+/// <param name="TopTier">The opponent was ranked 30 or better then; the dot is drawn larger.</param>
+public sealed record TimelineDotViewModel(double X, double Y, bool Won, bool IsSelectedMap, string ToolTip,
+    bool TopTier = false)
 {
+    /// <summary>The dot's diameter: larger against a top-30 opponent.</summary>
+    public double Size => TopTier ? 11 : 7;
+
     /// <summary>The strip's width in pixels.</summary>
     public const double Width = 220;
 
