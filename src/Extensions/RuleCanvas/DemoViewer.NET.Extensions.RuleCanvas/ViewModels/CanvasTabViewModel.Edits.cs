@@ -609,7 +609,29 @@ public sealed partial class CanvasTabViewModel
         SelectedRuleset is { } selected && Report(_session.Apply(request), selected);
 
     // Defines share the stat id namespace, so a fresh id is free of both; the define prefix is the canvas's, not the file's.
-    private string FreshId(string wanted) => CanvasEditSemantics.FreshId(wanted, Nodes.Select(n => n.Title));
+    // Drawn nodes are not enough: a slice hides most keys, the loader's dropped entries draw nothing, and only
+    // the loaded document holds the ids a for_each template expands to.
+    private string FreshId(string wanted)
+    {
+        List<string> taken = [.. Nodes.Select(n => n.Title)];
+        try
+        {
+            taken.AddRange(RulesetEdits.EntryIds(_session.Text));
+        }
+        catch (Exception ex) when (ex is YamlDotNet.Core.YamlException or InvalidOperationException)
+        {
+            // A text that does not parse refuses the write anyway.
+        }
+
+        if (SelectedRuleset is { } selected && _composed?.Documents.GetValueOrDefault(selected.Id) is { } doc)
+        {
+            taken.AddRange(doc.Stats.Select(s => s.Id));
+            taken.AddRange(doc.Highlights.Select(h => h.Id));
+            taken.AddRange(doc.Defines.Select(d => d.Name));
+        }
+
+        return CanvasEditSemantics.FreshId(wanted, taken);
+    }
 
     // ---- the right dock: the Inspector and the YAML tab ----
 
