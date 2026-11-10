@@ -1,6 +1,10 @@
 #region
 
+using Avalonia.Controls;
+using Avalonia.VisualTree;
 using DemoViewer.NET.Extensions.StratBook;
+using DemoViewer.NET.Extensions.StratBook.Views.ScoutingReport;
+using DemoViewer.NET.Extensions.Testing;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Services.DemoCache;
@@ -262,6 +266,39 @@ public class TeamRanksTests
             await Assert.That(afterTwo).IsEqualTo(2);
             await Assert.That(field.Text).IsEqualTo("40").Because("clearing drops the newest entry");
             await Assert.That(field.SetLine).IsEqualTo("set 2026-03-01");
+        }
+    }
+
+    [Test]
+    public async Task TheHeader_RendersTheRankBoxesAndTheOpponentMix()
+    {
+        List<string> shown = [];
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (DemoCacheStore cache, TeamIdentityService teams, Guid a, Guid b) = await Library();
+            TeamRanksStore ranks = new(null);
+            ranks.Set(a, RankSystem.Vrs, 12, new DateOnly(2026, 11, 9));
+            ranks.Set(a, RankSystem.Hltv, 18, new DateOnly(2026, 11, 2));
+            ranks.Set(b, RankSystem.Hltv, 50, new DateOnly(2026, 3, 1));
+            ranks.Set(b, RankSystem.Hltv, 20, new DateOnly(2026, 3, 15));
+            using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null),
+                isBrowser: false, ranks: ranks, now: () => new DateTime(2026, 11, 9));
+            vm.SelectedTeam = vm.Teams.Single(t => t.Id == a);
+            Window window = new() { Width = 1440, Height = 360, Content = new ScoutingReportTabView { DataContext = vm } };
+            window.Show();
+            UxConsistencyRenderTests.Settle();
+            UxConsistencyRenderTests.Save(window, "ux-scouting-report-ranks-header.png");
+            shown = [.. window.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible)
+                .Select(t => t.Text ?? "")];
+            window.Close();
+        });
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(shown).Contains("set 2026-11-09");
+            await Assert.That(shown).Contains("set 2026-11-02");
+            await Assert.That(shown).Contains("2 vs top-30 · 3 other · 0 unknown");
+            await Assert.That(shown.Any(t => t.Contains("manual entry comes later"))).IsFalse();
         }
     }
 

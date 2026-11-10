@@ -874,7 +874,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         int i = 0;
         foreach (TeamDemoFacts demo in data.Demos.OrderBy(d => d.Ticks))
         {
-            double x = 4 + (demo.Ticks - min) / span * (TimelineDotViewModel.Width - 12);
+            double x = 4 + (demo.Ticks - min) / span * (TimelineDotViewModel.Width - 15);
             double y = 1 + i++ % 3 * 5;
             OpponentTier tier = TierOf(demo);
             string result = demo.Won switch { true => "won", false => "lost", _ => "no result" };
