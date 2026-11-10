@@ -2,7 +2,7 @@
 
 using CS2DemoKit.Analysis.Diagnostics;
 using DemoViewer.NET.Extensions.StratBook.Modules;
-using DemoViewer.NET.Extensions.StratBook.Modules.Dossier;
+using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Modules.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
@@ -18,7 +18,7 @@ using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.Services.Zones;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Review;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.RoundTagger;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Situations;
@@ -89,14 +89,15 @@ public sealed class StratBookPack : IExtension
     public static HubTabContribution HubTab(StratBookLayout? layout) =>
         new(HostIds.StratBookHub, "Strat Book", 4, "STRAT BOOK", PackFeatureId) { Session = layout };
 
-    // Every id is a persisted override key and must never be renamed; labels and descriptions are display
+    // Every id is a persisted override key and is not renamed (the Scouting Report tab was, once, in 2026-11,
+    // and carries its old ids as PreviousIds); labels and descriptions are display
     // text. Tabs are parented to the pack; sub-features keep their tab parent, so the two docked in 2D
     // Playback cascade from tab.playback2d, not from the pack, until they are reparented.
     private static readonly ExtensionFeature[] _features =
     [
         new(
             PackFeatureId, ExtensionFeatureKind.Extension, "Strat Book extension",
-            "Strats, situations, tags, utility, review, dossier and teams: the whole Strat Book, its "
+            "Strats, situations, tags, utility, review, scouting report and teams: the whole Strat Book, its "
             + "background indexing included. Off hides every section and stops its work.",
             null, AudienceDefaults.Everyone),
 
@@ -154,14 +155,17 @@ public sealed class StratBookPack : IExtension
             "Every grenade in your indexed demos, grouped by where it landed: pick a map, a grenade and a "
             + "landing place to see every position it was thrown from.",
             PackFeatureId, AudienceDefaults.Everyone),
-        // The Opponent Dossier tab: the Map Pool Record and, later, the rest of the Dossier sections,
+        // The Scouting Report tab: the Map Pool Record and, later, the rest of the Scouting Report sections,
         // keyed by a Team Identity team. Default-visible like the Strat Book and the Utility Book, and
         // on both hosts: the browser keeps teams for the session and the Teams tab already says so.
         new(
-            DossierModule.TabFeatureId, ExtensionFeatureKind.Tab, "Dossier",
+            ScoutingReportModule.TabFeatureId, ExtensionFeatureKind.Tab, "Scouting Report",
             "A scouting page per team: maps played, win rate, side wins and the decider record where "
             + "it is inferable, plus a veto history you enter by hand.",
-            PackFeatureId, AudienceDefaults.Everyone),
+            PackFeatureId, AudienceDefaults.Everyone)
+        {
+            PreviousIds = [ScoutingReportModule.PreviousTabFeatureId]
+        },
 
         // ---------------- SUB-FEATURES (ParentId = owning tab) ----------------
         // The Round Tagger's palette docked in the 2D tab. Works on both hosts: the
@@ -315,7 +319,7 @@ public sealed class StratBookPack : IExtension
             // Teams other stores point at survive a rebuild that gives them no side. The stores raise on the
             // UI thread and mutate there, so reading them in their own Changed is safe.
             StratStore strats = sp.GetRequiredService<StratStore>();
-            DossierNotesStore notes = sp.GetRequiredService<DossierNotesStore>();
+            ScoutingReportNotesStore notes = sp.GetRequiredService<ScoutingReportNotesStore>();
             VetoHistoryStore vetoes = sp.GetRequiredService<VetoHistoryStore>();
 
             void Report() => teams.SetReferencedTeams(
@@ -647,15 +651,16 @@ public sealed class StratBookPack : IExtension
         });
         services.AddSingleton(sp => UtilityBookFor(sp, null));
 
-        // The Opponent Dossier's veto history: manual entry only, beside teams.json. No file (the
+        // The Scouting Report's veto history: manual entry only, beside teams.json. No file (the
         // browser) keeps entries in memory for the session.
         services.AddSingleton(sp =>
             new VetoHistoryStore(StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.VetoHistory))));
-        // Dossier Editing And Export: the user's stars, rewritten lines, notes and summary per team, beside
+        // Scouting Report Editing And Export: the user's stars, rewritten lines, notes and summary per team, beside
         // the veto history; session-only on the browser the same way.
         services.AddSingleton(sp =>
-            new DossierNotesStore(StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.DossierNotes))));
-        // The Dossier tab VM: a container singleton resolved lazily on first activation, over Team
+            new ScoutingReportNotesStore(StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.ScoutingReportNotes)),
+                StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.ScoutingReportNotesOldName))));
+        // The Scouting Report tab VM: a container singleton resolved lazily on first activation, over Team
         // Identity's own teams and the unified cache the Map Pool Record reads. The Setup Heatmaps read
         // the round index's positions files under the same fingerprint the Situations tab trusts, and
         // open their rounds in the Review Queue. The Opening Tendencies join the Grenade Index to Round
@@ -664,7 +669,7 @@ public sealed class StratBookPack : IExtension
         services.AddSingleton(sp =>
         {
             RoundIndexPlaceSources sources = sp.GetRequiredService<RoundIndexPlaceSources>();
-            return new DossierTabViewModel(
+            return new ScoutingReportTabViewModel(
                 sp.GetRequiredService<TeamIdentityService>(),
                 Library(sp),
                 sp.GetRequiredService<VetoHistoryStore>(),
@@ -693,10 +698,10 @@ public sealed class StratBookPack : IExtension
                     sp.GetRequiredService<TeamIdentityService>(),
                     Library(sp),
                     RoundFactsOf(sp)),
-                notes: sp.GetRequiredService<DossierNotesStore>(),
+                notes: sp.GetRequiredService<ScoutingReportNotesStore>(),
                 grenades: sp.GetRequiredService<GrenadeIndex>(),
-                runSection: section => work => Job(sp, "Dossier: " + section, work,
-                    new JobOptions(Key: "section:dossier:" + section, Preemptible: true)),
+                runSection: section => work => Job(sp, "Scouting report: " + section, work,
+                    new JobOptions(Key: "section:scouting-report:" + section, Preemptible: true)),
                 roundIndex: sp.GetRequiredService<RoundIndexStore>());
         });
 
@@ -987,8 +992,8 @@ public sealed class StratBookPack : IExtension
         // The Utility Book tab.
         contributions.Tabs(new UtilityBookModule(sp.GetRequiredService<UtilityBookTabViewModel>));
 
-        // The Opponent Dossier tab.
-        contributions.Tabs(new DossierModule(sp.GetRequiredService<DossierTabViewModel>));
+        // The Scouting Report tab.
+        contributions.Tabs(new ScoutingReportModule(sp.GetRequiredService<ScoutingReportTabViewModel>));
     }
 
     // The Utility Book tab, and the Strat Book's lineup picker (locked to the strat's map): the same index,

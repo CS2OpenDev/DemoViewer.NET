@@ -9,7 +9,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.Sdk.Review;
-using DemoViewer.NET.Extensions.StratBook.Modules.Dossier;
+using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Modules.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
@@ -19,10 +19,10 @@ using DemoViewer.NET.Playback2D.Overlay;
 
 #endregion
 
-namespace DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 
 /// <summary>
-///     The Opponent Dossier tab: a team picker over Team Identity and its built
+///     The Scouting Report tab: a team picker over Team Identity and its built
 ///     sections. The Map Pool Record: maps played, win rate, side wins, the decider record where a
 ///     best-of series is inferable, and the optional user-entered veto history filed beside it. The
 ///     Setup Heatmaps By Buy: one heatmap per map and CT buy with its fixed and rotating places, each of
@@ -34,7 +34,7 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
 ///     follow-up, anti-eco setups, man-advantage handling and save discipline, over Round Facts alone.
 ///     The Period Diff: the team's last <see cref="WindowSize" /> demos against the
 ///     <see cref="WindowSize" /> before those, roster to roster (<see cref="PeriodDiffService" />). And
-///     Dossier Editing And Export (<see cref="DossierEditorViewModel" />): every section's numbers as
+///     Scouting Report Editing And Export (<see cref="ScoutingReportEditorViewModel" />): every section's numbers as
 ///     findings, re-collected whenever a section lands, starred into the one-pager and exported.
 ///     <para>
 ///         <b>Heatmaps build on a worker.</b> They read every one of the team's positions files and
@@ -48,7 +48,7 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
 ///         <see cref="MapPoolRecordService.Build" /> and re-projects on every <c>Changed</c>.
 ///     </para>
 /// </summary>
-public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspaceTabViewModel, IDisposable
+public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWorkspaceTabViewModel, IDisposable
 {
     private readonly IExtensionLibrary _library;
 
@@ -98,7 +98,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     private string _newVetoMap = "";
 
     [ObservableProperty]
-    private DossierTeamRow? _selectedTeam;
+    private ScoutingReportTeamRow? _selectedTeam;
 
     /// <summary>Demos per Period Diff period; one of <see cref="WindowSizeOptions" />.</summary>
     [ObservableProperty]
@@ -120,7 +120,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     /// <param name="isBrowser">Whether the host is the WASM head; null reads the runtime.</param>
     /// <param name="heatmaps">Builds the Setup Heatmaps By Buy; null hides the section.</param>
     /// <param name="review">The Review Queue a heatmap's rounds are sent to; null says so on open.</param>
-    /// <param name="selectTab">Shows a tab by id, for the Review tab after a send; null stays on the Dossier.</param>
+    /// <param name="selectTab">Shows a tab by id, for the Review tab after a send; null stays on the Scouting Report.</param>
     /// <param name="renderer">Builds the heatmap renderer per build; the pipeline's bundle loader when null.</param>
     /// <param name="post">UI-thread marshal for the worker's results; the dispatcher when null.</param>
     /// <param name="decode">PNG bytes to a bitmap; Avalonia's decoder when null, a stub in a test without a platform.</param>
@@ -132,7 +132,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     /// <param name="roundIndex">The round index stamps the projection key reads; none when null.</param>
     /// <param name="notes">The user's stars, edits and notes; a session-only store when null.</param>
     /// <param name="export">Writes an export (text, stem, extension) and opens it; the temp-file writer when null.</param>
-    public DossierTabViewModel(TeamIdentityService teams, IExtensionLibrary library, VetoHistoryStore vetoes,
+    public ScoutingReportTabViewModel(TeamIdentityService teams, IExtensionLibrary library, VetoHistoryStore vetoes,
         bool? isBrowser = null,
         SetupHeatmapService? heatmaps = null,
         IExtensionReviewQueue? review = null,
@@ -143,7 +143,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
         OpeningTendenciesService? openings = null,
         PostPlantService? postPlant = null,
         SituationalBehaviourService? situational = null,
-        DossierNotesStore? notes = null,
+        ScoutingReportNotesStore? notes = null,
         Func<string, string, string, string?>? export = null,
         GrenadeIndex? grenades = null,
         Func<string, Func<Action, Task>>? runSection = null,
@@ -169,12 +169,12 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
         PostPlant = new PostPlantSectionViewModel(postPlant, review, selectTab, _post, _runSection("post-plant"));
         Situational =
             new SituationalBehaviourSectionViewModel(situational, review, selectTab, _post, _runSection("situational"));
-        Editor = new DossierEditorViewModel(notes ?? new DossierNotesStore(null), IsBrowser, export);
+        Editor = new ScoutingReportEditorViewModel(notes ?? new ScoutingReportNotesStore(null), IsBrowser, export);
         Openings.PropertyChanged += OnSectionChanged;
         PostPlant.PropertyChanged += OnSectionChanged;
         Situational.PropertyChanged += OnSectionChanged;
         Editor.Projected += OnEditorProjected;
-        foreach (DossierSectionViewModel section in (DossierSectionViewModel[])
+        foreach (ScoutingReportSectionViewModel section in (ScoutingReportSectionViewModel[])
                  [RecordSection, RosterSection, VetoSection, NotesSection])
         {
             section.PropertyChanged += OnSectionToggled;
@@ -192,7 +192,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
 
     public bool IsBrowser { get; }
 
-    public ObservableCollection<DossierTeamRow> Teams { get; } = [];
+    public ObservableCollection<ScoutingReportTeamRow> Teams { get; } = [];
 
     public ObservableCollection<MapPoolRowViewModel> Maps { get; } = [];
 
@@ -205,25 +205,25 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     private readonly Dictionary<string, bool> _expanded = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>One section per map the team has numbers on, in map pool order.</summary>
-    public ObservableCollection<DossierMapSectionViewModel> MapSections { get; } = [];
+    public ObservableCollection<ScoutingReportMapSectionViewModel> MapSections { get; } = [];
 
-    public DossierGeneralSectionViewModel RecordSection { get; } = new("record", "Overall record", true);
+    public ScoutingReportGeneralSectionViewModel RecordSection { get; } = new("record", "Overall record", true);
 
-    public DossierGeneralSectionViewModel RosterSection { get; } = new("roster", "Roster and form", true);
+    public ScoutingReportGeneralSectionViewModel RosterSection { get; } = new("roster", "Roster and form", true);
 
-    public DossierGeneralSectionViewModel VetoSection { get; } = new("vetoes", "Veto history", true);
+    public ScoutingReportGeneralSectionViewModel VetoSection { get; } = new("vetoes", "Veto history", true);
 
-    public DossierGeneralSectionViewModel NotesSection { get; } = new("notes", "Notes and findings", true);
+    public ScoutingReportGeneralSectionViewModel NotesSection { get; } = new("notes", "Notes and findings", true);
 
     public bool HasMapSections => MapSections.Count > 0;
 
-    private IEnumerable<DossierSectionViewModel> AllSections =>
+    private IEnumerable<ScoutingReportSectionViewModel> AllSections =>
         [RecordSection, .. MapSections, RosterSection, VetoSection, NotesSection];
 
     [RelayCommand]
     private void ExpandAll()
     {
-        foreach (DossierSectionViewModel section in AllSections)
+        foreach (ScoutingReportSectionViewModel section in AllSections)
         {
             section.IsExpanded = true;
         }
@@ -232,7 +232,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     [RelayCommand]
     private void CollapseAll()
     {
-        foreach (DossierSectionViewModel section in AllSections)
+        foreach (ScoutingReportSectionViewModel section in AllSections)
         {
             section.IsExpanded = false;
         }
@@ -242,7 +242,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     // clicks are remembered.
     private bool _applyingDefault;
 
-    private void OpenByDefault(DossierSectionViewModel section, int findings)
+    private void OpenByDefault(ScoutingReportSectionViewModel section, int findings)
     {
         if (_expanded.ContainsKey(section.Key))
         {
@@ -256,8 +256,8 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
 
     private void OnSectionToggled(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (!_applyingDefault && e.PropertyName == nameof(DossierSectionViewModel.IsExpanded)
-            && sender is DossierSectionViewModel section)
+        if (!_applyingDefault && e.PropertyName == nameof(ScoutingReportSectionViewModel.IsExpanded)
+            && sender is ScoutingReportSectionViewModel section)
         {
             _expanded[section.Key] = section.IsExpanded;
         }
@@ -281,16 +281,16 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
             }
         }
 
-        Dictionary<string, DossierMapSectionViewModel> existing =
+        Dictionary<string, ScoutingReportMapSectionViewModel> existing =
             MapSections.ToDictionary(m => m.Map, StringComparer.OrdinalIgnoreCase);
-        List<DossierMapSectionViewModel> wanted = [];
+        List<ScoutingReportMapSectionViewModel> wanted = [];
         foreach (string map in maps)
         {
-            List<DossierFindingViewModel> findings =
-                Editor.MapFindings.TryGetValue(map, out List<DossierFindingViewModel>? f) ? f : [];
-            if (!existing.TryGetValue(map, out DossierMapSectionViewModel? section))
+            List<ScoutingReportFindingViewModel> findings =
+                Editor.MapFindings.TryGetValue(map, out List<ScoutingReportFindingViewModel>? f) ? f : [];
+            if (!existing.TryGetValue(map, out ScoutingReportMapSectionViewModel? section))
             {
-                section = new DossierMapSectionViewModel(map,
+                section = new ScoutingReportMapSectionViewModel(map,
                     _expanded.TryGetValue("map|" + map, out bool open) && open);
                 section.PropertyChanged += OnSectionToggled;
             }
@@ -306,13 +306,13 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
 
         if (!wanted.SequenceEqual(MapSections))
         {
-            foreach (DossierMapSectionViewModel gone in MapSections.Except(wanted))
+            foreach (ScoutingReportMapSectionViewModel gone in MapSections.Except(wanted))
             {
                 gone.PropertyChanged -= OnSectionToggled;
             }
 
             MapSections.Clear();
-            foreach (DossierMapSectionViewModel section in wanted)
+            foreach (ScoutingReportMapSectionViewModel section in wanted)
             {
                 MapSections.Add(section);
             }
@@ -326,10 +326,10 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
 
     private void OnEditorProjected()
     {
-        foreach (DossierMapSectionViewModel section in MapSections)
+        foreach (ScoutingReportMapSectionViewModel section in MapSections)
         {
-            List<DossierFindingViewModel> findings =
-                Editor.MapFindings.TryGetValue(section.Map, out List<DossierFindingViewModel>? f) ? f : [];
+            List<ScoutingReportFindingViewModel> findings =
+                Editor.MapFindings.TryGetValue(section.Map, out List<ScoutingReportFindingViewModel>? f) ? f : [];
             section.SetFindings(findings);
             OpenByDefault(section, findings.Count);
         }
@@ -370,7 +370,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     public SituationalBehaviourSectionViewModel Situational { get; }
 
     /// <summary>The selected team's findings, the long form, the one-pager and the export.</summary>
-    public DossierEditorViewModel Editor { get; }
+    public ScoutingReportEditorViewModel Editor { get; }
 
     /// <summary>The running heatmap build; tests await it.</summary>
     internal Task HeatmapTask { get; private set; } = Task.CompletedTask;
@@ -433,7 +433,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
         }
     }
 
-    partial void OnSelectedTeamChanged(DossierTeamRow? value)
+    partial void OnSelectedTeamChanged(ScoutingReportTeamRow? value)
     {
         NewVetoMap = "";
         using (JobScope.UserAction())
@@ -487,15 +487,15 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
             return;
         }
 
-        List<DossierFindingSource> sources =
+        List<ScoutingReportFindingSource> sources =
         [
-            .. DossierEditorViewModel.FromMapPool(Maps, DeciderLine),
-            .. DossierEditorViewModel.FromHeatmaps(Heatmaps),
-            .. DossierEditorViewModel.FromOpenings(Openings.Blocks),
-            .. DossierEditorViewModel.FromPostPlant(PostPlant.Blocks),
-            .. DossierEditorViewModel.FromSituational(Situational.Blocks),
-            .. DossierEditorViewModel.FromPeriodDiff(PeriodDiffRecent, PeriodDiffPrevious, PeriodDiffNote),
-            .. DossierEditorViewModel.FromVetoes(Vetoes)
+            .. ScoutingReportEditorViewModel.FromMapPool(Maps, DeciderLine),
+            .. ScoutingReportEditorViewModel.FromHeatmaps(Heatmaps),
+            .. ScoutingReportEditorViewModel.FromOpenings(Openings.Blocks),
+            .. ScoutingReportEditorViewModel.FromPostPlant(PostPlant.Blocks),
+            .. ScoutingReportEditorViewModel.FromSituational(Situational.Blocks),
+            .. ScoutingReportEditorViewModel.FromPeriodDiff(PeriodDiffRecent, PeriodDiffPrevious, PeriodDiffNote),
+            .. ScoutingReportEditorViewModel.FromVetoes(Vetoes)
         ];
         Editor.Load(row.Id, row.Name, SampleSizeLine, sources);
         RebuildSections();
@@ -536,7 +536,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
             return;
         }
 
-        List<DossierTeamRow> rows = [.. _teams.Teams.Select(t => new DossierTeamRow(t))];
+        List<ScoutingReportTeamRow> rows = [.. _teams.Teams.Select(t => new ScoutingReportTeamRow(t))];
         if (rows.Count == Teams.Count && rows.Zip(Teams).All(p => p.First.SameAs(p.Second)))
         {
             // Same rows: the selection stays put, and only a change in what the selected team is built from
@@ -551,7 +551,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
 
         Guid? keep = SelectedTeam?.Id;
         Teams.Clear();
-        foreach (DossierTeamRow row in rows)
+        foreach (ScoutingReportTeamRow row in rows)
         {
             Teams.Add(row);
         }
@@ -566,7 +566,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
 
     // The team, its sides with their assignments, and the cache stamps of those demos: everything the
     // projection reads that a Team Identity change can move.
-    private string ProjectionKey(DossierTeamRow row)
+    private string ProjectionKey(ScoutingReportTeamRow row)
     {
         StringBuilder key = new();
         key.Append(JsonSerializer.Serialize(_teams.AllTeams.FirstOrDefault(t => t.Id == row.Id)));
@@ -680,14 +680,14 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     /// <summary>The Review Queue clip for one of a heatmap's rounds: freeze end to the setup window's end plus the tail.</summary>
     /// <param name="heatmap">The heatmap.</param>
     /// <param name="round">One of its rounds.</param>
-    /// <param name="teamId">The dossier's team.</param>
+    /// <param name="teamId">The scouting report's team.</param>
     private static ReviewClip ReviewClipFor(SetupHeatmap heatmap, SetupHeatmapRound round, Guid? teamId = null)
     {
         ArgumentNullException.ThrowIfNull(heatmap);
         ArgumentNullException.ThrowIfNull(round);
         return ReviewClip.Clip(round.DemoPath, round.FreezeEndTick, round.ClipEndTick,
             $"{heatmap.Map} · {SetupHeatmapViewModel.BuyLabelFor(heatmap.Buy)} · round {round.RoundNumber}",
-            ReviewSources.Dossier, round.TickRate, round.Sha256, teamId);
+            ReviewSources.ScoutingReport, round.TickRate, round.Sha256, teamId);
     }
 
     /// <summary>The section line for a finished build.</summary>
@@ -732,7 +732,7 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
         string team = SelectedTeam?.Name ?? "";
         Guid? teamId = SelectedTeam?.Id;
         int added = _review.Add(model.Rounds.Select(r => ReviewClipFor(model, r, teamId)),
-            $"Dossier · {team} · {model.Map} {heatmap.BuyLabel}", Plural(model.Rounds.Count, "CT round"));
+            $"Scouting report · {team} · {model.Map} {heatmap.BuyLabel}", Plural(model.Rounds.Count, "CT round"));
         ReviewLine = added == 0 ? "already in Review" : $"{Plural(added, "round")} sent to Review";
         _selectTab?.Invoke(ReviewQueueModule.TabId);
     }
@@ -888,8 +888,8 @@ public sealed partial class DossierTabViewModel : ExtensionViewModel, IWorkspace
     }
 }
 
-/// <summary>One team in the Dossier's picker.</summary>
-public sealed class DossierTeamRow(Team team)
+/// <summary>One team in the Scouting Report's picker.</summary>
+public sealed class ScoutingReportTeamRow(Team team)
 {
     public Guid Id { get; } = team.Id;
 
@@ -898,7 +898,7 @@ public sealed class DossierTeamRow(Team team)
     public bool IsUs { get; } = team.IsUs;
 
     /// <summary>Whether <paramref name="other" /> shows the same team the same way.</summary>
-    public bool SameAs(DossierTeamRow other) =>
+    public bool SameAs(ScoutingReportTeamRow other) =>
         Id == other.Id && IsUs == other.IsUs && string.Equals(Name, other.Name, StringComparison.Ordinal);
 }
 

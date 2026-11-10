@@ -93,6 +93,18 @@ public class StratBookStoresTests
         }
     }
 
+    [Test]
+    public async Task TheScoutingReportNotes_DeclareBothTheNewAndTheOldFileName()
+    {
+        string[] paths = [.. StratBookStores.All.SelectMany(d => d.Paths)];
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(paths).Contains(ScoutingReportNotesStore.FileName);
+            await Assert.That(paths).Contains(ScoutingReportNotesStore.LegacyFileName);
+        }
+    }
+
     private static int CountFiles(string root) =>
         Directory.Exists(root) ? Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).Count() : 0;
 
@@ -133,9 +145,12 @@ public class StratBookStoresTests
             OpponentTeamId = Guid.NewGuid(), Order = 0, Map = "de_dust2"
         });
 
-        // dossier-notes.json: real API.
-        new DossierNotesStore(StoredFile.At(Path.Combine(configRoot, DossierNotesStore.FileName))).AddNote(
+        // scouting-report-notes.json: real API.
+        new ScoutingReportNotesStore(StoredFile.At(Path.Combine(configRoot, ScoutingReportNotesStore.FileName))).AddNote(
             Guid.NewGuid(), "a note");
+
+        // dossier-notes.json: the notes file's name before the 2026-11 rename, read once.
+        File.WriteAllText(Path.Combine(configRoot, ScoutingReportNotesStore.LegacyFileName), "{}");
 
         // strat-mining.json: the old layout of Strat Mining's user file, copied once into the extension's folder.
         File.WriteAllText(Path.Combine(configRoot, "strat-mining.json"), "{}");

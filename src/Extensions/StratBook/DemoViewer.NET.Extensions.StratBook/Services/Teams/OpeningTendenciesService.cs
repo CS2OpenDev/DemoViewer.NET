@@ -28,7 +28,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 ///         steps while two or more teammates are alive. Its time is the first of those steps. The site
 ///         split, the entry and the lurk are the T side's: on CT the opponent picks the site.
 ///     </para>
-///     <para>Stateless apart from its sources and safe off the UI thread: the Dossier builds on a worker.</para>
+///     <para>Stateless apart from its sources and safe off the UI thread: the Scouting Report builds on a worker.</para>
 /// </summary>
 public sealed class OpeningTendenciesService
 {

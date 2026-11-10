@@ -8,17 +8,17 @@ using SkiaSharp;
 
 #endregion
 
-namespace DemoViewer.NET.Extensions.StratBook.Modules.Dossier;
+namespace DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 
 /// <summary>
 ///     Draws one Setup Heatmap: the map's radar with the Overlay View's heatmap layer over it, fed an
-///     <see cref="OverlayDocument" /> the Dossier filled from the positions files (the Overlay View
+///     <see cref="OverlayDocument" /> the Scouting Report filled from the positions files (the Overlay View
 ///     follow-up: reuse the document and the layer rather than a second heat renderer). Drawn through
 ///     <see cref="MapAssets.RenderPng" />, the path a Result Card thumbnail takes, so no demo opens and
 ///     the wash is the one the Situations canvas shows.
 ///     <para>
 ///         One instance serves one build: one hold per map is taken and given back at
-///         <see cref="Dispose" />. Not thread-safe; the Dossier drives it from one worker.
+///         <see cref="Dispose" />. Not thread-safe; the Scouting Report drives it from one worker.
 ///     </para>
 /// </summary>
 public sealed class SetupHeatmapRenderer : IDisposable

@@ -1,10 +1,10 @@
 #region
 
 using DemoViewer.NET.Configuration;
-using DemoViewer.NET.Extensions.StratBook.Modules.Dossier;
+using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Features;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Services.DemoCache;
@@ -15,12 +15,12 @@ using TUnit.Assertions.Enums;
 namespace DemoViewer.NET.AppTests;
 
 /// <summary>
-///     The Opponent Dossier module's persisted ids, its feature-catalog row (on by default, every
+///     The Scouting Report module's persisted ids, its feature-catalog row (on by default, every
 ///     category), the Map Pool Record service's per-map aggregation and decider inference, the tab VM's
 ///     projection and sample-size lines, and the veto history store beside it.
 /// </summary>
 [NotInParallel]
-public class DossierModuleTests
+public class ScoutingReportModuleTests
 {
     private static readonly Func<Action, Task> _inline = a =>
     {
@@ -96,16 +96,17 @@ public class DossierModuleTests
     }
 
     [Test]
-    public async Task TheModule_ContributesTheDossierSection_UnderThePersistedIds()
+    public async Task TheModule_ContributesTheScoutingReportSection_UnderThePersistedIds()
     {
-        DossierModule module = new(() => throw new InvalidOperationException("never built here"));
+        ScoutingReportModule module = new(() => throw new InvalidOperationException("never built here"));
         WorkspaceTabDescriptor tab = module.CreateTabs(null!).Single();
 
         using (Assert.Multiple())
         {
-            await Assert.That(module.Id).IsEqualTo("net.demoviewer.dossier");
-            await Assert.That(tab.TabId).IsEqualTo("dossier.browser");
-            await Assert.That(tab.Header).IsEqualTo("Dossier");
+            await Assert.That(module.Id).IsEqualTo("net.demoviewer.scouting-report");
+            await Assert.That(tab.TabId).IsEqualTo("scouting-report.browser");
+            await Assert.That(tab.Header).IsEqualTo("Scouting Report");
+            await Assert.That(tab.PreviousTabIds).IsEquivalentTo(["dossier.browser"]);
             await Assert.That(tab.HostId).IsEqualTo(HostIds.StratBookHub);
             await Assert.That(tab.Order).IsEqualTo(5).Because("last on the rail, after Review");
             await Assert.That(tab.ViewModelFactory is not null).IsTrue()
@@ -117,7 +118,7 @@ public class DossierModuleTests
     [Test]
     public async Task TheFeatureId_IsATab_OnByDefault_ForEveryCategory()
     {
-        FeatureDescriptor? feature = FeatureCatalog.ById("tab.dossier");
+        FeatureDescriptor? feature = FeatureCatalog.ById("tab.scouting-report");
 
         using (Assert.Multiple())
         {
@@ -131,7 +132,7 @@ public class DossierModuleTests
                 await Assert.That(feature.Defaults[category]).IsTrue().Because($"{category} sees the tab by default");
             }
 
-            await Assert.That(ShellModuleFeatureGate.DesktopOnlyIds).DoesNotContain("tab.dossier")
+            await Assert.That(ShellModuleFeatureGate.DesktopOnlyIds).DoesNotContain("tab.scouting-report")
                 .Because("the tab renders on the browser and says teams are session only");
         }
     }
@@ -171,7 +172,7 @@ public class DossierModuleTests
     public async Task AReactivation_KeepsTheProjection_ANewDemoOfTheTeamRebuildsIt_AndAHiddenTabWaits()
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
-        using DossierTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false);
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false);
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
         MapPoolRowViewModel first = vm.Maps[0];
         vm.OnActivated(null!);
@@ -196,10 +197,10 @@ public class DossierModuleTests
     public async Task EachMap_GetsASection_WithItsRecordLineAndFindings_AndTheTeamWideLinesStayInTheGeneralSections()
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
-        using DossierTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false,
-            notes: new DossierNotesStore(null));
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false,
+            notes: new ScoutingReportNotesStore(null));
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
-        DossierMapSectionViewModel nuke = vm.MapSections.Single(m => m.Map == "de_nuke");
+        ScoutingReportMapSectionViewModel nuke = vm.MapSections.Single(m => m.Map == "de_nuke");
         using (Assert.Multiple())
         {
             await Assert.That(vm.MapSections.Select(m => m.Map))
@@ -219,16 +220,16 @@ public class DossierModuleTests
     public async Task DismissRestoreAndTheSettledToggle_WorkOnAFindingInsideAMapSection()
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
-        using DossierTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false,
-            notes: new DossierNotesStore(null));
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false,
+            notes: new ScoutingReportNotesStore(null));
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
-        DossierMapSectionViewModel nuke = vm.MapSections.Single(m => m.Map == "de_nuke");
-        DossierFindingViewModel line = nuke.Findings.Single(f => f.Key == "map|de_nuke");
+        ScoutingReportMapSectionViewModel nuke = vm.MapSections.Single(m => m.Map == "de_nuke");
+        ScoutingReportFindingViewModel line = nuke.Findings.Single(f => f.Key == "map|de_nuke");
 
         vm.Editor.RemoveCommand.Execute(line);
         bool goneAfterDismiss = nuke.ShownFindings.All(f => f.Key != line.Key);
         vm.Editor.ShowSettled = true;
-        DossierFindingViewModel? settled = nuke.ShownFindings.SingleOrDefault(f => f.Key == line.Key);
+        ScoutingReportFindingViewModel? settled = nuke.ShownFindings.SingleOrDefault(f => f.Key == line.Key);
         string label = settled?.RemoveLabel ?? "";
         vm.Editor.RemoveCommand.Execute(settled);
         vm.Editor.ShowSettled = false;
@@ -246,9 +247,9 @@ public class DossierModuleTests
     public async Task CollapseAll_ClosesEverySection_AndAClosedMapSectionBuildsNothing_UntilItIsOpened()
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
-        using DossierTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false);
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false);
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
-        DossierMapSectionViewModel nuke = vm.MapSections.Single(m => m.Map == "de_nuke");
+        ScoutingReportMapSectionViewModel nuke = vm.MapSections.Single(m => m.Map == "de_nuke");
         bool openAtStart = nuke.IsExpanded; // few findings: opens by default
 
         vm.CollapseAllCommand.Execute(null);
@@ -276,7 +277,7 @@ public class DossierModuleTests
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
         using GrenadeIndex grenades = new(cache.Library());
-        using DossierTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false,
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false,
             grenades: grenades);
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
         MapPoolRowViewModel before = vm.Maps[0];
@@ -297,7 +298,7 @@ public class DossierModuleTests
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, Guid teamB) = await Library();
         VetoHistoryStore vetoes = new(null);
-        using DossierTabViewModel vm = new(teams, cache.Library(), vetoes, isBrowser: false);
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), vetoes, isBrowser: false);
 
         using (Assert.Multiple())
         {
@@ -352,7 +353,7 @@ public class DossierModuleTests
         TeamIdentityService teams = new(null, cache.Library(), run: _inline);
         await teams.StartAsync();
         VetoHistoryStore vetoes = new(null);
-        using DossierTabViewModel vm = new(teams, cache.Library(), vetoes);
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), vetoes);
 
         using (Assert.Multiple())
         {

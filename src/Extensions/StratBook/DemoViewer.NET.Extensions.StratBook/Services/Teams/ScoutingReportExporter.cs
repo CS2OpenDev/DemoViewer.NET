@@ -6,8 +6,8 @@ using System.Text;
 
 namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
-/// <summary>Which of a Dossier's two forms an export prints.</summary>
-public enum DossierForm
+/// <summary>Which of a Scouting Report's two forms an export prints.</summary>
+public enum ScoutingReportForm
 {
     /// <summary>The one-pager: the summary and the starred findings. The default export.</summary>
     OnePager,
@@ -17,7 +17,7 @@ public enum DossierForm
 }
 
 /// <summary>The file an export writes.</summary>
-public enum DossierFormat
+public enum ScoutingReportFormat
 {
     /// <summary>Self-contained HTML with a print stylesheet, the LAN Print route.</summary>
     Html,
@@ -27,11 +27,11 @@ public enum DossierFormat
 }
 
 /// <summary>
-///     One line of a Dossier as it will print: its key, the section it sits under, the text (the user's
+///     One line of a Scouting Report as it will print: its key, the section it sits under, the text (the user's
 ///     rewrite when there is one), and whether it is on the one-pager. A Setup Heatmap's line carries its
 ///     rendered picture, which the HTML form embeds.
 /// </summary>
-public sealed class DossierFinding
+public sealed class ScoutingReportFinding
 {
     public string Key { get; init; } = "";
 
@@ -45,8 +45,8 @@ public sealed class DossierFinding
     public byte[]? ImagePng { get; init; }
 }
 
-/// <summary>A Dossier ready to export: the team, its sample size, the summary and the lines not left out, in order.</summary>
-public sealed class DossierDocument
+/// <summary>A Scouting Report ready to export: the team, its sample size, the summary and the lines not left out, in order.</summary>
+public sealed class ScoutingReportDocument
 {
     public string TeamName { get; init; } = "";
 
@@ -55,13 +55,13 @@ public sealed class DossierDocument
 
     public string Summary { get; init; } = "";
 
-    public IReadOnlyList<DossierFinding> Findings { get; init; } = [];
+    public IReadOnlyList<ScoutingReportFinding> Findings { get; init; } = [];
 }
 
 /// <summary>
-///     The Dossier's export: the short form (the one-pager of
+///     The Scouting Report's export: the short form (the one-pager of
 ///     starred findings, the default) and the long form (the working document), each as self-contained
-///     HTML like LAN Print or as Markdown. Pure string builders over <see cref="DossierDocument" />; the
+///     HTML like LAN Print or as Markdown. Pure string builders over <see cref="ScoutingReportDocument" />; the
 ///     writer below is the only part that touches disk.
 ///     <para>
 ///         <b>No verdicts.</b> The export prints what the demos counted and what the user wrote, nothing
@@ -69,26 +69,26 @@ public sealed class DossierDocument
 ///         sample, so the export adds no line of its own beyond the heading, the sample and the summary.
 ///     </para>
 /// </summary>
-public static class DossierExporter
+public static class ScoutingReportExporter
 {
     /// <summary>The short form's line when nothing is starred.</summary>
     public const string NothingStarredLine =
         "nothing starred yet: star findings in the long form to build the one-pager";
 
-    /// <summary>The document's title for a form: "Falcons one-pager" or "Falcons dossier".</summary>
+    /// <summary>The document's title for a form: "Falcons one-pager" or "Falcons scouting report".</summary>
     /// <param name="doc">The document.</param>
     /// <param name="form">The form.</param>
-    private static string Title(DossierDocument doc, DossierForm form)
+    private static string Title(ScoutingReportDocument doc, ScoutingReportForm form)
     {
         ArgumentNullException.ThrowIfNull(doc);
         string team = doc.TeamName.Length == 0 ? "Opponent" : doc.TeamName;
-        return form == DossierForm.OnePager ? $"{team} one-pager" : $"{team} dossier";
+        return form == ScoutingReportForm.OnePager ? $"{team} one-pager" : $"{team} scouting report";
     }
 
     /// <summary>The document as Markdown.</summary>
     /// <param name="doc">The document.</param>
     /// <param name="form">The form; the short form is the default export.</param>
-    public static string Markdown(DossierDocument doc, DossierForm form = DossierForm.OnePager)
+    public static string Markdown(ScoutingReportDocument doc, ScoutingReportForm form = ScoutingReportForm.OnePager)
     {
         ArgumentNullException.ThrowIfNull(doc);
         StringBuilder md = new();
@@ -103,20 +103,20 @@ public static class DossierExporter
             md.Append(doc.Summary).Append("\n\n");
         }
 
-        List<IGrouping<string, DossierFinding>> sections = Sections(doc, form);
-        if (form == DossierForm.OnePager && sections.Count == 0)
+        List<IGrouping<string, ScoutingReportFinding>> sections = Sections(doc, form);
+        if (form == ScoutingReportForm.OnePager && sections.Count == 0)
         {
             md.Append('_').Append(NothingStarredLine).Append("_\n");
             return md.ToString();
         }
 
-        foreach (IGrouping<string, DossierFinding> section in sections)
+        foreach (IGrouping<string, ScoutingReportFinding> section in sections)
         {
             md.Append("## ").Append(section.Key).Append("\n\n");
-            foreach (DossierFinding finding in section)
+            foreach (ScoutingReportFinding finding in section)
             {
                 md.Append("- ");
-                if (form == DossierForm.LongForm && finding.IsStarred)
+                if (form == ScoutingReportForm.LongForm && finding.IsStarred)
                 {
                     md.Append("★ ");
                 }
@@ -136,7 +136,7 @@ public static class DossierExporter
     /// </summary>
     /// <param name="doc">The document.</param>
     /// <param name="form">The form; the short form is the default export.</param>
-    public static string Html(DossierDocument doc, DossierForm form = DossierForm.OnePager)
+    public static string Html(ScoutingReportDocument doc, ScoutingReportForm form = ScoutingReportForm.OnePager)
     {
         ArgumentNullException.ThrowIfNull(doc);
         string title = Title(doc, form);
@@ -159,18 +159,18 @@ public static class DossierExporter
             }
         }
 
-        List<IGrouping<string, DossierFinding>> sections = Sections(doc, form);
-        if (form == DossierForm.OnePager && sections.Count == 0)
+        List<IGrouping<string, ScoutingReportFinding>> sections = Sections(doc, form);
+        if (form == ScoutingReportForm.OnePager && sections.Count == 0)
         {
             html.Append("<p class=\"empty\">").Append(Escape(NothingStarredLine)).Append("</p>\n");
         }
 
-        foreach (IGrouping<string, DossierFinding> section in sections)
+        foreach (IGrouping<string, ScoutingReportFinding> section in sections)
         {
             html.Append("<section>\n<h2>").Append(Escape(section.Key)).Append("</h2>\n<ul>\n");
-            foreach (DossierFinding finding in section)
+            foreach (ScoutingReportFinding finding in section)
             {
-                html.Append("<li").Append(form == DossierForm.LongForm && finding.IsStarred ? " class=\"starred\"" : "")
+                html.Append("<li").Append(form == ScoutingReportForm.LongForm && finding.IsStarred ? " class=\"starred\"" : "")
                     .Append('>')
                     .Append(Escape(finding.Text));
                 if (finding.ImagePng is { Length: > 0 } png)
@@ -191,10 +191,10 @@ public static class DossierExporter
     }
 
     // The sections in first-appearance order; the short form keeps only starred lines and drops empty sections.
-    private static List<IGrouping<string, DossierFinding>> Sections(DossierDocument doc, DossierForm form) =>
+    private static List<IGrouping<string, ScoutingReportFinding>> Sections(ScoutingReportDocument doc, ScoutingReportForm form) =>
     [
         .. doc.Findings
-            .Where(f => form == DossierForm.LongForm || f.IsStarred)
+            .Where(f => form == ScoutingReportForm.LongForm || f.IsStarred)
             .GroupBy(f => f.Section, StringComparer.Ordinal)
     ];
 
@@ -227,7 +227,7 @@ public static class DossierExporter
 ///     Writing an export to a fresh file under the temp directory and handing it to the OS, the LAN Print
 ///     route: an exported page is for a coach to read, print or email, and the browser prints it.
 /// </summary>
-public static class DossierExportWriter
+public static class ScoutingReportExportWriter
 {
     /// <summary>Writes the text to a fresh temp file and returns its path.</summary>
     /// <param name="text">The export.</param>

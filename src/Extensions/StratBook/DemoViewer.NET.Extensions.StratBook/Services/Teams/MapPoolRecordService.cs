@@ -3,7 +3,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 /// <summary>
 ///     Builds a <see cref="MapPoolRecord" /> for one team over <see cref="TeamIdentityService.SidesOf" />
 ///    : the demo-derivable substitute for the veto model.
-///     Stateless: the Dossier tab calls <see cref="Build" /> on selection and on every
+///     Stateless: the Scouting Report tab calls <see cref="Build" /> on selection and on every
 ///     <see cref="TeamIdentityService.Changed" />, the way the Teams tab re-projects its own selection.
 /// </summary>
 public static class MapPoolRecordService

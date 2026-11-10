@@ -1,11 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier"
-             x:Class="DemoViewer.NET.Extensions.StratBook.Views.Dossier.DossierTabView"
-             x:DataType="vm:DossierTabViewModel">
+             xmlns:vm="using:DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport"
+             x:Class="DemoViewer.NET.Extensions.StratBook.Views.ScoutingReport.ScoutingReportTabView"
+             x:DataType="vm:ScoutingReportTabViewModel">
 
     <!--
-      THE OPPONENT DOSSIER: a team picker over Team Identity and, today, the Map Pool Record, the
+      THE SCOUTING REPORT: a team picker over Team Identity and, today, the Map Pool Record, the
       demo-derivable substitute for the veto model. Left: the team list. Right: the
       selected team's sample size, its per-map record and side split, the decider record where a
       best-of series is inferable, the Setup Heatmaps By Buy (their CT positions per map and buy, fixed
@@ -20,7 +20,7 @@
       side split and dominant roster per period, a picker for N, and the note when a roster boundary
       sits between the two), and the veto history the user enters by hand.
 
-      Dossier Editing And Export: the export bar at the top writes the one-pager (the starred findings,
+      Scouting Report Editing And Export: the export bar at the top writes the one-pager (the starred findings,
       the default) or the long form, as self-contained HTML or Markdown; the long form at the bottom is
       the working document, every section's numbers as findings to star, rewrite, leave out or add to.
       No rating, no grade, no win probability anywhere.
@@ -33,7 +33,7 @@
         <DataTemplate x:Key="PostPlantChip" x:DataType="vm:TendencyLinkViewModel">
             <Button Classes="ghost" FontSize="11" Padding="6 2" Margin="0 0 4 4"
                     ToolTip.Tip="{Binding ToolTip}"
-                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).PostPlant.OpenCommand, FallbackValue={x:Null}}"
+                    Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).PostPlant.OpenCommand, FallbackValue={x:Null}}"
                     CommandParameter="{Binding}">
                 <StackPanel Orientation="Horizontal" Spacing="4">
                     <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextMid}" />
@@ -49,7 +49,7 @@
         <DataTemplate x:Key="SituationalChip" x:DataType="vm:TendencyLinkViewModel">
             <Button Classes="ghost" FontSize="11" Padding="6 2" Margin="0 0 4 4"
                     ToolTip.Tip="{Binding ToolTip}"
-                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
+                    Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                     CommandParameter="{Binding}">
                 <StackPanel Orientation="Horizontal" Spacing="4">
                     <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextMid}" />
@@ -93,7 +93,7 @@
                     <TextBlock Text="{Binding RotatingLabel}" FontSize="11" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMid}" />
                     <Button Content="{Binding OpenLabel}" Classes="ghost" FontSize="11" Padding="10 5"
-                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).OpenRoundsCommand, FallbackValue={x:Null}}"
+                            Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).OpenRoundsCommand, FallbackValue={x:Null}}"
                             CommandParameter="{Binding}" />
                 </StackPanel>
             </Border>
@@ -109,7 +109,7 @@
                                    Foreground="{DynamicResource TextCardHeader}" />
                         <Button Classes="ghost" FontSize="11" Padding="6 2"
                                 Content="{Binding RoundsLink.ToolTip}"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
+                                Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding RoundsLink}" />
                     </StackPanel>
                     <TextBlock Text="{Binding UtilityNote}" FontSize="11" Foreground="{DynamicResource TextMid}" />
@@ -124,7 +124,7 @@
                             <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                 <Button Classes="ghost" Padding="2" Margin="0 0 2 0" MinWidth="44"
                                         IsEnabled="{Binding CanOpen}" ToolTip.Tip="{Binding ToolTip}"
-                                        Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
+                                        Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}">
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="{Binding CountText}" FontSize="10"
@@ -151,7 +151,7 @@
                             <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                 <Button Classes="ghost" FontSize="11" Padding="6 2" Margin="0 0 4 4"
                                         ToolTip.Tip="{Binding ToolTip}"
-                                        Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
+                                        Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                         <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextMid}" />
@@ -173,7 +173,7 @@
                             <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                 <Button Classes="ghost" Padding="2" Margin="0 0 2 0" MinWidth="44"
                                         IsEnabled="{Binding CanOpen}" ToolTip.Tip="{Binding ToolTip}"
-                                        Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
+                                        Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                         CommandParameter="{Binding}">
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="{Binding CountText}" FontSize="10"
@@ -202,7 +202,7 @@
                                 <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                     <Button Classes="ghost" FontSize="11" Padding="6 2" Margin="0 0 4 4"
                                             ToolTip.Tip="{Binding ToolTip}"
-                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
+                                            Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextMid}" />
@@ -224,7 +224,7 @@
                                 <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                     <Button Classes="ghost" FontSize="11" Padding="6 2" Margin="0 0 4 4"
                                             ToolTip.Tip="{Binding ToolTip}"
-                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
+                                            Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextMid}" />
@@ -247,7 +247,7 @@
                                 <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                     <Button Classes="ghost" Padding="2" Margin="0 0 2 0" MinWidth="44"
                                             IsEnabled="{Binding CanOpen}" ToolTip.Tip="{Binding ToolTip}"
-                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
+                                            Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="{Binding CountText}" FontSize="10"
@@ -276,7 +276,7 @@
                                 <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                     <Button Classes="ghost" FontSize="11" Padding="6 2" Margin="0 0 4 4"
                                             ToolTip.Tip="{Binding ToolTip}"
-                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
+                                            Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Openings.OpenCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextMid}" />
@@ -305,13 +305,13 @@
                         <Button Classes="ghost" FontSize="11" Padding="6 2"
                                 Content="{Binding PlantedLink.CountText}" ToolTip.Tip="{Binding PlantedLink.ToolTip}"
                                 IsEnabled="{Binding PlantedLink.CanOpen}"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).PostPlant.OpenCommand, FallbackValue={x:Null}}"
+                                Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).PostPlant.OpenCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding PlantedLink}" />
                         <TextBlock Text="of" FontSize="11" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextMid}" />
                         <Button Classes="ghost" FontSize="11" Padding="6 2"
                                 Content="{Binding RoundsLink.ToolTip}"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).PostPlant.OpenCommand, FallbackValue={x:Null}}"
+                                Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).PostPlant.OpenCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding RoundsLink}" />
                     </StackPanel>
                     <StackPanel Spacing="6" IsVisible="{Binding HasPlants}">
@@ -359,7 +359,7 @@
                                    Foreground="{DynamicResource TextCardHeader}" />
                         <Button Classes="ghost" FontSize="11" Padding="6 2"
                                 Content="{Binding RoundsLink.ToolTip}"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
+                                Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding RoundsLink}" />
                     </StackPanel>
 
@@ -368,7 +368,7 @@
                             <TextBlock Text="pistols" FontSize="11" Foreground="{DynamicResource TextMid}" />
                             <Button Classes="ghost" FontSize="11" Padding="6 2"
                                     Content="{Binding PistolLink.CountText}" ToolTip.Tip="{Binding PistolLink.ToolTip}"
-                                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
+                                    Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding PistolLink}" />
                         </StackPanel>
                         <ItemsControl ItemsSource="{Binding PistolOutcomes}"
@@ -386,7 +386,7 @@
                             <Button Classes="ghost" FontSize="11" Padding="6 2"
                                     Content="{Binding AntiEcoLink.CountText}"
                                     ToolTip.Tip="{Binding AntiEcoLink.ToolTip}"
-                                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
+                                    Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding AntiEcoLink}" />
                         </StackPanel>
                         <ItemsControl ItemsSource="{Binding AntiEcoBuyTypes}"
@@ -408,7 +408,7 @@
                                 <DataTemplate x:DataType="vm:TendencyLinkViewModel">
                                     <Button Classes="ghost" Padding="2" Margin="0 0 2 0" MinWidth="44"
                                             IsEnabled="{Binding CanOpen}" ToolTip.Tip="{Binding ToolTip}"
-                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
+                                            Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="{Binding CountText}" FontSize="10"
@@ -435,7 +435,7 @@
                             <Button Classes="ghost" FontSize="11" Padding="6 2"
                                     Content="{Binding ManAdvantageLink.CountText}"
                                     ToolTip.Tip="{Binding ManAdvantageLink.ToolTip}"
-                                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
+                                    Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding ManAdvantageLink}" />
                         </StackPanel>
                         <ItemsControl ItemsSource="{Binding ManAdvantage}"
@@ -454,7 +454,7 @@
                             <Button Classes="ghost" FontSize="11" Padding="6 2"
                                     Content="{Binding RoundsLostLink.CountText}"
                                     ToolTip.Tip="{Binding RoundsLostLink.ToolTip}"
-                                    Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
+                                    Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Situational.OpenCommand, FallbackValue={x:Null}}"
                                     CommandParameter="{Binding RoundsLostLink}" />
                             <TextBlock Text="losses" FontSize="11" Foreground="{DynamicResource TextMid}" />
                         </StackPanel>
@@ -465,14 +465,14 @@
                 </StackPanel>
             </Border>
         </DataTemplate>
-        <DataTemplate x:Key="FindingRow" x:DataType="vm:DossierFindingViewModel">
+        <DataTemplate x:Key="FindingRow" x:DataType="vm:ScoutingReportFindingViewModel">
             <StackPanel Spacing="2" Margin="0 0 0 2">
                 <TextBlock Text="{Binding Section}" FontSize="11" Margin="0 6 0 2"
                            Foreground="{DynamicResource TextCardHeader}" IsVisible="{Binding ShowsSectionHeader}" />
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
                     <Button Grid.Column="0" Content="{Binding StarGlyph}" Classes="ghost" FontSize="12" Padding="4 1"
                             ToolTip.Tip="{Binding StarToolTip}" VerticalAlignment="Top"
-                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Editor.ToggleStarCommand, FallbackValue={x:Null}}"
+                            Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Editor.ToggleStarCommand, FallbackValue={x:Null}}"
                             CommandParameter="{Binding}" />
                     <TextBlock Grid.Column="1" Text="{Binding Text}" FontSize="11" TextWrapping="Wrap"
                                VerticalAlignment="Center" Foreground="{DynamicResource TextValue}"
@@ -489,17 +489,17 @@
                                 Command="{Binding BeginEditCommand}" />
                         <Button Content="Save" Classes="ghost" FontSize="10" Padding="8 3"
                                 IsVisible="{Binding IsEditing}"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Editor.CommitEditCommand, FallbackValue={x:Null}}"
+                                Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Editor.CommitEditCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding}" />
                         <Button Content="Cancel" Classes="ghost" FontSize="10" Padding="8 3"
                                 IsVisible="{Binding IsEditing}"
                                 Command="{Binding CancelEditCommand}" />
                         <Button Content="Reset" Classes="ghost" FontSize="10" Padding="8 3"
                                 IsVisible="{Binding IsEdited}"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Editor.ResetEditCommand, FallbackValue={x:Null}}"
+                                Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Editor.ResetEditCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding}" />
                         <Button Content="{Binding RemoveLabel}" Classes="ghost" FontSize="10" Padding="8 3"
-                                Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).Editor.RemoveCommand, FallbackValue={x:Null}}"
+                                Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).Editor.RemoveCommand, FallbackValue={x:Null}}"
                                 CommandParameter="{Binding}" />
                     </StackPanel>
                 </Grid>
@@ -528,7 +528,7 @@
                 <ListBox ItemsSource="{Binding Teams}" SelectedItem="{Binding SelectedTeam}"
                          IsVisible="{Binding HasTeams}" Background="Transparent">
                     <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="vm:DossierTeamRow">
+                        <DataTemplate x:DataType="vm:ScoutingReportTeamRow">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="{Binding Name}" FontSize="12" Foreground="{DynamicResource TextValue}" />
                                 <TextBlock Text="us" FontSize="10" IsVisible="{Binding IsUs}"
@@ -540,7 +540,7 @@
             </DockPanel>
         </Border>
 
-        <!-- The selected team's Dossier. -->
+        <!-- The selected team's Scouting Report. -->
         <Border Grid.Column="2"
                 Background="{DynamicResource CardBg}"
                 BorderBrush="{DynamicResource BorderSubtle}"
@@ -556,11 +556,11 @@
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Button Content="{Binding ExportLabel}" Classes="primary" FontSize="11" Padding="10 5"
                                         Command="{Binding ExportCommand}" IsVisible="{Binding !IsBrowser}" />
-                                <ComboBox FontSize="11" ItemsSource="{x:Static vm:DossierEditorViewModel.FormOptions}"
+                                <ComboBox FontSize="11" ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormOptions}"
                                           SelectedItem="{Binding SelectedFormOption}"
                                           ToolTip.Tip="one-pager: the starred findings. long form: every finding not dismissed." />
                                 <ComboBox FontSize="11"
-                                          ItemsSource="{x:Static vm:DossierEditorViewModel.FormatOptions}"
+                                          ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormatOptions}"
                                           SelectedItem="{Binding SelectedFormatOption}"
                                           IsVisible="{Binding !IsBrowser}" />
                                 <Button Content="Copy markdown" Classes="ghost" FontSize="11" Padding="10 5"
@@ -639,7 +639,7 @@
                              A closed section hands its lists out empty, so none of its rows are built. -->
                         <ItemsControl ItemsSource="{Binding MapSections}">
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:DossierMapSectionViewModel">
+                                <DataTemplate x:DataType="vm:ScoutingReportMapSectionViewModel">
                                     <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0"
                                             Padding="0 10 0 0" Margin="0 4 0 0">
                                         <StackPanel Spacing="8">
@@ -714,7 +714,7 @@
                                         <TextBlock Text="demos per period" FontSize="11" VerticalAlignment="Center"
                                                    Foreground="{DynamicResource TextMid}" />
                                         <ComboBox FontSize="11"
-                                                  ItemsSource="{x:Static vm:DossierTabViewModel.WindowSizeOptions}"
+                                                  ItemsSource="{x:Static vm:ScoutingReportTabViewModel.WindowSizeOptions}"
                                                   SelectedItem="{Binding WindowSize}" />
                                     </StackPanel>
                                     <TextBlock Text="{Binding PeriodDiffNote}" FontSize="12" TextWrapping="Wrap"
@@ -814,7 +814,7 @@
                                                                TextTrimming="CharacterEllipsis" />
                                                     <Button Grid.Column="5" Content="Remove" Classes="ghost"
                                                             FontSize="10" Padding="8 3"
-                                                            Command="{Binding $parent[UserControl].((vm:DossierTabViewModel)DataContext).RemoveVetoCommand, FallbackValue={x:Null}}"
+                                                            Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).RemoveVetoCommand, FallbackValue={x:Null}}"
                                                             CommandParameter="{Binding}" />
                                                 </Grid>
                                             </DataTemplate>
@@ -824,7 +824,7 @@
                                         <TextBox Grid.Column="0" Text="{Binding NewVetoMap}" FontSize="12"
                                                  PlaceholderText="map" />
                                         <ComboBox Grid.Column="1" FontSize="12"
-                                                  ItemsSource="{x:Static vm:DossierTabViewModel.VetoActionOptions}"
+                                                  ItemsSource="{x:Static vm:ScoutingReportTabViewModel.VetoActionOptions}"
                                                   SelectedItem="{Binding NewVetoAction}" />
                                         <CheckBox Grid.Column="2" Content="by them"
                                                   IsChecked="{Binding NewVetoByOpponent}" FontSize="11"

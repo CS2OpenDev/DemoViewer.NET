@@ -33,7 +33,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 ///     <para>
 ///         A demo with no current positions file is counted, not read as rounds with no hold or no
 ///         retake; its rounds still count toward the man count and the outcomes. Stateless apart from its
-///         sources and safe off the UI thread: the Dossier builds on a worker.
+///         sources and safe off the UI thread: the Scouting Report builds on a worker.
 ///     </para>
 /// </summary>
 public sealed class PostPlantService

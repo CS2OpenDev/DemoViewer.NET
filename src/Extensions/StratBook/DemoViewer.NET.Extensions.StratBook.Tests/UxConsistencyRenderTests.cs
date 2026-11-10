@@ -92,22 +92,22 @@ public class UxConsistencyRenderTests
     }
 
     [Test]
-    public async Task TheDossier_ShowsASectionPerMap_WithCounts_AndTheTeamWideSections()
+    public async Task TheScoutingReport_ShowsASectionPerMap_WithCounts_AndTheTeamWideSections()
     {
         List<string> headers = [];
         bool mapClosedHidesItsRows = false;
         await HeadlessSession.RunOnUi(async () =>
         {
             (DemoCacheStore cache, TeamIdentityService teams) = await TwoTeams();
-            using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel vm = new(teams,
+            using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTabViewModel vm = new(teams,
                 cache.Library(), new VetoHistoryStore(null), isBrowser: false,
-                notes: new DossierNotesStore(null));
+                notes: new ScoutingReportNotesStore(null));
             vm.SelectedTeam = vm.Teams[0];
             Window window = new()
             {
                 Width = 1280,
                 Height = 900,
-                Content = new DemoViewer.NET.Extensions.StratBook.Views.Dossier.DossierTabView { DataContext = vm }
+                Content = new DemoViewer.NET.Extensions.StratBook.Views.ScoutingReport.ScoutingReportTabView { DataContext = vm }
             };
             window.Show();
             Settle();
@@ -117,12 +117,12 @@ public class UxConsistencyRenderTests
                 Console.WriteLine($"[ux-render] section: {header}");
             }
 
-            Save(window, "ux-dossier-sections.png");
-            DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierMapSectionViewModel first = vm.MapSections[0];
+            Save(window, "ux-scouting-report-sections.png");
+            DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportMapSectionViewModel first = vm.MapSections[0];
             first.ToggleCommand.Execute(null);
             Settle();
             mapClosedHidesItsRows = !Shows(window, first.Findings[0].Text);
-            Save(window, "ux-dossier-section-closed.png");
+            Save(window, "ux-scouting-report-section-closed.png");
             window.Close();
         });
 
@@ -145,9 +145,9 @@ public class UxConsistencyRenderTests
         await HeadlessSession.RunOnUi(async () =>
         {
             (DemoCacheStore cache, TeamIdentityService teams) = await TwoTeams();
-            using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel vm = new(teams,
+            using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTabViewModel vm = new(teams,
                 cache.Library(), new VetoHistoryStore(null), isBrowser: false,
-                notes: new DossierNotesStore(null));
+                notes: new ScoutingReportNotesStore(null));
             vm.SelectedTeam = vm.Teams[0];
             for (int i = 0; i < 200; i++)
             {
@@ -160,11 +160,11 @@ public class UxConsistencyRenderTests
             {
                 Width = 1280,
                 Height = 800,
-                Content = new DemoViewer.NET.Extensions.StratBook.Views.Dossier.DossierTabView { DataContext = vm }
+                Content = new DemoViewer.NET.Extensions.StratBook.Views.ScoutingReport.ScoutingReportTabView { DataContext = vm }
             };
             window.Show();
             Settle();
-            DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierFindingViewModel row =
+            DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportFindingViewModel row =
                 vm.Editor.GeneralFindings[0];
             row.BeginEditCommand.Execute(null);
             Settle();
@@ -188,7 +188,7 @@ public class UxConsistencyRenderTests
             Settle();
             focusedAfter = Editing()?.IsFocused == true;
             text = row.EditText;
-            Save(window, "ux-dossier-inline-edit.png");
+            Save(window, "ux-scouting-report-inline-edit.png");
             window.Close();
         });
 

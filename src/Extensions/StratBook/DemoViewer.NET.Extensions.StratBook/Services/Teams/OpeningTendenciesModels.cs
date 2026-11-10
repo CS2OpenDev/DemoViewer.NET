@@ -19,7 +19,7 @@ public sealed class OpeningTendenciesSet
 }
 
 /// <summary>
-///     The team's openings on one map and side. Every number the Dossier prints is a
+///     The team's openings on one map and side. Every number the Scouting Report prints is a
 ///     <see cref="TendencyBucket" />, so every number opens the rounds behind it. The site split, the
 ///     entry player by site and the lurk numbers are the T side's; a CT block leaves them empty.
 /// </summary>
@@ -61,7 +61,7 @@ public sealed class OpeningTendencies
     public int LurkRounds { get; init; }
 }
 
-/// <summary>A number in the Dossier and the rounds behind it; <see cref="Count" /> is the number.</summary>
+/// <summary>A number in the Scouting Report and the rounds behind it; <see cref="Count" /> is the number.</summary>
 /// <param name="Label">What the number counts: "10-15 s", "smoke at TopMid", "A", "p5 at B".</param>
 /// <param name="Rounds">The rounds, each clipped around the moment it was counted for.</param>
 public sealed record TendencyBucket(string Label, IReadOnlyList<TendencyRound> Rounds)

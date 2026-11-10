@@ -1,7 +1,7 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 
@@ -153,7 +153,7 @@ public class PeriodDiffTests
             await Assert.That(none.Recent.Count).IsEqualTo(6);
             await Assert.That(none.Previous.Count).IsEqualTo(0);
             await Assert.That(none.HasBothPeriods).IsFalse();
-            await Assert.That(DossierTabViewModel.PeriodDiffNoteFor(none)).Contains("not enough");
+            await Assert.That(ScoutingReportTabViewModel.PeriodDiffNoteFor(none)).Contains("not enough");
         }
     }
 
@@ -178,8 +178,8 @@ public class PeriodDiffTests
             await Assert.That(set.Recent.DominantRoster.Demos).IsEqualTo(3);
             await Assert.That(set.Previous.DominantRoster.Demos).IsEqualTo(3);
 
-            await Assert.That(DossierTabViewModel.PeriodDiffNoteFor(set)).Contains("roster changed");
-            await Assert.That(DossierTabViewModel.PeriodDiffNoteFor(set)).Contains("post day 3");
+            await Assert.That(ScoutingReportTabViewModel.PeriodDiffNoteFor(set)).Contains("roster changed");
+            await Assert.That(ScoutingReportTabViewModel.PeriodDiffNoteFor(set)).Contains("post day 3");
         }
     }
 
@@ -228,10 +228,10 @@ public class PeriodDiffTests
     }
 
     [Test]
-    public async Task TheDossier_ShowsThePeriodDiffSection_AndThePickerRebuildsIt()
+    public async Task TheScoutingReport_ShowsThePeriodDiffSection_AndThePickerRebuildsIt()
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA) = await Library();
-        using DossierTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false);
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false);
 
         await Assert.That(vm.HasPeriodDiff).IsFalse();
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);

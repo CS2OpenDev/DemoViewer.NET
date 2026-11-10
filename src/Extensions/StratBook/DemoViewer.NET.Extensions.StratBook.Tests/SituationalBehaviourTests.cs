@@ -2,7 +2,7 @@
 
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -196,13 +196,13 @@ public class SituationalBehaviourTests
     }
 
     [Test]
-    public async Task TheDossier_ShowsTheSection_AndEveryNumberOpensItsRounds()
+    public async Task TheScoutingReport_ShowsTheSection_AndEveryNumberOpensItsRounds()
     {
         using Harness h = await Harness.Create();
         ReviewQueue queue = new(null);
         List<string> shown = [];
         QueuedPost posted = new();
-        using DossierTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
+        using ScoutingReportTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
             review: new ExtensionReviewQueue(queue),
             selectTab: id =>
             {
@@ -246,9 +246,9 @@ public class SituationalBehaviourTests
         using (Assert.Multiple())
         {
             await Assert.That(queue.ClipCount).IsEqualTo(1);
-            await Assert.That(queue.Clips[0].Source).IsEqualTo(ReviewSources.Dossier);
+            await Assert.That(queue.Clips[0].Source).IsEqualTo(DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport);
             await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue()
-                .Because("a Dossier clip carries its team");
+                .Because("a Scouting Report clip carries its team");
             await Assert.That(queue.Clips[0].Note).IsEqualTo("de_nuke T · led 2-up · round 4");
             await Assert.That(vm.Situational.ReviewLine).IsEqualTo("1 round sent to Review");
             await Assert.That(shown).IsEquivalentTo(["review.queue"], CollectionOrdering.Matching);

@@ -120,7 +120,7 @@ public sealed class TeamClusterer
     /// </summary>
     /// <param name="nowTicks">The build stamp.</param>
     /// <param name="keep">
-    ///     Teams another store points at (a strat book, Dossier notes, veto history): kept even when they
+    ///     Teams another store points at (a strat book, Scouting report notes, veto history): kept even when they
     ///     received no side, so a rebuild never orphans what the user wrote about them.
     /// </param>
     public TeamIndexFile Finish(long nowTicks, IReadOnlySet<Guid>? keep = null)

@@ -18,7 +18,7 @@ public sealed class PostPlantSet
 /// <summary>
 ///     The team's rounds with a plant on one map and side: on T its own plants (where the bomb went down
 ///     and how the players held it), on CT the opponent's (how the retake grouped). Every number the
-///     Dossier prints is a <see cref="TendencyBucket" />, so every number opens the rounds behind it.
+///     Scouting Report prints is a <see cref="TendencyBucket" />, so every number opens the rounds behind it.
 ///     The plant clusters and the holds are the T side's, the retake grouping the CT side's; the other
 ///     block leaves them empty.
 /// </summary>

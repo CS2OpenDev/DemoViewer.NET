@@ -3,7 +3,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 /// <summary>
 ///     Builds a team's <see cref="PeriodDiffSet" />: its last
 ///     <c>windowSize</c> demos against the <c>windowSize</c> before those, over
-///     <see cref="TeamIdentityService.SidesOf" />, newest first, the same order every other Dossier
+///     <see cref="TeamIdentityService.SidesOf" />, newest first, the same order every other Scouting Report
 ///     section reads. Stateless and synchronous, like <see cref="MapPoolRecordService" />: nothing here
 ///     opens a demo Team Identity or the Map Pool Record has not already loaded for the same team.
 ///     <para>

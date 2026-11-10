@@ -2,7 +2,7 @@
 
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 
@@ -11,12 +11,12 @@ using TUnit.Assertions.Enums;
 namespace DemoViewer.NET.AppTests;
 
 /// <summary>
-///     Dossier Editing And Export: the exporter's two forms and two files, the
+///     Scouting Report Editing And Export: the exporter's two forms and two files, the
 ///     notes store's persistence, the editor's star, rewrite, leave-out and note actions, and the tab
 ///     collecting its sections' lines, with the one-pager as the default export.
 /// </summary>
 [NotInParallel]
-public class DossierEditingTests
+public class ScoutingReportEditingTests
 {
     private static readonly Func<Action, Task> _inline = a =>
     {
@@ -26,7 +26,7 @@ public class DossierEditingTests
 
     private static readonly byte[] _png = [0x89, 0x50, 0x4E, 0x47, 1, 2, 3];
 
-    private static DossierDocument Doc(params DossierFinding[] findings) => new()
+    private static ScoutingReportDocument Doc(params ScoutingReportFinding[] findings) => new()
     {
         TeamName = "Falcons <B>",
         SampleLine = "6 demos across 2 maps",
@@ -34,7 +34,7 @@ public class DossierEditingTests
         Findings = findings
     };
 
-    private static DossierFinding Line(string key, string section, string text, bool starred = false,
+    private static ScoutingReportFinding Line(string key, string section, string text, bool starred = false,
         byte[]? png = null) =>
         new()
         {
@@ -45,24 +45,24 @@ public class DossierEditingTests
             ImagePng = png
         };
 
-    private static DossierFindingSource[] Sources() =>
+    private static ScoutingReportFindingSource[] Sources() =>
     [
-        new("map|de_nuke", DossierEditorViewModel.MapPoolSection, "de_nuke: 2 played, 1-1"),
-        new("map|de_mirage", DossierEditorViewModel.MapPoolSection, "de_mirage: 1 played, 0-1"),
-        new("heatmap|de_nuke|full buy", DossierEditorViewModel.HeatmapSection, "de_nuke CT full buy: 10 rounds",
+        new("map|de_nuke", ScoutingReportEditorViewModel.MapPoolSection, "de_nuke: 2 played, 1-1"),
+        new("map|de_mirage", ScoutingReportEditorViewModel.MapPoolSection, "de_mirage: 1 played, 0-1"),
+        new("heatmap|de_nuke|full buy", ScoutingReportEditorViewModel.HeatmapSection, "de_nuke CT full buy: 10 rounds",
             () => _png)
     ];
 
     [Test]
     public async Task TheOnePager_PrintsOnlyStarredLines_AndIsTheDefaultForm()
     {
-        DossierDocument doc = Doc(
+        ScoutingReportDocument doc = Doc(
             Line("a", "Map Pool Record", "de_nuke: 2 played", starred: true),
             Line("b", "Map Pool Record", "de_mirage: 1 played"),
             Line("c", "Opening Tendencies", "de_nuke T · site A: 4 of 10 rounds"));
 
-        string md = DossierExporter.Markdown(doc);
-        string longMd = DossierExporter.Markdown(doc, DossierForm.LongForm);
+        string md = ScoutingReportExporter.Markdown(doc);
+        string longMd = ScoutingReportExporter.Markdown(doc, ScoutingReportForm.LongForm);
 
         using (Assert.Multiple())
         {
@@ -74,7 +74,7 @@ public class DossierEditingTests
             await Assert.That(md).DoesNotContain("Opening Tendencies")
                 .Because("a section with nothing starred is left off the one-pager");
 
-            await Assert.That(longMd).StartsWith("# Falcons <B> dossier\n");
+            await Assert.That(longMd).StartsWith("# Falcons <B> scouting report\n");
             await Assert.That(longMd).Contains("- ★ de_nuke: 2 played\n- de_mirage: 1 played\n");
             await Assert.That(longMd).Contains("## Opening Tendencies");
         }
@@ -83,24 +83,24 @@ public class DossierEditingTests
     [Test]
     public async Task TheOnePager_WithNothingStarred_SaysHowToBuildIt()
     {
-        DossierDocument doc = Doc(Line("a", "Map Pool Record", "de_nuke: 2 played"));
+        ScoutingReportDocument doc = Doc(Line("a", "Map Pool Record", "de_nuke: 2 played"));
 
         using (Assert.Multiple())
         {
-            await Assert.That(DossierExporter.Markdown(doc)).Contains(DossierExporter.NothingStarredLine);
-            await Assert.That(DossierExporter.Html(doc)).Contains(DossierExporter.NothingStarredLine);
+            await Assert.That(ScoutingReportExporter.Markdown(doc)).Contains(ScoutingReportExporter.NothingStarredLine);
+            await Assert.That(ScoutingReportExporter.Html(doc)).Contains(ScoutingReportExporter.NothingStarredLine);
         }
     }
 
     [Test]
     public async Task TheHtml_IsSelfContained_Escaped_AndEmbedsTheHeatmap()
     {
-        DossierDocument doc = Doc(
+        ScoutingReportDocument doc = Doc(
             Line("h", "Setup Heatmaps By Buy", "de_nuke CT full buy: <10> rounds", starred: true, png: _png),
             Line("b", "Map Pool Record", "de_mirage: 1 played"));
 
-        string html = DossierExporter.Html(doc);
-        string longHtml = DossierExporter.Html(doc, DossierForm.LongForm);
+        string html = ScoutingReportExporter.Html(doc);
+        string longHtml = ScoutingReportExporter.Html(doc, ScoutingReportForm.LongForm);
 
         using (Assert.Multiple())
         {
@@ -121,13 +121,13 @@ public class DossierEditingTests
     [Test]
     public async Task TheExport_AddsNoRatingGradeOrWinProbability()
     {
-        DossierDocument doc = Doc(Line("a", "Map Pool Record", "de_nuke: 2 played, 1-1", starred: true));
+        ScoutingReportDocument doc = Doc(Line("a", "Map Pool Record", "de_nuke: 2 played, 1-1", starred: true));
 
         foreach (string text in new[]
                  {
-                     DossierExporter.Markdown(doc), DossierExporter.Html(doc),
-                     DossierExporter.Markdown(doc, DossierForm.LongForm),
-                     DossierExporter.Html(doc, DossierForm.LongForm)
+                     ScoutingReportExporter.Markdown(doc), ScoutingReportExporter.Html(doc),
+                     ScoutingReportExporter.Markdown(doc, ScoutingReportForm.LongForm),
+                     ScoutingReportExporter.Html(doc, ScoutingReportForm.LongForm)
                  })
         {
             string lower = text.ToLowerInvariant();
@@ -144,12 +144,12 @@ public class DossierEditingTests
     [Test]
     public async Task TheStore_PersistsStarsEditsHiddenNotesAndSummary_BesideTeamsJson()
     {
-        string root = Path.Combine(Path.GetTempPath(), "dv-dossier-notes-" + Guid.NewGuid().ToString("N"));
+        string root = Path.Combine(Path.GetTempPath(), "dv-scouting-report-notes-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         try
         {
             Guid team = Guid.NewGuid();
-            DossierNotesStore store = new(StoredFile.At(Path.Combine(root, DossierNotesStore.FileName)));
+            ScoutingReportNotesStore store = new(StoredFile.At(Path.Combine(root, ScoutingReportNotesStore.FileName)));
             int changes = 0;
             store.Changed += () => changes++;
             store.SetStarred(team, "map|de_nuke", true);
@@ -162,10 +162,10 @@ public class DossierEditingTests
 
             await Assert.That(changes).IsEqualTo(5)
                 .Because("a repeat star and an edit equal to the generated text change nothing");
-            await Assert.That(File.Exists(Path.Combine(root, DossierNotesStore.FileName))).IsTrue();
+            await Assert.That(File.Exists(Path.Combine(root, ScoutingReportNotesStore.FileName))).IsTrue();
 
-            DossierTeamNotes reloaded =
-                new DossierNotesStore(StoredFile.At(Path.Combine(root, DossierNotesStore.FileName))).For(team);
+            ScoutingReportTeamNotes reloaded =
+                new ScoutingReportNotesStore(StoredFile.At(Path.Combine(root, ScoutingReportNotesStore.FileName))).For(team);
             using (Assert.Multiple())
             {
                 await Assert.That(reloaded.Starred).IsEquivalentTo(["map|de_nuke"], CollectionOrdering.Matching);
@@ -173,14 +173,14 @@ public class DossierEditingTests
                 await Assert.That(reloaded.Edits.ContainsKey("map|de_inferno")).IsFalse();
                 await Assert.That(reloaded.Hidden).IsEquivalentTo(["heatmap|x"], CollectionOrdering.Matching);
                 await Assert.That(reloaded.Notes.Single().Text).IsEqualTo("watch the B apps smoke");
-                await Assert.That(DossierNotesStore.NoteKey(reloaded.Notes.Single().Id)).IsEqualTo(note);
+                await Assert.That(ScoutingReportNotesStore.NoteKey(reloaded.Notes.Single().Id)).IsEqualTo(note);
                 await Assert.That(reloaded.Summary).IsEqualTo("Aggressive CT.");
             }
 
             // A file at a newer schema is refused and never overwritten.
-            string path = Path.Combine(root, DossierNotesStore.FileName);
+            string path = Path.Combine(root, ScoutingReportNotesStore.FileName);
             await File.WriteAllTextAsync(path, "{\"schemaVersion\": 99, \"teams\": []}");
-            DossierNotesStore refused = new(StoredFile.At(Path.Combine(root, DossierNotesStore.FileName)));
+            ScoutingReportNotesStore refused = new(StoredFile.At(Path.Combine(root, ScoutingReportNotesStore.FileName)));
             refused.SetSummary(team, "overwrite?");
             using (Assert.Multiple())
             {
@@ -195,10 +195,81 @@ public class DossierEditingTests
     }
 
     [Test]
+    public async Task TheStore_ReadsTheOldDossierFile_WhenTheNewOneIsMissing_AndWritesTheNewOne()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "dv-scouting-report-legacy-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            Guid team = Guid.NewGuid();
+            string oldPath = Path.Combine(root, ScoutingReportNotesStore.LegacyFileName);
+            string newPath = Path.Combine(root, ScoutingReportNotesStore.FileName);
+            new ScoutingReportNotesStore(StoredFile.At(oldPath)).SetSummary(team, "Aggressive CT.");
+            string oldBytes = await File.ReadAllTextAsync(oldPath);
+
+            ScoutingReportNotesStore migrated = new(StoredFile.At(newPath), StoredFile.At(oldPath));
+            using (Assert.Multiple())
+            {
+                await Assert.That(migrated.FileProblem).IsNull();
+                await Assert.That(migrated.For(team).Summary).IsEqualTo("Aggressive CT.");
+                await Assert.That(File.Exists(newPath)).IsTrue().Because("the new file is written at once");
+                await Assert.That(await File.ReadAllTextAsync(oldPath)).IsEqualTo(oldBytes)
+                    .Because("the old file is left alone");
+            }
+
+            // A later save goes to the new file only.
+            migrated.SetSummary(team, "Passive T.");
+            using (Assert.Multiple())
+            {
+                await Assert.That(await File.ReadAllTextAsync(oldPath)).IsEqualTo(oldBytes);
+                await Assert.That(new ScoutingReportNotesStore(StoredFile.At(newPath)).For(team).Summary)
+                    .IsEqualTo("Passive T.");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task TheStore_PrefersTheNewFile_WhenBothExist_AndRefusesAnUnreadableOldOne()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "dv-scouting-report-both-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            Guid team = Guid.NewGuid();
+            string oldPath = Path.Combine(root, ScoutingReportNotesStore.LegacyFileName);
+            string newPath = Path.Combine(root, ScoutingReportNotesStore.FileName);
+            new ScoutingReportNotesStore(StoredFile.At(oldPath)).SetSummary(team, "old");
+            new ScoutingReportNotesStore(StoredFile.At(newPath)).SetSummary(team, "new");
+
+            await Assert.That(new ScoutingReportNotesStore(StoredFile.At(newPath), StoredFile.At(oldPath)).For(team).Summary)
+                .IsEqualTo("new");
+
+            File.Delete(newPath);
+            await File.WriteAllTextAsync(oldPath, "{not json");
+            ScoutingReportNotesStore refused = new(StoredFile.At(newPath), StoredFile.At(oldPath));
+            refused.SetSummary(team, "overwrite?");
+            using (Assert.Multiple())
+            {
+                await Assert.That(refused.FileProblem).IsNotNull();
+                await Assert.That(File.Exists(newPath)).IsFalse();
+                await Assert.That(await File.ReadAllTextAsync(oldPath)).IsEqualTo("{not json");
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Test]
     public async Task TheEditor_StarsRewritesLeavesOutAndAddsNotes_AndKeepsThemAcrossARebuild()
     {
-        DossierNotesStore store = new(null);
-        DossierEditorViewModel editor = new(store);
+        ScoutingReportNotesStore store = new(null);
+        ScoutingReportEditorViewModel editor = new(store);
         Guid team = Guid.NewGuid();
         editor.Load(team, "Falcons", "3 demos across 2 maps", Sources());
 
@@ -208,14 +279,14 @@ public class DossierEditingTests
             await Assert.That(editor.Findings[0].ShowsSectionHeader).IsTrue();
             await Assert.That(editor.Findings[1].ShowsSectionHeader).IsFalse();
             await Assert.That(editor.Findings[2].ShowsSectionHeader).IsTrue();
-            await Assert.That(editor.ExportForm).IsEqualTo(DossierForm.OnePager)
+            await Assert.That(editor.ExportForm).IsEqualTo(ScoutingReportForm.OnePager)
                 .Because("the short form is the default export");
-            await Assert.That(editor.ExportFormat).IsEqualTo(DossierFormat.Html);
+            await Assert.That(editor.ExportFormat).IsEqualTo(ScoutingReportFormat.Html);
             await Assert.That(editor.ExportLabel).IsEqualTo("Export one-pager");
             await Assert.That(editor.CountsLine).IsEqualTo("3 findings · 0 starred");
         }
 
-        DossierFindingViewModel nuke = editor.Findings[0];
+        ScoutingReportFindingViewModel nuke = editor.Findings[0];
         editor.ToggleStarCommand.Execute(nuke);
         nuke.BeginEditCommand.Execute(null);
         await Assert.That(nuke.EditText).IsEqualTo("de_nuke: 2 played, 1-1");
@@ -234,13 +305,13 @@ public class DossierEditingTests
             await Assert.That(editor.Findings.Select(f => f.Key)).DoesNotContain("map|de_mirage");
             await Assert.That(editor.HasHidden).IsTrue();
             await Assert.That(editor.Findings.Last().IsNote).IsTrue();
-            await Assert.That(editor.Findings.Last().Section).IsEqualTo(DossierEditorViewModel.NotesSection);
+            await Assert.That(editor.Findings.Last().Section).IsEqualTo(ScoutingReportEditorViewModel.NotesSection);
             await Assert.That(editor.CountsLine).IsEqualTo("3 findings · 1 starred · 1 dismissed");
         }
 
         // A section rebuild in another order keeps the star, the rewrite and the left-out line by key.
         editor.Load(team, "Falcons", "3 demos across 2 maps", [.. Sources().Reverse()]);
-        DossierFindingViewModel again = editor.Findings.Single(f => f.Key == "map|de_nuke");
+        ScoutingReportFindingViewModel again = editor.Findings.Single(f => f.Key == "map|de_nuke");
         using (Assert.Multiple())
         {
             await Assert.That(again.IsStarred).IsTrue();
@@ -250,8 +321,8 @@ public class DossierEditingTests
         }
 
         // The one-pager is the starred line alone; "starred only" previews it.
-        DossierDocument doc = editor.Document();
-        string md = DossierExporter.Markdown(doc);
+        ScoutingReportDocument doc = editor.Document();
+        string md = ScoutingReportExporter.Markdown(doc);
         editor.ShowStarredOnly = true;
         using (Assert.Multiple())
         {
@@ -269,9 +340,9 @@ public class DossierEditingTests
         editor.ResetEditCommand.Execute(again);
         await Assert.That(editor.SettledLabel).IsEqualTo("Show settled (1)");
         editor.ShowSettled = true;
-        DossierFindingViewModel dismissed = editor.Findings.Single(f => f.Key == "map|de_mirage");
+        ScoutingReportFindingViewModel dismissed = editor.Findings.Single(f => f.Key == "map|de_mirage");
         await Assert.That(dismissed.RemoveLabel).IsEqualTo("Restore");
-        await Assert.That(DossierExporter.Markdown(editor.Document())).DoesNotContain("de_mirage")
+        await Assert.That(ScoutingReportExporter.Markdown(editor.Document())).DoesNotContain("de_mirage")
             .Because("a dismissed line shown under the toggle is still out of both forms");
         editor.RemoveCommand.Execute(dismissed);
         editor.ShowSettled = false;
@@ -291,7 +362,7 @@ public class DossierEditingTests
     public async Task Export_WritesTheOnePagerAsHtml_ByDefault_AndTheChosenFormOtherwise()
     {
         List<(string Text, string Stem, string Extension)> written = [];
-        DossierEditorViewModel editor = new(new DossierNotesStore(null), export: (text, stem, ext) =>
+        ScoutingReportEditorViewModel editor = new(new ScoutingReportNotesStore(null), export: (text, stem, ext) =>
         {
             written.Add((text, stem, ext));
             return Path.Combine(Path.GetTempPath(), stem + ext);
@@ -312,20 +383,20 @@ public class DossierEditingTests
             await Assert.That(editor.ExportLine).IsEqualTo("one-pager written: Falcons-one-pager.html");
         }
 
-        editor.SelectedFormOption = DossierEditorViewModel.FormOptions.Single(o => o.Value == DossierForm.LongForm);
+        editor.SelectedFormOption = ScoutingReportEditorViewModel.FormOptions.Single(o => o.Value == ScoutingReportForm.LongForm);
         editor.SelectedFormatOption =
-            DossierEditorViewModel.FormatOptions.Single(o => o.Value == DossierFormat.Markdown);
+            ScoutingReportEditorViewModel.FormatOptions.Single(o => o.Value == ScoutingReportFormat.Markdown);
         editor.ExportCommand.Execute(null);
         using (Assert.Multiple())
         {
             await Assert.That(editor.ExportLabel).IsEqualTo("Export long form");
             await Assert.That(written[1].Extension).IsEqualTo(".md");
-            await Assert.That(written[1].Stem).IsEqualTo("Falcons-dossier");
-            await Assert.That(written[1].Text).StartsWith("# Falcons dossier");
+            await Assert.That(written[1].Stem).IsEqualTo("Falcons-scouting-report");
+            await Assert.That(written[1].Text).StartsWith("# Falcons scouting report");
             await Assert.That(written[1].Text).Contains("de_mirage");
         }
 
-        DossierEditorViewModel browser = new(new DossierNotesStore(null), isBrowser: true);
+        ScoutingReportEditorViewModel browser = new(new ScoutingReportNotesStore(null), isBrowser: true);
         browser.Load(Guid.NewGuid(), "Falcons", "", Sources());
         using (Assert.Multiple())
         {
@@ -340,9 +411,9 @@ public class DossierEditingTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(DossierEditorViewModel.CountText(4, 10)).IsEqualTo("4 of 10 rounds");
-            await Assert.That(DossierEditorViewModel.CountText(1, 0)).IsEqualTo("1 round");
-            await Assert.That(DossierEditorViewModel.FromPeriodDiff(null, null, "x")).IsEmpty();
+            await Assert.That(ScoutingReportEditorViewModel.CountText(4, 10)).IsEqualTo("4 of 10 rounds");
+            await Assert.That(ScoutingReportEditorViewModel.CountText(1, 0)).IsEqualTo("1 round");
+            await Assert.That(ScoutingReportEditorViewModel.FromPeriodDiff(null, null, "x")).IsEmpty();
         }
     }
 
@@ -363,8 +434,8 @@ public class DossierEditingTests
             .First(t => t.Rosters.Any(r => r.CoreLineup != null && r.CoreLineup.Contains(Ids(1)[0]))).Id;
         List<string> written = [];
         VetoHistoryStore vetoes = new(null);
-        using DossierTabViewModel vm = new(teams, cache.Library(), vetoes, isBrowser: false,
-            notes: new DossierNotesStore(null),
+        using ScoutingReportTabViewModel vm = new(teams, cache.Library(), vetoes, isBrowser: false,
+            notes: new ScoutingReportNotesStore(null),
             export: (text, _, _) =>
             {
                 written.Add(text);
@@ -374,14 +445,14 @@ public class DossierEditingTests
         await Assert.That(vm.Editor.HasTeam).IsFalse();
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
 
-        DossierFindingViewModel[] maps =
-            [.. vm.Editor.Findings.Where(f => f.Section == DossierEditorViewModel.MapPoolSection)];
+        ScoutingReportFindingViewModel[] maps =
+            [.. vm.Editor.Findings.Where(f => f.Section == ScoutingReportEditorViewModel.MapPoolSection)];
         using (Assert.Multiple())
         {
             await Assert.That(vm.Editor.HasTeam).IsTrue();
             await Assert.That(maps.Length).IsEqualTo(2);
             await Assert.That(maps.Select(f => f.Key)).Contains("map|de_nuke");
-            await Assert.That(vm.Editor.Findings.Any(f => f.Section == DossierEditorViewModel.PeriodDiffSection))
+            await Assert.That(vm.Editor.Findings.Any(f => f.Section == ScoutingReportEditorViewModel.PeriodDiffSection))
                 .IsTrue();
         }
 
@@ -389,7 +460,7 @@ public class DossierEditingTests
         vm.NewVetoMap = "de_ancient";
         vm.AddVetoCommand.Execute(null);
         await Assert.That(vm.Editor.Findings.Any(f =>
-            f.Section == DossierEditorViewModel.VetoSection && f.Text.Contains("de_ancient"))).IsTrue();
+            f.Section == ScoutingReportEditorViewModel.VetoSection && f.Text.Contains("de_ancient"))).IsTrue();
 
         vm.Editor.ToggleStarCommand.Execute(vm.Editor.Findings.Single(f => f.Key == "map|de_nuke"));
         vm.Editor.ExportCommand.Execute(null);

@@ -6,28 +6,28 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 
 #endregion
 
-namespace DemoViewer.NET.Extensions.StratBook.Views.Dossier;
+namespace DemoViewer.NET.Extensions.StratBook.Views.ScoutingReport;
 
 /// <summary>
-///     The Opponent Dossier tab view. Bindings only, apart from "Copy markdown": the clipboard needs the
+///     The Scouting Report tab view. Bindings only, apart from "Copy markdown": the clipboard needs the
 ///     visual tree (<c>TopLevel.Clipboard</c>), so the handler lives here and the text comes from the VM.
 /// </summary>
-public partial class DossierTabView : UserControl
+public partial class ScoutingReportTabView : UserControl
 {
     // The finding being edited when its editor had focus. A row that scrolls out is recycled, which takes
     // the focus with it; the editor that shows the row again takes it back.
-    private DossierFindingViewModel? _editing;
+    private ScoutingReportFindingViewModel? _editing;
 
     /// <summary>Builds the view.</summary>
-    public DossierTabView() => InitializeComponent();
+    public ScoutingReportTabView() => InitializeComponent();
 
     private void OnFindingEditGotFocus(object? sender, FocusChangedEventArgs e)
     {
-        if (sender is TextBox { DataContext: DossierFindingViewModel row })
+        if (sender is TextBox { DataContext: ScoutingReportFindingViewModel row })
         {
             _editing = row;
         }
@@ -58,7 +58,7 @@ public partial class DossierTabView : UserControl
 
     private void Reclaim(TextBox? box)
     {
-        if (box is { DataContext: DossierFindingViewModel { IsEditing: true } row } && ReferenceEquals(row, _editing)
+        if (box is { DataContext: ScoutingReportFindingViewModel { IsEditing: true } row } && ReferenceEquals(row, _editing)
             && !box.IsFocused)
         {
             Dispatcher.UIThread.Post(() =>
@@ -73,7 +73,7 @@ public partial class DossierTabView : UserControl
 
     private async void OnCopyMarkdownClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not DossierTabViewModel { Editor: { HasTeam: true } editor })
+        if (DataContext is not ScoutingReportTabViewModel { Editor: { HasTeam: true } editor })
         {
             return;
         }

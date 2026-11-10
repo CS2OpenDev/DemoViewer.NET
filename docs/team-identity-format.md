@@ -109,7 +109,7 @@ built by a merge), including a squad; it founds no candidate, is never stamped a
 fixes a five. A provenance pin decides over every signal: `official`, `scrim` and `our scrim`
 make the demo team play, `matchmaking` makes it queue play, and changing a pin re-clusters.
 
-A rebuild keeps an auto team that a strat book, Dossier notes or veto history points at, even when
+A rebuild keeps an auto team that a strat book, Scouting report notes or veto history points at, even when
 it received no side.
 
 ### Suggestions
