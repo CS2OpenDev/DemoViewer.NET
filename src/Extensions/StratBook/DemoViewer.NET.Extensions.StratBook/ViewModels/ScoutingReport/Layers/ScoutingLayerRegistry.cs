@@ -28,6 +28,7 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
 {
     private readonly List<ScoutingLayerChipViewModel> _all;
     private readonly Dictionary<(ScoutingSide, string), bool> _on = [];
+    private readonly Dictionary<string, int> _rebuilds = new(StringComparer.Ordinal);
     private readonly Action<Action> _post;
     private readonly IScoutingRowHost _rows;
     private CancellationTokenSource _cancel = new();
@@ -117,6 +118,7 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
         _cancel.Dispose();
         _cancel = new CancellationTokenSource();
         CancellationToken token = _cancel.Token;
+        _rebuilds.Clear();
 
         List<ScoutingLayerChipViewModel> offered = [.. _all.Where(c => c.Layer.AppliesTo(side))];
         foreach (ScoutingLayerChipViewModel chip in _all)
@@ -160,6 +162,49 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
             builds.Add(build.ContinueWith(t => _post(() =>
             {
                 if (generation == Volatile.Read(ref _generation))
+                {
+                    chip.Apply(Landed(t), context);
+                    Redraw();
+                }
+            }), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default));
+        }
+
+        Idle = Task.WhenAll(builds);
+        Redraw();
+    }
+
+    /// <summary>
+    ///     Rebuilds some of the scope's layers in place, the rest untouched: a source only they read changed (Strat
+    ///     Mining published). Each lands under the scope's generation, so a scope change drops it, and under its
+    ///     own rebuild stamp, so an older rebuild of the same layer that lands late is dropped too.
+    /// </summary>
+    /// <param name="ids">The layer ids; those not offered on the side in view are skipped.</param>
+    public void Rebuild(params string[] ids)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        if (_data is not { } data || Map.Length == 0)
+        {
+            return;
+        }
+
+        int generation = Volatile.Read(ref _generation);
+        CancellationToken token = _cancel.Token;
+        ScoutingLayerContext context = new(data, Map, Side, Buy);
+        List<Task> builds = [Idle];
+        foreach (ScoutingLayerChipViewModel chip in _all.Where(c => ids.Contains(c.Id, StringComparer.Ordinal)
+                                                                   && c.Layer.AppliesTo(Side)))
+        {
+            int stamp = _rebuilds[chip.Id] = _rebuilds.GetValueOrDefault(chip.Id) + 1;
+            Task<ScoutingLayerResult> build = Build(chip.Layer, context, token);
+            if (build.IsCompleted)
+            {
+                chip.Apply(Landed(build), context);
+                continue;
+            }
+
+            builds.Add(build.ContinueWith(t => _post(() =>
+            {
+                if (generation == Volatile.Read(ref _generation) && _rebuilds.GetValueOrDefault(chip.Id) == stamp)
                 {
                     chip.Apply(Landed(t), context);
                     Redraw();

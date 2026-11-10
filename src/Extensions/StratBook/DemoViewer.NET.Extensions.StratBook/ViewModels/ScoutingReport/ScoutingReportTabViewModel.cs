@@ -62,6 +62,10 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     private IReadOnlyList<ScoutingReportFindingSource> _layerFindings = [];
     private ScoutingReportData? _data;
     private bool _disposed;
+    private readonly IDisposable? _minedWatch;
+
+    // The layers that read the Strat Mining patterns.
+    private static readonly string[] _stratLayerIds = ["strats", "against"];
     private int _generation;
     private string? _projectedKey;
 
@@ -146,6 +150,10 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <param name="layers">The layers; <see cref="ScoutingLayerCatalog.Create" /> when null.</param>
     /// <param name="minedPatterns">The Strat Mining patterns, null until mined; the strats layers are empty when null.</param>
     /// <param name="positionsFingerprint">The fingerprint current positions carry per map; null accepts any file.</param>
+    /// <param name="watchMinedPatterns">
+    ///     Subscribes a handler to Strat Mining's change event (raised on the UI thread) and returns the
+    ///     unsubscribe; the strat layers rebuild on it. None when null.
+    /// </param>
     public ScoutingReportTabViewModel(TeamIdentityService teams, IExtensionLibrary library, VetoHistoryStore vetoes,
         bool? isBrowser = null,
         SetupHeatmapService? heatmaps = null,
@@ -166,7 +174,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Func<DateTime>? now = null,
         IReadOnlyList<IScoutingLayer>? layers = null,
         Func<IReadOnlyList<MinedPattern>?>? minedPatterns = null,
-        Func<string?, string>? positionsFingerprint = null)
+        Func<string?, string>? positionsFingerprint = null,
+        Func<Action, IDisposable>? watchMinedPatterns = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -216,6 +225,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             _grenades.Changed += Refresh;
         }
 
+        _minedWatch = watchMinedPatterns?.Invoke(OnMinedPatternsChanged);
         Refresh();
     }
 
@@ -377,6 +387,17 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         if (_grenades is not null)
         {
             _grenades.Changed -= Refresh;
+        }
+
+        _minedWatch?.Dispose();
+    }
+
+    // Strat Mining published or dropped its patterns: only the two layers that read them rebuild, in place.
+    private void OnMinedPatternsChanged()
+    {
+        if (!_disposed)
+        {
+            Layers.Rebuild(_stratLayerIds);
         }
     }
 

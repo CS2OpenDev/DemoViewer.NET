@@ -710,7 +710,13 @@ public sealed class StratBookPack : IExtension
                 minedPatterns: () => sp.GetRequiredService<StratMiningService>() is { MinedUtc: not null } mining
                     ? [.. mining.Patterns.Select(p => p.Pattern)]
                     : null,
-                positionsFingerprint: sources.FingerprintFor);
+                positionsFingerprint: sources.FingerprintFor,
+                watchMinedPatterns: handler =>
+                {
+                    StratMiningService mining = sp.GetRequiredService<StratMiningService>();
+                    mining.Changed += handler;
+                    return new Unsubscribe(() => mining.Changed -= handler);
+                });
         });
 
         // Lineup Clip Render: every repeated throw position and technique gets a GIF and its setpos line,
@@ -1021,5 +1027,11 @@ public sealed class StratBookPack : IExtension
                     Preemptible: true)),
             post: Host(sp).Post,
             lockedMap: lockedMap);
+    }
+
+    // Undoes an event subscription when disposed.
+    private sealed class Unsubscribe(Action undo) : IDisposable
+    {
+        public void Dispose() => undo();
     }
 }
