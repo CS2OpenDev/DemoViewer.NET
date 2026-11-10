@@ -168,10 +168,10 @@ public sealed class PlayerRowViewModel
     /// <summary>Stats come with P3.4.</summary>
     public const string StatsToolTip = "Rating, K/D, ADR, KAST, opening and 1vX come with the players build (P3.4)";
 
-    /// <summary>The CT spot comes with per-player setups (P2.1).</summary>
-    public const string CtSpotToolTip = "The CT spot comes with per-player setups (P2.1)";
-
     public required string Name { get; init; }
+
+    /// <summary>The SteamID64 as text: the members table's key, and the Setups layer's isolate key.</summary>
+    public string SteamId { get; init; } = "";
 
     public required ScoutingColor Color { get; init; }
 
@@ -186,7 +186,22 @@ public sealed class PlayerRowViewModel
     /// <summary>"entry A", "lurk".</summary>
     public string TRole { get; init; } = "—";
 
-    public string CtSpot { get; } = "—";
+    /// <summary>The place the player held most in the CT setup window on the map in view: "B site".</summary>
+    public string CtSpot { get; init; } = "—";
+
+    /// <summary>"held in 47 of 50 CT rounds (all buys)", or why there is no spot.</summary>
+    public string CtSpotNote { get; init; } = "no CT setup positions for this player on this map";
+
+    /// <summary>The player's CT setup is shown alone on the map.</summary>
+    public bool IsIsolated { get; init; }
+
+    /// <summary>"Show CT setup", or "Show all" while isolated.</summary>
+    public string IsolateLabel => IsIsolated ? "Show all" : "Show CT setup";
+
+    /// <summary>Isolates the player's CT setup on the map, or puts everyone back.</summary>
+    public System.Windows.Input.ICommand? IsolateCommand { get; init; }
+
+    public bool CanIsolate => IsolateCommand is not null && SteamId.Length > 0;
 
     /// <summary>"—": the stat columns are a placeholder.</summary>
     public string Stat { get; } = "—";

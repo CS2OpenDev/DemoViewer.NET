@@ -278,16 +278,16 @@ public class SetupHeatmapTests
         {
             await Assert.That(allCount).IsEqualTo("4 rds");
             await Assert.That(setups.CountLabel).IsEqualTo("3 rds");
-            await Assert.That(setups.Marks.Marks.Count).IsEqualTo(31)
-                .Because("the full-buy heatmap's points are the layer's marks");
-            await Assert.That(allMarks).IsGreaterThan(31).Because("All draws every buy");
+            await Assert.That(setups.Marks.Marks.Count).IsEqualTo(3 + 2 * 2)
+                .Because("a dot per player per sampled full-buy round, and a ringed dot per player's main spot");
+            await Assert.That(allMarks).IsGreaterThan(7).Because("All draws every buy");
             await Assert.That(setups.Marks.Visible).IsTrue();
             await Assert.That(setups.Marks.Fade).IsEqualTo(1f).Because("the inspected layer draws at full strength");
             await Assert.That(vm.ScopeLine).IsEqualTo("de_nuke · CT · Full buy · 1 map");
             await Assert.That(full.Value).IsEqualTo("3 rounds · 2 sampled");
-            await Assert.That(rows.Single(r => r.Label == "BombsiteA").Value).IsEqualTo("held 2 of 2");
-            await Assert.That(rows.Single(r => r.Label == "BombsiteA").Note).IsEqualTo("fixed");
-            await Assert.That(rows.Single(r => r.Label == "Heaven").Note).IsEqualTo("rotating");
+            await Assert.That(rows.Single(r => r.Label == "A site · slot 5").Value).IsEqualTo("2 of 2 rounds");
+            await Assert.That(rows.Single(r => r.Label == "A site · slot 5").Note).IsEqualTo("fixed");
+            await Assert.That(rows.Single(r => r.Label == "Heaven · slot 7").Value).IsEqualTo("1 of 1 round");
             await Assert.That(full.Key).IsEqualTo("de_nuke|CT|setups|Full||rounds");
             await Assert.That(rows.EveryNumberOpensItsRounds()).IsTrue();
         }

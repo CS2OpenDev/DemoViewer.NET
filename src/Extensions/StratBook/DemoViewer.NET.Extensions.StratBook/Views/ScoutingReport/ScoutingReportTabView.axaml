@@ -701,12 +701,13 @@
                                         <TextBlock Grid.Column="8" Classes="mid" Text="{Binding Stat}" HorizontalAlignment="Right"
                                                    ToolTip.Tip="{x:Static vm:PlayerRowViewModel.StatsToolTip}" />
                                         <TextBlock Grid.Column="9" Classes="mid" Text="{Binding CtSpot}" Margin="28 0 0 0"
-                                                   ToolTip.Tip="{x:Static vm:PlayerRowViewModel.CtSpotToolTip}" />
+                                                   ToolTip.Tip="{Binding CtSpotNote}" />
                                         <TextBlock Grid.Column="10" Classes="val" Text="{Binding TRole}" />
                                         <Button Grid.Column="11" Classes="ghost" Padding="8 3" FontSize="11"
-                                                Content="Show CT setup" IsEnabled="False"
-                                                ToolTip.ShowOnDisabled="True"
-                                                ToolTip.Tip="Isolating a player's CT setup comes with per-player setups (P2.1)" />
+                                                Content="{Binding IsolateLabel}" Command="{Binding IsolateCommand}"
+                                                CommandParameter="{Binding}" IsVisible="{Binding CanIsolate}"
+                                                AutomationProperties.Name="{Binding IsolateLabel}"
+                                                ToolTip.Tip="Shows this player's CT setup positions alone on the map; Show all puts everyone back" />
                                     </Grid>
                                 </Border>
                             </DataTemplate>

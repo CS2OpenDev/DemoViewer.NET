@@ -13,6 +13,7 @@ using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Modules.Abstractions;
 
@@ -62,6 +63,9 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     private bool _disposed;
     private int _generation;
     private string? _projectedKey;
+
+    // The player whose CT setup the map shows alone (SteamID64), or null.
+    private string? _isolated;
     private bool _shown = true;
 
     [ObservableProperty]
@@ -815,12 +819,23 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     private static T? Landed<T>(Task<T?> load) where T : class => load.IsCompletedSuccessfully ? load.Result : null;
 
-    // The current roster's players, most appearances first, with the role the openings suggest on the map in view.
+    // The current roster's players, most appearances first, with the role the openings suggest on the map in view
+    // and the CT spot the setups held most there.
     private void ProjectPlayers()
     {
         Players.Clear();
-        if (SelectedTeam is not { } row || _teams.AllTeams.FirstOrDefault(t => t.Id == row.Id) is not { } team
-            || team.Rosters.OrderByDescending(r => r.Since).FirstOrDefault() is not { } roster)
+        if (SelectedTeam is not { } row)
+        {
+            return;
+        }
+
+        IReadOnlyList<ScoutingRosterPlayer> roster = ScoutingPlayerColors.Roster(_teams, row.Id);
+        if (_isolated is not null && roster.All(p => p.SteamId != _isolated))
+        {
+            SetIsolated(null);
+        }
+
+        if (roster.Count == 0)
         {
             return;
         }
@@ -843,14 +858,12 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         string? topEntry = entries.OrderByDescending(e => e.Value.Count).Select(e => e.Key).FirstOrDefault();
         string? topLurk = lurks.OrderByDescending(e => e.Value).Select(e => e.Key).FirstOrDefault();
         int rounds = t?.Rounds.Count ?? 0;
+        Dictionary<string, SetupPlayerPlace> spots = CtSpots();
+        string spotBuy = Buy == ScoutingBuy.All ? "all buys" : $"{Buy.ToString().ToLowerInvariant()} buy";
 
-        ScoutingColor[] colors =
-            [ScoutingColor.Player1, ScoutingColor.Player2, ScoutingColor.Player3, ScoutingColor.Player4, ScoutingColor.Player5];
-        int i = 0;
-        foreach (TeamIndexMember member in _teams.MembersOf(row.Id, roster.Id).Values.OrderByDescending(m => m.Count)
-                     .Take(5))
+        foreach (ScoutingRosterPlayer player in roster)
         {
-            string name = DisplayText.Sanitize(member.LastName);
+            string name = DisplayText.Sanitize(player.Member.LastName);
             (string role, string note) = name == topEntry && entries[name].Count > 0
                 ? ("Entry", $"takes {entries[name].Count} of {rounds} T entries")
                 : name == topLurk && lurks[name] > 0
@@ -859,15 +872,113 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             string tRole = entries.TryGetValue(name, out (int Count, string Site) e) && e.Count > 0
                 ? $"entry {e.Site}"
                 : lurks.TryGetValue(name, out int l) && l > 0 ? "lurk" : "—";
+            SetupPlayerPlace? spot = spots.GetValueOrDefault(player.SteamId);
             Players.Add(new PlayerRowViewModel
             {
                 Name = name,
-                Color = colors[i++ % colors.Length],
+                SteamId = player.SteamId,
+                Color = player.Color,
                 Role = role,
                 RoleNote = note,
                 TRole = tRole,
-                Appearances = ScoutingLayerBase.Plural(member.Count, "demo")
+                CtSpot = spot is null ? "—" : SetupsDerivation.PlaceLabel(spot.Place),
+                CtSpotNote = spot is null
+                    ? "no CT setup positions for this player on this map"
+                    : $"held in {spot.Rounds.Count} of {ScoutingLayerBase.Plural(spot.Of, "CT round")} ({spotBuy})",
+                IsIsolated = _isolated == player.SteamId,
+                IsolateCommand = IsolatePlayerCommand,
+                Appearances = ScoutingLayerBase.Plural(player.Member.Count, "demo")
             });
+        }
+    }
+
+    // Each player's most-held CT setup place on the map in view, at the buy in view; empty until the setups land.
+    private Dictionary<string, SetupPlayerPlace> CtSpots()
+    {
+        if (SelectedMap is not { } map || _data is not { } data || Landed(data.Heatmaps) is not { } set)
+        {
+            return new Dictionary<string, SetupPlayerPlace>(StringComparer.Ordinal);
+        }
+
+        IEnumerable<SetupHeatmapRound> rounds = set.Heatmaps
+            .Where(h => string.Equals(h.Map, map.Map, StringComparison.OrdinalIgnoreCase)
+                        && (Buy == ScoutingBuy.All || h.Buy.ToString() == Buy.ToString()))
+            .SelectMany(h => h.Rounds);
+        return SetupsDerivation.PlacesByPlayer(rounds).Where(p => p.IsMain)
+            .ToDictionary(p => p.Key, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    ///     Shows one player's CT setup alone (everyone else fades), switching to CT and inspecting Setups; on the
+    ///     isolated player it puts everyone back.
+    /// </summary>
+    /// <param name="row">The player.</param>
+    [RelayCommand]
+    private void IsolatePlayer(PlayerRowViewModel? row)
+    {
+        if (row is null || row.SteamId.Length == 0)
+        {
+            return;
+        }
+
+        string? next = row.IsIsolated ? null : row.SteamId;
+        SetIsolated(next);
+        if (next is not null && Side != ScoutingSide.Ct)
+        {
+            Side = ScoutingSide.Ct; // rebuilds every CT layer, Setups with the isolation in it
+        }
+        else
+        {
+            RebuildSetups();
+        }
+
+        if (next is not null && Layers.Find("setups") is { } chip)
+        {
+            Layers.Focus(chip);
+        }
+
+        ProjectPlayers();
+    }
+
+    private void SetIsolated(string? key)
+    {
+        _isolated = key;
+        if (Layers.Find("setups")?.Layer is SetupsLayer setups)
+        {
+            setups.Isolated = key;
+        }
+    }
+
+    // Rebuilds only the Setups layer for the scope in view, so an isolate does not rebuild the whole stage.
+    private void RebuildSetups()
+    {
+        if (Side != ScoutingSide.Ct || Layers.Find("setups") is not { Context: { } context } chip)
+        {
+            return;
+        }
+
+        Task<ScoutingLayerResult> build = ScoutingLayerRegistry.Build(chip.Layer, context, CancellationToken.None);
+        if (build.IsCompleted)
+        {
+            Take(build);
+            return;
+        }
+
+        build.ContinueWith(t => _post(() => Take(t)), CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+
+        void Take(Task<ScoutingLayerResult> landed)
+        {
+            if (_disposed || !ReferenceEquals(chip.Context, context) || !landed.IsCompletedSuccessfully)
+            {
+                return;
+            }
+
+            chip.Apply(landed.Result, context);
+            if (chip.IsOn)
+            {
+                Layers.Focus(chip);
+            }
         }
     }
 
