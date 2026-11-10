@@ -92,6 +92,15 @@ public sealed record LoadOutcome(
     string? LogDetail = null,
     bool External = false)
 {
+    /// <summary>
+    ///     True when the check that refused the copy ran after its assembly was loaded. A loaded assembly stays
+    ///     mapped for the life of the process, so its folder cannot be deleted before the next start.
+    /// </summary>
+    public bool AssemblyLoaded => Failure is not (LoadFailure.PathEscapes or LoadFailure.ManifestInvalid
+        or LoadFailure.FolderMismatch or LoadFailure.ShippedUnknown or LoadFailure.NotNewer
+        or LoadFailure.Incompatible or LoadFailure.Untrusted or LoadFailure.ReservedId
+        or LoadFailure.ReservedForeignKey or LoadFailure.Unverified);
+
     /// <summary>The staged version, when the manifest parsed.</summary>
     public SemVersion? Version => Manifest?.Version;
 

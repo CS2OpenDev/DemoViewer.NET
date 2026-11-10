@@ -1057,7 +1057,7 @@ public class ExtensionUpdateServiceTests
     }
 
     [Test]
-    public async Task Cleanup_KeepsTheRunningInstalledDirectory_AndAppliesPendingRemovals()
+    public async Task Cleanup_KeepsTheRunningInstalledDirectory_AndLeavesPendingRemovalsToTheNextStart()
     {
         string root = NewRoot();
         try
@@ -1076,8 +1076,8 @@ public class ExtensionUpdateServiceTests
                 await Assert.That(Directory.Exists(older)).IsFalse().Because("superseded by the running copy");
                 await Assert.That(Directory.Exists(running)).IsTrue().Because("the running copy loaded from here");
                 await Assert.That(Directory.Exists(newer)).IsTrue();
-                await Assert.That(Directory.Exists(marked)).IsFalse().Because("marked for removal");
-                await Assert.That(Directory.Exists(Path.Combine(extensions, "net.demoviewer.pack.other"))).IsFalse();
+                await Assert.That(Directory.Exists(marked)).IsTrue()
+                    .Because("the sweep runs after extensions loaded; marked folders go at the next start");
             }
         }
         finally

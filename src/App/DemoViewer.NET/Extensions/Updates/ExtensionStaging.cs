@@ -75,9 +75,8 @@ public static class ExtensionStaging
 
     /// <summary>
     ///     Deletes every id folder under <paramref name="extensionsDirectory" /> that carries
-    ///     <see cref="RemovalMarkerName" />. The marker goes last, so a folder that did not delete whole keeps
-    ///     asking, and one folder's failure does not stop the next. Never follows a link; never throws. Returns
-    ///     the folders it deleted whole.
+    ///     <see cref="RemovalMarkerName" />, as <see cref="ApplyPendingRemoval" /> does for one. Only safe before
+    ///     any extension is loaded. Never follows a link; never throws. Returns the folders it deleted whole.
     /// </summary>
     public static IReadOnlyList<string> ApplyPendingRemovals(string extensionsDirectory)
     {
@@ -98,43 +97,59 @@ public static class ExtensionStaging
             return removed;
         }
 
-        ILogger log = DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory);
         foreach (string idFolder in idFolders)
         {
-            try
+            string id = Path.GetFileName(idFolder);
+            if (!id.StartsWith('.') && ApplyPendingRemoval(extensionsDirectory, id))
             {
-                string marker = Path.Combine(idFolder, RemovalMarkerName);
-                if (Path.GetFileName(idFolder).StartsWith('.') || !File.Exists(marker)
-                    || !IsInside(extensionsDirectory, idFolder))
-                {
-                    continue;
-                }
-
-                foreach (string child in Directory.EnumerateFileSystemEntries(idFolder))
-                {
-                    if (!string.Equals(child, marker, StringComparison.Ordinal))
-                    {
-                        DeleteTree(child);
-                    }
-                }
-
-                if (Directory.EnumerateFileSystemEntries(idFolder).Any(c => !string.Equals(c, marker, StringComparison.Ordinal)))
-                {
-                    continue;
-                }
-
-                TryDeleteFile(marker);
-                Directory.Delete(idFolder, false);
                 removed.Add(idFolder);
-                AppLog.ExtensionInstalledRemoved(log, idFolder);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // This folder keeps its marker and is tried again at the next start.
             }
         }
 
         return removed;
+    }
+
+    /// <summary>
+    ///     Deletes <c>extensions/&lt;id&gt;/</c> when it carries <see cref="RemovalMarkerName" />. The marker goes
+    ///     last, so a folder that did not delete whole keeps asking at the next start. Never follows a link;
+    ///     never throws. True when the folder was deleted whole.
+    /// </summary>
+    public static bool ApplyPendingRemoval(string extensionsDirectory, string id)
+    {
+        ArgumentNullException.ThrowIfNull(extensionsDirectory);
+        ArgumentNullException.ThrowIfNull(id);
+        try
+        {
+            string idFolder = Path.Combine(Path.GetFullPath(extensionsDirectory), id);
+            string marker = Path.Combine(idFolder, RemovalMarkerName);
+            if (id.StartsWith('.') || !IsInside(extensionsDirectory, idFolder) || !File.Exists(marker))
+            {
+                return false;
+            }
+
+            foreach (string child in Directory.EnumerateFileSystemEntries(idFolder))
+            {
+                if (!string.Equals(child, marker, StringComparison.Ordinal))
+                {
+                    DeleteTree(child);
+                }
+            }
+
+            if (Directory.EnumerateFileSystemEntries(idFolder).Any(c => !string.Equals(c, marker, StringComparison.Ordinal)))
+            {
+                return false;
+            }
+
+            TryDeleteFile(marker);
+            Directory.Delete(idFolder, false);
+            ILogger log = DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory);
+            AppLog.ExtensionInstalledRemoved(log, idFolder);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     /// <summary>

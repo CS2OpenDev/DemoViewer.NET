@@ -402,7 +402,8 @@ public sealed class ExtensionUpdateService
 
     /// <summary>
     ///     Marks an installed first-party extension for removal: the folder is deleted at the next start,
-    ///     since a loaded assembly is locked on Windows, or at once when nothing of that id is loaded. Allowed
+    ///     since a loaded assembly is locked on Windows, or at once when nothing of that id is loaded (a copy
+    ///     refused after its assembly loaded counts as loaded). Only packId's folder is touched. Allowed
     ///     for a status whose source is <see cref="PackSource.Installed" /> and for a catalogue id with
     ///     folders on disk and no status; never for a shipped id. False when refused, or when nothing is on disk.
     /// </summary>
@@ -426,9 +427,9 @@ public sealed class ExtensionUpdateService
                 {
                     ExtensionStaging.MarkForRemoval(_extensionsDirectory, packId);
                     AppLog.ExtensionRemovalMarked(Log, packId);
-                    if (status is null)
+                    if (!IsLoaded(packId))
                     {
-                        ExtensionStaging.ApplyPendingRemovals(_extensionsDirectory);
+                        ExtensionStaging.ApplyPendingRemoval(_extensionsDirectory, packId);
                     }
 
                     return true;
@@ -472,7 +473,6 @@ public sealed class ExtensionUpdateService
                 return;
             }
 
-            ExtensionStaging.ApplyPendingRemovals(_extensionsDirectory);
             ExtensionLoader.Discovery discovery = ExtensionLoader.Discover(_extensionsDirectory);
             foreach (PackStatus status in Statuses)
             {
@@ -727,6 +727,12 @@ public sealed class ExtensionUpdateService
     }
 
     private string IdFolderOf(string path) => ExternalExtensions.IdFolderOf(_extensionsDirectory, path);
+
+    // Code of packId is mapped in this process: a status, or a copy refused after its assembly loaded.
+    private bool IsLoaded(string packId) =>
+        Statuses.Any(s => string.Equals(s.Pack.Id, packId, StringComparison.Ordinal))
+        || _externalRejected.Any(o => o.AssemblyLoaded
+            && string.Equals(IdFolderOf(o.Directory), packId, StringComparison.Ordinal));
 
     // A shipped id, or one with a status this run: its own row covers it, so the catalogue never lists it.
     private bool IsShippedOrDeclared(string id) =>

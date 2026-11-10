@@ -687,17 +687,17 @@ every background job, not worked around here, and the Settings Check buttons rem
 and for a catalogue id with folders on disk and no status, never for a shipped id: a shipped extension is
 turned off (section 6), not removed. It writes the marker file `extensions/<id>/.remove` (a file under
 the id folder, invisible to `Discover`, which enumerates directories) and, when nothing of the id is
-loaded, deletes the folder at once; otherwise the folder goes at the next start, because the loaded
-assembly is mapped for the life of the process on Windows and a folder left half deleted would load
-again. `ExtensionStaging.ApplyPendingRemovals` deletes every id folder carrying the marker, the marker
-last so a folder that did not delete whole keeps asking and one folder's failure not stopping the next,
-and runs from `ExtensionStartup.Resolve` before
-anything is discovered and from the startup sweep. The row reads `Removed, restart to finish.` Remove
+loaded, deletes that one folder at once (`ExtensionStaging.ApplyPendingRemoval`). A copy refused after
+its assembly loaded (a reference, probe or collision refusal) counts as loaded. Otherwise the folder goes
+at the next start, because the loaded assembly is mapped for the life of the process and a folder left
+half deleted would load again. `ExtensionStaging.ApplyPendingRemovals` deletes every id folder carrying
+the marker, the marker last so a folder that did not delete whole keeps asking and one folder's failure
+not stopping the next. It runs only from `ExtensionStartup.Resolve`, before anything is discovered: once
+extensions have loaded, no code path sweeps another id's marked folder. The row reads `Removed, restart to finish.` Remove
 never touches the extension's data; "Delete extension data" never removes the install.
 
 **At startup.** `CleanupOnStartAsync`, a background queue item from the composition root after the
-loader's report: removes `extensions/.staging/` whole (a download the last run did not finish), applies
-the pending removals, then removes every staged version of a declared extension that is not newer than
+loader's report: removes `extensions/.staging/` whole (a download the last run did not finish), then removes every staged version of a declared extension that is not newer than
 the running copy and is not the directory the running copy loaded from, whether that is a staged update
 or an installed first-party copy. Newer versions stay, even ones the loader refused today, since they may
 load after an app update. Nothing outside `extensions/` is touched. A superseded installed version is
