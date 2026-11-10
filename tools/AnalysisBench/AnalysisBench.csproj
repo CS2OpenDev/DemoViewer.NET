@@ -23,6 +23,8 @@
         <Compile Include="../../src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/CollectorObserver.cs" Link="Collectors/CollectorObserver.cs"/>
         <Compile Include="../../src/App/DemoViewer.NET/Services/DemoProcessing/Collectors/ICollectorFaultReporter.cs" Link="Collectors/ICollectorFaultReporter.cs"/>
         <Compile Include="../../src/Sdk/DemoViewer.NET.Extensions.Sdk/Collectors.cs" Link="Sdk/Collectors.cs"/>
+        <Compile Include="../../src/Sdk/DemoViewer.NET.Extensions.Sdk/HostProviders.cs" Link="Sdk/HostProviders.cs"/>
+        <Compile Include="../../src/App/DemoViewer.NET/Services/DemoProcessing/HostProviderSet.cs" Link="HostProviderSet.cs"/>
         <!-- ForwardDemoPass.FinalState is LibraryTeamState, read through LibraryFinalStateReplay;
              DecodeSites is its one decode-count hook; ServerRankCapture is how it reads the rank update.
              All four are Avalonia-free. -->
