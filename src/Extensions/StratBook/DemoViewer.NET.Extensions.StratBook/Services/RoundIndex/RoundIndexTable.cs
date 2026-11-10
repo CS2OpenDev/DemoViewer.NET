@@ -66,16 +66,72 @@ public static class RoundIndexTable
     ///     reads the table off the visit's run.
     /// </summary>
     /// <param name="parsed">The parse.</param>
-    public static List<PositionSample> Samples(ParsedDemo parsed)
+    public static List<PositionSample> Samples(ParsedDemo parsed) => Held(parsed).Samples;
+
+    /// <summary>
+    ///     Both of the round index's rulesets run over a held parse alone: the samples, their extra columns and the
+    ///     event rows. For a caller with no visit; a pass reads the tables off the visit's run.
+    /// </summary>
+    /// <param name="parsed">The parse.</param>
+    public static HeldTables Held(ParsedDemo parsed)
     {
         ArgumentNullException.ThrowIfNull(parsed);
-        AnalysisRun run = DemoAnalysis.Run(parsed, [LoadRuleset()], new AnalysisOptions { CaptureSnapshots = false });
-        MetricTable table = run.ProjectConfiguredOutputs().SingleOrDefault(t => t.Name == TableName)
+        AnalysisRun run = DemoAnalysis.Run(parsed, [LoadRuleset(), RoundEventsTable.LoadRuleset()],
+            new AnalysisOptions { CaptureSnapshots = false });
+        IReadOnlyList<MetricTable> tables = run.ProjectConfiguredOutputs();
+        MetricTable table = tables.SingleOrDefault(t => t.Name == TableName)
             ?? throw new InvalidOperationException("the round index ruleset recorded no table: "
                 + string.Join("; ",
                     run.Build.ExcludedRulesets.SelectMany(e =>
                         e.Diagnostics)));
-        return Samples(table.Rows.Select(r => (r.Dimensions, r.Values)));
+        List<(IReadOnlyDictionary<string, object?>, IReadOnlyDictionary<string, object?>)> rows =
+            [.. table.Rows.Select(r => (r.Dimensions, r.Values))];
+        return new HeldTables(Samples(rows), Extras(rows), RoundEventsTable.Read(tables));
+    }
+
+    /// <summary>What <see cref="Held" /> reads off a parse.</summary>
+    /// <param name="Samples">The fold samples.</param>
+    /// <param name="Extras">The samples' weapon, armour and money.</param>
+    /// <param name="Events">The kill, death and plant rows.</param>
+    public sealed record HeldTables(
+        List<PositionSample> Samples,
+        IReadOnlyDictionary<(int Tick, int Slot), PositionExtra> Extras,
+        RoundEventRows Events);
+
+    /// <summary>The table's rows, as <see cref="IPassContext.Table" /> reads them, as the samples' extra columns.</summary>
+    /// <param name="rows">The rows.</param>
+    public static IReadOnlyDictionary<(int Tick, int Slot), PositionExtra> Extras(IEnumerable<FactRow> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        return Extras(rows.Select(r => ((IReadOnlyDictionary<string, object?>)Cells(r.Dimensions),
+            (IReadOnlyDictionary<string, object?>)Cells(r.Values))));
+    }
+
+    /// <summary>
+    ///     The weapon in hand, armour and money of each row, by tick and slot. A row without a position is no
+    ///     sample and has none; a column that did not read is the <see cref="PositionExtra" /> default.
+    /// </summary>
+    /// <param name="rows">The rows: dimensions <c>tick</c> and <c>player_slot</c>, the ruleset's columns as values.</param>
+    public static IReadOnlyDictionary<(int Tick, int Slot), PositionExtra> Extras(
+        IEnumerable<(IReadOnlyDictionary<string, object?> Dimensions, IReadOnlyDictionary<string, object?> Values)> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        Dictionary<(int, int), PositionExtra> extras = [];
+        foreach ((IReadOnlyDictionary<string, object?> dimensions, IReadOnlyDictionary<string, object?> values) in rows)
+        {
+            if (Int(dimensions, "tick") is not { } tick || Int(dimensions, "player_slot") is not { } slot
+                || Float(values, "pos_x") is null)
+            {
+                continue;
+            }
+
+            extras[(tick, slot)] = new PositionExtra(
+                values.GetValueOrDefault("weapon_class") as string is { Length: > 0 } weapon ? weapon : null,
+                Int(values, "armor") ?? -1,
+                Int(values, "money") ?? -1);
+        }
+
+        return extras;
     }
 
     /// <summary>The table's rows, as <see cref="IPassContext.Table" /> reads them, as fold samples.</summary>
@@ -120,7 +176,7 @@ public static class RoundIndexTable
         return [.. keyed.Select(k => k.Sample)];
     }
 
-    private static Dictionary<string, object?> Cells(IReadOnlyDictionary<string, FactValue> cells) =>
+    internal static Dictionary<string, object?> Cells(IReadOnlyDictionary<string, FactValue> cells) =>
         cells.ToDictionary(c => c.Key, c => c.Value.Kind switch
         {
             FactValueKind.Whole => c.Value.AsInteger(),
@@ -156,7 +212,14 @@ public static class RoundIndexTable
             null => null,
             float f => f,
             double d => (float)d,
+            string => null,
             IConvertible c => c.ToSingle(CultureInfo.InvariantCulture),
             _ => null
         };
 }
+
+/// <summary>A sample's columns beside its position: the class of the weapon in hand, armour and money.</summary>
+/// <param name="WeaponClass">The entity class (<c>CWeaponAWP</c>, <c>CAK47</c> ...), or null when it did not read.</param>
+/// <param name="Armor">Armour, or -1 when it did not read.</param>
+/// <param name="Money">Money, or -1 when it did not read.</param>
+public readonly record struct PositionExtra(string? WeaponClass, int Armor, int Money);

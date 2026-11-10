@@ -38,4 +38,8 @@ internal static partial class RoundIndexLog
         Message =
             "{fileName}: the index row claimed Round Facts the cache record does not carry; realigned the row so Round Facts runs again")]
     public static partial void RowClaimedMissingFacts(ILogger logger, string fileName);
+
+    [LoggerMessage(EventId = 6, Level = LogLevel.Warning,
+        Message = "{fileName}: the capture collector failed; the round index is written without its captures")]
+    public static partial void CapturesFailed(ILogger logger, string fileName, Exception exception);
 }

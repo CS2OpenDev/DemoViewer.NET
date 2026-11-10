@@ -43,8 +43,11 @@ public sealed class RoundPositionsDocument
     ///     fourth frame at or past it.
     ///     5: a slot the final roster no longer holds is named by its last <c>player_connect</c> or
     ///     <c>player_disconnect</c>, where it read 0 and "".
+    ///     6: a tuple carries the weapon in hand (<see cref="Weapons" />), armour, helmet and kit and money,
+    ///     <c>[slot, x, y, z, placeId, weaponId, armor, flags, money]</c>; a file without them reads the five-wide
+    ///     tuple with every extra unknown.
     /// </summary>
-    public const int PositionSchema = 5;
+    public const int PositionSchema = 6;
 
     /// <summary>The serializer options: camel case and compact like the sidecar, tuples through their converter.</summary>
     public static JsonSerializerOptions JsonOptions { get; } = new()
@@ -66,6 +69,13 @@ public sealed class RoundPositionsDocument
 
     /// <summary>The place table a tuple's place id indexes; <see cref="PlaceCountToken.NullPlace" /> stands for a null place.</summary>
     public List<string> Places { get; init; } = [];
+
+    /// <summary>
+    ///     The weapon classes a tuple's weapon id indexes (<c>CWeaponAWP</c>, <c>CAK47</c> ...), or null when no tuple
+    ///     carries one: a file written before schema 6, or a fold that had no weapon column.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? Weapons { get; set; }
 
     public List<RoundPositionsRound> Rounds { get; init; } = [];
 
@@ -99,6 +109,11 @@ public sealed class RoundPositionsDocument
         ArgumentNullException.ThrowIfNull(round);
         return CadenceTicks <= 0 ? 0 : (tick - round.FreezeEndTick) / CadenceTicks;
     }
+
+    /// <summary>The weapon class a tuple names, or null when it carries none.</summary>
+    /// <param name="weaponId">The tuple's weapon id.</param>
+    public string? WeaponOf(int weaponId) =>
+        Weapons is { } weapons && weaponId >= 0 && weaponId < weapons.Count ? weapons[weaponId] : null;
 
     /// <summary>The place a tuple names, or null for the reserved null place.</summary>
     /// <param name="placeId">The tuple's place id.</param>
@@ -217,28 +232,77 @@ internal sealed class RoundPositionsPlayerConverter : JsonConverter<RoundPositio
     }
 }
 
-/// <summary>One alive player at one sampled step, stored as <c>[slot, x, y, z, placeId]</c> in integer world units.</summary>
-public readonly record struct RoundPosition(int Slot, int X, int Y, int Z, int PlaceId);
+/// <summary>
+///     One alive player at one sampled step, stored as <c>[slot, x, y, z, placeId]</c> in integer world units, or
+///     <c>[slot, x, y, z, placeId, weaponId, armor, flags, money]</c> once it carries the extras (schema 6).
+/// </summary>
+/// <param name="Slot">The controller slot.</param>
+/// <param name="X">World X.</param>
+/// <param name="Y">World Y.</param>
+/// <param name="Z">World Z.</param>
+/// <param name="PlaceId">Into <see cref="RoundPositionsDocument.Places" />.</param>
+/// <param name="WeaponId">Into <see cref="RoundPositionsDocument.Weapons" />, or -1 when unknown.</param>
+/// <param name="Armor">Armour, or -1 when unknown.</param>
+/// <param name="Flags"><see cref="HelmetFlag" /> and <see cref="DefuserFlag" />, or -1 when unknown.</param>
+/// <param name="Money">Money, or -1 when unknown.</param>
+public readonly record struct RoundPosition(
+    int Slot,
+    int X,
+    int Y,
+    int Z,
+    int PlaceId,
+    int WeaponId = -1,
+    int Armor = -1,
+    int Flags = -1,
+    int Money = -1)
+{
+    /// <summary>The <see cref="Flags" /> bit for a helmet.</summary>
+    public const int HelmetFlag = 1;
 
-/// <summary><c>[slot, x, y, z, placeId]</c>.</summary>
+    /// <summary>The <see cref="Flags" /> bit for a defuse kit.</summary>
+    public const int DefuserFlag = 2;
+
+    /// <summary>True when the tuple carries none of the schema 6 extras.</summary>
+    public bool IsBare => WeaponId < 0 && Armor < 0 && Flags < 0 && Money < 0;
+
+    /// <summary>True when it has a helmet; null when unknown.</summary>
+    public bool? HasHelmet => Flags < 0 ? null : (Flags & HelmetFlag) != 0;
+
+    /// <summary>True when it has a kit; null when unknown.</summary>
+    public bool? HasDefuser => Flags < 0 ? null : (Flags & DefuserFlag) != 0;
+}
+
+/// <summary>
+///     <c>[slot, x, y, z, placeId]</c> or <c>[slot, x, y, z, placeId, weaponId, armor, flags, money]</c>. A bare
+///     tuple writes five wide, so a file without the extras is byte-identical to the schema 5 shape, and a reader
+///     takes either.
+/// </summary>
 internal sealed class RoundPositionConverter : JsonConverter<RoundPosition>
 {
     public override RoundPosition Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         RoundIndexRunConverter.Expect(ref reader, JsonTokenType.StartArray);
-        reader.Read();
-        int slot = reader.GetInt32();
-        reader.Read();
-        int x = reader.GetInt32();
-        reader.Read();
-        int y = reader.GetInt32();
-        reader.Read();
-        int z = reader.GetInt32();
-        reader.Read();
-        int place = reader.GetInt32();
-        reader.Read();
+        Span<int> cells = [-1, 0, 0, 0, 0, -1, -1, -1, -1];
+        int count = 0;
+        while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+        {
+            int value = reader.GetInt32();
+            if (count < cells.Length)
+            {
+                cells[count] = value;
+            }
+
+            count++;
+        }
+
         RoundIndexRunConverter.Expect(ref reader, JsonTokenType.EndArray);
-        return new RoundPosition(slot, x, y, z, place);
+        if (count < 5)
+        {
+            throw new JsonException($"a position tuple has {count} cells, fewer than five");
+        }
+
+        return new RoundPosition(cells[0], cells[1], cells[2], cells[3], cells[4], cells[5], cells[6], cells[7],
+            cells[8]);
     }
 
     public override void Write(Utf8JsonWriter writer, RoundPosition value, JsonSerializerOptions options)
@@ -249,6 +313,14 @@ internal sealed class RoundPositionConverter : JsonConverter<RoundPosition>
         writer.WriteNumberValue(value.Y);
         writer.WriteNumberValue(value.Z);
         writer.WriteNumberValue(value.PlaceId);
+        if (!value.IsBare)
+        {
+            writer.WriteNumberValue(value.WeaponId);
+            writer.WriteNumberValue(value.Armor);
+            writer.WriteNumberValue(value.Flags);
+            writer.WriteNumberValue(value.Money);
+        }
+
         writer.WriteEndArray();
     }
 }

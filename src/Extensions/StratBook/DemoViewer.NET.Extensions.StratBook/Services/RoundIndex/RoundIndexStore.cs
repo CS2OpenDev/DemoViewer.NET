@@ -25,6 +25,9 @@ public sealed class RoundIndexStore
     /// <summary>The positions part's name.</summary>
     public const string PositionsPart = "positions";
 
+    /// <summary>The captures part's name: the <see cref="RoundCapturesDocument" />.</summary>
+    public const string CapturesPart = "captures";
+
     /// <summary>The index document's shape. Part of the stamp and of the fingerprint, so a bump re-indexes alone.</summary>
     public const int Schema = 1;
 
@@ -78,18 +81,23 @@ public sealed class RoundIndexStore
     /// <param name="document">The index.</param>
     /// <param name="positions">The positions the cards draw.</param>
     /// <param name="fingerprint">The fingerprint the index was built under.</param>
+    /// <param name="captures">The kills, plants, buys, AWP evidence, trails and timeouts; null writes none.</param>
     /// <returns>The new stamp, or null when nothing is kept.</returns>
     public DemoDataStamp? Write(string demoPath, RoundIndexDocument document, RoundPositionsDocument positions,
-        string fingerprint)
+        string fingerprint, RoundCapturesDocument? captures = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(positions);
+        Dictionary<string, ReadOnlyMemory<byte>> parts = new() { [PositionsPart] = positions.SerializeUtf8() };
+        if (captures is not null)
+        {
+            parts[CapturesPart] = captures.SerializeUtf8();
+        }
+
         return Data.Write(demoPath,
             new DemoDataWrite(Facet, Schema, fingerprint, Encoding.UTF8.GetBytes(document.Serialize()))
             {
-                Parts =
-                    new Dictionary<string, ReadOnlyMemory<byte>> { [PositionsPart] = positions.SerializeUtf8() },
-                Count = document.RowCount
+                Parts = parts, Count = document.RowCount
             });
     }
 
@@ -134,6 +142,38 @@ public sealed class RoundIndexStore
         }
 
         return positions;
+    }
+
+    /// <summary>
+    ///     A demo's captures, or null when there are none, they do not parse, they were built under another
+    ///     fingerprint than <paramref name="expectedFingerprint" />, or they name another demo's hash. The same rule
+    ///     as <see cref="TryReadPositions" />: stale reads as absent.
+    /// </summary>
+    /// <param name="demoPath">The demo's path.</param>
+    /// <param name="expectedFingerprint">The fingerprint in force, or null to accept any.</param>
+    /// <param name="sha256">The record's hash, or null when neither side has one.</param>
+    public RoundCapturesDocument? TryReadCaptures(string demoPath, string? expectedFingerprint = null,
+        string? sha256 = null)
+    {
+        if (Data.ReadAny(demoPath, Facet, CapturesPart) is not { Schema: Schema } record
+            || RoundCapturesDocument.TryDeserialize(record.Content) is not { } captures)
+        {
+            return null;
+        }
+
+        if (expectedFingerprint is not null
+            && !string.Equals(captures.Fingerprint, expectedFingerprint, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        if (sha256 is not null && captures.Demo.Sha256 is { } written
+            && !string.Equals(written, sha256, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return captures;
     }
 
     /// <summary>Marks the demo's index failed; it leaves the backlog until the user retries it.</summary>

@@ -6,5 +6,5 @@
   "entryType": "DemoViewer.NET.Extensions.StratBook.StratBookPack",
   "requiresHost": "^2.1",
   "requiresCs2DemoKit": "0.14.1",
-  "rulesets": ["roundindex_positions", "grenade_projectiles", "grenade_releases", "grenade_events"]
+  "rulesets": ["roundindex_positions", "roundindex_events", "grenade_projectiles", "grenade_releases", "grenade_events"]
 }

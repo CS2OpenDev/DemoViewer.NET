@@ -266,6 +266,7 @@ public class StratBookPackTests
             (string, string?)[] expected =
             [
                 (roundIndex, "roundindex"),
+                (DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundEventsTable.RulesetId, "roundindex"),
                 .. DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeTables.RulesetIds.Select(id =>
                     (id, (string?)"grenades"))
             ];

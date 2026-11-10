@@ -20,7 +20,7 @@ namespace DemoViewer.NET.AppTests;
 public class SituationQueryTests
 {
     private static readonly string _fingerprint =
-        "ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + SamplerTerm;
+        "ri1;cadence=1;token=1;rf=1;src=pawn;pos=6" + SamplerTerm + RoundIndexFingerprint.CapturesTerm;
 
     private const string DemoA = "/d/a.dem";
     private const string DemoB = "/d/b.dem";

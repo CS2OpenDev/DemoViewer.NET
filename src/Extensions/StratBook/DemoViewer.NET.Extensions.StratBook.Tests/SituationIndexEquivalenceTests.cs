@@ -21,7 +21,7 @@ namespace DemoViewer.NET.AppTests;
 public class SituationIndexEquivalenceTests
 {
     private static readonly string _fingerprint =
-        "ri1;cadence=1;token=1;rf=1;src=pawn;pos=5" + SamplerTerm;
+        "ri1;cadence=1;token=1;rf=1;src=pawn;pos=6" + SamplerTerm + RoundIndexFingerprint.CapturesTerm;
 
     private static readonly string[] _maps = ["de_nuke", "de_mirage", "de_inferno"];
 

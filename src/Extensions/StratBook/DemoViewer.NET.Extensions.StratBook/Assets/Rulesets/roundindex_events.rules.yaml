@@ -1,0 +1,82 @@
+# yaml-language-server: $schema=../../../../../../rules/cs2demokit-rules.schema.json
+#
+# Round Index events: every kill, every death and every plant with the positions of the players in
+# them, for the Scouting Report's opening duels, AWP reads and plant spots. Read by the round index
+# pass off the visit's rules run and stored beside the positions file.
+#
+# A kill row is the killer's and a death row the victim's, both from the one player_death, so the
+# reader pairs them on tick, killer slot and victim slot (the player_event convention). A capture on
+# an event reads the frame before it, so the weapon class is the one the killer shot with.
+#
+# bomb_planted binds no player: every player gets the row, and the reader keeps the planter's own.
+ruleset: net_demoviewer_pack_stratbook__roundindex_events
+title: Round Index Events
+summary: Kill, death and plant positions with weapon, trade and headshot, for the Scouting Report.
+for: each_player
+
+stats:
+  kill_victim_slot: { capture: event.UserId, on: kill, per: match }
+  kill_weapon: { capture: event.Weapon, on: kill, per: match }
+  kill_headshot: { capture: event.Headshot, on: kill, per: match }
+  kill_trade: { capture: enrich.kill.was_trade_kill, on: kill, per: match }
+  kill_traded_slot: { capture: enrich.kill.traded_player_slot, on: kill, per: match }
+  kill_class: { capture: player.active_weapon_class, on: kill, per: match }
+  kill_x: { capture: player.pos_x, on: kill, per: match }
+  kill_y: { capture: player.pos_y, on: kill, per: match }
+  kill_z: { capture: player.pos_z, on: kill, per: match }
+  kill_place: { capture: player.place, on: kill, per: match }
+  kill_side: { capture: player.team, on: kill, per: match }
+
+  death_attacker_slot: { capture: event.Attacker, on: death, per: match }
+  death_class: { capture: player.active_weapon_class, on: death, per: match }
+  death_x: { capture: player.pos_x, on: death, per: match }
+  death_y: { capture: player.pos_y, on: death, per: match }
+  death_z: { capture: player.pos_z, on: death, per: match }
+  death_place: { capture: player.place, on: death, per: match }
+  death_side: { capture: player.team, on: death, per: match }
+
+  plant_planter_slot: { capture: event.UserId, on: bomb_planted, per: match }
+  plant_site: { capture: event.Site, on: bomb_planted, per: match }
+  plant_x: { capture: player.pos_x, on: bomb_planted, per: match }
+  plant_y: { capture: player.pos_y, on: bomb_planted, per: match }
+  plant_z: { capture: player.pos_z, on: bomb_planted, per: match }
+  plant_place: { capture: player.place, on: bomb_planted, per: match }
+
+show:
+  tables:
+    roundindex_kills:
+      per: player_event
+      on: kill
+      columns:
+        - { stat: kill_victim_slot, label: victim_slot }
+        - { stat: kill_weapon, label: weapon }
+        - { stat: kill_headshot, label: headshot }
+        - { stat: kill_trade, label: trade }
+        - { stat: kill_traded_slot, label: traded_slot }
+        - { stat: kill_class, label: weapon_class }
+        - { stat: kill_x, label: pos_x }
+        - { stat: kill_y, label: pos_y }
+        - { stat: kill_z, label: pos_z }
+        - { stat: kill_place, label: place }
+        - { stat: kill_side, label: side }
+    roundindex_deaths:
+      per: player_event
+      on: death
+      columns:
+        - { stat: death_attacker_slot, label: attacker_slot }
+        - { stat: death_class, label: weapon_class }
+        - { stat: death_x, label: pos_x }
+        - { stat: death_y, label: pos_y }
+        - { stat: death_z, label: pos_z }
+        - { stat: death_place, label: place }
+        - { stat: death_side, label: side }
+    roundindex_plants:
+      per: player_event
+      on: bomb_planted
+      columns:
+        - { stat: plant_planter_slot, label: planter_slot }
+        - { stat: plant_site, label: site }
+        - { stat: plant_x, label: pos_x }
+        - { stat: plant_y, label: pos_y }
+        - { stat: plant_z, label: pos_z }
+        - { stat: plant_place, label: place }

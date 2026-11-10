@@ -11,7 +11,8 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 ///     in it: the sidecar schema, the cadence, the token grammar, the Round Facts schema the round
 ///     windows and the alive/side cross-check read, the token source with the per-map zone version in
 ///     the zones mode, the positions file's tuple meaning, and the sampler: the
-///     <see cref="RoundIndexTable" /> ruleset and the engine build it ran on. Anything joined at query time (buy
+///     <see cref="RoundIndexTable" /> ruleset and the engine build it ran on; and the captures part's sources, the
+///     <see cref="RoundEventsTable" /> ruleset and the <see cref="RoundCapturesCollector" />. Anything joined at query time (buy
 ///     thresholds, team identity) is not, so a Round Facts <c>params:</c> edit never re-indexes the
 ///     library. A sidecar written before
 ///     the positions file existed carries no <c>pos=</c> and is stale, which is what lets a Result Card
@@ -19,6 +20,13 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 /// </summary>
 public static class RoundIndexFingerprint
 {
+    /// <summary>
+    ///     The captures part's sources, last in every fingerprint: the event ruleset (its YAML and the engine build),
+    ///     the capture collector's version and the host providers' version it reads.
+    /// </summary>
+    public static string CapturesTerm { get; } =
+        $";events={RoundEventsTable.Identity};captures={RoundCapturesCollector.Version};dv={HostProviders.Version}";
+
     /// <summary>The fingerprint the rows a builder writes with <paramref name="source" /> carry.</summary>
     /// <param name="options">The sampling parameters.</param>
     /// <param name="source">The place source of the rows.</param>
@@ -38,7 +46,7 @@ public static class RoundIndexFingerprint
         // The table's identity carries the engine build, so an engine bump re-indexes like a ruleset's.
         return
             $"{fingerprint};pos={RoundPositionsDocument.PositionSchema};sampler=table;ruleset={RoundIndexTable.Identity}"
-            + $";roster={RoundIndexRosterCollector.Version}";
+            + $";roster={RoundIndexRosterCollector.Version}" + CapturesTerm;
     }
 }
 
