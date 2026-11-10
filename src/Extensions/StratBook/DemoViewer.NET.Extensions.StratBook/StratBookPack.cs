@@ -933,6 +933,10 @@ public sealed class StratBookPack : IExtension
         {
             ReadBy = RoundIndexEvaluator.EvaluatorId
         });
+        contributions.Ruleset(new RulesetContribution(RoundEventsTable.RulesetName, RoundEventsTable.OpenYaml)
+        {
+            ReadBy = RoundIndexEvaluator.EvaluatorId
+        });
         contributions.Pass(GrenadeIndexEvaluator.EvaluatorId, sp.GetRequiredService<GrenadeIndexEvaluator>,
             HostIds.LibraryPass);
         // The grenade rows fold three tables off the run; the projectile ruleset reads the thrower's commands.
@@ -951,6 +955,7 @@ public sealed class StratBookPack : IExtension
             RoundIndexEvaluator.EvaluatorId);
         contributions.Collector(ThrowerCollector.Contribution);
         contributions.Collector(RoundIndexRosterCollector.Contribution);
+        contributions.Collector(RoundCapturesCollector.Contribution);
         // Proposals follow their inputs without a parse once a visit has stored the demo's detonations.
         contributions.RecordPass(SuggestedTagsService.EvaluatorId,
             () => sp.GetRequiredService<SuggestedTagsService>().RecordPass,

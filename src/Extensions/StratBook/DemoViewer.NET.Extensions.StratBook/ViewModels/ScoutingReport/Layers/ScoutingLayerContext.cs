@@ -83,6 +83,7 @@ public sealed class ScoutingReportData
         TeamName = teamName;
         Sources = sources;
         Positions = new PositionsReader(sources.RoundIndex, sources.PositionsFingerprint);
+        Captures = new RoundCapturesReader(sources.RoundIndex, sources.PositionsFingerprint);
     }
 
     public Guid TeamId { get; }
@@ -96,6 +97,13 @@ public sealed class ScoutingReportData
     ///     counts the team's demos it could not read, stale ones included, for the partial-positions notice.
     /// </summary>
     public PositionsReader Positions { get; }
+
+    /// <summary>
+    ///     The one reader every layer takes round captures through (kills and plants with positions, buys, AWP
+    ///     holders, pistol loadouts, first-shot trails, timeouts): the same per-map fingerprint as
+    ///     <see cref="Positions" />, a stale part read as absent with the reason, and its own count of demos without.
+    /// </summary>
+    public RoundCapturesReader Captures { get; }
 
     public MapPoolRecord Record { get; private init; } = new();
 

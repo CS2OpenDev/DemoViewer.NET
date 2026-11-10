@@ -162,13 +162,39 @@ public sealed class RoundIndexEvaluator : IExtensionPass
     public PassRead Read => PassRead.Forward;
 
     /// <inheritdoc />
-    /// <remarks>The samples are the <see cref="RoundIndexTable" /> rows of the visit's rules run.</remarks>
+    /// <remarks>
+    ///     The samples are the <see cref="RoundIndexTable" /> rows of the visit's rules run; the captures are the
+    ///     <see cref="RoundEventsTable" /> rows and the <see cref="RoundCapturesCollector" />'s frames off the same run.
+    /// </remarks>
     public void Run(IPassContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
         Refresh(context.DemoPath, context.Demo.MapName, (facts, source) =>
-            RoundIndexBuilder.BuildWithPositions(RoundIndexDemoValues.For(context), facts, _sources.Options, source,
-                RoundIndexTable.Samples(context.Table(RoundIndexTable.TableName))));
+        {
+            RoundIndexDemoValues values = RoundIndexDemoValues.For(context);
+            IReadOnlyList<FactRow> rows = context.Table(RoundIndexTable.TableName);
+            RoundCaptureFrames? frames = CapturesOf(context);
+            RoundIndexBuild built = RoundIndexBuilder.BuildWithPositions(values, facts, _sources.Options, source,
+                RoundIndexTable.Samples(rows), RoundIndexTable.Extras(rows), frames?.Flags);
+            RoundCapturesDocument captures = RoundCapturesBuilder.Build(facts, values.LastFrameTick,
+                values.TickRate, RoundEventsTable.Read(context.Table), frames, built.Positions.Fingerprint);
+            return (built, captures);
+        });
+    }
+
+    // A capture collector that threw costs the demo its captures, never its index: the part is written without the
+    // collector's data and says so.
+    private static RoundCaptureFrames? CapturesOf(IPassContext context)
+    {
+        try
+        {
+            return context.Collected<RoundCaptureFrames>(RoundCapturesCollector.CollectorId);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            RoundIndexLog.CapturesFailed(Log, Path.GetFileName(context.DemoPath), ex);
+            return null;
+        }
     }
 
     /// <summary>Does the pass's work on <paramref name="parsed" />, running the round index ruleset over it.</summary>
@@ -178,7 +204,22 @@ public sealed class RoundIndexEvaluator : IExtensionPass
     {
         ArgumentNullException.ThrowIfNull(parsed);
         Refresh(path, parsed.MapName, (facts, source) =>
-            RoundIndexBuilder.BuildWithPositions(parsed, facts, _sources.Options, source, _walk?.Invoke(parsed)));
+        {
+            if (_walk is not null)
+            {
+                return (RoundIndexBuilder.BuildWithPositions(parsed, facts, _sources.Options, source, _walk(parsed)),
+                    null);
+            }
+
+            // No visit, so no collector: the captures carry the event tables alone.
+            DecodeSites.Enter(3);
+            RoundIndexTable.HeldTables held = RoundIndexTable.Held(parsed);
+            RoundIndexDemoValues values = RoundIndexDemoValues.For(parsed);
+            RoundIndexBuild built = RoundIndexBuilder.BuildWithPositions(values, facts, _sources.Options, source,
+                held.Samples, held.Extras);
+            return (built, RoundCapturesBuilder.Build(facts, values.LastFrameTick, values.TickRate, held.Events, null,
+                built.Positions.Fingerprint));
+        });
     }
 
     /// <inheritdoc />
@@ -287,7 +328,8 @@ public sealed class RoundIndexEvaluator : IExtensionPass
     private static bool HasRoundFacts(LibraryDemo entry) =>
         entry.Fact(RoundFactsRows.FacetId) is { IsWritten: true };
 
-    private void Refresh(string path, string? mapName, Func<RoundFactsRows, IPlaceSource, RoundIndexBuild> build)
+    private void Refresh(string path, string? mapName,
+        Func<RoundFactsRows, IPlaceSource, (RoundIndexBuild Build, RoundCapturesDocument? Captures)> build)
     {
         string fileName = Path.GetFileName(path);
         bool forced;
@@ -318,7 +360,7 @@ public sealed class RoundIndexEvaluator : IExtensionPass
                 return; // a queued request an earlier visit already satisfied
             }
 
-            RoundIndexBuild built = build(facts, source);
+            (RoundIndexBuild built, RoundCapturesDocument? captures) = build(facts, source);
             foreach (RoundIndexDisagreement d in built.Disagreements)
             {
                 RoundIndexLog.SampleDisagreedWithFacts(Log, fileName, d.Round, d.SideMismatches, d.AliveMismatches);
@@ -331,10 +373,14 @@ public sealed class RoundIndexEvaluator : IExtensionPass
                 Sha256 = record.Sha256, StableKey = stableKey, FileName = fileName, SizeBytes = record.FileSizeBytes
             };
             built.Positions.Demo = new RoundPositionsDemo { Sha256 = record.Sha256, StableKey = stableKey };
+            if (captures is not null)
+            {
+                captures.Demo = built.Positions.Demo;
+            }
 
             // The store writes the positions first, the index second and the stamp last: a crash between any
             // two leaves "not indexed", never an index whose cards have nothing to draw.
-            long computedAt = _store.Write(path, document, built.Positions, fingerprint)?.WrittenAtTicks
+            long computedAt = _store.Write(path, document, built.Positions, fingerprint, captures)?.WrittenAtTicks
                 ?? DateTime.UtcNow.Ticks;
 
             RoundIndexedEvent indexed = new(path, document.Demo.StableKey, record.Sha256, document.Map, computedAt);
