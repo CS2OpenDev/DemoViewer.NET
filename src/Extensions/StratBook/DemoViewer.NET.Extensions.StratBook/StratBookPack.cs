@@ -704,7 +704,10 @@ public sealed class StratBookPack : IExtension
                     new JobOptions(Key: "section:scouting-report:" + section, Preemptible: true)),
                 roundIndex: sp.GetRequiredService<RoundIndexStore>(),
                 roundFacts: RoundFactsOf(sp),
-                playback: sp.GetService<ISituationPlayback>);
+                playback: sp.GetService<ISituationPlayback>,
+                minedPatterns: () => sp.GetRequiredService<StratMiningService>() is { MinedUtc: not null } mining
+                    ? [.. mining.Patterns.Select(p => p.Pattern)]
+                    : null);
         });
 
         // Lineup Clip Render: every repeated throw position and technique gets a GIF and its setpos line,

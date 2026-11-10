@@ -12,6 +12,7 @@ using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Modules.Abstractions;
@@ -139,6 +140,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <param name="playback">2D playback for a row's play button; none when null.</param>
     /// <param name="now">Today, for "5d ago"; the clock when null.</param>
     /// <param name="layers">The layers; <see cref="ScoutingLayerCatalog.Create" /> when null.</param>
+    /// <param name="minedPatterns">The Strat Mining patterns, null until mined; the strats layers are empty when null.</param>
     public ScoutingReportTabViewModel(TeamIdentityService teams, IExtensionLibrary library, VetoHistoryStore vetoes,
         bool? isBrowser = null,
         SetupHeatmapService? heatmaps = null,
@@ -157,7 +159,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         IRoundFacts? roundFacts = null,
         Func<ISituationPlayback?>? playback = null,
         Func<DateTime>? now = null,
-        IReadOnlyList<IScoutingLayer>? layers = null)
+        IReadOnlyList<IScoutingLayer>? layers = null,
+        Func<IReadOnlyList<MinedPattern>?>? minedPatterns = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -184,6 +187,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             Grenades = grenades,
             RoundIndex = roundIndex,
             Playback = playback,
+            MinedPatterns = minedPatterns,
             Renderer = renderer ?? (() => new SetupHeatmapRenderer())
         };
         Editor = new ScoutingReportEditorViewModel(notes ?? new ScoutingReportNotesStore(null), IsBrowser, export);
