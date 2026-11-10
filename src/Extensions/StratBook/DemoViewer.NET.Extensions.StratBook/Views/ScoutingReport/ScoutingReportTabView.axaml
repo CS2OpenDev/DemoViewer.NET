@@ -9,9 +9,10 @@
 
     <!--
       THE SCOUTING REPORT: one team, one map, one side at a time. Top to bottom: the header (team, record,
-      ranks placeholder, head-to-head, the sample by date, the export), the map tabs with the side and buy
-      filter, the notices, the map pool, the map stage with its layers and the inspector beside it, the
-      players, and the collapsed Period Diff, veto history and long form.
+      ranks placeholder, head-to-head, the sample by date, the export), the map pool comparing every map
+      (a row opens its map), the map tabs with the side and buy filter and the notices, the map stage with
+      its layers and the inspector beside it, the players, and the collapsed Period Diff, veto history and
+      long form. Overview first, then one map: the pool never sits between the tabs and what they pick.
 
       Every number that has rounds behind it is a dotted-underline button that opens them in Review. Icons
       are drawn geometry, never glyphs. Colour: every value is a {DynamicResource} token; CT and T use the
@@ -147,6 +148,24 @@
         <Style Selector="Border.notice">
             <Setter Property="Background" Value="{DynamicResource HexBannerBg}" />
             <Setter Property="Padding" Value="12 8" />
+        </Style>
+        <!-- A pool row: the whole row is the button that opens its map; the open map's row is tinted. -->
+        <Style Selector="Button.poolrow">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.poolrow:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource PanelHeaderHover}" />
+        </Style>
+        <Style Selector="Button.poolrow:focus-visible /template/ ContentPresenter">
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderAccent}" />
+            <Setter Property="BorderThickness" Value="1" />
         </Style>
         <Style Selector="Border.poolrow.sel">
             <Setter Property="Background" Value="{DynamicResource FrameRowSelectedBg}" />
@@ -288,7 +307,7 @@
             <TextBlock Text="no teams yet: Team Identity has not found one" FontSize="12" TextWrapping="Wrap"
                        Foreground="{DynamicResource TextMid}" IsVisible="{Binding !HasTeams}" />
 
-            <!-- Header: who, the record, the sample, the export; then the map tabs and the scope. -->
+            <!-- Header: who, the record, the sample, the export. -->
             <Border Classes="panel" IsVisible="{Binding HasTeams}">
                 <StackPanel>
                     <Grid ColumnDefinitions="*,Auto" Margin="14 12 14 4">
@@ -371,7 +390,76 @@
                                    IsVisible="{Binding Editor.HasExportUnavailableNote}" />
                         <TextBlock Classes="mid" Text="{Binding Editor.ExportLine}" TextWrapping="Wrap" />
                     </StackPanel>
+                </StackPanel>
+            </Border>
 
+            <!-- Map pool: every map side by side; a row opens that map in the tabs and the stage below. -->
+            <Border Classes="panel" IsVisible="{Binding HasMaps}">
+                <StackPanel Margin="8 6">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Button Grid.Column="0" Classes="ghost" Padding="6 4" Command="{Binding TogglePoolCommand}"
+                                AutomationProperties.Name="Map pool">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="chevron" Classes.open="{Binding IsPoolOpen}" />
+                                <TextBlock Classes="h" Text="Map pool" />
+                            </StackPanel>
+                        </Button>
+                        <TextBlock Grid.Column="2" FontSize="11" Foreground="{DynamicResource TextDim}"
+                                   Text="{Binding PoolCaption}" VerticalAlignment="Center" Margin="0 0 6 0" />
+                    </Grid>
+                    <StackPanel IsVisible="{Binding IsPoolOpen}" Margin="6 4 6 4">
+                        <Grid ColumnDefinitions="2*,*,1.4*,*,*,*,1.2*,1.2*,1.2*" Margin="0 0 0 4">
+                            <TextBlock Grid.Column="0" Classes="col-label" Text="Map" />
+                            <TextBlock Grid.Column="1" Classes="col-label" Text="Played" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="2" Classes="col-label" Text="W–L" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="3" Classes="col-label" Text="CT rounds" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="4" Classes="col-label" Text="T rounds" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="5" Classes="col-label" Text="Pistols" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="6" Classes="col-label" Text="Plant median" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="7" Classes="col-label" Text="AWP bought" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="8" Classes="col-label" Text="Last played" HorizontalAlignment="Right" />
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding Maps}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:MapPoolRowViewModel">
+                                    <Button Classes="poolrow"
+                                            Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).SelectMapCommand, FallbackValue={x:Null}}"
+                                            CommandParameter="{Binding}"
+                                            AutomationProperties.Name="{Binding Map, StringFormat='Open {0}'}">
+                                        <Border Classes="poolrow" Classes.sel="{Binding IsSelected}" Padding="0 5" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0">
+                                            <Grid ColumnDefinitions="2*,*,1.4*,*,*,*,1.2*,1.2*,1.2*">
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" Margin="4 0 0 0">
+                                                    <TextBlock Classes="val" FontWeight="SemiBold" Text="{Binding Map}" />
+                                                    <TextBlock FontSize="11" Text="thin sample" Foreground="{DynamicResource TextDim}"
+                                                               IsVisible="{Binding IsThin}" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1" Classes="val" Text="{Binding Played}" HorizontalAlignment="Right" />
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                                                    <TextBlock Classes="val" Text="{Binding WinLossLabel}" />
+                                                    <TextBlock Classes="mid" Text="{Binding WinRateLabel}" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="3" Classes="val" Text="{Binding CtLabel}" HorizontalAlignment="Right"
+                                                           ToolTip.Tip="{Binding CtToolTip}" />
+                                                <TextBlock Grid.Column="4" Classes="val" Text="{Binding TLabel}" HorizontalAlignment="Right"
+                                                           ToolTip.Tip="{Binding TToolTip}" />
+                                                <TextBlock Grid.Column="5" Classes="val" Text="{Binding PistolsLabel}" HorizontalAlignment="Right" />
+                                                <TextBlock Grid.Column="6" Classes="val" Text="{Binding PlantLabel}" HorizontalAlignment="Right" />
+                                                <TextBlock Grid.Column="7" Classes="mid" Text="{Binding AwpLabel}" HorizontalAlignment="Right"
+                                                           ToolTip.Tip="{Binding AwpToolTip}" />
+                                                <TextBlock Grid.Column="8" Classes="mid" Text="{Binding LastPlayedLabel}" HorizontalAlignment="Right" />
+                                            </Grid>
+                                        </Border>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Map nav: the tabs pick one map; the side, buy and scope below them filter what the stage draws. -->
+            <Border Classes="panel" IsVisible="{Binding HasTeams}">
+                <StackPanel>
                     <!-- Map tabs: played and last played under each name. -->
                     <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="6 0"
                             IsVisible="{Binding HasMaps}">
@@ -431,65 +519,6 @@
                     </ItemsControl>
                     <TextBlock Classes="mid" Text="{Binding ReviewLine}" Margin="14 6"
                                IsVisible="{Binding ReviewLine, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                </StackPanel>
-            </Border>
-
-            <!-- Map pool: compare maps; the tabs above pick one. -->
-            <Border Classes="panel" IsVisible="{Binding HasMaps}">
-                <StackPanel Margin="8 6">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <Button Grid.Column="0" Classes="ghost" Padding="6 4" Command="{Binding TogglePoolCommand}"
-                                AutomationProperties.Name="Map pool">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Path Classes="chevron" Classes.open="{Binding IsPoolOpen}" />
-                                <TextBlock Classes="h" Text="Map pool" />
-                            </StackPanel>
-                        </Button>
-                        <TextBlock Grid.Column="2" FontSize="11" Foreground="{DynamicResource TextDim}"
-                                   Text="{Binding PoolCaption}" VerticalAlignment="Center" Margin="0 0 6 0" />
-                    </Grid>
-                    <StackPanel IsVisible="{Binding IsPoolOpen}" Margin="6 4 6 4">
-                        <Grid ColumnDefinitions="2*,*,1.4*,*,*,*,1.2*,1.2*,1.2*" Margin="0 0 0 4">
-                            <TextBlock Grid.Column="0" Classes="col-label" Text="Map" />
-                            <TextBlock Grid.Column="1" Classes="col-label" Text="Played" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="2" Classes="col-label" Text="W–L" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="3" Classes="col-label" Text="CT rounds" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="4" Classes="col-label" Text="T rounds" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="5" Classes="col-label" Text="Pistols" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="6" Classes="col-label" Text="Plant median" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="7" Classes="col-label" Text="AWP bought" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="8" Classes="col-label" Text="Last played" HorizontalAlignment="Right" />
-                        </Grid>
-                        <ItemsControl ItemsSource="{Binding Maps}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:MapPoolRowViewModel">
-                                    <Border Classes="poolrow" Classes.sel="{Binding IsSelected}" Padding="0 5" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0">
-                                        <Grid ColumnDefinitions="2*,*,1.4*,*,*,*,1.2*,1.2*,1.2*">
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" Margin="4 0 0 0">
-                                                <TextBlock Classes="val" FontWeight="SemiBold" Text="{Binding Map}" />
-                                                <TextBlock FontSize="11" Text="thin sample" Foreground="{DynamicResource TextDim}"
-                                                           IsVisible="{Binding IsThin}" VerticalAlignment="Center" />
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="1" Classes="val" Text="{Binding Played}" HorizontalAlignment="Right" />
-                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
-                                                <TextBlock Classes="val" Text="{Binding WinLossLabel}" />
-                                                <TextBlock Classes="mid" Text="{Binding WinRateLabel}" />
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="3" Classes="val" Text="{Binding CtLabel}" HorizontalAlignment="Right"
-                                                       ToolTip.Tip="{Binding CtToolTip}" />
-                                            <TextBlock Grid.Column="4" Classes="val" Text="{Binding TLabel}" HorizontalAlignment="Right"
-                                                       ToolTip.Tip="{Binding TToolTip}" />
-                                            <TextBlock Grid.Column="5" Classes="val" Text="{Binding PistolsLabel}" HorizontalAlignment="Right" />
-                                            <TextBlock Grid.Column="6" Classes="val" Text="{Binding PlantLabel}" HorizontalAlignment="Right" />
-                                            <TextBlock Grid.Column="7" Classes="mid" Text="{Binding AwpLabel}" HorizontalAlignment="Right"
-                                                       ToolTip.Tip="{Binding AwpToolTip}" />
-                                            <TextBlock Grid.Column="8" Classes="mid" Text="{Binding LastPlayedLabel}" HorizontalAlignment="Right" />
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
                 </StackPanel>
             </Border>
 
