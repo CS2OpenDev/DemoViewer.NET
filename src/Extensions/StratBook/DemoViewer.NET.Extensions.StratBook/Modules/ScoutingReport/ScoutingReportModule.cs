@@ -16,7 +16,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 ///     <para>
 ///         <b>The ids are persisted keys.</b> <see cref="BrowserTabId" /> and <see cref="TabFeatureId" />
 ///         key the user's per-tab session state and <c>Features:Overrides:{id}</c>; the header
-///         "Scouting Report" is display text. These were renamed once (2026-11, from <c>tab.dossier</c>,
+///         "Scouting Report (Layers)" is display text (it was "Scouting Report" until the Dashboard tab arrived). These were renamed once (2026-11, from <c>tab.dossier</c>,
 ///         <c>dossier.browser</c> and <c>net.demoviewer.dossier</c>); the old values travel as
 ///         <c>ExtensionFeature.PreviousIds</c> and <c>WorkspaceTabDescriptor.PreviousTabIds</c>, which the host
 ///         reads to carry the user's saved overrides and session state forward.
@@ -61,7 +61,7 @@ public sealed class ScoutingReportModule : IWorkspaceModule
         {
             TabId = BrowserTabId,
             PreviousTabIds = [PreviousBrowserTabId],
-            Header = "Scouting Report",
+            Header = "Scouting Report (Layers)",
             Order = 5, // after Review (4)
             HostId = HostIds.StratBookHub,
             FeatureId = TabFeatureId,

@@ -361,13 +361,14 @@ public class ScoutingReportShellRenderTests
         private static int Freeze(int n) => n * 10000;
 
         /// <summary>The tab over the team, with every source a desktop host gives it but the grenade index.</summary>
-        public ScoutingReportTabViewModel Tab(QueuedPost posted, Func<string, Func<Action, Task>>? runSection = null) =>
+        public ScoutingReportTabViewModel Tab(QueuedPost posted, Func<string, Func<Action, Task>>? runSection = null,
+            ScoutingReportNotesStore? notes = null) =>
             new(Teams, Cache.Library(), new VetoHistoryStore(null), isBrowser: false,
                 heatmaps: new SetupHeatmapService(Teams, Cache.Library(), Cache.RoundFacts(), Store, Sources.FingerprintFor),
                 post: posted.Post,
                 postPlant: new PostPlantService(Teams, Cache.Library(), Cache.RoundFacts(), Store, Sources.FingerprintFor),
                 situational: new SituationalBehaviourService(Teams, Cache.Library(), Cache.RoundFacts()),
-                notes: new ScoutingReportNotesStore(null),
+                notes: notes ?? new ScoutingReportNotesStore(null),
                 runSection: runSection ?? (_ => _inline),
                 roundIndex: Store,
                 roundFacts: new RoundFactsSource(Cache),

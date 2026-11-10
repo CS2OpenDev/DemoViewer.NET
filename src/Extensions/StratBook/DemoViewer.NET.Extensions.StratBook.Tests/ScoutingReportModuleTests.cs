@@ -105,7 +105,7 @@ public class ScoutingReportModuleTests
         {
             await Assert.That(module.Id).IsEqualTo("net.demoviewer.scouting-report");
             await Assert.That(tab.TabId).IsEqualTo("scouting-report.browser");
-            await Assert.That(tab.Header).IsEqualTo("Scouting Report");
+            await Assert.That(tab.Header).IsEqualTo("Scouting Report (Layers)");
             await Assert.That(tab.PreviousTabIds).IsEquivalentTo(["dossier.browser"]);
             await Assert.That(tab.HostId).IsEqualTo(HostIds.StratBookHub);
             await Assert.That(tab.Order).IsEqualTo(5).Because("last on the rail, after Review");

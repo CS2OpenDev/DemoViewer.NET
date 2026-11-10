@@ -276,6 +276,9 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <summary>The findings, the long form, the one-pager and the export.</summary>
     public ScoutingReportEditorViewModel Editor { get; }
 
+    /// <summary>The selected team's loads, set before the header is raised; null with no team.</summary>
+    internal ScoutingReportData? Data => _data;
+
     /// <summary>Every load and the long form of the selected team; tests await it, then drain the post.</summary>
     internal Task LoadTask { get; private set; } = Task.CompletedTask;
 
@@ -420,6 +423,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Interlocked.Increment(ref _generation);
         Layers.Dispose();
         Editor.StarsChanged -= OnStarsChanged;
+        Editor.Detach();
         _teams.Changed -= Refresh;
         _library.Changed -= OnLibraryChangedForPlayers;
         _vetoes.Changed -= ProjectVetoes;
