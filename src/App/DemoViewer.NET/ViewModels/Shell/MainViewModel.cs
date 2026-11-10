@@ -4547,7 +4547,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     /// <param name="steamId64">The account; 0 opens nothing.</param>
     /// <param name="name">The name the caller shows for the account, or null.</param>
-    public bool OpenPlayerOverview(ulong steamId64, string? name = null)
+    /// <param name="scope">The demos the tab narrows to, or null for all of them.</param>
+    public bool OpenPlayerOverview(ulong steamId64, string? name = null, PlayerOverviewScope? scope = null)
     {
         if (steamId64 == 0 || PlayerOverviewTab is null)
         {
@@ -4562,7 +4563,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return false;
         }
 
-        PlayerOverviewTab.OpenPlayer(steamId64);
+        PlayerOverviewTab.OpenPlayer(steamId64, scope);
         return true;
     }
 

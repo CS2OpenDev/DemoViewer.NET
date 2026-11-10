@@ -159,6 +159,17 @@ public interface IExtensionShell
     /// <param name="steamId64">The account's SteamID64.</param>
     bool OpenPlayerOverview(ulong steamId64) => false;
 
+    /// <summary>
+    ///     Opens the Player Overview tab on <paramref name="steamId64" />, narrowed to the demos
+    ///     <paramref name="scope" /> names. The tab shows the scope as a chip the user can remove, which returns it to
+    ///     every demo. A null scope opens it as <see cref="OpenPlayerOverview(ulong)" /> does. False when that one
+    ///     would be, and from a host that cannot narrow the tab, so a false never leaves it open unscoped.
+    /// </summary>
+    /// <param name="steamId64">The account's SteamID64.</param>
+    /// <param name="scope">The demos to show, or null for all of them.</param>
+    bool OpenPlayerOverview(ulong steamId64, PlayerOverviewScope? scope) =>
+        scope is null && OpenPlayerOverview(steamId64);
+
     /// <summary>Shows <paramref name="path" /> in the system file manager.</summary>
     void RevealInFileManager(string path);
 }

@@ -23,7 +23,7 @@ public static class HostIds
     /// <summary>The Stats tab.</summary>
     public const string StatsTab = "builtin.stats";
 
-    /// <summary>The Player Overview tab: one player across the library (<see cref="IExtensionShell.OpenPlayerOverview" />).</summary>
+    /// <summary>The Player Overview tab: one player across the library (<see cref="IExtensionShell.OpenPlayerOverview(ulong)" />).</summary>
     public const string PlayerOverviewTab = "builtin.playeroverview";
 
     /// <summary>The 2D Playback tab.</summary>

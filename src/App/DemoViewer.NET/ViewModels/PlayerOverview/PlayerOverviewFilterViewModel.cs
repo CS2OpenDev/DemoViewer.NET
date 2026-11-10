@@ -1,6 +1,7 @@
 #region
 
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Modules.Library;
@@ -103,6 +104,41 @@ public sealed partial class PlayerOverviewFilterViewModel : ObservableObject
 
     /// <summary>Raised on the UI thread when the user changes the selection.</summary>
     public event Action? Changed;
+
+    /// <summary>Raised on the UI thread when the user removes the scope chip.</summary>
+    public event Action? ScopeCleared;
+
+    /// <summary>The scope chip's text, its label and the demos it holds; empty when the page is not scoped.</summary>
+    public string ScopeText { get; private set; } = "";
+
+    /// <summary>True when the page is narrowed to a scope: the chip shows.</summary>
+    public bool HasScope => ScopeText.Length > 0;
+
+    /// <summary>
+    ///     Shows the scope chip for <paramref name="label" /> over <paramref name="demos" /> of the subject's demos,
+    ///     or hides it when <paramref name="label" /> is null. Raises nothing: the caller is refreshing already.
+    /// </summary>
+    /// <param name="label">The scope's label, unsanitized, or null when there is no scope.</param>
+    /// <param name="demos">How many of the subject's demos the scope holds.</param>
+    internal void SetScope(string? label, int demos)
+    {
+        string text = label is null
+            ? ""
+            : string.Create(CultureInfo.InvariantCulture,
+                $"{DisplayText.Sanitize(label)} · {demos} {(demos == 1 ? "demo" : "demos")}");
+        if (text == ScopeText)
+        {
+            return;
+        }
+
+        ScopeText = text;
+        OnPropertyChanged(nameof(ScopeText));
+        OnPropertyChanged(nameof(HasScope));
+    }
+
+    /// <summary>Removes the scope: the page shows every demo of the subject again.</summary>
+    [RelayCommand]
+    private void ClearScope() => ScopeCleared?.Invoke();
 
     /// <summary>
     ///     Lists the maps and modes of <paramref name="matches" />. A selection the new list still holds is kept;
