@@ -1,3 +1,5 @@
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
+
 namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
 /// <summary>
@@ -59,6 +61,9 @@ public sealed class OpeningTendencies
 
     /// <summary>T rounds whose positions could be read: the denominator of the two lurk lists.</summary>
     public int LurkRounds { get; init; }
+
+    /// <summary>Every T round counted in <see cref="LurkRounds" /> with its buy and, where there was one, the lurk's route and spot at 0:30.</summary>
+    public IReadOnlyList<LurkSample> LurkSamples { get; init; } = [];
 }
 
 /// <summary>A number in the Scouting Report and the rounds behind it; <see cref="Count" /> is the number.</summary>
