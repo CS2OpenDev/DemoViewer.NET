@@ -542,13 +542,13 @@ public class StratBookPackTests
     private static readonly string[] _railOrder =
     [
         "stratbook.browser", "situations.search", "tagger.matrix", "utilitybook.browser", "review.queue",
-        "scouting-report.browser",
-        "suggested.inbox", "scouting-report-dashboard.browser"
+        "scouting-report.browser", "scouting-report-dashboard.browser",
+        "suggested.inbox"
     ];
 
     private static readonly string[] _railHeaders =
-        ["Strats", "Situations", "Tags", "Utility", "Review", "Scouting Report (Layers)", "Suggested",
-            "Scouting Report (Dashboard)"];
+        ["Strats", "Situations", "Tags", "Utility", "Review", "Scouting Report (Layers)",
+            "Scouting Report (Dashboard)", "Suggested"];
 
     // The hub is a declaration the host draws, and the rail must read exactly as it did when the pack drew it.
     // The rail's entries are the modules' own descriptors, so the badge a module moves is the badge the rail shows.
