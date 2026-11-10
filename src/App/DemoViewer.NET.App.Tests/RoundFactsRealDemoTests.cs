@@ -75,10 +75,21 @@ public class RoundFactsRealDemoTests
         // break is waited out first; either can land a tick off. The match's last round has no
         // round_officially_ended at all: it closes on cs_win_panel_match.
         double[] panels = [7.0, 8.5];
+        List<RoundFacts> live = [.. rows.Rounds.Where(r => r.IsLive)];
         using (Assert.Multiple())
         {
-            foreach (RoundFacts round in rows.Rounds.Where(r => r.IsLive))
+            foreach (RoundFacts round in live)
             {
+                // A recording can stop before its last round is decided, or close on the win panel with no
+                // round_decided; that one round has no winner, and the row must say so rather than guess.
+                if (round == live[^1] && round.WinnerSide is not (2 or 3))
+                {
+                    await Assert.That(round.WinnerSide).IsEqualTo(0);
+                    await Assert.That(round.EndSource).IsNotEqualTo(RoundEndSource.WinStatus)
+                        .Because($"round {round.Number}: an end with no winner is not a win-status end");
+                    continue;
+                }
+
                 await Assert.That(round.EndTick).IsNotNull();
                 await Assert.That(round.EndSource).IsEqualTo(RoundEndSource.WinStatus);
                 await Assert.That(round.WinnerSide is 2 or 3).IsTrue();
