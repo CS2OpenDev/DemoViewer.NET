@@ -137,6 +137,7 @@ public class StratBookPackTests
         "DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamRanksStore",
         "DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReportNotesStore",
         "DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTabViewModel",
+        "DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingDashboard.ScoutingDashboardTabViewModel",
         "DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.LineupClipService",
         "DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.LineupClipPass",
         "DemoViewer.NET.Services.DemoProcessing.DemoScheduler",
@@ -151,7 +152,8 @@ public class StratBookPackTests
     private const string ModulesBeforeThePack =
         "net.demoviewer.playback2d, net.demoviewer.ruleworkbench, net.demoviewer.highlights, "
         + "net.demoviewer.situations, net.demoviewer.teams, net.demoviewer.review, net.demoviewer.suggested, "
-        + "net.demoviewer.roundtagger, net.demoviewer.stratbook, net.demoviewer.utilitybook, net.demoviewer.scouting-report";
+        + "net.demoviewer.roundtagger, net.demoviewer.stratbook, net.demoviewer.utilitybook, net.demoviewer.scouting-report, "
+        + "net.demoviewer.scouting-report-dashboard";
 
     // Every id the static catalog used to hold for the Strat Book, with the parent it has now.
     private static readonly (string Id, string Parent)[] _movedIds =
@@ -335,12 +337,13 @@ public class StratBookPackTests
                         : FeatureScope.SubFeature);
             }
 
+            // The ids the pack declared after the move, each after the tab it sits beside.
+            List<string> expected = [StratBookPack.PackFeatureId, .. _movedIds.Select(m => m.Id)];
+            expected.Insert(expected.IndexOf("tab.scouting-report") + 1, "tab.scouting-report-dashboard");
             string[] packFeatureIds = [.. new StratBookPack().Features.Select(f => f.Id)];
-            await Assert.That(packFeatureIds)
-                .IsEquivalentTo([StratBookPack.PackFeatureId, .. _movedIds.Select(m => m.Id)],
-                    CollectionOrdering.Matching);
+            await Assert.That(packFeatureIds).IsEquivalentTo(expected, CollectionOrdering.Matching);
             await Assert.That(FeatureCatalog.Children(StratBookPack.PackFeatureId).Select(d => d.Id))
-                .IsEquivalentTo(_movedIds.Where(m => m.Parent == StratBookPack.PackFeatureId).Select(m => m.Id),
+                .IsEquivalentTo(expected.Skip(1).Where(id => id.StartsWith("tab.", StringComparison.Ordinal)),
                     CollectionOrdering.Matching);
         });
     }
@@ -528,7 +531,7 @@ public class StratBookPackTests
             using (Assert.Multiple())
             {
                 await Assert.That(vm.Tabs.Select(t => t.TabId)).Contains(HostIds.StratBookHub);
-                await Assert.That(vm.StratBookHub().Sections.Sections.Count).IsEqualTo(7);
+                await Assert.That(vm.StratBookHub().Sections.Sections.Count).IsEqualTo(8);
                 await Assert.That(vm.LibraryTab.HasTeamsView).IsTrue();
                 await Assert.That(vm.LibraryTab.Filters).IsNotEmpty();
                 await Assert.That(vm.LibraryTab.HasBadge).IsTrue();
@@ -540,16 +543,17 @@ public class StratBookPackTests
     [
         "stratbook.browser", "situations.search", "tagger.matrix", "utilitybook.browser", "review.queue",
         "scouting-report.browser",
-        "suggested.inbox"
+        "suggested.inbox", "scouting-report-dashboard.browser"
     ];
 
     private static readonly string[] _railHeaders =
-        ["Strats", "Situations", "Tags", "Utility", "Review", "Scouting Report", "Suggested"];
+        ["Strats", "Situations", "Tags", "Utility", "Review", "Scouting Report (Layers)", "Suggested",
+            "Scouting Report (Dashboard)"];
 
     // The hub is a declaration the host draws, and the rail must read exactly as it did when the pack drew it.
     // The rail's entries are the modules' own descriptors, so the badge a module moves is the badge the rail shows.
     [Test]
-    public async Task TheHub_IsThePacksHubTab_AndTheRailKeepsItsSevenSectionsInOrder()
+    public async Task TheHub_IsThePacksHubTab_AndTheRailKeepsItsEightSectionsInOrder()
     {
         await WithProvider(null, async provider =>
         {

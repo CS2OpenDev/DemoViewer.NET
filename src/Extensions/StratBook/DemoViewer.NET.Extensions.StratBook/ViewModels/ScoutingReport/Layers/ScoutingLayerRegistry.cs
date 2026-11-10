@@ -400,25 +400,8 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
 
         ScoutingLayerResult result = chip.Result;
         ScoutingLayerContext? context = chip.Context;
-        List<ScoutingInspectorRowViewModel> reads = [];
-        List<ScoutingInspectorSectionViewModel> sections = [];
-        if (context is not null)
-        {
-            // Each star's accessible name carries the layer, the section and the scope it files under.
-            string Where(ScoutingBuy? buy, string section) => string.Join(" · ",
-                new[] { chip.Title, section, ScoutingReportStarKeys.Where(context.Scope(chip.Layer, buy)) }
-                    .Where(p => p.Length > 0));
-
-            reads.AddRange(result.Reads.Select(r =>
-                new ScoutingInspectorRowViewModel(this, r,
-                    ScoutingReportStarKeys.Key(context.Scope(chip.Layer, r.Buy), r.StarText), Where(r.Buy, ""))));
-            sections.AddRange(result.Sections.Select(s => new ScoutingInspectorSectionViewModel(s.Title,
-            [
-                .. s.Rows.Select(row => new ScoutingInspectorRowViewModel(this, row,
-                    ScoutingReportStarKeys.Key(context.Scope(chip.Layer, row.Buy), row.KeyText),
-                    Where(row.Buy, s.Title)))
-            ])));
-        }
+        (List<ScoutingInspectorRowViewModel> reads, List<ScoutingInspectorSectionViewModel> sections) =
+            context is null ? ([], []) : Lines(this, chip, context, result);
 
         string buy = !chip.Layer.UsesBuy ? "all buys" : Buy == ScoutingBuy.All ? "all buys" : $"{Buy} buy";
         string scope = string.Join(" · ", new[] { Map, Side.Label(), buy, ScopeSuffix }.Where(p => p.Length > 0));
@@ -427,6 +410,40 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
             ? windowed.Windows.Select(w => new ScoutingWindowPillViewModel(w, w.Key == windowed.Window,
                 key => SelectWindow(chip, key)))
             : []);
+    }
+
+    /// <summary>
+    ///     A build's read sentences and sections as starrable rows, each keyed under its scope: what the inspector
+    ///     shows, and what a Dashboard card shows for its part of a layer.
+    /// </summary>
+    /// <param name="host">Stars, Review and 2D for the rows.</param>
+    /// <param name="chip">The layer, named for the side in view.</param>
+    /// <param name="context">The scope the result was built for.</param>
+    /// <param name="result">The build, or the part of it to show.</param>
+    internal static (List<ScoutingInspectorRowViewModel> Reads, List<ScoutingInspectorSectionViewModel> Sections)
+        Lines(IScoutingRowHost host, ScoutingLayerChipViewModel chip, ScoutingLayerContext context,
+            ScoutingLayerResult result)
+    {
+        // Each star's accessible name carries the layer, the section and the scope it files under.
+        string Where(ScoutingBuy? buy, string section) => string.Join(" · ",
+            new[] { chip.Title, section, ScoutingReportStarKeys.Where(context.Scope(chip.Layer, buy)) }
+                .Where(p => p.Length > 0));
+
+        List<ScoutingInspectorRowViewModel> reads =
+        [
+            .. result.Reads.Select(r => new ScoutingInspectorRowViewModel(host, r,
+                ScoutingReportStarKeys.Key(context.Scope(chip.Layer, r.Buy), r.StarText), Where(r.Buy, "")))
+        ];
+        List<ScoutingInspectorSectionViewModel> sections =
+        [
+            .. result.Sections.Select(s => new ScoutingInspectorSectionViewModel(s.Title,
+            [
+                .. s.Rows.Select(row => new ScoutingInspectorRowViewModel(host, row,
+                    ScoutingReportStarKeys.Key(context.Scope(chip.Layer, row.Buy), row.KeyText),
+                    Where(row.Buy, s.Title)))
+            ]))
+        ];
+        return (reads, sections);
     }
 
     /// <summary>Re-reads every shown star; the one-pager changed somewhere else.</summary>

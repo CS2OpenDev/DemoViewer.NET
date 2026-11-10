@@ -80,7 +80,8 @@ public sealed record ScoutingReportHeader
 ///         <b>Stars, edits and dismissals live in <see cref="ScoutingReportNotesStore" /> by scope key.</b> The
 ///         inspector stars a row through <see cref="SetStarred" />, the long form through
 ///         <see cref="ToggleStarCommand" />; both land on the same key, so the one-pager preview, the long form and
-///         the inspector agree. This VM is the store's only writer.
+///         the inspector agree. The Layers and Dashboard tabs each hold one of these over the one store, so a
+///         star written by either is read back by the other on the store's <c>Changed</c>.
 ///     </para>
 /// </summary>
 public sealed partial class ScoutingReportEditorViewModel : ObservableObject
@@ -148,6 +149,41 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         _export = export ?? ScoutingReportExportWriter.WriteAndOpen;
         _header = header;
         _renderStage = renderStage ?? ScoutingStageRenderer.TryRender;
+        _store.Changed += OnStoreChanged;
+    }
+
+    /// <summary>Stops following the store; the owning tab is gone.</summary>
+    public void Detach() => _store.Changed -= OnStoreChanged;
+
+    // The other tab starred or unstarred a line: the rows follow the store. Our own writes find nothing to change.
+    private void OnStoreChanged()
+    {
+        if (_teamId is not { } id)
+        {
+            return;
+        }
+
+        HashSet<string> starred = new(_store.For(id).Starred, StringComparer.Ordinal);
+        bool any = false;
+        foreach (ScoutingReportFindingViewModel row in _rows)
+        {
+            bool on = starred.Contains(row.Key);
+            if (row.IsStarred != on)
+            {
+                row.IsStarred = on;
+                any = true;
+            }
+        }
+
+        if (any)
+        {
+            AfterStar();
+        }
+        else
+        {
+            // A star on a line the long form does not list (a narrower buy) still moves the inspector's.
+            StarsChanged?.Invoke();
+        }
     }
 
     /// <summary>The layer ids in the order lines print under a side: the registry's chip order.</summary>

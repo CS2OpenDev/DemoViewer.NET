@@ -92,8 +92,12 @@ public sealed class ScoutingStageRenderer : IDisposable
     /// <summary>The PNG of the marks on the map, or null with no marks.</summary>
     /// <param name="map">The map.</param>
     /// <param name="marks">The marks, in drawing order.</param>
+    /// <param name="paper">
+    ///     White paper around and under the radar, for print; false keeps the renderer's dark stage, for a picture
+    ///     shown on screen in either theme.
+    /// </param>
     /// <exception cref="InvalidOperationException">No app is installed to render.</exception>
-    public byte[]? Render(string map, IReadOnlyList<ScoutingMapMark> marks)
+    public byte[]? Render(string map, IReadOnlyList<ScoutingMapMark> marks, bool paper = true)
     {
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(marks);
@@ -114,8 +118,12 @@ public sealed class ScoutingStageRenderer : IDisposable
         byte[] png = MapAssets.RenderPng(frame, asset, [SceneLayerIds.Radar],
             ViewportTransform.Fit(band.Width, band.Height, bounds.MinX, bounds.MinY, bounds.MaxX, bounds.MaxY, Margin),
             new SKSizeI(band.Width, band.Height * floors),
-            [() => new PaperLayer(), () => new ScoutingMarksLayer("scouting.export", document)]);
-        return Lay(OnPaper(png), floors, band);
+            paper
+                ? [() => new PaperLayer(), () => new ScoutingMarksLayer("scouting.export", document)]
+                : [() => new ScoutingMarksLayer("scouting.export", document)]);
+        return paper
+            ? Lay(OnPaper(png), floors, band)
+            : Lay(png, floors, band, ScenePalette.Dark.Background);
     }
 
     /// <summary>One floor's band for art of this height over width, fitted into <see cref="Size" />.</summary>
@@ -135,7 +143,8 @@ public sealed class ScoutingStageRenderer : IDisposable
     /// <param name="png">The rendered stack, highest floor on top.</param>
     /// <param name="floors">How many bands it holds.</param>
     /// <param name="band">One band's size.</param>
-    public static byte[] Lay(byte[] png, int floors, SKSizeI band)
+    /// <param name="background">The fill around the floors; white paper when null.</param>
+    public static byte[] Lay(byte[] png, int floors, SKSizeI band, SKColor? background = null)
     {
         ArgumentNullException.ThrowIfNull(png);
         using SKBitmap? stack = SKBitmap.Decode(png);
@@ -151,7 +160,7 @@ public sealed class ScoutingStageRenderer : IDisposable
         using SKBitmap paper = new(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul));
         using (SKCanvas canvas = new(paper))
         {
-            canvas.Clear(SKColors.White);
+            canvas.Clear(background ?? SKColors.White);
             using SKPaint seam = new() { Color = new SKColor(0xCC, 0xCC, 0xCC), StrokeWidth = 1 };
             for (int i = 0; i < floors; i++)
             {
