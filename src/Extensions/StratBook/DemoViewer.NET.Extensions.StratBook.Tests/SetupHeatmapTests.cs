@@ -283,7 +283,7 @@ public class SetupHeatmapTests
             await Assert.That(allMarks).IsGreaterThan(7).Because("All draws every buy");
             await Assert.That(setups.Marks.Visible).IsTrue();
             await Assert.That(setups.Marks.Fade).IsEqualTo(1f).Because("the inspected layer draws at full strength");
-            await Assert.That(vm.ScopeLine).IsEqualTo("de_nuke · CT · Full buy · 1 map");
+            await Assert.That(vm.ScopeLine).IsEqualTo("Nuke · CT · Full buy · 1 map");
             await Assert.That(full.Value).IsEqualTo("3 rounds · 2 sampled");
             await Assert.That(rows.Single(r => r.Label == "A site · slot 5").Value).IsEqualTo("2 of 2 rounds");
             await Assert.That(rows.Single(r => r.Label == "A site · slot 5").Note).IsEqualTo("fixed");
