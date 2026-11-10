@@ -55,6 +55,8 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     private bool _refreshQueued;
     private PlayerRanks? _ranks;
     private PlayerRows? _rows;
+    private PlayerOverviewScope? _scope;
+    private HashSet<string>? _scopeDemos;
     private bool _stale = true;
     private int _shown;
     private bool _subjectWasMine;
@@ -124,6 +126,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         services.Directory.Changed += OnDirectoryChanged;
         services.Identity.Changed += OnIdentityChanged;
         Filter.Changed += OnFilterChanged;
+        Filter.ScopeCleared += OnScopeCleared;
         if (queue is not null)
         {
             queue.Changed += OnQueueChanged;
@@ -163,6 +166,9 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     /// <summary>The account the page is about, or null.</summary>
     public ulong? SubjectSteamId64 { get; private set; }
 
+    /// <summary>The demos the page is narrowed to, or null for every demo of the subject.</summary>
+    public PlayerOverviewScope? Scope => _scope;
+
     /// <summary>True when the user opened the subject; false while the tab follows the active Me account.</summary>
     public bool IsPinned { get; private set; }
 
@@ -201,6 +207,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         _services.Directory.Changed -= OnDirectoryChanged;
         _services.Identity.Changed -= OnIdentityChanged;
         Filter.Changed -= OnFilterChanged;
+        Filter.ScopeCleared -= OnScopeCleared;
         if (_queue is not null)
         {
             _queue.Changed -= OnQueueChanged;
@@ -260,7 +267,15 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
 
     /// <summary>Shows <paramref name="steamId64" />. Opening anyone but the active account pins them for the session.</summary>
     /// <param name="steamId64">The account.</param>
-    public void OpenPlayer(ulong steamId64)
+    public void OpenPlayer(ulong steamId64) => OpenPlayer(steamId64, null);
+
+    /// <summary>
+    ///     Shows <paramref name="steamId64" /> over only the demos <paramref name="scope" /> names, or over all of
+    ///     them when it is null. The scope lasts until the user removes its chip or the subject changes.
+    /// </summary>
+    /// <param name="steamId64">The account.</param>
+    /// <param name="scope">The demos to narrow to, or null.</param>
+    public void OpenPlayer(ulong steamId64, PlayerOverviewScope? scope)
     {
         if (steamId64 == 0)
         {
@@ -268,6 +283,7 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         }
 
         SetSubject(steamId64, steamId64 != ParseId(_services.Identity.ActiveSteamId64));
+        SetScope(scope);
         Invalidate();
     }
 
@@ -416,6 +432,11 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
 
     private void SetSubject(ulong? steamId64, bool pinned)
     {
+        if (steamId64 != SubjectSteamId64)
+        {
+            SetScope(null);
+        }
+
         SubjectSteamId64 = steamId64;
         IsPinned = steamId64 is not null && pinned;
         _subjectWasMine = steamId64 is { } id && _services.Identity.IsMine(id);
@@ -437,6 +458,27 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
     }
 
     private void OnDirectoryChanged() => Invalidate();
+
+    private void OnScopeCleared()
+    {
+        SetScope(null);
+        Invalidate();
+    }
+
+    // Hashes and paths share one set: a 64-digit hex string is never a demo's path.
+    private void SetScope(PlayerOverviewScope? scope)
+    {
+        _scope = scope;
+        _scopeDemos = scope is null
+            ? null
+            : new HashSet<string>(scope.Demos.Where(d => !string.IsNullOrEmpty(d)), StringComparer.OrdinalIgnoreCase);
+        OnPropertyChanged(nameof(Scope));
+    }
+
+    private bool InScope(PlayerMatch match) =>
+        _scopeDemos is not { } demos
+        || (!string.IsNullOrEmpty(match.Row.Sha256) && demos.Contains(match.Row.Sha256))
+        || (!string.IsNullOrEmpty(match.Row.Path) && demos.Contains(match.Row.Path));
 
     // The rows are read already: a new window is a recompute over them, with no directory or file read.
     private void OnFilterChanged()
@@ -496,6 +538,12 @@ public sealed partial class PlayerOverviewTabViewModel : ViewModelBase, IWorkspa
         PlayerDirectory directory = _services.Directory;
         PlayerEntry? player = SubjectSteamId64 is { } id ? directory.Get(id) : null;
         IReadOnlyList<PlayerMatch> matches = player is null ? [] : directory.Matches(player.SteamId64);
+        if (_scopeDemos is not null)
+        {
+            matches = [.. matches.Where(InScope)];
+        }
+
+        Filter.SetScope(_scope?.Label, matches.Count);
         int withStats = 0;
         foreach (PlayerMatch match in matches)
         {

@@ -24,3 +24,18 @@ DemoViewer.NET.Extensions.Sdk.ExtensionFeature.PreviousIds.get -> System.Collect
 DemoViewer.NET.Extensions.Sdk.ExtensionFeature.PreviousIds.init -> void
 DemoViewer.NET.Modules.Abstractions.WorkspaceTabDescriptor.PreviousTabIds.get -> System.Collections.Generic.IReadOnlyList<string!>!
 DemoViewer.NET.Modules.Abstractions.WorkspaceTabDescriptor.PreviousTabIds.init -> void
+DemoViewer.NET.Extensions.Sdk.IExtensionShell.OpenPlayerOverview(ulong steamId64, DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope? scope) -> bool
+DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope
+DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.<Clone>$() -> DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope!
+DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.Deconstruct(out string! Label, out System.Collections.Generic.IReadOnlyCollection<string!>! Demos) -> void
+DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.Demos.get -> System.Collections.Generic.IReadOnlyCollection<string!>!
+DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.Demos.init -> void
+DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.Equals(DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope? other) -> bool
+DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.Label.get -> string!
+DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.Label.init -> void
+DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.PlayerOverviewScope(string! Label, System.Collections.Generic.IReadOnlyCollection<string!>! Demos) -> void
+override DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.Equals(object? obj) -> bool
+override DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.GetHashCode() -> int
+override DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.ToString() -> string!
+static DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.operator !=(DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope? left, DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope? right) -> bool
+static DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.operator ==(DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope? left, DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope? right) -> bool

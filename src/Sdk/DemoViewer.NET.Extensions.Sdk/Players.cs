@@ -46,6 +46,19 @@ public sealed record LibraryPlayerMatch(
     DateTime Time);
 
 /// <summary>
+///     A set of demos the Player Overview narrows to, such as one team's matches. Its history, aggregates and
+///     panels read only the subject's demos the scope names, and its filter bar shows <see cref="Label" /> with the
+///     count as a chip the user can remove.
+/// </summary>
+/// <param name="Label">What the chip says, such as "vs Team X"; the host adds the demo count.</param>
+/// <param name="Demos">
+///     The demos, each a lowercase hex SHA-256 (<see cref="LibraryDemo.Sha256" />) or a path
+///     (<see cref="LibraryDemo.FilePath" />). A demo matches on its hash or on its path, a path ignoring case.
+/// </param>
+[PublicAPI]
+public sealed record PlayerOverviewScope(string Label, IReadOnlyCollection<string> Demos);
+
+/// <summary>
 ///     Every account in the library and the demos it is in, read only. It reads the index the host keeps in
 ///     memory, opens no file and is safe on any thread. An account is in a demo when the demo's sides have it
 ///     (no bot, no coach, a real SteamID) or the demo's player stats do: one only the stats have left early.
