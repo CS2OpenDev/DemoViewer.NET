@@ -125,6 +125,35 @@ public class RetakesLayerTests
     }
 
     [Test]
+    public async Task TheBombPosition_IsTheCapturedPlantSpot_WhenTheRoundHasOne_ElseTheSample()
+    {
+        RoundPositionsDocument positions = Positions(s => [P(0, 3000, 0)]);
+        RoundCaptureView exact = new(new CapturedRound
+        {
+            Number = 1,
+            Plant = new CapturedPlant(40 * Rate, 9, 0, BombSite.A, new CaptureSpot(-1500, 700, 12, "BombsiteA"))
+        }, true);
+        RoundCaptureView unspotted = new(new CapturedRound
+        {
+            Number = 1, Plant = new CapturedPlant(40 * Rate, 9, 0, BombSite.A, null)
+        }, true);
+        RoundFacts facts = Facts(2);
+
+        RoundPosition? fromCapture = RetakeRules.PlantPosition(positions, facts, exact);
+        RoundPosition? withoutSpot = RetakeRules.PlantPosition(positions, facts, unspotted);
+        RoundPosition? none = RetakeRules.PlantPosition(positions, facts, null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(fromCapture).IsNotNull();
+            await Assert.That((fromCapture!.Value.X, fromCapture.Value.Y, fromCapture.Value.Z)).IsEqualTo((-1500, 700, 12));
+            await Assert.That(withoutSpot).IsEqualTo(none).Because("a plant with no spot falls back to the sample");
+            await Assert.That(none).IsNotNull();
+            await Assert.That(PostPlantService.PlantSpot(positions, facts, exact)).IsEqualTo(fromCapture)
+                .Because("the plants layer reads the same source");
+        }
+    }
+
+    [Test]
     public async Task ManCountRows_SplitRetookAndSaved_AndCountTheRetakesWon()
     {
         List<RetakeRound> rounds =

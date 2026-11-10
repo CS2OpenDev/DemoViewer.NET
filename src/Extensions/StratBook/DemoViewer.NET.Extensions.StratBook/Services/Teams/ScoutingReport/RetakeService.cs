@@ -37,20 +37,23 @@ public static class RetakeRules
     public const int SaveHeight = 250;
 
     /// <summary>
-    ///     Where the bomb went down: for now the planter's nearest positions sample at the plant tick
-    ///     (<see cref="PostPlantService.PlantSpot" />). P3.1 replaces it with the exact plant position; every
-    ///     retake read goes through here.
+    ///     Where the bomb went down: the exact plant spot from the round's captures when there is one, else the
+    ///     planter's nearest positions sample at the plant tick (<see cref="PostPlantService.PlantSpot(RoundPositionsDocument, RoundFacts, RoundCaptureView)" />).
+    ///     Every retake read goes through here.
     /// </summary>
     /// <param name="positions">The demo's positions file.</param>
     /// <param name="round">The round.</param>
-    public static RoundPosition? PlantPosition(RoundPositionsDocument positions, RoundFacts round) =>
-        PostPlantService.PlantSpot(positions, round);
+    /// <param name="capture">The round's captures, or null.</param>
+    public static RoundPosition? PlantPosition(RoundPositionsDocument positions, RoundFacts round,
+        RoundCaptureView? capture = null) =>
+        PostPlantService.PlantSpot(positions, round, capture);
 
     /// <summary>One planted round's read: the kind, the CTs that reached the bomb and the CTs that saved.</summary>
     /// <param name="positions">The demo's positions file, or null when it has none.</param>
     /// <param name="round">The round.</param>
+    /// <param name="capture">The round's captures, for the exact plant spot; null falls back to the sample.</param>
     public static (RetakeKind Kind, IReadOnlyList<RoundPosition> Reached, IReadOnlyList<RoundPosition> Saves)
-        Read(RoundPositionsDocument? positions, RoundFacts round)
+        Read(RoundPositionsDocument? positions, RoundFacts round, RoundCaptureView? capture = null)
     {
         ArgumentNullException.ThrowIfNull(round);
         if (round.PlantTick is not { } plant)
@@ -59,7 +62,7 @@ public static class RetakeRules
         }
 
         if (positions is null || positions.CadenceTicks <= 0 || positions.Round(round.Number) is not { } stored
-            || PlantPosition(positions, round) is not { } bomb)
+            || PlantPosition(positions, round, capture) is not { } bomb)
         {
             return (RetakeKind.Unread, [], []);
         }
@@ -141,6 +144,7 @@ public sealed class RetakeService
 
     private readonly IExtensionLibrary _library;
     private readonly PositionsReader? _positions;
+    private readonly RoundCapturesReader? _captures;
     private readonly IRoundFacts _roundFacts;
     private readonly TeamIdentityService _teams;
 
@@ -148,8 +152,9 @@ public sealed class RetakeService
     /// <param name="library">The library: map and hash per demo.</param>
     /// <param name="roundFacts">The Round Facts rows per demo.</param>
     /// <param name="positions">The positions files; null reads every planted round as unread.</param>
+    /// <param name="captures">The round captures, for the exact plant spot; null uses the 1 Hz sample.</param>
     public RetakeService(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts,
-        PositionsReader? positions)
+        PositionsReader? positions, RoundCapturesReader? captures = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -158,6 +163,7 @@ public sealed class RetakeService
         _library = library;
         _roundFacts = roundFacts;
         _positions = positions;
+        _captures = captures;
     }
 
     /// <summary>The team's CT rounds with their retake reads.</summary>
@@ -186,12 +192,14 @@ public sealed class RetakeService
                 withoutPositions++;
             }
 
+            DemoCaptures? captured = _captures?.Read(demo.Path, map, record.Sha256);
             int rate = rows.Clock?.TickRate is > 0 and var r ? r : FallbackTickRate;
             foreach (RoundFacts round in rows.Rounds.OrderBy(x => x.Number))
             {
                 if (round.IsLive && _teams.SideAtRound(demo.Path, teamId, round.Number) == 3)
                 {
-                    rounds.Add(Round(map, demo.Path, record.Sha256, rate, positions, round));
+                    rounds.Add(Round(map, demo.Path, record.Sha256, rate, positions, round,
+                        captured?.Round(round.Number)));
                 }
             }
         }
@@ -206,15 +214,16 @@ public sealed class RetakeService
     /// <param name="tickRate">Its tick rate.</param>
     /// <param name="positions">Its positions file, or null.</param>
     /// <param name="round">The round, the team on CT.</param>
+    /// <param name="capture">The round's captures, or null.</param>
     public static RetakeRound Round(string map, string demoPath, string? sha256, int tickRate,
-        RoundPositionsDocument? positions, RoundFacts round)
+        RoundPositionsDocument? positions, RoundFacts round, RoundCaptureView? capture = null)
     {
         ArgumentNullException.ThrowIfNull(round);
         (RetakeKind kind, IReadOnlyList<RoundPosition> reached, IReadOnlyList<RoundPosition> saves) =
-            RetakeRules.Read(positions, round);
+            RetakeRules.Read(positions, round, capture);
         (int ct, int t) = RoundPhases.AliveAt(round, round.PlantTick ?? round.FreezeEndTick);
         string? grouping = kind is RetakeKind.Retook or RetakeKind.Saved
-                           && positions is not null && RetakeRules.PlantPosition(positions, round) is { } bomb
+                           && positions is not null && RetakeRules.PlantPosition(positions, round, capture) is { } bomb
             ? PostPlantService.RetakeGroup(positions, round, bomb, tickRate)
             : null;
         int from = round.PlantTick is { } plant
