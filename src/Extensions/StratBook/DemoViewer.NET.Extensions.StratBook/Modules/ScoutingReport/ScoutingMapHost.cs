@@ -8,6 +8,7 @@ using Avalonia.Media;
 using DemoViewer.NET.Extensions.StratBook.Playback2D.Layers;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
+using DemoViewer.NET.Playback2D;
 
 #endregion
 
@@ -41,11 +42,78 @@ public sealed class ScoutingMapHost : Decorator
         ClipToBounds = true;
         _note.Bind(TextBlock.ForegroundProperty, _note.GetResourceObservable("TextMid"));
         Child = new Grid { Children = { Map, _note } };
-        Map.MapBound += (_, _) => UpdateNote();
+        Map.MapBound += (_, _) =>
+        {
+            UpdateNote();
+            InvalidateMeasure();
+        };
     }
 
     /// <summary>The map view the stage is built on.</summary>
     public MapView Map { get; } = new();
+
+    /// <summary>The height a stage takes with no map bound: room for the line that says why.</summary>
+    public const double EmptyHeight = 360;
+
+    /// <summary>
+    ///     The height of one floor's band for a stage <paramref name="width" /> wide. The map view stacks a
+    ///     multi-floor map's floors as bands of equal height, and a radar is square, so a floor draws as large
+    ///     as its band is tall: the stage grows by a band per floor instead of squeezing two floors into one
+    ///     map's height. A single floor stays a bit shorter than the stage is wide, two floors a bit shorter
+    ///     still so the page does not turn into one long map.
+    /// </summary>
+    /// <param name="width">The stage's width.</param>
+    /// <param name="floors">The map's floors.</param>
+    public static double BandHeight(double width, int floors) =>
+        Math.Clamp(width * 0.66, 420, floors > 1 ? 500 : 620);
+
+    /// <inheritdoc />
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        double width = double.IsInfinity(availableSize.Width) ? 800 : availableSize.Width;
+        _measuredFloors = Floors();
+        double height = _measuredFloors == 0 ? EmptyHeight : _measuredFloors * BandHeight(width, _measuredFloors);
+        Size size = new(width, height);
+        Child?.Measure(size);
+        return size;
+    }
+
+    /// <inheritdoc />
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        // The floors are known only once the art has loaded, which can land after the bind: measure again then.
+        if (Floors() != _measuredFloors)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(InvalidateMeasure);
+        }
+
+        return base.ArrangeOverride(finalSize);
+    }
+
+    private int _measuredFloors = -1;
+
+    // The map's floors from its shipped art: the view's own level set fills in only once it first draws.
+    private int _assetFloors;
+
+    private int Floors() => Map.HasMap ? Math.Max(Math.Max(1, _assetFloors), Map.Space?.Levels.Count ?? 1) : 0;
+
+    private static int FloorsOf(string? map)
+    {
+        if (string.IsNullOrEmpty(map))
+        {
+            return 0;
+        }
+
+        try
+        {
+            using IMapAssetLease? lease = MapAssets.Acquire(map);
+            return lease?.Floors?.Count ?? 0;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            return 0;
+        }
+    }
 
     /// <inheritdoc />
     protected override void OnDataContextChanged(EventArgs e)
@@ -109,6 +177,7 @@ public sealed class ScoutingMapHost : Decorator
         }
 
         vm.PropertyChanged += OnVmChanged;
+        _assetFloors = FloorsOf(vm.MapName);
         Map.MapName = vm.MapName;
         UpdateNote();
     }
@@ -117,8 +186,10 @@ public sealed class ScoutingMapHost : Decorator
     {
         if (e.PropertyName == nameof(ScoutingReportTabViewModel.MapName) && _vm is { } vm)
         {
+            _assetFloors = FloorsOf(vm.MapName);
             Map.MapName = vm.MapName;
             UpdateNote();
+            InvalidateMeasure();
         }
     }
 
