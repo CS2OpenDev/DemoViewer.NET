@@ -415,7 +415,8 @@ public sealed class RulesetCorpus
 
             failures.Add((path, string.Join("; ", outcome.Diagnostics.Select(d => d.Message))));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or YamlDotNet.Core.YamlException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or YamlDotNet.Core.YamlException
+                                       or InvalidOperationException)
         {
             failures.Add((path, ex.Message));
         }
