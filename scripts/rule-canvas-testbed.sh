@@ -2,10 +2,11 @@
 # Runs the desktop app with the Rule Canvas testbed fixtures as the user rules directory, so the canvas
 # picker lists them as editable rulesets labelled "testbed" beside the shipped set.
 #
-#   scripts/rule-canvas-testbed.sh [--reset] [--no-build] [--dir <path>]
+#   scripts/rule-canvas-testbed.sh [--reset] [--no-build] [--prepare] [--dir <path>]
 #
 #   --reset     wipe the scratch directory and copy every fixture again, discarding edits made in the app
 #   --no-build  run the last Release build of the desktop app without building it
+#   --prepare   copy the fixtures and print the environment line to launch any build yourself, without running
 #   --dir       the scratch directory (default $DV_TESTBED_DIR, else
 #               $HOME/.cache/demoviewer-rule-canvas-testbed/rules); refused when it is the fixture
 #               directory or already holds files this script did not put there
@@ -24,17 +25,19 @@ FIXTURES="$ROOT/src/Extensions/RuleCanvas/testbed/rules"
 DIR="${DV_TESTBED_DIR:-$HOME/.cache/demoviewer-rule-canvas-testbed/rules}"
 RESET=0
 NO_BUILD=0
+PREPARE=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --reset) RESET=1; shift ;;
         --no-build) NO_BUILD=1; shift ;;
+        --prepare) PREPARE=1; shift ;;
         --dir)
             [ $# -ge 2 ] || { echo "--dir needs a path" >&2; exit 2; }
             DIR="$2"; shift 2 ;;
-        -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
         *) echo "unknown argument '$1'" >&2
-           echo "usage: $0 [--reset] [--no-build] [--dir <path>]" >&2
+           echo "usage: $0 [--reset] [--no-build] [--prepare] [--dir <path>]" >&2
            exit 2 ;;
     esac
 done
@@ -76,6 +79,12 @@ for file in "$DIR"/*.rules.yaml; do
     fi
 done
 echo "your own user rules are not read while this runs"
+
+if [ "$PREPARE" -eq 1 ]; then
+    echo "launch any build with:"
+    echo "  CS2DEMOKIT_USER_RULES_DIR=\"$DIR\" artifacts/bin/DemoViewer.NET.Desktop/debug/DemoViewer.NET.Desktop"
+    exit 0
+fi
 
 export CS2DEMOKIT_USER_RULES_DIR="$DIR"
 if [ "$NO_BUILD" -eq 1 ]; then

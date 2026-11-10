@@ -112,6 +112,16 @@ public class TestbedScriptTests
             await Assert.That(code).IsEqualTo(0);
             await Assert.That(File.ReadAllText(show)).IsEqualTo(File.ReadAllText(Path.Combine(FixtureRulesetsTests.TestbedDirectory, "tb_show.rules.yaml")));
         }
+
+        File.Delete(Path.Combine(dir, "tb_kinds.rules.yaml"));
+        (code, output) = box.Run("--prepare");
+        using (Assert.Multiple())
+        {
+            await Assert.That(code).IsEqualTo(0);
+            await Assert.That(File.Exists(Path.Combine(dir, "tb_kinds.rules.yaml"))).IsTrue().Because("--prepare copies like a plain run");
+            await Assert.That(output).Contains($"CS2DEMOKIT_USER_RULES_DIR=\"{dir}\" artifacts/bin/DemoViewer.NET.Desktop/debug/DemoViewer.NET.Desktop");
+            await Assert.That(output).DoesNotContain("USERDIR=").Because("--prepare never runs dotnet");
+        }
     }
 
     [Test]
