@@ -261,8 +261,8 @@ dangerous extensions" setting and the developer opt-in are never consulted for a
 ship. A folder renamed to another id or version never reaches the signature: `Discover` refuses it as
 `FolderMismatch`, and the manifest is inside the digest, so editing it to match is `DigestMismatch`. A
 verified copy then loads into `ExternalLoadContext` and passes the same checks a third-party one does: the
-SDK major, no reference to the app assembly, the reference-skew check over `RunningVersion`, the probe and
-the collision check. Its status carries `PackSource.Installed(directory)` ("installed"), enters
+SDK major, no reference to the app assembly, the reference-skew check over `RunningVersion` (under
+`ReferenceRule.Bindable`, below), the probe and the collision check. Its status carries `PackSource.Installed(directory)` ("installed"), enters
 `FeaturePacks` through the external list like a third-party one, and gets the pack master row, the update
 line and Remove (section 4). For a staged update of a shipped extension the shipped loader's policy
 (`TrustPolicy.ForLaunch`) still applies, developer opt-in included while the unverified setting is on.
@@ -304,8 +304,16 @@ before. The same prototype confirmed the other half of the trap: a method that m
   is then neither loaded, instantiated nor configured.
 - *Dependencies the app ships come from the app.* An assembly the app provides is always the app's copy,
   whatever the extension's folder carries; the reference-skew check (`CheckReferences` over
-  `RunningVersion`) therefore requires the extension to have built against the app's version of it, and
-  skips an assembly the app does not ship, which `RunningVersion` reads as null. A package the app does
+  `RunningVersion`) compares what the extension built against with the app's version of it, and skips an
+  assembly the app does not ship, which `RunningVersion` reads as null. A staged update of a shipped
+  extension builds in lockstep with the app and must match exactly (`ReferenceRule.Exact`). A third-party
+  or installed first-party copy is judged by `ReferenceRule.Bindable`: the SDK assemblies still match
+  exactly (with the SDK-major check), and any other shipped assembly may be referenced at a lower version
+  of the same major (the same minor when the major is 0), because `ExternalLoadContext` defers every
+  shipped name to the default context and that binds a request at or below its own version. A higher
+  version does not bind at all, and another major binds but is a breaking change, so both are refused as
+  `ReferenceMismatch`. An extension built against Avalonia 12.1.3 therefore loads on an app that ships
+  12.1.4. A package the app does
   not ship travels in the extension's folder (section 5 stages it) and resolves from there.
 - *Internals.* Neither the app nor a Playback2D assembly grants the extension its internals, so a staged
   copy reaches exactly what the shipped one does: the public types.
@@ -805,8 +813,9 @@ Bash, runs the same way locally and in CI. In order:
    deps.json and would otherwise be staged as dead weight. Every other library in the extension's
    deps.json target is then one of three things. In the framework set: skipped, no version check. In the
    head's deps.json: the app ships it, and the extension must have built against that exact version or
-   the script fails (`built against X 1.2.0; the app ships 1.1.0`), since the loader's reference-skew
-   check would refuse the copy. Neither: staged flat beside the extension's assembly. A package entry's
+   the script fails (`built against X 1.2.0; the app ships 1.1.0`). A release packed from this tree is
+   built with the app's own versions, so the script keeps the exact rule even though the loader accepts
+   a lower version of the same major. Neither: staged flat beside the extension's assembly. A package entry's
    `runtime` keys are package-relative (`lib/net10.0/Humanizer.dll`), so its files are copied by basename
    from the build output, which carries them only when the project sets
    `<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>` (a class library's output has no

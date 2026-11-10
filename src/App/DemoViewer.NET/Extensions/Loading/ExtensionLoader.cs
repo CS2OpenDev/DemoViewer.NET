@@ -294,18 +294,21 @@ public static class ExtensionLoader
     /// <summary>
     ///     The version-skew check: every assembly <paramref name="staged" />
     ///     references that the app ships must be referenced at the version the app runs
-    ///     (<paramref name="runningVersion" />, null for one the app does not ship). The first mismatch is a
+    ///     (<paramref name="runningVersion" />, null for one the app does not ship). Under
+    ///     <see cref="ReferenceRule.Bindable" />, an assembly other than the SDK may instead be referenced at a
+    ///     lower version of the same major (the same minor for a 0.x version), which the runtime binds to the
+    ///     app's copy. The first mismatch is a
     ///     <see cref="LoadFailure.ReferenceMismatch" /> outcome; null when all agree. Framework assemblies
     ///     (<c>System.*</c>, <c>netstandard</c>, <c>mscorlib</c>) come from the shared runtime and are not
     ///     compared.
     /// </summary>
     public static LoadOutcome? CheckReferences(ExtensionCandidate candidate, Assembly staged,
-        Func<string, Version?> runningVersion)
+        Func<string, Version?> runningVersion, ReferenceRule rule = ReferenceRule.Exact)
     {
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(staged);
         (string Name, Version Built, Version Running)? mismatch =
-            FindReferenceMismatch(staged.GetReferencedAssemblies(), runningVersion);
+            FindReferenceMismatch(staged.GetReferencedAssemblies(), runningVersion, rule);
         return mismatch is null
             ? null
             : new LoadOutcome(candidate.Directory, candidate.Manifest, LoadFailure.ReferenceMismatch,
@@ -314,7 +317,8 @@ public static class ExtensionLoader
 
     /// <summary>The comparison behind <see cref="CheckReferences" />, over the referenced names alone.</summary>
     public static (string Name, Version Built, Version Running)? FindReferenceMismatch(
-        IEnumerable<AssemblyName> referenced, Func<string, Version?> runningVersion)
+        IEnumerable<AssemblyName> referenced, Func<string, Version?> runningVersion,
+        ReferenceRule rule = ReferenceRule.Exact)
     {
         ArgumentNullException.ThrowIfNull(referenced);
         ArgumentNullException.ThrowIfNull(runningVersion);
@@ -327,7 +331,8 @@ public static class ExtensionLoader
             }
 
             Version? running = runningVersion(name);
-            if (running is not null && running != reference.Version)
+            if (running is not null && running != reference.Version
+                && (rule == ReferenceRule.Exact || IsSdkAssembly(name) || !Binds(reference.Version, running)))
             {
                 return (name, reference.Version, running);
             }
@@ -335,6 +340,15 @@ public static class ExtensionLoader
 
         return null;
     }
+
+    // The default context binds any request at or below its own version. Above it is a load failure; another
+    // major (another minor of a 0.x package) binds but is a breaking change, so it is refused here.
+    private static bool Binds(Version built, Version running) =>
+        built <= running && built.Major == running.Major && (running.Major > 0 || built.Minor == running.Minor);
+
+    // The SDK assemblies are the contract the host implements: Major.0.0.0, compared exactly.
+    private static bool IsSdkAssembly(string name) =>
+        name.StartsWith(typeof(IExtension).Assembly.GetName().Name!, StringComparison.Ordinal);
 
     /// <summary>
     ///     The version the default context runs <paramref name="simpleName" /> at: the loaded assembly's

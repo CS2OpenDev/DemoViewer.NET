@@ -70,6 +70,16 @@ public enum LoadFailure
     ReferencesApp
 }
 
+/// <summary>How <see cref="ExtensionLoader.CheckReferences" /> compares a referenced version with the one the app runs.</summary>
+public enum ReferenceRule
+{
+    /// <summary>Every assembly the app ships must be referenced at the version the app runs.</summary>
+    Exact,
+
+    /// <summary>Exact for the SDK; for any other assembly the app ships, what the runtime binds safely.</summary>
+    Bindable
+}
+
 /// <summary>
 ///     One staged directory the loader did not load, with the reason. Recorded on the pack's
 ///     <see cref="PackStatus.Rejected" /> so Settings can say why an update did not take, and logged once

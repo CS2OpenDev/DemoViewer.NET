@@ -308,8 +308,9 @@ done <<< "$FRAMEWORKS"
 
 # ── Stage the managed packages the extension references and the app does not ship ───────────────────────
 # Every other library in the extension's deps.json target is one of three things. Framework-provided: the
-# runtime binds its copy, skipped. In the head's deps.json: the app ships it and the extension must have
-# built against that exact version, or the loader's reference-skew check refuses the copy at load.
+# runtime binds its copy, skipped. In the head's deps.json: the app ships it and a first-party extension
+# packed from this tree must have built against that exact version. The loader accepts a lower version of
+# the same major from an extension released on its own; a release built here has no reason to differ.
 # Neither: the extension ships it, flat, beside its own assembly. A package entry's "runtime" keys are
 # package-relative (lib/net10.0/X.dll), so its files are taken by basename from the build output, which
 # carries them only when the project sets CopyLocalLockFileAssemblies; a project entry's keys are

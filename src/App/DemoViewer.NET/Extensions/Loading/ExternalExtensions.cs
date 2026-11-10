@@ -216,7 +216,8 @@ public static class ExternalExtensions
         Assembly assembly = pack.GetType().Assembly;
         LoadOutcome? failure = CheckSdk(candidate, assembly)
             ?? CheckAppReference(candidate, assembly)
-            ?? ExtensionLoader.CheckReferences(candidate, assembly, ExtensionLoader.RunningVersion)
+            ?? ExtensionLoader.CheckReferences(candidate, assembly, ExtensionLoader.RunningVersion,
+                ReferenceRule.Bindable)
             ?? ExtensionLoader.Probe(candidate, pack)
             ?? Conflicts(candidate, accepted, pack);
         if (failure is not null)
