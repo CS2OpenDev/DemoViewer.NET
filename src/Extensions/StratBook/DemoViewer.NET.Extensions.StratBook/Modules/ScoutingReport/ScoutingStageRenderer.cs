@@ -18,14 +18,32 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 ///     one the Scouting Report shows. The one-pager is printed, so the picture is on paper: a white underlay
 ///     under the radar, and the renderer's dark background left around the panes is turned white too.
 ///     <para>
+///         Each floor is framed on where the art draws (<see cref="MapContentBounds" />), not on the radar image's
+///         square, so the picture has no empty margin. A map with several floors lays them side by side when the
+///         row stays within <see cref="MaxWidth" />, and stacks them otherwise.
+///     </para>
+///     <para>
 ///         One instance serves one export: one hold per map is taken and given back at <see cref="Dispose" />.
 ///         Not thread-safe.
 ///     </para>
 /// </summary>
 public sealed class ScoutingStageRenderer : IDisposable
 {
-    /// <summary>The picture size: square, because a radar is, and wide enough to read a mark on paper.</summary>
+    /// <summary>The box one floor is fitted into: wide enough to read a mark on paper.</summary>
     public static readonly SKSizeI Size = new(640, 640);
+
+    /// <summary>The widest picture: floors sit side by side only while the row fits.</summary>
+    public const int MaxWidth = 960;
+
+    /// <summary>White paper around each floor, in pixels.</summary>
+    public const int Padding = 8;
+
+    // The share of the art's extent left around it inside a floor's frame.
+    private const double Margin = 0.03;
+
+    // The renderer outlines each band; this much of the band's edge is left out so the outline is too. The
+    // margin above keeps the art well inside it.
+    private const int Inset = 4;
 
     private readonly Dictionary<string, IMapAssetLease?> _assets = new(StringComparer.OrdinalIgnoreCase);
     private readonly Func<string, IMapAssetLease?> _loadMapAsset;
@@ -86,13 +104,79 @@ public sealed class ScoutingStageRenderer : IDisposable
 
         IMapAsset? asset = AssetFor(map);
         Scene2DFrame frame = BuildFrame(map, marks, asset);
-        WorldBounds bounds = frame.Map.NetworkedBounds ?? frame.Map.ObservedBounds;
+        WorldBounds bounds = MapContentBounds.Of(map, asset) ?? frame.Map.NetworkedBounds ?? frame.Map.ObservedBounds;
+        int floors = Math.Max(1, asset?.Floors.Count ?? 1);
+        SKSizeI band = BandSize(MapContentBounds.Aspect(bounds));
         ScoutingMarksDocument document = new();
         document.Set(marks, true, 1f);
+        // The renderer stacks the floors as equal bands, highest on top, and points every band's camera at this
+        // one transform, so each band is exactly one floor's art.
         byte[] png = MapAssets.RenderPng(frame, asset, [SceneLayerIds.Radar],
-            ViewportTransform.Fit(Size.Width, Size.Height, bounds.MinX, bounds.MinY, bounds.MaxX, bounds.MaxY), Size,
+            ViewportTransform.Fit(band.Width, band.Height, bounds.MinX, bounds.MinY, bounds.MaxX, bounds.MaxY, Margin),
+            new SKSizeI(band.Width, band.Height * floors),
             [() => new PaperLayer(), () => new ScoutingMarksLayer("scouting.export", document)]);
-        return OnPaper(png);
+        return Lay(OnPaper(png), floors, band);
+    }
+
+    /// <summary>One floor's band for art of this height over width, fitted into <see cref="Size" />.</summary>
+    /// <param name="aspect">The art's height over its width.</param>
+    public static SKSizeI BandSize(double aspect)
+    {
+        double a = double.IsFinite(aspect) && aspect > 0 ? aspect : 1;
+        return a <= 1
+            ? new SKSizeI(Size.Width, Math.Max(1, (int)Math.Round(Size.Width * a)))
+            : new SKSizeI(Math.Max(1, (int)Math.Round(Size.Height / a)), Size.Height);
+    }
+
+    /// <summary>
+    ///     The floors of a stacked picture laid out on paper: side by side, highest floor first, when the row fits
+    ///     in <see cref="MaxWidth" />, else stacked; each floor with <see cref="Padding" /> of white around it.
+    /// </summary>
+    /// <param name="png">The rendered stack, highest floor on top.</param>
+    /// <param name="floors">How many bands it holds.</param>
+    /// <param name="band">One band's size.</param>
+    public static byte[] Lay(byte[] png, int floors, SKSizeI band)
+    {
+        ArgumentNullException.ThrowIfNull(png);
+        using SKBitmap? stack = SKBitmap.Decode(png);
+        if (stack is null)
+        {
+            return png;
+        }
+
+        int cellW = band.Width - 2 * Inset + 2 * Padding, cellH = band.Height - 2 * Inset + 2 * Padding;
+        bool row = floors > 1 && floors * cellW <= MaxWidth;
+        int width = row ? floors * cellW : cellW;
+        int height = row ? cellH : floors * cellH;
+        using SKBitmap paper = new(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul));
+        using (SKCanvas canvas = new(paper))
+        {
+            canvas.Clear(SKColors.White);
+            using SKPaint seam = new() { Color = new SKColor(0xCC, 0xCC, 0xCC), StrokeWidth = 1 };
+            for (int i = 0; i < floors; i++)
+            {
+                SKRectI source = new(Inset, i * band.Height + Inset, band.Width - Inset,
+                    Math.Min(stack.Height, (i + 1) * band.Height) - Inset);
+                float x = row ? i * cellW + Padding : Padding;
+                float y = row ? Padding : i * cellH + Padding;
+                canvas.DrawBitmap(stack, source, new SKRect(x, y, x + source.Width, y + source.Height));
+                if (i > 0)
+                {
+                    // A hairline between floors, so two floors read as two pictures.
+                    if (row)
+                    {
+                        canvas.DrawLine(i * cellW, Padding, i * cellW, height - Padding, seam);
+                    }
+                    else
+                    {
+                        canvas.DrawLine(Padding, i * cellH, width - Padding, i * cellH, seam);
+                    }
+                }
+            }
+        }
+
+        using SKData data = paper.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
     }
 
     /// <summary>

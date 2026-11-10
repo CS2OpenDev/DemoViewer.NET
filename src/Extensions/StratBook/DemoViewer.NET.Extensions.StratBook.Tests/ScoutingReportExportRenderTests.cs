@@ -99,6 +99,11 @@ public class ScoutingReportExportRenderTests
             {
                 byte[]? png = ScoutingStageRenderer.TryRender(map, marks);
                 drawn.Add((map, png?.Length ?? 0));
+                if (png is not null)
+                {
+                    File.WriteAllBytes(Path.Combine(HeadlessSession.ArtifactDir, $"sample-stage-{map}.png"), png);
+                }
+
                 return png;
             });
         editor.Load(Guid.NewGuid(), "Falcons", "11 demos across 2 maps", sources);
@@ -124,13 +129,20 @@ public class ScoutingReportExportRenderTests
             await Assert.That(html).DoesNotContain("retake B from ramp");
         }
 
-        // A light picture: the corner (outside the radar) is white paper, and the size is the stage's.
+        // A light picture: the corner (outside the radar) is white paper, and the floor fills its box.
         byte[] first = ScoutingStageRenderer.TryRender("de_mirage", mirageT.Marks)!;
         using SKBitmap bitmap = SKBitmap.Decode(first);
+        // de_nuke's two floors are wide: side by side they would pass the limit, so they stack, trimmed.
+        byte[] nuke = ScoutingStageRenderer.TryRender("de_nuke", nukeSetups.Marks)!;
+        using SKBitmap stacked = SKBitmap.Decode(nuke);
         using (Assert.Multiple())
         {
-            await Assert.That(bitmap.Width).IsEqualTo(ScoutingStageRenderer.Size.Width);
+            await Assert.That(Math.Max(bitmap.Width, bitmap.Height))
+                .IsGreaterThan(ScoutingStageRenderer.Size.Width - 16);
             await Assert.That(bitmap.GetPixel(1, 1)).IsEqualTo(SKColors.White);
+            await Assert.That(stacked.Width).IsLessThanOrEqualTo(ScoutingStageRenderer.MaxWidth);
+            await Assert.That(stacked.Height).IsLessThan(2 * ScoutingStageRenderer.Size.Height)
+                .Because("each floor is trimmed to the art, not drawn in a square");
         }
     }
 }
