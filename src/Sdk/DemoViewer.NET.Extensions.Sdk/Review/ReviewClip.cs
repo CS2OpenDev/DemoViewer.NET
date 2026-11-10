@@ -38,6 +38,7 @@ public static class ReviewSources
     ///     Superseded by <see cref="ScoutingReport" />. The host still reads this value, from older extensions and
     ///     from queues written before the rename, and its review-queue migration rewrites it.
     /// </remarks>
+    [Obsolete("Use ScoutingReport. The host still accepts \"dossier\" and stores it as \"scouting-report\".")]
     public const string Dossier = "dossier";
 
     /// <summary>A round a scouting report layer or number stacks, opened from that layer.</summary>
