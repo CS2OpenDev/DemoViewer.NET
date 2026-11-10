@@ -82,13 +82,22 @@ public class SettingsViewModelTests
         services.Configure<AppSettings>(svc.Configuration);
         services.AddSingleton<IFeatureGate>(s =>
             new FeatureGate(s.GetRequiredService<IOptionsMonitor<AppSettings>>(), false));
+        services.AddSingleton(_ => new SettingsWatcher(svc));
         ServiceProvider sp = services.BuildServiceProvider();
+        _ = sp.GetRequiredService<SettingsWatcher>();
         IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
         IFeatureGate gate = sp.GetRequiredService<IFeatureGate>();
         SettingsViewModel vm = new(svc, monitor, gate, new ThemeRegistry(), isBrowser ?? OperatingSystem.IsBrowser,
             null, null, reindexEstimate is null ? null : [reindexEstimate], dataRemoval is null ? null : [dataRemoval],
             packStatuses, extensionUpdates);
         return (vm, svc, gate, sp);
+    }
+
+    // Each file-backed SettingsService holds an inotify instance until its root is disposed, and a Linux
+    // runner allows 128 per user. Resolved once, so the provider disposes it with the rest.
+    private sealed class SettingsWatcher(SettingsService svc) : IDisposable
+    {
+        public void Dispose() => (svc.Configuration as IDisposable)?.Dispose();
     }
 
     // The real pack's status over a fake feed client rooted at dir. The feed offers whatever the
