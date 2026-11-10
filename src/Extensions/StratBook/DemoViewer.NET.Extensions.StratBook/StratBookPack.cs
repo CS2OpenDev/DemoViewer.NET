@@ -779,7 +779,17 @@ public sealed class StratBookPack : IExtension
             siteRegions: map => sp.GetRequiredService<SuggestedTagsService>().SetupRegionsFor(map),
             fakes: (path, map) => sp.GetRequiredService<SuggestedTagsService>().FakeRoundsOf(path, map),
             analysisFacts: Library(sp).Facts,
-            openPlayerOverview: (id, scope) => Host(sp).Shell.OpenPlayerOverview(id, scope));
+            openPlayerOverview: (id, scope) => Host(sp).Shell.OpenPlayerOverview(id, scope),
+            // Through the round index's own request: it forces the index for the demo even with the background
+            // sweep off, and its Passes.Request plans every stale pass on the demo in the same visit.
+            requestDemos: paths => _ = Job(sp, "Scouting report: team demos first", () =>
+            {
+                RoundIndexEvaluator index = sp.GetRequiredService<RoundIndexEvaluator>();
+                foreach (string path in paths)
+                {
+                    index.Request(path);
+                }
+            }, new JobOptions(BuiltInJobKinds.Compute, JobPriority.UserRequested, Key: $"process-team:{jobKey}")));
     }
 
     // The pack's host context: the SDK's way into the shell, the gate, the queue and the UI thread.

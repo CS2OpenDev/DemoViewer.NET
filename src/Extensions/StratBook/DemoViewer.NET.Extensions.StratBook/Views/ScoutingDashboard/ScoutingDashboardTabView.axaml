@@ -777,7 +777,14 @@
                         </StackPanel>
                     </Grid>
                     <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0" Padding="14 6">
-                        <TextBlock Classes="mid" Text="{Binding Report.ScopeLine}" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="mid" Text="{Binding Report.ScopeLine}" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Classes="ghost" FontSize="11" Padding="8 3" Margin="12 0 0 0"
+                                    VerticalAlignment="Center" Content="Process this team first"
+                                    IsVisible="{Binding Report.CanProcessTeamFirst}"
+                                    Command="{Binding Report.ProcessTeamFirstCommand}"
+                                    ToolTip.Tip="Queue every demo of this team ahead of the rest of the library" />
+                        </Grid>
                     </Border>
                     <ItemsControl ItemsSource="{Binding Report.Notices}" IsVisible="{Binding Report.HasNotices}">
                         <ItemsControl.ItemTemplate>
