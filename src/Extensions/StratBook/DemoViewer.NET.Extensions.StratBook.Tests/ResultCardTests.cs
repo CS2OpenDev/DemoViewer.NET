@@ -463,7 +463,7 @@ public class ResultCardTests
 
         public bool Answer { get; set; } = true;
 
-        public Task<bool> SeekAsync(string demoPath, int tick)
+        public Task<bool> SeekAsync(string demoPath, int tick, ulong? followSteamId = null)
         {
             Seeks.Add((demoPath, tick));
             return Task.FromResult(Answer);

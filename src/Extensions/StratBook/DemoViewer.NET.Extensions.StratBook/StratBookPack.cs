@@ -253,13 +253,15 @@ public sealed class StratBookPack : IExtension
             Host(sp).Post));
         services.AddSingleton<ISituationIndex>(sp => sp.GetRequiredService<SituationIndex>());
         // Result Cards seek playback through the shell's own funnels: the shared load core when the
-        // card's demo is not the loaded one, the controller's SeekToTick, and the tab switch by id.
+        // card's demo is not the loaded one, the controller's SeekToTick, the tab switch by id, and the
+        // follow by account when the caller names a player.
         // Every delegate reaches the shell at call time, never at construction.
         services.AddSingleton<ISituationPlayback>(sp => new SituationPlaybackSeek(
             () => Host(sp).Shell.CurrentDemoPath,
             path => Host(sp).Shell.OpenDemoAsync(path),
             tick => Host(sp).Shell.SeekToTick(tick),
-            tabId => Host(sp).Shell.SelectTab(tabId)));
+            tabId => Host(sp).Shell.SelectTab(tabId),
+            steamId => Host(sp).Shell.FollowPlayer(steamId)));
 
         // The Round Tagger's store: per-demo tag documents keyed by content hash under <config>/tags. One
         // per process, because CheckOut's single-writer guarantee is only as wide as the instance that

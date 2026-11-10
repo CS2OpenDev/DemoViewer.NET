@@ -10,18 +10,21 @@ public interface ISituationPlayback
     /// <summary>
     ///     Opens the demo in the workspace when it is not the loaded one, seeks the shared clock to the
     ///     tick, and shows the 2D Playback tab. Returns false when the demo could not be opened or the
-    ///     tab is gated off; the card then says so instead of pretending.
+    ///     tab is gated off; the card then says so instead of pretending. With
+    ///     <paramref name="followSteamId" />, the tab then follows that player; a follow the host declines
+    ///     does not turn a landed seek into a false.
     /// </summary>
     /// <param name="demoPath">The demo's path as the library knows it.</param>
     /// <param name="tick">Frame clock: the matched tick minus the seek offset.</param>
-    Task<bool> SeekAsync(string demoPath, int tick);
+    /// <param name="followSteamId">The player to follow once the tab shows, or null to leave the follow alone.</param>
+    Task<bool> SeekAsync(string demoPath, int tick, ulong? followSteamId = null);
 }
 
 /// <summary>
 ///     The shipped seam over the shell's own funnels: <c>LoadDemoFromPathAsync</c> when the card's demo
 ///     is not the loaded one (the interactive open, with the progress ring the open already has), the
 ///     controller's <c>SeekToTick</c> (the one position-move code path LiveSync observes), and the tab
-///     switch by the 2D tab's persisted id. Delegate-injected so the same-demo shortcut and the tab
+///     switch by the 2D tab's persisted id, then the shell's follow by account. Delegate-injected so the same-demo shortcut and the tab
 ///     switch are testable without a shell.
 /// </summary>
 public sealed class SituationPlaybackSeek : ISituationPlayback
@@ -33,13 +36,15 @@ public sealed class SituationPlaybackSeek : ISituationPlayback
     private readonly Func<string, Task<bool>> _open;
     private readonly Action<int> _seekToTick;
     private readonly Func<string, bool> _selectTab;
+    private readonly Func<ulong, bool>? _followPlayer;
 
     /// <param name="loadedDemoPath">The path of the demo the shell holds, or null.</param>
     /// <param name="open">Opens a demo through the shared load core; false when the load did not land.</param>
     /// <param name="seekToTick">The controller's seek, frame clock.</param>
     /// <param name="selectTab">Shows a workspace tab by id; false when no such tab is on the strip.</param>
+    /// <param name="followPlayer">The shell's follow by SteamID64, or null where the host cannot follow.</param>
     public SituationPlaybackSeek(Func<string?> loadedDemoPath, Func<string, Task<bool>> open,
-        Action<int> seekToTick, Func<string, bool> selectTab)
+        Action<int> seekToTick, Func<string, bool> selectTab, Func<ulong, bool>? followPlayer = null)
     {
         ArgumentNullException.ThrowIfNull(loadedDemoPath);
         ArgumentNullException.ThrowIfNull(open);
@@ -49,10 +54,11 @@ public sealed class SituationPlaybackSeek : ISituationPlayback
         _open = open;
         _seekToTick = seekToTick;
         _selectTab = selectTab;
+        _followPlayer = followPlayer;
     }
 
     /// <inheritdoc />
-    public async Task<bool> SeekAsync(string demoPath, int tick)
+    public async Task<bool> SeekAsync(string demoPath, int tick, ulong? followSteamId = null)
     {
         ArgumentNullException.ThrowIfNull(demoPath);
 
@@ -69,7 +75,20 @@ public sealed class SituationPlaybackSeek : ISituationPlayback
         }
 
         _seekToTick(tick);
-        return _selectTab(PlaybackTabId);
+        if (!_selectTab(PlaybackTabId))
+        {
+            return false;
+        }
+
+        // Last: the open has landed and the tab has rebuilt its roster for this demo (or queues the follow
+        // until it has), so the account resolves against the demo it is about. A tab switch or a demo
+        // change clears the follow, which is why it cannot go any earlier.
+        if (followSteamId is { } steamId and not 0)
+        {
+            _followPlayer?.Invoke(steamId);
+        }
+
+        return true;
     }
 
     private bool IsLoaded(string demoPath) =>

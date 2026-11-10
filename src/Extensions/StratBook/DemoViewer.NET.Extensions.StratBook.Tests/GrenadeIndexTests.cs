@@ -947,7 +947,7 @@ public class GrenadeIndexTests
     {
         public List<(string Path, int Tick)> Seeks { get; } = [];
 
-        public Task<bool> SeekAsync(string demoPath, int tick)
+        public Task<bool> SeekAsync(string demoPath, int tick, ulong? followSteamId = null)
         {
             Seeks.Add((demoPath, tick));
             return Task.FromResult(true);
