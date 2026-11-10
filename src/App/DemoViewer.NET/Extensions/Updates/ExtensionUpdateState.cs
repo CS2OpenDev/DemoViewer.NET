@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Extensions.Manifest;
 
 #endregion
@@ -96,3 +97,56 @@ public sealed record StageResult(
 /// <param name="BytesReceived">Bytes written so far.</param>
 /// <param name="TotalBytes">The zip's size, from the feed.</param>
 public readonly record struct ExtensionDownloadProgress(long BytesReceived, long TotalBytes);
+
+/// <summary>What the catalogue check found for one first-party extension this build does not ship.</summary>
+public enum InstallableStatus
+{
+    /// <summary>A version this app can run is published and nothing is on disk (<see cref="InstallableExtension.Offered" />).</summary>
+    Available,
+
+    /// <summary>A compatible copy is already under <c>extensions/&lt;id&gt;/</c>; the next start loads it (<see cref="InstallableExtension.Staged" />).</summary>
+    PendingRestart,
+
+    /// <summary>A copy is on disk and this launch refused it (<see cref="InstallableExtension.Rejected" />); Remove is the way out.</summary>
+    NotLoaded,
+
+    /// <summary>Something is published but none of it can run on this app (<see cref="InstallableExtension.Latest" />).</summary>
+    NeedsNewerApp,
+
+    /// <summary>The feed answered 404, or publishes nothing.</summary>
+    NotPublished,
+
+    /// <summary>The feed could not be fetched.</summary>
+    FeedUnreachable,
+
+    /// <summary>The feed was fetched and did not parse, or is for another extension.</summary>
+    FeedInvalid,
+
+    /// <summary>The copy on disk was deleted this run, and no feed has been asked about the id yet.</summary>
+    Removed
+}
+
+/// <summary>One catalogue entry after a check: what Settings lists under "Available extensions".</summary>
+/// <param name="Id">The extension id.</param>
+/// <param name="Name">Its name from the feed, from a copy on disk, or the id.</param>
+/// <param name="Offered">The highest version <see cref="ExtensionUpdateService.IsOffered" /> accepts; set for <see cref="InstallableStatus.Available" />.</param>
+/// <param name="Latest">The highest version the feed publishes, offered or not.</param>
+/// <param name="LatestCompatibility">Why <see cref="Latest" /> is not offered, when it is not; null otherwise.</param>
+/// <param name="Staged">The highest compatible version already under <c>extensions/&lt;id&gt;/</c>, which the next start loads.</param>
+/// <param name="Rejected">Why the copy on disk did not load this launch; null when none, or when it loaded.</param>
+/// <param name="Status">The outcome.</param>
+/// <param name="Error">The feed failure in user terms; null otherwise.</param>
+/// <param name="LogDetail">The exception message behind <paramref name="Error" />, for the log only.</param>
+/// <param name="CheckedAt">When the check ran.</param>
+public sealed record InstallableExtension(
+    string Id,
+    string Name,
+    ExtensionFeedEntry? Offered,
+    ExtensionFeedEntry? Latest,
+    PackCompatibility? LatestCompatibility,
+    SemVersion? Staged,
+    LoadOutcome? Rejected,
+    InstallableStatus Status,
+    string? Error = null,
+    string? LogDetail = null,
+    DateTimeOffset? CheckedAt = null);

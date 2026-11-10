@@ -3,27 +3,40 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DemoViewer.NET.Extensions.Manifest;
+using DemoViewer.NET.Extensions.Updates;
 
 #endregion
 
 namespace DemoViewer.NET.Extensions.Loading;
 
 /// <summary>What a desktop launch loads.</summary>
-/// <param name="Statuses">The shipped extensions, then the third-party ones that loaded.</param>
-/// <param name="ExternalRejected">Third-party copies that did not load, with the reason.</param>
+/// <param name="Statuses">The shipped extensions, then the installed first-party and third-party ones that loaded.</param>
+/// <param name="ExternalRejected">Installed first-party and third-party copies that did not load, with the reason.</param>
 /// <param name="ClaimedRulesets">
 ///     The qualified ruleset ids every manifest on disk claims, the ones this launch did not load included: the
 ///     host keeps them out of the highlights set whatever loaded.
 /// </param>
+/// <param name="ShippedIds">The ids this build ships, loaded or not: safe mode loads none and still ships them all.</param>
 public sealed record ExtensionStartupResult(
     IReadOnlyList<PackStatus> Statuses,
     IReadOnlyList<LoadOutcome> ExternalRejected,
-    IReadOnlyList<string> ClaimedRulesets);
+    IReadOnlyList<string> ClaimedRulesets,
+    IReadOnlyList<string> ShippedIds)
+{
+    /// <summary>
+    ///     The installed extension folders this launch deleted because Remove marked them, logged once the
+    ///     app's logging is up: nothing is configured to log to this early.
+    /// </summary>
+    public IReadOnlyList<string> RemovedAtStart { get; init; } = [];
+}
 
 /// <summary>The desktop head's extension resolution, before Avalonia starts.</summary>
 public static class ExtensionStartup
 {
-    /// <summary>Resolves every extension a launch loads. Safe mode loads none, the shipped ones included.</summary>
+    /// <summary>
+    ///     Resolves every extension a launch loads. Safe mode loads none, the shipped ones included. Runs
+    ///     before any assembly is mapped, so this is where an install folder marked for removal is deleted.
+    /// </summary>
     /// <param name="configRoot">The config root; null loads only what ships.</param>
     /// <param name="shipped">The extensions this build ships.</param>
     /// <param name="host">What this app provides.</param>
@@ -39,17 +52,28 @@ public static class ExtensionStartup
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(shippedTrust);
         ArgumentNullException.ThrowIfNull(publisherKeys);
+        IReadOnlyList<string> removed = ExtensionLoader.ExtensionsDirectory(configRoot) is { } extensionsDirectory
+            ? ExtensionStaging.ApplyPendingRemovals(extensionsDirectory)
+            : [];
+
         IReadOnlyList<string> claimed = ClaimedRulesets(configRoot, shipped);
+        string[] shippedIds = [.. shipped.Select(s => s.Id)];
         if (safeMode)
         {
-            return new ExtensionStartupResult([], [], claimed);
+            return new ExtensionStartupResult([], [], claimed, shippedIds) { RemovedAtStart = removed };
         }
 
         IReadOnlyList<PackStatus> fromShipped = ExtensionLoader.Resolve(configRoot, shipped, host, shippedTrust);
+        // Every shipped id is excluded whatever its verdict: an incompatible shipped copy must not let a
+        // folder of the same id in through the first-party branch.
         ExternalResolution external = ExternalExtensions.Resolve(configRoot,
             [.. fromShipped.Where(s => s.IsCompatible).Select(s => s.Pack)], host,
-            new ExternalTrust(publisherKeys, allowUnverified));
-        return new ExtensionStartupResult([.. fromShipped, .. external.Loaded], external.Rejected, claimed);
+            new ExternalTrust(publisherKeys, allowUnverified),
+            shippedIds);
+        return new ExtensionStartupResult([.. fromShipped, .. external.Loaded], external.Rejected, claimed, shippedIds)
+        {
+            RemovedAtStart = removed
+        };
     }
 
     /// <summary>

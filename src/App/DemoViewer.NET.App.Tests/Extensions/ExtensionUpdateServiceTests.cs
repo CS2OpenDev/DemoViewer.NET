@@ -729,12 +729,374 @@ public class ExtensionUpdateServiceTests
         }
     }
 
+    // ── Installed first-party extensions: the catalogue, the install policy, removal ──────────────
+
+    // The automatic stage covers a shipped extension as well as an installed one: a newer version the
+    // install policy accepts is staged for the next start, and the shipped copy keeps running until then.
+    [Test]
+    public async Task AutoStage_StagesANewerVersionOfAShippedExtension()
+    {
+        string root = NewRoot();
+        try
+        {
+            byte[] zip = ExtensionZip(Id, "1.0.1");
+            FakeFeeds.Entry entry = new("1.0.1", zip);
+            FakeFeedClient client = new() { Zips = { [entry.Url] = zip }, Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(entry) } };
+            RecordingQueue queue = new();
+            ExtensionUpdateService service = NewService(root, client, trust: TrustPolicy.Nothing, queue: queue,
+                statuses: [Status(version: "1.0.0", source: PackSource.Bundled)]);
+
+            IReadOnlyList<ExtensionUpdateState> states = await service.AutoStageAsync();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(states.Single().Status).IsEqualTo(ExtensionUpdateStatus.PendingRestart);
+                await Assert.That(states.Single().Pending).IsEqualTo(SemVersion.Parse("1.0.1"));
+                await Assert.That(states.Single().Source).IsEqualTo(PackSource.Bundled);
+                await Assert.That(Directory.Exists(Path.Combine(root, "extensions", Id, "1.0.1"))).IsTrue();
+                await Assert.That(queue.Requests.Select(r => (r.Title, r.Priority)))
+                    .IsEquivalentTo([("Update extensions", DemoJobPriority.Background)]);
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // Safe mode leaves every shipped id without a status. The shipped list, not the statuses, is what keeps
+    // such an id out of the catalogue and away from Remove, even with its folders on disk.
+    [Test]
+    public async Task Catalogue_NeverListsOrRemovesAShippedId_EvenWithNoStatusForIt()
+    {
+        string root = NewRoot();
+        try
+        {
+            byte[] zip = ExtensionZip(Id, "1.0.0");
+            FakeFeedClient client = new() { Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(new FakeFeeds.Entry("1.0.0", zip)) } };
+            string onDisk = StageVersion(Path.Combine(root, "extensions"), "1.0.0");
+            ExtensionUpdateService service = NewService(root, client, statuses: [], catalogue: [Id], shippedIds: [Id]);
+
+            IReadOnlyList<InstallableExtension> listed = await service.CheckCatalogueAsync();
+            bool removed = await service.RemoveInstalledAsync(Id);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(listed).IsEmpty();
+                await Assert.That(client.FeedFetches).IsEqualTo(0);
+                await Assert.That(removed).IsFalse();
+                await Assert.That(Directory.Exists(onDisk)).IsTrue();
+                await Assert.That(File.Exists(ExtensionStaging.RemovalMarkerPath(Path.Combine(root, "extensions"), Id)))
+                    .IsFalse();
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // A refused copy belongs to the catalogue row whose folder it sits in, since that folder is what Remove
+    // deletes: a tree of this id moved under another id's folder leaves this row installable, while a tree
+    // of another id under this folder makes it NotLoaded.
+    [Test]
+    public async Task Catalogue_MatchesARefusedCopyByItsFolder_NotByItsManifestId()
+    {
+        string root = NewRoot();
+        try
+        {
+            byte[] zip = ExtensionZip(Id, "1.0.0");
+            FakeFeedClient client = new() { Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(new FakeFeeds.Entry("1.0.0", zip)) } };
+            string extensions = Path.Combine(root, "extensions");
+            LoadOutcome underAnotherFolder = new(Path.Combine(extensions, "net.demoviewer.pack.other", "1.0.0"),
+                FakeManifests.For(Id, "Fake", "1.0.0"), LoadFailure.FolderMismatch, "the folder is 'net.demoviewer.pack.other'",
+                External: true);
+            LoadOutcome underThisFolder = new(Path.Combine(extensions, Id, "1.0.0"),
+                FakeManifests.For("net.demoviewer.pack.other", "Other", "1.0.0"), LoadFailure.FolderMismatch,
+                $"the folder is '{Id}'", External: true);
+            Directory.CreateDirectory(underAnotherFolder.Directory);
+            Directory.CreateDirectory(underThisFolder.Directory);
+
+            IReadOnlyList<InstallableExtension> elsewhere = await NewService(root, client, statuses: [], catalogue: [Id],
+                externalRejected: [underAnotherFolder]).CheckCatalogueAsync();
+            IReadOnlyList<InstallableExtension> here = await NewService(root, client, statuses: [], catalogue: [Id],
+                externalRejected: [underThisFolder]).CheckCatalogueAsync();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(elsewhere.Single().Status).IsEqualTo(InstallableStatus.Available);
+                await Assert.That(elsewhere.Single().Rejected).IsNull();
+                await Assert.That(here.Single().Status).IsEqualTo(InstallableStatus.NotLoaded);
+                await Assert.That(here.Single().Rejected).IsEqualTo(underThisFolder);
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // The feed URL resolver is injected; one that throws is a feed failure on the row, never an exception out
+    // of the queue item, for the update check and the catalogue alike.
+    [Test]
+    public async Task Check_AndCatalogue_ReportAResolverThatThrows_AsFeedInvalid()
+    {
+        string root = NewRoot();
+        try
+        {
+            FakeFeedClient client = new();
+            Func<string, Uri> broken = _ => throw new InvalidOperationException("no template");
+            ExtensionUpdateService declared = new(root, [Status()], Host, TrustAll, client, broken);
+            ExtensionUpdateService catalogue = new(root, [], Host, TrustAll, client, broken, catalogue: [Id],
+                shippedIds: []);
+
+            ExtensionUpdateState verdict = await declared.CheckAsync(Id);
+            InstallableExtension listed = (await catalogue.CheckCatalogueAsync()).Single();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(verdict.Status).IsEqualTo(ExtensionUpdateStatus.FeedInvalid);
+                await Assert.That(verdict.Error).IsEqualTo("the update feed address could not be resolved");
+                await Assert.That(verdict.LogDetail).IsEqualTo("no template");
+                await Assert.That(listed.Status).IsEqualTo(InstallableStatus.FeedInvalid);
+                await Assert.That(listed.Error).IsEqualTo("the update feed address could not be resolved");
+                await Assert.That(listed.LogDetail).IsEqualTo("no template");
+                await Assert.That(client.FeedFetches).IsEqualTo(0);
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // The catalogue lists an id this build neither ships nor has loaded; a declared status hides it; a copy
+    // on disk is reported as pending or, when this launch refused it, as not loaded with the reason.
+    [Test]
+    public async Task Catalogue_ListsAnAbsentFirstPartyExtension_NotAShippedOne_AndReportsARejectedCopyAsNotLoaded()
+    {
+        string root = NewRoot();
+        try
+        {
+            byte[] zip = ExtensionZip(Id, "1.0.0");
+            FakeFeeds.Entry entry = new("1.0.0", zip);
+            FakeFeedClient client = new() { Feeds = { [FeedUrl(Id)] = FakeFeeds.Json(entry) } };
+
+            IReadOnlyList<InstallableExtension> absent =
+                await NewService(root, client, statuses: [], catalogue: [Id]).CheckCatalogueAsync();
+            IReadOnlyList<InstallableExtension> shipped =
+                await NewService(root, client, statuses: [Status()], catalogue: [Id]).CheckCatalogueAsync();
+
+            client.Feeds[FeedUrl(Id)] = FakeFeeds.Json(new FakeFeeds.Entry("2.0.0", RequiresHost: "^3.0"));
+            IReadOnlyList<InstallableExtension> tooNew =
+                await NewService(root, client, statuses: [], catalogue: [Id]).CheckCatalogueAsync();
+
+            client.FeedFailure = new HttpRequestException("404", null, HttpStatusCode.NotFound);
+            IReadOnlyList<InstallableExtension> unpublished =
+                await NewService(root, client, statuses: [], catalogue: [Id]).CheckCatalogueAsync();
+            client.FeedFailure = null;
+
+            string onDisk = StageVersion(Path.Combine(root, "extensions"), "1.0.0");
+            client.Feeds[FeedUrl(Id)] = FakeFeeds.Json(entry);
+            IReadOnlyList<InstallableExtension> pending =
+                await NewService(root, client, statuses: [], catalogue: [Id]).CheckCatalogueAsync();
+            LoadOutcome refused = new(onDisk, FakeManifests.For(Id, "Fake", "1.0.0"), LoadFailure.ReservedId,
+                "the copy is not signed", External: true);
+            ExtensionUpdateService rejecting = NewService(root, client, statuses: [], catalogue: [Id],
+                externalRejected: [refused]);
+            IReadOnlyList<InstallableExtension> notLoaded = await rejecting.CheckCatalogueAsync();
+
+            using (Assert.Multiple())
+            {
+                InstallableExtension available = absent.Single();
+                await Assert.That(available.Status).IsEqualTo(InstallableStatus.Available);
+                await Assert.That(available.Id).IsEqualTo(Id);
+                await Assert.That(available.Name).IsEqualTo("Fake");
+                await Assert.That(available.Offered!.Version).IsEqualTo(SemVersion.Parse("1.0.0"));
+                await Assert.That(available.Offered.Size).IsEqualTo(zip.LongLength);
+                await Assert.That(available.Staged).IsNull();
+                await Assert.That(available.Rejected).IsNull();
+
+                await Assert.That(shipped).IsEmpty().Because("a declared extension has its own row");
+
+                await Assert.That(tooNew.Single().Status).IsEqualTo(InstallableStatus.NeedsNewerApp);
+                await Assert.That(tooNew.Single().LatestCompatibility).IsTypeOf<PackCompatibility.HostContractMismatch>();
+
+                await Assert.That(unpublished.Single().Status).IsEqualTo(InstallableStatus.NotPublished);
+
+                await Assert.That(pending.Single().Status).IsEqualTo(InstallableStatus.PendingRestart);
+                await Assert.That(pending.Single().Staged).IsEqualTo(SemVersion.Parse("1.0.0"));
+
+                await Assert.That(notLoaded.Single().Status).IsEqualTo(InstallableStatus.NotLoaded);
+                await Assert.That(notLoaded.Single().Rejected).IsEqualTo(refused);
+                await Assert.That(notLoaded.Single().Name).IsEqualTo("Fake");
+                await Assert.That(rejecting.LastCatalogue).IsEqualTo(notLoaded);
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // A reserved id this build does not ship is judged by the install policy, never by the shipped one,
+    // whatever the user allowed; a declared shipped pack's update keeps the shipped policy.
+    [Test]
+    public async Task Download_UndeclaredReservedId_IsJudgedByInstallTrust_NotTheShippedPolicy()
+    {
+        string root = NewRoot();
+        try
+        {
+            byte[] zip = ExtensionZip(Id, "1.0.1");
+            FakeFeeds.Entry entry = new("1.0.1", zip);
+            FakeFeedClient client = new() { Zips = { [entry.Url] = zip } };
+            RecordingTrust install = new(false);
+
+            StageResult undeclared = await NewService(root, client, TrustAll, statuses: [], installTrust: install)
+                .DownloadAndStageAsync(Entry(entry));
+            RecordingTrust untouched = new(false);
+            StageResult declared = await NewService(root, client, TrustAll, statuses: [Status()],
+                installTrust: untouched).DownloadAndStageAsync(Entry(entry));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(undeclared.Outcome).IsEqualTo(StageOutcome.Refused);
+                await Assert.That(undeclared.Detail).IsEqualTo("the copy is not signed by this app's publisher");
+                await Assert.That(install.Asked.Count).IsEqualTo(1);
+                await Assert.That(declared.Outcome).IsEqualTo(StageOutcome.Installed)
+                    .Because("an update of a shipped pack is the shipped policy's to judge");
+                await Assert.That(untouched.Asked).IsEmpty();
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    // The launch auto-stage and a user's Update can ask for one entry at once; the second waits for the
+    // first and finds the folder, never its half-written staging files.
+    [Test]
+    public async Task TwoConcurrentStagesOfOneEntry_OneInstalls_OneReportsAlreadyInstalled_NothingLeftInStaging()
+    {
+        string root = NewRoot();
+        try
+        {
+            byte[] zip = ExtensionZip(Id, "1.0.1");
+            FakeFeeds.Entry entry = new("1.0.1", zip);
+            FakeFeedClient client = new() { HalfwayGate = new TaskCompletionSource(), Zips = { [entry.Url] = zip } };
+            ExtensionUpdateService service = NewService(root, client);
+
+            Task<StageResult> first = service.DownloadAndStageAsync(Entry(entry));
+            await client.Halfway.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
+            Task<StageResult> second = service.DownloadAndStageAsync(Entry(entry));
+            await Task.Delay(100);
+            bool secondWaited = !second.IsCompleted;
+            client.HalfwayGate.SetResult();
+            StageResult[] results = await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(10));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(secondWaited).IsTrue().Because("stages run one at a time");
+                await Assert.That(results[0].Outcome).IsEqualTo(StageOutcome.Installed);
+                await Assert.That(results[1].Outcome).IsEqualTo(StageOutcome.AlreadyInstalled);
+                await Assert.That(client.Downloads).IsEqualTo(1);
+                await Assert.That(Directory.EnumerateFiles(Path.Combine(root, "extensions", ".staging"), "*",
+                    SearchOption.AllDirectories)).IsEmpty();
+                await Assert.That(File.Exists(Path.Combine(root, "extensions", Id, "1.0.1", "Fake.dll"))).IsTrue();
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    [Test]
+    public async Task RemoveInstalled_MarksAnInstalledSource_DeletesAtOnceWhenNothingIsLoaded_RefusesAShippedId()
+    {
+        string root = NewRoot();
+        try
+        {
+            string extensions = Path.Combine(root, "extensions");
+            string loaded = StageVersion(extensions, "1.0.0");
+            string marker = ExtensionStaging.RemovalMarkerPath(extensions, Id);
+            FakeFeedClient client = new();
+
+            bool marked = await NewService(root, client, statuses: [InstalledStatus(Id, "1.0.0", loaded)])
+                .RemoveInstalledAsync(Id);
+            bool markerWritten = File.Exists(marker);
+            bool stillListed = ExtensionLoader.Discover(extensions).Candidates.Any(c => c.Directory == loaded);
+            bool noRejection = ExtensionLoader.Discover(extensions).Rejected.Count == 0;
+            File.Delete(marker);
+
+            bool shipped = await NewService(root, client, statuses: [Status()]).RemoveInstalledAsync(Id);
+            bool shippedUntouched = !File.Exists(marker) && Directory.Exists(loaded);
+
+            bool absent = await NewService(root, client, statuses: [], catalogue: ["net.demoviewer.pack.other"])
+                .RemoveInstalledAsync("net.demoviewer.pack.other");
+
+            bool unloaded = await NewService(root, client, statuses: [], catalogue: [Id]).RemoveInstalledAsync(Id);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(marked).IsTrue();
+                await Assert.That(markerWritten).IsTrue();
+                await Assert.That(stillListed).IsTrue().Because("the loaded copy stays until the restart");
+                await Assert.That(noRejection).IsTrue().Because("the marker is a file, invisible to discovery");
+                await Assert.That(shipped).IsFalse().Because("a shipped extension is turned off, never removed");
+                await Assert.That(shippedUntouched).IsTrue();
+                await Assert.That(absent).IsFalse().Because("nothing on disk to remove");
+                await Assert.That(unloaded).IsTrue();
+                await Assert.That(Directory.Exists(Path.Combine(extensions, Id))).IsFalse()
+                    .Because("nothing of the id is loaded, so the folder goes at once");
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
+    [Test]
+    public async Task Cleanup_KeepsTheRunningInstalledDirectory_AndLeavesPendingRemovalsToTheNextStart()
+    {
+        string root = NewRoot();
+        try
+        {
+            string extensions = Path.Combine(root, "extensions");
+            string older = StageVersion(extensions, "0.9.0");
+            string running = StageVersion(extensions, "1.0.0");
+            string newer = StageVersion(extensions, "1.0.1");
+            string marked = StageVersion(extensions, "0.1.0", id: "net.demoviewer.pack.other");
+            ExtensionStaging.MarkForRemoval(extensions, "net.demoviewer.pack.other");
+
+            NewService(root, new FakeFeedClient(), statuses: [InstalledStatus(Id, "1.0.0", running)]).Cleanup();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Directory.Exists(older)).IsFalse().Because("superseded by the running copy");
+                await Assert.That(Directory.Exists(running)).IsTrue().Because("the running copy loaded from here");
+                await Assert.That(Directory.Exists(newer)).IsTrue();
+                await Assert.That(Directory.Exists(marked)).IsTrue()
+                    .Because("the sweep runs after extensions loaded; marked folders go at the next start");
+            }
+        }
+        finally
+        {
+            Cleanup(root);
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────────────────────────
 
     private static ExtensionUpdateService NewService(string root, FakeFeedClient client, ITrustPolicy? trust = null,
         IDemoProcessingQueue? queue = null, IReadOnlyList<PackStatus>? statuses = null,
-        Func<ExtensionFeedEntry, ExtensionHostInfo, bool>? isOffered = null) =>
-        new(root, statuses ?? [Status()], Host, trust ?? TrustAll, client, FeedUrl, queue, isOffered);
+        Func<ExtensionFeedEntry, ExtensionHostInfo, bool>? isOffered = null, ITrustPolicy? installTrust = null,
+        IReadOnlyList<string>? catalogue = null, IReadOnlyList<LoadOutcome>? externalRejected = null,
+        IReadOnlyList<string>? shippedIds = null) =>
+        new(root, statuses ?? [Status()], Host, trust ?? TrustAll, client, FeedUrl, queue, isOffered,
+            installTrust ?? TrustAll, catalogue ?? [], externalRejected ?? [], shippedIds ?? []);
 
     private static ExtensionFeedEntry Entry(FakeFeeds.Entry e) =>
         ExtensionFeed.Parse(FakeFeeds.Json(e)).Entries.Single();
@@ -745,20 +1107,6 @@ public class ExtensionUpdateServiceTests
         System.Security.Cryptography.ECDsa key =
             System.Security.Cryptography.ECDsa.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256);
         return (Convert.ToBase64String(key.ExportSubjectPublicKeyInfo()), key);
-    }
-
-    private static byte[] ZipDirectory(string directory)
-    {
-        using MemoryStream stream = new();
-        using (ZipArchive archive = new(stream, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            foreach (string file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
-            {
-                archive.CreateEntryFromFile(file, Path.GetRelativePath(directory, file).Replace('\\', '/'));
-            }
-        }
-
-        return stream.ToArray();
     }
 
     private static string StageVersion(string extensions, string version, string id = Id, string requiresHost = "^2.0")

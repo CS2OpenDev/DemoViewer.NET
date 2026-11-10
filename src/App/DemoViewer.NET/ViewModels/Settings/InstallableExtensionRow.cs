@@ -1,0 +1,234 @@
+#region
+
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using DemoViewer.NET.Extensions.Updates;
+
+#endregion
+
+namespace DemoViewer.NET.ViewModels.Settings;
+
+/// <summary>
+///     One entry of "Available extensions" in Settings: a first-party extension this build can install but
+///     does not have. Name, version and size with an Install button while one is offered; the download's
+///     progress and Cancel while it runs; the restart line once a copy is on disk; and, for a copy on disk this
+///     launch refused, the reason and Remove.
+/// </summary>
+public sealed partial class InstallableExtensionRow : ObservableObject, IDisposable
+{
+    private readonly ExtensionUpdateService _service;
+    private readonly ExtensionDownload _download = new();
+
+    /// <summary>The last catalogue check's entry.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Name))]
+    [NotifyPropertyChangedFor(nameof(Version))]
+    [NotifyPropertyChangedFor(nameof(Size))]
+    [NotifyPropertyChangedFor(nameof(Message))]
+    [NotifyPropertyChangedFor(nameof(HasMessage))]
+    [NotifyPropertyChangedFor(nameof(CanInstall))]
+    [NotifyPropertyChangedFor(nameof(CanRemove))]
+    [NotifyPropertyChangedFor(nameof(InstallLabel))]
+    private InstallableExtension _entry;
+
+    /// <summary>True while a download is in flight; the row shows progress and a Cancel button.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Message))]
+    [NotifyPropertyChangedFor(nameof(HasMessage))]
+    [NotifyPropertyChangedFor(nameof(CanInstall))]
+    [NotifyPropertyChangedFor(nameof(CanRemove))]
+    private bool _isDownloading;
+
+    /// <summary>Bytes received so far, while downloading.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Message))]
+    [NotifyPropertyChangedFor(nameof(ProgressPercent))]
+    private long _bytesReceived;
+
+    /// <summary>The download's size, from the feed.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressPercent))]
+    private long _totalBytes;
+
+    /// <summary>Why the last install was refused, in user terms; null when it was not.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFailure))]
+    private string? _failure;
+
+    /// <summary>True once Remove was pressed; the folder goes at the next start.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Message))]
+    [NotifyPropertyChangedFor(nameof(CanRemove))]
+    [NotifyPropertyChangedFor(nameof(CanInstall))]
+    private bool _isRemoved;
+
+    /// <param name="entry">The catalogue entry.</param>
+    /// <param name="service">The updater.</param>
+    internal InstallableExtensionRow(InstallableExtension entry, ExtensionUpdateService service)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(service);
+        _entry = entry;
+        _service = service;
+        _isRemoved = service.IsMarkedForRemoval(entry.Id);
+    }
+
+    /// <summary>The extension id.</summary>
+    public string Id => Entry.Id;
+
+    /// <summary>The extension's name.</summary>
+    public string Name => Entry.Name;
+
+    /// <summary>The version Install would fetch, else the one on disk, else the latest published; empty when none.</summary>
+    public string Version =>
+        Entry.Offered?.Version.ToString() ?? Entry.Staged?.ToString() ?? Entry.Rejected?.Version?.ToString()
+        ?? Entry.Latest?.Version.ToString() ?? string.Empty;
+
+    /// <summary>The offered zip's size, "4.5 MB"; empty when nothing is offered.</summary>
+    public string Size => Entry.Offered is { } offered ? $"{ExtensionDownload.Megabytes(offered.Size)} MB" : string.Empty;
+
+    /// <summary>"Update" for a copy on disk that did not load, else "Install".</summary>
+    public string InstallLabel => Entry.Status == InstallableStatus.NotLoaded ? "Update" : "Install";
+
+    /// <summary>
+    ///     The Install button shows while a version is offered and nothing is in flight; for a copy on disk
+    ///     that did not load, only when the offered version is above it, since the same version would be
+    ///     the folder already there.
+    /// </summary>
+    public bool CanInstall => !IsDownloading && !IsRemoved && Entry.Offered is { } offered
+        && (Entry.Status == InstallableStatus.Available
+            || (Entry.Status == InstallableStatus.NotLoaded
+                && (Entry.Rejected?.Version is not { } refused || offered.Version > refused)
+                && (Entry.Staged is not { } staged || offered.Version > staged)));
+
+    /// <summary>Remove shows for a copy on disk this launch refused, so a broken install is never stuck.</summary>
+    public bool CanRemove => !IsDownloading && !IsRemoved && Entry.Status == InstallableStatus.NotLoaded;
+
+    /// <summary>Whether <see cref="Failure" /> is set.</summary>
+    public bool HasFailure => Failure is not null;
+
+    /// <summary>Whether <see cref="Message" /> has anything to show.</summary>
+    public bool HasMessage => Message.Length > 0;
+
+    /// <summary>0 to 100 while downloading.</summary>
+    public int ProgressPercent => ExtensionDownload.Percent(BytesReceived, TotalBytes);
+
+    /// <summary>The line under the name: one sentence per state.</summary>
+    public string Message
+    {
+        get
+        {
+            if (IsRemoved)
+            {
+                return ExtensionUpdateRow.RemovedMessage;
+            }
+
+            if (IsDownloading)
+            {
+                return ExtensionDownload.Line(Entry.Offered?.Version.ToString() ?? string.Empty, BytesReceived,
+                    TotalBytes);
+            }
+
+            return Describe(Entry);
+        }
+    }
+
+    /// <summary>The sentence for <paramref name="entry" />, the same one the row shows.</summary>
+    public static string Describe(InstallableExtension entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        return entry.Status switch
+        {
+            InstallableStatus.Available => string.Empty,
+            InstallableStatus.PendingRestart => $"{entry.Staged} installed, restart to use it.",
+            InstallableStatus.NotLoaded => entry.Rejected!.UserMessage,
+            InstallableStatus.NeedsNewerApp => ExtensionUpdateRow.NeedsNewerApp(entry.Latest, entry.LatestCompatibility),
+            InstallableStatus.NotPublished => "Nothing has been published yet.",
+            InstallableStatus.FeedUnreachable => $"Could not check: {entry.Error}.",
+            InstallableStatus.FeedInvalid => $"Could not check: {entry.Error}.",
+            InstallableStatus.Removed => "Removed.",
+            _ => string.Empty
+        };
+    }
+
+    /// <summary>Replaces the entry, as a finished check does.</summary>
+    internal void Apply(InstallableExtension entry)
+    {
+        Failure = null;
+        Entry = entry;
+    }
+
+    /// <summary>Downloads and stages the offered version; the next start loads it.</summary>
+    [RelayCommand]
+    private async Task InstallAsync()
+    {
+        if (!CanInstall || Entry.Offered is not { } offered)
+        {
+            return;
+        }
+
+        IsDownloading = true;
+        Failure = null;
+        BytesReceived = 0;
+        TotalBytes = offered.Size;
+        try
+        {
+            StageResult result = await _download.RunAsync(_service, offered, (received, total) =>
+            {
+                BytesReceived = received;
+                TotalBytes = total;
+            });
+            switch (result.Outcome)
+            {
+                case StageOutcome.Installed:
+                case StageOutcome.AlreadyInstalled:
+                    Entry = Entry with
+                    {
+                        Status = InstallableStatus.PendingRestart, Staged = offered.Version, Offered = null
+                    };
+                    break;
+                case StageOutcome.Refused:
+                    Failure = $"{Entry.Name} {offered.Version} could not be installed: {result.Detail}.";
+                    break;
+                case StageOutcome.Cancelled:
+                    break;
+            }
+        }
+        finally
+        {
+            IsDownloading = false;
+        }
+    }
+
+    /// <summary>Stops the download; nothing is left on disk.</summary>
+    [RelayCommand]
+    private void CancelDownload() => _download.Cancel();
+
+    /// <summary>Removes the refused copy: its folder goes at the next start, or now when nothing of it loaded.</summary>
+    [RelayCommand]
+    private async Task RemoveAsync()
+    {
+        if (!CanRemove)
+        {
+            return;
+        }
+
+        if (!await _service.RemoveInstalledAsync(Id))
+        {
+            return;
+        }
+
+        // Deleted at once when nothing of it was loaded: the row then offers what the feed offers.
+        if (_service.IsMarkedForRemoval(Id))
+        {
+            IsRemoved = true;
+        }
+        else
+        {
+            Apply(_service.Reassess(Entry));
+        }
+    }
+
+    /// <summary>Stops a download the window's closing leaves behind.</summary>
+    public void Dispose() => _download.Dispose();
+}

@@ -48,8 +48,11 @@ public static class FeaturePacks
     /// </summary>
     /// <param name="packs">The packs, in composition order.</param>
     /// <exception cref="InvalidOperationException">Already configured, or the list was already read.</exception>
-    public static void Configure(IReadOnlyList<IExtension> packs) =>
+    public static void Configure(IReadOnlyList<IExtension> packs)
+    {
         _list.Set(PackStatus.Evaluate(packs, ExtensionHost.Current));
+        _shippedIds = [.. packs.Select(p => p.Id)];
+    }
 
     /// <summary>
     ///     <see cref="Configure(IReadOnlyList{IExtension})" /> with the verdicts already made: what the
@@ -59,7 +62,11 @@ public static class FeaturePacks
     /// </summary>
     /// <param name="statuses">One per pack, in composition order, judged against <see cref="ExtensionHost.Current" />.</param>
     /// <exception cref="InvalidOperationException">Already configured, or the list was already read.</exception>
-    public static void ConfigureResolved(IReadOnlyList<PackStatus> statuses) => _list.Set(statuses);
+    public static void ConfigureResolved(IReadOnlyList<PackStatus> statuses)
+    {
+        _list.Set(statuses);
+        _shippedIds = [.. statuses.Select(s => s.Pack.Id)];
+    }
 
     /// <summary>
     ///     <see cref="ConfigureResolved(IReadOnlyList{PackStatus})" /> plus the third-party copies the loader
@@ -68,15 +75,34 @@ public static class FeaturePacks
     /// <param name="statuses">One per pack, in composition order.</param>
     /// <param name="externalRejected">The third-party copies that did not load.</param>
     /// <param name="claimedRulesets">The qualified ruleset ids every extension's manifest claims, loaded or not.</param>
+    /// <param name="shippedIds">The ids this build ships, loaded or not; null reads them off <paramref name="statuses" />.</param>
+    /// <param name="removedAtStart">The installed folders the launch deleted before logging was up.</param>
     public static void ConfigureResolved(IReadOnlyList<PackStatus> statuses,
         IReadOnlyList<LoadOutcome> externalRejected,
-        IReadOnlyList<string>? claimedRulesets = null)
+        IReadOnlyList<string>? claimedRulesets = null,
+        IReadOnlyList<string>? shippedIds = null,
+        IReadOnlyList<string>? removedAtStart = null)
     {
+        _removedAtStart = removedAtStart ?? [];
         ArgumentNullException.ThrowIfNull(externalRejected);
         _list.Set(statuses);
         _externalRejected = externalRejected;
         _claimedRulesets = claimedRulesets ?? [];
+        _shippedIds = shippedIds ?? [.. statuses.Select(s => s.Pack.Id)];
     }
+
+    /// <summary>
+    ///     The ids this build ships, whether or not this launch loaded them: safe mode and an incompatible shipped
+    ///     copy both leave an id here with no status. The catalogue never lists one and Remove never touches one.
+    /// </summary>
+    public static IReadOnlyList<string> ShippedIds => _shippedIds;
+
+    private static volatile IReadOnlyList<string> _shippedIds = [];
+
+    /// <summary>The installed extension folders the launch deleted because Remove marked them, for the app's log.</summary>
+    public static IReadOnlyList<string> RemovedAtStart => _removedAtStart;
+
+    private static volatile IReadOnlyList<string> _removedAtStart = [];
 
     /// <summary>The qualified ruleset ids the extensions' manifests claim, whether or not this launch loaded them.</summary>
     public static IReadOnlyList<string> ClaimedRulesets => _claimedRulesets;
@@ -97,7 +123,13 @@ public static class FeaturePacks
     public static bool ConfigureIfUnset(IReadOnlyList<IExtension> packs)
     {
         ArgumentNullException.ThrowIfNull(packs);
-        return !_list.IsSet && _list.SetIfUnset(PackStatus.Evaluate(packs, ExtensionHost.Current));
+        if (_list.IsSet || !_list.SetIfUnset(PackStatus.Evaluate(packs, ExtensionHost.Current)))
+        {
+            return false;
+        }
+
+        _shippedIds = [.. packs.Select(p => p.Id)];
+        return true;
     }
 
     /// <summary>
@@ -111,7 +143,11 @@ public static class FeaturePacks
         ArgumentNullException.ThrowIfNull(packs);
         if (!_list.IsSet)
         {
-            _list.SetIfUnset(PackStatus.Evaluate(packs(), ExtensionHost.Current));
+            IReadOnlyList<IExtension> built = packs();
+            if (_list.SetIfUnset(PackStatus.Evaluate(built, ExtensionHost.Current)))
+            {
+                _shippedIds = [.. built.Select(p => p.Id)];
+            }
         }
     }
 }
