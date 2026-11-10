@@ -104,6 +104,15 @@ public sealed class MapSpaceFactory
 
         Splitter.SetSectionHeights(frame.Map.SectionHeights);
 
+        // The floors' names depend on the map (Nuke's are "Upper" and "Lower"), so a map arriving after
+        // the bands did renames them on this push.
+        string? mapName = string.IsNullOrEmpty(frame.Map.MapName) ? null : frame.Map.MapName;
+        if (!string.Equals(Space.MapName, mapName, StringComparison.Ordinal))
+        {
+            Space.MapName = mapName;
+            _forceRebind = true;
+        }
+
         IReadOnlyList<PlayerMarker> markers = frame.Markers;
         for (int i = 0; i < markers.Count; i++)
         {

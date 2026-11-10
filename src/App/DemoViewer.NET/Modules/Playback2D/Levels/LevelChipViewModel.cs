@@ -9,8 +9,8 @@ using DemoViewer.NET.Playback2D.Levels;
 namespace DemoViewer.NET.Modules.Playback2D.Levels;
 
 /// <summary>
-///     One button in the level strip: a floor's short name, its Z band, whether the map baked a radar
-///     picture for it, and whether it is the one being shown.
+///     One button in the level strip: a floor's short name, whether the map baked a radar picture for it,
+///     and whether it is the one being shown. The Z band is in the tooltip only, for debugging the split.
 /// </summary>
 public sealed partial class LevelChipViewModel : ObservableObject
 {
@@ -25,11 +25,10 @@ public sealed partial class LevelChipViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(level);
 
         Id = level.Id;
-        Label = level.Name;
+        Name = level.Name;
+        Label = Shorten(level.Name);
         HasRadar = level.HasRadar;
 
-        // Same format as the pre-v2 band caption, so the strip and the on-canvas floor label read as
-        // one thing rather than two spellings of the same number.
         ZRange = string.Create(CultureInfo.InvariantCulture, $"z[{level.ZMin:F0}..{level.ZMax:F0}]");
         _isActive = isActive;
     }
@@ -37,7 +36,10 @@ public sealed partial class LevelChipViewModel : ObservableObject
     /// <summary>The level's stable identity.</summary>
     public MapLevelId Id { get; }
 
-    /// <summary>Short display name, e.g. <c>L1</c>.</summary>
+    /// <summary>The level's full name, as the on-canvas floor label shows it, e.g. <c>Upper floor</c>.</summary>
+    public string Name { get; }
+
+    /// <summary>The name cut to fit the chip, e.g. <c>Upper</c> or <c>L3</c>.</summary>
     public string Label { get; }
 
     /// <summary>The band, e.g. <c>z[-416..-111]</c>.</summary>
@@ -54,6 +56,17 @@ public sealed partial class LevelChipViewModel : ObservableObject
     ///     who is not told will read that as a broken map rather than a missing asset.
     /// </summary>
     public string Tooltip => HasRadar
-        ? $"{Label}  {ZRange}"
-        : $"{Label}  {ZRange} — no baked radar for this level (the grid shows through)";
+        ? $"{Name}  {ZRange}"
+        : $"{Name}  {ZRange} — no baked radar for this level (the grid shows through)";
+
+    // The chip is 52 px of 11 pt monospace: "Upper floor" becomes "Upper", "Level 3" becomes "L3".
+    internal static string Shorten(string name)
+    {
+        if (name.EndsWith(" floor", StringComparison.Ordinal))
+        {
+            return name[..^" floor".Length];
+        }
+
+        return name.StartsWith("Level ", StringComparison.Ordinal) ? "L" + name["Level ".Length..] : name;
+    }
 }
