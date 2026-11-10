@@ -1628,9 +1628,12 @@ public static class RulesetEdits
         return $"ruleset: {id}\ntitle: {PlainOrQuoted(title)}\nfor: each_player\n\nstats: {{}}\n";
     }
 
-    // Items are removed from the same text in one batch, then whatever they emptied is taken out level by
-    // level, or, with keepLists, an emptied list is written back as [] so its node stays.
-    private static string RemoveShowItems(string text, IReadOnlyList<(string? Table, int Index)> items, bool keepLists = false)
+    /// <summary>
+    ///     Removes several scoreboard entries or table columns from the same text in one batch, each index as
+    ///     the list held it before any removal. Then whatever they emptied is taken out level by level, or,
+    ///     with <paramref name="keepLists" />, an emptied list is written back as <c>[]</c> so its node stays.
+    /// </summary>
+    public static string RemoveShowItems(string text, IReadOnlyList<(string? Table, int Index)> items, bool keepLists = false)
     {
         RulesetDocumentEditor editor = RulesetDocumentEditor.Open(text);
         YamlDocumentText doc = editor.Document;

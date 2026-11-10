@@ -505,8 +505,9 @@ public sealed partial class CanvasTabViewModel
         }
     }
 
-    // Each wire is its own write; the cut is one reload and one status line, so a refusal is said once,
-    // with the count that went, and only a wire whose removal changed the file counts as removed.
+    // Each wire is its own write but the show: columns, which go in one write since their indices are the
+    // drawn ones. The cut is one reload and one status line, so a refusal is said once, with the count that
+    // went, and only a wire whose removal changed the file counts as removed.
     private void DisconnectWires(List<CanvasConnectionViewModel> wires)
     {
         if (!IsEditable || wires.Count == 0 || SelectedRuleset is not { } selected)
@@ -516,17 +517,28 @@ public sealed partial class CanvasTabViewModel
 
         List<string> refusals = [];
         int removed = 0;
-        foreach (CanvasConnectionViewModel wire in wires)
+        void Take(EditRequest request, int count)
         {
-            EditOutcome outcome = _session.Apply(CanvasEditSemantics.Disconnect(wire));
+            EditOutcome outcome = _session.Apply(request);
             if (outcome.IsWritten)
             {
-                removed++;
+                removed += count;
             }
             else if (outcome.IsRefused && outcome.Message is { } reason && !refusals.Contains(reason))
             {
                 refusals.Add(reason);
             }
+        }
+
+        List<CanvasConnectionViewModel> columns = [.. wires.Where(w => CanvasEditSemantics.ShowItemOf(w) is not null)];
+        if (columns.Count > 0)
+        {
+            Take(CanvasEditSemantics.DisconnectColumns(columns), columns.Count);
+        }
+
+        foreach (CanvasConnectionViewModel wire in wires.Except(columns))
+        {
+            Take(CanvasEditSemantics.Disconnect(wire), 1);
         }
 
         SelectedWires.Clear();

@@ -902,14 +902,7 @@ public static partial class CanvasEditSemantics
         if (target.IsShow)
         {
             // The column is the wire: removing it takes the column out and keeps the table.
-            if (target.ColumnOf(wire.Target) is not { } column)
-            {
-                return EditRequest.Ignore;
-            }
-
-            string? table = target.Key.IsScoreboard ? null : target.Title;
-            return EditRequest.Of(text => RulesetEdits.RemoveShowItem(text, table, column.Reference.Index),
-                $"stop showing {column.Stat} on {target.Title}");
+            return ShowItemOf(wire) is not null ? DisconnectColumns([wire]) : EditRequest.Ignore;
         }
 
         if (source.IsParams)
@@ -940,6 +933,37 @@ public static partial class CanvasEditSemantics
         }
 
         return EditRequest.Refuse("That wire is part of the stat's own definition; change the stat instead.");
+    }
+
+    /// <summary>The <c>show:</c> list and index a wire into a show node's column stands for; null for any other wire.</summary>
+    public static (string? Table, int Index)? ShowItemOf(CanvasConnectionViewModel wire)
+    {
+        ArgumentNullException.ThrowIfNull(wire);
+        if (wire.Target.Owner is not { IsAuthorable: true, IsShow: true } target || target.ColumnOf(wire.Target) is not { } column)
+        {
+            return null;
+        }
+
+        return (target.Key.IsScoreboard ? null : target.Title, column.Reference.Index);
+    }
+
+    /// <summary>
+    ///     Removes the columns <paramref name="wires" /> run into as one write, each table kept. The indices are
+    ///     the drawn ones, so they are removed together rather than one after another.
+    /// </summary>
+    public static EditRequest DisconnectColumns(IReadOnlyList<CanvasConnectionViewModel> wires)
+    {
+        ArgumentNullException.ThrowIfNull(wires);
+        List<(string? Table, int Index)> items = [.. wires.Select(ShowItemOf).OfType<(string?, int)>()];
+        if (items.Count == 0)
+        {
+            return EditRequest.Ignore;
+        }
+
+        string what = wires.Count == 1 && wires[0].Target.Owner is { } table && table.ColumnOf(wires[0].Target) is { } column
+            ? $"stop showing {column.Stat} on {table.Title}"
+            : $"stop showing {items.Count} columns";
+        return EditRequest.Of(text => RulesetEdits.RemoveShowItems(text, items, keepLists: true), what);
     }
 
     /// <summary>A facet row's write: a value sets the facet, null removes it. A define's go to its own block.</summary>

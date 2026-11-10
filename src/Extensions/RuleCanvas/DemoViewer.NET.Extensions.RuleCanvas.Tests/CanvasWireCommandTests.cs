@@ -3,6 +3,7 @@
 using Avalonia;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
+using TUnit.Assertions.Enums;
 
 #endregion
 
@@ -290,6 +291,48 @@ public class CanvasWireCommandTests
                 await Assert.That(toasts).IsEqualTo(1).Because("the refusal is said once, folded");
                 await Assert.That(RulesetEdits.Field(File.ReadAllText(path), "round_deaths", "while")).IsEqualTo("match.live");
             }
+        }
+    }
+
+    // A column's index names its place in the list as drawn, so one removal must not shift the next.
+    [Test]
+    [Arguments("round_side", "round_kills", true)]
+    [Arguments("round_damage", "round_kast", false)]
+    [Arguments("round_survived", "round_kast", true)]
+    public async Task CuttingTwoColumnWires_RemovesExactlyThoseTwoColumns(string first, string second, bool cut)
+    {
+        (RulesTree rules, CanvasTabViewModel vm) = Open();
+        using (rules)
+        {
+            CanvasNodeViewModel table = vm.Nodes.Single(n => n.IsShow && n.Columns.Count > 0);
+            List<string> before = [.. table.Columns.Select(c => c.Stat)];
+            CanvasConnectionViewModel Into(string stat) =>
+                vm.Connections.Single(c => ReferenceEquals(c.Target.Owner, table) && table.ColumnOf(c.Target)?.Stat == stat);
+
+            if (cut)
+            {
+                vm.CuttingStartedCommand.Execute(null);
+                vm.DisconnectCommand.Execute(Into(first));
+                vm.DisconnectCommand.Execute(Into(second));
+                vm.CuttingCompletedCommand.Execute(null);
+            }
+            else
+            {
+                vm.SelectedWires.Add(Into(first));
+                vm.SelectedWires.Add(Into(second));
+                vm.DeleteWiresCommand.Execute(null);
+            }
+
+            CanvasNodeViewModel after = vm.Nodes.Single(n => n.IsShow && n.Columns.Count > 0);
+            using (Assert.Multiple())
+            {
+                await Assert.That(after.Columns.Select(c => c.Stat)).IsEquivalentTo(before.Where(s => s != first && s != second), CollectionOrdering.Matching);
+                await Assert.That(vm.EditStatus).IsEmpty();
+            }
+
+            vm.UndoCommand.Execute(null);
+            await Assert.That(vm.Nodes.Single(n => n.IsShow && n.Columns.Count > 0).Columns.Select(c => c.Stat))
+                .IsEquivalentTo(before, CollectionOrdering.Matching).Because("one Undo brings both back");
         }
     }
 }
