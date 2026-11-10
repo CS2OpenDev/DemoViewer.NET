@@ -238,6 +238,10 @@ public class PostPlantTests
                     "spot unread:1"));
             await Assert.That(Shape(t.HoldPlaces)).IsEqualTo(Joined("Palace:4", "BombsiteA:2"));
             await Assert.That(t.RetakeGroups.Count).IsEqualTo(0).Because("on T the team holds, it does not retake");
+            await Assert.That(t.PlantSpots.Select(p => $"{p.Round.RoundNumber}:{p.Site}:{p.X},{p.Y}:{p.Won}"))
+                .IsEquivalentTo(["1:A:1000,1000:True", "2:A:1100,1000:False", "3:B:-2000,0:False"])
+                .Because("round 4 has no planter, and a round is won when the T side won it");
+            await Assert.That(t.RoundBuys.Count).IsEqualTo(5);
 
             await Assert.That(ct.Side).IsEqualTo(3);
             await Assert.That(ct.SideRounds.Count).IsEqualTo(4);
@@ -350,7 +354,9 @@ public class PostPlantTests
             await Assert.That(vm.Layers.Find("plants")!.CountLabel).IsEqualTo("4 plants");
             await Assert.That(t.Titled("de_nuke T · plants").Value).IsEqualTo("4 of 5 rounds");
             await Assert.That(t.Titled("de_nuke T · rounds").OpenToolTip).IsEqualTo("Open 5 rounds in Review");
-            await Assert.That(cluster.Value).IsEqualTo("2 of 4 rounds");
+            await Assert.That(cluster.Value).IsEqualTo("2 of 2 rounds")
+                .Because("the most common plant per site counts out of the plants on that site");
+            await Assert.That(vm.Layers.Find("plants")!.Marks.Marks.Count).IsGreaterThan(0);
             await Assert.That(vm.Layers.Inspector.Reads).IsNotEmpty();
             await Assert.That(t.EveryNumberOpensItsRounds()).IsTrue();
         }
