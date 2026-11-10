@@ -347,6 +347,35 @@ public class CanvasSurfaceTests
     }
 
     [Test]
+    public async Task AFileThatStopsLoading_WhileAnotherIsBroken_IsNamedWithItsOwnReason()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        string other = RulesTree.Touch(Path.Combine(rules.UserDirectory, "aaa_broken.rules.yaml"), "ruleset: [\nfor: each_player\nstats: {}\n");
+        string open = RulesTree.Touch(Path.Combine(rules.UserDirectory, "zzz_mine.rules.yaml"),
+            File.ReadAllText(rules.UserPath("player_round")).Replace("ruleset: player_round", "ruleset: mine", StringComparison.Ordinal));
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.PreferredRulesetId = "mine";
+        vm.OnActivated(null!);
+        await Assert.That(vm.SelectedRuleset?.Id).IsEqualTo("mine");
+
+        RulesTree.Touch(open, "title: no id here\nstats: {}\n");
+        File.SetLastWriteTimeUtc(open, DateTime.UtcNow.AddMinutes(1));
+        vm.FilesChanged([open]);
+
+        RulesetCorpus corpus = rules.Load();
+        string otherReason = corpus.Failures.Single(f => f.Path == other).Reason;
+        string ownReason = corpus.Failures.Single(f => f.Path == open).Reason;
+        await Assert.That(ownReason).IsNotEqualTo(otherReason);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.EmptyState).IsEqualTo(CanvasEmptyState.LoadFailed);
+            await Assert.That(vm.EmptyStateFile).IsEqualTo("zzz_mine.rules.yaml");
+            await Assert.That(vm.EmptyStateReason).IsEqualTo(ownReason);
+            await Assert.That(vm.EditStatus).IsEqualTo("mine no longer loads as a ruleset: " + ownReason);
+        }
+    }
+
+    [Test]
     public async Task AFileThatStopsLoading_StaysOpenOnItsText_AndASaveFromThePaneLoadsItBack()
     {
         using RulesTree rules = RulesTree.WithUser("player_round");

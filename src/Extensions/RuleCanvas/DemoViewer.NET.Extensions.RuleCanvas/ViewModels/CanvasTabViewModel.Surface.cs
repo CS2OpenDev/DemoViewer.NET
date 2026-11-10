@@ -429,11 +429,10 @@ public sealed partial class CanvasTabViewModel
         }
     }
 
-    // The selected id no longer loads: the card names the file and the loader's reason.
-    private void MarkLoadFailure(string id, string reason)
+    // The selected ruleset no longer loads: the card names its file and the loader's reason.
+    private void MarkLoadFailure(string fileName, string reason)
     {
-        (string path, string _) = _corpus?.Failures.FirstOrDefault(f => Path.GetFileName(f.Path) == id + ".rules.yaml") ?? ("", "");
-        EmptyStateFile = path.Length > 0 ? Path.GetFileName(path) : id + ".rules.yaml";
+        EmptyStateFile = fileName;
         EmptyStateReason = reason;
         EmptyState = CanvasEmptyState.LoadFailed;
     }

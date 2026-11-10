@@ -506,7 +506,9 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
         RulesetCorpus.Entry? again = Rulesets.FirstOrDefault(e => e.Id == id);
         if (again is null)
         {
-            string reason = _corpus.Failures.Select(f => f.Reason).FirstOrDefault() ?? "it is not in the rules directories any more";
+            string? path = was?.Id == id ? was.Path : null;
+            string reason = _corpus.Failures.Where(f => path is not null && SamePath(f.Path, path)).Select(f => f.Reason).FirstOrDefault()
+                            ?? "it is not in the rules directories any more";
             // The file stays open on the text it now holds, so the pane shows it and a corrected save or an
             // undo passes the write-time guard; the history goes when the break was another writer's.
             if (was is not null && was.Id == id)
@@ -521,7 +523,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             Status = _session.CanUndo
                 ? "Nothing to draw; the file no longer loads. Undo is still available."
                 : "Nothing to draw; the file no longer loads.";
-            MarkLoadFailure(id, reason);
+            MarkLoadFailure(path is null ? id + ".rules.yaml" : Path.GetFileName(path), reason);
             return;
         }
 
