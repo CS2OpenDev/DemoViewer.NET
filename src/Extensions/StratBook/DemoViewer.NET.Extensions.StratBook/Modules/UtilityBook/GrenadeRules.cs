@@ -16,14 +16,31 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 /// </summary>
 public static class GrenadeRules
 {
-    /// <summary>Release to projectile creation, median over 620 throws (min 6, max 15).</summary>
+    /// <summary>
+    ///     Release to projectile creation, the median over 15,193 throws on 10 matchmaking and 28 pro GOTV demos,
+    ///     all 64-tick. A throw lands on 7 or 8 ticks and a jump-throw on 14 or 15, the same on both corpora.
+    /// </summary>
     public const int ReleaseToSpawnTicks = 7;
 
-    /// <summary>The shortest measured release-to-spawn gap.</summary>
+    /// <summary>The shortest gap of a completed throw: 6, five times in 15,193.</summary>
     public const int ReleaseToSpawnMinTicks = 6;
 
-    /// <summary>The longest measured release-to-spawn gap.</summary>
+    /// <summary>
+    ///     The shortest gap at all. A thrower killed between the release and the throw drops the grenade where he
+    ///     dies, so it can appear the tick after the release: two pro throws at 3 and 4 ticks spawned at rest the
+    ///     tick after their thrower's death, and one matchmaking decoy came at 4.
+    /// </summary>
+    public const int ReleaseToSpawnShortestTicks = 1;
+
+    /// <summary>The longest measured release-to-spawn gap, a jump-throw.</summary>
     public const int ReleaseToSpawnMaxTicks = 15;
+
+    /// <summary>
+    ///     How far, horizontally, a projectile may appear from its thrower's position at the release. Measured at
+    ///     most 60 units (p99 under 52 on every demo) over the same throws; nearly twice that leaves room for a fast
+    ///     run-throw.
+    /// </summary>
+    public const float ReleaseToSpawnMaxDistance = 112;
 
     /// <summary>How far before the spawn a resolved thrower's <c>weapon_fire</c> may sit.</summary>
     public const int ReleaseLookbackTicks = 40;

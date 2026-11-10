@@ -36,7 +36,7 @@ public enum ThrowerSource
 /// <summary>Where a row's release tick came from.</summary>
 public enum ReleaseSource
 {
-    /// <summary>The thrower's grenade <c>weapon_fire</c>, 6 to 15 ticks before the projectile appeared.</summary>
+    /// <summary>The thrower's grenade <c>weapon_fire</c>, 6 to 15 ticks before the projectile appeared, or as few as 1 when the thrower died mid-throw.</summary>
     WeaponFire,
 
     /// <summary><c>grenade_thrown</c>, which only HLTV broadcasts carry.</summary>

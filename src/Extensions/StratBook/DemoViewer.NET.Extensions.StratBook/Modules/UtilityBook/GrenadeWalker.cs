@@ -38,7 +38,7 @@ public sealed record GrenadeWalk(
 public static class GrenadeWalker
 {
     /// <summary>Bumped when a row's meaning changes in the fold itself.</summary>
-    private const string WalkVersion = "5";
+    private const string WalkVersion = "6";
 
     /// <summary>The engine the rows were read with, for the sidecar header.</summary>
     public static string EngineVersion { get; } = DescribeEngine();
@@ -179,7 +179,7 @@ public static class GrenadeWalker
                     fire = LatestRelease(releases, slot, p.ClassName, p.SpawnTick - GrenadeRules.ReleaseLookbackTicks,
                         p.SpawnTick, claimed);
                 }
-                else if (JoinThrower(releases, p.ClassName, p.SpawnTick, claimed) is { } joined)
+                else if (JoinThrower(releases, p, claimed) is { } joined)
                 {
                     fire = joined;
                     slot = joined.Slot;
@@ -233,27 +233,38 @@ public static class GrenadeWalker
     }
 
     /// <summary>
-    ///     The thrower join for a projectile whose thrower never resolved: the unclaimed release of the same family
-    ///     in <c>[spawn - 15, spawn - 6]</c>, the one nearest the measured seven-tick gap when several fit.
+    ///     The thrower join for a projectile whose thrower never resolved: an unclaimed release of the same family
+    ///     whose thrower stood within <see cref="GrenadeRules.ReleaseToSpawnMaxDistance" /> of where the projectile
+    ///     appeared (when both positions are known), preferring a completed throw's gap,
+    ///     <c>[spawn - 15, spawn - 6]</c>, nearest the measured seven ticks, and only then the latest release in
+    ///     <c>(spawn - 6, spawn - 1]</c>, a thrower killed mid-throw.
     /// </summary>
-    private static ReleaseFacts? JoinThrower(IReadOnlyList<ReleaseFacts> releases, string projectileClass,
-        int spawnTick,
+    private static ReleaseFacts? JoinThrower(IReadOnlyList<ReleaseFacts> releases, ProjectileFacts projectile,
         HashSet<ReleaseFacts> claimed)
     {
         ArgumentNullException.ThrowIfNull(releases);
         ArgumentNullException.ThrowIfNull(claimed);
+        int spawnTick = projectile.SpawnTick;
         ReleaseFacts? best = null;
+        ReleaseFacts? shortest = null;
         int bestGap = int.MaxValue;
         foreach (ReleaseFacts r in releases)
         {
-            if (r.Tick > spawnTick - GrenadeRules.ReleaseToSpawnMinTicks)
+            if (r.Tick > spawnTick - GrenadeRules.ReleaseToSpawnShortestTicks)
             {
                 break;
             }
 
             if (r.Tick < spawnTick - GrenadeRules.ReleaseToSpawnMaxTicks
-                || !string.Equals(r.ProjectileClass, projectileClass, StringComparison.Ordinal) || claimed.Contains(r))
+                || !string.Equals(r.ProjectileClass, projectile.ClassName, StringComparison.Ordinal)
+                || claimed.Contains(r) || !NearEnough(r.Pawn.Position, projectile.InitialPosition))
             {
+                continue;
+            }
+
+            if (spawnTick - r.Tick < GrenadeRules.ReleaseToSpawnMinTicks)
+            {
+                shortest = r;
                 continue;
             }
 
@@ -265,7 +276,21 @@ public static class GrenadeWalker
             }
         }
 
-        return best;
+        return best ?? shortest;
+    }
+
+    /// <summary>Whether a release's thrower could have thrown a projectile that appeared at <paramref name="spawn" />; true when either is unknown.</summary>
+    private static bool NearEnough(Vector3? release, Vector3? spawn)
+    {
+        if (release is not { } a || spawn is not { } b)
+        {
+            return true;
+        }
+
+        float dx = b.X - a.X;
+        float dy = b.Y - a.Y;
+        return dx * dx + dy * dy
+               <= GrenadeRules.ReleaseToSpawnMaxDistance * GrenadeRules.ReleaseToSpawnMaxDistance;
     }
 
     /// <summary>Builds the rows from the throws, the detonations and the flights. Pure.</summary>
