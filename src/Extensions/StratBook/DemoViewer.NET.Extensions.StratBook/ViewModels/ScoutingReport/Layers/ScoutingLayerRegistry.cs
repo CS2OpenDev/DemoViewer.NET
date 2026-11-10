@@ -38,6 +38,20 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
     [ObservableProperty]
     private ScoutingLayerChipViewModel? _focused;
 
+    /// <summary>A drawn layer is still building: the stage shows its progress line.</summary>
+    [ObservableProperty]
+    private bool _isStageBuilding;
+
+    /// <summary>
+    ///     What the stage says over the map when it has nothing to draw: no layer ticked, or every drawn layer
+    ///     built empty (and why); or that the drawn layers are still being read. Empty when marks are drawn.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStageNote))]
+    private string _stageNote = "";
+
+    public bool HasStageNote => StageNote.Length > 0;
+
     /// <param name="layers">The layers, in chip order.</param>
     /// <param name="post">UI-thread marshal for a build that lands off it.</param>
     /// <param name="rows">The tab: stars, Review and 2D for the inspector's rows.</param>
@@ -342,7 +356,36 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
             }
         }
 
+        ShowStageNote();
         ShowInspector();
+    }
+
+    private void ShowStageNote()
+    {
+        List<ScoutingLayerChipViewModel> drawn = [.. MapChips.Where(c => c.IsOn)];
+        IsStageBuilding = _data is not null && Map.Length > 0 && drawn.Any(c => c.IsBuilding);
+        if (_data is null || Map.Length == 0)
+        {
+            StageNote = "";
+        }
+        else if (drawn.Count == 0)
+        {
+            StageNote = "No layer is drawn. Tick a layer above to put it on the map, or click its name to inspect it.";
+        }
+        else if (IsStageBuilding)
+        {
+            StageNote = drawn.Count == 1
+                ? $"Reading the rounds for {drawn[0].Name}…"
+                : $"Reading the rounds for {drawn.Count} drawn layers…";
+        }
+        else if (drawn.All(c => c.Status.State is ScoutingLayerState.Empty or ScoutingLayerState.Placeholder))
+        {
+            StageNote = $"Nothing to draw here yet. {drawn[0].Status.Display}";
+        }
+        else
+        {
+            StageNote = "";
+        }
     }
 
     private void ShowInspector()
@@ -360,13 +403,19 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
         List<ScoutingInspectorSectionViewModel> sections = [];
         if (context is not null)
         {
+            // Each star's accessible name carries the layer, the section and the scope it files under.
+            string Where(ScoutingBuy? buy, string section) => string.Join(" · ",
+                new[] { chip.Title, section, ScoutingReportStarKeys.Where(context.Scope(chip.Layer, buy)) }
+                    .Where(p => p.Length > 0));
+
             reads.AddRange(result.Reads.Select(r =>
                 new ScoutingInspectorRowViewModel(this, r,
-                    ScoutingReportStarKeys.Key(context.Scope(chip.Layer, r.Buy), r.StarText))));
+                    ScoutingReportStarKeys.Key(context.Scope(chip.Layer, r.Buy), r.StarText), Where(r.Buy, ""))));
             sections.AddRange(result.Sections.Select(s => new ScoutingInspectorSectionViewModel(s.Title,
             [
                 .. s.Rows.Select(row => new ScoutingInspectorRowViewModel(this, row,
-                    ScoutingReportStarKeys.Key(context.Scope(chip.Layer, row.Buy), row.KeyText)))
+                    ScoutingReportStarKeys.Key(context.Scope(chip.Layer, row.Buy), row.KeyText),
+                    Where(row.Buy, s.Title)))
             ])));
         }
 

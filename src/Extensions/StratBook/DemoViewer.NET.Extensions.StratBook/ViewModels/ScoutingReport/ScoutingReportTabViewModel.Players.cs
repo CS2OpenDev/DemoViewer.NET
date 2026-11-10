@@ -323,7 +323,7 @@ public sealed partial class ScoutingReportTabViewModel
     {
         if (stats is null)
         {
-            PlayerStatCellViewModel reading = PlayerStatCellViewModel.Missing("…", "reading player stats");
+            PlayerStatCellViewModel reading = PlayerStatCellViewModel.Reading;
             return new PlayerStatCells(reading, reading, reading, reading, reading, reading);
         }
 

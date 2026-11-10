@@ -62,6 +62,12 @@ public sealed partial class ScoutingLayerChipViewModel : ObservableObject
 
     public ScoutingLayerStatus Status => Result.Status;
 
+    /// <summary>Still building for the scope in view: the strip mini draws skeleton bars in place of its lines.</summary>
+    public bool IsBuilding => Result.Status.State == ScoutingLayerState.Building;
+
+    /// <summary>A strip mini that shows its text lines: built, and with no chart.</summary>
+    public bool ShowsMiniLines => !IsBuilding && !HasMiniChart;
+
     /// <summary>The strip mini's lines: its summary rows, or what it waits on.</summary>
     public IReadOnlyList<string> MiniLines
     {
@@ -95,6 +101,9 @@ public sealed partial class ScoutingLayerChipViewModel : ObservableObject
 
     /// <summary>The name button's accessible name.</summary>
     public string InspectLabel => $"Inspect {Name}";
+
+    /// <summary>The companion button's accessible name: "Inspect tactical timeouts".</summary>
+    public string CompanionLabel => Companion is { } companion ? $"Inspect {companion.Title}" : "";
 
     partial void OnIsOnChanged(bool value)
     {
@@ -156,6 +165,8 @@ public sealed partial class ScoutingLayerChipViewModel : ObservableObject
             _ => result.CountLabel
         };
         OnPropertyChanged(nameof(Status));
+        OnPropertyChanged(nameof(IsBuilding));
+        OnPropertyChanged(nameof(ShowsMiniLines));
         OnPropertyChanged(nameof(MiniLines));
         OnPropertyChanged(nameof(MiniChart));
         OnPropertyChanged(nameof(HasMiniChart));

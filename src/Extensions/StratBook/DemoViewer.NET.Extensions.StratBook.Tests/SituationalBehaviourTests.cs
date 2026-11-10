@@ -255,7 +255,7 @@ public class SituationalBehaviourTests
             await Assert.That(vm.Layers.StripMinis.Select(m => m.Id))
                 .IsEquivalentTo(["econ", "rotations", "impact", "score"], CollectionOrdering.Matching);
             await Assert.That(vm.Layers.Find("rotations")!.Status.State).IsEqualTo(ScoutingLayerState.Empty);
-            await Assert.That(vm.Layers.Inspector.StatusMessage).Contains("desktop app builds it");
+            await Assert.That(vm.Layers.Inspector.StatusMessage).Contains("in the desktop app");
         }
 
         // Deselecting empties the stage.

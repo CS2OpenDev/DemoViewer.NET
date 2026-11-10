@@ -294,6 +294,12 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     public bool HasMaps => Maps.Count > 0;
 
+    /// <summary>Teams exist and none is open: the page teaches what picking one shows.</summary>
+    public bool IsAwaitingTeam => HasTeams && !HasSelection;
+
+    /// <summary>A team is open with no map to show: the page says why and what fills it.</summary>
+    public bool HasSelectionWithoutMaps => HasSelection && !HasMaps;
+
     public bool HasVetoes => Vetoes.Count > 0;
 
     public bool HasNotices => Notices.Count > 0;
@@ -447,6 +453,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         }
 
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(IsAwaitingTeam));
+        OnPropertyChanged(nameof(HasSelectionWithoutMaps));
         OnPropertyChanged(nameof(TeamName));
     }
 
@@ -607,6 +615,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         }
 
         OnPropertyChanged(nameof(HasTeams));
+        OnPropertyChanged(nameof(IsAwaitingTeam));
         SelectedTeam = keep is { } id ? Teams.FirstOrDefault(t => t.Id == id) : null;
         if (keep is not null && SelectedTeam is null)
         {
@@ -826,6 +835,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         OnPropertyChanged(nameof(DeciderLine));
         OnPropertyChanged(nameof(HasDeciderData));
         OnPropertyChanged(nameof(HasMaps));
+        OnPropertyChanged(nameof(HasSelectionWithoutMaps));
         OnPropertyChanged(nameof(OpponentMixLine));
     }
 
@@ -925,10 +935,16 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             // duels, strat trails) count theirs on the shared reader, stale files included.
             int without = Max(Landed(data.Heatmaps)?.DemosWithoutPositions, Landed(data.Openings)?.DemosWithoutPositions,
                 Landed(data.PostPlant)?.DemosWithoutPositions, data.Positions.WithoutCount);
-            if (without > 0)
+            // A stale positions file counts as missing: it was written for older place data.
+            if (without > 0 && without >= data.Demos.Count)
             {
                 Notices.Add(
-                    $"Positions were read for {Math.Max(0, data.Demos.Count - without)} of {ScoutingLayerBase.Plural(data.Demos.Count, "demo")}. Setups, lurks and plant spots use those; records and economy use all. Rebuild the round index to fill the rest.");
+                    $"No positions yet for {(data.Demos.Count == 1 ? "this team's demo" : $"any of this team's {data.Demos.Count} demos")} (missing or out of date). Setups, lurks, AWP routes and plant spots need them; records and economy do not. Rebuild the round index from the Situations tab to read them.");
+            }
+            else if (without > 0)
+            {
+                Notices.Add(
+                    $"Positions were read for {Math.Max(0, data.Demos.Count - without)} of {ScoutingLayerBase.Plural(data.Demos.Count, "demo")}. The rest are missing or out of date: setups, lurks and plant spots use the read ones, records and economy use all. Rebuild the round index from the Situations tab to fill the rest.");
             }
         }
 
