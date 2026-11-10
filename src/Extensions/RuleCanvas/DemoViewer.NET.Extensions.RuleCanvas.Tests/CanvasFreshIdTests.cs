@@ -53,4 +53,27 @@ public class CanvasFreshIdTests
             await Assert.That(vm.Nodes.Single(n => n.Id == "new_kill").Location).IsEqualTo(was).Because("the existing entry stays where it was");
         }
     }
+
+    [Test]
+    [Arguments("highlight")]
+    [Arguments("stat")]
+    public async Task AWriteUnderATakenId_IsRefused_AndTheFileIsUnchanged(string kind)
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        string path = rules.UserPath("player_round");
+        File.WriteAllText(path, RulesetEdits.AddHighlight(Text(rules), "clutch", "when: round_kills > 0"));
+        string before = Text(rules);
+        RulesetDocumentSession session = new();
+        session.Open(rules.Load().Entries.Single(e => e.Id == "player_round"));
+
+        EditOutcome outcome = kind == "highlight"
+            ? session.Apply(CanvasEditSemantics.PlaceItem(new GalleryItem(GalleryItemKind.Highlight, "clutch", "clutch", "", "when: round_kills > 0"), "clutch"))
+            : session.Apply(CanvasEditSemantics.AddStat("kill", "round_kills"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(outcome.IsRefused).IsTrue();
+            await Assert.That(outcome.Message).Contains("Duplicate key");
+            await Assert.That(Text(rules)).IsEqualTo(before);
+        }
+    }
 }
