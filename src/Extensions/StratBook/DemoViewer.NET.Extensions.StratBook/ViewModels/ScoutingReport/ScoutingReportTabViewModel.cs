@@ -354,10 +354,10 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         ? ""
         : $"{map.Map} · {Side.Label()} · {(Buy == ScoutingBuy.All ? "all buys" : Buy + " buy")} · {ScoutingLayerBase.Plural(map.Played, "map")}";
 
-    /// <summary>"de_mirage highlighted · CT and T are the team's own round win %".</summary>
+    /// <summary>"de_mirage open below · a row opens its map · CT and T are the team's own round win %".</summary>
     public string PoolCaption => SelectedMap is { } map
-        ? $"{map.Map} highlighted · CT and T are the team's own round win %"
-        : "CT and T are the team's own round win %";
+        ? $"{map.Map} open below · a row opens its map · CT and T are the team's own round win %"
+        : "a row opens its map · CT and T are the team's own round win %";
 
     public string PlayersTitle => SelectedMap is { } map ? $"Players · {map.Map}" : "Players";
 
