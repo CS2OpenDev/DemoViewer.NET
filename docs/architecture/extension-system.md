@@ -43,7 +43,7 @@ assembly; the pack reports the embedded copy in process through `IExtension.Mani
   "version": "{version}",
   "assembly": "DemoViewer.NET.Extensions.StratBook.dll",
   "entryType": "DemoViewer.NET.Extensions.StratBook.StratBookPack",
-  "requiresHost": "^2.1",
+  "requiresHost": "^2.2",
   "requiresCs2DemoKit": "0.15.0"
 }
 ```

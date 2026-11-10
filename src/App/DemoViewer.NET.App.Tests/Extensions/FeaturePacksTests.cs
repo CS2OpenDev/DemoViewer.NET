@@ -136,7 +136,7 @@ public class FeaturePacksTests
     {
         // At least the real Strat Book manifest's requiresHost: this case needs the shipped pack to be the
         // compatible one, so a contract below it makes both packs incompatible and proves nothing.
-        ExtensionHostInfo host = new(SemVersion.Parse("2.1.0"), null, SemVersion.Parse("0.15.0"));
+        ExtensionHostInfo host = new(SemVersion.Parse("2.2.0"), null, SemVersion.Parse("0.15.0"));
         IncompatibleFakePack incompatible = new();
         StratBookPack stratBook = new();
 
@@ -151,7 +151,7 @@ public class FeaturePacksTests
             await Assert.That(compatible.Select(p => p.Id)).IsEquivalentTo([stratBook.Id], CollectionOrdering.Matching);
             await Assert.That(statuses[0].Compatibility is PackCompatibility.HostContractMismatch).IsTrue();
             await Assert.That(statuses[0].Problem)
-                .IsEqualTo("Incompatible 2.0.0 needs app contract ^3.0; this app provides 2.1.0");
+                .IsEqualTo("Incompatible 2.0.0 needs app contract ^3.0; this app provides 2.2.0");
 
             FeatureDescriptor[] catalog = FeatureCatalog.Build(compatible);
             await Assert.That(catalog.Any(d => d.Id == IncompatibleFakePack.PackFeatureId)).IsFalse()

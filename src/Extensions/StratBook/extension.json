@@ -4,7 +4,7 @@
   "version": "{version}",
   "assembly": "DemoViewer.NET.Extensions.StratBook.dll",
   "entryType": "DemoViewer.NET.Extensions.StratBook.StratBookPack",
-  "requiresHost": "^2.1",
+  "requiresHost": "^2.2",
   "requiresCs2DemoKit": "0.15.0",
   "rulesets": ["roundindex_positions", "roundindex_events", "grenade_projectiles", "grenade_releases", "grenade_events"]
 }

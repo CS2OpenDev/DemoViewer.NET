@@ -38,7 +38,7 @@ package version, embed the result in the assembly and copy it beside the DLL:
   "version": "{version}",
   "assembly": "MyExtension.dll",
   "entryType": "MyExtension.MyExtension",
-  "requiresHost": "^2.1",
+  "requiresHost": "^2.2",
   "requiresCs2DemoKit": "*"
 }
 ```
