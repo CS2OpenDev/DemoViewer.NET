@@ -103,6 +103,14 @@
             <Setter Property="Background" Value="{DynamicResource Pb2dTeamT}" />
             <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}" />
         </Style>
+        <Style Selector="RadioButton.seg.pill /template/ Border#PART_Box">
+            <Setter Property="Padding" Value="10 3" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <Style Selector="RadioButton.seg.pill:checked">
+            <Setter Property="Background" Value="{DynamicResource BorderAccent}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}" />
+        </Style>
         <Style Selector="RadioButton.seg:focus-visible /template/ Border#PART_Box">
             <Setter Property="BorderBrush" Value="{DynamicResource BorderAccent}" />
         </Style>
@@ -746,6 +754,23 @@
                             </Border>
                         </Grid>
                         <TextBlock Classes="mid" Text="{Binding ScopeLine}" Margin="0 0 0 4" />
+                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0 0 0 4" IsVisible="{Binding HasWindows}">
+                            <TextBlock Classes="mid" Text="Trail to" VerticalAlignment="Center" />
+                            <ItemsControl ItemsSource="{Binding Windows}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="layers:ScoutingWindowPillViewModel">
+                                        <RadioButton Classes="seg pill" GroupName="scouting-window" Content="{Binding Label}"
+                                                     IsChecked="{Binding IsOn, Mode=OneWay}" Command="{Binding PickCommand}"
+                                                     AutomationProperties.Name="{Binding AccessibleName}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                         <TextBlock Text="{Binding StatusMessage}" FontSize="12" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextMid}" IsVisible="{Binding HasStatusMessage}" />
                         <ItemsControl ItemsSource="{Binding Reads}" ItemTemplate="{StaticResource InspectorRow}" />

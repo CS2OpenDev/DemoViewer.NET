@@ -570,7 +570,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         ArgumentNullException.ThrowIfNull(row);
         if (row.Row?.Play is { } at && _sources.Playback?.Invoke() is { } playback)
         {
-            _ = playback.SeekAsync(at.DemoPath, at.Tick);
+            _ = playback.SeekAsync(at.DemoPath, at.Tick, row.Row.FollowSteamId);
         }
     }
 

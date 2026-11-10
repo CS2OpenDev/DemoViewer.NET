@@ -166,6 +166,9 @@ public sealed record ScoutingInspectorRow
     /// <summary>Plays a moment in 2D: the demo and the frame-clock tick. Null shows no play button.</summary>
     public (string DemoPath, int Tick)? Play { get; init; }
 
+    /// <summary>The player 2D playback follows once <see cref="Play" /> lands, by SteamID64; null leaves the follow alone.</summary>
+    public ulong? FollowSteamId { get; init; }
+
     /// <summary>Files the star under this buy instead of the scope's.</summary>
     public ScoutingBuy? Buy { get; init; }
 

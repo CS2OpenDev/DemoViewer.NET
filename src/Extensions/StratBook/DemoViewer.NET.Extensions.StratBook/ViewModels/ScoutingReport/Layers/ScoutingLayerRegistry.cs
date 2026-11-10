@@ -148,10 +148,10 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
             return;
         }
 
-        ScoutingLayerContext context = new(data, map, side, buy);
         List<Task> builds = [];
         foreach (ScoutingLayerChipViewModel chip in offered)
         {
+            ScoutingLayerContext context = ContextFor(chip.Layer, data);
             Task<ScoutingLayerResult> build = Build(chip.Layer, context, token);
             if (build.IsCompleted)
             {
@@ -189,11 +189,11 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
 
         int generation = Volatile.Read(ref _generation);
         CancellationToken token = _cancel.Token;
-        ScoutingLayerContext context = new(data, Map, Side, Buy);
         List<Task> builds = [Idle];
         foreach (ScoutingLayerChipViewModel chip in _all.Where(c => ids.Contains(c.Id, StringComparer.Ordinal)
                                                                    && c.Layer.AppliesTo(Side)))
         {
+            ScoutingLayerContext context = ContextFor(chip.Layer, data);
             int stamp = _rebuilds[chip.Id] = _rebuilds.GetValueOrDefault(chip.Id) + 1;
             Task<ScoutingLayerResult> build = Build(chip.Layer, context, token);
             if (build.IsCompleted)
@@ -214,6 +214,32 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
 
         Idle = Task.WhenAll(builds);
         Redraw();
+    }
+
+    // The scope for one layer: a windowed layer's context carries its window, so its stars file under it.
+    private ScoutingLayerContext ContextFor(IScoutingLayer layer, ScoutingReportData data) =>
+        new(data, Map, Side, Buy, layer is IScoutingWindowedLayer windowed ? windowed.Window : "");
+
+    /// <summary>Sets a windowed layer's window and rebuilds that layer alone; another window or layer is ignored.</summary>
+    /// <param name="chip">The layer.</param>
+    /// <param name="window">One of its windows' keys.</param>
+    public void SelectWindow(ScoutingLayerChipViewModel chip, string window)
+    {
+        ArgumentNullException.ThrowIfNull(chip);
+        if (chip.Layer is not IScoutingWindowedLayer windowed || windowed.Window == window
+            || windowed.Windows.All(w => w.Key != window))
+        {
+            return;
+        }
+
+        windowed.Window = window;
+        if (_data is null || Map.Length == 0)
+        {
+            Redraw();
+            return;
+        }
+
+        Rebuild(chip.Id);
     }
 
     /// <summary>Builds one layer for a scope, catching what a layer throws as an empty result.</summary>
@@ -324,6 +350,7 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
         if (Focused is not { } chip)
         {
             Inspector.Show("", "", "", ScoutingLayerResult.Empty("").Status, [], []);
+            Inspector.ShowWindows([]);
             return;
         }
 
@@ -346,6 +373,10 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
         string buy = !chip.Layer.UsesBuy ? "all buys" : Buy == ScoutingBuy.All ? "all buys" : $"{Buy} buy";
         string scope = string.Join(" · ", new[] { Map, Side.Label(), buy, ScopeSuffix }.Where(p => p.Length > 0));
         Inspector.Show(chip.Title, scope, chip.Layer.BuildCode, result.Status, reads, sections);
+        Inspector.ShowWindows(chip.Layer is IScoutingWindowedLayer windowed
+            ? windowed.Windows.Select(w => new ScoutingWindowPillViewModel(w, w.Key == windowed.Window,
+                key => SelectWindow(chip, key)))
+            : []);
     }
 
     /// <summary>Re-reads every shown star; the one-pager changed somewhere else.</summary>

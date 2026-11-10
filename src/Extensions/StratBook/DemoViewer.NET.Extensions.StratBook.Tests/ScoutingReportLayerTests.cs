@@ -155,7 +155,8 @@ public class ScoutingReportLayerTests
             await Assert.That(row.CtToolTip).IsEqualTo("won 1 of 3 CT rounds on their own CT side");
             await Assert.That(row.PistolsLabel).IsEqualTo("1 of 2");
             await Assert.That(row.PlantLabel).IsEqualTo("0:40");
-            await Assert.That(row.AwpLabel).IsEqualTo("—").Because("AWP bought waits on P3.1 and K1");
+            await Assert.That(row.AwpLabel).IsEqualTo("—").Because("no demo has round captures to count buys in");
+            await Assert.That(row.AwpToolTip).IsEqualTo("no round captures on this map; rebuild the round index");
             await Assert.That(vm.Maps.Single(m => m.Map == "de_mirage").CtLabel).IsEqualTo("—")
                 .Because("a map with no Round Facts has nothing to count");
         }

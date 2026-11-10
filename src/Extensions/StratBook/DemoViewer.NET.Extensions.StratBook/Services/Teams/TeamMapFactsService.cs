@@ -1,3 +1,9 @@
+#region
+
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
+
+#endregion
+
 namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
 /// <summary>One demo of a team, as the Scouting Report header lists it: map, date, result and opponent.</summary>
@@ -31,6 +37,15 @@ public sealed class TeamMapFacts
 
     /// <summary>Seconds from freeze end to the plant over the team's T rounds with a plant; null with none.</summary>
     public double? PlantMedianSeconds { get; init; }
+
+    /// <summary>
+    ///     Non-pistol rounds, either side, whose round captures were collected: the sample <see cref="AwpBought" />
+    ///     is counted in. 0 when no demo on the map has captures.
+    /// </summary>
+    public int AwpRoundsRead { get; init; }
+
+    /// <summary>Of <see cref="AwpRoundsRead" />, the rounds the team bought at least one AWP in.</summary>
+    public int AwpBought { get; init; }
 
     public double? CtShare => CtPlayed > 0 ? (double)CtWon / CtPlayed : null;
 
@@ -96,8 +111,9 @@ public static class TeamMapFactsService
     /// <param name="library">The library, for the map.</param>
     /// <param name="roundFacts">The Round Facts rows per demo.</param>
     /// <param name="teamId">The team.</param>
+    /// <param name="captures">The round captures, for AWP bought; null leaves it unread.</param>
     public static TeamMapFactsSet Build(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts,
-        Guid teamId)
+        Guid teamId, RoundCapturesReader? captures = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -109,7 +125,7 @@ public static class TeamMapFactsService
         foreach ((DemoRef demo, _, _) in teams.SidesOf(teamId))
         {
             JobScope.ThrowIfStopped();
-            if (!seen.Add(demo.Path) || library.Find(demo.Path) is not { MapName: { Length: > 0 } map })
+            if (!seen.Add(demo.Path) || library.Find(demo.Path) is not { MapName: { Length: > 0 } map } record)
             {
                 continue;
             }
@@ -128,11 +144,16 @@ public static class TeamMapFactsService
                 maps[map] = counter;
             }
 
+            DemoCaptures? demoCaptures = captures?.Read(demo.Path, map, record.Sha256) is { Collected: true } c ? c : null;
             foreach (RoundFacts round in rows.Rounds)
             {
                 if (round.IsLive && teams.SideAtRound(demo.Path, teamId, round.Number) is { } side)
                 {
                     counter.Add(round, side, rate);
+                    if (demoCaptures?.Round(round.Number) is { } view)
+                    {
+                        counter.AddAwp(round, side, view);
+                    }
                 }
             }
         }
@@ -163,7 +184,19 @@ public static class TeamMapFactsService
     private sealed class Counter
     {
         private readonly List<double> _plants = [];
-        private int _ctPlayed, _ctWon, _tPlayed, _tWon, _pistols, _pistolsWon;
+        private int _ctPlayed, _ctWon, _tPlayed, _tWon, _pistols, _pistolsWon, _awpRead, _awpBought;
+
+        // A pistol round cannot buy an AWP, so it is left out of the sample.
+        public void AddAwp(RoundFacts round, int side, RoundCaptureView view)
+        {
+            if ((side == 3 ? round.Ct : round.T).BuyType == BuyType.Pistol || view.IsPistol)
+            {
+                return;
+            }
+
+            _awpRead++;
+            _awpBought += view.AwpBought(side) ? 1 : 0;
+        }
 
         public void Add(RoundFacts round, int side, int rate)
         {
@@ -199,7 +232,9 @@ public static class TeamMapFactsService
             TWon = _tWon,
             PistolsPlayed = _pistols,
             PistolsWon = _pistolsWon,
-            PlantMedianSeconds = Median(_plants)
+            PlantMedianSeconds = Median(_plants),
+            AwpRoundsRead = _awpRead,
+            AwpBought = _awpBought
         };
     }
 }
