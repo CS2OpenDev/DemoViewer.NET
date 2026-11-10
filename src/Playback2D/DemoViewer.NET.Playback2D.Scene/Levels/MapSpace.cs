@@ -1,6 +1,5 @@
 #region
 
-using System.Globalization;
 using SkiaSharp;
 
 #endregion
@@ -43,9 +42,6 @@ public sealed class MapSpace
     /// </summary>
     public const double MatchThreshold = 0.50;
 
-    private static readonly string[] _names =
-        ["L0", "L1", "L2", "L3", "L4", "L5", "L6", "L7"];
-
     private readonly List<MapLevel> _levels = [];
     private readonly List<MapLevelId> _scratchAdded = [];
     private readonly List<MapLevelId> _scratchRemoved = [];
@@ -54,6 +50,15 @@ public sealed class MapSpace
     // Every key this space has EVER minted, so a level that is removed and a band that later reappears
     // in the same place are two identities, not one wearing the other's camera and annotations.
     private readonly HashSet<int> _usedKeys = [];
+
+    // The map name the current levels were named for; a rebuild under a different one renames them.
+    private string? _namedFor;
+
+    /// <summary>
+    ///     The map the levels are named for (<see cref="LevelNames" />), e.g. <c>de_nuke</c>. Read at
+    ///     <see cref="Rebuild" />; setting it alone renames nothing until the next rebuild.
+    /// </summary>
+    public string? MapName { get; set; }
 
     /// <summary>The current levels, lowest band first. Empty before the first rebuild.</summary>
     public IReadOnlyList<MapLevel> Levels => _levels;
@@ -425,7 +430,7 @@ public sealed class MapSpace
             next.Add(new MapLevel
             {
                 Id = id,
-                Name = NameFor(i),
+                Name = LevelNames.For(MapName, i, newCount),
                 ZMin = minZ[i],
                 ZMax = maxZ[i],
                 Radar = radarByLevel is not null && i < radarByLevel.Count ? radarByLevel[i] : null,
@@ -437,6 +442,7 @@ public sealed class MapSpace
 
         _levels.Clear();
         _levels.AddRange(next);
+        _namedFor = MapName;
         RadarBinding = quality;
         Version++;
 
@@ -480,6 +486,7 @@ public sealed class MapSpace
 
         _levels.Clear();
         _usedKeys.Clear();
+        _namedFor = null;
         RadarBinding = RadarBindingQuality.None;
         LastChange = new LevelSetChange(true, [], [.. _scratchRemoved], []) { LevelsBefore = before };
         Version++;
@@ -539,16 +546,11 @@ public sealed class MapSpace
         return false;
     }
 
-    // Display only, by ascending-ZMin ordinal. Names re-order freely across a rebuild; ids never do.
-    private static string NameFor(int index) =>
-        index < _names.Length
-            ? _names[index]
-            : string.Create(CultureInfo.InvariantCulture, $"L{index}");
-
     private bool IsUnchanged(IReadOnlyList<FloorSlice> bands, IReadOnlyList<SKImage?>? radarByLevel,
         RadarBindingQuality quality)
     {
-        if (_levels.Count != bands.Count || RadarBinding != quality)
+        if (_levels.Count != bands.Count || RadarBinding != quality ||
+            !string.Equals(_namedFor, MapName, StringComparison.Ordinal))
         {
             return false;
         }

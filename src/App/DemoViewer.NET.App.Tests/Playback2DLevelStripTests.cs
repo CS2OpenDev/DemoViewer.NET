@@ -234,7 +234,12 @@ public class Playback2DLevelStripTests
                 await Assert.That(chip.HasNoRadar).IsTrue();
                 await Assert.That(chip.Tooltip).Contains("no baked radar");
                 await Assert.That(chip.ZRange).StartsWith("z[");
+                await Assert.That(chip.Tooltip).Contains(chip.ZRange);
+                await Assert.That(chip.Label).DoesNotContain("z[");
             }
+
+            await Assert.That(vm.LevelStrip.Chips.Select(c => c.Label).ToList())
+                .IsEquivalentTo(["Lower", "Upper"]);
 
             window.Close();
         });

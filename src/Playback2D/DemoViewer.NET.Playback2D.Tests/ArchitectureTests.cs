@@ -96,6 +96,7 @@ public class ArchitectureTests
         "DemoViewer.NET.Playback2D.Levels.LevelCrossingTracker",
         "DemoViewer.NET.Playback2D.Levels.LevelDisplayMode",
         "DemoViewer.NET.Playback2D.Levels.LevelLayouts",
+        "DemoViewer.NET.Playback2D.Levels.LevelNames",
         "DemoViewer.NET.Playback2D.Levels.LevelPane",
         "DemoViewer.NET.Playback2D.Levels.LevelPaneSnapshot",
         "DemoViewer.NET.Playback2D.Levels.LevelSetChange",
