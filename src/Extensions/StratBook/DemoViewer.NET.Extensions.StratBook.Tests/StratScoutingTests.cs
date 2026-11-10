@@ -322,7 +322,7 @@ public class StratScoutingTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(watched).IsNotNull();
+            await Assert.That(watched is not null).IsTrue();
             await Assert.That(before).IsFalse();
             await Assert.That(released).IsTrue();
         }
