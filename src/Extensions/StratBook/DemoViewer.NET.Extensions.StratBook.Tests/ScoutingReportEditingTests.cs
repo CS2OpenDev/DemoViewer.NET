@@ -73,13 +73,13 @@ public class ScoutingReportEditingTests
             await Assert.That(md).StartsWith("# Falcons <B> one-pager\n");
             await Assert.That(md).Contains("**Sample:** 6 demos across 2 maps");
             await Assert.That(md).Contains("They default A on pistols.");
-            await Assert.That(md).Contains("## Map Pool Record\n\n- de_nuke: 2 played\n");
+            await Assert.That(md).Contains("## Map Pool Record\n\n- Nuke: 2 played\n");
             await Assert.That(md).DoesNotContain("de_mirage");
             await Assert.That(md).DoesNotContain("Opening Tendencies")
                 .Because("a section with nothing starred is left off the one-pager");
 
             await Assert.That(longMd).StartsWith("# Falcons <B> scouting report\n");
-            await Assert.That(longMd).Contains("- ★ de_nuke: 2 played\n- de_mirage: 1 played\n");
+            await Assert.That(longMd).Contains("- ★ Nuke: 2 played\n- Mirage: 1 played\n");
             await Assert.That(longMd).Contains("## Opening Tendencies");
         }
     }
@@ -110,7 +110,7 @@ public class ScoutingReportEditingTests
         {
             await Assert.That(html).StartsWith("<!doctype html>");
             await Assert.That(html).Contains("<title>Falcons &lt;B&gt; one-pager</title>");
-            await Assert.That(html).Contains("de_nuke CT full buy: &lt;10&gt; rounds");
+            await Assert.That(html).Contains("Nuke CT full buy: &lt;10&gt; rounds");
             await Assert.That(html).Contains("src=\"data:image/png;base64," + Convert.ToBase64String(_png) + "\"");
             await Assert.That(html).DoesNotContain("de_mirage");
             await Assert.That(html).DoesNotContain("http")
@@ -118,7 +118,7 @@ public class ScoutingReportEditingTests
             await Assert.That(html).DoesNotContain("<script");
             await Assert.That(html).DoesNotContain("<link");
             await Assert.That(longHtml).Contains("<li class=\"starred\">");
-            await Assert.That(longHtml).Contains("de_mirage");
+            await Assert.That(longHtml).Contains("Mirage");
         }
     }
 
@@ -349,7 +349,7 @@ public class ScoutingReportEditingTests
         editor.ShowStarredOnly = true;
         using (Assert.Multiple())
         {
-            await Assert.That(md).Contains("### Map-wide\n\n- **Map pool:** de_nuke: their best map\n");
+            await Assert.That(md).Contains("### Map-wide\n\n- **Map pool:** Nuke: their best map\n");
             await Assert.That(md).Contains("Slow defaults.");
             await Assert.That(md).DoesNotContain("BombsiteA");
             await Assert.That(doc.Findings.Single(f => f.Key == SetupKey).ImagePng).IsNull()
@@ -401,7 +401,7 @@ public class ScoutingReportEditingTests
             await Assert.That(offWithNothingStarred).IsTrue().Because("an empty one-pager is not exported");
             await Assert.That(editor.CanExport).IsTrue();
             await Assert.That(editor.ExportLabel).IsEqualTo("Export one-pager · 1 starred");
-            await Assert.That(editor.Starred.Single().Where).IsEqualTo("de_nuke");
+            await Assert.That(editor.Starred.Single().Where).IsEqualTo("Nuke");
         }
 
         editor.ExportCommand.Execute(null);
@@ -426,7 +426,7 @@ public class ScoutingReportEditingTests
             await Assert.That(written[1].Extension).IsEqualTo(".md");
             await Assert.That(written[1].Stem).IsEqualTo("Falcons-scouting-report");
             await Assert.That(written[1].Text).StartsWith("# Falcons scouting report");
-            await Assert.That(written[1].Text).Contains("de_mirage");
+            await Assert.That(written[1].Text).Contains("Mirage");
         }
 
         ScoutingReportEditorViewModel browser = new(new ScoutingReportNotesStore(null), isBrowser: true);
@@ -500,7 +500,7 @@ public class ScoutingReportEditingTests
         using (Assert.Multiple())
         {
             await Assert.That(written.Single()).Contains("one-pager");
-            await Assert.That(written.Single()).Contains("de_nuke: 1 played");
+            await Assert.That(written.Single()).Contains("Nuke: 1 played");
             await Assert.That(written.Single()).DoesNotContain("de_mirage: ")
                 .Because("the unstarred map line is off; the roster scope may still name the map in view");
         }

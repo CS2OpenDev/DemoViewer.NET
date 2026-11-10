@@ -200,7 +200,7 @@ public class ScoutingReportLayerTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.HasNotices).IsTrue();
-            await Assert.That(vm.Notices[0]).StartsWith("de_nuke has 1 map in the sample.");
+            await Assert.That(vm.Notices[0]).StartsWith("Nuke has 1 map in the sample.");
             await Assert.That(vm.Notices[1]).StartsWith("Positions were read for 1 of 2 demos.");
             await Assert.That(vm.Maps.Single(m => m.Map == "de_nuke").IsThin).IsTrue();
         }
@@ -237,7 +237,7 @@ public class ScoutingReportLayerTests
             await Assert.That(planted.IsStarred).IsTrue();
             await Assert.That(notes.For(teamA).Starred).Contains(planted.Key);
             await Assert.That(preview.Key).IsEqualTo(planted.Key);
-            await Assert.That(preview.Where).IsEqualTo("de_nuke T");
+            await Assert.That(preview.Where).IsEqualTo("Nuke T");
             await Assert.That(vm.Editor.ExportLabel).IsEqualTo("Export one-pager · 1 starred");
             await Assert.That(vm.Editor.CanExport).IsTrue();
         }

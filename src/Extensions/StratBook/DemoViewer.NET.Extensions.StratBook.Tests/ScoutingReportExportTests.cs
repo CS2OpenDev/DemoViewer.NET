@@ -86,7 +86,7 @@ public class ScoutingReportExportTests
             "**Opponents:** 4 vs top-30 · 2 other",
             "**Head to head:** vs Us 1–2",
             "**Roster (role, rating over every map):** m0NESY (AWP, 1.21)",
-            "## de_nuke",
+            "## Nuke",
             "### CT",
             "- **Setups:** 2-1-2 on full buys (Full buy)\n",
             "- **AWP:** the AWP holds outside (to 0:30)\n",
@@ -94,8 +94,8 @@ public class ScoutingReportExportTests
             "### T",
             "- **Plants:** A site in 6 of 10 rounds\n",
             "### Map-wide",
-            "- **Map pool:** de_nuke: 4 played, 3-1\n",
-            "## de_mirage",
+            "- **Map pool:** Nuke: 4 played, 3-1\n",
+            "## Mirage",
             "### CT",
             "- **Setups:** stack A on ecos (Eco buy)\n",
             "## Map pool",
@@ -104,8 +104,8 @@ public class ScoutingReportExportTests
             "- watch the B apps smoke\n");
 
         string html = ScoutingReportExporter.Html(Doc(Mixed()));
-        InOrder(html, "<h2>de_nuke</h2>", "<h3>CT</h3>", "<span class=\"layer\">Setups:</span> 2-1-2 on full buys",
-            "<span class=\"scope\">(Full buy)</span>", "<h3>T</h3>", "<h3>Map-wide</h3>", "<h2>de_mirage</h2>",
+        InOrder(html, "<h2>Nuke</h2>", "<h3>CT</h3>", "<span class=\"layer\">Setups:</span> 2-1-2 on full buys",
+            "<span class=\"scope\">(Full buy)</span>", "<h3>T</h3>", "<h3>Map-wide</h3>", "<h2>Mirage</h2>",
             "<h2>Map pool</h2>", "<h2>Notes</h2>");
 
         using (Assert.Multiple())
@@ -157,11 +157,11 @@ public class ScoutingReportExportTests
 
         InOrder(md,
             "# Falcons scouting report",
-            "## de_nuke", "### CT", "#### Setups", "- setups read\n", "- A anchor: 4 of 10 rounds\n",
+            "## Nuke", "### CT", "#### Setups", "- setups read\n", "- A anchor: 4 of 10 rounds\n",
             "#### Economy", "- econ read\n",
             "### T", "#### Plants", "- ★ plants read\n",
-            "### Map-wide", "#### Map pool", "- de_nuke: 4 played\n",
-            "## de_mirage", "### T", "#### Lurks", "- lurks read\n",
+            "### Map-wide", "#### Map pool", "- Nuke: 4 played\n",
+            "## Mirage", "### T", "#### Lurks", "- lurks read\n",
             "## Period Diff", "- period note\n",
             "## Notes", "- watch the B apps smoke\n");
         await Assert.That(md).DoesNotContain("dismissed read").Because("a dismissed line is in neither form");
@@ -264,7 +264,7 @@ public class ScoutingReportExportTests
             await Assert.That(rendered[0].Map).IsEqualTo("de_nuke");
             await Assert.That(rendered[0].Marks.SequenceEqual([setupsMark, awpMark])).IsTrue();
             await Assert.That(html.Split("<figure").Length - 1).IsEqualTo(1);
-            await Assert.That(html).Contains("<figcaption>de_nuke CT · Setups, AWP</figcaption>");
+            await Assert.That(html).Contains("<figcaption>Nuke CT · Setups, AWP</figcaption>");
         }
 
         InOrder(html, "<h3>CT</h3>", "<figure class=\"stage\">", "Setups:", "<h3>T</h3>", "Economy:");
@@ -278,7 +278,7 @@ public class ScoutingReportExportTests
             await Assert.That(rendered).IsEmpty();
             await Assert.That(written[^1]).DoesNotContain("data:image");
             await Assert.That(written[^1])
-                .Contains(ScoutingReportExporter.StageOmittedLine("de_nuke CT · Setups, AWP"));
+                .Contains(ScoutingReportExporter.StageOmittedLine("Nuke CT · Setups, AWP"));
         }
 
         // The long form carries the lines' own pictures, never the stage.

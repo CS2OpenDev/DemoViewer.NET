@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
@@ -380,7 +381,7 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
         }
         else if (drawn.All(c => c.Status.State is ScoutingLayerState.Empty or ScoutingLayerState.Placeholder))
         {
-            StageNote = $"Nothing to draw here yet. {drawn[0].Status.Display}";
+            StageNote = $"Nothing to draw here yet. {ScoutingNames.Humanise(drawn[0].Status.Display)}";
         }
         else
         {
