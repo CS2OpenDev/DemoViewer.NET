@@ -46,6 +46,8 @@ public sealed class ExtensionUpdateService
     private readonly Lock _sync = new();
     private readonly Dictionary<string, ExtensionUpdateState> _last = new(StringComparer.Ordinal);
     private IReadOnlyList<InstallableExtension>? _lastCatalogue;
+    // Each catalogue id's feed answer at the last check, without the disk: Reassess combines it with the disk now.
+    private readonly Dictionary<string, InstallableStatus> _feedSide = new(StringComparer.Ordinal);
 
     /// <param name="configRoot">The config root; <c>extensions/</c> under it is the only tree touched.</param>
     /// <param name="statuses">Every declared pack with its verdict (<see cref="FeaturePacks.Statuses" />); the running versions.</param>
@@ -164,6 +166,32 @@ public sealed class ExtensionUpdateService
                 return _lastCatalogue;
             }
         }
+    }
+
+    /// <summary>The copies this launch refused, as handed in.</summary>
+    public IReadOnlyList<LoadOutcome> ExternalRejected => _externalRejected;
+
+    /// <summary>
+    ///     The catalogue as Settings lists it now: the last check's feed answers with the disk read again, so
+    ///     an Install or Remove since that check shows. Empty before the first check of the run.
+    /// </summary>
+    public IReadOnlyList<InstallableExtension> CurrentCatalogue() =>
+        LastCatalogue is { } last ? [.. last.Select(Reassess)] : [];
+
+    /// <summary><paramref name="entry" /> with what is on disk read again; the feed's answer is the last check's.</summary>
+    public InstallableExtension Reassess(InstallableExtension entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        InstallableStatus? feedSide;
+        lock (_sync)
+        {
+            feedSide = _feedSide.TryGetValue(entry.Id, out InstallableStatus known) ? known : null;
+        }
+
+        SemVersion? staged = HighestStaged(entry.Id, above: null);
+        LoadOutcome? rejected = entry.Rejected;
+        InstallableStatus status = Derive(rejected, staged, feedSide ?? entry.Status);
+        return entry with { Staged = staged, Rejected = rejected, Status = status };
     }
 
     /// <summary><see cref="PackCompatibility.Check" /> accepts the entry's manifest.</summary>
@@ -687,38 +715,47 @@ public sealed class ExtensionUpdateService
         ExtensionFeedEntry? offered = feed?.Entries.FirstOrDefault(IsOfferedSafely);
         name = offered?.Manifest.Name ?? latest?.Manifest.Name ?? name;
         PackCompatibility? latestCompatibility = null;
-        InstallableStatus status;
-        if (rejected is not null)
+        InstallableStatus feedSide;
+        if (feedStatus is { } failed)
         {
-            status = InstallableStatus.NotLoaded;
-        }
-        else if (staged is not null)
-        {
-            status = InstallableStatus.PendingRestart;
-        }
-        else if (feedStatus is { } failed)
-        {
-            status = failed;
+            feedSide = failed;
         }
         else if (offered is not null)
         {
-            status = InstallableStatus.Available;
+            feedSide = InstallableStatus.Available;
         }
         else if (latest is not null)
         {
-            status = InstallableStatus.NeedsNewerApp;
+            feedSide = InstallableStatus.NeedsNewerApp;
             latestCompatibility = PackCompatibility.Check(latest.Manifest, _host);
         }
         else
         {
-            status = InstallableStatus.NotPublished;
+            feedSide = InstallableStatus.NotPublished;
         }
 
+        lock (_sync)
+        {
+            _feedSide[id] = feedSide;
+        }
+
+        InstallableStatus status = Derive(rejected, staged, feedSide);
         return new InstallableExtension(id, name, offered, latest, latestCompatibility, staged, rejected, status,
             error, logDetail, now);
     }
 
     private const string FeedAddressError = "the update feed address could not be resolved";
+
+    // A copy on disk outranks the feed, since it is what the next start does.
+    private static InstallableStatus Derive(LoadOutcome? rejected, SemVersion? staged, InstallableStatus feedSide)
+    {
+        if (rejected is not null)
+        {
+            return InstallableStatus.NotLoaded;
+        }
+
+        return staged is not null ? InstallableStatus.PendingRestart : feedSide;
+    }
 
     // The resolver is caller-supplied; one that throws is a feed failure, never a failed queue item.
     private Uri? TryResolveFeedUrl(string packId, out string logDetail)

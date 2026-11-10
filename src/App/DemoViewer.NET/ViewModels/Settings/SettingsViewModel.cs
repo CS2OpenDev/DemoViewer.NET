@@ -531,8 +531,9 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         _allowUnverifiedAtOpen = current.Extensions.AllowUnverified;
         _autoUpdateExtensions = current.Extensions.AutoUpdate;
         ExternalExtensionRows =
-            ExternalExtensionRow.Build(StatusesOrProcess(packStatuses), FeaturePacks.ExternalRejected);
-        foreach (InstallableExtension entry in extensionUpdates?.LastCatalogue ?? [])
+            ExternalExtensionRow.Build(StatusesOrProcess(packStatuses),
+                extensionUpdates?.ExternalRejected ?? FeaturePacks.ExternalRejected);
+        foreach (InstallableExtension entry in extensionUpdates?.CurrentCatalogue() ?? [])
         {
             InstallableExtensionRows.Add(new InstallableExtensionRow(entry, extensionUpdates!));
         }

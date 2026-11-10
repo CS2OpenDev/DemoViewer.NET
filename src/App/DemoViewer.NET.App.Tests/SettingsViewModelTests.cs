@@ -42,14 +42,14 @@ namespace DemoViewer.NET.AppTests;
 [Category("Render")]
 public class SettingsViewModelTests
 {
-    private static string NewTempDir()
+    internal static string NewTempDir()
     {
         string dir = Path.Combine(Path.GetTempPath(), "dvsettingsvm_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         return dir;
     }
 
-    private static void Cleanup(string dir)
+    internal static void Cleanup(string dir)
     {
         try
         {
@@ -67,7 +67,7 @@ public class SettingsViewModelTests
     // event, the cue that refreshes the feature rows, is observable inline in these non-UI cases; it is
     // registered in the container so the provider disposes it. reindexEstimate is the test seam
     // for the Extensions "N demos" notice; null everywhere except the tests that exercise it.
-    private static (SettingsViewModel Vm, SettingsService Svc, IFeatureGate Gate, ServiceProvider Sp) NewVm(
+    internal static (SettingsViewModel Vm, SettingsService Svc, IFeatureGate Gate, ServiceProvider Sp) NewVm(
         string dir, IReindexEstimate? reindexEstimate = null, IExtensionDataRemoval? dataRemoval = null,
         IReadOnlyList<PackStatus>? packStatuses = null, ExtensionUpdateService? extensionUpdates = null,
         Func<bool>? isBrowser = null, Action<AppSettings>? seed = null)
@@ -98,7 +98,7 @@ public class SettingsViewModelTests
         new(dir, [FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId)], ExtensionHost.Current,
             trust ?? UpdateFixtures.TrustAll, client, UpdateFixtures.FeedUrl);
 
-    private static string StratBookFeed(params FakeFeeds.Entry[] entries) =>
+    internal static string StratBookFeed(params FakeFeeds.Entry[] entries) =>
         FakeFeeds.Json(StratBookPack.PackId, entries);
 
     // The pending-reindex-count test seam: a fixed pack feature id (the real StratBookPack's) with a
@@ -139,7 +139,7 @@ public class SettingsViewModelTests
     }
 
     // Find a feature row by its catalog id across every grouped collection, Extensions included.
-    private static FeatureToggleRow Row(SettingsViewModel vm, string featureId) =>
+    internal static FeatureToggleRow Row(SettingsViewModel vm, string featureId) =>
         vm.TabFeatureRows.Concat(vm.ChromeFeatureRows).Concat(vm.ExtensionsFeatureRows)
             .First(r => r.FeatureId == featureId);
 

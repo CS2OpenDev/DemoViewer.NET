@@ -70,6 +70,7 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
         ArgumentNullException.ThrowIfNull(service);
         _entry = entry;
         _service = service;
+        _isRemoved = service.IsMarkedForRemoval(entry.Id);
     }
 
     /// <summary>The extension id.</summary>

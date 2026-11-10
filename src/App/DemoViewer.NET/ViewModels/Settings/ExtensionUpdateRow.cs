@@ -89,6 +89,7 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
         _onChecked = onChecked;
         _source = source;
         _state = service?.LastState(packId);
+        _isRemoved = service?.IsMarkedForRemoval(packId) ?? false;
     }
 
     /// <summary>The extension id.</summary>
