@@ -134,6 +134,7 @@ public class StratBookPackTests
         "DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndex",
         "DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook.UtilityBookTabViewModel",
         "DemoViewer.NET.Extensions.StratBook.Services.Teams.VetoHistoryStore",
+        "DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamRanksStore",
         "DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReportNotesStore",
         "DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTabViewModel",
         "DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.LineupClipService",
