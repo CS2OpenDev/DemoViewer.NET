@@ -333,7 +333,12 @@ public sealed class ExtensionUpdateService
     ///     next start. Judged by the install policy alone, so nothing unverified is ever staged here; the
     ///     states are remembered as the Settings rows show them.
     /// </summary>
-    public async Task<IReadOnlyList<ExtensionUpdateState>> AutoStageAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<ExtensionUpdateState>> AutoStageAsync(CancellationToken ct = default) =>
+        (await AutoStageCoreAsync(ct).ConfigureAwait(false)).States;
+
+    // Asked is true when the queue item ran a check; the placeholders for an item never run do not count.
+    private async Task<(IReadOnlyList<ExtensionUpdateState> States, bool Asked)> AutoStageCoreAsync(
+        CancellationToken ct)
     {
         PackStatus[] firstParty = [.. Statuses.Where(IsFirstParty)];
         ExtensionUpdateState?[] found = new ExtensionUpdateState?[firstParty.Length];
@@ -364,6 +369,7 @@ public sealed class ExtensionUpdateService
             }).ConfigureAwait(false);
         }
 
+        bool asked = found.Any(s => s is not null);
         ExtensionUpdateState[] states = new ExtensionUpdateState[firstParty.Length];
         for (int i = 0; i < states.Length; i++)
         {
@@ -371,7 +377,7 @@ public sealed class ExtensionUpdateService
         }
 
         Remember(states);
-        return states;
+        return (states, asked);
     }
 
     /// <summary>
@@ -379,8 +385,8 @@ public sealed class ExtensionUpdateService
     ///     ("Install extension updates automatically") and <paramref name="checkAutomatically" /> ("Check for
     ///     updates automatically") are both on and <see cref="IsCheckDue" /> holds for
     ///     <paramref name="lastCheckUtc" />. True when at least one feed was asked, which is when the caller
-    ///     records the time; false leaves the record alone, so a launch with no first-party extension to check
-    ///     never postpones the Settings check that lists the catalogue.
+    ///     records the time; false leaves the record alone, so a launch with no first-party extension to check,
+    ///     or whose queue item never ran, never postpones the Settings check that lists the catalogue.
     /// </summary>
     public async Task<bool> AutoStageAtLaunchAsync(bool autoUpdate, bool checkAutomatically,
         DateTimeOffset? lastCheckUtc, DateTimeOffset now, CancellationToken ct = default)
@@ -390,8 +396,8 @@ public sealed class ExtensionUpdateService
             return false;
         }
 
-        IReadOnlyList<ExtensionUpdateState> states = await AutoStageAsync(ct).ConfigureAwait(false);
-        return states.Count > 0;
+        (_, bool asked) = await AutoStageCoreAsync(ct).ConfigureAwait(false);
+        return asked;
     }
 
     /// <summary>

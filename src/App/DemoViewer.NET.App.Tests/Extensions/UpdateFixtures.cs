@@ -156,6 +156,9 @@ internal static class UpdateFixtures
     {
         public List<QueueJobRequest> Requests { get; } = [];
 
+        /// <summary>When set, every submission is recorded and dropped unrun, the way a removed item ends.</summary>
+        public bool Drop { get; init; }
+
         public ReadOnlyObservableCollection<DemoQueueItem> Items { get; } = new([]);
         public bool BackgroundEnabled => true;
         public bool IsPaused => false;
@@ -187,7 +190,9 @@ internal static class UpdateFixtures
                 Requests.Add(request);
             }
 
-            return new InlineHandle(Task.Run(() => request.RunAsync(new Context())));
+            return Drop
+                ? new InlineHandle(Task.CompletedTask, DemoQueueItemState.Cancelled)
+                : new InlineHandle(Task.Run(() => request.RunAsync(new Context())));
         }
 
         public IReadOnlyList<DemoQueueItemSnapshot> Snapshot() => [];
@@ -223,12 +228,12 @@ internal static class UpdateFixtures
             }
         }
 
-        private sealed class InlineHandle(Task completion) : IDemoQueueHandle
+        private sealed class InlineHandle(Task completion, DemoQueueItemState? final = null) : IDemoQueueHandle
         {
             public Guid Id { get; } = Guid.NewGuid();
 
             public DemoQueueItemState State =>
-                completion.IsCompleted ? DemoQueueItemState.Completed : DemoQueueItemState.Running;
+                final ?? (completion.IsCompleted ? DemoQueueItemState.Completed : DemoQueueItemState.Running);
 
             public Task Completion => completion;
 
