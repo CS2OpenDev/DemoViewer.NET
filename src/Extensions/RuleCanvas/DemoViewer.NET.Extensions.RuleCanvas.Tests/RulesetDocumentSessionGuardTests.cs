@@ -187,4 +187,24 @@ public class RulesetDocumentSessionGuardTests
         session.Open(entry);
         await Assert.That(SetEnemy(session, "false").IsWritten).IsTrue().Because("a read that succeeds makes the file the session's again");
     }
+
+    [Test]
+    public async Task AWriteWhoseMoveFails_IsRefused_AndLeavesNoTempFile()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        string path = rules.UserPath("player_round");
+        string original = File.ReadAllText(path);
+        RulesetDocumentSession session = new() { MoveIntoPlace = static (_, _) => throw new IOException("the target is in use") };
+        session.Open(UserEntry(rules, "player_round"));
+
+        EditOutcome edit = SetEnemy(session, "false");
+        using (Assert.Multiple())
+        {
+            await Assert.That(edit.IsRefused).IsTrue();
+            await Assert.That(edit.Message).Contains("the target is in use");
+            await Assert.That(File.ReadAllText(path)).IsEqualTo(original);
+            await Assert.That(File.Exists(path + ".tmp")).IsFalse();
+            await Assert.That(session.CanUndo).IsFalse();
+        }
+    }
 }

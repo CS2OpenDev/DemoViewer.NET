@@ -39,6 +39,9 @@ public sealed class RulesetDocumentSession
     private readonly Stack<string> _undo = new();
     private readonly Stack<string> _redo = new();
 
+    // The last step of a write; a test makes it fail as a held target does on Windows.
+    internal Action<string, string> MoveIntoPlace { get; set; } = static (temp, target) => File.Move(temp, target, overwrite: true);
+
     /// <summary>The entry open, or null.</summary>
     public RulesetCorpus.Entry? Entry { get; private set; }
 
@@ -243,20 +246,33 @@ public sealed class RulesetDocumentSession
             return EditOutcome.Refused(ChangedOnDiskMessage);
         }
 
+        string temp = entry.Path + ".tmp";
         try
         {
-            string temp = entry.Path + ".tmp";
             File.WriteAllText(temp, text);
-            File.Move(temp, entry.Path, overwrite: true);
+            MoveIntoPlace(temp, entry.Path);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            DeleteQuietly(temp);
             return EditOutcome.Refused("The file could not be written: " + ex.Message);
         }
 
         Text = text;
         LoadedWriteTimeUtc = WriteTimeOf(entry.Path);
         return EditOutcome.Written;
+    }
+
+    private static void DeleteQuietly(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A temp file that cannot go is overwritten by the next write.
+        }
     }
 
     private static DateTime WriteTimeOf(string path)
