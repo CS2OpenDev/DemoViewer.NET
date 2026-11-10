@@ -562,6 +562,13 @@ public sealed class DemoScheduler : IDisposable, IWorkCheckStatus
 
         if (submitting.Count == 0)
         {
+            // Every pass is already out on this demo. A user's request still lifts a visit that waits in the
+            // backlog; one already running needs nothing.
+            if (planned.Count > 0)
+            {
+                _queue.RaiseVisit(path, level);
+            }
+
             return true;
         }
 

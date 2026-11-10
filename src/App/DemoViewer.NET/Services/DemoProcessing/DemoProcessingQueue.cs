@@ -919,25 +919,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
                     existing.Visit!.Add(pass, needs, ended, riders?.Contains(pass.Id) == true);
                 }
 
-                existing.Visit!.Raise(level);
-                if (priority > existing.Priority)
-                {
-                    existing.Priority = priority;
-                }
-
-                if (orderHint > existing.OrderHint)
-                {
-                    existing.OrderHint = orderHint;
-                }
-
-                existing.DisplayName ??= displayName;
-                if (existing.State == DemoQueueItemState.Queued)
-                {
-                    existing.ParkedBehind ??= OpenForLocked(path);
-                    supersededCancel = existing.ParkedBehind is null ? PreemptForLocked(existing) : null;
-                }
-
-                PumpLocked(); // priority may have changed the pick order
+                supersededCancel = RaiseLocked(existing, level, priority, orderHint, displayName);
                 handle = new Handle(this, existing.Id, owners, path, existing.Completion.Task, entry: existing);
             }
             else if (_entries.FirstOrDefault(e =>
@@ -1360,6 +1342,58 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
             RaiseCapacityAvailable();
             CompactIfDue();
         }
+    }
+
+    public bool RaiseVisit(string path, PassLevel level)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        DemoJobPriority priority = PriorityOf(level);
+        CancellationTokenSource? supersededCancel;
+        lock (_sync)
+        {
+            if (_disposed
+                || _entries.FirstOrDefault(e =>
+                    e is { Kind: QueueJobKind.DemoProcessing, State: DemoQueueItemState.Queued, Finalizing: false }
+                    && IsActive(e) && PathEquals(e.Path, path)) is not { } queued
+                || (level <= queued.Visit!.Level && priority <= queued.Priority))
+            {
+                return false;
+            }
+
+            supersededCancel = RaiseLocked(queued, level, priority, 0, null);
+        }
+
+        CancelQuietly(supersededCancel);
+        RaiseChanged();
+        return true;
+    }
+
+    // Under _sync. Lifts a live visit to the highest level, priority and order seen; a queued one waits for an
+    // open of its demo or stops background work the way a new submission at that priority would.
+    private CancellationTokenSource? RaiseLocked(Entry existing, PassLevel level, DemoJobPriority priority,
+        long orderHint, string? displayName)
+    {
+        existing.Visit!.Raise(level);
+        if (priority > existing.Priority)
+        {
+            existing.Priority = priority;
+        }
+
+        if (orderHint > existing.OrderHint)
+        {
+            existing.OrderHint = orderHint;
+        }
+
+        existing.DisplayName ??= displayName;
+        CancellationTokenSource? cancel = null;
+        if (existing.State == DemoQueueItemState.Queued)
+        {
+            existing.ParkedBehind ??= OpenForLocked(existing.Path);
+            cancel = existing.ParkedBehind is null ? PreemptForLocked(existing) : null;
+        }
+
+        PumpLocked(); // priority may have changed the pick order
+        return cancel;
     }
 
     public bool Promote(Guid itemId)

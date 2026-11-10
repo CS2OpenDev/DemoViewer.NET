@@ -639,7 +639,7 @@
                     </Border>
 
                     <!-- Side (one at a time), the buy filter, and the scope line. -->
-                    <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="14 10" IsVisible="{Binding HasMaps}">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="14 10" IsVisible="{Binding HasMaps}">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0 0 16 0"
                                     KeyDown="OnSideKeyDown">
                             <RadioButton Classes="seg ct" Content="CT" GroupName="scouting-side"
@@ -653,6 +653,10 @@
                                       SelectedItem="{Binding Buy}" AutomationProperties.Name="Buy filter" />
                         </StackPanel>
                         <TextBlock Grid.Column="3" Classes="mid" Text="{Binding ScopeLine}" VerticalAlignment="Center" />
+                        <Button Grid.Column="4" Classes="ghost" FontSize="11" Padding="8 3" Margin="12 0 0 0"
+                                VerticalAlignment="Center" Content="Process this team first"
+                                IsVisible="{Binding CanProcessTeamFirst}" Command="{Binding ProcessTeamFirstCommand}"
+                                ToolTip.Tip="Queue every demo of this team ahead of the rest of the library" />
                     </Grid>
 
                     <!-- Notices: a thin sample, demos without positions. -->

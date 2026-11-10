@@ -362,7 +362,8 @@ public class ScoutingReportShellRenderTests
 
         /// <summary>The tab over the team, with every source a desktop host gives it but the grenade index.</summary>
         public ScoutingReportTabViewModel Tab(QueuedPost posted, Func<string, Func<Action, Task>>? runSection = null,
-            ScoutingReportNotesStore? notes = null) =>
+            ScoutingReportNotesStore? notes = null, Action<IReadOnlyList<string>>? requestDemos = null,
+            Func<DateTime>? now = null) =>
             new(Teams, Cache.Library(), new VetoHistoryStore(null), isBrowser: false,
                 heatmaps: new SetupHeatmapService(Teams, Cache.Library(), Cache.RoundFacts(), Store, Sources.FingerprintFor),
                 post: posted.Post,
@@ -373,7 +374,8 @@ public class ScoutingReportShellRenderTests
                 roundIndex: Store,
                 roundFacts: new RoundFactsSource(Cache),
                 positionsFingerprint: Sources.FingerprintFor,
-                now: () => new DateTime(2026, 3, 18));
+                now: now ?? (() => new DateTime(2026, 3, 18)),
+                requestDemos: requestDemos);
 
         // Every place of the map at its largest area: (name, x, y, z), on the map's own floors.
         private static List<(string Place, int X, int Y, int Z)> Places(string map)

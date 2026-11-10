@@ -68,6 +68,77 @@ public class QueueOrderTests
     }
 
     [Test]
+    public async Task RaisingAQueuedBackgroundVisit_RunsItFirst_OnceAndNeverLower()
+    {
+        List<string> ran = [];
+        using DemoProcessingQueue queue = Queue();
+        TaskCompletionSource running = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        IDemoQueueHandle blocker = queue.SubmitJob(new QueueJobRequest(QueueJobKind.PackExport, "blocker", "test",
+            DemoJobPriority.UserRequested, async _ =>
+            {
+                running.TrySetResult();
+                await release.Task;
+            }, Preemptible: false));
+        await running.Task;
+        IDemoQueueHandle first = Visit(queue, "/d/first.dem", PassLevel.Background, ran);
+        IDemoQueueHandle asked = Visit(queue, "/d/asked.dem", PassLevel.Background, ran);
+
+        bool raised = queue.RaiseVisit("/d/asked.dem", PassLevel.UserRequested);
+        bool again = queue.RaiseVisit("/d/asked.dem", PassLevel.UserRequested);
+        bool lower = queue.RaiseVisit("/d/asked.dem", PassLevel.Background);
+        bool unknown = queue.RaiseVisit("/d/none.dem", PassLevel.UserRequested);
+        DemoQueueItemSnapshot[] visits =
+            [.. queue.Snapshot().Where(i => i.Kind == QueueJobKind.DemoProcessing)];
+        release.SetResult();
+        await Task.WhenAll(blocker.Completion, first.Completion, asked.Completion);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(raised).IsTrue();
+            await Assert.That(again).IsFalse().Because("a second raise to the same level changes nothing");
+            await Assert.That(lower).IsFalse().Because("a raise never lowers a visit");
+            await Assert.That(unknown).IsFalse();
+            await Assert.That(visits).Count().IsEqualTo(2);
+            await Assert.That(visits.Single(v => v.Path == "/d/asked.dem").Priority)
+                .IsEqualTo(DemoJobPriority.UserRequested);
+            await Assert.That(ran).IsEquivalentTo(["p:/d/asked.dem", "p:/d/first.dem"],
+                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        }
+    }
+
+    [Test]
+    public async Task RaisingARunningVisit_DoesNothing()
+    {
+        using DemoProcessingQueue queue = Queue();
+        using ManualResetEventSlim release = new(false);
+        TaskCompletionSource running = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        IDemoQueueHandle visit = queue.SubmitVisit(new DemoVisitRequest("/d/run.dem", PassLevel.Background,
+        [
+            new TestPass("p")
+            {
+                OnRun = _ =>
+                {
+                    running.TrySetResult();
+                    release.Wait(5000);
+                }
+            }
+        ]));
+        await running.Task;
+
+        bool raised = queue.RaiseVisit("/d/run.dem", PassLevel.UserRequested);
+        DemoJobPriority priority = queue.Snapshot().Single(i => i.Path == "/d/run.dem").Priority;
+        release.Set();
+        await visit.Completion;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(raised).IsFalse();
+            await Assert.That(priority).IsEqualTo(DemoJobPriority.Background);
+        }
+    }
+
+    [Test]
     public async Task TheBacklog_RunsBeforeBackgroundWork_WhateverTheOrderHint()
     {
         List<string> ran = [];

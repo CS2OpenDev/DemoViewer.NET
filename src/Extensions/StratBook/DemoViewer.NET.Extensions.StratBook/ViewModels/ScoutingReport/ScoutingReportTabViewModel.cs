@@ -158,6 +158,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <param name="ranks">The manual VRS and HLTV ranks per team; a session-only store when null.</param>
     /// <param name="analysisFacts">The library's analysis facts, for the players table's rates; none when null.</param>
     /// <param name="openPlayerOverview">Opens the Player Overview on a SteamID64 with a demo scope; none when null.</param>
+    /// <param name="requestDemos">Queues demos at user priority, off the UI thread; the team is never pushed ahead when null.</param>
     /// <param name="watchMinedPatterns">
     ///     Subscribes a handler to Strat Mining's change event (raised on the UI thread) and returns the
     ///     unsubscribe; the strat layers rebuild on it. None when null.
@@ -188,7 +189,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Func<string, string, IReadOnlyList<FakeRound>?>? fakes = null,
         TeamRanksStore? ranks = null,
         IAnalysisFacts? analysisFacts = null,
-        Func<ulong, PlayerOverviewScope?, bool>? openPlayerOverview = null)
+        Func<ulong, PlayerOverviewScope?, bool>? openPlayerOverview = null,
+        Action<IReadOnlyList<string>>? requestDemos = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -206,6 +208,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         HltvRank = new RankFieldViewModel(_ranks, RankSystem.Hltv, _now);
         _opener = new ScoutingReviewOpener(review, selectTab);
         _openPlayerOverview = openPlayerOverview;
+        _requestDemos = requestDemos;
         _notes = notes ?? new ScoutingReportNotesStore(null);
         IsBrowser = isBrowser ?? OperatingSystem.IsBrowser();
         _sources = new ScoutingReportSources
@@ -242,6 +245,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Players.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasPlayers));
         _teams.Changed += Refresh;
         _library.Changed += OnLibraryChangedForPlayers;
+        _library.Changed += OnLibraryChangedForProcessing;
         _vetoes.Changed += ProjectVetoes;
         _ranks.Changed += OnRanksChanged;
         if (_grenades is not null)
@@ -426,6 +430,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Editor.Detach();
         _teams.Changed -= Refresh;
         _library.Changed -= OnLibraryChangedForPlayers;
+        _library.Changed -= OnLibraryChangedForProcessing;
         _vetoes.Changed -= ProjectVetoes;
         _ranks.Changed -= OnRanksChanged;
         if (_grenades is not null)
@@ -456,6 +461,12 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             Project();
         }
 
+        if (value is not null)
+        {
+            RequestTeam(value.Id, force: false);
+        }
+
+        OnPropertyChanged(nameof(CanProcessTeamFirst));
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(IsAwaitingTeam));
         OnPropertyChanged(nameof(HasSelectionWithoutMaps));
@@ -927,6 +938,12 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     private void ProjectNotices()
     {
         Notices.Clear();
+        _processingNotice = ProcessingNotice();
+        if (_processingNotice.Length > 0)
+        {
+            Notices.Add(_processingNotice);
+        }
+
         if (SelectedMap is { } map && _data is { } data)
         {
             if (map.IsThin)
