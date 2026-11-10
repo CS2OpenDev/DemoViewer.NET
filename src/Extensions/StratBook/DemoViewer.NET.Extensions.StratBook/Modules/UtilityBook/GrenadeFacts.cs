@@ -35,12 +35,14 @@ public readonly record struct ThrowerRead(
 /// <param name="Team">2 = T, 3 = CT, 0 when unread.</param>
 /// <param name="LastJumpTick">The frame-clock tick <c>IN_JUMP</c> last rose on, -1 before the first.</param>
 /// <param name="Coverage">The thrower's commands over the last 64 ticks divided by 64; 0 says the lane carries none.</param>
+/// <param name="Alive">The pawn's life state, or null when unread.</param>
 public readonly record struct ThrowerAtSpawn(
     Vector3? Position,
     bool? OnGround,
     int Team,
     int LastJumpTick,
-    double Coverage);
+    double Coverage,
+    bool? Alive = null);
 
 /// <summary>
 ///     One grenade as the rules run recorded it: the <c>grenade_projectiles</c> row of a grenade whose thrower

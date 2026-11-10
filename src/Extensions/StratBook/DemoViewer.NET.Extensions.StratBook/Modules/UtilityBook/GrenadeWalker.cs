@@ -38,7 +38,7 @@ public sealed record GrenadeWalk(
 public static class GrenadeWalker
 {
     /// <summary>Bumped when a row's meaning changes in the fold itself.</summary>
-    private const string WalkVersion = "6";
+    private const string WalkVersion = "7";
 
     /// <summary>The engine the rows were read with, for the sidecar header.</summary>
     public static string EngineVersion { get; } = DescribeEngine();
@@ -56,7 +56,8 @@ public static class GrenadeWalker
     ///     The rows off a visit's rules run: the three grenade tables joined, with the flights the observer kept and
     ///     the demo's roster and clock values. A grenade whose thrower never resolved takes its own fields from the
     ///     observer's flight. The input coverage is the share of throws read at the spawn whose thrower had
-    ///     commands on the lane there, which is how often the jump-throw flag came from inputs.
+    ///     commands on the lane there, which is how often the jump-throw flag came from inputs; a grenade thrown
+    ///     before the recording began is not counted, since nothing was read at its throw.
     /// </summary>
     /// <param name="inputs">The tables and the flights.</param>
     /// <param name="rounds">Round starts, frame clock.</param>
@@ -75,7 +76,8 @@ public static class GrenadeWalker
         int read = 0, covered = 0;
         foreach (GrenadeThrow t in throws)
         {
-            if (t.ThrowerSlot < 0 || t.Projectile.AtSpawn is not { } atSpawn)
+            if (t.ThrowerSlot < 0 || t.ReleaseSource == ReleaseSource.BeforeRecording
+                                  || t.Projectile.AtSpawn is not { } atSpawn)
             {
                 continue;
             }
@@ -147,7 +149,10 @@ public static class GrenadeWalker
     /// <summary>
     ///     Decides each projectile's thrower and release from the tables: the row's resolved slot, else the thrower
     ///     join; then the latest matching release within <see cref="GrenadeRules.ReleaseLookbackTicks" /> before the
-    ///     spawn, else the spawn minus the measured gap, read through the row's look-backs. Resolved throwers claim
+    ///     spawn. Without one, a projectile first seen sooner after the recording began than a completed throw takes
+    ///     was thrown before it (<see cref="ReleaseSource.BeforeRecording" />), one whose resolved thrower was dead on
+    ///     the frame it appeared fell from his hand (<see cref="ReleaseSource.DeathDrop" />), and any other takes the
+    ///     spawn minus the measured gap, read through the row's look-backs. Resolved throwers claim
     ///     their releases first, so a join never takes a release that belongs to a known thrower.
     /// </summary>
     /// <param name="projectiles">The grenades, in spawn order.</param>
@@ -191,6 +196,17 @@ public static class GrenadeWalker
                     claimed.Add(fire);
                     throws[i] = new GrenadeThrow(p, slot, throwerSource, fire.Tick, ReleaseSource.WeaponFire,
                         fire.Weapon, fire.Pawn, fire.Before);
+                }
+                else if (p.SpawnTick < GrenadeRules.ReleaseToSpawnMinTicks)
+                {
+                    // In the first snapshot: thrown before the recording began.
+                    throws[i] = new GrenadeThrow(p, slot, throwerSource, p.SpawnTick, ReleaseSource.BeforeRecording,
+                        null, null, null);
+                }
+                else if (resolved && p.AtSpawn is { Alive: false })
+                {
+                    throws[i] = new GrenadeThrow(p, slot, throwerSource, p.SpawnTick, ReleaseSource.DeathDrop,
+                        null, null, null);
                 }
                 else
                 {
@@ -333,7 +349,9 @@ public static class GrenadeWalker
             ProjectileFacts p = t.Projectile;
             int slot = t.ThrowerSlot;
             ThrowerRead? release = t.Release;
-            ThrowerAtSpawn? atSpawn = slot >= 0 ? p.AtSpawn : null;
+            ThrowerAtSpawn? firstSeen = slot >= 0 ? p.AtSpawn : null;
+            // A grenade thrown before the recording was first seen mid-flight: that frame says nothing of the throw.
+            ThrowerAtSpawn? atSpawn = t.ReleaseSource == ReleaseSource.BeforeRecording ? null : firstSeen;
 
             GrenadeKind kind = GrenadeRules.KindOf(p.ClassName, t.Weapon, p.IsIncendiary) ?? GrenadeKind.Smoke;
             // The look-back is a fixed eight ticks behind the release read.
@@ -367,7 +385,7 @@ public static class GrenadeWalker
                     ? steam.ToString(CultureInfo.InvariantCulture)
                     : null,
                 ThrowerName = slot >= 0 ? nameBySlot.GetValueOrDefault(slot) : null,
-                ThrowerTeam = atSpawn is { Team: > 0 } spawned ? spawned.Team : release?.Team ?? 0,
+                ThrowerTeam = firstSeen is { Team: > 0 } spawned ? spawned.Team : release?.Team ?? 0,
                 ThrowerSource = slot >= 0 ? t.ThrowerSource : ThrowerSource.None,
                 RoundNumber = GrenadeRules.RoundAt(rounds, p.SpawnTick),
                 ReleaseTick = t.ReleaseTick,
