@@ -61,7 +61,7 @@ public sealed class LurksLayer() : ScoutingLayerBase("lurks", "Lurks", ScoutingL
                 $"no {(context.Buy == ScoutingBuy.All ? "" : context.Buy.ToString().ToLowerInvariant() + " ")}T rounds with positions on {context.Map}");
         }
 
-        IReadOnlyDictionary<string, ScoutingColor> colors = LurkPlayerColors.For(context.Data.Sources, context.TeamId);
+        IReadOnlyDictionary<string, ScoutingColor> colors = ScoutingPlayerColors.Lookup(context.Data.Sources.Teams, context.TeamId);
         List<LurkDetail> lurks = [.. rounds.Where(r => r.Lurk is not null).Select(r => r.Lurk!)];
         TendencyBucket all = new("rounds", [.. rounds.Select(r => r.Opening)]);
         TendencyBucket lurking = new("lurk rounds", [.. lurks.Select(l => l.Clip)]);

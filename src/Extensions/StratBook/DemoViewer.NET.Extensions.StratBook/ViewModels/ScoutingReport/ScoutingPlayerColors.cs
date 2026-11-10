@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Extensions.Sdk.Ui;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 
@@ -14,8 +15,9 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 public sealed record ScoutingRosterPlayer(string SteamId, TeamIndexMember Member, ScoutingColor Color);
 
 /// <summary>
-///     The team's current roster in table order (most appearances first, five at most), each with its colour. The
-///     players table and the Setups layer both read it, so a player's swatch and their marks always match.
+///     The team's current roster in table order (most appearances first, ties by SteamID, five at most), each with
+///     its colour. The one player colour rule of the Scouting Report: the players table, the Setups marks, the
+///     lurkers and who opens all read it, so a player's swatch and their marks always match.
 /// </summary>
 public static class ScoutingPlayerColors
 {
@@ -42,5 +44,23 @@ public static class ScoutingPlayerColors
                 .Take(_colors.Length)
                 .Select((m, i) => new ScoutingRosterPlayer(m.Key, m.Value, _colors[i]))
         ];
+    }
+
+    /// <summary>
+    ///     The roster's colours keyed by SteamID64 and by display name, for rows that know a player by either (the
+    ///     duels key by SteamID when the roster has one, the lurk samples by name); empty with no roster.
+    /// </summary>
+    /// <param name="teams">Team Identity.</param>
+    /// <param name="teamId">The team.</param>
+    public static IReadOnlyDictionary<string, ScoutingColor> Lookup(TeamIdentityService teams, Guid teamId)
+    {
+        Dictionary<string, ScoutingColor> colors = new(StringComparer.Ordinal);
+        foreach (ScoutingRosterPlayer player in Roster(teams, teamId))
+        {
+            colors.TryAdd(player.SteamId, player.Color);
+            colors.TryAdd(DisplayText.Sanitize(player.Member.LastName), player.Color);
+        }
+
+        return colors;
     }
 }

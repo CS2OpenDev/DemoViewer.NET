@@ -87,7 +87,7 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        Dictionary<string, ScoutingColor> colors = ColorsFor(context);
+        IReadOnlyDictionary<string, ScoutingColor> colors = ColorsFor(context);
         SetupAreaClassifier areas = SetupAreaClassifier.Learn(onMap.SelectMany(h => h.Rounds));
         List<SetupHeatmapRound> rounds = [.. heatmaps.SelectMany(h => h.Rounds)];
         IReadOnlyList<SetupPlayerPlace> places = SetupsDerivation.PlacesByPlayer(rounds);
@@ -202,9 +202,8 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
     }
 
     // The roster's colours by SteamID64; anyone else draws grey.
-    private static Dictionary<string, ScoutingColor> ColorsFor(ScoutingLayerContext context) =>
-        ScoutingPlayerColors.Roster(context.Data.Sources.Teams, context.TeamId)
-            .ToDictionary(p => p.SteamId, p => p.Color, StringComparer.Ordinal);
+    private static IReadOnlyDictionary<string, ScoutingColor> ColorsFor(ScoutingLayerContext context) =>
+        ScoutingPlayerColors.Lookup(context.Data.Sources.Teams, context.TeamId);
 
     // "Full buy CT: Alice holds B site in 47 of 50 rounds; Bob holds Window in 41 of 50."
     private static (string Text, bool Any) ReadFor(SetupHeatmap heatmap, string buyLabel)
@@ -228,7 +227,7 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
     }
 
     private static ScoutingInspectorRow PlaceRow(ScoutingLayerContext context, SetupPlayerPlace place,
-        Dictionary<string, ScoutingColor> colors)
+        IReadOnlyDictionary<string, ScoutingColor> colors)
     {
         string name = DisplayText.Sanitize(place.Name);
         string label = SetupsDerivation.PlaceLabel(place.Place);

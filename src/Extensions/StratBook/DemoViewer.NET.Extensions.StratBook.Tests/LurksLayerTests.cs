@@ -4,6 +4,7 @@ using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -141,6 +142,26 @@ public class LurksLayerTests
         Rows(r).Single(x => x.OpenTitle == title);
 
     [Test]
+    public async Task ALurkersColour_IsTheirPlayersTableColour()
+    {
+        (ScoutingLayerResult r, Harness h) = await Build(ScoutingBuy.All);
+        using (h)
+        {
+            IReadOnlyList<ScoutingRosterPlayer> roster = ScoutingPlayerColors.Roster(h.Teams, h.Data.TeamId);
+            ScoutingRosterPlayer p3 = roster.Single(p => p.Member.LastName == "p3");
+            ScoutingRosterPlayer p4 = roster.Single(p => p.Member.LastName == "p4");
+            using (Assert.Multiple())
+            {
+                await Assert.That(roster.Count).IsEqualTo(5);
+                await Assert.That(Titled(r, "de_nuke T · lurker p3").Swatch).IsEqualTo(p3.Color);
+                await Assert.That(Titled(r, "de_nuke T · lurker p4").Swatch).IsEqualTo(p4.Color);
+                await Assert.That(ScoutingPlayerColors.Lookup(h.Teams, h.Data.TeamId)[p3.SteamId]).IsEqualTo(p3.Color)
+                    .Because("rows keyed by SteamID and rows keyed by name read the same colour");
+            }
+        }
+    }
+
+    [Test]
     public async Task WhoLurks_IsEachPlayersShareOfTheRoundsWithPositions_AndEveryNumberOpensItsRounds()
     {
         (ScoutingLayerResult r, Harness h) = await Build(ScoutingBuy.All);
@@ -251,6 +272,8 @@ public class LurksLayerTests
         }
 
         public ScoutingReportData Data { get; }
+
+        public TeamIdentityService Teams => _teams;
 
         public void Dispose() => _teams.Dispose();
 

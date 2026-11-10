@@ -259,6 +259,8 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
     private static IReadOnlyList<ScoutingInspectorRow> WhoOpens(ScoutingLayerContext context, OpeningDuelBlock block)
     {
         int total = block.Duels.Count;
+        IReadOnlyDictionary<string, ScoutingColor> colors =
+            ScoutingPlayerColors.Lookup(context.Data.Sources.Teams, context.TeamId);
         return
         [
             .. block.Duels.GroupBy(d => d.PlayerKey, StringComparer.Ordinal)
@@ -273,6 +275,7 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
                         Value = $"{g.Count()} of {Plural(total, "duel")}",
                         StarText = $"opens {name}",
                         BarPercent = 100.0 * g.Count() / total,
+                        Swatch = colors.TryGetValue(g.Key, out ScoutingColor c) ? c : ScoutingColor.Neutral,
                         Note = $"won {won} · lost {g.Count() - won}",
                         Rounds = [.. g.Select(d => d.Clip)],
                         OpenTitle = $"{context.Prefix} · opening duels {name}"
