@@ -95,6 +95,12 @@ public sealed class WorkspaceTabDescriptor : INotifyPropertyChanged
     public string? FeatureId { get; init; }
 
     /// <summary>
+    ///     Tab ids this tab had before a rename, oldest first. Session state saved under one of them (the active
+    ///     tab, the tab's own state) resolves to <see cref="TabId" />. Empty for a tab that was never renamed.
+    /// </summary>
+    public IReadOnlyList<string> PreviousTabIds { get; init; } = [];
+
+    /// <summary>
     ///     The DataContext assigned to the realized View. For shell-routed built-ins this is the shell
     ///     itself (so the existing <c>{Binding TabVM.X}</c> bindings keep resolving); for module-owned
     ///     tabs it is the per-tab VM. Set directly when the VM is pre-built (the built-in case), or

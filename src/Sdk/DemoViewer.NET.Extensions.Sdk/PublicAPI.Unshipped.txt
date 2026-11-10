@@ -19,3 +19,8 @@ DemoViewer.NET.Extensions.Sdk.IStatusChipSource.Label.get -> string?
 DemoViewer.NET.Extensions.Sdk.IExtension.Stores.get -> System.Collections.Generic.IEnumerable<DemoViewer.NET.Extensions.Sdk.StoreDescriptor?>!
 *REMOVED*DemoViewer.NET.Extensions.Sdk.Review.IExtensionReviewQueue.Add(System.Collections.Generic.IEnumerable<DemoViewer.NET.Extensions.Sdk.Review.ReviewClip!>! clips, string? sectionTitle = null, string! sectionSubtitle = "") -> int
 DemoViewer.NET.Extensions.Sdk.Review.IExtensionReviewQueue.Add(System.Collections.Generic.IEnumerable<DemoViewer.NET.Extensions.Sdk.Review.ReviewClip!>! clips, string? sectionTitle = null, string? sectionSubtitle = "") -> int
+const DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport = "scouting-report" -> string!
+DemoViewer.NET.Extensions.Sdk.ExtensionFeature.PreviousIds.get -> System.Collections.Generic.IReadOnlyList<string!>!
+DemoViewer.NET.Extensions.Sdk.ExtensionFeature.PreviousIds.init -> void
+DemoViewer.NET.Modules.Abstractions.WorkspaceTabDescriptor.PreviousTabIds.get -> System.Collections.Generic.IReadOnlyList<string!>!
+DemoViewer.NET.Modules.Abstractions.WorkspaceTabDescriptor.PreviousTabIds.init -> void
