@@ -75,7 +75,9 @@ public sealed class MyExtension : IExtension
 
 The app creates the entry type with its public parameterless constructor. `Register` runs whether the
 extension is on or off, so register factories and do no work there. Feature ids are persisted with the
-user's choices: never rename one. The master switch's id must start with `pack.`.
+user's choices, so avoid renaming one. If you must, list the old ids in `ExtensionFeature.PreviousIds` (and a
+tab's old ids in `WorkspaceTabDescriptor.PreviousTabIds`): the host carries a choice or tab state saved under
+an old id over to the new one. The master switch's id must start with `pack.`.
 
 `Commands`, `CommandScopes`, `JobKinds` and `Stores` are read the same way, without DI. `Stores` lists the
 folders and files you keep outside the folders the host gives you (see `Stores` under "The host"): each path's
@@ -207,7 +209,10 @@ its assembly, and a copied sample keys on its own type rather than the one it wa
 host has not loaded throws. It returns your extension's `IExtensionContext`:
 
 - `Shell`: the open demo, opening demos, seeking, selecting tabs, revealing files, and opening a player in the
-  Player Overview tab (`OpenPlayerOverview`, false when the tab is off or the host has none). `CurrentDemo` is the open
+  Player Overview tab (`OpenPlayerOverview`, false when the tab is off or the host has none). Pass a
+  `PlayerOverviewScope` to narrow that tab to a set of demos, such as one team's matches; it shows as a chip the user
+  can remove. `FollowPlayer` shows the 2D Playback tab following an account in the loaded demo, and answers false when
+  the player is not in it or following is switched off. `CurrentDemo` is the open
   demo's parse, shared with the shell, so read it and drop it on `CurrentDemoChanged`. `CurrentDemoHash` is the
   demo's content key (lowercase hex SHA-256 of the file), the one to key per-demo data on. `CurrentTick`,
   `IsPlaying` and `PlayheadChanged` follow playback; the event fires at most once per rendered frame.
@@ -706,3 +711,14 @@ CS2DemoKit 0.14.1, which is the version a pack that reads `CS2DemoKit.Analysis` 
 - `IMapToolContext.CurrentTick`, `IMapToolContext.ScreenToWorld` and `IMapToolContext.Tokens`, with default
   bodies, `MapToolModifiers.Space` for the hold-to-pan key, and `MapToolAdapter`, which wraps an
   `IMapTool` as a scene tool. These are in `DemoViewer.NET.Playback2D.Scene`.
+
+2.2 only adds, and pairs with CS2DemoKit 0.15.0. A pack that uses one of the additions states `^2.2`:
+
+- `IExtensionShell.FollowPlayer` and an `OpenPlayerOverview` overload taking a `PlayerOverviewScope`, both with
+  default bodies that answer false.
+- `ExtensionFeature.PreviousIds` and `WorkspaceTabDescriptor.PreviousTabIds`, for renaming a feature or a tab
+  without losing what the user saved under the old id.
+- `CollectorContribution.GameProviders` and `IFrameReadView.TryReadGameInt`, the game-wide reads (see
+  "Game-wide reads").
+- `ReviewSources.ScoutingReport`. `ReviewSources.Dossier` is obsolete; the host still accepts it and stores
+  it as the new value.
