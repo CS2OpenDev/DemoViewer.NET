@@ -38,9 +38,8 @@ public static class RuleLayers
     /// <summary>
     ///     <see cref="YamlConfigLoader.LoadWithOverlay" /> that survives a user file YamlDotNet cannot scan. The
     ///     scanner throws InvalidOperationException, not YamlException, on an unclosed flow sequence such as
-    ///     <c>ruleset: [</c>, and the engine catches only the latter, so one such file took the whole app down at
-    ///     startup. The loader reads a folder whole, so the user tier is set aside until the file is fixed, with an
-    ///     error naming it.
+    ///     <c>ruleset: [</c>, and the engine catches only the latter. The loader reads a folder whole, so the user
+    ///     tier is set aside until the file is fixed, with an error naming it.
     /// </summary>
     /// <param name="shippedDir">The shipped rules folder.</param>
     /// <param name="userDir">The user's rules folder, or null for none.</param>
