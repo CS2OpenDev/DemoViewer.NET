@@ -25,6 +25,7 @@ DemoViewer.NET.Extensions.Sdk.ExtensionFeature.PreviousIds.init -> void
 DemoViewer.NET.Modules.Abstractions.WorkspaceTabDescriptor.PreviousTabIds.get -> System.Collections.Generic.IReadOnlyList<string!>!
 DemoViewer.NET.Modules.Abstractions.WorkspaceTabDescriptor.PreviousTabIds.init -> void
 DemoViewer.NET.Extensions.Sdk.IExtensionShell.OpenPlayerOverview(ulong steamId64, DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope? scope) -> bool
+DemoViewer.NET.Extensions.Sdk.IExtensionShell.FollowPlayer(ulong steamId64) -> bool
 DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope
 DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.<Clone>$() -> DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope!
 DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.Deconstruct(out string! Label, out System.Collections.Generic.IReadOnlyCollection<string!>! Demos) -> void

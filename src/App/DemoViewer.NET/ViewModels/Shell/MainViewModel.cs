@@ -28,6 +28,7 @@ using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Modules.Library;
+using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
@@ -4565,6 +4566,25 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         PlayerOverviewTab.OpenPlayer(steamId64, scope);
         return true;
+    }
+
+    /// <summary>
+    ///     Shows the 2D Playback tab following <paramref name="steamId64" /> in the loaded demo. The tab resolves the
+    ///     account against its roster at call time and queues the follow when that roster is still being built.
+    ///     False for 0, with no demo loaded, with the tab off the strip, or when the tab declines (the account is
+    ///     not in the demo, or the follow feature is off).
+    /// </summary>
+    /// <param name="steamId64">The account; 0 follows nobody.</param>
+    public bool FollowPlayer(ulong steamId64)
+    {
+        if (steamId64 == 0 || LoadedDemoPath is not { Length: > 0 } demoPath
+                           || !TrySelectTab(HostIds.Playback2DTab))
+        {
+            return false;
+        }
+
+        return Tabs.FirstOrDefault(t => t.TabId == HostIds.Playback2DTab)?.TabViewModel is Playback2DTabViewModel tab
+               && tab.FollowSteamId(steamId64, demoPath);
     }
 
     // Opens the demo unless it is the one loaded, then focuses the account on Stats. The open's evaluation runs

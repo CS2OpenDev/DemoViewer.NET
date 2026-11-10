@@ -170,6 +170,16 @@ public interface IExtensionShell
     bool OpenPlayerOverview(ulong steamId64, PlayerOverviewScope? scope) =>
         scope is null && OpenPlayerOverview(steamId64);
 
+    /// <summary>
+    ///     Shows the 2D Playback tab following <paramref name="steamId64" /> in the loaded demo. The account is
+    ///     resolved against the demo's roster when the call is made, since a roster slot can pass to another player
+    ///     within one demo. When the roster is still being built for the loaded demo, the follow waits for it and
+    ///     the answer is true. False when the id is 0, the player is not in the loaded demo, the tab or its
+    ///     <c>playback2d.follow</c> feature is switched off, or the host cannot follow.
+    /// </summary>
+    /// <param name="steamId64">The account's SteamID64.</param>
+    bool FollowPlayer(ulong steamId64) => false;
+
     /// <summary>Shows <paramref name="path" /> in the system file manager.</summary>
     void RevealInFileManager(string path);
 }

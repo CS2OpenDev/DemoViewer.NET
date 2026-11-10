@@ -332,6 +332,8 @@ internal sealed class ExtensionContext : IExtensionContext
         public bool OpenPlayerOverview(ulong steamId64, PlayerOverviewScope? scope) =>
             _hub.Shell?.OpenPlayerOverview(steamId64, null, scope) ?? false;
 
+        public bool FollowPlayer(ulong steamId64) => _hub.Shell?.FollowPlayer(steamId64) ?? false;
+
         public void RevealInFileManager(string path)
         {
             ArgumentException.ThrowIfNullOrEmpty(path);
