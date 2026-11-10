@@ -35,8 +35,9 @@ public sealed record OpeningImpact(
         List<OpeningDuelRound> won = [.. block.Duels.Where(d => d.Won)];
         List<OpeningDuelRound> lost = [.. block.Duels.Where(d => !d.Won)];
         return new OpeningImpact(block.Side,
-            [.. won.Select(d => d.Rest)], [.. won.Where(d => d.RoundWon).Select(d => d.Rest)],
-            [.. lost.Select(d => d.Rest)], [.. lost.Where(d => d.RoundWon).Select(d => d.Rest)],
+            // Only decided rounds have an outcome to split by; an undecided trailing round is left out.
+            [.. won.Where(d => d.RoundDecided).Select(d => d.Rest)], [.. won.Where(d => d.RoundWon).Select(d => d.Rest)],
+            [.. lost.Where(d => d.RoundDecided).Select(d => d.Rest)], [.. lost.Where(d => d.RoundWon).Select(d => d.Rest)],
             [.. lost.Where(d => d.Traded).Select(d => d.Clip)]);
     }
 }

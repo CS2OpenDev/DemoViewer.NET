@@ -126,9 +126,10 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
         if (block.Duels.Count > 0)
         {
             int won = block.Duels.Count(d => d.Won);
-            int lost = block.Duels.Count - won;
-            string after = lost > 0
-                ? $"; after losing it they still win {Percent((double)block.Duels.Count(d => !d.Won && d.RoundWon) / lost)} of rounds"
+            // Round outcomes count only decided rounds: a recording that stops mid-round has no winner.
+            int lostDecided = block.Duels.Count(d => !d.Won && d.RoundDecided);
+            string after = lostDecided > 0
+                ? $"; after losing it they still win {Percent((double)block.Duels.Count(d => !d.Won && d.RoundWon) / lostDecided)} of rounds"
                 : "";
             reads.Add(new ScoutingRead(
                 $"They win {Percent((double)won / block.Duels.Count)} of CT opening duels{after}.", "read duels"));
@@ -177,8 +178,9 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
 
         if (Top(PlayerBuckets(block)) is { } opener && block.Duels.Count > 0)
         {
-            string converts = kills.Count > 0
-                ? $"; a won opening converts {Percent((double)kills.Count(d => d.RoundWon) / kills.Count)} of the time"
+            int killsDecided = kills.Count(d => d.RoundDecided);
+            string converts = killsDecided > 0
+                ? $"; a won opening converts {Percent((double)kills.Count(d => d.RoundWon) / killsDecided)} of the time"
                 : "";
             reads.Add(new ScoutingRead(
                 $"{opener.Label} takes {Percent((double)opener.Count / block.Duels.Count)} of T opening duels{converts}.",
@@ -234,9 +236,9 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
                 Value = lost.Count.ToString(CultureInfo.InvariantCulture)
             },
             Share(context, "Round won after winning the opening", "round won after winning the opening",
-                [.. won.Where(d => d.RoundWon).Select(d => d.Rest)], won.Count, "won duel"),
+                [.. won.Where(d => d.RoundWon).Select(d => d.Rest)], won.Count(d => d.RoundDecided), "won duel"),
             Share(context, "Round won after losing the opening", "round won after losing the opening",
-                [.. lost.Where(d => d.RoundWon).Select(d => d.Rest)], lost.Count, "lost duel"),
+                [.. lost.Where(d => d.RoundWon).Select(d => d.Rest)], lost.Count(d => d.RoundDecided), "lost duel"),
             Share(context, "Opening deaths traded", "opening deaths traded",
                 [.. lost.Where(d => d.Traded).Select(d => d.Clip)], lost.Count, "opening death") with
             {
