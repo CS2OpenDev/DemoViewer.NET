@@ -825,10 +825,10 @@ public sealed class ExtensionUpdateService
         _shippedIds.Contains(id, StringComparer.Ordinal)
         || Statuses.Any(s => string.Equals(s.Pack.Id, id, StringComparison.Ordinal));
 
-    // A declared first-party pack this process runs: the automatic stage's scope.
+    // A declared first-party pack this process runs: the automatic stage's scope. A reserved id is never
+    // a third-party copy, and the composition root leaves External statuses out of this service.
     private static bool IsFirstParty(PackStatus status) =>
         status.Pack.Id.StartsWith(ExternalExtensions.ReservedIdPrefix, StringComparison.Ordinal)
-        && status.Source is not PackSource.External
         && status.Manifest is not null;
 
     // A staged update of a shipped pack is judged by the policy the loader runs with; everything else

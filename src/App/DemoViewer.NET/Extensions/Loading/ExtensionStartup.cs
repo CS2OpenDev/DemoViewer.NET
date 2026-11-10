@@ -69,7 +69,7 @@ public static class ExtensionStartup
         ExternalResolution external = ExternalExtensions.Resolve(configRoot,
             [.. fromShipped.Where(s => s.IsCompatible).Select(s => s.Pack)], host,
             new ExternalTrust(publisherKeys, allowUnverified),
-            [.. shipped.Select(s => s.Id)]);
+            shippedIds);
         return new ExtensionStartupResult([.. fromShipped, .. external.Loaded], external.Rejected, claimed, shippedIds)
         {
             RemovedAtStart = removed
