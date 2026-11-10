@@ -25,7 +25,8 @@ public sealed class ScoutingMiniGraphic : Control
     public static readonly StyledProperty<object?> ValueProperty =
         AvaloniaProperty.Register<ScoutingMiniGraphic, object?>(nameof(Value));
 
-    // The one-hue ordinal ramp for buys, eco → full, and the ink each step's label is drawn in.
+    // The one-hue ordinal ramp for buys, eco → full, and the ink each step's label is drawn in: dark on the
+    // three lighter steps (13.2, 8.8 and 5.5:1; white on the third is 3.4:1), white on the darkest (6.0:1).
     private static readonly IBrush[] _ramp =
     [
         new SolidColorBrush(Color.Parse("#C9DCF5")), new SolidColorBrush(Color.Parse("#8FB6EA")),
@@ -35,7 +36,7 @@ public sealed class ScoutingMiniGraphic : Control
     private static readonly IBrush[] _ink =
     [
         new SolidColorBrush(Color.Parse("#12141C")), new SolidColorBrush(Color.Parse("#12141C")),
-        Brushes.White, Brushes.White
+        new SolidColorBrush(Color.Parse("#12141C")), Brushes.White
     ];
 
     private const double SegmentGap = 1;
