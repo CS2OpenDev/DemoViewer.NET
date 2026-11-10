@@ -397,6 +397,52 @@ public class DemoSchedulerTests
             .IsEquivalentTo(["/x/first.dem", "/x/second.dem"], CollectionOrdering.Matching);
     }
 
+    [Test]
+    public async Task ARequest_LiftsAQueuedBackgroundVisit_LeavesARunningOne_AndSubmitsNothingTwice()
+    {
+        ConcurrentBag<string> parsed = [];
+        using ManualResetEventSlim release = new(false);
+        using DemoProcessingQueue queue = new(new HeavyJobGate(), _inline, path =>
+        {
+            parsed.Add(path);
+            release.Wait(5000);
+            return Synthetic();
+        });
+        Fake a = new("a");
+        using DemoScheduler scheduler = new([a], queue, Array.Empty<string>);
+
+        scheduler.DemoChanged("/x/first.dem");
+        await WaitFor(() => parsed.Count == 1, "the first demo occupies the worker");
+        scheduler.DemoChanged("/x/second.dem");
+        await WaitFor(() => queue.Snapshot().Any(i => i.Path == "/x/second.dem"), "the second demo queued");
+        await Assert.That(queue.Snapshot().Single(i => i.Path == "/x/second.dem").Priority)
+            .IsEqualTo(DemoJobPriority.Background);
+
+        scheduler.Request("/x/second.dem");
+        scheduler.Request("/x/second.dem");
+        scheduler.Request("/x/first.dem");
+        await WaitFor(() => queue.ActiveCount(QueueJobKind.Scheduling) == 0
+                            && queue.Snapshot().Single(i => i.Path == "/x/second.dem").Priority
+                            == DemoJobPriority.UserRequested, "the request to lift the queued visit");
+
+        DemoQueueItemSnapshot[] visits = [.. queue.Snapshot().Where(i => i.Kind == QueueJobKind.DemoProcessing)];
+        using (Assert.Multiple())
+        {
+            await Assert.That(visits.Select(v => v.Path).Order())
+                .IsEquivalentTo(["/x/first.dem", "/x/second.dem"], CollectionOrdering.Matching)
+                .Because("repeated requests raise the queued visit, they do not add one");
+            await Assert.That(visits.Single(v => v.Path == "/x/first.dem").State)
+                .IsEqualTo(DemoQueueItemState.Running);
+        }
+
+        release.Set();
+        await WaitFor(() => a.Count == 2, "both demos ran");
+        await Task.Delay(50);
+        await Assert.That(parsed.Order())
+            .IsEquivalentTo(["/x/first.dem", "/x/second.dem"], CollectionOrdering.Matching)
+            .Because("each demo is read once");
+    }
+
     // A full background tier refuses visits. The planner must stop and wait for the capacity event, not re-plan
     // the refused demos until a visit ends: that held the planning item Running and starved the light lane.
     [Test]
@@ -613,6 +659,8 @@ public class DemoSchedulerTests
         scheduler.DemoChanged("/nfs/demo.dem");
         scheduler.Request("/smb/demo.dem");
         await Assert.That(queue.Visits).Count().IsEqualTo(1).Because("the pass is already out on that demo");
+        await Assert.That(queue.Raises).IsEquivalentTo([("/smb/demo.dem", PassLevel.UserRequested)])
+            .Because("the request lifts the visit already out instead of submitting another");
 
         scheduler.RecheckAll();
         await Assert.That(queue.Visits.Select(v => v.Path))
@@ -793,6 +841,7 @@ public class DemoSchedulerTests
     {
         private readonly List<QueueJobRequest> _deferred = [];
         public List<DemoVisitRequest> Visits { get; } = [];
+        public List<(string Path, PassLevel Level)> Raises { get; } = [];
         public List<QueueJobRequest> Jobs { get; } = [];
         public bool Defer { get; init; }
         public bool EndPasses { get; init; }
@@ -835,6 +884,16 @@ public class DemoSchedulerTests
             }
 
             return new RecordedHandle();
+        }
+
+        public bool RaiseVisit(string path, PassLevel level)
+        {
+            lock (Raises)
+            {
+                Raises.Add((path, level));
+            }
+
+            return true;
         }
 
         public IDemoQueueHandle SubmitJob(QueueJobRequest request)
