@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.Model.Live;
 using DemoViewer.NET.Modules.Abstractions;
+using Microsoft.Extensions.Logging;
 
 #endregion
 
@@ -31,6 +32,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     private readonly CanvasArranger _arranger;
     private readonly CanvasNodeFactory _factory;
     private readonly Func<Action, Task>? _marshal;
+    private readonly ILogger? _log;
     private RulesetCorpus? _corpus;
     private RulesetCorpus.Composed? _composed;
     private RulesWatcher? _watcher;
@@ -63,14 +65,16 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
     ///     The host's queue and open demo, for live values; null means no demo is ever open here and the
     ///     canvas draws without badges.
     /// </param>
+    /// <param name="log">Where a watcher report that threw is logged; null drops it.</param>
     public CanvasTabViewModel(Func<string, bool> selectTab, Func<RulesetCorpus> loadCorpus, Func<string?> layoutFolder,
-        Func<Action, Task>? marshal = null, LiveValuesHost? live = null)
+        Func<Action, Task>? marshal = null, LiveValuesHost? live = null, ILogger? log = null)
     {
         _selectTab = selectTab ?? throw new ArgumentNullException(nameof(selectTab));
         _loadCorpus = loadCorpus ?? throw new ArgumentNullException(nameof(loadCorpus));
         _arranger = new CanvasArranger(layoutFolder ?? throw new ArgumentNullException(nameof(layoutFolder)));
         _factory = new CanvasNodeFactory(WriteFacet, WriteField, RenameNode);
         _marshal = marshal;
+        _log = log;
         InitLive(live);
         SelectedNodes.CollectionChanged += (_, _) => JumpToSelection();
         SelectedNodes.CollectionChanged += (_, _) => RefreshInspector();
@@ -334,7 +338,7 @@ public sealed partial class CanvasTabViewModel : ExtensionViewModel, IWorkspaceT
             return;
         }
 
-        _watcher = new RulesWatcher(directory, _marshal, WatcherDebounce);
+        _watcher = new RulesWatcher(directory, _marshal, WatcherDebounce, _log);
         _watcher.Changed += FilesChanged;
     }
 

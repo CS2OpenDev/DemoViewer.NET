@@ -1,3 +1,9 @@
+#region
+
+using Microsoft.Extensions.Logging;
+
+#endregion
+
 namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 
 /// <summary>
@@ -8,11 +14,12 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 ///     it has the corpus and the open file's write time, the watcher has only paths. Watching is best
 ///     effort; a directory the platform cannot watch leaves <see cref="IsWatching" /> false.
 /// </summary>
-public sealed class RulesWatcher : IDisposable
+public sealed partial class RulesWatcher : IDisposable
 {
     public static readonly TimeSpan DefaultDebounce = TimeSpan.FromMilliseconds(250);
 
     private readonly Func<Action, Task> _marshal;
+    private readonly ILogger? _log;
     private readonly TimeSpan _debounce;
     private readonly Lock _gate = new();
     private readonly HashSet<string> _batch = new(StringComparer.OrdinalIgnoreCase);
@@ -23,12 +30,14 @@ public sealed class RulesWatcher : IDisposable
     /// <param name="directory">The directory to watch.</param>
     /// <param name="marshal">Runs the report where the owner wants it; a test runs it inline.</param>
     /// <param name="debounce">How long after the last event a batch waits; <see cref="DefaultDebounce" /> when null.</param>
-    public RulesWatcher(string directory, Func<Action, Task> marshal, TimeSpan? debounce = null)
+    /// <param name="log">Where a report that threw is logged; null drops it.</param>
+    public RulesWatcher(string directory, Func<Action, Task> marshal, TimeSpan? debounce = null, ILogger? log = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(directory);
         Directory = directory;
         _marshal = marshal ?? throw new ArgumentNullException(nameof(marshal));
         _debounce = debounce ?? DefaultDebounce;
+        _log = log;
         _timer = new Timer(_ => Flush(), null, Timeout.Infinite, Timeout.Infinite);
         try
         {
@@ -115,6 +124,18 @@ public sealed class RulesWatcher : IDisposable
             _batch.Clear();
         }
 
-        _ = _marshal(() => Changed?.Invoke(paths));
+        _ = _marshal(() => Changed?.Invoke(paths)).ContinueWith(t => ReportFailed(t.Exception!), CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
     }
+
+    private void ReportFailed(AggregateException failure)
+    {
+        if (_log is { } log)
+        {
+            ReportThrew(log, Directory, failure.InnerExceptions.Count == 1 ? failure.InnerExceptions[0] : failure);
+        }
+    }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "The rules folder change report for {directory} failed")]
+    private static partial void ReportThrew(ILogger logger, string directory, Exception exception);
 }

@@ -452,4 +452,37 @@ public class RulesWatcherTests
             await Assert.That(vm.Nodes.Single(n => n.Id == "round_kills").Label).IsEqualTo("Kills!");
         }
     }
+
+    private sealed class RecordingLogger : Microsoft.Extensions.Logging.ILogger
+    {
+        public List<(Microsoft.Extensions.Logging.LogLevel Level, Exception? Exception)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            lock (Entries)
+            {
+                Entries.Add((logLevel, exception));
+            }
+        }
+    }
+
+    // The app's marshal is Dispatcher.InvokeAsync, which captures the report's exception in the task it returns.
+    [Test]
+    public async Task AReportThatThrows_IsLogged()
+    {
+        using RulesTree rules = RulesTree.New();
+        RecordingLogger log = new();
+        using RulesWatcher watcher = new(rules.UserDirectory, action => Task.Run(action), Short, log);
+        watcher.Changed += _ => throw new InvalidOperationException("the handler failed");
+
+        watcher.Notify(rules.UserPath("anything"));
+
+        await Assert.That(await WaitFor(() => { lock (log.Entries) { return log.Entries.Count > 0; } }, TimeSpan.FromSeconds(5))).IsTrue();
+        await Assert.That(log.Entries[0].Exception?.Message).IsEqualTo("the handler failed");
+    }
 }

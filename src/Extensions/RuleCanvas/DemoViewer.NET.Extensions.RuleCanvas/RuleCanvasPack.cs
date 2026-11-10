@@ -103,7 +103,8 @@ public sealed class RuleCanvasPack : IExtension
                     shell.PlayheadChanged += handler;
                     return new PlayheadWatch(shell, handler);
                 },
-                tick => Context(sp)?.Shell.SeekToTick(tick))));
+                tick => Context(sp)?.Shell.SeekToTick(tick)),
+            Context(sp)?.CreateLogger("RuleCanvas")));
     }
 
     private static IExtensionContext? Context(IServiceProvider services) =>
