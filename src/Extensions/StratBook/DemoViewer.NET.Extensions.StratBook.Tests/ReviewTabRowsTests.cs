@@ -101,6 +101,19 @@ public class ReviewTabRowsTests
     }
 
     [Test]
+    public async Task SourceIds_ShowAsWords_AndAnUnknownIdShowsAsItself()
+    {
+        using (Assert.Multiple())
+        {
+            await Assert.That(ReviewSourceLabels.Label(DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport))
+                .IsEqualTo("Scouting report");
+            await Assert.That(ReviewSourceLabels.Label("dossier")).IsEqualTo("Scouting report");
+            await Assert.That(ReviewSourceLabels.Label(ReviewQueueTabViewModel.AllSources)).IsEqualTo("All sources");
+            await Assert.That(ReviewSourceLabels.Label("from-a-newer-extension")).IsEqualTo("from-a-newer-extension");
+        }
+    }
+
+    [Test]
     public async Task APickedSource_FallsBackToAll_WhenItsLastClipGoes()
     {
         ReviewQueue queue = new(null);

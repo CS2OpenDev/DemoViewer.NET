@@ -798,7 +798,7 @@ public sealed partial class ReviewRowViewModel : ObservableObject
     }
 
     /// <summary>Where the clip came from, as a word.</summary>
-    public string SourceText => Entry.Source;
+    public string SourceText => ReviewSourceLabels.Label(Entry.Source);
 
     internal void Apply(ReviewClip entry)
     {
