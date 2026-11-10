@@ -76,10 +76,27 @@ public sealed partial class CanvasTabViewModel
         }
     }
 
+    /// <summary>What the toast says when Reset arrangement is asked for while a slice is focused.</summary>
+    public const string ResetNeedsWholeChain = "Clear the focus to reset the arrangement; a slice shows only part of it";
+
+    /// <summary>
+    ///     Whether Reset arrangement is offered: a saved arrangement applies and the whole chain is drawn. A
+    ///     slice holds only its own positions, so an Undo from it could not write the rest back.
+    /// </summary>
+    public bool CanResetLayout => HasSavedLayout && !HasFocus;
+
+    partial void OnHasSavedLayoutChanged(bool value) => OnPropertyChanged(nameof(CanResetLayout));
+
     /// <summary>Drops the saved arrangement and places the ruleset again. One Undo brings it back.</summary>
     [RelayCommand]
     private void ResetLayout()
     {
+        if (HasFocus)
+        {
+            Notify(ResetNeedsWholeChain);
+            return;
+        }
+
         RulesetNodeLayout before = CurrentArrangement();
         RecordLayoutChange(before, RulesetNodeLayout.Empty);
         CanvasArranger.ResetLayout(SidecarPath);
@@ -116,5 +133,6 @@ public sealed partial class CanvasTabViewModel
         OnPropertyChanged(nameof(FocusKey));
         OnPropertyChanged(nameof(HasFocus));
         OnPropertyChanged(nameof(FocusLabel));
+        OnPropertyChanged(nameof(CanResetLayout));
     }
 }

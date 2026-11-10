@@ -160,7 +160,7 @@
                                     <MenuItem Header="Legend" Command="{Binding ToggleLegendCommand}" />
                                     <MenuItem Header="Diagnostics list" Command="{Binding ToggleDiagnosticsListCommand}" />
                                     <Separator />
-                                    <MenuItem Header="Reset arrangement" Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding HasSavedLayout}"
+                                    <MenuItem Header="Reset arrangement" Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding CanResetLayout}"
                                               ToolTip.Tip="{Binding SidecarPath}" />
                                     <MenuItem Header="Delete selected" Command="{Binding DeleteSelectedCommand}" />
                                     <MenuItem Header="Group selection" InputGesture="{views:PrimaryGesture Ctrl+G}" Command="{Binding GroupSelectionCommand}" />
@@ -459,7 +459,7 @@
                     <Separator />
                     <MenuItem Header="Fit to screen" InputGesture="A" Click="OnFit" />
                     <MenuItem Header="Select all" InputGesture="Ctrl+A" Command="{Binding SelectAllCommand}" />
-                    <MenuItem Header="Reset arrangement" Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding HasSavedLayout}" />
+                    <MenuItem Header="Reset arrangement" Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding CanResetLayout}" />
                 </ContextMenu>
             </nodify:NodifyEditor.ContextMenu>
 

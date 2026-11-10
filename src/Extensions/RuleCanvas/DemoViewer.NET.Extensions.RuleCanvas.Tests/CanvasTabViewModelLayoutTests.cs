@@ -53,6 +53,42 @@ public class CanvasTabViewModelLayoutTests
     }
 
     [Test]
+    public async Task ResetWhileFocused_IsRefused_AndTheWholeChainsArrangementStays()
+    {
+        using RulesTree tree = RulesTree.WithUser(Ruleset);
+        CanvasTabViewModel vm = tree.NewViewModel();
+        vm.OnActivated(null!);
+        vm.Nodes.Single(n => n.Id == "round_kills").Location = new Point(1234, 567);
+        vm.SaveLayoutCommand.Execute(null);
+        string sidecar = RulesetLayoutStore.SidecarPathFor(tree.UserPath(Ruleset));
+        string saved = File.ReadAllText(sidecar);
+
+        vm.FocusNode(vm.Nodes.Single(n => n.Id == "round_deaths"));
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.HasFocus).IsTrue();
+            await Assert.That(vm.HasSavedLayout).IsTrue();
+            await Assert.That(vm.CanResetLayout).IsFalse().Because("the menu item is off while a slice is focused");
+        }
+
+        vm.ResetLayoutCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Toast?.Message).IsEqualTo(CanvasTabViewModel.ResetNeedsWholeChain);
+            await Assert.That(File.Exists(sidecar)).IsTrue();
+            await Assert.That(File.ReadAllText(sidecar)).IsEqualTo(saved);
+            await Assert.That(vm.HasFocus).IsTrue();
+        }
+
+        vm.ClearFocusCommand.Execute(null);
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Nodes.Single(n => n.Id == "round_kills").Location).IsEqualTo(new Point(1234, 567));
+            await Assert.That(vm.CanResetLayout).IsTrue();
+        }
+    }
+
+    [Test]
     public async Task AShippedRuleset_KeepsItsArrangementInTheExtensionsOwnFolder()
     {
         using RulesTree tree = RulesTree.WithShipped(Ruleset);
