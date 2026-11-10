@@ -85,7 +85,13 @@ public static class RulesetEntryText
     public static IReadOnlyList<EntryKey> KeysOf(string text, EntrySection section, string id)
     {
         ArgumentNullException.ThrowIfNull(text);
-        YamlDocumentText doc = RulesetDocumentEditor.Open(text).Document;
+        return KeysOf(RulesetDocumentEditor.Open(text).Document, section, id);
+    }
+
+    /// <summary>As <see cref="KeysOf(string, EntrySection, string)" />, over a document already parsed.</summary>
+    public static IReadOnlyList<EntryKey> KeysOf(YamlDocumentText doc, EntrySection section, string id)
+    {
+        ArgumentNullException.ThrowIfNull(doc);
         if (doc.Find(PathOf(section, id)) is not YamlMappingNode map)
         {
             return [];
@@ -107,9 +113,13 @@ public static class RulesetEntryText
     ///     The entry ids of <paramref name="section" /> whose id holds a <c>{key}</c> hole: the templates the
     ///     loader expands, which the canvas draws under their expanded ids.
     /// </summary>
-    public static IReadOnlyList<string> TemplateIds(string text, EntrySection section)
+    public static IReadOnlyList<string> TemplateIds(string text, EntrySection section) =>
+        TemplateIds(RulesetDocumentEditor.Open(text).Document, section);
+
+    /// <summary>As <see cref="TemplateIds(string, EntrySection)" />, over a document already parsed.</summary>
+    public static IReadOnlyList<string> TemplateIds(YamlDocumentText doc, EntrySection section)
     {
-        YamlDocumentText doc = RulesetDocumentEditor.Open(text).Document;
+        ArgumentNullException.ThrowIfNull(doc);
         YamlPath path = section switch { EntrySection.Highlight => _highlights, EntrySection.Define => _define, _ => YamlPath.Root.Key("stats") };
         return doc.Find(path) is YamlMappingNode map
             ? [.. map.Children.Keys.OfType<YamlScalarNode>().Select(k => k.Value).OfType<string>().Where(k => k.Contains('{'))]
@@ -124,14 +134,21 @@ public static class RulesetEntryText
     public static string? TemplateOf(string text, EntrySection section, string id)
     {
         ArgumentNullException.ThrowIfNull(text);
-        if (RulesetDocumentEditor.Open(text).Document.Find(PathOf(section, id)) is not null)
+        return TemplateOf(RulesetDocumentEditor.Open(text).Document, section, id);
+    }
+
+    /// <summary>As <see cref="TemplateOf(string, EntrySection, string)" />, over a document already parsed.</summary>
+    public static string? TemplateOf(YamlDocumentText doc, EntrySection section, string id)
+    {
+        ArgumentNullException.ThrowIfNull(doc);
+        if (doc.Find(PathOf(section, id)) is not null)
         {
             return null;
         }
 
-        foreach (string template in TemplateIds(text, section))
+        foreach (string template in TemplateIds(doc, section))
         {
-            IReadOnlyList<(string Key, IReadOnlyList<string> Values)> axes = RulesetEdits.ForEachOf(text, section, template);
+            IReadOnlyList<(string Key, IReadOnlyList<string> Values)> axes = RulesetEdits.ForEachOf(doc, section, template);
             if (axes.Count == 0)
             {
                 continue;

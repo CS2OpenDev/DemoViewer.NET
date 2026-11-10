@@ -60,7 +60,14 @@ public static class RulesetFixtureComment
     public static IReadOnlyList<string> Read(string text, EntrySection section, string id)
     {
         ArgumentNullException.ThrowIfNull(text);
-        YamlDocumentText doc = RulesetDocumentEditor.Open(text).Document;
+        return Read(RulesetDocumentEditor.Open(text).Document, section, id);
+    }
+
+    /// <summary>As <see cref="Read(string, EntrySection, string)" />, over a document already parsed.</summary>
+    public static IReadOnlyList<string> Read(YamlDocumentText doc, EntrySection section, string id)
+    {
+        ArgumentNullException.ThrowIfNull(doc);
+        string text = doc.Text;
         if (doc.FindKey(RulesetEntryText.PathOf(section, id)) is null)
         {
             return [];

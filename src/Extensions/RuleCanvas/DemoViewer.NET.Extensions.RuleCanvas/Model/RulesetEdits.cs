@@ -1460,9 +1460,13 @@ public static class RulesetEdits
     ///     The <c>for_each:</c> axes of an entry as written: each key with its values' source texts, in
     ///     document order; empty when the entry has none.
     /// </summary>
-    public static IReadOnlyList<(string Key, IReadOnlyList<string> Values)> ForEachOf(string text, EntrySection section, string id)
+    public static IReadOnlyList<(string Key, IReadOnlyList<string> Values)> ForEachOf(string text, EntrySection section, string id) =>
+        ForEachOf(RulesetDocumentEditor.Open(text).Document, section, id);
+
+    /// <summary>As <see cref="ForEachOf(string, EntrySection, string)" />, over a document already parsed.</summary>
+    public static IReadOnlyList<(string Key, IReadOnlyList<string> Values)> ForEachOf(YamlDocumentText doc, EntrySection section, string id)
     {
-        YamlDocumentText doc = RulesetDocumentEditor.Open(text).Document;
+        ArgumentNullException.ThrowIfNull(doc);
         if (doc.Find(RulesetEntryText.PathOf(section, id).Key("for_each")) is not YamlMappingNode map)
         {
             return [];

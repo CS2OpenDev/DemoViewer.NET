@@ -1,6 +1,7 @@
 #region
 
 using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
+using DemoViewer.NET.RuleAuthoring;
 
 #endregion
 
@@ -54,6 +55,26 @@ public static partial class CanvasEditSemantics
         try
         {
             return RulesetFixtureComment.Read(text, RulesetEntryText.SectionOf(node.Key, node.IsHighlight), node.Title);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or YamlDotNet.Core.YamlException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>As <see cref="FixtureOf(CanvasNodeViewModel, string)" />, over a document already parsed.</summary>
+    public static IReadOnlyList<string> FixtureOf(CanvasNodeViewModel node, YamlDocumentText doc)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        ArgumentNullException.ThrowIfNull(doc);
+        if (!node.IsEntry || !doc.Text.Contains(RulesetFixtureComment.Marker, StringComparison.Ordinal))
+        {
+            return [];
+        }
+
+        try
+        {
+            return RulesetFixtureComment.Read(doc, RulesetEntryText.SectionOf(node.Key, node.IsHighlight), node.Title);
         }
         catch (Exception ex) when (ex is InvalidOperationException or YamlDotNet.Core.YamlException)
         {

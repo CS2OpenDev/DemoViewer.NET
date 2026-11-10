@@ -1,3 +1,9 @@
+#region
+
+using DemoViewer.NET.RuleAuthoring;
+
+#endregion
+
 namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
 
 /// <summary>
@@ -27,7 +33,30 @@ public sealed record EntryCoverage(string EntryId, IReadOnlyList<(string Key, IR
     {
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(face);
-        if (face.IsScaffold || face.IsShow || face.IsParams || !face.IsAuthorable)
+        if (!IsCovered(face))
+        {
+            return None;
+        }
+
+        YamlDocumentText doc;
+        try
+        {
+            doc = RulesetDocumentEditor.Open(text).Document;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or YamlDotNet.Core.YamlException)
+        {
+            return None;
+        }
+
+        return Of(doc, face);
+    }
+
+    /// <summary>As <see cref="Of(string, NodeFace)" />, over a document already parsed, so a redraw parses its text once.</summary>
+    public static EntryCoverage Of(YamlDocumentText doc, NodeFace face)
+    {
+        ArgumentNullException.ThrowIfNull(doc);
+        ArgumentNullException.ThrowIfNull(face);
+        if (!IsCovered(face))
         {
             return None;
         }
@@ -37,19 +66,19 @@ public sealed record EntryCoverage(string EntryId, IReadOnlyList<(string Key, IR
         IReadOnlyList<EntryKey> keys;
         try
         {
-            keys = RulesetEntryText.KeysOf(text, section, id);
+            keys = RulesetEntryText.KeysOf(doc, section, id);
             if (keys.Count == 0)
             {
-                if (RulesetEntryText.TemplateOf(text, section, id) is not { } template)
+                if (RulesetEntryText.TemplateOf(doc, section, id) is not { } template)
                 {
                     return None;
                 }
 
                 id = template;
-                keys = RulesetEntryText.KeysOf(text, section, id);
+                keys = RulesetEntryText.KeysOf(doc, section, id);
             }
 
-            IReadOnlyList<(string, IReadOnlyList<string>)> axes = RulesetEdits.ForEachOf(text, section, id);
+            IReadOnlyList<(string, IReadOnlyList<string>)> axes = RulesetEdits.ForEachOf(doc, section, id);
             HashSet<string> covered = new(face.CoveredKeys, StringComparer.Ordinal) { "for_each" };
             return new EntryCoverage(id, axes, [.. keys.Where(k => !covered.Contains(k.Key))]);
         }
@@ -58,4 +87,6 @@ public sealed record EntryCoverage(string EntryId, IReadOnlyList<(string Key, IR
             return None;
         }
     }
+
+    private static bool IsCovered(NodeFace face) => face is { IsScaffold: false, IsShow: false, IsParams: false, IsAuthorable: true };
 }

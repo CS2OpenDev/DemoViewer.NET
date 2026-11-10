@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CS2DemoKit.Analysis.RulesetsV2.Model;
 using DemoViewer.NET.Extensions.RuleCanvas.Model;
+using DemoViewer.NET.RuleAuthoring;
 
 #endregion
 
@@ -721,14 +722,27 @@ public sealed partial class CanvasTabViewModel
         }
 
         ShowSurface surface = ShowSurface.Of(doc);
-        string text = _session.Text;
+        // Parsed once for every node: a node's readers would otherwise re-parse the whole document each.
+        YamlDocumentText? parsed = null;
+        if (_session.Text.Length > 0)
+        {
+            try
+            {
+                parsed = RulesetDocumentEditor.Open(_session.Text).Document;
+            }
+            catch (Exception ex) when (ex is YamlDotNet.Core.YamlException or InvalidOperationException)
+            {
+                // A text that does not parse has no coverage or fixture to show.
+            }
+        }
+
         foreach (CanvasNodeViewModel node in nodes)
         {
             // A define is not a value show: can surface.
             node.Surfacing = node.IsEntry && !node.IsDefine ? surface.BadgeFor(node.Id) : "";
             // What the text holds that the face does not: the for_each axes and the keys no row renders.
-            EntryCoverage coverage = node.Face is { } face && text.Length > 0 ? EntryCoverage.Of(text, face) : EntryCoverage.None;
-            IReadOnlyList<string> fixture = CanvasEditSemantics.FixtureOf(node, text);
+            EntryCoverage coverage = node.Face is { } face && parsed is not null ? EntryCoverage.Of(parsed, face) : EntryCoverage.None;
+            IReadOnlyList<string> fixture = parsed is null ? [] : CanvasEditSemantics.FixtureOf(node, parsed);
             node.TextChips =
             [
                 .. coverage.Chips.Select(c => new CanvasChip(c.Text, c.Tip)),
