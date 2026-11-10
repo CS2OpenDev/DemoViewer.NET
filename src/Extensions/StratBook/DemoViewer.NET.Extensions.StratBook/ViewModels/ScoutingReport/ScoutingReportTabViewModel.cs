@@ -145,6 +145,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <param name="now">Today, for "5d ago"; the clock when null.</param>
     /// <param name="layers">The layers; <see cref="ScoutingLayerCatalog.Create" /> when null.</param>
     /// <param name="minedPatterns">The Strat Mining patterns, null until mined; the strats layers are empty when null.</param>
+    /// <param name="positionsFingerprint">The fingerprint current positions carry per map; null accepts any file.</param>
     public ScoutingReportTabViewModel(TeamIdentityService teams, IExtensionLibrary library, VetoHistoryStore vetoes,
         bool? isBrowser = null,
         SetupHeatmapService? heatmaps = null,
@@ -164,7 +165,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Func<ISituationPlayback?>? playback = null,
         Func<DateTime>? now = null,
         IReadOnlyList<IScoutingLayer>? layers = null,
-        Func<IReadOnlyList<MinedPattern>?>? minedPatterns = null)
+        Func<IReadOnlyList<MinedPattern>?>? minedPatterns = null,
+        Func<string?, string>? positionsFingerprint = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -190,6 +192,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             Situational = situational,
             Grenades = grenades,
             RoundIndex = roundIndex,
+            PositionsFingerprint = positionsFingerprint,
             Playback = playback,
             MinedPatterns = minedPatterns,
             Renderer = renderer ?? (() => new SetupHeatmapRenderer())
@@ -807,8 +810,10 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
                     $"{map.Map} has {ScoutingLayerBase.Plural(map.Played, "map")} in the sample. Treat every percentage here as a hint, not a tendency.");
             }
 
+            // The services count their own misses; the layers that read positions themselves (retakes, opening
+            // duels, strat trails) count theirs on the shared reader, stale files included.
             int without = Max(Landed(data.Heatmaps)?.DemosWithoutPositions, Landed(data.Openings)?.DemosWithoutPositions,
-                Landed(data.PostPlant)?.DemosWithoutPositions);
+                Landed(data.PostPlant)?.DemosWithoutPositions, data.Positions.WithoutCount);
             if (without > 0)
             {
                 Notices.Add(

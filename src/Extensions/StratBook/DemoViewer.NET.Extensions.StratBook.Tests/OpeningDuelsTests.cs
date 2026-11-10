@@ -3,6 +3,7 @@
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Services.DemoCache;
@@ -208,7 +209,8 @@ public class OpeningDuelsTests
     {
         (DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store, Guid teamA) = await Library();
 
-        OpeningDuelSet set = OpeningDuelsService.Build(teams, cache.Library(), cache.RoundFacts(), store, teamA);
+        OpeningDuelSet set =
+            OpeningDuelsService.Build(teams, cache.Library(), cache.RoundFacts(), new PositionsReader(store, null), teamA);
         OpeningDuelBlock t = set.For("de_nuke", 2)!;
         OpeningDuelBlock ct = set.For("de_nuke", 3)!;
         using (Assert.Multiple())
@@ -232,6 +234,34 @@ public class OpeningDuelsTests
             await Assert.That(ct.FirstDeaths.Select(d => d.IsOpening)).IsEquivalentTo([true, false]);
             await Assert.That(ct.FirstDeaths.Select(d => d.Traded)).IsEquivalentTo([true, false]);
             await Assert.That(ct.FirstDeaths[1].Spot).IsEqualTo(new OpeningSpot(430, 5, 0, "Ramp"));
+        }
+    }
+
+    [Test]
+    public async Task StalePositions_ReadAsAbsent_AndCountTowardTheNotice()
+    {
+        (DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store, Guid teamA) = await Library();
+        PositionsReader current = new(store, _ => "any");
+        PositionsReader stale = new(store, _ => "rebuilt-since");
+        PositionsReader none = new(null, _ => "any");
+
+        OpeningDuelSet read = OpeningDuelsService.Build(teams, cache.Library(), cache.RoundFacts(), current, teamA);
+        OpeningDuelSet skipped = OpeningDuelsService.Build(teams, cache.Library(), cache.RoundFacts(), stale, teamA);
+        RoundPositionsDocument? again = stale.Read(Demo, "de_nuke", "abc123", out PositionsMiss miss);
+        none.Read(Demo, "de_nuke", "abc123", out PositionsMiss noIndex);
+        using (Assert.Multiple())
+        {
+            await Assert.That(read.DemosWithoutPositions).IsEqualTo(0);
+            await Assert.That(current.WithoutCount).IsEqualTo(0);
+            await Assert.That(skipped.DemosWithoutPositions).IsEqualTo(1)
+                .Because("a file built under another fingerprint is not the current positions");
+            await Assert.That(skipped.For("de_nuke", 2)!.Duels.All(d => d.Spot is null)).IsTrue()
+                .Because("no mark is drawn from a stale file");
+            await Assert.That(again).IsNull();
+            await Assert.That(miss).IsEqualTo(PositionsMiss.Stale);
+            await Assert.That(stale.StaleCount).IsEqualTo(1);
+            await Assert.That(stale.WithoutCount).IsEqualTo(1).Because("one demo, counted once");
+            await Assert.That(noIndex).IsEqualTo(PositionsMiss.NoIndex);
         }
     }
 

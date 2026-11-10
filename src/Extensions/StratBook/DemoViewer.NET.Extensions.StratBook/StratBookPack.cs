@@ -709,7 +709,8 @@ public sealed class StratBookPack : IExtension
                 playback: sp.GetService<ISituationPlayback>,
                 minedPatterns: () => sp.GetRequiredService<StratMiningService>() is { MinedUtc: not null } mining
                     ? [.. mining.Patterns.Select(p => p.Pattern)]
-                    : null);
+                    : null,
+                positionsFingerprint: sources.FingerprintFor);
         });
 
         // Lineup Clip Render: every repeated throw position and technique gets a GIF and its setpos line,

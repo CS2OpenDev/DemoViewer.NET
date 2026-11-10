@@ -48,7 +48,7 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
             {
                 try
                 {
-                    return OpeningDuelsService.Build(d.Sources.Teams, d.Sources.Library, facts, d.Sources.RoundIndex,
+                    return OpeningDuelsService.Build(d.Sources.Teams, d.Sources.Library, facts, d.Positions,
                         d.TeamId);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
