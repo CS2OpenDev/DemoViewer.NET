@@ -528,7 +528,11 @@ public sealed class PostPlantService
                 return;
             }
 
-            _spots.Add(new PlantSpotPoint(clip, p.X, p.Y, p.Z, site, round.WinnerSide == 2, round.T.BuyType));
+            if (round.IsDecided())
+            {
+                _spots.Add(new PlantSpotPoint(clip, p.X, p.Y, p.Z, site, round.WinnerSide == 2, round.T.BuyType));
+            }
+
             Cluster? nearest = _clusters
                 .Where(c => c.Site == site && c.DistanceTo(p) <= PlantClusterRadius)
                 .OrderBy(c => c.DistanceTo(p))

@@ -61,6 +61,11 @@ public static class RetakeRules
             return (RetakeKind.NoPlant, [], []);
         }
 
+        if (!round.IsDecided())
+        {
+            return (RetakeKind.Unread, [], []);
+        }
+
         if (positions is null || positions.CadenceTicks <= 0 || positions.Round(round.Number) is not { } stored
             || PlantPosition(positions, round, capture) is not { } bomb)
         {

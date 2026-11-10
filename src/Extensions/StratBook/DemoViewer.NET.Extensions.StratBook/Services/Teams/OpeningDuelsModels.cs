@@ -77,6 +77,8 @@ public sealed record OpeningSpot(int X, int Y, int Z, string? Place, bool Exact 
 /// <param name="Traded">Lost duels only: the killer died to a teammate within the trade window.</param>
 /// <param name="RoundWon">The team won the round.</param>
 /// <param name="Spot">The team's player at the kill (killer or victim); null without positions.</param>
+/// <param name="RoundDecided">The round has a winner; false for a recording cut off mid-round, where
+/// <paramref name="RoundWon" /> carries no result and the round stays out of "won after" counts.</param>
 public sealed record OpeningDuelRound(
     TendencyRound Clip,
     TendencyRound Rest,
@@ -85,7 +87,8 @@ public sealed record OpeningDuelRound(
     bool Won,
     bool Traded,
     bool RoundWon,
-    OpeningSpot? Spot);
+    OpeningSpot? Spot,
+    bool RoundDecided = true);
 
 /// <summary>The team's first death to an enemy in a round.</summary>
 /// <param name="Clip">The clip around the death.</param>

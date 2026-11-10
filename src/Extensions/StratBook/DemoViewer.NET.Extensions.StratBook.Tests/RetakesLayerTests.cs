@@ -258,6 +258,20 @@ public class RetakesLayerTests
     }
 
     [Test]
+    public async Task ACutOffRound_IsUnread_NotALostRetake()
+    {
+        RoundPositionsDocument positions = Positions(s => [P(0, 3000, 0), P(1, 3000, 0)]);
+
+        RetakeRound round = RetakeService.Round("de_nuke", Demo, "abc", Rate, positions, Facts(0));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(round.Kind).IsEqualTo(RetakeKind.Unread);
+            await Assert.That(round.Saves).IsEmpty();
+        }
+    }
+
+    [Test]
     public async Task TheRound_ReadsTheManCountAndClip_FromTheFactsAndThePositions()
     {
         RoundPositionsDocument positions = Positions(s => [P(0, s >= 45 ? 100 : 3000, 0), P(1, s >= 46 ? 120 : 3000, 0)]);

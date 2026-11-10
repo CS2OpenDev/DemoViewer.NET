@@ -200,6 +200,11 @@ public static class TeamMapFactsService
 
         public void Add(RoundFacts round, int side, int rate)
         {
+            if (!round.IsDecided())
+            {
+                return;
+            }
+
             bool won = round.WinnerSide == side;
             if (side == 3)
             {

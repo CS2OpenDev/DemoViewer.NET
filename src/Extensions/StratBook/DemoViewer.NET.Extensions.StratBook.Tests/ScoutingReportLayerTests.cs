@@ -70,6 +70,13 @@ public class ScoutingReportLayerTests
         ]
     };
 
+    private static RoundFactsRows Rows(RoundFacts? extra) => extra is null
+        ? Rows()
+        : new RoundFactsRows
+        {
+            Schema = Rows().Schema, Clock = Rows().Clock, Rounds = [.. Rows().Rounds, extra]
+        };
+
     private static DemoCacheRecord Record(string path, string map, int day, RoundFactsRows? rows)
     {
         DemoCacheRecord record = new()
@@ -106,14 +113,14 @@ public class ScoutingReportLayerTests
     }
 
     private static async Task<(DemoCacheStore Cache, TeamIdentityService Teams, Guid TeamA, PostPlantService PostPlant)>
-        Library()
+        Library(RoundFacts? extra = null)
     {
         DemoCacheStore cache = new(null);
         TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
         await teams.StartAsync();
         using (cache.BeginBatch())
         {
-            cache.Upsert(Record(Demo, "de_nuke", 0, Rows()));
+            cache.Upsert(Record(Demo, "de_nuke", 0, Rows(extra)));
             cache.Upsert(Record("/d/other.dem", "de_mirage", 1, null));
         }
 
@@ -124,6 +131,23 @@ public class ScoutingReportLayerTests
             sources.FingerprintFor);
         Guid teamA = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(1)) == true)).Id;
         return (cache, teams, teamA, postPlant);
+    }
+
+    [Test]
+    public async Task ARecordingCutOffMidRound_IsNeitherAWinNorALoss_InThePool()
+    {
+        // Team A is on CT in round 7: a row with no winner must not read as a CT loss.
+        (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library(Round(7, false, 0));
+
+        TeamMapFacts nuke = TeamMapFactsService.Build(teams, cache.Library(), new RoundFactsSource(cache), teamA)
+            .For("de_nuke")!;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(nuke.CtPlayed).IsEqualTo(3);
+            await Assert.That(nuke.CtWon).IsEqualTo(1);
+            await Assert.That(nuke.TPlayed).IsEqualTo(3);
+        }
     }
 
     [Test]

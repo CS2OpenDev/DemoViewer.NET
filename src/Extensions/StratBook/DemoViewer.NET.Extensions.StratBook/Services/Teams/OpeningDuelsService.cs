@@ -323,7 +323,8 @@ public static class OpeningDuelsService
                     duel.Won,
                     !duel.Won && Traded(capture, round, duel.Kill, side, demo.Rate),
                     won,
-                    Spot(demo, capture, round, duel.Kill, duel.Slot, !duel.Won)));
+                    Spot(demo, capture, round, duel.Kill, duel.Slot, !duel.Won),
+                    round.IsDecided()));
             }
 
             if (FirstDeath(round, side) is { } death)

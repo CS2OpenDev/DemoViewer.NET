@@ -100,6 +100,13 @@ public class OpeningDuelsTests
         ]
     };
 
+    private static RoundFactsRows Rows(RoundFacts? extra) => extra is null
+        ? Rows()
+        : new RoundFactsRows
+        {
+            Schema = Rows().Schema, Clock = Rows().Clock, Rounds = [.. Rows().Rounds, extra]
+        };
+
     private static DemoCacheRecord Record(string path, string map, int day, RoundFactsRows? rows)
     {
         DemoCacheRecord record = new()
@@ -136,14 +143,14 @@ public class OpeningDuelsTests
     }
 
     private static async Task<(DemoCacheStore Cache, TeamIdentityService Teams, RoundIndexStore Store, Guid TeamA)>
-        Library()
+        Library(RoundFacts? extra = null)
     {
         DemoCacheStore cache = new(null);
         TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
         await teams.StartAsync();
         using (cache.BeginBatch())
         {
-            cache.Upsert(Record(Demo, "de_nuke", 0, Rows()));
+            cache.Upsert(Record(Demo, "de_nuke", 0, Rows(extra)));
             cache.Upsert(Record("/d/other.dem", "de_mirage", 1, null));
         }
 
@@ -306,6 +313,26 @@ public class OpeningDuelsTests
             await Assert.That(OpeningLayer.Precision(staleT)).IsEqualTo("position ±1 s");
             await Assert.That(OpeningLayer.Precision(new OpeningDuelBlock { ExactDemos = 3, SampledDemos = 2 }))
                 .IsEqualTo("exact position in 3 demos, ±1 s in 2 demos");
+        }
+    }
+
+    [Test]
+    public async Task ARecordingCutOffMidRound_KeepsItsDuel_ButNotItsResult()
+    {
+        // Round 7: team A on CT, p3 wins the opening, no winner recorded.
+        (DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store, Guid teamA) =
+            await Library(Round(7, false, 0, Kill(7, 6, 3, 7)));
+
+        OpeningDuelBlock ct = OpeningDuelsService
+            .Build(teams, cache.Library(), cache.RoundFacts(), new PositionsReader(store, null), teamA).For("de_nuke", 3)!;
+
+        OpeningDuelRound cut = ct.Duels[^1];
+        using (Assert.Multiple())
+        {
+            await Assert.That(cut.Clip.RoundNumber).IsEqualTo(7);
+            await Assert.That(cut.Won).IsTrue();
+            await Assert.That(cut.RoundDecided).IsFalse();
+            await Assert.That(ct.Duels.Take(ct.Duels.Count - 1).All(d => d.RoundDecided)).IsTrue();
         }
     }
 
