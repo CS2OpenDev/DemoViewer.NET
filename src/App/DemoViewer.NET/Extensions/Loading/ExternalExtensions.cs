@@ -296,8 +296,8 @@ public static class ExternalExtensions
         string? logDetail = null) =>
         new(candidate.Directory, candidate.Manifest, failure, detail, logDetail, External: true);
 
-    // <extensions>/<id>/<version>: the id folder of a discovery outcome.
-    private static string IdFolderOf(string extensionsDirectory, string path)
+    /// <summary>The id folder of a path under the extensions folder: <c>&lt;extensions&gt;/&lt;id&gt;[/&lt;version&gt;]</c>.</summary>
+    internal static string IdFolderOf(string extensionsDirectory, string path)
     {
         string relative = Path.GetRelativePath(extensionsDirectory, path);
         int separator = relative.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);

@@ -719,13 +719,7 @@ public sealed class ExtensionUpdateService
         }
     }
 
-    // <extensions>/<id>/<version> or <extensions>/<id>: the id folder of a refused directory.
-    private string IdFolderOf(string path)
-    {
-        string relative = Path.GetRelativePath(_extensionsDirectory, path);
-        int separator = relative.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
-        return separator < 0 ? relative : relative[..separator];
-    }
+    private string IdFolderOf(string path) => ExternalExtensions.IdFolderOf(_extensionsDirectory, path);
 
     // A shipped id, or one with a status this run: its own row covers it, so the catalogue never lists it.
     private bool IsShippedOrDeclared(string id) =>
