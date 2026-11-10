@@ -121,6 +121,12 @@ public class ScoutingReportShellRenderTests
                 UxConsistencyRenderTests.Settle();
                 UxConsistencyRenderTests.Save(window, $"p4-scouting-awp-mirage-{theme}-{width}.png");
 
+                // The T side's default layer on the single-floor map.
+                vm.Side = ScoutingSide.T;
+                await ScoutingReportTestKit.Settle(vm, posted);
+                UxConsistencyRenderTests.Settle();
+                UxConsistencyRenderTests.Save(window, $"p4-scouting-t-mirage-{theme}-{width}.png");
+
                 // And the T side's default layer back on de_nuke.
                 vm.SelectMapCommand.Execute(vm.Maps.Single(m => m.Map == "de_nuke"));
                 vm.Side = ScoutingSide.T;
@@ -140,7 +146,7 @@ public class ScoutingReportShellRenderTests
                 .Because("each floor of a stacked map gets a full band, not half of one map's height");
             await Assert.That(mono).IsFalse().Because("the export label is a word, not code");
             await Assert.That(shown).Contains("Map pool");
-            await Assert.That(shown.Any(t => t.StartsWith("de_nuke · CT · all buys", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(shown.Any(t => t.StartsWith("Nuke · CT · all buys", StringComparison.Ordinal))).IsTrue();
         }
     }
 
