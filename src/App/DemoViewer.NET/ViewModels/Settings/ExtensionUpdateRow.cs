@@ -38,6 +38,7 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(HasMessage))]
     [NotifyPropertyChangedFor(nameof(CanUpdate))]
     [NotifyPropertyChangedFor(nameof(CanCheck))]
+    [NotifyPropertyChangedFor(nameof(CanRemove))]
     private bool _isChecking;
 
     /// <summary>True while a download is in flight; the row shows progress and a Cancel button.</summary>
@@ -47,6 +48,7 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(CanUpdate))]
     [NotifyPropertyChangedFor(nameof(CanCheck))]
     [NotifyPropertyChangedFor(nameof(ShowCheck))]
+    [NotifyPropertyChangedFor(nameof(CanRemove))]
     private bool _isDownloading;
 
     /// <summary>Bytes received so far, while downloading.</summary>
