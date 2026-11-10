@@ -36,7 +36,7 @@ public class CompatibilityMatrixTests
     {
         string repoRoot = DemoTestHelper.RequireRepoRootOrFail(nameof(CompatibilityMatrixTests));
         string repoPath = Path.Combine(repoRoot, "src", "Extensions", "StratBook", ExtensionManifest.FileName);
-        string binPath = Path.Combine(AppContext.BaseDirectory, ExtensionManifest.FileName);
+        string binPath = Path.Combine(AppContext.BaseDirectory, StratBookPack.PackId + "." + ExtensionManifest.FileName);
         string template = await File.ReadAllTextAsync(repoPath);
         string stampedText = await File.ReadAllTextAsync(binPath);
         ExtensionManifest fromBin = ExtensionManifest.Parse(stampedText);
@@ -59,7 +59,7 @@ public class CompatibilityMatrixTests
     [Test]
     public async Task ShippedManifest_BesideTheExtensionBinary_MatchesTheEmbeddedCopy_AndTheAssemblyVersion()
     {
-        string binPath = Path.Combine(AppContext.BaseDirectory, ExtensionManifest.FileName);
+        string binPath = Path.Combine(AppContext.BaseDirectory, StratBookPack.PackId + "." + ExtensionManifest.FileName);
         await Assert.That(File.Exists(binPath)).IsTrue().Because($"the bin copy must exist at {binPath}");
 
         ExtensionManifest fromBin = ExtensionManifest.Parse(await File.ReadAllTextAsync(binPath));
