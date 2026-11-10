@@ -227,9 +227,10 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             MinedPatterns = minedPatterns,
             Renderer = renderer ?? (() => new SetupHeatmapRenderer())
         };
-        Editor = new ScoutingReportEditorViewModel(_notes, IsBrowser, export);
+        Editor = new ScoutingReportEditorViewModel(_notes, IsBrowser, export, ExportHeader);
         Editor.StarsChanged += OnStarsChanged;
         Layers = new ScoutingLayerRegistry(layers ?? ScoutingLayerCatalog.Create(), _post, this);
+        Editor.LayerOrder = [.. Layers.All.Select(c => c.Id)];
         Layers.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ScoutingLayerRegistry.Focused))

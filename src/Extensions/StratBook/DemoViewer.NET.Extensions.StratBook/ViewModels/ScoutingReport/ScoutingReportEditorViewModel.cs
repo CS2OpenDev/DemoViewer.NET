@@ -3,6 +3,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Services.Generated;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
@@ -22,13 +23,43 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 /// <param name="Image">Reads the line's PNG when it is exported; null for a text line.</param>
 /// <param name="Map">The map a map-specific line is about; null for the team as a whole.</param>
 /// <param name="Suggested">Starts starred the first time it is built (once ever per team).</param>
+/// <param name="Stage">What the line's layer draws on the map stage, for the one-pager's picture; null off the stage.</param>
 public sealed record ScoutingReportFindingSource(
     string Key,
     string Section,
     string Generated,
     Func<byte[]?>? Image = null,
     string? Map = null,
-    bool Suggested = false);
+    bool Suggested = false,
+    ScoutingReportStageLayer? Stage = null);
+
+/// <summary>A map layer's marks for one map and side, as the build drew them: what a stage picture draws for its lines.</summary>
+/// <param name="LayerId">The layer id.</param>
+/// <param name="Name">The layer's name on the side: "Setups".</param>
+/// <param name="Marks">The marks.</param>
+public sealed record ScoutingReportStageLayer(string LayerId, string Name, IReadOnlyList<ScoutingMapMark> Marks);
+
+/// <summary>The identity block and roster line, read from the tab at export time.</summary>
+public sealed record ScoutingReportHeader
+{
+    /// <summary>"61% of 23 maps (14-9)".</summary>
+    public string RecordLine { get; init; } = "";
+
+    /// <summary>"VRS 12 (set 2026-11-01)", one per rank set.</summary>
+    public IReadOnlyList<string> Ranks { get; init; } = [];
+
+    /// <summary>"Aug 1, 2026 to Nov 8, 2026".</summary>
+    public string DateRangeLine { get; init; } = "";
+
+    public string OpponentMixLine { get; init; } = "";
+
+    public string HeadToHeadLine { get; init; } = "";
+
+    public IReadOnlyList<ScoutingReportRosterEntry> Roster { get; init; } = [];
+
+    /// <summary>"every map" or "de_nuke": where the ratings are counted.</summary>
+    public string RosterScope { get; init; } = "";
+}
 
 /// <summary>
 ///     Scouting Report Editing And Export: every layer's reads and rows over every map and side as findings,
@@ -36,8 +67,13 @@ public sealed record ScoutingReportFindingSource(
 ///     is editable (rewritten, reset, left out), the user adds notes and a summary beside them, and the export
 ///     writes either form as self-contained HTML or Markdown, the one-pager by default.
 ///     <para>
-///         <b>No verdicts.</b> A finding is a count over its stated sample; the export adds no rating, no
-///         grade and no win probability.
+///         <b>The one-pager's pictures.</b> Each map and side with a starred line from a map layer gets one stage
+///         picture: the radar with the marks of those layers, in registry order. The long form keeps the lines' own
+///         pictures (the setup heatmaps) instead. Markdown carries no picture.
+///     </para>
+///     <para>
+///         <b>Ratings.</b> The roster line prints each player's composite rating (spec Q5). Every other number is
+///         a finding's own count over its stated sample.
 ///     </para>
 ///     <para>
 ///         <b>Stars, edits and dismissals live in <see cref="ScoutingReportNotesStore" /> by scope key.</b> The
@@ -53,7 +89,11 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     public const string VetoSection = "Veto history";
     public const string NotesSection = "Notes";
 
+    private static readonly IReadOnlyList<string> _catalogOrder = [.. ScoutingLayerCatalog.Create().Select(l => l.Id)];
+
     private readonly Func<string, string, string, string?> _export;
+    private readonly Func<ScoutingReportHeader>? _header;
+    private readonly Func<string, IReadOnlyList<ScoutingMapMark>, byte[]?> _renderStage;
     private readonly List<ScoutingReportFindingViewModel> _rows = [];
     private readonly ScoutingReportNotesStore _store;
     private bool _loading;
@@ -95,14 +135,22 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     /// <param name="store">Where stars, edits, notes and the summary persist.</param>
     /// <param name="isBrowser">Whether the host is the WASM head; Export has no file to write there.</param>
     /// <param name="export">Writes (text, stem, extension) and opens it, returning the path or null; the temp-file writer when null.</param>
+    /// <param name="header">Reads the identity block and roster at export time; none printed when null.</param>
+    /// <param name="renderStage">Draws (map, marks) as a stage PNG, or null; the app's renderer when null.</param>
     public ScoutingReportEditorViewModel(ScoutingReportNotesStore store, bool isBrowser = false,
-        Func<string, string, string, string?>? export = null)
+        Func<string, string, string, string?>? export = null, Func<ScoutingReportHeader>? header = null,
+        Func<string, IReadOnlyList<ScoutingMapMark>, byte[]?>? renderStage = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         _store = store;
         IsBrowser = isBrowser;
         _export = export ?? ScoutingReportExportWriter.WriteAndOpen;
+        _header = header;
+        _renderStage = renderStage ?? ScoutingStageRenderer.TryRender;
     }
+
+    /// <summary>The layer ids in the order lines print under a side: the registry's chip order.</summary>
+    public IReadOnlyList<string> LayerOrder { get; set; } = _catalogOrder;
 
     public bool IsBrowser { get; }
 
@@ -281,27 +329,106 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         StarsChanged?.Invoke();
     }
 
-    /// <summary>The document as it will print, with the user's edits applied and left-out lines dropped.</summary>
-    public ScoutingReportDocument Document() => new()
+    /// <summary>
+    ///     The document as it will print, with the user's edits applied and left-out lines dropped. The one-pager
+    ///     carries the stage pictures, the long form the lines' own pictures; neither renders without
+    ///     <paramref name="images" />.
+    /// </summary>
+    /// <param name="images">Render the pictures: false for Markdown, which carries none.</param>
+    public ScoutingReportDocument Document(bool images = true)
     {
-        TeamName = _teamName,
-        SampleLine = _sampleLine,
-        Summary = Summary.Trim(),
-        Findings =
-        [
-            .. _rows.Where(r => !r.IsHidden).Select(r => new ScoutingReportFinding
+        ScoutingReportHeader header = _header?.Invoke() ?? new ScoutingReportHeader();
+        bool longForm = ExportForm == ScoutingReportForm.LongForm;
+        return new ScoutingReportDocument
+        {
+            TeamName = _teamName,
+            SampleLine = _sampleLine,
+            RecordLine = header.RecordLine,
+            Ranks = header.Ranks,
+            DateRangeLine = header.DateRangeLine,
+            OpponentMixLine = header.OpponentMixLine,
+            HeadToHeadLine = header.HeadToHeadLine,
+            Roster = header.Roster,
+            RosterScope = header.RosterScope,
+            Summary = Summary.Trim(),
+            LayerOrder = LayerOrder,
+            Findings =
+            [
+                .. _rows.Where(r => !r.IsHidden).Select(r => new ScoutingReportFinding
+                {
+                    Key = r.Key,
+                    Section = r.Section,
+                    Text = r.Text,
+                    IsStarred = r.IsStarred,
+                    ImagePng = images && longForm ? r.Image?.Invoke() : null
+                })
+            ],
+            Stages = longForm ? [] : Stages(images)
+        };
+    }
+
+    /// <summary>
+    ///     One picture per map and side with a starred line from a map layer: the marks of each such layer (once,
+    ///     in registry order) over the map. A side whose render comes back empty prints its lines alone. Without
+    ///     <paramref name="render" /> the pictures are listed with no PNG, so Markdown can say where they are.
+    /// </summary>
+    /// <param name="render">Draw the pictures.</param>
+    private List<ScoutingReportStageImage> Stages(bool render)
+    {
+        List<(string Map, string Side)> order = [];
+        Dictionary<(string Map, string Side), Dictionary<string, ScoutingReportStageLayer>> layers = [];
+        foreach (ScoutingReportFindingViewModel row in _rows)
+        {
+            if (row is not { IsStarred: true, IsHidden: false, Stage: { } stage }
+                || ScoutingReportStarKeys.Parse(row.Key) is not { } parsed
+                || parsed.Scope.Map.Length == 0 || parsed.Scope.Side.Length == 0)
             {
-                Key = r.Key,
-                Section = r.Section,
-                Text = r.Text,
-                IsStarred = r.IsStarred,
-                ImagePng = r.IsStarred || ExportForm == ScoutingReportForm.LongForm ? r.Image?.Invoke() : null
-            })
-        ]
-    };
+                continue;
+            }
+
+            (string, string) at = (parsed.Scope.Map, parsed.Scope.Side);
+            if (!layers.TryGetValue(at, out Dictionary<string, ScoutingReportStageLayer>? drawn))
+            {
+                order.Add(at);
+                layers[at] = drawn = new Dictionary<string, ScoutingReportStageLayer>(StringComparer.Ordinal);
+            }
+
+            drawn.TryAdd(stage.LayerId, stage);
+        }
+
+        List<ScoutingReportStageImage> stages = [];
+        foreach ((string map, string side) in order)
+        {
+            List<ScoutingReportStageLayer> drawn = [.. layers[(map, side)].Values.OrderBy(l => Rank(l.LayerId))];
+            List<ScoutingMapMark> marks = [.. drawn.SelectMany(l => l.Marks)];
+            byte[] png = [];
+            if (marks.Count == 0 || (render && (png = _renderStage(map, marks) ?? []).Length == 0))
+            {
+                continue;
+            }
+
+            stages.Add(new ScoutingReportStageImage(map, side,
+                $"{map} {side} · {string.Join(", ", drawn.Select(l => l.Name))}", png));
+        }
+
+        return stages;
+    }
+
+    private int Rank(string layerId)
+    {
+        for (int i = 0; i < LayerOrder.Count; i++)
+        {
+            if (string.Equals(LayerOrder[i], layerId, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return LayerOrder.Count;
+    }
 
     /// <summary>The chosen form as Markdown, for the Copy button.</summary>
-    public string MarkdownText() => ScoutingReportExporter.Markdown(Document(), ExportForm);
+    public string MarkdownText() => ScoutingReportExporter.Markdown(Document(false), ExportForm);
 
     /// <summary>The line the Copy button leaves once the clipboard took the text.</summary>
     public void ReportCopied() => ExportLine = ExportForm == ScoutingReportForm.OnePager
@@ -331,7 +458,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             return;
         }
 
-        ScoutingReportDocument doc = Document();
+        ScoutingReportDocument doc = Document(ExportFormat == ScoutingReportFormat.Html);
         (string text, string extension) = ExportFormat == ScoutingReportFormat.Html
             ? (ScoutingReportExporter.Html(doc, ExportForm), ".html")
             : (ScoutingReportExporter.Markdown(doc, ExportForm), ".md");
@@ -480,6 +607,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                             source.Image)
                         {
                             Map = source.Map,
+                            Stage = source.Stage,
                             IsStarred = starred.Contains(source.Key),
                             IsHidden = hidden.Contains(source.Key)
                         });
@@ -640,11 +768,14 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         }
 
         string section = $"{context.Prefix} · {layer.NameFor(context.Side)}";
+        ScoutingReportStageLayer? stage = layer.Placement == ScoutingLayerPlacement.Map && result.Marks.Count > 0
+            ? new ScoutingReportStageLayer(layer.Id, layer.NameFor(context.Side), result.Marks)
+            : null;
         foreach (ScoutingRead read in result.Reads)
         {
             yield return new ScoutingReportFindingSource(
                 ScoutingReportStarKeys.Key(context.Scope(layer, read.Buy), read.StarText), section, read.Text,
-                read.Image, context.Map, read.Suggested);
+                read.Image, context.Map, read.Suggested, stage);
         }
 
         foreach (ScoutingInspectorRow row in result.Sections.SelectMany(s => s.Rows))
@@ -656,7 +787,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 
             yield return new ScoutingReportFindingSource(
                 ScoutingReportStarKeys.Key(context.Scope(layer, row.Buy), row.KeyText), section,
-                $"{row.KeyText}: {row.Value}", Map: context.Map);
+                $"{row.KeyText}: {row.Value}", Map: context.Map, Stage: stage);
         }
     }
 
@@ -723,6 +854,9 @@ public sealed partial class ScoutingReportFindingViewModel : ObservableObject
 
     /// <summary>The map a map-specific line sits under; null for the team as a whole and for notes.</summary>
     public string? Map { get; init; }
+
+    /// <summary>What the line's layer draws on the stage, for the one-pager's picture; null off the stage.</summary>
+    public ScoutingReportStageLayer? Stage { get; init; }
 
     public string Section { get; }
 

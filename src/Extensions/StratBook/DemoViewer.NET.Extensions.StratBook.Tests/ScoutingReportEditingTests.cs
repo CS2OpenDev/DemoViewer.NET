@@ -71,7 +71,7 @@ public class ScoutingReportEditingTests
         using (Assert.Multiple())
         {
             await Assert.That(md).StartsWith("# Falcons <B> one-pager\n");
-            await Assert.That(md).Contains("Sample: 6 demos across 2 maps");
+            await Assert.That(md).Contains("**Sample:** 6 demos across 2 maps");
             await Assert.That(md).Contains("They default A on pistols.");
             await Assert.That(md).Contains("## Map Pool Record\n\n- de_nuke: 2 played\n");
             await Assert.That(md).DoesNotContain("de_mirage");
@@ -122,25 +122,44 @@ public class ScoutingReportEditingTests
         }
     }
 
+    // Spec Q5: the "no rating, no grade, no win probability" rule is dropped. The roster line prints each
+    // player's composite rating in both forms and both files; the exporter still writes no verdict of its own,
+    // so a document with no roster and no such words in its lines prints none.
     [Test]
-    public async Task TheExport_AddsNoRatingGradeOrWinProbability()
+    public async Task TheExport_PrintsTheRosterRating_AndAddsNoVerdictOfItsOwn()
     {
-        ScoutingReportDocument doc = Doc(Line("a", "Map Pool Record", "de_nuke: 2 played, 1-1", starred: true));
-
-        foreach (string text in new[]
-                 {
-                     ScoutingReportExporter.Markdown(doc), ScoutingReportExporter.Html(doc),
-                     ScoutingReportExporter.Markdown(doc, ScoutingReportForm.LongForm),
-                     ScoutingReportExporter.Html(doc, ScoutingReportForm.LongForm)
-                 })
+        ScoutingReportFinding line = Line("a", "Map Pool Record", "de_nuke: 2 played, 1-1", starred: true);
+        ScoutingReportDocument rated = new()
         {
-            string lower = text.ToLowerInvariant();
-            using (Assert.Multiple())
+            TeamName = "Falcons",
+            Roster = [new ScoutingReportRosterEntry("m0NESY", "AWP", "1.21"), new("kyxsan", "IGL", "—")],
+            RosterScope = "every map",
+            Findings = [line]
+        };
+        ScoutingReportDocument bare = Doc(line);
+
+        foreach (ScoutingReportForm form in (ScoutingReportForm[])[ScoutingReportForm.OnePager, ScoutingReportForm.LongForm])
+        {
+            foreach (string text in (string[])[ScoutingReportExporter.Markdown(rated, form), ScoutingReportExporter.Html(rated, form)])
             {
-                await Assert.That(lower).DoesNotContain("rating");
-                await Assert.That(lower).DoesNotContain("grade");
-                await Assert.That(lower).DoesNotContain("probability");
-                await Assert.That(lower).DoesNotContain("chance");
+                using (Assert.Multiple())
+                {
+                    await Assert.That(text).Contains("Roster (role, rating over every map)");
+                    await Assert.That(text).Contains("m0NESY (AWP, 1.21)");
+                    await Assert.That(text).Contains("kyxsan (IGL, —)");
+                }
+            }
+
+            foreach (string text in (string[])[ScoutingReportExporter.Markdown(bare, form), ScoutingReportExporter.Html(bare, form)])
+            {
+                string lower = text.ToLowerInvariant();
+                using (Assert.Multiple())
+                {
+                    await Assert.That(lower).DoesNotContain("rating");
+                    await Assert.That(lower).DoesNotContain("grade");
+                    await Assert.That(lower).DoesNotContain("probability");
+                    await Assert.That(lower).DoesNotContain("chance");
+                }
             }
         }
     }
@@ -330,7 +349,7 @@ public class ScoutingReportEditingTests
         editor.ShowStarredOnly = true;
         using (Assert.Multiple())
         {
-            await Assert.That(md).Contains("- de_nuke: their best map");
+            await Assert.That(md).Contains("### Map-wide\n\n- **Map pool:** de_nuke: their best map\n");
             await Assert.That(md).Contains("Slow defaults.");
             await Assert.That(md).DoesNotContain("BombsiteA");
             await Assert.That(doc.Findings.Single(f => f.Key == SetupKey).ImagePng).IsNull()
@@ -482,7 +501,8 @@ public class ScoutingReportEditingTests
         {
             await Assert.That(written.Single()).Contains("one-pager");
             await Assert.That(written.Single()).Contains("de_nuke: 1 played");
-            await Assert.That(written.Single()).DoesNotContain("de_mirage");
+            await Assert.That(written.Single()).DoesNotContain("de_mirage: ")
+                .Because("the unstarred map line is off; the roster scope may still name the map in view");
         }
 
         vm.SelectedTeam = null;
