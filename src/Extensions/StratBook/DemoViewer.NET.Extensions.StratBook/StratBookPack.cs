@@ -323,14 +323,17 @@ public sealed class StratBookPack : IExtension
             StratStore strats = sp.GetRequiredService<StratStore>();
             ScoutingReportNotesStore notes = sp.GetRequiredService<ScoutingReportNotesStore>();
             VetoHistoryStore vetoes = sp.GetRequiredService<VetoHistoryStore>();
+            TeamRanksStore ranks = sp.GetRequiredService<TeamRanksStore>();
 
             void Report() => teams.SetReferencedTeams(
-                strats.Index.Select(e => e.Owner.TeamId).OfType<Guid>().Concat(notes.TeamIds).Concat(vetoes.TeamIds));
+                strats.Index.Select(e => e.Owner.TeamId).OfType<Guid>().Concat(notes.TeamIds).Concat(vetoes.TeamIds)
+                    .Concat(ranks.TeamIds));
 
             Report();
             strats.Changed += _ => Report();
             notes.Changed += Report;
             vetoes.Changed += Report;
+            ranks.Changed += Report;
             return teams;
         });
         // Demo Provenance Labels: the override from teams.json else the heuristic over the cache row and
@@ -657,6 +660,10 @@ public sealed class StratBookPack : IExtension
         // browser) keeps entries in memory for the session.
         services.AddSingleton(sp =>
             new VetoHistoryStore(StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.VetoHistory))));
+        // The Scouting Report's manual VRS and HLTV ranks, per team, beside the veto history; session-only on the
+        // browser the same way.
+        services.AddSingleton(sp =>
+            new TeamRanksStore(StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.TeamRanks))));
         // Scouting Report Editing And Export: the user's stars, rewritten lines, notes and summary per team, beside
         // the veto history; session-only on the browser the same way.
         services.AddSingleton(sp =>
@@ -675,6 +682,7 @@ public sealed class StratBookPack : IExtension
                 sp.GetRequiredService<TeamIdentityService>(),
                 Library(sp),
                 sp.GetRequiredService<VetoHistoryStore>(),
+                ranks: sp.GetRequiredService<TeamRanksStore>(),
                 heatmaps: new SetupHeatmapService(
                     sp.GetRequiredService<TeamIdentityService>(),
                     Library(sp),
