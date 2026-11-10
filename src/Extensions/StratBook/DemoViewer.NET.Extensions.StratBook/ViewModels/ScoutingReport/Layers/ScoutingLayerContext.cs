@@ -24,6 +24,9 @@ public sealed class ScoutingReportSources
 
     public IRoundFacts? RoundFacts { get; init; }
 
+    /// <summary>The library's analysis facts, for the players table's <c>player_match</c> numbers; none when null.</summary>
+    public IAnalysisFacts? AnalysisFacts { get; init; }
+
     public SetupHeatmapService? Heatmaps { get; init; }
 
     public OpeningTendenciesService? Openings { get; init; }

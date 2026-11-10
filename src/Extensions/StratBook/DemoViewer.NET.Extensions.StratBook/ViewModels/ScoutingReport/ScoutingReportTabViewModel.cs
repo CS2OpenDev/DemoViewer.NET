@@ -57,6 +57,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     private readonly ScoutingReportSources _sources;
     private readonly TeamIdentityService _teams;
     private readonly VetoHistoryStore _vetoes;
+    private readonly ScoutingReportNotesStore _notes;
+    private readonly Func<ulong, PlayerOverviewScope?, bool>? _openPlayerOverview;
 
     // The long form's layer lines for the current loads, by map; empty until every load has landed.
     private IReadOnlyList<ScoutingReportFindingSource> _layerFindings = [];
@@ -152,6 +154,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <param name="positionsFingerprint">The fingerprint current positions carry per map; null accepts any file.</param>
     /// <param name="siteRegions">A map's site regions for the Setups areas; distance alone when null.</param>
     /// <param name="fakes">A demo's current fake proposals for the Setups fake row; a placeholder when null.</param>
+    /// <param name="analysisFacts">The library's analysis facts, for the players table's rates; none when null.</param>
+    /// <param name="openPlayerOverview">Opens the Player Overview on a SteamID64 with a demo scope; none when null.</param>
     /// <param name="watchMinedPatterns">
     ///     Subscribes a handler to Strat Mining's change event (raised on the UI thread) and returns the
     ///     unsubscribe; the strat layers rebuild on it. None when null.
@@ -179,7 +183,9 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Func<string?, string>? positionsFingerprint = null,
         Func<Action, IDisposable>? watchMinedPatterns = null,
         Func<string, SetupSiteRegions?>? siteRegions = null,
-        Func<string, string, IReadOnlyList<FakeRound>?>? fakes = null)
+        Func<string, string, IReadOnlyList<FakeRound>?>? fakes = null,
+        IAnalysisFacts? analysisFacts = null,
+        Func<ulong, PlayerOverviewScope?, bool>? openPlayerOverview = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -193,12 +199,15 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         _runSection = runSection ?? (_ => Task.Run);
         _now = now ?? (() => DateTime.Now);
         _opener = new ScoutingReviewOpener(review, selectTab);
+        _openPlayerOverview = openPlayerOverview;
+        _notes = notes ?? new ScoutingReportNotesStore(null);
         IsBrowser = isBrowser ?? OperatingSystem.IsBrowser();
         _sources = new ScoutingReportSources
         {
             Teams = teams,
             Library = library,
             RoundFacts = roundFacts,
+            AnalysisFacts = analysisFacts,
             Heatmaps = heatmaps,
             Openings = openings,
             PostPlant = postPlant,
@@ -212,7 +221,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             MinedPatterns = minedPatterns,
             Renderer = renderer ?? (() => new SetupHeatmapRenderer())
         };
-        Editor = new ScoutingReportEditorViewModel(notes ?? new ScoutingReportNotesStore(null), IsBrowser, export);
+        Editor = new ScoutingReportEditorViewModel(_notes, IsBrowser, export);
         Editor.StarsChanged += OnStarsChanged;
         Layers = new ScoutingLayerRegistry(layers ?? ScoutingLayerCatalog.Create(), _post, this);
         Layers.PropertyChanged += (_, e) =>
