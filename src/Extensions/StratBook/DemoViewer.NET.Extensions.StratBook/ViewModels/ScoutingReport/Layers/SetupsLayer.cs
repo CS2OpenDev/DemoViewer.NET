@@ -1,5 +1,6 @@
 #region
 
+using System.Runtime.CompilerServices;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 using DemoViewer.NET.Playback2D.Overlay;
@@ -134,6 +135,7 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
 
         IReadOnlyList<SetupRotation> rotations = SetupsDerivation.Rotations(rounds, areas);
         (List<ScoutingInspectorRow> rotationRows, string? rotationRead) = RotationRows(context, rotations);
+        rotationRows.Add(await FakeRow(context, set, rounds, areas, cancellationToken).ConfigureAwait(false));
         sections.Add(new ScoutingInspectorSection("Rotations", rotationRows));
         if (rotationRead is not null)
         {
@@ -347,13 +349,98 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
             }
         }
 
-        rows.Add(new ScoutingInspectorRow
-        {
-            Label = "Rotated off a site on a fake",
-            IsPlaceholder = true,
-            Note = "needs the Suggested Tags fake detector's rounds, which the Scouting Report does not read yet"
-        });
         return (rows, read);
+    }
+
+    private const string FakeLabel = "Rotated off a site on a fake";
+
+    // "Rotated off a site on a fake": the fake rounds Suggested Tags proposed, read once per team load off the UI
+    // thread, and how often a CT set up on the real site left it before the plant.
+    private static async Task<ScoutingInspectorRow> FakeRow(ScoutingLayerContext context, SetupHeatmapSet set,
+        IReadOnlyList<SetupHeatmapRound> rounds, SetupAreaClassifier areas, CancellationToken cancellationToken)
+    {
+        if (context.Data.Sources.Fakes is null)
+        {
+            return new ScoutingInspectorRow
+            {
+                Label = FakeLabel,
+                IsPlaceholder = true,
+                Note = "needs Suggested Tags' fake rounds, which this host does not build"
+            };
+        }
+
+        FakeIndex index = await _fakes.GetValue(context.Data, d => ScoutingLayerContext.Offload(() => FakeIndex.Load(d, set)))
+            .WaitAsync(cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<FakeRotation> fakes = SetupsDerivation.FakeRotations(rounds, areas,
+            r => index.Rounds.GetValueOrDefault((r.DemoPath, r.RoundNumber)));
+        string coverage = $"fakes from Suggested Tags, current for {index.Read} of {Plural(index.Demos, "demo")}";
+        if (fakes.Count == 0)
+        {
+            return new ScoutingInspectorRow
+            {
+                Label = FakeLabel,
+                StarText = "rotated off a site on a fake",
+                Note = index.Read == 0
+                    ? "no current Suggested Tags suggestions for these demos; run Suggested Tags to find the fakes"
+                    : $"no fake round planted on the real site with a CT set up there · {coverage}"
+            };
+        }
+
+        List<FakeRotation> off = [.. fakes.Where(f => f.RotatedOff)];
+        return new ScoutingInspectorRow
+        {
+            Label = FakeLabel,
+            Value = CountText(off.Count, fakes.Count),
+            StarText = "rotated off a site on a fake",
+            Note = $"a CT set up on the real site left it before the plant · {coverage}",
+            BarPercent = 100.0 * off.Count / fakes.Count,
+            Swatch = ScoutingColor.Ct,
+            Rounds = Open(off.Select(f => f.Round)),
+            OpenTitle = $"{context.Prefix} · rotated off a site on a fake"
+        };
+    }
+
+    // One read of the team's fake rounds per load: every CT demo of the heatmaps, once.
+    private static readonly ConditionalWeakTable<ScoutingReportData, Task<FakeIndex>> _fakes = [];
+
+    private sealed record FakeIndex(IReadOnlyDictionary<(string Path, int Round), FakeRound> Rounds, int Read, int Demos)
+    {
+        public static FakeIndex Load(ScoutingReportData data, SetupHeatmapSet set)
+        {
+            Dictionary<(string, int), FakeRound> rounds = [];
+            int read = 0;
+            List<(string Path, string Map)> demos =
+            [
+                .. set.Heatmaps.SelectMany(h => h.Rounds.Select(r => (r.DemoPath, h.Map)))
+                    .Distinct()
+            ];
+            foreach ((string path, string map) in demos)
+            {
+                IReadOnlyList<FakeRound>? fakes;
+                try
+                {
+                    fakes = data.Sources.Fakes!(path, map);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                               or InvalidOperationException)
+                {
+                    fakes = null;
+                }
+
+                if (fakes is null)
+                {
+                    continue;
+                }
+
+                read++;
+                foreach (FakeRound fake in fakes)
+                {
+                    rounds.TryAdd((path, fake.Round), fake);
+                }
+            }
+
+            return new FakeIndex(rounds, read, demos.Count);
+        }
     }
 
     private static string Seconds(double seconds) =>

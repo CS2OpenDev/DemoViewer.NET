@@ -411,6 +411,72 @@ public static class SetupsDerivation
         return result;
     }
 
+    /// <summary>
+    ///     The fake rounds the team defended that the T side planted on the real site after contact: whether a CT set
+    ///     up on the real site (by <paramref name="areas" />) was off it after contact and before the plant, which
+    ///     is the fake pulling a defender away. A round with no CT set up on the real site has nobody to pull and is
+    ///     left out.
+    /// </summary>
+    /// <param name="rounds">The rounds.</param>
+    /// <param name="areas">The map's areas.</param>
+    /// <param name="fakeOf">The round's fake proposal, or null.</param>
+    public static IReadOnlyList<FakeRotation> FakeRotations(IEnumerable<SetupHeatmapRound> rounds,
+        SetupAreaClassifier areas, Func<SetupHeatmapRound, FakeRound?> fakeOf)
+    {
+        ArgumentNullException.ThrowIfNull(rounds);
+        ArgumentNullException.ThrowIfNull(areas);
+        ArgumentNullException.ThrowIfNull(fakeOf);
+        List<FakeRotation> result = [];
+        foreach (SetupHeatmapRound round in rounds)
+        {
+            if (fakeOf(round) is not { } fake
+                || round.Detail is not { PlantAfterContactSeconds: { } plant } detail
+                || detail.PlantSite != fake.Real)
+            {
+                continue;
+            }
+
+            SetupArea real = fake.Real == BombSite.A ? SetupArea.A : SetupArea.B;
+            bool anyHolder = false;
+            double? first = null;
+            string? rotator = null;
+            foreach (SetupRoundPlayer player in detail.Players.Where(p => p.Setup.Count > 0))
+            {
+                if (areas.Of(player.Setup) != real)
+                {
+                    continue;
+                }
+
+                anyHolder = true;
+                foreach (SetupTimedSample t in player.AfterContact)
+                {
+                    if (t.Seconds >= plant)
+                    {
+                        break;
+                    }
+
+                    if (areas.Of(t.Sample) != real)
+                    {
+                        if (first is null || t.Seconds < first)
+                        {
+                            first = t.Seconds;
+                            rotator = player.Name;
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            if (anyHolder)
+            {
+                result.Add(new FakeRotation(round, fake, first is not null, rotator));
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>The median of the values, or null with none.</summary>
     /// <param name="values">The values.</param>
     public static double? Median(IEnumerable<double> values)

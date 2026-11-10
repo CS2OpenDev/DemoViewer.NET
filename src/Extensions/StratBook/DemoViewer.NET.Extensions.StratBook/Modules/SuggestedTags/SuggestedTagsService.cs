@@ -358,6 +358,18 @@ public sealed class SuggestedTagsService : IExtensionPass
         return new SetupSiteRegions(regions.RegionOf(SiteRegions.SiteA), regions.RegionOf(SiteRegions.SiteB));
     }
 
+    /// <summary>
+    ///     A demo's fake-then-rotate proposals, read only when they were built under the fingerprint in force for its
+    ///     map; null when there are none current. Reads a file: call it off the UI thread.
+    /// </summary>
+    /// <param name="demoPath">The demo.</param>
+    /// <param name="map">Its map.</param>
+    public IReadOnlyList<FakeRound>? FakeRoundsOf(string demoPath, string map) =>
+        Proposals.IsCurrent(demoPath, FingerprintFor(map)) && Proposals.TryRead(demoPath) is { } document
+            ? FakeRound.From(document.Proposals.Where(p => p.Detector == FakeDetector.DetectorId)
+                .Select(p => (p.Round, p.Side, (IReadOnlyDictionary<string, string>)p.Labels)))
+            : null;
+
     /// <summary>The detector-set fingerprint for a map's demos under the profile and regions in force.</summary>
     /// <param name="map">The map, or null.</param>
     public string FingerprintFor(string? map) => SuggestionsFingerprint.Compose(_profile(), TableFor(map));

@@ -151,6 +151,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <param name="minedPatterns">The Strat Mining patterns, null until mined; the strats layers are empty when null.</param>
     /// <param name="positionsFingerprint">The fingerprint current positions carry per map; null accepts any file.</param>
     /// <param name="siteRegions">A map's site regions for the Setups areas; distance alone when null.</param>
+    /// <param name="fakes">A demo's current fake proposals for the Setups fake row; a placeholder when null.</param>
     /// <param name="watchMinedPatterns">
     ///     Subscribes a handler to Strat Mining's change event (raised on the UI thread) and returns the
     ///     unsubscribe; the strat layers rebuild on it. None when null.
@@ -177,7 +178,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Func<IReadOnlyList<MinedPattern>?>? minedPatterns = null,
         Func<string?, string>? positionsFingerprint = null,
         Func<Action, IDisposable>? watchMinedPatterns = null,
-        Func<string, SetupSiteRegions?>? siteRegions = null)
+        Func<string, SetupSiteRegions?>? siteRegions = null,
+        Func<string, string, IReadOnlyList<FakeRound>?>? fakes = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -205,6 +207,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             RoundIndex = roundIndex,
             PositionsFingerprint = positionsFingerprint,
             SiteRegions = siteRegions,
+            Fakes = fakes,
             Playback = playback,
             MinedPatterns = minedPatterns,
             Renderer = renderer ?? (() => new SetupHeatmapRenderer())

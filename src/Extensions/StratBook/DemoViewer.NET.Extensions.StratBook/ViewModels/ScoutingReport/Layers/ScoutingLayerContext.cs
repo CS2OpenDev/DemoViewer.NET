@@ -49,6 +49,12 @@ public sealed class ScoutingReportSources
     public Func<string, SetupSiteRegions?>? SiteRegions { get; init; }
 
     /// <summary>
+    ///     A demo's current fake-then-rotate proposals (demo path, map), or null when Suggested Tags has none current
+    ///     for it. Reads a file per demo. Null on a host without Suggested Tags.
+    /// </summary>
+    public Func<string, string, IReadOnlyList<FakeRound>?>? Fakes { get; init; }
+
+    /// <summary>
     ///     The library-wide Strat Mining patterns, read at build time: null when nothing has been mined yet. The
     ///     source itself is null on a host without a miner (the browser).
     /// </summary>
