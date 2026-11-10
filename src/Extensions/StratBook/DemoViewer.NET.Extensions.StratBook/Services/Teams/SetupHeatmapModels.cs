@@ -75,4 +75,8 @@ public sealed record SetupHeatmapRound(
     int FreezeEndTick,
     int ClipEndTick,
     int TickRate,
-    bool Sampled);
+    bool Sampled)
+{
+    /// <summary>Who stood where in the round, for the per-player Setups layer; null without positions.</summary>
+    public ScoutingReport.SetupRoundDetail? Detail { get; init; }
+}

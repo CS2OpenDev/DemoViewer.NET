@@ -173,6 +173,12 @@ public sealed class SetupHeatmapService
         {
             (int from, int to) = SetupWindow(round, rate);
             bool sampled = false;
+            ScoutingReport.SetupRoundDetail? detail = null;
+            if (positions?.Round(round.Number) is { } captured)
+            {
+                detail = ScoutingReport.SetupRoundCapture.Capture(positions, captured, round, rate, from, to);
+            }
+
             if (to >= from && positions?.Round(round.Number) is { } stored)
             {
                 HashSet<int> ct = [.. stored.Ct];
@@ -221,7 +227,10 @@ public sealed class SetupHeatmapService
                 clipEnd = Math.Min(clipEnd, end);
             }
 
-            Rounds.Add(new SetupHeatmapRound(path, sha, round.Number, round.FreezeEndTick, clipEnd, rate, sampled));
+            Rounds.Add(new SetupHeatmapRound(path, sha, round.Number, round.FreezeEndTick, clipEnd, rate, sampled)
+            {
+                Detail = detail
+            });
         }
 
         public SetupHeatmap ToHeatmap(string map, BuyType buy) => new()
