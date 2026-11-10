@@ -96,7 +96,7 @@ public sealed class UtilityLayer() : ScoutingLayerBase("util", "Utility", Scouti
             Legend =
             [
                 new ScoutingLegendEntry(new ScoutingSwatch(ScoutingMarkShape.Cloud, color),
-                    "S smoke, M molotov, F flash, H HE; size = rounds thrown")
+                    "letter = S smoke, M molotov, F flash, H HE; size = rounds thrown")
             ]
         };
     }
@@ -131,7 +131,7 @@ public sealed class UtilityLayer() : ScoutingLayerBase("util", "Utility", Scouti
             Reads = reads,
             Sections =
             [
-                new ScoutingInspectorSection($"First grenade, seconds after freeze end · {Plural(rounds, "round")}",
+                new ScoutingInspectorSection($"First grenade, seconds after freeze end Â· {Plural(rounds, "round")}",
                     Rows(context, block.FirstUtilityClock, rounds, "first utility")),
                 new ScoutingInspectorSection("First grenade, what and where",
                     Rows(context, block.FirstUtilityPlaces, rounds, "first utility"))
