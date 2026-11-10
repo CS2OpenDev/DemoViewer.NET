@@ -234,6 +234,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
         Players.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasPlayers));
         _teams.Changed += Refresh;
+        _library.Changed += OnLibraryChangedForPlayers;
         _vetoes.Changed += ProjectVetoes;
         if (_grenades is not null)
         {
@@ -368,7 +369,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         ? $"{map.Map} open below · a row opens its map · CT and T are the team's own round win %"
         : "a row opens its map · CT and T are the team's own round win %";
 
-    public string PlayersTitle => SelectedMap is { } map ? $"Players · {map.Map}" : "Players";
+    public string PlayersTitle => SelectedMap is { } map ? $"Players · {(PlayersAllMaps ? "all maps" : map.Map)}" : "Players";
 
     // ---- Lifecycle ----
 
@@ -398,6 +399,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Layers.Dispose();
         Editor.StarsChanged -= OnStarsChanged;
         _teams.Changed -= Refresh;
+        _library.Changed -= OnLibraryChangedForPlayers;
         _vetoes.Changed -= ProjectVetoes;
         if (_grenades is not null)
         {
@@ -440,6 +442,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         OnPropertyChanged(nameof(TimelineCaption));
         OnPropertyChanged(nameof(PoolCaption));
         OnPropertyChanged(nameof(PlayersTitle));
+        OnPropertyChanged(nameof(PlayersScopeLabel));
         ProjectTimeline();
         ProjectScope();
         SeedSuggested();
@@ -620,6 +623,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         int generation = Interlocked.Increment(ref _generation);
         _projectedKey = SelectedTeam is { } selected ? ProjectionKey(selected) : null;
         _layerFindings = [];
+        ResetPlayerStats();
         string? keepMap = SelectedMap?.Map;
         Maps.Clear();
         ReviewLine = "";
@@ -630,6 +634,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             RecordLine = HeadToHeadLine = DemosLine = SampleSizeLine = DeciderLine = "";
             Timeline.Clear();
             Players.Clear();
+            ResetPlayerStats();
             SelectedMap = null;
             RaiseHeader();
             ProjectVetoes(collect: false);
@@ -659,7 +664,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         }
 
         CollectFindings();
-        LoadTask = Land(data, generation);
+        LoadTask = Task.WhenAll(Land(data, generation), StartPlayerStats(data));
     }
 
     // Once every load is in: the pool's team-scoped columns, the notices, the players and the long form.
@@ -863,95 +868,6 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     private static int Max(params int?[] values) => values.Select(v => v ?? 0).DefaultIfEmpty(0).Max();
 
     private static T? Landed<T>(Task<T?> load) where T : class => load.IsCompletedSuccessfully ? load.Result : null;
-
-    // The current roster's players, most appearances first, with the role the openings suggest on the map in view
-    // and the CT spot the setups held most there.
-    private void ProjectPlayers()
-    {
-        Players.Clear();
-        if (SelectedTeam is not { } row)
-        {
-            return;
-        }
-
-        IReadOnlyList<ScoutingRosterPlayer> roster = ScoutingPlayerColors.Roster(_teams, row.Id);
-        if (_isolated is not null && roster.All(p => p.SteamId != _isolated))
-        {
-            SetIsolated(null);
-        }
-
-        if (roster.Count == 0)
-        {
-            return;
-        }
-
-        OpeningTendencies? t = SelectedMap is { } map && _data is { } data && Landed(data.Openings) is { } set
-            ? set.Blocks.FirstOrDefault(b => b.Map == map.Map && b.Side == 2)
-            : null;
-        Dictionary<string, (int Count, string Site)> entries = new(StringComparer.Ordinal);
-        foreach (TendencyBucket bucket in t?.EntryBySite ?? [])
-        {
-            int at = bucket.Label.LastIndexOf(" at ", StringComparison.Ordinal);
-            string name = at > 0 ? bucket.Label[..at] : bucket.Label;
-            string site = at > 0 ? bucket.Label[(at + 4)..] : "";
-            entries.TryGetValue(name, out (int Count, string Site) had);
-            entries[name] = (had.Count + bucket.Count, had.Count >= bucket.Count ? had.Site : site);
-        }
-
-        Dictionary<string, int> lurks = t?.Lurkers.ToDictionary(b => b.Label, b => b.Count, StringComparer.Ordinal)
-                                        ?? new Dictionary<string, int>(StringComparer.Ordinal);
-        string? topEntry = entries.OrderByDescending(e => e.Value.Count).Select(e => e.Key).FirstOrDefault();
-        string? topLurk = lurks.OrderByDescending(e => e.Value).Select(e => e.Key).FirstOrDefault();
-        int rounds = t?.Rounds.Count ?? 0;
-        Dictionary<string, SetupPlayerPlace> spots = CtSpots();
-        string spotBuy = Buy == ScoutingBuy.All ? "all buys" : $"{Buy.ToString().ToLowerInvariant()} buy";
-
-        foreach (ScoutingRosterPlayer player in roster)
-        {
-            string name = DisplayText.Sanitize(player.Member.LastName);
-            (string role, string note) = name == topEntry && entries[name].Count > 0
-                ? ("Entry", $"takes {entries[name].Count} of {rounds} T entries")
-                : name == topLurk && lurks[name] > 0
-                    ? ("Lurk", $"lurks in {lurks[name]} of {t!.LurkRounds} T rounds")
-                    : ("—", "");
-            string tRole = entries.TryGetValue(name, out (int Count, string Site) e) && e.Count > 0
-                ? $"entry {e.Site}"
-                : lurks.TryGetValue(name, out int l) && l > 0 ? "lurk" : "—";
-            SetupPlayerPlace? spot = spots.GetValueOrDefault(player.SteamId);
-            Players.Add(new PlayerRowViewModel
-            {
-                Name = name,
-                SteamId = player.SteamId,
-                Color = player.Color,
-                Role = role,
-                RoleNote = note,
-                TRole = tRole,
-                CtSpot = spot is null ? "—" : SetupsDerivation.PlaceLabel(spot.Place),
-                CtSpotNote = spot is null
-                    ? "no CT setup positions for this player on this map"
-                    : $"held in {spot.Rounds.Count} of {ScoutingLayerBase.Plural(spot.Of, "CT round")} ({spotBuy})",
-                IsIsolated = _isolated == player.SteamId,
-                IsolateCommand = IsolatePlayerCommand,
-                Appearances = ScoutingLayerBase.Plural(player.Member.Count, "demo")
-            });
-        }
-    }
-
-    // Each player's most-held CT setup place on the map in view, at the buy in view; empty until the setups land.
-    private Dictionary<string, SetupPlayerPlace> CtSpots()
-    {
-        if (SelectedMap is not { } map || _data is not { } data || Landed(data.Heatmaps) is not { } set)
-        {
-            return new Dictionary<string, SetupPlayerPlace>(StringComparer.Ordinal);
-        }
-
-        IEnumerable<SetupHeatmapRound> rounds = set.Heatmaps
-            .Where(h => string.Equals(h.Map, map.Map, StringComparison.OrdinalIgnoreCase)
-                        && (Buy == ScoutingBuy.All || h.Buy.ToString() == Buy.ToString()))
-            .SelectMany(h => h.Rounds);
-        return SetupsDerivation.PlacesByPlayer(rounds).Where(p => p.IsMain)
-            .ToDictionary(p => p.Key, StringComparer.Ordinal);
-    }
 
     /// <summary>
     ///     Shows one player's CT setup alone (everyone else fades), switching to CT and inspecting Setups; on the
