@@ -327,7 +327,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         List<RulesetDoc> docs = [];
         foreach ((string path, string text) in EnumerateSources())
         {
-            if (selected.Contains(path) && RulesetDocumentLoader.Load(text, path).Doc is { } doc)
+            if (selected.Contains(path) && LoadOrNull(text, path)?.Doc is { } doc)
             {
                 docs.Add(doc);
             }
@@ -554,7 +554,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         Dictionary<string, RulesetDoc> byId = new(StringComparer.Ordinal);
         foreach ((string path, string text) in EnumerateSources())
         {
-            if (RulesetDocumentLoader.Load(text, path).Doc is { } doc)
+            if (LoadOrNull(text, path)?.Doc is { } doc)
             {
                 byPath[path] = doc;
                 byId[doc.Id] = doc;
@@ -963,7 +963,11 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             foreach ((string path, string text) in EnumerateSources())
             {
                 fileCount++;
-                RulesetDocumentLoader.Outcome outcome = RulesetDocumentLoader.Load(text, path);
+                if (LoadOrNull(text, path) is not { } outcome)
+                {
+                    continue;
+                }
+
                 all.AddRange(outcome.Diagnostics);
                 if (outcome.Doc is { } doc)
                 {
@@ -1167,6 +1171,20 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             : $"catalog_version: {version}\n{text}";
     }
 
+    // YamlDotNet's scanner throws InvalidOperationException, not YamlException, on an unclosed flow
+    // sequence, and the engine at 0.14.1 lets it through; such text is treated as not loading.
+    private static RulesetDocumentLoader.Outcome? LoadOrNull(string text, string path)
+    {
+        try
+        {
+            return RulesetDocumentLoader.Load(text, path);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
     private static string StarterTemplate(string id) =>
         "# yaml-language-server: $schema=./cs2demokit-rules.schema.json\n"
         + "ruleset: " + id + "\n"
@@ -1206,7 +1224,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         {
             if (dir is not null && Directory.Exists(dir))
             {
-                taken.UnionWith(YamlConfigLoader.TryLoadDirectory(dir).Rulesets.Select(r => r.Id));
+                taken.UnionWith(RuleLayers.TryLoadDirectory(dir).Rulesets.Select(r => r.Id));
             }
         }
 

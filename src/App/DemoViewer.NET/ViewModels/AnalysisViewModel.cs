@@ -1295,7 +1295,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
             ? null
             : RuleSetLocator.EnsureUserRulesDirectory(shippedDir);
         MergedRulesBuild? merged = MergedRules();
-        RuleConfigLoadResult rules = merged?.ReadRules() ?? YamlConfigLoader.LoadWithOverlay(shippedDir, userDir);
+        RuleConfigLoadResult rules = merged?.ReadRules() ?? RuleLayers.LoadWithOverlay(shippedDir, userDir);
 
         // The builder double-gates on this: the enemy_spotted event is synthesized only when an
         // engine is present AND some ruleset subscribes to it, so handing it over unconditionally

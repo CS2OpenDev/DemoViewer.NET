@@ -152,4 +152,34 @@ public class RuleLayersTests
             await Assert.That(first.StampedOutputs()).Contains("layer_kills");
         }
     }
+
+    [Test]
+    public async Task AUserFileTheScannerCannotRead_SetsTheUserTierAside_WithAnErrorNamingIt()
+    {
+        string user = Directory.CreateTempSubdirectory("dv-layers-broken-").FullName;
+        try
+        {
+            string broken = Path.Combine(user, "broken.rules.yaml");
+            await File.WriteAllTextAsync(broken, "ruleset: [\nfor: each_player\nstats: {}\n");
+            await File.WriteAllTextAsync(Path.Combine(user, "fine.rules.yaml"), Yaml("fine_layer", "fine_table"));
+
+            RuleConfigLoadResult result = Load(user);
+            RuleConfigLoadResult shippedOnly = Load(null);
+            RuleConfigLoadResult userOnly = RuleLayers.TryLoadDirectory(user);
+            using (Assert.Multiple())
+            {
+                await Assert.That(Ids(result)).IsEquivalentTo(Ids(shippedOnly), CollectionOrdering.Matching);
+                await Assert.That(result.Errors.Select(e => e.FilePath)).Contains(broken);
+                await Assert.That(result.Errors.Single(e => e.FilePath == broken).Message).Contains("skipped until");
+                await Assert.That(result.FailedFiles).Contains(broken);
+                await Assert.That(userOnly.Rulesets).IsEmpty();
+                await Assert.That(userOnly.Errors.Select(e => e.FilePath)).Contains(broken);
+            }
+        }
+        finally
+        {
+            Directory.Delete(user, true);
+        }
+    }
+
 }

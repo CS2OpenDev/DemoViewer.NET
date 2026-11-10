@@ -870,7 +870,7 @@ public sealed class MergedRulesBuild
     {
         string shippedDir = RuleSetLocator.ResolveShippedRulesDirectory();
         string? userDir = OperatingSystem.IsBrowser() ? null : RuleSetLocator.EnsureUserRulesDirectory(shippedDir);
-        return YamlConfigLoader.LoadWithOverlay(shippedDir, userDir);
+        return RuleLayers.LoadWithOverlay(shippedDir, userDir);
     }
 }
 
