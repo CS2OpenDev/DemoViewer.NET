@@ -17,8 +17,7 @@ namespace DemoViewer.NET.ViewModels.Settings;
 public sealed partial class InstallableExtensionRow : ObservableObject, IDisposable
 {
     private readonly ExtensionUpdateService _service;
-    private CancellationTokenSource? _download;
-    private bool _disposed;
+    private readonly ExtensionDownload _download = new();
 
     /// <summary>The last catalogue check's entry.</summary>
     [ObservableProperty]
@@ -86,7 +85,7 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
         ?? Entry.Latest?.Version.ToString() ?? string.Empty;
 
     /// <summary>The offered zip's size, "4.5 MB"; empty when nothing is offered.</summary>
-    public string Size => Entry.Offered is { } offered ? $"{ExtensionUpdateRow.Megabytes(offered.Size)} MB" : string.Empty;
+    public string Size => Entry.Offered is { } offered ? $"{ExtensionDownload.Megabytes(offered.Size)} MB" : string.Empty;
 
     /// <summary>"Update" for a copy on disk that did not load, else "Install".</summary>
     public string InstallLabel => Entry.Status == InstallableStatus.NotLoaded ? "Update" : "Install";
@@ -112,7 +111,7 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
     public bool HasMessage => Message.Length > 0;
 
     /// <summary>0 to 100 while downloading.</summary>
-    public int ProgressPercent => TotalBytes <= 0 ? 0 : (int)Math.Min(100, BytesReceived * 100 / TotalBytes);
+    public int ProgressPercent => ExtensionDownload.Percent(BytesReceived, TotalBytes);
 
     /// <summary>The line under the name: one sentence per state.</summary>
     public string Message
@@ -126,9 +125,8 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
 
             if (IsDownloading)
             {
-                string version = Entry.Offered?.Version.ToString() ?? string.Empty;
-                return
-                    $"Downloading {version}: {ExtensionUpdateRow.Megabytes(BytesReceived)} of {ExtensionUpdateRow.Megabytes(TotalBytes)} MB";
+                return ExtensionDownload.Line(Entry.Offered?.Version.ToString() ?? string.Empty, BytesReceived,
+                    TotalBytes);
             }
 
             return Describe(Entry);
@@ -173,15 +171,13 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
         Failure = null;
         BytesReceived = 0;
         TotalBytes = offered.Size;
-        _download = new CancellationTokenSource();
         try
         {
-            Progress<ExtensionDownloadProgress> progress = new(p =>
+            StageResult result = await _download.RunAsync(_service, offered, (received, total) =>
             {
-                BytesReceived = p.BytesReceived;
-                TotalBytes = p.TotalBytes;
+                BytesReceived = received;
+                TotalBytes = total;
             });
-            StageResult result = await _service.DownloadAndStageAsync(offered, progress, _download.Token);
             switch (result.Outcome)
             {
                 case StageOutcome.Installed:
@@ -200,16 +196,13 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
         }
         finally
         {
-            CancellationTokenSource finished = _download;
-            _download = null;
-            finished.Dispose();
             IsDownloading = false;
         }
     }
 
     /// <summary>Stops the download; nothing is left on disk.</summary>
     [RelayCommand]
-    private void CancelDownload() => _download?.Cancel();
+    private void CancelDownload() => _download.Cancel();
 
     /// <summary>Removes the refused copy: its folder goes at the next start, or now when nothing of it loaded.</summary>
     [RelayCommand]
@@ -237,14 +230,5 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
     }
 
     /// <summary>Stops a download the window's closing leaves behind.</summary>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        _download?.Cancel();
-    }
+    public void Dispose() => _download.Dispose();
 }

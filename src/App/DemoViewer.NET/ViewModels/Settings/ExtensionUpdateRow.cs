@@ -1,6 +1,5 @@
 #region
 
-using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.Manifest;
@@ -21,8 +20,7 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
     private readonly ExtensionUpdateService? _service;
     private readonly Action? _onChecked;
     private readonly PackSource? _source;
-    private CancellationTokenSource? _download;
-    private bool _disposed;
+    private readonly ExtensionDownload _download = new();
 
     /// <summary>The last check's verdict, or null before the first check this run.</summary>
     [ObservableProperty]
@@ -125,7 +123,7 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
     public bool HasMessage => Message.Length > 0;
 
     /// <summary>0 to 100 while downloading.</summary>
-    public int ProgressPercent => TotalBytes <= 0 ? 0 : (int)Math.Min(100, BytesReceived * 100 / TotalBytes);
+    public int ProgressPercent => ExtensionDownload.Percent(BytesReceived, TotalBytes);
 
     /// <summary>
     ///     The line itself. Empty before the first check of the run (the button is the invitation); otherwise
@@ -152,8 +150,8 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
 
             if (IsDownloading)
             {
-                string version = State?.Offered?.Version.ToString() ?? string.Empty;
-                return $"Downloading {version}: {Megabytes(BytesReceived)} of {Megabytes(TotalBytes)} MB";
+                return ExtensionDownload.Line(State?.Offered?.Version.ToString() ?? string.Empty, BytesReceived,
+                    TotalBytes);
             }
 
             return State is null ? string.Empty : Describe(State);
@@ -223,15 +221,13 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
         Failure = null;
         BytesReceived = 0;
         TotalBytes = offered.Size;
-        _download = new CancellationTokenSource();
         try
         {
-            Progress<ExtensionDownloadProgress> progress = new(p =>
+            StageResult result = await _download.RunAsync(_service, offered, (received, total) =>
             {
-                BytesReceived = p.BytesReceived;
-                TotalBytes = p.TotalBytes;
+                BytesReceived = received;
+                TotalBytes = total;
             });
-            StageResult result = await _service.DownloadAndStageAsync(offered, progress, _download.Token);
             switch (result.Outcome)
             {
                 case StageOutcome.Installed:
@@ -250,16 +246,13 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
         }
         finally
         {
-            CancellationTokenSource finished = _download;
-            _download = null;
-            finished.Dispose();
             IsDownloading = false;
         }
     }
 
     /// <summary>Stops the download; nothing is left on disk.</summary>
     [RelayCommand]
-    private void CancelDownload() => _download?.Cancel();
+    private void CancelDownload() => _download.Cancel();
 
     /// <summary>Marks the installed extension for removal; its folder goes at the next start.</summary>
     [RelayCommand]
@@ -277,16 +270,7 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
     }
 
     /// <summary>Stops a download the window's closing leaves behind.</summary>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        _download?.Cancel();
-    }
+    public void Dispose() => _download.Dispose();
 
     private static string NeedsNewerApp(ExtensionUpdateState state) =>
         NeedsNewerApp(state.Latest, state.LatestCompatibility);
@@ -307,7 +291,4 @@ public sealed partial class ExtensionUpdateRow : ObservableObject, IDisposable
         };
     }
 
-    /// <summary>Bytes as megabytes with one decimal, the form every download line uses.</summary>
-    internal static string Megabytes(long bytes) =>
-        (bytes / (1024.0 * 1024.0)).ToString("0.0", CultureInfo.InvariantCulture);
 }
