@@ -4,89 +4,80 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
-using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.Sdk.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
-using DemoViewer.NET.Extensions.StratBook.Modules.Review;
+using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Modules.Abstractions;
-using DemoViewer.NET.Playback2D.Overlay;
 
 #endregion
 
 namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 
 /// <summary>
-///     The Scouting Report tab: a team picker over Team Identity and its built
-///     sections. The Map Pool Record: maps played, win rate, side wins, the decider record where a
-///     best-of series is inferable, and the optional user-entered veto history filed beside it. The
-///     Setup Heatmaps By Buy: one heatmap per map and CT buy with its fixed and rotating places, each of
-///     which sends its rounds to the Review Queue. The Opening Tendencies, a section VM of its own
-///     (<see cref="OpeningTendenciesSectionViewModel" />) whose every number opens its rounds the same
-///     way. The Post-Plant And Retake (<see cref="PostPlantSectionViewModel" />): plant clusters,
-///     post-plant holds and retake grouping, every number opening its rounds too. The Situational
-///     Behaviour (<see cref="SituationalBehaviourSectionViewModel" />): pistol patterns and their
-///     follow-up, anti-eco setups, man-advantage handling and save discipline, over Round Facts alone.
-///     The Period Diff: the team's last <see cref="WindowSize" /> demos against the
-///     <see cref="WindowSize" /> before those, roster to roster (<see cref="PeriodDiffService" />). And
-///     Scouting Report Editing And Export (<see cref="ScoutingReportEditorViewModel" />): every section's numbers as
-///     findings, re-collected whenever a section lands, starred into the one-pager and exported.
+///     The Scouting Report tab: one team, one map, one side at a time on a map stage with layers.
+///     <list type="bullet">
+///         <item>The header: the team, its record, ranks (manual entry later), head-to-head against us, the
+///         sample by date, and the export.</item>
+///         <item>Map tabs, the side (CT or T, never both), the buy filter and the scope line, with notices for a
+///         thin sample and for demos without positions.</item>
+///         <item>The map pool table, with the team's own CT and T round win % (not the match-wide side split).</item>
+///         <item>The stage (<see cref="Layers" />): the map with the drawn layers, the strip minis under it, and the
+///         inspector with the focused layer's reads and starrable rows, whose numbers open their rounds in Review.</item>
+///         <item>The players, then Period Diff, the veto history and the long form, collapsed.</item>
+///     </list>
 ///     <para>
-///         <b>Heatmaps build on a worker.</b> They read every one of the team's positions files and
-///         render one picture per heatmap, so the build runs off the UI thread and posts the rows first
-///         and each picture as it lands; a selection change while it runs bumps the generation and the
-///         old build posts nothing.
+///         <b>Loads.</b> Opening a team starts its shared loads (<see cref="ScoutingReportData" />): the record and
+///         the demos at once, every service build on its own worker. The stage builds the scope in view from them;
+///         the long form builds every map and side once they have all landed, and is what the export prints.
 ///     </para>
 ///     <para>
-///         Delegate-injected (the Teams tab's own precedent): the VM owns no clustering and no
-///         aggregation of its own; it reads <see cref="TeamIdentityService" /> through
-///         <see cref="MapPoolRecordService.Build" /> and re-projects on every <c>Changed</c>.
+///         Delegate-injected (the Teams tab's own precedent): the VM owns no clustering and no aggregation of
+///         its own, and re-projects on every Team Identity <c>Changed</c> that moves what the team is built from.
 ///     </para>
 /// </summary>
-public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWorkspaceTabViewModel, IDisposable
+public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWorkspaceTabViewModel, IScoutingRowHost,
+    IDisposable
 {
-    private readonly IExtensionLibrary _library;
-
-    // One runner per section (openings, post-plant, situational, heatmaps): a queue item keyed by section in
-    // the app, so a newer build replaces a queued one.
-    private readonly Func<string, Func<Action, Task>> _runSection;
-
-    // The Opening Tendencies read it; its load and merges land after the page may have rendered.
     private readonly GrenadeIndex? _grenades;
-    private readonly RoundIndexStore? _roundIndex;
-    private readonly Func<byte[], Bitmap?> _decode;
-    private readonly SetupHeatmapService? _heatmaps;
+    private readonly IExtensionLibrary _library;
+    private readonly Func<DateTime> _now;
+    private readonly ScoutingReviewOpener _opener;
     private readonly Action<Action> _post;
-    private readonly Func<SetupHeatmapRenderer> _renderer;
-    private readonly IExtensionReviewQueue? _review;
-    private readonly Func<string, bool>? _selectTab;
+    private readonly RoundIndexStore? _roundIndex;
+    private readonly Func<string, Func<Action, Task>> _runSection;
+    private readonly ScoutingReportSources _sources;
     private readonly TeamIdentityService _teams;
     private readonly VetoHistoryStore _vetoes;
+
+    // The long form's layer lines for the current loads, by map; empty until every load has landed.
+    private IReadOnlyList<ScoutingReportFindingSource> _layerFindings = [];
+    private ScoutingReportData? _data;
     private bool _disposed;
+    private int _generation;
+    private string? _projectedKey;
     private bool _shown = true;
 
-    // What the shown projection was built from; a Refresh that finds the same inputs keeps it.
-    private string? _projectedKey;
-
-    // Bumped per heatmap build; a worker whose generation is behind posts nothing.
-    private int _generation;
-
-    /// <summary>"12 heatmaps over 80 CT rounds", or why there are none; empty with no team selected.</summary>
     [ObservableProperty]
-    private string _heatmapLine = "";
+    private ScoutingBuy _buy = ScoutingBuy.All;
 
-    /// <summary>True while the heatmap worker is reading or rendering.</summary>
     [ObservableProperty]
-    private bool _isHeatmapBuilding;
+    private bool _isNotesOpen;
 
-    /// <summary>"12 rounds sent to Review", or why none were; empty until a heatmap is opened.</summary>
     [ObservableProperty]
-    private string _reviewLine = "";
+    private bool _isPeriodOpen;
+
+    [ObservableProperty]
+    private bool _isPoolOpen = true;
+
+    [ObservableProperty]
+    private bool _isVetoOpen;
 
     [ObservableProperty]
     private VetoAction _newVetoAction = VetoAction.Ban;
@@ -98,40 +89,56 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     private string _newVetoMap = "";
 
     [ObservableProperty]
-    private ScoutingReportTeamRow? _selectedTeam;
-
-    /// <summary>Demos per Period Diff period; one of <see cref="WindowSizeOptions" />.</summary>
-    [ObservableProperty]
-    private int _windowSize = PeriodDiffService.DefaultWindowSize;
+    private PeriodDiffRowViewModel? _periodDiffPrevious;
 
     [ObservableProperty]
     private PeriodDiffRowViewModel? _periodDiffRecent;
 
     [ObservableProperty]
-    private PeriodDiffRowViewModel? _periodDiffPrevious;
-
-    /// <summary>"same roster across both periods", "roster changed: r1 then r2", or why there is no diff yet.</summary>
-    [ObservableProperty]
     private string _periodDiffNote = "";
 
-    /// <param name="teams">Team Identity, for the team picker and the sides the record is built from.</param>
+    /// <summary>"12 rounds sent to Review", or why none were; empty until a number is opened.</summary>
+    [ObservableProperty]
+    private string _reviewLine = "";
+
+    [ObservableProperty]
+    private MapPoolRowViewModel? _selectedMap;
+
+    [ObservableProperty]
+    private ScoutingReportTeamRow? _selectedTeam;
+
+    /// <summary>Shows each layer's plan code (E, D, D-rs, R, K) beside the inspector title.</summary>
+    [ObservableProperty]
+    private bool _showBuildStatus;
+
+    [ObservableProperty]
+    private ScoutingSide _side = ScoutingSide.Ct;
+
+    /// <summary>Demos per Period Diff period; one of <see cref="WindowSizeOptions" />.</summary>
+    [ObservableProperty]
+    private int _windowSize = PeriodDiffService.DefaultWindowSize;
+
+    /// <param name="teams">Team Identity, for the team picker and the sides everything is built from.</param>
     /// <param name="library">The library a demo's map, score and side-round totals come from.</param>
     /// <param name="vetoes">The user's manually entered veto steps, filed per opponent.</param>
     /// <param name="isBrowser">Whether the host is the WASM head; null reads the runtime.</param>
-    /// <param name="heatmaps">Builds the Setup Heatmaps By Buy; null hides the section.</param>
-    /// <param name="review">The Review Queue a heatmap's rounds are sent to; null says so on open.</param>
-    /// <param name="selectTab">Shows a tab by id, for the Review tab after a send; null stays on the Scouting Report.</param>
-    /// <param name="renderer">Builds the heatmap renderer per build; the pipeline's bundle loader when null.</param>
-    /// <param name="post">UI-thread marshal for the worker's results; the dispatcher when null.</param>
-    /// <param name="decode">PNG bytes to a bitmap; Avalonia's decoder when null, a stub in a test without a platform.</param>
-    /// <param name="openings">Builds the Opening Tendencies; null hides the section.</param>
-    /// <param name="postPlant">Builds the Post-Plant And Retake; null hides the section.</param>
-    /// <param name="situational">Builds the Situational Behaviour; null hides the section.</param>
-    /// <param name="grenades">The grenade index the Opening Tendencies read; its changes re-project the team.</param>
-    /// <param name="runSection">Runs a named section's build; the pool when null.</param>
-    /// <param name="roundIndex">The round index stamps the projection key reads; none when null.</param>
+    /// <param name="heatmaps">Builds the setups; null leaves the Setups layer empty.</param>
+    /// <param name="review">The Review Queue a number's rounds are sent to; null says so on open.</param>
+    /// <param name="selectTab">Shows a tab by id, for the Review tab after a send; null stays here.</param>
+    /// <param name="renderer">Builds the heatmap renderer for an exported picture; the bundle loader when null.</param>
+    /// <param name="post">UI-thread marshal for the workers' results; the dispatcher when null.</param>
+    /// <param name="openings">Builds the Opening Tendencies; null leaves their layers empty.</param>
+    /// <param name="postPlant">Builds the Post-Plant And Retake; null leaves their layers empty.</param>
+    /// <param name="situational">Builds the Situational Behaviour; null leaves the Economy strip empty.</param>
     /// <param name="notes">The user's stars, edits and notes; a session-only store when null.</param>
     /// <param name="export">Writes an export (text, stem, extension) and opens it; the temp-file writer when null.</param>
+    /// <param name="grenades">The grenade index the openings read; its changes re-project the team.</param>
+    /// <param name="runSection">Runs a named load; the pool when null.</param>
+    /// <param name="roundIndex">The round index stamps the projection key reads; none when null.</param>
+    /// <param name="roundFacts">Round Facts, for the team-scoped CT and T %, pistols and plant times; none when null.</param>
+    /// <param name="playback">2D playback for a row's play button; none when null.</param>
+    /// <param name="now">Today, for "5d ago"; the clock when null.</param>
+    /// <param name="layers">The layers; <see cref="ScoutingLayerCatalog.Create" /> when null.</param>
     public ScoutingReportTabViewModel(TeamIdentityService teams, IExtensionLibrary library, VetoHistoryStore vetoes,
         bool? isBrowser = null,
         SetupHeatmapService? heatmaps = null,
@@ -139,7 +146,6 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Func<string, bool>? selectTab = null,
         Func<SetupHeatmapRenderer>? renderer = null,
         Action<Action>? post = null,
-        Func<byte[], Bitmap?>? decode = null,
         OpeningTendenciesService? openings = null,
         PostPlantService? postPlant = null,
         SituationalBehaviourService? situational = null,
@@ -147,39 +153,51 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Func<string, string, string, string?>? export = null,
         GrenadeIndex? grenades = null,
         Func<string, Func<Action, Task>>? runSection = null,
-        RoundIndexStore? roundIndex = null)
+        RoundIndexStore? roundIndex = null,
+        IRoundFacts? roundFacts = null,
+        Func<ISituationPlayback?>? playback = null,
+        Func<DateTime>? now = null,
+        IReadOnlyList<IScoutingLayer>? layers = null)
     {
-        _grenades = grenades;
-        _roundIndex = roundIndex;
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
         ArgumentNullException.ThrowIfNull(vetoes);
         _teams = teams;
         _library = library;
         _vetoes = vetoes;
-        _heatmaps = heatmaps;
-        _review = review;
-        _selectTab = selectTab;
-        _renderer = renderer ?? (() => new SetupHeatmapRenderer());
+        _grenades = grenades;
+        _roundIndex = roundIndex;
         _post = post ?? (action => Dispatcher.UIThread.Post(action));
-        _decode = decode ?? DecodePng;
-        IsBrowser = isBrowser ?? OperatingSystem.IsBrowser();
         _runSection = runSection ?? (_ => Task.Run);
-        Openings = new OpeningTendenciesSectionViewModel(openings, review, selectTab, _post, _runSection("openings"));
-        PostPlant = new PostPlantSectionViewModel(postPlant, review, selectTab, _post, _runSection("post-plant"));
-        Situational =
-            new SituationalBehaviourSectionViewModel(situational, review, selectTab, _post, _runSection("situational"));
-        Editor = new ScoutingReportEditorViewModel(notes ?? new ScoutingReportNotesStore(null), IsBrowser, export);
-        Openings.PropertyChanged += OnSectionChanged;
-        PostPlant.PropertyChanged += OnSectionChanged;
-        Situational.PropertyChanged += OnSectionChanged;
-        Editor.Projected += OnEditorProjected;
-        foreach (ScoutingReportSectionViewModel section in (ScoutingReportSectionViewModel[])
-                 [RecordSection, RosterSection, VetoSection, NotesSection])
+        _now = now ?? (() => DateTime.Now);
+        _opener = new ScoutingReviewOpener(review, selectTab);
+        IsBrowser = isBrowser ?? OperatingSystem.IsBrowser();
+        _sources = new ScoutingReportSources
         {
-            section.PropertyChanged += OnSectionToggled;
-        }
+            Teams = teams,
+            Library = library,
+            RoundFacts = roundFacts,
+            Heatmaps = heatmaps,
+            Openings = openings,
+            PostPlant = postPlant,
+            Situational = situational,
+            Grenades = grenades,
+            RoundIndex = roundIndex,
+            Playback = playback,
+            Renderer = renderer ?? (() => new SetupHeatmapRenderer())
+        };
+        Editor = new ScoutingReportEditorViewModel(notes ?? new ScoutingReportNotesStore(null), IsBrowser, export);
+        Editor.StarsChanged += OnStarsChanged;
+        Layers = new ScoutingLayerRegistry(layers ?? ScoutingLayerCatalog.Create(), _post, this);
+        Layers.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ScoutingLayerRegistry.Focused))
+            {
+                OnPropertyChanged(nameof(ScopeLine));
+            }
+        };
 
+        Players.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasPlayers));
         _teams.Changed += Refresh;
         _vetoes.Changed += ProjectVetoes;
         if (_grenades is not null)
@@ -194,155 +212,36 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     public ObservableCollection<ScoutingReportTeamRow> Teams { get; } = [];
 
+    /// <summary>The pool, most played first: the map tabs and the pool table.</summary>
     public ObservableCollection<MapPoolRowViewModel> Maps { get; } = [];
 
     public ObservableCollection<VetoRowViewModel> Vetoes { get; } = [];
 
-    /// <summary>A section starts open with this many findings or fewer, the Review queue's rule.</summary>
-    private const int OpenSectionLimit = 50;
+    /// <summary>One dot per demo, by date.</summary>
+    public ObservableCollection<TimelineDotViewModel> Timeline { get; } = [];
 
-    // Open or closed per section key, for the session.
-    private readonly Dictionary<string, bool> _expanded = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>The thin-sample and partial-positions notices for the scope in view.</summary>
+    public ObservableCollection<string> Notices { get; } = [];
 
-    /// <summary>One section per map the team has numbers on, in map pool order.</summary>
-    public ObservableCollection<ScoutingReportMapSectionViewModel> MapSections { get; } = [];
+    public ObservableCollection<PlayerRowViewModel> Players { get; } = [];
 
-    public ScoutingReportGeneralSectionViewModel RecordSection { get; } = new("record", "Overall record", true);
+    /// <summary>The map stage: the layers, the strip and the inspector.</summary>
+    public ScoutingLayerRegistry Layers { get; }
 
-    public ScoutingReportGeneralSectionViewModel RosterSection { get; } = new("roster", "Roster and form", true);
+    /// <summary>The findings, the long form, the one-pager and the export.</summary>
+    public ScoutingReportEditorViewModel Editor { get; }
 
-    public ScoutingReportGeneralSectionViewModel VetoSection { get; } = new("vetoes", "Veto history", true);
+    /// <summary>Every load and the long form of the selected team; tests await it, then drain the post.</summary>
+    internal Task LoadTask { get; private set; } = Task.CompletedTask;
 
-    public ScoutingReportGeneralSectionViewModel NotesSection { get; } = new("notes", "Notes and findings", true);
+    /// <summary>The two veto step kinds, for the add-row picker.</summary>
+    public static IReadOnlyList<VetoAction> VetoActionOptions { get; } = Enum.GetValues<VetoAction>();
 
-    public bool HasMapSections => MapSections.Count > 0;
+    /// <summary>The window sizes the Period Diff picker offers.</summary>
+    public static IReadOnlyList<int> WindowSizeOptions { get; } = [3, 5, 10, 20];
 
-    private IEnumerable<ScoutingReportSectionViewModel> AllSections =>
-        [RecordSection, .. MapSections, RosterSection, VetoSection, NotesSection];
-
-    [RelayCommand]
-    private void ExpandAll()
-    {
-        foreach (ScoutingReportSectionViewModel section in AllSections)
-        {
-            section.IsExpanded = true;
-        }
-    }
-
-    [RelayCommand]
-    private void CollapseAll()
-    {
-        foreach (ScoutingReportSectionViewModel section in AllSections)
-        {
-            section.IsExpanded = false;
-        }
-    }
-
-    // True while the tab itself opens or closes a section by the findings rule, so only the user's own
-    // clicks are remembered.
-    private bool _applyingDefault;
-
-    private void OpenByDefault(ScoutingReportSectionViewModel section, int findings)
-    {
-        if (_expanded.ContainsKey(section.Key))
-        {
-            return;
-        }
-
-        _applyingDefault = true;
-        section.IsExpanded = findings <= OpenSectionLimit;
-        _applyingDefault = false;
-    }
-
-    private void OnSectionToggled(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (!_applyingDefault && e.PropertyName == nameof(ScoutingReportSectionViewModel.IsExpanded)
-            && sender is ScoutingReportSectionViewModel section)
-        {
-            _expanded[section.Key] = section.IsExpanded;
-        }
-    }
-
-    // Regroups every section's lists by map. Sections that stay keep their view model, so an open one
-    // stays open and its rows are not rebuilt for a map whose lists did not change.
-    private void RebuildSections()
-    {
-        List<string> maps = [.. Maps.Select(m => m.Map)];
-        foreach (string map in Heatmaps.Select(h => h.Map)
-                     .Concat(Openings.Blocks.Select(b => b.Map))
-                     .Concat(PostPlant.Blocks.Select(b => b.Map))
-                     .Concat(Situational.Blocks.Select(b => b.Map))
-                     .Concat(Editor.MapFindings.Keys)
-                     .Order(StringComparer.OrdinalIgnoreCase))
-        {
-            if (!maps.Contains(map, StringComparer.OrdinalIgnoreCase))
-            {
-                maps.Add(map);
-            }
-        }
-
-        Dictionary<string, ScoutingReportMapSectionViewModel> existing =
-            MapSections.ToDictionary(m => m.Map, StringComparer.OrdinalIgnoreCase);
-        List<ScoutingReportMapSectionViewModel> wanted = [];
-        foreach (string map in maps)
-        {
-            List<ScoutingReportFindingViewModel> findings =
-                Editor.MapFindings.TryGetValue(map, out List<ScoutingReportFindingViewModel>? f) ? f : [];
-            if (!existing.TryGetValue(map, out ScoutingReportMapSectionViewModel? section))
-            {
-                section = new ScoutingReportMapSectionViewModel(map,
-                    _expanded.TryGetValue("map|" + map, out bool open) && open);
-                section.PropertyChanged += OnSectionToggled;
-            }
-
-            OpenByDefault(section, findings.Count);
-
-            bool Same(string m) => string.Equals(m, map, StringComparison.OrdinalIgnoreCase);
-            section.Set(Maps.FirstOrDefault(m => Same(m.Map)), [.. Heatmaps.Where(h => Same(h.Map))],
-                [.. Openings.Blocks.Where(b => Same(b.Map))], [.. PostPlant.Blocks.Where(b => Same(b.Map))],
-                [.. Situational.Blocks.Where(b => Same(b.Map))], findings);
-            wanted.Add(section);
-        }
-
-        if (!wanted.SequenceEqual(MapSections))
-        {
-            foreach (ScoutingReportMapSectionViewModel gone in MapSections.Except(wanted))
-            {
-                gone.PropertyChanged -= OnSectionToggled;
-            }
-
-            MapSections.Clear();
-            foreach (ScoutingReportMapSectionViewModel section in wanted)
-            {
-                MapSections.Add(section);
-            }
-        }
-
-        RecordSection.SetCount(Maps.Count == 0 ? "" : OpeningTendenciesSectionViewModel.Plural(Maps.Count, "map"));
-        VetoSection.SetCount(Vetoes.Count == 0 ? "" : OpeningTendenciesSectionViewModel.Plural(Vetoes.Count, "step"));
-        SetNotesCount();
-        OnPropertyChanged(nameof(HasMapSections));
-    }
-
-    private void OnEditorProjected()
-    {
-        foreach (ScoutingReportMapSectionViewModel section in MapSections)
-        {
-            List<ScoutingReportFindingViewModel> findings =
-                Editor.MapFindings.TryGetValue(section.Map, out List<ScoutingReportFindingViewModel>? f) ? f : [];
-            section.SetFindings(findings);
-            OpenByDefault(section, findings.Count);
-        }
-
-        SetNotesCount();
-    }
-
-    private void SetNotesCount()
-    {
-        int general = Editor.GeneralFindings.Count;
-        NotesSection.SetCount(OpeningTendenciesSectionViewModel.Plural(general, "finding"));
-        OpenByDefault(NotesSection, general);
-    }
+    /// <summary>The buy filter's choices.</summary>
+    public static IReadOnlyList<ScoutingBuy> BuyOptions { get; } = Enum.GetValues<ScoutingBuy>();
 
     public bool HasTeams => Teams.Count > 0;
 
@@ -352,46 +251,90 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     public bool HasVetoes => Vetoes.Count > 0;
 
-    /// <summary>The selected team's Setup Heatmaps By Buy, in the service's order.</summary>
-    public ObservableCollection<SetupHeatmapViewModel> Heatmaps { get; } = [];
+    public bool HasNotices => Notices.Count > 0;
 
-    /// <summary>This host builds heatmaps at all.</summary>
-    public bool HasHeatmapSection => _heatmaps is not null;
-
-    public bool HasHeatmaps => Heatmaps.Count > 0;
-
-    /// <summary>The selected team's Opening Tendencies.</summary>
-    public OpeningTendenciesSectionViewModel Openings { get; }
-
-    /// <summary>The selected team's Post-Plant And Retake.</summary>
-    public PostPlantSectionViewModel PostPlant { get; }
-
-    /// <summary>The selected team's Situational Behaviour.</summary>
-    public SituationalBehaviourSectionViewModel Situational { get; }
-
-    /// <summary>The selected team's findings, the long form, the one-pager and the export.</summary>
-    public ScoutingReportEditorViewModel Editor { get; }
-
-    /// <summary>The running heatmap build; tests await it.</summary>
-    internal Task HeatmapTask { get; private set; } = Task.CompletedTask;
-
-    /// <summary>The two veto step kinds, for the add-row picker.</summary>
-    public static IReadOnlyList<VetoAction> VetoActionOptions { get; } = Enum.GetValues<VetoAction>();
-
-    /// <summary>The window sizes the Period Diff picker offers.</summary>
-    public static IReadOnlyList<int> WindowSizeOptions { get; } = [3, 5, 10, 20];
+    public bool HasPlayers => Players.Count > 0;
 
     public bool HasPeriodDiff => PeriodDiffRecent is not null;
 
-    /// <summary>"18 demos": the section's own overall sample size, or the empty-state line.</summary>
+    public bool VetoesAreSessionOnly => _vetoes.IsSessionOnly;
+
+    public bool IsCt
+    {
+        get => Side == ScoutingSide.Ct;
+        set
+        {
+            if (value)
+            {
+                Side = ScoutingSide.Ct;
+            }
+        }
+    }
+
+    public bool IsT
+    {
+        get => Side == ScoutingSide.T;
+        set
+        {
+            if (value)
+            {
+                Side = ScoutingSide.T;
+            }
+        }
+    }
+
+    /// <summary>The map in view, as MapView names it; null with none.</summary>
+    public string? MapName => SelectedMap?.Map;
+
+    // ---- Header ----
+
+    public string TeamName => SelectedTeam?.Name ?? "";
+
+    public int Wins { get; private set; }
+
+    public int Losses { get; private set; }
+
+    /// <summary>"61% of 23 maps".</summary>
+    public string RecordLine { get; private set; } = "";
+
+    /// <summary>The ranks are entered by hand later (P3.6); until then the header says so.</summary>
+    public string RanksLine { get; } = "VRS / HLTV rank: manual entry comes later (P3.6)";
+
+    /// <summary>"vs Us 1–2", or empty when Team Identity knows no us or no meeting.</summary>
+    public string HeadToHeadLine { get; private set; } = "";
+
+    public bool HasHeadToHead => HeadToHeadLine.Length > 0;
+
+    /// <summary>"23 demos · Aug 1 to Nov 8 · newest 3d ago".</summary>
+    public string DemosLine { get; private set; } = "";
+
+    /// <summary>The opponent mix needs ranks: a placeholder until P3.6.</summary>
+    public string OpponentMixLine { get; } = "opponent mix needs ranks (P3.6)";
+
+    /// <summary>"filled = won · de_nuke bright".</summary>
+    public string TimelineCaption => SelectedMap is { } map ? $"filled = won, ring = lost · {map.Map} bright" : "";
+
+    /// <summary>"18 demos", the sample the export prints under its title.</summary>
     public string SampleSizeLine { get; private set; } = "";
 
-    /// <summary>"Deciders: 3-1 (4)" or "" when nothing is inferable.</summary>
+    /// <summary>"Deciders: 3-1 (4 inferable)", or empty.</summary>
     public string DeciderLine { get; private set; } = "";
 
     public bool HasDeciderData => DeciderLine.Length > 0;
 
-    public bool VetoesAreSessionOnly => _vetoes.IsSessionOnly;
+    /// <summary>"de_mirage · CT · Full buy · 6 maps".</summary>
+    public string ScopeLine => SelectedMap is not { } map
+        ? ""
+        : $"{map.Map} · {Side.Label()} · {(Buy == ScoutingBuy.All ? "all buys" : Buy + " buy")} · {ScoutingLayerBase.Plural(map.Played, "map")}";
+
+    /// <summary>"de_mirage highlighted · CT and T are the team's own round win %".</summary>
+    public string PoolCaption => SelectedMap is { } map
+        ? $"{map.Map} highlighted · CT and T are the team's own round win %"
+        : "CT and T are the team's own round win %";
+
+    public string PlayersTitle => SelectedMap is { } map ? $"Players · {map.Map}" : "Players";
+
+    // ---- Lifecycle ----
 
     /// <inheritdoc />
     public void OnActivated(IModuleContext context)
@@ -406,7 +349,6 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <inheritdoc />
     public void OnDeactivated() => _shown = false;
 
-
     /// <inheritdoc />
     public void Dispose()
     {
@@ -417,14 +359,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
         _disposed = true;
         Interlocked.Increment(ref _generation);
-        RetireHeatmaps();
-        Openings.Dispose();
-        PostPlant.Dispose();
-        Situational.Dispose();
-        Openings.PropertyChanged -= OnSectionChanged;
-        PostPlant.PropertyChanged -= OnSectionChanged;
-        Situational.PropertyChanged -= OnSectionChanged;
-        Editor.Projected -= OnEditorProjected;
+        Layers.Dispose();
+        Editor.StarsChanged -= OnStarsChanged;
         _teams.Changed -= Refresh;
         _vetoes.Changed -= ProjectVetoes;
         if (_grenades is not null)
@@ -436,13 +372,40 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     partial void OnSelectedTeamChanged(ScoutingReportTeamRow? value)
     {
         NewVetoMap = "";
+        Layers.ResetToggles();
         using (JobScope.UserAction())
         {
             Project();
         }
 
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(TeamName));
     }
+
+    partial void OnSelectedMapChanged(MapPoolRowViewModel? value)
+    {
+        foreach (MapPoolRowViewModel map in Maps)
+        {
+            map.IsSelected = ReferenceEquals(map, value);
+        }
+
+        OnPropertyChanged(nameof(MapName));
+        OnPropertyChanged(nameof(TimelineCaption));
+        OnPropertyChanged(nameof(PoolCaption));
+        OnPropertyChanged(nameof(PlayersTitle));
+        ProjectTimeline();
+        ProjectScope();
+        SeedSuggested();
+    }
+
+    partial void OnSideChanged(ScoutingSide value)
+    {
+        OnPropertyChanged(nameof(IsCt));
+        OnPropertyChanged(nameof(IsT));
+        ProjectScope();
+    }
+
+    partial void OnBuyChanged(ScoutingBuy value) => ProjectScope();
 
     partial void OnWindowSizeChanged(int value)
     {
@@ -450,56 +413,28 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         CollectFindings();
     }
 
-    // A section's worker landed (or the section cleared): its numbers are the findings' source.
-    private void OnSectionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    /// <summary>Shows a map's tab.</summary>
+    /// <param name="map">The map.</param>
+    [RelayCommand]
+    private void SelectMap(MapPoolRowViewModel? map)
     {
-        if (e.PropertyName == nameof(OpeningTendenciesSectionViewModel.IsBuilding) && sender is ObservableObject section
-            && !IsSectionBuilding(section))
+        if (map is not null)
         {
-            CollectFindings();
+            SelectedMap = map;
         }
     }
 
-    private static bool IsSectionBuilding(ObservableObject section) => section switch
-    {
-        OpeningTendenciesSectionViewModel o => o.IsBuilding,
-        PostPlantSectionViewModel p => p.IsBuilding,
-        SituationalBehaviourSectionViewModel s => s.IsBuilding,
-        _ => false
-    };
+    [RelayCommand]
+    private void TogglePool() => IsPoolOpen = !IsPoolOpen;
 
-    /// <summary>
-    ///     Re-collects every section's lines into the editor, in the tab's own order: the Map Pool Record,
-    ///     the Setup Heatmaps, the Opening Tendencies, the Post-Plant And Retake, the Situational
-    ///     Behaviour, the Period Diff and the veto history.
-    /// </summary>
-    private void CollectFindings()
-    {
-        if (_disposed)
-        {
-            return;
-        }
+    [RelayCommand]
+    private void TogglePeriod() => IsPeriodOpen = !IsPeriodOpen;
 
-        if (SelectedTeam is not { } row)
-        {
-            Editor.Load(null, "", "", []);
-            RebuildSections();
-            return;
-        }
+    [RelayCommand]
+    private void ToggleVeto() => IsVetoOpen = !IsVetoOpen;
 
-        List<ScoutingReportFindingSource> sources =
-        [
-            .. ScoutingReportEditorViewModel.FromMapPool(Maps, DeciderLine),
-            .. ScoutingReportEditorViewModel.FromHeatmaps(Heatmaps),
-            .. ScoutingReportEditorViewModel.FromOpenings(Openings.Blocks),
-            .. ScoutingReportEditorViewModel.FromPostPlant(PostPlant.Blocks),
-            .. ScoutingReportEditorViewModel.FromSituational(Situational.Blocks),
-            .. ScoutingReportEditorViewModel.FromPeriodDiff(PeriodDiffRecent, PeriodDiffPrevious, PeriodDiffNote),
-            .. ScoutingReportEditorViewModel.FromVetoes(Vetoes)
-        ];
-        Editor.Load(row.Id, row.Name, SampleSizeLine, sources);
-        RebuildSections();
-    }
+    [RelayCommand]
+    private void ToggleNotes() => IsNotesOpen = !IsNotesOpen;
 
     [RelayCommand]
     private void AddVeto()
@@ -528,6 +463,52 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             _vetoes.Remove(row.Id);
         }
     }
+
+    /// <summary>Takes a line off the one-pager from its preview.</summary>
+    /// <param name="row">The starred line.</param>
+    [RelayCommand]
+    private void Unstar(ScoutingReportFindingViewModel? row)
+    {
+        if (row is not null)
+        {
+            Editor.SetStarred(row.Key, false);
+        }
+    }
+
+    // ---- IScoutingRowHost: the inspector's stars, Review and 2D ----
+
+    /// <inheritdoc />
+    public bool IsStarred(string key) => Editor.IsStarred(key);
+
+    /// <inheritdoc />
+    public void SetStarred(string key, bool starred) => Editor.SetStarred(key, starred);
+
+    /// <inheritdoc />
+    public void Open(ScoutingInspectorRowViewModel row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        if (row.Row is not { Rounds.Count: > 0 } r)
+        {
+            return;
+        }
+
+        ReviewLine = _opener.Open(SelectedTeam?.Name ?? "", SelectedTeam?.Id, r.Rounds, r.OpenTitle);
+        Layers.Inspector.ReviewLine = ReviewLine;
+    }
+
+    /// <inheritdoc />
+    public void Play(ScoutingInspectorRowViewModel row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        if (row.Row?.Play is { } at && _sources.Playback?.Invoke() is { } playback)
+        {
+            _ = playback.SeekAsync(at.DemoPath, at.Tick);
+        }
+    }
+
+    private void OnStarsChanged() => Layers.RefreshStars();
+
+    // ---- Projection ----
 
     private void Refresh()
     {
@@ -570,7 +551,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     {
         StringBuilder key = new();
         key.Append(JsonSerializer.Serialize(_teams.AllTeams.FirstOrDefault(t => t.Id == row.Id)));
-        key.Append(CultureInfo.InvariantCulture, $"|grenades:{_grenades?.IsReady}");
+        key.Append(CultureInfo.InvariantCulture, $"|grenades:{_grenades?.IsReady}|us:{_teams.Us?.Id}");
         foreach ((DemoRef demo, int side, TeamAssignment assignment) in _teams.SidesOf(row.Id))
         {
             key.Append('|').Append(side).Append(JsonSerializer.Serialize(demo))
@@ -589,54 +570,309 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     private void Project()
     {
+        int generation = Interlocked.Increment(ref _generation);
         _projectedKey = SelectedTeam is { } selected ? ProjectionKey(selected) : null;
+        _layerFindings = [];
+        string? keepMap = SelectedMap?.Map;
         Maps.Clear();
+        ReviewLine = "";
         if (SelectedTeam is not { } row)
         {
-            SampleSizeLine = "";
-            DeciderLine = "";
-            OnPropertyChanged(nameof(HasMaps));
-            OnPropertyChanged(nameof(SampleSizeLine));
-            OnPropertyChanged(nameof(DeciderLine));
-            OnPropertyChanged(nameof(HasDeciderData));
+            _data = null;
+            Wins = Losses = 0;
+            RecordLine = HeadToHeadLine = DemosLine = SampleSizeLine = DeciderLine = "";
+            Timeline.Clear();
+            Players.Clear();
+            SelectedMap = null;
+            RaiseHeader();
             ProjectVetoes(collect: false);
-            BuildHeatmaps();
-            Openings.Load(null, "");
-            PostPlant.Load(null, "");
-            Situational.Load(null, "");
             ProjectPeriodDiff();
+            ProjectScope();
             CollectFindings();
+            LoadTask = Task.CompletedTask;
             return;
         }
 
-        MapPoolRecord record = MapPoolRecordService.Build(_teams, _library, row.Id);
-        foreach (MapPoolMapRow map in record.Maps)
+        ScoutingReportData data = ScoutingReportData.Start(row.Id, row.Name, _sources, _runSection);
+        _data = data;
+        DateTime now = _now();
+        foreach (MapPoolMapRow map in data.Record.Maps)
         {
-            Maps.Add(new MapPoolRowViewModel(map));
+            long last = data.Demos.Where(d => d.Map == map.Map).Select(d => d.Ticks).DefaultIfEmpty(0).Max();
+            Maps.Add(new MapPoolRowViewModel(map, last > 0 ? new DateTime(last) : null, now));
         }
 
+        ProjectHeader(data, now);
+        ProjectVetoes(collect: false);
+        ProjectPeriodDiff();
+        SelectedMap = Maps.FirstOrDefault(m => m.Map == keepMap) ?? Maps.FirstOrDefault();
+        if (SelectedMap is null)
+        {
+            ProjectScope();
+        }
+
+        CollectFindings();
+        LoadTask = Land(data, generation);
+    }
+
+    // Once every load is in: the pool's team-scoped columns, the notices, the players and the long form.
+    private Task Land(ScoutingReportData data, int generation)
+    {
+        if (data.All.IsCompleted)
+        {
+            Task<IReadOnlyList<ScoutingReportFindingSource>> longForm = BuildLongForm(data);
+            if (longForm.IsCompleted)
+            {
+                Landed(data, generation, longForm);
+                return Task.CompletedTask;
+            }
+
+            return longForm.ContinueWith(t => _post(() => Landed(data, generation, t)), CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        }
+
+        return data.All.ContinueWith(_ => BuildLongForm(data), CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default).Unwrap()
+            .ContinueWith(t => _post(() => Landed(data, generation, t)), CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    }
+
+    private void Landed(ScoutingReportData data, int generation, Task<IReadOnlyList<ScoutingReportFindingSource>> longForm)
+    {
+        if (_disposed || generation != Volatile.Read(ref _generation) || !ReferenceEquals(data, _data))
+        {
+            return;
+        }
+
+        TeamMapFactsSet? facts = data.Facts.IsCompletedSuccessfully ? data.Facts.Result : null;
+        foreach (MapPoolRowViewModel map in Maps)
+        {
+            map.SetFacts(facts?.For(map.Map), _sources.RoundFacts is not null);
+        }
+
+        _layerFindings = longForm.IsCompletedSuccessfully ? longForm.Result : [];
+        ProjectNotices();
+        ProjectPlayers();
+        CollectFindings();
+        SeedSuggested();
+    }
+
+    // Every layer over every map and side at the "All" buy (a layer that splits by buy files each buy's lines
+    // under its own), in map, side and layer order: the long form, and the export's source.
+    private async Task<IReadOnlyList<ScoutingReportFindingSource>> BuildLongForm(ScoutingReportData data)
+    {
+        List<ScoutingReportFindingSource> sources = [];
+        foreach (string map in data.Record.Maps.Select(m => m.Map))
+        {
+            foreach (ScoutingSide side in (ScoutingSide[])[ScoutingSide.Ct, ScoutingSide.T])
+            {
+                ScoutingLayerContext context = new(data, map, side, ScoutingBuy.All);
+                foreach (ScoutingLayerChipViewModel chip in Layers.All.Where(c => c.Layer.AppliesTo(side)))
+                {
+                    ScoutingLayerResult result;
+                    try
+                    {
+                        result = await ScoutingLayerRegistry.Build(chip.Layer, context, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        continue;
+                    }
+
+                    sources.AddRange(ScoutingReportEditorViewModel.FromLayer(chip.Layer, context, result));
+                }
+            }
+        }
+
+        return sources;
+    }
+
+    // The suggested reads of the map in view start starred, once ever per line.
+    private void SeedSuggested()
+    {
+        if (SelectedMap is not { } map)
+        {
+            return;
+        }
+
+        Editor.Seed(_layerFindings.Where(f => f.Suggested && f.Map == map.Map).Select(f => f.Key));
+    }
+
+    private void ProjectHeader(ScoutingReportData data, DateTime now)
+    {
+        MapPoolRecord record = data.Record;
+        Wins = record.Maps.Sum(m => m.Wins);
+        Losses = record.Maps.Sum(m => m.Losses);
+        int maps = record.TotalDemos;
+        RecordLine = Wins + Losses == 0
+            ? $"no resolved score in {ScoutingLayerBase.Plural(maps, "map")}"
+            : $"{ScoutingLayerBase.Percent((double)Wins / (Wins + Losses))} of {ScoutingLayerBase.Plural(maps, "map")}";
         SampleSizeLine = record.TotalDemos == 0
             ? "no demos yet: this team has no side assigned in any indexed demo"
-            : $"{record.TotalDemos} demo{(record.TotalDemos == 1 ? "" : "s")} across {record.Maps.Count} map{(record.Maps.Count == 1 ? "" : "s")}";
+            : $"{ScoutingLayerBase.Plural(record.TotalDemos, "demo")} across {ScoutingLayerBase.Plural(record.Maps.Count, "map")}";
         DeciderLine = record.Deciders.Played == 0
             ? ""
             : $"Deciders: {record.Deciders.Wins}-{record.Deciders.Losses} ({record.Deciders.Played} inferable)";
 
-        OnPropertyChanged(nameof(HasMaps));
+        HeadToHeadLine = "";
+        if (_teams.Us is { } us && us.Id != data.TeamId)
+        {
+            List<TeamDemoFacts> met = [.. data.Demos.Where(d => d.OpponentId == us.Id)];
+            if (met.Count > 0)
+            {
+                HeadToHeadLine =
+                    $"vs {DisplayText.Sanitize(us.Name)} {met.Count(d => d.Won == true)}–{met.Count(d => d.Won == false)}";
+            }
+        }
+
+        if (data.Demos.Count == 0)
+        {
+            DemosLine = "no demos";
+        }
+        else
+        {
+            DateTime first = new(data.Demos.Min(d => d.Ticks));
+            DateTime last = new(data.Demos.Max(d => d.Ticks));
+            DemosLine =
+                $"{ScoutingLayerBase.Plural(data.Demos.Count, "demo")} · {first.ToString("MMM d", CultureInfo.InvariantCulture)} to {last.ToString("MMM d", CultureInfo.InvariantCulture)} · newest {MapPoolRowViewModel.Ago(last, now)}";
+        }
+
+        RaiseHeader();
+    }
+
+    private void RaiseHeader()
+    {
+        OnPropertyChanged(nameof(Wins));
+        OnPropertyChanged(nameof(Losses));
+        OnPropertyChanged(nameof(RecordLine));
+        OnPropertyChanged(nameof(HeadToHeadLine));
+        OnPropertyChanged(nameof(HasHeadToHead));
+        OnPropertyChanged(nameof(DemosLine));
         OnPropertyChanged(nameof(SampleSizeLine));
         OnPropertyChanged(nameof(DeciderLine));
         OnPropertyChanged(nameof(HasDeciderData));
-        ProjectVetoes(collect: false);
-        BuildHeatmaps();
-        Openings.Load(row.Id, row.Name);
-        PostPlant.Load(row.Id, row.Name);
-        Situational.Load(row.Id, row.Name);
-        ProjectPeriodDiff();
-        CollectFindings();
+        OnPropertyChanged(nameof(HasMaps));
     }
 
-    // Synchronous like the Map Pool Record: SidesOf is already in memory, so a window-size change
-    // (or a team change) re-derives without a worker.
+    private void ProjectTimeline()
+    {
+        Timeline.Clear();
+        if (_data is not { Demos.Count: > 0 } data)
+        {
+            return;
+        }
+
+        long min = data.Demos.Min(d => d.Ticks);
+        long max = data.Demos.Max(d => d.Ticks);
+        double span = Math.Max(1, max - min);
+        int i = 0;
+        foreach (TeamDemoFacts demo in data.Demos.OrderBy(d => d.Ticks))
+        {
+            double x = 4 + (demo.Ticks - min) / span * (TimelineDotViewModel.Width - 12);
+            double y = 2 + i++ % 3 * 6;
+            string result = demo.Won switch { true => "won", false => "lost", _ => "no result" };
+            Timeline.Add(new TimelineDotViewModel(x, y, demo.Won == true,
+                SelectedMap is { } map && map.Map == demo.Map,
+                $"{demo.Map} · {new DateTime(demo.Ticks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} · {result}"));
+        }
+    }
+
+    // The stage, the notices and the players for the map, side and buy in view.
+    private void ProjectScope()
+    {
+        Layers.ScopeSuffix = SelectedMap is { } m ? ScoutingLayerBase.Plural(m.Played, "map") : "";
+        Layers.SetScope(_data, SelectedMap?.Map ?? "", Side, Buy);
+        OnPropertyChanged(nameof(ScopeLine));
+        ProjectNotices();
+        ProjectPlayers();
+    }
+
+    private void ProjectNotices()
+    {
+        Notices.Clear();
+        if (SelectedMap is { } map && _data is { } data)
+        {
+            if (map.IsThin)
+            {
+                Notices.Add(
+                    $"{map.Map} has {ScoutingLayerBase.Plural(map.Played, "map")} in the sample. Treat every percentage here as a hint, not a tendency.");
+            }
+
+            int without = Max(Landed(data.Heatmaps)?.DemosWithoutPositions, Landed(data.Openings)?.DemosWithoutPositions,
+                Landed(data.PostPlant)?.DemosWithoutPositions);
+            if (without > 0)
+            {
+                Notices.Add(
+                    $"Positions were read for {Math.Max(0, data.Demos.Count - without)} of {ScoutingLayerBase.Plural(data.Demos.Count, "demo")}. Setups, lurks and plant spots use those; records and economy use all. Rebuild the round index to fill the rest.");
+            }
+        }
+
+        OnPropertyChanged(nameof(HasNotices));
+    }
+
+    private static int Max(params int?[] values) => values.Select(v => v ?? 0).DefaultIfEmpty(0).Max();
+
+    private static T? Landed<T>(Task<T?> load) where T : class => load.IsCompletedSuccessfully ? load.Result : null;
+
+    // The current roster's players, most appearances first, with the role the openings suggest on the map in view.
+    private void ProjectPlayers()
+    {
+        Players.Clear();
+        if (SelectedTeam is not { } row || _teams.AllTeams.FirstOrDefault(t => t.Id == row.Id) is not { } team
+            || team.Rosters.OrderByDescending(r => r.Since).FirstOrDefault() is not { } roster)
+        {
+            return;
+        }
+
+        OpeningTendencies? t = SelectedMap is { } map && _data is { } data && Landed(data.Openings) is { } set
+            ? set.Blocks.FirstOrDefault(b => b.Map == map.Map && b.Side == 2)
+            : null;
+        Dictionary<string, (int Count, string Site)> entries = new(StringComparer.Ordinal);
+        foreach (TendencyBucket bucket in t?.EntryBySite ?? [])
+        {
+            int at = bucket.Label.LastIndexOf(" at ", StringComparison.Ordinal);
+            string name = at > 0 ? bucket.Label[..at] : bucket.Label;
+            string site = at > 0 ? bucket.Label[(at + 4)..] : "";
+            entries.TryGetValue(name, out (int Count, string Site) had);
+            entries[name] = (had.Count + bucket.Count, had.Count >= bucket.Count ? had.Site : site);
+        }
+
+        Dictionary<string, int> lurks = t?.Lurkers.ToDictionary(b => b.Label, b => b.Count, StringComparer.Ordinal)
+                                        ?? new Dictionary<string, int>(StringComparer.Ordinal);
+        string? topEntry = entries.OrderByDescending(e => e.Value.Count).Select(e => e.Key).FirstOrDefault();
+        string? topLurk = lurks.OrderByDescending(e => e.Value).Select(e => e.Key).FirstOrDefault();
+        int rounds = t?.Rounds.Count ?? 0;
+
+        ScoutingColor[] colors =
+            [ScoutingColor.Player1, ScoutingColor.Player2, ScoutingColor.Player3, ScoutingColor.Player4, ScoutingColor.Player5];
+        int i = 0;
+        foreach (TeamIndexMember member in _teams.MembersOf(row.Id, roster.Id).Values.OrderByDescending(m => m.Count)
+                     .Take(5))
+        {
+            string name = DisplayText.Sanitize(member.LastName);
+            (string role, string note) = name == topEntry && entries[name].Count > 0
+                ? ("Entry", $"takes {entries[name].Count} of {rounds} T entries")
+                : name == topLurk && lurks[name] > 0
+                    ? ("Lurk", $"lurks in {lurks[name]} of {t!.LurkRounds} T rounds")
+                    : ("—", "");
+            string tRole = entries.TryGetValue(name, out (int Count, string Site) e) && e.Count > 0
+                ? $"entry {e.Site}"
+                : lurks.TryGetValue(name, out int l) && l > 0 ? "lurk" : "—";
+            Players.Add(new PlayerRowViewModel
+            {
+                Name = name,
+                Color = colors[i++ % colors.Length],
+                Role = role,
+                RoleNote = note,
+                TRole = tRole,
+                Appearances = ScoutingLayerBase.Plural(member.Count, "demo")
+            });
+        }
+    }
+
+    // Synchronous like the record: SidesOf is already in memory, so a window-size change (or a team change)
+    // re-derives without a worker.
     private void ProjectPeriodDiff()
     {
         if (SelectedTeam is not { } row)
@@ -651,219 +887,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         PeriodDiffSet set = PeriodDiffService.Build(_teams, _library, row.Id, WindowSize);
         PeriodDiffRecent = new PeriodDiffRowViewModel(set.Recent);
         PeriodDiffPrevious = new PeriodDiffRowViewModel(set.Previous);
-        PeriodDiffNote = PeriodDiffNoteFor(set);
+        PeriodDiffNote = ScoutingReportLines.PeriodDiffNoteFor(set);
         OnPropertyChanged(nameof(HasPeriodDiff));
-    }
-
-    /// <summary>The section's own summary line for a finished build.</summary>
-    /// <param name="set">The build.</param>
-    public static string PeriodDiffNoteFor(PeriodDiffSet set)
-    {
-        ArgumentNullException.ThrowIfNull(set);
-        if (!set.HasBothPeriods)
-        {
-            return set.TotalDemos == 0
-                ? "no demos yet: this team has no side assigned in any indexed demo"
-                : $"only {Plural(set.TotalDemos, "demo")} so far: not enough for two periods of {set.WindowSize}";
-        }
-
-        if (!set.RosterChanged)
-        {
-            return set.Recent.DominantRoster is null
-                ? "no roster resolved in either period"
-                : "same roster across both periods";
-        }
-
-        return $"roster changed: {set.Previous.DominantRoster!.Label} then {set.Recent.DominantRoster!.Label}";
-    }
-
-    /// <summary>The Review Queue clip for one of a heatmap's rounds: freeze end to the setup window's end plus the tail.</summary>
-    /// <param name="heatmap">The heatmap.</param>
-    /// <param name="round">One of its rounds.</param>
-    /// <param name="teamId">The scouting report's team.</param>
-    private static ReviewClip ReviewClipFor(SetupHeatmap heatmap, SetupHeatmapRound round, Guid? teamId = null)
-    {
-        ArgumentNullException.ThrowIfNull(heatmap);
-        ArgumentNullException.ThrowIfNull(round);
-        return ReviewClip.Clip(round.DemoPath, round.FreezeEndTick, round.ClipEndTick,
-            $"{heatmap.Map} · {SetupHeatmapViewModel.BuyLabelFor(heatmap.Buy)} · round {round.RoundNumber}",
-            ReviewSources.ScoutingReport, round.TickRate, round.Sha256, teamId);
-    }
-
-    /// <summary>The section line for a finished build.</summary>
-    /// <param name="set">The build.</param>
-    public static string HeatmapLineFor(SetupHeatmapSet set)
-    {
-        ArgumentNullException.ThrowIfNull(set);
-        if (set.Heatmaps.Count == 0)
-        {
-            return set.DemosRead + set.DemosWithoutPositions == 0
-                ? "no CT rounds yet: no demo of this team has round facts"
-                : "no CT rounds: Team Identity put this team on CT in no round with facts";
-        }
-
-        int rounds = set.Heatmaps.Sum(h => h.Rounds.Count);
-        string line = $"{Plural(set.Heatmaps.Count, "heatmap")} over {Plural(rounds, "CT round")}";
-        return set.DemosWithoutPositions == 0
-            ? line
-            : $"{line} · {Plural(set.DemosWithoutPositions, "demo")} without positions; rebuild the index";
-    }
-
-    /// <summary>
-    ///     Sends a heatmap's rounds to the Review Queue under one title card naming the team, the map and
-    ///     the buy, then shows the Review tab. Rounds already queued are skipped.
-    /// </summary>
-    /// <param name="heatmap">The heatmap clicked.</param>
-    [RelayCommand]
-    private void OpenRounds(SetupHeatmapViewModel? heatmap)
-    {
-        if (heatmap is null || heatmap.Heatmap.Rounds.Count == 0)
-        {
-            return;
-        }
-
-        if (_review is null)
-        {
-            ReviewLine = "no Review Queue on this host";
-            return;
-        }
-
-        SetupHeatmap model = heatmap.Heatmap;
-        string team = SelectedTeam?.Name ?? "";
-        Guid? teamId = SelectedTeam?.Id;
-        int added = _review.Add(model.Rounds.Select(r => ReviewClipFor(model, r, teamId)),
-            $"Scouting report · {team} · {model.Map} {heatmap.BuyLabel}", Plural(model.Rounds.Count, "CT round"));
-        ReviewLine = added == 0 ? "already in Review" : $"{Plural(added, "round")} sent to Review";
-        _selectTab?.Invoke(ReviewQueueModule.TabId);
-    }
-
-    private void BuildHeatmaps()
-    {
-        int generation = Interlocked.Increment(ref _generation);
-        RetireHeatmaps();
-        ReviewLine = "";
-        OnPropertyChanged(nameof(HasHeatmaps));
-        if (_heatmaps is null || SelectedTeam is not { } row)
-        {
-            HeatmapLine = "";
-            IsHeatmapBuilding = false;
-            HeatmapTask = Task.CompletedTask;
-            return;
-        }
-
-        IsHeatmapBuilding = true;
-        HeatmapLine = "reading positions";
-        Guid teamId = row.Id;
-        HeatmapTask = _runSection("heatmaps")(() => RunHeatmaps(generation, teamId));
-    }
-
-    // The worker: one build, the rows posted at once, then one render per heatmap from its own
-    // OverlayDocument, each picture posted as it lands.
-    private void RunHeatmaps(int generation, Guid teamId)
-    {
-        SetupHeatmapSet set;
-        try
-        {
-            set = _heatmaps!.Build(teamId);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-        {
-            _post(() =>
-            {
-                if (generation == Volatile.Read(ref _generation))
-                {
-                    IsHeatmapBuilding = false;
-                    HeatmapLine = $"heatmaps unavailable: {ex.Message}";
-                }
-            });
-            return;
-        }
-
-        List<SetupHeatmapViewModel> rows = [.. set.Heatmaps.Select(h => new SetupHeatmapViewModel(h))];
-        _post(() =>
-        {
-            if (generation != Volatile.Read(ref _generation))
-            {
-                return;
-            }
-
-            foreach (SetupHeatmapViewModel heatmap in rows)
-            {
-                Heatmaps.Add(heatmap);
-            }
-
-            OnPropertyChanged(nameof(HasHeatmaps));
-            HeatmapLine = HeatmapLineFor(set);
-            CollectFindings();
-        });
-
-        using (SetupHeatmapRenderer renderer = _renderer())
-        {
-            foreach (SetupHeatmapViewModel heatmap in rows)
-            {
-                if (generation != Volatile.Read(ref _generation))
-                {
-                    return;
-                }
-
-                byte[]? png = heatmap.Overlay.IsEmpty ? null : renderer.Render(heatmap.Overlay);
-                Bitmap? bitmap = png is null ? null : _decode(png);
-                _post(() =>
-                {
-                    if (generation == Volatile.Read(ref _generation))
-                    {
-                        heatmap.ApplyImage(png, bitmap);
-                    }
-                    else
-                    {
-                        bitmap?.Dispose();
-                    }
-                });
-            }
-        }
-
-        _post(() =>
-        {
-            if (generation == Volatile.Read(ref _generation))
-            {
-                IsHeatmapBuilding = false;
-            }
-        });
-    }
-
-    // Empties the list and disposes its pictures one post later, once the view has let go of them.
-    private void RetireHeatmaps()
-    {
-        if (Heatmaps.Count == 0)
-        {
-            return;
-        }
-
-        SetupHeatmapViewModel[] retired = [.. Heatmaps];
-        Heatmaps.Clear();
-        _post(() =>
-        {
-            foreach (SetupHeatmapViewModel heatmap in retired)
-            {
-                heatmap.ReleaseImage();
-            }
-        });
-    }
-
-    private static string Plural(int count, string noun) =>
-        count == 1 ? $"1 {noun}" : $"{count.ToString("N0", CultureInfo.InvariantCulture)} {noun}s";
-
-    private static Bitmap? DecodePng(byte[] png)
-    {
-        try
-        {
-            using MemoryStream stream = new(png);
-            return new Bitmap(stream);
-        }
-        catch (Exception)
-        {
-            return null;
-        }
     }
 
     private void ProjectVetoes() => ProjectVetoes(collect: true);
@@ -886,49 +911,33 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             CollectFindings();
         }
     }
-}
 
-/// <summary>One team in the Scouting Report's picker.</summary>
-public sealed class ScoutingReportTeamRow(Team team)
-{
-    public Guid Id { get; } = team.Id;
-
-    public string Name { get; } = DisplayText.Sanitize(team.Name);
-
-    public bool IsUs { get; } = team.IsUs;
-
-    /// <summary>Whether <paramref name="other" /> shows the same team the same way.</summary>
-    public bool SameAs(ScoutingReportTeamRow other) =>
-        Id == other.Id && IsUs == other.IsUs && string.Equals(Name, other.Name, StringComparison.Ordinal);
-}
-
-/// <summary>One map row of the selected team's Map Pool Record, worded for display.</summary>
-public sealed class MapPoolRowViewModel
-{
-    public MapPoolRowViewModel(MapPoolMapRow row)
+    /// <summary>
+    ///     Re-collects every line into the editor in print order: the map pool, every layer over every map and
+    ///     side (once the loads are in), the Period Diff and the veto history.
+    /// </summary>
+    private void CollectFindings()
     {
-        Map = row.Map;
-        PlayedLabel = $"{row.Played} played";
-        RecordLabel = row.Wins + row.Losses == 0
-            ? "no resolved score"
-            : $"{row.Wins}-{row.Losses}" + (row.Undetermined > 0 ? $" ({row.Undetermined} undetermined)" : "");
-        WinRateLabel = row.WinRate is { } wr
-            ? wr.ToString("P0", CultureInfo.InvariantCulture)
-            : "—";
-        SideLabel = row.HasRoundData
-            ? $"CT {row.CtRoundsWon}-{row.TRoundsWon} T ({row.CtRoundShare!.Value:P0} CT)"
-            : "no round data";
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (SelectedTeam is not { } row)
+        {
+            Editor.Load(null, "", "", []);
+            return;
+        }
+
+        List<ScoutingReportFindingSource> sources =
+        [
+            .. ScoutingReportEditorViewModel.FromMapPool(Maps, DeciderLine),
+            .. _layerFindings,
+            .. ScoutingReportEditorViewModel.FromPeriodDiff(PeriodDiffRecent, PeriodDiffPrevious, PeriodDiffNote),
+            .. ScoutingReportEditorViewModel.FromVetoes(Vetoes)
+        ];
+        Editor.Load(row.Id, row.Name, SampleSizeLine, sources);
     }
-
-    public string Map { get; }
-
-    public string PlayedLabel { get; }
-
-    public string RecordLabel { get; }
-
-    public string WinRateLabel { get; }
-
-    public string SideLabel { get; }
 }
 
 /// <summary>One period (last or previous) of a Period Diff, worded for display.</summary>
@@ -942,7 +951,7 @@ public sealed class PeriodDiffRowViewModel
         RecordLabel = period.Wins + period.Losses == 0
             ? "no resolved score"
             : $"{period.Wins}-{period.Losses}"
-            + (period.Undetermined > 0 ? $" ({period.Undetermined} undetermined)" : "");
+              + (period.Undetermined > 0 ? $" ({period.Undetermined} undetermined)" : "");
         WinRateLabel = period.WinRate is { } wr
             ? wr.ToString("P0", CultureInfo.InvariantCulture)
             : "—";
@@ -990,115 +999,4 @@ public sealed class VetoRowViewModel(VetoEntry entry)
     public string ByLabel { get; } = entry.ByOpponent ? "them" : "us";
 
     public string Note { get; } = entry.Note;
-}
-
-/// <summary>
-///     One Setup Heatmap, worded for display: the map and buy, the sample, the fixed and rotating
-///     places, and the picture. The heatmap's points sit in its own <see cref="OverlayDocument" />, the
-///     Overlay View's input, which the renderer draws through the Overlay View's own layer.
-/// </summary>
-public sealed partial class SetupHeatmapViewModel : ObservableObject
-{
-    /// <summary>The note in place of a picture when no round of the heatmap had a sampled setup.</summary>
-    private const string NoPositionsNote = "no positions in the setup window; rebuild the index";
-
-    [ObservableProperty]
-    private Bitmap? _image;
-
-    [ObservableProperty]
-    private string _imageNote = "";
-
-    public SetupHeatmapViewModel(SetupHeatmap heatmap)
-    {
-        ArgumentNullException.ThrowIfNull(heatmap);
-        Heatmap = heatmap;
-        Overlay = new OverlayDocument();
-        if (heatmap.Points.Count > 0)
-        {
-            Overlay.Replace(heatmap.Map, heatmap.Points, heatmap.StateCount);
-        }
-        else
-        {
-            _imageNote = NoPositionsNote;
-        }
-
-        BuyLabel = BuyLabelFor(heatmap.Buy);
-        int rounds = heatmap.Rounds.Count;
-        RoundsLabel = $"{rounds} round{(rounds == 1 ? "" : "s")} · {heatmap.SampledRounds} with a setup sampled";
-        OpenLabel = $"Open {rounds} round{(rounds == 1 ? "" : "s")}";
-        FixedLabel = PlacesLabel("fixed", heatmap.Positions.Where(p => p.IsFixed));
-        RotatingLabel = PlacesLabel("rotating", heatmap.Positions.Where(p => !p.IsFixed));
-    }
-
-    public SetupHeatmap Heatmap { get; }
-
-    /// <summary>The heatmap's points, the Overlay View's document; empty when no round was sampled.</summary>
-    public OverlayDocument Overlay { get; }
-
-    public string Map => Heatmap.Map;
-
-    /// <summary>"full buy".</summary>
-    public string BuyLabel { get; }
-
-    /// <summary>"12 rounds · 10 with a setup sampled".</summary>
-    public string RoundsLabel { get; }
-
-    /// <summary>"fixed: BombsiteA 9/10, Ramp 7/10", or "fixed: none".</summary>
-    public string FixedLabel { get; }
-
-    /// <summary>"rotating: Heaven 3/10", or "rotating: none".</summary>
-    public string RotatingLabel { get; }
-
-    /// <summary>"Open 12 rounds".</summary>
-    public string OpenLabel { get; }
-
-    /// <summary>The rendered PNG, kept for a test; null until rendered or with nothing to draw.</summary>
-    public byte[]? ImagePng { get; private set; }
-
-    public bool HasImage => Image is not null;
-
-    public bool HasImageNote => ImageNote.Length > 0;
-
-    /// <summary>The label for a buy class, lower case the way the fact vocabulary spells it.</summary>
-    /// <param name="buy">The buy.</param>
-    public static string BuyLabelFor(BuyType buy) => buy switch
-    {
-        BuyType.Pistol => "pistol",
-        BuyType.Eco => "eco",
-        BuyType.Semi => "semi buy",
-        BuyType.Force => "force buy",
-        BuyType.Full => "full buy",
-        _ => "unknown buy"
-    };
-
-    /// <summary>Lands a rendered picture; a null PNG leaves the note.</summary>
-    /// <param name="png">The PNG, or null.</param>
-    /// <param name="bitmap">The decoded bitmap, or null.</param>
-    public void ApplyImage(byte[]? png, Bitmap? bitmap)
-    {
-        ImagePng = png;
-        Image = bitmap;
-        ImageNote = png is null ? NoPositionsNote : "";
-        OnPropertyChanged(nameof(HasImage));
-        OnPropertyChanged(nameof(HasImageNote));
-    }
-
-    /// <summary>Drops the picture and disposes it; the note stays. For a heatmap no longer shown.</summary>
-    public void ReleaseImage()
-    {
-        if (Image is not { } image)
-        {
-            return;
-        }
-
-        Image = null;
-        OnPropertyChanged(nameof(HasImage));
-        image.Dispose();
-    }
-
-    private static string PlacesLabel(string kind, IEnumerable<SetupPosition> places)
-    {
-        string[] parts = [.. places.Select(p => $"{p.Place} {p.RoundsHeld}/{p.SampledRounds}")];
-        return $"{kind}: {(parts.Length == 0 ? "none" : string.Join(", ", parts))}";
-    }
 }

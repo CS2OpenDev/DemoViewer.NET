@@ -702,7 +702,9 @@ public sealed class StratBookPack : IExtension
                 grenades: sp.GetRequiredService<GrenadeIndex>(),
                 runSection: section => work => Job(sp, "Scouting report: " + section, work,
                     new JobOptions(Key: "section:scouting-report:" + section, Preemptible: true)),
-                roundIndex: sp.GetRequiredService<RoundIndexStore>());
+                roundIndex: sp.GetRequiredService<RoundIndexStore>(),
+                roundFacts: RoundFactsOf(sp),
+                playback: sp.GetService<ISituationPlayback>);
         });
 
         // Lineup Clip Render: every repeated throw position and technique gets a GIF and its setpos line,

@@ -194,81 +194,87 @@ public class ScoutingReportModuleTests
     }
 
     [Test]
-    public async Task EachMap_GetsASection_WithItsRecordLineAndFindings_AndTheTeamWideLinesStayInTheGeneralSections()
+    public async Task EachMap_GetsATabAndAPoolLine_FiledUnderItsScopeKey_AndTheDecidersStayTeamWide()
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
         using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false,
-            notes: new ScoutingReportNotesStore(null));
+            notes: new ScoutingReportNotesStore(null), now: () => new DateTime(2026, 4, 5));
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
-        ScoutingReportMapSectionViewModel nuke = vm.MapSections.Single(m => m.Map == "de_nuke");
+        MapPoolRowViewModel nuke = vm.Maps.Single(m => m.Map == "de_nuke");
+        ScoutingReportFindingViewModel line = vm.Editor.Findings.Single(f => f.Key == "de_nuke||pool|||record");
         using (Assert.Multiple())
         {
-            await Assert.That(vm.MapSections.Select(m => m.Map))
-                .IsEquivalentTo(vm.Maps.Select(m => m.Map), CollectionOrdering.Matching);
-            await Assert.That(nuke.Record?.Map).IsEqualTo("de_nuke");
-            await Assert.That(nuke.Findings.All(f => f.Map == "de_nuke")).IsTrue();
-            await Assert.That(nuke.Findings.Any(f => f.Key == "map|de_nuke")).IsTrue();
-            await Assert.That(nuke.Header).StartsWith("de_nuke · 2 played · ");
-            await Assert.That(vm.Editor.GeneralFindings.Any(f => f.Map is not null)).IsFalse();
-            await Assert.That(vm.Editor.GeneralFindings.Any(f => f.Key == "map|deciders")).IsTrue()
+            await Assert.That(vm.Maps[0].Map).IsEqualTo("de_nuke").Because("most played first");
+            await Assert.That(vm.SelectedMap).IsSameReferenceAs(vm.Maps[0]).Because("the first tab opens");
+            await Assert.That(vm.Maps[0].IsSelected).IsTrue();
+            await Assert.That(nuke.TabDetail).IsEqualTo("2 · 5d");
+            await Assert.That(nuke.WinLossLabel).IsEqualTo("1–1");
+            await Assert.That(nuke.LastPlayedLabel).IsEqualTo("5d ago");
+            await Assert.That(line.Map).IsEqualTo("de_nuke");
+            await Assert.That(line.Section).IsEqualTo(ScoutingReportEditorViewModel.MapPoolSection);
+            await Assert.That(line.Text).StartsWith("de_nuke: 2 played, 1-1, win rate 50%");
+            await Assert.That(vm.Editor.Findings.Any(f => f.Key == "||pool|||deciders")).IsTrue()
                 .Because("the decider record is about the team, not a map");
-            await Assert.That(vm.RecordSection.Header).IsEqualTo("Overall record · 4 maps");
+            await Assert.That(vm.Wins).IsEqualTo(3);
+            await Assert.That(vm.Losses).IsEqualTo(2);
+            await Assert.That(vm.RecordLine).IsEqualTo("60% of 5 maps");
+            await Assert.That(vm.DemosLine).IsEqualTo("5 demos · Mar 11 to Mar 31 · newest 5d ago");
+            await Assert.That(vm.Timeline.Count).IsEqualTo(5);
+            await Assert.That(vm.Timeline.Count(d => d.IsSelectedMap)).IsEqualTo(2);
+            await Assert.That(vm.Timeline.Count(d => d.Won)).IsEqualTo(3);
         }
     }
 
     [Test]
-    public async Task DismissRestoreAndTheSettledToggle_WorkOnAFindingInsideAMapSection()
+    public async Task DismissRestoreAndTheSettledToggle_WorkOnAPoolLine()
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
         using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false,
             notes: new ScoutingReportNotesStore(null));
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
-        ScoutingReportMapSectionViewModel nuke = vm.MapSections.Single(m => m.Map == "de_nuke");
-        ScoutingReportFindingViewModel line = nuke.Findings.Single(f => f.Key == "map|de_nuke");
+        ScoutingReportFindingViewModel line = vm.Editor.Findings.Single(f => f.Key == "de_nuke||pool|||record");
 
         vm.Editor.RemoveCommand.Execute(line);
-        bool goneAfterDismiss = nuke.ShownFindings.All(f => f.Key != line.Key);
+        bool goneAfterDismiss = vm.Editor.Findings.All(f => f.Key != line.Key);
         vm.Editor.ShowSettled = true;
-        ScoutingReportFindingViewModel? settled = nuke.ShownFindings.SingleOrDefault(f => f.Key == line.Key);
+        ScoutingReportFindingViewModel? settled = vm.Editor.Findings.SingleOrDefault(f => f.Key == line.Key);
         string label = settled?.RemoveLabel ?? "";
         vm.Editor.RemoveCommand.Execute(settled);
         vm.Editor.ShowSettled = false;
         using (Assert.Multiple())
         {
             await Assert.That(goneAfterDismiss).IsTrue();
-            await Assert.That(settled).IsNotNull()
-                .Because("the settled toggle lists dismissed lines in their map's section");
+            await Assert.That(settled).IsNotNull().Because("the settled toggle lists dismissed lines");
             await Assert.That(label).IsEqualTo("Restore");
-            await Assert.That(nuke.ShownFindings.Any(f => f.Key == line.Key)).IsTrue().Because("restored");
+            await Assert.That(vm.Editor.Findings.Any(f => f.Key == line.Key)).IsTrue().Because("restored");
         }
     }
 
     [Test]
-    public async Task CollapseAll_ClosesEverySection_AndAClosedMapSectionBuildsNothing_UntilItIsOpened()
+    public async Task TheMapTabs_PickTheMap_AndTheScopeLineFollowsTheSideAndTheBuy_AndTheBelowSectionsStartClosed()
     {
         (DemoCacheStore cache, TeamIdentityService teams, Guid teamA, _) = await Library();
         using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), isBrowser: false);
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
-        ScoutingReportMapSectionViewModel nuke = vm.MapSections.Single(m => m.Map == "de_nuke");
-        bool openAtStart = nuke.IsExpanded; // few findings: opens by default
+        bool closedAtStart = !vm.IsPeriodOpen && !vm.IsVetoOpen && !vm.IsNotesOpen && vm.IsPoolOpen;
+        string first = vm.ScopeLine;
 
-        vm.CollapseAllCommand.Execute(null);
-        bool allClosed = vm.MapSections.All(m => !m.IsExpanded) && !vm.RecordSection.IsExpanded
-            && !vm.NotesSection.IsExpanded;
-        int shownWhileClosed = nuke.ShownFindings.Count + nuke.ShownRecord.Count;
-
-        // A new projection of the same team keeps what the user closed.
-        vm.WindowSize = vm.WindowSize == 5 ? 10 : 5;
-        bool stillClosed = !vm.MapSections.Single(m => m.Map == "de_nuke").IsExpanded;
-        nuke.ToggleCommand.Execute(null);
+        vm.SelectMapCommand.Execute(vm.Maps.Single(m => m.Map == "de_inferno"));
+        vm.Side = DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers.ScoutingSide.T;
+        vm.Buy = DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers.ScoutingBuy.Force;
+        vm.TogglePeriodCommand.Execute(null);
+        vm.TogglePoolCommand.Execute(null);
         using (Assert.Multiple())
         {
-            await Assert.That(openAtStart).IsTrue();
-            await Assert.That(allClosed).IsTrue();
-            await Assert.That(shownWhileClosed).IsEqualTo(0);
-            await Assert.That(stillClosed).IsTrue();
-            await Assert.That(nuke.ShownFindings.Count).IsGreaterThan(0);
-            await Assert.That(nuke.ShownRecord.Count).IsEqualTo(1);
+            await Assert.That(closedAtStart).IsTrue();
+            await Assert.That(first).IsEqualTo("de_nuke · CT · all buys · 2 maps");
+            await Assert.That(vm.ScopeLine).IsEqualTo("de_inferno · T · Force buy · 1 map");
+            await Assert.That(vm.MapName).IsEqualTo("de_inferno");
+            await Assert.That(vm.Maps.Single(m => m.IsSelected).Map).IsEqualTo("de_inferno");
+            await Assert.That(vm.IsT).IsTrue();
+            await Assert.That(vm.IsPeriodOpen).IsTrue();
+            await Assert.That(vm.IsPoolOpen).IsFalse();
+            await Assert.That(vm.PlayersTitle).IsEqualTo("Players · de_inferno");
         }
     }
 

@@ -33,6 +33,12 @@ public sealed class ScoutingReportTeamNotes
 
     /// <summary>Findings the user wrote, in the order added.</summary>
     public List<ScoutingReportNote> Notes { get; set; } = [];
+
+    /// <summary>
+    ///     Keys of suggested lines already starred once on the user's behalf. A suggested line starts starred
+    ///     the first time it is built and never again, so unstarring one sticks.
+    /// </summary>
+    public List<string> Seeded { get; set; } = [];
 }
 
 /// <summary>One finding the user wrote by hand. Its key is <c>note:</c> plus <see cref="Id" />.</summary>
@@ -50,7 +56,11 @@ public sealed class ScoutingReportNote
 /// </summary>
 public sealed class ScoutingReportNotesFile
 {
-    public const int CurrentSchema = 1;
+    /// <summary>
+    ///     2: keys carry their scope, <c>map|side|layer|buy|window|text</c>
+    ///     (<see cref="ScoutingReportStarKeys" />); a schema-1 file is remapped as it is read.
+    /// </summary>
+    public const int CurrentSchema = 2;
 
     public int SchemaVersion { get; init; } = CurrentSchema;
 

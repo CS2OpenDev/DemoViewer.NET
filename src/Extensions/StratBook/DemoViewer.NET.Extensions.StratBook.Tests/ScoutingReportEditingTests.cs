@@ -3,6 +3,7 @@
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Services.DemoCache;
 using TUnit.Assertions.Enums;
 
@@ -45,12 +46,15 @@ public class ScoutingReportEditingTests
             ImagePng = png
         };
 
+    private const string NukeKey = "de_nuke||pool|||record";
+    private const string MirageKey = "de_mirage||pool|||record";
+    private const string SetupKey = "de_nuke|CT|setups|Full||read";
+
     private static ScoutingReportFindingSource[] Sources() =>
     [
-        new("map|de_nuke", ScoutingReportEditorViewModel.MapPoolSection, "de_nuke: 2 played, 1-1"),
-        new("map|de_mirage", ScoutingReportEditorViewModel.MapPoolSection, "de_mirage: 1 played, 0-1"),
-        new("heatmap|de_nuke|full buy", ScoutingReportEditorViewModel.HeatmapSection, "de_nuke CT full buy: 10 rounds",
-            () => _png)
+        new(NukeKey, ScoutingReportEditorViewModel.MapPoolSection, "de_nuke: 2 played, 1-1"),
+        new(MirageKey, ScoutingReportEditorViewModel.MapPoolSection, "de_mirage: 1 played, 0-1"),
+        new(SetupKey, "de_nuke CT · Setups", "Full buy: BombsiteA held over 10 sampled rounds.", () => _png)
     ];
 
     [Test]
@@ -282,7 +286,7 @@ public class ScoutingReportEditingTests
             await Assert.That(editor.ExportForm).IsEqualTo(ScoutingReportForm.OnePager)
                 .Because("the short form is the default export");
             await Assert.That(editor.ExportFormat).IsEqualTo(ScoutingReportFormat.Html);
-            await Assert.That(editor.ExportLabel).IsEqualTo("Export one-pager");
+            await Assert.That(editor.ExportLabel).IsEqualTo("Export one-pager · 0 starred");
             await Assert.That(editor.CountsLine).IsEqualTo("3 findings · 0 starred");
         }
 
@@ -302,7 +306,7 @@ public class ScoutingReportEditingTests
             await Assert.That(nuke.IsStarred).IsTrue();
             await Assert.That(nuke.IsEdited).IsTrue();
             await Assert.That(nuke.IsEditing).IsFalse();
-            await Assert.That(editor.Findings.Select(f => f.Key)).DoesNotContain("map|de_mirage");
+            await Assert.That(editor.Findings.Select(f => f.Key)).DoesNotContain(MirageKey);
             await Assert.That(editor.HasHidden).IsTrue();
             await Assert.That(editor.Findings.Last().IsNote).IsTrue();
             await Assert.That(editor.Findings.Last().Section).IsEqualTo(ScoutingReportEditorViewModel.NotesSection);
@@ -311,12 +315,12 @@ public class ScoutingReportEditingTests
 
         // A section rebuild in another order keeps the star, the rewrite and the left-out line by key.
         editor.Load(team, "Falcons", "3 demos across 2 maps", [.. Sources().Reverse()]);
-        ScoutingReportFindingViewModel again = editor.Findings.Single(f => f.Key == "map|de_nuke");
+        ScoutingReportFindingViewModel again = editor.Findings.Single(f => f.Key == NukeKey);
         using (Assert.Multiple())
         {
             await Assert.That(again.IsStarred).IsTrue();
             await Assert.That(again.Text).IsEqualTo("de_nuke: their best map");
-            await Assert.That(editor.Findings.Any(f => f.Key == "map|de_mirage")).IsFalse();
+            await Assert.That(editor.Findings.Any(f => f.Key == MirageKey)).IsFalse();
             await Assert.That(editor.Summary).IsEqualTo("Slow defaults.");
         }
 
@@ -328,11 +332,12 @@ public class ScoutingReportEditingTests
         {
             await Assert.That(md).Contains("- de_nuke: their best map");
             await Assert.That(md).Contains("Slow defaults.");
-            await Assert.That(md).DoesNotContain("full buy");
-            await Assert.That(doc.Findings.Single(f => f.Key.StartsWith("heatmap", StringComparison.Ordinal)).ImagePng)
-                .IsEquivalentTo(_png, CollectionOrdering.Matching);
+            await Assert.That(md).DoesNotContain("BombsiteA");
+            await Assert.That(doc.Findings.Single(f => f.Key == SetupKey).ImagePng).IsNull()
+                .Because("an unstarred line's picture is not drawn for the one-pager");
+            await Assert.That(editor.Findings.Count).IsEqualTo(1);
             await Assert.That(editor.Findings.Select(f => f.Key))
-                .IsEquivalentTo(["map|de_nuke"], CollectionOrdering.Matching);
+                .IsEquivalentTo([NukeKey], CollectionOrdering.Matching);
         }
 
         // Reset puts the generated line back; "Show settled" lists the dismissed line with Restore.
@@ -340,7 +345,7 @@ public class ScoutingReportEditingTests
         editor.ResetEditCommand.Execute(again);
         await Assert.That(editor.SettledLabel).IsEqualTo("Show settled (1)");
         editor.ShowSettled = true;
-        ScoutingReportFindingViewModel dismissed = editor.Findings.Single(f => f.Key == "map|de_mirage");
+        ScoutingReportFindingViewModel dismissed = editor.Findings.Single(f => f.Key == MirageKey);
         await Assert.That(dismissed.RemoveLabel).IsEqualTo("Restore");
         await Assert.That(ScoutingReportExporter.Markdown(editor.Document())).DoesNotContain("de_mirage")
             .Because("a dismissed line shown under the toggle is still out of both forms");
@@ -350,7 +355,7 @@ public class ScoutingReportEditingTests
         {
             await Assert.That(again.Text).IsEqualTo("de_nuke: 2 played, 1-1");
             await Assert.That(store.For(team).Edits).IsEmpty();
-            await Assert.That(editor.Findings.Any(f => f.Key == "map|de_mirage")).IsTrue();
+            await Assert.That(editor.Findings.Any(f => f.Key == MirageKey)).IsTrue();
         }
 
         // Removing a note removes it outright.
@@ -370,7 +375,16 @@ public class ScoutingReportEditingTests
 
         await Assert.That(editor.ExportCommand.CanExecute(null)).IsFalse().Because("no team selected");
         editor.Load(Guid.NewGuid(), "Falcons", "3 demos", Sources());
+        bool offWithNothingStarred = !editor.ExportCommand.CanExecute(null) && !editor.CanExport;
         editor.ToggleStarCommand.Execute(editor.Findings[0]);
+        using (Assert.Multiple())
+        {
+            await Assert.That(offWithNothingStarred).IsTrue().Because("an empty one-pager is not exported");
+            await Assert.That(editor.CanExport).IsTrue();
+            await Assert.That(editor.ExportLabel).IsEqualTo("Export one-pager · 1 starred");
+            await Assert.That(editor.Starred.Single().Where).IsEqualTo("de_nuke");
+        }
+
         editor.ExportCommand.Execute(null);
 
         using (Assert.Multiple())
@@ -411,8 +425,8 @@ public class ScoutingReportEditingTests
     {
         using (Assert.Multiple())
         {
-            await Assert.That(ScoutingReportEditorViewModel.CountText(4, 10)).IsEqualTo("4 of 10 rounds");
-            await Assert.That(ScoutingReportEditorViewModel.CountText(1, 0)).IsEqualTo("1 round");
+            await Assert.That(ScoutingLayerBase.CountText(4, 10)).IsEqualTo("4 of 10 rounds");
+            await Assert.That(ScoutingLayerBase.CountText(1, 0)).IsEqualTo("1 round");
             await Assert.That(ScoutingReportEditorViewModel.FromPeriodDiff(null, null, "x")).IsEmpty();
         }
     }
@@ -451,7 +465,7 @@ public class ScoutingReportEditingTests
         {
             await Assert.That(vm.Editor.HasTeam).IsTrue();
             await Assert.That(maps.Length).IsEqualTo(2);
-            await Assert.That(maps.Select(f => f.Key)).Contains("map|de_nuke");
+            await Assert.That(maps.Select(f => f.Key)).Contains(NukeKey);
             await Assert.That(vm.Editor.Findings.Any(f => f.Section == ScoutingReportEditorViewModel.PeriodDiffSection))
                 .IsTrue();
         }
@@ -462,7 +476,7 @@ public class ScoutingReportEditingTests
         await Assert.That(vm.Editor.Findings.Any(f =>
             f.Section == ScoutingReportEditorViewModel.VetoSection && f.Text.Contains("de_ancient"))).IsTrue();
 
-        vm.Editor.ToggleStarCommand.Execute(vm.Editor.Findings.Single(f => f.Key == "map|de_nuke"));
+        vm.Editor.ToggleStarCommand.Execute(vm.Editor.Findings.Single(f => f.Key == NukeKey));
         vm.Editor.ExportCommand.Execute(null);
         using (Assert.Multiple())
         {
@@ -474,6 +488,120 @@ public class ScoutingReportEditingTests
         vm.SelectedTeam = null;
         await Assert.That(vm.Editor.HasTeam).IsFalse();
         await Assert.That(vm.Editor.HasFindings).IsFalse();
+    }
+
+    [Test]
+    public async Task TheStarKey_CarriesItsScope_AndEveryOldKeyThatHasAMappingIsRemapped()
+    {
+        using (Assert.Multiple())
+        {
+            await Assert.That(ScoutingReportStarKeys.Key(new ScoutingScope("de_mirage", "CT", "awp", "Full", "0:30"),
+                "holds A | ramp")).IsEqualTo("de_mirage|CT|awp|Full|0:30|holds A / ramp");
+            await Assert.That(ScoutingReportStarKeys.Parse("de_mirage|CT|setups|Full||read")?.Scope)
+                .IsEqualTo(new ScoutingScope("de_mirage", "CT", "setups", "Full"));
+            await Assert.That(ScoutingReportStarKeys.Parse("note:abc")).IsNull();
+            await Assert.That(ScoutingReportStarKeys.Where(new ScoutingScope("de_nuke", "T", "plants", "All")))
+                .IsEqualTo("de_nuke T");
+
+            await Assert.That(ScoutingReportStarKeys.Remap("map|de_nuke")).IsEqualTo("de_nuke||pool|||record");
+            await Assert.That(ScoutingReportStarKeys.Remap("map|deciders")).IsEqualTo("||pool|||deciders");
+            await Assert.That(ScoutingReportStarKeys.Remap("heatmap|de_nuke|full buy"))
+                .IsEqualTo("de_nuke|CT|setups|Full||read");
+            await Assert.That(ScoutingReportStarKeys.Remap("heatmap|de_nuke|pistol")).IsNull()
+                .Because("the buy filter has no pistol");
+            await Assert.That(ScoutingReportStarKeys.Remap("openings|de_nuke T · first utility 5-10 s"))
+                .IsEqualTo("de_nuke|T|util|All||first utility 5-10 s");
+            await Assert.That(ScoutingReportStarKeys.Remap("openings|de_nuke T · entry p0 at A"))
+                .IsEqualTo("de_nuke|T|opening|All||entry p0 at A");
+            await Assert.That(ScoutingReportStarKeys.Remap("openings|de_nuke T · site A"))
+                .IsEqualTo("de_nuke|T|plants|All||site A");
+            await Assert.That(ScoutingReportStarKeys.Remap("openings|de_nuke T · lurker p3"))
+                .IsEqualTo("de_nuke|T|lurks|All||lurker p3");
+            await Assert.That(ScoutingReportStarKeys.Remap("postplant|de_nuke T · plant A spot 1 (1050, 1000)"))
+                .IsEqualTo("de_nuke|T|plants|All||plant A spot 1 (1050, 1000)");
+            await Assert.That(ScoutingReportStarKeys.Remap("postplant|de_nuke CT · retake together"))
+                .IsEqualTo("de_nuke|CT|retakes|All||retake together");
+            await Assert.That(ScoutingReportStarKeys.Remap("situational|de_nuke T · led 2-up"))
+                .IsEqualTo("de_nuke|T|econ|All||led 2-up");
+            await Assert.That(ScoutingReportStarKeys.Remap("situational|de_nuke T won pistol, won the bonus"))
+                .IsEqualTo("de_nuke|T|econ|All||won pistol, won the bonus");
+            await Assert.That(ScoutingReportStarKeys.Remap("period|last")).IsEqualTo("||period|||last");
+            await Assert.That(ScoutingReportStarKeys.Remap("veto|0123abcd")).IsEqualTo("||veto|||0123abcd");
+            await Assert.That(ScoutingReportStarKeys.Remap("note:0123")).IsNull();
+            await Assert.That(ScoutingReportStarKeys.Remap("mystery|thing")).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task ASchemaOneFile_IsRemappedOnLoad_KeepsWhatHasNoMapping_AndIsRewrittenAtSchemaTwo()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "dv-scouting-report-remap-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            Guid team = Guid.NewGuid();
+            string path = Path.Combine(root, ScoutingReportNotesStore.FileName);
+            await File.WriteAllTextAsync(path, $$"""
+                {
+                  "schemaVersion": 1,
+                  "teams": [{
+                    "teamId": "{{team}}",
+                    "summary": "Aggressive CT.",
+                    "starred": ["map|de_nuke", "heatmap|de_nuke|full buy", "heatmap|de_nuke|pistol", "note:abc"],
+                    "edits": { "openings|de_nuke T · site A": "they love A" },
+                    "hidden": ["postplant|de_nuke CT · retake together", "mystery|thing"],
+                    "notes": []
+                  }]
+                }
+                """);
+
+            ScoutingReportNotesStore store = new(StoredFile.At(path));
+            ScoutingReportTeamNotes notes = store.For(team);
+            string written = await File.ReadAllTextAsync(path);
+            using (Assert.Multiple())
+            {
+                await Assert.That(store.FileProblem).IsNull();
+                await Assert.That(notes.Starred).IsEquivalentTo(
+                    ["de_nuke||pool|||record", "de_nuke|CT|setups|Full||read", "heatmap|de_nuke|pistol", "note:abc"],
+                    CollectionOrdering.Matching);
+                await Assert.That(notes.Edits["de_nuke|T|plants|All||site A"]).IsEqualTo("they love A");
+                await Assert.That(notes.Hidden).IsEquivalentTo(
+                    ["de_nuke|CT|retakes|All||retake together", "mystery|thing"], CollectionOrdering.Matching)
+                    .Because("a key with no mapping is kept, never dropped");
+                await Assert.That(notes.Summary).IsEqualTo("Aggressive CT.");
+                await Assert.That(written).Contains("\"schemaVersion\": 2");
+                await Assert.That(written).Contains("de_nuke||pool|||record");
+            }
+
+            // Read again at schema 2: nothing moves twice.
+            ScoutingReportTeamNotes again = new ScoutingReportNotesStore(StoredFile.At(path)).For(team);
+            await Assert.That(again.Starred).IsEquivalentTo(notes.Starred, CollectionOrdering.Matching);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task ASuggestedLine_StartsStarredOnce_AndAnUnstarSticks()
+    {
+        ScoutingReportNotesStore store = new(null);
+        ScoutingReportEditorViewModel editor = new(store);
+        Guid team = Guid.NewGuid();
+        editor.Load(team, "Falcons", "", Sources());
+
+        editor.Seed([SetupKey]);
+        bool seeded = editor.IsStarred(SetupKey);
+        editor.SetStarred(SetupKey, false);
+        editor.Seed([SetupKey]);
+        using (Assert.Multiple())
+        {
+            await Assert.That(seeded).IsTrue();
+            await Assert.That(editor.IsStarred(SetupKey)).IsFalse().Because("a suggestion is starred once ever");
+            await Assert.That(store.For(team).Seeded).IsEquivalentTo([SetupKey], CollectionOrdering.Matching);
+            await Assert.That(editor.StarredCount).IsEqualTo(0);
+        }
     }
 
     private static string[] Ids(params int[] numbers) => [.. numbers.Select(n => $"7656{n:D4}")];
