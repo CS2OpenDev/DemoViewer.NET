@@ -148,6 +148,7 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
             InstallableStatus.NotPublished => "Nothing has been published yet.",
             InstallableStatus.FeedUnreachable => $"Could not check: {entry.Error}.",
             InstallableStatus.FeedInvalid => $"Could not check: {entry.Error}.",
+            InstallableStatus.Removed => "Removed.",
             _ => string.Empty
         };
     }

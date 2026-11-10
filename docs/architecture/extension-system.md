@@ -669,7 +669,10 @@ same signed-only install policy and the next start tries the newer version first
 cannot run (`NeedsNewerApp`), or the feed's failure (`NotPublished`, `FeedUnreachable`, `FeedInvalid`).
 The last answer is remembered for the run (`LastCatalogue`); `CurrentCatalogue` combines each id's
 remembered feed answer with the disk as it is now, so a Settings window opened later in the run shows an
-Install or Remove done since, and a copy whose folder Remove deleted stops reading as not loaded. Settings lists them under "Available
+Install or Remove done since, and a copy whose folder Remove deleted stops reading as not loaded (or
+reads `Removed.` while no feed has been asked). Before the first check of the run it lists the catalogue
+ids with a copy on disk, without asking a feed, so a refused first-party copy is always listed there; the
+third-party list leaves out every copy the catalogue lists (`ListsInCatalogue`), so it appears once. Settings lists them under "Available
 extensions" with name, version and size and an Install button; Install is `DownloadAndStageAsync` with the
 offered entry, judged by the install policy, and the row then reads `0.1.4 installed, restart to use it.`
 The next start loads the copy through `ExternalExtensions` (section 2).

@@ -532,7 +532,10 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         _autoUpdateExtensions = current.Extensions.AutoUpdate;
         ExternalExtensionRows =
             ExternalExtensionRow.Build(StatusesOrProcess(packStatuses),
-                extensionUpdates?.ExternalRejected ?? FeaturePacks.ExternalRejected);
+            [
+                .. (extensionUpdates?.ExternalRejected ?? FeaturePacks.ExternalRejected)
+                    .Where(o => extensionUpdates?.ListsInCatalogue(o) != true)
+            ]);
         foreach (InstallableExtension entry in extensionUpdates?.CurrentCatalogue() ?? [])
         {
             InstallableExtensionRows.Add(new InstallableExtensionRow(entry, extensionUpdates!));

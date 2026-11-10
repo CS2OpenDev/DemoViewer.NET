@@ -120,7 +120,10 @@ public enum InstallableStatus
     FeedUnreachable,
 
     /// <summary>The feed was fetched and did not parse, or is for another extension.</summary>
-    FeedInvalid
+    FeedInvalid,
+
+    /// <summary>The copy on disk was deleted this run, and no feed has been asked about the id yet.</summary>
+    Removed
 }
 
 /// <summary>One catalogue entry after a check: what Settings lists under "Available extensions".</summary>

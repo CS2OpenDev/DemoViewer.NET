@@ -173,10 +173,41 @@ public sealed class ExtensionUpdateService
 
     /// <summary>
     ///     The catalogue as Settings lists it now: the last check's feed answers with the disk read again, so
-    ///     an Install or Remove since that check shows. Empty before the first check of the run.
+    ///     an Install or Remove since that check shows. Before the first check of the run, the catalogue ids
+    ///     with a copy on disk, so a refused copy is listed without asking any feed.
     /// </summary>
-    public IReadOnlyList<InstallableExtension> CurrentCatalogue() =>
-        LastCatalogue is { } last ? [.. last.Select(Reassess)] : [];
+    public IReadOnlyList<InstallableExtension> CurrentCatalogue()
+    {
+        if (LastCatalogue is { } last)
+        {
+            return [.. last.Select(Reassess)];
+        }
+
+        List<InstallableExtension> onDisk = [];
+        foreach (string id in _catalogue.Where(id => !IsShippedOrDeclared(id)))
+        {
+            LoadOutcome? rejected = RejectedOnDisk(id);
+            SemVersion? staged = HighestStaged(id, above: null);
+            if (rejected is not null || staged is not null)
+            {
+                onDisk.Add(new InstallableExtension(id, rejected?.Manifest?.Name ?? id, null, null, null, staged,
+                    rejected, Derive(rejected, staged, InstallableStatus.Removed)));
+            }
+        }
+
+        return onDisk;
+    }
+
+    /// <summary>
+    ///     True when <paramref name="outcome" /> is a copy the catalogue lists (its folder is a catalogue id this
+    ///     build neither ships nor has loaded), so Settings shows it there and not among the third-party ones.
+    /// </summary>
+    public bool ListsInCatalogue(LoadOutcome outcome)
+    {
+        ArgumentNullException.ThrowIfNull(outcome);
+        string id = IdFolderOf(outcome.Directory);
+        return _catalogue.Contains(id, StringComparer.Ordinal) && !IsShippedOrDeclared(id);
+    }
 
     /// <summary><paramref name="entry" /> with what is on disk read again; the feed's answer is the last check's.</summary>
     public InstallableExtension Reassess(InstallableExtension entry)
@@ -190,7 +221,11 @@ public sealed class ExtensionUpdateService
 
         SemVersion? staged = HighestStaged(entry.Id, above: null);
         LoadOutcome? rejected = RejectedOnDisk(entry.Id);
-        InstallableStatus status = Derive(rejected, staged, feedSide ?? entry.Status);
+        // No feed answer is known for an entry listed from the disk alone.
+        feedSide ??= entry.Status is InstallableStatus.NotLoaded or InstallableStatus.PendingRestart
+            ? InstallableStatus.Removed
+            : entry.Status;
+        InstallableStatus status = Derive(rejected, staged, feedSide.Value);
         return entry with { Staged = staged, Rejected = rejected, Status = status };
     }
 
