@@ -63,6 +63,8 @@ jobs:
       - name: Throwaway extension signing key
         run: |
           set -euo pipefail
+          # Built first: -getProperty evaluates the path on a fresh runner without producing the DLL.
+          dotnet build tools/extension-signing/ExtensionSigningTool.csproj -c Release -v q --nologo
           TOOL=$(dotnet build tools/extension-signing/ExtensionSigningTool.csproj -c Release -getProperty:TargetPath -v q)
           dotnet "$TOOL" keygen --out "$RUNNER_TEMP/ext.pem"
 
