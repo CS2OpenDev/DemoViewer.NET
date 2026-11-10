@@ -74,7 +74,7 @@ public class StratBookCompositionRootTests
     {
         await WithProvider(new DesktopWindowService(() => null), async provider =>
         {
-            PackContributions pack = provider.GetRequiredService<PackContributionSet>().Packs.Single();
+            PackContributions pack = provider.GetRequiredService<PackContributionSet>().Packs.Single(p => p.Pack.Id == StratBookPack.PackId);
             DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook.StratBookTabViewModel strats =
                 provider
                     .GetRequiredService<
