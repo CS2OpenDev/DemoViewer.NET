@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -45,8 +46,8 @@ public sealed partial class ScoutingInspectorRowViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(read);
         _host = host;
         Key = key;
-        Where = where;
-        Label = read.Text;
+        Where = ScoutingNames.Humanise(where);
+        Label = ScoutingNames.Humanise(read.Text);
         IsRead = true;
         Read = read;
         _isStarred = host.IsStarred(key);
@@ -62,9 +63,9 @@ public sealed partial class ScoutingInspectorRowViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(row);
         _host = host;
         Key = key;
-        Where = where;
+        Where = ScoutingNames.Humanise(where);
         Row = row;
-        Label = row.Label;
+        Label = ScoutingNames.Humanise(row.Label);
         _isStarred = host.IsStarred(key);
     }
 
@@ -84,7 +85,7 @@ public sealed partial class ScoutingInspectorRowViewModel : ObservableObject
 
     public string Label { get; }
 
-    public string Value => Row?.Value ?? "";
+    public string Value => ScoutingNames.Humanise(Row?.Value);
 
     public bool HasValue => Value.Length > 0;
 
@@ -111,7 +112,7 @@ public sealed partial class ScoutingInspectorRowViewModel : ObservableObject
 
     public bool HasBadge => Badge.Length > 0;
 
-    public string Note => Row?.Note ?? "";
+    public string Note => ScoutingNames.Humanise(Row?.Note);
 
     public bool HasNote => Note.Length > 0;
 
@@ -154,7 +155,7 @@ public sealed partial class ScoutingInspectorRowViewModel : ObservableObject
 /// <param name="rows">The rows.</param>
 public sealed class ScoutingInspectorSectionViewModel(string title, IReadOnlyList<ScoutingInspectorRowViewModel> rows)
 {
-    public string Title { get; } = title;
+    public string Title { get; } = ScoutingNames.Humanise(title);
 
     public bool HasTitle => Title.Length > 0;
 
@@ -225,14 +226,16 @@ public sealed partial class ScoutingInspectorViewModel : ObservableObject
     public void Show(string title, string scope, string buildCode, ScoutingLayerStatus status,
         IEnumerable<ScoutingInspectorRowViewModel> reads, IEnumerable<ScoutingInspectorSectionViewModel> sections)
     {
-        Title = title;
-        ScopeLine = scope;
+        Title = ScoutingNames.Humanise(title);
+        ScopeLine = ScoutingNames.Humanise(scope);
         // A placeholder's gap id lives here, on the Build status chip, and nowhere in the copy.
         BuildCode = status is { State: ScoutingLayerState.Placeholder, GapId: { } gap }
             ? string.Join(" · ", new[] { buildCode, gap }.Where(p => p.Length > 0))
             : buildCode;
         IsBuilding = status.State == ScoutingLayerState.Building;
-        StatusMessage = status.State is ScoutingLayerState.Ready or ScoutingLayerState.Building ? "" : status.Display;
+        StatusMessage = status.State is ScoutingLayerState.Ready or ScoutingLayerState.Building
+            ? ""
+            : ScoutingNames.Humanise(status.Display);
         Reads.Clear();
         foreach (ScoutingInspectorRowViewModel read in reads)
         {

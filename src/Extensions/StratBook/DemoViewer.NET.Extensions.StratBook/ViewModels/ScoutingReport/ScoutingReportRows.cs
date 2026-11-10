@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
@@ -66,6 +67,7 @@ public sealed partial class MapPoolRowViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(row);
         Map = row.Map;
+        MapLabel = ScoutingNames.Map(row.Map);
         Played = row.Played;
         PlayedLabel = $"{row.Played} played";
         RecordLabel = row.Wins + row.Losses == 0
@@ -78,6 +80,9 @@ public sealed partial class MapPoolRowViewModel : ObservableObject
     }
 
     public string Map { get; }
+
+    /// <summary>The map as people say it: "Mirage".</summary>
+    public string MapLabel { get; }
 
     public int Played { get; }
 

@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -825,6 +826,7 @@ public sealed partial class ScoutingReportFindingViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEdited))]
+    [NotifyPropertyChangedFor(nameof(DisplayText))]
     private string _text;
 
     /// <param name="key">The finding's key.</param>
@@ -844,11 +846,17 @@ public sealed partial class ScoutingReportFindingViewModel : ObservableObject
         Image = image;
         Where = isNote
             ? "note"
-            : ScoutingReportStarKeys.Parse(key) is { } parsed && ScoutingReportStarKeys.Where(parsed.Scope) is
-                { Length: > 0 } where
+            : ScoutingNames.Humanise(ScoutingReportStarKeys.Parse(key) is { } parsed
+                                     && ScoutingReportStarKeys.Where(parsed.Scope) is { Length: > 0 } where
                 ? where
-                : section;
+                : section);
     }
+
+    /// <summary>The text as the page shows it, maps and places by their spoken names; the text itself is kept.</summary>
+    public string DisplayText => ScoutingNames.Humanise(Text);
+
+    /// <summary>The section heading as the page shows it.</summary>
+    public string SectionLabel => ScoutingNames.Humanise(Section);
 
     public string Key { get; }
 

@@ -33,7 +33,21 @@
         </Style>
         <Style Selector="TextBlock.mid">
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
+        </Style>
+        <!--
+            Contrast: this page sits on CardBg, where the shared ramp's TextLabelAlt (column headers), TextDim
+            (hints) and TextMid measure 1.4, 1.8 and 4.3:1 in the dark theme. Secondary text here is TextBright
+            (7.2:1 dark, 9.9:1 light) and the hierarchy is carried by size and weight instead.
+        -->
+        <Style Selector="TextBlock.col-label">
+            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
+        </Style>
+        <Style Selector="Button.ghost">
+            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
+        </Style>
+        <Style Selector="Button.ghost:disabled">
+            <Setter Property="Opacity" Value="0.6" />
         </Style>
         <Style Selector="TextBlock.val">
             <Setter Property="FontSize" Value="12" />
@@ -75,12 +89,12 @@
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="CornerRadius" Value="0" />
             <Setter Property="Padding" Value="12 8" />
-            <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.maptab.on">
             <Setter Property="BorderBrush" Value="{DynamicResource BorderAccent}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextCardHeader}" />
         </Style>
         <Style Selector="Button.maptab:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource PanelHeaderHover}" />
@@ -226,7 +240,7 @@
         </Style>
         <Style Selector="Border.empty TextBlock.body">
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="MaxWidth" Value="640" />
             <Setter Property="HorizontalAlignment" Value="Left" />
@@ -252,7 +266,7 @@
                         <KeyBinding Gesture="Escape" Command="{Binding RevertCommand}" />
                     </TextBox.KeyBindings>
                 </TextBox>
-                <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" Text="{Binding SetLine}"
+                <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" Text="{Binding SetLine}"
                            VerticalAlignment="Center" />
                 <TextBlock FontSize="11" Foreground="{DynamicResource StatNegative}" Text="{Binding Error}"
                            IsVisible="{Binding HasError}" VerticalAlignment="Center" />
@@ -316,7 +330,7 @@
         <!-- A long-form line: the star, the text (or its editor), and the edit actions. -->
         <DataTemplate x:Key="FindingRow" x:DataType="vm:ScoutingReportFindingViewModel">
             <StackPanel Spacing="2" Margin="0 0 0 2">
-                <TextBlock Text="{Binding Section}" FontSize="11" Margin="0 6 0 2"
+                <TextBlock Text="{Binding SectionLabel}" FontSize="11" Margin="0 6 0 2"
                            Foreground="{DynamicResource TextCardHeader}" IsVisible="{Binding ShowsSectionHeader}" />
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
                     <Button Grid.Column="0" Classes="ghost" Padding="3" VerticalAlignment="Top"
@@ -332,7 +346,7 @@
                         </AutomationProperties.Name>
                         <Path Classes="star" Classes.on="{Binding IsStarred}" Data="{StaticResource StarGeometry}" />
                     </Button>
-                    <TextBlock Grid.Column="1" Text="{Binding Text}" FontSize="11" TextWrapping="Wrap"
+                    <TextBlock Grid.Column="1" Text="{Binding DisplayText}" FontSize="11" TextWrapping="Wrap"
                                VerticalAlignment="Center" Foreground="{DynamicResource TextValue}"
                                IsVisible="{Binding !IsEditing}" />
                     <TextBox Grid.Column="1" Text="{Binding EditText}" FontSize="11" TextWrapping="Wrap"
@@ -341,7 +355,7 @@
                              DataContextChanged="OnFindingEditRebound" AttachedToVisualTree="OnFindingEditAttached" />
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
                         <TextBlock Text="edited" FontSize="10" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextMid}" IsVisible="{Binding IsEdited}" />
+                                   Foreground="{DynamicResource TextBright}" IsVisible="{Binding IsEdited}" />
                         <Button Content="Edit" Classes="ghost" FontSize="10" Padding="8 3"
                                 IsVisible="{Binding !IsEditing}"
                                 Command="{Binding BeginEditCommand}" />
@@ -494,9 +508,9 @@
                         </Border>
                         <TextBlock Classes="mid" Text="{Binding DemosLine}" VerticalAlignment="Center" Margin="0 0 14 0" />
                         <TextBlock Classes="mid" Text="{Binding OpponentMixLine}" VerticalAlignment="Center"
-                                   Margin="0 0 14 0" Foreground="{DynamicResource TextDim}" />
+                                   Margin="0 0 14 0" Foreground="{DynamicResource TextBright}" />
                         <TextBlock FontSize="11" Text="{Binding TimelineCaption}" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextDim}" />
+                                   Foreground="{DynamicResource TextBright}" />
                     </WrapPanel>
                     <StackPanel Margin="14 0 14 6" Spacing="2" IsVisible="{Binding HasSelection}">
                         <TextBlock Classes="mid" Text="{Binding Editor.ExportUnavailableNote}"
@@ -535,7 +549,7 @@
                                 <TextBlock Classes="h" Text="Map pool" />
                             </StackPanel>
                         </Button>
-                        <TextBlock Grid.Column="2" FontSize="11" Foreground="{DynamicResource TextDim}"
+                        <TextBlock Grid.Column="2" FontSize="11" Foreground="{DynamicResource TextBright}"
                                    Text="{Binding PoolCaption}" VerticalAlignment="Center" Margin="0 0 6 0" />
                     </Grid>
                     <StackPanel IsVisible="{Binding IsPoolOpen}" Margin="6 4 6 4">
@@ -556,12 +570,12 @@
                                     <Button Classes="poolrow"
                                             Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).SelectMapCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}"
-                                            AutomationProperties.Name="{Binding Map, StringFormat='Open {0}'}">
+                                            AutomationProperties.Name="{Binding MapLabel, StringFormat='Open {0}'}">
                                         <Border Classes="poolrow" Classes.sel="{Binding IsSelected}" Padding="0 5" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0">
                                             <Grid ColumnDefinitions="2*,*,1.4*,*,*,*,1.2*,1.2*,1.2*">
                                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" Margin="4 0 0 0">
-                                                    <TextBlock Classes="val" FontWeight="SemiBold" Text="{Binding Map}" />
-                                                    <TextBlock FontSize="11" Text="thin sample" Foreground="{DynamicResource TextDim}"
+                                                    <TextBlock Classes="val" FontWeight="SemiBold" Text="{Binding MapLabel}" />
+                                                    <TextBlock FontSize="11" Text="thin sample" Foreground="{DynamicResource TextBright}"
                                                                IsVisible="{Binding IsThin}" VerticalAlignment="Center" />
                                                 </StackPanel>
                                                 <TextBlock Grid.Column="1" Classes="val" Text="{Binding Played}" HorizontalAlignment="Right" />
@@ -612,11 +626,11 @@
                                     <Button Classes="maptab" Classes.on="{Binding IsSelected}" IsTabStop="{Binding IsSelected}"
                                             Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).SelectMapCommand, FallbackValue={x:Null}}"
                                             CommandParameter="{Binding}"
-                                            AutomationProperties.Name="{Binding Map}">
+                                            AutomationProperties.Name="{Binding MapLabel}">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock Text="{Binding Map}" FontSize="13" FontWeight="Medium" />
+                                            <TextBlock Text="{Binding MapLabel}" FontSize="13" FontWeight="Medium" />
                                             <TextBlock Text="{Binding TabDetail}" FontSize="11"
-                                                       Foreground="{DynamicResource TextDim}" VerticalAlignment="Bottom" />
+                                                       Foreground="{DynamicResource TextBright}" VerticalAlignment="Bottom" />
                                         </StackPanel>
                                     </Button>
                                 </DataTemplate>
@@ -686,7 +700,7 @@
                                                         Command="{Binding InspectCommand}"
                                                         AutomationProperties.Name="{Binding InspectLabel}" />
                                                 <TextBlock Text="{Binding CountLabel}" FontSize="11" VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource TextDim}" />
+                                                           Foreground="{DynamicResource TextBright}" />
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
@@ -722,13 +736,13 @@
                                     <DataTemplate x:DataType="layers:ScoutingLegendEntry">
                                         <StackPanel Orientation="Horizontal" Spacing="5" Margin="0 0 16 2">
                                             <ContentControl Content="{Binding Swatch}" ContentTemplate="{StaticResource Swatch}" />
-                                            <TextBlock FontSize="11" Text="{Binding Text}" Foreground="{DynamicResource TextMid}" />
+                                            <TextBlock FontSize="11" Text="{Binding Text}" Foreground="{DynamicResource TextBright}" />
                                         </StackPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <TextBlock FontSize="11" Text="other layers fade while one is inspected"
-                                       Foreground="{DynamicResource TextDim}" />
+                                       Foreground="{DynamicResource TextBright}" />
                         </WrapPanel>
 
                         <!-- What a map cannot draw: the strip minis, each inspectable. -->
@@ -766,7 +780,7 @@
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate x:DataType="x:String">
                                                             <TextBlock Text="{Binding}" FontSize="11" TextWrapping="Wrap"
-                                                                       Foreground="{DynamicResource TextMid}" />
+                                                                       Foreground="{DynamicResource TextBright}" />
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
@@ -782,7 +796,7 @@
                                                                                   ToolTip.Tip="{Binding Text}"
                                                                                   AutomationProperties.Name="{Binding Text}">
                                                                                 <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
-                                                                                           Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
+                                                                                           Foreground="{DynamicResource TextBright}" VerticalAlignment="Center"
                                                                                            TextTrimming="CharacterEllipsis" />
                                                                                 <local:ScoutingMiniGraphic Grid.Column="1" Value="{Binding}" Margin="6 0" />
                                                                                 <TextBlock Grid.Column="2" FontSize="11" Text="{Binding Trailing}"
@@ -801,7 +815,7 @@
                                                                                   ToolTip.Tip="{Binding Text}"
                                                                                   AutomationProperties.Name="{Binding Text}">
                                                                                 <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
-                                                                                           Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                                                                                           Foreground="{DynamicResource TextBright}" VerticalAlignment="Center" />
                                                                                 <local:ScoutingMiniGraphic Grid.Column="1" Value="{Binding}" />
                                                                             </Grid>
                                                                         </DataTemplate>
@@ -817,7 +831,7 @@
                                                                                            Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
                                                                                 <local:ScoutingMiniGraphic Grid.Column="1" Value="{Binding}" Margin="0 0 6 0" />
                                                                                 <TextBlock Grid.Column="2" FontSize="11" Text="{Binding Value}"
-                                                                                           Foreground="{DynamicResource TextMid}" HorizontalAlignment="Right"
+                                                                                           Foreground="{DynamicResource TextBright}" HorizontalAlignment="Right"
                                                                                            VerticalAlignment="Center" />
                                                                             </Grid>
                                                                         </DataTemplate>
@@ -837,7 +851,7 @@
                                                                             <DataTemplate x:DataType="layers:ScoutingTableRow">
                                                                                 <Grid ColumnDefinitions="*,40,40" Margin="0 0 0 2">
                                                                                     <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
-                                                                                               Foreground="{DynamicResource TextMid}" />
+                                                                                               Foreground="{DynamicResource TextBright}" />
                                                                                     <TextBlock Grid.Column="1" FontSize="11" Text="{Binding First}"
                                                                                                Foreground="{DynamicResource TextValue}" HorizontalAlignment="Right" />
                                                                                     <TextBlock Grid.Column="2" FontSize="11" Text="{Binding Second}"
@@ -850,7 +864,7 @@
                                                             </DataTemplate>
                                                         </ContentControl.DataTemplates>
                                                     </ContentControl>
-                                                    <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextDim}"
+                                                    <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextBright}"
                                                                Text="{Binding MiniChart.Caption, FallbackValue=''}" />
                                                 </StackPanel>
                                             </StackPanel>
@@ -897,7 +911,7 @@
                             </ItemsControl>
                         </StackPanel>
                         <TextBlock Text="{Binding StatusMessage}" FontSize="12" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextMid}" IsVisible="{Binding HasStatusMessage}" />
+                                   Foreground="{DynamicResource TextBright}" IsVisible="{Binding HasStatusMessage}" />
                         <!-- Still building: a read and four rows of skeleton where the lines will land. -->
                         <StackPanel Spacing="10" Margin="0 4 0 2" IsVisible="{Binding IsBuilding}"
                                     AutomationProperties.Name="Reading the rounds for this layer">
@@ -942,7 +956,7 @@
                                 x:DataType="vm:ScoutingReportTabViewModel">
                             <StackPanel Spacing="4">
                                 <TextBlock Classes="h" FontSize="12" Text="{Binding Editor.OnePagerHeading}" />
-                                <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" TextWrapping="Wrap"
+                                <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" TextWrapping="Wrap"
                                            Text="Suggested lines start starred. Unstar any; star a number to add it with its scope." />
                                 <TextBlock Classes="mid" TextWrapping="Wrap" IsVisible="{Binding !Editor.HasStarred}"
                                            Text="Nothing starred. The one-pager export stays off until something is." />
@@ -951,9 +965,9 @@
                                         <DataTemplate x:DataType="vm:ScoutingReportFindingViewModel">
                                             <Grid ColumnDefinitions="*,Auto" Margin="0 2">
                                                 <TextBlock Grid.Column="0" FontSize="12" TextWrapping="Wrap">
-                                                    <Run Text="{Binding Where}" Foreground="{DynamicResource TextMid}" />
-                                                    <Run Text=" · " Foreground="{DynamicResource TextMid}" />
-                                                    <Run Text="{Binding Text}" Foreground="{DynamicResource TextValue}" />
+                                                    <Run Text="{Binding Where}" Foreground="{DynamicResource TextBright}" />
+                                                    <Run Text=" · " Foreground="{DynamicResource TextBright}" />
+                                                    <Run Text="{Binding DisplayText}" Foreground="{DynamicResource TextValue}" />
                                                 </TextBlock>
                                                 <Button Grid.Column="1" Classes="ghost" Padding="3" VerticalAlignment="Top"
                                                         Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).UnstarCommand, FallbackValue={x:Null}}"
@@ -988,7 +1002,7 @@
                                 ToolTip.Tip="Rating, K/D, ADR, KAST, opening and 1vX on the map in view, or pooled over every map. Roles, CT spot and T role stay on the map in view.">
                             <TextBlock Text="{Binding PlayersScopeLabel, StringFormat='Numbers: {0}'}" />
                         </Button>
-                        <TextBlock Grid.Column="3" FontSize="11" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center"
+                        <TextBlock Grid.Column="3" FontSize="11" Foreground="{DynamicResource TextBright}" VerticalAlignment="Center"
                                    Margin="0 0 10 0" Text="roles are suggested from the demos; the reason is under each" />
                         <ComboBox Grid.Column="4" FontSize="11" ItemsSource="{Binding IglOptions}" SelectedItem="{Binding SelectedIgl}"
                                   AutomationProperties.Name="In-game leader"
@@ -1023,11 +1037,11 @@
                                                     ToolTip.Tip="{Binding OverviewToolTip}" AutomationProperties.Name="{Binding OverviewToolTip}">
                                                 <TextBlock Classes="val" FontWeight="SemiBold" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                                             </Button>
-                                            <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" Text="{Binding Appearances}" />
+                                            <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" Text="{Binding Appearances}" />
                                         </StackPanel>
                                         <StackPanel Grid.Column="2" Margin="0 0 6 0">
                                             <TextBlock Classes="val" Text="{Binding Role}" />
-                                            <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" Text="{Binding RoleNote}"
+                                            <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" Text="{Binding RoleNote}"
                                                        IsVisible="{Binding HasRoleNote}" TextWrapping="Wrap" />
                                         </StackPanel>
                                         <ContentControl Grid.Column="3" Content="{Binding Rating}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />

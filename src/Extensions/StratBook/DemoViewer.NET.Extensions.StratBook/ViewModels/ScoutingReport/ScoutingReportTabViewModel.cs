@@ -371,7 +371,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     public string OpponentMixLine { get; private set; } = "";
 
     /// <summary>"filled = won · de_nuke bright".</summary>
-    public string TimelineCaption => SelectedMap is { } map ? $"filled = won, ring = lost, large = top-30 opponent · {map.Map} bright" : "";
+    public string TimelineCaption => SelectedMap is { } map ? $"filled = won, ring = lost, large = top-30 opponent · {map.MapLabel} bright" : "";
 
     /// <summary>"18 demos", the sample the export prints under its title.</summary>
     public string SampleSizeLine { get; private set; } = "";
@@ -384,14 +384,14 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <summary>"de_mirage · CT · Full buy · 6 maps".</summary>
     public string ScopeLine => SelectedMap is not { } map
         ? ""
-        : $"{map.Map} · {Side.Label()} · {(Buy == ScoutingBuy.All ? "all buys" : Buy + " buy")} · {ScoutingLayerBase.Plural(map.Played, "map")}";
+        : $"{map.MapLabel} · {Side.Label()} · {(Buy == ScoutingBuy.All ? "all buys" : Buy + " buy")} · {ScoutingLayerBase.Plural(map.Played, "map")}";
 
     /// <summary>"de_mirage open below · a row opens its map · CT and T are the team's own round win %".</summary>
     public string PoolCaption => SelectedMap is { } map
-        ? $"{map.Map} open below · a row opens its map · CT and T are the team's own round win %"
+        ? $"{map.MapLabel} open below · a row opens its map · CT and T are the team's own round win %"
         : "a row opens its map · CT and T are the team's own round win %";
 
-    public string PlayersTitle => SelectedMap is { } map ? $"Players · {(PlayersAllMaps ? "all maps" : map.Map)}" : "Players";
+    public string PlayersTitle => SelectedMap is { } map ? $"Players · {(PlayersAllMaps ? "all maps" : map.MapLabel)}" : "Players";
 
     // ---- Lifecycle ----
 
@@ -905,7 +905,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             string result = demo.Won switch { true => "won", false => "lost", _ => "no result" };
             Timeline.Add(new TimelineDotViewModel(x, y, demo.Won == true,
                 SelectedMap is { } map && map.Map == demo.Map,
-                $"{demo.Map} · {new DateTime(demo.Ticks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} · {result}{TierNote(tier)}",
+                $"{ScoutingNames.Map(demo.Map)} · {new DateTime(demo.Ticks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} · {result}{TierNote(tier)}",
                 tier == OpponentTier.Top30));
         }
     }
@@ -928,7 +928,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             if (map.IsThin)
             {
                 Notices.Add(
-                    $"{map.Map} has {ScoutingLayerBase.Plural(map.Played, "map")} in the sample. Treat every percentage here as a hint, not a tendency.");
+                    $"{map.MapLabel} has {ScoutingLayerBase.Plural(map.Played, "map")} in the sample. Treat every percentage here as a hint, not a tendency.");
             }
 
             // The services count their own misses; the layers that read positions themselves (retakes, opening

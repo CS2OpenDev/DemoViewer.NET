@@ -267,14 +267,14 @@ public class ScoutingReportModuleTests
         using (Assert.Multiple())
         {
             await Assert.That(closedAtStart).IsTrue();
-            await Assert.That(first).IsEqualTo("de_nuke · CT · all buys · 2 maps");
-            await Assert.That(vm.ScopeLine).IsEqualTo("de_inferno · T · Force buy · 1 map");
+            await Assert.That(first).IsEqualTo("Nuke · CT · all buys · 2 maps");
+            await Assert.That(vm.ScopeLine).IsEqualTo("Inferno · T · Force buy · 1 map");
             await Assert.That(vm.MapName).IsEqualTo("de_inferno");
             await Assert.That(vm.Maps.Single(m => m.IsSelected).Map).IsEqualTo("de_inferno");
             await Assert.That(vm.IsT).IsTrue();
             await Assert.That(vm.IsPeriodOpen).IsTrue();
             await Assert.That(vm.IsPoolOpen).IsFalse();
-            await Assert.That(vm.PlayersTitle).IsEqualTo("Players · de_inferno");
+            await Assert.That(vm.PlayersTitle).IsEqualTo("Players · Inferno");
         }
     }
 

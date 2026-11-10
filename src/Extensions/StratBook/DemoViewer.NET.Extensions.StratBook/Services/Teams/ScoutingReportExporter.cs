@@ -1,6 +1,7 @@
 #region
 
 using System.Text;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 
 #endregion
 
@@ -193,7 +194,11 @@ public static class ScoutingReportExporter
     /// <summary>The document as Markdown. Stage pictures are not carried: a line says the HTML export has them.</summary>
     /// <param name="doc">The document.</param>
     /// <param name="form">The form; the one-pager is the default export.</param>
-    public static string Markdown(ScoutingReportDocument doc, ScoutingReportForm form = ScoutingReportForm.OnePager)
+    public static string Markdown(ScoutingReportDocument doc, ScoutingReportForm form = ScoutingReportForm.OnePager) =>
+        // Maps and places by their spoken names; the Markdown carries no pictures, so the whole text is prose.
+        ScoutingNames.Humanise(RawMarkdown(doc, form));
+
+    private static string RawMarkdown(ScoutingReportDocument doc, ScoutingReportForm form)
     {
         ArgumentNullException.ThrowIfNull(doc);
         StringBuilder md = new();
@@ -568,7 +573,8 @@ public static class ScoutingReportExporter
                                """
         + "\n";
 
-    private static string Escape(string text) => text
+    // Every printed string goes through here, so the page names maps and places the way the tab does.
+    private static string Escape(string text) => ScoutingNames.Humanise(text)
         .Replace("&", "&amp;", StringComparison.Ordinal)
         .Replace("<", "&lt;", StringComparison.Ordinal)
         .Replace(">", "&gt;", StringComparison.Ordinal)

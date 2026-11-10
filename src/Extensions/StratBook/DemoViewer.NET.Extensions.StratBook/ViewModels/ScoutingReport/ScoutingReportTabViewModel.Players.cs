@@ -44,7 +44,7 @@ public sealed partial class ScoutingReportTabViewModel
     public bool HasPlayersStatus => PlayersStatusLine.Length > 0;
 
     /// <summary>"de_nuke" or "All maps": the stats scope toggle's caption.</summary>
-    public string PlayersScopeLabel => PlayersAllMaps ? "All maps" : SelectedMap?.Map ?? "This map";
+    public string PlayersScopeLabel => PlayersAllMaps ? "All maps" : SelectedMap?.MapLabel ?? "This map";
 
     partial void OnPlayersAllMapsChanged(bool value)
     {
@@ -233,7 +233,7 @@ public sealed partial class ScoutingReportTabViewModel
                 Role = role.Role,
                 RoleNote = role.Note,
                 TRole = role.TRole,
-                CtSpot = spot is null ? "—" : SetupsDerivation.PlaceLabel(spot.Place),
+                CtSpot = spot is null ? "—" : ScoutingNames.Place(spot.Place),
                 CtSpotNote = spot is null
                     ? "no CT setup positions for this player on this map"
                     : $"held in {spot.Rounds.Count} of {ScoutingLayerBase.Plural(spot.Of, "CT round")} ({spotBuy})",
