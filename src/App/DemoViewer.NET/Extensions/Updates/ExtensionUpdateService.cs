@@ -749,13 +749,23 @@ public sealed class ExtensionUpdateService
         lock (_stageSync)
         {
             previous = _stageTail;
-            _stageTail = done.Task;
+            // A waiter cancelled early completes its own link, so the tail must still wait for the one before.
+            _stageTail = Task.WhenAll(previous, done.Task);
         }
 
         try
         {
-            // Never faults: every link ends with SetResult below.
-            await previous.ConfigureAwait(false);
+            try
+            {
+                // Never faults: every link ends with SetResult below.
+                await previous.WaitAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Not StageCore's cancel path: that clears the staging paths the running stage may share.
+                return new StageResult(StageOutcome.Cancelled, null);
+            }
+
             return await StageCore(entry, policy, ctx, progress, ct).ConfigureAwait(false);
         }
         finally
