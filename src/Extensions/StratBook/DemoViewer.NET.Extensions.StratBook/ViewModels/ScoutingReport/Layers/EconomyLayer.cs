@@ -1,20 +1,30 @@
 #region
 
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 
 #endregion
 
 namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 
 /// <summary>
-///     Economy and pistols (strip): the side's pistol rounds and what followed them, how it plays a low-buy
-///     opponent, whether it closes out a man advantage, and what it buys after a loss (the Situational
-///     Behaviour, over Round Facts alone). Every number opens its rounds.
-///     <para>Phase 3 (P3.5) adds the buy after the pistol as a stacked bar, force rate and eco rush or stack.</para>
+///     Economy and pistols (strip, map-wide): what the team buys in the two rounds after a pistol and how those
+///     go, its force rate per side, forces won, the full save after a lost full buy, what its own eco looks like
+///     at 0:20 (rush, stack or spread, from positions), and pistols won per side (<see cref="EconomyDerivation" />
+///     over Round Facts). Under those, the side in view's pistol follow-ups, low-buy opponents, man advantage and
+///     buy after a loss (Situational Behaviour). Every number opens its rounds. The buy filter does not apply: the
+///     layer is about buys.
 /// </summary>
 public sealed class EconomyLayer() : ScoutingLayerBase("econ", "Economy", ScoutingLayerPlacement.Strip,
     ScoutingSides.Both, new ScoutingSwatch(ScoutingMarkShape.Dot, ScoutingColor.Neutral), "E/D")
 {
+    // One positions read per map per team load: the eco rounds' postures.
+    private static readonly ConditionalWeakTable<ScoutingReportData, ConcurrentDictionary<string, Task<EcoPostures>>>
+        _postures = [];
+
     /// <inheritdoc />
     public override string TitleFor(ScoutingSide side) => "Economy and pistols";
 
@@ -23,57 +33,264 @@ public sealed class EconomyLayer() : ScoutingLayerBase("econ", "Economy", Scouti
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
-        if (await LayerData.Situational(context).ConfigureAwait(false) is not { } b)
+        TeamRoundSet? set = await StripData.RoundsFor(context.Data).ConfigureAwait(false);
+        SituationalBehaviourBlock? b = await LayerData.Situational(context).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        IReadOnlyList<TeamRound> rounds = set?.On(context.Map) ?? [];
+        if (rounds.Count == 0 && b is null)
         {
-            return await LayerData.SituationalMissing(context).ConfigureAwait(false);
+            return context.Data.Sources.RoundFacts is null
+                ? await LayerData.SituationalMissing(context).ConfigureAwait(false)
+                : StripData.Missing(context, set);
         }
 
-        int rounds = b.SideRounds.Count;
-        int pistols = b.PistolRounds.Count;
-        int pistolsWon = b.PistolOutcomes.Where(o => o.Label.StartsWith("won", StringComparison.Ordinal))
-            .Sum(o => o.Count);
         List<ScoutingRead> reads = [];
-        if (pistols > 0)
+        List<ScoutingInspectorSection> sections = [];
+        ScoutingMiniChart? chart = null;
+        int pistolCount = 0;
+        if (rounds.Count > 0)
         {
-            reads.Add(new ScoutingRead(
-                $"They win {pistolsWon} of {pistols} {context.Side.Label()} pistols on {context.Map}."));
+            IReadOnlyList<AfterPistolRow> after = EconomyDerivation.AfterPistol(rounds);
+            sections.Add(new ScoutingInspectorSection("Their buy in the rounds after a pistol · both sides",
+                [.. after.Where(r => r.Rounds.Count > 0).Select(r => AfterPistolRow(context, r))]));
+            EcoPostures postures = await PosturesFor(context).WaitAsync(cancellationToken).ConfigureAwait(false);
+            sections.Add(new ScoutingInspectorSection("", KeyRows(context, rounds, postures)));
+            chart = Chart(after);
+            if (Read(after) is { } read)
+            {
+                reads.Add(new ScoutingRead(read, Suggested: StripData.SuggestOn(context)));
+            }
+
+            pistolCount = rounds.Count(r => r.Buy == BuyType.Pistol);
         }
 
-        List<ScoutingInspectorSection> sections =
-        [
-            new("Pistols", [
-                .. Situation(context, b.PistolRounds, rounds, "pistols", "pistol rounds"),
-                .. Rows(context, b.PistolOutcomes, pistols, "pistol"),
-                .. Rows(context, b.PistolFollowUp, pistols, "")
-            ]),
-            new("Against a low buy", [
-                .. Situation(context, b.AntiEcoRounds, rounds, "vs low buy"),
-                .. Rows(context, b.AntiEcoBuyTypes, b.AntiEcoRounds.Count, "vs"),
-                .. Rows(context, b.AntiEcoOutcomes, b.AntiEcoRounds.Count, "vs low buy"),
-                .. Rows(context, b.AntiEcoContactClock, b.AntiEcoRounds.Count, "vs low buy, first contact")
-            ]),
-            new("With a man advantage", [
-                .. Situation(context, b.ManAdvantageRounds, rounds, "man advantage"),
-                .. Rows(context, b.ManAdvantage, b.ManAdvantageRounds.Count, "led"),
-                .. Rows(context, b.ManAdvantageOutcomes, b.ManAdvantageRounds.Count, "man advantage")
-            ]),
-            new("After a loss", [
-                .. Situation(context, b.RoundsLost, rounds, "losses"),
-                .. Rows(context, b.SaveDiscipline, b.RoundsLost.Count, "after a loss,")
-            ])
-        ];
+        if (b is not null)
+        {
+            int sideRounds = b.SideRounds.Count;
+            int pistols = b.PistolRounds.Count;
+            int pistolsWon = b.PistolOutcomes.Where(o => o.Label.StartsWith("won", StringComparison.Ordinal))
+                .Sum(o => o.Count);
+            if (pistols > 0)
+            {
+                reads.Add(new ScoutingRead(
+                    $"They win {pistolsWon} of {pistols} {context.Side.Label()} pistols on {context.Map}.",
+                    "read pistols"));
+            }
+
+            string side = context.Side.Label();
+            sections.AddRange(
+            [
+                new ScoutingInspectorSection($"Pistols · {side}", [
+                    .. Situation(context, b.PistolRounds, sideRounds, "pistols", "pistol rounds"),
+                    .. Rows(context, b.PistolOutcomes, pistols, "pistol"),
+                    .. Rows(context, b.PistolFollowUp, pistols, "")
+                ]),
+                new ScoutingInspectorSection($"Against a low buy · {side}", [
+                    .. Situation(context, b.AntiEcoRounds, sideRounds, "vs low buy"),
+                    .. Rows(context, b.AntiEcoBuyTypes, b.AntiEcoRounds.Count, "vs"),
+                    .. Rows(context, b.AntiEcoOutcomes, b.AntiEcoRounds.Count, "vs low buy"),
+                    .. Rows(context, b.AntiEcoContactClock, b.AntiEcoRounds.Count, "vs low buy, first contact")
+                ]),
+                new ScoutingInspectorSection($"With a man advantage · {side}", [
+                    .. Situation(context, b.ManAdvantageRounds, sideRounds, "man advantage"),
+                    .. Rows(context, b.ManAdvantage, b.ManAdvantageRounds.Count, "led"),
+                    .. Rows(context, b.ManAdvantageOutcomes, b.ManAdvantageRounds.Count, "man advantage")
+                ]),
+                new ScoutingInspectorSection($"After a loss · {side}", [
+                    .. Situation(context, b.RoundsLost, sideRounds, "losses"),
+                    .. Rows(context, b.SaveDiscipline, b.RoundsLost.Count, "after a loss,")
+                ])
+            ]);
+            if (rounds.Count == 0)
+            {
+                pistolCount = pistols;
+            }
+        }
 
         return new ScoutingLayerResult
         {
-            CountLabel = Plural(pistols, "pistol"),
+            CountLabel = Plural(pistolCount, "pistol"),
             Reads = reads,
             Sections = [.. sections.Where(s => s.Rows.Count > 0)],
-            Mini =
-            [
-                .. Situation(context, b.PistolRounds, rounds, "pistols", "pistol rounds"),
-                .. Rows(context, b.PistolFollowUp, pistols, "").Take(2)
-            ]
+            MiniChart = chart,
+            Mini = b is null
+                ? []
+                :
+                [
+                    .. Situation(context, b.PistolRounds, b.SideRounds.Count, "pistols", "pistol rounds"),
+                    .. Rows(context, b.PistolFollowUp, b.PistolRounds.Count, "").Take(2)
+                ]
         };
+    }
+
+    /// <summary>
+    ///     The mini: lost pistol → R2 over won pistol → R2, the mock's two rows, each a 100% stack of the buy on
+    ///     the one-hue ramp with the rounds won at the end. Null when neither has a round with a known buy.
+    /// </summary>
+    /// <param name="after">The four after-pistol rows.</param>
+    public static ScoutingStackChart? Chart(IReadOnlyList<AfterPistolRow> after)
+    {
+        ArgumentNullException.ThrowIfNull(after);
+        List<ScoutingStackRow> rows =
+        [
+            .. after.Where(r => r.Label.EndsWith("R2", StringComparison.Ordinal) && r.Known > 0)
+                .OrderBy(r => r.Label.StartsWith("Won", StringComparison.Ordinal))
+                .Select(StackRow)
+        ];
+        return rows.Count == 0
+            ? null
+            : new ScoutingStackChart(rows) { Caption = "buy after the pistol, eco to full; rounds won at the end" };
+    }
+
+    /// <summary>The read: what they do after a lost pistol, else after a won one.</summary>
+    /// <param name="after">The four after-pistol rows.</param>
+    public static string? Read(IReadOnlyList<AfterPistolRow> after)
+    {
+        ArgumentNullException.ThrowIfNull(after);
+        AfterPistolRow? lostR2 = after.FirstOrDefault(r => r.Label == "Lost pistol → R2");
+        AfterPistolRow? lostR3 = after.FirstOrDefault(r => r.Label == "Lost pistol → R3");
+        AfterPistolRow? wonR2 = after.FirstOrDefault(r => r.Label == "Won pistol → R2");
+        if (lostR2 is { Known: > 0 })
+        {
+            string r2 = TopBuy(lostR2);
+            string r3 = lostR3 is { Known: > 0 } ? $" and {TopBuy(lostR3)} R3" : "";
+            return $"After a lost pistol they {r2} R2{r3}.";
+        }
+
+        return wonR2 is { Known: > 0 } ? $"After a won pistol they {TopBuy(wonR2)} R2 and win {Percent((double)wonR2.Won.Count / wonR2.Rounds.Count)} of them." : null;
+    }
+
+    private static string TopBuy(AfterPistolRow row)
+    {
+        TendencyBucket top = row.Buys.MaxBy(b => b.Count)!;
+        string verb = top.Label switch
+        {
+            "Eco" => "save",
+            "Semi" => "half-buy",
+            "Force" => "force",
+            _ => "full-buy"
+        };
+        return $"{verb} {Percent((double)top.Count / row.Known)} of the time in";
+    }
+
+    private static ScoutingStackRow StackRow(AfterPistolRow row) =>
+        new(row.Label,
+            [
+                .. row.Buys.Select((b, i) => new ScoutingStackSegment(b.Label, (double)b.Count / row.Known, i))
+                    .Where(s => s.Share > 0)
+            ],
+            row.Rounds.Count > 0 ? Percent((double)row.Won.Count / row.Rounds.Count) : "");
+
+    private static ScoutingInspectorRow AfterPistolRow(ScoutingLayerContext context, AfterPistolRow row)
+    {
+        string mix = row.Known > 0
+            ? string.Join(" · ", row.Buys.Where(b => b.Count > 0)
+                .Select(b => $"{b.Label.ToLowerInvariant()} {Percent((double)b.Count / row.Known)}"))
+            : "buy unknown";
+        return new ScoutingInspectorRow
+        {
+            Label = row.Label,
+            Value = $"won {CountText(row.Won.Count, row.Rounds.Count)}",
+            StarText = row.Label.ToLowerInvariant(),
+            Note = mix,
+            Rounds = row.Rounds.Rounds,
+            OpenTitle = StripData.MapTitle(context, row.Label.ToLowerInvariant())
+        };
+    }
+
+    private static List<ScoutingInspectorRow> KeyRows(ScoutingLayerContext context, IReadOnlyList<TeamRound> rounds,
+        EcoPostures postures)
+    {
+        List<ScoutingInspectorRow> rows = [];
+        foreach (int side in (int[])[3, 2])
+        {
+            List<TeamRound> own = [.. rounds.Where(r => r.Side == side)];
+            IReadOnlyList<TeamRound> buying = EconomyDerivation.Buying(own);
+            if (buying.Count > 0)
+            {
+                string s = StripData.SideLabel(side);
+                rows.Add(StripData.Share($"Force-buy rate · {s}",
+                    [.. EconomyDerivation.Forces(buying).Select(r => r.Clip)], buying.Count, $"force rate {s}",
+                    StripData.MapTitle(context, $"{s} force buys"), StripData.SideColor(side)));
+            }
+        }
+
+        IReadOnlyList<TeamRound> forces = EconomyDerivation.Forces(rounds);
+        if (forces.Count > 0)
+        {
+            rows.Add(StripData.Share("Forces that won", [.. forces.Where(r => r.Won).Select(r => r.Clip)],
+                forces.Count, "forces won", StripData.MapTitle(context, "forces won")));
+        }
+
+        (IReadOnlyList<TeamRound> lostFull, IReadOnlyList<TeamRound> saved) = EconomyDerivation.FullSaves(rounds);
+        if (lostFull.Count > 0)
+        {
+            rows.Add(StripData.Share("Full save after a lost full buy", [.. saved.Select(r => r.Clip)],
+                lostFull.Count, "full save after a lost full buy",
+                StripData.MapTitle(context, "full save after a lost full buy"),
+                note: "an eco straight after"));
+        }
+
+        foreach (int side in (int[])[2, 3])
+        {
+            if (postures.Read.GetValueOrDefault(side) is not { Count: > 0 } read)
+            {
+                continue;
+            }
+
+            string s = StripData.SideLabel(side);
+            EcoPosture shape = side == 3 ? EcoPosture.Stack : EcoPosture.Rush;
+            string word = side == 3 ? "stack" : "rush";
+            int ecos = postures.Ecos.GetValueOrDefault(side);
+            rows.Add(StripData.Share($"On their own eco · {s} · {word}",
+                [.. read.Where(p => p.Posture == shape).Select(p => p.Clip)], read.Count, $"own eco {word} {s}",
+                StripData.MapTitle(context, $"{s} eco {word}"), StripData.SideColor(side),
+                $"positions at 0:{EconomyDerivation.PostureSeconds:00}, read for {read.Count} of {Plural(ecos, "eco")}"));
+            rows.Add(StripData.Share($"On their own eco · {s} · spread",
+                [.. read.Where(p => p.Posture == EcoPosture.Spread).Select(p => p.Clip)], read.Count,
+                $"own eco spread {s}", StripData.MapTitle(context, $"{s} eco spread"), StripData.SideColor(side),
+                "saving or playing for picks"));
+        }
+
+        if (postures.Read.Count == 0 && rounds.Any(r => r.Buy == BuyType.Eco))
+        {
+            rows.Add(new ScoutingInspectorRow
+            {
+                Label = "On their own eco",
+                StarText = "own eco",
+                Note = postures.HasPositions
+                    ? "no eco round with three or more players read at 0:20"
+                    : "needs round positions, which these demos do not have yet"
+            });
+        }
+
+        foreach (int side in (int[])[3, 2])
+        {
+            List<TeamRound> pistols = [.. rounds.Where(r => r.Side == side && r.Buy == BuyType.Pistol)];
+            if (pistols.Count > 0)
+            {
+                string s = StripData.SideLabel(side);
+                rows.Add(StripData.Share($"Pistols won · {s}", [.. pistols.Where(r => r.Won).Select(r => r.Clip)],
+                    pistols.Count, $"pistols won {s}", StripData.MapTitle(context, $"{s} pistols won"),
+                    StripData.SideColor(side)));
+            }
+        }
+
+        return rows;
+    }
+
+    private static Task<EcoPostures> PosturesFor(ScoutingLayerContext context) =>
+        _postures.GetValue(context.Data, _ => new ConcurrentDictionary<string, Task<EcoPostures>>(
+                StringComparer.OrdinalIgnoreCase))
+            .GetOrAdd(context.Map, map => ReadPosturesAsync(context.Data, map));
+
+    private static async Task<EcoPostures> ReadPosturesAsync(ScoutingReportData data, string map)
+    {
+        TeamRoundSet? set = await StripData.RoundsFor(data).ConfigureAwait(false);
+        SetupAreaClassifier areas = await StripData.AreasFor(data, map).ConfigureAwait(false);
+        List<TeamRound> ecos = [.. set?.On(map).Where(r => r.Buy == BuyType.Eco) ?? []];
+        return await ScoutingLayerContext.Offload(() => EcoPostures.Load(data, map, ecos, areas))
+            .ConfigureAwait(false);
     }
 
     // A situation's own sample row ("vs low buy: 4 of 12 rounds"), titled the way the Situational section was.
@@ -86,6 +303,66 @@ public sealed class EconomyLayer() : ScoutingLayerBase("econ", "Economy", Scouti
             {
                 StarText = word, OpenTitle = $"{context.Prefix} · {word}"
             };
+        }
+    }
+
+    private sealed record Posed(EcoPosture Posture, TendencyRound Clip);
+
+    // The eco rounds of a map with a posture read, per side, and how many ecos each side had.
+    private sealed record EcoPostures(
+        IReadOnlyDictionary<int, List<Posed>> Read,
+        IReadOnlyDictionary<int, int> Ecos,
+        bool HasPositions)
+    {
+        public static EcoPostures Load(ScoutingReportData data, string map, IReadOnlyList<TeamRound> ecos,
+            SetupAreaClassifier areas)
+        {
+            Dictionary<int, List<Posed>> read = [];
+            Dictionary<int, int> count = [];
+            Dictionary<string, RoundPositionsDocument?> files = new(StringComparer.Ordinal);
+            bool any = false;
+            foreach (TeamRound round in ecos)
+            {
+                count[round.Side] = count.GetValueOrDefault(round.Side) + 1;
+                if (!files.TryGetValue(round.DemoPath, out RoundPositionsDocument? file))
+                {
+                    try
+                    {
+                        file = data.Positions.Read(round.DemoPath, map, round.Sha256);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                                   or InvalidOperationException)
+                    {
+                        file = null;
+                    }
+
+                    files[round.DemoPath] = file;
+                }
+
+                if (file is null)
+                {
+                    continue;
+                }
+
+                any = true;
+                IReadOnlyList<SetupSample> samples =
+                    EconomyDerivation.OwnAt(file, round, EconomyDerivation.PostureSeconds);
+                if (EconomyDerivation.Posture([.. samples.Select(areas.Of)], round.Side) is not { } posture)
+                {
+                    continue;
+                }
+
+                if (!read.TryGetValue(round.Side, out List<Posed>? list))
+                {
+                    list = [];
+                    read[round.Side] = list;
+                }
+
+                int at = round.Facts.FreezeEndTick + EconomyDerivation.PostureSeconds * round.TickRate;
+                list.Add(new Posed(posture, round.Around(at)));
+            }
+
+            return new EcoPostures(read, count, any);
         }
     }
 }
