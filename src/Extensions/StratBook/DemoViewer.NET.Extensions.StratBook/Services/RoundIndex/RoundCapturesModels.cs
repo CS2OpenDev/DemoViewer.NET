@@ -26,13 +26,11 @@ public enum AwpSpanEnd
     DemoEnd
 }
 
-/// <summary>An <c>item_pickup</c>; <paramref name="Bought" /> when the slot's cash spent rose on the same frame.</summary>
+/// <summary>An <c>item_pickup</c>, bought or not; a purchase on the same tick and slot says which.</summary>
 /// <param name="Tick">Frame clock.</param>
 /// <param name="Slot">The picker.</param>
 /// <param name="Item">The item, without its <c>weapon_</c> prefix (<c>awp</c>, <c>vesthelm</c>, <c>defuser</c>).</param>
-/// <param name="Bought">True for a purchase.</param>
-/// <param name="Cost">The cash spent rise; 0 for a pickup and for a second buy that shared the frame's rise.</param>
-public sealed record CapturedPickup(int Tick, int Slot, string Item, bool Bought, int Cost);
+public sealed record CapturedPickup(int Tick, int Slot, string Item);
 
 /// <summary>A span a slot owned an AWP: from the first evidence (a pickup, a shot, one in hand) to its loss.</summary>
 public sealed record CapturedAwpSpan(int Slot, int FromTick, int ToTick, AwpSpanEnd End);
@@ -220,7 +218,7 @@ public sealed record CapturedPlant(int Tick, int Slot, int SiteEntity, BombSite 
 /// <param name="Tick">Frame clock.</param>
 /// <param name="Slot">The buyer.</param>
 /// <param name="Item">The item (<c>awp</c>, <c>vesthelm</c>, <c>smokegrenade</c> ...).</param>
-/// <param name="Cost">The cash spent rise; 0 for a second buy that shared one frame's rise.</param>
+/// <param name="Cost">What it cost; 0 for the second and later items of a buy the engine could not split.</param>
 /// <param name="FreezeTime">Bought before the round's freeze end.</param>
 public sealed record CapturedPurchase(int Tick, int Slot, string Item, int Cost, bool FreezeTime);
 

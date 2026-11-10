@@ -277,8 +277,7 @@ public sealed class MergedRulesBuild
         }
 
         HighlightConfigFingerprint.Result result =
-            WithHostProviders(HighlightConfigFingerprint.Compute(core, tickRate, RulesHighlightHarvester.GotvProfileId),
-                core);
+            HighlightConfigFingerprint.Compute(core, tickRate, RulesHighlightHarvester.GotvProfileId);
         lock (_gate)
         {
             if (ReferenceEquals(core, _coreDocs))
@@ -369,7 +368,7 @@ public sealed class MergedRulesBuild
         string source = string.Join("\n", sources);
         string engine = typeof(DemoAnalysis).Assembly.GetName().Version?.ToString() ?? "";
         string identity = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
-            $"{composed}\n{source}\n{engine}{HostProvidersLine(closure)}")));
+            $"{composed}\n{source}\n{engine}")));
         lock (_gate)
         {
             _identities[(rulesetId, tickRate)] = (closure, identity);
@@ -414,7 +413,7 @@ public sealed class MergedRulesBuild
 
         string engine = typeof(DemoAnalysis).Assembly.GetName().Version?.ToString() ?? "";
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
-            $"missing:{string.Join(",", missing)}\n{source}\n{engine}{HostProvidersLine([doc])}")));
+            $"missing:{string.Join(",", missing)}\n{source}\n{engine}")));
 
         void Visit(RulesetDoc current)
         {
@@ -436,20 +435,6 @@ public sealed class MergedRulesBuild
             }
         }
     }
-
-    // A ruleset reading a host provider is stamped with the host set's version too, so a changed host read re-runs
-    // it. Empty for every other ruleset, whose identity is the text it always was.
-    private static string HostProvidersLine(IEnumerable<RulesetDoc> docs) =>
-        HostProviderSet.StampFor(docs) is { Length: > 0 } stamp ? $"\n{stamp}" : "";
-
-    // The highlights' fingerprint moves with the host set only when a core ruleset reads it; the per-highlight
-    // hashes stay the engine's.
-    private static HighlightConfigFingerprint.Result WithHostProviders(HighlightConfigFingerprint.Result result,
-        IEnumerable<RulesetDoc> docs) =>
-        HostProviderSet.StampFor(docs) is { Length: > 0 } stamp
-            ? new HighlightConfigFingerprint.Result(result.HighlightHashes,
-                Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"{result.Fingerprint}\n{stamp}"))))
-            : result;
 
     private static RulesetDoc? Enabled(IReadOnlyList<RulesetDoc> docs, string rulesetId) => docs.FirstOrDefault(r =>
         r.Enabled && string.Equals(r.Id, rulesetId, StringComparison.Ordinal));

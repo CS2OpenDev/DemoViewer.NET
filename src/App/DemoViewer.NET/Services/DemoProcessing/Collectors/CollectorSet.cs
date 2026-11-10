@@ -17,8 +17,8 @@ internal sealed record RegisteredCollector(CollectorContribution Contribution, I
 
     /// <summary>
     ///     Why the engine would refuse <paramref name="contribution" />, or null when it would not. A provider name
-    ///     neither the engine nor the host registers, or a class outside the grenade projectiles, throws at build,
-    ///     which would fail every run the collector rides.
+    ///     the engine does not register, or a class outside the grenade projectiles, throws at build, which would
+    ///     fail every run the collector rides.
     /// </summary>
     public static string? Refusal(CollectorContribution contribution)
     {
@@ -27,12 +27,21 @@ internal sealed record RegisteredCollector(CollectorContribution Contribution, I
             return "a collector needs an id and the id of the pass that reads it";
         }
 
-        PerPlayerEntityValueProviderRegistry providers = HostProviderSet.PerPlayer();
+        PerPlayerEntityValueProviderRegistry providers = PerPlayerEntityValueProviderRegistry.CreateDefault();
         foreach (string name in contribution.Providers)
         {
             if (string.IsNullOrWhiteSpace(name) || providers.Get(name) is null)
             {
-                return $"collector {contribution.Id} reads '{name}', which is no per-player provider of this engine or host";
+                return $"collector {contribution.Id} reads '{name}', which is no per-player provider of this engine";
+            }
+        }
+
+        EntityValueProviderRegistry game = EntityValueProviderRegistry.CreateDefault();
+        foreach (string name in contribution.GameProviders)
+        {
+            if (string.IsNullOrWhiteSpace(name) || game.Get(name) is null)
+            {
+                return $"collector {contribution.Id} reads game provider '{name}', which is no singleton provider of this engine";
             }
         }
 
@@ -76,6 +85,11 @@ internal sealed class CollectorSet
             .. All.SelectMany(c => c.Contribution.ProjectileClasses).Distinct(StringComparer.Ordinal)
                 .Order(StringComparer.Ordinal)
         ];
+        GameProviders =
+        [
+            .. All.SelectMany(c => c.Contribution.GameProviders).Distinct(StringComparer.OrdinalIgnoreCase)
+                .Order(StringComparer.Ordinal)
+        ];
         GameEvents =
         [
             .. All.SelectMany(c => c.Contribution.GameEvents).Distinct(StringComparer.OrdinalIgnoreCase)
@@ -95,6 +109,9 @@ internal sealed class CollectorSet
 
     /// <summary>The union of the declared projectile classes, each once.</summary>
     public IReadOnlyList<string> ProjectileClasses { get; }
+
+    /// <summary>The union of the declared game-wide providers, each once.</summary>
+    public IReadOnlyList<string> GameProviders { get; }
 
     /// <summary>The union of the declared game event names, each once; a streaming read decodes them.</summary>
     public IReadOnlyList<string> GameEvents { get; }
@@ -141,6 +158,7 @@ internal sealed class CollectorSet
             : options with
             {
                 ObservedProviders = Providers,
+                ObservedGameProviders = GameProviders,
                 ObservedProjectileClasses = ProjectileClasses,
                 DecodeUserCommands = options.DecodeUserCommands || ReadsUserCommands
             };

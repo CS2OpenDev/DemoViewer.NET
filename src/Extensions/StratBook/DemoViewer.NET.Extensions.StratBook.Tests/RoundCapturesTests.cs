@@ -28,26 +28,24 @@ public class RoundCapturesTests
     // ── The fold ──────────────────────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task APickup_IsABuy_OnlyWhenTheBuyersCashRoseOnTheSameFrame()
+    public async Task EveryPickup_IsKept_WithItsItemNormalized()
     {
         RoundCapturesFold fold = new();
         Frames frames = new();
         frames.Seat(1, Ct).Seat(2, Ct);
-        fold.EndFrame(100, frames.Cash(1, 0).Cash(2, 0));
+        fold.EndFrame(100, frames);
 
         fold.OnEvent(Pickup(1, "weapon_awp"));
         fold.OnEvent(Pickup(2, "knife"));
-        fold.EndFrame(101, frames.Cash(1, 4750));
-
-        // Two buys of one slot on one frame share the frame's rise; the cost sits on the first.
-        fold.OnEvent(Pickup(2, "vesthelm"));
+        fold.EndFrame(101, frames);
+        fold.OnEvent(Pickup(2, "item_vesthelm"));
         fold.OnEvent(Pickup(2, "defuser"));
-        fold.EndFrame(102, frames.Cash(2, 1400));
+        fold.EndFrame(102, frames);
 
         RoundCaptureFrames result = fold.Finish(200);
-        await Assert.That(result.Pickups.Select(p => $"{p.Tick}/{p.Slot}/{p.Item}/{p.Bought}/{p.Cost}"))
-            .IsEquivalentTo(["101/1/awp/True/4750", "101/2/knife/False/0", "102/2/vesthelm/True/1400",
-                "102/2/defuser/True/0"], CollectionOrdering.Matching);
+        await Assert.That(result.Pickups.Select(p => $"{p.Tick}/{p.Slot}/{p.Item}"))
+            .IsEquivalentTo(["101/1/awp", "101/2/knife", "102/2/vesthelm", "102/2/defuser"],
+                CollectionOrdering.Matching);
     }
 
     [Test]
@@ -225,20 +223,34 @@ public class RoundCapturesTests
             new DeathEventRow(1500, 1, 6, Ct, "CWeaponHKP2000", new EventSpot(100.4f, 200.6f, 300, "BombsiteA")),
             new DeathEventRow(1600, 6, 2, T, "CWeaponGlock", null)
         ],
-        [new PlantEventRow(3000, 8, 412, new EventSpot(-1, -2, -3, "BombsiteB"))]);
+        [new PlantEventRow(3000, 8, 412, new EventSpot(-1, -2, -3, "BombsiteB"))])
+    {
+        // Round 1 freeze time: slot 1 buys a vest and a flash, and a grenade it sells back; slot 6 a p250; a
+        // warmup-era buy far back is dropped. Round 2: slot 1 buys the AWP in freeze time.
+        Purchases =
+        [
+            new PurchaseEventRow(-100000, 1, "awp", 9, 4750),
+            new PurchaseEventRow(900, 1, "vest", 50, 650),
+            new PurchaseEventRow(910, 1, "flashbang", 43, 200),
+            new PurchaseEventRow(915, 1, "hegrenade", 44, 300),
+            new PurchaseEventRow(920, 6, "p250", 36, 300),
+            new PurchaseEventRow(5900, 1, "awp", 9, 4750)
+        ],
+        Refunds = [new RefundEventRow(930, 1, "hegrenade", 300)]
+    };
 
     private static RoundCaptureFrames Collected()
     {
         RoundCaptureFrames frames = new();
-        // Round 1 freeze time: slot 1 buys a vest and a flash, slot 6 a p250; a warmup-era buy far back is dropped.
-        frames.Pickups.Add(new CapturedPickup(-100000, 1, "awp", true, 4750));
-        frames.Pickups.Add(new CapturedPickup(900, 1, "vest", true, 650));
-        frames.Pickups.Add(new CapturedPickup(910, 1, "flashbang", true, 200));
-        frames.Pickups.Add(new CapturedPickup(920, 6, "p250", true, 300));
-        frames.Pickups.Add(new CapturedPickup(950, 2, "knife", false, 0));
-        // Round 2: slot 1 buys the AWP in freeze time, slot 3 picks one up mid-round.
-        frames.Pickups.Add(new CapturedPickup(5900, 1, "awp", true, 4750));
-        frames.Pickups.Add(new CapturedPickup(7000, 3, "awp", false, 0));
+        // The pickups of the buys in Events(), and two that are no buy: a knife, and an AWP slot 3 picks up mid-round.
+        frames.Pickups.Add(new CapturedPickup(-100000, 1, "awp"));
+        frames.Pickups.Add(new CapturedPickup(900, 1, "vest"));
+        frames.Pickups.Add(new CapturedPickup(910, 1, "flashbang"));
+        frames.Pickups.Add(new CapturedPickup(915, 1, "hegrenade"));
+        frames.Pickups.Add(new CapturedPickup(920, 6, "p250"));
+        frames.Pickups.Add(new CapturedPickup(950, 2, "knife"));
+        frames.Pickups.Add(new CapturedPickup(5900, 1, "awp"));
+        frames.Pickups.Add(new CapturedPickup(7000, 3, "awp"));
         frames.FreezeEnds.Add(new CapturedFreezeEnd(1000,
         [
             new CapturedLoadout(1, Ct, true, false, 0, 100, 0, 800, 850),
@@ -287,6 +299,26 @@ public class RoundCapturesTests
             await Assert.That(document.Timeouts.Single().BeforeRound).IsEqualTo(2);
             await Assert.That(document.Collected).IsTrue();
         }
+    }
+
+    [Test]
+    public async Task AJoinedBuy_IsOnePurchasePerItem_AndARefundTakesBackTheLatestOfItsItemOrCost()
+    {
+        RoundEventRows events = RoundEventRows.Empty with
+        {
+            Purchases =
+            [
+                new PurchaseEventRow(900, 1, "flashbang+smokegrenade", -1, 500),
+                new PurchaseEventRow(910, 1, "unknown", -1, 300),
+                new PurchaseEventRow(920, 1, "flashbang", 43, 200)
+            ],
+            Refunds = [new RefundEventRow(930, 1, "flashbang", 200), new RefundEventRow(940, 1, "unknown", 300)]
+        };
+        RoundCapturesDocument document =
+            RoundCapturesBuilder.Build(TwoRounds(), 10000, 64, events, new RoundCaptureFrames(), "fp");
+
+        await Assert.That(document.Round(1)!.Purchases.Select(p => $"{p.Tick}/{p.Item}/{p.Cost}"))
+            .IsEquivalentTo(["900/flashbang/500", "900/smokegrenade/0"], CollectionOrdering.Matching);
     }
 
     [Test]

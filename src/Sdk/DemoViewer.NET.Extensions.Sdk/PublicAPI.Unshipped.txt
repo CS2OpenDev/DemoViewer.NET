@@ -40,18 +40,6 @@ override DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.GetHashCode() -> int
 override DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.ToString() -> string!
 static DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.operator !=(DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope? left, DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope? right) -> bool
 static DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope.operator ==(DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope? left, DemoViewer.NET.Extensions.Sdk.PlayerOverviewScope? right) -> bool
-DemoViewer.NET.Extensions.Sdk.HostProviders
-const DemoViewer.NET.Extensions.Sdk.HostProviders.CashSpentRound = "entity.dv.player.cash_spent_round" -> string!
-const DemoViewer.NET.Extensions.Sdk.HostProviders.CtTimeoutActive = "entity.dv.match.ct_timeout_active" -> string!
-const DemoViewer.NET.Extensions.Sdk.HostProviders.CtTimeoutsLeft = "entity.dv.match.ct_timeouts_left" -> string!
-const DemoViewer.NET.Extensions.Sdk.HostProviders.HasDefuser = "entity.dv.player.has_defuser" -> string!
-const DemoViewer.NET.Extensions.Sdk.HostProviders.HasHelmet = "entity.dv.player.has_helmet" -> string!
-const DemoViewer.NET.Extensions.Sdk.HostProviders.Prefix = "entity.dv." -> string!
-const DemoViewer.NET.Extensions.Sdk.HostProviders.StartAccount = "entity.dv.player.start_account" -> string!
-const DemoViewer.NET.Extensions.Sdk.HostProviders.TechnicalTimeout = "entity.dv.match.technical_timeout" -> string!
-const DemoViewer.NET.Extensions.Sdk.HostProviders.TTimeoutActive = "entity.dv.match.t_timeout_active" -> string!
-const DemoViewer.NET.Extensions.Sdk.HostProviders.TTimeoutsLeft = "entity.dv.match.t_timeouts_left" -> string!
-const DemoViewer.NET.Extensions.Sdk.HostProviders.Version = 1 -> int
-static DemoViewer.NET.Extensions.Sdk.HostProviders.All.get -> System.Collections.Generic.IReadOnlyList<string!>!
-static DemoViewer.NET.Extensions.Sdk.HostProviders.IsHostProvider(string? providerName) -> bool
-static DemoViewer.NET.Extensions.Sdk.HostProviders.RulesPath(string! providerName) -> string!
+DemoViewer.NET.Extensions.Sdk.CollectorContribution.GameProviders.get -> System.Collections.Generic.IReadOnlyList<string!>!
+DemoViewer.NET.Extensions.Sdk.CollectorContribution.GameProviders.init -> void
+DemoViewer.NET.Extensions.Sdk.IFrameReadView.TryReadGameInt(string! providerName, out int value) -> bool

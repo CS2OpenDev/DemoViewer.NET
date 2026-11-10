@@ -22,10 +22,10 @@ public static class RoundIndexFingerprint
 {
     /// <summary>
     ///     The captures part's sources, last in every fingerprint: the event ruleset (its YAML and the engine build),
-    ///     the capture collector's version and the host providers' version it reads.
+    ///     and the capture collector's version.
     /// </summary>
     public static string CapturesTerm { get; } =
-        $";events={RoundEventsTable.Identity};captures={RoundCapturesCollector.Version};dv={HostProviders.Version}";
+        $";events={RoundEventsTable.Identity};captures={RoundCapturesCollector.Version}";
 
     /// <summary>The fingerprint the rows a builder writes with <paramref name="source" /> carry.</summary>
     /// <param name="options">The sampling parameters.</param>

@@ -1,8 +1,9 @@
 # yaml-language-server: $schema=../../../../../../rules/cs2demokit-rules.schema.json
 #
 # Round Index events: every kill, every death and every plant with the positions of the players in
-# them, for the Scouting Report's opening duels, AWP reads and plant spots. Read by the round index
-# pass off the visit's rules run and stored beside the positions file.
+# them, for the Scouting Report's opening duels, AWP reads and plant spots, and every purchase and
+# refund the engine synthesizes from the cash spent. Read by the round index pass off the visit's
+# rules run and stored beside the positions file.
 #
 # A kill row is the killer's and a death row the victim's, both from the one player_death, so the
 # reader pairs them on tick, killer slot and victim slot (the player_event convention). A capture on
@@ -42,6 +43,13 @@ stats:
   plant_z: { capture: player.pos_z, on: bomb_planted, per: match }
   plant_place: { capture: player.place, on: bomb_planted, per: match }
 
+  buy_item: { capture: event.Item, on: item_purchased, per: match }
+  buy_def_index: { capture: event.DefIndex, on: item_purchased, per: match }
+  buy_cost: { capture: event.Cost, on: item_purchased, per: match }
+
+  refund_item: { capture: event.Item, on: item_refunded, per: match }
+  refund_amount: { capture: event.Refund, on: item_refunded, per: match }
+
 show:
   tables:
     roundindex_kills:
@@ -80,3 +88,16 @@ show:
         - { stat: plant_y, label: pos_y }
         - { stat: plant_z, label: pos_z }
         - { stat: plant_place, label: place }
+    roundindex_purchases:
+      per: player_event
+      on: item_purchased
+      columns:
+        - { stat: buy_item, label: item }
+        - { stat: buy_def_index, label: def_index }
+        - { stat: buy_cost, label: cost }
+    roundindex_refunds:
+      per: player_event
+      on: item_refunded
+      columns:
+        - { stat: refund_item, label: item }
+        - { stat: refund_amount, label: refund }

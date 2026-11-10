@@ -30,7 +30,7 @@ public readonly record struct CaptureSlotState(
 /// <param name="StartAccount">Money at the round's start, or -1.</param>
 public readonly record struct CaptureEconomy(int Armor, int Money, int StartAccount);
 
-/// <summary>The gamerules timeout state, the same for every slot.</summary>
+/// <summary>The gamerules timeout state, read once per frame off the game-wide providers.</summary>
 public readonly record struct CaptureMatchState(
     bool CtActive,
     bool TActive,
@@ -50,13 +50,14 @@ public interface ICaptureFrameReads
     /// <summary>A slot's economy.</summary>
     CaptureEconomy Economy(int slot);
 
-    /// <summary>The timeout state, or null when no slot carried it.</summary>
+    /// <summary>The timeout state, or null when it did not read.</summary>
     CaptureMatchState? Match { get; }
 }
 
 /// <summary>
 ///     The fold behind <see cref="RoundCapturesCollector" />, kept free of the frame view so a test can drive it:
-///     purchases (an <c>item_pickup</c> on the frame the buyer's cash spent rose), AWP ownership and in-hand spans,
+///     pickups (purchases come from the engine's <c>item_purchased</c> view, read off the event table), AWP
+///     ownership and in-hand spans,
 ///     each freeze end's loadout, alive-with-AWP at each round end, the positions 0 to 3 s after each slot's first
 ///     AWP shot of a round, the tactical timeouts and each slot's helmet and kit over time. Every tick is the frame
 ///     clock. Rounds are not known here: the pass assigns ticks to Round Facts rounds.
@@ -127,23 +128,9 @@ public sealed class RoundCapturesFold
         ArgumentNullException.ThrowIfNull(reads);
         IReadOnlyList<CaptureSlotState> slots = reads.Slots;
 
-        // Purchases first: the cash rise is this frame's end against the last frame's.
-        int lastPurchaseSlot = -1;
         foreach ((int slot, string item) in _framePickups)
         {
-            SlotTrack track = Track(slot);
-            int now = Find(slots, slot) is { } s ? s.CashSpent : -1;
-            int rise = now >= 0 && track.CashSpent >= 0 ? now - track.CashSpent : 0;
-            bool bought = rise > 0;
-            // A second pickup of one slot on one frame shares the first's rise: it is a buy, its cost is on the first.
-            int cost = bought && lastPurchaseSlot != slot ? rise : 0;
-            bought |= lastPurchaseSlot == slot;
-            _out.Pickups.Add(new CapturedPickup(tick, slot, item, bought, cost));
-            if (bought)
-            {
-                lastPurchaseSlot = slot;
-            }
-
+            _out.Pickups.Add(new CapturedPickup(tick, slot, item));
             if (item == "awp")
             {
                 _frameAwpGainers.Add(slot);
@@ -216,10 +203,6 @@ public sealed class RoundCapturesFold
 
             track.Team = state.Team;
             track.Alive = state.Alive;
-            if (state.CashSpent >= 0)
-            {
-                track.CashSpent = state.CashSpent;
-            }
         }
 
         if (_openTrails.Count > 0)
@@ -439,8 +422,6 @@ public sealed class RoundCapturesFold
 
         public bool Alive { get; set; }
 
-        public int CashSpent { get; set; } = -1;
-
         public int Flags { get; set; } = -1;
 
         public bool ShotThisRound { get; set; }
@@ -494,7 +475,8 @@ public sealed class RoundCapturesFold
 /// <summary>
 ///     The Scouting Report's capture collector on the round index pass: <see cref="RoundCapturesFold" /> over the
 ///     visit's rules run, reading <c>item_pickup</c>, <c>item_remove</c>, <c>weapon_fire</c> and the round events off
-///     the frames, and every seated slot's liveness, weapon in hand, cash spent, helmet and kit each frame.
+///     the frames, every seated slot's liveness, weapon in hand, cash spent, helmet and kit each frame, and the game
+///     rules' timeout flags and counts once a frame.
 /// </summary>
 public sealed class RoundCapturesCollector : IFrameCollector
 {
@@ -502,7 +484,7 @@ public sealed class RoundCapturesCollector : IFrameCollector
     public const string CollectorId = "net.demoviewer.pack.stratbook.roundindex.captures";
 
     /// <summary>Bumped when what the collector puts changes; part of the round index fingerprint.</summary>
-    public const int Version = 1;
+    public const int Version = 2;
 
     // The seated slots are found again this often; a slot that joins mid-match is read from the next scan.
     private const int RescanFrames = 32;
@@ -516,10 +498,15 @@ public sealed class RoundCapturesCollector : IFrameCollector
     public static IReadOnlyList<string> ProviderNames { get; } =
     [
         Providers.IsAlive, Providers.WeaponClass, Providers.PosX, Providers.PosY, Providers.PosZ, Providers.Place,
-        Providers.Armor, Providers.Money,
-        HostProviders.CashSpentRound, HostProviders.StartAccount, HostProviders.HasHelmet, HostProviders.HasDefuser,
-        HostProviders.CtTimeoutActive, HostProviders.TTimeoutActive, HostProviders.TechnicalTimeout,
-        HostProviders.CtTimeoutsLeft, HostProviders.TTimeoutsLeft
+        Providers.Armor, Providers.Money, Providers.CashSpent, Providers.StartMoney, Providers.HasHelmet,
+        Providers.HasDefuser
+    ];
+
+    /// <summary>The game-wide providers read.</summary>
+    public static IReadOnlyList<string> GameProviderNames { get; } =
+    [
+        GameProviders.CtTimeoutActive, GameProviders.TTimeoutActive, GameProviders.TechnicalTimeout,
+        GameProviders.CtTimeoutsLeft, GameProviders.TTimeoutsLeft
     ];
 
     private readonly RoundCapturesFold _fold = new();
@@ -530,7 +517,7 @@ public sealed class RoundCapturesCollector : IFrameCollector
     /// <summary>The registration: the providers and the events, no projectile classes.</summary>
     public static CollectorContribution Contribution { get; } =
         new(CollectorId, RoundIndexEvaluator.EvaluatorId, Version, ProviderNames, [],
-            () => new RoundCapturesCollector()) { GameEvents = Events };
+            () => new RoundCapturesCollector()) { GameEvents = Events, GameProviders = GameProviderNames };
 
     /// <inheritdoc />
     public void OnFrame(IFrameReadView view)
@@ -581,6 +568,20 @@ public sealed class RoundCapturesCollector : IFrameCollector
         public const string Place = "entity.pawn.place";
         public const string Armor = "entity.pawn.armor";
         public const string Money = "entity.controller.money";
+        public const string CashSpent = "entity.controller.cash_spent";
+        public const string StartMoney = "entity.controller.start_money";
+        public const string HasHelmet = "entity.pawn.has_helmet";
+        public const string HasDefuser = "entity.pawn.has_defuser";
+    }
+
+    /// <summary>The game-wide catalog names the collector reads.</summary>
+    public static class GameProviders
+    {
+        public const string CtTimeoutActive = "entity.game.ct_timeout_active";
+        public const string TTimeoutActive = "entity.game.t_timeout_active";
+        public const string TechnicalTimeout = "entity.game.technical_timeout";
+        public const string CtTimeoutsLeft = "entity.game.ct_timeouts_left";
+        public const string TTimeoutsLeft = "entity.game.t_timeouts_left";
     }
 
     private sealed class Reads(IFrameReadView first) : ICaptureFrameReads
@@ -593,15 +594,10 @@ public sealed class RoundCapturesCollector : IFrameCollector
         private readonly ObservedRead _place = first.Provider(Providers.Place);
         private readonly ObservedRead _armor = first.Provider(Providers.Armor);
         private readonly ObservedRead _money = first.Provider(Providers.Money);
-        private readonly ObservedRead _cash = first.Provider(HostProviders.CashSpentRound);
-        private readonly ObservedRead _start = first.Provider(HostProviders.StartAccount);
-        private readonly ObservedRead _helmet = first.Provider(HostProviders.HasHelmet);
-        private readonly ObservedRead _defuser = first.Provider(HostProviders.HasDefuser);
-        private readonly ObservedRead _ctActive = first.Provider(HostProviders.CtTimeoutActive);
-        private readonly ObservedRead _tActive = first.Provider(HostProviders.TTimeoutActive);
-        private readonly ObservedRead _technical = first.Provider(HostProviders.TechnicalTimeout);
-        private readonly ObservedRead _ctLeft = first.Provider(HostProviders.CtTimeoutsLeft);
-        private readonly ObservedRead _tLeft = first.Provider(HostProviders.TTimeoutsLeft);
+        private readonly ObservedRead _cash = first.Provider(Providers.CashSpent);
+        private readonly ObservedRead _start = first.Provider(Providers.StartMoney);
+        private readonly ObservedRead _helmet = first.Provider(Providers.HasHelmet);
+        private readonly ObservedRead _defuser = first.Provider(Providers.HasDefuser);
         private readonly List<CaptureSlotState> _slots = [];
         private IFrameReadView _view = first;
 
@@ -614,7 +610,11 @@ public sealed class RoundCapturesCollector : IFrameCollector
         public void Load(List<int> seated)
         {
             _slots.Clear();
-            Match = null;
+            Match = _view.TryReadGameInt(GameProviders.CtTimeoutsLeft, out int ctLeft)
+                    && _view.TryReadGameInt(GameProviders.TTimeoutsLeft, out int tLeft)
+                ? new CaptureMatchState(Flag(GameProviders.CtTimeoutActive), Flag(GameProviders.TTimeoutActive),
+                    Flag(GameProviders.TechnicalTimeout), ctLeft, tLeft)
+                : null;
             foreach (int slot in seated)
             {
                 int team = _view.Team(slot);
@@ -632,18 +632,10 @@ public sealed class RoundCapturesCollector : IFrameCollector
                     ? (hasHelmet && h != 0 ? RoundPosition.HelmetFlag : 0) | (hasKit && d != 0 ? RoundPosition.DefuserFlag : 0)
                     : -1;
                 _slots.Add(new CaptureSlotState(slot, team, alive, weapon, cash, flags));
-
-                if (Match is null && _view.TryReadInt(_ctLeft, slot, out int ctLeft)
-                                  && _view.TryReadInt(_tLeft, slot, out int tLeft))
-                {
-                    Match = new CaptureMatchState(
-                        _view.TryReadInt(_ctActive, slot, out int ca) && ca != 0,
-                        _view.TryReadInt(_tActive, slot, out int ta) && ta != 0,
-                        _view.TryReadInt(_technical, slot, out int te) && te != 0,
-                        ctLeft, tLeft);
-                }
             }
         }
+
+        private bool Flag(string provider) => _view.TryReadGameInt(provider, out int value) && value != 0;
 
         public (Vector3 Position, string? Place)? Position(int slot)
         {
