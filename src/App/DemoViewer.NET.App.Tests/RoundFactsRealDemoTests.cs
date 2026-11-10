@@ -145,6 +145,24 @@ public class RoundFactsRealDemoTests
         }
     }
 
+    // The last round plus its winner is the final score. A last round with no winner on the recording
+    // either closed on the win panel alone (stake-pulse-beat-ii 100t-vs-eac mirage: the final score is one
+    // round ahead) or was never decided before the recording stopped (thunderpick-2025 furia-vs-navi nuke:
+    // the final score is the score before it).
+    private static async Task AssertEndsAtTheFinalScore(RoundFacts last, int ct, int t)
+    {
+        if (last.WinnerSide is 2 or 3)
+        {
+            await Assert.That(last.Ct.ScoreBefore + (last.WinnerSide == 3 ? 1 : 0)).IsEqualTo(ct);
+            await Assert.That(last.T.ScoreBefore + (last.WinnerSide == 2 ? 1 : 0)).IsEqualTo(t);
+            return;
+        }
+
+        int ctWon = ct - last.Ct.ScoreBefore, tWon = t - last.T.ScoreBefore;
+        await Assert.That((ctWon, tWon) is (0, 0) or (1, 0) or (0, 1)).IsTrue()
+            .Because($"round {last.Number} has no winner: CT {last.Ct.ScoreBefore} T {last.T.ScoreBefore}, final {ct}-{t}");
+    }
+
     [Test]
     public async Task ScoreBefore_FollowsTheWinner_AndEndsAtTheLibrarysFinalScore()
     {
@@ -170,9 +188,35 @@ public class RoundFactsRealDemoTests
                 await Assert.That(current.T.ScoreBefore).IsEqualTo(expectedT).Because($"round {current.Number} T");
             }
 
-            RoundFacts last = live[^1];
-            await Assert.That(last.Ct.ScoreBefore + (last.WinnerSide == 3 ? 1 : 0)).IsEqualTo(ct!.Value);
-            await Assert.That(last.T.ScoreBefore + (last.WinnerSide == 2 ? 1 : 0)).IsEqualTo(t!.Value);
+            await AssertEndsAtTheFinalScore(live[^1], ct!.Value, t!.Value);
+        }
+    }
+
+    // The server's score: both sides' scores sum to the rounds played before this one (m_totalRoundsPlayed,
+    // which MatchRoundNumber is one past), and the last round's score plus its winner is the final score. A
+    // tally from 0-0 breaks the sum on a demo that starts mid-match (thunderpick-2025 furia-vs-navi nuke,
+    // hyperx-retake bcgame-vs-og cache) and after a round a backup restore took back (stake-pulse-beat-ii
+    // 100t-vs-eac mirage).
+    [Test]
+    public async Task ScoreBefore_IsTheServersScore_OnEveryRound()
+    {
+        string path = DemoTestHelper.RequireDemo();
+        ParsedDemo parsed = Parse();
+        RoundFactsRows rows = RowsFor(parsed, path);
+        (int? ct, int? t, _, _) = DemoLibraryService.ExtractFinalScore(parsed);
+        List<RoundFacts> live = [.. rows.Rounds.Where(r => r.IsLive)];
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(live).IsNotEmpty();
+            foreach (RoundFacts round in rows.Rounds.Where(r => r.MatchRoundNumber is not null))
+            {
+                await Assert.That(round.Ct.ScoreBefore + round.T.ScoreBefore)
+                    .IsEqualTo(round.MatchRoundNumber!.Value - 1)
+                    .Because($"round {round.Number}: CT {round.Ct.ScoreBefore} T {round.T.ScoreBefore}");
+            }
+
+            await AssertEndsAtTheFinalScore(live[^1], ct!.Value, t!.Value);
         }
     }
 

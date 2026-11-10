@@ -95,7 +95,9 @@ public class EngineRoundFactsRowSourceTests
 
     // Team A holds slots 0-4 and starts CT; the sides swap after round 1. Engine round 3 is one the server
     // decided in freeze time: the engine opened it at tick 8000, and the wire has no freeze end there.
-    private static MetricTable EngineTable()
+    // score, when given, is the captured score_before per (engine round, side); a null leaves the row's
+    // capture empty, as a row with nothing to read comes out.
+    private static MetricTable EngineTable(Func<int, int, int?>? score = null)
     {
         MetricRow Row(int round, int side, string slots, int freezeEnd, int winner, int plantTick = 0,
             string? site = null,
@@ -130,6 +132,11 @@ public class EngineRoundFactsRowSourceTests
                 [RoundFactsColumns.KillTeamAlive] = teamAlive,
                 [RoundFactsColumns.KillEnemyAlive] = enemyAlive
             };
+            if (score is not null)
+            {
+                values[RoundFactsColumns.ScoreBefore] = score(round, side);
+            }
+
             return new MetricRow(dimensions, values);
         }
 
@@ -233,6 +240,54 @@ public class EngineRoundFactsRowSourceTests
             await Assert.That(rows.Rounds[1].PlantSite).IsEqualTo(BombSite.A);
             await Assert.That(rows.Rounds[1].PlanterSlot).IsEqualTo(0);
             await Assert.That(rows.Rounds[2].T.ScoreBefore).IsEqualTo(2);
+        }
+    }
+
+    // The server's score when the recording starts with team A already a round up (a late GOTV start).
+    // Team A is CT in engine round 1 and T from round 2; it wins rounds 1 and 2, B the freeze-time round.
+    private static int? ServerScore(int round, int side) => (round, side) switch
+    {
+        (1, 3) => 1, (1, 2) => 0,
+        (2, 2) => 2, (2, 3) => 0,
+        (3, 2) => 3, (3, 3) => 0,
+        (4, 2) => 3, (4, 3) => 1,
+        _ => null
+    };
+
+    [Test]
+    public async Task TheCapturedScore_WinsOverTheTally_AndStaysWithItsSideAcrossTheSwap()
+    {
+        RoundFactsTable table =
+            EngineRoundFactsRowSource.FromTable(EngineTable(ServerScore), new Dictionary<string, object?>(),
+                _clipRounds);
+        RoundFactsRows rows = RoundFactsProjection.Project(_clipRounds, table);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(table.UnavailableColumns).DoesNotContain(RoundFactsColumns.ScoreBefore);
+            await Assert.That((rows.Rounds[0].Ct.ScoreBefore, rows.Rounds[0].T.ScoreBefore)).IsEqualTo((1, 0))
+                .Because("the tally would start at 0-0");
+            await Assert.That((rows.Rounds[1].Ct.ScoreBefore, rows.Rounds[1].T.ScoreBefore)).IsEqualTo((0, 2))
+                .Because("team A is T after the swap and carries its score");
+            await Assert.That((rows.Rounds[2].Ct.ScoreBefore, rows.Rounds[2].T.ScoreBefore)).IsEqualTo((1, 3));
+        }
+    }
+
+    [Test]
+    public async Task ARowWithoutACapturedScore_FallsBackToTheTally()
+    {
+        // Engine round 4 (clip round 3) has no capture; every other row keeps its captured score.
+        RoundFactsTable table = EngineRoundFactsRowSource.FromTable(
+            EngineTable((round, side) => round == 4 ? null : ServerScore(round, side)),
+            new Dictionary<string, object?>(), _clipRounds);
+        RoundFactsRows rows = RoundFactsProjection.Project(_clipRounds, table);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That((rows.Rounds[0].Ct.ScoreBefore, rows.Rounds[0].T.ScoreBefore)).IsEqualTo((1, 0));
+            await Assert.That((rows.Rounds[1].Ct.ScoreBefore, rows.Rounds[1].T.ScoreBefore)).IsEqualTo((0, 2));
+            // The tally from 0-0, following team A onto T: A has 2, B the freeze-time round's 1.
+            await Assert.That((rows.Rounds[2].Ct.ScoreBefore, rows.Rounds[2].T.ScoreBefore)).IsEqualTo((1, 2));
         }
     }
 }
