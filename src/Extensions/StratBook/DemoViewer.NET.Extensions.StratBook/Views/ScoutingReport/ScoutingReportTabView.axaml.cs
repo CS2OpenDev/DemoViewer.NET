@@ -2,19 +2,22 @@
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 
 #endregion
 
 namespace DemoViewer.NET.Extensions.StratBook.Views.ScoutingReport;
 
 /// <summary>
-///     The Scouting Report tab view. Bindings only, apart from "Copy markdown": the clipboard needs the
-///     visual tree (<c>TopLevel.Clipboard</c>), so the handler lives here and the text comes from the VM.
+///     The Scouting Report tab view. Bindings only, apart from the arrow keys on the map tabs and the side switch,
+///     which move the focus with the selection, and "Copy markdown": the clipboard needs the visual tree
+///     (<c>TopLevel.Clipboard</c>), so the handler lives here and the text comes from the VM.
 /// </summary>
 public partial class ScoutingReportTabView : UserControl
 {
@@ -77,6 +80,68 @@ public partial class ScoutingReportTabView : UserControl
                     box.Focus();
                 }
             }, DispatcherPriority.Loaded);
+        }
+    }
+
+    // The map tabs are one tab stop (the open map's tab); Left and Right open the previous or next map and keep
+    // the focus on its tab, Home and End the first and last.
+    private void OnMapTabsKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not ScoutingReportTabViewModel { SelectedMap: { } current } vm || vm.Maps.Count == 0
+            || e.KeyModifiers != KeyModifiers.None)
+        {
+            return;
+        }
+
+        int at = vm.Maps.IndexOf(current);
+        int next = e.Key switch
+        {
+            Key.Left or Key.Up => Math.Max(0, at - 1),
+            Key.Right or Key.Down => Math.Min(vm.Maps.Count - 1, at + 1),
+            Key.Home => 0,
+            Key.End => vm.Maps.Count - 1,
+            _ => -1
+        };
+        if (next < 0)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (next == at)
+        {
+            return;
+        }
+
+        MapPoolRowViewModel map = vm.Maps[next];
+        vm.SelectMapCommand.Execute(map);
+        if (sender is ItemsControl tabs)
+        {
+            Dispatcher.UIThread.Post(() => (tabs.ContainerFromItem(map) as ContentPresenter)?.Child?.Focus(
+                NavigationMethod.Directional), DispatcherPriority.Loaded);
+        }
+    }
+
+    // The side switch is one tab stop; the arrow keys flip it and move the focus with it.
+    private void OnSideKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not ScoutingReportTabViewModel vm || e.KeyModifiers != KeyModifiers.None
+            || e.Key is not (Key.Left or Key.Right or Key.Up or Key.Down))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        bool toCt = e.Key is Key.Left or Key.Up;
+        if (toCt == vm.IsCt)
+        {
+            return;
+        }
+
+        vm.Side = toCt ? ScoutingSide.Ct : ScoutingSide.T;
+        if (sender is Panel side)
+        {
+            side.Children[toCt ? 0 : 1].Focus(NavigationMethod.Directional);
         }
     }
 

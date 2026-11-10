@@ -39,11 +39,13 @@ public sealed partial class ScoutingInspectorRowViewModel : ObservableObject
     /// <param name="host">The tab.</param>
     /// <param name="read">The sentence.</param>
     /// <param name="key">Its scope key.</param>
-    public ScoutingInspectorRowViewModel(IScoutingRowHost host, ScoutingRead read, string key)
+    /// <param name="where">The layer and scope it sits in, for the star's accessible name.</param>
+    public ScoutingInspectorRowViewModel(IScoutingRowHost host, ScoutingRead read, string key, string where = "")
     {
         ArgumentNullException.ThrowIfNull(read);
         _host = host;
         Key = key;
+        Where = where;
         Label = read.Text;
         IsRead = true;
         Read = read;
@@ -54,11 +56,13 @@ public sealed partial class ScoutingInspectorRowViewModel : ObservableObject
     /// <param name="host">The tab.</param>
     /// <param name="row">The row.</param>
     /// <param name="key">Its scope key.</param>
-    public ScoutingInspectorRowViewModel(IScoutingRowHost host, ScoutingInspectorRow row, string key)
+    /// <param name="where">The layer, section and scope it sits in, for the star's accessible name.</param>
+    public ScoutingInspectorRowViewModel(IScoutingRowHost host, ScoutingInspectorRow row, string key, string where = "")
     {
         ArgumentNullException.ThrowIfNull(row);
         _host = host;
         Key = key;
+        Where = where;
         Row = row;
         Label = row.Label;
         _isStarred = host.IsStarred(key);
@@ -66,6 +70,9 @@ public sealed partial class ScoutingInspectorRowViewModel : ObservableObject
 
     /// <summary>The scope key the star files.</summary>
     public string Key { get; }
+
+    /// <summary>"Plants and post-plant · de_nuke T", the scope a screen reader hears with the star.</summary>
+    public string Where { get; }
 
     /// <summary>The row, or null for a read.</summary>
     public ScoutingInspectorRow? Row { get; }
@@ -112,8 +119,18 @@ public sealed partial class ScoutingInspectorRowViewModel : ObservableObject
 
     public bool CanPlay => Row?.Play is not null;
 
-    /// <summary>The star's accessible name.</summary>
-    public string StarLabel => IsStarred ? $"Unstar \"{Label}\" from the one-pager" : $"Star \"{Label}\" for the one-pager";
+    /// <summary>
+    ///     The star's accessible name: the line and the scope it is filed under, so no two stars on screen share
+    ///     one ("Star "plant A" · Plants and post-plant · de_nuke T for the one-pager").
+    /// </summary>
+    public string StarLabel
+    {
+        get
+        {
+            string what = Where.Length > 0 ? $"\"{Label}\" · {Where}" : $"\"{Label}\"";
+            return IsStarred ? $"Unstar {what} from the one-pager" : $"Star {what} for the one-pager";
+        }
+    }
 
     /// <summary>Re-reads the star from the store; the one-pager changed somewhere else.</summary>
     public void RefreshStar() => IsStarred = _host.IsStarred(Key);
@@ -152,6 +169,10 @@ public sealed partial class ScoutingInspectorViewModel : ObservableObject
 {
     [ObservableProperty]
     private string _buildCode = "";
+
+    /// <summary>The focused layer is still building: the view draws skeleton rows in place of its lines.</summary>
+    [ObservableProperty]
+    private bool _isBuilding;
 
     [ObservableProperty]
     private string _reviewLine = "";
@@ -206,8 +227,12 @@ public sealed partial class ScoutingInspectorViewModel : ObservableObject
     {
         Title = title;
         ScopeLine = scope;
-        BuildCode = buildCode;
-        StatusMessage = status.State == ScoutingLayerState.Ready ? "" : status.Display;
+        // A placeholder's gap id lives here, on the Build status chip, and nowhere in the copy.
+        BuildCode = status is { State: ScoutingLayerState.Placeholder, GapId: { } gap }
+            ? string.Join(" · ", new[] { buildCode, gap }.Where(p => p.Length > 0))
+            : buildCode;
+        IsBuilding = status.State == ScoutingLayerState.Building;
+        StatusMessage = status.State is ScoutingLayerState.Ready or ScoutingLayerState.Building ? "" : status.Display;
         Reads.Clear();
         foreach (ScoutingInspectorRowViewModel read in reads)
         {

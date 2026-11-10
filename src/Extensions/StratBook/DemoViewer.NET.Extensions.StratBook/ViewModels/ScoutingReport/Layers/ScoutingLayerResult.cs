@@ -30,9 +30,9 @@ public sealed record ScoutingLayerStatus(ScoutingLayerState State, string Messag
     public static ScoutingLayerStatus Building { get; } = new(ScoutingLayerState.Building, "building");
 
     /// <summary>
-    ///     The message as the inspector and the strip show it, in one voice: a sentence, capitalised and stopped,
-    ///     with a placeholder's gap id in brackets unless the message already names it. The layers write
-    ///     <see cref="Message" /> in lower case so a test can match it whole; only the display is reworded.
+    ///     The message as the inspector and the strip show it, in one voice: a sentence, capitalised and stopped.
+    ///     The layers write <see cref="Message" /> in lower case so a test can match it whole; only the display is
+    ///     reworded. A placeholder's gap id stays out of it: it is build work, shown on the Build status chip only.
     /// </summary>
     public string Display
     {
@@ -54,7 +54,7 @@ public sealed record ScoutingLayerStatus(ScoutingLayerState State, string Messag
                 text += ".";
             }
 
-            return GapId is { } gap && !text.Contains(gap, StringComparison.Ordinal) ? $"{text} [{gap}]" : text;
+            return text;
         }
     }
 }
@@ -213,7 +213,7 @@ public sealed record ScoutingLayerResult
         new() { Status = new ScoutingLayerStatus(ScoutingLayerState.Placeholder, message, gapId) };
 
     /// <summary>Why a layer is empty on a host that does not build its source (the browser).</summary>
-    public const string NotOnThisHost = "not built on this host; the desktop app builds it";
+    public const string NotOnThisHost = "available in the desktop app, which reads the round data this needs";
 
     /// <summary>A load that failed: what failed and the way to try again.</summary>
     /// <param name="what">What could not be read: "setups".</param>

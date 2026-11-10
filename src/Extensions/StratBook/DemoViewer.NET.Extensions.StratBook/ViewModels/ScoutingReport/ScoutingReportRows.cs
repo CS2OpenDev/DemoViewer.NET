@@ -43,6 +43,10 @@ public sealed partial class MapPoolRowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSelected;
 
+    /// <summary>The team-scoped columns are still being read: the pool draws skeleton bars in them.</summary>
+    [ObservableProperty]
+    private bool _isReading = true;
+
     [ObservableProperty]
     private string _pistolsLabel = "…";
 
@@ -117,6 +121,7 @@ public sealed partial class MapPoolRowViewModel : ObservableObject
     /// <param name="available">False when the host has no Round Facts at all.</param>
     public void SetFacts(TeamMapFacts? facts, bool available)
     {
+        IsReading = false;
         if (facts is null)
         {
             CtLabel = TLabel = PistolsLabel = PlantLabel = AwpLabel = "—";
@@ -247,6 +252,14 @@ public sealed record PlayerStatCellViewModel(
     public bool CanOpen => Command is not null;
 
     public bool HasDetail => Detail.Length > 0;
+
+    /// <summary>Still being read: the table draws a skeleton bar in its place.</summary>
+    public bool IsLoading { get; init; }
+
+    public bool ShowsPlainLabel => !CanOpen && !IsLoading;
+
+    /// <summary>A number still being read.</summary>
+    public static PlayerStatCellViewModel Reading { get; } = new("…", "reading player stats") { IsLoading = true };
 
     /// <summary>A number with nothing to open.</summary>
     /// <param name="label">"—".</param>
