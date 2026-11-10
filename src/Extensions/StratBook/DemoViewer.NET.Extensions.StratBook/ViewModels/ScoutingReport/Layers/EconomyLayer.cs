@@ -62,6 +62,19 @@ public sealed class EconomyLayer() : ScoutingLayerBase("econ", "Economy", Scouti
             }
 
             pistolCount = rounds.Count(r => r.Buy == BuyType.Pistol);
+            IReadOnlyDictionary<string, DemoCaptures>? captures =
+                await EconCaptureReads.For(context).WaitAsync(cancellationToken).ConfigureAwait(false);
+            List<CapturedTeamRound> paired =
+            [
+                .. rounds.Select(r => (Round: r, View: captures?.GetValueOrDefault(r.DemoPath)?.Round(r.Number)))
+                    .Where(p => p.View is not null).Select(p => new CapturedTeamRound(p.Round, p.View!))
+            ];
+            sections.AddRange(PistolSections(context, paired, captures is { Count: > 0 }));
+            sections.Add(LowBuySection(context, paired, captures is { Count: > 0 }));
+            if (PistolRead(context, paired) is { } pistolRead)
+            {
+                reads.Add(new ScoutingRead(pistolRead, "read pistol loadout"));
+            }
         }
 
         if (b is not null)
@@ -278,6 +291,149 @@ public sealed class EconomyLayer() : ScoutingLayerBase("econ", "Economy", Scouti
 
         return rows;
     }
+
+    /// <summary>One section per side: what the team's players buy in the pistol round.</summary>
+    /// <param name="context">The scope.</param>
+    /// <param name="rounds">The team's rounds on the map that have captures.</param>
+    /// <param name="hasCaptures">Any demo of the map had captures.</param>
+    public static IEnumerable<ScoutingInspectorSection> PistolSections(ScoutingLayerContext context,
+        IReadOnlyList<CapturedTeamRound> rounds, bool hasCaptures)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(rounds);
+        if (!hasCaptures)
+        {
+            yield return new ScoutingInspectorSection("Pistol loadout", [
+                new ScoutingInspectorRow
+                {
+                    Label = "Pistol loadout",
+                    StarText = "pistol loadout",
+                    Note = context.Data.Sources.RoundIndex is null
+                        ? ScoutingLayerResult.NotOnThisHost
+                        : "needs round captures, which these demos do not have yet"
+                }
+            ]);
+            yield break;
+        }
+
+        foreach (int side in (int[])[3, 2])
+        {
+            if (EconomyLoadouts.PistolKitOf(rounds, side) is not { } kit)
+            {
+                continue;
+            }
+
+            string s = StripData.SideLabel(side);
+            ScoutingColor color = StripData.SideColor(side);
+            List<ScoutingInspectorRow> rows =
+            [
+                new()
+                {
+                    Label = $"Pistol rounds · {s}",
+                    Value = Plural(kit.Rounds.Count, "round"),
+                    StarText = $"pistol rounds {s}",
+                    Note = $"{Plural(kit.Players, "player loadout")} read",
+                    Rounds = [.. kit.Rounds.Select(r => r.Clip)],
+                    OpenTitle = StripData.MapTitle(context, $"{s} pistol rounds")
+                },
+                PistolRow(context, $"Kevlar · {s}", kit.Armor, kit.Players, $"{s} pistol kevlar", color),
+                PistolRow(context, $"Helmet · {s}", kit.Helmet, kit.Players, $"{s} pistol helmet", color),
+                PistolRow(context, $"Utility bought · {s}", kit.Utility, kit.Players, $"{s} pistol utility", color,
+                    Items(kit.UtilityItems, 4)),
+                PistolRow(context, $"Pistol upgrade · {s}", kit.Upgrade, kit.Players, $"{s} pistol upgrade", color,
+                    Items(kit.UpgradeNames, 4))
+            ];
+            if (side == 3)
+            {
+                rows.Add(PistolRow(context, "Defuse kit · CT", kit.Defuser, kit.Players, "CT pistol defuse kit", color));
+            }
+
+            yield return new ScoutingInspectorSection($"Pistol loadout · {s}", rows);
+        }
+    }
+
+    /// <summary>The weapons the team bought on eco, semi and force rounds, one row per buy type.</summary>
+    /// <param name="context">The scope.</param>
+    /// <param name="rounds">The team's rounds on the map that have captures.</param>
+    /// <param name="hasCaptures">Any demo of the map had captures.</param>
+    public static ScoutingInspectorSection LowBuySection(ScoutingLayerContext context,
+        IReadOnlyList<CapturedTeamRound> rounds, bool hasCaptures)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(rounds);
+        const string title = "Weapons bought on low buys";
+        if (!hasCaptures)
+        {
+            return new ScoutingInspectorSection(title, []);
+        }
+
+        List<ScoutingInspectorRow> rows = [];
+        foreach (LowBuyWeapons low in EconomyLoadouts.LowBuys(rounds))
+        {
+            string buy = EconomyDerivation.ShortLabel(low.Buy);
+            rows.Add(new ScoutingInspectorRow
+            {
+                Label = $"{buy} · {Plural(low.Rounds.Count, "round")}",
+                Value = low.Weapons.Count == 0 ? "no weapon bought" : Items(low.Weapons, 5),
+                StarText = $"{buy.ToLowerInvariant()} weapons",
+                Rounds = [.. low.Rounds.Select(r => r.Clip)],
+                OpenTitle = StripData.MapTitle(context, $"{buy.ToLowerInvariant()} rounds")
+            });
+        }
+
+        if (rows.Count > 0)
+        {
+            rows.Add(new ScoutingInspectorRow
+            {
+                Label = "About these counts", StarText = "low buy weapons note", Note = EconomyLoadouts.BuyCaveat
+            });
+        }
+
+        return new ScoutingInspectorSection(title, rows);
+    }
+
+    /// <summary>The read: what the side in view buys in the pistol round.</summary>
+    /// <param name="context">The scope.</param>
+    /// <param name="rounds">The team's rounds on the map that have captures.</param>
+    public static string? PistolRead(ScoutingLayerContext context, IReadOnlyList<CapturedTeamRound> rounds)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(rounds);
+        if (EconomyLoadouts.PistolKitOf(rounds, (int)context.Side) is not { } kit)
+        {
+            return null;
+        }
+
+        List<string> parts = [$"kevlar {Percent((double)kit.Armor.Players / kit.Players)}"];
+        if (kit.Utility.Players > 0)
+        {
+            parts.Add($"utility {Percent((double)kit.Utility.Players / kit.Players)}");
+        }
+
+        if (kit.UpgradeNames.Count > 0)
+        {
+            parts.Add($"a {kit.UpgradeNames[0].Name} {Percent((double)kit.UpgradeNames[0].Count / kit.Players)}");
+        }
+
+        return $"On {context.Side.Label()} pistols they buy {string.Join(", ", parts)} of the time.";
+    }
+
+    private static ScoutingInspectorRow PistolRow(ScoutingLayerContext context, string label, PistolShare share,
+        int players, string star, ScoutingColor color, string? note = null) =>
+        new()
+        {
+            Label = label,
+            Value = $"{share.Players} of {Plural(players, "player")}",
+            StarText = star,
+            BarPercent = players > 0 ? 100.0 * share.Players / players : null,
+            Swatch = color,
+            Note = string.IsNullOrEmpty(note) ? Percent(players > 0 ? (double)share.Players / players : 0) : $"{Percent(players > 0 ? (double)share.Players / players : 0)} · {note}",
+            Rounds = [.. share.Rounds.Select(r => r.Clip)],
+            OpenTitle = StripData.MapTitle(context, star)
+        };
+
+    private static string Items(IReadOnlyList<BoughtCount> items, int take) =>
+        string.Join(", ", items.Take(take).Select(i => $"{i.Name} ×{i.Count}"));
 
     private static Task<EcoPostures> PosturesFor(ScoutingLayerContext context) =>
         _postures.GetValue(context.Data, _ => new ConcurrentDictionary<string, Task<EcoPostures>>(

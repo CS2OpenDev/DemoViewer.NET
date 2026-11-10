@@ -88,11 +88,21 @@ public sealed class ScoreLayer() : ScoutingLayerBase("score", "By score", Scouti
             }
         }
 
+        List<ScoutingInspectorRow> timeoutRows = [];
+        if (await TimeoutsLayer.TimeoutsFor(context).ConfigureAwait(false) is { Count: > 0 } timeouts)
+        {
+            timeoutRows.AddRange(TimeoutsLayer.ByScoreRows(context, timeouts));
+            timeoutRows.Add(StripData.Share("Round after the timeout won",
+                [.. timeouts.Where(t => t.Won).Select(t => t.Round)], timeouts.Count, "round after the timeout won",
+                StripData.MapTitle(context, "won after a tactical timeout"), note: "tactical timeouts only"));
+        }
+
         List<ScoutingInspectorSection> sections =
         [
             new("By score before the round", byState),
             new("Match point", matchPoint),
-            new("What changes with the score", changes)
+            new("What changes with the score", changes),
+            new("Timeouts by the score", timeoutRows)
         ];
         return new ScoutingLayerResult
         {

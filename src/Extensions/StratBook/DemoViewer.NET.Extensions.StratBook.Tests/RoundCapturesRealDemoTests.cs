@@ -117,6 +117,39 @@ public class RoundCapturesRealDemoTests
     }
 
     /// <summary>
+    ///     The Timeouts layer's derivation over the legacy-vs-fut m2 dust2 captures: each team's rounds scoped by
+    ///     its slots, and between the two teams at least three tactical timeouts are found.
+    /// </summary>
+    [Test]
+    public async Task TheTimeoutsLayer_FindsTheTacticalTimeouts_OfLegacyVsFut()
+    {
+        string path = Resolve(1);
+        Console.WriteLine($"demo read: {path}");
+        Captured read = Read(path, withCaptures: true);
+        RoundFactsRows rows = read.Rows!;
+        RoundCapturesDocument document = read.Document!;
+        RoundFacts first = rows.Rounds.First(r => r.IsLive);
+        int total = 0;
+        int technical = 0;
+        foreach (int[] slots in new[] { first.Ct.Slots, first.T.Slots })
+        {
+            IReadOnlyList<TeamRound> team = TeamRounds.FromRows(path, null, "de_dust2", rows, n =>
+            {
+                RoundFacts round = rows.Rounds.First(r => r.Number == n);
+                return round.Ct.Slots.Intersect(slots).Any() ? 3 : round.T.Slots.Intersect(slots).Any() ? 2 : null;
+            });
+            TeamTimeouts found = TimeoutDerivation.Build(team, _ => document.Timeouts);
+            total += found.Tactical.Count;
+            technical += found.Technical;
+            Console.WriteLine($"team of slots {string.Join(",", slots)}: {found.Tactical.Count} tactical, "
+                + $"calls {string.Join("/", found.Tactical.Select(t => $"r{t.Round.Number}:{t.Call ?? "-"}"))}");
+        }
+
+        Console.WriteLine($"stored {document.Timeouts.Count}, tactical found {total}, technical {technical}");
+        await Assert.That(total).IsGreaterThanOrEqualTo(3);
+    }
+
+    /// <summary>
     ///     The re-index cost: one forward read with Round Facts alone, with the schema 5 positions ruleset, with the
     ///     extended one, with the event table and with the collector, interleaved and printed. Not asserted: the
     ///     run-to-run spread is about 15 percent.
@@ -174,7 +207,7 @@ public class RoundCapturesRealDemoTests
     }
 
     private sealed record Captured(RoundCapturesDocument? Document, RoundCaptureFrames? Frames,
-        RoundPositionsDocument? Positions);
+        RoundPositionsDocument? Positions, RoundFactsRows? Rows = null);
 
     private static Captured Read(string path, bool withCaptures) =>
         Read(path, withCaptures, RoundIndexTable.LoadRuleset(), withCaptures);
@@ -228,7 +261,7 @@ public class RoundCapturesRealDemoTests
             frames.Flags);
         RoundCapturesDocument document = RoundCapturesBuilder.Build(rows, forward.LastFrameTick, forward.Demo.TickRate,
             RoundEventsTable.Read(tables), frames, build.Positions.Fingerprint);
-        return new Captured(document, frames, build.Positions);
+        return new Captured(document, frames, build.Positions, rows);
     }
 
     private static DemoCaptures Captures(RoundCapturesDocument document)

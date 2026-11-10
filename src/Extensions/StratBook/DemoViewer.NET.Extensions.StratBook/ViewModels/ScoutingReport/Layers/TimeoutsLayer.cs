@@ -1,6 +1,7 @@
 #region
 
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 
 #endregion
 
@@ -10,23 +11,23 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 /// <param name="Round">The round played straight after it.</param>
 /// <param name="Side">The team's side in that round: 2 = T, 3 = CT.</param>
 /// <param name="Won">The team won that round.</param>
-/// <param name="Call">What they ran after it ("B execute"), or null when nothing names it.</param>
-public sealed record TacticalTimeout(TendencyRound Round, int Side, bool Won, string? Call = null);
+/// <param name="Call">What they ran after it ("B plant"), or null when nothing names it.</param>
+/// <param name="State">The score state before that round, or null when not known.</param>
+/// <param name="LostInARow">Rounds the team had lost in a row going into the timeout.</param>
+public sealed record TacticalTimeout(TendencyRound Round, int Side, bool Won, string? Call = null,
+    ScoreState? State = null, int LostInARow = 0);
 
 /// <summary>
-///     Tactical timeouts (strip, companion of By score): how many the team took, the round after won, and the
-///     usual call after one. The timeouts come from the capture lane (P3.1, gamerules timeout state); until it
-///     lands <see cref="TimeoutsFor" /> answers null and the layer is a placeholder.
-///     <para>
-///         <b>Seam:</b> P3.1 overrides nothing here; it replaces the body of <see cref="TimeoutsFor" /> with a read
-///         of its service for the scope's map, and <see cref="Build" /> turns the list into the inspector.
-///     </para>
+///     Tactical timeouts (strip, companion of By score): how many the team took per side, when (the score state,
+///     after a losing run), the round after won, and the usual call after one. They come from the round captures
+///     (gamerules timeout state), scoped to the team by the side it played in the round the timeout fell ahead of;
+///     technical timeouts are counted apart. <see cref="TimeoutDerivation" /> does the scoping.
 /// </summary>
 public sealed class TimeoutsLayer() : ScoutingLayerBase("timeouts", "Timeouts", ScoutingLayerPlacement.Strip,
     ScoutingSides.Both, new ScoutingSwatch(ScoutingMarkShape.Dot, ScoutingColor.Neutral), "D-rs")
 {
-    /// <summary>What the placeholder says until the capture lands.</summary>
-    public const string Waiting = "tactical timeouts come with the rules capture (P3.1): gamerules timeout state";
+    /// <summary>What the layer says when the demos have no captures.</summary>
+    public const string NoCaptures = "needs round captures, which these demos do not have yet";
 
     /// <inheritdoc />
     public override string TitleFor(ScoutingSide side) => "Tactical timeouts";
@@ -36,33 +37,58 @@ public sealed class TimeoutsLayer() : ScoutingLayerBase("timeouts", "Timeouts", 
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
-        IReadOnlyList<TacticalTimeout>? timeouts = await TimeoutsFor(context).ConfigureAwait(false);
-        return timeouts is null ? ScoutingLayerResult.Placeholder("P3.1", Waiting) : Build(context, timeouts);
+        TeamTimeouts? read = await EconCaptureReads.TimeoutsFor(context).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (read is null)
+        {
+            return context.Data.Sources.RoundFacts is null || context.Data.Sources.RoundIndex is null
+                ? ScoutingLayerResult.Empty(ScoutingLayerResult.NotOnThisHost)
+                : ScoutingLayerResult.Empty(NoCaptures);
+        }
+
+        if (context.Data.Captures.WithoutCount > 0 && read.Tactical.Count == 0 && read.Technical == 0)
+        {
+            return ScoutingLayerResult.Empty(NoCaptures);
+        }
+
+        return Build(context, Convert(read), read.Technical);
     }
 
     /// <summary>
-    ///     The team's tactical timeouts on the scope's map, both sides, or null while nothing captures them. The
-    ///     seam the P3.1 capture fills.
+    ///     The team's tactical timeouts on the scope's map, both sides, or null when the captures cannot be read on
+    ///     this host.
     /// </summary>
     /// <param name="context">The scope.</param>
-    public static Task<IReadOnlyList<TacticalTimeout>?> TimeoutsFor(ScoutingLayerContext context)
+    public static async Task<IReadOnlyList<TacticalTimeout>?> TimeoutsFor(ScoutingLayerContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        return Task.FromResult<IReadOnlyList<TacticalTimeout>?>(null);
+        return await EconCaptureReads.TimeoutsFor(context).ConfigureAwait(false) is { } read ? Convert(read) : null;
     }
 
-    /// <summary>The inspector for a list of timeouts: taken per side, the round after won, the usual call.</summary>
+    private static List<TacticalTimeout> Convert(TeamTimeouts read) =>
+    [
+        .. read.Tactical.Select(t => new TacticalTimeout(t.Round.Clip, t.Round.Side, t.Won, t.Call, t.State,
+            t.LostInARow))
+    ];
+
+    /// <summary>The inspector for a list of timeouts: taken per side, when, the round after won, the usual call.</summary>
     /// <param name="context">The scope.</param>
     /// <param name="timeouts">The timeouts.</param>
-    public static ScoutingLayerResult Build(ScoutingLayerContext context, IReadOnlyList<TacticalTimeout> timeouts)
+    /// <param name="technical">Technical timeouts that fell before the team's rounds, left out of the list.</param>
+    public static ScoutingLayerResult Build(ScoutingLayerContext context, IReadOnlyList<TacticalTimeout> timeouts,
+        int technical = 0)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(timeouts);
         if (timeouts.Count == 0)
         {
-            return ScoutingLayerResult.Empty($"no tactical timeout on {context.Map}");
+            return ScoutingLayerResult.Empty(technical > 0
+                ? $"no tactical timeout on {context.Map} ({Plural(technical, "technical timeout")} not counted)"
+                : $"no tactical timeout on {context.Map}");
         }
 
+        string taken = string.Join(" · ", ((int[])[3, 2]).Select(s =>
+            $"{StripData.SideLabel(s)} {timeouts.Count(t => t.Side == s)}"));
         List<ScoutingInspectorRow> rows =
         [
             new()
@@ -70,15 +96,22 @@ public sealed class TimeoutsLayer() : ScoutingLayerBase("timeouts", "Timeouts", 
                 Label = "Taken",
                 Value = Plural(timeouts.Count, "timeout"),
                 StarText = "timeouts taken",
-                Note = string.Join(" · ", ((int[])[3, 2]).Select(s =>
-                    $"{StripData.SideLabel(s)} {timeouts.Count(t => t.Side == s)}")),
+                Note = technical > 0 ? $"{taken} · {technical} technical not counted" : taken,
                 Rounds = [.. timeouts.Select(t => t.Round)],
                 OpenTitle = StripData.MapTitle(context, "rounds after a tactical timeout")
             },
-            StripData.Share("Round after the timeout won", [.. timeouts.Where(t => t.Won).Select(t => t.Round)],
-                timeouts.Count, "round after the timeout won",
-                StripData.MapTitle(context, "won after a tactical timeout"))
+            .. ByScoreRows(context, timeouts)
         ];
+        List<TacticalTimeout> afterRun = [.. timeouts.Where(t => t.LostInARow >= TimeoutDerivation.LostRowMin)];
+        if (afterRun.Count > 0)
+        {
+            rows.Add(StripData.Share($"After {TimeoutDerivation.LostRowMin}+ lost in a row",
+                [.. afterRun.Select(t => t.Round)], timeouts.Count, "timeout after a losing run",
+                StripData.MapTitle(context, "tactical timeout after a losing run")));
+        }
+
+        rows.Add(StripData.Share("Round after the timeout won", [.. timeouts.Where(t => t.Won).Select(t => t.Round)],
+            timeouts.Count, "round after the timeout won", StripData.MapTitle(context, "won after a tactical timeout")));
         if (timeouts.Where(t => t.Call is not null).GroupBy(t => t.Call!, StringComparer.Ordinal)
                 .MaxBy(g => g.Count()) is { } call)
         {
@@ -87,10 +120,43 @@ public sealed class TimeoutsLayer() : ScoutingLayerBase("timeouts", "Timeouts", 
                 StripData.MapTitle(context, $"{call.Key} after a tactical timeout")));
         }
 
+        int won = timeouts.Count(t => t.Won);
+        string run = afterRun.Count > 0
+            ? $", {afterRun.Count} of them after losing {TimeoutDerivation.LostRowMin}+ in a row"
+            : "";
         return new ScoutingLayerResult
         {
             CountLabel = Plural(timeouts.Count, "timeout"),
+            Reads =
+            [
+                new ScoutingRead(
+                    $"They call {Plural(timeouts.Count, "tactical timeout")} on {context.Map}{run}, and win {won} of the {Plural(timeouts.Count, "round")} after.",
+                    "read timeouts", StripData.SuggestOn(context))
+            ],
             Sections = [new ScoutingInspectorSection("Tactical timeouts", rows)]
         };
+    }
+
+    /// <summary>The timeouts by the score state before the round after them: the rows both this layer and By score show.</summary>
+    /// <param name="context">The scope.</param>
+    /// <param name="timeouts">The timeouts.</param>
+    public static List<ScoutingInspectorRow> ByScoreRows(ScoutingLayerContext context,
+        IReadOnlyList<TacticalTimeout> timeouts)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(timeouts);
+        List<ScoutingInspectorRow> rows = [];
+        foreach (ScoreState state in Enum.GetValues<ScoreState>())
+        {
+            List<TacticalTimeout> here = [.. timeouts.Where(t => t.State == state)];
+            if (here.Count > 0)
+            {
+                string label = ScoreDerivation.Label(state).ToLowerInvariant();
+                rows.Add(StripData.Share($"Called when {label}", [.. here.Select(t => t.Round)], timeouts.Count,
+                    $"timeout when {label}", StripData.MapTitle(context, $"tactical timeout, {label}")));
+            }
+        }
+
+        return rows;
     }
 }
