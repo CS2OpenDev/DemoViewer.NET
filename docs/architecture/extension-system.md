@@ -640,8 +640,9 @@ reason in user terms) or `Cancelled`. In order:
    this build does not ship is signed-only at staging as it is at load. A refusing verdict's `Reason` is
    the refusal detail Settings shows ("a file changed after signing", "signature invalid", ...) and its
    `LogDetail` goes to the log; a policy that throws reads as untrusted.
-7. The id's removal marker (below), if any, is deleted: an install after Remove and before the restart is
-   a reinstall. Then one `Directory.Move` to `extensions/<id>/<version>/`. A target that appeared in the
+7. For a user's Install or Update, the id's removal marker (below), if any, is deleted: an install after
+   Remove and before the restart is a reinstall. The automatic stage never deletes it; when the marker
+   appeared while it downloaded, it gives way and installs nothing. Then one `Directory.Move` to `extensions/<id>/<version>/`. A target that appeared in the
    meantime is `AlreadyInstalled`. The `.zip.part` and the empty `.staging/<id>/` go.
 
 Stages run one at a time. Two stages of one entry share the `.staging/<id>/` paths, and the launch
@@ -671,14 +672,15 @@ The next start loads the copy through `ExternalExtensions` (section 2).
 
 **Automatic staging.** `AutoStageAsync`, one queue item at background priority ("Update extensions"):
 for each declared first-party extension this process runs (an id under the reserved prefix, bundled,
-staged or installed, with a readable manifest), the feed is checked and a newer offered version is staged
+staged or installed, with a readable manifest) and that is not marked for removal, the feed is checked and a newer offered version is staged
 with the install policy, so nothing unverified is ever staged this way; the state is then remembered as
 the Settings row shows it (`PendingRestart` after a stage, the check's own state otherwise), and a
 Settings open within the hour seeds from it. `AutoStageAtLaunchAsync` is the gate `App.axaml.cs` calls
 after the startup sweep below: it runs the stage when `Extensions.AutoUpdate` is on (the Settings toggle
-"Install extension updates automatically", on by default) and `Extensions.LastUpdateCheckUtc` is unset or
+"Install extension updates automatically", on by default), `Updates.CheckAutomatically` is on (off means
+the app reaches the network only when asked) and `Extensions.LastUpdateCheckUtc` is unset or
 at least an hour old (`IsCheckDue`, the rule the Settings open shares), and answers whether a feed was
-asked; only then does the app record the time through the field the Settings check writes, so a build
+actually asked (a queue item dropped or cancelled before it ran asked nothing); only then does the app record the time through the field the Settings check writes, so a build
 with no first-party extension to check never postpones the Settings check that lists the catalogue. A
 background item does not run while the user has background processing off; that is the queue's rule for
 every background job, not worked around here, and the Settings Check buttons remain the path that always asks.

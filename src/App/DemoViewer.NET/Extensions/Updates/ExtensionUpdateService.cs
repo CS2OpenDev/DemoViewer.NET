@@ -191,6 +191,14 @@ public sealed class ExtensionUpdateService
         return HighestStaged(packId, manifest.Version);
     }
 
+    /// <summary>True when <c>extensions/&lt;id&gt;/</c> carries the removal marker: Remove was pressed and the next start deletes it.</summary>
+    public bool IsMarkedForRemoval(string packId)
+    {
+        ArgumentNullException.ThrowIfNull(packId);
+        string marker = ExtensionStaging.RemovalMarkerPath(_extensionsDirectory, packId);
+        return ExtensionStaging.IsInside(_extensionsDirectory, marker) && File.Exists(marker);
+    }
+
     /// <summary>True when any extension has a staged version waiting for a restart.</summary>
     public bool PendingRestart => Statuses.Any(s => PendingVersion(s.Pack.Id) is not null);
 
@@ -283,7 +291,7 @@ public sealed class ExtensionUpdateService
             {
                 using CancellationTokenSource linked =
                     CancellationTokenSource.CreateLinkedTokenSource(ct, ctx.CancellationToken);
-                result = await StageLocked(entry, policy, ctx, progress, linked.Token).ConfigureAwait(false);
+                result = await StageLocked(entry, policy, ctx, progress, true, linked.Token).ConfigureAwait(false);
             }, DemoJobPriority.UserRequested).ConfigureAwait(false);
 
         return result ?? new StageResult(StageOutcome.Cancelled, null);
@@ -331,7 +339,8 @@ public sealed class ExtensionUpdateService
     ///     The launch-time automatic stage, one queue item at background priority: for each first-party
     ///     extension this process runs, the feed is checked and a newer offered version is staged for the
     ///     next start. Judged by the install policy alone, so nothing unverified is ever staged here; the
-    ///     states are remembered as the Settings rows show them.
+    ///     states are remembered as the Settings rows show them. An id marked for removal is skipped, and a
+    ///     stage never clears the marker: only a user's Install or Update undoes a Remove.
     /// </summary>
     public async Task<IReadOnlyList<ExtensionUpdateState>> AutoStageAsync(CancellationToken ct = default) =>
         (await AutoStageCoreAsync(ct).ConfigureAwait(false)).States;
@@ -340,7 +349,7 @@ public sealed class ExtensionUpdateService
     private async Task<(IReadOnlyList<ExtensionUpdateState> States, bool Asked)> AutoStageCoreAsync(
         CancellationToken ct)
     {
-        PackStatus[] firstParty = [.. Statuses.Where(IsFirstParty)];
+        PackStatus[] firstParty = [.. Statuses.Where(s => IsFirstParty(s) && !IsMarkedForRemoval(s.Pack.Id))];
         ExtensionUpdateState?[] found = new ExtensionUpdateState?[firstParty.Length];
         if (firstParty.Length > 0)
         {
@@ -353,8 +362,8 @@ public sealed class ExtensionUpdateService
                     ExtensionUpdateState state = await CheckCore(firstParty[i], linked.Token).ConfigureAwait(false);
                     if (state.Status == ExtensionUpdateStatus.UpdateAvailable && state.Offered is { } offered)
                     {
-                        StageResult result = await StageLocked(offered, _installTrust, ctx, null, linked.Token)
-                            .ConfigureAwait(false);
+                        StageResult result = await StageLocked(offered, _installTrust, ctx, null, false,
+                            linked.Token).ConfigureAwait(false);
                         if (result.Outcome is StageOutcome.Installed or StageOutcome.AlreadyInstalled)
                         {
                             state = state with
@@ -755,7 +764,7 @@ public sealed class ExtensionUpdateService
     }
 
     private async Task<StageResult> StageLocked(ExtensionFeedEntry entry, ITrustPolicy policy, IQueueJobContext ctx,
-        IProgress<ExtensionDownloadProgress>? progress, CancellationToken ct)
+        IProgress<ExtensionDownloadProgress>? progress, bool userInitiated, CancellationToken ct)
     {
         TaskCompletionSource done = new(TaskCreationOptions.RunContinuationsAsynchronously);
         Task previous;
@@ -779,7 +788,7 @@ public sealed class ExtensionUpdateService
                 return new StageResult(StageOutcome.Cancelled, null);
             }
 
-            return await StageCore(entry, policy, ctx, progress, ct).ConfigureAwait(false);
+            return await StageCore(entry, policy, ctx, progress, userInitiated, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -816,9 +825,10 @@ public sealed class ExtensionUpdateService
             ExtensionUpdateStatus.FeedUnreachable, Error: error, LogDetail: logDetail,
             CheckedAt: DateTimeOffset.UtcNow);
 
+    // userInitiated: a click asked for this stage, so it undoes a pending Remove of the id. The automatic
+    // stage never does, and gives way to a Remove pressed while it downloaded.
     private async Task<StageResult> StageCore(ExtensionFeedEntry entry, ITrustPolicy policy, IQueueJobContext ctx,
-        IProgress<ExtensionDownloadProgress>? progress,
-        CancellationToken ct)
+        IProgress<ExtensionDownloadProgress>? progress, bool userInitiated, CancellationToken ct)
     {
         string id = entry.Manifest.Id;
         SemVersion version = entry.Version;
@@ -899,9 +909,16 @@ public sealed class ExtensionUpdateService
                     verdict.LogDetail);
             }
 
+            string marker = ExtensionStaging.RemovalMarkerPath(_extensionsDirectory, id);
+            if (!userInitiated && File.Exists(marker))
+            {
+                RemoveStaging(part, extracted);
+                return new StageResult(StageOutcome.Cancelled, null);
+            }
+
             Directory.CreateDirectory(Path.GetDirectoryName(installed)!);
             // An install after Remove, before the restart, is a reinstall: the marker would sweep this copy.
-            File.Delete(ExtensionStaging.RemovalMarkerPath(_extensionsDirectory, id));
+            File.Delete(marker);
             try
             {
                 Directory.Move(extracted, installed);
