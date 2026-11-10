@@ -248,14 +248,14 @@ public class SituationalBehaviourTests
         manAdvantage.OpenCommand.Execute(null);
         await Assert.That(vm.ReviewLine).IsEqualTo("already in Review");
 
-        // On CT the second mini is the rotations, a placeholder until the strip build.
+        // On CT the second mini is the rotations, which read the Setup Heatmaps this host does not build.
         await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.Ct, "rotations");
         using (Assert.Multiple())
         {
             await Assert.That(vm.Layers.StripMinis.Select(m => m.Id))
                 .IsEquivalentTo(["econ", "rotations", "impact", "score"], CollectionOrdering.Matching);
-            await Assert.That(vm.Layers.Find("rotations")!.Status.State).IsEqualTo(ScoutingLayerState.Placeholder);
-            await Assert.That(vm.Layers.Inspector.StatusMessage).Contains("P3.5");
+            await Assert.That(vm.Layers.Find("rotations")!.Status.State).IsEqualTo(ScoutingLayerState.Empty);
+            await Assert.That(vm.Layers.Inspector.StatusMessage).Contains("desktop app builds it");
         }
 
         // Deselecting empties the stage.

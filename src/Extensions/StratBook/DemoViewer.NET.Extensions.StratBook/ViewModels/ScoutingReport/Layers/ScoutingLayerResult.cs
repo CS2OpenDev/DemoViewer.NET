@@ -200,6 +200,9 @@ public sealed record ScoutingLayerResult
     /// <summary>The strip mini's rows under the map (strip layers only); the first section's first rows when empty.</summary>
     public IReadOnlyList<ScoutingInspectorRow> Mini { get; init; } = [];
 
+    /// <summary>The strip mini's compact chart (strip layers only); null shows <see cref="Mini" /> as text lines.</summary>
+    public ScoutingMiniChart? MiniChart { get; init; }
+
     /// <summary>A layer that waits on work outside the extension.</summary>
     /// <param name="gapId">The register id.</param>
     /// <param name="message">What is missing, in the user's words.</param>
