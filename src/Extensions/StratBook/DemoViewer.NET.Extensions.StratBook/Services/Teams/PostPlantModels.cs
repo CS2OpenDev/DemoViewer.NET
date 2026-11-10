@@ -55,4 +55,24 @@ public sealed class PostPlantBlock
 
     /// <summary>How the CTs alive at the plant reached the bomb: together, trickled, one player, nobody. CT side only.</summary>
     public IReadOnlyList<TendencyBucket> RetakeGroups { get; init; } = [];
+
+    /// <summary>
+    ///     Where each plant of the team's own went, one point per planted round whose positions gave the spot, with
+    ///     whether the round was won and the T buy. T side only; the Scouting Report's Plants layer draws it.
+    /// </summary>
+    public IReadOnlyList<PlantSpotPoint> PlantSpots { get; init; } = [];
+
+    /// <summary>The team's buy class per round of this side, keyed by demo path and round number; the buy filter reads it.</summary>
+    public IReadOnlyDictionary<(string DemoPath, int RoundNumber), BuyType> RoundBuys { get; init; } =
+        new Dictionary<(string, int), BuyType>();
 }
+
+/// <summary>One plant of the team's: the planter's spot, and how the round went.</summary>
+/// <param name="Round">The planted round's clip, the same record the plant cluster holds.</param>
+/// <param name="X">World X of the spot.</param>
+/// <param name="Y">World Y of the spot.</param>
+/// <param name="Z">World Z of the spot.</param>
+/// <param name="Site">"A", "B" or "unknown site".</param>
+/// <param name="Won">The team won the round.</param>
+/// <param name="Buy">The team's buy that round.</param>
+public sealed record PlantSpotPoint(TendencyRound Round, int X, int Y, int Z, string Site, bool Won, BuyType Buy);

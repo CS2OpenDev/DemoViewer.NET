@@ -422,6 +422,8 @@ public sealed class PostPlantService
         private readonly Buckets _retakes = new();
         private readonly List<TendencyRound> _rounds = [];
         private readonly Buckets _unreadSpots = new();
+        private readonly List<PlantSpotPoint> _spots = [];
+        private readonly Dictionary<(string, int), BuyType> _buys = [];
         private int _positionRounds;
 
         public int RoundCount => _rounds.Count;
@@ -429,6 +431,7 @@ public sealed class PostPlantService
         public void Add(DemoContext demo, RoundFacts round, int side)
         {
             int rate = demo.Rate;
+            _buys[(demo.Path, round.Number)] = side == 3 ? round.Ct.BuyType : round.T.BuyType;
             _rounds.Add(Clip(demo, round, round.FreezeEndTick,
                 round.EndTick ?? round.FreezeEndTick + 3 * PostPlantSeconds * rate));
             if (round.PlantTick is not { } plant)
@@ -490,7 +493,9 @@ public sealed class PostPlantService
             PlantClusters = Clusters(),
             HoldShapes = _holdShapes.Ranked(SpotUnread),
             HoldPlaces = _holdPlaces.Ranked(),
-            RetakeGroups = _retakes.Ranked(SpotUnread)
+            RetakeGroups = _retakes.Ranked(SpotUnread),
+            PlantSpots = _spots,
+            RoundBuys = _buys
         };
 
         private void AddPlant(RoundFacts round, RoundPosition? spot, TendencyRound clip)
@@ -502,6 +507,7 @@ public sealed class PostPlantService
                 return;
             }
 
+            _spots.Add(new PlantSpotPoint(clip, p.X, p.Y, p.Z, site, round.WinnerSide == 2, round.T.BuyType));
             Cluster? nearest = _clusters
                 .Where(c => c.Site == site && c.DistanceTo(p) <= PlantClusterRadius)
                 .OrderBy(c => c.DistanceTo(p))
