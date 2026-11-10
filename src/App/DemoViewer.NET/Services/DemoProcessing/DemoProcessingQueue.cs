@@ -1606,7 +1606,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         }
     }
 
-    // Light items a user is waiting on that may run at once; the pool gave a Dossier's four builds this.
+    // Light items a user is waiting on that may run at once; the pool gave a Scouting Report's four builds this.
     private const int MaxUserLight = 4;
 
     private bool IsLight(Entry e) => _jobKinds.IsLight(e.Kind, e.ExtensionKind);
@@ -2343,7 +2343,7 @@ public sealed class DemoProcessingQueue : IDemoProcessingQueue, IDisposable
         if (light)
         {
             // Background light items run one at a time. Items a user is waiting on run beside them, up to
-            // MaxUserLight at once: a save cannot stop mid-write, and a Dossier team builds four sections.
+            // MaxUserLight at once: a save cannot stop mid-write, and a Scouting Report team builds four sections.
             return !anyRunning || best is { Priority: >= DemoJobPriority.UserRequested } && userRunning < MaxUserLight
                 ? best
                 : null;

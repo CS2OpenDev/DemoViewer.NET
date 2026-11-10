@@ -2823,6 +2823,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             null => null
         };
 
+    // Every descriptor the shell knows, gated or not: the strip tabs (hosts among them) and every hosted section.
+    private IEnumerable<WorkspaceTabDescriptor> AllDescriptors() =>
+        _allTabDescriptors.Concat(_hosts.SelectMany(h => h.AllSections));
+
     // Every descriptor with a VM the session file may hold state for: the strip tabs and the hosted sections.
     private IEnumerable<WorkspaceTabDescriptor> TabsAndSections() =>
         Tabs.Concat(_hosts.SelectMany(h => h.Sections.Sections));
@@ -3989,13 +3993,18 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     ///     and then the section, so every caller that named a strip tab before the Strat Book rail keeps
     ///     working unchanged.
     /// </summary>
-    /// <param name="tabId">The persisted tab id.</param>
+    /// <param name="tabId">
+    ///     The persisted tab id. An id a tab had before a rename (its <c>PreviousTabIds</c>) selects that tab, so a
+    ///     session or idle snapshot from an older build still lands where the user was.
+    /// </param>
     internal bool TrySelectTab(string? tabId)
     {
         if (tabId is not { Length: > 0 })
         {
             return false;
         }
+
+        tabId = TabIdAliases.Resolve(tabId, AllDescriptors());
 
         if (Tabs.FirstOrDefault(t => t.TabId == tabId) is { } tab)
         {
@@ -5100,7 +5109,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         foreach (WorkspaceTabDescriptor tab in TabsAndSections())
         {
-            if (states.TryGetValue(tab.TabId, out JsonElement state))
+            // A renamed tab finds the state saved under its old id; the next save writes it under the new one.
+            if (TabIdAliases.TryGetState(tab, states, out JsonElement state))
             {
                 tab.PendingRestoreState = state;
             }
