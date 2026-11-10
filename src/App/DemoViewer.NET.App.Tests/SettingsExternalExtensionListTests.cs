@@ -40,7 +40,7 @@ public class SettingsExternalExtensionListTests
             ExtensionUpdateService updater = new(dir, [], ExtensionHost.Current, TrustPolicy.Nothing, client,
                 UpdateFixtures.FeedUrl, externalRejected: [refusedFirst, refusedThird], shippedIds: []);
 
-            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
+            (SettingsViewModel vm, SettingsService s1, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
                 packStatuses: [], extensionUpdates: updater, isBrowser: () => false,
                 seed: s => s.Updates.CheckAutomatically = false);
             await using (sp)
@@ -58,10 +58,15 @@ public class SettingsExternalExtensionListTests
 
                 vm.Dispose();
             }
+
+            ReleaseWatcher(s1);
         }
         finally
         {
             Cleanup(dir);
         }
     }
+
+    // A file-backed SettingsService holds an inotify instance until its root is disposed; Linux runners allow 128.
+    private static void ReleaseWatcher(SettingsService svc) => (svc.Configuration as IDisposable)?.Dispose();
 }
