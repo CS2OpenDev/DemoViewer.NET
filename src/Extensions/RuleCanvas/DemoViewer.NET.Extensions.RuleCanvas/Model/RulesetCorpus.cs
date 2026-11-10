@@ -178,6 +178,9 @@ public sealed class RulesetCorpus
     /// <summary>The files that did not load as rulesets, with the loader's reason, so a broken file is named rather than silently absent.</summary>
     public IReadOnlyList<(string Path, string Reason)> Failures => _failures;
 
+    /// <summary>The text <paramref name="id" />'s file held when it loaded, the overriding file's for an overridden id; null when it did not load.</summary>
+    public string? TextOf(string id) => _files.LastOrDefault(f => f.Doc.Id == id)?.Text;
+
     /// <summary>Whether <paramref name="path" /> is a file this corpus read, loaded or not, which <see cref="Replace" /> can re-read alone.</summary>
     public bool Knows(string path) =>
         _files.Any(f => SamePath(f.Path, path)) || _failures.Any(f => SamePath(f.Path, path));

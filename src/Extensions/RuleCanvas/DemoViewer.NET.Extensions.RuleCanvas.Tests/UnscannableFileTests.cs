@@ -81,4 +81,27 @@ public class UnscannableFileTests
             await Assert.That(vm.Rulesets.Select(r => r.Id)).DoesNotContain("other");
         }
     }
+
+    // A watcher batch can still be debouncing, or held while the pane is dirty, when another file is saved broken.
+    [Test]
+    [Arguments("ruleset: [\nfor: each_player\nstats: {}\n")]
+    [Arguments("ruleset: other\ndefine: [\n")]
+    public async Task ARedraw_AfterAnotherUserFileBrokeOnDisk_DoesNotThrow_AndKeepsItsDefinesInTheGallery(string brokenText)
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        string path = rules.User("other", Other.Replace("stats:", "define:\n  armed:\n    on: kill\nstats:", StringComparison.Ordinal));
+        CanvasTabViewModel vm = rules.NewViewModel();
+        vm.OnActivated(null!);
+        await Assert.That(vm.Gallery.SelectMany(g => g.Items).Select(i => i.Name)).Contains("armed");
+
+        File.WriteAllText(path, brokenText);
+        vm.FocusNode(vm.Nodes.Single(n => n.Id == "round_kills"));
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.HasFocus).IsTrue();
+            await Assert.That(vm.Gallery.SelectMany(g => g.Items).Select(i => i.Name)).Contains("armed")
+                .Because("the gallery offers what the corpus loaded, until the watcher reports the change");
+        }
+    }
 }

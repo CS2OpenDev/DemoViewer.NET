@@ -348,28 +348,28 @@ public sealed partial class CanvasTabViewModel
         : node.IsAuthorable ? PlacementColumn.Entry
         : null;
 
-    // The trigger defines of the user's other rulesets, read from disk: small files, and a redraw already
-    // follows every change to them. A file that cannot be read offers nothing.
+    // The trigger defines of the user's other rulesets, from the text the corpus loaded: the file on disk can
+    // be mid-save or broken until the watcher's batch replaces the corpus.
     private IEnumerable<GalleryItem> YourDefines()
     {
         foreach (RulesetCorpus.Entry entry in _corpus?.Entries ?? [])
         {
-            if (!entry.IsUser || entry.Id == SelectedRuleset?.Id)
+            if (!entry.IsUser || entry.Id == SelectedRuleset?.Id || _corpus?.TextOf(entry.Id) is not { } text)
             {
                 continue;
             }
 
-            string text;
+            IReadOnlyList<GalleryItem> items;
             try
             {
-                text = File.ReadAllText(entry.Path);
+                items = CanvasGallery.DefinesOf(entry.Id, text);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is YamlDotNet.Core.YamlException or InvalidOperationException)
             {
                 continue;
             }
 
-            foreach (GalleryItem item in CanvasGallery.DefinesOf(entry.Id, text))
+            foreach (GalleryItem item in items)
             {
                 yield return item;
             }
