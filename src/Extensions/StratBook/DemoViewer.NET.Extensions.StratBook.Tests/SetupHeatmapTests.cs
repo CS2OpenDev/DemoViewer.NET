@@ -1,11 +1,11 @@
 #region
 
-using System.Collections.Concurrent;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Playback2D.Overlay;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Playback2D.Query;
@@ -229,7 +229,7 @@ public class SetupHeatmapTests
             await Assert.That(set.Heatmaps.Count).IsEqualTo(2);
             await Assert.That(set.Heatmaps.All(m => m.Points.Count == 0)).IsTrue();
             await Assert.That(set.Heatmaps.Sum(m => m.Rounds.Count)).IsEqualTo(4);
-            await Assert.That(ScoutingReportTabViewModel.HeatmapLineFor(set))
+            await Assert.That(ScoutingReportLines.HeatmapLineFor(set))
                 .IsEqualTo("2 heatmaps over 4 CT rounds · 1 demo without positions; rebuild the index");
         }
     }
@@ -249,59 +249,61 @@ public class SetupHeatmapTests
     }
 
     [Test]
-    public async Task TheScoutingReport_DrawsEachHeatmap_AndEveryHeatmapOpensItsRounds()
+    public async Task TheScoutingReport_DrawsTheSetupsLayer_PerBuy_AndEveryBuyOpensItsRounds()
     {
         using Harness h = await Harness.Create();
         ReviewQueue queue = new(null);
         List<string> shown = [];
-        // NOT the usual inline `a => a()`. The heatmap build really runs on a worker, so an inline post
-        // runs its completion on that thread while this one is still inside the view model, and the two
-        // meet in RebuildSections: it clears MapSections and refills it one section at a time, so two
-        // passes leave the collection holding both and the next rebuild throws on the duplicate key.
-        // Dispatcher.UIThread.Post defers to the owning thread in the app; this does the same here.
-        ConcurrentQueue<Action> posted = new();
+        QueuedPost posted = new();
         using ScoutingReportTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
             h.Service, new ExtensionReviewQueue(queue), id =>
             {
                 shown.Add(id);
                 return true;
             },
-            () => new SetupHeatmapRenderer(_ => null), posted.Enqueue, _ => null);
+            () => new SetupHeatmapRenderer(_ => null), posted.Post);
 
-        await Assert.That(vm.HasHeatmapSection).IsTrue();
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == h.TeamB);
-        await vm.HeatmapTask;
-        while (posted.TryDequeue(out Action? pending))
-        {
-            pending();
-        }
+        await ScoutingReportTestKit.Settle(vm, posted);
+        await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.Ct, "setups");
+        ScoutingLayerChipViewModel setups = vm.Layers.Find("setups")!;
+        int allMarks = setups.Marks.Marks.Count;
+        string allCount = setups.CountLabel;
 
-        await Assert.That(vm.Heatmaps.Count).IsEqualTo(2);
-        SetupHeatmapViewModel full = vm.Heatmaps[1];
+        vm.Buy = ScoutingBuy.Full;
+        await ScoutingReportTestKit.Settle(vm, posted);
+        List<ScoutingInspectorRowViewModel> rows = [.. vm.Layers.Inspector.Sections.SelectMany(s => s.Rows)];
+        ScoutingInspectorRowViewModel full = rows.Titled("de_nuke · full buy");
         using (Assert.Multiple())
         {
-            await Assert.That(vm.IsHeatmapBuilding).IsFalse();
-            await Assert.That(vm.HeatmapLine).IsEqualTo("2 heatmaps over 4 CT rounds");
-            await Assert.That(full.BuyLabel).IsEqualTo("full buy");
-            await Assert.That(full.RoundsLabel).IsEqualTo("3 rounds · 2 with a setup sampled");
-            await Assert.That(full.FixedLabel).IsEqualTo("fixed: BombsiteA 2/2");
-            await Assert.That(full.RotatingLabel).IsEqualTo("rotating: Heaven 1/2");
-            await Assert.That(full.OpenLabel).IsEqualTo("Open 3 rounds");
-            await Assert.That(full.Overlay.MapName).IsEqualTo("de_nuke");
-            await Assert.That(full.Overlay.Count).IsEqualTo(31)
-                .Because("the heatmap's points are an Overlay View document");
-            await Assert.That(full.ImagePng).IsNotNull();
-            await Assert.That(full.HasImageNote).IsFalse();
+            await Assert.That(allCount).IsEqualTo("4 rds");
+            await Assert.That(setups.CountLabel).IsEqualTo("3 rds");
+            await Assert.That(setups.Marks.Marks.Count).IsEqualTo(31)
+                .Because("the full-buy heatmap's points are the layer's marks");
+            await Assert.That(allMarks).IsGreaterThan(31).Because("All draws every buy");
+            await Assert.That(setups.Marks.Visible).IsTrue();
+            await Assert.That(setups.Marks.Fade).IsEqualTo(1f).Because("the inspected layer draws at full strength");
+            await Assert.That(vm.ScopeLine).IsEqualTo("de_nuke · CT · Full buy · 1 map");
+            await Assert.That(full.Value).IsEqualTo("3 rounds · 2 sampled");
+            await Assert.That(rows.Single(r => r.Label == "BombsiteA").Value).IsEqualTo("held 2 of 2");
+            await Assert.That(rows.Single(r => r.Label == "BombsiteA").Note).IsEqualTo("fixed");
+            await Assert.That(rows.Single(r => r.Label == "Heaven").Note).IsEqualTo("rotating");
+            await Assert.That(full.Key).IsEqualTo("de_nuke|CT|setups|Full||rounds");
+            await Assert.That(rows.EveryNumberOpensItsRounds()).IsTrue();
         }
 
-        using (SKBitmap? decoded = SKBitmap.Decode(full.ImagePng))
+        // The exported read carries the heatmap's picture, drawn only when the export asks for it.
+        ScoutingReportFindingViewModel read =
+            vm.Editor.Findings.Single(f => f.Key == "de_nuke|CT|setups|Full||read");
+        byte[]? png = read.Image?.Invoke();
+        await Assert.That(png).IsNotNull();
+        using (SKBitmap? decoded = SKBitmap.Decode(png))
         {
             await Assert.That(decoded).IsNotNull();
             await Assert.That(decoded!.Width).IsEqualTo(SetupHeatmapRenderer.Size.Width);
-            await Assert.That(decoded.Height).IsEqualTo(SetupHeatmapRenderer.Size.Height);
         }
 
-        vm.OpenRoundsCommand.Execute(full);
+        full.OpenCommand.Execute(null);
         using (Assert.Multiple())
         {
             await Assert.That(queue.ClipCount).IsEqualTo(3);
@@ -316,12 +318,12 @@ public class SetupHeatmapTests
             await Assert.That(shown).IsEquivalentTo(["review.queue"], CollectionOrdering.Matching);
         }
 
-        vm.OpenRoundsCommand.Execute(full);
+        full.OpenCommand.Execute(null);
         await Assert.That(vm.ReviewLine).IsEqualTo("already in Review");
 
-        // Deselecting drops the section's rows.
+        // Deselecting takes the marks off the map.
         vm.SelectedTeam = null;
-        await Assert.That(vm.HasHeatmaps).IsFalse();
+        await Assert.That(setups.Marks.Marks).IsEmpty();
     }
 
     private sealed class Harness : IDisposable

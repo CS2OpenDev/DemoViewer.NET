@@ -6,6 +6,7 @@ using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -255,7 +256,7 @@ public class OpeningTendenciesTests
             await Assert.That(set.Blocks[0].UtilityRounds).IsEqualTo(0);
             await Assert.That(set.Blocks[0].FirstUtilityClock.Count).IsEqualTo(0);
             await Assert.That(set.Blocks[0].FirstContactClock.Count).IsGreaterThan(0);
-            await Assert.That(OpeningTendenciesSectionViewModel.LineFor(set))
+            await Assert.That(ScoutingReportLines.OpeningsLineFor(set))
                 .IsEqualTo("5 rounds over 1 map · 1 demo without grenades; index grenades");
         }
     }
@@ -283,7 +284,7 @@ public class OpeningTendenciesTests
     }
 
     [Test]
-    public async Task TheScoutingReport_ShowsTheSection_AndEveryNumberOpensItsRounds()
+    public async Task TheScoutingReport_SpreadsTheTendenciesOverTheLayers_AndEveryNumberOpensItsRounds()
     {
         using Harness h = await Harness.Create();
         ReviewQueue queue = new(null);
@@ -299,41 +300,24 @@ public class OpeningTendenciesTests
             post: posted.Post,
             openings: h.Service);
 
-        await Assert.That(vm.Openings.HasSection).IsTrue();
-        await Assert.That(vm.HasHeatmapSection).IsFalse();
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == h.TeamA);
-        await vm.Openings.BuildTask;
-        posted.Drain();
+        await ScoutingReportTestKit.Settle(vm, posted);
 
-        await Assert.That(vm.Openings.Blocks.Count).IsEqualTo(2);
-        OpeningBlockViewModel t = vm.Openings.Blocks[0];
-        TendencyLinkViewModel bar = t.UtilityClock[1];
+        // Utility: the first grenade's clock and landing, over the rounds with grenades.
+        IReadOnlyList<ScoutingInspectorRowViewModel> util =
+            await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.T, "util");
+        ScoutingInspectorRowViewModel bar = util.Titled("de_nuke T · first utility 5-10 s");
         using (Assert.Multiple())
         {
-            await Assert.That(vm.Openings.IsBuilding).IsFalse();
-            await Assert.That(vm.Openings.Line).IsEqualTo("5 rounds over 1 map");
-            await Assert.That(t.SideLabel).IsEqualTo("T");
-            await Assert.That(t.IsT).IsTrue();
-            await Assert.That(t.UtilityNote).IsEqualTo("first utility over 3 rounds");
-            await Assert.That(t.LurkNote).IsEqualTo("lurk over 3 rounds");
-            await Assert.That(t.RoundsLink.ToolTip).IsEqualTo("Open 3 rounds");
-            await Assert.That(bar.Title).IsEqualTo("de_nuke T · first utility 5-10 s");
-            await Assert.That(bar.BarHeight).IsEqualTo(TendencyLinkViewModel.MaxBarHeight);
-            await Assert.That(t.UtilityClock[0].CanOpen).IsFalse();
-            await Assert.That(t.UtilityClock[2].BarHeight).IsEqualTo(TendencyLinkViewModel.MaxBarHeight / 2);
-            await Assert.That(vm.Openings.Blocks[1].IsT).IsFalse();
+            await Assert.That(vm.Layers.Find("util")!.CountLabel).IsEqualTo("3 rds");
+            await Assert.That(bar.Value).IsEqualTo("2 of 3 rounds");
+            await Assert.That(bar.BarWidth).IsGreaterThan(ScoutingInspectorRowViewModel.BarMaxWidth / 2);
+            await Assert.That(util.Any(r => r.Row!.OpenTitle == "de_nuke T · first utility 0-5 s")).IsFalse()
+                .Because("a zero opens nothing, so it is not a row");
+            await Assert.That(util.EveryNumberOpensItsRounds()).IsTrue();
         }
 
-        // Every number of every block is a link to exactly the rounds it counts.
-        IEnumerable<TendencyLinkViewModel> numbers = vm.Openings.Blocks.SelectMany(b =>
-            b.UtilityClock.Concat(b.UtilityPlaces).Concat(b.ContactClock).Concat(b.SiteSplit)
-                .Concat(b.Entries).Concat(b.LurkClock).Concat(b.Lurkers).Append(b.RoundsLink));
-        await Assert.That(numbers.All(n => n.Bucket.Rounds.Count == n.Count && n.CanOpen == n.Count > 0)).IsTrue();
-
-        vm.Openings.OpenCommand.Execute(t.UtilityClock[0]);
-        await Assert.That(queue.ClipCount).IsEqualTo(0).Because("a zero opens nothing");
-
-        vm.Openings.OpenCommand.Execute(bar);
+        bar.OpenCommand.Execute(null);
         using (Assert.Multiple())
         {
             await Assert.That(queue.ClipCount).IsEqualTo(2);
@@ -343,20 +327,45 @@ public class OpeningTendenciesTests
             await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue()
                 .Because("a Scouting Report clip carries its team");
             await Assert.That(queue.SectionOf(queue.Clips[0].Id)).IsNotNull();
-            await Assert.That(vm.Openings.ReviewLine).IsEqualTo("2 rounds sent to Review");
+            await Assert.That(vm.ReviewLine).IsEqualTo("2 rounds sent to Review");
             await Assert.That(shown).IsEquivalentTo(["review.queue"], CollectionOrdering.Matching);
         }
 
-        vm.Openings.OpenCommand.Execute(bar);
-        await Assert.That(vm.Openings.ReviewLine).IsEqualTo("already in Review");
+        bar.OpenCommand.Execute(null);
+        await Assert.That(vm.ReviewLine).IsEqualTo("already in Review");
 
-        vm.Openings.OpenCommand.Execute(t.SiteSplit[0]);
+        // Opening duels: first contact and the entry by site; lurks; the site split lands on Plants.
+        IReadOnlyList<ScoutingInspectorRowViewModel> opening =
+            await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.T, "opening");
+        IReadOnlyList<ScoutingInspectorRowViewModel> lurks =
+            await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.T, "lurks");
+        IReadOnlyList<ScoutingInspectorRowViewModel> plants =
+            await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.T, "plants");
+        using (Assert.Multiple())
+        {
+            await Assert.That(opening.Titled("de_nuke T · entry p0 at A").Value).IsEqualTo("1 of 3 rounds");
+            await Assert.That(opening.Titled("de_nuke T · first contact 10-15 s").CanOpen).IsTrue();
+            await Assert.That(opening.Titled("de_nuke T · rounds").OpenToolTip).IsEqualTo("Open 3 rounds in Review");
+            await Assert.That(lurks.Titled("de_nuke T · lurker p3").Value).IsEqualTo("1 of 3 rounds");
+            await Assert.That(lurks.Titled("de_nuke T · lurk 15-20 s").CanOpen).IsTrue();
+            await Assert.That(opening.Concat(lurks).Concat(plants).EveryNumberOpensItsRounds()).IsTrue();
+        }
+
+        plants.Titled("de_nuke T · site A").OpenCommand.Execute(null);
         await Assert.That(queue.ClipCount).IsEqualTo(3);
 
-        // Deselecting drops the section's blocks.
+        // On CT the opponent picks the site: the opening layer is the opening deaths, with no entry section.
+        IReadOnlyList<ScoutingInspectorRowViewModel> ct =
+            await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.Ct, "opening");
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Layers.Find("opening")!.Name).IsEqualTo("Opening deaths");
+            await Assert.That(ct.Any(r => r.Row!.OpenTitle.Contains("entry", StringComparison.Ordinal))).IsFalse();
+        }
+
+        // Deselecting empties the stage.
         vm.SelectedTeam = null;
-        await Assert.That(vm.Openings.HasBlocks).IsFalse();
-        await Assert.That(vm.Openings.Line).IsEqualTo("");
+        await Assert.That(vm.Layers.Inspector.Sections).IsEmpty();
     }
 
     // Order matters: a histogram is read left to right.

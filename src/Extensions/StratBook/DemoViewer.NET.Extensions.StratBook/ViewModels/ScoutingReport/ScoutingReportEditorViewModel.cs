@@ -1,11 +1,11 @@
 #region
 
 using System.Collections.ObjectModel;
-using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DemoViewer.NET.Extensions.StratBook.Services.Generated;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 
 #endregion
@@ -13,44 +13,42 @@ using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 
 /// <summary>
-///     One generated Scouting Report line before the user's edits: its stable key, its section, the generated
-///     text, and, for a Setup Heatmap, where to read its rendered picture at export time.
+///     One generated Scouting Report line before the user's edits: its scope key, its section, the generated
+///     text, and, for a setup read, where to read its rendered picture at export time.
 /// </summary>
-/// <param name="Key">Section slug plus what the line counts; never an index.</param>
-/// <param name="Section">The section heading it prints under.</param>
+/// <param name="Key">The scope key (<see cref="ScoutingReportStarKeys" />); never an index.</param>
+/// <param name="Section">The section heading it prints under: "de_nuke CT · Setups", "Map pool".</param>
 /// <param name="Generated">The generated text.</param>
 /// <param name="Image">Reads the line's PNG when it is exported; null for a text line.</param>
 /// <param name="Map">The map a map-specific line is about; null for the team as a whole.</param>
+/// <param name="Suggested">Starts starred the first time it is built (once ever per team).</param>
 public sealed record ScoutingReportFindingSource(
     string Key,
     string Section,
     string Generated,
     Func<byte[]?>? Image = null,
-    string? Map = null);
+    string? Map = null,
+    bool Suggested = false);
 
 /// <summary>
-///     Scouting Report Editing And Export: every built section's numbers as findings, the
-///     long form being the working document and the starred findings assembling the one-pager. Every
-///     line is editable (rewritten, reset, left out), the user adds notes and a summary beside them, and
-///     the export writes either form as self-contained HTML or Markdown, the short form by default.
+///     Scouting Report Editing And Export: every layer's reads and rows over every map and side as findings,
+///     the long form being the working document and the starred findings assembling the one-pager. Every line
+///     is editable (rewritten, reset, left out), the user adds notes and a summary beside them, and the export
+///     writes either form as self-contained HTML or Markdown, the one-pager by default.
 ///     <para>
-///         <b>No verdicts.</b> A finding is a count over its stated sample (<see cref="CountText" />); the
-///         section adds no rating, no grade and no win probability, and neither does the export.
+///         <b>No verdicts.</b> A finding is a count over its stated sample; the export adds no rating, no
+///         grade and no win probability.
 ///     </para>
 ///     <para>
-///         <b>Edits live in <see cref="ScoutingReportNotesStore" /> by key.</b> <see cref="Load" /> is called
-///         whenever a section lands, rebuilding the rows from the sources and the stored stars and edits,
-///         so a star on a line survives the section rebuilding under it. Row actions update the row in
-///         place and write the store; this VM is the store's only writer.
+///         <b>Stars, edits and dismissals live in <see cref="ScoutingReportNotesStore" /> by scope key.</b> The
+///         inspector stars a row through <see cref="SetStarred" />, the long form through
+///         <see cref="ToggleStarCommand" />; both land on the same key, so the one-pager preview, the long form and
+///         the inspector agree. This VM is the store's only writer.
 ///     </para>
 /// </summary>
 public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 {
-    public const string MapPoolSection = "Map Pool Record";
-    public const string HeatmapSection = "Setup Heatmaps By Buy";
-    private const string OpeningsSection = "Opening Tendencies";
-    private const string PostPlantSection = "Post-Plant And Retake";
-    private const string SituationalSection = "Situational Behaviour";
+    public const string MapPoolSection = "Map pool";
     public const string PeriodDiffSection = "Period Diff";
     public const string VetoSection = "Veto history";
     public const string NotesSection = "Notes";
@@ -68,10 +66,10 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     [ObservableProperty]
     private string _exportLine = "";
 
-    /// <summary>The form Export writes. The short form, the one-pager, is the default.</summary>
+    /// <summary>The form Export writes. The one-pager is the default.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ExportLabel))]
-    [NotifyPropertyChangedFor(nameof(SelectedFormOption))]
+    [NotifyPropertyChangedFor(nameof(ExportLabel), nameof(SelectedFormOption), nameof(CanExport))]
+    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
     private ScoutingReportForm _exportForm = ScoutingReportForm.OnePager;
 
     /// <summary>The file Export writes: HTML by default, the LAN Print route.</summary>
@@ -81,6 +79,10 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 
     [ObservableProperty]
     private string _newNoteText = "";
+
+    /// <summary>Also list the dismissed lines, each with Restore. The forms never include them.</summary>
+    [ObservableProperty]
+    private bool _showSettled;
 
     /// <summary>Shows only the starred lines: the one-pager as it will print.</summary>
     [ObservableProperty]
@@ -104,24 +106,20 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 
     public bool IsBrowser { get; }
 
-    /// <summary>The rows shown: every line not left out, or only the starred ones.</summary>
+    /// <summary>The long form's rows shown: every line not left out, or only the starred ones.</summary>
     public ObservableCollection<ScoutingReportFindingViewModel> Findings { get; } = [];
 
-    /// <summary>The shown lines about one map, by map; the tab puts each list in that map's section.</summary>
-    public IReadOnlyDictionary<string, List<ScoutingReportFindingViewModel>> MapFindings { get; private set; } =
-        new Dictionary<string, List<ScoutingReportFindingViewModel>>();
+    /// <summary>The one-pager as it stands: every starred line not left out, in print order.</summary>
+    public ObservableCollection<ScoutingReportFindingViewModel> Starred { get; } = [];
 
-    /// <summary>The shown lines about the team as a whole, and the user's notes.</summary>
-    public IReadOnlyList<ScoutingReportFindingViewModel> GeneralFindings { get; private set; } = [];
-
-    /// <summary>Raised after the shown lines were recomputed: a load, a star, a dismiss, a filter.</summary>
-    public event Action? Projected;
+    /// <summary>Raised after a star changed, from either the long form or the inspector.</summary>
+    public event Action? StarsChanged;
 
     /// <summary>The two forms, worded for the picker; the one-pager first, as the default.</summary>
     public static IReadOnlyList<ScoutingReportExportOption<ScoutingReportForm>> FormOptions { get; } =
     [
-        new(ScoutingReportForm.OnePager, "one-pager"),
-        new(ScoutingReportForm.LongForm, "long form")
+        new(ScoutingReportForm.OnePager, "One-pager"),
+        new(ScoutingReportForm.LongForm, "Long form")
     ];
 
     /// <summary>The two files, worded for the picker; HTML first, as the default.</summary>
@@ -151,17 +149,13 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 
     public int StarredCount => _rows.Count(r => r is { IsStarred: true, IsHidden: false });
 
+    public bool HasStarred => StarredCount > 0;
+
     public int HiddenCount => _rows.Count(r => r.IsHidden);
 
     public bool HasHidden => HiddenCount > 0;
 
-    /// <summary>Also list the dismissed lines, each with Restore. The forms never include them.</summary>
-    [ObservableProperty]
-    private bool _showSettled;
-
     public string SettledLabel => GeneratedInbox.SettledLabel(HiddenCount);
-
-    partial void OnShowSettledChanged(bool value) => Project();
 
     /// <summary>"42 findings · 5 starred · 2 dismissed".</summary>
     public string CountsLine
@@ -179,12 +173,19 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         }
     }
 
+    /// <summary>"One-pager · 5 starred", the preview's heading.</summary>
+    public string OnePagerHeading => $"One-pager · {StarredCount} starred";
+
     /// <summary>What the Findings list says when it is empty.</summary>
     public string EmptyLine => ShowStarredOnly
         ? ScoutingReportExporter.NothingStarredLine
-        : "no findings yet: the sections are still building, or have nothing to count";
+        : "no findings yet: the layers are still building, or have nothing to count";
 
-    public bool CanExport => HasTeam && !IsBrowser;
+    /// <summary>
+    ///     A team, a file to write, and for the one-pager at least one star: an empty one-pager is not exported,
+    ///     the long form always can be.
+    /// </summary>
+    public bool CanExport => HasTeam && !IsBrowser && (ExportForm == ScoutingReportForm.LongForm || HasStarred);
 
     /// <summary>What the Export slot says when there is no file to write.</summary>
     public string ExportUnavailableNote =>
@@ -194,17 +195,72 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 
     public bool NotesAreSessionOnly => _store.IsSessionOnly;
 
-    /// <summary>The words on the Export button for the chosen form.</summary>
-    public string ExportLabel => ExportForm == ScoutingReportForm.OnePager ? "Export one-pager" : "Export long form";
+    /// <summary>"Export one-pager · 5 starred", or "Export long form".</summary>
+    public string ExportLabel => ExportForm == ScoutingReportForm.OnePager
+        ? $"Export one-pager · {StarredCount} starred"
+        : "Export long form";
+
+    /// <summary>Whether a scope key is starred for the current team.</summary>
+    /// <param name="key">The key.</param>
+    public bool IsStarred(string key) =>
+        _teamId is { } id && _store.For(id).Starred.Contains(key, StringComparer.Ordinal);
+
+    /// <summary>Stars or unstars a line by key, from the inspector; the long form's row follows.</summary>
+    /// <param name="key">The key.</param>
+    /// <param name="starred">Starred.</param>
+    public void SetStarred(string key, bool starred)
+    {
+        if (_teamId is not { } id)
+        {
+            return;
+        }
+
+        _store.SetStarred(id, key, starred);
+        foreach (ScoutingReportFindingViewModel row in _rows.Where(r => r.Key == key))
+        {
+            row.IsStarred = starred;
+        }
+
+        AfterStar();
+    }
+
+    /// <summary>Stars suggested lines the first time each is built; a line unstarred after that stays unstarred.</summary>
+    /// <param name="keys">The suggested keys.</param>
+    public void Seed(IEnumerable<string> keys)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+        if (_teamId is not { } id)
+        {
+            return;
+        }
+
+        bool any = false;
+        foreach (string key in keys)
+        {
+            if (_store.Seed(id, key))
+            {
+                any = true;
+                foreach (ScoutingReportFindingViewModel row in _rows.Where(r => r.Key == key))
+                {
+                    row.IsStarred = true;
+                }
+            }
+        }
+
+        if (any)
+        {
+            AfterStar();
+        }
+    }
 
     /// <summary>
-    ///     Rebuilds the rows for a team from the sections' current lines and the stored edits, or clears
-    ///     them when <paramref name="teamId" /> is null.
+    ///     Rebuilds the rows for a team from the current lines and the stored edits, or clears them when
+    ///     <paramref name="teamId" /> is null.
     /// </summary>
     /// <param name="teamId">The team, or null.</param>
     /// <param name="teamName">Its display name, the export's title.</param>
-    /// <param name="sampleLine">The Map Pool Record's sample line, printed under the title.</param>
-    /// <param name="sources">Every section's generated lines, in print order.</param>
+    /// <param name="sampleLine">The sample line printed under the title.</param>
+    /// <param name="sources">Every generated line, in print order.</param>
     public void Load(Guid? teamId, string teamName, string sampleLine, IReadOnlyList<ScoutingReportFindingSource> sources)
     {
         ArgumentNullException.ThrowIfNull(sources);
@@ -220,9 +276,9 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         }
 
         Rebuild();
-        ExportCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(HasTeam));
-        OnPropertyChanged(nameof(CanExport));
+        RaiseCounts();
+        StarsChanged?.Invoke();
     }
 
     /// <summary>The document as it will print, with the user's edits applied and left-out lines dropped.</summary>
@@ -239,7 +295,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                 Section = r.Section,
                 Text = r.Text,
                 IsStarred = r.IsStarred,
-                ImagePng = r.Image?.Invoke()
+                ImagePng = r.IsStarred || ExportForm == ScoutingReportForm.LongForm ? r.Image?.Invoke() : null
             })
         ]
     };
@@ -264,6 +320,8 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     }
 
     partial void OnShowStarredOnlyChanged(bool value) => Project();
+
+    partial void OnShowSettledChanged(bool value) => Project();
 
     [RelayCommand(CanExecute = nameof(CanExport))]
     private void Export()
@@ -309,10 +367,8 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         {
             Project();
         }
-        else
-        {
-            RaiseCounts();
-        }
+
+        AfterStar();
     }
 
     [RelayCommand]
@@ -373,6 +429,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         }
 
         Project();
+        StarsChanged?.Invoke();
     }
 
     [RelayCommand]
@@ -385,6 +442,13 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 
         NewNoteText = "";
         Rebuild();
+    }
+
+    private void AfterStar()
+    {
+        ProjectStarred();
+        RaiseCounts();
+        StarsChanged?.Invoke();
     }
 
     private void Rebuild()
@@ -402,8 +466,14 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                 ScoutingReportTeamNotes notes = _store.For(id);
                 HashSet<string> starred = new(notes.Starred, StringComparer.Ordinal);
                 HashSet<string> hidden = new(notes.Hidden, StringComparer.Ordinal);
+                HashSet<string> seen = new(StringComparer.Ordinal);
                 foreach (ScoutingReportFindingSource source in _sources)
                 {
+                    if (!seen.Add(source.Key))
+                    {
+                        continue;
+                    }
+
                     string text = notes.Edits.TryGetValue(source.Key, out string? edit) ? edit : source.Generated;
                     _rows.Add(
                         new ScoutingReportFindingViewModel(source.Key, source.Section, source.Generated, text, false,
@@ -439,8 +509,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     private void Project()
     {
         Findings.Clear();
-        Dictionary<string, List<ScoutingReportFindingViewModel>> byMap = new(StringComparer.OrdinalIgnoreCase);
-        List<ScoutingReportFindingViewModel> general = [];
+        string? section = null;
         foreach (ScoutingReportFindingViewModel row in _rows)
         {
             if ((row.IsHidden && !ShowSettled) || (ShowStarredOnly && !row.IsStarred))
@@ -448,151 +517,69 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                 continue;
             }
 
+            row.ShowsSectionHeader = !string.Equals(section, row.Section, StringComparison.Ordinal);
+            section = row.Section;
             Findings.Add(row);
-            if (row.Map is { Length: > 0 } map)
-            {
-                if (!byMap.TryGetValue(map, out List<ScoutingReportFindingViewModel>? list))
-                {
-                    list = [];
-                    byMap[map] = list;
-                }
-
-                list.Add(row);
-            }
-            else
-            {
-                general.Add(row);
-            }
         }
 
-        // Each group gets its own headings, since the tab shows each group on its own.
-        foreach (List<ScoutingReportFindingViewModel> group in byMap.Values.Append(general))
-        {
-            string? section = null;
-            foreach (ScoutingReportFindingViewModel row in group)
-            {
-                row.ShowsSectionHeader = !string.Equals(section, row.Section, StringComparison.Ordinal);
-                section = row.Section;
-            }
-        }
-
-        MapFindings = byMap;
-        GeneralFindings = general;
-        Projected?.Invoke();
-        OnPropertyChanged(nameof(GeneralFindings));
+        ProjectStarred();
         OnPropertyChanged(nameof(HasFindings));
         OnPropertyChanged(nameof(EmptyLine));
         RaiseCounts();
     }
 
+    private void ProjectStarred()
+    {
+        List<ScoutingReportFindingViewModel> starred = [.. _rows.Where(r => r is { IsStarred: true, IsHidden: false })];
+        if (starred.SequenceEqual(Starred))
+        {
+            return;
+        }
+
+        Starred.Clear();
+        foreach (ScoutingReportFindingViewModel row in starred)
+        {
+            Starred.Add(row);
+        }
+    }
+
     private void RaiseCounts()
     {
         OnPropertyChanged(nameof(StarredCount));
+        OnPropertyChanged(nameof(HasStarred));
         OnPropertyChanged(nameof(HiddenCount));
         OnPropertyChanged(nameof(HasHidden));
         OnPropertyChanged(nameof(SettledLabel));
         OnPropertyChanged(nameof(CountsLine));
+        OnPropertyChanged(nameof(OnePagerHeading));
+        OnPropertyChanged(nameof(ExportLabel));
+        OnPropertyChanged(nameof(CanExport));
+        ExportCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>"6 of 20 rounds", or "6 rounds" when the denominator is unknown.</summary>
-    /// <param name="count">The rounds counted.</param>
-    /// <param name="of">The sample they are counted in; 0 when unknown.</param>
-    public static string CountText(int count, int of) =>
-        of > 0 ? $"{count.ToString(CultureInfo.InvariantCulture)} of {Plural(of, "round")}" : Plural(count, "round");
+    private static string Plural(int count, string noun) => ScoutingLayerBase.Plural(count, noun);
 
-    private static string Plural(int count, string noun) => OpeningTendenciesSectionViewModel.Plural(count, noun);
-
-    // ---- The sections' lines. Each builder is pure over a section's display rows; zero counts are skipped. ----
+    // ---- The team-wide lines. Each builder is pure over display rows. ----
 
     /// <summary>One line per map played, and the decider line when there is one.</summary>
-    /// <param name="maps">The Map Pool Record's rows.</param>
+    /// <param name="maps">The map pool's rows.</param>
     /// <param name="deciderLine">The decider line, or empty.</param>
     public static IEnumerable<ScoutingReportFindingSource> FromMapPool(IEnumerable<MapPoolRowViewModel> maps,
         string deciderLine)
     {
+        ArgumentNullException.ThrowIfNull(maps);
         foreach (MapPoolRowViewModel map in maps)
         {
-            yield return new ScoutingReportFindingSource($"map|{map.Map}", MapPoolSection,
-                $"{map.Map}: {map.PlayedLabel}, {map.RecordLabel}, win rate {map.WinRateLabel}, {map.SideLabel}",
-                Map: map.Map);
+            yield return new ScoutingReportFindingSource(
+                ScoutingReportStarKeys.Key(new ScoutingScope(map.Map, "", "pool"), "record"), MapPoolSection,
+                map.FindingText, Map: map.Map);
         }
 
         if (deciderLine.Length > 0)
         {
-            yield return new ScoutingReportFindingSource("map|deciders", MapPoolSection, deciderLine);
-        }
-    }
-
-    /// <summary>One line per heatmap, carrying its picture for the HTML form.</summary>
-    /// <param name="heatmaps">The Setup Heatmaps.</param>
-    public static IEnumerable<ScoutingReportFindingSource> FromHeatmaps(IEnumerable<SetupHeatmapViewModel> heatmaps) =>
-        heatmaps.Select(h => new ScoutingReportFindingSource($"heatmap|{h.Map}|{h.BuyLabel}", HeatmapSection,
-            $"{h.Map} CT {h.BuyLabel}: {h.RoundsLabel}; {h.FixedLabel}; {h.RotatingLabel}", () => h.ImagePng, h.Map));
-
-    /// <summary>Per map and side: the rounds, then every non-zero number over its own sample.</summary>
-    /// <param name="blocks">The Opening Tendencies blocks.</param>
-    public static IEnumerable<ScoutingReportFindingSource> FromOpenings(IEnumerable<OpeningBlockViewModel> blocks)
-    {
-        foreach (OpeningBlockViewModel b in blocks)
-        {
-            int rounds = b.RoundsLink.Count;
-            foreach (ScoutingReportFindingSource s in Sample("openings", OpeningsSection, b.RoundsLink, b.Map, b.SideLabel))
-            {
-                yield return s;
-            }
-
-            foreach (ScoutingReportFindingSource s in Links("openings", OpeningsSection, b.Map, b.Block.UtilityRounds,
-                             b.UtilityClock, b.UtilityPlaces)
-                         .Concat(Links("openings", OpeningsSection, b.Map, rounds, b.ContactClock, b.SiteSplit,
-                             b.Entries))
-                         .Concat(Links("openings", OpeningsSection, b.Map, b.Block.LurkRounds, b.LurkClock, b.Lurkers)))
-            {
-                yield return s;
-            }
-        }
-    }
-
-    /// <summary>Per map and side: the plants over the rounds, then every non-zero number over the plants.</summary>
-    /// <param name="blocks">The Post-Plant And Retake blocks.</param>
-    public static IEnumerable<ScoutingReportFindingSource> FromPostPlant(IEnumerable<PostPlantBlockViewModel> blocks)
-    {
-        foreach (PostPlantBlockViewModel b in blocks)
-        {
-            int planted = b.PlantedLink.Count;
-            foreach (ScoutingReportFindingSource s in Links("postplant", PostPlantSection, b.Map, b.RoundsLink.Count,
-                             [b.PlantedLink])
-                         .Concat(Links("postplant", PostPlantSection, b.Map, planted, b.ManCount, b.Outcomes,
-                             b.PlantClusters,
-                             b.HoldShapes, b.HoldPlaces, b.RetakeGroups)))
-            {
-                yield return s;
-            }
-        }
-    }
-
-    /// <summary>Per map and side: each situation over the rounds, then its breakdown over the situation.</summary>
-    /// <param name="blocks">The Situational Behaviour blocks.</param>
-    public static IEnumerable<ScoutingReportFindingSource> FromSituational(IEnumerable<SituationalBlockViewModel> blocks)
-    {
-        foreach (SituationalBlockViewModel b in blocks)
-        {
-            int rounds = b.RoundsLink.Count;
-            foreach (ScoutingReportFindingSource s in Links("situational", SituationalSection, b.Map, rounds, [b.PistolLink])
-                         .Concat(Links("situational", SituationalSection, b.Map, b.PistolLink.Count, b.PistolOutcomes,
-                             b.PistolFollowUp))
-                         .Concat(Links("situational", SituationalSection, b.Map, rounds, [b.AntiEcoLink]))
-                         .Concat(Links("situational", SituationalSection, b.Map, b.AntiEcoLink.Count, b.AntiEcoBuyTypes,
-                             b.AntiEcoOutcomes,
-                             b.AntiEcoContactClock))
-                         .Concat(Links("situational", SituationalSection, b.Map, rounds, [b.ManAdvantageLink]))
-                         .Concat(Links("situational", SituationalSection, b.Map, b.ManAdvantageLink.Count,
-                             b.ManAdvantage, b.ManAdvantageOutcomes))
-                         .Concat(Links("situational", SituationalSection, b.Map, rounds, [b.RoundsLostLink]))
-                         .Concat(Links("situational", SituationalSection, b.Map, b.RoundsLostLink.Count,
-                             b.SaveDiscipline)))
-            {
-                yield return s;
-            }
+            yield return new ScoutingReportFindingSource(
+                ScoutingReportStarKeys.Key(new ScoutingScope("", "", "pool"), "deciders"), MapPoolSection,
+                deciderLine);
         }
     }
 
@@ -610,7 +597,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 
         if (note.Length > 0)
         {
-            yield return new ScoutingReportFindingSource("period|note", PeriodDiffSection, note);
+            yield return new ScoutingReportFindingSource(Key("period", "note"), PeriodDiffSection, note);
         }
 
         PeriodDiffRowViewModel[] periods = previous is null ? [recent] : [recent, previous];
@@ -623,7 +610,7 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                 parts.Add(p.StandInLabel);
             }
 
-            yield return new ScoutingReportFindingSource($"period|{p.Label}", PeriodDiffSection,
+            yield return new ScoutingReportFindingSource(Key("period", p.Label), PeriodDiffSection,
                 $"{p.Label}: {string.Join(", ", parts)}");
         }
     }
@@ -631,26 +618,49 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     /// <summary>One line per veto step the user entered.</summary>
     /// <param name="vetoes">The veto rows.</param>
     public static IEnumerable<ScoutingReportFindingSource> FromVetoes(IEnumerable<VetoRowViewModel> vetoes) =>
-        vetoes.Select(v => new ScoutingReportFindingSource($"veto|{v.Id:N}", VetoSection,
+        vetoes.Select(v => new ScoutingReportFindingSource(Key("veto", v.Id.ToString("N")), VetoSection,
             $"{v.Order}. {v.ActionLabel} {v.Map} by {v.ByLabel}" + (v.Note.Length > 0 ? $" ({v.Note})" : "")));
 
-    private static IEnumerable<ScoutingReportFindingSource> Sample(string slug, string section, TendencyLinkViewModel link,
-        string map, string side)
+    /// <summary>
+    ///     A layer build's lines for the long form: each read, then each row with a number, under the section
+    ///     "de_nuke CT · Setups". Placeholder rows are left out: they count nothing.
+    /// </summary>
+    /// <param name="layer">The layer.</param>
+    /// <param name="context">The scope it was built for.</param>
+    /// <param name="result">The build.</param>
+    public static IEnumerable<ScoutingReportFindingSource> FromLayer(IScoutingLayer layer, ScoutingLayerContext context,
+        ScoutingLayerResult result)
     {
-        if (link.Count > 0)
+        ArgumentNullException.ThrowIfNull(layer);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(result);
+        if (result.Status.State != ScoutingLayerState.Ready)
         {
-            yield return new ScoutingReportFindingSource($"{slug}|{link.Title}", section,
-                $"{map} {side}: {Plural(link.Count, "round")}", Map: map);
+            yield break;
+        }
+
+        string section = $"{context.Prefix} · {layer.NameFor(context.Side)}";
+        foreach (ScoutingRead read in result.Reads)
+        {
+            yield return new ScoutingReportFindingSource(
+                ScoutingReportStarKeys.Key(context.Scope(layer, read.Buy), read.StarText), section, read.Text,
+                read.Image, context.Map, read.Suggested);
+        }
+
+        foreach (ScoutingInspectorRow row in result.Sections.SelectMany(s => s.Rows))
+        {
+            if (row.IsPlaceholder || row.Value.Length == 0)
+            {
+                continue;
+            }
+
+            yield return new ScoutingReportFindingSource(
+                ScoutingReportStarKeys.Key(context.Scope(layer, row.Buy), row.KeyText), section,
+                $"{row.KeyText}: {row.Value}", Map: context.Map);
         }
     }
 
-    private static IEnumerable<ScoutingReportFindingSource> Links(string slug, string section, string map, int of,
-        params IReadOnlyList<TendencyLinkViewModel>[] lists) =>
-        lists.SelectMany(l => l)
-            .Where(l => l.Count > 0)
-            .Select(l =>
-                new ScoutingReportFindingSource($"{slug}|{l.Title}", section, $"{l.Title}: {CountText(l.Count, of)}",
-                    Map: map));
+    private static string Key(string group, string text) => ScoutingReportStarKeys.Key(new ScoutingScope("", "", group), text);
 }
 
 /// <summary>One choice in an export picker: the value and the words shown for it.</summary>
@@ -669,15 +679,15 @@ public sealed partial class ScoutingReportFindingViewModel : ObservableObject
     private string _editText = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StarGlyph), nameof(StarToolTip))]
-    private bool _isStarred;
-
-    [ObservableProperty]
     private bool _isEditing;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RemoveLabel))]
     private bool _isHidden;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StarToolTip))]
+    private bool _isStarred;
 
     [ObservableProperty]
     private bool _showsSectionHeader;
@@ -701,6 +711,12 @@ public sealed partial class ScoutingReportFindingViewModel : ObservableObject
         _text = text;
         IsNote = isNote;
         Image = image;
+        Where = isNote
+            ? "note"
+            : ScoutingReportStarKeys.Parse(key) is { } parsed && ScoutingReportStarKeys.Where(parsed.Scope) is
+                { Length: > 0 } where
+                ? where
+                : section;
     }
 
     public string Key { get; }
@@ -709,6 +725,9 @@ public sealed partial class ScoutingReportFindingViewModel : ObservableObject
     public string? Map { get; init; }
 
     public string Section { get; }
+
+    /// <summary>"de_nuke CT · Full buy": the scope the one-pager preview prints before the line.</summary>
+    public string Where { get; }
 
     public string Generated { get; }
 
@@ -721,8 +740,6 @@ public sealed partial class ScoutingReportFindingViewModel : ObservableObject
 
     /// <summary>"Remove" on a note, "Dismiss" or "Restore" on a generated line.</summary>
     public string RemoveLabel => IsNote ? "Remove" : IsHidden ? "Restore" : "Dismiss";
-
-    public string StarGlyph => IsStarred ? "★" : "☆";
 
     public string StarToolTip => IsStarred ? "On the one-pager: click to take it off" : "Star for the one-pager";
 

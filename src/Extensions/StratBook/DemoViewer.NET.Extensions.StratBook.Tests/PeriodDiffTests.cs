@@ -153,7 +153,7 @@ public class PeriodDiffTests
             await Assert.That(none.Recent.Count).IsEqualTo(6);
             await Assert.That(none.Previous.Count).IsEqualTo(0);
             await Assert.That(none.HasBothPeriods).IsFalse();
-            await Assert.That(ScoutingReportTabViewModel.PeriodDiffNoteFor(none)).Contains("not enough");
+            await Assert.That(ScoutingReportLines.PeriodDiffNoteFor(none)).Contains("not enough");
         }
     }
 
@@ -178,8 +178,8 @@ public class PeriodDiffTests
             await Assert.That(set.Recent.DominantRoster.Demos).IsEqualTo(3);
             await Assert.That(set.Previous.DominantRoster.Demos).IsEqualTo(3);
 
-            await Assert.That(ScoutingReportTabViewModel.PeriodDiffNoteFor(set)).Contains("roster changed");
-            await Assert.That(ScoutingReportTabViewModel.PeriodDiffNoteFor(set)).Contains("post day 3");
+            await Assert.That(ScoutingReportLines.PeriodDiffNoteFor(set)).Contains("roster changed");
+            await Assert.That(ScoutingReportLines.PeriodDiffNoteFor(set)).Contains("post day 3");
         }
     }
 
