@@ -3,8 +3,10 @@
 Small rulesets for checking the Rule Canvas by hand, one structure family per file, so a check never
 starts with a search through the shipped corpus. Run `scripts/rule-canvas-testbed.sh` (add `--reset` to
 discard edits, `--no-build` to skip the build): it copies these files to
-`~/.cache/demoviewer-rule-canvas-testbed/rules` and starts the app with that folder as the user rules
-directory, where the picker labels them `testbed`. Edit the copies in the app, never these files.
+`~/.cache/demoviewer-rule-canvas-testbed/rules` and starts the Release desktop app with that folder as the
+user rules directory, where the picker labels them `testbed`. To use another build, run it with `--prepare`
+instead: it copies the files and prints the `CS2DEMOKIT_USER_RULES_DIR=...` line to launch that build with.
+Edit the copies in the app, never these files.
 While the app runs this way its analysis reads the testbed instead of your own user rules, and the
 library may re-scan demos once because the fixtures add highlights. `FixtureRulesetsTests` checks that
 each whole fixture composes with nothing said and that the two warning fixtures say exactly what they
