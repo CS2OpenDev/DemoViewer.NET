@@ -189,7 +189,7 @@ public sealed class ExtensionUpdateService
         }
 
         SemVersion? staged = HighestStaged(entry.Id, above: null);
-        LoadOutcome? rejected = entry.Rejected;
+        LoadOutcome? rejected = RejectedOnDisk(entry.Id);
         InstallableStatus status = Derive(rejected, staged, feedSide ?? entry.Status);
         return entry with { Staged = staged, Rejected = rejected, Status = status };
     }
@@ -652,10 +652,7 @@ public sealed class ExtensionUpdateService
     // failures become statuses; a copy on disk outranks the feed, since it is what the next start does.
     private async Task<InstallableExtension> CatalogueCore(string id, CancellationToken ct)
     {
-        // Matched by folder, not by manifest id: Remove deletes extensions/<id>/, so a tree of this id under
-        // another id's folder is that folder's problem and must not block Install here.
-        LoadOutcome? rejected = _externalRejected.FirstOrDefault(o =>
-            string.Equals(IdFolderOf(o.Directory), id, StringComparison.Ordinal));
+        LoadOutcome? rejected = RejectedOnDisk(id);
         SemVersion? staged = HighestStaged(id, above: null);
         DateTimeOffset now = DateTimeOffset.UtcNow;
         string name = rejected?.Manifest?.Name ?? id;
@@ -746,16 +743,24 @@ public sealed class ExtensionUpdateService
 
     private const string FeedAddressError = "the update feed address could not be resolved";
 
-    // A copy on disk outranks the feed, since it is what the next start does.
+    // A copy on disk outranks the feed, since it is what the next start does. A staged version above the
+    // refused one is what the next start tries first.
     private static InstallableStatus Derive(LoadOutcome? rejected, SemVersion? staged, InstallableStatus feedSide)
     {
-        if (rejected is not null)
+        if (staged is not null && (rejected?.Version is not { } refused || staged > refused))
         {
-            return InstallableStatus.NotLoaded;
+            return InstallableStatus.PendingRestart;
         }
 
-        return staged is not null ? InstallableStatus.PendingRestart : feedSide;
+        return rejected is not null ? InstallableStatus.NotLoaded : feedSide;
     }
+
+    // The launch's refusal of a copy under extensions/<id>/ whose folder is still there. Matched by folder,
+    // not by manifest id: Remove deletes extensions/<id>/, so a tree of this id under another id's folder is
+    // that folder's problem and must not block Install here.
+    private LoadOutcome? RejectedOnDisk(string id) =>
+        _externalRejected.FirstOrDefault(o =>
+            string.Equals(IdFolderOf(o.Directory), id, StringComparison.Ordinal) && Directory.Exists(o.Directory));
 
     // The resolver is caller-supplied; one that throws is a feed failure, never a failed queue item.
     private Uri? TryResolveFeedUrl(string packId, out string logDetail)

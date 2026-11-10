@@ -29,6 +29,7 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
     [NotifyPropertyChangedFor(nameof(HasMessage))]
     [NotifyPropertyChangedFor(nameof(CanInstall))]
     [NotifyPropertyChangedFor(nameof(CanRemove))]
+    [NotifyPropertyChangedFor(nameof(InstallLabel))]
     private InstallableExtension _entry;
 
     /// <summary>True while a download is in flight; the row shows progress and a Cancel button.</summary>
@@ -87,8 +88,19 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
     /// <summary>The offered zip's size, "4.5 MB"; empty when nothing is offered.</summary>
     public string Size => Entry.Offered is { } offered ? $"{ExtensionUpdateRow.Megabytes(offered.Size)} MB" : string.Empty;
 
-    /// <summary>The Install button shows while a version is offered and nothing is in flight.</summary>
-    public bool CanInstall => !IsDownloading && !IsRemoved && Entry.Status == InstallableStatus.Available;
+    /// <summary>"Update" for a copy on disk that did not load, else "Install".</summary>
+    public string InstallLabel => Entry.Status == InstallableStatus.NotLoaded ? "Update" : "Install";
+
+    /// <summary>
+    ///     The Install button shows while a version is offered and nothing is in flight; for a copy on disk
+    ///     that did not load, only when the offered version is above it, since the same version would be
+    ///     the folder already there.
+    /// </summary>
+    public bool CanInstall => !IsDownloading && !IsRemoved && Entry.Offered is { } offered
+        && (Entry.Status == InstallableStatus.Available
+            || (Entry.Status == InstallableStatus.NotLoaded
+                && (Entry.Rejected?.Version is not { } refused || offered.Version > refused)
+                && (Entry.Staged is not { } staged || offered.Version > staged)));
 
     /// <summary>Remove shows for a copy on disk this launch refused, so a broken install is never stuck.</summary>
     public bool CanRemove => !IsDownloading && !IsRemoved && Entry.Status == InstallableStatus.NotLoaded;
@@ -151,7 +163,7 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
     [RelayCommand]
     private async Task InstallAsync()
     {
-        if (IsDownloading || Entry.Offered is not { } offered)
+        if (!CanInstall || Entry.Offered is not { } offered)
         {
             return;
         }
@@ -198,7 +210,7 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
     [RelayCommand]
     private void CancelDownload() => _download?.Cancel();
 
-    /// <summary>Marks the refused copy for removal; its folder goes at the next start, or now when nothing of it loaded.</summary>
+    /// <summary>Removes the refused copy: its folder goes at the next start, or now when nothing of it loaded.</summary>
     [RelayCommand]
     private async Task RemoveAsync()
     {
@@ -207,9 +219,19 @@ public sealed partial class InstallableExtensionRow : ObservableObject, IDisposa
             return;
         }
 
-        if (await _service.RemoveInstalledAsync(Id))
+        if (!await _service.RemoveInstalledAsync(Id))
+        {
+            return;
+        }
+
+        // Deleted at once when nothing of it was loaded: the row then offers what the feed offers.
+        if (_service.IsMarkedForRemoval(Id))
         {
             IsRemoved = true;
+        }
+        else
+        {
+            Apply(_service.Reassess(Entry));
         }
     }
 

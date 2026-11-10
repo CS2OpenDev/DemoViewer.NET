@@ -901,10 +901,10 @@
                                                                    Foreground="{DynamicResource TextDim}"
                                                                    VerticalAlignment="Center" />
                                                         <Button Classes="ghost" Padding="8,2" FontSize="10"
-                                                                VerticalAlignment="Center" Content="Install"
+                                                                VerticalAlignment="Center" Content="{Binding InstallLabel}"
                                                                 Command="{Binding InstallCommand}"
                                                                 IsVisible="{Binding CanInstall}"
-                                                                ToolTip.Tip="Downloads this extension and installs it for the next start." />
+                                                                ToolTip.Tip="Downloads this version and installs it for the next start." />
                                                         <Button Classes="ghost" Padding="8,2" FontSize="10"
                                                                 VerticalAlignment="Center" Content="Cancel"
                                                                 Command="{Binding CancelDownloadCommand}"

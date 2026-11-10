@@ -662,10 +662,14 @@ does not ship (`FeaturePacks.ShippedIds`, which safe mode fills although it load
 status for (a shipped one has its own row, whatever its verdict) and reports an
 `InstallableExtension`: the highest entry `IsOffered` accepts (`Available`), the highest compatible
 version already under `extensions/<id>/` (`PendingRestart`), why a copy on disk did not load this launch
-(`NotLoaded`, from the `FeaturePacks.ExternalRejected` entry under `extensions/<id>/`, matched by folder
-because that folder is what Remove deletes, with Remove as the way out), a newer version this app
+(`NotLoaded`, from the `FeaturePacks.ExternalRejected` entry under `extensions/<id>/` whose folder is
+still there, matched by folder because that folder is what Remove deletes, with Remove as one way out and
+Update as the other when the feed offers a version above the refused one; Update stages it under the
+same signed-only install policy and the next start tries the newer version first), a newer version this app
 cannot run (`NeedsNewerApp`), or the feed's failure (`NotPublished`, `FeedUnreachable`, `FeedInvalid`).
-The last answer is remembered for the run (`LastCatalogue`). Settings lists them under "Available
+The last answer is remembered for the run (`LastCatalogue`); `CurrentCatalogue` combines each id's
+remembered feed answer with the disk as it is now, so a Settings window opened later in the run shows an
+Install or Remove done since, and a copy whose folder Remove deleted stops reading as not loaded. Settings lists them under "Available
 extensions" with name, version and size and an Install button; Install is `DownloadAndStageAsync` with the
 offered entry, judged by the install policy, and the row then reads `0.1.4 installed, restart to use it.`
 The next start loads the copy through `ExternalExtensions` (section 2).

@@ -814,6 +814,8 @@ public class ExtensionUpdateServiceTests
             LoadOutcome underThisFolder = new(Path.Combine(extensions, Id, "1.0.0"),
                 FakeManifests.For("net.demoviewer.pack.other", "Other", "1.0.0"), LoadFailure.FolderMismatch,
                 $"the folder is '{Id}'", External: true);
+            Directory.CreateDirectory(underAnotherFolder.Directory);
+            Directory.CreateDirectory(underThisFolder.Directory);
 
             IReadOnlyList<InstallableExtension> elsewhere = await NewService(root, client, statuses: [], catalogue: [Id],
                 externalRejected: [underAnotherFolder]).CheckCatalogueAsync();
