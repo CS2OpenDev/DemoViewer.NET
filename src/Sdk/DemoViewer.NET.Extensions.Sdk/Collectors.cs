@@ -21,7 +21,10 @@ namespace DemoViewer.NET.Extensions.Sdk;
 /// <param name="Id">Starts with the extension's id and a dot; the id the owning pass reads the result by.</param>
 /// <param name="PassId">The <see cref="IExtensionPass.Id" /> that reads the result. The collector runs only on a visit that pass is on.</param>
 /// <param name="Version">Bumped when what the collector writes changes; part of <see cref="Stamp" />.</param>
-/// <param name="Providers">Per-player provider names the collector reads, from the engine's catalog (<c>entity.pawn.pos_x</c> ...).</param>
+/// <param name="Providers">
+///     Per-player provider names the collector reads, from the engine's catalog (<c>entity.pawn.pos_x</c> ...) or
+///     the host's own set (<see cref="HostProviders" />).
+/// </param>
 /// <param name="ProjectileClasses">Grenade projectile classes the collector reads (<c>CSmokeGrenadeProjectile</c> ...).</param>
 /// <param name="Create">A fresh collector for one run.</param>
 [PublicAPI]
@@ -71,6 +74,12 @@ public sealed record CollectorContribution(
             if (GameEvents.Count > 0)
             {
                 text.Append(";g=").AppendJoin(',', GameEvents.Order(StringComparer.Ordinal));
+            }
+
+            // Only a collector reading a host provider carries the host set's version, so no other stamp moves.
+            if (Providers.Any(HostProviders.IsHostProvider))
+            {
+                text.Append(";dv=").Append(HostProviders.Version.ToString(CultureInfo.InvariantCulture));
             }
 
             text.Append(";e=").Append(_engineBuild);
