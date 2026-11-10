@@ -533,7 +533,8 @@ public sealed partial class CanvasTabViewModel
             : null;
     }
 
-    // The composed documents' texts as the files hold them, so a write and its undo compare equal to the run's.
+    // The composed documents' texts as the corpus loaded them, which every write re-reads, so a write and its
+    // undo compare equal to the run's.
     private string Fingerprint()
     {
         if (_composed is not { } composed || _corpus is null)
@@ -544,18 +545,7 @@ public sealed partial class CanvasTabViewModel
         StringBuilder all = new();
         foreach (string id in composed.Documents.Keys.Order(StringComparer.Ordinal))
         {
-            string? path = _corpus.Entries.FirstOrDefault(e => e.Id == id)?.Path;
-            string text;
-            try
-            {
-                text = path is null ? "" : File.ReadAllText(path);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                text = "";
-            }
-
-            all.Append(id).Append('\0').Append(text).Append('\0');
+            all.Append(id).Append('\0').Append(_corpus.TextOf(id) ?? "").Append('\0');
         }
 
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(all.ToString())));
