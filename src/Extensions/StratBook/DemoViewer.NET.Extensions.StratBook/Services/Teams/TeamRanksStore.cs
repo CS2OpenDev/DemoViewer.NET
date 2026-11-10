@@ -80,7 +80,7 @@ public sealed class TeamRanksStore
     ];
 
     /// <summary>The newest entry, or null with none.</summary>
-    public RankEntry? Current(Guid teamId, RankSystem system) => History(teamId, system).LastOrDefault();
+    public RankEntry? Current(Guid teamId, RankSystem system) => History(teamId, system) is [.., { } last] ? last : null;
 
     /// <summary>
     ///     The rank in force on a day: the latest entry set on or before it, else the earliest entry (the best
@@ -93,7 +93,7 @@ public sealed class TeamRanksStore
     {
         IReadOnlyList<RankEntry> history = History(teamId, system);
         RankEntry? onOrBefore = history.LastOrDefault(e => e.AsOf <= day);
-        return (onOrBefore ?? history.FirstOrDefault())?.Rank;
+        return (onOrBefore ?? (history.Count > 0 ? history[0] : null))?.Rank;
     }
 
     /// <summary>HLTV preferred, VRS when there is no HLTV rank; ranked 30 or better is top-30.</summary>

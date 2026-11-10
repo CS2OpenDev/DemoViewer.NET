@@ -57,6 +57,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     private readonly ScoutingReportSources _sources;
     private readonly TeamIdentityService _teams;
     private readonly VetoHistoryStore _vetoes;
+    private readonly TeamRanksStore _ranks;
 
     // The long form's layer lines for the current loads, by map; empty until every load has landed.
     private IReadOnlyList<ScoutingReportFindingSource> _layerFindings = [];
@@ -152,6 +153,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <param name="positionsFingerprint">The fingerprint current positions carry per map; null accepts any file.</param>
     /// <param name="siteRegions">A map's site regions for the Setups areas; distance alone when null.</param>
     /// <param name="fakes">A demo's current fake proposals for the Setups fake row; a placeholder when null.</param>
+    /// <param name="ranks">The manual VRS and HLTV ranks per team; a session-only store when null.</param>
     /// <param name="watchMinedPatterns">
     ///     Subscribes a handler to Strat Mining's change event (raised on the UI thread) and returns the
     ///     unsubscribe; the strat layers rebuild on it. None when null.
@@ -179,7 +181,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Func<string?, string>? positionsFingerprint = null,
         Func<Action, IDisposable>? watchMinedPatterns = null,
         Func<string, SetupSiteRegions?>? siteRegions = null,
-        Func<string, string, IReadOnlyList<FakeRound>?>? fakes = null)
+        Func<string, string, IReadOnlyList<FakeRound>?>? fakes = null,
+        TeamRanksStore? ranks = null)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -187,11 +190,14 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         _teams = teams;
         _library = library;
         _vetoes = vetoes;
+        _ranks = ranks ?? new TeamRanksStore(null);
         _grenades = grenades;
         _roundIndex = roundIndex;
         _post = post ?? (action => Dispatcher.UIThread.Post(action));
         _runSection = runSection ?? (_ => Task.Run);
         _now = now ?? (() => DateTime.Now);
+        VrsRank = new RankFieldViewModel(_ranks, RankSystem.Vrs, _now);
+        HltvRank = new RankFieldViewModel(_ranks, RankSystem.Hltv, _now);
         _opener = new ScoutingReviewOpener(review, selectTab);
         IsBrowser = isBrowser ?? OperatingSystem.IsBrowser();
         _sources = new ScoutingReportSources
@@ -226,6 +232,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Players.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasPlayers));
         _teams.Changed += Refresh;
         _vetoes.Changed += ProjectVetoes;
+        _ranks.Changed += OnRanksChanged;
         if (_grenades is not null)
         {
             _grenades.Changed += Refresh;
@@ -324,8 +331,16 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <summary>"61% of 23 maps".</summary>
     public string RecordLine { get; private set; } = "";
 
-    /// <summary>The ranks are entered by hand later (P3.6); until then the header says so.</summary>
-    public string RanksLine { get; } = "VRS / HLTV rank: manual entry comes later (P3.6)";
+    /// <summary>The team's VRS rank, edited inline in the header.</summary>
+    public RankFieldViewModel VrsRank { get; }
+
+    /// <summary>The team's HLTV rank, edited inline in the header.</summary>
+    public RankFieldViewModel HltvRank { get; }
+
+    /// <summary>Set when the ranks file could not be read, so the header says why edits do not stick.</summary>
+    public string RanksProblem => _ranks.FileProblem ?? "";
+
+    public bool HasRanksProblem => _ranks.FileProblem is not null;
 
     /// <summary>"vs Us 1–2", or empty when Team Identity knows no us or no meeting.</summary>
     public string HeadToHeadLine { get; private set; } = "";
@@ -335,11 +350,11 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <summary>"23 demos · Aug 1 to Nov 8 · newest 3d ago".</summary>
     public string DemosLine { get; private set; } = "";
 
-    /// <summary>The opponent mix needs ranks: a placeholder until P3.6.</summary>
-    public string OpponentMixLine { get; } = "opponent mix needs ranks (P3.6)";
+    /// <summary>"11 vs top-30 · 10 other · 2 unknown", or what to do when no opponent has a rank.</summary>
+    public string OpponentMixLine { get; private set; } = "";
 
     /// <summary>"filled = won · de_nuke bright".</summary>
-    public string TimelineCaption => SelectedMap is { } map ? $"filled = won, ring = lost · {map.Map} bright" : "";
+    public string TimelineCaption => SelectedMap is { } map ? $"filled = won, ring = lost, large = top-30 opponent · {map.Map} bright" : "";
 
     /// <summary>"18 demos", the sample the export prints under its title.</summary>
     public string SampleSizeLine { get; private set; } = "";
@@ -390,6 +405,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         Editor.StarsChanged -= OnStarsChanged;
         _teams.Changed -= Refresh;
         _vetoes.Changed -= ProjectVetoes;
+        _ranks.Changed -= OnRanksChanged;
         if (_grenades is not null)
         {
             _grenades.Changed -= Refresh;
@@ -409,6 +425,8 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     partial void OnSelectedTeamChanged(ScoutingReportTeamRow? value)
     {
+        VrsRank.SetTeam(value?.Id);
+        HltvRank.SetTeam(value?.Id);
         NewVetoMap = "";
         Layers.ResetToggles();
         using (JobScope.UserAction())
@@ -620,6 +638,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             Wins = Losses = 0;
             RecordLine = HeadToHeadLine = DemosLine = SampleSizeLine = DeciderLine = "";
             Timeline.Clear();
+            OpponentMixLine = "";
             Players.Clear();
             SelectedMap = null;
             RaiseHeader();
@@ -776,6 +795,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
                 $"{ScoutingLayerBase.Plural(data.Demos.Count, "demo")} · {first.ToString("MMM d", CultureInfo.InvariantCulture)} to {last.ToString("MMM d", CultureInfo.InvariantCulture)} · newest {MapPoolRowViewModel.Ago(last, now)}";
         }
 
+        ProjectOpponentMix(data);
         RaiseHeader();
     }
 
@@ -791,11 +811,58 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         OnPropertyChanged(nameof(DeciderLine));
         OnPropertyChanged(nameof(HasDeciderData));
         OnPropertyChanged(nameof(HasMaps));
+        OnPropertyChanged(nameof(OpponentMixLine));
+    }
+
+    // A rank was set or cleared: the box refills, and the mix and the dot sizes follow.
+    private void OnRanksChanged()
+    {
+        VrsRank.Refresh();
+        HltvRank.Refresh();
+        OnPropertyChanged(nameof(RanksProblem));
+        OnPropertyChanged(nameof(HasRanksProblem));
+        ProjectTimeline();
+        RaiseHeader();
+    }
+
+    private static string TierNote(OpponentTier tier) => tier switch
+    {
+        OpponentTier.Top30 => " · vs top-30",
+        OpponentTier.Other => " · vs ranked below 30",
+        _ => " · opponent rank unknown"
+    };
+
+    private OpponentTier TierOf(TeamDemoFacts demo) =>
+        _ranks.TierAt(demo.OpponentId, DateOnly.FromDateTime(new DateTime(demo.Ticks)));
+
+    private void ProjectOpponentMix(ScoutingReportData? data)
+    {
+        if (data is not { Demos.Count: > 0 })
+        {
+            OpponentMixLine = "";
+            return;
+        }
+
+        int top = 0, other = 0, unknown = 0;
+        foreach (TeamDemoFacts demo in data.Demos)
+        {
+            switch (TierOf(demo))
+            {
+                case OpponentTier.Top30: top++; break;
+                case OpponentTier.Other: other++; break;
+                default: unknown++; break;
+            }
+        }
+
+        OpponentMixLine = top + other == 0
+            ? "no opponent ranks yet: open an opponent and add a rank to see opponent tiers"
+            : $"{top} vs top-30 · {other} other · {unknown} unknown";
     }
 
     private void ProjectTimeline()
     {
         Timeline.Clear();
+        ProjectOpponentMix(_data);
         if (_data is not { Demos.Count: > 0 } data)
         {
             return;
@@ -808,11 +875,13 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
         foreach (TeamDemoFacts demo in data.Demos.OrderBy(d => d.Ticks))
         {
             double x = 4 + (demo.Ticks - min) / span * (TimelineDotViewModel.Width - 12);
-            double y = 2 + i++ % 3 * 6;
+            double y = 1 + i++ % 3 * 5;
+            OpponentTier tier = TierOf(demo);
             string result = demo.Won switch { true => "won", false => "lost", _ => "no result" };
             Timeline.Add(new TimelineDotViewModel(x, y, demo.Won == true,
                 SelectedMap is { } map && map.Map == demo.Map,
-                $"{demo.Map} · {new DateTime(demo.Ticks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} · {result}"));
+                $"{demo.Map} · {new DateTime(demo.Ticks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} · {result}{TierNote(tier)}",
+                tier == OpponentTier.Top30));
         }
     }
 
