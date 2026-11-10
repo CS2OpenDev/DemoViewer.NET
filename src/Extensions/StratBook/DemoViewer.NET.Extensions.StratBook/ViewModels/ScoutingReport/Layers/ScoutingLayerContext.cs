@@ -153,7 +153,7 @@ public sealed class ScoutingReportData
             data.Load<SituationalBehaviourSet>(runSection, "situational", sources.Situational is { } s ? () => s.Build(teamId) : null);
         data.Facts = data.Load<TeamMapFactsSet>(runSection, "pool",
             sources.RoundFacts is { } rf
-                ? () => TeamMapFactsService.Build(sources.Teams, sources.Library, rf, teamId)
+                ? () => TeamMapFactsService.Build(sources.Teams, sources.Library, rf, teamId, data.Captures)
                 : null);
         data.All = Task.WhenAll(data.Heatmaps, data.Openings, data.PostPlant, data.Situational, data.Facts);
         return data;

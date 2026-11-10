@@ -170,7 +170,26 @@ public sealed partial class ScoutingInspectorViewModel : ObservableObject
 
     public ObservableCollection<ScoutingInspectorSectionViewModel> Sections { get; } = [];
 
+    /// <summary>The focused layer's window pills (the AWP trail); empty for every other layer.</summary>
+    public ObservableCollection<ScoutingWindowPillViewModel> Windows { get; } = [];
+
+    [ObservableProperty]
+    private bool _hasWindows;
+
     public bool HasStatusMessage => StatusMessage.Length > 0;
+
+    /// <summary>Shows the focused layer's window pills, or none.</summary>
+    /// <param name="pills">The pills.</param>
+    public void ShowWindows(IEnumerable<ScoutingWindowPillViewModel> pills)
+    {
+        Windows.Clear();
+        foreach (ScoutingWindowPillViewModel pill in pills)
+        {
+            Windows.Add(pill);
+        }
+
+        HasWindows = Windows.Count > 0;
+    }
 
     /// <summary>Every starrable line shown, reads first.</summary>
     public IEnumerable<ScoutingInspectorRowViewModel> AllRows => Reads.Concat(Sections.SelectMany(s => s.Rows));
