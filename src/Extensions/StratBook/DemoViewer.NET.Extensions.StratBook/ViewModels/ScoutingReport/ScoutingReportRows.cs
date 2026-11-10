@@ -101,10 +101,12 @@ public sealed partial class MapPoolRowViewModel : ObservableObject
     /// <summary>The map tab's sub-line: "6 · 5d".</summary>
     public string TabDetail => $"{Played} · {LastPlayedShort}";
 
-    /// <summary>AWP bought % needs the weapon column and inventory: a placeholder for now.</summary>
-    public string AwpLabel { get; } = "—";
+    /// <summary>"82%": the non-pistol rounds the team bought an AWP in, from the round captures' purchases.</summary>
+    [ObservableProperty]
+    private string _awpLabel = "…";
 
-    public string AwpToolTip { get; } = "AWP bought needs the weapon column (P3.1) and engine inventory (K1)";
+    [ObservableProperty]
+    private string _awpToolTip = "reading round captures";
 
     /// <summary>The long form's line for the map.</summary>
     public string FindingText =>
@@ -117,8 +119,9 @@ public sealed partial class MapPoolRowViewModel : ObservableObject
     {
         if (facts is null)
         {
-            CtLabel = TLabel = PistolsLabel = PlantLabel = "—";
-            CtToolTip = TToolTip = available ? "no rounds with Round Facts on this map" : "Round Facts are unavailable";
+            CtLabel = TLabel = PistolsLabel = PlantLabel = AwpLabel = "—";
+            CtToolTip = TToolTip = AwpToolTip =
+                available ? "no rounds with Round Facts on this map" : "Round Facts are unavailable";
             return;
         }
 
@@ -128,6 +131,10 @@ public sealed partial class MapPoolRowViewModel : ObservableObject
         TToolTip = $"won {facts.TWon} of {ScoutingLayerBase.Plural(facts.TPlayed, "T round")} on their own T side";
         PistolsLabel = facts.PistolsPlayed == 0 ? "—" : $"{facts.PistolsWon} of {facts.PistolsPlayed}";
         PlantLabel = facts.PlantMedianSeconds is { } s ? ScoutingLayerBase.Clock(s) : "—";
+        AwpLabel = Share(facts.AwpBought, facts.AwpRoundsRead);
+        AwpToolTip = facts.AwpRoundsRead == 0
+            ? "no round captures on this map; rebuild the round index"
+            : $"an AWP bought in {facts.AwpBought} of {ScoutingLayerBase.Plural(facts.AwpRoundsRead, "non-pistol round")}, both sides";
     }
 
     private static string Share(int won, int played) =>
