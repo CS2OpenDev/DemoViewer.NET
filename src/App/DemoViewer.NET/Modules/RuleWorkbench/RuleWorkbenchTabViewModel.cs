@@ -404,7 +404,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
     /// <summary>The off-thread half of an evaluation: pure compute (no UI-collection mutation).</summary>
     private static EvalOutcome ComputeEvaluation(List<RulesetDoc> docs, ParsedDemo demo)
     {
-        BuildResult build = DemoAnalysis.Build(demo, docs, HostProviderSet.Wire(new AnalysisOptions()));
+        BuildResult build = DemoAnalysis.Build(demo, docs, new AnalysisOptions());
         AnalysisRun run = DemoAnalysis.Evaluate(demo, build);
         EvaluationResult? result = run.Snapshots;
         WorkbenchTraceReport trace = WorkbenchTraceModel.Build(result, docs, demo); // applied-fire trace
@@ -517,8 +517,8 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             RuleChainBuilder builder = new(
                 EventRegistry.Build(),
                 demo is null ? null : AnalysisTarget.From(demo),
-                entityProviders: HostProviderSet.Wire(new AnalysisOptions()).EntityProviders,
-                perPlayerEntityProviders: HostProviderSet.PerPlayer());
+                entityProviders: EntityValueProviderRegistry.CreateDefault(),
+                perPlayerEntityProviders: PerPlayerEntityValueProviderRegistry.CreateDefault());
             CatalogScopeAdapter adapter = CatalogScopeAdapter.From(CatalogResource.Load());
             List<CheckedRuleset> rulesets =
             [

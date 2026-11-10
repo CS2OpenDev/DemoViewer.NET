@@ -117,20 +117,19 @@ public static class ForwardDemoPass
         Build(parsed, docs, outputs, CollectorSet.Empty);
 
     // The observed reads must reach the build: it activates their columns, and the run's view refuses any other.
-    // The geometry must too: the builder synthesizes enemy_spotted only when it has an engine. The host's providers
-    // go on every build; the engine turns on only the ones a ruleset or a collector reads.
+    // The geometry must too: the builder synthesizes enemy_spotted only when it has an engine.
     internal static BuildResult Build(DemoReader reader, IReadOnlyList<RulesetDoc> docs, IReadOnlySet<string>? outputs,
         CollectorSet collectors, VisibilityEngine? visibility = null, CancellationToken cancellationToken = default) =>
         CutOutputs(
             DemoAnalysis.Build(reader, docs,
-                collectors.DeclareReads(HostProviderSet.Wire(new AnalysisOptions
+                collectors.DeclareReads(new AnalysisOptions
                 {
                     CancellationToken = cancellationToken, VisibilityEngine = visibility
-                }))), outputs);
+                })), outputs);
 
     internal static BuildResult Build(ParsedDemo parsed, IReadOnlyList<RulesetDoc> docs, IReadOnlySet<string>? outputs,
         CollectorSet collectors) =>
-        CutOutputs(DemoAnalysis.Build(parsed, docs, collectors.DeclareReads(HostProviderSet.Wire(new AnalysisOptions()))),
+        CutOutputs(DemoAnalysis.Build(parsed, docs, collectors.DeclareReads(new AnalysisOptions())),
             outputs);
 
     // The library tables are recorded on every read: they are two small tables, and the library pass

@@ -19,13 +19,13 @@ using TUnit.Core.Exceptions;
 namespace DemoViewer.NET.AppTests;
 
 /// <summary>
-///     The host providers on a real pro demo, through the one forward pass the visit makes: helmets, round spend and
-///     the tactical timeout counts at freeze end. Needs <c>DEMO_PATH</c> naming a pro MR12 demo (or a folder plus
+///     The engine's economy and timeout reads on a real pro demo, through the one forward pass the visit makes:
+///     helmets, round spend and the tactical timeout counts at freeze end. Needs <c>DEMO_PATH</c> naming a pro MR12 demo (or a folder plus
 ///     <c>DEMO_PATH_PICK</c>), read in place.
 /// </summary>
 [NotInParallel]
 [Category("RealDemo")]
-public class HostProviderSetRealDemoTests
+public class EconomyReadsRealDemoTests
 {
     private const int RegulationRounds = 24;
 
@@ -38,12 +38,12 @@ public class HostProviderSetRealDemoTests
     public async Task ForwardPass_ReadsHelmetsSpendAndTimeouts_AtFreezeEnd()
     {
         string path = RequirePinnedDemo();
-        RulesetDoc doc = HostProviderSetTests.Load(HostProviderSetTests.ProbeYaml);
+        RulesetDoc doc = EconomyReadsTests.Load(EconomyReadsTests.ProbeYaml);
 
         using DemoReader reader = DemoReader.OpenFile(path, ForwardDemoPass.ReaderOptions(CancellationToken.None));
         ForwardDemoResult pass = ForwardDemoPass.Run(reader, ForwardNeeds.Rules, [doc], null,
-            new HashSet<string> { "dv_probe" });
-        MetricTable table = pass.Run!.ProjectConfiguredOutputs(pass.Demo).Single(t => t.Name == "dv_probe");
+            new HashSet<string> { "econ_probe" });
+        MetricTable table = pass.Run!.ProjectConfiguredOutputs(pass.Demo).Single(t => t.Name == "econ_probe");
         List<Row> rows =
         [
             .. table.Rows.Select(r => new Row(Int(r, "round"), Int(r, "slot"), Int(r, "helmet") != 0,
@@ -56,6 +56,7 @@ public class HostProviderSetRealDemoTests
             .. rows.Where(r => r.Round is >= 1 and <= RegulationRounds).GroupBy(r => r.Round).OrderBy(g => g.Key)
                 .Select(g => (g.Key, g.First().TLeft, g.First().CtLeft))
         ];
+        Console.WriteLine($"demo read: {path}");
         Console.WriteLine($"{Path.GetFileName(path)}: {rows.Count} rows, {timeouts.Count} regulation rounds");
         Console.WriteLine("T left : " + string.Join(" ", timeouts.Select(t => t.T)));
         Console.WriteLine("CT left: " + string.Join(" ", timeouts.Select(t => t.Ct)));
@@ -103,32 +104,30 @@ public class HostProviderSetRealDemoTests
     }
 
     /// <summary>
-    ///     What the host providers cost the merged run: the shipped rules unwired, wired (nothing reads them), and wired
-    ///     with the probe ruleset added. Interleaved and repeated, since a single timing drifts between sessions; the
-    ///     best of each is printed. Asserts only that the three runs completed.
+    ///     What the economy reads cost the merged run: the shipped rules alone, and with the probe ruleset added.
+    ///     Interleaved and repeated, since a single timing drifts between sessions; the best of each is printed.
+    ///     Asserts only that the runs completed.
     /// </summary>
     [Test]
-    public async Task MergedRun_Cost_WiredUnused_AndWithTheProbe()
+    public async Task MergedRun_Cost_WithAndWithoutTheProbe()
     {
         string path = RequirePinnedDemo();
         IReadOnlyList<RulesetDoc> shipped = new MergedRulesBuild(() =>
             YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null)).Docs;
-        IReadOnlyList<RulesetDoc> withProbe = [.. shipped, HostProviderSetTests.Load(HostProviderSetTests.ProbeYaml)];
+        IReadOnlyList<RulesetDoc> withProbe = [.. shipped, EconomyReadsTests.Load(EconomyReadsTests.ProbeYaml)];
         ParsedDemo parsed = MemoryMappedDemoSource.ParseFile(path);
 
         const int Rounds = 3;
-        double[] best = [double.MaxValue, double.MaxValue, double.MaxValue];
+        double[] best = [double.MaxValue, double.MaxValue];
         for (int i = 0; i < Rounds; i++)
         {
-            best[0] = Math.Min(best[0], Time(() => DemoAnalysis.Build(parsed, shipped, new AnalysisOptions())));
-            best[1] = Math.Min(best[1], Time(() => ForwardDemoPass.Build(parsed, shipped, null, CollectorSet.Empty)));
-            best[2] = Math.Min(best[2], Time(() => ForwardDemoPass.Build(parsed, withProbe, null, CollectorSet.Empty)));
+            best[0] = Math.Min(best[0], Time(() => ForwardDemoPass.Build(parsed, shipped, null, CollectorSet.Empty)));
+            best[1] = Math.Min(best[1], Time(() => ForwardDemoPass.Build(parsed, withProbe, null, CollectorSet.Empty)));
         }
 
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"{Path.GetFileName(path)}, {parsed.Frames.Count} frames, best of {Rounds} (build + evaluate): "
-            + $"unwired {best[0]:F0} ms, wired {best[1]:F0} ms ({best[1] - best[0]:+0;-0} ms), "
-            + $"wired + probe {best[2]:F0} ms ({best[2] - best[0]:+0;-0} ms)"));
+            + $"shipped {best[0]:F0} ms, + probe {best[1]:F0} ms ({best[1] - best[0]:+0;-0} ms)"));
         await Assert.That(best.All(b => b < double.MaxValue)).IsTrue();
 
         double Time(Func<BuildResult> build)

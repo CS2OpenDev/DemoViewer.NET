@@ -376,42 +376,28 @@ cleared: a player who died, left or has no pawn on this frame still reads the va
 present value does not mean the slot has a pawn, and a health or position read cannot tell a dead
 player from a live one.
 
-## Host providers
+## Game-wide reads
 
-The host adds a few reads of its own to every rules run, for fields the engine networks but its catalog
-does not name yet. `HostProviders` holds the names. A collector lists them in `Providers` like any
-catalog name, and a ruleset (yours, the shipped ones, a user's) reads them by their rules path:
+A collector that needs a value the game rules hold for the whole match, not per player, declares it in
+`GameProviders` by its engine name and reads it with `IFrameReadView.TryReadGameInt`. The read is the
+value at the end of the frame, a bool reading 1 or 0, and the provider's default until the game rules
+entity is first seen. A name the collector did not declare throws.
 
-| Provider (`HostProviders`) | Rules path | Type | Reads |
-|---|---|---|---|
-| `HasHelmet` (`entity.dv.player.has_helmet`) | `player.dv_has_helmet` | bool | `m_pItemServices.m_bHasHelmet` |
-| `HasDefuser` (`entity.dv.player.has_defuser`) | `player.dv_has_defuser` | bool | `m_pItemServices.m_bHasDefuser` |
-| `CashSpentRound` (`entity.dv.player.cash_spent_round`) | `player.dv_cash_spent_round` | int | `m_pInGameMoneyServices.m_iCashSpentThisRound` |
-| `StartAccount` (`entity.dv.player.start_account`) | `player.dv_start_account` | int | `m_pInGameMoneyServices.m_iStartAccount` |
-| `CtTimeoutActive` (`entity.dv.match.ct_timeout_active`) | `match.dv_ct_timeout_active` | bool | `m_pGameRules.m_bCTTimeOutActive` |
-| `TTimeoutActive` (`entity.dv.match.t_timeout_active`) | `match.dv_t_timeout_active` | bool | `m_pGameRules.m_bTerroristTimeOutActive` |
-| `CtTimeoutsLeft` (`entity.dv.match.ct_timeouts_left`) | `match.dv_ct_timeouts_left` | int | `m_pGameRules.m_nCTTimeOuts` |
-| `TTimeoutsLeft` (`entity.dv.match.t_timeouts_left`) | `match.dv_t_timeouts_left` | int | `m_pGameRules.m_nTerroristTimeOuts` |
-| `TechnicalTimeout` (`entity.dv.match.technical_timeout`) | `match.dv_technical_timeout` | bool | `m_pGameRules.m_bTechnicalTimeOut` |
-
-```yaml
-stats:
-  helmet_at_freeze_end:
-    capture: player.dv_has_helmet
-    on: raw.round_freeze_end
-    per: round
+```csharp
+new CollectorContribution(id, passId, 1, [], [], Create)
+{
+    GameProviders = ["entity.game.ct_timeouts_left", "entity.game.t_timeout_active"]
+};
+// in OnFrame
+if (view.TryReadGameInt("entity.game.ct_timeouts_left", out int ctLeft)) { ... }
 ```
 
-The `player` reads also work on a role (`victim.dv_has_helmet`). A collector reads the `match` ones per
-player: every slot with a controller reads the same value. The timeout counts follow the side, not the
-team, so they swap at the half. The rules editor offers the paths and the host's validation accepts
-them; the JSON schema in `rules/` is the engine's and does not list them, which costs only the hover
-text, since it accepts any expression.
-
-`HostProviders.Version` moves when what one of them reads changes. A collector that declares one carries
-it in its `Stamp`, and a ruleset that reads one carries it in its outputs' stamp, so neither is served
-stale facts. A collector or ruleset that reads none keeps the stamp it had. Extensions read this set
-and cannot add providers of their own; ask for a new one in the host.
+The economy and timeout reads are the engine's own since CS2DemoKit 0.15.0: per player
+`entity.pawn.has_helmet`, `entity.pawn.has_defuser`, `entity.controller.cash_spent` and
+`entity.controller.start_money` (in `Providers`), and game-wide `entity.game.ct_timeout_active`,
+`t_timeout_active`, `ct_timeouts_left`, `t_timeouts_left` and `technical_timeout` (in `GameProviders`).
+A ruleset reads them as `player.has_helmet`, `match.ct_timeouts_left` and so on. The timeout counts
+follow the side, not the team, so they swap at the half.
 
 ## Reading the library
 
@@ -640,10 +626,10 @@ meaning evaluators, rulesets, clip models or `AnalysisRun`, needs `CS2DemoKit.An
 reference that yourself:
 
 ```xml
-<PackageReference Include="CS2DemoKit.Analysis" Version="0.14.1" />
+<PackageReference Include="CS2DemoKit.Analysis" Version="0.15.0" />
 ```
 
-Pin the version the host loads, which is 0.14.1 for this release of the SDK, and keep it equal to the
+Pin the version the host loads, which is 0.15.0 for this release of the SDK, and keep it equal to the
 `CS2DemoKit.Parser` version in this package's own dependencies: the two are exact-pinned to each other
 before 1.0. Because the app supplies both assemblies at runtime, as the paragraph above says, a different
 pin compiles and then fails to load.

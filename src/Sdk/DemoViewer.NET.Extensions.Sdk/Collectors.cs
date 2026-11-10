@@ -22,8 +22,7 @@ namespace DemoViewer.NET.Extensions.Sdk;
 /// <param name="PassId">The <see cref="IExtensionPass.Id" /> that reads the result. The collector runs only on a visit that pass is on.</param>
 /// <param name="Version">Bumped when what the collector writes changes; part of <see cref="Stamp" />.</param>
 /// <param name="Providers">
-///     Per-player provider names the collector reads, from the engine's catalog (<c>entity.pawn.pos_x</c> ...) or
-///     the host's own set (<see cref="HostProviders" />).
+///     Per-player provider names the collector reads, from the engine's catalog (<c>entity.pawn.pos_x</c> ...).
 /// </param>
 /// <param name="ProjectileClasses">Grenade projectile classes the collector reads (<c>CSmokeGrenadeProjectile</c> ...).</param>
 /// <param name="Create">A fresh collector for one run.</param>
@@ -48,6 +47,12 @@ public sealed record CollectorContribution(
     ///     demo decodes only the events the rules subscribe to, plus these; a held parse carries every event.
     /// </summary>
     public IReadOnlyList<string> GameEvents { get; init; } = [];
+
+    /// <summary>
+    ///     Game-wide (singleton) provider names the collector reads through <see cref="IFrameReadView.TryReadGameInt" />,
+    ///     from the engine's catalog (<c>entity.game.ct_timeouts_left</c> ...).
+    /// </summary>
+    public IReadOnlyList<string> GameProviders { get; init; } = [];
 
     /// <summary>
     ///     What output written from this collector is current under: its version, its declared reads and the
@@ -76,10 +81,9 @@ public sealed record CollectorContribution(
                 text.Append(";g=").AppendJoin(',', GameEvents.Order(StringComparer.Ordinal));
             }
 
-            // Only a collector reading a host provider carries the host set's version, so no other stamp moves.
-            if (Providers.Any(HostProviders.IsHostProvider))
+            if (GameProviders.Count > 0)
             {
-                text.Append(";dv=").Append(HostProviders.Version.ToString(CultureInfo.InvariantCulture));
+                text.Append(";gp=").AppendJoin(',', GameProviders.Order(StringComparer.Ordinal));
             }
 
             text.Append(";e=").Append(_engineBuild);
@@ -153,6 +157,14 @@ public interface IFrameReadView
 
     /// <summary>The slot's controller team as last seen (2 T, 3 CT), or -1.</summary>
     int Team(int playerSlot);
+
+    /// <summary>
+    ///     A declared game-wide provider's value at the end of this frame (a bool reads as 0 or 1); the provider's
+    ///     default until the game rules entity is first seen. False when the value is not an int or bool. Throws
+    ///     for a name the collector did not declare in <see cref="CollectorContribution.GameProviders" />.
+    /// </summary>
+    bool TryReadGameInt(string providerName, out int value) =>
+        throw new NotSupportedException("this view reads no game-wide providers");
 
     /// <summary>
     ///     The slot's latest user command as of the end of this frame, or null before its first. One frame's

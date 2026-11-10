@@ -1301,7 +1301,7 @@ public sealed partial class AnalysisViewModel : ViewModelBase, IDisposable
         // engine is present AND some ruleset subscribes to it, so handing it over unconditionally
         // costs nothing for the rulesets that never ask.
         AnalysisOptions options =
-            HostProviderSet.Wire(new AnalysisOptions { VisibilityEngine = visibility, EntityProviders = clock?.Providers() });
+            new() { VisibilityEngine = visibility, EntityProviders = clock?.Providers() };
         // Stamped rulesets join the open run only when it can serve the open's visit; nothing else reads them.
         if (merged is null)
         {

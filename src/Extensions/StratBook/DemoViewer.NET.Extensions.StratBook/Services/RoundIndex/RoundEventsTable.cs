@@ -48,6 +48,22 @@ public sealed record DeathEventRow(
 /// <summary>One plant row: the planter's own.</summary>
 public sealed record PlantEventRow(int Tick, int PlanterSlot, int SiteEntity, EventSpot? Spot);
 
+/// <summary>One purchase the engine synthesized (<c>item_purchased</c>): the buyer's own row.</summary>
+/// <param name="Tick">Frame clock.</param>
+/// <param name="Slot">The buyer.</param>
+/// <param name="Item">The pickup's item; <c>unknown</c> when there was none, items joined with <c>+</c> when the
+///     engine could not split one frame's buys.</param>
+/// <param name="DefIndex">The item definition index, or -1.</param>
+/// <param name="Cost">What it cost.</param>
+public sealed record PurchaseEventRow(int Tick, int Slot, string Item, int DefIndex, int Cost);
+
+/// <summary>One sale back in buy time (<c>item_refunded</c>).</summary>
+/// <param name="Tick">Frame clock.</param>
+/// <param name="Slot">The player refunded.</param>
+/// <param name="Item">The refunded purchase's item, or <c>unknown</c>.</param>
+/// <param name="Refund">The amount given back.</param>
+public sealed record RefundEventRow(int Tick, int Slot, string Item, int Refund);
+
 /// <summary>The event tables of one demo.</summary>
 public sealed record RoundEventRows(
     IReadOnlyList<KillEventRow> Kills,
@@ -55,11 +71,17 @@ public sealed record RoundEventRows(
     IReadOnlyList<PlantEventRow> Plants)
 {
     public static RoundEventRows Empty { get; } = new([], [], []);
+
+    /// <summary>Every purchase, by tick.</summary>
+    public IReadOnlyList<PurchaseEventRow> Purchases { get; init; } = [];
+
+    /// <summary>Every refund, by tick.</summary>
+    public IReadOnlyList<RefundEventRow> Refunds { get; init; } = [];
 }
 
 /// <summary>
-///     The round index's event ruleset: every kill and death with the positions of both players, and every plant
-///     with the planter's, as <c>player_event</c> tables. The round index pass reads them off the visit's rules run
+///     The round index's event ruleset: every kill and death with the positions of both players, every plant
+///     with the planter's, and every purchase and refund, as <c>player_event</c> tables. The round index pass reads them off the visit's rules run
 ///     and folds them into the captures part beside the positions.
 /// </summary>
 public static class RoundEventsTable
@@ -73,10 +95,15 @@ public static class RoundEventsTable
 
     public const string PlantsTable = "roundindex_plants";
 
+    public const string PurchasesTable = "roundindex_purchases";
+
+    public const string RefundsTable = "roundindex_refunds";
+
     private const string ResourceName = "DemoViewer.NET.Extensions.StratBook.Rulesets.roundindex_events.rules.yaml";
 
     /// <summary>Every table the ruleset declares.</summary>
-    public static IReadOnlyList<string> Tables { get; } = [KillsTable, DeathsTable, PlantsTable];
+    public static IReadOnlyList<string> Tables { get; } =
+        [KillsTable, DeathsTable, PlantsTable, PurchasesTable, RefundsTable];
 
     /// <summary>The ruleset's qualified id, as its YAML spells it.</summary>
     public static string RulesetId { get; } = RulesetContribution.QualifiedId(StratBookPack.PackId, RulesetName);
@@ -176,10 +203,37 @@ public static class RoundEventsTable
             plants.Add(new PlantEventRow(tick, slot, Int(row.Values, "site") ?? -1, Spot(row.Values)));
         }
 
+        List<PurchaseEventRow> purchases = [];
+        foreach (RoundTableRow row in rows(PurchasesTable))
+        {
+            if (Int(row.Dimensions, "tick") is not { } tick || Int(row.Dimensions, "player_slot") is not { } slot)
+            {
+                continue;
+            }
+
+            purchases.Add(new PurchaseEventRow(tick, slot, Str(row.Values, "item") ?? "unknown",
+                Int(row.Values, "def_index") ?? -1, Int(row.Values, "cost") ?? 0));
+        }
+
+        List<RefundEventRow> refunds = [];
+        foreach (RoundTableRow row in rows(RefundsTable))
+        {
+            if (Int(row.Dimensions, "tick") is not { } tick || Int(row.Dimensions, "player_slot") is not { } slot)
+            {
+                continue;
+            }
+
+            refunds.Add(new RefundEventRow(tick, slot, Str(row.Values, "item") ?? "unknown",
+                Int(row.Values, "refund") ?? 0));
+        }
+
         kills.Sort((a, b) => a.Tick != b.Tick ? a.Tick.CompareTo(b.Tick) : a.VictimSlot.CompareTo(b.VictimSlot));
         deaths.Sort((a, b) => a.Tick != b.Tick ? a.Tick.CompareTo(b.Tick) : a.VictimSlot.CompareTo(b.VictimSlot));
         plants.Sort((a, b) => a.Tick.CompareTo(b.Tick));
-        return new RoundEventRows(kills, deaths, plants);
+        // Stable on ties: one frame's buys keep the engine's order.
+        purchases = [.. purchases.OrderBy(p => p.Tick)];
+        refunds = [.. refunds.OrderBy(r => r.Tick)];
+        return new RoundEventRows(kills, deaths, plants) { Purchases = purchases, Refunds = refunds };
     }
 
     private static EventSpot? Spot(IReadOnlyDictionary<string, object?> values) =>

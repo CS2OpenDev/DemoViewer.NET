@@ -21,7 +21,7 @@ public static class RoundCapturesBuilder
     /// <param name="facts">The demo's Round Facts rows.</param>
     /// <param name="lastFrameTick">The last frame's clock.</param>
     /// <param name="tickRate">The demo's tick rate.</param>
-    /// <param name="events">The kill, death and plant rows.</param>
+    /// <param name="events">The kill, death, plant, purchase and refund rows.</param>
     /// <param name="frames">The collector's captures, or null when it did not run.</param>
     /// <param name="fingerprint">The index fingerprint the part is written under.</param>
     public static RoundCapturesDocument Build(RoundFactsRows facts, int lastFrameTick, int tickRate,
@@ -54,19 +54,15 @@ public static class RoundCapturesBuilder
             return document;
         }
 
-        foreach (CapturedPickup pickup in frames.Pickups.Where(p => p.Bought))
-        {
-            if (Owner(windows, pickup.Tick) is ({ } w, bool freezeTime))
-            {
-                w.Capture.Purchases.Add(new CapturedPurchase(pickup.Tick, pickup.Slot, pickup.Item, pickup.Cost,
-                    freezeTime));
-            }
-        }
-
+        FoldPurchases(windows, events);
+        HashSet<(int Tick, int Slot, string Item)> boughtPickups =
+        [
+            .. events.Purchases.SelectMany(p => Items(p.Item).Select(item => (p.Tick, p.Slot, item)))
+        ];
         foreach (Window w in windows)
         {
             FoldLoadouts(w, frames);
-            FoldAwp(w, frames);
+            FoldAwp(w, frames, boughtPickups);
             foreach (CapturedTrail trail in frames.Trails.Where(t => t.ShotTick >= w.FreezeEnd && t.ShotTick < w.End))
             {
                 w.Capture.FirstShots.Add(new FirstShotTrail(trail.Slot, trail.ShotTick,
@@ -85,6 +81,60 @@ public static class RoundCapturesBuilder
 
         return document;
     }
+
+    // A buy the engine could not split names its items joined with '+': one purchase each, the cost on the first.
+    // A refund takes back the slot's latest purchase of that round with its item, else with its cost.
+    private static void FoldPurchases(List<Window> windows, RoundEventRows events)
+    {
+        if (events.Purchases.Count == 0)
+        {
+            return;
+        }
+
+        List<(int Tick, int Slot, bool Refund, PurchaseEventRow? Buy, RefundEventRow? Sale)> stream =
+        [
+            .. events.Purchases.Select(p => (p.Tick, p.Slot, false, (PurchaseEventRow?)p, (RefundEventRow?)null)),
+            .. events.Refunds.Select(r => (r.Tick, r.Slot, true, (PurchaseEventRow?)null, (RefundEventRow?)r))
+        ];
+        // Purchases before refunds on one tick: a sale gives back a buy, never one made after it.
+        stream = [.. stream.OrderBy(e => e.Tick).ThenBy(e => e.Refund)];
+        foreach ((int tick, int slot, bool _, PurchaseEventRow? buy, RefundEventRow? sale) in stream)
+        {
+            if (Owner(windows, tick) is not ({ } w, bool freezeTime))
+            {
+                continue;
+            }
+
+            List<CapturedPurchase> bought = w.Capture.Purchases;
+            if (buy is not null)
+            {
+                bool first = true;
+                foreach (string item in Items(buy.Item))
+                {
+                    bought.Add(new CapturedPurchase(tick, slot, item, first ? buy.Cost : 0, freezeTime));
+                    first = false;
+                }
+
+                continue;
+            }
+
+            string sold = RoundCapturesFold.NormalizeItem(sale!.Item);
+            int index = bought.FindLastIndex(p => p.Slot == slot && p.Item == sold && sold != "unknown");
+            if (index < 0)
+            {
+                index = bought.FindLastIndex(p => p.Slot == slot && p.Cost == sale.Refund);
+            }
+
+            if (index >= 0)
+            {
+                bought.RemoveAt(index);
+            }
+        }
+    }
+
+    private static IEnumerable<string> Items(string item) =>
+        item.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(RoundCapturesFold.NormalizeItem);
 
     private static void FoldKills(List<Window> windows, RoundEventRows events)
     {
@@ -143,7 +193,7 @@ public static class RoundCapturesBuilder
         }
     }
 
-    private static void FoldAwp(Window w, RoundCaptureFrames frames)
+    private static void FoldAwp(Window w, RoundCaptureFrames frames, HashSet<(int Tick, int Slot, string Item)> boughtPickups)
     {
         Dictionary<int, Evidence> bySlot = [];
 
@@ -173,13 +223,14 @@ public static class RoundCapturesBuilder
             }
         }
 
+        foreach (CapturedPurchase purchase in w.Capture.Purchases.Where(p => p.Item == "awp"))
+        {
+            Of(purchase.Slot).Bought = true;
+        }
+
         foreach (CapturedPickup pickup in frames.Pickups.Where(p => p.Item == "awp" && p.Tick >= w.BuyStart && p.Tick < w.End))
         {
-            if (pickup.Bought)
-            {
-                Of(pickup.Slot).Bought = true;
-            }
-            else
+            if (!boughtPickups.Contains((pickup.Tick, pickup.Slot, "awp")))
             {
                 Of(pickup.Slot).PickedUp = true;
             }
