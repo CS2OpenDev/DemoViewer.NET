@@ -9,8 +9,9 @@ using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 
 /// <summary>
-///     Opening duels (T) and opening deaths (CT), from <see cref="OpeningDuelsService" />. CT rings the team's
-///     first death of the round; T draws opening kills as white dots and opening deaths as rings, both at the team's
+///     Opening duels (T) and opening deaths (CT), from <see cref="OpeningDuelsService" />. CT rings only the
+///     rounds the team lost the opening duel (their player died to the round's first kill), and its place bars
+///     count the same rounds; T draws opening kills as white dots and opening deaths as rings, both at the team's
 ///     player. The inspector has the place bars, the duel win %, the round won after winning or losing it, the
 ///     traded opening deaths and who opens, and on T the entry by site from the Opening Tendencies. Every number
 ///     opens its rounds.
@@ -101,12 +102,14 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
         OpeningTendencies? openings)
     {
         int rounds = block.Rounds.Count;
-        List<TendencyBucket> places = ByPlace(block.FirstDeaths.Select(d => (d.Spot, d.Clip)));
+        // The rings and the bars read the same rounds: the ones where their player died to the opening kill.
+        List<OpeningDeathRound> lostDuels = [.. block.FirstDeaths.Where(d => d.IsOpening)];
+        List<TendencyBucket> places = ByPlace(lostDuels.Select(d => (d.Spot, d.Clip)));
         List<ScoutingInspectorSection> sections =
         [
             new("", [SampleRow(context, block)]),
-            new("First CT death of the round · position ±1 s",
-                Rows(context, places, rounds, "first death", ScoutingColor.Bad)),
+            new("Where they lose the opening duel · position ±1 s",
+                Rows(context, places, rounds, "opening death", ScoutingColor.Bad)),
             new("Opening duels", DuelRows(context, block, "CT")),
             new("Who opens", WhoOpens(context, block))
         ];
@@ -116,7 +119,7 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
         if (Top(places, NoPosition) is { } place)
         {
             reads.Add(new ScoutingRead(
-                $"Their first CT death comes at {place.Label} in {Percent((double)place.Count / rounds)} of rounds.",
+                $"They lose the CT opening duel at {place.Label} in {Percent((double)place.Count / rounds)} of rounds.",
                 Suggested: true));
         }
 
@@ -136,12 +139,12 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
             CountLabel = $"{rounds} rds",
             Marks =
             [
-                .. block.FirstDeaths.Where(d => d.Spot is not null).SelectMany(d => DeathMarks(d.Spot!))
+                .. lostDuels.Where(d => d.Spot is not null).SelectMany(d => DeathMarks(d.Spot!))
             ],
             Reads = reads,
             Sections = [.. sections.Where(s => s.Rows.Count > 0)],
             Legend = [new ScoutingLegendEntry(new ScoutingSwatch(ScoutingMarkShape.Ring, ScoutingColor.Bad),
-                "ring = first CT death (position ±1 s)")]
+                "ring = where they lose the opening duel (position ±1 s)")]
         };
     }
 

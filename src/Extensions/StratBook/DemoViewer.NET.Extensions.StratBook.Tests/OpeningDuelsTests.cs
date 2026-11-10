@@ -288,8 +288,8 @@ public class OpeningDuelsTests
             await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.Ct, "opening");
         ScoutingLayerResult ctResult = vm.Layers.Find("opening")!.Result;
         bool ctOpens = ctRows.EveryNumberOpensItsRounds();
-        ScoutingInspectorRow ramp = ctRows.Titled("de_nuke CT · first death Ramp").Row!;
-        ScoutingInspectorRow hut = ctRows.Titled("de_nuke CT · first death Hut").Row!;
+        ScoutingInspectorRow hut = ctRows.Titled("de_nuke CT · opening death Hut").Row!;
+        bool rampRow = ctRows.Any(r => r.Row?.OpenTitle.Contains("Ramp", StringComparison.Ordinal) == true);
         ScoutingInspectorRow winPct = ctRows.Titled("de_nuke CT · opening duels won").Row!;
 
         using (Assert.Multiple())
@@ -306,12 +306,16 @@ public class OpeningDuelsTests
             await Assert.That(opener.Rounds.Count).IsEqualTo(3);
             await Assert.That(opener.Note).IsEqualTo("won 1 · lost 2");
 
-            await Assert.That(ctResult.Marks.Count(m => m.Shape == ScoutingMarkShape.Ring)).IsEqualTo(2);
+            await Assert.That(ctResult.Marks.Count(m => m.Shape == ScoutingMarkShape.Ring)).IsEqualTo(1)
+                .Because("round 5's first CT death came after the opening kill, which they won: no ring");
             await Assert.That(ctResult.Marks.All(m => m.Color == ScoutingColor.Bad)).IsTrue()
-                .Because("CT draws only first deaths: a ring over a faint disc");
+                .Because("CT draws only lost opening duels: a ring over a faint disc");
+            await Assert.That(ctResult.Legend.Single().Text)
+                .IsEqualTo("ring = where they lose the opening duel (position ±1 s)");
             await Assert.That(ctOpens).IsTrue();
-            await Assert.That(hut.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([4]);
-            await Assert.That(ramp.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([5]);
+            await Assert.That(hut.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([4])
+                .Because("the bars count the same rounds as the rings");
+            await Assert.That(rampRow).IsFalse().Because("a first death after a won opening is not a lost duel");
             await Assert.That(winPct.Value).IsEqualTo("50% · 1 of 2 duels");
             await Assert.That(winPct.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([5]);
         }
