@@ -151,7 +151,7 @@ internal static class StratLayerKit
     /// <summary>Why there are no patterns at all.</summary>
     public static ScoutingLayerResult NoPatterns(ScoutingLayerContext context) =>
         ScoutingLayerResult.Empty(context.Data.Sources.MinedPatterns is null
-            ? "not built on this host"
+            ? ScoutingLayerResult.NotOnThisHost
             : "strats not mined yet: Find strats in the Strat Book's Detected inbox");
 
     /// <summary>The team's side in a member round.</summary>
@@ -234,8 +234,7 @@ internal static class StratLayerKit
     private static List<IReadOnlyList<(float X, float Y, float Z)>> Steps(ScoutingLayerContext context,
         MinedMember rep, int endTick)
     {
-        if (context.Data.Sources.RoundIndex is not { } index
-            || index.TryReadPositions(rep.DemoPath, null, rep.Sha256) is not { } positions
+        if (context.Data.Positions.Read(rep.DemoPath, context.Map, rep.Sha256) is not { } positions
             || positions.Round(rep.Round) is not { } round)
         {
             return [];

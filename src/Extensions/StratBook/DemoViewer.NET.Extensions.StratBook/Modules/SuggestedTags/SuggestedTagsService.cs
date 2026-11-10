@@ -10,6 +10,7 @@ using DemoViewer.NET.Extensions.StratBook.Services.Generated;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats;
 using DemoViewer.NET.Extensions.StratBook.Services.Tags;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 using DemoViewer.NET.Playback2D.Annotations;
 using Microsoft.Extensions.Logging;
 
@@ -348,6 +349,26 @@ public sealed class SuggestedTagsService : IExtensionPass
     /// <summary>Whether a demo has what a build needs: a parse and Round Facts rows.</summary>
     /// <param name="path">The demo's path.</param>
     public bool CanDetect(string path) => HasInputs(_library.Find(path));
+
+    /// <summary>The map's site regions in force (learned table, then the profile's edits), as the Setups areas read them.</summary>
+    /// <param name="map">The map.</param>
+    public SetupSiteRegions SetupRegionsFor(string map)
+    {
+        SiteRegions regions = SiteRegions.Compose(map, null, TableFor(map), _profile());
+        return new SetupSiteRegions(regions.RegionOf(SiteRegions.SiteA), regions.RegionOf(SiteRegions.SiteB));
+    }
+
+    /// <summary>
+    ///     A demo's fake-then-rotate proposals, read only when they were built under the fingerprint in force for its
+    ///     map; null when there are none current. Reads a file: call it off the UI thread.
+    /// </summary>
+    /// <param name="demoPath">The demo.</param>
+    /// <param name="map">Its map.</param>
+    public IReadOnlyList<FakeRound>? FakeRoundsOf(string demoPath, string map) =>
+        Proposals.IsCurrent(demoPath, FingerprintFor(map)) && Proposals.TryRead(demoPath) is { } document
+            ? FakeRound.From(document.Proposals.Where(p => p.Detector == FakeDetector.DetectorId)
+                .Select(p => (p.Round, p.Side, (IReadOnlyDictionary<string, string>)p.Labels)))
+            : null;
 
     /// <summary>The detector-set fingerprint for a map's demos under the profile and regions in force.</summary>
     /// <param name="map">The map, or null.</param>

@@ -137,6 +137,71 @@ public class SetupsLayerTests
     }
 
     [Test]
+    public async Task TheAreaClassifier_ReadsTheSiteRegionsFirst_SharedPlacesAndOthersByDistance()
+    {
+        SetupSiteRegions regions = new(
+            new HashSet<string>(["BombsiteA", "Jungle", "Connector"], StringComparer.Ordinal),
+            new HashSet<string>(["BombsiteB", "Short", "Connector"], StringComparer.Ordinal));
+        List<SetupHeatmapRound> rounds =
+            [Round(1, Detail(true, Player("a", [At(0, "BombsiteA")]), Player("b", [At(2000, "BombsiteB")])))];
+        SetupAreaClassifier areas = SetupAreaClassifier.Learn(rounds, regions);
+        SetupAreaClassifier distance = SetupAreaClassifier.Learn(rounds);
+        using (Assert.Multiple())
+        {
+            await Assert.That(areas.HasRegions).IsTrue();
+            await Assert.That(distance.HasRegions).IsFalse();
+            await Assert.That(areas.Of(At(1000, "Jungle"))).IsEqualTo(SetupArea.A)
+                .Because("Jungle is in A's region, however far it is from the A centre");
+            await Assert.That(distance.Of(At(1000, "Jungle"))).IsEqualTo(SetupArea.Mid);
+            await Assert.That(areas.Of(At(1000, "Short"))).IsEqualTo(SetupArea.B);
+            await Assert.That(areas.Of(At(1000, "Connector"))).IsEqualTo(SetupArea.Mid)
+                .Because("a place both regions hold falls back to distance");
+            await Assert.That(areas.Of(At(1300, "Window"))).IsEqualTo(SetupArea.B)
+                .Because("a place outside the regions falls back to distance");
+            await Assert.That(areas.Of([At(1000, "Jungle"), At(1000, "Jungle"), At(1000, "Window")]))
+                .IsEqualTo(SetupArea.A).Because("the dominant place's region decides a player's setup");
+        }
+    }
+
+    [Test]
+    public async Task FakeRotations_CountACtLeavingTheRealSiteBeforeThePlant_OnSuggestedFakeRounds()
+    {
+        SetupRoundPlayer stays = Player("b", [At(2000, "BombsiteB")], new SetupTimedSample(0, At(2000, "BombsiteB")),
+            new SetupTimedSample(8, At(2000, "BombsiteB")));
+        SetupRoundPlayer leaves = Player("b2", [At(1950, "BombsiteB")], new SetupTimedSample(0, At(1950, "BombsiteB")),
+            new SetupTimedSample(4, At(1000, "Window")));
+        SetupRoundPlayer late = Player("b3", [At(1950, "BombsiteB")], new SetupTimedSample(12, At(0, "BombsiteA")));
+        SetupRoundPlayer anchorA = Player("a", [At(0, "BombsiteA")]);
+        List<SetupHeatmapRound> rounds =
+        [
+            Round(1, Planted(BombSite.B, 10, anchorA, stays, leaves)), // fake A, real B: b2 left B at 4 s
+            Round(2, Planted(BombSite.B, 10, anchorA, stays, late)), // fake A, real B: b3 left only after the plant
+            Round(3, Planted(BombSite.A, 10, anchorA, stays)), // the fake's real site was B, the plant A: left out
+            Round(4, Planted(BombSite.B, 10, anchorA)), // nobody on B to pull: left out
+            Round(5, Planted(BombSite.B, 10, anchorA, leaves)) // no fake proposed
+        ];
+        FakeRound fake = new(0, BombSite.A, BombSite.B);
+        SetupAreaClassifier areas = SetupAreaClassifier.Learn(rounds);
+
+        IReadOnlyList<FakeRotation> fakes = SetupsDerivation.FakeRotations(rounds, areas,
+            r => r.RoundNumber <= 4 ? fake with { Round = r.RoundNumber } : null);
+        IReadOnlyList<FakeRound> read = FakeRound.From(
+        [
+            (7, 2, new Dictionary<string, string> { ["fake"] = "BombsiteA", ["real"] = "BombsiteB" }),
+            (8, 3, new Dictionary<string, string> { ["fake"] = "BombsiteA", ["real"] = "BombsiteB" }),
+            (9, 2, new Dictionary<string, string> { ["fake"] = "Mid", ["real"] = "BombsiteB" })
+        ]);
+        using (Assert.Multiple())
+        {
+            await Assert.That(fakes.Select(f => f.Round.RoundNumber)).IsEquivalentTo([1, 2], CollectionOrdering.Matching);
+            await Assert.That(fakes.Select(f => f.RotatedOff)).IsEquivalentTo([true, false], CollectionOrdering.Matching);
+            await Assert.That(fakes[0].Rotator).IsEqualTo("b2");
+            await Assert.That(read).IsEquivalentTo([new FakeRound(7, BombSite.A, BombSite.B)])
+                .Because("only T-side proposals naming both sites count");
+        }
+    }
+
+    [Test]
     public async Task Rotations_TimeTheFirstCtFromElsewhereOntoTheHitSite_AndWhetherItBeatThePlant()
     {
         SetupRoundPlayer anchorA = Player("a", [At(0, "BombsiteA")], new SetupTimedSample(0, At(0, "BombsiteA")));
@@ -251,6 +316,40 @@ public class SetupsLayerTests
     // ---- Through the tab ----
 
     [Test]
+    public async Task TheFakeRow_ReadsSuggestedTagsFakes_AndSaysHowManyDemosHadThem()
+    {
+        using Harness h = await Harness.Create();
+        QueuedPost posted = new();
+        List<string> asked = [];
+        using ScoutingReportTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
+            h.Service, null, _ => true, () => new SetupHeatmapRenderer(_ => null), posted.Post,
+            fakes: (path, _) =>
+            {
+                lock (asked)
+                {
+                    asked.Add(path);
+                }
+
+                return [new FakeRound(1, BombSite.A, BombSite.B), new FakeRound(4, BombSite.A, BombSite.B)];
+            });
+        vm.SelectedTeam = vm.Teams.Single(t => t.Id == h.TeamB);
+        await ScoutingReportTestKit.Settle(vm, posted);
+        IReadOnlyList<ScoutingInspectorRowViewModel> rows =
+            await ScoutingReportTestKit.Inspect(vm, posted, "de_mirage", ScoutingSide.Ct, "setups");
+        ScoutingInspectorRow fake = rows.Single(r => r.Label == "Rotated off a site on a fake").Row!;
+        int reads = asked.Count;
+        await ScoutingReportTestKit.Inspect(vm, posted, "de_mirage", ScoutingSide.Ct, "setups");
+        using (Assert.Multiple())
+        {
+            await Assert.That(fake.IsPlaceholder).IsFalse();
+            await Assert.That(fake.Value).EndsWith("of 2 rounds").Because("rounds 1 and 4 are B hits after a fake on A");
+            await Assert.That(fake.Note!).Contains("current for 1 of 1 demo");
+            await Assert.That(fake.Rounds.All(r => r.RoundNumber is 1 or 4)).IsTrue();
+            await Assert.That(asked.Count).IsEqualTo(reads).Because("the fakes are read once per team load");
+        }
+    }
+
+    [Test]
     public async Task TheLayer_DrawsPlayerColours_AndEveryNumberOpensItsRounds_AndShowCtSetupIsolates()
     {
         using Harness h = await Harness.Create();
@@ -286,7 +385,8 @@ public class SetupsLayerTests
                 .IsEquivalentTo([1, 4], CollectionOrdering.Matching);
             await Assert.That(beforePlant.Value).IsEqualTo("2 of 3 rounds");
             await Assert.That(beforePlant.Row!.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([1, 2], CollectionOrdering.Matching);
-            await Assert.That(rows.Single(r => r.Label == "Rotated off a site on a fake").Row!.IsPlaceholder).IsTrue();
+            await Assert.That(rows.Single(r => r.Label == "Rotated off a site on a fake").Row!.IsPlaceholder).IsTrue()
+                .Because("this tab has no Suggested Tags source");
             await Assert.That(rows.EveryNumberOpensItsRounds()).IsTrue();
             await Assert.That(vm.Players.Select(p => $"{p.Name}:{p.Color}:{p.CtSpot}")).IsEquivalentTo(
                 ["p5:Player1:A site", "p6:Player2:Jungle", "p7:Player3:Window", "p8:Player4:B site", "p9:Player5:B site"],

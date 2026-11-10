@@ -6,6 +6,7 @@ using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 
 #endregion
 
@@ -36,6 +37,24 @@ public sealed class ScoutingReportSources
     public RoundIndexStore? RoundIndex { get; init; }
 
     /// <summary>
+    ///     The fingerprint current positions carry per map, the one the Setup Heatmaps read under; null accepts
+    ///     any file (a test host). Layers read positions through <see cref="ScoutingReportData.Positions" />.
+    /// </summary>
+    public Func<string?, string>? PositionsFingerprint { get; init; }
+
+    /// <summary>
+    ///     A map's site regions as Suggested Tags composes them (learned table and the profile's edits); the
+    ///     Setups areas use them before the distance rule. Null on a host without Suggested Tags.
+    /// </summary>
+    public Func<string, SetupSiteRegions?>? SiteRegions { get; init; }
+
+    /// <summary>
+    ///     A demo's current fake-then-rotate proposals (demo path, map), or null when Suggested Tags has none current
+    ///     for it. Reads a file per demo. Null on a host without Suggested Tags.
+    /// </summary>
+    public Func<string, string, IReadOnlyList<FakeRound>?>? Fakes { get; init; }
+
+    /// <summary>
     ///     The library-wide Strat Mining patterns, read at build time: null when nothing has been mined yet. The
     ///     source itself is null on a host without a miner (the browser).
     /// </summary>
@@ -60,6 +79,7 @@ public sealed class ScoutingReportData
         TeamId = teamId;
         TeamName = teamName;
         Sources = sources;
+        Positions = new PositionsReader(sources.RoundIndex, sources.PositionsFingerprint);
     }
 
     public Guid TeamId { get; }
@@ -67,6 +87,12 @@ public sealed class ScoutingReportData
     public string TeamName { get; }
 
     public ScoutingReportSources Sources { get; }
+
+    /// <summary>
+    ///     The one reader every layer takes round positions through: it applies the per-map fingerprint and
+    ///     counts the team's demos it could not read, stale ones included, for the partial-positions notice.
+    /// </summary>
+    public PositionsReader Positions { get; }
 
     public MapPoolRecord Record { get; private init; } = new();
 

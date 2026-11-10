@@ -46,7 +46,7 @@ public sealed class RetakesLayer() : ScoutingLayerBase("retakes", "Retakes and s
         {
             try
             {
-                return new RetakeService(sources.Teams, sources.Library, sources.RoundFacts, sources.RoundIndex)
+                return new RetakeService(sources.Teams, sources.Library, sources.RoundFacts, data.Positions)
                     .Build(data.TeamId);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
@@ -56,7 +56,7 @@ public sealed class RetakesLayer() : ScoutingLayerBase("retakes", "Retakes and s
         })).WaitAsync(cancellationToken).ConfigureAwait(false);
         if (set is null)
         {
-            return ScoutingLayerResult.Empty("retakes unavailable");
+            return ScoutingLayerResult.Unreadable("retakes", null);
         }
 
         List<RetakeRound> rounds =
@@ -145,8 +145,8 @@ public sealed class RetakesLayer() : ScoutingLayerBase("retakes", "Retakes and s
             Sections = [.. sections.Where(s => s.Rows.Count > 0)],
             Legend =
             [
-                new ScoutingLegendEntry(_reached, "blue = CT reached the bomb"),
-                new ScoutingLegendEntry(_saved, "grey ring = CT saved")
+                new ScoutingLegendEntry(_reached, "blue dot = a CT who reached the bomb"),
+                new ScoutingLegendEntry(_saved, "grey ring = a CT who saved")
             ]
         };
     }

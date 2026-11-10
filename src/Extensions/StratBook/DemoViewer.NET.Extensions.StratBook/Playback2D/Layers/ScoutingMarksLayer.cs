@@ -14,6 +14,11 @@ namespace DemoViewer.NET.Extensions.StratBook.Playback2D.Layers;
 ///     floor, drawn at the document's fade (30 % while another layer is inspected). Dots and rings are setups,
 ///     deaths and plant spots; badges are numbered route ends and lettered strats; clouds are grenade landings.
 ///     The CT and T colours come from the scene palette, so the stage follows the theme like the 2D viewer.
+///     <para>
+///         Every mark sits on a dark halo <see cref="HaloWidth" /> wide, at the mark's own opacity: on the light
+///         greys of some radars (de_nuke's floor) the bad red measured about 1.2:1 against the art, and the halo
+///         is what separates the mark from the floor there. On dark art it only thickens the edge.
+///     </para>
 /// </summary>
 public sealed class ScoutingMarksLayer : ISceneLayer
 {
@@ -24,6 +29,17 @@ public sealed class ScoutingMarksLayer : ISceneLayer
         new(0xD5, 0x51, 0x81)
     ];
 
+    /// <summary>How far the dark halo reaches past a mark's edge, in screen pixels.</summary>
+    public const float HaloWidth = 1.75f;
+
+    // The ring stroke; the halo stroke is this plus a halo each side.
+    private const float RingWidth = 2f;
+
+    // The halo's share of the mark's own alpha: dark enough to cut out the mark, light enough not to read as a
+    // second, black mark around a faint one.
+    private const float HaloShare = 0.85f;
+
+    private static readonly SKColor _halo = new(0x0A, 0x0C, 0x12);
     private static readonly SKColor _bad = new(0xEC, 0x7A, 0x72);
     private static readonly SKColor _lurk = new(0xD5, 0x51, 0x81);
     private static readonly SKColor _neutral = new(0xE4, 0xE7, 0xF2);
@@ -31,7 +47,7 @@ public sealed class ScoutingMarksLayer : ISceneLayer
     private readonly ScoutingMarksDocument _document;
     private readonly SKPaint _fill = new() { Style = SKPaintStyle.Fill, IsAntialias = true };
     private readonly SKFont _font = new() { Size = 11f, Embolden = true };
-    private readonly SKPaint _stroke = new() { Style = SKPaintStyle.Stroke, StrokeWidth = 2f, IsAntialias = true };
+    private readonly SKPaint _stroke = new() { Style = SKPaintStyle.Stroke, StrokeWidth = RingWidth, IsAntialias = true };
     private readonly SKPathEffect _dash = SKPathEffect.CreateDash([3f, 3f], 0);
 
     /// <param name="id">The layer's id.</param>
@@ -85,30 +101,29 @@ public sealed class ScoutingMarksLayer : ISceneLayer
             SKPoint at = new((float)x, (float)y);
             SKColor color = ColorOf(mark.Color, in ctx);
             byte alpha = (byte)Math.Clamp(255 * mark.Opacity * fade, 0, 255);
+            SKColor halo = _halo.WithAlpha((byte)(alpha * HaloShare));
             switch (mark.Shape)
             {
                 case ScoutingMarkShape.Dot:
+                case ScoutingMarkShape.Badge:
+                    _fill.Color = halo;
+                    canvas.DrawCircle(at, mark.Size + HaloWidth, _fill);
                     _fill.Color = color.WithAlpha(alpha);
                     canvas.DrawCircle(at, mark.Size, _fill);
+                    if (mark.Shape == ScoutingMarkShape.Badge)
+                    {
+                        DrawText(canvas, at, mark.Text, new SKColor(0x12, 0x14, 0x1C, alpha), null);
+                    }
+
                     break;
                 case ScoutingMarkShape.Ring:
-                    _stroke.PathEffect = null;
-                    _stroke.Color = color.WithAlpha(alpha);
-                    canvas.DrawCircle(at, mark.Size, _stroke);
-                    break;
-                case ScoutingMarkShape.Badge:
-                    _fill.Color = color.WithAlpha(alpha);
-                    canvas.DrawCircle(at, mark.Size, _fill);
-                    DrawText(canvas, at, mark.Text, new SKColor(0x12, 0x14, 0x1C, alpha));
+                    Ring(canvas, at, mark.Size, color.WithAlpha(alpha), halo, null);
                     break;
                 case ScoutingMarkShape.Cloud:
                     _fill.Color = color.WithAlpha((byte)(alpha * 0.18f));
                     canvas.DrawCircle(at, mark.Size, _fill);
-                    _stroke.PathEffect = _dash;
-                    _stroke.Color = color.WithAlpha(alpha);
-                    canvas.DrawCircle(at, mark.Size, _stroke);
-                    _stroke.PathEffect = null;
-                    DrawText(canvas, at, mark.Text, color.WithAlpha(alpha));
+                    Ring(canvas, at, mark.Size, color.WithAlpha(alpha), halo, _dash);
+                    DrawText(canvas, at, mark.Text, color.WithAlpha(alpha), halo);
                     break;
             }
         }
@@ -136,15 +151,39 @@ public sealed class ScoutingMarksLayer : ISceneLayer
         _ => _neutral
     };
 
-    private void DrawText(SKCanvas canvas, SKPoint at, string? text, SKColor color)
+    // A ring over a solid halo ring: the halo stays solid under a dashed (cloud) ring so the dashes read on any art.
+    private void Ring(SKCanvas canvas, SKPoint at, float radius, SKColor color, SKColor halo, SKPathEffect? dash)
+    {
+        _stroke.PathEffect = null;
+        _stroke.StrokeWidth = RingWidth + 2 * HaloWidth;
+        _stroke.Color = halo;
+        canvas.DrawCircle(at, radius, _stroke);
+        _stroke.StrokeWidth = RingWidth;
+        _stroke.PathEffect = dash;
+        _stroke.Color = color;
+        canvas.DrawCircle(at, radius, _stroke);
+        _stroke.PathEffect = null;
+    }
+
+    private void DrawText(SKCanvas canvas, SKPoint at, string? text, SKColor color, SKColor? halo)
     {
         if (string.IsNullOrEmpty(text))
         {
             return;
         }
 
-        _fill.Color = color;
         float width = _font.MeasureText(text);
-        canvas.DrawText(text, at.X - width / 2, at.Y + _font.Size * 0.35f, _font, _fill);
+        float x = at.X - width / 2;
+        float y = at.Y + _font.Size * 0.35f;
+        if (halo is { } h)
+        {
+            _stroke.StrokeWidth = 2 * HaloWidth;
+            _stroke.Color = h;
+            canvas.DrawText(text, x, y, _font, _stroke);
+            _stroke.StrokeWidth = RingWidth;
+        }
+
+        _fill.Color = color;
+        canvas.DrawText(text, x, y, _font, _fill);
     }
 }

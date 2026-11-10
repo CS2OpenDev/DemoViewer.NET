@@ -140,7 +140,7 @@ public sealed class RetakeService
     private const int FallbackTickRate = 64;
 
     private readonly IExtensionLibrary _library;
-    private readonly RoundIndexStore? _positions;
+    private readonly PositionsReader? _positions;
     private readonly IRoundFacts _roundFacts;
     private readonly TeamIdentityService _teams;
 
@@ -149,7 +149,7 @@ public sealed class RetakeService
     /// <param name="roundFacts">The Round Facts rows per demo.</param>
     /// <param name="positions">The positions files; null reads every planted round as unread.</param>
     public RetakeService(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts,
-        RoundIndexStore? positions)
+        PositionsReader? positions)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -180,7 +180,7 @@ public sealed class RetakeService
             }
 
             read++;
-            RoundPositionsDocument? positions = _positions?.TryReadPositions(demo.Path, null, record.Sha256);
+            RoundPositionsDocument? positions = _positions?.Read(demo.Path, map, record.Sha256);
             if (positions is null)
             {
                 withoutPositions++;

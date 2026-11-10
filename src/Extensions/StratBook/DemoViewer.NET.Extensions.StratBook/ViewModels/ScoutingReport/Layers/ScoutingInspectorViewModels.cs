@@ -188,13 +188,7 @@ public sealed partial class ScoutingInspectorViewModel : ObservableObject
         Title = title;
         ScopeLine = scope;
         BuildCode = buildCode;
-        StatusMessage = status.State switch
-        {
-            ScoutingLayerState.Building => "Building…",
-            ScoutingLayerState.Placeholder => status.GapId is { } gap ? $"{status.Message} [{gap}]" : status.Message,
-            ScoutingLayerState.Empty => status.Message,
-            _ => ""
-        };
+        StatusMessage = status.State == ScoutingLayerState.Ready ? "" : status.Display;
         Reads.Clear();
         foreach (ScoutingInspectorRowViewModel read in reads)
         {

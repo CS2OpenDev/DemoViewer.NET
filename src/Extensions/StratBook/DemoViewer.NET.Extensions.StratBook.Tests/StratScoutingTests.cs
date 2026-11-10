@@ -5,6 +5,7 @@ using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -271,6 +272,98 @@ public class StratScoutingTests
     }
 
     [Test]
+    public async Task TheStratsLayers_RebuildWhenMiningPublishes_AndNoOtherLayerDoes()
+    {
+        IReadOnlyList<MinedPattern>? patterns = null;
+        DemoCacheStore cache = new(null);
+        using TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
+        await teams.StartAsync();
+        ScoutingReportData data = ScoutingReportData.Start(_team, "Scouted",
+            new ScoutingReportSources { Teams = teams, Library = cache.Library(), MinedPatterns = () => patterns },
+            _ => _inline);
+        CountingLayer other = new();
+        using ScoutingLayerRegistry registry = new([new StratsLayer((_, m) => SideOf(m), (_, _) => null), other],
+            a => a(), new NoRows());
+        registry.SetScope(data, "de_nuke", ScoutingSide.T, ScoutingBuy.All);
+        await registry.Idle;
+        ScoutingLayerState before = registry.Find("strats")!.Status.State;
+
+        patterns = [P("big", [M("/t/a.dem", 1, false), M("/t/b.dem", 2, true)])];
+        registry.Rebuild("strats", "against");
+        await registry.Idle;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(before).IsEqualTo(ScoutingLayerState.Empty);
+            await Assert.That(registry.Find("strats")!.Status.State).IsEqualTo(ScoutingLayerState.Ready);
+            await Assert.That(registry.Find("strats")!.Result.CountLabel).IsEqualTo("1 strat");
+            await Assert.That(other.Builds).IsEqualTo(1).Because("only the strat layers rebuild");
+        }
+    }
+
+    [Test]
+    public async Task TheTab_WatchesStratMining_UntilDisposed()
+    {
+        DemoCacheStore cache = new(null);
+        using TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
+        await teams.StartAsync();
+        Action? watched = null;
+        bool released = false;
+        ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), false,
+            post: a => a(), runSection: _ => _inline, minedPatterns: () => null,
+            watchMinedPatterns: handler =>
+            {
+                watched = handler;
+                return new Release(() => released = true);
+            });
+        watched?.Invoke(); // no team in view: nothing to rebuild, and no throw
+        bool before = released;
+        vm.Dispose();
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(watched is not null).IsTrue();
+            await Assert.That(before).IsFalse();
+            await Assert.That(released).IsTrue();
+        }
+    }
+
+    private sealed class Release(Action undo) : IDisposable
+    {
+        public void Dispose() => undo();
+    }
+
+    private sealed class NoRows : IScoutingRowHost
+    {
+        public bool IsStarred(string key) => false;
+
+        public void SetStarred(string key, bool starred)
+        {
+        }
+
+        public void Open(ScoutingInspectorRowViewModel row)
+        {
+        }
+
+        public void Play(ScoutingInspectorRowViewModel row)
+        {
+        }
+    }
+
+    private sealed class CountingLayer() : ScoutingLayerBase("count", "Count", ScoutingLayerPlacement.Map,
+        ScoutingSides.Both, new ScoutingSwatch(ScoutingMarkShape.Dot, ScoutingColor.Neutral), "E")
+    {
+        public int Builds { get; private set; }
+
+        public override Task<ScoutingLayerResult> BuildAsync(ScoutingLayerContext context,
+            CancellationToken cancellationToken)
+        {
+            Builds++;
+            return Task.FromResult(new ScoutingLayerResult());
+        }
+    }
+
+    [Test]
     public async Task TheStratsLayers_SayWhyTheyAreEmpty()
     {
         ScoutingLayerResult noSource = await new StratsLayer().BuildAsync(
@@ -285,7 +378,7 @@ public class StratScoutingTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(noSource.Status.Message).IsEqualTo("not built on this host");
+            await Assert.That(noSource.Status.Message).IsEqualTo(ScoutingLayerResult.NotOnThisHost);
             await Assert.That(notMined.Status.Message)
                 .IsEqualTo("strats not mined yet: Find strats in the Strat Book's Detected inbox");
             await Assert.That(none.Status.State).IsEqualTo(ScoutingLayerState.Empty);

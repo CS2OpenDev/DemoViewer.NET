@@ -2,6 +2,7 @@
 
 using System.Globalization;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 
 #endregion
 
@@ -38,7 +39,7 @@ public static class OpeningDuelsService
     /// <param name="positions">The round positions files; null draws no marks.</param>
     /// <param name="teamId">The team.</param>
     public static OpeningDuelSet Build(TeamIdentityService teams, IExtensionLibrary library, IRoundFacts roundFacts,
-        RoundIndexStore? positions, Guid teamId)
+        PositionsReader? positions, Guid teamId)
     {
         ArgumentNullException.ThrowIfNull(teams);
         ArgumentNullException.ThrowIfNull(library);
@@ -58,7 +59,7 @@ public static class OpeningDuelsService
             }
 
             read++;
-            RoundPositionsDocument? file = positions?.TryReadPositions(demo.Path, null, record.Sha256);
+            RoundPositionsDocument? file = positions?.Read(demo.Path, map, record.Sha256);
             if (file is null)
             {
                 withoutPositions++;

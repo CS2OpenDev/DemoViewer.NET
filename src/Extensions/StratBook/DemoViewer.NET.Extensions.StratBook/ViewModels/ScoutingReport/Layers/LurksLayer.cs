@@ -51,7 +51,7 @@ public sealed class LurksLayer() : ScoutingLayerBase("lurks", "Lurks", ScoutingL
 
         if (block.LurkRounds == 0)
         {
-            return ScoutingLayerResult.Empty("lurk: no positions for these rounds; rebuild the index");
+            return ScoutingLayerResult.Empty("no positions for these rounds; rebuild the round index");
         }
 
         IReadOnlyList<LurkSample> rounds = Filter(block.LurkSamples, context.Buy);
@@ -61,7 +61,7 @@ public sealed class LurksLayer() : ScoutingLayerBase("lurks", "Lurks", ScoutingL
                 $"no {(context.Buy == ScoutingBuy.All ? "" : context.Buy.ToString().ToLowerInvariant() + " ")}T rounds with positions on {context.Map}");
         }
 
-        IReadOnlyDictionary<string, ScoutingColor> colors = LurkPlayerColors.For(context.Data.Sources, context.TeamId);
+        IReadOnlyDictionary<string, ScoutingColor> colors = ScoutingPlayerColors.Lookup(context.Data.Sources.Teams, context.TeamId);
         List<LurkDetail> lurks = [.. rounds.Where(r => r.Lurk is not null).Select(r => r.Lurk!)];
         TendencyBucket all = new("rounds", [.. rounds.Select(r => r.Opening)]);
         TendencyBucket lurking = new("lurk rounds", [.. lurks.Select(l => l.Clip)]);
@@ -80,14 +80,18 @@ public sealed class LurksLayer() : ScoutingLayerBase("lurks", "Lurks", ScoutingL
                         "lurker", colors.TryGetValue(g.Key, out ScoutingColor c) ? c : ScoutingColor.Lurk))
             ]),
             new("Split-off, seconds after freeze end", Rows(context, ClockBuckets(rounds), rounds.Count, "lurk")),
-            new("Via", Rows(context, ViaBuckets(lurks), lurks.Count, "via"))
+            // The star keeps the place's own name ("via BombsiteA"); the row shows it as the setups do ("A site").
+            new("Via", [
+                .. ViaBuckets(lurks).Select(b => Row(context, b, lurks.Count, "via",
+                    label: SetupsDerivation.PlaceLabel(b.Label)))
+            ])
         ];
 
         List<ScoutingRead> reads = [];
         if (lurks.GroupBy(l => l.Name, StringComparer.Ordinal).OrderByDescending(g => g.Count())
                 .ThenBy(g => g.Key, StringComparer.Ordinal).FirstOrDefault() is { } top)
         {
-            string via = ViaBuckets(lurks).FirstOrDefault() is { } v ? $", most often via {v.Label}" : "";
+            string via = ViaBuckets(lurks).FirstOrDefault() is { } v ? $", most often via {SetupsDerivation.PlaceLabel(v.Label)}" : "";
             reads.Add(new ScoutingRead(
                 $"{top.Key} lurks most: {CountText(top.Count(), rounds.Count)}; the lurk splits off at {Clock(Median(lurks.Select(l => l.SplitSeconds)))} (median){via}.",
                 Suggested: true));
@@ -96,14 +100,16 @@ public sealed class LurksLayer() : ScoutingLayerBase("lurks", "Lurks", ScoutingL
         List<ScoutingMapMark> marks =
         [
             .. lurks.Where(l => l.At30 is not null).Select(l => new ScoutingMapMark(l.At30!.Value.X, l.At30.Value.Y,
-                l.At30.Value.Z, ScoutingMarkShape.Dot, ScoutingColor.Lurk, 5f, Opacity: 0.85f))
+                l.At30.Value.Z, ScoutingMarkShape.Dot,
+                colors.TryGetValue(l.Name, out ScoutingColor c) ? c : ScoutingColor.Lurk, 5f, Opacity: 0.85f))
         ];
         return new ScoutingLayerResult
         {
             CountLabel = $"{lurks.Count} rds",
             Reads = reads,
             Marks = marks,
-            Legend = [new ScoutingLegendEntry(Swatch, $"dot = lurker at {Clock(LurkRoutes.SnapshotSeconds)}")],
+            Legend = [new ScoutingLegendEntry(Swatch,
+                $"dot = the lurker at {Clock(LurkRoutes.SnapshotSeconds)}, in their Players colour")],
             Sections = [.. sections.Where(s => s.Rows.Count > 0)]
         };
     }

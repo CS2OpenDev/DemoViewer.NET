@@ -6,6 +6,11 @@ using System.Globalization;
 
 namespace DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 
+/// <summary>A map's site regions for the Setups areas: the places counted as each site, the site place included.</summary>
+/// <param name="A">The A region.</param>
+/// <param name="B">The B region.</param>
+public sealed record SetupSiteRegions(IReadOnlySet<string> A, IReadOnlySet<string> B);
+
 /// <summary>The three areas a CT setup is counted in: A, mid, B.</summary>
 public enum SetupArea
 {
@@ -15,10 +20,12 @@ public enum SetupArea
 }
 
 /// <summary>
-///     Puts a CT position in A, mid or B. A sample whose place is a bombsite is that site; any other is the site
-///     whose centre (the mean of every CT sample named after it) is near, where near is within
-///     <see cref="SiteShare" /> of the distance between the two centres, and mid otherwise. Height counts double,
-///     so stacked sites (de_nuke) stay apart. Without both centres every non-site place is mid.
+///     Puts a CT position in A, mid or B. A sample whose place is a bombsite is that site. When the map's site
+///     regions are known (Suggested Tags' learned or edited table: each site's place plus its approaches), a place
+///     in one site's region and not the other's is that site. Any other is the site whose centre (the mean of every
+///     CT sample named after it) is near, where near is within <see cref="SiteShare" /> of the distance between the
+///     two centres, and mid otherwise. Height counts double, so stacked sites (de_nuke) stay apart. Without both
+///     centres every place outside the regions is mid.
 /// </summary>
 public sealed class SetupAreaClassifier
 {
@@ -31,19 +38,31 @@ public sealed class SetupAreaClassifier
 
     private readonly (double X, double Y, double Z)? _a;
     private readonly (double X, double Y, double Z)? _b;
+    private readonly HashSet<string> _aOnly;
+    private readonly HashSet<string> _bOnly;
 
-    private SetupAreaClassifier((double, double, double)? a, (double, double, double)? b)
+    private SetupAreaClassifier((double, double, double)? a, (double, double, double)? b,
+        SetupSiteRegions? regions)
     {
         _a = a;
         _b = b;
+        // A place both regions hold (a shared mid approach) is no evidence for either site: distance decides it.
+        _aOnly = new HashSet<string>(regions?.A ?? Enumerable.Empty<string>(), StringComparer.Ordinal);
+        _bOnly = new HashSet<string>(regions?.B ?? Enumerable.Empty<string>(), StringComparer.Ordinal);
+        _aOnly.ExceptWith(regions?.B ?? Enumerable.Empty<string>());
+        _bOnly.ExceptWith(regions?.A ?? Enumerable.Empty<string>());
     }
+
+    /// <summary>The map's site regions put places on a site, beyond the two bombsite places.</summary>
+    public bool HasRegions => _aOnly.Count > 1 || _bOnly.Count > 1;
 
     /// <summary>Both site centres are known, so a position off the site places can still be put on a site.</summary>
     public bool HasSites => _a is not null && _b is not null;
 
     /// <summary>Learns the site centres from every CT sample of the rounds.</summary>
     /// <param name="rounds">The rounds of one map, every buy.</param>
-    public static SetupAreaClassifier Learn(IEnumerable<SetupHeatmapRound> rounds)
+    /// <param name="regions">The map's site regions, or null to decide by distance alone.</param>
+    public static SetupAreaClassifier Learn(IEnumerable<SetupHeatmapRound> rounds, SetupSiteRegions? regions = null)
     {
         ArgumentNullException.ThrowIfNull(rounds);
         (double X, double Y, double Z, int N) a = default;
@@ -65,7 +84,7 @@ public sealed class SetupAreaClassifier
         }
 
         return new SetupAreaClassifier(a.N > 0 ? (a.X / a.N, a.Y / a.N, a.Z / a.N) : null,
-            b.N > 0 ? (b.X / b.N, b.Y / b.N, b.Z / b.N) : null);
+            b.N > 0 ? (b.X / b.N, b.Y / b.N, b.Z / b.N) : null, regions);
     }
 
     /// <summary>The area of one sample.</summary>
@@ -74,7 +93,7 @@ public sealed class SetupAreaClassifier
     {
         SiteA => SetupArea.A,
         SiteB => SetupArea.B,
-        _ => Near(sample.X, sample.Y, sample.Z)
+        _ => InRegion(sample.Place) ?? Near(sample.X, sample.Y, sample.Z)
     };
 
     /// <summary>The area a player held over a window: their most-sampled place when it is a site, else their mean position.</summary>
@@ -93,8 +112,19 @@ public sealed class SetupAreaClassifier
             return place == SiteA ? SetupArea.A : SetupArea.B;
         }
 
+        if (InRegion(place) is { } region)
+        {
+            return region;
+        }
+
         return Near(samples.Average(s => s.X), samples.Average(s => s.Y), samples.Average(s => s.Z));
     }
+
+    private SetupArea? InRegion(string? place) =>
+        place is null ? null
+        : _aOnly.Contains(place) ? SetupArea.A
+        : _bOnly.Contains(place) ? SetupArea.B
+        : null;
 
     private SetupArea Near(double x, double y, double z)
     {
@@ -375,6 +405,72 @@ public static class SetupsDerivation
             if (any)
             {
                 result.Add(new SetupRotation(round, detail.PlantSite, first, rotator, first is { } f && f < plant));
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    ///     The fake rounds the team defended that the T side planted on the real site after contact: whether a CT set
+    ///     up on the real site (by <paramref name="areas" />) was off it after contact and before the plant, which
+    ///     is the fake pulling a defender away. A round with no CT set up on the real site has nobody to pull and is
+    ///     left out.
+    /// </summary>
+    /// <param name="rounds">The rounds.</param>
+    /// <param name="areas">The map's areas.</param>
+    /// <param name="fakeOf">The round's fake proposal, or null.</param>
+    public static IReadOnlyList<FakeRotation> FakeRotations(IEnumerable<SetupHeatmapRound> rounds,
+        SetupAreaClassifier areas, Func<SetupHeatmapRound, FakeRound?> fakeOf)
+    {
+        ArgumentNullException.ThrowIfNull(rounds);
+        ArgumentNullException.ThrowIfNull(areas);
+        ArgumentNullException.ThrowIfNull(fakeOf);
+        List<FakeRotation> result = [];
+        foreach (SetupHeatmapRound round in rounds)
+        {
+            if (fakeOf(round) is not { } fake
+                || round.Detail is not { PlantAfterContactSeconds: { } plant } detail
+                || detail.PlantSite != fake.Real)
+            {
+                continue;
+            }
+
+            SetupArea real = fake.Real == BombSite.A ? SetupArea.A : SetupArea.B;
+            bool anyHolder = false;
+            double? first = null;
+            string? rotator = null;
+            foreach (SetupRoundPlayer player in detail.Players.Where(p => p.Setup.Count > 0))
+            {
+                if (areas.Of(player.Setup) != real)
+                {
+                    continue;
+                }
+
+                anyHolder = true;
+                foreach (SetupTimedSample t in player.AfterContact)
+                {
+                    if (t.Seconds >= plant)
+                    {
+                        break;
+                    }
+
+                    if (areas.Of(t.Sample) != real)
+                    {
+                        if (first is null || t.Seconds < first)
+                        {
+                            first = t.Seconds;
+                            rotator = player.Name;
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            if (anyHolder)
+            {
+                result.Add(new FakeRotation(round, fake, first is not null, rotator));
             }
         }
 

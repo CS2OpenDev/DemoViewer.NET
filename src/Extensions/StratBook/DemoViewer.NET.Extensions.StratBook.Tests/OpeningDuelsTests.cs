@@ -3,6 +3,7 @@
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Services.DemoCache;
@@ -208,7 +209,8 @@ public class OpeningDuelsTests
     {
         (DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store, Guid teamA) = await Library();
 
-        OpeningDuelSet set = OpeningDuelsService.Build(teams, cache.Library(), cache.RoundFacts(), store, teamA);
+        OpeningDuelSet set =
+            OpeningDuelsService.Build(teams, cache.Library(), cache.RoundFacts(), new PositionsReader(store, null), teamA);
         OpeningDuelBlock t = set.For("de_nuke", 2)!;
         OpeningDuelBlock ct = set.For("de_nuke", 3)!;
         using (Assert.Multiple())
@@ -236,6 +238,34 @@ public class OpeningDuelsTests
     }
 
     [Test]
+    public async Task StalePositions_ReadAsAbsent_AndCountTowardTheNotice()
+    {
+        (DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store, Guid teamA) = await Library();
+        PositionsReader current = new(store, _ => "any");
+        PositionsReader stale = new(store, _ => "rebuilt-since");
+        PositionsReader none = new(null, _ => "any");
+
+        OpeningDuelSet read = OpeningDuelsService.Build(teams, cache.Library(), cache.RoundFacts(), current, teamA);
+        OpeningDuelSet skipped = OpeningDuelsService.Build(teams, cache.Library(), cache.RoundFacts(), stale, teamA);
+        RoundPositionsDocument? again = stale.Read(Demo, "de_nuke", "abc123", out PositionsMiss miss);
+        none.Read(Demo, "de_nuke", "abc123", out PositionsMiss noIndex);
+        using (Assert.Multiple())
+        {
+            await Assert.That(read.DemosWithoutPositions).IsEqualTo(0);
+            await Assert.That(current.WithoutCount).IsEqualTo(0);
+            await Assert.That(skipped.DemosWithoutPositions).IsEqualTo(1)
+                .Because("a file built under another fingerprint is not the current positions");
+            await Assert.That(skipped.For("de_nuke", 2)!.Duels.All(d => d.Spot is null)).IsTrue()
+                .Because("no mark is drawn from a stale file");
+            await Assert.That(again).IsNull();
+            await Assert.That(miss).IsEqualTo(PositionsMiss.Stale);
+            await Assert.That(stale.StaleCount).IsEqualTo(1);
+            await Assert.That(stale.WithoutCount).IsEqualTo(1).Because("one demo, counted once");
+            await Assert.That(noIndex).IsEqualTo(PositionsMiss.NoIndex);
+        }
+    }
+
+    [Test]
     public async Task TheLayer_DrawsKillsAndDeaths_AndEveryNumberOpensItsRounds()
     {
         (DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store, Guid teamA) = await Library();
@@ -258,8 +288,8 @@ public class OpeningDuelsTests
             await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.Ct, "opening");
         ScoutingLayerResult ctResult = vm.Layers.Find("opening")!.Result;
         bool ctOpens = ctRows.EveryNumberOpensItsRounds();
-        ScoutingInspectorRow ramp = ctRows.Titled("de_nuke CT · first death Ramp").Row!;
-        ScoutingInspectorRow hut = ctRows.Titled("de_nuke CT · first death Hut").Row!;
+        ScoutingInspectorRow hut = ctRows.Titled("de_nuke CT · opening death Hut").Row!;
+        bool rampRow = ctRows.Any(r => r.Row?.OpenTitle.Contains("Ramp", StringComparison.Ordinal) == true);
         ScoutingInspectorRow winPct = ctRows.Titled("de_nuke CT · opening duels won").Row!;
 
         using (Assert.Multiple())
@@ -276,12 +306,16 @@ public class OpeningDuelsTests
             await Assert.That(opener.Rounds.Count).IsEqualTo(3);
             await Assert.That(opener.Note).IsEqualTo("won 1 · lost 2");
 
-            await Assert.That(ctResult.Marks.Count(m => m.Shape == ScoutingMarkShape.Ring)).IsEqualTo(2);
+            await Assert.That(ctResult.Marks.Count(m => m.Shape == ScoutingMarkShape.Ring)).IsEqualTo(1)
+                .Because("round 5's first CT death came after the opening kill, which they won: no ring");
             await Assert.That(ctResult.Marks.All(m => m.Color == ScoutingColor.Bad)).IsTrue()
-                .Because("CT draws only first deaths: a ring over a faint disc");
+                .Because("CT draws only lost opening duels: a ring over a faint disc");
+            await Assert.That(ctResult.Legend.Single().Text)
+                .IsEqualTo("ring = where they lose the opening duel (position ±1 s)");
             await Assert.That(ctOpens).IsTrue();
-            await Assert.That(hut.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([4]);
-            await Assert.That(ramp.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([5]);
+            await Assert.That(hut.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([4])
+                .Because("the bars count the same rounds as the rings");
+            await Assert.That(rampRow).IsFalse().Because("a first death after a won opening is not a lost duel");
             await Assert.That(winPct.Value).IsEqualTo("50% · 1 of 2 duels");
             await Assert.That(winPct.Rounds.Select(r => r.RoundNumber)).IsEquivalentTo([5]);
         }
