@@ -248,9 +248,12 @@ public sealed class RulesetCorpus
 
     /// <summary>
     ///     The directories the app reads rulesets from, in the order they are offered: the shipped set, then
-    ///     the user's own. Either can be missing on a given machine, so each is probed.
+    ///     the user's own. Either can be missing on a given machine, so each is probed. The browser offers the
+    ///     shipped set alone, read-only.
     /// </summary>
-    public static IReadOnlyList<(string Directory, string Source)> DefaultDirectories()
+    public static IReadOnlyList<(string Directory, string Source)> DefaultDirectories() => DefaultDirectories(OperatingSystem.IsBrowser());
+
+    internal static IReadOnlyList<(string Directory, string Source)> DefaultDirectories(bool browser)
     {
         List<(string, string)> dirs = [];
         string? shipped = null;
@@ -266,6 +269,12 @@ public sealed class RulesetCorpus
         if (shipped is not null && Directory.Exists(shipped))
         {
             dirs.Add((shipped, "shipped"));
+            // The browser host gives analysis no user folder, so an edit written there would never run.
+            if (browser)
+            {
+                return dirs;
+            }
+
             try
             {
                 // Named even when empty: an editable copy of a shipped ruleset is written here.
