@@ -58,6 +58,9 @@ public sealed class RulesetDocumentSession
     /// <summary>How many writes Undo can take back, so a layout change can be ordered against them.</summary>
     public int UndoDepth => _undo.Count;
 
+    /// <summary>Why the open file's text could not be read, or null. Every write is refused until a reopen reads it.</summary>
+    public string? ReadError { get; private set; }
+
     /// <summary>Whether another writer touched the file since its text was taken.</summary>
     public bool ChangedOnDisk => Entry is { } entry && WriteTimeOf(entry.Path) != LoadedWriteTimeUtc;
 
@@ -79,6 +82,7 @@ public sealed class RulesetDocumentSession
 
         Entry = entry;
         Text = "";
+        ReadError = null;
         LoadedWriteTimeUtc = DateTime.MinValue;
         if (entry is null)
         {
@@ -92,6 +96,7 @@ public sealed class RulesetDocumentSession
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Text = "";
+            ReadError = $"{Path.GetFileName(entry.Path)} could not be read ({ex.Message}); reopen it before editing.";
         }
 
         LoadedWriteTimeUtc = WriteTimeOf(entry.Path);
@@ -226,6 +231,11 @@ public sealed class RulesetDocumentSession
         if (!File.Exists(entry.Path))
         {
             return EditOutcome.Refused($"{Path.GetFileName(entry.Path)} is no longer on disk; nothing was written.");
+        }
+
+        if (ReadError is { } unread)
+        {
+            return EditOutcome.Refused(unread);
         }
 
         if (ChangedOnDisk)

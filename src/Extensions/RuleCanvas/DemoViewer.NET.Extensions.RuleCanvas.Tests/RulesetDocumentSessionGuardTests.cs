@@ -158,4 +158,33 @@ public class RulesetDocumentSessionGuardTests
             await Assert.That(session.CanUndo).IsTrue();
         }
     }
+
+    // FileShare.None is how another process holds a file mid-save; .NET enforces it within this process on every OS.
+    [Test]
+    public async Task AReadThatFailed_LeavesTheSessionUnwritable_UntilAReopenReads()
+    {
+        using RulesTree rules = RulesTree.WithUser("player_round");
+        RulesetCorpus.Entry entry = UserEntry(rules, "player_round");
+        string path = rules.UserPath("player_round");
+        string original = File.ReadAllText(path);
+        RulesetDocumentSession session = new();
+        using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            session.Open(entry);
+        }
+
+        await Assert.That(session.Text).IsEmpty().Because("the read failed, which the rest of the test depends on");
+        EditOutcome edit = session.Apply(text => RulesetEdits.AddDefine(text, "armed", "on: kill"), "add define armed");
+        using (Assert.Multiple())
+        {
+            await Assert.That(edit.IsRefused).IsTrue();
+            await Assert.That(edit.Message).IsNotNull();
+            await Assert.That(File.ReadAllText(path)).IsEqualTo(original);
+            await Assert.That(session.Save("ruleset: player_round\n").IsRefused).IsTrue();
+            await Assert.That(File.ReadAllText(path)).IsEqualTo(original);
+        }
+
+        session.Open(entry);
+        await Assert.That(SetEnemy(session, "false").IsWritten).IsTrue().Because("a read that succeeds makes the file the session's again");
+    }
 }
