@@ -32,8 +32,8 @@ public class RoundCapturesRealDemoTests
 {
     private const string ProDemos = @"D:\Pro Demos";
 
-    // aurora-vs-9z m1 dust2: the engine-asks probe demo (613 pickups with a cash rise, 464 without; T timeouts at
-    // 47125 and 69008). legacy-vs-fut m2 dust2: the demo the plan names for timeouts.
+    // aurora-vs-9z m1 dust2: the engine-asks probe demo (613 pickups with a cash rise under the old pairing, 464
+    // without; T timeouts at 47121 and 69007). legacy-vs-fut m2 dust2: the demo the plan names for timeouts (5).
     private static readonly string[] _pro =
     [
         @"esl-pro-league-season-24\2026-10-03_esl-pro-league-season-24_aurora-vs-9z_bo3-m1_dust2.dem",
@@ -41,7 +41,7 @@ public class RoundCapturesRealDemoTests
     ];
 
     private const string MmDemo =
-        @"C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\replays\match730_003852235135051104394_0855789539_392.dem";
+        @"C:\dev\DemoViewer.NET\demos\benchmarks\match730_003776747382562095193_1164284481_129.dem";
 
     [Test]
     [Arguments(0)]
@@ -60,8 +60,14 @@ public class RoundCapturesRealDemoTests
         int plantsPlaced = document.Rounds.Count(r => r.Plant?.At is not null);
         int openings = document.Rounds.Count(r => r.Kills.Any(k => k.Opening));
         RoundCaptureFrames frames = read.Frames!;
-        int bought = frames.Pickups.Count(p => p.Bought);
-        int pickedUp = frames.Pickups.Count - bought;
+        List<CapturedPurchase> purchases = [.. document.Rounds.SelectMany(r => r.Purchases)];
+        int bought = purchases.Count;
+        HashSet<(int, int, string)> boughtAt = [.. purchases.Select(p => (p.Tick, p.Slot, p.Item))];
+        int pickedUp = frames.Pickups.Count(p => !boughtAt.Contains((p.Tick, p.Slot, p.Item)));
+        int unknown = purchases.Count(p => p.Item == "unknown");
+        int awpBuys = purchases.Count(p => p.Item == "awp");
+        List<RoundLoadout> pistolKits = [.. document.Rounds.Where(r => r.Pistol).SelectMany(r => r.Loadouts)];
+        int pistolHelmets = pistolKits.Count(l => l.Helmet == true);
         int awpRounds = 0, awpFound = 0, doubles = 0, saved = 0;
         foreach (RoundCaptureView round in captures.Rounds)
         {
@@ -84,8 +90,9 @@ public class RoundCapturesRealDemoTests
         int extended = read.Positions!.Rounds.SelectMany(r => r.Pos).SelectMany(s => s).Count(t => !t.IsBare);
         int tuples = read.Positions.Rounds.SelectMany(r => r.Pos).Sum(s => s.Count);
         Console.WriteLine($"{Path.GetFileName(path)}: rounds {document.Rounds.Count}, kills {kills} ({killsPlaced} placed), "
-            + $"openings {openings}, plants {plants} ({plantsPlaced} placed); pickups {frames.Pickups.Count}: "
-            + $"bought {bought}, not {pickedUp}; AWP bought side-rounds {awpRounds}, holder found {awpFound}, "
+            + $"openings {openings}, plants {plants} ({plantsPlaced} placed); pickups {frames.Pickups.Count}, "
+            + $"purchases {bought} ({unknown} unknown, {awpBuys} awp, ${purchases.Sum(p => p.Cost)}), pickups not bought {pickedUp}; "
+            + $"pistol helmets {pistolHelmets}/{pistolKits.Count}; AWP bought side-rounds {awpRounds}, holder found {awpFound}, "
             + $"doubles {doubles}, saved {saved}; trails {trails} ({fullTrails} full); pistol loadouts {pistolLoadouts}; "
             + $"timeouts {string.Join(", ", document.Timeouts.Select(t => $"{(t.Technical ? "tech" : t.Side == 3 ? "CT" : "T")}@{t.StartTick} {t.CtLeftBefore}/{t.TLeftBefore}->{t.CtLeftAfter}/{t.TLeftAfter} before r{t.BeforeRound}"))}; "
             + $"tuples {tuples}, extended {extended}; captures {document.SerializeUtf8().Length / 1024} KB json; "
@@ -113,6 +120,9 @@ public class RoundCapturesRealDemoTests
                     .Because("both pro dust2 demos have tactical timeouts");
                 await Assert.That(pistolLoadouts).IsGreaterThanOrEqualTo(10);
             }
+
+            await Assert.That(pistolHelmets).IsEqualTo(0).Because("nobody affords a helmet on a pistol round");
+            await Assert.That(awpBuys).IsGreaterThan(0);
         }
     }
 
@@ -147,6 +157,50 @@ public class RoundCapturesRealDemoTests
 
         Console.WriteLine($"stored {document.Timeouts.Count}, tactical found {total}, technical {technical}");
         await Assert.That(total).IsGreaterThanOrEqualTo(3);
+    }
+
+    /// <summary>
+    ///     The collector's timeouts against the engine's own <c>timeout_started</c> view on the same run: every start
+    ///     tick and side agrees, since both read the game rules flags' rise at the end of the frame.
+    /// </summary>
+    [Test]
+    [Arguments(0)]
+    [Arguments(1)]
+    [Arguments(2)]
+    public async Task TheCapturedTimeouts_StartWhereTheEnginesTimeoutStartedFires(int which)
+    {
+        string path = Resolve(which);
+        Console.WriteLine($"demo read: {path}");
+        RuleConfigLoadResult probe = YamlConfigLoader.LoadDocuments([("timeout_probe.rules.yaml", """
+            ruleset: timeout_probe
+            for: each_player
+            stats:
+              to_side: { capture: event.Side, on: timeout_started, per: match }
+            show:
+              tables:
+                timeout_probe:
+                  per: player_event
+                  on: timeout_started
+                  columns:
+                    - { stat: to_side, label: side }
+            """)]);
+        MergedRulesBuild rules = new(() =>
+            YamlConfigLoader.LoadWithOverlay(RuleSetLocator.ResolveShippedRulesDirectory(), null));
+        CollectorSet set = CollectorSet.Of([new RegisteredCollector(RoundCapturesCollector.Contribution, null)]);
+        using DemoReader reader = DemoReader.OpenFile(path, ForwardDemoPass.ReaderOptions(CancellationToken.None));
+        ForwardDemoResult forward = ForwardDemoPass.Run(reader, ForwardNeeds.Rules,
+            [rules.EnabledDoc(RoundFactsFingerprint.RulesetId)!, probe.Rulesets.Single()], null,
+            new HashSet<string> { "timeout_probe" }, set);
+        MetricTable table = forward.Run!.ProjectConfiguredOutputs().Single(t => t.Name == "timeout_probe");
+        List<string> engine =
+        [
+            .. table.Rows.Select(r => $"{Convert.ToInt32(r.Values["side"], System.Globalization.CultureInfo.InvariantCulture)}@{Convert.ToInt32(r.Dimensions["tick"], System.Globalization.CultureInfo.InvariantCulture)}")
+                .Distinct().Order(StringComparer.Ordinal)
+        ];
+        RoundCaptureFrames frames = forward.Collected.Get<RoundCaptureFrames>(RoundCapturesCollector.CollectorId)!;
+        List<string> captured = [.. frames.Timeouts.Select(t => $"{t.Side}@{t.StartTick}").Order(StringComparer.Ordinal)];
+        Console.WriteLine($"engine {string.Join(", ", engine)}; captured {string.Join(", ", captured)}");
+        await Assert.That(string.Join(", ", captured)).IsEqualTo(string.Join(", ", engine));
     }
 
     /// <summary>
