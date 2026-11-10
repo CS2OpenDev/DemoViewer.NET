@@ -33,10 +33,10 @@ public class PlayerStatsTests
     private const int Rate = 64;
     private const int Base = 10000;
     private const int RoundLength = 100 * Rate;
-    private const string DemoOne = "/d/ps1.dem";
-    private const string DemoTwo = "/d/ps2.dem";
+    internal const string DemoOne = "/d/ps1.dem";
+    internal const string DemoTwo = "/d/ps2.dem";
 
-    private static readonly Func<Action, Task> _inline = a =>
+    internal static readonly Func<Action, Task> _inline = a =>
     {
         a();
         return Task.CompletedTask;
@@ -45,7 +45,7 @@ public class PlayerStatsTests
     private static readonly int[] _teamASlots = [0, 1, 2, 3, 4];
     private static readonly int[] _teamBSlots = [5, 6, 7, 8, 9];
 
-    private static string Id(int n) => $"7656{n:D4}";
+    internal static string Id(int n) => $"7656{n:D4}";
 
     // Slot s of team B (5..9) is account Id(s + 6): p5 is 76560011.
     private static string IdOfSlot(int slot) => Id(slot < 5 ? slot + 1 : slot + 6);
@@ -77,7 +77,7 @@ public class PlayerStatsTests
     // Demo one, round 1: p5 (CT) opens on p0, then the T side kills p6..p9 and leaves p5 alone against four: a
     // 1v4 the CT side loses. Round 2: p0 kills p6 first, so p6 loses the CT opening; CT wins. Demo two, round 1:
     // p5 opens on p1 and CT wins.
-    private static RoundFactsRows RowsOne() => new()
+    internal static RoundFactsRows RowsOne() => new()
     {
         Schema = RoundFactsRecords.Schema,
         Clock = new RoundFactsClock { TickRate = Rate },
@@ -89,14 +89,14 @@ public class PlayerStatsTests
         ]
     };
 
-    private static RoundFactsRows RowsTwo() => new()
+    internal static RoundFactsRows RowsTwo() => new()
     {
         Schema = RoundFactsRecords.Schema,
         Clock = new RoundFactsClock { TickRate = Rate },
         Rounds = [Round(1, 3, Kill(1, 10, 5, 1, 5, 4))]
     };
 
-    private static DemoCacheRecord Record(string path, int day, RoundFactsRows rows, Func<int, string>? name = null)
+    internal static DemoCacheRecord Record(string path, int day, RoundFactsRows rows, Func<int, string>? name = null)
     {
         DemoCacheRecord record = new()
         {
@@ -123,7 +123,7 @@ public class PlayerStatsTests
         return record;
     }
 
-    private static FactRow Row(string steamId, double rounds, double hltv, double damage, double kast, int kills,
+    internal static FactRow Row(string steamId, double rounds, double hltv, double damage, double kast, int kills,
         int deaths, int awp, int team = 3) =>
         new(new Dictionary<string, FactValue>
             {
@@ -142,7 +142,7 @@ public class PlayerStatsTests
                 ["Shots"] = FactValue.Of(100.0)
             });
 
-    private static FactTable Table(params FactRow[] rows) => new(PlayerStatsService.PlayerMatch, "fp", 1,
+    internal static FactTable Table(params FactRow[] rows) => new(PlayerStatsService.PlayerMatch, "fp", 1,
         "player_match", ["steam_id", "team"], ["rounds", "HLTV", "EnemyDmg", "KAST%", "TotalK", "TotalD", "AWP"],
         new Dictionary<string, string>(), rows);
 
@@ -469,6 +469,49 @@ public class PlayerStatsTests
         teams.Dispose();
     }
 
+    internal sealed class FakeFacts(IRoundFacts roundFacts) : IAnalysisFacts
+    {
+        private readonly Dictionary<string, (FactStatus Status, FactTable? Table)> _demos =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        public void Set(string path, FactStatus status, FactTable? table)
+        {
+            lock (_demos)
+            {
+                _demos[path] = (status, table);
+            }
+        }
+
+        public IReadOnlyList<FactKey> Declared => [PlayerStatsService.PlayerMatch];
+
+        public FactStatus Status(string demoPath, FactKey key)
+        {
+            lock (_demos)
+            {
+                return _demos.TryGetValue(demoPath, out (FactStatus Status, FactTable? Table) d) ? d.Status : FactStatus.Absent;
+            }
+        }
+
+        public bool IsCurrent(string demoPath, FactKey key) => Status(demoPath, key) == FactStatus.Current;
+
+        public FactTable? TryGet(string demoPath, FactKey key)
+        {
+            lock (_demos)
+            {
+                return _demos.TryGetValue(demoPath, out (FactStatus Status, FactTable? Table) d) ? d.Table : null;
+            }
+        }
+
+        public IReadOnlyList<LibraryHighlight> Highlights(string demoPath) => [];
+
+        public IRoundFacts RoundFacts => roundFacts;
+    }
+}
+
+[NotInParallel]
+[Category("Render")]
+public class PlayerStatsRenderTests
+{
     [Test]
     [Arguments(1440)]
     [Arguments(1280)]
@@ -480,27 +523,27 @@ public class PlayerStatsTests
         {
             string[] names = ["", "", "", "", "", "ropz-the-anchor", "broky", "rain", "frozen", "karrigan"];
             DemoCacheStore cache = new(null);
-            TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
+            TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: PlayerStatsTests._inline);
             await teams.StartAsync();
             using (cache.BeginBatch())
             {
-                cache.Upsert(Record(DemoOne, 0, RowsOne(), s => s < 5 ? $"p{s}" : names[s]));
-                cache.Upsert(Record(DemoTwo, 1, RowsTwo(), s => s < 5 ? $"p{s}" : names[s]));
+                cache.Upsert(PlayerStatsTests.Record(PlayerStatsTests.DemoOne, 0, PlayerStatsTests.RowsOne(), s => s < 5 ? $"p{s}" : names[s]));
+                cache.Upsert(PlayerStatsTests.Record(PlayerStatsTests.DemoTwo, 1, PlayerStatsTests.RowsTwo(), s => s < 5 ? $"p{s}" : names[s]));
             }
 
             await teams.Idle;
-            Guid teamB = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(11)) == true)).Id;
-            FakeFacts facts = new(cache.RoundFacts());
-            facts.Set(DemoOne, FactStatus.Current, Table(Row(Id(11), 20, 1.20, 1600, 75, 18, 12, 10),
-                Row(Id(12), 20, 0.90, 1200, 60, 10, 15, 0), Row(Id(13), 20, 1.31, 2050.5, 85, 22, 9, 0),
-                Row(Id(14), 20, 0.70, 1100, 55, 8, 17, 0), Row(Id(15), 20, 1.05, 1500, 70, 14, 14, 1)));
+            Guid teamB = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(PlayerStatsTests.Id(11)) == true)).Id;
+            PlayerStatsTests.FakeFacts facts = new(cache.RoundFacts());
+            facts.Set(PlayerStatsTests.DemoOne, FactStatus.Current, PlayerStatsTests.Table(PlayerStatsTests.Row(PlayerStatsTests.Id(11), 20, 1.20, 1600, 75, 18, 12, 10),
+                PlayerStatsTests.Row(PlayerStatsTests.Id(12), 20, 0.90, 1200, 60, 10, 15, 0), PlayerStatsTests.Row(PlayerStatsTests.Id(13), 20, 1.31, 2050.5, 85, 22, 9, 0),
+                PlayerStatsTests.Row(PlayerStatsTests.Id(14), 20, 0.70, 1100, 55, 8, 17, 0), PlayerStatsTests.Row(PlayerStatsTests.Id(15), 20, 1.05, 1500, 70, 14, 14, 1)));
             using ScoutingReportTabViewModel vm = new(teams, cache.Library(), new VetoHistoryStore(null), false,
                 null, null, _ => true, () => new SetupHeatmapRenderer(_ => null), a => a(),
-                notes: new ScoutingReportNotesStore(null), runSection: _ => _inline, roundFacts: cache.RoundFacts(),
+                notes: new ScoutingReportNotesStore(null), runSection: _ => PlayerStatsTests._inline, roundFacts: cache.RoundFacts(),
                 analysisFacts: facts, openPlayerOverview: (_, _) => true);
             vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamB);
             await vm.LoadTask;
-            vm.SelectedIgl = vm.IglOptions.Single(o => o.SteamId == Id(15));
+            vm.SelectedIgl = vm.IglOptions.Single(o => o.SteamId == PlayerStatsTests.Id(15));
             Window window = new()
             {
                 Width = width,
@@ -546,43 +589,5 @@ public class PlayerStatsTests
             await Assert.That(rows).IsEqualTo(5);
             await Assert.That(clipped).IsEmpty();
         }
-    }
-
-    private sealed class FakeFacts(IRoundFacts roundFacts) : IAnalysisFacts
-    {
-        private readonly Dictionary<string, (FactStatus Status, FactTable? Table)> _demos =
-            new(StringComparer.OrdinalIgnoreCase);
-
-        public void Set(string path, FactStatus status, FactTable? table)
-        {
-            lock (_demos)
-            {
-                _demos[path] = (status, table);
-            }
-        }
-
-        public IReadOnlyList<FactKey> Declared => [PlayerStatsService.PlayerMatch];
-
-        public FactStatus Status(string demoPath, FactKey key)
-        {
-            lock (_demos)
-            {
-                return _demos.TryGetValue(demoPath, out (FactStatus Status, FactTable? Table) d) ? d.Status : FactStatus.Absent;
-            }
-        }
-
-        public bool IsCurrent(string demoPath, FactKey key) => Status(demoPath, key) == FactStatus.Current;
-
-        public FactTable? TryGet(string demoPath, FactKey key)
-        {
-            lock (_demos)
-            {
-                return _demos.TryGetValue(demoPath, out (FactStatus Status, FactTable? Table) d) ? d.Table : null;
-            }
-        }
-
-        public IReadOnlyList<LibraryHighlight> Highlights(string demoPath) => [];
-
-        public IRoundFacts RoundFacts => roundFacts;
     }
 }

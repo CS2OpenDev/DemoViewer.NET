@@ -64,7 +64,7 @@ public class TeamRanksTests
     }
 
     // Team A (1..5) plays team B (11..15) five times: three on 2026-03-11, then 03-21 and 03-31.
-    private static async Task<(DemoCacheStore Cache, TeamIdentityService Teams, Guid A, Guid B)> Library()
+    internal static async Task<(DemoCacheStore Cache, TeamIdentityService Teams, Guid A, Guid B)> Library()
     {
         DemoCacheStore cache = new(null);
         TeamIdentityService teams = new(null, cache.Library(), run: _inline);
@@ -270,12 +270,29 @@ public class TeamRanksTests
     }
 
     [Test]
+    public async Task TheStoreDescriptor_NamesTheFile_AndIsUserWork()
+    {
+        StoreDescriptor descriptor = StratBookStores.All.Single(d => d.Id == StratBookStores.TeamRanks);
+        using (Assert.Multiple())
+        {
+            await Assert.That(descriptor.Paths).IsEquivalentTo([TeamRanksStore.FileName]);
+            await Assert.That(descriptor.IsUserWork).IsTrue();
+            await Assert.That(descriptor.Root).IsEqualTo(StoreRoot.Config);
+        }
+    }
+}
+
+[NotInParallel]
+[Category("Render")]
+public class TeamRanksRenderTests
+{
+    [Test]
     public async Task TheHeader_RendersTheRankBoxesAndTheOpponentMix()
     {
         List<string> shown = [];
         await HeadlessSession.RunOnUi(async () =>
         {
-            (DemoCacheStore cache, TeamIdentityService teams, Guid a, Guid b) = await Library();
+            (DemoCacheStore cache, TeamIdentityService teams, Guid a, Guid b) = await TeamRanksTests.Library();
             TeamRanksStore ranks = new(null);
             ranks.Set(a, RankSystem.Vrs, 12, new DateOnly(2026, 11, 9));
             ranks.Set(a, RankSystem.Hltv, 18, new DateOnly(2026, 11, 2));
@@ -299,18 +316,6 @@ public class TeamRanksTests
             await Assert.That(shown).Contains("set 2026-11-02");
             await Assert.That(shown).Contains("2 vs top-30 · 3 other · 0 unknown");
             await Assert.That(shown.Any(t => t.Contains("manual entry comes later"))).IsFalse();
-        }
-    }
-
-    [Test]
-    public async Task TheStoreDescriptor_NamesTheFile_AndIsUserWork()
-    {
-        StoreDescriptor descriptor = StratBookStores.All.Single(d => d.Id == StratBookStores.TeamRanks);
-        using (Assert.Multiple())
-        {
-            await Assert.That(descriptor.Paths).IsEquivalentTo([TeamRanksStore.FileName]);
-            await Assert.That(descriptor.IsUserWork).IsTrue();
-            await Assert.That(descriptor.Root).IsEqualTo(StoreRoot.Config);
         }
     }
 }

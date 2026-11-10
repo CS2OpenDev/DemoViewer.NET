@@ -41,7 +41,7 @@ public class StripLayersTests
     private const string Demo = "/d/strip.dem";
     private const int Rate = 64;
 
-    private static readonly Func<Action, Task> _inline = a =>
+    internal static readonly Func<Action, Task> _inline = a =>
     {
         a();
         return Task.CompletedTask;
@@ -409,16 +409,84 @@ public class StripLayersTests
         await Assert.That(full.Titled("de_nuke T · fast execute, plant by 0:35").Value).IsEqualTo("1 of 3 rounds");
     }
 
+    private static DemoCacheRecord Record(string path, string map, RoundFactsRows? rows)
+    {
+        DemoCacheRecord record = new()
+        {
+            Path = path,
+            Size = 1000,
+            ModifiedTicks = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc).Ticks,
+            Map = map,
+            Sha256 = rows is null ? null : "abc"
+        };
+        if (rows is not null)
+        {
+            record.SetRoundFacts(rows);
+        }
+
+        for (int slot = 0; slot < 10; slot++)
+        {
+            record.Players.Add(new CachedPlayerInfo
+            {
+                Slot = slot,
+                Name = $"p{slot}",
+                SteamId64 = Id(slot < 5 ? slot + 1 : slot + 6),
+                Team = slot < 5 ? 2 : 3
+            });
+        }
+
+        DemoCacheStore.StampParse(record);
+        DemoCacheStore.StampAnalysis(record);
+        return record;
+    }
+
+    internal sealed class Harness : IDisposable
+    {
+        private Harness(DemoCacheStore cache, TeamIdentityService teams, Guid teamA)
+        {
+            Cache = cache;
+            Teams = teams;
+            TeamA = teamA;
+        }
+
+        public DemoCacheStore Cache { get; }
+        public TeamIdentityService Teams { get; }
+        public Guid TeamA { get; }
+
+        public void Dispose() => Teams.Dispose();
+
+        public static async Task<Harness> Create()
+        {
+            DemoCacheStore cache = new(null);
+            TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
+            await teams.StartAsync();
+            using (cache.BeginBatch())
+            {
+                cache.Upsert(Record(Demo, "de_nuke", Rows()));
+                cache.Upsert(Record("/d/strip-other.dem", "de_mirage", null));
+            }
+
+            await teams.Idle;
+            Guid teamA = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(1)) == true)).Id;
+            return new Harness(cache, teams, teamA);
+        }
+    }
+}
+
+[NotInParallel]
+[Category("Render")]
+public class StripLayersRenderTests
+{
     [Test]
     public async Task TheStrip_RendersItsMinis_OnTAndCt()
     {
         List<string> shown = [];
         await HeadlessSession.RunOnUi(async () =>
         {
-            using Harness h = await Harness.Create();
+            using StripLayersTests.Harness h = await StripLayersTests.Harness.Create();
             using ScoutingReportTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
                 situational: new SituationalBehaviourService(h.Teams, h.Cache.Library(), h.Cache.RoundFacts()),
-                runSection: _ => _inline, roundFacts: h.Cache.RoundFacts(), now: () => new DateTime(2026, 3, 12));
+                runSection: _ => StripLayersTests._inline, roundFacts: h.Cache.RoundFacts(), now: () => new DateTime(2026, 3, 12));
             vm.SelectedTeam = vm.Teams.Single(t => t.Id == h.TeamA);
             Window window = new()
             {
@@ -455,69 +523,6 @@ public class StripLayersTests
             await Assert.That(shown).Contains("Leading by 3+");
             await Assert.That(shown.Any(t => t.StartsWith("plant time 0:00", StringComparison.Ordinal))).IsTrue();
             await Assert.That(shown.Any(t => t.StartsWith("round win % after losing", StringComparison.Ordinal))).IsTrue();
-        }
-    }
-
-    private static DemoCacheRecord Record(string path, string map, RoundFactsRows? rows)
-    {
-        DemoCacheRecord record = new()
-        {
-            Path = path,
-            Size = 1000,
-            ModifiedTicks = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc).Ticks,
-            Map = map,
-            Sha256 = rows is null ? null : "abc"
-        };
-        if (rows is not null)
-        {
-            record.SetRoundFacts(rows);
-        }
-
-        for (int slot = 0; slot < 10; slot++)
-        {
-            record.Players.Add(new CachedPlayerInfo
-            {
-                Slot = slot,
-                Name = $"p{slot}",
-                SteamId64 = Id(slot < 5 ? slot + 1 : slot + 6),
-                Team = slot < 5 ? 2 : 3
-            });
-        }
-
-        DemoCacheStore.StampParse(record);
-        DemoCacheStore.StampAnalysis(record);
-        return record;
-    }
-
-    private sealed class Harness : IDisposable
-    {
-        private Harness(DemoCacheStore cache, TeamIdentityService teams, Guid teamA)
-        {
-            Cache = cache;
-            Teams = teams;
-            TeamA = teamA;
-        }
-
-        public DemoCacheStore Cache { get; }
-        public TeamIdentityService Teams { get; }
-        public Guid TeamA { get; }
-
-        public void Dispose() => Teams.Dispose();
-
-        public static async Task<Harness> Create()
-        {
-            DemoCacheStore cache = new(null);
-            TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
-            await teams.StartAsync();
-            using (cache.BeginBatch())
-            {
-                cache.Upsert(Record(Demo, "de_nuke", Rows()));
-                cache.Upsert(Record("/d/strip-other.dem", "de_mirage", null));
-            }
-
-            await teams.Idle;
-            Guid teamA = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Id(1)) == true)).Id;
-            return new Harness(cache, teams, teamA);
         }
     }
 }
