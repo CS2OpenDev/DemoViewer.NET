@@ -592,7 +592,7 @@
                                                             Content="Inspect" Command="{Binding InspectCommand}"
                                                             AutomationProperties.Name="{Binding InspectLabel}" />
                                                 </Grid>
-                                                <ItemsControl ItemsSource="{Binding MiniLines}">
+                                                <ItemsControl ItemsSource="{Binding MiniLines}" IsVisible="{Binding !HasMiniChart}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate x:DataType="x:String">
                                                             <TextBlock Text="{Binding}" FontSize="11" TextWrapping="Wrap"
@@ -600,6 +600,89 @@
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
+                                                <!-- The mini's compact chart (strip build, P3.5): one template per chart type. -->
+                                                <StackPanel Spacing="4" IsVisible="{Binding HasMiniChart}">
+                                                    <ContentControl Content="{Binding MiniChart}">
+                                                        <ContentControl.DataTemplates>
+                                                            <DataTemplate x:DataType="layers:ScoutingStackChart">
+                                                                <ItemsControl ItemsSource="{Binding Rows}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate x:DataType="layers:ScoutingStackRow">
+                                                                            <Grid ColumnDefinitions="92,*,34" Margin="0 0 0 4"
+                                                                                  ToolTip.Tip="{Binding Text}"
+                                                                                  AutomationProperties.Name="{Binding Text}">
+                                                                                <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
+                                                                                           Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
+                                                                                           TextTrimming="CharacterEllipsis" />
+                                                                                <local:ScoutingMiniGraphic Grid.Column="1" Value="{Binding}" Margin="6 0" />
+                                                                                <TextBlock Grid.Column="2" FontSize="11" Text="{Binding Trailing}"
+                                                                                           Foreground="{DynamicResource TextValue}" HorizontalAlignment="Right"
+                                                                                           VerticalAlignment="Center" />
+                                                                            </Grid>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                            </DataTemplate>
+                                                            <DataTemplate x:DataType="layers:ScoutingStripChart">
+                                                                <ItemsControl ItemsSource="{Binding Lanes}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate x:DataType="layers:ScoutingStripLane">
+                                                                            <Grid ColumnDefinitions="18,*" Margin="0 0 0 4"
+                                                                                  ToolTip.Tip="{Binding Text}"
+                                                                                  AutomationProperties.Name="{Binding Text}">
+                                                                                <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
+                                                                                           Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                                                                                <local:ScoutingMiniGraphic Grid.Column="1" Value="{Binding}" />
+                                                                            </Grid>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                            </DataTemplate>
+                                                            <DataTemplate x:DataType="layers:ScoutingDumbbellChart">
+                                                                <ItemsControl ItemsSource="{Binding Rows}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate x:DataType="layers:ScoutingDumbbell">
+                                                                            <Grid ColumnDefinitions="24,*,72" Margin="0 0 0 4">
+                                                                                <TextBlock Grid.Column="0" FontSize="11" FontWeight="Bold" Text="{Binding Label}"
+                                                                                           Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                                                                                <local:ScoutingMiniGraphic Grid.Column="1" Value="{Binding}" Margin="0 0 6 0" />
+                                                                                <TextBlock Grid.Column="2" FontSize="11" Text="{Binding Value}"
+                                                                                           Foreground="{DynamicResource TextMid}" HorizontalAlignment="Right"
+                                                                                           VerticalAlignment="Center" />
+                                                                            </Grid>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                            </DataTemplate>
+                                                            <DataTemplate x:DataType="layers:ScoutingTableChart">
+                                                                <StackPanel Spacing="2">
+                                                                    <Grid ColumnDefinitions="*,40,40">
+                                                                        <TextBlock Grid.Column="1" FontSize="11" FontWeight="SemiBold" Text="{Binding First}"
+                                                                                   Foreground="{DynamicResource Pb2dTeamCt}" HorizontalAlignment="Right" />
+                                                                        <TextBlock Grid.Column="2" FontSize="11" FontWeight="SemiBold" Text="{Binding Second}"
+                                                                                   Foreground="{DynamicResource Pb2dTeamT}" HorizontalAlignment="Right" />
+                                                                    </Grid>
+                                                                    <ItemsControl ItemsSource="{Binding Rows}">
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate x:DataType="layers:ScoutingTableRow">
+                                                                                <Grid ColumnDefinitions="*,40,40" Margin="0 0 0 2">
+                                                                                    <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
+                                                                                               Foreground="{DynamicResource TextMid}" />
+                                                                                    <TextBlock Grid.Column="1" FontSize="11" Text="{Binding First}"
+                                                                                               Foreground="{DynamicResource TextValue}" HorizontalAlignment="Right" />
+                                                                                    <TextBlock Grid.Column="2" FontSize="11" Text="{Binding Second}"
+                                                                                               Foreground="{DynamicResource TextValue}" HorizontalAlignment="Right" />
+                                                                                </Grid>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ContentControl.DataTemplates>
+                                                    </ContentControl>
+                                                    <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextDim}"
+                                                               Text="{Binding MiniChart.Caption, FallbackValue=''}" />
+                                                </StackPanel>
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
