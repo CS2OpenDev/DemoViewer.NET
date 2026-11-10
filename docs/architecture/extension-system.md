@@ -807,8 +807,8 @@ Bash, runs the same way locally and in CI. In order:
    `DemoViewer.NET.Desktop.deps.json` target, plus every DLL of each shared framework its
    `runtimeconfig.json` names (`Microsoft.NETCore.App` and `Microsoft.AspNetCore.App`), taken from the
    highest installed `shared/<framework>/<major>.*` that `dotnet --list-runtimes` reports, the same copy
-   the runtime binds; the head is built first only when its deps.json is absent (CI has it from the
-   solution build). The SDK prunes framework-provided packages (`Microsoft.Extensions.*`) from the head's
+   the runtime binds; the head is always built first, incrementally, so a deps.json left from before a
+   package bump is never read. The SDK prunes framework-provided packages (`Microsoft.Extensions.*`) from the head's
    deps.json, which is why the frameworks are read too: six such libraries sit in the Strat Book's
    deps.json and would otherwise be staged as dead weight. Every other library in the extension's
    deps.json target is then one of three things. In the framework set: skipped, no version check. In the

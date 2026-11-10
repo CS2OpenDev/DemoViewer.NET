@@ -266,10 +266,10 @@ HEAD_PROJECT="src/App/DemoViewer.NET.Desktop"
 HEAD_TARGET_DIR="$(dotnet build "$HEAD_PROJECT" -c Release -getProperty:TargetDir -v q)"
 HEAD_DEPS_PATH="${HEAD_TARGET_DIR}DemoViewer.NET.Desktop.deps.json"
 HEAD_RUNTIMECONFIG_PATH="${HEAD_TARGET_DIR}DemoViewer.NET.Desktop.runtimeconfig.json"
-if [ ! -f "$HEAD_DEPS_PATH" ] || [ ! -f "$HEAD_RUNTIMECONFIG_PATH" ]; then
-    echo "[pack-extension] building $HEAD_PROJECT for its deps.json"
-    dotnet build "$HEAD_PROJECT" -c Release -v q --nologo
-fi
+# Always built: a deps.json left from before a package bump would name the old versions. The build is
+# incremental, so an up-to-date head costs little.
+echo "[pack-extension] building $HEAD_PROJECT for its deps.json"
+dotnet build "$HEAD_PROJECT" -c Release -v q --nologo
 if [ ! -f "$HEAD_DEPS_PATH" ] || [ ! -f "$HEAD_RUNTIMECONFIG_PATH" ]; then
     echo "error: expected $HEAD_DEPS_PATH and $HEAD_RUNTIMECONFIG_PATH after building the head." >&2
     exit 2
