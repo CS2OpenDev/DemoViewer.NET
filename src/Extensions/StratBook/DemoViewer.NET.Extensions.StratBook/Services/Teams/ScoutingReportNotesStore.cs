@@ -143,6 +143,21 @@ public sealed class ScoutingReportNotesStore
         Commit();
     }
 
+    /// <summary>Marks a player as the team's in-game leader, or clears the mark.</summary>
+    /// <param name="teamId">The team.</param>
+    /// <param name="steamId">The SteamID64 as text; null or blank clears it.</param>
+    public void SetIgl(Guid teamId, string? steamId)
+    {
+        string? value = string.IsNullOrWhiteSpace(steamId) ? null : steamId.Trim();
+        if (string.Equals(For(teamId).Igl, value, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        Ensure(teamId).Igl = value;
+        Commit();
+    }
+
     /// <summary>Adds a note and returns its key, or null when the text is blank.</summary>
     /// <param name="teamId">The team.</param>
     /// <param name="text">The note.</param>

@@ -167,12 +167,9 @@ public sealed record TimelineDotViewModel(double X, double Y, bool Won, bool IsS
     public double Opacity => IsSelectedMap ? 1 : 0.3;
 }
 
-/// <summary>One player of the team's current roster, with the role the demos suggest and why.</summary>
+/// <summary>One player of the team's current roster, with the role the demos suggest and why, and the numbers.</summary>
 public sealed class PlayerRowViewModel
 {
-    /// <summary>Stats come with P3.4.</summary>
-    public const string StatsToolTip = "Rating, K/D, ADR, KAST, opening and 1vX come with the players build (P3.4)";
-
     public required string Name { get; init; }
 
     /// <summary>The SteamID64 as text: the members table's key, and the Setups layer's isolate key.</summary>
@@ -180,15 +177,15 @@ public sealed class PlayerRowViewModel
 
     public required ScoutingColor Color { get; init; }
 
-    /// <summary>"Entry", "Lurk", or "—" when nothing points to a role yet.</summary>
+    /// <summary>"AWP", "Entry", "Lurk", "Anchor", "Support", or "—" when nothing points to a role; " · IGL" when picked.</summary>
     public string Role { get; init; } = "—";
 
-    /// <summary>Why the role: "takes 7 of 20 T entries".</summary>
+    /// <summary>Why the role: "41% of AWP kills".</summary>
     public string RoleNote { get; init; } = "";
 
     public bool HasRoleNote => RoleNote.Length > 0;
 
-    /// <summary>"entry A", "lurk".</summary>
+    /// <summary>"entry A", "lurk", "support".</summary>
     public string TRole { get; init; } = "—";
 
     /// <summary>The place the player held most in the CT setup window on the map in view: "B site".</summary>
@@ -208,9 +205,54 @@ public sealed class PlayerRowViewModel
 
     public bool CanIsolate => IsolateCommand is not null && SteamId.Length > 0;
 
-    /// <summary>"—": the stat columns are a placeholder.</summary>
-    public string Stat { get; } = "—";
-
     /// <summary>"12 demos".</summary>
     public string Appearances { get; init; } = "";
+
+    /// <summary>Opens the Player Overview narrowed to this team's demos; null without one.</summary>
+    public System.Windows.Input.ICommand? OpenOverviewCommand { get; init; }
+
+    public string OverviewToolTip { get; init; } = "";
+
+    public PlayerStatCellViewModel Rating { get; init; } = PlayerStatCellViewModel.Missing("—", "");
+
+    public PlayerStatCellViewModel KillDeath { get; init; } = PlayerStatCellViewModel.Missing("—", "");
+
+    public PlayerStatCellViewModel Adr { get; init; } = PlayerStatCellViewModel.Missing("—", "");
+
+    public PlayerStatCellViewModel Kast { get; init; } = PlayerStatCellViewModel.Missing("—", "");
+
+    public PlayerStatCellViewModel Opening { get; init; } = PlayerStatCellViewModel.Missing("—", "");
+
+    public PlayerStatCellViewModel Clutch { get; init; } = PlayerStatCellViewModel.Missing("—", "");
+}
+
+/// <summary>One number of the players table: its text, why (or why it is empty), and what it opens.</summary>
+/// <param name="Label">"1.14", "31–22", "4 of 19", or "—".</param>
+/// <param name="ToolTip">What the number counts, or what fills an empty one.</param>
+/// <param name="Command">Opens the rounds or the demos behind it; null when there is nothing to open.</param>
+/// <param name="Detail">"4 of 6 demos" while the facts are partial; empty otherwise.</param>
+public sealed record PlayerStatCellViewModel(
+    string Label,
+    string ToolTip,
+    System.Windows.Input.ICommand? Command = null,
+    string Detail = "")
+{
+    public bool CanOpen => Command is not null;
+
+    public bool HasDetail => Detail.Length > 0;
+
+    /// <summary>A number with nothing to open.</summary>
+    /// <param name="label">"—".</param>
+    /// <param name="toolTip">What would fill it.</param>
+    /// <param name="detail">"4 of 6 demos", or empty.</param>
+    public static PlayerStatCellViewModel Missing(string label, string toolTip, string detail = "") =>
+        new(label, toolTip, null, detail);
+}
+
+/// <summary>One choice of the IGL picker: a roster player, or nobody (an empty SteamID).</summary>
+/// <param name="SteamId">The SteamID64 as text, or empty.</param>
+/// <param name="Label">"IGL: name".</param>
+public sealed record IglOptionViewModel(string SteamId, string Label)
+{
+    public override string ToString() => Label;
 }

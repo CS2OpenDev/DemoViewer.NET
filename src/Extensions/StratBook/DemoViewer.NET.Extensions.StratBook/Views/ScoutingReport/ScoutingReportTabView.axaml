@@ -314,6 +314,19 @@
             </Panel>
         </DataTemplate>
 
+        <!-- A players-table number: a dotted button when it opens something, plain text when not; "4 of 6 demos" under a partial one. -->
+        <DataTemplate x:Key="StatCell" x:DataType="vm:PlayerStatCellViewModel">
+            <StackPanel HorizontalAlignment="Right" ToolTip.Tip="{Binding ToolTip}">
+                <Button Classes="num" HorizontalAlignment="Right" IsVisible="{Binding CanOpen}" Command="{Binding Command}"
+                        AutomationProperties.Name="{Binding ToolTip}">
+                    <TextBlock Text="{Binding Label}" FontSize="12" />
+                </Button>
+                <TextBlock HorizontalAlignment="Right" Classes="mid" Text="{Binding Label}" Margin="2 0"
+                           IsVisible="{Binding !CanOpen}" />
+                <TextBlock HorizontalAlignment="Right" FontSize="10" Foreground="{DynamicResource AccentCaution}"
+                           Text="{Binding Detail}" IsVisible="{Binding HasDetail}" Margin="2 0" />
+            </StackPanel>
+        </DataTemplate>
         <ItemsPanelTemplate x:Key="WrapItems">
             <WrapPanel />
         </ItemsPanelTemplate>
@@ -704,15 +717,26 @@
                 </Border>
             </Grid>
 
-            <!-- Players: the current roster on the map in view. -->
+            <!-- Players: the current roster, roles and spots on the map in view, numbers on it or on every map. -->
             <Border Classes="panel" Padding="14 10" IsVisible="{Binding HasMaps}">
                 <StackPanel Spacing="4">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="h" Text="{Binding PlayersTitle}" />
-                        <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource TextDim}"
-                                   Text="roles are suggested from the demos; the reason is under each" />
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" >
+                        <TextBlock Classes="h" Text="{Binding PlayersTitle}" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Classes="ghost" Padding="8 2" FontSize="11" Margin="10 0 0 0"
+                                Command="{Binding TogglePlayersScopeCommand}" VerticalAlignment="Center"
+                                AutomationProperties.Name="Players stats scope"
+                                ToolTip.Tip="Rating, K/D, ADR, KAST, opening and 1vX on the map in view, or pooled over every map. Roles, CT spot and T role stay on the map in view.">
+                            <TextBlock Text="{Binding PlayersScopeLabel, StringFormat='Numbers: {0}'}" />
+                        </Button>
+                        <TextBlock Grid.Column="3" FontSize="11" Foreground="{DynamicResource TextDim}" VerticalAlignment="Center"
+                                   Margin="0 0 10 0" Text="roles are suggested from the demos; the reason is under each" />
+                        <ComboBox Grid.Column="4" FontSize="11" ItemsSource="{Binding IglOptions}" SelectedItem="{Binding SelectedIgl}"
+                                  AutomationProperties.Name="In-game leader"
+                                  ToolTip.Tip="The in-game leader is yours to set: the demos cannot tell it. Saved with this team's notes." />
                     </Grid>
-                    <Grid ColumnDefinitions="20,1.6*,1.8*,*,*,*,*,*,*,1.4*,1.2*,Auto" Margin="0 6 0 2">
+                    <TextBlock FontSize="11" Foreground="{DynamicResource AccentCaution}" TextWrapping="Wrap"
+                               Text="{Binding PlayersStatusLine}" IsVisible="{Binding HasPlayersStatus}" />
+                    <Grid ColumnDefinitions="20,1.4*,1.7*,0.8*,0.8*,0.8*,0.8*,0.9*,0.9*,1.2*,1.1*,104" Margin="0 6 0 2">
                         <TextBlock Grid.Column="1" Classes="col-label" Text="Player" />
                         <TextBlock Grid.Column="2" Classes="col-label" Text="Role" />
                         <TextBlock Grid.Column="3" Classes="col-label" Text="Rating" HorizontalAlignment="Right" />
@@ -721,7 +745,7 @@
                         <TextBlock Grid.Column="6" Classes="col-label" Text="KAST" HorizontalAlignment="Right" />
                         <TextBlock Grid.Column="7" Classes="col-label" Text="Opening" HorizontalAlignment="Right" />
                         <TextBlock Grid.Column="8" Classes="col-label" Text="1vX" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Column="9" Classes="col-label" Text="CT spot" Margin="28 0 0 0" />
+                        <TextBlock Grid.Column="9" Classes="col-label" Text="CT spot" Margin="20 0 0 0" />
                         <TextBlock Grid.Column="10" Classes="col-label" Text="T role" />
                     </Grid>
                     <TextBlock Classes="mid" Text="no roster resolved for this team yet"
@@ -730,34 +754,32 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:PlayerRowViewModel">
                                 <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0" Padding="0 5">
-                                    <Grid ColumnDefinitions="20,1.6*,1.8*,*,*,*,*,*,*,1.4*,1.2*,Auto">
+                                    <Grid ColumnDefinitions="20,1.4*,1.7*,0.8*,0.8*,0.8*,0.8*,0.9*,0.9*,1.2*,1.1*,104">
                                         <Ellipse Grid.Column="0" Width="10" Height="10" VerticalAlignment="Top" Margin="0 3 0 0"
                                                  Fill="{Binding Color, Converter={x:Static local:ScoutingColorBrush.Instance}}" />
                                         <StackPanel Grid.Column="1">
-                                            <TextBlock Classes="val" FontWeight="SemiBold" Text="{Binding Name}" />
+                                            <Button Classes="num" HorizontalAlignment="Left" Padding="0"
+                                                    Command="{Binding OpenOverviewCommand}" IsEnabled="{Binding OpenOverviewCommand, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                    ToolTip.Tip="{Binding OverviewToolTip}" AutomationProperties.Name="{Binding OverviewToolTip}">
+                                                <TextBlock Classes="val" FontWeight="SemiBold" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                            </Button>
                                             <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" Text="{Binding Appearances}" />
                                         </StackPanel>
-                                        <StackPanel Grid.Column="2">
+                                        <StackPanel Grid.Column="2" Margin="0 0 6 0">
                                             <TextBlock Classes="val" Text="{Binding Role}" />
                                             <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" Text="{Binding RoleNote}"
                                                        IsVisible="{Binding HasRoleNote}" TextWrapping="Wrap" />
                                         </StackPanel>
-                                        <TextBlock Grid.Column="3" Classes="mid" Text="{Binding Stat}" HorizontalAlignment="Right"
-                                                   ToolTip.Tip="{x:Static vm:PlayerRowViewModel.StatsToolTip}" />
-                                        <TextBlock Grid.Column="4" Classes="mid" Text="{Binding Stat}" HorizontalAlignment="Right"
-                                                   ToolTip.Tip="{x:Static vm:PlayerRowViewModel.StatsToolTip}" />
-                                        <TextBlock Grid.Column="5" Classes="mid" Text="{Binding Stat}" HorizontalAlignment="Right"
-                                                   ToolTip.Tip="{x:Static vm:PlayerRowViewModel.StatsToolTip}" />
-                                        <TextBlock Grid.Column="6" Classes="mid" Text="{Binding Stat}" HorizontalAlignment="Right"
-                                                   ToolTip.Tip="{x:Static vm:PlayerRowViewModel.StatsToolTip}" />
-                                        <TextBlock Grid.Column="7" Classes="mid" Text="{Binding Stat}" HorizontalAlignment="Right"
-                                                   ToolTip.Tip="{x:Static vm:PlayerRowViewModel.StatsToolTip}" />
-                                        <TextBlock Grid.Column="8" Classes="mid" Text="{Binding Stat}" HorizontalAlignment="Right"
-                                                   ToolTip.Tip="{x:Static vm:PlayerRowViewModel.StatsToolTip}" />
-                                        <TextBlock Grid.Column="9" Classes="mid" Text="{Binding CtSpot}" Margin="28 0 0 0"
-                                                   ToolTip.Tip="{Binding CtSpotNote}" />
-                                        <TextBlock Grid.Column="10" Classes="val" Text="{Binding TRole}" />
-                                        <Button Grid.Column="11" Classes="ghost" Padding="8 3" FontSize="11"
+                                        <ContentControl Grid.Column="3" Content="{Binding Rating}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
+                                        <ContentControl Grid.Column="4" Content="{Binding KillDeath}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
+                                        <ContentControl Grid.Column="5" Content="{Binding Adr}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
+                                        <ContentControl Grid.Column="6" Content="{Binding Kast}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
+                                        <ContentControl Grid.Column="7" Content="{Binding Opening}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
+                                        <ContentControl Grid.Column="8" Content="{Binding Clutch}" ContentTemplate="{StaticResource StatCell}" HorizontalAlignment="Right" />
+                                        <TextBlock Grid.Column="9" Classes="mid" Text="{Binding CtSpot}" Margin="20 0 4 0"
+                                                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CtSpotNote}" />
+                                        <TextBlock Grid.Column="10" Classes="val" Text="{Binding TRole}" TextTrimming="CharacterEllipsis" />
+                                        <Button Grid.Column="11" Classes="ghost" Padding="8 3" FontSize="11" HorizontalAlignment="Right"
                                                 Content="{Binding IsolateLabel}" Command="{Binding IsolateCommand}"
                                                 CommandParameter="{Binding}" IsVisible="{Binding CanIsolate}"
                                                 AutomationProperties.Name="{Binding IsolateLabel}"

@@ -726,7 +726,9 @@ public sealed class StratBookPack : IExtension
                     return new Unsubscribe(() => mining.Changed -= handler);
                 },
                 siteRegions: map => sp.GetRequiredService<SuggestedTagsService>().SetupRegionsFor(map),
-                fakes: (path, map) => sp.GetRequiredService<SuggestedTagsService>().FakeRoundsOf(path, map));
+                fakes: (path, map) => sp.GetRequiredService<SuggestedTagsService>().FakeRoundsOf(path, map),
+                analysisFacts: Library(sp).Facts,
+                openPlayerOverview: (id, scope) => Host(sp).Shell.OpenPlayerOverview(id, scope));
         });
 
         // Lineup Clip Render: every repeated throw position and technique gets a GIF and its setpos line,

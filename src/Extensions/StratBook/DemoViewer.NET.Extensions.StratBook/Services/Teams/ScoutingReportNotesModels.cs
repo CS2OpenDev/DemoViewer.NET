@@ -39,6 +39,12 @@ public sealed class ScoutingReportTeamNotes
     ///     the first time it is built and never again, so unstarring one sticks.
     /// </summary>
     public List<string> Seeded { get; set; } = [];
+
+    /// <summary>
+    ///     The SteamID64 of the player the user marked as the in-game leader, or null. Added without a schema
+    ///     bump: an older build reads past it.
+    /// </summary>
+    public string? Igl { get; set; }
 }
 
 /// <summary>One finding the user wrote by hand. Its key is <c>note:</c> plus <see cref="Id" />.</summary>
