@@ -337,7 +337,8 @@ left out and reported. It is how the owning pass reads the result back. `PassId`
 when what the collector puts changes; it folds into `Stamp` along with the declared reads and the engine
 build, so a pass that keys its own fingerprint on `Stamp` runs again when any of them moves. `Providers`
 and `ProjectileClasses` name what the collector reads off each frame, from the engine's catalog
-(`entity.pawn.pos_x`, `CSmokeGrenadeProjectile`); a name the engine does not know refuses the collector.
+(`entity.pawn.pos_x`, `CSmokeGrenadeProjectile`) or the host's providers (see
+[Host providers](#host-providers)); a name neither knows refuses the collector.
 `Create` builds a fresh `IFrameCollector` for one run.
 
 `ReadsUserCommands` opts into `IFrameReadView.Command`: the pass's visit then decodes user commands for
@@ -374,6 +375,43 @@ it flies, the tick its explosion began once it detonates, null when unseen). Slo
 cleared: a player who died, left or has no pawn on this frame still reads the values from before, so a
 present value does not mean the slot has a pawn, and a health or position read cannot tell a dead
 player from a live one.
+
+## Host providers
+
+The host adds a few reads of its own to every rules run, for fields the engine networks but its catalog
+does not name yet. `HostProviders` holds the names. A collector lists them in `Providers` like any
+catalog name, and a ruleset (yours, the shipped ones, a user's) reads them by their rules path:
+
+| Provider (`HostProviders`) | Rules path | Type | Reads |
+|---|---|---|---|
+| `HasHelmet` (`entity.dv.player.has_helmet`) | `player.dv_has_helmet` | bool | `m_pItemServices.m_bHasHelmet` |
+| `HasDefuser` (`entity.dv.player.has_defuser`) | `player.dv_has_defuser` | bool | `m_pItemServices.m_bHasDefuser` |
+| `CashSpentRound` (`entity.dv.player.cash_spent_round`) | `player.dv_cash_spent_round` | int | `m_pInGameMoneyServices.m_iCashSpentThisRound` |
+| `StartAccount` (`entity.dv.player.start_account`) | `player.dv_start_account` | int | `m_pInGameMoneyServices.m_iStartAccount` |
+| `CtTimeoutActive` (`entity.dv.match.ct_timeout_active`) | `match.dv_ct_timeout_active` | bool | `m_pGameRules.m_bCTTimeOutActive` |
+| `TTimeoutActive` (`entity.dv.match.t_timeout_active`) | `match.dv_t_timeout_active` | bool | `m_pGameRules.m_bTerroristTimeOutActive` |
+| `CtTimeoutsLeft` (`entity.dv.match.ct_timeouts_left`) | `match.dv_ct_timeouts_left` | int | `m_pGameRules.m_nCTTimeOuts` |
+| `TTimeoutsLeft` (`entity.dv.match.t_timeouts_left`) | `match.dv_t_timeouts_left` | int | `m_pGameRules.m_nTerroristTimeOuts` |
+| `TechnicalTimeout` (`entity.dv.match.technical_timeout`) | `match.dv_technical_timeout` | bool | `m_pGameRules.m_bTechnicalTimeOut` |
+
+```yaml
+stats:
+  helmet_at_freeze_end:
+    capture: player.dv_has_helmet
+    on: raw.round_freeze_end
+    per: round
+```
+
+The `player` reads also work on a role (`victim.dv_has_helmet`). A collector reads the `match` ones per
+player: every slot with a controller reads the same value. The timeout counts follow the side, not the
+team, so they swap at the half. The rules editor offers the paths and the host's validation accepts
+them; the JSON schema in `rules/` is the engine's and does not list them, which costs only the hover
+text, since it accepts any expression.
+
+`HostProviders.Version` moves when what one of them reads changes. A collector that declares one carries
+it in its `Stamp`, and a ruleset that reads one carries it in its outputs' stamp, so neither is served
+stale facts. A collector or ruleset that reads none keeps the stamp it had. Extensions read this set
+and cannot add providers of their own; ask for a new one in the host.
 
 ## Reading the library
 

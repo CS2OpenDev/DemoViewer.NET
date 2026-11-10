@@ -17,8 +17,8 @@ internal sealed record RegisteredCollector(CollectorContribution Contribution, I
 
     /// <summary>
     ///     Why the engine would refuse <paramref name="contribution" />, or null when it would not. A provider name
-    ///     the engine does not register, or a class outside the grenade projectiles, throws at build, which would
-    ///     fail every run the collector rides.
+    ///     neither the engine nor the host registers, or a class outside the grenade projectiles, throws at build,
+    ///     which would fail every run the collector rides.
     /// </summary>
     public static string? Refusal(CollectorContribution contribution)
     {
@@ -27,12 +27,12 @@ internal sealed record RegisteredCollector(CollectorContribution Contribution, I
             return "a collector needs an id and the id of the pass that reads it";
         }
 
-        PerPlayerEntityValueProviderRegistry providers = PerPlayerEntityValueProviderRegistry.CreateDefault();
+        PerPlayerEntityValueProviderRegistry providers = HostProviderSet.PerPlayer();
         foreach (string name in contribution.Providers)
         {
             if (string.IsNullOrWhiteSpace(name) || providers.Get(name) is null)
             {
-                return $"collector {contribution.Id} reads '{name}', which is no per-player provider of this engine";
+                return $"collector {contribution.Id} reads '{name}', which is no per-player provider of this engine or host";
             }
         }
 
