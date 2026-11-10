@@ -892,11 +892,11 @@ public partial class CanvasTabView : UserControl
         menu.ItemsSource = items;
     }
 
-    // The pane shows the file's text after every load and write, and again on Revert. Setting Text raises
-    // TextChanged, which reports the same text back and reads as clean.
+    // The pane shows the file's text after every load and write, and again on Revert, but never over unsaved
+    // text: a redraw blanks DocumentText first, and the echo through TextChanged would read that as clean.
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(CanvasTabViewModel.DocumentText) && _viewModel is not null
+        if (e.PropertyName == nameof(CanvasTabViewModel.DocumentText) && _viewModel is { SourceDirty: false }
             && Source.Text != _viewModel.DocumentText)
         {
             Source.Text = _viewModel.DocumentText;
