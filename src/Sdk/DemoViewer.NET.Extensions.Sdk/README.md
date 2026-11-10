@@ -640,10 +640,10 @@ meaning evaluators, rulesets, clip models or `AnalysisRun`, needs `CS2DemoKit.An
 reference that yourself:
 
 ```xml
-<PackageReference Include="CS2DemoKit.Analysis" Version="0.14.1" />
+<PackageReference Include="CS2DemoKit.Analysis" Version="0.15.0" />
 ```
 
-Pin the version the host loads, which is 0.14.1 for this release of the SDK, and keep it equal to the
+Pin the version the host loads, which is 0.15.0 for this release of the SDK, and keep it equal to the
 `CS2DemoKit.Parser` version in this package's own dependencies: the two are exact-pinned to each other
 before 1.0. Because the app supplies both assemblies at runtime, as the paragraph above says, a different
 pin compiles and then fails to load.
