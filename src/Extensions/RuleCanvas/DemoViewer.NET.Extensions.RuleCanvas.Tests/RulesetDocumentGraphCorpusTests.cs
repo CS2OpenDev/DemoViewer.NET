@@ -20,7 +20,7 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 ///     <para>
 ///         <b>This is a characterisation gate, and every number in it is a measurement rather than a
 ///         preference.</b> The model exists because <c>AuthoringGraph</c> draws the wrong picture of
-///         the same corpus, so the only defence of the change is the corpus itself: each test below
+///         the same corpus, so the corpus itself is the evidence: each test below
 ///         names the authoring graph's number, asserts the document graph's, and prints both, so a
 ///         red reads as a number that moved rather than as a boolean that flipped.
 ///     </para>
@@ -49,9 +49,8 @@ public class RulesetDocumentGraphCorpusTests
     private const int SampleSize = 10;
 
     /// <summary>
-    ///     Node-to-caret sync needs a position on every node, and the document model's claim is that
-    ///     it has one for all 216. <c>AuthoringGraphNode</c> carries no back-reference to the YAML at
-    ///     all, so against the old model this test could not even be written.
+    ///     Node-to-caret sync needs a position on every node, and the document model has one for all
+    ///     216. <c>AuthoringGraphNode</c> carries no back-reference to the YAML.
     /// </summary>
     [Test]
     public async Task EveryNode_CarriesASourcePosition()

@@ -11,8 +11,7 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 /// <summary>
 ///     An item added without a drop point (the + Add flyout, the quick starts) lands in the column its kind
 ///     reads in: under the lowest node of that column, or beside the entries when the column is empty. A
-///     table placed under the stats was wrong; it belongs right of them, where the first placement puts a
-///     show node.
+///     table goes right of the stats, where the first placement puts a show node, not under them.
 /// </summary>
 public class CanvasPlacementColumnTests
 {

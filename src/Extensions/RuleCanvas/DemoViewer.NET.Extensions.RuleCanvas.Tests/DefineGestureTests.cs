@@ -151,7 +151,7 @@ public class DefineGestureTests
         }
     }
 
-    // The interposed define used to land wherever the arranger's free spot was, often a screen away.
+    // Not at the arranger's next free spot, which can be a screen away from the stat.
     [Test]
     public async Task ADefinePutInFrontOfAStat_LandsJustLeftOfIt()
     {

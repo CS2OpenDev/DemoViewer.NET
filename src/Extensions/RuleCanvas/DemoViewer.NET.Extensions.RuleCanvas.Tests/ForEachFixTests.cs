@@ -8,9 +8,9 @@ using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
 namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 
 /// <summary>
-///     A <c>for_each:</c> on an entry whose id has no <c>{key}</c> hole used to be refused and left there.
-///     The Inspector now offers the rename that gives the id its hole as the fix, and the fix renames the
-///     entry and writes the axes as one edit and one Undo. An id that already holds a different hole is
+///     A <c>for_each:</c> on an entry whose id has no <c>{key}</c> hole: the Inspector offers the rename
+///     that gives the id its hole as the fix, and the fix renames the entry and writes the axes as one edit
+///     and one Undo. An id that already holds a different hole is
 ///     still refused, and an entry a sibling or <c>show:</c> names cannot become a template.
 /// </summary>
 public class ForEachFixTests

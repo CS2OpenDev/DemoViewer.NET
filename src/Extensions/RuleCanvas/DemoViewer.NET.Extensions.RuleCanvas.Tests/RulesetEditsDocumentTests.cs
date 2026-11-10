@@ -157,7 +157,7 @@ public class RulesetEditsDocumentTests
 
     /// <summary>
     ///     A flow list's last item is removed with the separator before it and any other with the one after,
-    ///     so two adjacent hits ending at the last item used to claim the same separator twice.
+    ///     so two adjacent hits ending at the last item must not claim the same separator twice.
     /// </summary>
     [Test]
     public async Task RemoveShowReference_TakesAdjacentFlowEntries_WhereverTheyLie()

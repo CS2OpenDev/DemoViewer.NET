@@ -16,8 +16,8 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 ///     <see cref="RulesetDocumentGraph" /> over the SHIPPED corpus in <c>rules/</c>, which is the
 ///     only place the numbers in docs/rule-graph/design.md §6.7 can be defended.
 ///     <para>
-///         <b>Every assertion here is a regression gate on a measured defect of the graph this
-///         model replaces.</b> The authoring graph draws all 18 of the corpus's <c>compute:</c> stats
+///         <b>Every assertion here gates a measured defect of the authoring graph.</b> The
+///         authoring graph draws all 18 of the corpus's <c>compute:</c> stats
 ///         with no edge at all, which in <c>aim_rating</c> means its 17 isolated nodes are its 17
 ///         board columns; it draws <c>player_stats</c>, the largest ruleset in the repo, as zero
 ///         nodes; and it carries no back-reference to the YAML, so no node can be jumped to. Each of
@@ -55,7 +55,7 @@ public class RulesetDocumentGraphTests
     ///     <c>aim_rating</c>'s 17 <c>compute:</c> stats are its board columns, and the authoring
     ///     graph draws every one of them with no edge. Here each one is wired to the siblings its
     ///     formula divides, which is the author's own mental model ("CS% is cs_clean over
-    ///     cs_attempts") and the one relationship the old picture refused to draw.
+    ///     cs_attempts") and the one relationship the authoring graph does not draw.
     /// </summary>
     [Test]
     public async Task AimRating_ComputeStats_AreEachWiredToWhatTheyRead()

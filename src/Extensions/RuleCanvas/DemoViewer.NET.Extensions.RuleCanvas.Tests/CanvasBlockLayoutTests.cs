@@ -13,7 +13,7 @@ namespace DemoViewer.NET.Extensions.RuleCanvas.Tests;
 ///     reads as a landscape, the structure is blocks between a shared column and the surfaces, the saved
 ///     arrangement still wins per node, and Reset arrangement comes back to this placement.
 ///     <para>
-///         The crossing count is a regression guard, not the target the brief set. Measured as wire pairs
+///         The crossing count is a ceiling, not a target. Measured as wire pairs
 ///         whose straight runs (output rail to input row) cross, today's layered placement lands at 1988
 ///         for player_stats and this one at about 4000: a wide placement sends every scoreboard wire and
 ///         every shared gate across the blocks between, where the tall single column sent them one layer

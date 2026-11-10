@@ -563,7 +563,7 @@ public class RulesetChainGraphTests
 
     /// <summary>
     ///     Two stats firing on one define share one event wire into it and get one fires wire each. The stat
-    ///     face no longer states the define's body; the canvas has the define node for that.
+    ///     face does not state the define's body; the canvas has the define node for that.
     /// </summary>
     [Test]
     public async Task ADefineTwoStatsFireOn_IsFiredOnce_AndFiresEach()

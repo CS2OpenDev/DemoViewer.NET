@@ -25,7 +25,7 @@ public class CanvasOwnerChecksTests
 
     private static string Text(RulesTree rules) => File.ReadAllText(rules.UserPath("player_round"));
 
-    // The death view binds the player as the victim, so "as victim" is the right chip, not a regression.
+    // The death view binds the player as the victim, so "as victim" is the right chip.
     [Test]
     public async Task PickingDeathOnRoundKills_WritesCountDeath_AndTheFaceReadsAsVictim()
     {

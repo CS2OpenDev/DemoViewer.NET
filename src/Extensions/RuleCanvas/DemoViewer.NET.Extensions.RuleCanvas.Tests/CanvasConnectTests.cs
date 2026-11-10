@@ -157,8 +157,8 @@ public class CanvasConnectTests
         }
     }
 
-    // A wired operand used to join with a fixed word: "or" on a flag, "and" on a highlight, which turned
-    // "a and b" into "a and b or c" and silently changed what ran.
+    // A fixed joining word ("or" on a flag, "and" on a highlight) would turn "a and b" into "a and b or c"
+    // and change what runs.
     [Test]
     public async Task AWiredOperand_JoinsInTheAuthorsConnective_AndANestedWhenKeepsItsPrecedence()
     {

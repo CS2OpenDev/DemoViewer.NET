@@ -84,7 +84,7 @@ public class CanvasPlacementIncrementalTests
         Dictionary<RulesetDocumentNodeKey, Point> before = vm.Nodes.ToDictionary(n => n.Key, n => n.Location);
         CanvasNodeViewModel stat = vm.Nodes.First(n => n.IsAuthorable && n.Kind == "count" && n.AvailableFacets.Contains("headshot"));
 
-        // The path a write took before this change, replayed: every file read, the chain composed, every node placed.
+        // A full reload for comparison: every file read, the chain composed, every node placed.
         Stopwatch clock = Stopwatch.StartNew();
         RulesetCorpus whole = rules.Load();
         CanvasGraphBuilder.Build(whole.Compose("player_stats"));
