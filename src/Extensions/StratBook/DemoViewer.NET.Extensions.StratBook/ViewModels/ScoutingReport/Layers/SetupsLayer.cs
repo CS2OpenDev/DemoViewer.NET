@@ -88,7 +88,8 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
 
         cancellationToken.ThrowIfCancellationRequested();
         IReadOnlyDictionary<string, ScoutingColor> colors = ColorsFor(context);
-        SetupAreaClassifier areas = SetupAreaClassifier.Learn(onMap.SelectMany(h => h.Rounds));
+        SetupAreaClassifier areas = SetupAreaClassifier.Learn(onMap.SelectMany(h => h.Rounds),
+            RegionsFor(context));
         List<SetupHeatmapRound> rounds = [.. heatmaps.SelectMany(h => h.Rounds)];
         IReadOnlyList<SetupPlayerPlace> places = SetupsDerivation.PlacesByPlayer(rounds);
         string scopeBuy = context.Buy == ScoutingBuy.All
@@ -128,7 +129,7 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         {
             int of = formations.Sum(f => f.Rounds.Count);
             sections.Add(new ScoutingInspectorSection("CTs per area · A · mid · B",
-                [.. formations.Take(6).Select(f => FormationRow(context, f, of, areas.HasSites))]));
+                [.. formations.Take(6).Select(f => FormationRow(context, f, of, areas.HasSites || areas.HasRegions))]));
         }
 
         IReadOnlyList<SetupRotation> rotations = SetupsDerivation.Rotations(rounds, areas);
@@ -199,6 +200,19 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         }
 
         return marks;
+    }
+
+    // The map's site regions from Suggested Tags, or null: the areas fall back to distance from the site centres.
+    private static SetupSiteRegions? RegionsFor(ScoutingLayerContext context)
+    {
+        try
+        {
+            return context.Data.Sources.SiteRegions?.Invoke(context.Map);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return null;
+        }
     }
 
     // The roster's colours by SteamID64; anyone else draws grey.

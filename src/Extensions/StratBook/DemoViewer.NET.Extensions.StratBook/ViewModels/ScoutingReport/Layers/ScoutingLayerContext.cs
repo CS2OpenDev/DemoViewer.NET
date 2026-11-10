@@ -43,6 +43,12 @@ public sealed class ScoutingReportSources
     public Func<string?, string>? PositionsFingerprint { get; init; }
 
     /// <summary>
+    ///     A map's site regions as Suggested Tags composes them (learned table and the profile's edits); the
+    ///     Setups areas use them before the distance rule. Null on a host without Suggested Tags.
+    /// </summary>
+    public Func<string, SetupSiteRegions?>? SiteRegions { get; init; }
+
+    /// <summary>
     ///     The library-wide Strat Mining patterns, read at build time: null when nothing has been mined yet. The
     ///     source itself is null on a host without a miner (the browser).
     /// </summary>

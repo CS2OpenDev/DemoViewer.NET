@@ -137,6 +137,33 @@ public class SetupsLayerTests
     }
 
     [Test]
+    public async Task TheAreaClassifier_ReadsTheSiteRegionsFirst_SharedPlacesAndOthersByDistance()
+    {
+        SetupSiteRegions regions = new(
+            new HashSet<string>(["BombsiteA", "Jungle", "Connector"], StringComparer.Ordinal),
+            new HashSet<string>(["BombsiteB", "Short", "Connector"], StringComparer.Ordinal));
+        List<SetupHeatmapRound> rounds =
+            [Round(1, Detail(true, Player("a", [At(0, "BombsiteA")]), Player("b", [At(2000, "BombsiteB")])))];
+        SetupAreaClassifier areas = SetupAreaClassifier.Learn(rounds, regions);
+        SetupAreaClassifier distance = SetupAreaClassifier.Learn(rounds);
+        using (Assert.Multiple())
+        {
+            await Assert.That(areas.HasRegions).IsTrue();
+            await Assert.That(distance.HasRegions).IsFalse();
+            await Assert.That(areas.Of(At(1000, "Jungle"))).IsEqualTo(SetupArea.A)
+                .Because("Jungle is in A's region, however far it is from the A centre");
+            await Assert.That(distance.Of(At(1000, "Jungle"))).IsEqualTo(SetupArea.Mid);
+            await Assert.That(areas.Of(At(1000, "Short"))).IsEqualTo(SetupArea.B);
+            await Assert.That(areas.Of(At(1000, "Connector"))).IsEqualTo(SetupArea.Mid)
+                .Because("a place both regions hold falls back to distance");
+            await Assert.That(areas.Of(At(1300, "Window"))).IsEqualTo(SetupArea.B)
+                .Because("a place outside the regions falls back to distance");
+            await Assert.That(areas.Of([At(1000, "Jungle"), At(1000, "Jungle"), At(1000, "Window")]))
+                .IsEqualTo(SetupArea.A).Because("the dominant place's region decides a player's setup");
+        }
+    }
+
+    [Test]
     public async Task Rotations_TimeTheFirstCtFromElsewhereOntoTheHitSite_AndWhetherItBeatThePlant()
     {
         SetupRoundPlayer anchorA = Player("a", [At(0, "BombsiteA")], new SetupTimedSample(0, At(0, "BombsiteA")));

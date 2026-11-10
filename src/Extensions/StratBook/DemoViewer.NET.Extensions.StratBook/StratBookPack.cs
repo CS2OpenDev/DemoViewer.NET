@@ -716,7 +716,8 @@ public sealed class StratBookPack : IExtension
                     StratMiningService mining = sp.GetRequiredService<StratMiningService>();
                     mining.Changed += handler;
                     return new Unsubscribe(() => mining.Changed -= handler);
-                });
+                },
+                siteRegions: map => sp.GetRequiredService<SuggestedTagsService>().SetupRegionsFor(map));
         });
 
         // Lineup Clip Render: every repeated throw position and technique gets a GIF and its setpos line,
