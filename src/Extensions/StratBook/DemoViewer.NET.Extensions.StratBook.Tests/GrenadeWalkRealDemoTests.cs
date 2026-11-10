@@ -83,8 +83,12 @@ public class GrenadeWalkRealDemoTests
 
             await Assert.That(rows.Count(r => r.ThrowerSource == ThrowerSource.None)).IsEqualTo(0)
                 .Because("the weapon_fire join names every thrower the chain lost");
-            await Assert.That(rows.Count(r => r.ReleaseSource == ReleaseSource.WeaponFire) / (double)rows.Count)
-                .IsGreaterThanOrEqualTo(0.99);
+            // A grenade thrown before the recording began or dropped by a dead holder has no weapon_fire to find.
+            List<GrenadeRow> throws = [.. rows.Where(r => r.ReleaseSource is not (ReleaseSource.BeforeRecording
+                or ReleaseSource.DeathDrop))];
+            await Assert.That(throws.Count(r => r.ReleaseSource == ReleaseSource.WeaponFire)
+                              / (double)Math.Max(1, throws.Count))
+                .IsGreaterThanOrEqualTo(0.99).Because("every throw in the recording has its weapon_fire");
 
             List<GrenadeRow> fired = [.. rows.Where(r => r.ReleaseSource == ReleaseSource.WeaponFire)];
             foreach (GrenadeRow row in fired)

@@ -10,6 +10,8 @@
 # at the measured release-to-spawn gap and the speed window before it; a look-back from before the
 # thrower had a pawn reads 0, which offset_pawn tells from a value. The thrower's side is the
 # row's team dimension, the grenade's own m_iTeamNum.
+# spawn_alive tells a grenade that fell from a dead thrower's hand, which has no weapon_fire, from a
+# throw whose weapon_fire is missing.
 ruleset: net_demoviewer_pack_stratbook__grenade_projectiles
 title: Grenade Projectiles
 summary: Every resolved grenade's flight fields, thrower state at the spawn, jump inputs and release look-backs.
@@ -38,6 +40,7 @@ stats:
   spawn_y: { capture: thrower.pos_y, on: raw.projectile_created }
   spawn_z: { capture: thrower.pos_z, on: raw.projectile_created }
   spawn_on_ground: { capture: thrower.on_ground, on: raw.projectile_created }
+  spawn_alive: { capture: thrower.is_alive, on: raw.projectile_created }
   last_jump_tick: { capture: thrower.cmd.last_jump_tick, on: raw.projectile_created }
   coverage: { capture: thrower.cmd.coverage, on: raw.projectile_created }
   offset_pawn: { capture: thrower.entity_index@-7, on: raw.projectile_created }
@@ -80,6 +83,7 @@ show:
         - { stat: spawn_y }
         - { stat: spawn_z }
         - { stat: spawn_on_ground }
+        - { stat: spawn_alive }
         - { stat: last_jump_tick }
         - { stat: coverage }
         - { stat: offset_pawn }

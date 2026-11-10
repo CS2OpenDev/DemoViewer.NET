@@ -177,7 +177,7 @@ public static class GrenadeTables
         int slot = Int(d, "player_slot") ?? -1;
         ThrowerAtSpawn atSpawn = new(Vector(v, "spawn_x", "spawn_y", "spawn_z"), Bool(v, "spawn_on_ground"),
             Math.Max(0, Int(d, "team") ?? 0),
-            Int(v, "last_jump_tick") ?? -1, Float(v, "coverage") ?? 0);
+            Int(v, "last_jump_tick") ?? -1, Float(v, "coverage") ?? 0, Bool(v, "spawn_alive"));
         // A look-back from before the thrower had a pawn reads 0 on every column; the pawn index tells.
         ThrowerRead? offset = null;
         Vector3? offsetBefore = null;
