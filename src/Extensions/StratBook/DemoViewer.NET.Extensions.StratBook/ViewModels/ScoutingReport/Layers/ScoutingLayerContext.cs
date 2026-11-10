@@ -4,6 +4,7 @@ using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Strats.Mining;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
 #endregion
@@ -33,6 +34,12 @@ public sealed class ScoutingReportSources
     public GrenadeIndex? Grenades { get; init; }
 
     public RoundIndexStore? RoundIndex { get; init; }
+
+    /// <summary>
+    ///     The library-wide Strat Mining patterns, read at build time: null when nothing has been mined yet. The
+    ///     source itself is null on a host without a miner (the browser).
+    /// </summary>
+    public Func<IReadOnlyList<MinedPattern>?>? MinedPatterns { get; init; }
 
     /// <summary>Seeks 2D playback to a moment; null when the host has none.</summary>
     public Func<ISituationPlayback?>? Playback { get; init; }
