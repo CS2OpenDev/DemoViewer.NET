@@ -378,7 +378,7 @@ public class StratScoutingTests
 
         using (Assert.Multiple())
         {
-            await Assert.That(noSource.Status.Message).IsEqualTo("not built on this host");
+            await Assert.That(noSource.Status.Message).IsEqualTo(ScoutingLayerResult.NotOnThisHost);
             await Assert.That(notMined.Status.Message)
                 .IsEqualTo("strats not mined yet: Find strats in the Strat Book's Detected inbox");
             await Assert.That(none.Status.State).IsEqualTo(ScoutingLayerState.Empty);

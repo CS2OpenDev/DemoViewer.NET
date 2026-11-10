@@ -230,8 +230,11 @@ public class LurksLayerTests
             using (Assert.Multiple())
             {
                 await Assert.That(r.Marks.Count).IsEqualTo(2).Because("round 3's lurker is dead by 28 s and round 4 has none");
-                await Assert.That(r.Marks.All(m => m is { X: 3000, Y: 111, Z: 7, Shape: ScoutingMarkShape.Dot, Color: ScoutingColor.Lurk })).IsTrue();
-                await Assert.That(r.Legend.Single().Text).IsEqualTo("dot = lurker at 0:30");
+                await Assert.That(r.Marks.All(m => m is { X: 3000, Y: 111, Z: 7, Shape: ScoutingMarkShape.Dot })).IsTrue();
+                await Assert.That(r.Marks.Select(m => m.Color)).IsEquivalentTo(
+                    [Titled(r, "de_nuke T · lurker p3").Swatch!.Value, Titled(r, "de_nuke T · lurker p4").Swatch!.Value])
+                    .Because("a lurker's dot is in their row's colour");
+                await Assert.That(r.Legend.Single().Text).IsEqualTo("dot = the lurker at 0:30, in their Players colour");
             }
         }
     }

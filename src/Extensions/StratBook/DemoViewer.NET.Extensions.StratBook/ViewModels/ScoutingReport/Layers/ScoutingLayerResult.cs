@@ -28,6 +28,35 @@ public sealed record ScoutingLayerStatus(ScoutingLayerState State, string Messag
     public static ScoutingLayerStatus Ready { get; } = new(ScoutingLayerState.Ready);
 
     public static ScoutingLayerStatus Building { get; } = new(ScoutingLayerState.Building, "building");
+
+    /// <summary>
+    ///     The message as the inspector and the strip show it, in one voice: a sentence, capitalised and stopped,
+    ///     with a placeholder's gap id in brackets unless the message already names it. The layers write
+    ///     <see cref="Message" /> in lower case so a test can match it whole; only the display is reworded.
+    /// </summary>
+    public string Display
+    {
+        get
+        {
+            if (State == ScoutingLayerState.Building)
+            {
+                return "Building…";
+            }
+
+            if (Message.Length == 0)
+            {
+                return "";
+            }
+
+            string text = char.ToUpperInvariant(Message[0]) + Message[1..];
+            if (!text.EndsWith('.') && !text.EndsWith('…'))
+            {
+                text += ".";
+            }
+
+            return GapId is { } gap && !text.Contains(gap, StringComparison.Ordinal) ? $"{text} [{gap}]" : text;
+        }
+    }
 }
 
 /// <summary>The theme colour a mark, swatch or bar is drawn in; the stage and the view resolve it from the theme.</summary>
@@ -176,6 +205,17 @@ public sealed record ScoutingLayerResult
     /// <param name="message">What is missing, in the user's words.</param>
     public static ScoutingLayerResult Placeholder(string gapId, string message) =>
         new() { Status = new ScoutingLayerStatus(ScoutingLayerState.Placeholder, message, gapId) };
+
+    /// <summary>Why a layer is empty on a host that does not build its source (the browser).</summary>
+    public const string NotOnThisHost = "not built on this host; the desktop app builds it";
+
+    /// <summary>A load that failed: what failed and the way to try again.</summary>
+    /// <param name="what">What could not be read: "setups".</param>
+    /// <param name="why">The failure, or null.</param>
+    public static ScoutingLayerResult Unreadable(string what, string? why) =>
+        Empty(why is null
+            ? $"{what} could not be read; select the team again to retry"
+            : $"{what} could not be read ({why}); select the team again to retry");
 
     /// <summary>A layer that built and found nothing.</summary>
     /// <param name="reason">Why.</param>

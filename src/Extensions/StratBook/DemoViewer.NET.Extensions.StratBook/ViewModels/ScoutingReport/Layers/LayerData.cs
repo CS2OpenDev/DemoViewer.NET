@@ -71,14 +71,13 @@ public static class LayerData
     {
         if (!hasService)
         {
-            return ScoutingLayerResult.Empty("not built on this host");
+            return ScoutingLayerResult.Empty(ScoutingLayerResult.NotOnThisHost);
         }
 
         if (line is null)
         {
-            return ScoutingLayerResult.Empty(context.Data.Problems.TryGetValue(load, out string? why)
-                ? $"unavailable: {why}"
-                : "unavailable");
+            return ScoutingLayerResult.Unreadable(load,
+                context.Data.Problems.TryGetValue(load, out string? why) ? why : null);
         }
 
         return ScoutingLayerResult.Empty(anyBlock == true

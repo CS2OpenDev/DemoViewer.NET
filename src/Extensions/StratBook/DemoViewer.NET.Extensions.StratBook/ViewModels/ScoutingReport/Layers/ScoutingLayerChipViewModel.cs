@@ -69,7 +69,7 @@ public sealed partial class ScoutingLayerChipViewModel : ObservableObject
         {
             if (Result.Status.State != ScoutingLayerState.Ready)
             {
-                return [Result.Status.State == ScoutingLayerState.Building ? "Building…" : Result.Status.Message];
+                return [Result.Status.Display];
             }
 
             IEnumerable<ScoutingInspectorRow> rows = Result.Mini.Count > 0

@@ -28,7 +28,7 @@ public sealed class PaceLayer() : ScoutingLayerBase("pace", "Pace", ScoutingLaye
         if (facts is null && plants is null && openings is null)
         {
             return context.Data.Sources.RoundFacts is null
-                ? ScoutingLayerResult.Empty("not built on this host: Round Facts are unavailable")
+                ? ScoutingLayerResult.Empty(ScoutingLayerResult.NotOnThisHost)
                 : ScoutingLayerResult.Empty($"no T rounds on {context.Map}");
         }
 

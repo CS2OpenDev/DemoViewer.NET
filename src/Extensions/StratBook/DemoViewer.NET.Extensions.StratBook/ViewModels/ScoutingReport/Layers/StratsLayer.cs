@@ -151,7 +151,7 @@ internal static class StratLayerKit
     /// <summary>Why there are no patterns at all.</summary>
     public static ScoutingLayerResult NoPatterns(ScoutingLayerContext context) =>
         ScoutingLayerResult.Empty(context.Data.Sources.MinedPatterns is null
-            ? "not built on this host"
+            ? ScoutingLayerResult.NotOnThisHost
             : "strats not mined yet: Find strats in the Strat Book's Detected inbox");
 
     /// <summary>The team's side in a member round.</summary>

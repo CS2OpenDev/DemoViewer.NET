@@ -157,7 +157,7 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
         List<ScoutingInspectorSection> sections =
         [
             new("", [SampleRow(context, block)]),
-            new("Opening duels on T", DuelRows(context, block, "T")),
+            new("Opening duels", DuelRows(context, block, "T")),
             new("Opening kills by place · position ±1 s",
                 Rows(context, ByPlace(kills.Select(d => (d.Spot, d.Clip))), kills.Count, "opening kill",
                     ScoutingColor.Neutral)),

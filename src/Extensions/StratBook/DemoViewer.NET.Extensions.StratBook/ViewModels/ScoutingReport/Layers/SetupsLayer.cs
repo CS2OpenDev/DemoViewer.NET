@@ -65,15 +65,14 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         ArgumentNullException.ThrowIfNull(context);
         if (context.Data.Sources.Heatmaps is null)
         {
-            return ScoutingLayerResult.Empty("setups are not built on this host");
+            return ScoutingLayerResult.Empty(ScoutingLayerResult.NotOnThisHost);
         }
 
         SetupHeatmapSet? set = await context.Data.Heatmaps.ConfigureAwait(false);
         if (set is null)
         {
-            return ScoutingLayerResult.Empty(context.Data.Problems.TryGetValue("heatmaps", out string? why)
-                ? $"setups unavailable: {why}"
-                : "setups unavailable");
+            return ScoutingLayerResult.Unreadable("setups",
+                context.Data.Problems.TryGetValue("heatmaps", out string? why) ? why : null);
         }
 
         List<SetupHeatmap> onMap =
@@ -150,7 +149,7 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
             Sections = sections,
             Legend =
             [
-                new ScoutingLegendEntry(Swatch, "setups: one colour per player (see Players), a dot per round"),
+                new ScoutingLegendEntry(Swatch, "dot = a player's setup in one round, in their Players colour"),
                 new ScoutingLegendEntry(new ScoutingSwatch(ScoutingMarkShape.Ring, ScoutingColor.Neutral),
                     "ringed dot = the player's most-held spot")
             ]

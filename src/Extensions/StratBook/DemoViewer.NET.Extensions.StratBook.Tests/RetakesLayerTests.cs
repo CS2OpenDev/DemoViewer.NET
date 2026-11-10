@@ -224,7 +224,7 @@ public class RetakesLayerTests
             await Assert.That(result.Marks.Single(m => m.Shape == ScoutingMarkShape.Ring))
                 .IsEqualTo(new ScoutingMapMark(-500, 900, -40, ScoutingMarkShape.Ring, ScoutingColor.Neutral, 5f));
             await Assert.That(result.Legend.Select(l => l.Text))
-                .IsEquivalentTo(["blue = CT reached the bomb", "grey ring = CT saved"]);
+                .IsEquivalentTo(["blue dot = a CT who reached the bomb", "grey ring = a CT who saved"]);
         }
     }
 
