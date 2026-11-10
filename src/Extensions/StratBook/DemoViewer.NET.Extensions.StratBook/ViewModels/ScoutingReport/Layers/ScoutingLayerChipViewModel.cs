@@ -80,6 +80,11 @@ public sealed partial class ScoutingLayerChipViewModel : ObservableObject
         }
     }
 
+    /// <summary>The strip mini's chart when the build is ready and drew one; null shows <see cref="MiniLines" />.</summary>
+    public ScoutingMiniChart? MiniChart => Result.Status.State == ScoutingLayerState.Ready ? Result.MiniChart : null;
+
+    public bool HasMiniChart => MiniChart is not null;
+
     /// <summary>A strip mini's second button: the By score mini also inspects the timeouts.</summary>
     public ScoutingLayerChipViewModel? Companion { get; internal set; }
 
@@ -152,5 +157,7 @@ public sealed partial class ScoutingLayerChipViewModel : ObservableObject
         };
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(MiniLines));
+        OnPropertyChanged(nameof(MiniChart));
+        OnPropertyChanged(nameof(HasMiniChart));
     }
 }
