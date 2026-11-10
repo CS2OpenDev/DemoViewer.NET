@@ -20,7 +20,7 @@
                                Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
                     <TextBox Grid.Column="1" Text="{Binding Text}" FontSize="12" FontFamily="monospace" Padding="6 3" MinHeight="0"
                              IsEnabled="{Binding IsEditable}" IsVisible="{Binding IsFreeText}" LostFocus="OnFieldLostFocus"
-                             Watermark="{Binding Title}">
+                             PlaceholderText="{Binding Title}">
                         <TextBox.KeyBindings>
                             <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
                             <KeyBinding Gesture="Escape" Command="{Binding RevertCommand}" />
@@ -228,7 +228,7 @@
                         <DockPanel IsVisible="{Binding IsEditable}">
                             <Button DockPanel.Dock="Right" Classes="ghost" Content="Use" FontSize="11" Padding="8 3" Margin="6 0 0 0"
                                     Command="{Binding AddUseCommand}" ToolTip.Tip="Add a ruleset whose stats this one may read" />
-                            <TextBox Text="{Binding UseToAdd}" Watermark="ruleset id" FontSize="12" FontFamily="monospace"
+                            <TextBox Text="{Binding UseToAdd}" PlaceholderText="ruleset id" FontSize="12" FontFamily="monospace"
                                      Padding="6 3" MinHeight="0">
                                 <TextBox.KeyBindings>
                                     <KeyBinding Gesture="Enter" Command="{Binding AddUseCommand}" />
@@ -257,7 +257,7 @@
                         <DockPanel IsVisible="{Binding IsEditable}">
                             <Button DockPanel.Dock="Right" Classes="ghost" Content="Export" FontSize="11" Padding="8 3" Margin="6 0 0 0"
                                     Command="{Binding AddExportCommand}" ToolTip.Tip="Add a stat or highlight id other rulesets may read" />
-                            <TextBox Text="{Binding ExportToAdd}" Watermark="stat or highlight id" FontSize="12" FontFamily="monospace"
+                            <TextBox Text="{Binding ExportToAdd}" PlaceholderText="stat or highlight id" FontSize="12" FontFamily="monospace"
                                      Padding="6 3" MinHeight="0">
                                 <TextBox.KeyBindings>
                                     <KeyBinding Gesture="Enter" Command="{Binding AddExportCommand}" />
@@ -280,7 +280,7 @@
                         <Button DockPanel.Dock="Right" Classes="ghost" Content="Create" FontSize="11" Padding="8 3" Margin="6 0 0 0"
                                 Command="{Binding CreateRulesetCommand}"
                                 ToolTip.Tip="Write a minimal ruleset under this id into your rules and open it" />
-                        <TextBox Text="{Binding NewRulesetId}" Watermark="ruleset id" FontSize="12" FontFamily="monospace"
+                        <TextBox Text="{Binding NewRulesetId}" PlaceholderText="ruleset id" FontSize="12" FontFamily="monospace"
                                  Padding="6 3" MinHeight="0">
                             <TextBox.KeyBindings>
                                 <KeyBinding Gesture="Enter" Command="{Binding CreateRulesetCommand}" />
