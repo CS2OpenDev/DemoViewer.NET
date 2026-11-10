@@ -16,8 +16,8 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 ///     traded opening deaths and who opens, and on T the entry by site from the Opening Tendencies. Every number
 ///     opens its rounds.
 ///     <para>
-///         Positions are the 1 Hz sample at or before the kill, labelled "position ±1 s"; P3.3 switches them to
-///         exact captures inside <see cref="OpeningDuelsService.SpotAt" />.
+///         Positions are the exact captured spots where the demo has captures, else the 1 Hz sample at or before
+///         the kill; the labels say which per block (<see cref="Precision" />).
 ///     </para>
 /// </summary>
 public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels", ScoutingLayerPlacement.Map,
@@ -50,7 +50,7 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
                 try
                 {
                     return OpeningDuelsService.Build(d.Sources.Teams, d.Sources.Library, facts, d.Positions,
-                        d.TeamId);
+                        d.TeamId, d.Captures);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
                                                or InvalidOperationException)
@@ -108,7 +108,7 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
         List<ScoutingInspectorSection> sections =
         [
             new("", [SampleRow(context, block)]),
-            new("Where they lose the opening duel · position ±1 s",
+            new($"Where they lose the opening duel · {Precision(block)}",
                 Rows(context, places, rounds, "opening death", ScoutingColor.Bad)),
             new("Opening duels", DuelRows(context, block, "CT")),
             new("Who opens", WhoOpens(context, block))
@@ -144,7 +144,7 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
             Reads = reads,
             Sections = [.. sections.Where(s => s.Rows.Count > 0)],
             Legend = [new ScoutingLegendEntry(new ScoutingSwatch(ScoutingMarkShape.Ring, ScoutingColor.Bad),
-                "ring = where they lose the opening duel (position ±1 s)")]
+                $"ring = where they lose the opening duel ({Precision(block)})")]
         };
     }
 
@@ -158,10 +158,10 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
         [
             new("", [SampleRow(context, block)]),
             new("Opening duels", DuelRows(context, block, "T")),
-            new("Opening kills by place · position ±1 s",
+            new($"Opening kills by place · {Precision(block)}",
                 Rows(context, ByPlace(kills.Select(d => (d.Spot, d.Clip))), kills.Count, "opening kill",
                     ScoutingColor.Neutral)),
-            new("Opening deaths by place · position ±1 s",
+            new($"Opening deaths by place · {Precision(block)}",
                 Rows(context, ByPlace(deaths.Select(d => (d.Spot, d.Clip))), deaths.Count, "opening death",
                     ScoutingColor.Bad)),
             new("Who opens", WhoOpens(context, block))
@@ -199,9 +199,9 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
             Sections = [.. sections.Where(s => s.Rows.Count > 0)],
             Legend =
             [
-                new ScoutingLegendEntry(_killSwatch, "white dot = opening kill (position ±1 s)"),
+                new ScoutingLegendEntry(_killSwatch, $"white dot = opening kill ({Precision(block)})"),
                 new ScoutingLegendEntry(new ScoutingSwatch(ScoutingMarkShape.Ring, ScoutingColor.Bad),
-                    "ring = opening death (position ±1 s)")
+                    $"ring = opening death ({Precision(block)})")
             ]
         };
     }
@@ -305,8 +305,25 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
     private static ScoutingInspectorRow SampleRow(ScoutingLayerContext context, OpeningDuelBlock block) =>
         Sample(context, block.Rounds, "rounds") with
         {
-            Note = $"positions read for {block.PositionRounds} of {Plural(block.Rounds.Count, "round")} · 1 Hz sample at or before the kill (±1 s)"
+            Note = $"positions read for {block.PositionRounds} of {Plural(block.Rounds.Count, "round")} · {Precision(block)}"
         };
+
+    /// <summary>
+    ///     What the block's marks rest on: "exact" when every demo had captures, "position ±1 s" (the 1 Hz sample at
+    ///     or before the kill) when none did, and the split when the demos mix.
+    /// </summary>
+    /// <param name="block">The block.</param>
+    public static string Precision(OpeningDuelBlock block)
+    {
+        ArgumentNullException.ThrowIfNull(block);
+        return (block.ExactDemos, block.SampledDemos) switch
+        {
+            (> 0, 0) => "exact position",
+            (> 0, var sampled) =>
+                $"exact position in {Plural(block.ExactDemos, "demo")}, ±1 s in {Plural(sampled, "demo")}",
+            _ => "position ±1 s"
+        };
+    }
 
     private static void AddFirstContact(ScoutingLayerContext context, List<ScoutingInspectorSection> sections,
         OpeningTendencies? openings)

@@ -46,7 +46,8 @@ public sealed class RetakesLayer() : ScoutingLayerBase("retakes", "Retakes and s
         {
             try
             {
-                return new RetakeService(sources.Teams, sources.Library, sources.RoundFacts, data.Positions)
+                return new RetakeService(sources.Teams, sources.Library, sources.RoundFacts, data.Positions,
+                    data.Captures)
                     .Build(data.TeamId);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)

@@ -14,6 +14,12 @@ public sealed class OpeningDuelSet
     /// <summary>Demos read with no positions file; their duels count but draw no mark.</summary>
     public int DemosWithoutPositions { get; init; }
 
+    /// <summary>Deaths whose captured trade flag was compared with the 5 s rule.</summary>
+    public int TradeCompared => Blocks.Sum(b => b.TradeCompared);
+
+    /// <summary>Of those, the deaths where the two disagreed.</summary>
+    public int TradeDisagreed => Blocks.Sum(b => b.TradeDisagreed);
+
     /// <summary>The block of a map and side, or null.</summary>
     /// <param name="map">The map.</param>
     /// <param name="side">2 = T, 3 = CT.</param>
@@ -35,6 +41,18 @@ public sealed class OpeningDuelBlock
     /// <summary>Rounds whose positions file could be read: the ones that can draw a mark.</summary>
     public int PositionRounds { get; init; }
 
+    /// <summary>Demos of this block whose marks come from exact captured positions.</summary>
+    public int ExactDemos { get; init; }
+
+    /// <summary>Demos of this block (none of them exact) whose marks come from the 1 Hz sample, up to 1 s early.</summary>
+    public int SampledDemos { get; init; }
+
+    /// <summary>Deaths of this block whose captured trade flag was compared with the 5 s rule.</summary>
+    public int TradeCompared { get; init; }
+
+    /// <summary>Of those, the deaths where the two disagreed.</summary>
+    public int TradeDisagreed { get; init; }
+
     /// <summary>The round's opening duel, one per round that had one, in round order.</summary>
     public IReadOnlyList<OpeningDuelRound> Duels { get; init; } = [];
 
@@ -42,12 +60,13 @@ public sealed class OpeningDuelBlock
     public IReadOnlyList<OpeningDeathRound> FirstDeaths { get; init; } = [];
 }
 
-/// <summary>Where a player stood at a moment: the positions sample at or just before it.</summary>
+/// <summary>Where a player stood at a moment: the exact captured spot, or the positions sample at or just before it.</summary>
 /// <param name="X">World X.</param>
 /// <param name="Y">World Y.</param>
 /// <param name="Z">World Z.</param>
 /// <param name="Place">The place name, or null when the sample named none.</param>
-public sealed record OpeningSpot(int X, int Y, int Z, string? Place);
+/// <param name="Exact">From the kill's capture, not the 1 Hz sample.</param>
+public sealed record OpeningSpot(int X, int Y, int Z, string? Place, bool Exact = false);
 
 /// <summary>A round's opening duel from the team's side.</summary>
 /// <param name="Clip">The clip around the kill.</param>

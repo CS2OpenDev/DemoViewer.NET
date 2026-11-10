@@ -17,8 +17,9 @@ namespace DemoViewer.NET.AppTests;
 /// <summary>
 ///     The round index against a real Valve matchmaking demo. The index
 ///     joins alive and side against Round Facts rows, which the shipped ruleset writes through the
-///     production evaluator. One test builds without them: the builder over the real position walk with
-///     rounds synthesised from <see cref="ClipRounds" /> and sides from the tier-2 roster, which checks
+///     production evaluator. One test builds without a kill table: the builder over the real position walk with
+///     rounds synthesised from <see cref="ClipRounds" /> (end ticks from the production rows) and sides from the
+///     tier-2 roster, which checks
 ///     the walk, the step arithmetic and the frame-clock alignment without a kill table.
 /// </summary>
 [NotInParallel]
@@ -26,16 +27,32 @@ namespace DemoViewer.NET.AppTests;
 public class RoundIndexRealDemoTests
 {
     // Rounds from the clip authority and sides from the parse's own roster, with no kills: the
-    // alive filter is a no-op, so every token counts every seated pawn the walk yields.
-    private static RoundFactsRows SyntheticRows(ParsedDemo parsed)
+    // alive filter is a no-op, so every token counts every seated pawn the walk yields. A round ends where the
+    // production Round Facts say it does; without an end a synthetic round would run to the next freeze end and
+    // take in the freeze time and the gap between rounds, which on a long round passes any sane row cap.
+    private static RoundFactsRows SyntheticRows(string path, ParsedDemo parsed)
     {
         (List<CachedPlayerInfo> players, _) = DemoLibraryService.ProjectTier2(parsed);
         int[] ct = [.. players.Where(p => p.Team == 3).Select(p => p.Slot)];
         int[] t = [.. players.Where(p => p.Team == 2).Select(p => p.Slot)];
+        DemoCacheStore store = new(null);
+        new RoundFactsEvaluator(store, new EngineRoundFactsRowSource(), new RulesRoundFactsRulesetIdentity())
+            .Evaluate(path, parsed);
+        Dictionary<int, int> ends = [];
+        foreach (RoundFacts real in store.TryLoadRecord(path)?.RoundFacts?.Rounds ?? [])
+        {
+            if (real.EndTick is { } end)
+            {
+                ends[real.Number] = end;
+            }
+        }
+
         return RoundIndexTestData.Facts(
         [
             .. ClipRounds.Derive(parsed).Select(r =>
-                RoundIndexTestData.Round(r.Number, r.StartTickFrameClock, null, ctSlots: ct, tSlots: t))
+                RoundIndexTestData.Round(r.Number, r.StartTickFrameClock,
+                    ends.TryGetValue(r.Number, out int end) && end > r.StartTickFrameClock ? end : null,
+                    ctSlots: ct, tSlots: t))
         ]);
     }
 
@@ -50,7 +67,7 @@ public class RoundIndexRealDemoTests
             throw new SkipTestException("demo carries no rounds");
         }
 
-        RoundFactsRows facts = SyntheticRows(parsed);
+        RoundFactsRows facts = SyntheticRows(path, parsed);
         Stopwatch watch = Stopwatch.StartNew();
         RoundIndexDocument document =
             RoundIndexBuilder.Build(parsed, facts, RoundIndexOptions.Default, PawnPlaceSource.Instance);

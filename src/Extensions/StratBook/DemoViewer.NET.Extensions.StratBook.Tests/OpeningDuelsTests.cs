@@ -204,6 +204,111 @@ public class OpeningDuelsTests
         }
     }
 
+    private static CapturedKill CK(RoundFacts round, int index, bool trade = false, int traded = -1,
+        CaptureSpot? attacker = null, CaptureSpot? victim = null) =>
+        new(round.Kills[index].Tick, round.Kills[index].AttackerSlot, round.Kills[index].VictimSlot, 0, null, null,
+            false, trade, traded, index == 0, attacker, victim);
+
+    [Test]
+    public async Task ExactSpots_ComeFromTheCapturedKill_AndFallBackWhenTheKillIsNotThere()
+    {
+        RoundFacts round = Round(1, true, 2, Kill(1, 10.5, 0, 5), Kill(1, 12, 6, 1));
+        RoundCaptureView capture = new(new CapturedRound
+        {
+            Number = 1,
+            Kills = [CK(round, 0, attacker: new CaptureSpot(11, 22, 33, "Ramp"), victim: new CaptureSpot(44, 55, 66, null))]
+        }, true);
+
+        OpeningSpot? killer = OpeningDuelsService.ExactSpot(capture, round.Kills[0], false);
+        OpeningSpot? victim = OpeningDuelsService.ExactSpot(capture, round.Kills[0], true);
+        using (Assert.Multiple())
+        {
+            await Assert.That(killer).IsEqualTo(new OpeningSpot(11, 22, 33, "Ramp", true));
+            await Assert.That(victim!.Exact).IsTrue();
+            await Assert.That(OpeningDuelsService.ExactSpot(capture, round.Kills[1], false)).IsNull()
+                .Because("a kill the captures do not hold is read from the sample");
+            await Assert.That(OpeningDuelsService.ExactSpot(null, round.Kills[0], false)).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task TheTradeFlag_IsTheCapturedOne_WhenThereAreCaptures_AndNullOtherwise()
+    {
+        RoundFacts round = Round(1, true, 2, Kill(1, 10, 6, 5), Kill(1, 12, 0, 6));
+        RoundCaptureView traded = new(new CapturedRound
+        {
+            Number = 1, Kills = [CK(round, 0), CK(round, 1, true, 5)]
+        }, true);
+        RoundCaptureView notTraded = new(new CapturedRound { Number = 1, Kills = [CK(round, 0), CK(round, 1)] }, true);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(OpeningDuelsService.CapturedTrade(traded, round.Kills[0])).IsTrue();
+            await Assert.That(OpeningDuelsService.CapturedTrade(notTraded, round.Kills[0])).IsFalse();
+            await Assert.That(OpeningDuelsService.CapturedTrade(null, round.Kills[0])).IsNull();
+            await Assert.That(OpeningDuelsService.CapturedTrade(traded, Kill(1, 30, 3, 4))).IsNull()
+                .Because("a death not in the captures has no flag");
+        }
+    }
+
+    [Test]
+    public async Task TheBuild_PrefersCaptures_CountsTheTradeDisagreements_AndSaysWhichDemosAreExact()
+    {
+        (DemoCacheStore cache, TeamIdentityService teams, RoundIndexStore store, Guid teamA) = await Library();
+        RoundFactsRows rows = Rows();
+        // Round 2: p0 loses the opening, traded at 3 s by the 5 s rule; the capture says it was not traded.
+        // Round 1: p0 wins the opening; the capture holds its exact spot.
+        RoundFacts r1 = rows.Rounds[0];
+        RoundFacts r2 = rows.Rounds[1];
+        RoundCapturesDocument doc = new()
+        {
+            Fingerprint = "fp",
+            Demo = new RoundPositionsDemo { Sha256 = "abc123" },
+            Collected = true,
+            Rounds =
+            [
+                new CapturedRound
+                {
+                    Number = 1,
+                    Kills = [CK(r1, 0, attacker: new CaptureSpot(7, 8, 9, "Exact1")), CK(r1, 1)]
+                },
+                new CapturedRound
+                {
+                    Number = 2,
+                    Kills = [CK(r2, 0, victim: new CaptureSpot(70, 80, 90, "Exact2")), CK(r2, 1)]
+                }
+            ]
+        };
+        RoundIndexDocument index = new() { Fingerprint = "fp" };
+        index.Demo = new RoundIndexDemo { Sha256 = "abc123" };
+        store.Write(Demo, index, Positions(), "fp", doc);
+
+        OpeningDuelSet exact = OpeningDuelsService.Build(teams, cache.Library(), cache.RoundFacts(),
+            new PositionsReader(store, null), teamA, new RoundCapturesReader(store, _ => "fp"));
+        OpeningDuelSet stale = OpeningDuelsService.Build(teams, cache.Library(), cache.RoundFacts(),
+            new PositionsReader(store, null), teamA, new RoundCapturesReader(store, _ => "rebuilt"));
+        OpeningDuelBlock t = exact.For("de_nuke", 2)!;
+        OpeningDuelBlock staleT = stale.For("de_nuke", 2)!;
+        using (Assert.Multiple())
+        {
+            await Assert.That(t.Duels[0].Spot).IsEqualTo(new OpeningSpot(7, 8, 9, "Exact1", true));
+            await Assert.That(t.Duels[1].Spot).IsEqualTo(new OpeningSpot(70, 80, 90, "Exact2", true));
+            await Assert.That(t.Duels[2].Spot!.Exact).IsFalse().Because("round 3 has no capture: the 1 Hz sample");
+            await Assert.That(t.Duels[1].Traded).IsFalse().Because("the captured flag wins over the 5 s rule");
+            await Assert.That(t.TradeCompared).IsEqualTo(2);
+            await Assert.That(t.TradeDisagreed).IsEqualTo(1);
+            await Assert.That(t.ExactDemos).IsEqualTo(1);
+            await Assert.That(t.SampledDemos).IsEqualTo(0);
+            await Assert.That(OpeningLayer.Precision(t)).IsEqualTo("exact position");
+            await Assert.That(staleT.ExactDemos).IsEqualTo(0);
+            await Assert.That(staleT.Duels.All(d => d.Spot is { Exact: false })).IsTrue();
+            await Assert.That(staleT.Duels[1].Traded).IsTrue().Because("stale captures fall back to the 5 s rule");
+            await Assert.That(OpeningLayer.Precision(staleT)).IsEqualTo("position ±1 s");
+            await Assert.That(OpeningLayer.Precision(new OpeningDuelBlock { ExactDemos = 3, SampledDemos = 2 }))
+                .IsEqualTo("exact position in 3 demos, ±1 s in 2 demos");
+        }
+    }
+
     [Test]
     public async Task TheBuild_CountsDuels_RoundWonAfter_Trades_FirstDeaths_AndWhoOpens()
     {

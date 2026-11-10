@@ -2,6 +2,7 @@
 
 using System.Globalization;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 
 #endregion
 
@@ -143,7 +144,9 @@ public sealed class PostPlantService
                 rate = FallbackTickRate;
             }
 
-            DemoContext context = new(demo.Path, record.Sha256, rate, positions);
+            RoundCapturesDocument? captured = _positions.TryReadCaptures(demo.Path, _fingerprintFor(map), record.Sha256);
+            DemoContext context = new(demo.Path, record.Sha256, rate, positions,
+                captured is null ? null : new DemoCaptures(captured));
             foreach (RoundFacts round in rows.Rounds.OrderBy(x => x.Number))
             {
                 if (!round.IsLive || _teams.SideAtRound(demo.Path, teamId, round.Number) is not { } side)
@@ -210,8 +213,25 @@ public sealed class PostPlantService
     /// </summary>
     /// <param name="positions">The demo's positions file.</param>
     /// <param name="round">The round.</param>
-    public static RoundPosition? PlantSpot(RoundPositionsDocument positions, RoundFacts round)
+    public static RoundPosition? PlantSpot(RoundPositionsDocument positions, RoundFacts round) =>
+        PlantSpot(positions, round, null);
+
+    /// <summary>
+    ///     Where the bomb went down: the exact spot the round's captures hold for the plant when there is one, else
+    ///     <see cref="PlantSpot(RoundPositionsDocument, RoundFacts)" />. An exact spot carries place id -1 (the
+    ///     capture names the place as text; no reader of the spot looks the id up).
+    /// </summary>
+    /// <param name="positions">The demo's positions file.</param>
+    /// <param name="round">The round.</param>
+    /// <param name="capture">The round's captures, or null when the demo has none.</param>
+    public static RoundPosition? PlantSpot(RoundPositionsDocument positions, RoundFacts round,
+        RoundCaptureView? capture)
     {
+        if (capture?.Plant is { At: { } at } captured)
+        {
+            return new RoundPosition(captured.Slot, at.X, at.Y, at.Z, -1);
+        }
+
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(round);
         if (round.PlantTick is not { } plant || round.PlanterSlot is not { } planter
@@ -353,7 +373,8 @@ public sealed class PostPlantService
     private static string SiteLabel(RoundFacts round) =>
         round.PlantSite == BombSite.Unknown ? "unknown site" : round.PlantSite.ToString();
 
-    private sealed record DemoContext(string Path, string? Sha256, int Rate, RoundPositionsDocument? Positions);
+    private sealed record DemoContext(string Path, string? Sha256, int Rate, RoundPositionsDocument? Positions,
+        DemoCaptures? Captures);
 
     // Rounds per label in first-seen order, ranked on the way out.
     private sealed class Buckets
@@ -450,7 +471,7 @@ public sealed class PostPlantService
             }
 
             _positionRounds++;
-            RoundPosition? spot = PlantSpot(positions, round);
+            RoundPosition? spot = PlantSpot(positions, round, demo.Captures?.Round(round.Number));
             if (side == 3)
             {
                 _retakes.Add(spot is { } bomb ? RetakeGroup(positions, round, bomb, rate) ?? SpotUnread : SpotUnread,
