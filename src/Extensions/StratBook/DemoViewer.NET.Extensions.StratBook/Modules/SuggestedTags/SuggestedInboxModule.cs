@@ -63,7 +63,7 @@ public sealed class SuggestedInboxModule : IWorkspaceModule
         {
             TabId = TabId,
             Header = "Suggested",
-            Order = 6, // after Dossier (5)
+            Order = 6, // after Scouting Report (5)
             HostId = HostIds.StratBookHub,
             FeatureId = TabFeatureId,
             ViewModelFactory = _viewModelFactory,

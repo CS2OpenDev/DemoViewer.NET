@@ -27,7 +27,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 ///         there. A loss with no live next round, or one Team Identity cannot place the team in, is left
 ///         out.
 ///     </para>
-///     <para>Stateless apart from its sources and safe off the UI thread: the Dossier builds on a worker.</para>
+///     <para>Stateless apart from its sources and safe off the UI thread: the Scouting Report builds on a worker.</para>
 /// </summary>
 public sealed class SituationalBehaviourService
 {
@@ -63,7 +63,7 @@ public sealed class SituationalBehaviourService
         _roundFacts = roundFacts;
     }
 
-    /// <summary>The team's situational numbers. Reads records: call it off the UI thread like the other Dossier sections.</summary>
+    /// <summary>The team's situational numbers. Reads records: call it off the UI thread like the other Scouting Report sections.</summary>
     /// <param name="teamId">The team.</param>
     public SituationalBehaviourSet Build(Guid teamId)
     {

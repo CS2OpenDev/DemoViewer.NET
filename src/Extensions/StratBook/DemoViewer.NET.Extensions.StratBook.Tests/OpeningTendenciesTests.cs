@@ -5,7 +5,7 @@ using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -21,7 +21,7 @@ namespace DemoViewer.NET.AppTests;
 ///     one block per map and side; the first utility (the team's own earliest release, the other side's
 ///     never) as a clock histogram and by kind and landing place; first contact as a clock histogram;
 ///     on T the site split, the entry player by site and the lurk from the positions file; a demo with no
-///     grenade rows counted rather than read as no utility; and every number in the Dossier opening its
+///     grenade rows counted rather than read as no utility; and every number in the Scouting Report opening its
 ///     rounds in the Review Queue.
 /// </summary>
 [NotInParallel]
@@ -283,13 +283,13 @@ public class OpeningTendenciesTests
     }
 
     [Test]
-    public async Task TheDossier_ShowsTheSection_AndEveryNumberOpensItsRounds()
+    public async Task TheScoutingReport_ShowsTheSection_AndEveryNumberOpensItsRounds()
     {
         using Harness h = await Harness.Create();
         ReviewQueue queue = new(null);
         List<string> shown = [];
         QueuedPost posted = new();
-        using DossierTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
+        using ScoutingReportTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
             review: new ExtensionReviewQueue(queue),
             selectTab: id =>
             {
@@ -337,11 +337,11 @@ public class OpeningTendenciesTests
         using (Assert.Multiple())
         {
             await Assert.That(queue.ClipCount).IsEqualTo(2);
-            await Assert.That(queue.Clips.All(c => c.Source == ReviewSources.Dossier)).IsTrue();
+            await Assert.That(queue.Clips.All(c => c.Source == DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport)).IsTrue();
             await Assert.That(queue.Clips[0].Note).IsEqualTo("de_nuke T · first utility 5-10 s · round 1");
             await Assert.That(queue.Clips[1].Note).IsEqualTo("de_nuke T · first utility 5-10 s · round 2");
             await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue()
-                .Because("a Dossier clip carries its team");
+                .Because("a Scouting Report clip carries its team");
             await Assert.That(queue.SectionOf(queue.Clips[0].Id)).IsNotNull();
             await Assert.That(vm.Openings.ReviewLine).IsEqualTo("2 rounds sent to Review");
             await Assert.That(shown).IsEquivalentTo(["review.queue"], CollectionOrdering.Matching);

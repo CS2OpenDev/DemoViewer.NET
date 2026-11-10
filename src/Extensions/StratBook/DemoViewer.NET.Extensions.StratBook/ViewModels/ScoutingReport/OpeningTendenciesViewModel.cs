@@ -10,10 +10,10 @@ using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
 #endregion
 
-namespace DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 
 /// <summary>
-///     The Dossier's Opening Tendencies section: per map and side, the first
+///     The Scouting Report's Opening Tendencies section: per map and side, the first
 ///     utility's clock histogram and landing places, the first-contact histogram, and on T the site
 ///     split, the entry player by site and the lurk timing. Every number is a
 ///     <see cref="TendencyLinkViewModel" /> whose click sends its rounds to the Review Queue under one
@@ -51,7 +51,7 @@ public sealed partial class OpeningTendenciesSectionViewModel : ObservableObject
 
     /// <param name="service">Builds the tendencies; null hides the section.</param>
     /// <param name="review">The Review Queue a number's rounds are sent to; null says so on open.</param>
-    /// <param name="selectTab">Shows a tab by id, for the Review tab after a send; null stays on the Dossier.</param>
+    /// <param name="selectTab">Shows a tab by id, for the Review tab after a send; null stays on the Scouting Report.</param>
     /// <param name="post">UI-thread marshal for the worker's result.</param>
     /// <param name="run">Runs the build: a processing-queue item in the app, the pool when null.</param>
     public OpeningTendenciesSectionViewModel(OpeningTendenciesService? service, IExtensionReviewQueue? review,
@@ -134,13 +134,13 @@ public sealed partial class OpeningTendenciesSectionViewModel : ObservableObject
     /// <summary>The Review Queue clip for one round behind a number.</summary>
     /// <param name="link">The number.</param>
     /// <param name="round">One of its rounds.</param>
-    /// <param name="teamId">The dossier's team.</param>
+    /// <param name="teamId">The scouting report's team.</param>
     public static ReviewClip ReviewClipFor(TendencyLinkViewModel link, TendencyRound round, Guid? teamId = null)
     {
         ArgumentNullException.ThrowIfNull(link);
         ArgumentNullException.ThrowIfNull(round);
         return ReviewClip.Clip(round.DemoPath, round.FromTick, round.ToTick,
-            $"{link.Title} · round {round.RoundNumber}", ReviewSources.Dossier, round.TickRate, round.Sha256, teamId);
+            $"{link.Title} · round {round.RoundNumber}", ReviewSources.ScoutingReport, round.TickRate, round.Sha256, teamId);
     }
 
     /// <summary>
@@ -163,7 +163,7 @@ public sealed partial class OpeningTendenciesSectionViewModel : ObservableObject
         }
 
         int added = _review.Add(link.Bucket.Rounds.Select(r => ReviewClipFor(link, r, _teamId)),
-            $"Dossier · {_teamName} · {link.Title}", Plural(link.Count, "round"));
+            $"Scouting report · {_teamName} · {link.Title}", Plural(link.Count, "round"));
         ReviewLine = added == 0 ? "already in Review" : $"{Plural(added, "round")} sent to Review";
         _selectTab?.Invoke(ReviewQueueModule.TabId);
     }

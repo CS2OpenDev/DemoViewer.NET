@@ -958,7 +958,7 @@ public class TeamIdentityTests
         public IReadOnlyList<FactLabel> FactsFor(string demoPath, int round, int? atTick = null) => [];
     }
 
-    /// <summary>A Dossier build asks per round; the rows and slots are read once per record write, not per call.</summary>
+    /// <summary>A Scouting Report build asks per round; the rows and slots are read once per record write, not per call.</summary>
     [Test]
     public async Task SideAtRound_ReadsTheRowsOncePerRecordWrite()
     {

@@ -22,7 +22,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 ///         heatmap's rounds and opens with them; it just adds no points.
 ///     </para>
 ///     <para>
-///         Stateless apart from its sources and safe off the UI thread: the Dossier builds on a worker.
+///         Stateless apart from its sources and safe off the UI thread: the Scouting Report builds on a worker.
 ///     </para>
 /// </summary>
 public sealed class SetupHeatmapService

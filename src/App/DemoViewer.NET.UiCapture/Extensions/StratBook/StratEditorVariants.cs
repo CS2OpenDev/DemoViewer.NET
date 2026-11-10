@@ -49,7 +49,7 @@ public static partial class Variants
         (string Id, string Header, string? Badge)[] others =
         [
             ("situations.search", "Situations", null), ("tags.matrix", "Tags", "3"), ("utility.book", "Utility", null),
-            ("review.queue", "Review", "12"), ("dossier.book", "Dossier", null)
+            ("review.queue", "Review", "12"), ("scouting-report.book", "Scouting Report", null)
         ];
         for (int i = 0; i < others.Length; i++)
         {

@@ -2,10 +2,10 @@
 
 using System.Collections.Concurrent;
 using DemoViewer.NET.Extensions;
-using DemoViewer.NET.Extensions.StratBook.Modules.Dossier;
+using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Playback2D.Overlay;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Playback2D.Query;
@@ -23,7 +23,7 @@ namespace DemoViewer.NET.AppTests;
 ///     Setup Heatmaps By Buy over one synthetic demo: only the rounds Team Identity puts the team on CT,
 ///     grouped by map and CT buy; only CT tuples inside the setup window, which first contact cuts
 ///     short; fixed against rotating places by share of sampled rounds; a round with no window still
-///     belonging to its heatmap; a stale positions file counted rather than read; the Dossier drawing
+///     belonging to its heatmap; a stale positions file counted rather than read; the Scouting Report drawing
 ///     each heatmap through the Overlay View's document and layer; and every heatmap opening its rounds
 ///     in the Review Queue.
 /// </summary>
@@ -229,7 +229,7 @@ public class SetupHeatmapTests
             await Assert.That(set.Heatmaps.Count).IsEqualTo(2);
             await Assert.That(set.Heatmaps.All(m => m.Points.Count == 0)).IsTrue();
             await Assert.That(set.Heatmaps.Sum(m => m.Rounds.Count)).IsEqualTo(4);
-            await Assert.That(DossierTabViewModel.HeatmapLineFor(set))
+            await Assert.That(ScoutingReportTabViewModel.HeatmapLineFor(set))
                 .IsEqualTo("2 heatmaps over 4 CT rounds · 1 demo without positions; rebuild the index");
         }
     }
@@ -249,7 +249,7 @@ public class SetupHeatmapTests
     }
 
     [Test]
-    public async Task TheDossier_DrawsEachHeatmap_AndEveryHeatmapOpensItsRounds()
+    public async Task TheScoutingReport_DrawsEachHeatmap_AndEveryHeatmapOpensItsRounds()
     {
         using Harness h = await Harness.Create();
         ReviewQueue queue = new(null);
@@ -260,7 +260,7 @@ public class SetupHeatmapTests
         // passes leave the collection holding both and the next rebuild throws on the duplicate key.
         // Dispatcher.UIThread.Post defers to the owning thread in the app; this does the same here.
         ConcurrentQueue<Action> posted = new();
-        using DossierTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
+        using ScoutingReportTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
             h.Service, new ExtensionReviewQueue(queue), id =>
             {
                 shown.Add(id);
@@ -306,8 +306,8 @@ public class SetupHeatmapTests
         {
             await Assert.That(queue.ClipCount).IsEqualTo(3);
             await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue()
-                .Because("a Dossier clip carries its team");
-            await Assert.That(queue.Clips.All(c => c.Source == ReviewSources.Dossier)).IsTrue();
+                .Because("a Scouting Report clip carries its team");
+            await Assert.That(queue.Clips.All(c => c.Source == DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport)).IsTrue();
             await Assert.That(queue.Clips.Select(c => c.FromTick))
                 .IsEquivalentTo([10000, 20000, 40000], CollectionOrdering.Matching);
             await Assert.That(queue.Clips[0].Note).IsEqualTo("de_nuke · full buy · round 2");

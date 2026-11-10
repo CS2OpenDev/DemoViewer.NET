@@ -10,10 +10,10 @@ using DemoViewer.NET.Extensions.StratBook.ViewModels.StratBook;
 
 #endregion
 
-namespace DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 
 /// <summary>
-///     One generated Dossier line before the user's edits: its stable key, its section, the generated
+///     One generated Scouting Report line before the user's edits: its stable key, its section, the generated
 ///     text, and, for a Setup Heatmap, where to read its rendered picture at export time.
 /// </summary>
 /// <param name="Key">Section slug plus what the line counts; never an index.</param>
@@ -21,7 +21,7 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
 /// <param name="Generated">The generated text.</param>
 /// <param name="Image">Reads the line's PNG when it is exported; null for a text line.</param>
 /// <param name="Map">The map a map-specific line is about; null for the team as a whole.</param>
-public sealed record DossierFindingSource(
+public sealed record ScoutingReportFindingSource(
     string Key,
     string Section,
     string Generated,
@@ -29,7 +29,7 @@ public sealed record DossierFindingSource(
     string? Map = null);
 
 /// <summary>
-///     Dossier Editing And Export: every built section's numbers as findings, the
+///     Scouting Report Editing And Export: every built section's numbers as findings, the
 ///     long form being the working document and the starred findings assembling the one-pager. Every
 ///     line is editable (rewritten, reset, left out), the user adds notes and a summary beside them, and
 ///     the export writes either form as self-contained HTML or Markdown, the short form by default.
@@ -38,13 +38,13 @@ public sealed record DossierFindingSource(
 ///         section adds no rating, no grade and no win probability, and neither does the export.
 ///     </para>
 ///     <para>
-///         <b>Edits live in <see cref="DossierNotesStore" /> by key.</b> <see cref="Load" /> is called
+///         <b>Edits live in <see cref="ScoutingReportNotesStore" /> by key.</b> <see cref="Load" /> is called
 ///         whenever a section lands, rebuilding the rows from the sources and the stored stars and edits,
 ///         so a star on a line survives the section rebuilding under it. Row actions update the row in
 ///         place and write the store; this VM is the store's only writer.
 ///     </para>
 /// </summary>
-public sealed partial class DossierEditorViewModel : ObservableObject
+public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 {
     public const string MapPoolSection = "Map Pool Record";
     public const string HeatmapSection = "Setup Heatmaps By Buy";
@@ -56,11 +56,11 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     public const string NotesSection = "Notes";
 
     private readonly Func<string, string, string, string?> _export;
-    private readonly List<DossierFindingViewModel> _rows = [];
-    private readonly DossierNotesStore _store;
+    private readonly List<ScoutingReportFindingViewModel> _rows = [];
+    private readonly ScoutingReportNotesStore _store;
     private bool _loading;
     private string _sampleLine = "";
-    private IReadOnlyList<DossierFindingSource> _sources = [];
+    private IReadOnlyList<ScoutingReportFindingSource> _sources = [];
     private Guid? _teamId;
     private string _teamName = "";
 
@@ -72,12 +72,12 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ExportLabel))]
     [NotifyPropertyChangedFor(nameof(SelectedFormOption))]
-    private DossierForm _exportForm = DossierForm.OnePager;
+    private ScoutingReportForm _exportForm = ScoutingReportForm.OnePager;
 
     /// <summary>The file Export writes: HTML by default, the LAN Print route.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedFormatOption))]
-    private DossierFormat _exportFormat = DossierFormat.Html;
+    private ScoutingReportFormat _exportFormat = ScoutingReportFormat.Html;
 
     [ObservableProperty]
     private string _newNoteText = "";
@@ -93,56 +93,56 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     /// <param name="store">Where stars, edits, notes and the summary persist.</param>
     /// <param name="isBrowser">Whether the host is the WASM head; Export has no file to write there.</param>
     /// <param name="export">Writes (text, stem, extension) and opens it, returning the path or null; the temp-file writer when null.</param>
-    public DossierEditorViewModel(DossierNotesStore store, bool isBrowser = false,
+    public ScoutingReportEditorViewModel(ScoutingReportNotesStore store, bool isBrowser = false,
         Func<string, string, string, string?>? export = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         _store = store;
         IsBrowser = isBrowser;
-        _export = export ?? DossierExportWriter.WriteAndOpen;
+        _export = export ?? ScoutingReportExportWriter.WriteAndOpen;
     }
 
     public bool IsBrowser { get; }
 
     /// <summary>The rows shown: every line not left out, or only the starred ones.</summary>
-    public ObservableCollection<DossierFindingViewModel> Findings { get; } = [];
+    public ObservableCollection<ScoutingReportFindingViewModel> Findings { get; } = [];
 
     /// <summary>The shown lines about one map, by map; the tab puts each list in that map's section.</summary>
-    public IReadOnlyDictionary<string, List<DossierFindingViewModel>> MapFindings { get; private set; } =
-        new Dictionary<string, List<DossierFindingViewModel>>();
+    public IReadOnlyDictionary<string, List<ScoutingReportFindingViewModel>> MapFindings { get; private set; } =
+        new Dictionary<string, List<ScoutingReportFindingViewModel>>();
 
     /// <summary>The shown lines about the team as a whole, and the user's notes.</summary>
-    public IReadOnlyList<DossierFindingViewModel> GeneralFindings { get; private set; } = [];
+    public IReadOnlyList<ScoutingReportFindingViewModel> GeneralFindings { get; private set; } = [];
 
     /// <summary>Raised after the shown lines were recomputed: a load, a star, a dismiss, a filter.</summary>
     public event Action? Projected;
 
     /// <summary>The two forms, worded for the picker; the one-pager first, as the default.</summary>
-    public static IReadOnlyList<DossierExportOption<DossierForm>> FormOptions { get; } =
+    public static IReadOnlyList<ScoutingReportExportOption<ScoutingReportForm>> FormOptions { get; } =
     [
-        new(DossierForm.OnePager, "one-pager"),
-        new(DossierForm.LongForm, "long form")
+        new(ScoutingReportForm.OnePager, "one-pager"),
+        new(ScoutingReportForm.LongForm, "long form")
     ];
 
     /// <summary>The two files, worded for the picker; HTML first, as the default.</summary>
-    public static IReadOnlyList<DossierExportOption<DossierFormat>> FormatOptions { get; } =
+    public static IReadOnlyList<ScoutingReportExportOption<ScoutingReportFormat>> FormatOptions { get; } =
     [
-        new(DossierFormat.Html, "HTML"),
-        new(DossierFormat.Markdown, "Markdown")
+        new(ScoutingReportFormat.Html, "HTML"),
+        new(ScoutingReportFormat.Markdown, "Markdown")
     ];
 
     /// <summary>The picker's row for <see cref="ExportForm" />.</summary>
-    public DossierExportOption<DossierForm>? SelectedFormOption
+    public ScoutingReportExportOption<ScoutingReportForm>? SelectedFormOption
     {
         get => FormOptions.First(o => o.Value == ExportForm);
-        set => ExportForm = value?.Value ?? DossierForm.OnePager;
+        set => ExportForm = value?.Value ?? ScoutingReportForm.OnePager;
     }
 
     /// <summary>The picker's row for <see cref="ExportFormat" />.</summary>
-    public DossierExportOption<DossierFormat>? SelectedFormatOption
+    public ScoutingReportExportOption<ScoutingReportFormat>? SelectedFormatOption
     {
         get => FormatOptions.First(o => o.Value == ExportFormat);
-        set => ExportFormat = value?.Value ?? DossierFormat.Html;
+        set => ExportFormat = value?.Value ?? ScoutingReportFormat.Html;
     }
 
     public bool HasTeam => _teamId is not null;
@@ -181,21 +181,21 @@ public sealed partial class DossierEditorViewModel : ObservableObject
 
     /// <summary>What the Findings list says when it is empty.</summary>
     public string EmptyLine => ShowStarredOnly
-        ? DossierExporter.NothingStarredLine
+        ? ScoutingReportExporter.NothingStarredLine
         : "no findings yet: the sections are still building, or have nothing to count";
 
     public bool CanExport => HasTeam && !IsBrowser;
 
     /// <summary>What the Export slot says when there is no file to write.</summary>
     public string ExportUnavailableNote =>
-        IsBrowser ? "Export dossier: unavailable in the browser; copy the markdown instead" : "";
+        IsBrowser ? "Export scouting report: unavailable in the browser; copy the markdown instead" : "";
 
     public bool HasExportUnavailableNote => ExportUnavailableNote.Length > 0;
 
     public bool NotesAreSessionOnly => _store.IsSessionOnly;
 
     /// <summary>The words on the Export button for the chosen form.</summary>
-    public string ExportLabel => ExportForm == DossierForm.OnePager ? "Export one-pager" : "Export long form";
+    public string ExportLabel => ExportForm == ScoutingReportForm.OnePager ? "Export one-pager" : "Export long form";
 
     /// <summary>
     ///     Rebuilds the rows for a team from the sections' current lines and the stored edits, or clears
@@ -205,7 +205,7 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     /// <param name="teamName">Its display name, the export's title.</param>
     /// <param name="sampleLine">The Map Pool Record's sample line, printed under the title.</param>
     /// <param name="sources">Every section's generated lines, in print order.</param>
-    public void Load(Guid? teamId, string teamName, string sampleLine, IReadOnlyList<DossierFindingSource> sources)
+    public void Load(Guid? teamId, string teamName, string sampleLine, IReadOnlyList<ScoutingReportFindingSource> sources)
     {
         ArgumentNullException.ThrowIfNull(sources);
         bool teamChanged = teamId != _teamId;
@@ -226,14 +226,14 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     }
 
     /// <summary>The document as it will print, with the user's edits applied and left-out lines dropped.</summary>
-    public DossierDocument Document() => new()
+    public ScoutingReportDocument Document() => new()
     {
         TeamName = _teamName,
         SampleLine = _sampleLine,
         Summary = Summary.Trim(),
         Findings =
         [
-            .. _rows.Where(r => !r.IsHidden).Select(r => new DossierFinding
+            .. _rows.Where(r => !r.IsHidden).Select(r => new ScoutingReportFinding
             {
                 Key = r.Key,
                 Section = r.Section,
@@ -245,10 +245,10 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     };
 
     /// <summary>The chosen form as Markdown, for the Copy button.</summary>
-    public string MarkdownText() => DossierExporter.Markdown(Document(), ExportForm);
+    public string MarkdownText() => ScoutingReportExporter.Markdown(Document(), ExportForm);
 
     /// <summary>The line the Copy button leaves once the clipboard took the text.</summary>
-    public void ReportCopied() => ExportLine = ExportForm == DossierForm.OnePager
+    public void ReportCopied() => ExportLine = ExportForm == ScoutingReportForm.OnePager
         ? "one-pager copied as markdown"
         : "long form copied as markdown";
 
@@ -273,12 +273,12 @@ public sealed partial class DossierEditorViewModel : ObservableObject
             return;
         }
 
-        DossierDocument doc = Document();
-        (string text, string extension) = ExportFormat == DossierFormat.Html
-            ? (DossierExporter.Html(doc, ExportForm), ".html")
-            : (DossierExporter.Markdown(doc, ExportForm), ".md");
+        ScoutingReportDocument doc = Document();
+        (string text, string extension) = ExportFormat == ScoutingReportFormat.Html
+            ? (ScoutingReportExporter.Html(doc, ExportForm), ".html")
+            : (ScoutingReportExporter.Markdown(doc, ExportForm), ".md");
         string stem = StratBookTabViewModel.ExportFileStem(_teamName)
-            + (ExportForm == DossierForm.OnePager ? "-one-pager" : "-dossier");
+            + (ExportForm == ScoutingReportForm.OnePager ? "-one-pager" : "-scouting-report");
         string? path;
         try
         {
@@ -292,11 +292,11 @@ public sealed partial class DossierEditorViewModel : ObservableObject
 
         ExportLine = path is null
             ? "could not open the export"
-            : $"{(ExportForm == DossierForm.OnePager ? "one-pager" : "long form")} written: {Path.GetFileName(path)}";
+            : $"{(ExportForm == ScoutingReportForm.OnePager ? "one-pager" : "long form")} written: {Path.GetFileName(path)}";
     }
 
     [RelayCommand]
-    private void ToggleStar(DossierFindingViewModel? row)
+    private void ToggleStar(ScoutingReportFindingViewModel? row)
     {
         if (row is null || _teamId is not { } id)
         {
@@ -316,7 +316,7 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void CommitEdit(DossierFindingViewModel? row)
+    private void CommitEdit(ScoutingReportFindingViewModel? row)
     {
         if (row is null || _teamId is not { } id)
         {
@@ -326,7 +326,7 @@ public sealed partial class DossierEditorViewModel : ObservableObject
         if (row.IsNote)
         {
             _store.EditNote(id, row.Key, row.EditText);
-            row.Text = _store.For(id).Notes.FirstOrDefault(n => DossierNotesStore.NoteKey(n.Id) == row.Key)?.Text
+            row.Text = _store.For(id).Notes.FirstOrDefault(n => ScoutingReportNotesStore.NoteKey(n.Id) == row.Key)?.Text
                 ?? row.Text;
         }
         else
@@ -340,7 +340,7 @@ public sealed partial class DossierEditorViewModel : ObservableObject
 
     /// <summary>Puts a rewritten line back to its generated text.</summary>
     [RelayCommand]
-    private void ResetEdit(DossierFindingViewModel? row)
+    private void ResetEdit(ScoutingReportFindingViewModel? row)
     {
         if (row is null || row.IsNote || _teamId is not { } id)
         {
@@ -354,7 +354,7 @@ public sealed partial class DossierEditorViewModel : ObservableObject
 
     /// <summary>Dismisses a generated line from both forms, or restores a dismissed one; removes a note.</summary>
     [RelayCommand]
-    private void Remove(DossierFindingViewModel? row)
+    private void Remove(ScoutingReportFindingViewModel? row)
     {
         if (row is null || _teamId is not { } id)
         {
@@ -399,14 +399,14 @@ public sealed partial class DossierEditorViewModel : ObservableObject
             }
             else
             {
-                DossierTeamNotes notes = _store.For(id);
+                ScoutingReportTeamNotes notes = _store.For(id);
                 HashSet<string> starred = new(notes.Starred, StringComparer.Ordinal);
                 HashSet<string> hidden = new(notes.Hidden, StringComparer.Ordinal);
-                foreach (DossierFindingSource source in _sources)
+                foreach (ScoutingReportFindingSource source in _sources)
                 {
                     string text = notes.Edits.TryGetValue(source.Key, out string? edit) ? edit : source.Generated;
                     _rows.Add(
-                        new DossierFindingViewModel(source.Key, source.Section, source.Generated, text, false,
+                        new ScoutingReportFindingViewModel(source.Key, source.Section, source.Generated, text, false,
                             source.Image)
                         {
                             Map = source.Map,
@@ -415,10 +415,10 @@ public sealed partial class DossierEditorViewModel : ObservableObject
                         });
                 }
 
-                foreach (DossierNote note in notes.Notes)
+                foreach (ScoutingReportNote note in notes.Notes)
                 {
-                    string key = DossierNotesStore.NoteKey(note.Id);
-                    _rows.Add(new DossierFindingViewModel(key, NotesSection, note.Text, note.Text, true, null)
+                    string key = ScoutingReportNotesStore.NoteKey(note.Id);
+                    _rows.Add(new ScoutingReportFindingViewModel(key, NotesSection, note.Text, note.Text, true, null)
                     {
                         IsStarred = starred.Contains(key)
                     });
@@ -439,9 +439,9 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     private void Project()
     {
         Findings.Clear();
-        Dictionary<string, List<DossierFindingViewModel>> byMap = new(StringComparer.OrdinalIgnoreCase);
-        List<DossierFindingViewModel> general = [];
-        foreach (DossierFindingViewModel row in _rows)
+        Dictionary<string, List<ScoutingReportFindingViewModel>> byMap = new(StringComparer.OrdinalIgnoreCase);
+        List<ScoutingReportFindingViewModel> general = [];
+        foreach (ScoutingReportFindingViewModel row in _rows)
         {
             if ((row.IsHidden && !ShowSettled) || (ShowStarredOnly && !row.IsStarred))
             {
@@ -451,7 +451,7 @@ public sealed partial class DossierEditorViewModel : ObservableObject
             Findings.Add(row);
             if (row.Map is { Length: > 0 } map)
             {
-                if (!byMap.TryGetValue(map, out List<DossierFindingViewModel>? list))
+                if (!byMap.TryGetValue(map, out List<ScoutingReportFindingViewModel>? list))
                 {
                     list = [];
                     byMap[map] = list;
@@ -466,10 +466,10 @@ public sealed partial class DossierEditorViewModel : ObservableObject
         }
 
         // Each group gets its own headings, since the tab shows each group on its own.
-        foreach (List<DossierFindingViewModel> group in byMap.Values.Append(general))
+        foreach (List<ScoutingReportFindingViewModel> group in byMap.Values.Append(general))
         {
             string? section = null;
-            foreach (DossierFindingViewModel row in group)
+            foreach (ScoutingReportFindingViewModel row in group)
             {
                 row.ShowsSectionHeader = !string.Equals(section, row.Section, StringComparison.Ordinal);
                 section = row.Section;
@@ -507,41 +507,41 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     /// <summary>One line per map played, and the decider line when there is one.</summary>
     /// <param name="maps">The Map Pool Record's rows.</param>
     /// <param name="deciderLine">The decider line, or empty.</param>
-    public static IEnumerable<DossierFindingSource> FromMapPool(IEnumerable<MapPoolRowViewModel> maps,
+    public static IEnumerable<ScoutingReportFindingSource> FromMapPool(IEnumerable<MapPoolRowViewModel> maps,
         string deciderLine)
     {
         foreach (MapPoolRowViewModel map in maps)
         {
-            yield return new DossierFindingSource($"map|{map.Map}", MapPoolSection,
+            yield return new ScoutingReportFindingSource($"map|{map.Map}", MapPoolSection,
                 $"{map.Map}: {map.PlayedLabel}, {map.RecordLabel}, win rate {map.WinRateLabel}, {map.SideLabel}",
                 Map: map.Map);
         }
 
         if (deciderLine.Length > 0)
         {
-            yield return new DossierFindingSource("map|deciders", MapPoolSection, deciderLine);
+            yield return new ScoutingReportFindingSource("map|deciders", MapPoolSection, deciderLine);
         }
     }
 
     /// <summary>One line per heatmap, carrying its picture for the HTML form.</summary>
     /// <param name="heatmaps">The Setup Heatmaps.</param>
-    public static IEnumerable<DossierFindingSource> FromHeatmaps(IEnumerable<SetupHeatmapViewModel> heatmaps) =>
-        heatmaps.Select(h => new DossierFindingSource($"heatmap|{h.Map}|{h.BuyLabel}", HeatmapSection,
+    public static IEnumerable<ScoutingReportFindingSource> FromHeatmaps(IEnumerable<SetupHeatmapViewModel> heatmaps) =>
+        heatmaps.Select(h => new ScoutingReportFindingSource($"heatmap|{h.Map}|{h.BuyLabel}", HeatmapSection,
             $"{h.Map} CT {h.BuyLabel}: {h.RoundsLabel}; {h.FixedLabel}; {h.RotatingLabel}", () => h.ImagePng, h.Map));
 
     /// <summary>Per map and side: the rounds, then every non-zero number over its own sample.</summary>
     /// <param name="blocks">The Opening Tendencies blocks.</param>
-    public static IEnumerable<DossierFindingSource> FromOpenings(IEnumerable<OpeningBlockViewModel> blocks)
+    public static IEnumerable<ScoutingReportFindingSource> FromOpenings(IEnumerable<OpeningBlockViewModel> blocks)
     {
         foreach (OpeningBlockViewModel b in blocks)
         {
             int rounds = b.RoundsLink.Count;
-            foreach (DossierFindingSource s in Sample("openings", OpeningsSection, b.RoundsLink, b.Map, b.SideLabel))
+            foreach (ScoutingReportFindingSource s in Sample("openings", OpeningsSection, b.RoundsLink, b.Map, b.SideLabel))
             {
                 yield return s;
             }
 
-            foreach (DossierFindingSource s in Links("openings", OpeningsSection, b.Map, b.Block.UtilityRounds,
+            foreach (ScoutingReportFindingSource s in Links("openings", OpeningsSection, b.Map, b.Block.UtilityRounds,
                              b.UtilityClock, b.UtilityPlaces)
                          .Concat(Links("openings", OpeningsSection, b.Map, rounds, b.ContactClock, b.SiteSplit,
                              b.Entries))
@@ -554,12 +554,12 @@ public sealed partial class DossierEditorViewModel : ObservableObject
 
     /// <summary>Per map and side: the plants over the rounds, then every non-zero number over the plants.</summary>
     /// <param name="blocks">The Post-Plant And Retake blocks.</param>
-    public static IEnumerable<DossierFindingSource> FromPostPlant(IEnumerable<PostPlantBlockViewModel> blocks)
+    public static IEnumerable<ScoutingReportFindingSource> FromPostPlant(IEnumerable<PostPlantBlockViewModel> blocks)
     {
         foreach (PostPlantBlockViewModel b in blocks)
         {
             int planted = b.PlantedLink.Count;
-            foreach (DossierFindingSource s in Links("postplant", PostPlantSection, b.Map, b.RoundsLink.Count,
+            foreach (ScoutingReportFindingSource s in Links("postplant", PostPlantSection, b.Map, b.RoundsLink.Count,
                              [b.PlantedLink])
                          .Concat(Links("postplant", PostPlantSection, b.Map, planted, b.ManCount, b.Outcomes,
                              b.PlantClusters,
@@ -572,12 +572,12 @@ public sealed partial class DossierEditorViewModel : ObservableObject
 
     /// <summary>Per map and side: each situation over the rounds, then its breakdown over the situation.</summary>
     /// <param name="blocks">The Situational Behaviour blocks.</param>
-    public static IEnumerable<DossierFindingSource> FromSituational(IEnumerable<SituationalBlockViewModel> blocks)
+    public static IEnumerable<ScoutingReportFindingSource> FromSituational(IEnumerable<SituationalBlockViewModel> blocks)
     {
         foreach (SituationalBlockViewModel b in blocks)
         {
             int rounds = b.RoundsLink.Count;
-            foreach (DossierFindingSource s in Links("situational", SituationalSection, b.Map, rounds, [b.PistolLink])
+            foreach (ScoutingReportFindingSource s in Links("situational", SituationalSection, b.Map, rounds, [b.PistolLink])
                          .Concat(Links("situational", SituationalSection, b.Map, b.PistolLink.Count, b.PistolOutcomes,
                              b.PistolFollowUp))
                          .Concat(Links("situational", SituationalSection, b.Map, rounds, [b.AntiEcoLink]))
@@ -600,7 +600,7 @@ public sealed partial class DossierEditorViewModel : ObservableObject
     /// <param name="recent">The last period, or null with no diff.</param>
     /// <param name="previous">The period before it, or null.</param>
     /// <param name="note">The section's note.</param>
-    public static IEnumerable<DossierFindingSource> FromPeriodDiff(PeriodDiffRowViewModel? recent,
+    public static IEnumerable<ScoutingReportFindingSource> FromPeriodDiff(PeriodDiffRowViewModel? recent,
         PeriodDiffRowViewModel? previous, string note)
     {
         if (recent is null)
@@ -610,7 +610,7 @@ public sealed partial class DossierEditorViewModel : ObservableObject
 
         if (note.Length > 0)
         {
-            yield return new DossierFindingSource("period|note", PeriodDiffSection, note);
+            yield return new ScoutingReportFindingSource("period|note", PeriodDiffSection, note);
         }
 
         PeriodDiffRowViewModel[] periods = previous is null ? [recent] : [recent, previous];
@@ -623,47 +623,47 @@ public sealed partial class DossierEditorViewModel : ObservableObject
                 parts.Add(p.StandInLabel);
             }
 
-            yield return new DossierFindingSource($"period|{p.Label}", PeriodDiffSection,
+            yield return new ScoutingReportFindingSource($"period|{p.Label}", PeriodDiffSection,
                 $"{p.Label}: {string.Join(", ", parts)}");
         }
     }
 
     /// <summary>One line per veto step the user entered.</summary>
     /// <param name="vetoes">The veto rows.</param>
-    public static IEnumerable<DossierFindingSource> FromVetoes(IEnumerable<VetoRowViewModel> vetoes) =>
-        vetoes.Select(v => new DossierFindingSource($"veto|{v.Id:N}", VetoSection,
+    public static IEnumerable<ScoutingReportFindingSource> FromVetoes(IEnumerable<VetoRowViewModel> vetoes) =>
+        vetoes.Select(v => new ScoutingReportFindingSource($"veto|{v.Id:N}", VetoSection,
             $"{v.Order}. {v.ActionLabel} {v.Map} by {v.ByLabel}" + (v.Note.Length > 0 ? $" ({v.Note})" : "")));
 
-    private static IEnumerable<DossierFindingSource> Sample(string slug, string section, TendencyLinkViewModel link,
+    private static IEnumerable<ScoutingReportFindingSource> Sample(string slug, string section, TendencyLinkViewModel link,
         string map, string side)
     {
         if (link.Count > 0)
         {
-            yield return new DossierFindingSource($"{slug}|{link.Title}", section,
+            yield return new ScoutingReportFindingSource($"{slug}|{link.Title}", section,
                 $"{map} {side}: {Plural(link.Count, "round")}", Map: map);
         }
     }
 
-    private static IEnumerable<DossierFindingSource> Links(string slug, string section, string map, int of,
+    private static IEnumerable<ScoutingReportFindingSource> Links(string slug, string section, string map, int of,
         params IReadOnlyList<TendencyLinkViewModel>[] lists) =>
         lists.SelectMany(l => l)
             .Where(l => l.Count > 0)
             .Select(l =>
-                new DossierFindingSource($"{slug}|{l.Title}", section, $"{l.Title}: {CountText(l.Count, of)}",
+                new ScoutingReportFindingSource($"{slug}|{l.Title}", section, $"{l.Title}: {CountText(l.Count, of)}",
                     Map: map));
 }
 
 /// <summary>One choice in an export picker: the value and the words shown for it.</summary>
 /// <param name="Value">The value.</param>
 /// <param name="Label">The words.</param>
-public sealed record DossierExportOption<T>(T Value, string Label)
+public sealed record ScoutingReportExportOption<T>(T Value, string Label)
     where T : struct, Enum
 {
     public override string ToString() => Label;
 }
 
 /// <summary>One line of the long form: the star, the text (the user's rewrite when there is one) and its edit state.</summary>
-public sealed partial class DossierFindingViewModel : ObservableObject
+public sealed partial class ScoutingReportFindingViewModel : ObservableObject
 {
     [ObservableProperty]
     private string _editText = "";
@@ -692,7 +692,7 @@ public sealed partial class DossierFindingViewModel : ObservableObject
     /// <param name="text">The text shown.</param>
     /// <param name="isNote">True for a line the user wrote.</param>
     /// <param name="image">Reads the line's PNG at export time, or null.</param>
-    public DossierFindingViewModel(string key, string section, string generated, string text, bool isNote,
+    public ScoutingReportFindingViewModel(string key, string section, string generated, string text, bool isNote,
         Func<byte[]?>? image)
     {
         Key = key;

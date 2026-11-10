@@ -8,32 +8,40 @@ using System.Text.Json;
 namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
 /// <summary>
-///     The user's edits to each team's Dossier: stars, rewritten
+///     The user's edits to each team's Scouting Report: stars, rewritten
 ///     lines, left-out lines, free notes and the summary, filed per team.
 ///     <para>
-///         <b>Persistence.</b> <c>dossier-notes.json</c> beside <c>teams.json</c>, written whole through its
+///         <b>Persistence.</b> <c>scouting-report-notes.json</c> beside <c>teams.json</c>, written whole through its
 ///         <see cref="StoredFile" /> after every mutation, as <see cref="VetoHistoryStore" />
 ///         does. No file (the browser, tests) keeps the notes for the session; a file that cannot
-///         be read, or is at a newer schema, is refused and never overwritten.
+///         be read, or is at a newer schema, is refused and never overwritten. When the file does not exist and
+    ///         the legacy <see cref="LegacyFileName" /> does, that is read instead and written out as the new file
+    ///         at once; the old file is left where it is.
 ///     </para>
 ///     <para><b>Threading.</b> UI thread only: every caller is a view model reacting to a click or an edit.</para>
 /// </summary>
-public sealed class DossierNotesStore
+public sealed class ScoutingReportNotesStore
 {
     /// <summary>The file's name.</summary>
-    public const string FileName = "dossier-notes.json";
+    public const string FileName = "scouting-report-notes.json";
+
+    /// <summary>The file's name before the 2026-11 rename (the feature was the Opponent Dossier). Same shape, read once.</summary>
+    public const string LegacyFileName = "dossier-notes.json";
 
     /// <summary>The key prefix of a user-written finding.</summary>
     private const string NoteKeyPrefix = "note:";
 
     private readonly StoredFile? _file;
-    private readonly List<DossierTeamNotes> _teams = [];
+    private readonly StoredFile? _legacy;
+    private readonly List<ScoutingReportTeamNotes> _teams = [];
     private bool _refused;
 
     /// <param name="file">The <see cref="FileName" /> file, or null for a session-only store (the browser, tests).</param>
-    public DossierNotesStore(StoredFile? file)
+    /// <param name="legacy">The <see cref="LegacyFileName" /> file, read when <paramref name="file" /> does not exist yet.</param>
+    public ScoutingReportNotesStore(StoredFile? file, StoredFile? legacy = null)
     {
         _file = file;
+        _legacy = legacy;
         Load();
     }
 
@@ -55,8 +63,8 @@ public sealed class DossierNotesStore
 
     /// <summary>The team's notes; an empty record (not stored) when the user has done nothing yet.</summary>
     /// <param name="teamId">The team.</param>
-    public DossierTeamNotes For(Guid teamId) =>
-        _teams.FirstOrDefault(t => t.TeamId == teamId) ?? new DossierTeamNotes { TeamId = teamId };
+    public ScoutingReportTeamNotes For(Guid teamId) =>
+        _teams.FirstOrDefault(t => t.TeamId == teamId) ?? new ScoutingReportTeamNotes { TeamId = teamId };
 
     /// <summary>Stars or unstars a finding.</summary>
     /// <param name="teamId">The team.</param>
@@ -65,7 +73,7 @@ public sealed class DossierNotesStore
     public void SetStarred(Guid teamId, string key, bool starred)
     {
         ArgumentNullException.ThrowIfNull(key);
-        DossierTeamNotes notes = Ensure(teamId);
+        ScoutingReportTeamNotes notes = Ensure(teamId);
         if (Toggle(notes.Starred, key, starred))
         {
             Commit();
@@ -83,7 +91,7 @@ public sealed class DossierNotesStore
     public void SetEdit(Guid teamId, string key, string? text, string generated)
     {
         ArgumentNullException.ThrowIfNull(key);
-        DossierTeamNotes notes = Ensure(teamId);
+        ScoutingReportTeamNotes notes = Ensure(teamId);
         string? trimmed = text?.Trim();
         if (string.IsNullOrEmpty(trimmed) || string.Equals(trimmed, generated, StringComparison.Ordinal))
         {
@@ -111,7 +119,7 @@ public sealed class DossierNotesStore
     public void SetHidden(Guid teamId, string key, bool hidden)
     {
         ArgumentNullException.ThrowIfNull(key);
-        DossierTeamNotes notes = Ensure(teamId);
+        ScoutingReportTeamNotes notes = Ensure(teamId);
         if (Toggle(notes.Hidden, key, hidden))
         {
             Commit();
@@ -124,7 +132,7 @@ public sealed class DossierNotesStore
     /// <param name="summary">The text; null or blank clears it.</param>
     public void SetSummary(Guid teamId, string? summary)
     {
-        DossierTeamNotes notes = Ensure(teamId);
+        ScoutingReportTeamNotes notes = Ensure(teamId);
         string value = summary?.Trim() ?? "";
         if (string.Equals(notes.Summary, value, StringComparison.Ordinal))
         {
@@ -146,7 +154,7 @@ public sealed class DossierNotesStore
             return null;
         }
 
-        DossierNote note = new() { Text = value };
+        ScoutingReportNote note = new() { Text = value };
         Ensure(teamId).Notes.Add(note);
         Commit();
         return NoteKey(note.Id);
@@ -159,7 +167,7 @@ public sealed class DossierNotesStore
     public void EditNote(Guid teamId, string key, string? text)
     {
         string value = text?.Trim() ?? "";
-        DossierTeamNotes notes = Ensure(teamId);
+        ScoutingReportTeamNotes notes = Ensure(teamId);
         if (value.Length == 0 || notes.Notes.FirstOrDefault(n => NoteKey(n.Id) == key) is not { } note
             || string.Equals(note.Text, value, StringComparison.Ordinal))
         {
@@ -189,7 +197,7 @@ public sealed class DossierNotesStore
     /// <param name="key">The note's key.</param>
     public void RemoveNote(Guid teamId, string key)
     {
-        DossierTeamNotes notes = Ensure(teamId);
+        ScoutingReportTeamNotes notes = Ensure(teamId);
         if (notes.Notes.RemoveAll(n => NoteKey(n.Id) == key) == 0)
         {
             return;
@@ -220,14 +228,14 @@ public sealed class DossierNotesStore
         return true;
     }
 
-    private DossierTeamNotes Ensure(Guid teamId)
+    private ScoutingReportTeamNotes Ensure(Guid teamId)
     {
         if (_teams.FirstOrDefault(t => t.TeamId == teamId) is { } found)
         {
             return found;
         }
 
-        DossierTeamNotes created = new() { TeamId = teamId };
+        ScoutingReportTeamNotes created = new() { TeamId = teamId };
         _teams.Add(created);
         return created;
     }
@@ -245,30 +253,46 @@ public sealed class DossierNotesStore
             return;
         }
 
+        string name = FileName;
         try
         {
-            if (_file.Read() is not { } bytes)
+            byte[]? bytes = _file.Read();
+            bool fromLegacy = false;
+            if (bytes is null && _legacy?.Read() is { } old)
+            {
+                bytes = old;
+                name = LegacyFileName;
+                fromLegacy = true;
+            }
+
+            if (bytes is null)
             {
                 return;
             }
 
-            DossierNotesFile? file = JsonSerializer.Deserialize<DossierNotesFile>(bytes, DossierNotesFile.JsonOptions);
-            if (file is null || file.SchemaVersion > DossierNotesFile.CurrentSchema)
+            ScoutingReportNotesFile? file =
+                JsonSerializer.Deserialize<ScoutingReportNotesFile>(bytes, ScoutingReportNotesFile.JsonOptions);
+            if (file is null || file.SchemaVersion > ScoutingReportNotesFile.CurrentSchema)
             {
                 Refuse(
-                    $"{FileName} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
+                    $"{name} is at schema {file?.SchemaVersion.ToString(CultureInfo.InvariantCulture) ?? "?"}, newer than this build reads");
                 return;
             }
 
-            foreach (DossierTeamNotes team in file.Teams)
+            foreach (ScoutingReportTeamNotes team in file.Teams)
             {
                 team.Edits = new Dictionary<string, string>(team.Edits, StringComparer.Ordinal);
                 _teams.Add(team);
             }
+
+            if (fromLegacy)
+            {
+                Save();
+            }
         }
         catch (Exception ex)
         {
-            Refuse($"{FileName} could not be read: {ex.Message}");
+            Refuse($"{name} could not be read: {ex.Message}");
         }
     }
 
@@ -288,8 +312,8 @@ public sealed class DossierNotesStore
 
         try
         {
-            DossierNotesFile file = new() { Teams = [.. _teams] };
-            _file.Write(JsonSerializer.SerializeToUtf8Bytes(file, DossierNotesFile.JsonOptions));
+            ScoutingReportNotesFile file = new() { Teams = [.. _teams] };
+            _file.Write(JsonSerializer.SerializeToUtf8Bytes(file, ScoutingReportNotesFile.JsonOptions));
         }
         catch (Exception)
         {

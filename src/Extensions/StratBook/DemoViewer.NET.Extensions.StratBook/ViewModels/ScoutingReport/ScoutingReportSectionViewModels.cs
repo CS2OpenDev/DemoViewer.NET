@@ -6,13 +6,13 @@ using CommunityToolkit.Mvvm.Input;
 
 #endregion
 
-namespace DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 
 /// <summary>
-///     A collapsible part of the Dossier: a title with its count, and whether its body shows. The open state
+///     A collapsible part of the Scouting Report: a title with its count, and whether its body shows. The open state
 ///     outlives a rebuild of the team's numbers, for the session only.
 /// </summary>
-public abstract partial class DossierSectionViewModel : ObservableObject
+public abstract partial class ScoutingReportSectionViewModel : ObservableObject
 {
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Glyph))]
@@ -20,7 +20,7 @@ public abstract partial class DossierSectionViewModel : ObservableObject
 
     /// <param name="key">The section's session key.</param>
     /// <param name="expanded">Whether it starts open.</param>
-    protected DossierSectionViewModel(string key, bool expanded)
+    protected ScoutingReportSectionViewModel(string key, bool expanded)
     {
         Key = key;
         _isExpanded = expanded;
@@ -36,7 +36,7 @@ public abstract partial class DossierSectionViewModel : ObservableObject
 }
 
 /// <summary>A section about the team as a whole: the overall record, the roster and form, the vetoes, the notes.</summary>
-public sealed class DossierGeneralSectionViewModel : DossierSectionViewModel
+public sealed class ScoutingReportGeneralSectionViewModel : ScoutingReportSectionViewModel
 {
     private readonly string _title;
     private string _count = "";
@@ -44,7 +44,7 @@ public sealed class DossierGeneralSectionViewModel : DossierSectionViewModel
     /// <param name="key">The section's session key.</param>
     /// <param name="title">Its title.</param>
     /// <param name="expanded">Whether it starts open.</param>
-    public DossierGeneralSectionViewModel(string key, string title, bool expanded) : base(key, expanded) =>
+    public ScoutingReportGeneralSectionViewModel(string key, string title, bool expanded) : base(key, expanded) =>
         _title = title;
 
     /// <summary>The title with its count.</summary>
@@ -66,13 +66,13 @@ public sealed class DossierGeneralSectionViewModel : DossierSectionViewModel
 ///     One map's section: its line of the map pool record, its heatmaps, its opening, post-plant and situational
 ///     blocks, and its findings. A closed section hands its lists out empty, so nothing inside it is built.
 /// </summary>
-public sealed class DossierMapSectionViewModel : DossierSectionViewModel
+public sealed class ScoutingReportMapSectionViewModel : ScoutingReportSectionViewModel
 {
     private static readonly IReadOnlyList<object> _none = [];
 
     /// <param name="map">The map.</param>
     /// <param name="expanded">Whether it starts open.</param>
-    public DossierMapSectionViewModel(string map, bool expanded) : base("map|" + map, expanded) => Map = map;
+    public ScoutingReportMapSectionViewModel(string map, bool expanded) : base("map|" + map, expanded) => Map = map;
 
     public string Map { get; }
 
@@ -86,7 +86,7 @@ public sealed class DossierMapSectionViewModel : DossierSectionViewModel
 
     private IReadOnlyList<SituationalBlockViewModel> Situational { get; set; } = [];
 
-    public IReadOnlyList<DossierFindingViewModel> Findings { get; private set; } = [];
+    public IReadOnlyList<ScoutingReportFindingViewModel> Findings { get; private set; } = [];
 
     public IReadOnlyList<object> ShownRecord => IsExpanded && Record is not null ? [Record] : _none;
 
@@ -98,7 +98,7 @@ public sealed class DossierMapSectionViewModel : DossierSectionViewModel
 
     public IReadOnlyList<SituationalBlockViewModel> ShownSituational => IsExpanded ? Situational : [];
 
-    public IReadOnlyList<DossierFindingViewModel> ShownFindings => IsExpanded ? Findings : [];
+    public IReadOnlyList<ScoutingReportFindingViewModel> ShownFindings => IsExpanded ? Findings : [];
 
     public bool HasHeatmaps => Heatmaps.Count > 0;
 
@@ -128,7 +128,7 @@ public sealed class DossierMapSectionViewModel : DossierSectionViewModel
     /// <summary>Points the section at the tab's current lists for its map.</summary>
     public void Set(MapPoolRowViewModel? record, IReadOnlyList<SetupHeatmapViewModel> heatmaps,
         IReadOnlyList<OpeningBlockViewModel> openings, IReadOnlyList<PostPlantBlockViewModel> postPlant,
-        IReadOnlyList<SituationalBlockViewModel> situational, IReadOnlyList<DossierFindingViewModel> findings)
+        IReadOnlyList<SituationalBlockViewModel> situational, IReadOnlyList<ScoutingReportFindingViewModel> findings)
     {
         Record = record;
         Heatmaps = heatmaps;
@@ -140,7 +140,7 @@ public sealed class DossierMapSectionViewModel : DossierSectionViewModel
     }
 
     /// <summary>Points the section at a new findings list only: a star, a dismiss, a filter.</summary>
-    public void SetFindings(IReadOnlyList<DossierFindingViewModel> findings)
+    public void SetFindings(IReadOnlyList<ScoutingReportFindingViewModel> findings)
     {
         Findings = findings;
         OnPropertyChanged(nameof(Findings));

@@ -3,7 +3,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 /// <summary>
 ///     One team's Situational Behaviour: one block per map and side the team
 ///     played, the map with the most rounds first, T before CT. Built by
-///     <see cref="SituationalBehaviourService.Build" />. Unlike the other Dossier sections, this one reads
+///     <see cref="SituationalBehaviourService.Build" />. Unlike the other Scouting Report sections, this one reads
 ///     Round Facts alone: pistol rounds, buy types and the alive counts after each kill are all there
 ///     already, so no positions file and no Grenade Index row is needed.
 /// </summary>
@@ -19,7 +19,7 @@ public sealed class SituationalBehaviourSet
 ///     The team's situational play on one map and side: how its pistol rounds went and what they set up,
 ///     how it played the rounds where the opponent bought eco or semi, the rounds where it held an
 ///     alive-count edge and whether it closed them out, and what it bought after a loss. Every number the
-///     Dossier prints is a <see cref="TendencyBucket" />, so every number opens the rounds behind it.
+///     Scouting Report prints is a <see cref="TendencyBucket" />, so every number opens the rounds behind it.
 /// </summary>
 public sealed class SituationalBehaviourBlock
 {

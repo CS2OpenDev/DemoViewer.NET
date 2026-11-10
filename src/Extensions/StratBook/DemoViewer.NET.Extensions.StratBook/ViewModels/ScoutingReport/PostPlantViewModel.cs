@@ -9,27 +9,27 @@ using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
 #endregion
 
-namespace DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 
 /// <summary>
-///     The Dossier's Situational Behaviour section: per map and side, the pistol
-///     rounds and their follow-up, the rounds played against a low-buy opponent, the rounds where the
-///     team held an alive-count edge and whether it closed them out, and what it bought after a loss.
-///     Every number is a <see cref="TendencyLinkViewModel" /> whose click sends its rounds to the Review
-///     Queue under one title card and shows the Review tab, the same way the other Dossier sections do.
+///     The Scouting Report's Post-Plant And Retake section: per map and side, the rounds
+///     with a plant, the man count at the plant and how they ended; on T the plant clusters and the
+///     post-plant holds, on CT the retake grouping. Every number is a <see cref="TendencyLinkViewModel" />
+///     whose click sends its rounds to the Review Queue under one title card and shows the Review tab,
+///     the same way the Opening Tendencies do.
 ///     <para>
-///         <b>Builds on a worker.</b> The build reads only the demo cache's Round Facts rows, so it is
-///         quick, but it still runs off the UI thread for the same reason the other sections do: a new
-///         selection bumps the generation and the old build posts nothing.
+///         <b>Builds on a worker.</b> The build reads every positions file of the team, so it runs off the
+///         UI thread and posts its blocks when done; a new selection bumps the generation and the old build
+///         posts nothing.
 ///     </para>
 /// </summary>
-public sealed partial class SituationalBehaviourSectionViewModel : ObservableObject, IDisposable
+public sealed partial class PostPlantSectionViewModel : ObservableObject, IDisposable
 {
     private readonly Func<Action, Task> _run;
     private readonly Action<Action> _post;
     private readonly IExtensionReviewQueue? _review;
     private readonly Func<string, bool>? _selectTab;
-    private readonly SituationalBehaviourService? _service;
+    private readonly PostPlantService? _service;
 
     // Bumped per build; a worker whose generation is behind posts nothing.
     private int _generation;
@@ -37,7 +37,7 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
     [ObservableProperty]
     private bool _isBuilding;
 
-    /// <summary>"9 pistols over 2 maps", or why there are none; empty with no team selected.</summary>
+    /// <summary>"14 plants over 2 maps", or why there are none; empty with no team selected.</summary>
     [ObservableProperty]
     private string _line = "";
 
@@ -50,10 +50,10 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
 
     /// <param name="service">Builds the section; null hides it.</param>
     /// <param name="review">The Review Queue a number's rounds are sent to; null says so on open.</param>
-    /// <param name="selectTab">Shows a tab by id, for the Review tab after a send; null stays on the Dossier.</param>
+    /// <param name="selectTab">Shows a tab by id, for the Review tab after a send; null stays on the Scouting Report.</param>
     /// <param name="post">UI-thread marshal for the worker's result.</param>
     /// <param name="run">Runs the build: a processing-queue item in the app, the pool when null.</param>
-    public SituationalBehaviourSectionViewModel(SituationalBehaviourService? service, IExtensionReviewQueue? review,
+    public PostPlantSectionViewModel(PostPlantService? service, IExtensionReviewQueue? review,
         Func<string, bool>? selectTab, Action<Action> post, Func<Action, Task>? run = null)
     {
         ArgumentNullException.ThrowIfNull(post);
@@ -68,7 +68,7 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
     public bool HasSection => _service is not null;
 
     /// <summary>One block per map and side, in the service's order.</summary>
-    public ObservableCollection<SituationalBlockViewModel> Blocks { get; } = [];
+    public ObservableCollection<PostPlantBlockViewModel> Blocks { get; } = [];
 
     public bool HasBlocks => Blocks.Count > 0;
 
@@ -98,13 +98,13 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
         }
 
         IsBuilding = true;
-        Line = "reading rounds";
+        Line = "reading plants and positions";
         BuildTask = _run(() => Run(generation, id));
     }
 
     /// <summary>The section line for a finished build.</summary>
     /// <param name="set">The build.</param>
-    private static string LineFor(SituationalBehaviourSet set)
+    public static string LineFor(PostPlantSet set)
     {
         ArgumentNullException.ThrowIfNull(set);
         if (set.Blocks.Count == 0)
@@ -114,10 +114,19 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
                 : "no rounds: Team Identity put this team on a side in no round with facts";
         }
 
-        int pistols = set.Blocks.Sum(b => b.PistolRounds.Count);
+        int plants = set.Blocks.Sum(b => b.Planted.Count);
         int maps = set.Blocks.Select(b => b.Map).Distinct(StringComparer.Ordinal).Count();
-        return
-            $"{OpeningTendenciesSectionViewModel.Plural(pistols, "pistol")} over {OpeningTendenciesSectionViewModel.Plural(maps, "map")}";
+        List<string> parts =
+        [
+            $"{OpeningTendenciesSectionViewModel.Plural(plants, "plant")} over {OpeningTendenciesSectionViewModel.Plural(maps, "map")}"
+        ];
+        if (set.DemosWithoutPositions > 0)
+        {
+            parts.Add(
+                $"{OpeningTendenciesSectionViewModel.Plural(set.DemosWithoutPositions, "demo")} without positions; rebuild the index");
+        }
+
+        return string.Join(" · ", parts);
     }
 
     /// <summary>
@@ -141,7 +150,7 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
 
         int added = _review.Add(
             link.Bucket.Rounds.Select(r => OpeningTendenciesSectionViewModel.ReviewClipFor(link, r, _teamId)),
-            $"Dossier · {_teamName} · {link.Title}", OpeningTendenciesSectionViewModel.Plural(link.Count, "round"));
+            $"Scouting report · {_teamName} · {link.Title}", OpeningTendenciesSectionViewModel.Plural(link.Count, "round"));
         ReviewLine = added == 0
             ? "already in Review"
             : $"{OpeningTendenciesSectionViewModel.Plural(added, "round")} sent to Review";
@@ -150,7 +159,7 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
 
     private void Run(int generation, Guid teamId)
     {
-        SituationalBehaviourSet set;
+        PostPlantSet set;
         try
         {
             set = _service!.Build(teamId);
@@ -162,13 +171,13 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
                 if (generation == Volatile.Read(ref _generation))
                 {
                     IsBuilding = false;
-                    Line = $"situational behaviour unavailable: {ex.Message}";
+                    Line = $"post-plant and retake unavailable: {ex.Message}";
                 }
             });
             return;
         }
 
-        List<SituationalBlockViewModel> blocks = [.. set.Blocks.Select(b => new SituationalBlockViewModel(b))];
+        List<PostPlantBlockViewModel> blocks = [.. set.Blocks.Select(b => new PostPlantBlockViewModel(b))];
         _post(() =>
         {
             if (generation != Volatile.Read(ref _generation))
@@ -176,7 +185,7 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
                 return;
             }
 
-            foreach (SituationalBlockViewModel block in blocks)
+            foreach (PostPlantBlockViewModel block in blocks)
             {
                 Blocks.Add(block);
             }
@@ -188,83 +197,69 @@ public sealed partial class SituationalBehaviourSectionViewModel : ObservableObj
     }
 }
 
-/// <summary>One map and side of the Situational Behaviour section, worded for display.</summary>
-public sealed class SituationalBlockViewModel
+/// <summary>One map and side of the Post-Plant And Retake section, worded for display.</summary>
+public sealed class PostPlantBlockViewModel
 {
-    public SituationalBlockViewModel(SituationalBehaviourBlock block)
+    public PostPlantBlockViewModel(PostPlantBlock block)
     {
         ArgumentNullException.ThrowIfNull(block);
         Block = block;
         SideLabel = block.Side == 3 ? "CT" : "T";
         string prefix = $"{block.Map} {SideLabel}";
+        PlantedLink = new TendencyLinkViewModel(block.Planted, $"{prefix} · {(IsT ? "plants" : "opponent plants")}");
         RoundsLink = new TendencyLinkViewModel(block.SideRounds, $"{prefix} · rounds");
-        PistolLink = new TendencyLinkViewModel(block.PistolRounds, $"{prefix} · pistols");
-        PistolOutcomes = Links(block.PistolOutcomes, $"{prefix} · pistol");
-        PistolFollowUp = Links(block.PistolFollowUp, prefix);
-        AntiEcoLink = new TendencyLinkViewModel(block.AntiEcoRounds, $"{prefix} · vs low buy");
-        AntiEcoBuyTypes = Links(block.AntiEcoBuyTypes, $"{prefix} · vs");
-        AntiEcoOutcomes = Links(block.AntiEcoOutcomes, $"{prefix} · vs low buy");
-        AntiEcoContactClock = Bars(block.AntiEcoContactClock, $"{prefix} · vs low buy, first contact");
-        ManAdvantageLink = new TendencyLinkViewModel(block.ManAdvantageRounds, $"{prefix} · man advantage");
-        ManAdvantage = Links(block.ManAdvantage, $"{prefix} · led");
-        ManAdvantageOutcomes = Links(block.ManAdvantageOutcomes, $"{prefix} · man advantage");
-        RoundsLostLink = new TendencyLinkViewModel(block.RoundsLost, $"{prefix} · losses");
-        SaveDiscipline = Links(block.SaveDiscipline, $"{prefix} · after a loss,");
+        ManCount = Links(block.ManCount, $"{prefix} · at the plant");
+        Outcomes = Links(block.Outcomes, $"{prefix} · after the plant");
+        PlantClusters = Links(block.PlantClusters, $"{prefix} · plant");
+        HoldShapes = Links(block.HoldShapes, $"{prefix} · hold");
+        HoldPlaces = Links(block.HoldPlaces, $"{prefix} · hold from");
+        RetakeGroups = Links(block.RetakeGroups, $"{prefix} · retake");
+        PositionNote = block.Planted.Count == 0
+            ? ""
+            : block.PositionRounds == 0
+                ? "positions: none for these rounds"
+                : $"positions over {OpeningTendenciesSectionViewModel.Plural(block.PositionRounds, "round")}";
     }
 
-    private SituationalBehaviourBlock Block { get; }
+    private PostPlantBlock Block { get; }
 
     public string Map => Block.Map;
 
     /// <summary>"T" or "CT".</summary>
     public string SideLabel { get; }
 
+    /// <summary>"planted in" on T, "they planted in" on CT, before the planted count.</summary>
+    public string PlantedText => IsT ? "planted in" : "they planted in";
+
+    /// <summary>The rounds with a plant: itself a link.</summary>
+    public TendencyLinkViewModel PlantedLink { get; }
+
     /// <summary>Every round of the block on this side: the denominator, itself a link.</summary>
     public TendencyLinkViewModel RoundsLink { get; }
 
-    /// <summary>The pistol rounds: itself a link.</summary>
-    public TendencyLinkViewModel PistolLink { get; }
+    public IReadOnlyList<TendencyLinkViewModel> ManCount { get; }
 
-    public IReadOnlyList<TendencyLinkViewModel> PistolOutcomes { get; }
+    public IReadOnlyList<TendencyLinkViewModel> Outcomes { get; }
 
-    public IReadOnlyList<TendencyLinkViewModel> PistolFollowUp { get; }
+    public IReadOnlyList<TendencyLinkViewModel> PlantClusters { get; }
 
-    public bool HasPistols => Block.PistolRounds.Count > 0;
+    public IReadOnlyList<TendencyLinkViewModel> HoldShapes { get; }
 
-    /// <summary>The rounds against a low-buy opponent: itself a link.</summary>
-    public TendencyLinkViewModel AntiEcoLink { get; }
+    public IReadOnlyList<TendencyLinkViewModel> HoldPlaces { get; }
 
-    public IReadOnlyList<TendencyLinkViewModel> AntiEcoBuyTypes { get; }
+    public IReadOnlyList<TendencyLinkViewModel> RetakeGroups { get; }
 
-    public IReadOnlyList<TendencyLinkViewModel> AntiEcoOutcomes { get; }
+    /// <summary>"positions over 12 rounds", or why there are none; empty with no plant.</summary>
+    public string PositionNote { get; }
 
-    public IReadOnlyList<TendencyLinkViewModel> AntiEcoContactClock { get; }
+    public bool HasPlants => Block.Planted.Count > 0;
 
-    public bool HasAntiEco => Block.AntiEcoRounds.Count > 0;
+    private bool IsT => Block.Side == 2;
 
-    /// <summary>The man-advantage rounds: itself a link.</summary>
-    public TendencyLinkViewModel ManAdvantageLink { get; }
+    public bool ShowsHolds => IsT && HasPlants;
 
-    public IReadOnlyList<TendencyLinkViewModel> ManAdvantage { get; }
-
-    public IReadOnlyList<TendencyLinkViewModel> ManAdvantageOutcomes { get; }
-
-    public bool HasManAdvantage => Block.ManAdvantageRounds.Count > 0;
-
-    /// <summary>The rounds lost: itself a link.</summary>
-    public TendencyLinkViewModel RoundsLostLink { get; }
-
-    public IReadOnlyList<TendencyLinkViewModel> SaveDiscipline { get; }
-
-    public bool HasLosses => Block.RoundsLost.Count > 0;
+    public bool ShowsRetakes => !IsT && HasPlants;
 
     private static IReadOnlyList<TendencyLinkViewModel> Links(IReadOnlyList<TendencyBucket> buckets, string title) =>
         [.. buckets.Select(b => new TendencyLinkViewModel(b, $"{title} {b.Label}"))];
-
-    // Bars scaled to the tallest in the histogram.
-    private static IReadOnlyList<TendencyLinkViewModel> Bars(IReadOnlyList<TendencyBucket> buckets, string title)
-    {
-        int max = buckets.Select(b => b.Count).DefaultIfEmpty(0).Max();
-        return [.. buckets.Select(b => new TendencyLinkViewModel(b, $"{title} {b.Label}", max))];
-    }
 }

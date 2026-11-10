@@ -3,7 +3,7 @@
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -19,7 +19,7 @@ namespace DemoViewer.NET.AppTests;
 ///     side, one block per map and side; the planted rounds, the man count at the plant and the outcomes
 ///     from Round Facts alone; on T the plant spots clustered per site and the hold read from the positions
 ///     file; on CT the retake grouped by when the CTs alive at the plant reached the bomb; a demo with no
-///     positions counted rather than read as rounds with no hold; and every number in the Dossier opening
+///     positions counted rather than read as rounds with no hold; and every number in the Scouting Report opening
 ///     its rounds in the Review Queue.
 /// </summary>
 [NotInParallel]
@@ -322,13 +322,13 @@ public class PostPlantTests
     }
 
     [Test]
-    public async Task TheDossier_ShowsTheSection_AndEveryNumberOpensItsRounds()
+    public async Task TheScoutingReport_ShowsTheSection_AndEveryNumberOpensItsRounds()
     {
         using Harness h = await Harness.Create();
         ReviewQueue queue = new(null);
         List<string> shown = [];
         QueuedPost posted = new();
-        using DossierTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
+        using ScoutingReportTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
             review: new ExtensionReviewQueue(queue),
             selectTab: id =>
             {
@@ -377,8 +377,8 @@ public class PostPlantTests
         {
             await Assert.That(queue.ClipCount).IsEqualTo(2);
             await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue()
-                .Because("a Dossier clip carries its team");
-            await Assert.That(queue.Clips.All(c => c.Source == ReviewSources.Dossier)).IsTrue();
+                .Because("a Scouting Report clip carries its team");
+            await Assert.That(queue.Clips.All(c => c.Source == DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport)).IsTrue();
             await Assert.That(queue.Clips[0].Note).IsEqualTo("de_nuke T · plant A spot 1 (1050, 1000) · round 1");
             await Assert.That(queue.Clips[1].Note).IsEqualTo("de_nuke T · plant A spot 1 (1050, 1000) · round 2");
             await Assert.That(queue.SectionOf(queue.Clips[0].Id)).IsNotNull();
