@@ -279,13 +279,19 @@ public sealed class ScoutingReportNotesStore
                 return;
             }
 
+            bool remapped = file.SchemaVersion < ScoutingReportNotesFile.CurrentSchema;
             foreach (ScoutingReportTeamNotes team in file.Teams)
             {
                 team.Edits = new Dictionary<string, string>(team.Edits, StringComparer.Ordinal);
+                if (remapped)
+                {
+                    RemapKeys(team);
+                }
+
                 _teams.Add(team);
             }
 
-            if (fromLegacy)
+            if (fromLegacy || remapped)
             {
                 Save();
             }
@@ -294,6 +300,47 @@ public sealed class ScoutingReportNotesStore
         {
             Refuse($"{name} could not be read: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    ///     Moves a schema-1 team's stars, edits and dismissals onto the scoped keys
+    ///     (<see cref="ScoutingReportStarKeys.Remap" />). A key with no mapping stays as it is; two old keys that
+    ///     land on one new key keep the first one's edit.
+    /// </summary>
+    /// <param name="team">The team's notes, changed in place.</param>
+    internal static void RemapKeys(ScoutingReportTeamNotes team)
+    {
+        ArgumentNullException.ThrowIfNull(team);
+        team.Starred = [.. team.Starred.Select(Mapped).Distinct(StringComparer.Ordinal)];
+        team.Hidden = [.. team.Hidden.Select(Mapped).Distinct(StringComparer.Ordinal)];
+        Dictionary<string, string> edits = new(StringComparer.Ordinal);
+        foreach ((string key, string text) in team.Edits)
+        {
+            edits.TryAdd(Mapped(key), text);
+        }
+
+        team.Edits = edits;
+        return;
+
+        static string Mapped(string key) => ScoutingReportStarKeys.Remap(key) ?? key;
+    }
+
+    /// <summary>Stars a suggested line on the user's behalf, once ever; false when it was seeded before.</summary>
+    /// <param name="teamId">The team.</param>
+    /// <param name="key">The suggested line's key.</param>
+    public bool Seed(Guid teamId, string key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ScoutingReportTeamNotes notes = Ensure(teamId);
+        if (notes.Seeded.Contains(key, StringComparer.Ordinal))
+        {
+            return false;
+        }
+
+        notes.Seeded.Add(key);
+        Toggle(notes.Starred, key, true);
+        Commit();
+        return true;
     }
 
     private void Refuse(string problem)
