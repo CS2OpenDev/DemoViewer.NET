@@ -501,7 +501,7 @@ public sealed class ExtensionUpdateService
                     AppLog.ExtensionRemovalMarked(Log, packId);
                     if (!IsLoaded(packId))
                     {
-                        ExtensionStaging.ApplyPendingRemoval(_extensionsDirectory, packId);
+                        ExtensionStaging.ApplyPendingRemoval(_extensionsDirectory, packId, Log);
                     }
 
                     return true;

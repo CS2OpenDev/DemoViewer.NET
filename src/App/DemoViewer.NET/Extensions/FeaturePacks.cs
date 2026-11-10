@@ -76,11 +76,14 @@ public static class FeaturePacks
     /// <param name="externalRejected">The third-party copies that did not load.</param>
     /// <param name="claimedRulesets">The qualified ruleset ids every extension's manifest claims, loaded or not.</param>
     /// <param name="shippedIds">The ids this build ships, loaded or not; null reads them off <paramref name="statuses" />.</param>
+    /// <param name="removedAtStart">The installed folders the launch deleted before logging was up.</param>
     public static void ConfigureResolved(IReadOnlyList<PackStatus> statuses,
         IReadOnlyList<LoadOutcome> externalRejected,
         IReadOnlyList<string>? claimedRulesets = null,
-        IReadOnlyList<string>? shippedIds = null)
+        IReadOnlyList<string>? shippedIds = null,
+        IReadOnlyList<string>? removedAtStart = null)
     {
+        _removedAtStart = removedAtStart ?? [];
         ArgumentNullException.ThrowIfNull(externalRejected);
         _list.Set(statuses);
         _externalRejected = externalRejected;
@@ -95,6 +98,11 @@ public static class FeaturePacks
     public static IReadOnlyList<string> ShippedIds => _shippedIds;
 
     private static volatile IReadOnlyList<string> _shippedIds = [];
+
+    /// <summary>The installed extension folders the launch deleted because Remove marked them, for the app's log.</summary>
+    public static IReadOnlyList<string> RemovedAtStart => _removedAtStart;
+
+    private static volatile IReadOnlyList<string> _removedAtStart = [];
 
     /// <summary>The qualified ruleset ids the extensions' manifests claim, whether or not this launch loaded them.</summary>
     public static IReadOnlyList<string> ClaimedRulesets => _claimedRulesets;

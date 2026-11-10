@@ -2,7 +2,6 @@
 
 using System.IO.Compression;
 using System.Security.Cryptography;
-using CS2DemoKit.Analysis.Diagnostics;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -76,7 +75,8 @@ public static class ExtensionStaging
     /// <summary>
     ///     Deletes every id folder under <paramref name="extensionsDirectory" /> that carries
     ///     <see cref="RemovalMarkerName" />, as <see cref="ApplyPendingRemoval" /> does for one. Only safe before
-    ///     any extension is loaded. Never follows a link; never throws. Returns the folders it deleted whole.
+    ///     any extension is loaded, which is before logging is up, so it logs nothing: it returns the folders it
+    ///     deleted whole for the caller to log. Never follows a link; never throws.
     /// </summary>
     public static IReadOnlyList<string> ApplyPendingRemovals(string extensionsDirectory)
     {
@@ -100,7 +100,7 @@ public static class ExtensionStaging
         foreach (string idFolder in idFolders)
         {
             string id = Path.GetFileName(idFolder);
-            if (!id.StartsWith('.') && ApplyPendingRemoval(extensionsDirectory, id))
+            if (!id.StartsWith('.') && ApplyPendingRemoval(extensionsDirectory, id, null))
             {
                 removed.Add(idFolder);
             }
@@ -112,9 +112,9 @@ public static class ExtensionStaging
     /// <summary>
     ///     Deletes <c>extensions/&lt;id&gt;/</c> when it carries <see cref="RemovalMarkerName" />. The marker goes
     ///     last, so a folder that did not delete whole keeps asking at the next start. Never follows a link;
-    ///     never throws. True when the folder was deleted whole.
+    ///     never throws. True when the folder was deleted whole, which is logged to <paramref name="log" />.
     /// </summary>
-    public static bool ApplyPendingRemoval(string extensionsDirectory, string id)
+    public static bool ApplyPendingRemoval(string extensionsDirectory, string id, ILogger? log)
     {
         ArgumentNullException.ThrowIfNull(extensionsDirectory);
         ArgumentNullException.ThrowIfNull(id);
@@ -142,8 +142,11 @@ public static class ExtensionStaging
 
             TryDeleteFile(marker);
             Directory.Delete(idFolder, false);
-            ILogger log = DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory);
-            AppLog.ExtensionInstalledRemoved(log, idFolder);
+            if (log is not null)
+            {
+                AppLog.ExtensionInstalledRemoved(log, idFolder);
+            }
+
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

@@ -702,7 +702,10 @@ at the next start, because the loaded assembly is mapped for the life of the pro
 half deleted would load again. `ExtensionStaging.ApplyPendingRemovals` deletes every id folder carrying
 the marker, the marker last so a folder that did not delete whole keeps asking and one folder's failure
 not stopping the next. It runs only from `ExtensionStartup.Resolve`, before anything is discovered: once
-extensions have loaded, no code path sweeps another id's marked folder. The row reads `Removed, restart to finish.` Remove
+extensions have loaded, no code path sweeps another id's marked folder. Nothing logs that early, so it
+returns the folders it deleted; `ExtensionStartupResult.RemovedAtStart` carries them through
+`FeaturePacks.RemovedAtStart`, and the app logs each (`Removed installed extension folder`) with the
+loader's report once logging is up. The row reads `Removed, restart to finish.` Remove
 never touches the extension's data; "Delete extension data" never removes the install.
 
 **At startup.** `CleanupOnStartAsync`, a background queue item from the composition root after the

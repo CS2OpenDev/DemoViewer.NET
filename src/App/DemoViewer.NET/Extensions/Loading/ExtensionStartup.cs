@@ -21,7 +21,14 @@ public sealed record ExtensionStartupResult(
     IReadOnlyList<PackStatus> Statuses,
     IReadOnlyList<LoadOutcome> ExternalRejected,
     IReadOnlyList<string> ClaimedRulesets,
-    IReadOnlyList<string> ShippedIds);
+    IReadOnlyList<string> ShippedIds)
+{
+    /// <summary>
+    ///     The installed extension folders this launch deleted because Remove marked them, logged once the
+    ///     app's logging is up: nothing is configured to log to this early.
+    /// </summary>
+    public IReadOnlyList<string> RemovedAtStart { get; init; } = [];
+}
 
 /// <summary>The desktop head's extension resolution, before Avalonia starts.</summary>
 public static class ExtensionStartup
@@ -45,16 +52,15 @@ public static class ExtensionStartup
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(shippedTrust);
         ArgumentNullException.ThrowIfNull(publisherKeys);
-        if (ExtensionLoader.ExtensionsDirectory(configRoot) is { } extensionsDirectory)
-        {
-            ExtensionStaging.ApplyPendingRemovals(extensionsDirectory);
-        }
+        IReadOnlyList<string> removed = ExtensionLoader.ExtensionsDirectory(configRoot) is { } extensionsDirectory
+            ? ExtensionStaging.ApplyPendingRemovals(extensionsDirectory)
+            : [];
 
         IReadOnlyList<string> claimed = ClaimedRulesets(configRoot, shipped);
         string[] shippedIds = [.. shipped.Select(s => s.Id)];
         if (safeMode)
         {
-            return new ExtensionStartupResult([], [], claimed, shippedIds);
+            return new ExtensionStartupResult([], [], claimed, shippedIds) { RemovedAtStart = removed };
         }
 
         IReadOnlyList<PackStatus> fromShipped = ExtensionLoader.Resolve(configRoot, shipped, host, shippedTrust);
@@ -64,7 +70,10 @@ public static class ExtensionStartup
             [.. fromShipped.Where(s => s.IsCompatible).Select(s => s.Pack)], host,
             new ExternalTrust(publisherKeys, allowUnverified),
             [.. shipped.Select(s => s.Id)]);
-        return new ExtensionStartupResult([.. fromShipped, .. external.Loaded], external.Rejected, claimed, shippedIds);
+        return new ExtensionStartupResult([.. fromShipped, .. external.Loaded], external.Rejected, claimed, shippedIds)
+        {
+            RemovedAtStart = removed
+        };
     }
 
     /// <summary>

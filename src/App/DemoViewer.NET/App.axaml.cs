@@ -541,12 +541,17 @@ public class App : Application
     /// <summary>
     ///     The extension loader's one-time report: the head resolved the packs
     ///     in Main, before any logger existed, and recorded the outcome on each <see cref="PackStatus" />;
-    ///     this writes it once the diagnostics pillar is up. One line per pack (loaded, with its source, or
-    ///     incompatible), then one per staged candidate the loader refused.
+    ///     this writes it once the diagnostics pillar is up. One line per installed folder the launch removed,
+    ///     one per pack (loaded, with its source, or incompatible), then one per staged candidate the loader refused.
     /// </summary>
     private static void LogExtensionStatuses()
     {
         ILogger log = DiagnosticsLog.CreateLogger(AppLog.ExtensionsCategory);
+        foreach (string removed in FeaturePacks.RemovedAtStart)
+        {
+            AppLog.ExtensionInstalledRemoved(log, removed);
+        }
+
         foreach (PackStatus status in FeaturePacks.Statuses)
         {
             string name = status.Manifest?.Name ?? status.Pack.Id;
