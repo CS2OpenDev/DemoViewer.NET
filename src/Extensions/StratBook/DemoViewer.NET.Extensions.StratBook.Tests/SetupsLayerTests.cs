@@ -313,6 +313,35 @@ public class SetupsLayerTests
         }
     }
 
+    [Test]
+    public async Task ACutOffRound_KeepsItsPositions_ButIsNotADecidedRound()
+    {
+        RoundPositionsDocument positions = new()
+        {
+            CadenceTicks = Rate,
+            Places = ["BombsiteA"],
+            Players = [new RoundPositionsPlayer(5, 76561198000000005, "five")],
+            Rounds =
+            [
+                new RoundPositionsRound
+                {
+                    Number = 1, FreezeEndTick = 1000, Ct = [5],
+                    Pos = Steps(70, s => [new RoundPosition(5, s, 0, 0, 0)])
+                }
+            ]
+        };
+        RoundFacts round = new() { Number = 1, IsLive = true, FreezeEndTick = 1000, WinnerSide = 0 };
+
+        SetupRoundDetail detail = SetupRoundCapture.Capture(positions, positions.Rounds[0], round, Rate, 1000, 1000 + 20 * Rate)!;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(detail.Decided).IsFalse();
+            await Assert.That(detail.Won).IsFalse();
+            await Assert.That(detail.Players[0].Setup.Count).IsGreaterThan(0);
+        }
+    }
+
     // ---- Through the tab ----
 
     [Test]

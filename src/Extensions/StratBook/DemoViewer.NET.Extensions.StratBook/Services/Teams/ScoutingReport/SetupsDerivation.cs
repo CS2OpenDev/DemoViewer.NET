@@ -302,7 +302,7 @@ public static class SetupsDerivation
         Dictionary<(int, int, int), List<SetupHeatmapRound>> cells = [];
         foreach (SetupHeatmapRound round in rounds)
         {
-            if (round.Detail is not { } detail)
+            if (round.Detail is not { Decided: true } detail)
             {
                 continue;
             }

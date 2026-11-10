@@ -39,11 +39,14 @@ public sealed record SetupRoundPlayer(
 /// <param name="PlantSite">Where the bomb went down; <see cref="BombSite.Unknown" /> with no plant.</param>
 /// <param name="PlantAfterContactSeconds">Seconds from first contact to the plant, or null without both.</param>
 /// <param name="Players">The CT players with at least one sample.</param>
+/// <param name="Decided">The round has a winner; false for a recording cut off mid-round, where
+/// <paramref name="Won" /> carries no result and the round stays out of win counts.</param>
 public sealed record SetupRoundDetail(
     bool Won,
     BombSite PlantSite,
     double? PlantAfterContactSeconds,
-    IReadOnlyList<SetupRoundPlayer> Players);
+    IReadOnlyList<SetupRoundPlayer> Players,
+    bool Decided = true);
 
 /// <summary>Reads a <see cref="SetupRoundDetail" /> out of a round positions file while the heatmap reads its points.</summary>
 public static class SetupRoundCapture
@@ -127,7 +130,7 @@ public static class SetupRoundCapture
                 return new SetupRoundPlayer(KeyOf(who?.SteamId64 ?? 0, name), name, s.Value.Setup, s.Value.After);
             })
         ];
-        return new SetupRoundDetail(round.WinnerSide == 3, round.PlantSite, plantAfter, players);
+        return new SetupRoundDetail(round.WinnerSide == 3, round.PlantSite, plantAfter, players, round.IsDecided());
     }
 
     /// <summary>The key a player is joined on: the SteamID64 as text, or <c>name:</c> and the name for a bot.</summary>

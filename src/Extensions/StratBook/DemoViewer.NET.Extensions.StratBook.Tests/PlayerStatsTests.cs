@@ -235,6 +235,39 @@ public class PlayerStatsTests
     }
 
     [Test]
+    public async Task ARecordingCutOffMidRound_KeepsItsOpening_ButNotItsClutchResult()
+    {
+        // Demo one's round 1 again as round 3, with no winner: the opening stands, the 1v4 is not a lost clutch.
+        RoundFactsRows one = RowsOne();
+        RoundFactsRows rows = new()
+        {
+            Schema = one.Schema,
+            Clock = one.Clock,
+            Rounds =
+            [
+                .. one.Rounds,
+                Round(3, 0, Kill(3, 10, 5, 0, 5, 4), Kill(3, 20, 1, 6, 4, 4), Kill(3, 21, 1, 7, 3, 4),
+                    Kill(3, 22, 2, 8, 2, 4), Kill(3, 23, 2, 9, 1, 4))
+            ]
+        };
+        DemoCacheStore cache = new(null);
+        using (cache.BeginBatch())
+        {
+            cache.Upsert(Record(DemoOne, 0, rows));
+            cache.Upsert(Record(DemoTwo, 1, RowsTwo()));
+        }
+
+        PlayerStatLine p5 = PlayerStatsService.Build(cache.Library(), null, cache.RoundFacts(), Demos(), [Id(11)])
+            .For("de_mirage", Id(11))!;
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(p5.Openings.Count).IsEqualTo(3);
+            await Assert.That(p5.Clutches.Count).IsEqualTo(1);
+        }
+    }
+
+    [Test]
     public async Task AClutch_IsTheLastAliveWithAnEnemyStanding_NotATradeToZero()
     {
         RoundFacts traded = Round(1, 3, Kill(1, 5, 0, 6, 4, 5), Kill(1, 6, 0, 7, 3, 5), Kill(1, 7, 0, 8, 2, 5),

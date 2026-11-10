@@ -118,6 +118,13 @@ public class PostPlantTests
         ]
     };
 
+    private static RoundFactsRows Rows(RoundFacts? extra) => extra is null
+        ? Rows()
+        : new RoundFactsRows
+        {
+            Schema = Rows().Schema, Clock = Rows().Clock, Rounds = [.. Rows().Rounds, extra]
+        };
+
     private static DemoCacheRecord Record(string path, string map, int day, RoundFactsRows? rows)
     {
         DemoCacheRecord record = new()
@@ -164,7 +171,7 @@ public class PostPlantTests
     // A on site B: all five at (-2000, 0) in Palace. The CT at (-5000, 0) is never a T.
     // A retaking (0, 0): round 6 p0..p2 arrive at 45, 46 and 47 s; round 7 p0 at 42 s and p1 at 55 s;
     // round 8 nobody leaves (5000, 0).
-    private static RoundPositionsDocument Positions(string fingerprint)
+    private static RoundPositionsDocument Positions(string fingerprint, bool tail = false)
     {
         IEnumerable<RoundPosition> SiteA(int s) =>
         [
@@ -199,7 +206,8 @@ public class PostPlantTests
                 Stored(5, _teamBSlots, SiteB),
                 Stored(6, _teamASlots, s => Retake(s, 45, 46, 47)),
                 Stored(7, _teamASlots, s => Retake(s, 42, 55)),
-                Stored(8, _teamASlots, s => Retake(s, 999, 999, 999))
+                Stored(8, _teamASlots, s => Retake(s, 999, 999, 999)),
+                .. tail ? (RoundPositionsRound[])[Stored(10, _teamBSlots, SiteA)] : []
             ]
         };
     }
@@ -265,6 +273,22 @@ public class PostPlantTests
             await Assert.That(first.ToTick).IsEqualTo(At(Freeze(1), 40 + PostPlantService.PostPlantSeconds));
             await Assert.That(defused.ToTick).IsEqualTo(At(Freeze(2), 55));
             await Assert.That(first.Sha256).IsEqualTo("abc123");
+        }
+    }
+
+    [Test]
+    public async Task ARecordingCutOffMidRound_KeepsItsPlant_ButNoWinOrLossForIt()
+    {
+        // Round 10: a plant, the recording stops before the round ends.
+        using Harness h = await Harness.Create(extra: Round(10, _teamBSlots, _teamASlots, 40, BombSite.A, 0));
+
+        PostPlantBlock t = h.Service.Build(h.TeamA).Blocks[0];
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(t.Planted.Rounds.Select(r => r.RoundNumber)).Contains(10);
+            await Assert.That(t.PlantSpots.Select(p => p.Round.RoundNumber)).IsEquivalentTo([1, 2, 3])
+                .Because("a spot is won or lost, and round 10 is neither");
         }
     }
 
@@ -418,7 +442,7 @@ public class PostPlantTests
             Teams.Dispose();
         }
 
-        public static async Task<Harness> Create(bool writePositions = true)
+        public static async Task<Harness> Create(bool writePositions = true, RoundFacts? extra = null)
         {
             DemoCacheStore cache = new(null);
             TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
@@ -426,7 +450,7 @@ public class PostPlantTests
 
             using (cache.BeginBatch())
             {
-                cache.Upsert(Record(Demo, "de_nuke", 0, Rows()));
+                cache.Upsert(Record(Demo, "de_nuke", 0, Rows(extra)));
                 cache.Upsert(Record("/d/other.dem", "de_mirage", 1, null));
             }
 
@@ -436,7 +460,7 @@ public class PostPlantTests
             RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
             if (writePositions)
             {
-                store.WritePositions(Demo, Positions(sources.FingerprintFor("de_nuke")));
+                store.WritePositions(Demo, Positions(sources.FingerprintFor("de_nuke"), extra is not null));
             }
 
             PostPlantService service = new(teams, cache.Library(), cache.RoundFacts(), store, sources.FingerprintFor);

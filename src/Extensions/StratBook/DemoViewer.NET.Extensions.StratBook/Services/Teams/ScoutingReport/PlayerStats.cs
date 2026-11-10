@@ -307,7 +307,7 @@ public static class PlayerStatsService
                         set.Line(PlayerStatsSet.AllMaps, opener).Add(opening);
                     }
 
-                    if (Clutch(round, side) is { } clutch && bySlot.TryGetValue(clutch.Slot, out string? alone))
+                    if (round.IsDecided() && Clutch(round, side) is { } clutch && bySlot.TryGetValue(clutch.Slot, out string? alone))
                     {
                         PlayerClutch attempt = new(Clip(demo.Path, sha, rate, round,
                                 clutch.Tick - OpeningTendenciesService.ClipLeadSeconds * rate,
