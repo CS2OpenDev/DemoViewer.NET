@@ -488,7 +488,7 @@ public class ReviewQueueTests
         ReviewQueue queue = new(null);
         queue.Add(Enumerable.Range(0, ReviewQueueTabViewModel.CollapseAbove + 1)
             .Select(i => Clip($"/d/{i}.dem", i, i + 1, $"smoke {i}", ReviewSources.Lineup)), "Lineup clips, de_mirage");
-        queue.Add([Clip("/d/x.dem", 1, 2, "a plant", ReviewSources.Dossier)], "Dossier");
+        queue.Add([Clip("/d/x.dem", 1, 2, "a plant", ReviewSources.ScoutingReport)], "Scouting report");
         using ReviewQueueTabViewModel tab = new(new PublishedQueue(queue), isBrowser: false);
 
         ReviewRowViewModel card = tab.Rows[0];
@@ -499,15 +499,16 @@ public class ReviewQueueTests
             await Assert.That(tab.Rows[2].Position).IsEqualTo(ReviewQueueTabViewModel.CollapseAbove + 2)
                 .Because("positions count every clip, shown or not");
             await Assert.That(tab.SourceFilters)
-                .IsEquivalentTo([ReviewQueueTabViewModel.AllSources, "dossier", "lineup"], CollectionOrdering.Matching);
+                .IsEquivalentTo([ReviewQueueTabViewModel.AllSources, "lineup", "scouting-report"],
+                    CollectionOrdering.Matching);
         }
 
         card.ToggleCommand.Execute(null);
         await Assert.That(tab.Rows.Count).IsEqualTo(ReviewQueueTabViewModel.CollapseAbove + 4);
 
-        tab.SelectedSource = ReviewSources.Dossier;
+        tab.SelectedSource = ReviewSources.ScoutingReport;
         await Assert.That(tab.Rows.Select(r => r.IsSection ? r.Entry.Title : r.Entry.Note))
-            .IsEquivalentTo(["Dossier", "a plant"], CollectionOrdering.Matching);
+            .IsEquivalentTo(["Scouting report", "a plant"], CollectionOrdering.Matching);
 
         tab.SelectedSource = ReviewQueueTabViewModel.AllSources;
         card.ToggleCommand.Execute(null);

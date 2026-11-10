@@ -40,6 +40,12 @@ public sealed record TabSessionState(
 ///         one-time, self-healing loss of a remembered tab, which is the accepted cost of never restoring
 ///         the WRONG tab.
 ///     </para>
+///     <para>
+///         A tab renamed by its extension lists its old ids in <c>WorkspaceTabDescriptor.PreviousTabIds</c>. Both
+///         <see cref="ActiveTabId" /> and a <see cref="ModuleTabs" /> key saved under an old id resolve to the
+///         renamed tab on restore (<c>TabIdAliases</c>), and the next save writes the current id. The file is
+///         never rewritten in place.
+///     </para>
 /// </summary>
 /// <param name="Parser">Parser tab state, or null when it was never populated.</param>
 /// <param name="Entity">Entity Tracking tab state.</param>

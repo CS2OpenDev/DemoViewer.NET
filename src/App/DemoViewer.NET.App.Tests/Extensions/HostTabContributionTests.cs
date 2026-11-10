@@ -1,6 +1,7 @@
 #region
 
 using System.Runtime.Loader;
+using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;
@@ -10,6 +11,7 @@ using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Extensions.Manifest;
 using DemoViewer.NET.Features;
+using DemoViewer.NET.Models;
 using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.ViewModels.Library;
@@ -380,6 +382,123 @@ public class HostTabContributionTests
             {
                 // best-effort cleanup
             }
+        }
+    }
+
+    // A pack whose beta section was renamed twice: "fake.beta.oldest", then "fake.beta.middle", now "fake.beta".
+    private static FakeHubPack RenamedPack()
+    {
+        WorkspaceTabDescriptor beta = Section("fake.beta", "Beta", 1, HostId);
+        WorkspaceTabDescriptor renamed = new()
+        {
+            TabId = beta.TabId,
+            Header = beta.Header,
+            Order = beta.Order,
+            HostId = beta.HostId,
+            PreviousTabIds = ["fake.beta.oldest", "fake.beta.middle"],
+            ViewModelFactory = beta.ViewModelFactory,
+            ViewFactory = beta.ViewFactory
+        };
+        return new FakeHubPack("net.demoviewer.test.fakepack", PackId,
+            new HubTabContribution(HostId, "Fake", 7, "FAKE RAIL"), renamed, Section("fake.alpha", "Alpha", 0, HostId));
+    }
+
+    [Test]
+    public async Task ASessionSavedUnderARenamedSectionsOldId_RestoresThatSection_AndTheNextSaveWritesTheNewId()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "dvhub_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            await HeadlessSession.RunOnUi(async () =>
+            {
+                SettingsService svc = new(dir);
+                svc.SaveSession(new SessionPayload(null, null, null, false, false, "fake.beta.oldest"));
+
+                (MainViewModel vm, _) = NewShell([RenamedPack()], settings: svc);
+                try
+                {
+                    using (Assert.Multiple())
+                    {
+                        await Assert.That(vm.SelectedTab?.TabId).IsEqualTo(HostId);
+                        await Assert.That(vm.HostViewModel(HostId)!.Sections.SelectedSection?.TabId)
+                            .IsEqualTo("fake.beta").Because("the old id resolves to the section that carries it now");
+                    }
+
+                    vm.SaveSession();
+                    await Assert.That(svc.LoadSession()?.ActiveTabId).IsEqualTo("fake.beta");
+                }
+                finally
+                {
+                    vm.Dispose();
+                }
+            });
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(dir, true);
+            }
+            catch
+            {
+                // best-effort cleanup
+            }
+        }
+    }
+
+    [Test]
+    public async Task AnOldSectionId_SelectsTheRenamedSection_AsAnIdleResumeDoes() =>
+        await HeadlessSession.RunOnUi(async () =>
+        {
+            (MainViewModel vm, _) = NewShell([RenamedPack()]);
+            try
+            {
+                vm.TrySelectTab("fake.alpha");
+                bool selected = vm.TrySelectTab("fake.beta.middle");
+                using (Assert.Multiple())
+                {
+                    await Assert.That(selected).IsTrue();
+                    await Assert.That(vm.HostViewModel(HostId)!.Sections.SelectedSection?.TabId).IsEqualTo("fake.beta");
+                    await Assert.That(vm.TrySelectTab("fake.never-existed")).IsFalse();
+                }
+            }
+            finally
+            {
+                vm.Dispose();
+            }
+        });
+
+    [Test]
+    public async Task TabIdAliases_PreferALiveId_AndTheNewestSavedStateOfARenamedTab()
+    {
+        WorkspaceTabDescriptor renamed = new()
+        {
+            TabId = "x.new",
+            Header = "New",
+            PreviousTabIds = ["x.oldest", "x.middle"],
+            ViewFactory = () => new TextBlock()
+        };
+        WorkspaceTabDescriptor reused = new()
+        {
+            TabId = "x.oldest", Header = "Reused", ViewFactory = () => new TextBlock()
+        };
+        Dictionary<string, JsonElement> states = new()
+        {
+            ["x.oldest"] = JsonSerializer.SerializeToElement(1),
+            ["x.middle"] = JsonSerializer.SerializeToElement(2)
+        };
+
+        bool found = TabIdAliases.TryGetState(renamed, states, out JsonElement state);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(TabIdAliases.Resolve("x.middle", [renamed])).IsEqualTo("x.new");
+            await Assert.That(TabIdAliases.Resolve("x.oldest", [renamed, reused])).IsEqualTo("x.oldest")
+                .Because("a live id wins over an alias");
+            await Assert.That(TabIdAliases.Resolve("x.unknown", [renamed])).IsEqualTo("x.unknown");
+            await Assert.That(found).IsTrue();
+            await Assert.That(state.GetInt32()).IsEqualTo(2).Because("the newest previous id with state wins");
         }
     }
 

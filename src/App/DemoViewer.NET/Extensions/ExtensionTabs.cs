@@ -54,6 +54,8 @@ public static class ExtensionTabs
             Order = tab.Order,
             Placement = tab.Placement,
             HostId = tab.HostId,
+            // A copy is never null: an extension that set the list to null gets the never-renamed default.
+            PreviousTabIds = tab.PreviousTabIds is { } previous ? [.. previous] : [],
             // A tab follows one of the extension's own features, its master switch when it names none or names
             // another owner's, so an extension that is off shows nothing.
             FeatureId = guard.OwnFeature("tab", tab.FeatureId),

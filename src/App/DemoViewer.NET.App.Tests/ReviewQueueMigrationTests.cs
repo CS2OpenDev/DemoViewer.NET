@@ -12,11 +12,15 @@ namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     Lineup clips left the Review Queue: the load drops the ones the lineup service generated and nobody
-///     touched, keeps the rest, and rewrites the file once, verified, with the old one backed up.
+///     touched, keeps the rest, and rewrites the file once, verified, with the old one backed up. The same pass
+///     rewrites the retired "dossier" source as "scouting-report".
 /// </summary>
 public class ReviewQueueMigrationTests
 {
     private const string ConsoleLine = "setpos -613.43 615.90 -78.98; setang -51.19 -169.10 0.00";
+
+    // The source id the Scouting Report had as the Dossier, literal so the test reads a file an older build wrote.
+    private const string DossierSource = "dossier";
 
     private static ReviewEntry Lineup(string note) =>
         ReviewEntry.Clip("/d/a.dem", 100, 200, note, ReviewSources.Lineup, 64) with { LineupId = Guid.NewGuid() };
@@ -35,7 +39,7 @@ public class ReviewQueueMigrationTests
         {
             ReviewEntry asked = Lineup("Flash into B. " + ConsoleLine) with { Question = "who pops it?" };
             ReviewEntry renoted = Lineup("my favourite B flash");
-            ReviewEntry dossier = ReviewEntry.Clip("/d/x.dem", 1, 2, "plant", ReviewSources.Dossier);
+            ReviewEntry dossier = ReviewEntry.Clip("/d/x.dem", 1, 2, "plant", DossierSource);
             Write(root,
             [
                 ReviewEntry.Section("Lineup clips, de_mirage"), Lineup("Smoke into CT. " + ConsoleLine),
@@ -51,10 +55,13 @@ public class ReviewQueueMigrationTests
 
             using (Assert.Multiple())
             {
-                await Assert.That(queue.Migration).IsEqualTo(new ReviewQueueMigrationResult(3, 2, 1));
+                await Assert.That(queue.Migration).IsEqualTo(new ReviewQueueMigrationResult(3, 2, 1, Renamed: 1));
                 await Assert.That(queue.Entries.Select(e => e.Kind == ReviewEntryKind.Section ? e.Title : e.Note))
                     .IsEquivalentTo(["Lineup clips, de_nuke", asked.Note, renoted.Note, "Dossier", "plant"],
                         CollectionOrdering.Matching);
+                await Assert.That(queue.Clips.Single(c => c.Id == dossier.Id).Source)
+                    .IsEqualTo(ReviewSources.ScoutingReport)
+                    .Because("the retired source is rewritten in the same pass that drops the lineups");
                 await Assert.That(await File.ReadAllTextAsync(Path.Combine(root, ReviewQueueMigration.BackupFileName)))
                     .IsEqualTo(original);
                 await Assert.That(File.Exists(Path.Combine(root, ReviewQueue.FileName + ".migrating"))).IsFalse();
@@ -102,7 +109,7 @@ public class ReviewQueueMigrationTests
         {
             Write(root, [
                 ReviewEntry.Section("Lineup clips, de_nuke"), Lineup("Smoke into Outside. " + ConsoleLine),
-                ReviewEntry.Section("Dossier"), ReviewEntry.Clip("/d/x.dem", 1, 2, "plant", ReviewSources.Dossier)
+                ReviewEntry.Section("Dossier"), ReviewEntry.Clip("/d/x.dem", 1, 2, "plant", DossierSource)
             ]);
             string path = Path.Combine(root, ReviewQueue.FileName);
             string original = await File.ReadAllTextAsync(path);
@@ -112,7 +119,7 @@ public class ReviewQueueMigrationTests
             await queue.Loaded;
             using (Assert.Multiple())
             {
-                await Assert.That(queue.Migration).IsEqualTo(new ReviewQueueMigrationResult(1, 0, 1, false));
+                await Assert.That(queue.Migration).IsEqualTo(new ReviewQueueMigrationResult(1, 0, 1, false, 1));
                 await Assert.That(queue.Entries.Count).IsEqualTo(2).Because("the migrated set stays in memory");
                 await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(original);
             }
@@ -124,8 +131,63 @@ public class ReviewQueueMigrationTests
             {
                 await Assert.That(reread.Clips.Select(c => c.Note))
                     .IsEquivalentTo(["plant"], CollectionOrdering.Matching);
+                await Assert.That(reread.Clips.Single().Source).IsEqualTo(ReviewSources.ScoutingReport);
+                await Assert.That(reread.Migration).IsNull().Because("the saved set is already migrated");
                 await Assert.That(await File.ReadAllTextAsync(Path.Combine(root, ReviewQueueMigration.BackupFileName)))
                     .IsEqualTo(original);
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public async Task DossierClips_SurviveAsScoutingReport_TheirCardKeepsItsTitle_AndTheSourcesBackupIsTaken()
+    {
+        string root = Root();
+        try
+        {
+            ReviewEntry first = ReviewEntry.Clip("/d/x.dem", 1, 2, "plant", DossierSource) with
+            {
+                Question = "who rotates?", Reviewed = true
+            };
+            ReviewEntry second = ReviewEntry.Clip("/d/y.dem", 3, 4, "retake", DossierSource);
+            ReviewEntry manual = ReviewEntry.Clip("/d/z.dem", 5, 6, "mine", ReviewSources.Manual);
+            ReviewEntry card = ReviewEntry.Section("Dossier", "Team A");
+            Write(root, [card, first, second, manual]);
+            string path = Path.Combine(root, ReviewQueue.FileName);
+            string original = await File.ReadAllTextAsync(path);
+
+            ReviewQueue queue = new(root);
+            await queue.Loaded;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(queue.Migration).IsEqualTo(new ReviewQueueMigrationResult(0, 0, 0, Renamed: 2));
+                await Assert.That(queue.Entries.Select(e => e.Id))
+                    .IsEquivalentTo(new[] { card.Id, first.Id, second.Id, manual.Id }, CollectionOrdering.Matching)
+                    .Because("every entry survives, in order, with its id");
+                await Assert.That(queue.Clips.Select(c => c.Source))
+                    .IsEquivalentTo([ReviewSources.ScoutingReport, ReviewSources.ScoutingReport,
+                        ReviewSources.Manual], CollectionOrdering.Matching);
+                await Assert.That(queue.Clips[0].Question).IsEqualTo("who rotates?");
+                await Assert.That(queue.Clips[0].Reviewed).IsTrue();
+                await Assert.That(queue.Entries[0].Title).IsEqualTo("Dossier").Because("a title card is user text");
+                await Assert.That(await File.ReadAllTextAsync(Path.Combine(root,
+                    ReviewQueueMigration.SourcesBackupFileName))).IsEqualTo(original);
+                await Assert.That(File.Exists(Path.Combine(root, ReviewQueueMigration.BackupFileName))).IsFalse()
+                    .Because("a rename-only pass never overwrites the lineup backup");
+                await Assert.That(await File.ReadAllTextAsync(path)).DoesNotContain("\"dossier\"");
+            }
+
+            ReviewQueue again = new(root);
+            await again.Loaded;
+            using (Assert.Multiple())
+            {
+                await Assert.That(again.Migration).IsNull().Because("a second load finds nothing to rename");
+                await Assert.That(again.Clips.Count).IsEqualTo(3);
             }
         }
         finally

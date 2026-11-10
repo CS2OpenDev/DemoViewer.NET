@@ -13,7 +13,10 @@ namespace DemoViewer.NET.Models;
 /// </summary>
 /// <param name="DemoPath">Local filesystem path of the demo that was open, reopened verbatim on Resume.</param>
 /// <param name="ResumeFrameIndex">The playback frame index to seek back to after reopening (-1 = none).</param>
-/// <param name="ActiveTabId">The <c>WorkspaceTabDescriptor.TabId</c> that was selected, reselected on Resume.</param>
+/// <param name="ActiveTabId">
+///     The <c>WorkspaceTabDescriptor.TabId</c> that was selected, reselected on Resume. An id the tab had before a
+///     rename resolves through its <c>PreviousTabIds</c>.
+/// </param>
 public sealed record IdleResumeState(
     string DemoPath,
     int ResumeFrameIndex,
