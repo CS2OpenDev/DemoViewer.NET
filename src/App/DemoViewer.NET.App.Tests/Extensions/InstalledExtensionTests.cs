@@ -390,13 +390,13 @@ public class InstalledExtensionTests
             ExtensionUpdateService nothingFirstParty = new(root, [], ExtensionHost.Current, TrustPolicy.Nothing,
                 client, FeedUrl, installTrust: new SignedTrustPolicy([publicKey]));
 
-            bool off = await installed.AutoStageAtLaunchAsync(false, null, now);
+            bool off = await installed.AutoStageAtLaunchAsync(false, true, null, now);
             int fetchesAfterOff = client.FeedFetches;
-            bool withinTheHour = await installed.AutoStageAtLaunchAsync(true, now.AddMinutes(-30), now);
+            bool withinTheHour = await installed.AutoStageAtLaunchAsync(true, true, now.AddMinutes(-30), now);
             int fetchesAfterWithinTheHour = client.FeedFetches;
-            bool nothingToCheck = await nothingFirstParty.AutoStageAtLaunchAsync(true, null, now);
+            bool nothingToCheck = await nothingFirstParty.AutoStageAtLaunchAsync(true, true, null, now);
             int fetchesAfterNothing = client.FeedFetches;
-            bool due = await installed.AutoStageAtLaunchAsync(true, now.AddHours(-1), now);
+            bool due = await installed.AutoStageAtLaunchAsync(true, true, now.AddHours(-1), now);
 
             using (Assert.Multiple())
             {

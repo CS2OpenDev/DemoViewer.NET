@@ -524,9 +524,9 @@ public class App : Application
         try
         {
             await updates.CleanupOnStartAsync();
-            ExtensionsSettings current = settings.Current.Extensions;
-            if (await updates.AutoStageAtLaunchAsync(current.AutoUpdate, current.LastUpdateCheckUtc,
-                    DateTimeOffset.UtcNow))
+            AppSettings current = settings.Current;
+            if (await updates.AutoStageAtLaunchAsync(current.Extensions.AutoUpdate,
+                    current.Updates.CheckAutomatically, current.Extensions.LastUpdateCheckUtc, DateTimeOffset.UtcNow))
             {
                 settings.Write(s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
             }

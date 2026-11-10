@@ -376,15 +376,16 @@ public sealed class ExtensionUpdateService
 
     /// <summary>
     ///     <see cref="AutoStageAsync" /> behind the launch rule: only when <paramref name="autoUpdate" />
-    ///     ("Install extension updates automatically") is on and <see cref="IsCheckDue" /> holds for
+    ///     ("Install extension updates automatically") and <paramref name="checkAutomatically" /> ("Check for
+    ///     updates automatically") are both on and <see cref="IsCheckDue" /> holds for
     ///     <paramref name="lastCheckUtc" />. True when at least one feed was asked, which is when the caller
     ///     records the time; false leaves the record alone, so a launch with no first-party extension to check
     ///     never postpones the Settings check that lists the catalogue.
     /// </summary>
-    public async Task<bool> AutoStageAtLaunchAsync(bool autoUpdate, DateTimeOffset? lastCheckUtc, DateTimeOffset now,
-        CancellationToken ct = default)
+    public async Task<bool> AutoStageAtLaunchAsync(bool autoUpdate, bool checkAutomatically,
+        DateTimeOffset? lastCheckUtc, DateTimeOffset now, CancellationToken ct = default)
     {
-        if (!autoUpdate || !IsCheckDue(lastCheckUtc, now))
+        if (!autoUpdate || !checkAutomatically || !IsCheckDue(lastCheckUtc, now))
         {
             return false;
         }
