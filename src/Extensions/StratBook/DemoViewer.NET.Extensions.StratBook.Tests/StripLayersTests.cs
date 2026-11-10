@@ -320,7 +320,7 @@ public class StripLayersTests
     }
 
     [Test]
-    public async Task Timeouts_StayAPlaceholder_UntilTheCaptureLands_AndTheSeamBuildsRows()
+    public async Task Timeouts_AreEmptyWithoutACaptureStore_AndTheSeamBuildsRows()
     {
         using Harness h = await Harness.Create();
         ScoutingReportData data = ScoutingReportData.Start(h.TeamA, "A",
@@ -336,8 +336,7 @@ public class StripLayersTests
         List<ScoutingInspectorRow> rows = [.. built.Sections.SelectMany(s => s.Rows)];
         using (Assert.Multiple())
         {
-            await Assert.That(waiting.Status.State).IsEqualTo(ScoutingLayerState.Placeholder);
-            await Assert.That(waiting.Status.GapId).IsEqualTo("P3.1");
+            await Assert.That(waiting.Status.State).IsEqualTo(ScoutingLayerState.Empty);
             await Assert.That(rows[0].Value).IsEqualTo("3 timeouts");
             await Assert.That(rows[0].Note).IsEqualTo("CT 2 · T 1");
             await Assert.That(rows[1].Value).IsEqualTo("2 of 3 rounds");
