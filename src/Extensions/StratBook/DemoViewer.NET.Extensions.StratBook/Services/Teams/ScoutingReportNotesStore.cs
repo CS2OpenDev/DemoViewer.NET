@@ -2,6 +2,7 @@
 
 using System.Globalization;
 using System.Text.Json;
+using DemoViewer.NET.Extensions.StratBook.Services.Portability;
 
 #endregion
 
@@ -338,6 +339,183 @@ public sealed class ScoutingReportNotesStore
         return;
 
         static string Mapped(string key) => ScoutingReportStarKeys.Remap(key) ?? key;
+    }
+
+    /// <summary>
+    ///     Folds another machine's notes in, filed under the team each imported team landed on. The summary and the
+    ///     in-game leader stay this machine's unless it has none; stars, left-out lines, seeded lines and written
+    ///     notes are united by key or id; a rewritten line is added where this machine has not rewritten it. Take
+    ///     imported replaces what differs instead, and keep both adds a differing note beside this machine's. A
+    ///     second import of the same file changes nothing. UI thread, like every other mutator.
+    /// </summary>
+    /// <param name="staged">The bundle's copy of the store, holding <see cref="FileName" />; read only.</param>
+    /// <param name="teams">Where each imported team landed.</param>
+    /// <param name="ledger">The policy, the report and the counts.</param>
+    public void Import(IExtensionFolder? staged, TeamIdMap teams, ImportLedger ledger)
+    {
+        ArgumentNullException.ThrowIfNull(teams);
+        ArgumentNullException.ThrowIfNull(ledger);
+        if (ledger.ReadJson<ScoutingReportNotesFile>(staged, FileName, ScoutingReportNotesFile.JsonOptions) is not
+            { } file)
+        {
+            return;
+        }
+
+        if (file.SchemaVersion > ScoutingReportNotesFile.CurrentSchema || _refused)
+        {
+            ledger.Report(_refused
+                ? $"no scouting report notes were imported: {FileProblem}"
+                : $"{FileName} in the bundle is newer than this build reads; no notes were imported");
+            return;
+        }
+
+        bool changed = false;
+        foreach (ScoutingReportTeamNotes incoming in file.Teams)
+        {
+            if (file.SchemaVersion < ScoutingReportNotesFile.CurrentSchema)
+            {
+                RemapKeys(incoming);
+            }
+
+            Guid teamId = teams.Map(incoming.TeamId);
+            if (_teams.FirstOrDefault(t => t.TeamId == teamId) is not { } mine)
+            {
+                _teams.Add(new ScoutingReportTeamNotes
+                {
+                    TeamId = teamId,
+                    Summary = incoming.Summary,
+                    Igl = incoming.Igl,
+                    Starred = [.. incoming.Starred],
+                    Hidden = [.. incoming.Hidden],
+                    Seeded = [.. incoming.Seeded],
+                    Notes = [.. incoming.Notes],
+                    Edits = new Dictionary<string, string>(incoming.Edits, StringComparer.Ordinal)
+                });
+                ledger.CountAdded();
+                changed = true;
+                continue;
+            }
+
+            if (Fold(mine, incoming, ledger))
+            {
+                ledger.CountMerged();
+                changed = true;
+            }
+            else
+            {
+                ledger.CountSkipped();
+            }
+        }
+
+        if (changed)
+        {
+            Commit();
+        }
+    }
+
+    // True when anything changed. A conflict is counted where the two machines hold different values.
+    private static bool Fold(ScoutingReportTeamNotes mine, ScoutingReportTeamNotes incoming, ImportLedger ledger)
+    {
+        bool take = ledger.Policy == ImportConflictPolicy.TakeImported;
+        bool changed = false;
+        if (Pick(mine.Summary, incoming.Summary, take, ledger) is { } summary)
+        {
+            mine.Summary = summary;
+            changed = true;
+        }
+
+        if (Pick(mine.Igl ?? "", incoming.Igl ?? "", take, ledger) is { } igl)
+        {
+            mine.Igl = igl;
+            changed = true;
+        }
+
+        changed |= Union(mine.Starred, incoming.Starred);
+        changed |= Union(mine.Hidden, incoming.Hidden);
+        changed |= Union(mine.Seeded, incoming.Seeded);
+        foreach ((string key, string text) in incoming.Edits)
+        {
+            if (mine.Edits.TryAdd(key, text))
+            {
+                changed = true;
+            }
+            else if (!string.Equals(mine.Edits[key], text, StringComparison.Ordinal))
+            {
+                ledger.CountConflict();
+                if (take)
+                {
+                    mine.Edits[key] = text;
+                    changed = true;
+                }
+            }
+        }
+
+        foreach (ScoutingReportNote note in incoming.Notes)
+        {
+            ScoutingReportNote? same = mine.Notes.FirstOrDefault(n => n.Id == note.Id);
+            if (same is null)
+            {
+                mine.Notes.Add(new ScoutingReportNote { Id = note.Id, Text = note.Text });
+                changed = true;
+                continue;
+            }
+
+            if (string.Equals(same.Text, note.Text, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            ledger.CountConflict();
+            if (take)
+            {
+                same.Text = note.Text;
+                changed = true;
+            }
+            else if (ledger.Policy == ImportConflictPolicy.KeepBoth)
+            {
+                Guid beside = ImportLedger.BesideId(note.Id, note.Text);
+                if (mine.Notes.All(n => n.Id != beside))
+                {
+                    mine.Notes.Add(new ScoutingReportNote { Id = beside, Text = note.Text });
+                    changed = true;
+                }
+            }
+        }
+
+        return changed;
+    }
+
+    // The imported text when it should replace this machine's, else null: this machine's empty text always
+    // yields, a non-empty one only to take imported.
+    private static string? Pick(string mine, string incoming, bool take, ImportLedger ledger)
+    {
+        if (incoming.Length == 0 || string.Equals(mine, incoming, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        if (mine.Length == 0)
+        {
+            return incoming;
+        }
+
+        ledger.CountConflict();
+        return take ? incoming : null;
+    }
+
+    private static bool Union(List<string> mine, IEnumerable<string> incoming)
+    {
+        bool changed = false;
+        foreach (string key in incoming)
+        {
+            if (!mine.Contains(key, StringComparer.Ordinal))
+            {
+                mine.Add(key);
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 
     /// <summary>Stars a suggested line on the user's behalf, once ever; false when it was seeded before.</summary>
