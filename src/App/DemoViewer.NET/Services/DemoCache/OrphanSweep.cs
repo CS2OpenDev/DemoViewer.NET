@@ -24,8 +24,9 @@ public static class OrphanSweep
     /// <param name="cache">The demo cache.</param>
     /// <param name="grace">How long an orphaned demo is kept.</param>
     /// <param name="utcNow">The clock; null reads <see cref="DateTime.UtcNow" />.</param>
+    /// <param name="importedGrace">How long an imported demo no folder has listed yet is kept; <paramref name="grace" /> when null.</param>
     public static IDemoQueueHandle? Submit(IDemoProcessingQueue queue, DemoCacheStore cache, TimeSpan grace,
-        Func<DateTime>? utcNow = null)
+        Func<DateTime>? utcNow = null, TimeSpan? importedGrace = null)
     {
         ArgumentNullException.ThrowIfNull(queue);
         ArgumentNullException.ThrowIfNull(cache);
@@ -39,7 +40,7 @@ public static class OrphanSweep
             "demo-cache", DemoJobPriority.Background,
             _ =>
             {
-                Run(cache, grace, (utcNow ?? (() => DateTime.UtcNow))());
+                Run(cache, grace, importedGrace, (utcNow ?? (() => DateTime.UtcNow))());
                 return Task.CompletedTask;
             },
             Key: "orphan-sweep", Preemptible: false));
@@ -48,10 +49,12 @@ public static class OrphanSweep
     /// <summary>Expires what is due and saves the index when anything went.</summary>
     /// <param name="cache">The demo cache.</param>
     /// <param name="grace">How long an orphaned demo is kept.</param>
+    /// <param name="importedGrace">How long a never-listed imported demo is kept, or null for <paramref name="grace" />.</param>
     /// <param name="nowUtc">The current time, UTC.</param>
-    private static void Run(DemoCacheStore cache, TimeSpan grace, DateTime nowUtc)
+    private static void Run(DemoCacheStore cache, TimeSpan grace, TimeSpan? importedGrace, DateTime nowUtc)
     {
-        int expired = cache.ExpireOrphans(nowUtc, grace < TimeSpan.Zero ? TimeSpan.Zero : grace);
+        int expired = cache.ExpireOrphans(nowUtc, grace < TimeSpan.Zero ? TimeSpan.Zero : grace,
+            importedGrace is { } imported && imported < TimeSpan.Zero ? TimeSpan.Zero : importedGrace);
         if (expired > 0)
         {
             cache.SaveIndex();
