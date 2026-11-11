@@ -11,6 +11,23 @@ public enum StoreRoot
     Cache
 }
 
+/// <summary>What Library Transfer carries of a <see cref="StoreDescriptor" /> to another machine.</summary>
+[PublicAPI]
+public enum StorePortability
+{
+    /// <summary>Stays on this machine: derived data, or data keyed by a local path.</summary>
+    None = 0,
+
+    /// <summary>
+    ///     Files keyed by a demo's content id, named by <see cref="StoreDescriptor.DemoKeyedPaths" />; only the
+    ///     demos being transferred go.
+    /// </summary>
+    PerDemo = 1,
+
+    /// <summary>Data about the whole library, carried whole even when only some demos are transferred.</summary>
+    LibraryWide = 2
+}
+
 /// <summary>Files an extension owns.</summary>
 /// <param name="Id">Unique within the extension.</param>
 /// <param name="Label">What the delete confirmation names.</param>
@@ -38,6 +55,36 @@ public sealed record StoreDescriptor(
     // The host checks these paths once and then opens and deletes what they name, so it must not see them
     // change. The argument comes from extension code, which may hand over null whatever the annotation says;
     // turning that into something the host refuses keeps the fault on this one store.
+    /// <summary>What Library Transfer carries of the store. None, the default, keeps it on this machine.</summary>
+    public StorePortability Portability { get; init; }
+
+    /// <summary>
+    ///     For a <see cref="StorePortability.PerDemo" /> store, the files keyed by a demo, relative to the root,
+    ///     with <c>{sha256}</c> once in the last segment where the demo's content id goes, such as
+    ///     <c>tags/demos/{sha256}.dvtag.json</c>. Each must lie under one of the <see cref="Paths" />.
+    /// </summary>
+    public IReadOnlyList<string> DemoKeyedPaths
+    {
+        get;
+        init => field = Snapshot(value);
+    } = [];
+
+    /// <summary>
+    ///     File or folder names under the store that a transfer leaves behind, such as an index the store rebuilds
+    ///     or a trash folder.
+    /// </summary>
+    public IReadOnlyList<string> PortableExcludes
+    {
+        get;
+        init => field = Snapshot(value);
+    } = [];
+
+    /// <summary>
+    ///     True when the extension merges an import of the store itself, in
+    ///     <see cref="IExtensionDataPortability.MergeAsync" />. False lets the host merge it file by file.
+    /// </summary>
+    public bool ExtensionMerges { get; init; }
+
     private static string[] Snapshot(IReadOnlyList<string?>? paths) =>
         paths is null ? [] : [.. paths.Select(p => p ?? "")];
 }

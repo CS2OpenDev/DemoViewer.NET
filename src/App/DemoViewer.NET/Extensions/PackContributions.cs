@@ -54,6 +54,7 @@ internal sealed class PackContributions(
     private readonly List<GatedDemoAction> _demoActions = [];
     private readonly List<ContributedRuleset> _rulesets = [];
     private readonly List<Action> _dataDeleted = [];
+    private readonly List<Action> _dataImported = [];
 
     /// <summary>The pack these contributions belong to.</summary>
     public IExtension Pack { get; } = pack;
@@ -109,6 +110,12 @@ internal sealed class PackContributions(
 
     /// <summary>The pack's own "delete extension data", replacing the host's, or null when it declared none.</summary>
     public IExtensionDataRemoval? DataRemovalContribution { get; private set; }
+
+    /// <summary>
+    ///     The pack's side of Library Transfer, or null when it declared none. Kept unguarded: the importer decides
+    ///     how a failed merge reaches the user, so it runs the calls under <see cref="Guard" /> itself.
+    /// </summary>
+    public IExtensionDataPortability? DataPortabilityContribution { get; private set; }
 
     /// <inheritdoc />
     public void Tabs(IWorkspaceModule workspaceModule)
@@ -467,6 +474,29 @@ internal sealed class PackContributions(
         foreach (Action callback in _dataDeleted)
         {
             _toUiThread(() => Guard.Run("data deleted", callback));
+        }
+    }
+
+    /// <inheritdoc />
+    public void DataPortability(IExtensionDataPortability portability)
+    {
+        ArgumentNullException.ThrowIfNull(portability);
+        DataPortabilityContribution = portability;
+    }
+
+    /// <inheritdoc />
+    public void DataImported(Action afterImport)
+    {
+        ArgumentNullException.ThrowIfNull(afterImport);
+        _dataImported.Add(afterImport);
+    }
+
+    /// <summary>Runs the extension's after-import callbacks on the UI thread, each under the guard.</summary>
+    internal void RaiseDataImported()
+    {
+        foreach (Action callback in _dataImported)
+        {
+            _toUiThread(() => Guard.Run("data imported", callback));
         }
     }
 
