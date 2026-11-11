@@ -11,8 +11,8 @@
     <!--
       THE SCOUTING REPORT AS A DASHBOARD: the same report as the Layers tab, laid out as cards. Top to bottom: the
       header (team, record, ranks, export, the stat tiles and the sample by date), the roster, the map tabs with
-      the side, the one-pager, the map's record, the cards of the side in view, the AWP card, the map-wide cards,
-      and the collapsed Period Diff, veto history and long form.
+      the side, the map's record, the cards of the side in view, the AWP card, the map-wide cards, the one-pager,
+      and the collapsed Period Diff, veto history and long form. A card's map picture opens larger on a click.
 
       Every card leads with its finding and a star; every number with rounds behind it is a dotted-underline
       button that opens them in Review. Colour is {DynamicResource} tokens only, so both themes read.
@@ -138,6 +138,26 @@
         </Style>
         <Style Selector="Button.maptab:focus-visible">
             <Setter Property="BorderBrush" Value="{DynamicResource BorderAccent}" />
+        </Style>
+        <!-- A card's map picture: the whole picture is the button that opens it larger. -->
+        <Style Selector="Button.mapzoom">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.mapzoom:pointerover /template/ ContentPresenter, Button.mapzoom:pressed /template/ ContentPresenter, Button.mapzoom:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.mapzoom:disabled">
+            <Setter Property="Cursor" Value="Arrow" />
+        </Style>
+        <Style Selector="Button.mapzoom:focus-visible /template/ ContentPresenter">
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderAccent}" />
+            <Setter Property="BorderThickness" Value="2" />
         </Style>
         <Style Selector="RadioButton.seg">
             <Setter Property="Template">
@@ -474,6 +494,8 @@
             <Border CornerRadius="6" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
                     Background="{DynamicResource PanelBg}" ClipToBounds="True" MinHeight="80" MinWidth="320"
                     HorizontalAlignment="Center" Margin="0 4 0 2">
+                <Button Classes="mapzoom" IsEnabled="{Binding HasMapImage}" Click="OnExpandMapClick"
+                        ToolTip.Tip="Click to expand" AutomationProperties.Name="{Binding MapTag, StringFormat='Expand {0}'}">
                 <Panel>
                     <Image Source="{Binding MapImage}" Stretch="Uniform"
                            IsVisible="{Binding HasMapImage}" HorizontalAlignment="Center"
@@ -486,6 +508,7 @@
                         <TextBlock Text="{Binding MapTag}" FontSize="11" Foreground="{DynamicResource TextBright}" />
                     </Border>
                 </Panel>
+                </Button>
             </Border>
         </DataTemplate>
 
@@ -551,6 +574,7 @@
         </ItemsPanelTemplate>
     </UserControl.Resources>
 
+    <Panel>
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" Background="{DynamicResource ShellBg}">
         <StackPanel Margin="16" Spacing="14">
             <!-- Feedback: both layouts ship this release; one quiet line asks which reads better. -->
@@ -842,47 +866,6 @@
                 </StackPanel>
             </Border>
 
-            <!-- The one-pager: what Export writes. -->
-            <Border Classes="panel" Padding="14 12" IsVisible="{Binding Report.HasMaps}">
-                <StackPanel Spacing="4">
-                    <WrapPanel Orientation="Horizontal">
-                        <TextBlock Classes="h" FontSize="15" Text="{Binding Report.Editor.OnePagerHeading}" Margin="0 0 12 0" />
-                        <TextBlock Classes="mid" Text="every card below leads with a finding; star it to send it"
-                                   VerticalAlignment="Center" />
-                    </WrapPanel>
-                    <TextBlock Classes="mid" TextWrapping="Wrap" IsVisible="{Binding !Report.Editor.HasStarred}"
-                               Text="Nothing starred yet. Export stays off until something is." />
-                    <ItemsControl ItemsSource="{Binding Report.Editor.Starred}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:ScoutingReportFindingViewModel">
-                                <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="0 4">
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <Button Grid.Column="0" Classes="ghost" Padding="3" VerticalAlignment="Top" Margin="0 0 8 0"
-                                                Command="{Binding $parent[UserControl].((dash:ScoutingDashboardTabViewModel)DataContext).Report.UnstarCommand, FallbackValue={x:Null}}"
-                                                CommandParameter="{Binding}" ToolTip.Tip="Take it off the one-pager">
-                                            <AutomationProperties.Name>
-                                                <MultiBinding StringFormat="Unstar &quot;{0}&quot; · {1}">
-                                                    <Binding Path="Text" />
-                                                    <Binding Path="Where" />
-                                                </MultiBinding>
-                                            </AutomationProperties.Name>
-                                            <Path Classes="star on" Data="{StaticResource StarGeometry}" />
-                                        </Button>
-                                        <TextBlock Grid.Column="1" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center">
-                                            <Run Text="{Binding Where}" Foreground="{DynamicResource TextBright}" />
-                                            <Run Text=" · " Foreground="{DynamicResource TextBright}" />
-                                            <Run Text="{Binding DisplayText}" Foreground="{DynamicResource TextValue}" />
-                                        </TextBlock>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" Margin="0 4 0 0"
-                               Text="Suggested findings start starred. Lines export in map, then CT, then T order." />
-                </StackPanel>
-            </Border>
-
             <!-- The map's record and its map-wide facts. -->
             <Grid ColumnDefinitions="2*,14,3*" IsVisible="{Binding Report.HasMaps}">
                 <Border Grid.Column="0" Classes="card" DataContext="{Binding Report.SelectedMap}"
@@ -943,6 +926,47 @@
             <TextBlock Classes="section" Text="{Binding MapWideHeading}" Margin="0 6 0 0" IsVisible="{Binding Report.HasMaps}" />
             <ItemsControl Classes="cards" ItemsSource="{Binding MapWideCards}" ItemTemplate="{StaticResource Card}"
                           ItemsPanel="{StaticResource MapWideGrid}" IsVisible="{Binding Report.HasMaps}" />
+
+            <!-- The one-pager: what Export writes. -->
+            <Border Classes="panel" Padding="14 12" IsVisible="{Binding Report.HasMaps}">
+                <StackPanel Spacing="4">
+                    <WrapPanel Orientation="Horizontal">
+                        <TextBlock Classes="h" FontSize="15" Text="{Binding Report.Editor.OnePagerHeading}" Margin="0 0 12 0" />
+                        <TextBlock Classes="mid" Text="every card above leads with a finding; star it to send it"
+                                   VerticalAlignment="Center" />
+                    </WrapPanel>
+                    <TextBlock Classes="mid" TextWrapping="Wrap" IsVisible="{Binding !Report.Editor.HasStarred}"
+                               Text="Nothing starred yet. Export stays off until something is." />
+                    <ItemsControl ItemsSource="{Binding Report.Editor.Starred}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ScoutingReportFindingViewModel">
+                                <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="0 4">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <Button Grid.Column="0" Classes="ghost" Padding="3" VerticalAlignment="Top" Margin="0 0 8 0"
+                                                Command="{Binding $parent[UserControl].((dash:ScoutingDashboardTabViewModel)DataContext).Report.UnstarCommand, FallbackValue={x:Null}}"
+                                                CommandParameter="{Binding}" ToolTip.Tip="Take it off the one-pager">
+                                            <AutomationProperties.Name>
+                                                <MultiBinding StringFormat="Unstar &quot;{0}&quot; · {1}">
+                                                    <Binding Path="Text" />
+                                                    <Binding Path="Where" />
+                                                </MultiBinding>
+                                            </AutomationProperties.Name>
+                                            <Path Classes="star on" Data="{StaticResource StarGeometry}" />
+                                        </Button>
+                                        <TextBlock Grid.Column="1" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center">
+                                            <Run Text="{Binding Where}" Foreground="{DynamicResource TextBright}" />
+                                            <Run Text=" · " Foreground="{DynamicResource TextBright}" />
+                                            <Run Text="{Binding DisplayText}" Foreground="{DynamicResource TextValue}" />
+                                        </TextBlock>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" Margin="0 4 0 0"
+                               Text="Suggested findings start starred. Lines export in map, then CT, then T order." />
+                </StackPanel>
+            </Border>
 
             <!-- Below: the Period Diff, the veto history and the long form, collapsed. -->
             <Border Classes="panel" Padding="8 4" IsVisible="{Binding Report.HasSelection}">
@@ -1085,4 +1109,29 @@
             </Border>
         </StackPanel>
     </ScrollViewer>
+
+    <!-- A card's map picture, expanded over the tab: Escape, Close or a click outside the picture closes it. -->
+    <Border Name="MapOverlay" IsVisible="False" Background="{DynamicResource ModalScrim}"
+            PointerPressed="OnMapOverlayPressed">
+        <Border Classes="panel" Name="MapOverlayCard" Margin="32" Padding="14 10" DataContext="{x:Null}"
+                x:DataType="dash:ScoutingDashboardCardViewModel">
+            <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                    <TextBlock Classes="h" FontSize="14" Text="{Binding MapTag}" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                    <Button Grid.Column="1" Name="MapOverlayClose" Classes="ghost" Content="Close" FontSize="12"
+                            Padding="10 4" Click="OnMapOverlayCloseClick" ToolTip.Tip="Close (Esc)" />
+                </Grid>
+                <Panel Grid.Row="1">
+                    <Image Source="{Binding MapImage}" Stretch="Uniform" IsVisible="{Binding HasMapImage}"
+                           RenderOptions.BitmapInterpolationMode="HighQuality"
+                           AutomationProperties.Name="{Binding MapTag}" />
+                    <TextBlock Text="{Binding MapNote}" FontSize="12" TextWrapping="Wrap" Margin="24"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextBright}" IsVisible="{Binding !HasMapImage}" />
+                </Panel>
+            </Grid>
+        </Border>
+    </Border>
+    </Panel>
 </UserControl>

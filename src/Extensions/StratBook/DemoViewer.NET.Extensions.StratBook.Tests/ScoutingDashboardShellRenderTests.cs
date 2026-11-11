@@ -2,6 +2,8 @@
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
@@ -93,6 +95,26 @@ public class ScoutingDashboardShellRenderTests
                 double widest = window.GetVisualDescendants().OfType<Border>()
                     .Where(b => b.Classes.Contains("card") && b.IsEffectivelyVisible)
                     .Max(b => b.Bounds.Width);
+                // The one-pager sits below the cards, so the cards come first on the page.
+                double Top(string words) => window.GetVisualDescendants().OfType<TextBlock>()
+                    .First(t => t.IsEffectivelyVisible && t.Text == words).TranslatePoint(default, window)!.Value.Y;
+                bool onePagerBelowCards = Top("Suggested findings start starred. Lines export in map, then CT, then T order.")
+                                          > Top("Starting setups");
+
+                // A map picture opens larger over the tab, and Escape closes it.
+                ScoutingDashboardTabView view = (ScoutingDashboardTabView)window.Content!;
+                Button zoom = window.GetVisualDescendants().OfType<Button>()
+                    .First(b => b.Classes.Contains("mapzoom") && b.IsEffectivelyEnabled && b.IsEffectivelyVisible);
+                double inCard = zoom.GetVisualDescendants().OfType<Image>().First().Bounds.Width;
+                zoom.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                UxConsistencyRenderTests.Settle();
+                Border overlay = view.FindControl<Border>("MapOverlay")!;
+                Image expanded = overlay.GetVisualDescendants().OfType<Image>().First();
+                bool overlayOpen = overlay.IsVisible && expanded.Source is not null;
+                double expandedWidth = expanded.Bounds.Width;
+                UxConsistencyRenderTests.Save(window, $"dashboard-expanded-{theme}-{Width}.png");
+                view.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
+                bool overlayClosed = !overlay.IsVisible;
 
                 vm.Report.SelectMapCommand.Execute(vm.Report.Maps.Single(m => m.Map == "de_mirage"));
                 vm.Report.Side = ScoutingSide.T;
@@ -100,7 +122,7 @@ public class ScoutingDashboardShellRenderTests
                 UxConsistencyRenderTests.Settle();
                 UxConsistencyRenderTests.Save(window, $"dashboard-t-mirage-{theme}-{Width}.png");
                 window.Close();
-                return new { pictures, grid, mono, text, widest };
+                return new { pictures, grid, mono, text, widest, onePagerBelowCards, overlayOpen, overlayClosed, inCard, expandedWidth };
             }
             finally
             {
@@ -123,6 +145,10 @@ public class ScoutingDashboardShellRenderTests
             await Assert.That(seen.text).Contains("Head to head");
             await Assert.That(seen.text).Contains("Two layouts this release. Tell us which you prefer");
             await Assert.That(seen.text).Contains("· full long-form editing (rewrite, reset, dismiss) is in the Layers tab");
+            await Assert.That(seen.onePagerBelowCards).IsTrue().Because("the one-pager moved under the cards");
+            await Assert.That(seen.overlayOpen).IsTrue().Because("clicking a map picture opens it larger");
+            await Assert.That(seen.expandedWidth).IsGreaterThan(seen.inCard * 1.5);
+            await Assert.That(seen.overlayClosed).IsTrue().Because("Escape closes the expanded picture");
         }
     }
 }
