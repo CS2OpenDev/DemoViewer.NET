@@ -110,4 +110,7 @@ internal sealed class PackContributionSet
 
     /// <summary>Every extension's "delete extension data" action, in pack order. One row per entry in Settings.</summary>
     public IReadOnlyList<IExtensionDataRemoval> DataRemovals => [.. Packs.Select(p => new HostDataRemoval(p, _sp))];
+
+    /// <summary>What Library Transfer carries for each extension, in pack order.</summary>
+    public IReadOnlyList<HostDataTransfer> DataTransfers => [.. Packs.Select(p => new HostDataTransfer(p))];
 }

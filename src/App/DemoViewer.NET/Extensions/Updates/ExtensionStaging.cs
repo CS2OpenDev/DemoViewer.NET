@@ -377,7 +377,7 @@ public static class ExtensionStaging
 
     // Both separators are split on: a zip written on Windows may carry backslashes, and on Unix a
     // backslash is a legal file-name character, which is exactly how ".." hides.
-    private static string? SafeRelativePath(string entryName)
+    internal static string? SafeRelativePath(string entryName)
     {
         if (string.IsNullOrEmpty(entryName) || Path.IsPathRooted(entryName)
             || entryName.Contains(':', StringComparison.Ordinal)

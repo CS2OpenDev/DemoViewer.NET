@@ -42,7 +42,7 @@ public sealed class StratStore
     private const string CalloutsFileName = "callouts.json";
 
     /// <summary>Where <see cref="Delete" /> moves a strat's files, inside its map folder.</summary>
-    private const string TrashFolderName = ".trash";
+    internal const string TrashFolderName = ".trash";
 
     /// <summary>
     ///     The extension-bag field an autosaved working copy carries: the file holds edits not yet
@@ -116,7 +116,7 @@ public sealed class StratStore
     }
 
     // Relative to the store folder, which is the only thing the host resolves paths against.
-    private const string IndexFileName = "index.json";
+    internal const string IndexFileName = "index.json";
 
     /// <summary>Raised through the post delegate after a commit or a delete with the strat's id, or null after a rebuild.</summary>
     public event Action<Guid?>? Changed;

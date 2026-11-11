@@ -44,7 +44,7 @@ public sealed class TagStore
     public const int SchemaVersion = 1;
 
     /// <summary>The sidecar extension, after the hash.</summary>
-    private const string SidecarExtension = ".dvtag.json";
+    internal const string SidecarExtension = ".dvtag.json";
 
     /// <summary>The reserved human label group that links an instance to a strat.</summary>
     public const string StratGroup = "strat";
@@ -53,7 +53,7 @@ public sealed class TagStore
     public const int VerdictsSchemaVersion = 1;
 
     /// <summary>The verdicts file extension, after the hash.</summary>
-    private const string VerdictsExtension = ".verdicts.json";
+    internal const string VerdictsExtension = ".verdicts.json";
 
     private readonly Dictionary<string, TagSession> _checkedOut = new(StringComparer.Ordinal);
     private readonly Lock _gate = new();
@@ -109,9 +109,9 @@ public sealed class TagStore
     }
 
     // Relative to the store folder, which is the only thing the host resolves paths against.
-    private const string IndexFileName = "index.json";
-    private const string DemosFolderName = "demos";
-    private const string VerdictsFolderName = "verdicts";
+    internal const string IndexFileName = "index.json";
+    internal const string DemosFolderName = "demos";
+    internal const string VerdictsFolderName = "verdicts";
 
     /// <summary>
     ///     Raised through the post delegate after a save or a delete, with the hash that changed, or once
