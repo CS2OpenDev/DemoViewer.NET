@@ -44,7 +44,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     /// <summary>The user's file.</summary>
     public const string TeamsFileName = "teams.json";
 
-    // Dossier builds and search filters walk one or two demos at a time, round by round.
+    // Scouting Report builds and search filters walk one or two demos at a time, round by round.
     private const int SideJoinCapacity = 4;
 
     /// <summary>The derived index, under the extension's cache folder.</summary>
@@ -182,7 +182,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
     public IReadOnlyList<TeamSuggestion> DismissedSuggestions { get; private set; } = [];
 
     /// <summary>
-    ///     Replaces the set of teams other stores point at: strat books, Dossier notes, veto history. A
+    ///     Replaces the set of teams other stores point at: strat books, Scouting report notes, veto history. A
     ///     rebuild keeps an auto team in this set even when it received no side. Called by the composition
     ///     root on each store's change; cheap, and read at the next replay.
     /// </summary>

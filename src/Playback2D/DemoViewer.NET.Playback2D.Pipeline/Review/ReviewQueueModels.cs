@@ -39,8 +39,14 @@ public static class ReviewSources
     /// <summary>A lineup clip an earlier build queued; Lineup Clip Render no longer queues them.</summary>
     public const string Lineup = "lineup";
 
-    /// <summary>A round a Dossier section stacks, opened from that section (a Setup Heatmap's rounds).</summary>
+    /// <summary>
+    ///     A round a Dossier section stacks. Superseded by <see cref="ScoutingReport" />: the queue's load
+    ///     migration rewrites it, and the extension bridge stores it as the new id.
+    /// </summary>
     public const string Dossier = "dossier";
+
+    /// <summary>A round a Scouting Report layer or number stacks, opened from that layer.</summary>
+    public const string ScoutingReport = "scouting-report";
 }
 
 /// <summary>

@@ -28,6 +28,7 @@ using DemoViewer.NET.Modules;
 using DemoViewer.NET.Modules.Abstractions;
 using DemoViewer.NET.Modules.Highlights;
 using DemoViewer.NET.Modules.Library;
+using DemoViewer.NET.Modules.Playback2D;
 using DemoViewer.NET.Playback2D;
 using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
@@ -2823,6 +2824,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             null => null
         };
 
+    // Every descriptor the shell knows, gated or not: the strip tabs (hosts among them) and every hosted section.
+    private IEnumerable<WorkspaceTabDescriptor> AllDescriptors() =>
+        _allTabDescriptors.Concat(_hosts.SelectMany(h => h.AllSections));
+
     // Every descriptor with a VM the session file may hold state for: the strip tabs and the hosted sections.
     private IEnumerable<WorkspaceTabDescriptor> TabsAndSections() =>
         Tabs.Concat(_hosts.SelectMany(h => h.Sections.Sections));
@@ -3989,13 +3994,18 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     ///     and then the section, so every caller that named a strip tab before the Strat Book rail keeps
     ///     working unchanged.
     /// </summary>
-    /// <param name="tabId">The persisted tab id.</param>
+    /// <param name="tabId">
+    ///     The persisted tab id. An id a tab had before a rename (its <c>PreviousTabIds</c>) selects that tab, so a
+    ///     session or idle snapshot from an older build still lands where the user was.
+    /// </param>
     internal bool TrySelectTab(string? tabId)
     {
         if (tabId is not { Length: > 0 })
         {
             return false;
         }
+
+        tabId = TabIdAliases.Resolve(tabId, AllDescriptors());
 
         if (Tabs.FirstOrDefault(t => t.TabId == tabId) is { } tab)
         {
@@ -4538,7 +4548,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     /// <param name="steamId64">The account; 0 opens nothing.</param>
     /// <param name="name">The name the caller shows for the account, or null.</param>
-    public bool OpenPlayerOverview(ulong steamId64, string? name = null)
+    /// <param name="scope">The demos the tab narrows to, or null for all of them.</param>
+    public bool OpenPlayerOverview(ulong steamId64, string? name = null, PlayerOverviewScope? scope = null)
     {
         if (steamId64 == 0 || PlayerOverviewTab is null)
         {
@@ -4553,8 +4564,27 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return false;
         }
 
-        PlayerOverviewTab.OpenPlayer(steamId64);
+        PlayerOverviewTab.OpenPlayer(steamId64, scope);
         return true;
+    }
+
+    /// <summary>
+    ///     Shows the 2D Playback tab following <paramref name="steamId64" /> in the loaded demo. The tab resolves the
+    ///     account against its roster at call time and queues the follow when that roster is still being built.
+    ///     False for 0, with no demo loaded, with the tab off the strip, or when the tab declines (the account is
+    ///     not in the demo, or the follow feature is off).
+    /// </summary>
+    /// <param name="steamId64">The account; 0 follows nobody.</param>
+    public bool FollowPlayer(ulong steamId64)
+    {
+        if (steamId64 == 0 || LoadedDemoPath is not { Length: > 0 } demoPath
+                           || !TrySelectTab(HostIds.Playback2DTab))
+        {
+            return false;
+        }
+
+        return Tabs.FirstOrDefault(t => t.TabId == HostIds.Playback2DTab)?.TabViewModel is Playback2DTabViewModel tab
+               && tab.FollowSteamId(steamId64, demoPath);
     }
 
     // Opens the demo unless it is the one loaded, then focuses the account on Stats. The open's evaluation runs
@@ -5100,7 +5130,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
         foreach (WorkspaceTabDescriptor tab in TabsAndSections())
         {
-            if (states.TryGetValue(tab.TabId, out JsonElement state))
+            // A renamed tab finds the state saved under its old id; the next save writes it under the new one.
+            if (TabIdAliases.TryGetState(tab, states, out JsonElement state))
             {
                 tab.PendingRestoreState = state;
             }

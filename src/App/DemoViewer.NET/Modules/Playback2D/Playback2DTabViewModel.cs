@@ -154,6 +154,10 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
     // tells the next activation's resync whether the state it is holding is still about this demo.
     private string? _followDemoPath;
 
+    // A follow by account asked for before the roster of its demo was seeded: the account and the demo it is
+    // about. SeedRosterDisplay applies it once that demo's roster is in, and drops it when another demo's is.
+    private (ulong SteamId, string? DemoPath)? _pendingFollow;
+
     /// <summary>"following {name} · requested": spectate has no readback, so never "confirmed".</summary>
     [ObservableProperty]
     private string _followStatus = "";
@@ -1532,6 +1536,87 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         FitRequested?.Invoke();
     }
 
+    /// <summary>
+    ///     Follows the player holding <paramref name="steamId64" /> in the current roster, through the same funnel
+    ///     a card pick uses. Slots recycle within a demo, so the account is resolved when the call is made, never
+    ///     cached. When the roster of the demo is not seeded yet (the tab was just activated, or the host has not
+    ///     handed the roster over), the follow is queued and applied as the roster for that demo arrives.
+    /// </summary>
+    /// <param name="steamId64">The account; 0 follows nobody.</param>
+    /// <param name="demoPath">The demo the follow is about, or null for the one the context holds.</param>
+    /// <returns>
+    ///     True when the player is followed, or the follow is queued for a roster still on its way. False for 0,
+    ///     an account not in the seeded roster, or the <c>playback2d.follow</c> feature switched off.
+    /// </returns>
+    public bool FollowSteamId(ulong steamId64, string? demoPath = null)
+    {
+        _pendingFollow = null;
+        if (steamId64 == 0 || !IsFollowEnabled)
+        {
+            return false;
+        }
+
+        demoPath ??= _context?.DemoPath;
+
+        // Pending: no context (the tab is not active, so its maps may still describe the previous demo), no
+        // roster yet, or a context on another demo than the one asked about. The roster seed applies it.
+        if (_context is null
+            || _context.Players.Count == 0
+            || !string.Equals(demoPath, _context.DemoPath, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(_followDemoPath, _context.DemoPath, StringComparison.OrdinalIgnoreCase))
+        {
+            _pendingFollow = (steamId64, demoPath);
+            return true;
+        }
+
+        // A roster that grew since the last seed has players with no row yet; the push would re-seed it anyway.
+        if (_context.Players.Count != _seededRosterCount)
+        {
+            SeedRosterDisplay();
+        }
+
+        return TryFollowCurrent(steamId64);
+    }
+
+    // Reads the context's roster, not the seeded slot map: a slot can pass to another account between seeds.
+    private bool TryFollowCurrent(ulong steamId64)
+    {
+        if (_context is null)
+        {
+            return false;
+        }
+
+        foreach (PlayerRosterEntry entry in _context.Players)
+        {
+            if (entry.SteamId == steamId64 && _attrsBySlot.ContainsKey(entry.Slot))
+            {
+                FollowPlayer(entry.Slot);
+                return FollowedSlot == entry.Slot;
+            }
+        }
+
+        return false;
+    }
+
+    // Called once a roster is seeded. The queued follow is about one demo: that demo's roster applies it, any
+    // other demo's drops it, and an empty roster (the demo is open, its players are not in yet) keeps waiting.
+    private void ApplyPendingFollow()
+    {
+        if (_pendingFollow is not { } pending || _context is null || _seededRosterCount == 0)
+        {
+            return;
+        }
+
+        if (!string.Equals(pending.DemoPath, _context.DemoPath, StringComparison.OrdinalIgnoreCase))
+        {
+            _pendingFollow = null;
+            return;
+        }
+
+        _pendingFollow = null;
+        TryFollowCurrent(pending.SteamId);
+    }
+
     /// <summary>Steps the follow target through <see cref="FollowablePlayers" />; +1 next, -1 previous.</summary>
     private void CycleFollow(int direction)
     {
@@ -2282,6 +2367,9 @@ public sealed partial class Playback2DTabViewModel : ObservableObject, IWorkspac
         // baked map-asset bundle (nav floors + radar) becomes selectable: load it here (and on the late
         // roster-arrival re-seed) so the viewport gets authoritative floors without a tab re-activation.
         EnsureMapAsset();
+
+        // Last, once the rows a follow selects exist.
+        ApplyPendingFollow();
     }
 
     // (Re)loads the baked bundle when the map identity changes; cheap string compare when unchanged. Null map

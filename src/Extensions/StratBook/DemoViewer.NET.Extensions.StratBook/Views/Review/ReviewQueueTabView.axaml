@@ -72,7 +72,13 @@
 
             <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="8" IsVisible="{Binding HasRows}">
                 <ComboBox Grid.Column="0" ItemsSource="{Binding SourceFilters}" FontSize="11" MinWidth="120"
-                          SelectedItem="{Binding SelectedSource}" ToolTip.Tip="Show clips from one source" />
+                          SelectedItem="{Binding SelectedSource}" ToolTip.Tip="Show clips from one source">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{Binding Converter={x:Static vm:ReviewSourceLabels.Converter}}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
                 <ComboBox Grid.Column="1" ItemsSource="{Binding MapFilters}" FontSize="11" MinWidth="110"
                           SelectedItem="{Binding SelectedMap}" ToolTip.Tip="Show clips on one map" />
                 <ComboBox Grid.Column="2" ItemsSource="{Binding TeamFilters}" FontSize="11" MinWidth="110"

@@ -71,7 +71,16 @@
                 </DataTemplate>
             </ComboBox.ItemTemplate>
         </ComboBox>
-        <Button Classes="ghost chip" Content="Clear filters" Margin="0 0 0 6" VerticalAlignment="Center"
+        <Button Classes="ghost chip" Content="Clear filters" Margin="0 0 8 6" VerticalAlignment="Center"
                 IsVisible="{Binding IsFiltered}" Command="{Binding ResetCommand}" />
+        <!-- The scope an extension opened the tab with; removing it shows every demo again. -->
+        <Button Classes="chip" x:Name="ScopeChip" Margin="0 0 0 6" VerticalAlignment="Center"
+                IsVisible="{Binding HasScope}" Command="{Binding ClearScopeCommand}"
+                ToolTip.Tip="Show every demo again" AutomationProperties.Name="Remove the demo scope">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{Binding ScopeText}" VerticalAlignment="Center" />
+                <TextBlock Text="✕" VerticalAlignment="Center" Foreground="{DynamicResource TextMid}" />
+            </StackPanel>
+        </Button>
     </WrapPanel>
 </UserControl>

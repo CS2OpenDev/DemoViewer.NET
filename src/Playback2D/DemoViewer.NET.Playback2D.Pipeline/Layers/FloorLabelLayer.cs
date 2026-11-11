@@ -1,6 +1,5 @@
 #region
 
-using System.Globalization;
 using DemoViewer.NET.Playback2D.Compositing;
 using DemoViewer.NET.Playback2D.Layers;
 using DemoViewer.NET.Playback2D.Levels;
@@ -11,10 +10,11 @@ using SkiaSharp;
 namespace DemoViewer.NET.Playback2D.Pipeline.Layers;
 
 /// <summary>
-///     The per-band caption (<c>floor 1  z[-352..-128]</c>) in the pane's top-left corner.
+///     The per-band caption (<c>Upper</c>, <c>Lower floor</c>, <c>Level 3</c>) in the pane's top-left
+///     corner: the level's <see cref="MapLevel.Name" />, from <see cref="LevelNames" />. Never the Z band.
 ///     <para>
 ///         Renders only on a multi-level layout: the pre-v2 single-floor path passed a null label, and a
-///         lone band showing "floor 0" over the whole map is noise.
+///         lone band naming the only floor over the whole map is noise.
 ///     </para>
 /// </summary>
 public sealed class FloorLabelLayer : ISceneLayer
@@ -22,7 +22,6 @@ public sealed class FloorLabelLayer : ISceneLayer
     private const float MarginX = 8f;
     private const float MarginY = 6f;
 
-    private readonly Dictionary<LabelKey, string> _captions = new(4);
     private readonly bool _ownsText;
     private readonly SKPaint _paint;
     private readonly TextBlobCache _text;
@@ -67,7 +66,7 @@ public sealed class FloorLabelLayer : ISceneLayer
             return;
         }
 
-        string caption = CaptionFor(ctx.LevelIndex, level);
+        string caption = CaptionFor(ctx, level);
         if (_text.Get(caption, SceneDefaults.FloorLabelSize) is not { } shaped)
         {
             return;
@@ -90,21 +89,10 @@ public sealed class FloorLabelLayer : ISceneLayer
         }
     }
 
-    // Cached per (level id, index, band): the string is constant for the whole map, and formatting it
-    // per band per frame is the exact allocation the text cache exists to remove one level up.
-    private string CaptionFor(int levelIndex, MapLevel level)
-    {
-        LabelKey key = new(level.Id, levelIndex, level.ZMin, level.ZMax);
-        if (_captions.TryGetValue(key, out string? cached))
-        {
-            return cached;
-        }
-
-        string caption = string.Create(CultureInfo.InvariantCulture,
-            $"floor {levelIndex}  z[{level.ZMin:F0}..{level.ZMax:F0}]");
-        _captions[key] = caption;
-        return caption;
-    }
-
-    private readonly record struct LabelKey(MapLevelId Id, int Index, double ZMin, double ZMax);
+    // A level built outside MapSpace may carry no name (a strat's bundle floors do); it still gets
+    // the name the space would have given it rather than a blank caption.
+    private static string CaptionFor(SceneRenderContext ctx, MapLevel level) =>
+        string.IsNullOrWhiteSpace(level.Name)
+            ? LevelNames.For(ctx.Frame.Map.MapName, ctx.LevelIndex, ctx.Levels?.Levels.Count ?? 0)
+            : level.Name;
 }

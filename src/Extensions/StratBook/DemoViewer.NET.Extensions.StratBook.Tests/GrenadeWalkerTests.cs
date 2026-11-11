@@ -259,6 +259,122 @@ public class GrenadeWalkerTests
         }
     }
 
+    // A projectile whose chain was lost, appearing at a known position.
+    private static ProjectileFacts Lost(int index, string cls, int spawn, Vector3? at) =>
+        Facts(index, cls, -1, spawn, spawn + 1000) with { InitialPosition = at };
+
+    // A release with the thrower standing at a position.
+    private static ReleaseFacts ReleaseAt(int slot, int tick, string weapon, Vector3? at) =>
+        Release(slot, tick, weapon, Read(tick, at));
+
+    [Test]
+    public async Task Plan_AShortGapIsADeathMidThrow_AndStillJoins()
+    {
+        // The pro case: weapon_fire at 73162, the thrower killed at 73164, the HE at rest on 73165.
+        List<ProjectileFacts> projectiles =
+        [
+            Facts(1, GrenadeProjectileClasses.HEGrenade, 7, 3165, 3589),
+            Lost(2, GrenadeProjectileClasses.Smoke, 5000, new Vector3(10, 0, 64))
+        ];
+        List<ReleaseFacts> releases =
+        [
+            ReleaseAt(7, 3162, "weapon_hegrenade", new Vector3(0, 0, 0)),
+            ReleaseAt(4, 4997, "weapon_smokegrenade", new Vector3(0, 0, 0))
+        ];
+
+        List<GrenadeThrow> plans = GrenadeWalker.Plan(projectiles, releases);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(plans[0].ReleaseSource).IsEqualTo(ReleaseSource.WeaponFire);
+            await Assert.That(plans[0].ReleaseTick).IsEqualTo(3162);
+            await Assert.That(plans[1].ThrowerSlot).IsEqualTo(4).Because("a 3-tick gap no longer drops the join");
+            await Assert.That(plans[1].ThrowerSource).IsEqualTo(ThrowerSource.WeaponFire);
+            await Assert.That(plans[1].ReleaseTick).IsEqualTo(4997);
+        }
+    }
+
+    [Test]
+    public async Task Plan_ACompletedThrowsGapBeatsAShortOne_EvenAJumpThrows()
+    {
+        // Slot 5 jump-throws 14 ticks before; slot 6 fires 3 ticks before, nearer the seven-tick median.
+        List<ProjectileFacts> projectiles = [Lost(1, GrenadeProjectileClasses.Flashbang, 300, new Vector3(0, 0, 64))];
+        List<ReleaseFacts> releases =
+        [
+            ReleaseAt(5, 286, "weapon_flashbang", new Vector3(20, 0, 0)),
+            ReleaseAt(6, 297, "weapon_flashbang", new Vector3(-20, 0, 0))
+        ];
+
+        GrenadeThrow plan = GrenadeWalker.Plan(projectiles, releases).Single();
+
+        await Assert.That(plan.ThrowerSlot).IsEqualTo(5);
+    }
+
+    [Test]
+    public async Task Plan_TwoPlayersThrowingTogether_JoinByWhereTheyStood()
+    {
+        // Two lost smokes on one tick, thrown from opposite ends of the map; by the tick gap alone the first
+        // would take slot 2's seven-tick release.
+        List<ProjectileFacts> projectiles =
+        [
+            Lost(1, GrenadeProjectileClasses.Smoke, 200, new Vector3(1000, 0, 64)),
+            Lost(2, GrenadeProjectileClasses.Smoke, 200, new Vector3(-1000, 0, 64))
+        ];
+        List<ReleaseFacts> releases =
+        [
+            ReleaseAt(2, 192, "weapon_smokegrenade", new Vector3(1010, 20, 0)),
+            ReleaseAt(1, 193, "weapon_smokegrenade", new Vector3(-990, -15, 0))
+        ];
+
+        List<GrenadeThrow> plans = GrenadeWalker.Plan(projectiles, releases);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(plans[0].ThrowerSlot).IsEqualTo(2);
+            await Assert.That(plans[1].ThrowerSlot).IsEqualTo(1);
+        }
+    }
+
+    [Test]
+    public async Task Plan_AReleaseTooFarFromTheSpawn_LeavesTheGrenadeUnjoinedRatherThanMisnamed()
+    {
+        List<ProjectileFacts> projectiles = [Lost(1, GrenadeProjectileClasses.Smoke, 200, new Vector3(0, 0, 64))];
+        List<ReleaseFacts> releases =
+        [
+            ReleaseAt(2, 193, "weapon_smokegrenade",
+                new Vector3(GrenadeRules.ReleaseToSpawnMaxDistance + 1, 0, 0))
+        ];
+
+        GrenadeThrow plan = GrenadeWalker.Plan(projectiles, releases).Single();
+
+        await Assert.That(plan.ThrowerSource).IsEqualTo(ThrowerSource.None);
+    }
+
+    [Test]
+    public async Task Plan_OnePlayersRapidThrows_EachTakeTheirOwnRelease()
+    {
+        // Two flashes 30 ticks apart, both resolved, and two smokes by one player with their chains lost.
+        List<ProjectileFacts> projectiles =
+        [
+            Facts(1, GrenadeProjectileClasses.Flashbang, Slot, 108, 212),
+            Facts(2, GrenadeProjectileClasses.Flashbang, Slot, 137, 241),
+            Lost(3, GrenadeProjectileClasses.Smoke, 507, new Vector3(5, 5, 64)),
+            Lost(4, GrenadeProjectileClasses.Smoke, 540, new Vector3(30, 5, 64))
+        ];
+        List<ReleaseFacts> releases =
+        [
+            Release(Slot, 100, "weapon_flashbang"),
+            Release(Slot, 130, "weapon_flashbang"),
+            ReleaseAt(8, 500, "weapon_smokegrenade", new Vector3(0, 0, 0)),
+            ReleaseAt(8, 532, "weapon_smokegrenade", new Vector3(25, 0, 0))
+        ];
+
+        List<GrenadeThrow> plans = GrenadeWalker.Plan(projectiles, releases);
+
+        await Assert.That(string.Join(" ", plans.Select(p => $"{p.ThrowerSlot}@{p.ReleaseTick}")))
+            .IsEqualTo($"{Slot}@100 {Slot}@130 8@500 8@532");
+    }
+
     [Test]
     public async Task Plan_FallsBackToTheSpawnOffsetAndTheRowsLookBacks_OnlyForAResolvedThrower()
     {
@@ -281,6 +397,69 @@ public class GrenadeWalkerTests
             await Assert.That(plans[1].ThrowerSlot).IsEqualTo(-1);
             await Assert.That(plans[1].ThrowerSource).IsEqualTo(ThrowerSource.None);
             await Assert.That(plans[1].Release).IsNull();
+        }
+    }
+
+    [Test]
+    public async Task Plan_AGrenadeInTheFirstSnapshot_WasThrownBeforeTheRecording_AndNothingAtItsSpawnIsRead()
+    {
+        // Five decoys first seen on tick 1 of a matchmaking demo, already bounced: their weapon_fire predates it.
+        ThrowerRead offset = Read(-6, new Vector3(7, 7, 7), -1, 2, true, false, 2, 1f, true);
+        ProjectileFacts inFlight = Facts(1, GrenadeProjectileClasses.Decoy, Slot, 1, 65) with
+        {
+            AtSpawn = new ThrowerAtSpawn(new Vector3(1, 1, 1), true, 3, -1, 0, true), OffsetRelease = offset
+        };
+        ProjectileFacts thrown = He(atSpawn: new ThrowerAtSpawn(null, true, 2, -1, 1, true), index: 2);
+        GrenadeTableRows tables = new([inFlight, thrown], [Release(Slot, 93, "weapon_hegrenade")],
+            GrenadeEventIndex.FromDetonations([]));
+
+        GrenadeWalk walk = GrenadeWalker.Assemble(new GrenadeWalkInputs(tables, NoFlights), [], [], 64, 0);
+        GrenadeRow row = walk.Rows[0];
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(row.ReleaseSource).IsEqualTo(ReleaseSource.BeforeRecording);
+            await Assert.That(row.ReleaseTick).IsEqualTo(1);
+            await Assert.That(row.ReleasePosition).IsNull().Because("the -7 look-back is from before the demo");
+            await Assert.That(row.ThrowerSlot).IsEqualTo(Slot);
+            await Assert.That(row.ThrowerTeam).IsEqualTo(3);
+            await Assert.That(row.ThrowerOnGroundAtSpawn).IsNull();
+            await Assert.That(row.ThrowerPositionAtSpawn).IsNull();
+            await Assert.That(row.JumpThrowSource).IsEqualTo(JumpThrowSource.None);
+            await Assert.That(walk.Rows[1].ReleaseSource).IsEqualTo(ReleaseSource.WeaponFire);
+            await Assert.That(walk.InputCoverage).IsEqualTo(1.0)
+                .Because("a grenade thrown before the recording has no throw for the commands to cover");
+        }
+    }
+
+    [Test]
+    public async Task Plan_ADeadThrowersGrenadeWithNoFire_IsADeathDrop_AndOneWithAFireIsStillAThrow()
+    {
+        // A flash that appeared the tick after its holder's death, with no weapon_fire anywhere before it.
+        ThrowerRead offset = Read(93, new Vector3(7, 7, 7), -1, 2, true, false, 2, 1f, true);
+        ThrowerAtSpawn dead = new(new Vector3(1, 1, 1), false, 2, -1, 1, false);
+        List<ProjectileFacts> projectiles =
+        [
+            He(atSpawn: dead, offset: offset, index: 1),
+            He(thrower: 4, atSpawn: dead, offset: offset, index: 2),
+            He(thrower: 5, atSpawn: dead with { Alive = null }, offset: offset, index: 3),
+            He(thrower: 6, atSpawn: dead with { Alive = true }, offset: offset, index: 4)
+        ];
+
+        // Slot 4 released at 97 and died before the projectile appeared at 100: killed mid-throw, a throw.
+        List<GrenadeThrow> plans = GrenadeWalker.Plan(projectiles, [Release(4, 97, "weapon_hegrenade")]);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(plans[0].ReleaseSource).IsEqualTo(ReleaseSource.DeathDrop);
+            await Assert.That(plans[0].ReleaseTick).IsEqualTo(100);
+            await Assert.That(plans[0].Release).IsNull().Because("nothing was thrown, so there is no lineup");
+            await Assert.That(plans[0].Before).IsNull();
+            await Assert.That(plans[1].ReleaseSource).IsEqualTo(ReleaseSource.WeaponFire);
+            await Assert.That(plans[1].ReleaseTick).IsEqualTo(97);
+            await Assert.That(plans[2].ReleaseSource).IsEqualTo(ReleaseSource.SpawnOffset)
+                .Because("an unread life state is not a death");
+            await Assert.That(plans[3].ReleaseSource).IsEqualTo(ReleaseSource.SpawnOffset);
         }
     }
 

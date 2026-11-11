@@ -216,15 +216,17 @@ internal sealed class ExtensionReviewQueue : IExtensionReviewQueue
 
     // The one translation that goes the other way, and only for a row being added: the persisted fields a
     // ReviewClip does not carry (the highlight ref, the lineup id, the file's extension data) have no
-    // value to invent, and no caller can name a row this way afterwards.
+    // value to invent, and no caller can name a row this way afterwards. A retired source id (an older
+    // extension still sending "dossier") is stored as its replacement, the way the load migration rewrites the
+    // file, so the queue's source filter keeps one bucket per surface.
     private static ReviewEntry ToEntry(ReviewClip clip, HashSet<Guid> held)
     {
         ArgumentNullException.ThrowIfNull(clip);
         Guid id = clip.Id != Guid.Empty && held.Add(clip.Id) ? clip.Id : Guid.NewGuid();
         return clip.Kind == ReviewClipKind.Section
             ? ReviewEntry.Section(clip.Title, clip.Note) with { Id = id }
-            : ReviewEntry.Clip(clip.DemoPath, clip.FromTick, clip.ToTick, clip.Note, clip.Source, clip.TickRate,
-                    clip.Sha256) with
+            : ReviewEntry.Clip(clip.DemoPath, clip.FromTick, clip.ToTick, clip.Note,
+                    ReviewQueueMigration.CurrentSource(clip.Source), clip.TickRate, clip.Sha256) with
                 {
                     Id = id, Question = clip.Question, TeamId = clip.TeamId, Reviewed = clip.Reviewed
                 };

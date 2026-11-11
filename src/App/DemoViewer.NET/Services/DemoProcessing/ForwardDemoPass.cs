@@ -129,7 +129,8 @@ public static class ForwardDemoPass
 
     internal static BuildResult Build(ParsedDemo parsed, IReadOnlyList<RulesetDoc> docs, IReadOnlySet<string>? outputs,
         CollectorSet collectors) =>
-        CutOutputs(DemoAnalysis.Build(parsed, docs, collectors.DeclareReads(new AnalysisOptions())), outputs);
+        CutOutputs(DemoAnalysis.Build(parsed, docs, collectors.DeclareReads(new AnalysisOptions())),
+            outputs);
 
     // The library tables are recorded on every read: they are two small tables, and the library pass
     // must find them on whichever run its visit made.

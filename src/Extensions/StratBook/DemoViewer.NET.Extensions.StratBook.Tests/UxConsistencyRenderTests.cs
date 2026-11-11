@@ -3,13 +3,17 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Automation;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using DemoViewer.NET.Extensions;
+using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Teams;
 using DemoViewer.NET.Extensions.StratBook.Views.Teams;
 using DemoViewer.NET.Services.DemoCache;
+using DemoViewer.NET.Services.Facts;
 
 #endregion
 
@@ -91,49 +95,104 @@ public class UxConsistencyRenderTests
         return (cache, teams);
     }
 
-    [Test]
-    public async Task TheDossier_ShowsASectionPerMap_WithCounts_AndTheTeamWideSections()
+    // A demo with Round Facts for the shell render: team 1..5 is T for rounds 1 to 3 and CT for 4 to 6.
+    private static DemoCacheRecord FactsRecord(string path, int day, string map)
     {
-        List<string> headers = [];
-        bool mapClosedHidesItsRows = false;
+        DemoCacheRecord record = Record(path, day, Ids(1, 2, 3, 4, 5), Ids(11, 12, 13, 14, 15), map);
+        int[] a = [0, 1, 2, 3, 4];
+        int[] b = [5, 6, 7, 8, 9];
+        RoundFacts Round(int n, bool aOnT, int winner, BuyType buy, int? plant)
+        {
+            int freeze = n * 10000;
+            return new RoundFacts
+            {
+                Number = n,
+                IsLive = true,
+                FreezeEndTick = freeze,
+                EndTick = freeze + 90 * 64,
+                WinnerSide = winner,
+                PlantTick = plant is { } s ? freeze + s * 64 : null,
+                Ct = new SideFacts { Side = 3, Slots = aOnT ? b : a, PlayersAtFreezeEnd = 5, BuyType = buy },
+                T = new SideFacts { Side = 2, Slots = aOnT ? a : b, PlayersAtFreezeEnd = 5, BuyType = buy }
+            };
+        }
+
+        record.CtScore = 6;
+        record.TScore = 13;
+        record.CtSideWins = 6;
+        record.TSideWins = 13;
+        record.SetRoundFacts(new RoundFactsRows
+        {
+            Schema = RoundFactsRecords.Schema,
+            Clock = new RoundFactsClock { TickRate = 64 },
+            Rounds =
+            [
+                Round(1, true, 2, BuyType.Pistol, 30), Round(2, true, 3, BuyType.Eco, null),
+                Round(3, true, 2, BuyType.Full, 52), Round(4, false, 3, BuyType.Pistol, 40),
+                Round(5, false, 2, BuyType.Full, 35), Round(6, false, 3, BuyType.Full, null)
+            ]
+        });
+        DemoCacheStore.StampParse(record);
+        DemoCacheStore.StampAnalysis(record);
+        return record;
+    }
+
+    [Test]
+    public async Task TheScoutingReport_RendersTheShell_HeaderPoolStageInspectorAndPlayers()
+    {
+        List<string> shown = [];
+        string inspector = "";
         await HeadlessSession.RunOnUi(async () =>
         {
-            (DemoCacheStore cache, TeamIdentityService teams) = await TwoTeams();
-            using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel vm = new(teams,
+            DemoCacheStore cache = new(null);
+            TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
+            await teams.StartAsync();
+            using (cache.BeginBatch())
+            {
+                cache.Upsert(FactsRecord("/d/1.dem", 1, "de_nuke"));
+                cache.Upsert(FactsRecord("/d/2.dem", 3, "de_nuke"));
+                cache.Upsert(FactsRecord("/d/3.dem", 5, "de_nuke"));
+                cache.Upsert(FactsRecord("/d/4.dem", 7, "de_mirage"));
+                cache.Upsert(Record("/d/5.dem", 9, Ids(1, 2, 3, 4, 5), Ids(11, 12, 13, 14, 15), "de_inferno"));
+            }
+
+            await teams.Idle;
+            RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
+            RoundIndexStore index = new(cache.Data());
+            using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTabViewModel vm = new(teams,
                 cache.Library(), new VetoHistoryStore(null), isBrowser: false,
-                notes: new DossierNotesStore(null));
-            vm.SelectedTeam = vm.Teams[0];
+                notes: new ScoutingReportNotesStore(null),
+                postPlant: new PostPlantService(teams, cache.Library(), cache.RoundFacts(), index, sources.FingerprintFor),
+                situational: new SituationalBehaviourService(teams, cache.Library(), cache.RoundFacts()),
+                runSection: _ => _inline,
+                roundFacts: new RoundFactsSource(cache),
+                now: () => new DateTime(2026, 3, 12));
+            Guid teamA = teams.Teams.First(t => t.Rosters.Any(r => r.CoreLineup?.Contains(Ids(1)[0]) == true)).Id;
+            vm.SelectedTeam = vm.Teams.Single(t => t.Id == teamA);
+            vm.Side = DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers.ScoutingSide.T;
+            vm.Layers.Focus(vm.Layers.Find("plants")!);
             Window window = new()
             {
-                Width = 1280,
-                Height = 900,
-                Content = new DemoViewer.NET.Extensions.StratBook.Views.Dossier.DossierTabView { DataContext = vm }
+                Width = 1440,
+                Height = 2100,
+                Content = new DemoViewer.NET.Extensions.StratBook.Views.ScoutingReport.ScoutingReportTabView { DataContext = vm }
             };
             window.Show();
             Settle();
-            headers = [.. vm.MapSections.Select(m => m.Header), vm.RecordSection.Header, vm.NotesSection.Header];
-            foreach (string header in headers)
-            {
-                Console.WriteLine($"[ux-render] section: {header}");
-            }
-
-            Save(window, "ux-dossier-sections.png");
-            DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierMapSectionViewModel first = vm.MapSections[0];
-            first.ToggleCommand.Execute(null);
-            Settle();
-            mapClosedHidesItsRows = !Shows(window, first.Findings[0].Text);
-            Save(window, "ux-dossier-section-closed.png");
+            Save(window, "ux-scouting-report-shell.png");
+            shown = [.. window.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible)
+                .Select(t => t.Text ?? "")];
+            inspector = vm.Layers.Inspector.Title;
             window.Close();
         });
 
         using (Assert.Multiple())
         {
-            await Assert.That(headers).Contains("Overall record · 2 maps");
-            await Assert.That(headers.Any(h => h.StartsWith("de_nuke · 1 played · ", StringComparison.Ordinal)))
-                .IsTrue();
-            await Assert.That(headers.Any(h => h.StartsWith("de_mirage · 1 played · ", StringComparison.Ordinal)))
-                .IsTrue();
-            await Assert.That(mapClosedHidesItsRows).IsTrue();
+            await Assert.That(inspector).IsEqualTo("Plants and post-plant");
+            await Assert.That(shown).Contains("Map pool");
+            await Assert.That(shown).Contains("Plants and post-plant");
+            await Assert.That(shown.Any(t => t.StartsWith("One-pager · ", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(shown).Contains("Long form and notes");
         }
     }
 
@@ -145,9 +204,9 @@ public class UxConsistencyRenderTests
         await HeadlessSession.RunOnUi(async () =>
         {
             (DemoCacheStore cache, TeamIdentityService teams) = await TwoTeams();
-            using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel vm = new(teams,
+            using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTabViewModel vm = new(teams,
                 cache.Library(), new VetoHistoryStore(null), isBrowser: false,
-                notes: new DossierNotesStore(null));
+                notes: new ScoutingReportNotesStore(null));
             vm.SelectedTeam = vm.Teams[0];
             for (int i = 0; i < 200; i++)
             {
@@ -155,26 +214,32 @@ public class UxConsistencyRenderTests
                 vm.Editor.AddNoteCommand.Execute(null);
             }
 
-            vm.NotesSection.IsExpanded = true;
+            vm.IsNotesOpen = true;
             Window window = new()
             {
                 Width = 1280,
                 Height = 800,
-                Content = new DemoViewer.NET.Extensions.StratBook.Views.Dossier.DossierTabView { DataContext = vm }
+                Content = new DemoViewer.NET.Extensions.StratBook.Views.ScoutingReport.ScoutingReportTabView { DataContext = vm }
             };
             window.Show();
             Settle();
-            DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierFindingViewModel row =
-                vm.Editor.GeneralFindings[0];
+            DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportFindingViewModel row =
+                vm.Editor.Findings.First(f => f.IsNote);
             row.BeginEditCommand.Execute(null);
             Settle();
 
             TextBox? Editing() => window.GetVisualDescendants().OfType<TextBox>()
                 .FirstOrDefault(t => ReferenceEquals(t.DataContext, row) && t.IsEffectivelyVisible);
 
+            // The long form sits below the stage: bring its top into view so its rows are realized.
             ScrollViewer page = window.GetVisualDescendants().OfType<ScrollViewer>().Where(v => v.IsEffectivelyVisible)
                 .MaxBy(v => v.Extent.Height)!;
-            page.Offset = new Vector(0, Editing()!.TranslatePoint(default, page)!.Value.Y - 100);
+            Button longForm = window.GetVisualDescendants().OfType<Button>()
+                .First(b => AutomationProperties.GetName(b) == "Long form and notes");
+            page.Offset = new Vector(0, longForm.TranslatePoint(default, page)!.Value.Y);
+            Settle();
+            double editorY = page.Offset.Y + Editing()!.TranslatePoint(default, page)!.Value.Y;
+            page.Offset = new Vector(0, editorY - 100);
             Settle();
             Editing()!.Focus();
             Editing()!.Text = "draft";
@@ -184,11 +249,11 @@ public class UxConsistencyRenderTests
             Settle();
             page.Offset = default;
             Settle();
-            page.Offset = new Vector(0, Math.Max(0, (Editing()?.TranslatePoint(default, page)?.Y ?? 0) - 100));
+            page.Offset = new Vector(0, editorY - 100);
             Settle();
             focusedAfter = Editing()?.IsFocused == true;
             text = row.EditText;
-            Save(window, "ux-dossier-inline-edit.png");
+            Save(window, "ux-scouting-report-inline-edit.png");
             window.Close();
         });
 

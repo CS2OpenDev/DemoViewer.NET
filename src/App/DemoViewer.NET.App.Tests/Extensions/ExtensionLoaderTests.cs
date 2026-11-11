@@ -29,7 +29,7 @@ public class ExtensionLoaderTests
 
     // At least what the REAL Strat Book manifest requires: the load cases below stage the shipped pack,
     // so a contract below its requiresHost turns every one of them into a compatibility refusal.
-    private static readonly ExtensionHostInfo _host = new(SemVersion.Parse("2.1.0"), null, SemVersion.Parse("0.14.1"));
+    private static readonly ExtensionHostInfo _host = new(SemVersion.Parse("2.2.0"), null, SemVersion.Parse("0.15.0"));
     private static readonly ITrustPolicy _trustAll = new AllTrust();
 
     // ── Discover ─────────────────────────────────────────────────────────────────────────────────
@@ -202,7 +202,7 @@ public class ExtensionLoaderTests
             await Assert.That(selection.Rejected.Select(o => (o.Version!.ToString(), o.Failure)))
                 .IsEquivalentTo([("1.3.0", LoadFailure.Incompatible)], CollectionOrdering.Matching);
             await Assert.That(selection.Rejected[0].UserMessage)
-                .IsEqualTo("Update 1.3.0 was not loaded: Fake 1.3.0 needs app contract ^3.0; this app provides 2.1.0");
+                .IsEqualTo("Update 1.3.0 was not loaded: Fake 1.3.0 needs app contract ^3.0; this app provides 2.2.0");
         }
     }
 
@@ -219,7 +219,7 @@ public class ExtensionLoaderTests
         ExtensionLoader.Selection throwingTrust = ExtensionLoader.Select([Candidate("1.3.0")], FakeId,
             SemVersion.Parse("1.0.0"), _host, new ThrowingTrust());
         ExtensionLoader.Selection prerelease = ExtensionLoader.Select(
-            [Candidate("1.3.0-beta1", requiresCs2DemoKit: "0.15.0")], FakeId, SemVersion.Parse("1.0.0"), _host,
+            [Candidate("1.3.0-beta1", requiresCs2DemoKit: "0.16.0")], FakeId, SemVersion.Parse("1.0.0"), _host,
             _trustAll);
 
         using (Assert.Multiple())

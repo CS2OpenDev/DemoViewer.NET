@@ -66,7 +66,7 @@ public class ReviewTabRowsTests
         using (queue.Defer())
         {
             queue.Merge([Clip("/d/c.dem", 100, "three")], "Situations", static (_, _) => false);
-            queue.Add([Clip("/d/d.dem", 100, "four", ReviewSources.Dossier)], "Dossier");
+            queue.Add([Clip("/d/d.dem", 100, "four", DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport)], "Scouting Report");
         }
 
         using (Assert.Multiple())
@@ -88,7 +88,7 @@ public class ReviewTabRowsTests
         List<string?> notified = [];
         untouched.PropertyChanged += (_, args) => notified.Add(args.PropertyName);
 
-        queue.Add([Clip("/d/c.dem", 100, "three")], "Dossier");
+        queue.Add([Clip("/d/c.dem", 100, "three")], "Scouting Report");
 
         using (Assert.Multiple())
         {
@@ -101,12 +101,25 @@ public class ReviewTabRowsTests
     }
 
     [Test]
+    public async Task SourceIds_ShowAsWords_AndAnUnknownIdShowsAsItself()
+    {
+        using (Assert.Multiple())
+        {
+            await Assert.That(ReviewSourceLabels.Label(DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport))
+                .IsEqualTo("Scouting report");
+            await Assert.That(ReviewSourceLabels.Label("dossier")).IsEqualTo("Scouting report");
+            await Assert.That(ReviewSourceLabels.Label(ReviewQueueTabViewModel.AllSources)).IsEqualTo("All sources");
+            await Assert.That(ReviewSourceLabels.Label("from-a-newer-extension")).IsEqualTo("from-a-newer-extension");
+        }
+    }
+
+    [Test]
     public async Task APickedSource_FallsBackToAll_WhenItsLastClipGoes()
     {
         ReviewQueue queue = new(null);
-        queue.Add([Clip("/d/a.dem", 100), Clip("/d/b.dem", 100, source: ReviewSources.Dossier)]);
+        queue.Add([Clip("/d/a.dem", 100), Clip("/d/b.dem", 100, source: DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport)]);
         using ReviewQueueTabViewModel tab = new(new ExtensionReviewQueue(queue), isBrowser: false);
-        tab.SelectedSource = ReviewSources.Dossier;
+        tab.SelectedSource = DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport;
 
         queue.Remove([queue.Clips[1].Id]);
 
@@ -195,11 +208,11 @@ public class ReviewTabRowsTests
     {
         ReviewQueue queue = new(null);
         queue.Add([
-            Clip("/d/a.dem", 100, "one", ReviewSources.Dossier), Clip("/d/b.dem", 100, "two", ReviewSources.Dossier),
+            Clip("/d/a.dem", 100, "one", DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport), Clip("/d/b.dem", 100, "two", DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport),
             Clip("/d/c.dem", 100, "three")
         ], "S");
         using ReviewQueueTabViewModel tab = new(new ExtensionReviewQueue(queue), isBrowser: false);
-        tab.SelectedSource = ReviewSources.Dossier;
+        tab.SelectedSource = DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport;
         await Assert.That(tab.Rows[0].ReviewText).IsEqualTo("Mark 2 shown reviewed");
 
         tab.Rows[0].ToggleReviewedCommand.Execute(null);
@@ -301,7 +314,7 @@ public class ReviewTabRowsTests
             using (queue.Defer())
             {
                 queue.Merge([Clip("/d/c.dem", 100, "three")], "Situations", static (_, _) => false);
-                queue.Add([Clip("/d/d.dem", 100, "four", ReviewSources.Dossier)], "Dossier");
+                queue.Add([Clip("/d/d.dem", 100, "four", DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport)], "Scouting Report");
             }
 
             Settle();

@@ -225,7 +225,10 @@ public sealed class SideFacts
     /// <summary>Controllers on this side at freeze end.</summary>
     public int[] Slots { get; set; } = [];
 
-    /// <summary>The rounds this side's team had won before this round.</summary>
+    /// <summary>
+    ///     The rounds this side's team had won before this round: the server's score for the team on this
+    ///     side at freeze end, so it is right on a demo that starts mid-match.
+    /// </summary>
     public int ScoreBefore { get; set; }
 
     /// <summary>The players on the side at freeze end: the classifier's per-player scale.</summary>

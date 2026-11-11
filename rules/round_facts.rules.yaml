@@ -63,6 +63,14 @@ stats:
     capture: match.total_rounds_played
     on: raw.round_freeze_end
     per: round
+  # Rounds this side's team had won before this round: the team's m_iScore at freeze end. The team is
+  # the one on this side at that sample, so the score follows it across the halftime and overtime
+  # swaps. A demo that starts mid-match and a round a backup restore took back both read the server's
+  # score here, where a tally from 0-0 over the recorded rounds is wrong.
+  score_before:
+    capture: team.score
+    on: raw.round_freeze_end
+    per: round
   game_phase:
     capture: match.game_phase
     on: raw.round_freeze_end
@@ -174,6 +182,7 @@ show:
         - { stat: end_reason,            label: end_reason }
         - { stat: winner_side,           label: winner_side }
         - { stat: match_round,           label: match_round }
+        - { stat: score_before,          label: score_before }
         - { stat: game_phase,            label: game_phase }
         - { stat: round_time,            label: round_time }
         - { stat: plant_tick,            label: plant_tick }

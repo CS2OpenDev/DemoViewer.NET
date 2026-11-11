@@ -36,14 +36,26 @@ public enum ThrowerSource
 /// <summary>Where a row's release tick came from.</summary>
 public enum ReleaseSource
 {
-    /// <summary>The thrower's grenade <c>weapon_fire</c>, 6 to 15 ticks before the projectile appeared.</summary>
+    /// <summary>The thrower's grenade <c>weapon_fire</c>, 6 to 15 ticks before the projectile appeared, or as few as 1 when the thrower died mid-throw.</summary>
     WeaponFire,
 
     /// <summary><c>grenade_thrown</c>, which only HLTV broadcasts carry.</summary>
     GrenadeThrown,
 
     /// <summary>No event: the measured seven ticks before the projectile appeared.</summary>
-    SpawnOffset
+    SpawnOffset,
+
+    /// <summary>
+    ///     The projectile was already in flight when the recording began, so its release is not in the demo. The
+    ///     release tick is the first tick it was seen on and nothing was read at the throw.
+    /// </summary>
+    BeforeRecording,
+
+    /// <summary>
+    ///     Not a throw: the thrower died holding a live grenade and it fell where he died, with no
+    ///     <c>weapon_fire</c>. The release tick is the tick it appeared on and nothing was read at a release.
+    /// </summary>
+    DeathDrop
 }
 
 /// <summary>What decided <see cref="GrenadeRow.JumpThrow" />.</summary>

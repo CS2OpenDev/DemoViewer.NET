@@ -10,3 +10,7 @@ override DemoViewer.NET.Playback2D.ViewportTransform.Equals(object? obj) -> bool
 override DemoViewer.NET.Playback2D.ViewportTransform.GetHashCode() -> int
 static DemoViewer.NET.Playback2D.ViewportTransform.operator !=(DemoViewer.NET.Playback2D.ViewportTransform left, DemoViewer.NET.Playback2D.ViewportTransform right) -> bool
 static DemoViewer.NET.Playback2D.ViewportTransform.operator ==(DemoViewer.NET.Playback2D.ViewportTransform left, DemoViewer.NET.Playback2D.ViewportTransform right) -> bool
+DemoViewer.NET.Playback2D.Levels.LevelNames
+static DemoViewer.NET.Playback2D.Levels.LevelNames.For(string? mapName, int index, int count) -> string!
+DemoViewer.NET.Playback2D.Levels.MapSpace.MapName.get -> string?
+DemoViewer.NET.Playback2D.Levels.MapSpace.MapName.set -> void

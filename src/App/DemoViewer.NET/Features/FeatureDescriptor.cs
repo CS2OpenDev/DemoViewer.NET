@@ -82,4 +82,12 @@ public sealed record FeatureDescriptor(
     string? GroupId,
     bool Required,
     IReadOnlyDictionary<UserCategory, bool> Defaults,
-    string? OwnerPackId = null);
+    string? OwnerPackId = null)
+{
+    /// <summary>
+    ///     Ids this feature had before a rename, oldest first, copied from the extension's
+    ///     <c>ExtensionFeature.PreviousIds</c>. <see cref="FeatureOverrideAliases" /> moves a saved override from
+    ///     one of them to <see cref="Id" />. Empty for every core feature.
+    /// </summary>
+    public IReadOnlyList<string> PreviousIds { get; init; } = [];
+}

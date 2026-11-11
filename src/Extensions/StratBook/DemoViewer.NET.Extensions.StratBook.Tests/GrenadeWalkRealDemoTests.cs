@@ -83,16 +83,26 @@ public class GrenadeWalkRealDemoTests
 
             await Assert.That(rows.Count(r => r.ThrowerSource == ThrowerSource.None)).IsEqualTo(0)
                 .Because("the weapon_fire join names every thrower the chain lost");
-            await Assert.That(rows.Count(r => r.ReleaseSource == ReleaseSource.WeaponFire) / (double)rows.Count)
-                .IsGreaterThanOrEqualTo(0.99);
+            // A grenade thrown before the recording began or dropped by a dead holder has no weapon_fire to find.
+            List<GrenadeRow> throws = [.. rows.Where(r => r.ReleaseSource is not (ReleaseSource.BeforeRecording
+                or ReleaseSource.DeathDrop))];
+            await Assert.That(throws.Count(r => r.ReleaseSource == ReleaseSource.WeaponFire)
+                              / (double)Math.Max(1, throws.Count))
+                .IsGreaterThanOrEqualTo(0.99).Because("every throw in the recording has its weapon_fire");
 
-            foreach (GrenadeRow row in rows.Where(r => r.ReleaseSource == ReleaseSource.WeaponFire))
+            List<GrenadeRow> fired = [.. rows.Where(r => r.ReleaseSource == ReleaseSource.WeaponFire)];
+            foreach (GrenadeRow row in fired)
             {
+                // A thrower killed mid-throw drops the grenade at death, as soon as the tick after the release.
                 await Assert.That(row.SpawnTick - row.ReleaseTick)
-                    .IsGreaterThanOrEqualTo(GrenadeRules.ReleaseToSpawnMinTicks).Because(row.Id);
+                    .IsGreaterThanOrEqualTo(GrenadeRules.ReleaseToSpawnShortestTicks).Because(row.Id);
                 await Assert.That(row.SpawnTick - row.ReleaseTick)
                     .IsLessThanOrEqualTo(GrenadeRules.ReleaseToSpawnMaxTicks).Because(row.Id);
             }
+
+            // Under a completed throw's six ticks: 3 of 15,193 measured throws, at most one a demo.
+            await Assert.That(fired.Count(r => r.SpawnTick - r.ReleaseTick < GrenadeRules.ReleaseToSpawnMinTicks))
+                .IsLessThanOrEqualTo(1 + fired.Count / 500).Because("a short gap is a death mid-throw, not a throw");
 
             foreach (GrenadeRow row in rows.Where(r =>
                          r is { Kind: GrenadeKind.Smoke, DetonationSource: DetonationSource.Event }))

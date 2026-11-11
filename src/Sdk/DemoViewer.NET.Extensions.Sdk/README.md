@@ -38,7 +38,7 @@ package version, embed the result in the assembly and copy it beside the DLL:
   "version": "{version}",
   "assembly": "MyExtension.dll",
   "entryType": "MyExtension.MyExtension",
-  "requiresHost": "^2.1",
+  "requiresHost": "^2.2",
   "requiresCs2DemoKit": "*"
 }
 ```
@@ -75,7 +75,9 @@ public sealed class MyExtension : IExtension
 
 The app creates the entry type with its public parameterless constructor. `Register` runs whether the
 extension is on or off, so register factories and do no work there. Feature ids are persisted with the
-user's choices: never rename one. The master switch's id must start with `pack.`.
+user's choices, so avoid renaming one. If you must, list the old ids in `ExtensionFeature.PreviousIds` (and a
+tab's old ids in `WorkspaceTabDescriptor.PreviousTabIds`): the host carries a choice or tab state saved under
+an old id over to the new one. The master switch's id must start with `pack.`.
 
 `Commands`, `CommandScopes`, `JobKinds` and `Stores` are read the same way, without DI. `Stores` lists the
 folders and files you keep outside the folders the host gives you (see `Stores` under "The host"): each path's
@@ -207,7 +209,10 @@ its assembly, and a copied sample keys on its own type rather than the one it wa
 host has not loaded throws. It returns your extension's `IExtensionContext`:
 
 - `Shell`: the open demo, opening demos, seeking, selecting tabs, revealing files, and opening a player in the
-  Player Overview tab (`OpenPlayerOverview`, false when the tab is off or the host has none). `CurrentDemo` is the open
+  Player Overview tab (`OpenPlayerOverview`, false when the tab is off or the host has none). Pass a
+  `PlayerOverviewScope` to narrow that tab to a set of demos, such as one team's matches; it shows as a chip the user
+  can remove. `FollowPlayer` shows the 2D Playback tab following an account in the loaded demo, and answers false when
+  the player is not in it or following is switched off. `CurrentDemo` is the open
   demo's parse, shared with the shell, so read it and drop it on `CurrentDemoChanged`. `CurrentDemoHash` is the
   demo's content key (lowercase hex SHA-256 of the file), the one to key per-demo data on. `CurrentTick`,
   `IsPlaying` and `PlayheadChanged` follow playback; the event fires at most once per rendered frame.
@@ -337,7 +342,8 @@ left out and reported. It is how the owning pass reads the result back. `PassId`
 when what the collector puts changes; it folds into `Stamp` along with the declared reads and the engine
 build, so a pass that keys its own fingerprint on `Stamp` runs again when any of them moves. `Providers`
 and `ProjectileClasses` name what the collector reads off each frame, from the engine's catalog
-(`entity.pawn.pos_x`, `CSmokeGrenadeProjectile`); a name the engine does not know refuses the collector.
+(`entity.pawn.pos_x`, `CSmokeGrenadeProjectile`) or the host's providers (see
+[Host providers](#host-providers)); a name neither knows refuses the collector.
 `Create` builds a fresh `IFrameCollector` for one run.
 
 `ReadsUserCommands` opts into `IFrameReadView.Command`: the pass's visit then decodes user commands for
@@ -374,6 +380,29 @@ it flies, the tick its explosion began once it detonates, null when unseen). Slo
 cleared: a player who died, left or has no pawn on this frame still reads the values from before, so a
 present value does not mean the slot has a pawn, and a health or position read cannot tell a dead
 player from a live one.
+
+## Game-wide reads
+
+A collector that needs a value the game rules hold for the whole match, not per player, declares it in
+`GameProviders` by its engine name and reads it with `IFrameReadView.TryReadGameInt`. The read is the
+value at the end of the frame, a bool reading 1 or 0, and the provider's default until the game rules
+entity is first seen. A name the collector did not declare throws.
+
+```csharp
+new CollectorContribution(id, passId, 1, [], [], Create)
+{
+    GameProviders = ["entity.game.ct_timeouts_left", "entity.game.t_timeout_active"]
+};
+// in OnFrame
+if (view.TryReadGameInt("entity.game.ct_timeouts_left", out int ctLeft)) { ... }
+```
+
+The economy and timeout reads are the engine's own since CS2DemoKit 0.15.0: per player
+`entity.pawn.has_helmet`, `entity.pawn.has_defuser`, `entity.controller.cash_spent` and
+`entity.controller.start_money` (in `Providers`), and game-wide `entity.game.ct_timeout_active`,
+`t_timeout_active`, `ct_timeouts_left`, `t_timeouts_left` and `technical_timeout` (in `GameProviders`).
+A ruleset reads them as `player.has_helmet`, `match.ct_timeouts_left` and so on. The timeout counts
+follow the side, not the team, so they swap at the half.
 
 ## Reading the library
 
@@ -602,10 +631,10 @@ meaning evaluators, rulesets, clip models or `AnalysisRun`, needs `CS2DemoKit.An
 reference that yourself:
 
 ```xml
-<PackageReference Include="CS2DemoKit.Analysis" Version="0.14.1" />
+<PackageReference Include="CS2DemoKit.Analysis" Version="0.15.0" />
 ```
 
-Pin the version the host loads, which is 0.14.1 for this release of the SDK, and keep it equal to the
+Pin the version the host loads, which is 0.15.0 for this release of the SDK, and keep it equal to the
 `CS2DemoKit.Parser` version in this package's own dependencies: the two are exact-pinned to each other
 before 1.0. Because the app supplies both assemblies at runtime, as the paragraph above says, a different
 pin compiles and then fails to load.
@@ -682,3 +711,14 @@ CS2DemoKit 0.14.1, which is the version a pack that reads `CS2DemoKit.Analysis` 
 - `IMapToolContext.CurrentTick`, `IMapToolContext.ScreenToWorld` and `IMapToolContext.Tokens`, with default
   bodies, `MapToolModifiers.Space` for the hold-to-pan key, and `MapToolAdapter`, which wraps an
   `IMapTool` as a scene tool. These are in `DemoViewer.NET.Playback2D.Scene`.
+
+2.2 only adds, and pairs with CS2DemoKit 0.15.0. A pack that uses one of the additions states `^2.2`:
+
+- `IExtensionShell.FollowPlayer` and an `OpenPlayerOverview` overload taking a `PlayerOverviewScope`, both with
+  default bodies that answer false.
+- `ExtensionFeature.PreviousIds` and `WorkspaceTabDescriptor.PreviousTabIds`, for renaming a feature or a tab
+  without losing what the user saved under the old id.
+- `CollectorContribution.GameProviders` and `IFrameReadView.TryReadGameInt`, the game-wide reads (see
+  "Game-wide reads").
+- `ReviewSources.ScoutingReport`. `ReviewSources.Dossier` is obsolete; the host still accepts it and stores
+  it as the new value.

@@ -432,6 +432,13 @@ public interface IDemoProcessingQueue
     bool Promote(Guid itemId) => false;
 
     /// <summary>
+    ///     Lifts the queued visit of <paramref name="path" /> to <paramref name="level" /> and the priority that level
+    ///     submits at, as a second submission of the demo would. Never lowers one. False when no visit of the demo
+    ///     is queued (a running one needs nothing) or it already holds that level.
+    /// </summary>
+    bool RaiseVisit(string path, PassLevel level) => false;
+
+    /// <summary>
     ///     A module cancels EVERY submission it owns: its queued jobs are dropped, a running one is told
     ///     through its token and finishes its current unit, and its attachment leaves every coalesced parse
     ///     (a co-owner keeps the parse alive). An open is never touched.

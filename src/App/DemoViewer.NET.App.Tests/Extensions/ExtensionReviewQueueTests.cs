@@ -102,9 +102,10 @@ public class ExtensionReviewQueueTests
         ReviewQueue queue = new(null);
         ExtensionReviewQueue published = new(queue);
         Guid team = Guid.NewGuid();
-        ReviewClip clip = ReviewClip.Clip("/d/a.dem", 1920, 640, "a note", ReviewSources.Dossier, 64, "sha-a", team);
+        ReviewClip clip =
+            ReviewClip.Clip("/d/a.dem", 1920, 640, "a note", ReviewSources.ScoutingReport, 64, "sha-a", team);
 
-        int added = published.Add([clip], "Dossier", "1 round");
+        int added = published.Add([clip], "Scouting report", "1 round");
         int again = published.Add([clip]);
 
         PipelineReview.ReviewEntry queued = queue.Clips[0];
@@ -113,15 +114,42 @@ public class ExtensionReviewQueueTests
             await Assert.That(added).IsEqualTo(1);
             await Assert.That(again).IsEqualTo(0).Because("the same clip twice is one row, and the caller is told so");
             await Assert.That(queue.Entries[0].Kind).IsEqualTo(PipelineReview.ReviewEntryKind.Section);
-            await Assert.That(queue.Entries[0].Title).IsEqualTo("Dossier");
+            await Assert.That(queue.Entries[0].Title).IsEqualTo("Scouting report");
             await Assert.That(queued.DemoPath).IsEqualTo("/d/a.dem");
             await Assert.That(queued.FromTick).IsEqualTo(640).Because("a reversed range is put the right way round");
             await Assert.That(queued.ToTick).IsEqualTo(1920);
             await Assert.That(queued.TickRate).IsEqualTo(64);
             await Assert.That(queued.Sha256).IsEqualTo("sha-a");
-            await Assert.That(queued.Source).IsEqualTo(ReviewSources.Dossier);
+            await Assert.That(queued.Source).IsEqualTo(ReviewSources.ScoutingReport);
             await Assert.That(queued.TeamId).IsEqualTo(team);
             await Assert.That(queued.Id).IsEqualTo(clip.Id);
+        }
+    }
+
+    // An extension built before the rename still sends "dossier". The bridge takes the clip and files it under
+    // the current id, so the source filter has one bucket for both builds' clips. The section title is the
+    // sender's text and is kept as sent.
+    [Test]
+    public async Task ASendFromAnOlderExtension_UsingTheRetiredDossierSource_IsQueuedAsScoutingReport()
+    {
+        ReviewQueue queue = new(null);
+        ExtensionReviewQueue published = new(queue);
+        ReviewClip legacy = ReviewClip.Clip("/d/a.dem", 640, 1920, "old build", "dossier", 64, "sha-a");
+        ReviewClip current = ReviewClip.Clip("/d/b.dem", 640, 1920, "new build", ReviewSources.ScoutingReport, 64,
+            "sha-b");
+
+        int added = published.Add([legacy, current], "Dossier");
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(added).IsEqualTo(2).Because("the retired id is accepted, not refused");
+            await Assert.That(queue.Clips.Select(c => c.Source))
+                .IsEquivalentTo([ReviewSources.ScoutingReport, ReviewSources.ScoutingReport],
+                    CollectionOrdering.Matching);
+            await Assert.That(published.Entries.Where(e => e.Kind == ReviewClipKind.Clip).Select(e => e.Source))
+                .IsEquivalentTo([ReviewSources.ScoutingReport, ReviewSources.ScoutingReport],
+                    CollectionOrdering.Matching);
+            await Assert.That(queue.Entries[0].Title).IsEqualTo("Dossier");
         }
     }
 

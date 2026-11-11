@@ -88,7 +88,7 @@ public class StratBookShellRenderTests
     [Test]
     public async Task ACollapsedRail_StillReachesEverySection_AndGivesThemTheWidth()
     {
-        string[] ids = ["situations.search", "tagger.matrix", "utilitybook.browser", "review.queue", "dossier.browser"];
+        string[] ids = ["situations.search", "tagger.matrix", "utilitybook.browser", "review.queue", "scouting-report.browser"];
         List<(string Id, bool Visible, double Width)> seen = [];
 
         await HeadlessSession.RunOnUi(() =>
@@ -171,7 +171,7 @@ public class StratBookShellRenderTests
             yield return Section("tagger.matrix", "Tags", 2, HostIds.StratBookHub, null);
             yield return Section("utilitybook.browser", "Utility", 3, HostIds.StratBookHub, null);
             yield return Section("review.queue", "Review", 4, HostIds.StratBookHub, "12");
-            yield return Section("dossier.browser", "Dossier", 5, HostIds.StratBookHub, null);
+            yield return Section("scouting-report.browser", "Scouting Report", 5, HostIds.StratBookHub, null);
             yield return Section("teams.browser", "Teams", 0, LibraryTabViewModel.HostId, null);
         }
 

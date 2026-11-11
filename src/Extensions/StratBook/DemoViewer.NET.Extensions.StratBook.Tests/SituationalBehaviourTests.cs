@@ -2,7 +2,8 @@
 
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -196,13 +197,13 @@ public class SituationalBehaviourTests
     }
 
     [Test]
-    public async Task TheDossier_ShowsTheSection_AndEveryNumberOpensItsRounds()
+    public async Task TheScoutingReport_ShowsTheEconomyStrip_AndEveryNumberOpensItsRounds()
     {
         using Harness h = await Harness.Create();
         ReviewQueue queue = new(null);
         List<string> shown = [];
         QueuedPost posted = new();
-        using DossierTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
+        using ScoutingReportTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
             review: new ExtensionReviewQueue(queue),
             selectTab: id =>
             {
@@ -212,55 +213,54 @@ public class SituationalBehaviourTests
             post: posted.Post,
             situational: h.Service);
 
-        await Assert.That(vm.Situational.HasSection).IsTrue();
-        await Assert.That(vm.PostPlant.HasSection).IsFalse();
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == h.TeamA);
-        await vm.Situational.BuildTask;
-        posted.Drain();
-
-        await Assert.That(vm.Situational.Blocks.Count).IsEqualTo(2);
-        SituationalBlockViewModel t = vm.Situational.Blocks[0];
+        await ScoutingReportTestKit.Settle(vm, posted);
+        IReadOnlyList<ScoutingInspectorRowViewModel> t =
+            await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.T, "econ");
+        ScoutingLayerChipViewModel econ = vm.Layers.Find("econ")!;
         using (Assert.Multiple())
         {
-            await Assert.That(vm.Situational.IsBuilding).IsFalse();
-            await Assert.That(vm.Situational.Line).IsEqualTo("1 pistol over 1 map");
-            await Assert.That(t.SideLabel).IsEqualTo("T");
-            await Assert.That(t.HasPistols).IsTrue();
-            await Assert.That(t.HasAntiEco).IsTrue();
-            await Assert.That(t.HasManAdvantage).IsTrue();
-            await Assert.That(t.HasLosses).IsTrue();
-            await Assert.That(t.RoundsLink.ToolTip).IsEqualTo("Open 5 rounds");
+            await Assert.That(vm.Layers.StripMinis.Select(m => m.Id))
+                .IsEquivalentTo(["econ", "pace", "impact", "score", "timeouts"], CollectionOrdering.Matching);
+            await Assert.That(vm.Layers.Inspector.Title).IsEqualTo("Economy and pistols");
+            await Assert.That(econ.CountLabel).IsEqualTo("1 pistol");
+            await Assert.That(econ.MiniLines).IsNotEmpty();
+            await Assert.That(t.Titled("de_nuke T · pistols").Value).IsEqualTo("1 of 5 rounds");
+            await Assert.That(t.Titled("de_nuke T · vs low buy").CanOpen).IsTrue();
+            await Assert.That(t.Titled("de_nuke T · man advantage").CanOpen).IsTrue();
+            await Assert.That(t.Titled("de_nuke T · losses").CanOpen).IsTrue();
+            await Assert.That(t.EveryNumberOpensItsRounds()).IsTrue();
         }
 
-        // Every number of every block is a link to exactly the rounds it counts.
-        IEnumerable<TendencyLinkViewModel> numbers = vm.Situational.Blocks.SelectMany(b =>
-            b.PistolOutcomes.Concat(b.PistolFollowUp).Concat(b.AntiEcoBuyTypes).Concat(b.AntiEcoOutcomes)
-                .Concat(b.AntiEcoContactClock).Concat(b.ManAdvantage).Concat(b.ManAdvantageOutcomes)
-                .Concat(b.SaveDiscipline)
-                .Append(b.RoundsLink).Append(b.PistolLink).Append(b.AntiEcoLink).Append(b.ManAdvantageLink)
-                .Append(b.RoundsLostLink));
-        await Assert.That(numbers.All(n => n.Bucket.Rounds.Count == n.Count && n.CanOpen == n.Count > 0)).IsTrue();
-
-        TendencyLinkViewModel manAdvantage = t.ManAdvantage.Single();
-        vm.Situational.OpenCommand.Execute(manAdvantage);
+        ScoutingInspectorRowViewModel manAdvantage = t.Single(r => r.Row!.OpenTitle.StartsWith("de_nuke T · led", StringComparison.Ordinal));
+        manAdvantage.OpenCommand.Execute(null);
         using (Assert.Multiple())
         {
             await Assert.That(queue.ClipCount).IsEqualTo(1);
-            await Assert.That(queue.Clips[0].Source).IsEqualTo(ReviewSources.Dossier);
+            await Assert.That(queue.Clips[0].Source).IsEqualTo(DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport);
             await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue()
-                .Because("a Dossier clip carries its team");
+                .Because("a Scouting Report clip carries its team");
             await Assert.That(queue.Clips[0].Note).IsEqualTo("de_nuke T · led 2-up · round 4");
-            await Assert.That(vm.Situational.ReviewLine).IsEqualTo("1 round sent to Review");
+            await Assert.That(vm.ReviewLine).IsEqualTo("1 round sent to Review");
             await Assert.That(shown).IsEquivalentTo(["review.queue"], CollectionOrdering.Matching);
         }
 
-        vm.Situational.OpenCommand.Execute(manAdvantage);
-        await Assert.That(vm.Situational.ReviewLine).IsEqualTo("already in Review");
+        manAdvantage.OpenCommand.Execute(null);
+        await Assert.That(vm.ReviewLine).IsEqualTo("already in Review");
 
-        // Deselecting drops the section's blocks.
+        // On CT the second mini is the rotations, which read the Setup Heatmaps this host does not build.
+        await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.Ct, "rotations");
+        using (Assert.Multiple())
+        {
+            await Assert.That(vm.Layers.StripMinis.Select(m => m.Id))
+                .IsEquivalentTo(["econ", "impact", "score", "timeouts"], CollectionOrdering.Matching);
+            await Assert.That(vm.Layers.Find("rotations")!.Status.State).IsEqualTo(ScoutingLayerState.Empty);
+            await Assert.That(vm.Layers.Inspector.StatusMessage).Contains("in the desktop app");
+        }
+
+        // Deselecting empties the stage.
         vm.SelectedTeam = null;
-        await Assert.That(vm.Situational.HasBlocks).IsFalse();
-        await Assert.That(vm.Situational.Line).IsEqualTo("");
+        await Assert.That(vm.Layers.Inspector.Sections).IsEmpty();
     }
 
     // Order matters: the lists are ranked.

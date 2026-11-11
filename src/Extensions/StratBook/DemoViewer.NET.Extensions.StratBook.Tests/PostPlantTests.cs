@@ -3,7 +3,8 @@
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
-using DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Playback2D.Pipeline.Review;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.Facts;
@@ -19,7 +20,7 @@ namespace DemoViewer.NET.AppTests;
 ///     side, one block per map and side; the planted rounds, the man count at the plant and the outcomes
 ///     from Round Facts alone; on T the plant spots clustered per site and the hold read from the positions
 ///     file; on CT the retake grouped by when the CTs alive at the plant reached the bomb; a demo with no
-///     positions counted rather than read as rounds with no hold; and every number in the Dossier opening
+///     positions counted rather than read as rounds with no hold; and every number in the Scouting Report opening
 ///     its rounds in the Review Queue.
 /// </summary>
 [NotInParallel]
@@ -117,6 +118,13 @@ public class PostPlantTests
         ]
     };
 
+    private static RoundFactsRows Rows(RoundFacts? extra) => extra is null
+        ? Rows()
+        : new RoundFactsRows
+        {
+            Schema = Rows().Schema, Clock = Rows().Clock, Rounds = [.. Rows().Rounds, extra]
+        };
+
     private static DemoCacheRecord Record(string path, string map, int day, RoundFactsRows? rows)
     {
         DemoCacheRecord record = new()
@@ -163,7 +171,7 @@ public class PostPlantTests
     // A on site B: all five at (-2000, 0) in Palace. The CT at (-5000, 0) is never a T.
     // A retaking (0, 0): round 6 p0..p2 arrive at 45, 46 and 47 s; round 7 p0 at 42 s and p1 at 55 s;
     // round 8 nobody leaves (5000, 0).
-    private static RoundPositionsDocument Positions(string fingerprint)
+    private static RoundPositionsDocument Positions(string fingerprint, bool tail = false)
     {
         IEnumerable<RoundPosition> SiteA(int s) =>
         [
@@ -198,7 +206,8 @@ public class PostPlantTests
                 Stored(5, _teamBSlots, SiteB),
                 Stored(6, _teamASlots, s => Retake(s, 45, 46, 47)),
                 Stored(7, _teamASlots, s => Retake(s, 42, 55)),
-                Stored(8, _teamASlots, s => Retake(s, 999, 999, 999))
+                Stored(8, _teamASlots, s => Retake(s, 999, 999, 999)),
+                .. tail ? (RoundPositionsRound[])[Stored(10, _teamBSlots, SiteA)] : []
             ]
         };
     }
@@ -237,6 +246,10 @@ public class PostPlantTests
                     "spot unread:1"));
             await Assert.That(Shape(t.HoldPlaces)).IsEqualTo(Joined("Palace:4", "BombsiteA:2"));
             await Assert.That(t.RetakeGroups.Count).IsEqualTo(0).Because("on T the team holds, it does not retake");
+            await Assert.That(t.PlantSpots.Select(p => $"{p.Round.RoundNumber}:{p.Site}:{p.X},{p.Y}:{p.Won}"))
+                .IsEquivalentTo(["1:A:1000,1000:True", "2:A:1100,1000:False", "3:B:-2000,0:False"])
+                .Because("round 4 has no planter, and a round is won when the T side won it");
+            await Assert.That(t.RoundBuys.Count).IsEqualTo(5);
 
             await Assert.That(ct.Side).IsEqualTo(3);
             await Assert.That(ct.SideRounds.Count).IsEqualTo(4);
@@ -264,6 +277,22 @@ public class PostPlantTests
     }
 
     [Test]
+    public async Task ARecordingCutOffMidRound_KeepsItsPlant_ButNoWinOrLossForIt()
+    {
+        // Round 10: a plant, the recording stops before the round ends.
+        using Harness h = await Harness.Create(extra: Round(10, _teamBSlots, _teamASlots, 40, BombSite.A, 0));
+
+        PostPlantBlock t = h.Service.Build(h.TeamA).Blocks[0];
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(t.Planted.Rounds.Select(r => r.RoundNumber)).Contains(10);
+            await Assert.That(t.PlantSpots.Select(p => p.Round.RoundNumber)).IsEquivalentTo([1, 2, 3])
+                .Because("a spot is won or lost, and round 10 is neither");
+        }
+    }
+
+    [Test]
     public async Task ADemoWithoutPositions_IsCounted_NotReadAsNoHold()
     {
         using Harness h = await Harness.Create(writePositions: false);
@@ -278,7 +307,7 @@ public class PostPlantTests
             await Assert.That(set.Blocks[1].RetakeGroups.Count).IsEqualTo(0);
             await Assert.That(set.Blocks[0].ManCount.Count).IsGreaterThan(0)
                 .Because("the man count is Round Facts alone");
-            await Assert.That(PostPlantSectionViewModel.LineFor(set))
+            await Assert.That(ScoutingReportLines.PostPlantLineFor(set))
                 .IsEqualTo("7 plants over 1 map · 1 demo without positions; rebuild the index");
         }
     }
@@ -322,13 +351,13 @@ public class PostPlantTests
     }
 
     [Test]
-    public async Task TheDossier_ShowsTheSection_AndEveryNumberOpensItsRounds()
+    public async Task TheScoutingReport_ShowsThePlantsAndRetakesLayers_AndEveryNumberOpensItsRounds()
     {
         using Harness h = await Harness.Create();
         ReviewQueue queue = new(null);
         List<string> shown = [];
         QueuedPost posted = new();
-        using DossierTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
+        using ScoutingReportTabViewModel vm = new(h.Teams, h.Cache.Library(), new VetoHistoryStore(null), false,
             review: new ExtensionReviewQueue(queue),
             selectTab: id =>
             {
@@ -338,64 +367,52 @@ public class PostPlantTests
             post: posted.Post,
             postPlant: h.Service);
 
-        await Assert.That(vm.PostPlant.HasSection).IsTrue();
-        await Assert.That(vm.Openings.HasSection).IsFalse();
         vm.SelectedTeam = vm.Teams.Single(t => t.Id == h.TeamA);
-        await vm.PostPlant.BuildTask;
-        posted.Drain();
-
-        await Assert.That(vm.PostPlant.Blocks.Count).IsEqualTo(2);
-        PostPlantBlockViewModel t = vm.PostPlant.Blocks[0];
-        PostPlantBlockViewModel ct = vm.PostPlant.Blocks[1];
-        TendencyLinkViewModel cluster = t.PlantClusters[0];
+        await ScoutingReportTestKit.Settle(vm, posted);
+        IReadOnlyList<ScoutingInspectorRowViewModel> t =
+            await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.T, "plants");
+        ScoutingInspectorRowViewModel cluster = t.Titled("de_nuke T · plant A spot 1 (1050, 1000)");
         using (Assert.Multiple())
         {
-            await Assert.That(vm.PostPlant.IsBuilding).IsFalse();
-            await Assert.That(vm.PostPlant.Line).IsEqualTo("7 plants over 1 map");
-            await Assert.That(t.SideLabel).IsEqualTo("T");
-            await Assert.That(t.ShowsHolds).IsTrue();
-            await Assert.That(t.ShowsRetakes).IsFalse();
-            await Assert.That(ct.ShowsHolds).IsFalse();
-            await Assert.That(ct.ShowsRetakes).IsTrue();
-            await Assert.That(t.PlantedText).IsEqualTo("planted in");
-            await Assert.That(ct.PlantedText).IsEqualTo("they planted in");
-            await Assert.That(t.PlantedLink.CountText).IsEqualTo("4");
-            await Assert.That(t.RoundsLink.ToolTip).IsEqualTo("Open 5 rounds");
-            await Assert.That(t.PositionNote).IsEqualTo("positions over 4 rounds");
-            await Assert.That(cluster.Title).IsEqualTo("de_nuke T · plant A spot 1 (1050, 1000)");
-            await Assert.That(ct.RetakeGroups[1].Title).IsEqualTo("de_nuke CT · retake together");
+            await Assert.That(vm.Layers.Inspector.Title).IsEqualTo("Plants and post-plant");
+            await Assert.That(vm.Layers.Find("plants")!.CountLabel).IsEqualTo("4 plants");
+            await Assert.That(t.Titled("de_nuke T · plants").Value).IsEqualTo("4 of 5 rounds");
+            await Assert.That(t.Titled("de_nuke T · rounds").OpenToolTip).IsEqualTo("Open 5 rounds in Review");
+            await Assert.That(cluster.Value).IsEqualTo("2 of 2 rounds")
+                .Because("the most common plant per site counts out of the plants on that site");
+            await Assert.That(vm.Layers.Find("plants")!.Marks.Marks.Count).IsGreaterThan(0);
+            await Assert.That(vm.Layers.Inspector.Reads).IsNotEmpty();
+            await Assert.That(t.EveryNumberOpensItsRounds()).IsTrue();
         }
 
-        // Every number of every block is a link to exactly the rounds it counts.
-        IEnumerable<TendencyLinkViewModel> numbers = vm.PostPlant.Blocks.SelectMany(b =>
-            b.ManCount.Concat(b.Outcomes).Concat(b.PlantClusters).Concat(b.HoldShapes).Concat(b.HoldPlaces)
-                .Concat(b.RetakeGroups).Append(b.PlantedLink).Append(b.RoundsLink));
-        await Assert.That(numbers.All(n => n.Bucket.Rounds.Count == n.Count && n.CanOpen == n.Count > 0)).IsTrue();
-
-        vm.PostPlant.OpenCommand.Execute(cluster);
+        cluster.OpenCommand.Execute(null);
         using (Assert.Multiple())
         {
             await Assert.That(queue.ClipCount).IsEqualTo(2);
             await Assert.That(queue.Clips.All(c => c.TeamId == vm.SelectedTeam!.Id)).IsTrue()
-                .Because("a Dossier clip carries its team");
-            await Assert.That(queue.Clips.All(c => c.Source == ReviewSources.Dossier)).IsTrue();
+                .Because("a Scouting Report clip carries its team");
+            await Assert.That(queue.Clips.All(c => c.Source == DemoViewer.NET.Extensions.Sdk.Review.ReviewSources.ScoutingReport)).IsTrue();
             await Assert.That(queue.Clips[0].Note).IsEqualTo("de_nuke T · plant A spot 1 (1050, 1000) · round 1");
             await Assert.That(queue.Clips[1].Note).IsEqualTo("de_nuke T · plant A spot 1 (1050, 1000) · round 2");
             await Assert.That(queue.SectionOf(queue.Clips[0].Id)).IsNotNull();
-            await Assert.That(vm.PostPlant.ReviewLine).IsEqualTo("2 rounds sent to Review");
+            await Assert.That(vm.ReviewLine).IsEqualTo("2 rounds sent to Review");
             await Assert.That(shown).IsEquivalentTo(["review.queue"], CollectionOrdering.Matching);
         }
 
-        vm.PostPlant.OpenCommand.Execute(cluster);
-        await Assert.That(vm.PostPlant.ReviewLine).IsEqualTo("already in Review");
+        cluster.OpenCommand.Execute(null);
+        await Assert.That(vm.ReviewLine).IsEqualTo("already in Review");
 
-        vm.PostPlant.OpenCommand.Execute(ct.RetakeGroups[0]);
+        // The CT side's post-plant is the Retakes layer.
+        IReadOnlyList<ScoutingInspectorRowViewModel> ct =
+            await ScoutingReportTestKit.Inspect(vm, posted, "de_nuke", ScoutingSide.Ct, "retakes");
+        await Assert.That(ct.EveryNumberOpensItsRounds()).IsTrue();
+        ct.Titled("de_nuke CT · retake together").OpenCommand.Execute(null);
         await Assert.That(queue.ClipCount).IsEqualTo(3);
 
-        // Deselecting drops the section's blocks.
+        // Deselecting empties the stage.
         vm.SelectedTeam = null;
-        await Assert.That(vm.PostPlant.HasBlocks).IsFalse();
-        await Assert.That(vm.PostPlant.Line).IsEqualTo("");
+        await Assert.That(vm.Layers.Inspector.Sections).IsEmpty();
+        await Assert.That(vm.HasMaps).IsFalse();
     }
 
     // Order matters: the lists are ranked.
@@ -425,7 +442,7 @@ public class PostPlantTests
             Teams.Dispose();
         }
 
-        public static async Task<Harness> Create(bool writePositions = true)
+        public static async Task<Harness> Create(bool writePositions = true, RoundFacts? extra = null)
         {
             DemoCacheStore cache = new(null);
             TeamIdentityService teams = new(null, cache.Library(), new RoundFactsSource(cache), run: _inline);
@@ -433,7 +450,7 @@ public class PostPlantTests
 
             using (cache.BeginBatch())
             {
-                cache.Upsert(Record(Demo, "de_nuke", 0, Rows()));
+                cache.Upsert(Record(Demo, "de_nuke", 0, Rows(extra)));
                 cache.Upsert(Record("/d/other.dem", "de_mirage", 1, null));
             }
 
@@ -443,7 +460,7 @@ public class PostPlantTests
             RoundIndexPlaceSources sources = new(() => RoundIndexTokenSource.Pawn);
             if (writePositions)
             {
-                store.WritePositions(Demo, Positions(sources.FingerprintFor("de_nuke")));
+                store.WritePositions(Demo, Positions(sources.FingerprintFor("de_nuke"), extra is not null));
             }
 
             PostPlantService service = new(teams, cache.Library(), cache.RoundFacts(), store, sources.FingerprintFor);

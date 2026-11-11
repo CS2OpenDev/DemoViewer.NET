@@ -45,8 +45,8 @@ assembly; the pack reports the embedded copy in process through `IExtension.Mani
   "version": "{version}",
   "assembly": "DemoViewer.NET.Extensions.StratBook.dll",
   "entryType": "DemoViewer.NET.Extensions.StratBook.StratBookPack",
-  "requiresHost": "^2.1",
-  "requiresCs2DemoKit": "0.14.1"
+  "requiresHost": "^2.2",
+  "requiresCs2DemoKit": "0.15.0"
 }
 ```
 
@@ -1092,7 +1092,7 @@ tombstone removal and the catalogue listing are covered there too.
 
 **Existing data.** Nothing is deleted when the pack is turned off. The settings page can offer "Delete
 Strat Book data" as a separate, confirmed action that removes the paths in the pack's `StoreDescriptor`s;
-cache sidecars are regenerable, `strats/`, `tags/`, `teams.json`, `review-queue.json` and the dossier
+cache sidecars are regenerable, `strats/`, `tags/`, `teams.json`, `review-queue.json` and the scouting report
 stores are user work and must be called out by name in the confirmation. An installed first-party
 extension (section 2) has the same switch and the same data action, because it composed like a shipped
 one. Removing the install itself is a third, separate action: Remove on its row marks its
@@ -1158,7 +1158,7 @@ so a settings write that leaves the pack where it was does nothing. `App.StartPa
   signature cache, which is not thread-safe.
 - *Not released:* the pack's tab view-models (container singletons the modules hand to the shell; their
   result lists are bounded by the last query and their map assets by the last map shown) and the pack's
-  small user-truth stores (strats, tags, dossier notes, veto history, proposals, profile, site regions),
+  small user-truth stores (strats, tags, scouting report notes, veto history, proposals, profile, site regions),
   which are the user's files and cheap. The hub shows no "stopping" state: its tab is gone the instant the
   gate flips; the release item is visible in the queue instead.
 - *First run.* On a fresh desktop install `StartPacks` waits while `SettingsService.NeedsFirstRun` is true;

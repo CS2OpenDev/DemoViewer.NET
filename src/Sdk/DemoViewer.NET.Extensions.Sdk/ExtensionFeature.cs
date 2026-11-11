@@ -45,4 +45,11 @@ public sealed record ExtensionFeature(
     string Label,
     string Description,
     string? ParentId,
-    AudienceDefaults Defaults);
+    AudienceDefaults Defaults)
+{
+    /// <summary>
+    ///     Ids this feature had before a rename, oldest first. The host carries a choice the user saved under one
+    ///     of them over to <see cref="Id" />. Empty for a feature that was never renamed.
+    /// </summary>
+    public IReadOnlyList<string> PreviousIds { get; init; } = [];
+}

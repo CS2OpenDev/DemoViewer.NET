@@ -36,6 +36,15 @@ internal sealed record RegisteredCollector(CollectorContribution Contribution, I
             }
         }
 
+        EntityValueProviderRegistry game = EntityValueProviderRegistry.CreateDefault();
+        foreach (string name in contribution.GameProviders)
+        {
+            if (string.IsNullOrWhiteSpace(name) || game.Get(name) is null)
+            {
+                return $"collector {contribution.Id} reads game provider '{name}', which is no singleton provider of this engine";
+            }
+        }
+
         foreach (string name in contribution.ProjectileClasses)
         {
             if (!GrenadeProjectileClasses.Contains(name))
@@ -76,6 +85,11 @@ internal sealed class CollectorSet
             .. All.SelectMany(c => c.Contribution.ProjectileClasses).Distinct(StringComparer.Ordinal)
                 .Order(StringComparer.Ordinal)
         ];
+        GameProviders =
+        [
+            .. All.SelectMany(c => c.Contribution.GameProviders).Distinct(StringComparer.OrdinalIgnoreCase)
+                .Order(StringComparer.Ordinal)
+        ];
         GameEvents =
         [
             .. All.SelectMany(c => c.Contribution.GameEvents).Distinct(StringComparer.OrdinalIgnoreCase)
@@ -95,6 +109,9 @@ internal sealed class CollectorSet
 
     /// <summary>The union of the declared projectile classes, each once.</summary>
     public IReadOnlyList<string> ProjectileClasses { get; }
+
+    /// <summary>The union of the declared game-wide providers, each once.</summary>
+    public IReadOnlyList<string> GameProviders { get; }
 
     /// <summary>The union of the declared game event names, each once; a streaming read decodes them.</summary>
     public IReadOnlyList<string> GameEvents { get; }
@@ -141,6 +158,7 @@ internal sealed class CollectorSet
             : options with
             {
                 ObservedProviders = Providers,
+                ObservedGameProviders = GameProviders,
                 ObservedProjectileClasses = ProjectileClasses,
                 DecodeUserCommands = options.DecodeUserCommands || ReadsUserCommands
             };

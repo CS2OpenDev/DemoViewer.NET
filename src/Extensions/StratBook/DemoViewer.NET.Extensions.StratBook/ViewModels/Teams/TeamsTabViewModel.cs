@@ -569,7 +569,7 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
     }
 
     // The footer states what could not be clustered and, when no demo has a recurring opponent, that
-    // the Dossier has no subject; in matchmaking that is the normal case.
+    // the Scouting Report has no subject; in matchmaking that is the normal case.
     private string Footer()
     {
         int unclusterable = _teams.UnclusterableCount;
@@ -582,7 +582,7 @@ public sealed partial class TeamsTabViewModel : ExtensionViewModel, IWorkspaceTa
 
         if (_teams is { DemoCount: > 0, HasRecurringOpponent: false })
         {
-            parts.Add("every opponent is unaffiliated: the Dossier has no recurring opponent to describe");
+            parts.Add("every opponent is unaffiliated: the Scouting Report has no recurring opponent to describe");
         }
 
         return string.Join(" · ", parts);

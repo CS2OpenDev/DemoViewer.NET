@@ -72,7 +72,7 @@ public sealed class ReviewQueue
         }
     }
 
-    /// <summary>What the load's lineup-clip migration dropped, or null when it had nothing to do.</summary>
+    /// <summary>What the load's migration dropped or renamed, or null when it had nothing to do.</summary>
     public ReviewQueueMigrationResult? Migration
     {
         get

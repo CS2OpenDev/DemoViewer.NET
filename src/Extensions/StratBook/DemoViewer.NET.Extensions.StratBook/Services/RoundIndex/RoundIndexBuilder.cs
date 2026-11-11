@@ -74,13 +74,16 @@ public static class RoundIndexBuilder
         ArgumentNullException.ThrowIfNull(facts);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(source);
+        IReadOnlyDictionary<(int Tick, int Slot), PositionExtra>? extras = null;
         if (samples is null)
         {
             DecodeSites.Enter(3);
-            samples = RoundIndexTable.Samples(demo);
+            RoundIndexTable.HeldTables held = RoundIndexTable.Held(demo);
+            samples = held.Samples;
+            extras = held.Extras;
         }
 
-        return BuildWithPositions(RoundIndexDemoValues.For(demo), facts, options, source, samples);
+        return BuildWithPositions(RoundIndexDemoValues.For(demo), facts, options, source, samples, extras);
     }
 
     /// <summary>
@@ -92,12 +95,16 @@ public static class RoundIndexBuilder
     /// <param name="options">The sampling parameters.</param>
     /// <param name="source">Which string names a sample's place.</param>
     /// <param name="samples">The samples to fold, in frame order.</param>
+    /// <param name="extras">Each sample's weapon, armour and money by tick and slot; null leaves the tuples bare of them.</param>
+    /// <param name="flags">Each slot's helmet and kit over time; null leaves them unknown.</param>
     public static RoundIndexBuild BuildWithPositions(
         RoundIndexDemoValues demo,
         RoundFactsRows facts,
         RoundIndexOptions options,
         IPlaceSource source,
-        IEnumerable<PositionSample> samples)
+        IEnumerable<PositionSample> samples,
+        IReadOnlyDictionary<(int Tick, int Slot), PositionExtra>? extras = null,
+        LoadoutFlagsTimeline? flags = null)
     {
         ArgumentNullException.ThrowIfNull(demo);
         ArgumentNullException.ThrowIfNull(facts);
@@ -125,6 +132,7 @@ public static class RoundIndexBuilder
         Dictionary<string, PlaceSampleSummary> places = new(StringComparer.Ordinal);
         Dictionary<(string A, string B), int> transitions = [];
         PlaceTable table = new(positions.Places);
+        TupleExtras tupleExtras = new(positions, extras, flags);
 
         int current = 0;
         OpenRow? row = null;
@@ -137,7 +145,7 @@ public static class RoundIndexBuilder
             // walk is in frame order, so a round left behind is never revisited.
             while (current < windows.Count && sample.Tick >= windows[current].EndTick)
             {
-                CloseRow(ref row, windows[current], source, places, transitions, previousPlaces, table, tally);
+                CloseRow(ref row, windows[current], source, places, transitions, previousPlaces, table, tally, tupleExtras);
                 previousPlaces.Clear();
                 current++;
             }
@@ -161,7 +169,7 @@ public static class RoundIndexBuilder
 
             if (row is null || sample.Tick >= row.NextDueTick)
             {
-                CloseRow(ref row, window, source, places, transitions, previousPlaces, table, tally);
+                CloseRow(ref row, window, source, places, transitions, previousPlaces, table, tally, tupleExtras);
                 int step = (sample.Tick - window.FreezeEndTick) / cadenceTicks;
                 row = new OpenRow(step, sample.Tick, window.FreezeEndTick + (step + 1) * cadenceTicks)
                 {
@@ -172,7 +180,7 @@ public static class RoundIndexBuilder
 
         if (current < windows.Count)
         {
-            CloseRow(ref row, windows[current], source, places, transitions, previousPlaces, table, tally);
+            CloseRow(ref row, windows[current], source, places, transitions, previousPlaces, table, tally, tupleExtras);
         }
 
         positions.Players = PlayersOf(positions, demo.Players, demo.Departed);
@@ -260,7 +268,8 @@ public static class RoundIndexBuilder
         Dictionary<(string A, string B), int> transitions,
         Dictionary<int, string> previousPlaces,
         PlaceTable table,
-        RoundIndexDisagreementTally tally)
+        RoundIndexDisagreementTally tally,
+        TupleExtras tupleExtras)
     {
         if (row is not { } open)
         {
@@ -315,11 +324,11 @@ public static class RoundIndexBuilder
 
             string? place = source.PlaceFor(in sample);
             (side == 3 ? ct : t).Add(place);
-            tuples.Add(new RoundPosition(slot,
+            tuples.Add(tupleExtras.Apply(new RoundPosition(slot,
                 RoundIndexBuild.Quantize(sample.Position.X),
                 RoundIndexBuild.Quantize(sample.Position.Y),
                 RoundIndexBuild.Quantize(sample.Position.Z),
-                table.IdOf(place)));
+                table.IdOf(place)), sample.Tick));
             if (string.IsNullOrEmpty(place))
             {
                 continue;
@@ -445,6 +454,55 @@ public static class RoundIndexBuilder
         public int NextDueTick { get; } = nextDueTick;
 
         public Dictionary<int, PositionSample> Samples { get; } = [];
+    }
+
+    // A tuple's schema 6 extras: the weapon, armour and money of the sample's own row, the helmet and kit the slot
+    // held at its tick. Without either source the tuple stays bare and writes five wide.
+    private sealed class TupleExtras(
+        RoundPositionsDocument positions,
+        IReadOnlyDictionary<(int Tick, int Slot), PositionExtra>? extras,
+        LoadoutFlagsTimeline? flags)
+    {
+        private readonly Dictionary<string, int> _ids = new(StringComparer.Ordinal);
+
+        public RoundPosition Apply(RoundPosition tuple, int tick)
+        {
+            if (extras is null && flags is null)
+            {
+                return tuple;
+            }
+
+            int weapon = -1, armor = -1, money = -1;
+            if (extras is not null && extras.TryGetValue((tick, tuple.Slot), out PositionExtra extra))
+            {
+                weapon = WeaponId(extra.WeaponClass);
+                armor = extra.Armor;
+                money = extra.Money;
+            }
+
+            return tuple with
+            {
+                WeaponId = weapon, Armor = armor, Money = money, Flags = flags?.FlagsAt(tuple.Slot, tick) ?? -1
+            };
+        }
+
+        private int WeaponId(string? weaponClass)
+        {
+            if (weaponClass is null)
+            {
+                return -1;
+            }
+
+            if (!_ids.TryGetValue(weaponClass, out int id))
+            {
+                positions.Weapons ??= [];
+                id = positions.Weapons.Count;
+                positions.Weapons.Add(weaponClass);
+                _ids[weaponClass] = id;
+            }
+
+            return id;
+        }
     }
 
     // The per-document place table: first seen, first numbered, with the reserved "?" for a null place.

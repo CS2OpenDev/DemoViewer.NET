@@ -129,11 +129,14 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
     ///             diagnostic rather than shifting every later round by one.
     ///         </item>
     ///         <item>
-    ///             Two columns the language cannot express are read off the rows when the ruleset does not
-    ///             emit them: the victim's side of each death (the victim slot against the two sides' freeze-end
-    ///             slots) and each side's score before the round (the winners so far, following each team
-    ///             across the halftime swap by its slots). Both are computed before any round is dropped, so a
-    ///             dropped round's winner still counts.
+    ///             The victim's side of each death, which the language cannot express, is read off the rows
+    ///             when the ruleset does not emit it: the victim slot against the two sides' freeze-end slots.
+    ///         </item>
+    ///         <item>
+    ///             Each side's score before the round is the ruleset's <c>score_before</c>, the team's
+    ///             <c>m_iScore</c> at freeze end. Only a row without it (a user override that leaves the
+    ///             column out, or a capture with nothing to read) falls back to a tally of the winners so far,
+    ///             which is wrong on a demo that starts mid-match and on a round a backup restore took back.
     ///         </item>
     ///     </list>
     ///     <c>buy_type</c> is never unavailable: a row without it is classified by <see cref="BuyTypeClassifier" />
@@ -193,7 +196,10 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
             emitted.Add(RoundFactsColumns.KillVictimSide);
         }
 
-        if (!emitted.Contains(RoundFactsColumns.ScoreBefore) && emitted.Contains(RoundFactsColumns.WinnerSide))
+        // The captured score is the server's; the tally is only the fallback for rows that lack it. It runs
+        // before any round is dropped, so a dropped round's winner still counts, which is right for a
+        // surrender vote and wrong for a voided round: one more reason to prefer the capture.
+        if (cells.Any(MissesScore) && emitted.Contains(RoundFactsColumns.WinnerSide))
         {
             FillScores(byRound);
             emitted.Add(RoundFactsColumns.ScoreBefore);
@@ -291,6 +297,10 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
         }
     }
 
+    private static bool MissesScore(Dictionary<string, object?> cell) =>
+        RoundFactsValues.ToInt(cell.GetValueOrDefault(RoundFactsColumns.ScoreBefore)) is null;
+
+    // The fallback for rows without a captured score_before; a row that has one keeps it.
     // m_iScore follows the team, not the side, so the tally is per team. A team is the set of slots it
     // held last round: whichever pairing of this round's sides overlaps more with last round's keeps the
     // tally, which follows the halftime and overtime swaps without knowing when they happen, and a
@@ -312,12 +322,12 @@ public sealed class EngineRoundFactsRowSource : IRoundFactsRowSource
             }
 
             bool aOnCt = Overlap(ct, teamA) + Overlap(t, teamB) >= Overlap(ct, teamB) + Overlap(t, teamA);
-            if (ctRow is not null)
+            if (ctRow is not null && MissesScore(ctRow))
             {
                 ctRow[RoundFactsColumns.ScoreBefore] = aOnCt ? scoreA : scoreB;
             }
 
-            if (tRow is not null)
+            if (tRow is not null && MissesScore(tRow))
             {
                 tRow[RoundFactsColumns.ScoreBefore] = aOnCt ? scoreB : scoreA;
             }

@@ -367,8 +367,8 @@ public sealed class MergedRulesBuild
 
         string source = string.Join("\n", sources);
         string engine = typeof(DemoAnalysis).Assembly.GetName().Version?.ToString() ?? "";
-        string identity =
-            Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"{composed}\n{source}\n{engine}")));
+        string identity = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"{composed}\n{source}\n{engine}")));
         lock (_gate)
         {
             _identities[(rulesetId, tickRate)] = (closure, identity);
@@ -412,8 +412,8 @@ public sealed class MergedRulesBuild
         }
 
         string engine = typeof(DemoAnalysis).Assembly.GetName().Version?.ToString() ?? "";
-        return Convert.ToHexStringLower(
-            SHA256.HashData(Encoding.UTF8.GetBytes($"missing:{string.Join(",", missing)}\n{source}\n{engine}")));
+        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"missing:{string.Join(",", missing)}\n{source}\n{engine}")));
 
         void Visit(RulesetDoc current)
         {

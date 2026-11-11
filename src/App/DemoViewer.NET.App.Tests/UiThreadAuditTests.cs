@@ -316,27 +316,32 @@ public class UiThreadAuditTests
                 await Watch(TimeSpan.FromSeconds(3));
                 Console.WriteLine($"[ui-audit] tag matrix status: {matrix.StatusLine}");
                 break;
-            case DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel dossier:
+            case DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTabViewModel report:
                 // The team with the most demos is the costliest to project.
                 DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService teams =
                     (DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamIdentityService)typeof(
-                            DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel)
+                            DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTabViewModel)
                         .GetField("_teams",
                             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-                        .GetValue(dossier)!;
-                DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTeamRow? biggest =
-                    dossier.Teams.MaxBy(t => teams.SidesOf(t.Id).Count);
+                        .GetValue(report)!;
+                DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTeamRow? biggest =
+                    report.Teams.MaxBy(t => teams.SidesOf(t.Id).Count);
                 Console.WriteLine(
-                    $"[ui-audit] dossier teams={dossier.Teams.Count} biggest={biggest?.Name} demos={(biggest is null ? 0 : teams.SidesOf(biggest.Id).Count)}");
-                await Step("select biggest team", () => dossier.SelectedTeam = biggest);
+                    $"[ui-audit] scouting report teams={report.Teams.Count} biggest={biggest?.Name} demos={(biggest is null ? 0 : teams.SidesOf(biggest.Id).Count)}");
+                await Step("select biggest team", () => report.SelectedTeam = biggest);
                 Console.WriteLine(
-                    $"[ui-audit] dossier sections: {string.Join(" | ", dossier.MapSections.Select(m => m.Header + (m.IsExpanded ? " (open)" : "")))}; notes: {dossier.NotesSection.Header}");
-                Capture("ui-audit-dossier.png");
-                await Step("expand all", () => dossier.ExpandAllCommand.Execute(null));
-                await Step("collapse all", () => dossier.CollapseAllCommand.Execute(null));
+                    $"[ui-audit] scouting report maps: {string.Join(" | ", report.Maps.Select(m => m.Map))}; layers: {string.Join(" | ", report.Layers.All.Select(c => c.Id + ":" + c.Status.State))}");
+                Capture("ui-audit-scouting-report.png");
+                await Step("T side", () => report.IsT = true);
+                await Step("CT side", () => report.IsCt = true);
+                foreach (DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers.ScoutingLayerChipViewModel chip in report.Layers.MapChips.ToList())
+                {
+                    await Step($"inspect {chip.Id}", () => report.Layers.Focus(chip));
+                }
+
                 for (int i = 0; i < 3; i++)
                 {
-                    await Step($"teams Changed #{i + 1}", () => Raise(dossier, "_teams"));
+                    await Step($"teams Changed #{i + 1}", () => Raise(report, "_teams"));
                 }
 
                 break;
@@ -535,7 +540,7 @@ public class UiThreadAuditTests
     }
 
     // What the user waits for, from the click until the result is applied, with the work on the pool (as
-    // before it moved into the queue) and in the queue: a Dossier team, a Utility map (also while a lineup
+    // before it moved into the queue) and in the queue: a Scouting Report team, a Utility map (also while a lineup
     // save holds the light lane), and an empty Situations search.
     [Test]
     public async Task TimeToResult_PoolAgainstQueue_OverTheOwnersLibrary()
@@ -584,21 +589,18 @@ public class UiThreadAuditTests
                         Services.DemoProcessing.QueueWork.Bypass = bypass;
                         string mode = bypass ? "pool " : "queue";
 
-                        vm.TrySelectTab("dossier.browser");
+                        vm.TrySelectTab("scouting-report.browser");
                         Settle();
-                        DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel dossier =
-                            (DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel)vm
+                        DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTabViewModel report =
+                            (DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTabViewModel)vm
                                 .StratBookHub().Sections.Sections
-                                .First(s => s.TabId == "dossier.browser").TabViewModel!;
-                        DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTeamRow team = dossier.Teams[0];
-                        dossier.SelectedTeam = dossier.Teams.First(t => t != team);
-                        await Until(() => !dossier.Openings.IsBuilding && !dossier.PostPlant.IsBuilding
-                            && !dossier.Situational.IsBuilding
-                            && dossier.HeatmapTask.IsCompleted, 30_000);
-                        double dossierMs = await Timed(() => dossier.SelectedTeam = team,
-                            () => !dossier.Openings.IsBuilding && !dossier.PostPlant.IsBuilding
-                                && !dossier.Situational.IsBuilding
-                                && dossier.HeatmapTask.IsCompleted);
+                                .First(s => s.TabId == "scouting-report.browser").TabViewModel!;
+                        DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTeamRow team = report.Teams[0];
+                        bool Built() => report.Layers.All.All(c =>
+                            c.Status.State != DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers.ScoutingLayerState.Building);
+                        report.SelectedTeam = report.Teams.First(t => t != team);
+                        await Until(Built, 30_000);
+                        double reportMs = await Timed(() => report.SelectedTeam = team, Built);
 
                         vm.TrySelectTab("utilitybook.browser");
                         Settle();
@@ -643,7 +645,7 @@ public class UiThreadAuditTests
                         double searchMs = await Timed(() => situations.Canvas.SearchCommand.Execute(null),
                             () => situations.Results.BatchTask.IsCompleted && situations.Results.Count > 0);
 
-                        Console.WriteLine($"[ui-audit] time to result ({mode}): dossier select={dossierMs:F0}ms "
+                        Console.WriteLine($"[ui-audit] time to result ({mode}): scouting report select={reportMs:F0}ms "
                             + $"utility map={mapMs:F0}ms, with a lineup save running={mapWithSaveMs:F0}ms "
                             + $"situations search to filled={searchMs:F0}ms ({situations.Results.Count} cards)");
                     }

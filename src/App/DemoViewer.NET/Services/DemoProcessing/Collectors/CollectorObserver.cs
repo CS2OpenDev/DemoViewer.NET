@@ -20,7 +20,7 @@ internal sealed class CollectorObserver : IFrameObserver
 
     public CollectorObserver(CollectorSet set)
     {
-        _view = new ReadView(set.Providers, set.ReadsUserCommands);
+        _view = new ReadView(set.Providers, set.GameProviders, set.ReadsUserCommands);
         _slots = [.. set.All.Select(c => new Slot(c, new OwnView(_view, c.Contribution)))];
     }
 
@@ -108,6 +108,7 @@ internal sealed class CollectorObserver : IFrameObserver
     {
         private readonly HashSet<string> _providers = new(own.Providers, StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _classes = new(own.ProjectileClasses, StringComparer.Ordinal);
+        private readonly HashSet<string> _game = new(own.GameProviders, StringComparer.OrdinalIgnoreCase);
         private int _filteredAt = -1;
         private IReadOnlyList<ObservedProjectile>? _projectiles;
         private IReadOnlyList<ObservedProjectile>? _created;
@@ -144,6 +145,12 @@ internal sealed class CollectorObserver : IFrameObserver
 
         public int Team(int playerSlot) => run.Team(playerSlot);
 
+        public bool TryReadGameInt(string providerName, out int value) =>
+            _game.Contains(providerName)
+                ? run.TryReadGameInt(providerName, out value)
+                : throw new ArgumentException(
+                    $"game provider '{providerName}' is not declared by collector {own.Id}", nameof(providerName));
+
         public CSGOUserCmdPB? Command(int playerSlot) =>
             own.ReadsUserCommands
                 ? run.Command(playerSlot)
@@ -174,10 +181,12 @@ internal sealed class CollectorObserver : IFrameObserver
 
     // One per run. Provider handles resolve against the engine view on first use, and again when the engine
     // hands a different view, so a handle never reads another run's columns.
-    private sealed class ReadView(IReadOnlyList<string> declared, bool commands) : IFrameReadView
+    private sealed class ReadView(IReadOnlyList<string> declared, IReadOnlyList<string> game, bool commands)
+        : IFrameReadView
     {
         private readonly string[] _declared = [.. declared];
         private readonly Dictionary<string, int> _indexOf = Index(declared);
+        private readonly HashSet<string> _game = new(game, StringComparer.OrdinalIgnoreCase);
         private ObservedProvider?[] _handles = [];
         private FrameView? _frame;
         private ObservedProjectile[]? _projectiles;
@@ -229,6 +238,13 @@ internal sealed class CollectorObserver : IFrameObserver
             View.TryReadString(Handle(provider), playerSlot, out value);
 
         public int Team(int playerSlot) => View.Team(playerSlot);
+
+        public bool TryReadGameInt(string providerName, out int value) =>
+            _game.Contains(providerName)
+                ? View.TryReadGameInt(providerName, out value)
+                : throw new ArgumentException(
+                    $"game provider '{providerName}' is not declared by any collector on this run",
+                    nameof(providerName));
 
         // Declared, not merely available: a rule reading player.cmd.* would build the lane for a run the
         // collector did not ask for, and its stamp would not say so.

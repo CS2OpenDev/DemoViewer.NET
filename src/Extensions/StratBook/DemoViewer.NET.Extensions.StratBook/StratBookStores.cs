@@ -32,7 +32,11 @@ internal static class StratBookStores
     public const string Teams = "teams";
     public const string WatchedSituations = "watched-situations";
     public const string VetoHistory = "veto-history";
-    public const string DossierNotes = "dossier-notes";
+    public const string ScoutingReportNotes = "scouting-report-notes";
+    public const string TeamRanks = "team-ranks";
+
+    // The notes file's name before the 2026-11 rename (the feature was the Opponent Dossier).
+    public const string ScoutingReportNotesOldName = "scouting-report-notes-old-name";
     public const string StratMiningState = "strat-mining-state";
     public const string GrenadeLineups = "grenade-lineups";
 
@@ -48,9 +52,13 @@ internal static class StratBookStores
         new(WatchedSituations, "Watched Situations", StoreRoot.Config, [WatchedSituationsService.FileName],
             IsUserWork: true),
         new(VetoHistory, "Veto history", StoreRoot.Config, [VetoHistoryStore.FileName], IsUserWork: true),
-        new(DossierNotes, "Dossier notes", StoreRoot.Config, [DossierNotesStore.FileName], IsUserWork: true),
+        new(ScoutingReportNotes, "Scouting report notes", StoreRoot.Config, [ScoutingReportNotesStore.FileName],
+            IsUserWork: true),
+        new(TeamRanks, "Team ranks", StoreRoot.Config, [TeamRanksStore.FileName], IsUserWork: true),
 
         // ── Config root: the old layout, read once to copy into the extension's own folder ──
+        new(ScoutingReportNotesOldName, "Scouting report notes (old layout)", StoreRoot.Config,
+            [ScoutingReportNotesStore.LegacyFileName], IsUserWork: true),
         new(StratMiningState, "Strat Mining dismissed and promoted (old layout)", StoreRoot.Config,
             [StratMiningFiles.StatePath],
             IsUserWork: true),
@@ -87,8 +95,9 @@ internal static class StratBookStores
         sp.GetService<StratStore>()?.RebuildIndexFromDisk();
         sp.GetService<TagStore>()?.RebuildIndexFromDisk();
         sp.GetService<TagPaletteStore>()?.Reload();
-        sp.GetService<DossierNotesStore>()?.Reload();
+        sp.GetService<ScoutingReportNotesStore>()?.Reload();
         sp.GetService<VetoHistoryStore>()?.Reload();
+        sp.GetService<TeamRanksStore>()?.Reload();
         sp.GetService<WatchedSituationsService>()?.Reload();
         sp.GetService<StratMiningService>()?.ResetState();
         sp.GetService<ProfileStore>()?.Reload();

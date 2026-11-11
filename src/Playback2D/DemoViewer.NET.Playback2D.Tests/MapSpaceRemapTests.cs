@@ -339,11 +339,11 @@ public class MapSpaceRemapTests
         MapSpace space = new();
         space.Rebuild([new FloorSlice(0, 640)]);
         MapLevelId original = space.Levels[0].Id;
-        await Assert.That(space.Levels[0].Name).IsEqualTo("L0");
+        await Assert.That(space.Levels[0].Name).IsEqualTo("Level 1");
 
         space.Rebuild([new FloorSlice(-1280, -640), new FloorSlice(0, 640)]);
 
-        await Assert.That(space.ById(original)!.Name).IsEqualTo("L1");
+        await Assert.That(space.ById(original)!.Name).IsEqualTo("Upper floor");
         await Assert.That(space.IndexOf(original)).IsEqualTo(1);
     }
 

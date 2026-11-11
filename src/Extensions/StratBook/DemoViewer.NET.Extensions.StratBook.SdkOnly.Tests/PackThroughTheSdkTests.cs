@@ -63,8 +63,8 @@ public class PackThroughTheSdkTests
         await Assert.That(root.GetProperty("id").GetString()).IsEqualTo(PackId);
         await Assert.That(root.GetProperty("assembly").GetString())
             .IsEqualTo("DemoViewer.NET.Extensions.StratBook.dll");
-        await Assert.That(root.GetProperty("requiresHost").GetString()).IsEqualTo("^2.1")
-            .Because("the pack calls IExtensionFolder.DirectoryExists and SetLastWriteTimeUtc, which 2.0 hosts lack");
+        await Assert.That(root.GetProperty("requiresHost").GetString()).IsEqualTo("^2.2")
+            .Because("the pack calls FollowPlayer, the scoped OpenPlayerOverview and the game-wide collector reads, which 2.1 hosts lack");
         // The template's literal placeholder: an unstamped manifest fails to parse host-side on purpose.
         await Assert.That(root.GetProperty("version").GetString()).IsNotEqualTo("{version}");
 
@@ -212,7 +212,7 @@ public class PackThroughTheSdkTests
             "net.demoviewer.roundtagger",
             "net.demoviewer.stratbook",
             "net.demoviewer.utilitybook",
-            "net.demoviewer.dossier"
+            "net.demoviewer.scouting-report"
         ], CollectionOrdering.Matching);
 
         // Each pass declares what it reads, so the schedule is a property of these pairs, not of call order.

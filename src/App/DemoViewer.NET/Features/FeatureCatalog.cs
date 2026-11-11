@@ -24,6 +24,8 @@ namespace DemoViewer.NET.Features;
 public static class FeatureCatalog
 {
     // --- Stable feature ids (never renamed once shipped: they are persisted override keys) ---
+    // A core id stays put. An extension feature may be renamed only by listing its old ids in
+    // ExtensionFeature.PreviousIds: FeatureOverrideAliases then moves a saved override to the new id at startup.
 
     /// <summary>Group whose members toggle atomically: parser hex pane + parse-chain surfaces.</summary>
     public const string GroupParserDeepDive = "parserDeepDive";
@@ -332,6 +334,21 @@ public static class FeatureCatalog
             }
         }
 
+        // A previous id names exactly one feature and no live one: an override saved under it must have one
+        // unambiguous new home, and a live id's own override must never be taken by a rename.
+        HashSet<string> claimed = new(StringComparer.Ordinal);
+        foreach (FeatureDescriptor d in all)
+        {
+            foreach (string previous in d.PreviousIds)
+            {
+                if (byId.ContainsKey(previous) || !claimed.Add(previous))
+                {
+                    throw new InvalidOperationException(
+                        $"Feature '{d.Id}' lists previous id '{previous}', which is live or claimed by another feature.");
+                }
+            }
+        }
+
         // Nothing a pack owns may be Required, not just a tab parented to it directly: a sub-feature
         // docked in a core tab (playback2d.tagger) is just as pack-owned via OwnerPackId, and Required
         // would defeat that pack's switch the same way.
@@ -409,7 +426,7 @@ public static class FeatureCatalog
         AudienceDefaults d = feature.Defaults;
         return new FeatureDescriptor(feature.Id, scope, feature.Label, feature.Description, feature.ParentId, null,
             false,
-            Defaults(d.Consumer, d.PowerUser, d.Developer));
+            Defaults(d.Consumer, d.PowerUser, d.Developer)) { PreviousIds = [.. feature.PreviousIds] };
     }
 
     // Builds a category→default map without a constant-array argument (CA1861-clean) and reads left-to-right.

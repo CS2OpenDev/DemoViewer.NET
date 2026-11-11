@@ -888,6 +888,8 @@ public class App : Application
         // Before any extension attaches: the Strat Book's teams.json Me becomes the core identity once.
         IdentityService.ImportTeamsJson(settings,
             AppPaths.ConfigRoot is { } identityRoot ? Path.Combine(identityRoot, "teams.json") : null);
+        // Before the gate first reads an override: one saved under a renamed feature's old id moves to its new id.
+        FeatureOverrideAliases.Apply(settings, FeatureCatalog.All);
         services.Configure<AppSettings>(settings.Configuration);
 
         // The feature gate resolves per-category show/hide from FeatureCatalog + the live

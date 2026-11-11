@@ -134,8 +134,10 @@ public class StratBookPackTests
         "DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeIndex",
         "DemoViewer.NET.Extensions.StratBook.ViewModels.UtilityBook.UtilityBookTabViewModel",
         "DemoViewer.NET.Extensions.StratBook.Services.Teams.VetoHistoryStore",
-        "DemoViewer.NET.Extensions.StratBook.Services.Teams.DossierNotesStore",
-        "DemoViewer.NET.Extensions.StratBook.ViewModels.Dossier.DossierTabViewModel",
+        "DemoViewer.NET.Extensions.StratBook.Services.Teams.TeamRanksStore",
+        "DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReportNotesStore",
+        "DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportLoads",
+        "DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTabViewModel",
         "DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.LineupClipService",
         "DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.LineupClipPass",
         "DemoViewer.NET.Services.DemoProcessing.DemoScheduler",
@@ -150,7 +152,7 @@ public class StratBookPackTests
     private const string ModulesBeforeThePack =
         "net.demoviewer.playback2d, net.demoviewer.ruleworkbench, net.demoviewer.highlights, "
         + "net.demoviewer.situations, net.demoviewer.teams, net.demoviewer.review, net.demoviewer.suggested, "
-        + "net.demoviewer.roundtagger, net.demoviewer.stratbook, net.demoviewer.utilitybook, net.demoviewer.dossier";
+        + "net.demoviewer.roundtagger, net.demoviewer.stratbook, net.demoviewer.utilitybook, net.demoviewer.scouting-report";
 
     // Every id the static catalog used to hold for the Strat Book, with the parent it has now.
     private static readonly (string Id, string Parent)[] _movedIds =
@@ -162,7 +164,7 @@ public class StratBookPackTests
         ("tab.tagger", StratBookPack.PackFeatureId),
         ("tab.stratbook", StratBookPack.PackFeatureId),
         ("tab.utilitybook", StratBookPack.PackFeatureId),
-        ("tab.dossier", StratBookPack.PackFeatureId),
+        ("tab.scouting-report", StratBookPack.PackFeatureId),
         ("playback2d.tagger", "tab.playback2d"),
         ("playback2d.suggestedtags", "tab.playback2d"),
         ("stratbook.export", "tab.stratbook"),
@@ -266,6 +268,7 @@ public class StratBookPackTests
             (string, string?)[] expected =
             [
                 (roundIndex, "roundindex"),
+                (DemoViewer.NET.Extensions.StratBook.Services.RoundIndex.RoundEventsTable.RulesetId, "roundindex"),
                 .. DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.GrenadeTables.RulesetIds.Select(id =>
                     (id, (string?)"grenades"))
             ];
@@ -333,12 +336,12 @@ public class StratBookPackTests
                         : FeatureScope.SubFeature);
             }
 
+            // The ids the pack declared after the move.
+            List<string> expected = [StratBookPack.PackFeatureId, .. _movedIds.Select(m => m.Id)];
             string[] packFeatureIds = [.. new StratBookPack().Features.Select(f => f.Id)];
-            await Assert.That(packFeatureIds)
-                .IsEquivalentTo([StratBookPack.PackFeatureId, .. _movedIds.Select(m => m.Id)],
-                    CollectionOrdering.Matching);
+            await Assert.That(packFeatureIds).IsEquivalentTo(expected, CollectionOrdering.Matching);
             await Assert.That(FeatureCatalog.Children(StratBookPack.PackFeatureId).Select(d => d.Id))
-                .IsEquivalentTo(_movedIds.Where(m => m.Parent == StratBookPack.PackFeatureId).Select(m => m.Id),
+                .IsEquivalentTo(expected.Skip(1).Where(id => id.StartsWith("tab.", StringComparison.Ordinal)),
                     CollectionOrdering.Matching);
         });
     }
@@ -422,9 +425,9 @@ public class StratBookPackTests
             {
                 svc.Write(s => s.UserCategory = UserCategory.Developer);
                 // An explicit override does not survive the pack going off: cascade beats override, through
-                // ParentId (tab.dossier) and through OwnerPackId alone (playback2d.tagger, whose ParentId is the
+                // ParentId (tab.scouting-report) and through OwnerPackId alone (playback2d.tagger, whose ParentId is the
                 // core tab.playback2d and so never reaches the pack that way).
-                svc.Write(s => s.Features.Overrides["tab.dossier"] = true);
+                svc.Write(s => s.Features.Overrides["tab.scouting-report"] = true);
                 svc.Write(s => s.Features.Overrides["playback2d.tagger"] = true);
                 svc.Write(s => s.Features.Overrides[StratBookPack.PackFeatureId] = false);
 
@@ -537,17 +540,16 @@ public class StratBookPackTests
     private static readonly string[] _railOrder =
     [
         "stratbook.browser", "situations.search", "tagger.matrix", "utilitybook.browser", "review.queue",
-        "dossier.browser",
-        "suggested.inbox"
+        "scouting-report.browser", "suggested.inbox"
     ];
 
     private static readonly string[] _railHeaders =
-        ["Strats", "Situations", "Tags", "Utility", "Review", "Dossier", "Suggested"];
+        ["Strats", "Situations", "Tags", "Utility", "Review", "Scouting Report", "Suggested"];
 
     // The hub is a declaration the host draws, and the rail must read exactly as it did when the pack drew it.
     // The rail's entries are the modules' own descriptors, so the badge a module moves is the badge the rail shows.
     [Test]
-    public async Task TheHub_IsThePacksHubTab_AndTheRailKeepsItsSevenSectionsInOrder()
+    public async Task TheHub_IsThePacksHubTab_AndTheRailKeepsItsEightSectionsInOrder()
     {
         await WithProvider(null, async provider =>
         {

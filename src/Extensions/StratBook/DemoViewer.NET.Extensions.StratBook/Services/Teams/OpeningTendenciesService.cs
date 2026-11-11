@@ -2,6 +2,7 @@
 
 using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 
 #endregion
 
@@ -28,7 +29,7 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 ///         steps while two or more teammates are alive. Its time is the first of those steps. The site
 ///         split, the entry and the lurk are the T side's: on CT the opponent picks the site.
 ///     </para>
-///     <para>Stateless apart from its sources and safe off the UI thread: the Dossier builds on a worker.</para>
+///     <para>Stateless apart from its sources and safe off the UI thread: the Scouting Report builds on a worker.</para>
 /// </summary>
 public sealed class OpeningTendenciesService
 {
@@ -383,6 +384,7 @@ public sealed class OpeningTendenciesService
         private readonly Buckets _entry = new();
         private readonly Buckets _lurkClock = new();
         private readonly Buckets _lurkers = new();
+        private readonly List<LurkSample> _lurkSamples = [];
         private readonly List<TendencyRound> _rounds = [];
         private readonly Buckets _sites = new();
         private readonly Buckets _utilityClock = new();
@@ -460,10 +462,13 @@ public sealed class OpeningTendenciesService
                         lurk.Tick + 2 * ClipTailSeconds * rate);
                     _lurkClock.Add(ClockLabel(Seconds(lurk.Tick)), clip);
                     _lurkers.Add(NameOf(demo, lurk.Slot), clip);
+                    _lurkSamples.Add(new LurkSample(opening, round.T.BuyType,
+                        LurkRoutes.Describe(positions, round, lurk, NameOf(demo, lurk.Slot), clip, rate)));
                 }
                 else
                 {
                     _lurkClock.Add(NoLurk, opening);
+                    _lurkSamples.Add(new LurkSample(opening, round.T.BuyType, null));
                 }
             }
         }
@@ -481,7 +486,8 @@ public sealed class OpeningTendenciesService
             EntryBySite = _entry.Ranked(),
             LurkClock = _lurkClock.Clock(NoLurk),
             Lurkers = _lurkers.Ranked(),
-            LurkRounds = _lurkRounds
+            LurkRounds = _lurkRounds,
+            LurkSamples = [.. _lurkSamples]
         };
 
         // The clip for a round, clamped to the live window: never before freeze end, never past the end.
