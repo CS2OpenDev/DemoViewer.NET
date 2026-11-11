@@ -917,21 +917,17 @@
                                     <ItemsControl ItemsSource="{Binding Layers.StripMinis}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <UniformGrid Columns="4" />
+                                                <UniformGrid Rows="1" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="layers:ScoutingLayerChipViewModel">
                                                 <Border Background="{DynamicResource PanelBg}" Padding="10 8" Margin="0 0 1 0">
                                                     <StackPanel Spacing="6">
-                                                        <Grid ColumnDefinitions="*,Auto,Auto">
+                                                        <Grid ColumnDefinitions="*,Auto">
                                                             <TextBlock Grid.Column="0" Classes="h" Text="{Binding Title}"
                                                                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                                             <Button Grid.Column="1" Classes="ghost" Padding="6 2" FontSize="11"
-                                                                    Content="Timeouts" IsVisible="{Binding HasCompanion}"
-                                                                    Command="{Binding InspectCompanionCommand}"
-                                                                    AutomationProperties.Name="{Binding CompanionLabel}" />
-                                                            <Button Grid.Column="2" Classes="ghost" Padding="6 2" FontSize="11"
                                                                     Content="Inspect" Command="{Binding InspectCommand}"
                                                                     AutomationProperties.Name="{Binding InspectLabel}" />
                                                         </Grid>
@@ -1005,7 +1001,7 @@
                                                                     </DataTemplate>
                                                                     <DataTemplate x:DataType="layers:ScoutingTableChart">
                                                                         <StackPanel Spacing="2">
-                                                                            <Grid ColumnDefinitions="*,40,40">
+                                                                            <Grid ColumnDefinitions="*,62,62">
                                                                                 <TextBlock Grid.Column="1" FontSize="11" FontWeight="SemiBold" Text="{Binding First}"
                                                                                            Foreground="{DynamicResource Pb2dTeamCt}" HorizontalAlignment="Right" />
                                                                                 <TextBlock Grid.Column="2" FontSize="11" FontWeight="SemiBold" Text="{Binding Second}"
@@ -1014,7 +1010,7 @@
                                                                             <ItemsControl ItemsSource="{Binding Rows}">
                                                                                 <ItemsControl.ItemTemplate>
                                                                                     <DataTemplate x:DataType="layers:ScoutingTableRow">
-                                                                                        <Grid ColumnDefinitions="*,40,40" Margin="0 0 0 2">
+                                                                                        <Grid ColumnDefinitions="*,62,62" Margin="0 0 0 2">
                                                                                             <TextBlock Grid.Column="0" FontSize="11" Text="{Binding Label}"
                                                                                                        Foreground="{DynamicResource TextBright}" />
                                                                                             <TextBlock Grid.Column="1" FontSize="11" Text="{Binding First}"

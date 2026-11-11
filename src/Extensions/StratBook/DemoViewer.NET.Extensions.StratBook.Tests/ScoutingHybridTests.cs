@@ -1,6 +1,7 @@
 #region
 
 using Avalonia;
+using TUnit.Assertions.Enums;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -143,6 +144,15 @@ public class ScoutingHybridTests
                 view.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
                 bool onePagerCloses = !scrim.IsVisible;
 
+                // The Setups inspector offers its tabs; opening one shows only its sections and the untabbed ones.
+                List<string> tabNames = [.. inspector.GetVisualDescendants().OfType<Button>()
+                    .Where(b => b.Classes.Contains("maptab") && b.IsEffectivelyVisible).Select(b => b.Content as string ?? "")];
+                vm.Layers.Inspector.OpenTab("Shape");
+                UxConsistencyRenderTests.Settle();
+                bool shapeOnly = vm.Layers.Inspector.TabSections.All(t => t.Tab is "" or "Shape")
+                                 && vm.Layers.Inspector.TabSections.Any(t => t.Tab == "Shape");
+                UxConsistencyRenderTests.Save(window, $"hybrid-setups-shape-{theme}-{Width}.png");
+
                 // A layer's own controls (the AWP trail window) sit on the map, not in the inspector.
                 vm.Layers.Focus(vm.Layers.Find("awp")!);
                 await ScoutingReportTestKit.Settle(vm, posted);
@@ -155,7 +165,7 @@ public class ScoutingHybridTests
                                      && !inspector.GetVisualDescendants().OfType<RadioButton>().Any(r => r.Classes.Contains("pill"));
                 UxConsistencyRenderTests.Save(window, $"hybrid-awp-controls-{theme}-{Width}.png");
                 window.Close();
-                return new { sameRow, rosterLeft, halves, above, oneMapPanel, layersOnFilterRow, noScopeLabel, noTimeline, historyRows, demos = vm.MatchHistory.Count, poolHidden, onePagerOutOfInspector, onePagerOpens, onePagerCloses, controlsOnMap };
+                return new { sameRow, rosterLeft, halves, above, oneMapPanel, layersOnFilterRow, noScopeLabel, noTimeline, historyRows, demos = vm.MatchHistory.Count, poolHidden, onePagerOutOfInspector, onePagerOpens, onePagerCloses, controlsOnMap, tabNames, shapeOnly };
             }
             finally
             {
@@ -184,6 +194,9 @@ public class ScoutingHybridTests
             await Assert.That(seen.onePagerOpens).IsTrue().Because("the header button opens it with every starred line");
             await Assert.That(seen.onePagerCloses).IsTrue().Because("Escape closes it");
             await Assert.That(seen.controlsOnMap).IsTrue().Because("the AWP trail window sits on the map it changes");
+            await Assert.That(seen.tabNames).IsEquivalentTo(["Players", "Shape", "By buy"], CollectionOrdering.Matching)
+                .Because("the Setups inspector is split into tabs");
+            await Assert.That(seen.shapeOnly).IsTrue().Because("a tab shows only its own sections");
         }
     }
 

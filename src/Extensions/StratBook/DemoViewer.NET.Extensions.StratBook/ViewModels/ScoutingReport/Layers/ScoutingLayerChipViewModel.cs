@@ -91,24 +91,11 @@ public sealed partial class ScoutingLayerChipViewModel : ObservableObject
 
     public bool HasMiniChart => MiniChart is not null;
 
-    /// <summary>
-    ///     Always false: no strip mini has a second button any more (Timeouts is its own mini). Kept, with
-    ///     <see cref="CompanionLabel" /> and <see cref="InspectCompanionCommand" />, only until the views drop their
-    ///     bindings to them.
-    /// </summary>
-    public bool HasCompanion { get; }
-
     /// <summary>The checkbox's accessible name.</summary>
     public string DrawLabel => $"Draw {Name} on the map";
 
     /// <summary>The name button's accessible name.</summary>
     public string InspectLabel => $"Inspect {Name}";
-
-    /// <summary>Always empty; see <see cref="HasCompanion" />.</summary>
-    public string CompanionLabel { get; } = "";
-
-    /// <summary>Does nothing; see <see cref="HasCompanion" />.</summary>
-    public IRelayCommand InspectCompanionCommand { get; } = new RelayCommand(static () => { });
 
     partial void OnIsOnChanged(bool value)
     {
