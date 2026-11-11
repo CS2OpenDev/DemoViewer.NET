@@ -45,6 +45,22 @@ public sealed record IndexedGrenade(
     public float AirTimeSeconds => Row.AirTimeTicks / (float)Math.Max(1, TickRate);
 }
 
+/// <summary>What <see cref="GrenadeIndex.ImportLineups(GrenadeLineupDocument, ImportConflictPolicy)" /> did.</summary>
+/// <param name="LineupMap">
+///     Each imported lineup id, and each imported alias, to the id it resolves to here. What clip names are
+///     remapped through.
+/// </param>
+/// <param name="Added">Anchors new to this machine.</param>
+/// <param name="Aliased">Anchors at the spot of a local one, kept as its aliases.</param>
+/// <param name="Skipped">Anchors this machine already had, by id or alias.</param>
+/// <param name="Paths">Representative flights written.</param>
+public sealed record LineupImport(
+    IReadOnlyDictionary<Guid, Guid> LineupMap,
+    int Added,
+    int Aliased,
+    int Skipped,
+    int Paths);
+
 /// <summary>
 ///     What to look for. Every filter left null matches everything; <see cref="Map" /> is the one
 ///     required field, because a grid cell means nothing across maps.
@@ -477,9 +493,164 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         }
     }
 
+    /// <summary>
+    ///     Merges another machine's lineups into this one's, map by map, and says which local id each imported id
+    ///     now resolves to. An id this machine already has, as an anchor or an alias, is left alone. An anchor at
+    ///     the same spot as a local one (<see cref="GrenadeLineups.SameSpot" />) becomes an alias of it, with
+    ///     its own aliases following. Any other anchor is added as it is. No local anchor, alias or flight is
+    ///     ever replaced, so strat steps and clips keep resolving; a second import of the same file changes
+    ///     nothing.
+    /// </summary>
+    /// <param name="imported">The other machine's lineup document.</param>
+    /// <param name="policy">
+    ///     Only flights differ by policy: <see cref="ImportConflictPolicy.TakeImported" /> replaces a stored
+    ///     representative flight, the others keep this machine's.
+    /// </param>
+    public LineupImport ImportLineups(GrenadeLineupDocument imported, ImportConflictPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(imported);
+        Dictionary<Guid, Guid> lineupMap = [];
+        int added = 0, aliased = 0, skipped = 0, paths = 0;
+        bool changed = false;
+        lock (_gate)
+        {
+            foreach ((string map, MapLineups theirs) in imported.Maps)
+            {
+                MapLineups mine = LineupStore.For(map);
+                // Only anchors this machine had before the import are matched, so two lineups the other machine
+                // kept apart are not folded into each other here.
+                List<LineupAnchor> before = [.. mine.Anchors];
+                HashSet<Guid> ids = [.. before.Select(a => a.Id)];
+                bool mapChanged = false;
+                foreach (LineupAnchor anchor in theirs.Anchors)
+                {
+                    if (ids.Contains(anchor.Id))
+                    {
+                        lineupMap[anchor.Id] = anchor.Id;
+                        skipped++;
+                        continue;
+                    }
+
+                    if (mine.Aliases.TryGetValue(anchor.Id, out Guid known))
+                    {
+                        lineupMap[anchor.Id] = known;
+                        skipped++;
+                        continue;
+                    }
+
+                    if (before.Where(a => GrenadeLineups.SameSpot(a, anchor))
+                            .OrderBy(a => GrenadeLineups.SpotDistance(a, anchor)).ThenBy(a => a.Id)
+                            .FirstOrDefault() is { } local)
+                    {
+                        mine.Aliases[anchor.Id] = local.Id;
+                        lineupMap[anchor.Id] = local.Id;
+                        aliased++;
+                    }
+                    else
+                    {
+                        mine.Anchors.Add(IsPathKeyed(anchor.Seed) ? anchor with { Seed = "" } : anchor);
+                        ids.Add(anchor.Id);
+                        lineupMap[anchor.Id] = anchor.Id;
+                        added++;
+                    }
+
+                    mapChanged = true;
+                }
+
+                foreach ((Guid old, Guid now) in theirs.Aliases)
+                {
+                    Guid target = lineupMap.GetValueOrDefault(now, now);
+                    target = mine.Aliases.GetValueOrDefault(target, target);
+                    lineupMap.TryAdd(old, target);
+                    if (old != target && !ids.Contains(old) && mine.Aliases.TryAdd(old, target))
+                    {
+                        mapChanged = true;
+                    }
+                }
+
+                foreach ((string key, LineupPath path) in theirs.Paths)
+                {
+                    int slash = key.IndexOf('/', StringComparison.Ordinal);
+                    if (slash < 0 || !Guid.TryParseExact(key[..slash], "N", out Guid id)
+                        || !lineupMap.TryGetValue(id, out Guid local) || IsPathKeyed(path.Throw))
+                    {
+                        continue;
+                    }
+
+                    string remapped = PathKey(local, key[(slash + 1)..]);
+                    bool write = policy == ImportConflictPolicy.TakeImported
+                        ? !mine.Paths.TryGetValue(remapped, out LineupPath? held) || !SameFlight(held, path)
+                        : !mine.Paths.ContainsKey(remapped);
+                    if (write)
+                    {
+                        mine.Paths[remapped] = path;
+                        paths++;
+                        mapChanged = true;
+                    }
+                }
+
+                if (mapChanged)
+                {
+                    InvalidateLocked(map);
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                SaveLineupsLocked();
+            }
+        }
+
+        if (changed)
+        {
+            _post(() => Changed?.Invoke());
+        }
+
+        return new LineupImport(lineupMap, added, aliased, skipped, paths);
+    }
+
+    /// <summary>
+    ///     <see cref="ImportLineups(GrenadeLineupDocument, ImportConflictPolicy)" /> over the
+    ///     <see cref="GrenadeLineupStore.FileName" /> a bundle carries; nothing when it carries none.
+    /// </summary>
+    /// <param name="staged">The bundle's copy of the extension's own cache folder, read-only.</param>
+    /// <param name="policy">What to do with a flight both machines hold.</param>
+    public LineupImport ImportLineups(IExtensionFolder staged, ImportConflictPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(staged);
+        return GrenadeLineupStore.ReadFrom(staged) is { } document
+            ? ImportLineups(document, policy)
+            : new LineupImport(new Dictionary<Guid, Guid>(), 0, 0, 0, 0);
+    }
+
+    // Records compare a list by reference, so two reads of one flight need the points compared.
+    private static bool SameFlight(LineupPath a, LineupPath b) =>
+        string.Equals(a.Throw, b.Throw, StringComparison.Ordinal) && a.Points.SequenceEqual(b.Points);
+
+    // A seed or throw key whose demo part is a DemoKeys.StableKey: 24 hex characters, a path on another machine.
+    private static bool IsPathKeyed(string key)
+    {
+        int slash = key.IndexOf('/', StringComparison.Ordinal);
+        string demo = slash < 0 ? key : key[..slash];
+        return demo.Length == 24 && demo.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
+    }
+
     /// <summary>The store key of a lineup technique's representative flight.</summary>
     private static string PathKey(Guid lineupId, string technique) =>
         lineupId.ToString("N", CultureInfo.InvariantCulture) + "/" + technique;
+
+    /// <summary>
+    ///     Every lineup id the store holds an anchor for, on any map, whether or not a loaded throw names it: an
+    ///     imported lineup's clips are kept for it before its demos are here.
+    /// </summary>
+    public IReadOnlySet<Guid> StoredLineupIds()
+    {
+        lock (_gate)
+        {
+            return LineupStore.AnchorIds();
+        }
+    }
 
     /// <summary>The lineup store this index assigns against.</summary>
     public GrenadeLineupStore LineupStore { get; }
@@ -502,7 +673,9 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
                 .SelectMany(d => d.Grenades)
         ];
         MapLineups lineups = LineupStore.For(map);
+        bool migrated = _ready && DropPathKeysLocked(lineups);
         (Dictionary<string, Guid> assignment, bool changed) = GrenadeLineups.Assign(map, all, lineups, _ready);
+        changed |= migrated;
         if (_ready)
         {
             changed |= FillPaths(all, assignment, lineups);
@@ -556,7 +729,9 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         foreach ((string key, WorldPoint origin, List<IndexedGrenade> throws) in Unpathed(all, assignment, lineups)
                      .ToList())
         {
-            List<IndexedGrenade> flown = [.. throws.Where(t => t.Row.Trajectory.Count >= 2)];
+            // Only a hashed throw: the stored key must name the same demo on every machine.
+            List<IndexedGrenade> flown =
+                [.. throws.Where(t => t.Demo.Sha256 is not null && t.Row.Trajectory.Count >= 2)];
             if (flown.Count > 0)
             {
                 IndexedGrenade best = GrenadeLineups.Medoid(flown, origin);
@@ -568,6 +743,74 @@ public sealed class GrenadeIndex : IExtensionResident, IDisposable
         return changed;
     }
 
+    // Under _gate. Older builds keyed a seed or a flight by the demo's path key while it was unhashed, and
+    // the file travels to machines where that path means nothing. A key whose demo is hashed by now moves
+    // to the hash; any other is dropped (a seed to "", a flight for FillPaths to refill). Ids, aliases and
+    // origins are never touched: strats and clips name the ids. A second run finds nothing to change.
+    private bool DropPathKeysLocked(MapLineups lineups)
+    {
+        Dictionary<string, string>? hashes = null;
+        HashSet<string>? known = null;
+
+        string? Rekey(string key)
+        {
+            int slash = key.IndexOf('/', StringComparison.Ordinal);
+            string demo = slash < 0 ? key : key[..slash];
+            if (IsContentKey(demo))
+            {
+                return key;
+            }
+
+            if (hashes is null)
+            {
+                List<DemoRef> hashed = [.. _loaded.Values.Select(d => d.Demo).Where(d => d.Sha256 is not null)];
+                known = new HashSet<string>(hashed.Select(d => d.Sha256!), StringComparer.Ordinal);
+                hashes = hashed.GroupBy(d => d.StableKey, StringComparer.Ordinal)
+                    .ToDictionary(g => g.Key, g => g.First().Sha256!, StringComparer.Ordinal);
+            }
+
+            // A hash this library carries counts whatever its length.
+            if (known!.Contains(demo))
+            {
+                return key;
+            }
+
+            return slash >= 0 && hashes.TryGetValue(demo, out string? sha) ? sha + key[slash..] : null;
+        }
+
+        bool changed = false;
+        for (int i = 0; i < lineups.Anchors.Count; i++)
+        {
+            LineupAnchor anchor = lineups.Anchors[i];
+            if (anchor.Seed.Length > 0 && Rekey(anchor.Seed) is var seed
+                && !string.Equals(seed, anchor.Seed, StringComparison.Ordinal))
+            {
+                lineups.Anchors[i] = anchor with { Seed = seed ?? "" };
+                changed = true;
+            }
+        }
+
+        foreach ((string key, LineupPath path) in lineups.Paths.ToList())
+        {
+            string? rekeyed = Rekey(path.Throw);
+            if (rekeyed is null)
+            {
+                lineups.Paths.Remove(key);
+                changed = true;
+            }
+            else if (!string.Equals(rekeyed, path.Throw, StringComparison.Ordinal))
+            {
+                lineups.Paths[key] = path with { Throw = rekeyed };
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
+    // A demo's content hash as the stores write it: 64 lowercase hex characters.
+    private static bool IsContentKey(string demo) =>
+        demo.Length == 64 && demo.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
 
     // Under _gate. Only the copy is taken here; the gzip and write of the whole file (over a second on a
     // big library) run as a scheduled item, outside the lock. The newest copy wins.

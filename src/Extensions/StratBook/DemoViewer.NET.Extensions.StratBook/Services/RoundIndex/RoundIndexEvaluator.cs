@@ -368,11 +368,14 @@ public sealed class RoundIndexEvaluator : IExtensionPass
 
             RoundIndexDocument document = built.Index;
             string stableKey = DemoKeys.StableKey(path);
+            // The path key is only stored while there is no hash: it names a path on this machine, and these
+            // files travel in a library transfer.
+            string storedKey = string.IsNullOrEmpty(record.Sha256) ? stableKey : "";
             document.Demo = new RoundIndexDemo
             {
-                Sha256 = record.Sha256, StableKey = stableKey, FileName = fileName, SizeBytes = record.FileSizeBytes
+                Sha256 = record.Sha256, StableKey = storedKey, FileName = fileName, SizeBytes = record.FileSizeBytes
             };
-            built.Positions.Demo = new RoundPositionsDemo { Sha256 = record.Sha256, StableKey = stableKey };
+            built.Positions.Demo = new RoundPositionsDemo { Sha256 = record.Sha256, StableKey = storedKey };
             if (captures is not null)
             {
                 captures.Demo = built.Positions.Demo;
@@ -383,7 +386,7 @@ public sealed class RoundIndexEvaluator : IExtensionPass
             long computedAt = _store.Write(path, document, built.Positions, fingerprint, captures)?.WrittenAtTicks
                 ?? DateTime.UtcNow.Ticks;
 
-            RoundIndexedEvent indexed = new(path, document.Demo.StableKey, record.Sha256, document.Map, computedAt);
+            RoundIndexedEvent indexed = new(path, stableKey, record.Sha256, document.Map, computedAt);
             Written?.Invoke(indexed);
             _post(() => Indexed?.Invoke(indexed));
         }

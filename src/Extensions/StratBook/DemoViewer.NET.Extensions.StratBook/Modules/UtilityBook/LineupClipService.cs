@@ -72,6 +72,7 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
 
     private readonly Func<IReadOnlyList<GrenadeCluster>> _clusters;
     private readonly Func<bool> _complete;
+    private readonly Func<IReadOnlySet<Guid>>? _storedLineups;
     private readonly CancellationTokenSource _cts = new();
 
     // Read once: a batch's continuation may run after Dispose has disposed the source.
@@ -134,12 +135,17 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     ///     service with no parse (tests).
     /// </param>
     /// <param name="planDebounce">How long <see cref="PlanSoon" /> waits for more index changes; 500 ms when null.</param>
+    /// <param name="storedLineups">
+    ///     The lineup ids the lineup store holds anchors for. The sweep keeps their pairs even when no loaded throw
+    ///     names them, as after an import whose demos are not here yet. None when null.
+    /// </param>
     public LineupClipService(Func<IReadOnlyList<GrenadeCluster>> clusters, IExtensionFolder? clips,
         Func<bool> enabled, ILineupClipRenderer renderer, Func<string, bool>? fileExists = null,
         Action<string, string>? writeText = null, Action<string>? log = null, Func<bool>? complete = null,
         Func<long>? maxBytes = null, TimeSpan? orphanGrace = null, IExtensionJobs? jobs = null,
-        TimeSpan? planDebounce = null)
+        TimeSpan? planDebounce = null, Func<IReadOnlySet<Guid>>? storedLineups = null)
     {
+        _storedLineups = storedLineups;
         _planDebounce = planDebounce ?? TimeSpan.FromMilliseconds(500);
         ArgumentNullException.ThrowIfNull(clusters);
         ArgumentNullException.ThrowIfNull(enabled);
@@ -750,6 +756,24 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
         }
     }
 
+    // A pair is named when a planned lineup names its stem, or when the lineup store holds an anchor for its
+    // lineup id: an imported clip has no throws here until its demos arrive, and the sweep must not take it.
+    private static bool Named(string stem, HashSet<string> keep, IReadOnlySet<Guid> stored) =>
+        keep.Contains(stem) || (LineupClipPlanner.LineupIdOf(stem) is { } id && stored.Contains(id));
+
+    private IReadOnlySet<Guid> StoredLineups()
+    {
+        try
+        {
+            return _storedLineups?.Invoke() ?? new HashSet<Guid>();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _log?.Invoke($"lineup clips: stored lineups: {ex.Message}");
+            return new HashSet<Guid>();
+        }
+    }
+
     // Starts the clock for a key seen missing; true once it has been missing for the grace period.
     private bool GoneFor<TKey>(Dictionary<TKey, DateTime> since, TKey key, DateTime now) where TKey : notnull
     {
@@ -782,10 +806,11 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
     {
         lock (_sweepGate)
         {
+            IReadOnlySet<Guid> stored = StoredLineups();
             HashSet<string> orphans = new(StringComparer.OrdinalIgnoreCase);
             foreach (string file in Listing(directory))
             {
-                if (LineupClipPlanner.StemOf(file) is { } stem && !keep.Contains(stem))
+                if (LineupClipPlanner.StemOf(file) is { } stem && !Named(stem, keep, stored))
                 {
                     orphans.Add(stem);
                 }
@@ -817,6 +842,76 @@ public sealed class LineupClipService : IExtensionResident, IDisposable
                 _log?.Invoke($"lineup clips: swept {deleted} orphaned pairs");
             }
         }
+    }
+
+    /// <summary>
+    ///     Copies another machine's finished pairs into the clip folder, each renamed through
+    ///     <paramref name="lineupMap" /> so it names the lineup the import resolved it to. A pair this machine
+    ///     already has stays as it is, whatever the import's policy: a clip renders the same lineup either way.
+    ///     A half pair in the bundle is not copied, the GIF is written before its sidecar so a crash leaves a
+    ///     half pair the planner renders again, and the bundle's eviction list never comes across: the cap
+    ///     is this machine's. A second import of the same bundle copies nothing.
+    /// </summary>
+    /// <param name="staged">The bundle's copy of the clips store, read-only.</param>
+    /// <param name="directory">The folder inside <paramref name="staged" /> that holds the pairs; empty for its root.</param>
+    /// <param name="lineupMap">Imported lineup id to the local one, from <see cref="GrenadeIndex.ImportLineups(GrenadeLineupDocument, ImportConflictPolicy)" />.</param>
+    /// <returns>The pairs copied and the pairs left alone.</returns>
+    public (int Added, int Skipped) ImportPairs(IExtensionFolder staged, string directory,
+        IReadOnlyDictionary<Guid, Guid> lineupMap)
+    {
+        ArgumentNullException.ThrowIfNull(staged);
+        ArgumentNullException.ThrowIfNull(directory);
+        ArgumentNullException.ThrowIfNull(lineupMap);
+        if (_folder is null)
+        {
+            return (0, 0);
+        }
+
+        string Within(string name) => directory.Length == 0 ? name : directory + "/" + name;
+
+        int added = 0, skipped = 0;
+        // Under the plan lock, so no plan sees a GIF whose sidecar is still on its way and renders over it.
+        lock (_planLock)
+        {
+            HashSet<string> names = new(staged.EnumerateFiles(directory, "*").Select(f => Path.GetFileName(f)),
+                StringComparer.OrdinalIgnoreCase);
+            foreach (string gifName in names.Where(n => n.EndsWith(LineupClipPlanner.GifExtension,
+                             StringComparison.OrdinalIgnoreCase)).Order(StringComparer.Ordinal))
+            {
+                string stem = gifName[..^LineupClipPlanner.GifExtension.Length];
+                string setposName = stem + LineupClipPlanner.SetposExtension;
+                string local = LineupClipPlanner.RemapStem(stem, lineupMap);
+                string localGif = local + LineupClipPlanner.GifExtension;
+                string localSetpos = local + LineupClipPlanner.SetposExtension;
+                if (!names.Contains(setposName)
+                    || (_folder.FileExists(localGif) && _folder.FileExists(localSetpos)))
+                {
+                    skipped++;
+                    continue;
+                }
+
+                try
+                {
+                    if (staged.Read(Within(gifName)) is not { } gif
+                        || staged.Read(Within(setposName)) is not { } setpos)
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    _folder.WriteAtomic(localGif, gif);
+                    _folder.WriteAtomic(localSetpos, setpos);
+                    added++;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _log?.Invoke($"lineup clips: import {gifName}: {ex.Message}");
+                    skipped++;
+                }
+            }
+        }
+
+        return (added, skipped);
     }
 
     /// <summary>Runs inside the eviction pass, between the listing and the deletes. For a test.</summary>
