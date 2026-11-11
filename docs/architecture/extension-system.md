@@ -36,8 +36,8 @@ references these.
 under the logical name `extension.json` and copied beside the DLL on build as
 `<id>.extension.json` (`None` with `CopyToOutputDirectory`, which flows through every project reference, so
 a head's publish output and the test binary's directory both carry it; the SDK targets' default name is the
-bare `extension.json`, and a first-party project sets `ExtensionManifestOutputName` because the heads ship
-more than one extension into one directory). The loader reads the on-disk copy before loading the
+bare `extension.json`, and a first-party project sets `ExtensionManifestOutputName` because a project that references more than
+one extension, such as App.Tests, gets them all in one directory). The loader reads the on-disk copy before loading the
 assembly; the pack reports the embedded copy in process through `IExtension.Manifest`.
 
 ```json
@@ -246,8 +246,8 @@ reaches only the log line.
 The shipped version comes from the `<id>.extension.json` the build copies beside the app
 (`ShippedPack.BesideApp`), never from the type (see the constraint below). An unreadable shipped manifest
 means no staged copy can be shown to be newer (`ShippedUnknown`), so the shipped copy runs. The copy is
-id-qualified so the Strat Book and the Rule Canvas, shipped into one output directory, do not overwrite
-each other's manifest; a staged folder keeps the bare name, since it holds one extension.
+id-qualified so two extensions in one output directory do not overwrite each other's manifest; a staged
+folder keeps the bare name, since it holds one extension.
 
 **Installed first-party extensions.** A directory under `extensions/<id>/<version>/` whose id starts with
 `net.demoviewer.` and is not one this build ships loads only when `extension.sig` verifies against
@@ -665,7 +665,9 @@ unfinished download is never reported as a broken candidate.
 
 **The catalogue.** `FirstPartyCatalog.Ids` is the compiled-in list of first-party extensions a build can
 install although it does not ship them: literals, since the app assembly references no extension; the
-Strat Book's id today. Each one's feed is `ExtensionFeedSource.Resolve` over the same template the
+Strat Book's and the Rule Canvas's ids today. `FirstPartyCatalog.NameOf` names each until a feed or a copy
+on disk does, so an id whose feed answers 404 or lists no entries shows as "Rule Canvas" with "Nothing has
+been published yet." and no button, not as an error. Each one's feed is `ExtensionFeedSource.Resolve` over the same template the
 updater uses. `CheckCatalogueAsync`, one queue item at user priority, takes every catalogue id this build
 does not ship (`FeaturePacks.ShippedIds`, which safe mode fills although it loads nothing) and has no
 status for (a shipped one has its own row, whatever its verdict) and reports an
@@ -1059,9 +1061,10 @@ commit to be published, so an app release after an SDK-only change goes ahead. A
 failing, and a dispatch with `allow_sdk_drift` skips the gate for an emergency and says so in the run.
 `release-sdk.yml` runs the same script with `--packed` on its own packages before pushing them.
 
-**Several extensions per output directory.** Each shipped manifest copy is `<id>.extension.json`
-(`ExtensionManifestOutputName` in the extension's csproj), so the heads can ship the Strat Book and the Rule
-Canvas side by side. The stage directory and the zip keep the bare `extension.json`. An installed
+**Several extensions per output directory.** Each manifest copy beside a built extension is
+`<id>.extension.json` (`ExtensionManifestOutputName` in the extension's csproj), so a project that
+references several extensions keeps every manifest. The heads ship the Strat Book alone; the Rule Canvas is
+installed from its feed (below). The stage directory and the zip keep the bare `extension.json`. An installed
 first-party extension (section 2) is not affected, since nothing of it sits in the output directory.
 
 **The pilot.** `InstalledExtensionTests` proves the installed path on the Strat Book without changing how
@@ -1074,6 +1077,18 @@ assert the one outcome: unsigned (`ReservedId`), another key (`ReservedForeignKe
 signing (`Untrusted`), the id or version folder renamed (`FolderMismatch`), and a shipped id whose shipped
 copy is incompatible still never installed. The automatic stage of a second signed version, the
 tombstone removal and the catalogue listing are covered there too.
+
+**The Rule Canvas is installed, never shipped.** Neither head references it; it is in `FirstPartyCatalog`
+and released on its own tag (`extensions/net.demoviewer.pack.rulecanvas/v*`). Its project sets
+`CopyLocalLockFileAssemblies`, so `pack-extension.sh` stages the two libraries the app does not ship,
+`Nodify.Avalonia` and `DemoViewer.NET.RuleAuthoring`, beside the extension; everything else, Avalonia,
+AvaloniaEdit and MSAGL included, is the app's copy. Nodify is built against an older Avalonia 12 than the app
+runs, which the default context binds. `InstalledRuleCanvasTests` installs that layout through the updater
+and draws `player_round` from it: the editor, its node containers and wires are types from the
+`ExternalLoadContext`, and the item template is the installed canvas's own. The test lives in the Strat Book
+test project, the one headless host with neither the canvas nor Nodify beside it, so nothing can resolve
+from the test's own folder instead. The browser head has no canvas, since it cannot install. The manifest's
+`requiresCs2DemoKit` is an exact version, so every CS2DemoKit bump in the app needs a canvas release.
 
 ---
 

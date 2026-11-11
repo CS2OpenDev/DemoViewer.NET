@@ -17,6 +17,9 @@
 # While the app runs this way its analysis reads the testbed instead of your own user rules, and the
 # fixtures' highlights change the highlight fingerprint, so the library may re-scan demos once now and
 # again on the next normal launch.
+#
+# The desktop app does not ship the Rule Canvas. It must already be installed (Settings, Available
+# extensions); a local build cannot stand in, since only a publisher-signed copy loads under its id.
 
 set -euo pipefail
 
@@ -35,7 +38,7 @@ while [ $# -gt 0 ]; do
         --dir)
             [ $# -ge 2 ] || { echo "--dir needs a path" >&2; exit 2; }
             DIR="$2"; shift 2 ;;
-        -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
         *) echo "unknown argument '$1'" >&2
            echo "usage: $0 [--reset] [--no-build] [--prepare] [--dir <path>]" >&2
            exit 2 ;;
@@ -79,6 +82,7 @@ for file in "$DIR"/*.rules.yaml; do
     fi
 done
 echo "your own user rules are not read while this runs"
+echo "the Rule Canvas tab appears only if the extension is installed (Settings, Available extensions)"
 
 if [ "$PREPARE" -eq 1 ]; then
     echo "launch any build with:"

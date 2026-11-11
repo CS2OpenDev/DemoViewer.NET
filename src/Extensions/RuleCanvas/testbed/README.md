@@ -7,6 +7,10 @@ discard edits, `--no-build` to skip the build): it copies these files to
 user rules directory, where the picker labels them `testbed`. To use another build, run it with `--prepare`
 instead: it copies the files and prints the `CS2DEMOKIT_USER_RULES_DIR=...` line to launch that build with.
 Edit the copies in the app, never these files.
+The desktop app does not ship the canvas. Install it first from Settings, Available extensions, or the
+launcher opens an app with no Rule Canvas tab. Only a copy signed with the publisher key loads under the
+`net.demoviewer.pack.` id, so a local build of the extension cannot be dropped into the extensions folder
+instead.
 While the app runs this way its analysis reads the testbed instead of your own user rules, and the
 library may re-scan demos once because the fixtures add highlights. `FixtureRulesetsTests` checks that
 each whole fixture composes with nothing said and that the two warning fixtures say exactly what they
