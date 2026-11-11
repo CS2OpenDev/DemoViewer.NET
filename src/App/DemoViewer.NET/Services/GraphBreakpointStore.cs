@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DemoViewer.NET.Debugging;
 using DemoViewer.NET.Playback2D;
+using DemoViewer.NET.Services.Transfer;
 using DemoViewer.NET.ViewModels;
 
 #endregion
@@ -124,6 +125,13 @@ public sealed class GraphBreakpointStore
         // never fires for an unpackaged or portable run. Doing it here too makes the outcome the same
         // everywhere, and the call is a no-op once the legacy file is gone.
         MigrateLegacyFile();
+    }
+
+    /// <summary>A store over <paramref name="path" />, with no legacy migration: for a transfer import and tests.</summary>
+    /// <param name="path">The breakpoints file, or null for none.</param>
+    internal GraphBreakpointStore(string? path)
+    {
+        _path = path;
     }
 
     /// <summary>
@@ -255,6 +263,72 @@ public sealed class GraphBreakpointStore
         }
 
         return result;
+    }
+
+    /// <summary>Every demo's breakpoints, keyed by content hash. Empty when none or unavailable.</summary>
+    public IReadOnlyDictionary<string, List<PersistedGraphBreakpoint>> LoadAll() => ReadAll();
+
+    /// <summary>A breakpoints map in this store's file format, e.g. a transfer bundle's copy.</summary>
+    /// <param name="json">The file's bytes.</param>
+    /// <exception cref="JsonException">The bytes are not a breakpoints map.</exception>
+    public static Dictionary<string, List<PersistedGraphBreakpoint>> Parse(ReadOnlySpan<byte> json) =>
+        new(JsonSerializer.Deserialize<Dictionary<string, List<PersistedGraphBreakpoint>>>(json, _options)
+            ?? throw new JsonException("Empty breakpoints file."), StringComparer.Ordinal);
+
+    /// <summary>A breakpoints map as this store writes its file.</summary>
+    /// <param name="byDemo">The map.</param>
+    public static byte[] Serialize(IReadOnlyDictionary<string, List<PersistedGraphBreakpoint>> byDemo) =>
+        JsonSerializer.SerializeToUtf8Bytes(byDemo, _options);
+
+    /// <summary>
+    ///     Merges imported breakpoints into the file in one write. A demo with none here takes the imported set; one
+    ///     with its own keeps it under <see cref="ConflictPolicy.KeepMine" />, is replaced under
+    ///     <see cref="ConflictPolicy.TakeImported" />, and under <see cref="ConflictPolicy.KeepBoth" /> keeps its
+    ///     own and adds every imported breakpoint it does not already have.
+    /// </summary>
+    /// <param name="imported">The imported breakpoints by content hash.</param>
+    /// <param name="policy">What a demo with breakpoints on both sides keeps.</param>
+    /// <returns>The content hashes whose breakpoints changed.</returns>
+    public IReadOnlyList<string> ImportMerge(IReadOnlyDictionary<string, List<PersistedGraphBreakpoint>> imported,
+        ConflictPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(imported);
+        if (_path is null)
+        {
+            return [];
+        }
+
+        Dictionary<string, List<PersistedGraphBreakpoint>> all = new(ReadAll(), StringComparer.Ordinal);
+        List<string> changed = [];
+        foreach ((string demoKey, List<PersistedGraphBreakpoint> theirs) in imported)
+        {
+            if (theirs.Count == 0)
+            {
+                continue;
+            }
+
+            List<PersistedGraphBreakpoint>? mine = all.GetValueOrDefault(demoKey);
+            List<PersistedGraphBreakpoint>? next = mine is not { Count: > 0 } ? [.. theirs]
+                : policy switch
+                {
+                    ConflictPolicy.TakeImported => [.. theirs],
+                    ConflictPolicy.KeepBoth => [.. mine, .. theirs.Where(t => !mine.Contains(t))],
+                    _ => null
+                };
+            if (next is not null && (mine is null || !mine.SequenceEqual(next)))
+            {
+                all[demoKey] = next;
+                changed.Add(demoKey);
+            }
+        }
+
+        if (changed.Count > 0)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+            AtomicFile.WriteAllBytes(_path, Serialize(all));
+        }
+
+        return changed;
     }
 
     private Dictionary<string, List<PersistedGraphBreakpoint>> ReadAll() => ReadAllFrom(_path);

@@ -768,6 +768,14 @@ public sealed class DemoCacheIndexEntry : IJsonOnDeserialized
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     internal List<DemoLocation>? DetachedLocations { get; set; }
 
+    /// <summary>
+    ///     When the row was imported from a transfer bundle (UTC ticks), or null. Set only while no path has
+    ///     listed it since: an orphan with this set is kept for the longer imported grace, and the first path to
+    ///     attach clears it.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? ImportedUtcTicks { get; set; }
+
     /// <summary>True when no path lists this row; see <see cref="OrphanedSinceUtcTicks" />.</summary>
     [JsonIgnore]
     public bool IsOrphaned => OrphanedSinceUtcTicks is not null;

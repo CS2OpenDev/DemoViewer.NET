@@ -105,6 +105,8 @@ public class StratBookPackTests
         "DemoViewer.NET.Extensions.StratBook.ViewModels.Situations.SituationsTabViewModel",
         "DemoViewer.NET.Services.Review.ReviewQueue",
         "DemoViewer.NET.Services.Transfer.ITransferExporter",
+        // The library transfer importer, core and not the pack's.
+        "DemoViewer.NET.Services.Transfer.ITransferImporter",
         "DemoViewer.NET.Extensions.StratBook.ViewModels.Review.ReviewQueueTabViewModel",
         "DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedInboxService",
         "DemoViewer.NET.Extensions.StratBook.ViewModels.SuggestedTags.SuggestedInboxViewModel",

@@ -132,8 +132,9 @@ public class App : Application
                 {
                     ContentKeyMigration.Submit(queue, demoCache);
                     SidecarFormatMigration.Submit(queue, demoCache, [demoCache.ConvertLegacyRecord]);
-                    OrphanSweep.Submit(queue, demoCache,
-                        settings?.CurrentValue.Library.OrphanedDemoGrace ?? new LibrarySettings().OrphanedDemoGrace);
+                    LibrarySettings library = settings?.CurrentValue.Library ?? new LibrarySettings();
+                    OrphanSweep.Submit(queue, demoCache, library.OrphanedDemoGrace,
+                        importedGrace: library.ImportedDemoGrace);
                 }, TaskScheduler.Default);
             }
             // Careful: host services MUST attach BEFORE RestoreSession. RestoreSession activates the persisted tab,
@@ -1276,6 +1277,37 @@ public class App : Application
             sp.GetRequiredService<IDemoProcessingQueue>(),
             new TransferSources(AppPaths.ConfigRoot,
                 () => sp.GetRequiredService<SettingsService>().Current.Library.Folders)));
+        // Library transfer import: cache rows through the store so the orphan sweep keeps them, per-demo extension
+        // data through the loaded extension's own store, user data into the stores that own it.
+        services.AddSingleton<ITransferImporter>(sp => new TransferImporter(
+            sp.GetRequiredService<DemoCacheStore>(),
+            AppPaths.ConfigRoot,
+            AppPaths.GraphBreakpointsFile is { } breakpoints ? new GraphBreakpointStore(breakpoints) : null,
+            sp.GetRequiredService<ReviewQueue>(),
+            sp.GetRequiredService<DemoLibraryService>(),
+            sp.GetRequiredService<IDemoProcessingQueue>(),
+            id => sp.GetService<PackContributionSet>()?.Packs
+                .FirstOrDefault(p => string.Equals(p.Pack.Id, id, StringComparison.Ordinal))?.Context.Data
+                as ExtensionDemoDataStore,
+            AppPaths.DemoCacheDir is { } cacheDir ? Path.Combine(cacheDir, ExtensionFolders.DataDirectoryName) : null,
+            () => TransferEnvironment.Local(sp.GetRequiredService<MergedRulesBuild>(), packs),
+            new DemoImportCurrency(
+                tickRate =>
+                {
+                    try
+                    {
+                        return sp.GetRequiredService<IHighlightHarvester>().ComputeFingerprint(tickRate).Fingerprint;
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        return null; // rules that do not compose cannot say what is current
+                    }
+                },
+                (stamp, tickRate) => StampedFacts.RulesetOf(stamp.Id) is { } rulesetId
+                    && sp.GetRequiredService<StampedFacts>().Fingerprint(rulesetId, tickRate) is { } fingerprint
+                        ? stamp.IsCurrent(StampedFacts.Schema, fingerprint)
+                        : null),
+            f => Dispatcher.UIThread.InvokeAsync(f)));
         // The "one parse, many evaluators" scheduler: the single submitter that asks the registered passes
         // about a demo and submits them together as ONE visit, so the demo is read once. Library,
         // Highlights and Round Facts are core, always on the visit; a pack's passes come from a PassRegistry built over its
