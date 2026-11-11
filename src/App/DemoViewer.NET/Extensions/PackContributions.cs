@@ -441,8 +441,81 @@ internal sealed class PackContributions(
             }
         }
 
+        return PortabilityRefusal(store);
+    }
+
+    /// <summary>
+    ///     Why the transfer side of <paramref name="store" /> is refused, or null. A transfer copies what a template
+    ///     names and deletes nothing, but the importer writes it back under the store's root, so a template must stay
+    ///     inside the store and name one demo's file.
+    /// </summary>
+    private static string? PortabilityRefusal(StoreDescriptor store)
+    {
+        if (!Enum.IsDefined(store.Portability))
+        {
+            return $"portability {(int)store.Portability} is not one the app knows";
+        }
+
+        if (store.Portability == StorePortability.PerDemo && store.DemoKeyedPaths.Count == 0)
+        {
+            return "a per-demo store names the files keyed by a demo";
+        }
+
+        if (store.Portability != StorePortability.PerDemo && store.DemoKeyedPaths.Count > 0)
+        {
+            return "only a per-demo store names files keyed by a demo";
+        }
+
+        string[] paths = [.. store.Paths.Select(p => p.Replace('\\', '/').Trim().TrimEnd('/'))];
+        foreach (string raw in store.DemoKeyedPaths)
+        {
+            string template = raw.Replace('\\', '/').Trim();
+            if (Updates.ExtensionStaging.SafeRelativePath(template) is null)
+            {
+                return $"'{raw}' does not name a file under the root";
+            }
+
+            int at = template.IndexOf(Sha256Placeholder, StringComparison.Ordinal);
+            if (at < 0 || template.IndexOf(Sha256Placeholder, at + 1, StringComparison.Ordinal) >= 0
+                || template.IndexOf('/', at) >= 0)
+            {
+                return $"'{raw}' needs {Sha256Placeholder} exactly once, in its file name";
+            }
+
+            if (template.Contains('*', StringComparison.Ordinal)
+                || !paths.Any(p => template.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase)))
+            {
+                return $"'{raw}' is not under one of the store's paths";
+            }
+        }
+
+        foreach (string exclude in store.PortableExcludes)
+        {
+            if (string.IsNullOrWhiteSpace(exclude) || exclude.Contains('/', StringComparison.Ordinal)
+                || exclude.Contains('\\', StringComparison.Ordinal))
+            {
+                return $"'{exclude}' is not a file or folder name";
+            }
+        }
+
         return null;
     }
+
+    /// <summary>Why <paramref name="own" /> may not travel, or null: it must name a file inside the extension's own folder.</summary>
+    internal static string? OwnPathRefusal(PortableOwnPath? own)
+    {
+        if (own is null || !Enum.IsDefined(own.Root))
+        {
+            return "an own path needs a root";
+        }
+
+        return own.Path is null || Updates.ExtensionStaging.SafeRelativePath(own.Path.Trim()) is null
+            ? $"'{own.Path}' does not name a file in the extension's own folder"
+            : null;
+    }
+
+    /// <summary>Where a demo's content id goes in <see cref="StoreDescriptor.DemoKeyedPaths" />.</summary>
+    internal const string Sha256Placeholder = "{sha256}";
 
     // What the host and every extension share under each root; no store may name one.
     private static readonly string[] _reservedConfigNames =
