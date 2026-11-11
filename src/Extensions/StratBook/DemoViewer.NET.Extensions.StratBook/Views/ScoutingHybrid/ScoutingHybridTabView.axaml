@@ -532,8 +532,6 @@
                             <Button FontSize="12" Padding="12 6" Content="Process this team first"
                                     IsVisible="{Binding CanProcessTeamFirst}" Command="{Binding ProcessTeamFirstCommand}"
                                     ToolTip.Tip="Queue every demo of this team ahead of the rest of the library" />
-                            <CheckBox Content="Build status" FontSize="12" IsChecked="{Binding ShowBuildStatus}"
-                                      ToolTip.Tip="Show each layer's data status (E exists, D derivable, R app work, K engine work)" />
                             <ComboBox FontSize="12" ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormOptions}"
                                       SelectedItem="{Binding Editor.SelectedFormOption}"
                                       AutomationProperties.Name="Export form"
@@ -1038,16 +1036,8 @@
                                 AutomationProperties.Name="Inspector">
                             <DockPanel>
                             <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0 0 10 0">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="15" FontWeight="Bold"
-                                               Foreground="{DynamicResource TextBright}" TextWrapping="Wrap" />
-                                    <Border Grid.Column="1" BorderBrush="{DynamicResource AccentCaution}" BorderThickness="1"
-                                            CornerRadius="4" Padding="5 1" VerticalAlignment="Center"
-                                            IsVisible="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).ShowBuildStatus, FallbackValue=False}">
-                                        <TextBlock Text="{Binding BuildCode}" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource AccentCaution}" />
-                                    </Border>
-                                </Grid>
+                                <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Bold"
+                                           Foreground="{DynamicResource TextBright}" TextWrapping="Wrap" />
                                 <StackPanel Orientation="Horizontal" Spacing="6" Margin="0 0 0 4" IsVisible="{Binding HasWindows}">
                                     <TextBlock Classes="mid" Text="Trail to" VerticalAlignment="Center" />
                                     <ItemsControl ItemsSource="{Binding Windows}">
