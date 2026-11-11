@@ -1261,6 +1261,84 @@ public class SettingsViewModelTests
         }
     }
 
+    // The catalogue on this build as it ships, before the Rule Canvas has a release: its feed answers 404
+    // (no release yet) or publishes no entries. The row names it, says nothing is published, offers no
+    // button, and a second open in the run asks no feed again.
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task InstallableExtensionRows_ACatalogueIdWithNothingPublished_ShowsQuietly_AndIsAskedOnceARun(
+        bool notFound)
+    {
+        const string canvas = "net.demoviewer.pack.rulecanvas";
+        string dir = NewTempDir();
+        try
+        {
+            UpdateFixtures.FakeFeedClient client = new();
+            if (notFound)
+            {
+                // What HttpClient raises for a release with no feed asset yet.
+                client.FeedFailure = new HttpRequestException("404", null, System.Net.HttpStatusCode.NotFound);
+            }
+            else
+            {
+                client.Feeds[UpdateFixtures.FeedUrl(canvas)] = $$"""{ "id": "{{canvas}}", "entries": [] }""";
+            }
+
+            ExtensionUpdateService updater = new(dir, [], ExtensionHost.Current, TrustPolicy.Nothing, client,
+                UpdateFixtures.FeedUrl, installTrust: UpdateFixtures.TrustAll);
+            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
+                packStatuses: [], extensionUpdates: updater, isBrowser: () => false,
+                seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
+            await using (sp)
+            {
+                DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+                while (!vm.HasInstallableExtensions && DateTimeOffset.UtcNow < deadline)
+                {
+                    await Task.Delay(20);
+                }
+
+                InstallableExtensionRow row = vm.InstallableExtensionRows.Single();
+                using (Assert.Multiple())
+                {
+                    await Assert.That(row.Id).IsEqualTo(canvas);
+                    await Assert.That(row.Name).IsEqualTo("Rule Canvas");
+                    await Assert.That(row.Entry.Status).IsEqualTo(InstallableStatus.NotPublished);
+                    await Assert.That(row.Entry.Error).IsNull();
+                    await Assert.That(row.Message).IsEqualTo("Nothing has been published yet.");
+                    await Assert.That(row.Version).IsEmpty();
+                    await Assert.That(row.Size).IsEmpty();
+                    await Assert.That(row.CanInstall).IsFalse();
+                    await Assert.That(row.CanRemove).IsFalse();
+                    await Assert.That(row.HasFailure).IsFalse();
+                    await Assert.That(client.FeedFetches).IsEqualTo(1);
+                    await Assert.That(client.Downloads).IsEqualTo(0);
+                }
+
+                vm.Dispose();
+            }
+
+            (SettingsViewModel again, SettingsService _, IFeatureGate _, ServiceProvider sp2) = NewVm(dir,
+                packStatuses: [], extensionUpdates: updater, isBrowser: () => false,
+                seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
+            await using (sp2)
+            {
+                await Task.Delay(100);
+                using (Assert.Multiple())
+                {
+                    await Assert.That(again.InstallableExtensionRows.Single().Name).IsEqualTo("Rule Canvas");
+                    await Assert.That(client.FeedFetches).IsEqualTo(1).Because("the run already asked the catalogue");
+                }
+
+                again.Dispose();
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
     // One sentence per catalogue state, the same vocabulary the update line uses.
     [Test]
     public async Task InstallableExtensionRow_Describe_OneSentencePerState()

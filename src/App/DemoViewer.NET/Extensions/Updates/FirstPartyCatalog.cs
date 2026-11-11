@@ -9,4 +9,15 @@ public static class FirstPartyCatalog
 {
     /// <summary>Every installable first-party id. A shipped id in this list is listed by nothing, safe mode included: its status row covers it.</summary>
     public static IReadOnlyList<string> Ids { get; } = ["net.demoviewer.pack.stratbook", "net.demoviewer.pack.rulecanvas"];
+
+    /// <summary>
+    ///     The name Settings shows for <paramref name="id" /> until a feed or a copy on disk gives one, so an id
+    ///     with nothing published yet is not listed by its reverse-DNS id. The id itself for any other.
+    /// </summary>
+    public static string NameOf(string id) => id switch
+    {
+        "net.demoviewer.pack.stratbook" => "Strat Book",
+        "net.demoviewer.pack.rulecanvas" => "Rule Canvas",
+        _ => id
+    };
 }

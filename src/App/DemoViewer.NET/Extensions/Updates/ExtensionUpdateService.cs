@@ -190,7 +190,7 @@ public sealed class ExtensionUpdateService
             SemVersion? staged = HighestStaged(id, above: null);
             if (rejected is not null || staged is not null)
             {
-                onDisk.Add(new InstallableExtension(id, rejected?.Manifest?.Name ?? id, null, null, null, staged,
+                onDisk.Add(new InstallableExtension(id, rejected?.Manifest?.Name ?? FirstPartyCatalog.NameOf(id), null, null, null, staged,
                     rejected, Derive(rejected, staged, InstallableStatus.Removed)));
             }
         }
@@ -386,7 +386,7 @@ public sealed class ExtensionUpdateService
         InstallableExtension[] entries = new InstallableExtension[ids.Length];
         for (int i = 0; i < ids.Length; i++)
         {
-            entries[i] = found[i] ?? new InstallableExtension(ids[i], ids[i], null, null, null, null, null,
+            entries[i] = found[i] ?? new InstallableExtension(ids[i], FirstPartyCatalog.NameOf(ids[i]), null, null, null, null, null,
                 InstallableStatus.FeedUnreachable, "the check did not finish", CheckedAt: DateTimeOffset.UtcNow);
         }
 
@@ -690,7 +690,7 @@ public sealed class ExtensionUpdateService
         LoadOutcome? rejected = RejectedOnDisk(id);
         SemVersion? staged = HighestStaged(id, above: null);
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        string name = rejected?.Manifest?.Name ?? id;
+        string name = rejected?.Manifest?.Name ?? FirstPartyCatalog.NameOf(id);
 
         Uri? url = TryResolveFeedUrl(id, out string resolveDetail);
         ExtensionFeed? feed = null;
