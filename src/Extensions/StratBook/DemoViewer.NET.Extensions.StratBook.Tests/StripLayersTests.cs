@@ -19,7 +19,7 @@ using TUnit.Assertions.Enums;
 namespace DemoViewer.NET.AppTests;
 
 /// <summary>
-///     The strip layers (economy, pace, rotations, impact, by score, timeouts) over one synthetic demo of twelve
+///     The strip layers (economy, pace, impact, by score, timeouts) over one synthetic demo of twelve
 ///     rounds. Team A (slots 0..4) is T for rounds 1 to 6 and CT for 7 to 12:
 ///     <list type="number">
 ///         <item>T pistol, won; A plants A at 0:30; A opens with a kill.</item>
@@ -319,29 +319,6 @@ public class StripLayersTests
                 .IsEqualTo("With the score within 2, their T win rate rises to 80% (+13 vs their 67% overall).");
             await Assert.That(ScoreLayer.Read([.. rounds.Where(r => r.Number <= 4)])).IsNull()
                 .Because($"no state has {ScoreDerivation.MinRounds} rounds on a side");
-        }
-    }
-
-    [Test]
-    public async Task Rotations_DrawALanePerSite_AndNameWhoRotatesFirst()
-    {
-        SetupHeatmapRound R(int n) => new(Demo, "abc", n, Freeze(n), At(n, 100), Rate, true);
-        SetupRotation[] rotations =
-        [
-            new(R(1), BombSite.A, 6, "p1", true), new(R(2), BombSite.A, 9, "p1", false),
-            new(R(3), BombSite.B, 4, "p2", true), new(R(4), BombSite.B, null, null, false)
-        ];
-        ScoutingStripChart chart = RotationsLayer.Chart(rotations)!;
-        (string Name, double Median, IReadOnlyList<SetupRotation> Rounds) fastest =
-            RotationsLayer.Fastest([.. rotations.Where(r => r.ArrivalSeconds is not null)])!.Value;
-        using (Assert.Multiple())
-        {
-            await Assert.That(chart.Lanes[0].Median).IsEqualTo(7.5);
-            await Assert.That(chart.Lanes[1].Dots.Count).IsEqualTo(1);
-            await Assert.That(chart.Lanes[0].Max).IsEqualTo(RotationsLayer.AxisSeconds);
-            await Assert.That(fastest.Name).IsEqualTo("p1");
-            await Assert.That(fastest.Median).IsEqualTo(7.5);
-            await Assert.That(RotationsLayer.Chart([new SetupRotation(R(5), BombSite.A, null, null, false)])).IsNull();
         }
     }
 

@@ -57,6 +57,10 @@ public class SetupsLayerTests
 
     private static SetupSample[] Repeat(SetupSample sample, int count) => [.. Enumerable.Repeat(sample, count)];
 
+    // One sample a second from contact, as the positions file has them.
+    private static SetupTimedSample[] Track(IReadOnlyList<(int X, string? Place)> steps) =>
+        [.. steps.Select((s, i) => new SetupTimedSample(i, At(s.X, s.Place)))];
+
     // ---- Derivations ----
 
     [Test]
@@ -212,16 +216,18 @@ public class SetupsLayerTests
         [
             // B hit: mid reaches B 6 s after contact, the A anchor at 9 s; the plant is at 10 s.
             Round(1, Planted(BombSite.B, 10, anchorA, anchorB,
-                Player("m", [At(1000, "Window")], new SetupTimedSample(0, At(1000, "Window")),
-                    new SetupTimedSample(6, At(1950, "BombsiteB"))),
-                Player("a2", [At(100, "Ticket")], new SetupTimedSample(9, At(2000, "BombsiteB"))))),
+                Player("m", [At(1000, "Window")],
+                    Track([.. Enumerable.Repeat((1000, "Window"), 6), (1450, "BombsiteB")])),
+                Player("a2", [At(100, "Ticket")],
+                    Track([(100, "Ticket"), (500, null), (900, null), .. Enumerable.Repeat((1000, "Window"), 6), (1450, "BombsiteB")])))),
             // A hit: the B anchor gets there at 12 s, after the plant at 4 s.
             Round(2, Planted(BombSite.A, 4, anchorA,
-                Player("b", [At(2000, "BombsiteB")], new SetupTimedSample(12, At(30, "BombsiteA"))))),
+                Player("b", [At(2000, "BombsiteB")],
+                    Track([(2000, "BombsiteB"), (1600, null), (1200, null), .. Enumerable.Repeat((1000, "Window"), 9), (550, "BombsiteA")])))),
             // A hit with nobody off A: no rotation to time.
             Round(3, Planted(BombSite.A, 4, anchorA)),
             // B hit where the rotator never arrives inside the followed window.
-            Round(4, Planted(BombSite.B, 4, anchorB, Player("m", [At(1000, "Window")], new SetupTimedSample(3, At(1000, "Window"))))),
+            Round(4, Planted(BombSite.B, 4, anchorB, Player("m", [At(1000, "Window")], Track([.. Enumerable.Repeat((1000, "Window"), 4)])))),
             // No plant.
             Round(5, Detail(true, anchorA, anchorB))
         ];
@@ -607,6 +613,24 @@ public class SetupsLayerTests
             }).Append(new RoundPosition(0, 5000, 0, 0, 2)))
         };
 
+        // A walk a rotation counts (one step a second, never faster than a player runs): out of Window at
+        // `leave`, onto B at `arrive`.
+        private static (int, int) WindowToB(int step, int leave, int arrive) =>
+            step >= arrive + 1 ? (1950, 1)
+            : step == arrive ? (1600, 1)
+            : step >= leave ? (1160, 2)
+            : Standard(7);
+
+        // p8 off B from 8 s after contact, through Window, onto A at 12 s.
+        private static (int, int) BToA(int step) => step switch
+        {
+            >= 53 => (30, 0),
+            52 => (700, 0),
+            >= 49 => (1150, 2),
+            48 => (1600, 2),
+            _ => Standard(8)
+        };
+
         private static (int, int) Standard(int slot) => slot switch
         {
             5 => (0, 0),
@@ -648,10 +672,10 @@ public class SetupsLayerTests
                 Players = [.. _teamBSlots.Select(s => new RoundPositionsPlayer(s, ulong.Parse(Id(s + 6), System.Globalization.CultureInfo.InvariantCulture), $"p{s}"))],
                 Rounds =
                 [
-                    Positions(1, (slot, step) => slot == 7 && step >= 46 ? (1950, 1) : Standard(slot)),
-                    Positions(2, (slot, step) => slot == 8 && step >= 52 ? (30, 0) : slot == 7 && step >= 55 ? (20, 0) : Standard(slot)),
+                    Positions(1, (slot, step) => slot == 7 ? WindowToB(step, 45, 46) : Standard(slot)),
+                    Positions(2, (slot, step) => slot == 8 ? BToA(step) : slot == 7 && step >= 55 ? (20, 0) : Standard(slot)),
                     Positions(3, (slot, _) => Standard(slot)),
-                    Positions(4, (slot, step) => slot == 9 ? (100, 0) : slot == 7 && step >= 48 ? (1950, 1) : Standard(slot))
+                    Positions(4, (slot, step) => slot == 9 ? (100, 0) : slot == 7 ? WindowToB(step, 45, 48) : Standard(slot))
                 ]
             });
             SetupHeatmapService service = new(teams, cache.Library(), cache.RoundFacts(), store, sources.FingerprintFor);
