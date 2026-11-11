@@ -104,6 +104,7 @@ public class StratBookPackTests
         "DemoViewer.NET.Extensions.StratBook.Modules.Situations.ISituationPlayback",
         "DemoViewer.NET.Extensions.StratBook.ViewModels.Situations.SituationsTabViewModel",
         "DemoViewer.NET.Services.Review.ReviewQueue",
+        "DemoViewer.NET.Services.Transfer.ITransferExporter",
         "DemoViewer.NET.Extensions.StratBook.ViewModels.Review.ReviewQueueTabViewModel",
         "DemoViewer.NET.Extensions.StratBook.Modules.SuggestedTags.SuggestedInboxService",
         "DemoViewer.NET.Extensions.StratBook.ViewModels.SuggestedTags.SuggestedInboxViewModel",

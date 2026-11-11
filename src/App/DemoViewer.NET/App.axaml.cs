@@ -35,6 +35,7 @@ using DemoViewer.NET.Services.MatchMeta;
 using DemoViewer.NET.Services.Players;
 using DemoViewer.NET.Services.Review;
 using DemoViewer.NET.Services.Startup;
+using DemoViewer.NET.Services.Transfer;
 using DemoViewer.NET.Theming;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using DemoViewer.NET.ViewModels.Highlights;
@@ -1270,6 +1271,11 @@ public class App : Application
             scheduleSave: QueueWork.Saves(sp.GetRequiredService<IDemoProcessingQueue>(), "Save: review queue", "review",
                 "save:review-queue"),
             scheduleLoad: StartupLoad(sp, "Load: review queue", "review")));
+        // Library transfer: export reads the cache and the config root and writes only into the bundle folder.
+        services.AddSingleton<ITransferExporter>(sp => new TransferExporter(sp.GetRequiredService<DemoCacheStore>(),
+            sp.GetRequiredService<IDemoProcessingQueue>(),
+            new TransferSources(AppPaths.ConfigRoot,
+                () => sp.GetRequiredService<SettingsService>().Current.Library.Folders)));
         // The "one parse, many evaluators" scheduler: the single submitter that asks the registered passes
         // about a demo and submits them together as ONE visit, so the demo is read once. Library,
         // Highlights and Round Facts are core, always on the visit; a pack's passes come from a PassRegistry built over its

@@ -57,6 +57,27 @@ public static class TransferLayout
     /// <summary>The start of every bundle folder's name.</summary>
     public const string BundleNamePrefix = "DemoViewer Transfer ";
 
+    /// <summary>
+    ///     What a demo's cache and extension files are named by in the bundle, in place of the content hash or
+    ///     file key they carry on disk: <c>demo.json.gz</c>, <c>demo.player_round.facts.player_round.json.gz</c>.
+    ///     The folder already names the demo, and a second hash would push real sibling names past the segment
+    ///     limit and long bundle paths past Windows' 260 characters.
+    /// </summary>
+    public const string DemoFileStem = "demo";
+
+    /// <summary>
+    ///     A demo file's bundle name from <paramref name="rest" />, the part of its disk name after the hash or
+    ///     key (it starts with <c>.</c>).
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="rest" /> does not start with <c>.</c> or is not portable.</exception>
+    public static string DemoFileName(string rest)
+    {
+        ArgumentNullException.ThrowIfNull(rest);
+        return rest.StartsWith('.')
+            ? Segment(DemoFileStem + rest)
+            : throw new ArgumentException($"'{rest}' does not start with '.'.", nameof(rest));
+    }
+
     /// <summary>The bundle folder name for a local time, e.g. <c>DemoViewer Transfer 2026-11-11 1530</c>.</summary>
     public static string BundleFolderName(DateTime localTime) =>
         BundleNamePrefix + localTime.ToString("yyyy-MM-dd HHmm", CultureInfo.InvariantCulture);
