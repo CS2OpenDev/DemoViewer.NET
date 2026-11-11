@@ -477,6 +477,7 @@
         </ItemsPanelTemplate>
     </UserControl.Resources>
 
+    <Panel>
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" Background="{DynamicResource ShellBg}">
         <StackPanel Margin="16" Spacing="12">
             <!-- Feedback: both layouts ship this release; one quiet line asks which reads better. -->
@@ -532,20 +533,11 @@
                             <Button FontSize="12" Padding="12 6" Content="Process this team first"
                                     IsVisible="{Binding CanProcessTeamFirst}" Command="{Binding ProcessTeamFirstCommand}"
                                     ToolTip.Tip="Queue every demo of this team ahead of the rest of the library" />
-                            <ComboBox FontSize="12" ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormOptions}"
-                                      SelectedItem="{Binding Editor.SelectedFormOption}"
-                                      AutomationProperties.Name="Export form"
-                                      ToolTip.Tip="One-pager: the starred lines. Long form: every line not dismissed." />
-                            <ComboBox FontSize="12"
-                                      ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormatOptions}"
-                                      SelectedItem="{Binding Editor.SelectedFormatOption}"
-                                      AutomationProperties.Name="Export format"
-                                      IsVisible="{Binding !IsBrowser}" />
-                            <Button Classes="primary" FontSize="12" Padding="12 6"
-                                    Content="{Binding Editor.ExportLabel}"
-                                    Command="{Binding Editor.ExportCommand}" IsVisible="{Binding !IsBrowser}" />
-                            <Button Content="Copy markdown" Classes="ghost" FontSize="12" Padding="10 6"
-                                    Click="OnCopyMarkdownClick" />
+                            <Button Name="OnePagerButton" Classes="primary" FontSize="12" Padding="12 6"
+                                    Click="OnOnePagerClick" AutomationProperties.Name="Open the one-pager"
+                                    ToolTip.Tip="The starred lines, ready to export">
+                                <TextBlock Text="{Binding Editor.StarredCount, StringFormat='One-pager · {0} starred'}" />
+                            </Button>
                         </StackPanel>
                     </Grid>
                     <WrapPanel Orientation="Horizontal" Margin="14 2 14 8" IsVisible="{Binding HasSelection}">
@@ -553,11 +545,6 @@
                         <TextBlock Classes="mid" Text="{Binding OpponentMixLine}" VerticalAlignment="Center"
                                    Margin="0 0 14 0" Foreground="{DynamicResource TextBright}" />
                     </WrapPanel>
-                    <StackPanel Margin="14 0 14 6" Spacing="2" IsVisible="{Binding HasSelection}">
-                        <TextBlock Classes="mid" Text="{Binding Editor.ExportUnavailableNote}"
-                                   IsVisible="{Binding Editor.HasExportUnavailableNote}" />
-                        <TextBlock Classes="mid" Text="{Binding Editor.ExportLine}" TextWrapping="Wrap" />
-                    </StackPanel>
                 </StackPanel>
             </Border>
 
@@ -866,6 +853,32 @@
                                         AutomationProperties.Name="The map with the drawn layers; the numbers are in the inspector">
                                     <Panel>
                                         <host:ScoutingMapHost />
+                                        <!-- The inspected layer's own controls (the AWP trail window), on the map they change. -->
+                                        <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Padding="10 6"
+                                                CornerRadius="6" Background="{DynamicResource CardBg}"
+                                                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                                                DataContext="{Binding Layers.Inspector}" x:DataType="layers:ScoutingInspectorViewModel"
+                                                IsVisible="{Binding HasWindows}" AutomationProperties.Name="Layer controls">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock FontSize="12" FontWeight="SemiBold" Text="{Binding Title}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextBright}" />
+                                                <TextBlock Classes="mid" Text="trail to" VerticalAlignment="Center" />
+                                                <ItemsControl ItemsSource="{Binding Windows}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Orientation="Horizontal" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="layers:ScoutingWindowPillViewModel">
+                                                            <RadioButton Classes="seg pill" GroupName="scouting-window" Content="{Binding Label}"
+                                                                         IsChecked="{Binding IsOn, Mode=OneWay}" Command="{Binding PickCommand}"
+                                                                         AutomationProperties.Name="{Binding AccessibleName}" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
                                         <!-- What the stage waits on, or why it is empty: a line over the map, never a spinner. -->
                                         <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" Padding="10 6"
                                                 CornerRadius="6" MaxWidth="460" Background="{DynamicResource CardBg}"
@@ -1038,23 +1051,19 @@
                             <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0 0 10 0">
                                 <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Bold"
                                            Foreground="{DynamicResource TextBright}" TextWrapping="Wrap" />
-                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0 0 0 4" IsVisible="{Binding HasWindows}">
-                                    <TextBlock Classes="mid" Text="Trail to" VerticalAlignment="Center" />
-                                    <ItemsControl ItemsSource="{Binding Windows}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
+                                <!-- The focused layer's tabs, when it names more than one. -->
+                                <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Margin="0 4 0 2"
+                                        IsVisible="{Binding HasTabs}">
+                                    <ItemsControl ItemsSource="{Binding Tabs}" ItemsPanel="{StaticResource WrapItems}">
                                         <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="layers:ScoutingWindowPillViewModel">
-                                                <RadioButton Classes="seg pill" GroupName="scouting-window" Content="{Binding Label}"
-                                                             IsChecked="{Binding IsOn, Mode=OneWay}" Command="{Binding PickCommand}"
-                                                             AutomationProperties.Name="{Binding AccessibleName}" />
+                                            <DataTemplate x:DataType="layers:ScoutingInspectorTabViewModel">
+                                                <Button Classes="maptab" Classes.on="{Binding IsSelected}" Padding="12 6"
+                                                        Content="{Binding Name}" Command="{Binding SelectCommand}"
+                                                        AutomationProperties.Name="{Binding Name}" />
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                </StackPanel>
+                                </Border>
                             </StackPanel>
                             <ScrollViewer Name="InspectorScroll" HorizontalScrollBarVisibility="Disabled">
                             <StackPanel Spacing="4" Margin="0 0 10 0">
@@ -1083,7 +1092,7 @@
                                     </Grid>
                                 </StackPanel>
                                 <ItemsControl ItemsSource="{Binding Reads}" ItemTemplate="{StaticResource InspectorRow}" />
-                                <ItemsControl ItemsSource="{Binding Sections}">
+                                <ItemsControl ItemsSource="{Binding TabSections}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="layers:ScoutingInspectorSectionViewModel">
                                             <StackPanel Margin="0 10 0 0">
@@ -1098,43 +1107,6 @@
                                 <TextBlock Classes="mid" Text="{Binding ReviewLine}"
                                            IsVisible="{Binding ReviewLine, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
-                                <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0" Padding="0 10 0 0"
-                                        Margin="0 14 0 0"
-                                        DataContext="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext)}"
-                                        x:DataType="vm:ScoutingReportTabViewModel">
-                                    <StackPanel Spacing="4">
-                                        <TextBlock Classes="h" FontSize="12" Text="{Binding Editor.OnePagerHeading}" />
-                                        <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" TextWrapping="Wrap"
-                                                   Text="Suggested lines start starred. Unstar any; star a number to add it with its scope." />
-                                        <TextBlock Classes="mid" TextWrapping="Wrap" IsVisible="{Binding !Editor.HasStarred}"
-                                                   Text="Nothing starred. The one-pager export stays off until something is." />
-                                        <ItemsControl ItemsSource="{Binding Editor.Starred}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate x:DataType="vm:ScoutingReportFindingViewModel">
-                                                    <Grid ColumnDefinitions="*,Auto" Margin="0 2">
-                                                        <TextBlock Grid.Column="0" FontSize="12" TextWrapping="Wrap">
-                                                            <Run Text="{Binding Where}" Foreground="{DynamicResource TextBright}" />
-                                                            <Run Text=" · " Foreground="{DynamicResource TextBright}" />
-                                                            <Run Text="{Binding DisplayText}" Foreground="{DynamicResource TextValue}" />
-                                                        </TextBlock>
-                                                        <Button Grid.Column="1" Classes="ghost" Padding="3" VerticalAlignment="Top"
-                                                                Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).UnstarCommand, FallbackValue={x:Null}}"
-                                                                CommandParameter="{Binding}"
-                                                                ToolTip.Tip="Take it off the one-pager">
-                                                            <AutomationProperties.Name>
-                                                                <MultiBinding StringFormat="Unstar &quot;{0}&quot; · {1}">
-                                                                    <Binding Path="Text" />
-                                                                    <Binding Path="Where" />
-                                                                </MultiBinding>
-                                                            </AutomationProperties.Name>
-                                                            <Path Classes="star on" Data="{StaticResource StarGeometry}" />
-                                                        </Button>
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </Border>
                             </StackPanel>
                             </ScrollViewer>
                             </DockPanel>
@@ -1271,4 +1243,78 @@
             </Border>
         </StackPanel>
     </ScrollViewer>
+
+    <!-- The one-pager: the starred lines, unstar, and the export, in a panel along the right edge. Escape, Close or a
+         click on the dimmed page closes it. -->
+    <Border Name="OnePagerScrim" IsVisible="False" Background="{DynamicResource ModalScrim}"
+            PointerPressed="OnOnePagerScrimPressed">
+        <Border Name="OnePagerPanel" Classes="panel" Width="460" HorizontalAlignment="Right" Margin="0 12 12 12"
+                CornerRadius="8" Padding="16 14" AutomationProperties.Name="One-pager">
+            <DockPanel>
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0 0 0 6">
+                    <TextBlock Classes="h" FontSize="15" Text="{Binding Editor.OnePagerHeading}" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Name="OnePagerClose" Classes="ghost" Content="Close" FontSize="12" Padding="10 4"
+                            Click="OnOnePagerCloseClick" ToolTip.Tip="Close (Esc)" />
+                </Grid>
+                <TextBlock DockPanel.Dock="Top" FontSize="11" Foreground="{DynamicResource TextBright}" TextWrapping="Wrap"
+                           Margin="0 0 0 8"
+                           Text="Suggested lines start starred. Unstar any here; star a line or a number in the inspector to add it with its scope." />
+                <!-- The export, at the foot of the panel. -->
+                <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0 10 0 0">
+                    <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0" />
+                    <WrapPanel Orientation="Horizontal">
+                        <ComboBox FontSize="12" ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormOptions}"
+                                  SelectedItem="{Binding Editor.SelectedFormOption}" Margin="0 0 8 6"
+                                  AutomationProperties.Name="Export form"
+                                  ToolTip.Tip="One-pager: the starred lines. Long form: every line not dismissed." />
+                        <ComboBox FontSize="12"
+                                  ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormatOptions}"
+                                  SelectedItem="{Binding Editor.SelectedFormatOption}" Margin="0 0 8 6"
+                                  AutomationProperties.Name="Export format"
+                                  IsVisible="{Binding !IsBrowser}" />
+                        <Button Classes="primary" FontSize="12" Padding="12 6" Margin="0 0 8 6"
+                                Content="{Binding Editor.ExportLabel}"
+                                Command="{Binding Editor.ExportCommand}" IsVisible="{Binding !IsBrowser}" />
+                        <Button Content="Copy markdown" Classes="ghost" FontSize="12" Padding="10 6" Margin="0 0 0 6"
+                                Click="OnCopyMarkdownClick" />
+                    </WrapPanel>
+                    <TextBlock Classes="mid" Text="{Binding Editor.ExportUnavailableNote}"
+                               IsVisible="{Binding Editor.HasExportUnavailableNote}" />
+                    <TextBlock Classes="mid" Text="{Binding Editor.ExportLine}" TextWrapping="Wrap" />
+                </StackPanel>
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="4" Margin="0 0 10 0">
+                        <TextBlock Classes="mid" TextWrapping="Wrap" IsVisible="{Binding !Editor.HasStarred}"
+                                   Text="Nothing starred. The one-pager export stays off until something is." />
+                        <ItemsControl ItemsSource="{Binding Editor.Starred}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ScoutingReportFindingViewModel">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0 2">
+                                        <TextBlock Grid.Column="0" FontSize="12" TextWrapping="Wrap">
+                                            <Run Text="{Binding Where}" Foreground="{DynamicResource TextBright}" />
+                                            <Run Text=" · " Foreground="{DynamicResource TextBright}" />
+                                            <Run Text="{Binding DisplayText}" Foreground="{DynamicResource TextValue}" />
+                                        </TextBlock>
+                                        <Button Grid.Column="1" Classes="ghost" Padding="3" VerticalAlignment="Top"
+                                                Command="{Binding $parent[UserControl].((vm:ScoutingReportTabViewModel)DataContext).UnstarCommand, FallbackValue={x:Null}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip.Tip="Take it off the one-pager">
+                                            <AutomationProperties.Name>
+                                                <MultiBinding StringFormat="Unstar &quot;{0}&quot; · {1}">
+                                                    <Binding Path="Text" />
+                                                    <Binding Path="Where" />
+                                                </MultiBinding>
+                                            </AutomationProperties.Name>
+                                            <Path Classes="star on" Data="{StaticResource StarGeometry}" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+    </Border>
+    </Panel>
 </UserControl>

@@ -153,6 +153,45 @@ public partial class ScoutingHybridTabView : UserControl
         }
     }
 
+    // The header's one-pager button: the side panel with the starred lines and the export.
+    private void OnOnePagerClick(object? sender, RoutedEventArgs e)
+    {
+        OnePagerScrim.IsVisible = true;
+        OnePagerClose.Focus();
+        e.Handled = true;
+    }
+
+    private void OnOnePagerCloseClick(object? sender, RoutedEventArgs e) => CloseOnePager();
+
+    // A press on the dimmed page closes the panel; a press inside it does not.
+    private void OnOnePagerScrimPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (ReferenceEquals(e.Source, OnePagerScrim))
+        {
+            CloseOnePager();
+            e.Handled = true;
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && OnePagerScrim.IsVisible)
+        {
+            CloseOnePager();
+            e.Handled = true;
+            return;
+        }
+
+        base.OnKeyDown(e);
+    }
+
+    private void CloseOnePager()
+    {
+        OnePagerScrim.IsVisible = false;
+        OnePagerButton.Focus();
+    }
+
     private async void OnCopyMarkdownClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not ScoutingReportTabViewModel { Editor: { HasTeam: true } editor })

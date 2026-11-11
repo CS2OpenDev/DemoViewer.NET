@@ -1,12 +1,16 @@
 #region
 
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
 using DemoViewer.NET.Configuration;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingHybrid;
+using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 using DemoViewer.NET.Extensions.StratBook.Views.ScoutingHybrid;
@@ -124,8 +128,34 @@ public class ScoutingHybridTests
                     .Single(i => ReferenceEquals(i.ItemsSource, vm.MatchHistory));
                 int historyRows = history.IsEffectivelyVisible ? history.ItemCount : 0;
                 bool poolHidden = !Heading("W–L").IsEffectivelyVisible;
+
+                // The one-pager lives in a side panel the header opens, not in the inspector; Escape closes it.
+                ScoutingHybridTabView view = (ScoutingHybridTabView)window.Content!;
+                Border inspector = view.FindControl<Border>("InspectorPanel")!;
+                bool onePagerOutOfInspector = !inspector.GetVisualDescendants().OfType<TextBlock>()
+                    .Any(t => t.Text == vm.Editor.OnePagerHeading);
+                view.FindControl<Button>("OnePagerButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                UxConsistencyRenderTests.Settle();
+                Border scrim = view.FindControl<Border>("OnePagerScrim")!;
+                bool onePagerOpens = scrim.IsVisible && scrim.GetVisualDescendants().OfType<ItemsControl>()
+                    .Any(i => ReferenceEquals(i.ItemsSource, vm.Editor.Starred) && i.ItemCount == vm.Editor.Starred.Count);
+                UxConsistencyRenderTests.Save(window, $"hybrid-onepager-{theme}-{Width}.png");
+                view.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape });
+                bool onePagerCloses = !scrim.IsVisible;
+
+                // A layer's own controls (the AWP trail window) sit on the map, not in the inspector.
+                vm.Layers.Focus(vm.Layers.Find("awp")!);
+                await ScoutingReportTestKit.Settle(vm, posted);
+                UxConsistencyRenderTests.Settle();
+                Border controls = window.GetVisualDescendants().OfType<Border>()
+                    .Single(b => AutomationProperties.GetName(b) == "Layer controls");
+                bool controlsOnMap = controls.IsEffectivelyVisible
+                                     && controls.GetVisualParent() is Panel overMap
+                                     && overMap.Children.OfType<ScoutingMapHost>().Any()
+                                     && !inspector.GetVisualDescendants().OfType<RadioButton>().Any(r => r.Classes.Contains("pill"));
+                UxConsistencyRenderTests.Save(window, $"hybrid-awp-controls-{theme}-{Width}.png");
                 window.Close();
-                return new { sameRow, rosterLeft, halves, above, oneMapPanel, layersOnFilterRow, noScopeLabel, noTimeline, historyRows, demos = vm.MatchHistory.Count, poolHidden };
+                return new { sameRow, rosterLeft, halves, above, oneMapPanel, layersOnFilterRow, noScopeLabel, noTimeline, historyRows, demos = vm.MatchHistory.Count, poolHidden, onePagerOutOfInspector, onePagerOpens, onePagerCloses, controlsOnMap };
             }
             finally
             {
@@ -150,6 +180,10 @@ public class ScoutingHybridTests
             await Assert.That(seen.demos).IsGreaterThan(0);
             await Assert.That(seen.historyRows).IsEqualTo(seen.demos).Because("Match history lists every demo");
             await Assert.That(seen.poolHidden).IsTrue().Because("one tab of the panel at a time");
+            await Assert.That(seen.onePagerOutOfInspector).IsTrue().Because("the one-pager left the inspector");
+            await Assert.That(seen.onePagerOpens).IsTrue().Because("the header button opens it with every starred line");
+            await Assert.That(seen.onePagerCloses).IsTrue().Because("Escape closes it");
+            await Assert.That(seen.controlsOnMap).IsTrue().Because("the AWP trail window sits on the map it changes");
         }
     }
 
