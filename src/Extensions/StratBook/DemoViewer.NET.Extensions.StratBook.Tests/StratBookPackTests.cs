@@ -139,6 +139,7 @@ public class StratBookPackTests
         "DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportLoads",
         "DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.ScoutingReportTabViewModel",
         "DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingDashboard.ScoutingDashboardTabViewModel",
+        "DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingHybrid.ScoutingHybridReport",
         "DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.LineupClipService",
         "DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook.LineupClipPass",
         "DemoViewer.NET.Services.DemoProcessing.DemoScheduler",
@@ -154,7 +155,7 @@ public class StratBookPackTests
         "net.demoviewer.playback2d, net.demoviewer.ruleworkbench, net.demoviewer.highlights, "
         + "net.demoviewer.situations, net.demoviewer.teams, net.demoviewer.review, net.demoviewer.suggested, "
         + "net.demoviewer.roundtagger, net.demoviewer.stratbook, net.demoviewer.utilitybook, net.demoviewer.scouting-report, "
-        + "net.demoviewer.scouting-report-dashboard";
+        + "net.demoviewer.scouting-report-dashboard, net.demoviewer.scouting-report-hybrid";
 
     // Every id the static catalog used to hold for the Strat Book, with the parent it has now.
     private static readonly (string Id, string Parent)[] _movedIds =
@@ -341,6 +342,7 @@ public class StratBookPackTests
             // The ids the pack declared after the move, each after the tab it sits beside.
             List<string> expected = [StratBookPack.PackFeatureId, .. _movedIds.Select(m => m.Id)];
             expected.Insert(expected.IndexOf("tab.scouting-report") + 1, "tab.scouting-report-dashboard");
+            expected.Insert(expected.IndexOf("tab.scouting-report-dashboard") + 1, "tab.scouting-report-hybrid");
             string[] packFeatureIds = [.. new StratBookPack().Features.Select(f => f.Id)];
             await Assert.That(packFeatureIds).IsEquivalentTo(expected, CollectionOrdering.Matching);
             await Assert.That(FeatureCatalog.Children(StratBookPack.PackFeatureId).Select(d => d.Id))
@@ -532,7 +534,7 @@ public class StratBookPackTests
             using (Assert.Multiple())
             {
                 await Assert.That(vm.Tabs.Select(t => t.TabId)).Contains(HostIds.StratBookHub);
-                await Assert.That(vm.StratBookHub().Sections.Sections.Count).IsEqualTo(8);
+                await Assert.That(vm.StratBookHub().Sections.Sections.Count).IsEqualTo(9);
                 await Assert.That(vm.LibraryTab.HasTeamsView).IsTrue();
                 await Assert.That(vm.LibraryTab.Filters).IsNotEmpty();
                 await Assert.That(vm.LibraryTab.HasBadge).IsTrue();
@@ -543,13 +545,13 @@ public class StratBookPackTests
     private static readonly string[] _railOrder =
     [
         "stratbook.browser", "situations.search", "tagger.matrix", "utilitybook.browser", "review.queue",
-        "scouting-report.browser", "scouting-report-dashboard.browser",
+        "scouting-report.browser", "scouting-report-dashboard.browser", "scouting-report-hybrid.browser",
         "suggested.inbox"
     ];
 
     private static readonly string[] _railHeaders =
         ["Strats", "Situations", "Tags", "Utility", "Review", "Scouting Report (Layers)",
-            "Scouting Report (Dashboard)", "Suggested"];
+            "Scouting Report (Dashboard)", "Scouting Report (Hybrid)", "Suggested"];
 
     // The hub is a declaration the host draws, and the rail must read exactly as it did when the pack drew it.
     // The rail's entries are the modules' own descriptors, so the badge a module moves is the badge the rail shows.

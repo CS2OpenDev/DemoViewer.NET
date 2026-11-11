@@ -3,6 +3,7 @@
 using CS2DemoKit.Analysis.Diagnostics;
 using DemoViewer.NET.Extensions.StratBook.Modules;
 using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingDashboard;
+using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingHybrid;
 using DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.Modules.Review;
 using DemoViewer.NET.Extensions.StratBook.Modules.RoundTagger;
@@ -20,6 +21,7 @@ using DemoViewer.NET.Extensions.StratBook.Services.Tags;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.Services.Zones;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingDashboard;
+using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingHybrid;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.Review;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.RoundTagger;
@@ -174,6 +176,13 @@ public sealed class StratBookPack : IExtension
             ScoutingDashboardModule.TabFeatureId, ExtensionFeatureKind.Tab, "Scouting Report (Dashboard)",
             "The scouting page as cards: one per finding for the map and side in view, each with its numbers, "
             + "starred into the same one-pager as the Layers tab.",
+            PackFeatureId, AudienceDefaults.Everyone),
+        // The Scouting Report (Hybrid): the Layers tab laid out tighter, the start of a mix of the two layouts.
+        // Default-visible like the other two.
+        new(
+            ScoutingHybridModule.TabFeatureId, ExtensionFeatureKind.Tab, "Scouting Report (Hybrid)",
+            "The Layers page laid out tighter: roster and map pool side by side, and one panel for the map in "
+            + "view. Same team, stars and one-pager as the other two.",
             PackFeatureId, AudienceDefaults.Everyone),
 
         // ---------------- SUB-FEATURES (ParentId = owning tab) ----------------
@@ -694,6 +703,8 @@ public sealed class StratBookPack : IExtension
         // The Dashboard tab: its own report over the same services and stores (team, map and side are its own;
         // stars, notes, ranks and vetoes are shared), laid out as cards.
         services.AddSingleton(sp => new ScoutingDashboardTabViewModel(ScoutingReportFor(sp, "scouting-dashboard")));
+        // The Hybrid tab: a third report of the Layers kind, its own team, map and side over the same stores.
+        services.AddSingleton(sp => new ScoutingHybridReport(ScoutingReportFor(sp, "scouting-hybrid")));
 
         // Lineup Clip Render: every repeated throw position and technique gets a GIF and its setpos line,
         // rendered one demo at a time as processing queue items and shown on the Utility Book's position card.
@@ -1059,6 +1070,9 @@ public sealed class StratBookPack : IExtension
 
         // The Scouting Report as a dashboard.
         contributions.Tabs(new ScoutingDashboardModule(sp.GetRequiredService<ScoutingDashboardTabViewModel>));
+
+        // The Scouting Report (Hybrid).
+        contributions.Tabs(new ScoutingHybridModule(() => sp.GetRequiredService<ScoutingHybridReport>().Report));
     }
 
     // The Utility Book tab, and the Strat Book's lineup picker (locked to the strat's map): the same index,

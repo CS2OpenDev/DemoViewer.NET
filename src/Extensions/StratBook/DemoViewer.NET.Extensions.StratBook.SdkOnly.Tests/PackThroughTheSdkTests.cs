@@ -213,7 +213,8 @@ public class PackThroughTheSdkTests
             "net.demoviewer.stratbook",
             "net.demoviewer.utilitybook",
             "net.demoviewer.scouting-report",
-            "net.demoviewer.scouting-report-dashboard"
+            "net.demoviewer.scouting-report-dashboard",
+            "net.demoviewer.scouting-report-hybrid"
         ], CollectionOrdering.Matching);
 
         // Each pass declares what it reads, so the schedule is a property of these pairs, not of call order.
