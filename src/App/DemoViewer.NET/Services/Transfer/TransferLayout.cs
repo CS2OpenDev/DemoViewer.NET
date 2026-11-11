@@ -78,6 +78,19 @@ public static class TransferLayout
             : throw new ArgumentException($"'{rest}' does not start with '.'.", nameof(rest));
     }
 
+    /// <summary>
+    ///     The rest of a demo file's disk name from its bundle name (<c>demo.json.gz</c> gives <c>.json.gz</c>), or
+    ///     null when <paramref name="bundleName" /> is not a <see cref="DemoFileStem" /> name.
+    /// </summary>
+    public static string? DemoFileRest(string bundleName)
+    {
+        ArgumentNullException.ThrowIfNull(bundleName);
+        return bundleName.Length > DemoFileStem.Length + 1
+            && bundleName.StartsWith(DemoFileStem + ".", StringComparison.Ordinal)
+                ? bundleName[DemoFileStem.Length..]
+                : null;
+    }
+
     /// <summary>The bundle folder name for a local time, e.g. <c>DemoViewer Transfer 2026-11-11 1530</c>.</summary>
     public static string BundleFolderName(DateTime localTime) =>
         BundleNamePrefix + localTime.ToString("yyyy-MM-dd HHmm", CultureInfo.InvariantCulture);

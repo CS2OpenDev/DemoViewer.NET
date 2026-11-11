@@ -35,11 +35,11 @@ internal sealed class BundleBuilder(string root)
     }
 
     public TransferFile Record(DemoCacheRecord record) =>
-        File(TransferLayout.CacheFile(record.Sha256!, record.Sha256 + DemoCacheStore.RecordSuffix),
+        File(TransferLayout.CacheFile(record.Sha256!, TransferLayout.DemoFileName(DemoCacheStore.RecordSuffix)),
             SidecarJson.SerializeGzip(record, _recordJson));
 
     public TransferFile Sibling(string sha, string suffix, string text) =>
-        File(TransferLayout.CacheFile(sha, sha + suffix), Encoding.UTF8.GetBytes(text));
+        File(TransferLayout.CacheFile(sha, TransferLayout.DemoFileName(suffix)), Encoding.UTF8.GetBytes(text));
 
     public TransferFile Annotations(string sha, params string[] elementIds) =>
         File(TransferLayout.AnnotationsFile(sha), AnnotationDocument(sha, elementIds));

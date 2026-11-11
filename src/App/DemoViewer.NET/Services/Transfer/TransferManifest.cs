@@ -45,7 +45,10 @@ public sealed record TransferManifest
     /// <summary>The options the export ran with.</summary>
     public required TransferManifestOptions Options { get; init; }
 
-    /// <summary>The ruleset identities the data was computed under, for the staleness warning on import.</summary>
+    /// <summary>
+    ///     The exporting machine's rulesets that are on, one <c>id:identity</c> each as
+    ///     <see cref="TransferEnvironment" /> lists them, for the staleness warning on import.
+    /// </summary>
     public required IReadOnlyList<string> RulesetIdentities { get; init; }
 
     /// <summary>The extensions whose data the bundle carries, with the version that wrote it.</summary>

@@ -37,6 +37,7 @@ public sealed class TransferExporter : ITransferExporter
 
     private readonly DemoCacheStore _cache;
     private readonly TransferPlanner _planner;
+    private readonly TransferSources _sources;
     private readonly IDemoProcessingQueue? _queue;
     private readonly TransferTarget _target;
     private readonly TimeProvider _time;
@@ -68,6 +69,7 @@ public sealed class TransferExporter : ITransferExporter
         _queue = queue;
         _target = target ?? new TransferTarget();
         _time = time ?? TimeProvider.System;
+        _sources = sources;
         _planner = new TransferPlanner(cache, queue, sources, demLength);
     }
 
@@ -156,7 +158,7 @@ public sealed class TransferExporter : ITransferExporter
                 SourceOs = RuntimeInformation.OSDescription,
                 Options = new TransferManifestOptions(request.IncludeDemFiles, request.IncludeUserData,
                     request.AllDemos),
-                RulesetIdentities = [.. run.RulesetIdentities.Order(StringComparer.Ordinal)],
+                RulesetIdentities = [.. (_sources.Environment?.Invoke().RulesetIdentities ?? [])],
                 Extensions = run.ExtensionVersions(),
                 Demos = run.Demos,
                 Shared = shared
@@ -194,7 +196,6 @@ public sealed class TransferExporter : ITransferExporter
         public List<TransferDemo> Demos { get; } = [];
         public List<TransferSummaryItem> Items { get; } = [];
         public List<TransferWarning> Warnings { get; } = [];
-        public HashSet<string> RulesetIdentities { get; } = new(StringComparer.Ordinal);
 
         // Every exported demo's paths on this machine, for the review queue's path-only entries.
         private Dictionary<string, string> ShaByPath { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -296,14 +297,6 @@ public sealed class TransferExporter : ITransferExporter
                 .FirstOrDefault(f => f is not null && f.Size == row.Size) is { } read
                 ? TransferFingerprint.From(read)
                 : null;
-
-            foreach (PackStamp stamp in row.PackStamps)
-            {
-                if (stamp.Fingerprint is { Length: > 0 } identity)
-                {
-                    RulesetIdentities.Add(stamp.Id + "=" + identity);
-                }
-            }
 
             foreach (string path in paths.Append(row.Path))
             {

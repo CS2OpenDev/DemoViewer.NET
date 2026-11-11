@@ -26,7 +26,6 @@ using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
-using DemoViewer.NET.Services.Transfer;
 using DemoViewer.NET.Services.Dependencies;
 using DemoViewer.NET.Services.Diagnostics;
 using DemoViewer.NET.Services.Facts;
@@ -1298,7 +1297,8 @@ public class App : Application
         services.AddSingleton<ITransferExporter>(sp => new TransferExporter(sp.GetRequiredService<DemoCacheStore>(),
             sp.GetRequiredService<IDemoProcessingQueue>(),
             new TransferSources(AppPaths.ConfigRoot,
-                () => sp.GetRequiredService<SettingsService>().Current.Library.Folders)));
+                () => sp.GetRequiredService<SettingsService>().Current.Library.Folders,
+                () => TransferEnvironment.Local(sp.GetRequiredService<MergedRulesBuild>(), packs))));
         // Library transfer import: cache rows through the store so the orphan sweep keeps them, per-demo extension
         // data through the loaded extension's own store, user data into the stores that own it.
         services.AddSingleton<ITransferImporter>(sp => new TransferImporter(

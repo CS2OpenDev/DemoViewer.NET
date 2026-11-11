@@ -79,7 +79,8 @@ public class TransferImporterTests
         using TempFolders temp = new();
         string root = temp.New();
         BundleBuilder bundle = new(root);
-        TransferFile upper = bundle.File(TransferLayout.CacheFile(Sha, Sha + ".A.facts.x.json.gz"), [1]);
+        TransferFile upper =
+            bundle.File(TransferLayout.CacheFile(Sha, TransferLayout.DemoFileName(".A.facts.x.json.gz")), [1]);
         bundle.Demo(Sha, "match.dem", 4096, [upper, upper with { Path = upper.Path.Replace(".A.", ".a.") }]);
         bundle.Write();
 
@@ -304,9 +305,9 @@ public class TransferImporterTests
         const string Extension = "dev.example.data";
         OneDemo(root, (b, files) =>
         {
-            files.Add(b.File(TransferLayout.ExtensionFacetFile(Sha, Extension, "rounds", Sha + ".json.gz"),
+            files.Add(b.File(TransferLayout.ExtensionFacetFile(Sha, Extension, "rounds", TransferLayout.DemoFileName(".json.gz")),
                 BundleBuilder.FacetFile("rounds", null, 2, "fp", Sha, @"D:\source\match.dem", "payload")));
-            files.Add(b.File(TransferLayout.ExtensionFacetFile(Sha, Extension, "rounds", Sha + ".positions.json.gz"),
+            files.Add(b.File(TransferLayout.ExtensionFacetFile(Sha, Extension, "rounds", TransferLayout.DemoFileName(".positions.json.gz")),
                 BundleBuilder.FacetFile("rounds", "positions", 2, "fp", Sha, @"D:\source\match.dem", "part")));
         }).Write();
         DemoCacheStore cache = new(null);

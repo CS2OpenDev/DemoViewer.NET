@@ -96,7 +96,8 @@ public class TransferExporterTests
             await Assert.That(plain.Files).IsEmpty().Because("a demo not hashed yet carries no data");
             await Assert.That(plain.Dem).IsNotNull().Because("its .dem still travels as a plain demo");
             await Assert.That(manifest.Extensions.Single()).IsEqualTo(new TransferExtensionVersion(ExtensionId, "9.9.9"));
-            await Assert.That(manifest.RulesetIdentities).Contains("facts:core=fp-core");
+            await Assert.That(manifest.RulesetIdentities).IsEquivalentTo(["facts:core:identity-core"])
+                .Because("the manifest records this machine's rules in the shape import compares against");
             await Assert.That(summary.Transferred.Count).IsEqualTo(3);
         }
 
@@ -385,7 +386,8 @@ public class TransferExporterTests
         public string ShaB { get; private set; } = "";
         public string ShaC { get; private set; } = "";
 
-        public TransferSources Sources => new(ConfigRoot, () => [LibraryRoot]);
+        public TransferSources Sources => new(ConfigRoot, () => [LibraryRoot],
+            () => new TransferEnvironment(["facts:core:identity-core"], []));
 
         public void Dispose()
         {

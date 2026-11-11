@@ -25,6 +25,7 @@ namespace DemoViewer.NET.Services.Transfer;
 internal sealed class TransferImporter : ITransferImporter
 {
     private const int CopyBufferBytes = 1 << 20;
+    private const string LegacyRecordSuffix = ".json";
 
     private readonly string? _annotationsRoot;
     private readonly GraphBreakpointStore? _breakpoints;
@@ -337,16 +338,23 @@ internal sealed class TransferImporter : ITransferImporter
             List<TransferFile> siblings = [];
             Dictionary<(string Extension, string Facet), List<TransferFile>> facets = [];
             TransferFile? annotations = null;
+            TransferFile? legacyRecord = null;
             foreach (TransferFile file in demo.Files)
             {
                 string[] parts = file.Path[prefix.Length..].Split('/');
                 switch (parts)
                 {
-                    case [TransferLayout.CacheDirectory, var fileName] when fileName == sha + DemoCacheStore.RecordSuffix:
+                    case [TransferLayout.CacheDirectory, var fileName]
+                        when TransferLayout.DemoFileRest(fileName) == DemoCacheStore.RecordSuffix:
                         record = file;
                         break;
-                    case [TransferLayout.CacheDirectory, var fileName] when fileName.StartsWith(sha + ".",
-                        StringComparison.Ordinal):
+                    // A record from before the cache was gzipped; the reader takes either form.
+                    case [TransferLayout.CacheDirectory, var fileName]
+                        when TransferLayout.DemoFileRest(fileName) == LegacyRecordSuffix:
+                        legacyRecord = file;
+                        break;
+                    case [TransferLayout.CacheDirectory, var fileName]
+                        when TransferLayout.DemoFileRest(fileName) is not null:
                         siblings.Add(file);
                         break;
                     case [TransferLayout.ExtensionDirectory, _, TransferLayout.StoresDirectory, ..]:
@@ -369,13 +377,14 @@ internal sealed class TransferImporter : ITransferImporter
                 }
             }
 
+            record ??= legacyRecord;
             if (record is not null)
             {
                 DemoImportResult result = _cache.ImportContent(sha, demo.Fingerprint?.ToFingerprint(),
                     Read(run, record),
                     [
                         .. siblings.Select(s => new KeyValuePair<string, byte[]>(
-                            s.Path[(s.Path.LastIndexOf('/') + 1 + sha.Length)..], Read(run, s)))
+                            TransferLayout.DemoFileRest(BundleFileName(s))!, Read(run, s)))
                     ], _currency);
                 added = result.Outcome == DemoImportOutcome.Added;
                 merged = result.Outcome == DemoImportOutcome.Merged;
@@ -399,8 +408,7 @@ internal sealed class TransferImporter : ITransferImporter
                 {
                     merged |= store.Import(sha, facet,
                     [
-                        .. files.Select(f =>
-                            new KeyValuePair<string, byte[]>(f.Path[(f.Path.LastIndexOf('/') + 1)..], Read(run, f)))
+                        .. files.Select(f => new KeyValuePair<string, byte[]>(StoreFileName(sha, f), Read(run, f)))
                     ]);
                 }
                 finally
@@ -854,5 +862,14 @@ internal sealed class TransferImporter : ITransferImporter
                 field = value;
             }
         }
+    }
+
+    private static string BundleFileName(TransferFile file) => file.Path[(file.Path.LastIndexOf('/') + 1)..];
+
+    // The bundle names a facet file demo<rest>; the store names it by the content hash.
+    private static string StoreFileName(string sha, TransferFile file)
+    {
+        string name = BundleFileName(file);
+        return TransferLayout.DemoFileRest(name) is { } rest ? sha + rest : name;
     }
 }

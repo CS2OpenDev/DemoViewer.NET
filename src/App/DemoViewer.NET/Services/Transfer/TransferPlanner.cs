@@ -15,7 +15,14 @@ namespace DemoViewer.NET.Services.Transfer;
 /// </summary>
 /// <param name="ConfigRoot">The app's config root, or null when there is none.</param>
 /// <param name="LibraryRoots">The library's folders, read when a plan is made.</param>
-public sealed record TransferSources(string? ConfigRoot, Func<IReadOnlyList<string>> LibraryRoots)
+/// <param name="Environment">
+///     This machine's rules and extensions, recorded in the manifest in the shape import compares against; null
+///     records none, so import has nothing to call stale.
+/// </param>
+public sealed record TransferSources(
+    string? ConfigRoot,
+    Func<IReadOnlyList<string>> LibraryRoots,
+    Func<TransferEnvironment>? Environment = null)
 {
     /// <summary>Breakpoints, as <see cref="AppPaths.GraphBreakpointsFile" /> names them under the config root.</summary>
     // Not read through AppPaths: its resolve migrates legacy files, and an export writes nothing at the source.
