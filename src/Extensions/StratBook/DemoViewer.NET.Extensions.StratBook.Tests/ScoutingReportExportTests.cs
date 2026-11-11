@@ -185,6 +185,30 @@ public class ScoutingReportExportTests
     }
 
     [Test]
+    public async Task AStageRowWithNoPicture_NamesNoMap_AndAMapWideLineLandsOnItsLayersCard()
+    {
+        ScoutingReportDocument empty = new()
+        {
+            TeamName = "Falcons",
+            Cards = ScoutingReportEditorViewModel.ExportCards(false),
+            Stages = [new ScoutingReportStageRow("de_inferno", "CT", [])]
+        };
+        string emptyHtml = ScoutingReportExporter.Html(empty);
+
+        ScoutingReportDocument wide = Doc(F(K("de_nuke", "", "setups"), "de_nuke · Setup stuff", "they stack B"));
+        string wideHtml = ScoutingReportExporter.Html(wide);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(emptyHtml).DoesNotContain("<h2>").Because("a row with no picture prints no map");
+            await Assert.That(emptyHtml).Contains(ScoutingReportExporter.NothingStarredLine);
+            await Assert.That(wideHtml).Contains("<h4>Setups</h4>").Because("the layer's map-wide card takes it");
+            await Assert.That(wideHtml).DoesNotContain("Setup stuff");
+            await Assert.That(wideHtml).DoesNotContain("side ct").Because("a line on no side prints under no side");
+        }
+    }
+
+    [Test]
     public async Task TheHtml_EscapesEveryUserString_AndReferencesNothingOutside()
     {
         ScoutingReportDocument doc = new()

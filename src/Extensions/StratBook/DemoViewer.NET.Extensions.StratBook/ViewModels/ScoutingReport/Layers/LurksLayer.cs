@@ -106,16 +106,27 @@ public sealed class LurksLayer() : ScoutingLayerBase("lurks", "Lurks", ScoutingL
                 Suggested: true));
         }
 
-        List<ScoutingMapMark> marks =
-        [
-            .. lurks.Where(l => l.At30 is not null).Select(l => new ScoutingMapMark(l.At30!.Value.X, l.At30.Value.Y,
-                l.At30.Value.Z, ScoutingMarkShape.Dot,
-                ColorOf(ScoutingPlayerColors.KeyOf(l.SteamId, l.Name), l.Name), 5f, Opacity: 0.85f)
+        // By reference: two lurks can be equal records, and each belongs to the group it was put in.
+        Dictionary<LurkDetail, (string Key, string Name, List<LurkDetail> Rounds)> lurkerOf =
+            new(ReferenceEqualityComparer.Instance);
+        foreach ((string Key, string Name, List<LurkDetail> Rounds) lurker in lurkers)
+        {
+            foreach (LurkDetail l in lurker.Rounds)
             {
-                Info = LurkInfo(context, l, lurkers.First(g => g.Rounds.Contains(l)), rounds.Count,
-                    ColorOf(ScoutingPlayerColors.KeyOf(l.SteamId, l.Name), l.Name))
-            })
-        ];
+                lurkerOf[l] = lurker;
+            }
+        }
+
+        List<ScoutingMapMark> marks = [];
+        foreach (LurkDetail l in lurks.Where(l => l.At30 is not null))
+        {
+            ScoutingColor color = ColorOf(ScoutingPlayerColors.KeyOf(l.SteamId, l.Name), l.Name);
+            marks.Add(new ScoutingMapMark(l.At30!.Value.X, l.At30.Value.Y, l.At30.Value.Z, ScoutingMarkShape.Dot,
+                color, 5f, Opacity: 0.85f)
+            {
+                Info = LurkInfo(context, l, lurkerOf[l], rounds.Count, color)
+            });
+        }
         return new ScoutingLayerResult
         {
             CountLabel = $"{lurks.Count} rds",

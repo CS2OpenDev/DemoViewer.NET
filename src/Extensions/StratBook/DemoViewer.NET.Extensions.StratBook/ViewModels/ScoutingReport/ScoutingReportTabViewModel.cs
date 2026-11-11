@@ -474,6 +474,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
 
     partial void OnSelectedMapChanged(MapPoolRowViewModel? value)
     {
+        Editor.HasMapInView = value?.Map is { Length: > 0 };
         foreach (MapPoolRowViewModel map in Maps)
         {
             map.IsSelected = ReferenceEquals(map, value);

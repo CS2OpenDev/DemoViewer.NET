@@ -439,6 +439,35 @@ public class ScoutingReportEditingTests
     }
 
     [Test]
+    public async Task AnUnstarredOnePager_ExportsOnlyInHtmlWithAMapInView_AndNeverAsAnEmptyFile()
+    {
+        List<string> written = [];
+        ScoutingReportEditorViewModel editor = new(new ScoutingReportNotesStore(null), export: (text, stem, ext) =>
+        {
+            written.Add(text);
+            return stem + ext;
+        });
+        editor.Load(Guid.NewGuid(), "Falcons", "3 demos", Sources());
+        editor.BuyStages = _ => Task.FromResult<IReadOnlyList<ScoutingReportBuyStage>>([]);
+        bool offWithNoMap = !editor.CanExport && !editor.ExportCommand.CanExecute(null);
+        editor.HasMapInView = true;
+        bool onWithAMap = editor.CanExport && editor.ExportCommand.CanExecute(null);
+        editor.ExportFormat = ScoutingReportFormat.Markdown;
+        bool offInMarkdown = !editor.CanExport && !editor.ExportCommand.CanExecute(null);
+        editor.ExportFormat = ScoutingReportFormat.Html;
+        editor.ExportCommand.Execute(null);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(offWithNoMap).IsTrue().Because("no star and no map in view: nothing to draw");
+            await Assert.That(onWithAMap).IsTrue().Because("the map in view has buy pictures");
+            await Assert.That(offInMarkdown).IsTrue().Because("Markdown prints no buy picture");
+            await Assert.That(written).IsEmpty().Because("no picture came back and nothing is starred");
+            await Assert.That(editor.ExportLine).StartsWith("nothing to export");
+        }
+    }
+
+    [Test]
     public async Task TheSectionBuilders_StateEverySample_AndSkipZeroCounts()
     {
         using (Assert.Multiple())

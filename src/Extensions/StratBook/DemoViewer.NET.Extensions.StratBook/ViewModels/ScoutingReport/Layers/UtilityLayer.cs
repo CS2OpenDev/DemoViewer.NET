@@ -230,8 +230,6 @@ public sealed class UtilityLayer() : ScoutingLayerBase("util", "Utility", Scouti
         };
     }
 
-    private static string Capital(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
-
     private static ScoutingInspectorRow ClusterRow(ScoutingLayerContext context, UtilityCluster cluster, int of)
     {
         string text = $"most thrown {cluster.Noun} at {cluster.Place}";

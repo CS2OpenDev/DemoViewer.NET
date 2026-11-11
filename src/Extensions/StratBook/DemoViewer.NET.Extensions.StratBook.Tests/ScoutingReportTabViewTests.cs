@@ -296,8 +296,10 @@ public class ScoutingReportTabViewTests
             await Assert.That(seen.captions.Any(c => c.Contains("CT") && c.Contains("setups"))).IsTrue()
                 .Because("the CT pictures carry the setups");
             await Assert.That(seen.figures).IsGreaterThan(0).Because("the one-pager opens the map with its buy row");
-            await Assert.That(seen.cards.Count(c => c.Title == "Utility")).IsEqualTo(2)
+            await Assert.That(seen.cards.Count(c => c is { Title: "Utility", Side.Length: > 0 })).IsEqualTo(2)
                 .Because("the full report has a card per layer per side");
+            await Assert.That(seen.cards.Count(c => c is { Title: "Utility", Side: "" })).IsEqualTo(1)
+                .Because("and one map-wide card per layer for a line scoped to no side");
             await Assert.That(seen.cards.Any(c => c is { Side: "CT", Title: "Setups" })).IsTrue();
             await Assert.That(seen.fullMd).Contains("#### Setups");
             await Assert.That(seen.label).IsEqualTo("Export full report");

@@ -106,6 +106,12 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
         // The rings and the bars read the same rounds: the ones where their player died to the opening kill.
         List<OpeningDeathRound> lostDuels = [.. block.FirstDeaths.Where(d => d.IsOpening)];
         List<TendencyBucket> places = ByPlace(lostDuels.Select(d => (d.Spot, d.Clip)));
+        // A death carries only a name; the lost duel of the same round carries the player's key.
+        Dictionary<(string, int), string> keyByRound = block.Duels.Where(d => !d.Won)
+            .DistinctBy(d => (d.Clip.DemoPath, d.Clip.RoundNumber))
+            .ToDictionary(d => (d.Clip.DemoPath, d.Clip.RoundNumber), d => d.PlayerKey);
+        string KeyOf(OpeningDeathRound d) =>
+            keyByRound.TryGetValue((d.Clip.DemoPath, d.Clip.RoundNumber), out string? key) ? key : d.Player;
         List<ScoutingInspectorSection> sections =
         [
             new("", [SampleRow(context, block)]),
@@ -143,7 +149,7 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
             [
                 .. lostDuels.Where(d => d.Spot is not null).SelectMany(d => DeathMarks(d.Spot!,
                     EventInfo(context, "opening death", d.Player, d.Clip, d.Spot!, d.Traded, null,
-                        [.. lostDuels.Where(o => o.Player == d.Player && !ReferenceEquals(o, d)).Select(o => o.Spot)
+                        [.. lostDuels.Where(o => KeyOf(o) == KeyOf(d) && !ReferenceEquals(o, d)).Select(o => o.Spot)
                             .OfType<OpeningSpot>()])))
             ],
             Reads = reads,

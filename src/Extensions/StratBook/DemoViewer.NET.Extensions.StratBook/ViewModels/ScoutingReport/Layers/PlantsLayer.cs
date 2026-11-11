@@ -253,8 +253,6 @@ public sealed class PlantsLayer() : ScoutingLayerBase("plants", "Plants", Scouti
         };
     }
 
-    private static string Capital(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
-
     private static IReadOnlyList<ScoutingInspectorRow> SiteRows(ScoutingLayerContext context, PlantReading reading) =>
     [
         .. reading.SiteSplit.Select(b => Row(context, b, reading.SiteRounds, "site", ScoutingColor.T) with

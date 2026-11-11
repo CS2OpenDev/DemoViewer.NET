@@ -41,37 +41,51 @@ public sealed partial class ScoutingReportTabViewModel
         }
 
         order.AddRange(maps.Where(m => !order.Contains(m, StringComparer.Ordinal)));
-        List<IScoutingLayer> layers =
+        // Each layer with the window it has now: a window picked mid-export does not change the pictures.
+        List<(IScoutingLayer Layer, string Window)> layers =
         [
             .. OnePagerLayers.Select(id => Layers.All.FirstOrDefault(c => c.Id == id)?.Layer).OfType<IScoutingLayer>()
+                .Select(l => (l, l is IScoutingWindowedLayer windowed ? windowed.Window : ""))
         ];
-        List<ScoutingReportBuyStage> stages = [];
+
+        // Every build starts at once; the stages are put together in order once all have landed.
+        List<(string Map, ScoutingSide Side, string Label, List<(IScoutingLayer Layer, Task<ScoutingLayerResult> Build)> Builds)> pending = [];
         foreach (string map in order)
         {
             foreach (ScoutingSide side in (ScoutingSide[])[ScoutingSide.Ct, ScoutingSide.T])
             {
                 foreach ((ScoutingBuy buy, string label) in OnePagerBuys)
                 {
-                    ScoutingLayerContext context = new(data, map, side, buy);
-                    List<ScoutingMapMark> marks = [];
-                    List<string> drawn = [];
-                    foreach (IScoutingLayer layer in layers.Where(l => l.AppliesTo(side)))
-                    {
-                        ScoutingLayerResult result = await ScoutingLayerRegistry.Build(layer, context,
-                            CancellationToken.None).ConfigureAwait(true);
-                        if (result.Status.State == ScoutingLayerState.Ready && result.Marks.Count > 0)
-                        {
-                            marks.AddRange(result.Marks);
-                            drawn.Add(layer.Id == "awp" ? "AWP routes" : layer.NameFor(side).ToLowerInvariant());
-                        }
-                    }
-
-                    if (marks.Count > 0)
-                    {
-                        stages.Add(new ScoutingReportBuyStage(map, side.Label(),
-                            $"{map} {side.Label()} · {label} · {string.Join(", ", drawn)}", marks));
-                    }
+                    pending.Add((map, side, label,
+                    [
+                        .. layers.Where(l => l.Layer.AppliesTo(side)).Select(l => (l.Layer,
+                            ScoutingLayerRegistry.Build(l.Layer, new ScoutingLayerContext(data, map, side, buy, l.Window),
+                                CancellationToken.None)))
+                    ]));
                 }
+            }
+        }
+
+        await Task.WhenAll(pending.SelectMany(p => p.Builds.Select(b => b.Build))).ConfigureAwait(true);
+        List<ScoutingReportBuyStage> stages = [];
+        foreach ((string map, ScoutingSide side, string label, List<(IScoutingLayer Layer, Task<ScoutingLayerResult> Build)> builds) in pending)
+        {
+            List<ScoutingMapMark> marks = [];
+            List<string> drawn = [];
+            foreach ((IScoutingLayer layer, Task<ScoutingLayerResult> build) in builds)
+            {
+                ScoutingLayerResult result = build.Result;
+                if (result.Status.State == ScoutingLayerState.Ready && result.Marks.Count > 0)
+                {
+                    marks.AddRange(result.Marks);
+                    drawn.Add(layer.Id == "awp" ? "AWP routes" : layer.NameFor(side).ToLowerInvariant());
+                }
+            }
+
+            if (marks.Count > 0)
+            {
+                stages.Add(new ScoutingReportBuyStage(map, side.Label(),
+                    $"{map} {side.Label()} · {label} · {string.Join(", ", drawn)}", marks));
             }
         }
 

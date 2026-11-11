@@ -132,7 +132,8 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
 
     /// <summary>The file Export writes: HTML by default, the LAN Print route.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SelectedFormatOption))]
+    [NotifyPropertyChangedFor(nameof(SelectedFormatOption), nameof(CanExport))]
+    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
     private ScoutingReportFormat _exportFormat = ScoutingReportFormat.Html;
 
     [ObservableProperty]
@@ -283,10 +284,18 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
         : "no findings yet: the layers are still building, or have nothing to count";
 
     /// <summary>
-    ///     A team and a file to write. The one-pager also needs something to print: a star, or the buy pictures.
+    ///     A team and a file to write. The one-pager also needs something to print: a star, or, in HTML, the buy
+    ///     pictures of the map in view.
     /// </summary>
     public bool CanExport => HasTeam && !IsBrowser
-                             && (ExportForm == ScoutingReportForm.LongForm || HasStarred || BuyStages is not null);
+                             && (ExportForm == ScoutingReportForm.LongForm || HasStarred
+                                 || (ExportFormat == ScoutingReportFormat.Html && BuyStages is not null && HasMapInView));
+
+    /// <summary>Whether the owner has a map in view, so the one-pager has buy pictures to draw without a star.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanExport))]
+    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
+    private bool _hasMapInView;
 
     /// <summary>
     ///     The one-pager's pictures for these maps (the starred ones; the owner adds the map in view): each
@@ -441,7 +450,8 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
     }
 
     /// <summary>
-    ///     The export's cards: each side's layers in catalog order, one card per layer holding all its lines.
+    ///     The export's cards: each side's layers in catalog order, one card per layer holding all its lines, then a
+    ///     map-wide card per layer for the lines scoped to no side.
     ///     With <paramref name="pictures" /> a map layer's card spans the page with its marks; without, the one-pager's
     ///     buy pictures stand in for them.
     /// </summary>
@@ -466,10 +476,17 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
             }
         }
 
+        // A map-wide line (no side) lands on its layer's own card, after both sides' so those take theirs first.
+        foreach (IScoutingLayer layer in layers)
+        {
+            ScoutingSide named = layer.AppliesTo(ScoutingSide.Ct) ? ScoutingSide.Ct : ScoutingSide.T;
+            cards.Add(new ScoutingReportCard("", layer.NameFor(named), [new ScoutingReportCardPart(layer.Id, null, null)]));
+        }
+
         return cards;
     }
 
-    // The buy pictures, rendered: one row per map and side, in the order the owner gave them.
+    // The buy pictures, rendered: one row per map and side, in the order the owner gave them; a row with none is dropped.
     private List<ScoutingReportStageRow> RenderStages(IReadOnlyList<ScoutingReportBuyStage> stages)
     {
         List<ScoutingReportStageRow> rows = [];
@@ -484,7 +501,10 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                 }
             }
 
-            rows.Add(new ScoutingReportStageRow(group.Key.Map, group.Key.Side, pictures));
+            if (pictures.Count > 0)
+            {
+                rows.Add(new ScoutingReportStageRow(group.Key.Map, group.Key.Side, pictures));
+            }
         }
 
         return rows;
@@ -582,6 +602,12 @@ public sealed partial class ScoutingReportEditorViewModel : ObservableObject
                 ExportLine = $"could not draw the buy pictures: {ex.Message}";
                 return;
             }
+        }
+
+        if (ExportForm == ScoutingReportForm.OnePager && !HasStarred && (stages is null || stages.Count == 0))
+        {
+            ExportLine = "nothing to export: no starred line and no buy pictures";
+            return;
         }
 
         ScoutingReportDocument doc = Document(html, stages);

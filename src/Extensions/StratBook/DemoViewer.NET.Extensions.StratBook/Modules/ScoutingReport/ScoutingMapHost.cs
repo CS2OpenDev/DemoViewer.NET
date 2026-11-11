@@ -81,6 +81,16 @@ public sealed class ScoutingMapHost : Decorator
     private ScoutingMapMark? _hovered;
     private Point? _pressedAt;
 
+    // One hand cursor for every stage, made on first hover; the cursor it replaced comes back when hover ends.
+    private static Cursor? _hand;
+    private bool _handShown;
+    private Cursor? _cursorBeforeHover;
+
+    // The last hit test's inputs and answer, so a pointer move that changes none of them reuses it.
+    private (Point Point, LevelPane? Pane, ViewportTransform Camera, SkiaSharp.SKRect Rect, MapSpace? Space, int Panes, long Stamp)?
+        _hitKey;
+    private (ScoutingLayerChipViewModel Chip, ScoutingMapMark Mark)? _hitResult;
+
     // The world rectangle the bound map's art covers, or null with no art.
     private WorldBounds? _content;
 
@@ -279,6 +289,7 @@ public sealed class ScoutingMapHost : Decorator
         }
 
         Hover(null, default);
+        _hitKey = null;
         if (_vm is not null)
         {
             _vm.Layers.Selection.Changed -= Map.Invalidate;
@@ -352,32 +363,75 @@ public sealed class ScoutingMapHost : Decorator
         }
 
         MapSpace? space = Map.Space;
+        ViewportTransform camera = pane.Camera.Current;
+        SkiaSharp.SKRect rect = pane.ViewportRect;
+        // Versions only grow, so their sum changes whenever any document does.
+        long stamp = 0;
+        foreach (ScoutingLayerChipViewModel chip in vm.Layers.All)
+        {
+            stamp += chip.Marks.Version;
+        }
+
+        (Point, LevelPane?, ViewportTransform, SkiaSharp.SKRect, MapSpace?, int, long) key =
+            (point, pane, camera, rect, space, Map.Panes.Count, stamp);
+        if (_hitKey is { } last && last.Equals(key))
+        {
+            return _hitResult;
+        }
+
         bool filter = pane.LevelIndex >= 0 && Map.Panes.Count > 1 && space is not null;
+        double localX = point.X - rect.Left;
+        double localY = point.Y - rect.Top;
+        double scale = camera.EffectiveScale;
+        (double worldX, double worldY) = camera.ScreenToWorld(localX, localY);
         (ScoutingLayerChipViewModel, ScoutingMapMark)? best = null;
-        double bestScore = double.MaxValue;
+        // A faded layer's mark loses to any of the inspected layer's, then the nearer mark wins.
+        bool bestFaded = true;
+        double bestSquared = double.MaxValue;
         foreach (ScoutingLayerChipViewModel chip in vm.Layers.All.Where(c => c.IsMap && c.Marks.Visible))
         {
-            double penalty = chip.Marks.Fade < 1f ? 1000 : 0;
+            bool faded = chip.Marks.Fade < 1f;
+            if (faded && !bestFaded)
+            {
+                continue;
+            }
+
             foreach (ScoutingMapMark mark in chip.Marks.Marks)
             {
-                if (mark.Info is null || mark.Shape == ScoutingMarkShape.Link
-                                      || (filter && space!.LevelIndexFor(mark.Z) != pane.LevelIndex))
+                if (mark.Info is null || mark.Shape == ScoutingMarkShape.Link)
                 {
                     continue;
                 }
 
-                (double x, double y) = pane.Camera.Current.WorldToScreen(mark.X, mark.Y);
-                double dx = x + pane.ViewportRect.Left - point.X;
-                double dy = y + pane.ViewportRect.Top - point.Y;
-                double distance = Math.Sqrt(dx * dx + dy * dy);
-                if (distance <= mark.Size + HitSlop && distance + penalty < bestScore)
+                double reach = mark.Size + HitSlop;
+                // A world-space box around the pointer rules most marks out before projecting them.
+                if (scale > 0 && (Math.Abs(mark.X - worldX) * scale > reach + 1
+                                  || Math.Abs(mark.Y - worldY) * scale > reach + 1))
                 {
-                    bestScore = distance + penalty;
+                    continue;
+                }
+
+                if (filter && space!.LevelIndexFor(mark.Z) != pane.LevelIndex)
+                {
+                    continue;
+                }
+
+                (double x, double y) = camera.WorldToScreen(mark.X, mark.Y);
+                double dx = x - localX;
+                double dy = y - localY;
+                double squared = dx * dx + dy * dy;
+                if (squared <= reach * reach
+                    && (faded == bestFaded ? squared < bestSquared : !faded))
+                {
+                    bestFaded = faded;
+                    bestSquared = squared;
                     best = (chip, mark);
                 }
             }
         }
 
+        _hitKey = key;
+        _hitResult = best;
         return best;
     }
 
@@ -438,7 +492,7 @@ public sealed class ScoutingMapHost : Decorator
     // Shows the hover card for a mark by the pointer, kept inside the stage; null hides it.
     private void Hover(ScoutingMapMark? mark, Point at)
     {
-        Map.Cursor = mark is null ? Cursor.Default : new Cursor(StandardCursorType.Hand);
+        SetHandCursor(mark is not null);
         if (mark?.Info is not { } info)
         {
             _hovered = null;
@@ -470,6 +524,27 @@ public sealed class ScoutingMapHost : Decorator
         double y = Math.Clamp(at.Y + 14, 4, Math.Max(4, Bounds.Height - size.Height - 4));
         Canvas.SetLeft(_hover, Math.Max(4, x));
         Canvas.SetTop(_hover, y);
+    }
+
+    // Shows the hand over a mark and puts back the cursor that was there, only when hovering starts or stops,
+    // and leaves alone a cursor the map set meanwhile (a pan's).
+    private void SetHandCursor(bool show)
+    {
+        if (show == _handShown)
+        {
+            return;
+        }
+
+        _handShown = show;
+        if (show)
+        {
+            _cursorBeforeHover = Map.Cursor;
+            Map.Cursor = _hand ??= new Cursor(StandardCursorType.Hand);
+        }
+        else if (ReferenceEquals(Map.Cursor, _hand))
+        {
+            Map.Cursor = _cursorBeforeHover;
+        }
     }
 
     private static TextBlock Line(string text, double size, FontWeight weight, string brush)

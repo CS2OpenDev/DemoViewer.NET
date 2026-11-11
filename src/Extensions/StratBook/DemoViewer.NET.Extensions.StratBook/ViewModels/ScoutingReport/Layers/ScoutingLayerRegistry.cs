@@ -400,16 +400,30 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
 
         string where = string.Join(" · ", new[] { chip.Title, info.Title, ScoutingReportStarKeys.Where(context.Scope(chip.Layer, null)) }
             .Where(p => p.Length > 0));
+        HashSet<string> findings = FindingKeys(chip, context, chip.Result);
         MarkCard.Show(chip.Title, info.Title,
         [
-            // A fact about one round is not a finding: only a row with rounds behind it stars.
-            .. info.Rows.Select(row => row.Rounds.Count > 1 ? row : row with { Starrable = false }).Select(row =>
-                new ScoutingInspectorRowViewModel(this, row,
-                ScoutingReportStarKeys.Key(context.Scope(chip.Layer, row.Buy), row.KeyText), where))
+            // A fact about one round is not a finding, and a row the long form has no line for would star nothing.
+            .. info.Rows.Select(row => (Row: row,
+                    Key: ScoutingReportStarKeys.Key(context.Scope(chip.Layer, row.Buy), row.KeyText)))
+                .Select(r => new ScoutingInspectorRowViewModel(this,
+                    r.Row.Rounds.Count > 1 && findings.Contains(r.Key) ? r.Row : r.Row with { Starrable = false },
+                    r.Key, where))
         ], ClearSelection);
         Selection.Set([.. info.Detail, new ScoutingMapMark(mark.X, mark.Y, mark.Z, ScoutingMarkShape.Ring,
             ScoutingColor.Neutral, Math.Max(mark.Size, 4f) + 5f)], true, 1f);
     }
+
+    // The keys the long form has a line for, read and keyed as FromLayer does.
+    private static HashSet<string> FindingKeys(ScoutingLayerChipViewModel chip, ScoutingLayerContext context,
+        ScoutingLayerResult result) => result.Status.State != ScoutingLayerState.Ready
+        ? []
+        :
+        [
+            .. result.Reads.Select(r => ScoutingReportStarKeys.Key(context.Scope(chip.Layer, r.Buy), r.StarText)),
+            .. result.Sections.SelectMany(s => s.Rows).Where(row => !row.IsPlaceholder && row.Value.Length > 0)
+                .Select(row => ScoutingReportStarKeys.Key(context.Scope(chip.Layer, row.Buy), row.KeyText))
+        ];
 
     /// <summary>Unpins the clicked mark.</summary>
     public void ClearSelection()

@@ -617,8 +617,10 @@ public static class ScoutingReportExporter
     /// <param name="form">The form.</param>
     private static (List<MapOut> Maps, List<CardOut> Team) Layout(ScoutingReportDocument doc, ScoutingReportForm form)
     {
-        // A map with a picture row prints first, in the rows' order, then the maps the lines name.
-        List<string> maps = [.. doc.Stages.Select(s => s.Map).Distinct(StringComparer.Ordinal)];
+        // A map with a picture row prints first, in the rows' order, then the maps the lines name; a row with no
+        // picture names no map.
+        List<string> maps =
+            [.. doc.Stages.Where(s => s.Pictures.Count > 0).Select(s => s.Map).Distinct(StringComparer.Ordinal)];
         Dictionary<(string Map, string Side), SideSlot> placed = [];
         List<CardOut> team = [];
 

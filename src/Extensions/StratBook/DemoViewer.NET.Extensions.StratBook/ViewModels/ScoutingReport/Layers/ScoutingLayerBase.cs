@@ -152,6 +152,11 @@ public abstract class ScoutingLayerBase : IScoutingLayer
     public static string Percent(double share) =>
         ((int)Math.Round(share * 100, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture) + "%";
 
+    /// <summary>"Smoke" from "smoke": the first letter upper case.</summary>
+    /// <param name="text">The text.</param>
+    public static string Capital(string text) =>
+        text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
+
     /// <summary>"0:52" from seconds.</summary>
     /// <param name="seconds">The seconds.</param>
     public static string Clock(double seconds)

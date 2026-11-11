@@ -95,7 +95,8 @@ public sealed class ScoutingMarksLayer : ISceneLayer
         // Links first, so the dots at their ends sit on top of them.
         foreach (ScoutingMapMark mark in _document.Marks.Where(m => m.Shape == ScoutingMarkShape.Link))
         {
-            if (mark.To is { } to && ctx.BelongsHere(mark.Z))
+            // Both ends on this floor: a line to another floor's radar would point at the wrong place.
+            if (mark.To is { } to && ctx.BelongsHere(mark.Z) && ctx.BelongsHere(to.Z))
             {
                 (double x0, double y0) = ctx.Transform.WorldToScreen(mark.X, mark.Y);
                 (double x1, double y1) = ctx.Transform.WorldToScreen(to.X, to.Y);

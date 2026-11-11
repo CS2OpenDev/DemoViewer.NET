@@ -454,8 +454,6 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         _ => null
     };
 
-    private static string Capital(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
-
     // The heatmap's picture for the export: drawn on demand, never for the screen (the stage draws the marks).
     private static byte[]? Render(ScoutingReportSources sources, SetupHeatmap heatmap)
     {
