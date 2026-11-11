@@ -56,7 +56,8 @@ public class JobKindRegistryTests
             (QueueJobKind.Scheduling, "scheduling", 4, true),
             (QueueJobKind.RecordPass, "records", 4, true),
             (QueueJobKind.LibraryListing, "library", 4, true),
-            (QueueJobKind.CacheSweep, "cleanup", 4, true)
+            (QueueJobKind.CacheSweep, "cleanup", 4, true),
+            (QueueJobKind.DataTransfer, "data transfer", 0, false)
         ];
 
         await Assert.That(JobKindRegistry.CoreDescriptors.Select(d => d.Kind))

@@ -32,7 +32,7 @@ namespace DemoViewer.NET.Services.DemoCache;
 ///         fully in-memory: nothing is loaded, nothing is written, and every API still works.
 ///     </para>
 /// </summary>
-public sealed class DemoCacheStore
+public sealed partial class DemoCacheStore
 {
     /// <summary>The record sidecar: gzipped compact JSON, named <c>&lt;key&gt;.json.gz</c>.</summary>
     public const string RecordSuffix = ".json.gz";

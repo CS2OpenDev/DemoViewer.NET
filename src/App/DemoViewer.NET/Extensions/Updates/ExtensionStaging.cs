@@ -3,6 +3,7 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
 using DemoViewer.NET.Extensions.Manifest;
+using DemoViewer.NET.Services;
 using DemoViewer.NET.ViewModels.Diagnostics;
 using Microsoft.Extensions.Logging;
 
@@ -192,8 +193,6 @@ public static class ExtensionStaging
         ArgumentNullException.ThrowIfNull(zipPath);
         ArgumentNullException.ThrowIfNull(targetDirectory);
         string target = Path.GetFullPath(targetDirectory);
-        string targetWithSeparator =
-            target.EndsWith(Path.DirectorySeparatorChar) ? target : target + Path.DirectorySeparatorChar;
         try
         {
             using ZipArchive archive = ZipFile.OpenRead(zipPath);
@@ -204,7 +203,7 @@ public static class ExtensionStaging
 
             long total = 0;
             List<(ZipArchiveEntry Entry, string Path, bool IsDirectory)> plan = [];
-            HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> seen = new(PathSafety.CaseInsensitivePaths);
             foreach (ZipArchiveEntry entry in archive.Entries)
             {
                 if (entry.Length < 0 || (total += entry.Length) > MaxBytes)
@@ -218,15 +217,15 @@ public static class ExtensionStaging
                     return $"the archive entry '{shortName}' is a link";
                 }
 
-                string? relative = SafeRelativePath(entry.FullName);
+                string? relative = PathSafety.SafeRelativePath(entry.FullName);
                 if (relative is null)
                 {
                     return $"the archive entry '{shortName}' has an unsafe path";
                 }
 
                 bool isDirectory = entry.FullName.EndsWith('/') || entry.FullName.EndsWith('\\');
-                string full = Path.GetFullPath(Path.Combine(target, relative));
-                if (!full.StartsWith(targetWithSeparator, StringComparison.Ordinal))
+                string? full = PathSafety.FullPathInside(target, relative);
+                if (full is null)
                 {
                     return $"the archive entry '{Path.GetFileName(relative)}' resolves outside the extension folder";
                 }
@@ -374,38 +373,6 @@ public static class ExtensionStaging
     // ZipArchive writes the link's target text as a file, so this is defence in depth, not a path.
     private static bool IsUnixSymlink(ZipArchiveEntry entry) =>
         (((uint)entry.ExternalAttributes >> 16) & 0xF000) == 0xA000;
-
-    // Both separators are split on: a zip written on Windows may carry backslashes, and on Unix a
-    // backslash is a legal file-name character, which is exactly how ".." hides.
-    private static string? SafeRelativePath(string entryName)
-    {
-        if (string.IsNullOrEmpty(entryName) || Path.IsPathRooted(entryName)
-            || entryName.Contains(':', StringComparison.Ordinal)
-            || entryName.Contains('\0', StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        string[] segments = entryName.Split('/', '\\');
-        List<string> kept = [];
-        for (int i = 0; i < segments.Length; i++)
-        {
-            string segment = segments[i];
-            if (segment.Length == 0 && i == segments.Length - 1)
-            {
-                continue; // a directory entry's trailing separator
-            }
-
-            if (segment.Length == 0 || segment == "." || segment == ".." || segment.Trim().Length == 0)
-            {
-                return null;
-            }
-
-            kept.Add(segment);
-        }
-
-        return kept.Count == 0 ? null : Path.Combine(kept.ToArray());
-    }
 
     // The entry's declared length was counted against MaxBytes; a stream that yields more is lying.
     private static void CopyBounded(Stream source, Stream destination, long declaredLength)

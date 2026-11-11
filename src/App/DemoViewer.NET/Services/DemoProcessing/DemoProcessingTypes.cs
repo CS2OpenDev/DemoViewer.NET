@@ -91,7 +91,10 @@ public enum QueueJobKind
     LibraryListing,
 
     /// <summary>The demo cache deleting demos no path has listed for longer than the grace period. Light.</summary>
-    CacheSweep
+    CacheSweep,
+
+    /// <summary>A user-started export or import of library data (<c>TransferQueue</c>). Not preemptible.</summary>
+    DataTransfer
 }
 
 /// <summary>Lifecycle of a queued item (drives the UI badge).</summary>

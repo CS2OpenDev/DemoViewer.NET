@@ -33,7 +33,7 @@ namespace DemoViewer.NET.Extensions;
 ///         raise <see cref="Changed" /> once it is in.
 ///     </para>
 /// </summary>
-internal sealed class ExtensionDemoDataStore : IExtensionDemoData
+internal sealed partial class ExtensionDemoDataStore : IExtensionDemoData
 {
     /// <summary>The folder under the extension's cache folder the host owns. The extension's own file writes may not enter it.</summary>
     public const string DirectoryName = "demo-data";
