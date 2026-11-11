@@ -9,6 +9,9 @@
         <RootNamespace>HelloExtension</RootNamespace>
         <!-- The manifest's version, fixed so the install folder name is stable. -->
         <ExtensionManifestVersion>1.0.0</ExtensionManifestVersion>
+        <!-- A class library's output carries no package assemblies by default. The extension ships the packages
+             the app does not (Humanizer here), so pack-extension.sh stages them from this output. -->
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     </PropertyGroup>
 
     <!-- -p:UseSdkPackages=true -p:SdkPackageVersion=<v> builds against the packed SDK instead, whose own build/
@@ -18,6 +21,8 @@
 
     <ItemGroup>
         <PackageReference Include="Avalonia"/>
+        <!-- A dependency the app does not ship, resolved from the extension's own folder at run time. -->
+        <PackageReference Include="Humanizer.Core"/>
     </ItemGroup>
 
     <ItemGroup>
