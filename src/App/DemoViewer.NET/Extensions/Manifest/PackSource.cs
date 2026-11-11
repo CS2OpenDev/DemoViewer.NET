@@ -1,9 +1,10 @@
 namespace DemoViewer.NET.Extensions.Manifest;
 
 /// <summary>
-///     Where a configured pack's assembly came from: the copy the installer shipped beside the app, or a
+///     Where a configured pack's assembly came from: the copy the installer shipped beside the app, a
 ///     copy staged under <c>&lt;config root&gt;/extensions/&lt;id&gt;/&lt;version&gt;/</c> that the loader
-///     chose over it. Settings shows it beside the version.
+///     chose over it, a first-party extension installed there that this build does not ship, or a
+///     third-party one. Settings shows it beside the version.
 /// </summary>
 public abstract record PackSource
 {
@@ -17,7 +18,7 @@ public abstract record PackSource
     /// <summary>True for <see cref="Staged" />.</summary>
     public bool IsStaged => this is Staged;
 
-    /// <summary>The source in user terms: "bundled" or "installed update".</summary>
+    /// <summary>The source in user terms: "bundled", "installed update", "installed" or the third-party forms.</summary>
     public abstract string Label { get; }
 
     /// <summary>The copy shipped with the installer.</summary>
@@ -37,6 +38,17 @@ public abstract record PackSource
     {
         /// <inheritdoc />
         public override string Label => "installed update";
+    }
+
+    /// <summary>
+    ///     A first-party extension this build does not ship, installed under the extensions folder and loaded
+    ///     on the strength of its publisher signature.
+    /// </summary>
+    /// <param name="Directory">The version folder it loaded from.</param>
+    public sealed record Installed(string Directory) : PackSource
+    {
+        /// <inheritdoc />
+        public override string Label => "installed";
     }
 
     /// <summary>A third-party extension installed under the extensions folder.</summary>

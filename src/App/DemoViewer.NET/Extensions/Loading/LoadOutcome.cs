@@ -48,8 +48,14 @@ public enum LoadFailure
     /// <summary>Reading the pack's contract members or running its <c>Register</c> on a scratch container threw.</summary>
     ProbeFailed,
 
-    /// <summary>A third-party copy claims an id reserved for extensions this app ships.</summary>
+    /// <summary>
+    ///     An unsigned copy claims an id under the reserved prefix. A reserved id loads only when this app's
+    ///     publisher signed the copy, whatever the user allowed for unverified extensions.
+    /// </summary>
     ReservedId,
+
+    /// <summary>A copy claims an id under the reserved prefix and is signed by a key this app does not know.</summary>
+    ReservedForeignKey,
 
     /// <summary>An unverified third-party copy while the user has not allowed unverified extensions.</summary>
     Unverified,
@@ -62,6 +68,16 @@ public enum LoadFailure
 
     /// <summary>A third-party copy references the app's own assembly instead of building against the SDK alone.</summary>
     ReferencesApp
+}
+
+/// <summary>How <see cref="ExtensionLoader.CheckReferences" /> compares a referenced version with the one the app runs.</summary>
+public enum ReferenceRule
+{
+    /// <summary>Every assembly the app ships must be referenced at the version the app runs.</summary>
+    Exact,
+
+    /// <summary>Exact for the SDK; for any other assembly the app ships, what the runtime binds safely.</summary>
+    Bindable
 }
 
 /// <summary>
@@ -77,7 +93,7 @@ public enum LoadFailure
 ///     never a path or an exception message, since Settings shows it.
 /// </param>
 /// <param name="LogDetail">The exception message behind <paramref name="Detail" />, for the log only; null when there is none.</param>
-/// <param name="External">A third-party extension rather than an update of one this app ships.</param>
+/// <param name="External">A copy that is not an update of a shipped extension: a third-party one, or an installed first-party one.</param>
 public sealed record LoadOutcome(
     string Directory,
     ExtensionManifest? Manifest,
@@ -86,6 +102,15 @@ public sealed record LoadOutcome(
     string? LogDetail = null,
     bool External = false)
 {
+    /// <summary>
+    ///     True when the check that refused the copy ran after its assembly was loaded. A loaded assembly stays
+    ///     mapped for the life of the process, so its folder cannot be deleted before the next start.
+    /// </summary>
+    public bool AssemblyLoaded => Failure is not (LoadFailure.PathEscapes or LoadFailure.ManifestInvalid
+        or LoadFailure.FolderMismatch or LoadFailure.ShippedUnknown or LoadFailure.NotNewer
+        or LoadFailure.Incompatible or LoadFailure.Untrusted or LoadFailure.ReservedId
+        or LoadFailure.ReservedForeignKey or LoadFailure.Unverified);
+
     /// <summary>The staged version, when the manifest parsed.</summary>
     public SemVersion? Version => Manifest?.Version;
 

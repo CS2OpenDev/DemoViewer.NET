@@ -410,6 +410,13 @@ public sealed class ExtensionsSettings
     ///     at launch, before the app's own settings load, so a change takes effect at the next start.
     /// </summary>
     public bool AllowUnverified { get; set; }
+
+    /// <summary>
+    ///     "Install extension updates automatically". On by default: at launch, a newer version of each
+    ///     first-party extension that the publisher signed is staged for the next start. Nothing unverified
+    ///     is ever staged this way.
+    /// </summary>
+    public bool AutoUpdate { get; set; } = true;
 }
 
 /// <summary>

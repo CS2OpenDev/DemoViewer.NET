@@ -8,9 +8,11 @@ using System.Runtime.Loader;
 namespace DemoViewer.NET.Extensions.Loading;
 
 /// <summary>
-///     Loads a third-party extension's own dependencies from its folder. Anything the app already ships (the
-///     SDK, Avalonia, CS2DemoKit, the runtime) resolves from the app, so the extension and the host share one
-///     copy of every contract type, whatever the extension's folder carries.
+///     The context for every extension that may carry its own dependencies: a third-party one, an installed
+///     first-party one, or a staged update of a shipped one. It loads the extension's own dependencies from
+///     its folder. Anything the app already ships (the SDK, Avalonia, CS2DemoKit, the runtime) resolves from
+///     the app, so the extension and the host share one copy of every contract type, whatever the
+///     extension's folder carries.
 /// </summary>
 public sealed class ExternalLoadContext : AssemblyLoadContext
 {

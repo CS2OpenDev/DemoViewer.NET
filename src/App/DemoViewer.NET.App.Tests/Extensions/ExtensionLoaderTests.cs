@@ -430,6 +430,9 @@ public class ExtensionLoaderTests
                 await Assert.That(status.Manifest!.Version).IsEqualTo(staged.Manifest.Version);
                 await Assert.That(ReferenceEquals(status.Pack.GetType().Assembly, typeof(StratBookPack).Assembly))
                     .IsFalse();
+                await Assert.That(AssemblyLoadContext.GetLoadContext(status.Pack.GetType().Assembly))
+                    .IsTypeOf<ExternalLoadContext>()
+                    .Because("a staged update may carry a package the app does not ship");
                 await Assert.That(created).IsEqualTo(0)
                     .Because("the shipped copy must not be instantiated when the staged one wins");
             }
@@ -700,6 +703,32 @@ public class ExtensionLoaderTests
             await Assert.That(ExtensionLoader.RunningVersion("DemoViewer.NET"))
                 .IsEqualTo(typeof(ExtensionHost).Assembly.GetName().Version);
             await Assert.That(ExtensionLoader.RunningVersion("No.Such.Assembly")).IsNull();
+        }
+    }
+
+    // Over the real running versions: an assembly the app does not ship reads as null and is not compared,
+    // so an extension's own dependency passes, while a shipped assembly at another version is still caught.
+    [Test]
+    public async Task CheckReferences_SkipsAnUnshippedAssembly_StillCatchesShippedSkew()
+    {
+        AssemblyName[] referenced =
+        [
+            new("Humanizer, Version=2.14.0.0"),
+            new("DemoViewer.NET.Extensions.Sdk, Version=9.9.0.0")
+        ];
+
+        (string Name, Version Built, Version Running)? mismatch =
+            ExtensionLoader.FindReferenceMismatch(referenced, ExtensionLoader.RunningVersion);
+        (string Name, Version Built, Version Running)? unshippedOnly =
+            ExtensionLoader.FindReferenceMismatch([referenced[0]], ExtensionLoader.RunningVersion);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(ExtensionLoader.RunningVersion("Humanizer")).IsNull()
+                .Because("the app neither loads nor ships it, so it is the extension's own");
+            await Assert.That(unshippedOnly).IsNull();
+            await Assert.That(mismatch?.Name).IsEqualTo("DemoViewer.NET.Extensions.Sdk");
+            await Assert.That(mismatch?.Built).IsEqualTo(new Version(9, 9, 0, 0));
         }
     }
 

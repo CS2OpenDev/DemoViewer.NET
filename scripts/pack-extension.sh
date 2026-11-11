@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Packages one first-party extension for release:
-# builds it, stages exactly what the extension project itself produces, prints a compatibility report,
-# signs and verifies the staged directory, zips it deterministically, and emits the feed entry fragment
-# the release workflow merges into the rolling extensions.json.
+# builds it, stages what the extension project produces plus the managed packages it references and the app
+# does not ship, prints a compatibility report, signs and verifies the staged directory, zips it
+# deterministically, and emits the feed entry fragment the release workflow merges into the rolling
+# extensions.json.
 #
 #   scripts/pack-extension.sh <id> [--key <private.pem>] [--dry-run] [--out <dir>]
+#                                  [--project <dir> --manifest <path>]
 #
 #   <id>          the extension id (see EXTENSIONS below)
 #   --key         a PEM private key to sign with.
@@ -12,8 +14,12 @@
 #                 git-tag/manifest-version check only runs when a matching tag ref is present;
 #                 DV_EXTENSION_SIGNING_KEY is never used, signed or not, only an explicit --key.
 #   --out         output directory (default: artifacts/extension-release/<id>)
+#   --project     dry-run only: pack an extension project outside EXTENSIONS (a sample, a test fixture) with
+#                 --manifest naming its extension.json template. Its version is the one the build stamped,
+#                 and the tag check is skipped.
 #
-# Every step fails loudly; nothing here is skipped silently.
+# Every step fails loudly. The dependency walk names each library it leaves to the app or the runtime, so
+# nothing is skipped silently either.
 
 set -euo pipefail
 
@@ -30,14 +36,18 @@ ID=""
 KEY_PATH=""
 DRY_RUN=0
 OUT_BASE=""
+PROJECT_OVERRIDE=""
+MANIFEST_OVERRIDE=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --key) KEY_PATH="$2"; shift 2 ;;
         --dry-run) DRY_RUN=1; shift ;;
         --out) OUT_BASE="$2"; shift 2 ;;
+        --project) PROJECT_OVERRIDE="$2"; shift 2 ;;
+        --manifest) MANIFEST_OVERRIDE="$2"; shift 2 ;;
         -h|--help)
-            sed -n '2,15p' "$0"; exit 0 ;;
+            sed -n '2,21p' "$0"; exit 0 ;;
         *)
             if [ -n "$ID" ]; then
                 echo "unexpected argument '$1'" >&2; exit 2
@@ -51,24 +61,44 @@ done
 EXPLICIT_KEY_PATH="$KEY_PATH"
 
 if [ -z "$ID" ]; then
-    echo "usage: $0 <id> [--key <private.pem>] [--dry-run] [--out <dir>]" >&2
+    echo "usage: $0 <id> [--key <private.pem>] [--dry-run] [--out <dir>] [--project <dir> --manifest <path>]" >&2
     echo "known ids: $(for e in "${EXTENSIONS[@]}"; do printf '%s ' "${e%%|*}"; done)" >&2
     exit 2
 fi
 
+# An extension outside EXTENSIONS is a dry-run subject only: nothing it produces is ever released, so its
+# version is whatever the build stamped and no tag is checked against it.
 CSPROJ_DIR=""
 MANIFEST_PATH=""
-for entry in "${EXTENSIONS[@]}"; do
-    entry_id="${entry%%|*}"
-    rest="${entry#*|}"
-    if [ "$entry_id" = "$ID" ]; then
-        CSPROJ_DIR="${rest%%|*}"
-        MANIFEST_PATH="${rest#*|}"
+if [ -n "$PROJECT_OVERRIDE" ] || [ -n "$MANIFEST_OVERRIDE" ]; then
+    if [ "$DRY_RUN" -ne 1 ] || [ -z "$PROJECT_OVERRIDE" ] || [ -z "$MANIFEST_OVERRIDE" ]; then
+        echo "error: --project and --manifest go together and only with --dry-run." >&2
+        exit 2
     fi
-done
-if [ -z "$CSPROJ_DIR" ]; then
-    echo "unknown extension id '$ID'. Known: $(for e in "${EXTENSIONS[@]}"; do printf '%s ' "${e%%|*}"; done)" >&2
-    exit 2
+    CSPROJ_DIR="${PROJECT_OVERRIDE%/}"
+    MANIFEST_PATH="$MANIFEST_OVERRIDE"
+    if [ ! -f "$MANIFEST_PATH" ]; then
+        echo "error: --manifest $MANIFEST_PATH does not exist." >&2
+        exit 2
+    fi
+    if [ "$(jq -r .id "$MANIFEST_PATH")" != "$ID" ]; then
+        echo "error: $MANIFEST_PATH is for '$(jq -r .id "$MANIFEST_PATH")', not '$ID'." >&2
+        exit 2
+    fi
+else
+    for entry in "${EXTENSIONS[@]}"; do
+        entry_id="${entry%%|*}"
+        rest="${entry#*|}"
+        if [ "$entry_id" = "$ID" ]; then
+            CSPROJ_DIR="${rest%%|*}"
+            MANIFEST_PATH="${rest#*|}"
+        fi
+    done
+    if [ -z "$CSPROJ_DIR" ]; then
+        echo "unknown extension id '$ID'. Known: $(for e in "${EXTENSIONS[@]}"; do printf '%s ' "${e%%|*}"; done)" >&2
+        echo "       A project outside this list packs in dry-run mode with --project <dir> --manifest <path>." >&2
+        exit 2
+    fi
 fi
 CSPROJ_FILE="$CSPROJ_DIR/$(basename "$CSPROJ_DIR").csproj"
 
@@ -109,19 +139,28 @@ if [ "$MANIFEST_TEMPLATE_VERSION" != "{version}" ]; then
     echo "error: $MANIFEST_PATH must keep \"version\": \"{version}\"; the build stamps the version from version.json." >&2
     exit 2
 fi
-if ! dotnet nbgv --version >/dev/null 2>&1; then
-    dotnet tool restore >/dev/null
-fi
-MANIFEST_VERSION="$(dotnet nbgv get-version -p "$CSPROJ_DIR" -v NuGetPackageVersion)"
 MANIFEST_ASSEMBLY="$(jq -r .assembly "$MANIFEST_PATH")"
 ASSEMBLY_BASENAME="${MANIFEST_ASSEMBLY%.dll}"
-echo "[pack-extension] version=$MANIFEST_VERSION (nbgv) assembly=$MANIFEST_ASSEMBLY"
+if [ -n "$PROJECT_OVERRIDE" ]; then
+    # Read from the stamped copy after the build below; the project may fix its version in its csproj.
+    MANIFEST_VERSION=""
+    echo "[pack-extension] version comes from the built manifest (--project) assembly=$MANIFEST_ASSEMBLY"
+else
+    if ! dotnet nbgv --version >/dev/null 2>&1; then
+        dotnet tool restore >/dev/null
+    fi
+    MANIFEST_VERSION="$(dotnet nbgv get-version -p "$CSPROJ_DIR" -v NuGetPackageVersion)"
+    echo "[pack-extension] version=$MANIFEST_VERSION (nbgv) assembly=$MANIFEST_ASSEMBLY"
+fi
 
 # A tag push names the version being released; a dispatch run or a local invocation has none, which
 # is not an error (pack-velopack.sh's own tag guard is the same shape). nbgv never reads the version
 # from the tag, so a tag that disagrees with the computed version would ship one version under
-# another's name.
+# another's name. A --project subject has no release, so no tag can name it.
 TAG_REF="${GITHUB_REF:-}"
+if [ -n "$PROJECT_OVERRIDE" ]; then
+    TAG_REF=""
+fi
 case "$TAG_REF" in
     refs/tags/extensions/"$ID"/v*)
         TAG_VER="${TAG_REF#refs/tags/extensions/"$ID"/v}"
@@ -181,10 +220,10 @@ fi
 # and "resources", only the files this project's own compile output contributes; every referenced
 # project and package is a separate entry. "native" or "runtimeTargets" on this same entry would mean
 # a RID-specific asset, which this script refuses to package: the extension is managed-only, AnyCPU.
-OWN_LIBRARY_JSON="$(jq --arg name "$BUILT_ASSEMBLY_NAME" '
-    .targets[(.targets | keys[0])] as $libs
-    | $libs | to_entries[] | select(.key | startswith($name + "/")) | .value
-' "$DEPS_PATH")"
+EXT_TARGET_JSON="$(jq -c '.targets[(.targets | keys[0])]' "$DEPS_PATH")"
+OWN_LIBRARY_JSON="$(printf '%s' "$EXT_TARGET_JSON" | jq --arg name "$BUILT_ASSEMBLY_NAME" '
+    to_entries[] | select(.key | startswith($name + "/")) | .value
+')"
 if [ -z "$OWN_LIBRARY_JSON" ] || [ "$OWN_LIBRARY_JSON" = "null" ]; then
     echo "error: $DEPS_PATH has no target library entry for $BUILT_ASSEMBLY_NAME." >&2
     exit 2
@@ -218,6 +257,138 @@ if [ ! -f "$STAGE_DIR/$BUILT_ASSEMBLY_NAME.dll" ]; then
     exit 2
 fi
 
+# ── The shipped set: what the app provides at run time ─────────────────────────────────────────────────
+# ExternalLoadContext resolves from the app every assembly that is loaded in the app, sits beside it, or is
+# on the trusted platform assembly list. The same set, from the build side: every library in the Desktop
+# head's deps.json, plus every DLL of the shared frameworks its runtimeconfig.json names. The SDK prunes
+# framework-provided packages (Microsoft.Extensions.*) from the head's deps.json, so the frameworks have to
+# be read as well or those would be staged as dead weight into every zip.
+HEAD_PROJECT="src/App/DemoViewer.NET.Desktop"
+HEAD_TARGET_DIR="$(dotnet build "$HEAD_PROJECT" -c Release -getProperty:TargetDir -v q)"
+HEAD_DEPS_PATH="${HEAD_TARGET_DIR}DemoViewer.NET.Desktop.deps.json"
+HEAD_RUNTIMECONFIG_PATH="${HEAD_TARGET_DIR}DemoViewer.NET.Desktop.runtimeconfig.json"
+# Always built: a deps.json left from before a package bump would name the old versions. The build is
+# incremental, so an up-to-date head costs little.
+echo "[pack-extension] building $HEAD_PROJECT for its deps.json"
+dotnet build "$HEAD_PROJECT" -c Release -v q --nologo
+if [ ! -f "$HEAD_DEPS_PATH" ] || [ ! -f "$HEAD_RUNTIMECONFIG_PATH" ]; then
+    echo "error: expected $HEAD_DEPS_PATH and $HEAD_RUNTIMECONFIG_PATH after building the head." >&2
+    exit 2
+fi
+# "<name>": "<version>" for every library the head's deps.json target lists.
+HEAD_LIBS_JSON="$(jq -c '
+    .targets[(.targets | keys[0])] | to_entries
+    | map({key: (.key | split("/")[0]), value: (.key | split("/")[1])}) | from_entries
+' "$HEAD_DEPS_PATH")"
+
+# The DLL names of each shared framework the head names, from the highest installed <major>.* of it:
+# the same copy the runtime binds, so the same rule the loader's TPA check applies.
+FRAMEWORK_DLLS=""
+TAB="$(printf '\t')"
+FRAMEWORKS="$(jq -r '
+    .runtimeOptions | ([.framework] + (.frameworks // [])) | map(select(. != null))
+    | .[] | "\(.name)\t\(.version)"
+' "$HEAD_RUNTIMECONFIG_PATH")"
+while IFS=$'\t' read -r fw_name fw_version; do
+    [ -z "$fw_name" ] && continue
+    fw_major="${fw_version%%.*}"
+    fw_dir="$(dotnet --list-runtimes \
+        | sed -nE "s/^$fw_name ([0-9][^ ]*) \[(.*)\]\$/\1${TAB}\2/p" \
+        | awk -F'\t' -v m="$fw_major." 'index($1, m) == 1 { print $1 "\t" $2 }' \
+        | sort -t. -k1,1n -k2,2n -k3,3n | tail -1 \
+        | awk -F'\t' '{ print $2 "/" $1 }')"
+    if [ -z "$fw_dir" ] || [ ! -d "$fw_dir" ]; then
+        echo "error: the app runs on $fw_name $fw_major.x and no such runtime is installed here (dotnet --list-runtimes);" >&2
+        echo "       the framework's assembly set decides what the extension must not ship." >&2
+        exit 2
+    fi
+    echo "[pack-extension] shared framework: $fw_dir"
+    FRAMEWORK_DLLS="$FRAMEWORK_DLLS
+$(cd "$fw_dir" && find . -maxdepth 1 -name '*.dll' | sed -E 's#^\./##; s/\.dll$//')"
+done <<< "$FRAMEWORKS"
+
+# ── Stage the managed packages the extension references and the app does not ship ───────────────────────
+# Every other library in the extension's deps.json target is one of three things. Framework-provided: the
+# runtime binds its copy, skipped. In the head's deps.json: the app ships it and a first-party extension
+# packed from this tree must have built against that exact version. The loader accepts a lower version of
+# the same major from an extension released on its own; a release built here has no reason to differ.
+# Neither: the extension ships it, flat, beside its own assembly. A package entry's "runtime" keys are
+# package-relative (lib/net10.0/X.dll), so its files are taken by basename from the build output, which
+# carries them only when the project sets CopyLocalLockFileAssemblies; a project entry's keys are
+# output-relative. "resources" go under their culture folder. A RID-specific asset on anything staged is
+# refused the way the own entry's is.
+DEP_KEYS="$(printf '%s' "$EXT_TARGET_JSON" | jq -r --arg own "$BUILT_ASSEMBLY_NAME" '
+    to_entries[] | select((.key | split("/")[0]) != $own) | .key
+')"
+STAGED_DEPENDENCIES=""
+while IFS= read -r key; do
+    [ -z "$key" ] && continue
+    dep_name="${key%%/*}"
+    dep_version="${key#*/}"
+    if printf '%s\n' "$FRAMEWORK_DLLS" | grep -qxF "$dep_name"; then
+        echo "[pack-extension] framework-provided, not staged: $dep_name $dep_version"
+        continue
+    fi
+    shipped_version="$(printf '%s' "$HEAD_LIBS_JSON" | jq -r --arg n "$dep_name" '.[$n] // empty')"
+    if [ -n "$shipped_version" ]; then
+        if [ "$shipped_version" != "$dep_version" ]; then
+            echo "error: $BUILT_ASSEMBLY_NAME was built against $dep_name $dep_version; the app ships $shipped_version." >&2
+            echo "       An extension takes the app's copy of a package the app ships, so it must build against that version." >&2
+            exit 1
+        fi
+        echo "[pack-extension] app-provided, not staged: $dep_name $dep_version"
+        continue
+    fi
+    dep_json="$(printf '%s' "$EXT_TARGET_JSON" | jq -c --arg k "$key" '.[$k]')"
+    dep_type="$(jq -r --arg k "$key" '.libraries[$k].type // "package"' "$DEPS_PATH")"
+    if [ "$(printf '%s' "$dep_json" | jq -r 'has("native") or has("runtimeTargets")')" = "true" ]; then
+        echo "error: $dep_name $dep_version ships a RID-specific native asset and the app does not provide it;" >&2
+        echo "       this script packages a managed-only, AnyCPU extension only." >&2
+        exit 1
+    fi
+    dep_runtime="$(printf '%s' "$dep_json" | jq -r '.runtime // {} | keys[]')"
+    dep_resources="$(printf '%s' "$dep_json" | jq -r '.resources // {} | to_entries[] | "\(.value.locale)\t\(.key)"')"
+    if [ -z "$dep_runtime" ] && [ -z "$dep_resources" ]; then
+        echo "[pack-extension] no runtime assets, not staged: $dep_name $dep_version"
+        continue
+    fi
+    while IFS= read -r rel; do
+        [ -z "$rel" ] && continue
+        base="$(basename "$rel")"
+        [ "$base" = "_._" ] && continue
+        if [ "$dep_type" = "project" ]; then
+            src="${TARGET_DIR}${rel}"
+        else
+            src="${TARGET_DIR}${base}"
+        fi
+        if [ ! -f "$src" ]; then
+            echo "error: $dep_name $dep_version is not in the app, and its $base is not in the build output." >&2
+            echo "       Set <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies> in $CSPROJ_FILE so the" >&2
+            echo "       output carries the packages the extension ships." >&2
+            exit 1
+        fi
+        cp "$src" "$STAGE_DIR/$base"
+    done <<< "$dep_runtime"
+    while IFS=$'\t' read -r locale rel; do
+        [ -z "$rel" ] && continue
+        base="$(basename "$rel")"
+        src="${TARGET_DIR}${locale}/${base}"
+        if [ ! -f "$src" ]; then
+            echo "error: $dep_name $dep_version is not in the app, and its $locale/$base is not in the build output." >&2
+            echo "       Set <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies> in $CSPROJ_FILE." >&2
+            exit 1
+        fi
+        mkdir -p "$STAGE_DIR/$locale"
+        cp "$src" "$STAGE_DIR/$locale/$base"
+    done <<< "$dep_resources"
+    STAGED_DEPENDENCIES="$STAGED_DEPENDENCIES $dep_name"
+done <<< "$DEP_KEYS"
+if [ -n "$STAGED_DEPENDENCIES" ]; then
+    echo "[pack-extension] staged dependencies the app does not ship:$STAGED_DEPENDENCIES"
+else
+    echo "[pack-extension] every dependency is provided by the app; none staged"
+fi
+
 # deps.json does not track the XML doc file; stage it when the build produced one.
 XML_PATH="${TARGET_DIR}${BUILT_ASSEMBLY_NAME}.xml"
 if [ -f "$XML_PATH" ]; then
@@ -234,7 +405,10 @@ if [ ! -f "$BUILT_MANIFEST_PATH" ]; then
     exit 2
 fi
 BUILT_VERSION="$(jq -r .version "$BUILT_MANIFEST_PATH")"
-if [ "$BUILT_VERSION" != "$MANIFEST_VERSION" ]; then
+if [ -n "$PROJECT_OVERRIDE" ]; then
+    MANIFEST_VERSION="$BUILT_VERSION"
+    echo "[pack-extension] version=$MANIFEST_VERSION (stamped)"
+elif [ "$BUILT_VERSION" != "$MANIFEST_VERSION" ]; then
     echo "error: the stamped manifest says $BUILT_VERSION but nbgv computed $MANIFEST_VERSION." >&2
     exit 2
 fi

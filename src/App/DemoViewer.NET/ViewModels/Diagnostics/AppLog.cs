@@ -71,6 +71,14 @@ internal static partial class AppLog
         Message = "Removed staged extension directory '{directory}' ({reason})")]
     public static partial void ExtensionStagingRemoved(ILogger logger, string directory, string reason);
 
+    [LoggerMessage(EventId = 42, Level = LogLevel.Information,
+        Message = "Extension {packId} marked for removal; its folder is deleted at the next start")]
+    public static partial void ExtensionRemovalMarked(ILogger logger, string packId);
+
+    [LoggerMessage(EventId = 43, Level = LogLevel.Information,
+        Message = "Removed installed extension folder '{directory}'")]
+    public static partial void ExtensionInstalledRemoved(ILogger logger, string directory);
+
     /// <summary>
     ///     Extension code threw at a host call site and the host carried on. <paramref name="count" /> is the
     ///     extension's counted faults this session; a site that keeps throwing is logged a few times, then

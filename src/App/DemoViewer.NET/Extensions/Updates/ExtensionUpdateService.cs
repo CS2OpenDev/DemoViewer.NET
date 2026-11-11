@@ -13,11 +13,12 @@ using Microsoft.Extensions.Logging;
 namespace DemoViewer.NET.Extensions.Updates;
 
 /// <summary>
-///     Checks each extension's feed, downloads a newer version and stages it where the loader reads.
-///     It loads nothing: a staged copy is picked up by
-///     <see cref="ExtensionLoader.Resolve" /> at the next start. Every network and disk step runs as a
-///     queue item at user priority, since a click asked for it, and every failure is a state or a result,
-///     never an exception.
+///     Checks each extension's feed, downloads a newer version and stages it where the loader reads; lists
+///     the first-party extensions this build can install but does not have, and installs them the same way.
+///     It loads nothing: a staged copy is picked up by <see cref="ExtensionLoader.Resolve" /> or
+///     <see cref="ExternalExtensions.Resolve" /> at the next start. Every network and disk step runs as a
+///     queue item, at user priority when a click asked for it and at background priority for the launch-time
+///     automatic stage, and every failure is a state or a result, never an exception.
 ///     <para>
 ///         <see cref="IsOffered" /> is the one predicate that decides whether a published version is
 ///         offered; <see cref="DefaultIsOffered" /> unless the constructor is given another.
@@ -31,24 +32,48 @@ public sealed class ExtensionUpdateService
     private readonly string _extensionsDirectory;
     private readonly ExtensionHostInfo _host;
     private readonly ITrustPolicy _trust;
+    private readonly ITrustPolicy _installTrust;
     private readonly IExtensionFeedClient _client;
     private readonly Func<string, Uri> _feedUrl;
     private readonly IDemoProcessingQueue? _queue;
+    private readonly IReadOnlyList<string> _catalogue;
+    private readonly IReadOnlyList<string> _shippedIds;
+    private readonly IReadOnlyList<LoadOutcome> _externalRejected;
+    // Two stages of one entry share the .staging paths, so stages run one at a time: each waits for the
+    // tail of the chain and the second then finds the first's result, not its files.
+    private readonly Lock _stageSync = new();
+    private Task _stageTail = Task.CompletedTask;
     private readonly Lock _sync = new();
     private readonly Dictionary<string, ExtensionUpdateState> _last = new(StringComparer.Ordinal);
+    private IReadOnlyList<InstallableExtension>? _lastCatalogue;
+    // Each catalogue id's feed answer at the last check, without the disk: Reassess combines it with the disk now.
+    private readonly Dictionary<string, InstallableStatus> _feedSide = new(StringComparer.Ordinal);
 
     /// <param name="configRoot">The config root; <c>extensions/</c> under it is the only tree touched.</param>
     /// <param name="statuses">Every declared pack with its verdict (<see cref="FeaturePacks.Statuses" />); the running versions.</param>
     /// <param name="host">What this app provides, for the compatibility check.</param>
-    /// <param name="trust">The loader's trust policy, asked about the unpacked directory before it is installed.</param>
+    /// <param name="trust">The loader's trust policy for a staged update of a shipped pack, asked about the unpacked directory before it is installed.</param>
     /// <param name="client">The network.</param>
     /// <param name="feedUrl">Each pack id's feed URL (<see cref="ExtensionFeedSource.Resolve" />).</param>
     /// <param name="queue">The processing queue, or null to run on the pool.</param>
     /// <param name="isOffered">The offer predicate; null is <see cref="DefaultIsOffered" />.</param>
+    /// <param name="installTrust">
+    ///     The policy that judges everything that is not an update of a shipped pack: a catalogue install, an
+    ///     update of an installed pack, and every automatic stage. Null is <see cref="SignedTrustPolicy" />
+    ///     over <see cref="PublisherKeys.Current" />: signed only, whatever the user allowed.
+    /// </param>
+    /// <param name="catalogue">The installable first-party ids; null is <see cref="FirstPartyCatalog.Ids" />.</param>
+    /// <param name="externalRejected">The copies this launch refused (<see cref="FeaturePacks.ExternalRejected" /> when null), so a catalogue entry on disk that did not load says why.</param>
+    /// <param name="shippedIds">
+    ///     The ids this build ships (<see cref="FeaturePacks.ShippedIds" /> when null). Never listed and never
+    ///     removed, whatever <paramref name="statuses" /> holds: safe mode runs with no status for them.
+    /// </param>
     public ExtensionUpdateService(
         string configRoot, IReadOnlyList<PackStatus> statuses, ExtensionHostInfo host, ITrustPolicy trust,
         IExtensionFeedClient client, Func<string, Uri> feedUrl, IDemoProcessingQueue? queue = null,
-        Func<ExtensionFeedEntry, ExtensionHostInfo, bool>? isOffered = null)
+        Func<ExtensionFeedEntry, ExtensionHostInfo, bool>? isOffered = null, ITrustPolicy? installTrust = null,
+        IReadOnlyList<string>? catalogue = null, IReadOnlyList<LoadOutcome>? externalRejected = null,
+        IReadOnlyList<string>? shippedIds = null)
     {
         ArgumentNullException.ThrowIfNull(configRoot);
         ArgumentNullException.ThrowIfNull(statuses);
@@ -60,9 +85,13 @@ public sealed class ExtensionUpdateService
         Statuses = statuses;
         _host = host;
         _trust = trust;
+        _installTrust = installTrust ?? new SignedTrustPolicy();
         _client = client;
         _feedUrl = feedUrl;
         _queue = queue;
+        _catalogue = catalogue ?? FirstPartyCatalog.Ids;
+        _shippedIds = shippedIds ?? FeaturePacks.ShippedIds;
+        _externalRejected = externalRejected ?? FeaturePacks.ExternalRejected;
         IsOffered = isOffered ?? DefaultIsOffered;
     }
 
@@ -76,6 +105,13 @@ public sealed class ExtensionUpdateService
 
     /// <summary>How long a check result stands before opening Settings checks again.</summary>
     public static TimeSpan AutoCheckInterval { get; } = TimeSpan.FromHours(1);
+
+    /// <summary>
+    ///     Whether a check is due: nothing was ever recorded, or the last one is at least
+    ///     <see cref="AutoCheckInterval" /> ago. A clock that moved backwards reads as due as well.
+    /// </summary>
+    public static bool IsCheckDue(DateTimeOffset? lastCheckUtc, DateTimeOffset now) =>
+        lastCheckUtc is not { } last || now - last >= AutoCheckInterval || last > now;
 
     /// <summary>
     ///     Whether a published version may be offered to this app. This is
@@ -120,6 +156,79 @@ public sealed class ExtensionUpdateService
         }
     }
 
+    /// <summary>What the last <see cref="CheckCatalogueAsync" /> of this run found, or null before the first.</summary>
+    public IReadOnlyList<InstallableExtension>? LastCatalogue
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _lastCatalogue;
+            }
+        }
+    }
+
+    /// <summary>The copies this launch refused, as handed in.</summary>
+    public IReadOnlyList<LoadOutcome> ExternalRejected => _externalRejected;
+
+    /// <summary>
+    ///     The catalogue as Settings lists it now: the last check's feed answers with the disk read again, so
+    ///     an Install or Remove since that check shows. Before the first check of the run, the catalogue ids
+    ///     with a copy on disk, so a refused copy is listed without asking any feed.
+    /// </summary>
+    public IReadOnlyList<InstallableExtension> CurrentCatalogue()
+    {
+        if (LastCatalogue is { } last)
+        {
+            return [.. last.Select(Reassess)];
+        }
+
+        List<InstallableExtension> onDisk = [];
+        foreach (string id in _catalogue.Where(id => !IsShippedOrDeclared(id)))
+        {
+            LoadOutcome? rejected = RejectedOnDisk(id);
+            SemVersion? staged = HighestStaged(id, above: null);
+            if (rejected is not null || staged is not null)
+            {
+                onDisk.Add(new InstallableExtension(id, rejected?.Manifest?.Name ?? id, null, null, null, staged,
+                    rejected, Derive(rejected, staged, InstallableStatus.Removed)));
+            }
+        }
+
+        return onDisk;
+    }
+
+    /// <summary>
+    ///     True when <paramref name="outcome" /> is a copy the catalogue lists (its folder is a catalogue id this
+    ///     build neither ships nor has loaded), so Settings shows it there and not among the third-party ones.
+    /// </summary>
+    public bool ListsInCatalogue(LoadOutcome outcome)
+    {
+        ArgumentNullException.ThrowIfNull(outcome);
+        string id = IdFolderOf(outcome.Directory);
+        return _catalogue.Contains(id, StringComparer.Ordinal) && !IsShippedOrDeclared(id);
+    }
+
+    /// <summary><paramref name="entry" /> with what is on disk read again; the feed's answer is the last check's.</summary>
+    public InstallableExtension Reassess(InstallableExtension entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        InstallableStatus? feedSide;
+        lock (_sync)
+        {
+            feedSide = _feedSide.TryGetValue(entry.Id, out InstallableStatus known) ? known : null;
+        }
+
+        SemVersion? staged = HighestStaged(entry.Id, above: null);
+        LoadOutcome? rejected = RejectedOnDisk(entry.Id);
+        // No feed answer is known for an entry listed from the disk alone.
+        feedSide ??= entry.Status is InstallableStatus.NotLoaded or InstallableStatus.PendingRestart
+            ? InstallableStatus.Removed
+            : entry.Status;
+        InstallableStatus status = Derive(rejected, staged, feedSide.Value);
+        return entry with { Staged = staged, Rejected = rejected, Status = status };
+    }
+
     /// <summary><see cref="PackCompatibility.Check" /> accepts the entry's manifest.</summary>
     public static bool DefaultIsOffered(ExtensionFeedEntry entry, ExtensionHostInfo host)
     {
@@ -142,11 +251,28 @@ public sealed class ExtensionUpdateService
             return null;
         }
 
+        return HighestStaged(packId, manifest.Version);
+    }
+
+    /// <summary>True when <c>extensions/&lt;id&gt;/</c> carries the removal marker: Remove was pressed and the next start deletes it.</summary>
+    public bool IsMarkedForRemoval(string packId)
+    {
+        ArgumentNullException.ThrowIfNull(packId);
+        string marker = ExtensionStaging.RemovalMarkerPath(_extensionsDirectory, packId);
+        return ExtensionStaging.IsInside(_extensionsDirectory, marker) && File.Exists(marker);
+    }
+
+    /// <summary>True when any extension has a staged version waiting for a restart.</summary>
+    public bool PendingRestart => Statuses.Any(s => PendingVersion(s.Pack.Id) is not null);
+
+    // The highest compatible version of packId under extensions/<id>/, above a floor when one is given.
+    private SemVersion? HighestStaged(string packId, SemVersion? above)
+    {
         try
         {
             return ExtensionLoader.Discover(_extensionsDirectory).Candidates
                 .Where(c => string.Equals(c.Manifest.Id, packId, StringComparison.Ordinal)
-                    && c.Manifest.Version > manifest.Version
+                    && (above is null || c.Manifest.Version > above)
                     && PackCompatibility.Check(c.Manifest, _host).IsCompatible)
                 .Select(c => c.Manifest.Version)
                 .OrderByDescending(v => v)
@@ -157,9 +283,6 @@ public sealed class ExtensionUpdateService
             return null;
         }
     }
-
-    /// <summary>True when any extension has a staged version waiting for a restart.</summary>
-    public bool PendingRestart => Statuses.Any(s => PendingVersion(s.Pack.Id) is not null);
 
     /// <summary>
     ///     Fetches every extension's feed as one queue item at user priority and computes each one's
@@ -224,16 +347,171 @@ public sealed class ExtensionUpdateService
     {
         ArgumentNullException.ThrowIfNull(entry);
         StageResult? result = null;
+        ITrustPolicy policy = TrustFor(entry);
         await QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate,
             $"Download extension update: {entry.Manifest.Name} {entry.Version}", Owner,
             async ctx =>
             {
                 using CancellationTokenSource linked =
                     CancellationTokenSource.CreateLinkedTokenSource(ct, ctx.CancellationToken);
-                result = await StageCore(entry, ctx, progress, linked.Token).ConfigureAwait(false);
+                result = await StageLocked(entry, policy, ctx, progress, true, linked.Token).ConfigureAwait(false);
             }, DemoJobPriority.UserRequested).ConfigureAwait(false);
 
         return result ?? new StageResult(StageOutcome.Cancelled, null);
+    }
+
+    /// <summary>
+    ///     The catalogue check, one queue item at user priority: for each first-party id this build can
+    ///     install, does not ship and has no status for, the feed's highest offered version, what is already
+    ///     on disk, and why a copy on disk did not load. Never throws; every feed failure is a status.
+    /// </summary>
+    public async Task<IReadOnlyList<InstallableExtension>> CheckCatalogueAsync(CancellationToken ct = default)
+    {
+        string[] ids = [.. _catalogue.Where(id => !IsShippedOrDeclared(id))];
+        InstallableExtension?[] found = new InstallableExtension?[ids.Length];
+        if (ids.Length > 0)
+        {
+            await QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate, "Check for available extensions", Owner,
+                async ctx =>
+                {
+                    using CancellationTokenSource linked =
+                        CancellationTokenSource.CreateLinkedTokenSource(ct, ctx.CancellationToken);
+                    for (int i = 0; i < ids.Length; i++)
+                    {
+                        found[i] = await CatalogueCore(ids[i], linked.Token).ConfigureAwait(false);
+                    }
+                }, DemoJobPriority.UserRequested).ConfigureAwait(false);
+        }
+
+        InstallableExtension[] entries = new InstallableExtension[ids.Length];
+        for (int i = 0; i < ids.Length; i++)
+        {
+            entries[i] = found[i] ?? new InstallableExtension(ids[i], ids[i], null, null, null, null, null,
+                InstallableStatus.FeedUnreachable, "the check did not finish", CheckedAt: DateTimeOffset.UtcNow);
+        }
+
+        lock (_sync)
+        {
+            _lastCatalogue = entries;
+        }
+
+        return entries;
+    }
+
+    /// <summary>
+    ///     The launch-time automatic stage, one queue item at background priority: for each first-party
+    ///     extension this process runs, the feed is checked and a newer offered version is staged for the
+    ///     next start. Judged by the install policy alone, so nothing unverified is ever staged here; the
+    ///     states are remembered as the Settings rows show them. An id marked for removal is skipped, and a
+    ///     stage never clears the marker: only a user's Install or Update undoes a Remove.
+    /// </summary>
+    public async Task<IReadOnlyList<ExtensionUpdateState>> AutoStageAsync(CancellationToken ct = default) =>
+        (await AutoStageCoreAsync(ct).ConfigureAwait(false)).States;
+
+    // Asked is true when the queue item ran a check; the placeholders for an item never run do not count.
+    private async Task<(IReadOnlyList<ExtensionUpdateState> States, bool Asked)> AutoStageCoreAsync(
+        CancellationToken ct)
+    {
+        PackStatus[] firstParty = [.. Statuses.Where(s => IsFirstParty(s) && !IsMarkedForRemoval(s.Pack.Id))];
+        ExtensionUpdateState?[] found = new ExtensionUpdateState?[firstParty.Length];
+        if (firstParty.Length > 0)
+        {
+            await QueueWork.RunJob(_queue, QueueJobKind.ExtensionUpdate, "Update extensions", Owner, async ctx =>
+            {
+                using CancellationTokenSource linked =
+                    CancellationTokenSource.CreateLinkedTokenSource(ct, ctx.CancellationToken);
+                for (int i = 0; i < firstParty.Length; i++)
+                {
+                    ExtensionUpdateState state = await CheckCore(firstParty[i], linked.Token).ConfigureAwait(false);
+                    if (state.Status == ExtensionUpdateStatus.UpdateAvailable && state.Offered is { } offered)
+                    {
+                        StageResult result = await StageLocked(offered, _installTrust, ctx, null, false,
+                            linked.Token).ConfigureAwait(false);
+                        if (result.Outcome is StageOutcome.Installed or StageOutcome.AlreadyInstalled)
+                        {
+                            state = state with
+                            {
+                                Status = ExtensionUpdateStatus.PendingRestart, Pending = offered.Version, Offered = null
+                            };
+                        }
+                    }
+
+                    found[i] = state;
+                }
+            }).ConfigureAwait(false);
+        }
+
+        bool asked = found.Any(s => s is not null);
+        ExtensionUpdateState[] states = new ExtensionUpdateState[firstParty.Length];
+        for (int i = 0; i < states.Length; i++)
+        {
+            states[i] = found[i] ?? Unreachable(firstParty[i], "the check did not finish", null);
+        }
+
+        Remember(states);
+        return (states, asked);
+    }
+
+    /// <summary>
+    ///     <see cref="AutoStageAsync" /> behind the launch rule: only when <paramref name="autoUpdate" />
+    ///     ("Install extension updates automatically") and <paramref name="checkAutomatically" /> ("Check for
+    ///     updates automatically") are both on and <see cref="IsCheckDue" /> holds for
+    ///     <paramref name="lastCheckUtc" />. True when at least one feed was asked, which is when the caller
+    ///     records the time; false leaves the record alone, so a launch with no first-party extension to check,
+    ///     or whose queue item never ran, never postpones the Settings check that lists the catalogue.
+    /// </summary>
+    public async Task<bool> AutoStageAtLaunchAsync(bool autoUpdate, bool checkAutomatically,
+        DateTimeOffset? lastCheckUtc, DateTimeOffset now, CancellationToken ct = default)
+    {
+        if (!autoUpdate || !checkAutomatically || !IsCheckDue(lastCheckUtc, now))
+        {
+            return false;
+        }
+
+        (_, bool asked) = await AutoStageCoreAsync(ct).ConfigureAwait(false);
+        return asked;
+    }
+
+    /// <summary>
+    ///     Marks an installed first-party extension for removal: the folder is deleted at the next start,
+    ///     since a loaded assembly is locked on Windows, or at once when nothing of that id is loaded (a copy
+    ///     refused after its assembly loaded counts as loaded). Only packId's folder is touched. Allowed
+    ///     for a status whose source is <see cref="PackSource.Installed" /> and for a catalogue id with
+    ///     folders on disk and no status; never for a shipped id. False when refused, or when nothing is on disk.
+    /// </summary>
+    public async Task<bool> RemoveInstalledAsync(string packId)
+    {
+        ArgumentNullException.ThrowIfNull(packId);
+        PackStatus? status = Statuses.FirstOrDefault(s => string.Equals(s.Pack.Id, packId, StringComparison.Ordinal));
+        bool allowed = status is { Source: PackSource.Installed }
+            || (status is null && _catalogue.Contains(packId, StringComparer.Ordinal)
+                && !_shippedIds.Contains(packId, StringComparer.Ordinal));
+        string idFolder = Path.Combine(_extensionsDirectory, packId);
+        if (!allowed || !ExtensionStaging.IsInside(_extensionsDirectory, idFolder) || !Directory.Exists(idFolder))
+        {
+            return false;
+        }
+
+        return await QueueWork.RunAsync(_queue, QueueJobKind.ExtensionUpdate, $"Remove extension: {packId}", Owner,
+            () =>
+            {
+                try
+                {
+                    ExtensionStaging.MarkForRemoval(_extensionsDirectory, packId);
+                    AppLog.ExtensionRemovalMarked(Log, packId);
+                    if (!IsLoaded(packId))
+                    {
+                        ExtensionStaging.ApplyPendingRemoval(_extensionsDirectory, packId, Log);
+                    }
+
+                    return true;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    AppLog.OperationFailed(Log, "mark an extension for removal", ex);
+                    return false;
+                }
+            }, false, DemoJobPriority.UserRequested).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -275,9 +553,12 @@ public sealed class ExtensionUpdateService
                     continue;
                 }
 
-                string? runningDirectory = status.Source is PackSource.Staged staged
-                    ? Path.GetFullPath(staged.Directory)
-                    : null;
+                string? runningDirectory = status.Source switch
+                {
+                    PackSource.Staged staged => Path.GetFullPath(staged.Directory),
+                    PackSource.Installed installed => Path.GetFullPath(installed.Directory),
+                    _ => null
+                };
                 foreach (ExtensionCandidate candidate in discovery.Candidates)
                 {
                     if (!string.Equals(candidate.Manifest.Id, status.Pack.Id, StringComparison.Ordinal)
@@ -314,7 +595,15 @@ public sealed class ExtensionUpdateService
                 Error: "the extension's own manifest could not be read", CheckedAt: DateTimeOffset.UtcNow);
         }
 
-        Uri url = _feedUrl(packId);
+        Uri? url = TryResolveFeedUrl(packId, out string resolveDetail);
+        if (url is null)
+        {
+            AppLog.ExtensionFeedCheckFailed(Log, packId, nameof(ExtensionUpdateStatus.FeedInvalid), resolveDetail);
+            return new ExtensionUpdateState(packId, manifest.Name, manifest.Version, status.Source,
+                ExtensionUpdateStatus.FeedInvalid,
+                Error: FeedAddressError, LogDetail: resolveDetail, CheckedAt: DateTimeOffset.UtcNow);
+        }
+
         string text;
         try
         {
@@ -394,6 +683,196 @@ public sealed class ExtensionUpdateService
             CheckedAt: DateTimeOffset.UtcNow);
     }
 
+    // One catalogue entry: the feed, what is on disk, and why a copy on disk did not load. The feed's
+    // failures become statuses; a copy on disk outranks the feed, since it is what the next start does.
+    private async Task<InstallableExtension> CatalogueCore(string id, CancellationToken ct)
+    {
+        LoadOutcome? rejected = RejectedOnDisk(id);
+        SemVersion? staged = HighestStaged(id, above: null);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        string name = rejected?.Manifest?.Name ?? id;
+
+        Uri? url = TryResolveFeedUrl(id, out string resolveDetail);
+        ExtensionFeed? feed = null;
+        InstallableStatus? feedStatus = null;
+        string? error = null;
+        string? logDetail = null;
+        if (url is null)
+        {
+            AppLog.ExtensionFeedCheckFailed(Log, id, nameof(InstallableStatus.FeedInvalid), resolveDetail);
+            feedStatus = InstallableStatus.FeedInvalid;
+            error = FeedAddressError;
+            logDetail = resolveDetail;
+        }
+        else
+        {
+            try
+            {
+                string text = await _client.GetFeedAsync(url, ct).ConfigureAwait(false);
+                feed = ExtensionFeed.Parse(text);
+                if (!string.Equals(feed.Id, id, StringComparison.Ordinal))
+                {
+                    feedStatus = InstallableStatus.FeedInvalid;
+                    error = "the update feed is for another extension";
+                    logDetail = $"the feed is for '{feed.Id}'";
+                    feed = null;
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                AppLog.ExtensionFeedNotPublished(Log, id, url);
+                feedStatus = InstallableStatus.NotPublished;
+            }
+            catch (ExtensionFeedException ex)
+            {
+                AppLog.ExtensionFeedCheckFailed(Log, id, nameof(InstallableStatus.FeedInvalid), ex.Message);
+                feedStatus = InstallableStatus.FeedInvalid;
+                error = "the update feed could not be read";
+                logDetail = ex.Message;
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                AppLog.ExtensionFeedCheckFailed(Log, id, nameof(InstallableStatus.FeedUnreachable), ex.Message);
+                feedStatus = InstallableStatus.FeedUnreachable;
+                error = "the update feed could not be reached";
+                logDetail = ex.Message;
+            }
+        }
+
+        ExtensionFeedEntry? latest = feed?.Latest;
+        ExtensionFeedEntry? offered = feed?.Entries.FirstOrDefault(IsOfferedSafely);
+        name = offered?.Manifest.Name ?? latest?.Manifest.Name ?? name;
+        PackCompatibility? latestCompatibility = null;
+        InstallableStatus feedSide;
+        if (feedStatus is { } failed)
+        {
+            feedSide = failed;
+        }
+        else if (offered is not null)
+        {
+            feedSide = InstallableStatus.Available;
+        }
+        else if (latest is not null)
+        {
+            feedSide = InstallableStatus.NeedsNewerApp;
+            latestCompatibility = PackCompatibility.Check(latest.Manifest, _host);
+        }
+        else
+        {
+            feedSide = InstallableStatus.NotPublished;
+        }
+
+        lock (_sync)
+        {
+            _feedSide[id] = feedSide;
+        }
+
+        InstallableStatus status = Derive(rejected, staged, feedSide);
+        return new InstallableExtension(id, name, offered, latest, latestCompatibility, staged, rejected, status,
+            error, logDetail, now);
+    }
+
+    private const string FeedAddressError = "the update feed address could not be resolved";
+
+    // A copy on disk outranks the feed, since it is what the next start does. A staged version above the
+    // refused one is what the next start tries first.
+    private static InstallableStatus Derive(LoadOutcome? rejected, SemVersion? staged, InstallableStatus feedSide)
+    {
+        if (staged is not null && (rejected?.Version is not { } refused || staged > refused))
+        {
+            return InstallableStatus.PendingRestart;
+        }
+
+        return rejected is not null ? InstallableStatus.NotLoaded : feedSide;
+    }
+
+    // The launch's refusal of a copy under extensions/<id>/ whose folder is still there. Matched by folder,
+    // not by manifest id: Remove deletes extensions/<id>/, so a tree of this id under another id's folder is
+    // that folder's problem and must not block Install here.
+    private LoadOutcome? RejectedOnDisk(string id) =>
+        _externalRejected.FirstOrDefault(o =>
+            string.Equals(IdFolderOf(o.Directory), id, StringComparison.Ordinal) && Directory.Exists(o.Directory));
+
+    // The resolver is caller-supplied; one that throws is a feed failure, never a failed queue item.
+    private Uri? TryResolveFeedUrl(string packId, out string logDetail)
+    {
+        try
+        {
+            logDetail = string.Empty;
+            return _feedUrl(packId);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            logDetail = ex.Message;
+            return null;
+        }
+    }
+
+    private string IdFolderOf(string path) => ExternalExtensions.IdFolderOf(_extensionsDirectory, path);
+
+    // Code of packId is mapped in this process: a status, or a copy refused after its assembly loaded.
+    private bool IsLoaded(string packId) =>
+        Statuses.Any(s => string.Equals(s.Pack.Id, packId, StringComparison.Ordinal))
+        || _externalRejected.Any(o => o.AssemblyLoaded
+            && string.Equals(IdFolderOf(o.Directory), packId, StringComparison.Ordinal));
+
+    // A shipped id, or one with a status this run: its own row covers it, so the catalogue never lists it.
+    private bool IsShippedOrDeclared(string id) =>
+        _shippedIds.Contains(id, StringComparer.Ordinal)
+        || Statuses.Any(s => string.Equals(s.Pack.Id, id, StringComparison.Ordinal));
+
+    // A declared first-party pack this process runs: the automatic stage's scope. A reserved id is never
+    // a third-party copy, and the composition root leaves External statuses out of this service.
+    private static bool IsFirstParty(PackStatus status) =>
+        status.Pack.Id.StartsWith(ExternalExtensions.ReservedIdPrefix, StringComparison.Ordinal)
+        && status.Manifest is not null;
+
+    // A staged update of a shipped pack is judged by the policy the loader runs with; everything else
+    // (a catalogue install, an update of an installed pack) by the signed-only install policy.
+    private ITrustPolicy TrustFor(ExtensionFeedEntry entry)
+    {
+        PackStatus? status = Statuses.FirstOrDefault(s =>
+            string.Equals(s.Pack.Id, entry.Manifest.Id, StringComparison.Ordinal));
+        return status is { Source: PackSource.Shipped or PackSource.Staged } ? _trust : _installTrust;
+    }
+
+    private async Task<StageResult> StageLocked(ExtensionFeedEntry entry, ITrustPolicy policy, IQueueJobContext ctx,
+        IProgress<ExtensionDownloadProgress>? progress, bool userInitiated, CancellationToken ct)
+    {
+        TaskCompletionSource done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task previous;
+        lock (_stageSync)
+        {
+            previous = _stageTail;
+            // A waiter cancelled early completes its own link, so the tail must still wait for the one before.
+            _stageTail = Task.WhenAll(previous, done.Task);
+        }
+
+        try
+        {
+            try
+            {
+                // Never faults: every link ends with SetResult below.
+                await previous.WaitAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Not StageCore's cancel path: that clears the staging paths the running stage may share.
+                return new StageResult(StageOutcome.Cancelled, null);
+            }
+
+            return await StageCore(entry, policy, ctx, progress, userInitiated, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            done.SetResult();
+        }
+    }
+
     private void Remember(IEnumerable<ExtensionUpdateState> states)
     {
         lock (_sync)
@@ -423,9 +902,10 @@ public sealed class ExtensionUpdateService
             ExtensionUpdateStatus.FeedUnreachable, Error: error, LogDetail: logDetail,
             CheckedAt: DateTimeOffset.UtcNow);
 
-    private async Task<StageResult> StageCore(ExtensionFeedEntry entry, IQueueJobContext ctx,
-        IProgress<ExtensionDownloadProgress>? progress,
-        CancellationToken ct)
+    // userInitiated: a click asked for this stage, so it undoes a pending Remove of the id. The automatic
+    // stage never does, and gives way to a Remove pressed while it downloaded.
+    private async Task<StageResult> StageCore(ExtensionFeedEntry entry, ITrustPolicy policy, IQueueJobContext ctx,
+        IProgress<ExtensionDownloadProgress>? progress, bool userInitiated, CancellationToken ct)
     {
         string id = entry.Manifest.Id;
         SemVersion version = entry.Version;
@@ -493,7 +973,7 @@ public sealed class ExtensionUpdateService
             TrustVerdict verdict;
             try
             {
-                verdict = _trust.Judge(extracted, manifest);
+                verdict = policy.Judge(extracted, manifest);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
@@ -506,7 +986,16 @@ public sealed class ExtensionUpdateService
                     verdict.LogDetail);
             }
 
+            string marker = ExtensionStaging.RemovalMarkerPath(_extensionsDirectory, id);
+            if (!userInitiated && File.Exists(marker))
+            {
+                RemoveStaging(part, extracted);
+                return new StageResult(StageOutcome.Cancelled, null);
+            }
+
             Directory.CreateDirectory(Path.GetDirectoryName(installed)!);
+            // An install after Remove, before the restart, is a reinstall: the marker would sweep this copy.
+            File.Delete(marker);
             try
             {
                 Directory.Move(extracted, installed);

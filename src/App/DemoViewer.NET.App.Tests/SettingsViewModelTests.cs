@@ -42,14 +42,14 @@ namespace DemoViewer.NET.AppTests;
 [Category("Render")]
 public class SettingsViewModelTests
 {
-    private static string NewTempDir()
+    internal static string NewTempDir()
     {
         string dir = Path.Combine(Path.GetTempPath(), "dvsettingsvm_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         return dir;
     }
 
-    private static void Cleanup(string dir)
+    internal static void Cleanup(string dir)
     {
         try
         {
@@ -67,7 +67,7 @@ public class SettingsViewModelTests
     // event, the cue that refreshes the feature rows, is observable inline in these non-UI cases; it is
     // registered in the container so the provider disposes it. reindexEstimate is the test seam
     // for the Extensions "N demos" notice; null everywhere except the tests that exercise it.
-    private static (SettingsViewModel Vm, SettingsService Svc, IFeatureGate Gate, ServiceProvider Sp) NewVm(
+    internal static (SettingsViewModel Vm, SettingsService Svc, IFeatureGate Gate, ServiceProvider Sp) NewVm(
         string dir, IReindexEstimate? reindexEstimate = null, IExtensionDataRemoval? dataRemoval = null,
         IReadOnlyList<PackStatus>? packStatuses = null, ExtensionUpdateService? extensionUpdates = null,
         Func<bool>? isBrowser = null, Action<AppSettings>? seed = null)
@@ -82,13 +82,22 @@ public class SettingsViewModelTests
         services.Configure<AppSettings>(svc.Configuration);
         services.AddSingleton<IFeatureGate>(s =>
             new FeatureGate(s.GetRequiredService<IOptionsMonitor<AppSettings>>(), false));
+        services.AddSingleton(_ => new SettingsWatcher(svc));
         ServiceProvider sp = services.BuildServiceProvider();
+        _ = sp.GetRequiredService<SettingsWatcher>();
         IOptionsMonitor<AppSettings> monitor = sp.GetRequiredService<IOptionsMonitor<AppSettings>>();
         IFeatureGate gate = sp.GetRequiredService<IFeatureGate>();
         SettingsViewModel vm = new(svc, monitor, gate, new ThemeRegistry(), isBrowser ?? OperatingSystem.IsBrowser,
             null, null, reindexEstimate is null ? null : [reindexEstimate], dataRemoval is null ? null : [dataRemoval],
             packStatuses, extensionUpdates);
         return (vm, svc, gate, sp);
+    }
+
+    // Each file-backed SettingsService holds an inotify instance until its root is disposed, and a Linux
+    // runner allows 128 per user. Resolved once, so the provider disposes it with the rest.
+    private sealed class SettingsWatcher(SettingsService svc) : IDisposable
+    {
+        public void Dispose() => (svc.Configuration as IDisposable)?.Dispose();
     }
 
     // The real pack's status over a fake feed client rooted at dir. The feed offers whatever the
@@ -98,7 +107,7 @@ public class SettingsViewModelTests
         new(dir, [FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId)], ExtensionHost.Current,
             trust ?? UpdateFixtures.TrustAll, client, UpdateFixtures.FeedUrl);
 
-    private static string StratBookFeed(params FakeFeeds.Entry[] entries) =>
+    internal static string StratBookFeed(params FakeFeeds.Entry[] entries) =>
         FakeFeeds.Json(StratBookPack.PackId, entries);
 
     // The pending-reindex-count test seam: a fixed pack feature id (the real StratBookPack's) with a
@@ -139,7 +148,7 @@ public class SettingsViewModelTests
     }
 
     // Find a feature row by its catalog id across every grouped collection, Extensions included.
-    private static FeatureToggleRow Row(SettingsViewModel vm, string featureId) =>
+    internal static FeatureToggleRow Row(SettingsViewModel vm, string featureId) =>
         vm.TabFeatureRows.Concat(vm.ChromeFeatureRows).Concat(vm.ExtensionsFeatureRows)
             .First(r => r.FeatureId == featureId);
 
@@ -1161,6 +1170,211 @@ public class SettingsViewModelTests
                     .Because("the switch still works");
 
                 vm.Dispose();
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    // The catalogue of installable first-party extensions: a build that does not ship the Strat Book lists it
+    // on the first open of the run even within the hour of a recorded check (the launch stage records the time
+    // without asking the catalogue), the Check button asks again, Install stages it and the row then says
+    // restart, and a later open seeds from the remembered catalogue without asking.
+    [Test]
+    public async Task InstallableExtensionRows_ListTheCatalogueOnceARun_TheButtonAsksAgain_AndInstallSaysRestart()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            byte[] zip = UpdateFixtures.ExtensionZip(StratBookPack.PackId, "9.9.9");
+            FakeFeeds.Entry entry = new("9.9.9", zip);
+            UpdateFixtures.FakeFeedClient client = new()
+            {
+                Zips = { [entry.Url] = zip }, Feeds = { [UpdateFixtures.FeedUrl(StratBookPack.PackId)] = StratBookFeed(entry) }
+            };
+            // A build that does not ship the Strat Book: the test host does, so the shipped list is given.
+            ExtensionUpdateService updater = new(dir, [], ExtensionHost.Current, TrustPolicy.Nothing, client,
+                UpdateFixtures.FeedUrl, installTrust: UpdateFixtures.TrustAll, shippedIds: []);
+            // Within the hour, so the open asks the catalogue only because this run has not asked it yet.
+            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
+                packStatuses: [], extensionUpdates: updater, isBrowser: () => false,
+                seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
+            await using (sp)
+            {
+                // The open-time check is fire-and-forget; wait for its row.
+                DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+                while (!vm.HasInstallableExtensions && DateTimeOffset.UtcNow < deadline)
+                {
+                    await Task.Delay(20);
+                }
+
+                int fetchesOnOpen = client.FeedFetches;
+                await Task.Delay(50);
+                await vm.CheckExtensionUpdatesCommand.ExecuteAsync(null);
+                int fetchesAfterButton = client.FeedFetches;
+                InstallableExtensionRow row = vm.InstallableExtensionRows.Single();
+                string sizeBefore = row.Size;
+                bool canInstall = row.CanInstall;
+                await row.InstallCommand.ExecuteAsync(null);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(fetchesOnOpen).IsEqualTo(1);
+                    await Assert.That(fetchesAfterButton).IsEqualTo(2);
+                    await Assert.That(vm.HasInstallableExtensions).IsTrue();
+                    await Assert.That(row.Id).IsEqualTo(StratBookPack.PackId);
+                    await Assert.That(row.Name).IsEqualTo("Fake");
+                    await Assert.That(row.Version).IsEqualTo("9.9.9");
+                    await Assert.That(sizeBefore).IsEqualTo("0.0 MB");
+                    await Assert.That(canInstall).IsTrue();
+                    await Assert.That(row.CanInstall).IsFalse();
+                    await Assert.That(row.Message).IsEqualTo("9.9.9 installed, restart to use it.");
+                    await Assert.That(Directory.Exists(Path.Combine(dir, "extensions", StratBookPack.PackId, "9.9.9")))
+                        .IsTrue();
+                }
+
+                vm.Dispose();
+            }
+
+            // A second open within the hour seeds the rows from the service's remembered catalogue.
+            (SettingsViewModel again, SettingsService _, IFeatureGate _, ServiceProvider sp2) = NewVm(dir,
+                packStatuses: [], extensionUpdates: updater, isBrowser: () => false);
+            await using (sp2)
+            {
+                await Task.Delay(100);
+                using (Assert.Multiple())
+                {
+                    await Assert.That(again.InstallableExtensionRows.Select(r => r.Id))
+                        .IsEquivalentTo([StratBookPack.PackId]);
+                    await Assert.That(client.FeedFetches).IsEqualTo(2);
+                }
+
+                again.Dispose();
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    // One sentence per catalogue state, the same vocabulary the update line uses.
+    [Test]
+    public async Task InstallableExtensionRow_Describe_OneSentencePerState()
+    {
+        ExtensionFeedEntry offered = ExtensionFeed.Parse(FakeFeeds.Json(new FakeFeeds.Entry("1.0.1"))).Entries.Single();
+        InstallableExtension available = new(FakeFeeds.Id, "Fake", offered, offered, null, null, null,
+            InstallableStatus.Available);
+        LoadOutcome refused = new("/extensions/x/1.0.0", FakeManifests.For(FakeFeeds.Id, "Fake", "1.0.0"),
+            LoadFailure.ReservedId, "the copy is not signed", External: true);
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(InstallableExtensionRow.Describe(available)).IsEmpty();
+            await Assert.That(InstallableExtensionRow.Describe(available with
+                {
+                    Status = InstallableStatus.PendingRestart, Staged = SemVersion.Parse("1.0.1"), Offered = null
+                }))
+                .IsEqualTo("1.0.1 installed, restart to use it.");
+            await Assert.That(InstallableExtensionRow.Describe(available with
+                {
+                    Status = InstallableStatus.NotLoaded, Rejected = refused, Offered = null
+                }))
+                .IsEqualTo("Fake 1.0.0 was not loaded: the copy is not signed");
+            await Assert.That(InstallableExtensionRow.Describe(available with
+                {
+                    Status = InstallableStatus.NotPublished, Offered = null, Latest = null
+                }))
+                .IsEqualTo("Nothing has been published yet.");
+            await Assert.That(InstallableExtensionRow.Describe(available with
+                {
+                    Status = InstallableStatus.FeedUnreachable, Error = "the update feed could not be reached"
+                }))
+                .IsEqualTo("Could not check: the update feed could not be reached.");
+        }
+    }
+
+    [Test]
+    public async Task AutoUpdateExtensions_IsOnByDefault_AndPersists()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            (SettingsViewModel vm, SettingsService svc, IFeatureGate _, ServiceProvider sp) = NewVm(dir);
+            await using (sp)
+            {
+                bool before = vm.AutoUpdateExtensions;
+                vm.AutoUpdateExtensions = false;
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(before).IsTrue();
+                    await Assert.That(svc.Current.Extensions.AutoUpdate).IsFalse();
+                    await Assert.That(SettingsViewModel.AutoUpdateLabel)
+                        .IsEqualTo("Install extension updates automatically");
+                }
+
+                vm.Dispose();
+            }
+        }
+        finally
+        {
+            Cleanup(dir);
+        }
+    }
+
+    // Remove shows on an installed first-party extension's update line, never on the shipped one; pressing
+    // it marks the folder and the line says restart.
+    [Test]
+    public async Task ExtensionMasterRow_OffersRemove_ForAnInstalledCopyOnly()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            PackStatus real = FeaturePacks.Statuses.Single(s => s.Pack.Id == StratBookPack.PackId);
+            string installedDir = Path.Combine(dir, "extensions", StratBookPack.PackId, real.Manifest!.Version.ToString());
+            Directory.CreateDirectory(installedDir);
+            await File.WriteAllTextAsync(Path.Combine(installedDir, "marker.txt"), "x");
+            PackStatus installed = real with { Source = new PackSource.Installed(installedDir) };
+            UpdateFixtures.FakeFeedClient client = new();
+            ExtensionUpdateService installedUpdater = new(dir, [installed], ExtensionHost.Current, TrustPolicy.Nothing,
+                client, UpdateFixtures.FeedUrl);
+
+            (SettingsViewModel vm, SettingsService _, IFeatureGate _, ServiceProvider sp) = NewVm(dir,
+                packStatuses: [installed], extensionUpdates: installedUpdater, isBrowser: () => false,
+                seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
+            await using (sp)
+            {
+                ExtensionUpdateRow update = Row(vm, StratBookPack.PackFeatureId).Update!;
+                bool canRemove = update.CanRemove;
+                await update.RemoveCommand.ExecuteAsync(null);
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(Row(vm, StratBookPack.PackFeatureId).SourceLabel).IsEqualTo("(installed)");
+                    await Assert.That(canRemove).IsTrue();
+                    await Assert.That(update.IsRemoved).IsTrue();
+                    await Assert.That(update.CanRemove).IsFalse();
+                    await Assert.That(update.Message).IsEqualTo("Removed, restart to finish.");
+                    await Assert.That(File.Exists(ExtensionStaging.RemovalMarkerPath(Path.Combine(dir, "extensions"),
+                        StratBookPack.PackId))).IsTrue();
+                    await Assert.That(Directory.Exists(installedDir)).IsTrue()
+                        .Because("the loaded copy goes at the next start, not now");
+                }
+
+                vm.Dispose();
+            }
+
+            (SettingsViewModel shippedVm, SettingsService _, IFeatureGate _, ServiceProvider sp2) = NewVm(dir,
+                extensionUpdates: NewUpdater(dir, client), isBrowser: () => false,
+                seed: s => s.Extensions.LastUpdateCheckUtc = DateTimeOffset.UtcNow);
+            await using (sp2)
+            {
+                await Assert.That(Row(shippedVm, StratBookPack.PackFeatureId).Update!.CanRemove).IsFalse()
+                    .Because("a shipped extension is turned off, never removed");
+                shippedVm.Dispose();
             }
         }
         finally
