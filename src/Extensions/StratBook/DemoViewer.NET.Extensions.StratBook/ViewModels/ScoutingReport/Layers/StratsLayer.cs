@@ -70,6 +70,8 @@ public sealed class StratsLayer : ScoutingLayerBase
                 ScoutedStrat strat = shown[i];
                 string letter = StratLayerKit.Letter(i);
                 string name = MinedStratBuilder.Name(strat.Pattern);
+                int trailAt = marks.Count;
+                int rowAt = rows.Count;
                 marks.AddRange(StratLayerKit.Trail(context, strat, letter));
                 rows.Add(StratLayerKit.Row(context, strat, name, letter, ticks) with
                 {
@@ -92,6 +94,7 @@ public sealed class StratsLayer : ScoutingLayerBase
                     });
                 }
 
+                StratLayerKit.Pin(marks, trailAt, letter, name, rows[rowAt..]);
                 if (i == 0)
                 {
                     reads.Add(new ScoutingRead(
@@ -160,6 +163,33 @@ internal static class StratLayerKit
         sideOf is not null
             ? m => sideOf(context, m)
             : m => context.Data.Sources.Teams.SideAtRound(m.DemoPath, context.TeamId, m.Round);
+
+    /// <summary>
+    ///     Gives a strat's letter badge, the last badge from <paramref name="from" /> on, a card with the strat's rows:
+    ///     its record opening every round, its typical round to play, what it lost to.
+    /// </summary>
+    /// <param name="marks">The layer's marks.</param>
+    /// <param name="from">Where the strat's trail starts in them.</param>
+    /// <param name="letter">Its letter.</param>
+    /// <param name="name">Its name.</param>
+    /// <param name="rows">Its inspector rows.</param>
+    public static void Pin(List<ScoutingMapMark> marks, int from, string letter, string name,
+        List<ScoutingInspectorRow> rows)
+    {
+        ArgumentNullException.ThrowIfNull(marks);
+        ArgumentNullException.ThrowIfNull(rows);
+        for (int i = marks.Count - 1; i >= from; i--)
+        {
+            if (marks[i].Shape == ScoutingMarkShape.Badge)
+            {
+                marks[i] = marks[i] with
+                {
+                    Info = new ScoutingMarkInfo($"{letter} · {name}", [.. rows.Select((r, n) => n == 0 ? r with { Label = "Record" } : r)])
+                };
+                return;
+            }
+        }
+    }
 
     public static string Letter(int index) => ((char)('A' + index)).ToString();
 

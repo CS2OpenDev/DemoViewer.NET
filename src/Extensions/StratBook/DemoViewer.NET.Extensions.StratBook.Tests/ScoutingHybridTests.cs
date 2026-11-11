@@ -211,6 +211,72 @@ public class ScoutingHybridTests
         }
     }
 
+    [Test]
+    public async Task HoveringASetupDot_SaysWhoAndWhere_AndClickingPinsItWithTheRestOfThatRound()
+    {
+        var seen = await OnUi(async () =>
+        {
+            using SyntheticTeam team = await SyntheticTeam.Create();
+            QueuedPost posted = new();
+            using ScoutingReportTabViewModel vm = team.Tab(posted);
+            vm.SelectedTeam = vm.Teams.Single(t => t.Id == team.TeamA);
+            await ScoutingReportTestKit.Settle(vm, posted);
+            vm.SelectMapCommand.Execute(vm.Maps.Single(m => m.Map == "de_nuke"));
+            vm.Side = ScoutingSide.Ct;
+            await ScoutingReportTestKit.Settle(vm, posted);
+
+            Window window = new() { Width = Width, Height = 2800, Content = new ScoutingHybridTabView { DataContext = vm } };
+            window.Show();
+            UxConsistencyRenderTests.Settle();
+            UxConsistencyRenderTests.Settle();
+
+            ScoutingMapHost host = window.GetVisualDescendants().OfType<ScoutingMapHost>().Single();
+            ScoutingLayerChipViewModel setups = vm.Layers.Find("setups")!;
+            // A round dot: the small ones carry the round, the big ringed ones the player's main spot.
+            ScoutingMapMark dot = setups.Marks.Marks.First(m => m.Info is not null && m.Size < 5);
+            Point at = default;
+            foreach (var pane in host.Map.Panes)
+            {
+                (double x, double y) = pane.Camera.Current.WorldToScreen(dot.X, dot.Y);
+                Point p = new(x + pane.ViewportRect.Left, y + pane.ViewportRect.Top);
+                if (host.MarkAt(p) is not null)
+                {
+                    at = p;
+                    break;
+                }
+            }
+
+            var hit = host.MarkAt(at);
+            host.Click(at);
+            UxConsistencyRenderTests.Settle();
+            Border card = window.GetVisualDescendants().OfType<Border>()
+                .Single(b => AutomationProperties.GetName(b) == "Selected map mark");
+            bool cardShows = card.IsEffectivelyVisible && vm.Layers.MarkCard.Rows.Count > 0;
+            string title = vm.Layers.MarkCard.Title;
+            bool canWatch = vm.Layers.MarkCard.Rows.Any(r => r.CanOpen && r.CanPlay);
+            int detail = vm.Layers.Selection.Marks.Count;
+            bool selectionDrawn = vm.Layers.Selection.Visible;
+            UxConsistencyRenderTests.Save(window, $"hybrid-mark-pinned-{Width}.png");
+
+            // Clicking the map away from every mark unpins it.
+            host.Click(new Point(2, 2));
+            bool cleared = !vm.Layers.MarkCard.IsOpen && !vm.Layers.Selection.Visible;
+            window.Close();
+            return new { hit = hit is not null, cardShows, title, canWatch, detail, selectionDrawn, cleared };
+        });
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(seen.hit).IsTrue().Because("a setup dot answers the pointer");
+            await Assert.That(seen.cardShows).IsTrue().Because("clicking pins the card over the map");
+            await Assert.That(seen.title).Contains("round").Because("the card names the player and the round");
+            await Assert.That(seen.canWatch).IsTrue().Because("the round opens in Review and plays in 2D");
+            await Assert.That(seen.selectionDrawn).IsTrue();
+            await Assert.That(seen.detail).IsGreaterThan(1).Because("the ring on the dot and the other CTs that round");
+            await Assert.That(seen.cleared).IsTrue().Because("a click off every mark unpins it");
+        }
+    }
+
     private static async Task<T> OnUi<T>(Func<Task<T>> body)
     {
         T result = default!;

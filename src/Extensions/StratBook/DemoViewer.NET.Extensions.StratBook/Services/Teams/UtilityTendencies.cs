@@ -41,6 +41,9 @@ public sealed record UtilityCluster(
     double MedianSeconds,
     IReadOnlyList<TendencyRound> Rounds)
 {
+    /// <summary>Every throw that landed in the cluster: where it was thrown from, by whom, when.</summary>
+    public IReadOnlyList<UtilityThrow> Thrown { get; init; } = [];
+
     /// <summary>"smoke", "molotov", "flash", "HE".</summary>
     public string Noun => UtilityTendencies.Noun(Letter);
 }
@@ -57,6 +60,23 @@ public sealed record UtilityBlock
     /// <summary>Most rounds first.</summary>
     public IReadOnlyList<UtilityCluster> Clusters { get; init; } = [];
 }
+
+/// <summary>One grenade of a cluster: where it left the thrower's hand, and who threw it when.</summary>
+/// <param name="Origin">Where it was thrown from.</param>
+/// <param name="SteamId">The thrower's SteamID64, or null.</param>
+/// <param name="Name">The thrower's in-game name, or null.</param>
+/// <param name="Seconds">Seconds after freeze end.</param>
+/// <param name="JumpThrow">A jump throw.</param>
+/// <param name="Round">Its round, clipped around the throw.</param>
+/// <param name="ReleaseTick">The tick it left the hand.</param>
+public sealed record UtilityThrow(
+    WorldPoint Origin,
+    string? SteamId,
+    string? Name,
+    double Seconds,
+    bool JumpThrow,
+    TendencyRound Round,
+    int ReleaseTick);
 
 /// <summary>Derives <see cref="UtilityBlock" /> from demos; pure, so a test feeds it synthetic grenades.</summary>
 public static class UtilityTendencies
@@ -146,7 +166,10 @@ public static class UtilityTendencies
                         groups[(letter, place)] = group;
                     }
 
-                    group.Seconds.Add((g.Row.ReleaseTick - freeze) / (double)rate);
+                    double seconds = (g.Row.ReleaseTick - freeze) / (double)rate;
+                    group.Seconds.Add(seconds);
+                    group.Thrown.Add(new UtilityThrow(g.Origin, g.Row.ThrowerSteamId64, g.Row.ThrowerName, seconds,
+                        g.Row.JumpThrow, ClipAround(demo, round, g), g.Row.ReleaseTick));
                     group.X += g.Landing.X;
                     group.Y += g.Landing.Y;
                     group.Z += g.Landing.Z;
@@ -239,6 +262,8 @@ public static class UtilityTendencies
 
         public List<TendencyRound> Rounds { get; } = [];
 
+        public List<UtilityThrow> Thrown { get; } = [];
+
         public double X { get; set; }
 
         public double Y { get; set; }
@@ -251,7 +276,7 @@ public static class UtilityTendencies
             List<double> sorted = [.. Seconds.Order()];
             double median = n % 2 == 1 ? sorted[n / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
             return new UtilityCluster(letter, place, new WorldPoint((float)(X / n), (float)(Y / n), (float)(Z / n)), n,
-                median, Rounds);
+                median, Rounds) { Thrown = Thrown };
         }
     }
 }

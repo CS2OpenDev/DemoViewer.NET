@@ -1,5 +1,6 @@
 #region
 
+using DemoViewer.NET.Extensions.StratBook.Modules.UtilityBook;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 
 #endregion
@@ -88,7 +89,10 @@ public enum ScoutingMarkShape
     Badge,
 
     /// <summary>A dashed disc with a letter: a grenade landing (S, M, F, H).</summary>
-    Cloud
+    Cloud,
+
+    /// <summary>A dashed line from the mark to <see cref="ScoutingMapMark.To" />: a throw to its landing.</summary>
+    Link
 }
 
 /// <summary>A chip's and a legend entry's picture of what the layer draws.</summary>
@@ -113,7 +117,33 @@ public sealed record ScoutingMapMark(
     ScoutingColor Color,
     float Size = 4f,
     string? Text = null,
-    float Opacity = 1f);
+    float Opacity = 1f)
+{
+    /// <summary>What hovering the mark says and clicking it pins; null makes the mark inert.</summary>
+    public ScoutingMarkInfo? Info { get; init; }
+
+    /// <summary>A <see cref="ScoutingMarkShape.Link" />'s far end.</summary>
+    public WorldPoint? To { get; init; }
+}
+
+/// <summary>
+///     What one map mark stands for. Hovering it shows <see cref="Title" /> and the first rows; clicking it pins
+///     every row (each opens its rounds in Review, plays in 2D, or stars like an inspector row) and draws
+///     <see cref="Detail" /> over the map: where a grenade was thrown from, the rest of a round's setup.
+/// </summary>
+/// <param name="Title">"Smoke · A Site", "Alice · round 7".</param>
+/// <param name="Rows">The facts, as inspector rows.</param>
+public sealed record ScoutingMarkInfo(string Title, IReadOnlyList<ScoutingInspectorRow> Rows)
+{
+    /// <summary>The marks clicking draws, over every layer.</summary>
+    public IReadOnlyList<ScoutingMapMark> Detail { get; init; } = [];
+
+    /// <summary>What clicking adds, said on hover: "click to show where they were thrown from".</summary>
+    public string Hint { get; init; } = "";
+
+    /// <summary>The rows hovering shows; the pinned card shows all of them.</summary>
+    public const int HoverRows = 4;
+}
 
 /// <summary>One line under the map saying what a mark means.</summary>
 /// <param name="Swatch">The mark.</param>
@@ -171,6 +201,9 @@ public sealed record ScoutingInspectorRow
 
     /// <summary>Files the star under this buy instead of the scope's.</summary>
     public ScoutingBuy? Buy { get; init; }
+
+    /// <summary>Offers a star; a map mark's one-round facts ("Buy: pistol") do not.</summary>
+    public bool Starrable { get; init; } = true;
 
     /// <summary>A row that stands in for a number the extension cannot produce yet; its note names the gap.</summary>
     public bool IsPlaceholder { get; init; }

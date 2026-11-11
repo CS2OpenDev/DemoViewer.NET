@@ -118,6 +118,9 @@ public sealed partial class ScoutingInspectorRowViewModel : ObservableObject
 
     public bool IsPlaceholder => Row?.IsPlaceholder == true;
 
+    /// <summary>Draws the star: not on a placeholder, nor on a row that is not a finding.</summary>
+    public bool CanStar => !IsPlaceholder && Row?.Starrable != false;
+
     public bool CanPlay => Row?.Play is not null;
 
     /// <summary>

@@ -162,7 +162,7 @@ public sealed class AwpLayer() : ScoutingLayerBase("awp", "AWP routes", Scouting
         {
             CountLabel = routes.Routes.Count == 1 ? "1 route" : $"{routes.Routes.Count} routes",
             Reads = ReadOf(side, awp, routes, windowLabel, names) is { } sentence ? [sentence] : [],
-            Marks = Marks(routes),
+            Marks = Marks(routes, RouteInfos(prefix, routes, colors, names, windowLabel)),
             Legend = [new ScoutingLegendEntry(new ScoutingSwatch(ScoutingMarkShape.Ring, ScoutingColor.Neutral),
                 $"ring = AWP start · white trail · numbered = position at {windowLabel}")],
             Sections = [.. sections.Where(s => s.Rows.Count > 0)]
@@ -204,6 +204,46 @@ public sealed class AwpLayer() : ScoutingLayerBase("awp", "AWP routes", Scouting
         }
 
         return rows;
+    }
+
+    // Each route's card: its share and the round to watch, who held the AWP on it, how its opening duels went;
+    // clicking draws every round that took the route, in its holder's colour, to the same window.
+    private static List<ScoutingMarkInfo> RouteInfos(string prefix, AwpRouteSet set,
+        IReadOnlyDictionary<string, ScoutingColor> colors, IReadOnlyDictionary<string, string> names, string windowLabel)
+    {
+        List<ScoutingInspectorRow> routeRows = RouteRows(prefix, set);
+        List<ScoutingMarkInfo> infos = [];
+        for (int i = 0; i < set.Routes.Count; i++)
+        {
+            AwpRoute route = set.Routes[i];
+            List<AwpRound> members = [.. route.Members];
+            List<ScoutingInspectorRow> rows = [routeRows[i] with { Label = "Share of AWP rounds" }];
+            rows.AddRange(HolderRows($"{prefix} · route {route.Name}", members, colors, names));
+            List<AwpRound> duels = [.. members.Where(m => m.OpeningWon is not null)];
+            if (duels.Count > 0)
+            {
+                rows.Add(new ScoutingInspectorRow
+                {
+                    Label = "Opening duels won",
+                    Value = CountText(duels.Count(m => m.OpeningWon == true), duels.Count),
+                    StarText = $"route {route.Name} opening duels"
+                });
+            }
+
+            int until = route.Trail.Count > 0 ? route.Trail[^1].Second : int.MaxValue;
+            infos.Add(new ScoutingMarkInfo($"Route {i + 1} · {route.Name}", rows)
+            {
+                Hint = $"draw each of its {Plural(members.Count, "round")} to {windowLabel}",
+                Detail =
+                [
+                    .. members.SelectMany(m => m.Path.Where(p => p.Second <= until).Select(p =>
+                        new ScoutingMapMark(p.X, p.Y, p.Z, ScoutingMarkShape.Dot, ColorOf(m, colors), 2.5f,
+                            Opacity: 0.7f)))
+                ]
+            });
+        }
+
+        return infos;
     }
 
     private static List<ScoutingInspectorRow> HolderRows(string prefix, List<AwpRound> awp,
@@ -347,7 +387,7 @@ public sealed class AwpLayer() : ScoutingLayerBase("awp", "AWP routes", Scouting
 
     // Per route: the medoid trail as dots fading from the start, a ring at the start and a numbered badge at the
     // window's end. A bigger route draws a thicker trail.
-    private static List<ScoutingMapMark> Marks(AwpRouteSet set)
+    private static List<ScoutingMapMark> Marks(AwpRouteSet set, List<ScoutingMarkInfo> infos)
     {
         List<ScoutingMapMark> marks = [];
         for (int i = 0; i < set.Routes.Count; i++)
@@ -384,9 +424,9 @@ public sealed class AwpLayer() : ScoutingLayerBase("awp", "AWP routes", Scouting
             AwpPoint first = trail[0];
             AwpPoint last = trail[^1];
             marks.Add(new ScoutingMapMark(first.X, first.Y, first.Z, ScoutingMarkShape.Ring, ScoutingColor.Neutral,
-                StartRingSize));
+                StartRingSize) { Info = infos[i] });
             marks.Add(new ScoutingMapMark(last.X, last.Y, last.Z, ScoutingMarkShape.Badge, ScoutingColor.Neutral,
-                EndBadgeSize, (i + 1).ToString(CultureInfo.InvariantCulture)));
+                EndBadgeSize, (i + 1).ToString(CultureInfo.InvariantCulture)) { Info = infos[i] });
         }
 
         return marks;

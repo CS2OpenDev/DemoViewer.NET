@@ -340,7 +340,7 @@
                         </Button>
                     </StackPanel>
                     <Button Grid.Column="2" Classes="ghost" Padding="3" VerticalAlignment="Top"
-                            Command="{Binding ToggleStarCommand}" IsVisible="{Binding !IsPlaceholder}"
+                            Command="{Binding ToggleStarCommand}" IsVisible="{Binding CanStar}"
                             ToolTip.Tip="{Binding StarLabel}" AutomationProperties.Name="{Binding StarLabel}">
                         <Path Classes="star" Classes.on="{Binding IsStarred}" Data="{StaticResource StarGeometry}" />
                     </Button>
@@ -750,6 +750,28 @@
                                 AutomationProperties.Name="The map with the drawn layers; the numbers are in the inspector">
                             <Panel>
                                 <host:ScoutingMapHost />
+                                <!-- A clicked mark's card: every row behind it, each opening, playing and starring like the inspector's. -->
+                                <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10" Padding="12 8" Width="330"
+                                        CornerRadius="6" Background="{DynamicResource CardBg}"
+                                        BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                                        DataContext="{Binding Layers.MarkCard}" x:DataType="layers:ScoutingMarkCardViewModel"
+                                        IsVisible="{Binding IsOpen}" AutomationProperties.Name="Selected map mark">
+                                    <DockPanel>
+                                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <StackPanel Spacing="1">
+                                                <TextBlock FontSize="11" Text="{Binding Layer}" Foreground="{DynamicResource TextMid}" />
+                                                <TextBlock FontSize="13" FontWeight="SemiBold" Text="{Binding Title}" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextBright}" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Classes="ghost" Content="Close" FontSize="11" Padding="8 2" VerticalAlignment="Top"
+                                                    Command="{Binding CloseCommand}" ToolTip.Tip="Close (Esc)"
+                                                    AutomationProperties.Name="{Binding CloseLabel}" />
+                                        </Grid>
+                                        <ScrollViewer MaxHeight="280" Margin="0 4 0 0">
+                                            <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource InspectorRow}" />
+                                        </ScrollViewer>
+                                    </DockPanel>
+                                </Border>
                                 <!-- What the stage waits on, or why it is empty: a line over the map, never a spinner. -->
                                 <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" Padding="10 6"
                                         CornerRadius="6" MaxWidth="460" Background="{DynamicResource CardBg}"

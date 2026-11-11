@@ -110,7 +110,11 @@ public sealed class LurksLayer() : ScoutingLayerBase("lurks", "Lurks", ScoutingL
         [
             .. lurks.Where(l => l.At30 is not null).Select(l => new ScoutingMapMark(l.At30!.Value.X, l.At30.Value.Y,
                 l.At30.Value.Z, ScoutingMarkShape.Dot,
-                ColorOf(ScoutingPlayerColors.KeyOf(l.SteamId, l.Name), l.Name), 5f, Opacity: 0.85f))
+                ColorOf(ScoutingPlayerColors.KeyOf(l.SteamId, l.Name), l.Name), 5f, Opacity: 0.85f)
+            {
+                Info = LurkInfo(context, l, lurkers.First(g => g.Rounds.Contains(l)), rounds.Count,
+                    ColorOf(ScoutingPlayerColors.KeyOf(l.SteamId, l.Name), l.Name))
+            })
         ];
         return new ScoutingLayerResult
         {
@@ -120,6 +124,61 @@ public sealed class LurksLayer() : ScoutingLayerBase("lurks", "Lurks", ScoutingL
             Legend = [new ScoutingLegendEntry(Swatch,
                 $"dot = the lurker at {Clock(LurkRoutes.SnapshotSeconds)}, in their Players colour")],
             Sections = [.. sections.Where(s => s.Rows.Count > 0)]
+        };
+    }
+
+    // One lurk's dot: when and where the lurker split off, the way they went, the round to watch; clicking rings
+    // the same player's other lurks.
+    private static ScoutingMarkInfo LurkInfo(ScoutingLayerContext context, LurkDetail lurk,
+        (string Key, string Name, List<LurkDetail> Rounds) lurker, int rounds, ScoutingColor color)
+    {
+        List<ScoutingInspectorRow> rows =
+        [
+            new()
+            {
+                Label = "Split off",
+                Value = Clock(lurk.SplitSeconds),
+                StarText = "lurk split off",
+                Note = lurk.SplitPlace is { } at ? $"from {SetupsDerivation.PlaceLabel(at)}" : null
+            }
+        ];
+        if (lurk.Via.Count > 0)
+        {
+            rows.Add(new ScoutingInspectorRow
+            {
+                Label = "Via",
+                Note = string.Join(" → ", lurk.Via.Select(SetupsDerivation.PlaceLabel)),
+                StarText = "lurk via"
+            });
+        }
+
+        rows.Add(new ScoutingInspectorRow
+        {
+            Label = $"{lurker.Name} lurks",
+            Value = CountText(lurker.Rounds.Count, rounds),
+            StarText = $"lurker {lurker.Name}",
+            Swatch = color,
+            Rounds = [.. lurker.Rounds.Select(l => l.Clip)],
+            OpenTitle = $"{context.Prefix} · {lurker.Name} lurking"
+        });
+        rows.Add(new ScoutingInspectorRow
+        {
+            Label = "Watch the round",
+            Value = $"round {lurk.Clip.RoundNumber}",
+            StarText = "watch round",
+            Rounds = [lurk.Clip],
+            OpenTitle = $"{context.Prefix} · {lurker.Name} lurk",
+            Play = (lurk.Clip.DemoPath, lurk.Clip.FromTick),
+            FollowSteamId = lurk.SteamId > 0 ? lurk.SteamId : null
+        });
+        return new ScoutingMarkInfo($"{lurker.Name} · round {lurk.Clip.RoundNumber}", rows)
+        {
+            Hint = lurker.Rounds.Count > 1 ? $"ring {lurker.Name}'s other lurks" : "",
+            Detail =
+            [
+                .. lurker.Rounds.Where(l => !ReferenceEquals(l, lurk) && l.At30 is not null).Select(l =>
+                    new ScoutingMapMark(l.At30!.Value.X, l.At30.Value.Y, l.At30.Value.Z, ScoutingMarkShape.Ring, color, 7f))
+            ]
         };
     }
 

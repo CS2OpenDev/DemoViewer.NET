@@ -194,6 +194,46 @@ public sealed class RotationsLayer() : ScoutingLayerBase("rotations", "Rotations
         };
     }
 
+    // One rotation: who, from where to which site, how long after contact, the round to watch; clicking draws the
+    // trail bold over the rest.
+    private static ScoutingMarkInfo TrailInfo(SetupRotation rotation, RotationTrail trail, ScoutingColor color)
+    {
+        SetupHeatmapRound round = rotation.Round;
+        string from = trail.Start.Sample.Place is { } a ? SetupsDerivation.PlaceLabel(a) : "an unnamed spot";
+        List<ScoutingInspectorRow> rows =
+        [
+            new() { Label = "From", Value = from, StarText = "rotation from" },
+            new() { Label = "To", Value = $"{rotation.Site} site", StarText = "rotation to" },
+            new()
+            {
+                Label = "On the site",
+                Value = $"{Clock(trail.ArrivalSeconds)} after T contact",
+                StarText = "rotation time",
+                Note = trail.BeforePlant ? "before the plant" : "after the plant"
+            },
+            new()
+            {
+                Label = "Watch the round",
+                Value = $"round {round.RoundNumber}",
+                StarText = "watch round",
+                Rounds = [new TendencyRound(round.DemoPath, round.Sha256, round.RoundNumber, round.FreezeEndTick,
+                    round.ClipEndTick, round.TickRate)],
+                OpenTitle = $"{trail.Name} rotates to {rotation.Site}",
+                Play = (round.DemoPath, round.FreezeEndTick),
+                FollowSteamId = ulong.TryParse(trail.Key, out ulong id) ? id : null
+            }
+        ];
+        return new ScoutingMarkInfo($"{trail.Name} · round {round.RoundNumber}", rows)
+        {
+            Hint = "draw this rotation bold",
+            Detail =
+            [
+                .. trail.Samples.Select(s => new ScoutingMapMark(s.Sample.X, s.Sample.Y, s.Sample.Z,
+                    ScoutingMarkShape.Dot, color, SampleSize + 1.5f))
+            ]
+        };
+    }
+
     /// <summary>
     ///     The marks: per rotation, a dot at each of the player's samples from contact to the arrival with
     ///     <see cref="JoinDots" /> smaller dots on the straight line to the next, all faint; then a ring at every
@@ -207,6 +247,15 @@ public sealed class RotationsLayer() : ScoutingLayerBase("rotations", "Rotations
         ArgumentNullException.ThrowIfNull(rotations);
         ArgumentNullException.ThrowIfNull(colors);
         List<RotationTrail> trails = [.. rotations.SelectMany(r => r.Trails)];
+        Dictionary<RotationTrail, ScoutingMarkInfo> infos = new(ReferenceEqualityComparer.Instance);
+        foreach (SetupRotation rotation in rotations)
+        {
+            foreach (RotationTrail trail in rotation.Trails)
+            {
+                infos[trail] = TrailInfo(rotation, trail, ColorOf(trail.Key, trail.Name, colors));
+            }
+        }
+
         List<ScoutingMapMark> marks = [];
         foreach (RotationTrail trail in trails)
         {
@@ -237,14 +286,14 @@ public sealed class RotationsLayer() : ScoutingLayerBase("rotations", "Rotations
         {
             SetupSample start = trail.Start.Sample;
             marks.Add(new ScoutingMapMark(start.X, start.Y, start.Z, ScoutingMarkShape.Ring,
-                ColorOf(trail.Key, trail.Name, colors), StartRingSize, Opacity: 0.85f));
+                ColorOf(trail.Key, trail.Name, colors), StartRingSize, Opacity: 0.85f) { Info = infos[trail] });
         }
 
         foreach (RotationTrail trail in trails)
         {
             SetupSample end = trail.Arrival.Sample;
             marks.Add(new ScoutingMapMark(end.X, end.Y, end.Z, ScoutingMarkShape.Dot,
-                ColorOf(trail.Key, trail.Name, colors), ArrivalSize, Opacity: 0.95f));
+                ColorOf(trail.Key, trail.Name, colors), ArrivalSize, Opacity: 0.95f) { Info = infos[trail] });
         }
 
         return marks;

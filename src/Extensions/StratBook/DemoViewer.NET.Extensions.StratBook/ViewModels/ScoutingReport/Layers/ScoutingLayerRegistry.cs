@@ -80,6 +80,15 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
 
     public ScoutingInspectorViewModel Inspector { get; } = new();
 
+    /// <summary>The clicked mark's card over the map.</summary>
+    public ScoutingMarkCardViewModel MarkCard { get; } = new();
+
+    /// <summary>What the clicked mark draws over every layer: a ring on it and its detail.</summary>
+    public ScoutingMarksDocument Selection { get; } = new();
+
+    // The clicked mark and the layer it belongs to.
+    private (ScoutingLayerChipViewModel Chip, ScoutingMapMark Mark)? _selected;
+
     public string Map { get; private set; } = "";
 
     public ScoutingSide Side { get; private set; } = ScoutingSide.Ct;
@@ -356,9 +365,62 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
             }
         }
 
+        // A pinned mark goes with the build that drew it: a rebuild, a hidden layer, a new scope drop it.
+        if (_selected is { } s && (!s.Chip.Marks.Visible || !s.Chip.Result.Marks.Contains(s.Mark)))
+        {
+            ClearSelection();
+        }
+
         ShowStageNote();
         ShowInspector();
     }
+
+    /// <summary>
+    ///     Pins a mark: its card shows every row, its detail draws over the map, and its layer is inspected
+    ///     (a faded layer's mark brings that layer forward).
+    /// </summary>
+    /// <param name="chip">The layer the mark belongs to.</param>
+    /// <param name="mark">The mark; one with no info clears the pin.</param>
+    public void Select(ScoutingLayerChipViewModel chip, ScoutingMapMark mark)
+    {
+        ArgumentNullException.ThrowIfNull(chip);
+        ArgumentNullException.ThrowIfNull(mark);
+        if (mark.Info is not { } info || chip.Context is not { } context)
+        {
+            ClearSelection();
+            return;
+        }
+
+        _selected = (chip, mark);
+        if (!ReferenceEquals(Focused, chip))
+        {
+            SetFocus(chip);
+            Redraw();
+        }
+
+        string where = string.Join(" · ", new[] { chip.Title, info.Title, ScoutingReportStarKeys.Where(context.Scope(chip.Layer, null)) }
+            .Where(p => p.Length > 0));
+        MarkCard.Show(chip.Title, info.Title,
+        [
+            // A fact about one round is not a finding: only a row with rounds behind it stars.
+            .. info.Rows.Select(row => row.Rounds.Count > 1 ? row : row with { Starrable = false }).Select(row =>
+                new ScoutingInspectorRowViewModel(this, row,
+                ScoutingReportStarKeys.Key(context.Scope(chip.Layer, row.Buy), row.KeyText), where))
+        ], ClearSelection);
+        Selection.Set([.. info.Detail, new ScoutingMapMark(mark.X, mark.Y, mark.Z, ScoutingMarkShape.Ring,
+            ScoutingColor.Neutral, Math.Max(mark.Size, 4f) + 5f)], true, 1f);
+    }
+
+    /// <summary>Unpins the clicked mark.</summary>
+    public void ClearSelection()
+    {
+        _selected = null;
+        MarkCard.Hide();
+        Selection.Set([], false, 1f);
+    }
+
+    /// <summary>The pinned mark, or null.</summary>
+    public ScoutingMapMark? SelectedMark => _selected?.Mark;
 
     private void ShowStageNote()
     {
@@ -448,7 +510,7 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
     /// <summary>Re-reads every shown star; the one-pager changed somewhere else.</summary>
     public void RefreshStars()
     {
-        foreach (ScoutingInspectorRowViewModel row in Inspector.AllRows)
+        foreach (ScoutingInspectorRowViewModel row in Inspector.AllRows.Concat(MarkCard.Rows))
         {
             row.RefreshStar();
         }

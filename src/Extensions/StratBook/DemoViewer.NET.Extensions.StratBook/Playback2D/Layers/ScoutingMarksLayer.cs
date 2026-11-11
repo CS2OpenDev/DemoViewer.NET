@@ -52,11 +52,13 @@ public sealed class ScoutingMarksLayer : ISceneLayer
 
     /// <param name="id">The layer's id.</param>
     /// <param name="document">What to draw; not owned.</param>
-    public ScoutingMarksLayer(string id, ScoutingMarksDocument document)
+    /// <param name="order">Its place in the overlay; a clicked mark's detail draws above the layers.</param>
+    public ScoutingMarksLayer(string id, ScoutingMarksDocument document, int order = 116)
     {
         ArgumentNullException.ThrowIfNull(document);
         Id = id;
         _document = document;
+        Order = order;
     }
 
     /// <inheritdoc />
@@ -66,7 +68,7 @@ public sealed class ScoutingMarksLayer : ISceneLayer
     public LayerSlot Slot => LayerSlot.Overlay;
 
     /// <inheritdoc />
-    public int Order => 116;
+    public int Order { get; }
 
     /// <inheritdoc />
     public LayerCacheHint Cache => LayerCacheHint.PerCamera;
@@ -90,6 +92,19 @@ public sealed class ScoutingMarksLayer : ISceneLayer
         }
 
         float fade = _document.Fade;
+        // Links first, so the dots at their ends sit on top of them.
+        foreach (ScoutingMapMark mark in _document.Marks.Where(m => m.Shape == ScoutingMarkShape.Link))
+        {
+            if (mark.To is { } to && ctx.BelongsHere(mark.Z))
+            {
+                (double x0, double y0) = ctx.Transform.WorldToScreen(mark.X, mark.Y);
+                (double x1, double y1) = ctx.Transform.WorldToScreen(to.X, to.Y);
+                byte a = (byte)Math.Clamp(255 * mark.Opacity * fade, 0, 255);
+                Line(canvas, new SKPoint((float)x0, (float)y0), new SKPoint((float)x1, (float)y1),
+                    ColorOf(mark.Color, in ctx).WithAlpha(a), _halo.WithAlpha((byte)(a * HaloShare)));
+            }
+        }
+
         foreach (ScoutingMapMark mark in _document.Marks)
         {
             if (!ctx.BelongsHere(mark.Z))
@@ -124,6 +139,8 @@ public sealed class ScoutingMarksLayer : ISceneLayer
                     canvas.DrawCircle(at, mark.Size, _fill);
                     Ring(canvas, at, mark.Size, color.WithAlpha(alpha), halo, _dash);
                     DrawText(canvas, at, mark.Text, color.WithAlpha(alpha), halo);
+                    break;
+                case ScoutingMarkShape.Link:
                     break;
             }
         }
@@ -163,6 +180,21 @@ public sealed class ScoutingMarksLayer : ISceneLayer
         _stroke.Color = color;
         canvas.DrawCircle(at, radius, _stroke);
         _stroke.PathEffect = null;
+    }
+
+    // A dashed line over a solid halo line.
+    private void Line(SKCanvas canvas, SKPoint from, SKPoint to, SKColor color, SKColor halo)
+    {
+        _stroke.PathEffect = null;
+        _stroke.StrokeWidth = 1.5f + 2 * HaloWidth;
+        _stroke.Color = halo;
+        canvas.DrawLine(from, to, _stroke);
+        _stroke.StrokeWidth = 1.5f;
+        _stroke.PathEffect = _dash;
+        _stroke.Color = color;
+        canvas.DrawLine(from, to, _stroke);
+        _stroke.PathEffect = null;
+        _stroke.StrokeWidth = RingWidth;
     }
 
     private void DrawText(SKCanvas canvas, SKPoint at, string? text, SKColor color, SKColor? halo)

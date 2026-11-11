@@ -130,7 +130,8 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         return new ScoutingLayerResult
         {
             CountLabel = $"{rounds.Count} rds",
-            Marks = Marks(rounds, places, colors, Isolated),
+            Marks = Marks(rounds, places, colors, Isolated, names,
+                [.. heatmaps.SelectMany(h => h.Rounds.Select(r => (r, ScoutingReportLines.BuyLabelFor(h.Buy))))]),
             Reads = [ReadFor(context, heatmaps, names)],
             Sections = sections,
             Legend =
@@ -152,9 +153,20 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
     /// <param name="places">Their places by player.</param>
     /// <param name="colors">The roster's colours by key.</param>
     /// <param name="isolated">The isolated player's key, or null.</param>
+    /// <param name="names">Roster names by key, for the marks' cards; null uses the in-game names.</param>
+    /// <param name="buys">Each round's buy label, for the round dots' cards.</param>
     public static IReadOnlyList<ScoutingMapMark> Marks(IEnumerable<SetupHeatmapRound> rounds,
-        IReadOnlyList<SetupPlayerPlace> places, IReadOnlyDictionary<string, ScoutingColor> colors, string? isolated)
+        IReadOnlyList<SetupPlayerPlace> places, IReadOnlyDictionary<string, ScoutingColor> colors, string? isolated,
+        IReadOnlyDictionary<string, string>? names = null,
+        IReadOnlyList<(SetupHeatmapRound Round, string Buy)>? buys = null)
     {
+        names ??= new Dictionary<string, string>();
+        Dictionary<SetupHeatmapRound, string> buyOf = new(ReferenceEqualityComparer.Instance);
+        foreach ((SetupHeatmapRound round, string buy) in buys ?? [])
+        {
+            buyOf[round] = buy;
+        }
+
         ArgumentNullException.ThrowIfNull(rounds);
         ArgumentNullException.ThrowIfNull(places);
         ArgumentNullException.ThrowIfNull(colors);
@@ -168,13 +180,23 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
 
         List<ScoutingMapMark> marks = [];
         List<ScoutingMapMark> front = [];
-        foreach (SetupRoundPlayer player in rounds.Select(r => r.Detail).OfType<SetupRoundDetail>()
-                     .SelectMany(d => d.Players).Where(p => p.Setup.Count > 0))
+        List<(string Key, SetupSample Spot)> spots = [];
+        foreach (SetupHeatmapRound round in rounds.Where(r => r.Detail is not null))
         {
-            SetupSample spot = SetupsDerivation.HeldSpot(player.Setup);
-            ScoutingMapMark dot = new(spot.X, spot.Y, spot.Z, ScoutingMarkShape.Dot, ColorOf(player.Key), 4.5f,
-                Opacity: 0.8f * Fade(player.Key));
-            (player.Key == isolated ? front : marks).Add(dot);
+            SetupRoundDetail detail = round.Detail!;
+            List<(SetupRoundPlayer Player, SetupSample Spot)> held =
+                [.. detail.Players.Where(p => p.Setup.Count > 0).Select(p => (p, SetupsDerivation.HeldSpot(p.Setup)))];
+            foreach ((SetupRoundPlayer player, SetupSample spot) in held)
+            {
+                spots.Add((player.Key, spot));
+                ScoutingMapMark dot = new(spot.X, spot.Y, spot.Z, ScoutingMarkShape.Dot, ColorOf(player.Key), 4.5f,
+                    Opacity: 0.8f * Fade(player.Key))
+                {
+                    Info = RoundInfo(round, player, spot, held, names, colors,
+                        buyOf.TryGetValue(round, out string? buy) ? buy : null)
+                };
+                (player.Key == isolated ? front : marks).Add(dot);
+            }
         }
 
         marks.AddRange(front);
@@ -184,10 +206,95 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
             marks.Add(new ScoutingMapMark(place.X, place.Y, place.Z, ScoutingMarkShape.Dot, ScoutingColor.Neutral,
                 10f, Opacity: 0.95f * fade));
             marks.Add(new ScoutingMapMark(place.X, place.Y, place.Z, ScoutingMarkShape.Dot, ColorOf(place.Key), 8f,
-                Opacity: fade));
+                Opacity: fade)
+            {
+                Info = MainSpotInfo(place, places, spots, names, colors)
+            });
         }
 
         return marks;
+    }
+
+    // One player's dot in one round: where they held, how the round went, the round to watch; clicking rings the
+    // other four where they held that round.
+    private static ScoutingMarkInfo RoundInfo(SetupHeatmapRound round, SetupRoundPlayer player, SetupSample spot,
+        List<(SetupRoundPlayer Player, SetupSample Spot)> held, IReadOnlyDictionary<string, string> names,
+        IReadOnlyDictionary<string, ScoutingColor> colors, string? buy)
+    {
+        SetupRoundDetail detail = round.Detail!;
+        string name = ScoutingPlayerColors.NameOf(names, player.Key, player.Name);
+        string place = spot.Place is { } p ? SetupsDerivation.PlaceLabel(p) : "an unnamed spot";
+        string outcome = !detail.Decided ? "undecided"
+            : (detail.Won ? "won" : "lost") + (detail.PlantSite == BombSite.Unknown ? "" : $", bomb planted {detail.PlantSite}");
+        List<ScoutingInspectorRow> rows =
+        [
+            new() { Label = "Held", Value = place, StarText = $"{name} at {spot.Place}" },
+            new() { Label = "Round", Value = outcome, StarText = "round outcome" },
+            new()
+            {
+                Label = "The others that round",
+                Note = string.Join(" · ", held.Where(h => h.Player.Key != player.Key).Select(h =>
+                    $"{ScoutingPlayerColors.NameOf(names, h.Player.Key, h.Player.Name)} {(h.Spot.Place is { } q ? SetupsDerivation.PlaceLabel(q) : "?")}")),
+                StarText = "setup that round"
+            },
+            new()
+            {
+                Label = "Watch the round",
+                Value = Path.GetFileNameWithoutExtension(round.DemoPath),
+                StarText = "watch round",
+                Rounds = Open([round]),
+                OpenTitle = $"{name} at {place}",
+                Play = (round.DemoPath, round.FreezeEndTick),
+                FollowSteamId = ulong.TryParse(player.Key, out ulong id) ? id : null
+            }
+        ];
+        if (buy is not null)
+        {
+            rows.Insert(1, new ScoutingInspectorRow { Label = "Buy", Value = buy, StarText = "buy" });
+        }
+
+        return new ScoutingMarkInfo($"{name} · round {round.RoundNumber}", rows)
+        {
+            Hint = "ring where the other CTs held that round",
+            Detail =
+            [
+                .. held.Where(h => h.Player.Key != player.Key).Select(h => new ScoutingMapMark(h.Spot.X, h.Spot.Y,
+                    h.Spot.Z, ScoutingMarkShape.Ring, colors.TryGetValue(h.Player.Key, out ScoutingColor c) ? c : ScoutingColor.Neutral, 7f))
+            ]
+        };
+    }
+
+    // A player's main spot: how often they hold it, where else they go; clicking rings every round they held.
+    private static ScoutingMarkInfo MainSpotInfo(SetupPlayerPlace main, IReadOnlyList<SetupPlayerPlace> places,
+        List<(string Key, SetupSample Spot)> spots, IReadOnlyDictionary<string, string> names,
+        IReadOnlyDictionary<string, ScoutingColor> colors)
+    {
+        string name = ScoutingPlayerColors.NameOf(names, main.Key, main.Name);
+        ScoutingColor color = colors.TryGetValue(main.Key, out ScoutingColor c) ? c : ScoutingColor.Neutral;
+        List<ScoutingInspectorRow> rows =
+        [
+            .. places.Where(p => p.Key == main.Key).OrderByDescending(p => p.Rounds.Count).Select(p =>
+                new ScoutingInspectorRow
+                {
+                    Label = SetupsDerivation.PlaceLabel(p.Place),
+                    Value = CountText(p.Rounds.Count, p.Of),
+                    StarText = $"{name} at {p.Place}",
+                    Note = p.IsMain ? (p.IsFixed ? "main spot, fixed" : "main spot") : null,
+                    BarPercent = p.Of > 0 ? 100.0 * p.Rounds.Count / p.Of : null,
+                    Swatch = color,
+                    Rounds = Open(p.Rounds),
+                    OpenTitle = $"{name} at {SetupsDerivation.PlaceLabel(p.Place)}"
+                })
+        ];
+        return new ScoutingMarkInfo($"{name} · main spot {SetupsDerivation.PlaceLabel(main.Place)}", rows)
+        {
+            Hint = $"ring every round {name} set up",
+            Detail =
+            [
+                .. spots.Where(s => s.Key == main.Key).Select(s =>
+                    new ScoutingMapMark(s.Spot.X, s.Spot.Y, s.Spot.Z, ScoutingMarkShape.Ring, color, 6f))
+            ]
+        };
     }
 
     // The map's site regions from Suggested Tags, or null: the areas fall back to distance from the site centres.

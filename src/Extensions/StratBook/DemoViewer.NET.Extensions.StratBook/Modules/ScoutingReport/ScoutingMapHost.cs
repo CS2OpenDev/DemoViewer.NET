@@ -3,6 +3,8 @@
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -30,6 +32,12 @@ namespace DemoViewer.NET.Extensions.StratBook.Modules.ScoutingReport;
 ///         not on the radar image's square, when the map binds, when the side changes and when a pane is resized
 ///         while the user has not panned it. The Fit button and a double-click frame it again.
 ///     </para>
+///     <para>
+///         A mark that carries <see cref="ScoutingMarkInfo" /> answers the pointer: hovering it shows a card by
+///         the pointer, and clicking it (a press and release that did not pan) pins it through
+///         <see cref="ScoutingLayerRegistry.Select" />, which draws its detail over every layer. Clicking the
+///         map away from a mark, or Escape, unpins it.
+///     </para>
 /// </summary>
 public sealed class ScoutingMapHost : Decorator
 {
@@ -55,6 +63,24 @@ public sealed class ScoutingMapHost : Decorator
         VerticalAlignment = VerticalAlignment.Bottom
     };
 
+    // How far past a mark's edge the pointer still hits it, and how far a press may move and still be a click.
+    private const double HitSlop = 5;
+    private const double ClickSlop = 4;
+
+    private readonly Canvas _hoverLayer = new() { IsHitTestVisible = false };
+    private readonly Border _hover = new()
+    {
+        Padding = new Thickness(10, 7),
+        CornerRadius = new CornerRadius(6),
+        BorderThickness = new Thickness(1),
+        MaxWidth = 300,
+        IsVisible = false
+    };
+
+    private readonly StackPanel _hoverLines = new() { Spacing = 2 };
+    private ScoutingMapMark? _hovered;
+    private Point? _pressedAt;
+
     // The world rectangle the bound map's art covers, or null with no art.
     private WorldBounds? _content;
 
@@ -72,7 +98,16 @@ public sealed class ScoutingMapHost : Decorator
         Avalonia.Automation.AutomationProperties.SetName(_fit, "Fit the map to the stage");
         ToolTip.SetTip(_fit, "Frame the map again (or double-click it)");
         _fit.Click += (_, _) => FitToContent(true);
-        Child = new Grid { Children = { Map, _note, _fit } };
+        _hover.Child = _hoverLines;
+        _hover.Bind(Border.BackgroundProperty, _hover.GetResourceObservable("CardBg"));
+        _hover.Bind(Border.BorderBrushProperty, _hover.GetResourceObservable("BorderSubtle"));
+        _hoverLayer.Children.Add(_hover);
+        Child = new Grid { Children = { Map, _note, _fit, _hoverLayer } };
+        AddHandler(PointerMovedEvent, OnPointerMovedOver, RoutingStrategies.Tunnel, true);
+        AddHandler(PointerPressedEvent, OnPointerPressedOver, RoutingStrategies.Tunnel, true);
+        AddHandler(PointerReleasedEvent, OnPointerReleasedOver, RoutingStrategies.Tunnel, true);
+        PointerExited += (_, _) => Hover(null, default);
+        Map.EscapePressed += (_, _) => _vm?.Layers.ClearSelection();
         Map.MapBound += (_, _) =>
         {
             UpdateNote();
@@ -243,8 +278,10 @@ public sealed class ScoutingMapHost : Decorator
             return;
         }
 
+        Hover(null, default);
         if (_vm is not null)
         {
+            _vm.Layers.Selection.Changed -= Map.Invalidate;
             _vm.PropertyChanged -= OnVmChanged;
             foreach (ScoutingLayerChipViewModel chip in _vm.Layers.All.Where(c => c.IsMap))
             {
@@ -273,6 +310,9 @@ public sealed class ScoutingMapHost : Decorator
             marks.Changed += Map.Invalidate;
         }
 
+        _layers.Add(Map.AddLayer("scouting.selection",
+            () => new ScoutingMarksLayer("scouting.selection", vm.Layers.Selection, 140)));
+        vm.Layers.Selection.Changed += Map.Invalidate;
         vm.PropertyChanged += OnVmChanged;
         (_assetFloors, _content) = Describe(vm.MapName);
         _fittedKey = "";
@@ -296,6 +336,147 @@ public sealed class ScoutingMapHost : Decorator
         {
             FitToContent(true);
         }
+    }
+
+    /// <summary>
+    ///     The mark under a point of the stage that says something about itself, and its layer: the nearest
+    ///     within its radius plus <see cref="HitSlop" />, on the floor pane under the point, the inspected layer's
+    ///     before a faded one's.
+    /// </summary>
+    /// <param name="point">The point, in the map view's coordinates.</param>
+    public (ScoutingLayerChipViewModel Chip, ScoutingMapMark Mark)? MarkAt(Point point)
+    {
+        if (_vm is not { } vm || Map.PaneAt(point) is not { } pane)
+        {
+            return null;
+        }
+
+        MapSpace? space = Map.Space;
+        bool filter = pane.LevelIndex >= 0 && Map.Panes.Count > 1 && space is not null;
+        (ScoutingLayerChipViewModel, ScoutingMapMark)? best = null;
+        double bestScore = double.MaxValue;
+        foreach (ScoutingLayerChipViewModel chip in vm.Layers.All.Where(c => c.IsMap && c.Marks.Visible))
+        {
+            double penalty = chip.Marks.Fade < 1f ? 1000 : 0;
+            foreach (ScoutingMapMark mark in chip.Marks.Marks)
+            {
+                if (mark.Info is null || mark.Shape == ScoutingMarkShape.Link
+                                      || (filter && space!.LevelIndexFor(mark.Z) != pane.LevelIndex))
+                {
+                    continue;
+                }
+
+                (double x, double y) = pane.Camera.Current.WorldToScreen(mark.X, mark.Y);
+                double dx = x + pane.ViewportRect.Left - point.X;
+                double dy = y + pane.ViewportRect.Top - point.Y;
+                double distance = Math.Sqrt(dx * dx + dy * dy);
+                if (distance <= mark.Size + HitSlop && distance + penalty < bestScore)
+                {
+                    bestScore = distance + penalty;
+                    best = (chip, mark);
+                }
+            }
+        }
+
+        return best;
+    }
+
+    private void OnPointerMovedOver(object? sender, PointerEventArgs e)
+    {
+        Point at = e.GetPosition(Map);
+        if (_pressedAt is { } from && Distance(from, at) > ClickSlop)
+        {
+            // A drag pans the map; the card would only trail behind it.
+            _pressedAt = null;
+        }
+
+        Hover(_pressedAt is null && !e.GetCurrentPoint(Map).Properties.IsLeftButtonPressed ? MarkAt(at)?.Mark : null,
+            e.GetPosition(_hoverLayer));
+    }
+
+    private void OnPointerPressedOver(object? sender, PointerPressedEventArgs e) =>
+        _pressedAt = e.GetCurrentPoint(Map).Properties.IsLeftButtonPressed ? e.GetPosition(Map) : null;
+
+    private void OnPointerReleasedOver(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_pressedAt is not { } from || _vm is not { } vm)
+        {
+            return;
+        }
+
+        _pressedAt = null;
+        Point at = e.GetPosition(Map);
+        if (Distance(from, at) > ClickSlop)
+        {
+            return;
+        }
+
+        Click(at);
+    }
+
+    /// <summary>Clicks the stage at a point: pins the mark there, or unpins with no mark there.</summary>
+    /// <param name="point">The point, in the map view's coordinates.</param>
+    public void Click(Point point)
+    {
+        if (_vm is not { } vm)
+        {
+            return;
+        }
+
+        if (MarkAt(point) is { } hit)
+        {
+            vm.Layers.Select(hit.Chip, hit.Mark);
+        }
+        else
+        {
+            vm.Layers.ClearSelection();
+        }
+    }
+
+    private static double Distance(Point a, Point b) => Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
+
+    // Shows the hover card for a mark by the pointer, kept inside the stage; null hides it.
+    private void Hover(ScoutingMapMark? mark, Point at)
+    {
+        Map.Cursor = mark is null ? Cursor.Default : new Cursor(StandardCursorType.Hand);
+        if (mark?.Info is not { } info)
+        {
+            _hovered = null;
+            _hover.IsVisible = false;
+            return;
+        }
+
+        if (!ReferenceEquals(mark, _hovered))
+        {
+            _hovered = mark;
+            _hoverLines.Children.Clear();
+            _hoverLines.Children.Add(Line(info.Title, 12, FontWeight.SemiBold, "TextBright"));
+            foreach (ScoutingInspectorRow row in info.Rows.Take(ScoutingMarkInfo.HoverRows))
+            {
+                string text = row.Value.Length > 0 ? $"{row.Label}: {row.Value}"
+                    : row.Note is { Length: > 0 } note ? $"{row.Label}: {note}"
+                    : row.Label;
+                _hoverLines.Children.Add(Line(ScoutingNames.Humanise(text), 11, FontWeight.Normal, "TextValue"));
+            }
+
+            string hint = info.Hint.Length > 0 ? "Click to " + info.Hint : "Click to pin";
+            _hoverLines.Children.Add(Line(hint, 10, FontWeight.Normal, "TextMid"));
+        }
+
+        _hover.IsVisible = true;
+        _hover.Measure(Size.Infinity);
+        Size size = _hover.DesiredSize;
+        double x = at.X + 16 + size.Width > Bounds.Width ? at.X - 12 - size.Width : at.X + 16;
+        double y = Math.Clamp(at.Y + 14, 4, Math.Max(4, Bounds.Height - size.Height - 4));
+        Canvas.SetLeft(_hover, Math.Max(4, x));
+        Canvas.SetTop(_hover, y);
+    }
+
+    private static TextBlock Line(string text, double size, FontWeight weight, string brush)
+    {
+        TextBlock line = new() { Text = text, FontSize = size, FontWeight = weight, TextWrapping = TextWrapping.Wrap };
+        line.Bind(TextBlock.ForegroundProperty, line.GetResourceObservable(brush));
+        return line;
     }
 
     private void UpdateNote()

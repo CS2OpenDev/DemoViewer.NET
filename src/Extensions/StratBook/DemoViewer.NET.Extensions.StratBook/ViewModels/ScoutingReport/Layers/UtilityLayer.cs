@@ -55,10 +55,16 @@ public sealed class UtilityLayer() : ScoutingLayerBase("util", "Utility", Scouti
         List<UtilityCluster> top = [.. block.Clusters.Take(MaxClusters)];
         int most = Math.Max(1, top.Count == 0 ? 1 : top.Max(c => c.Rounds.Count));
         ScoutingColor color = context.Side == ScoutingSide.Ct ? ScoutingColor.Ct : ScoutingColor.T;
+        IReadOnlyDictionary<string, ScoutingColor> colors =
+            ScoutingPlayerColors.Lookup(context.Data.Sources.Teams, context.TeamId);
+        IReadOnlyDictionary<string, string> names = ScoutingPlayerColors.Names(context.Data.Sources.Teams, context.TeamId);
         List<ScoutingMapMark> marks =
         [
             .. top.Select(c => new ScoutingMapMark(c.Landing.X, c.Landing.Y, c.Landing.Z, ScoutingMarkShape.Cloud,
-                color, 9f + 7f * c.Rounds.Count / most, c.Letter, 0.9f))
+                color, 9f + 7f * c.Rounds.Count / most, c.Letter, 0.9f)
+            {
+                Info = ClusterInfo(context, c, block.Rounds, colors, names)
+            })
         ];
 
         List<ScoutingRead> reads = [];
@@ -138,6 +144,93 @@ public sealed class UtilityLayer() : ScoutingLayerBase("util", "Utility", Scouti
             ]
         };
     }
+
+    /// <summary>
+    ///     A landing cluster's card: how often and when it goes, who throws it; clicking draws each throw from where
+    ///     it left the hand to where it landed, in the thrower's colour.
+    /// </summary>
+    /// <param name="context">The scope.</param>
+    /// <param name="cluster">The cluster.</param>
+    /// <param name="of">The rounds in scope.</param>
+    /// <param name="colors">The roster's colours by SteamID64.</param>
+    /// <param name="names">The roster's names by SteamID64.</param>
+    public static ScoutingMarkInfo ClusterInfo(ScoutingLayerContext context, UtilityCluster cluster, int of,
+        IReadOnlyDictionary<string, ScoutingColor> colors, IReadOnlyDictionary<string, string> names)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(cluster);
+        ArgumentNullException.ThrowIfNull(colors);
+        ArgumentNullException.ThrowIfNull(names);
+        string what = $"{cluster.Noun} at {cluster.Place}";
+        ScoutingColor ColorOf(UtilityThrow t) =>
+            t.SteamId is { } id && colors.TryGetValue(id, out ScoutingColor c) ? c : ScoutingColor.Neutral;
+        string NameOf(UtilityThrow t) => t.SteamId is { } id
+            ? ScoutingPlayerColors.NameOf(names, id, t.Name ?? id)
+            : t.Name ?? "unknown thrower";
+
+        List<ScoutingInspectorRow> rows =
+        [
+            new()
+            {
+                Label = "Thrown in",
+                Value = CountText(cluster.Rounds.Count, of),
+                StarText = $"most thrown {what}",
+                BarPercent = of > 0 ? Math.Min(100, 100.0 * cluster.Rounds.Count / of) : null,
+                Note = $"{Plural(cluster.Throws, "grenade")} in all",
+                Rounds = cluster.Rounds,
+                OpenTitle = $"{context.Prefix} · {what}"
+            }
+        ];
+        if (cluster.Thrown.Count > 0)
+        {
+            double first = cluster.Thrown.Min(t => t.Seconds);
+            double last = cluster.Thrown.Max(t => t.Seconds);
+            rows.Add(new ScoutingInspectorRow
+            {
+                Label = "When",
+                Value = $"median {Clock(cluster.MedianSeconds)}",
+                StarText = $"{what} timing",
+                Note = first == last ? "after freeze end" : $"from {Clock(first)} to {Clock(last)} after freeze end"
+            });
+            int jumps = cluster.Thrown.Count(t => t.JumpThrow);
+            if (jumps > 0)
+            {
+                rows.Add(new ScoutingInspectorRow
+                {
+                    Label = "Jump throws",
+                    Value = $"{jumps} of {cluster.Thrown.Count}",
+                    StarText = $"{what} jump throws"
+                });
+            }
+
+            rows.AddRange(cluster.Thrown.GroupBy(NameOf).OrderByDescending(g => g.Count()).Select(g =>
+                new ScoutingInspectorRow
+                {
+                    Label = g.Key,
+                    Value = Plural(g.Count(), "throw"),
+                    StarText = $"{g.Key} throws {what}",
+                    Swatch = ColorOf(g.First()),
+                    Rounds = [.. g.Select(t => t.Round).DistinctBy(r => (r.DemoPath, r.RoundNumber))],
+                    OpenTitle = $"{context.Prefix} · {g.Key} · {what}",
+                    Play = (g.First().Round.DemoPath, g.First().ReleaseTick),
+                    FollowSteamId = ulong.TryParse(g.First().SteamId, out ulong id) ? id : null
+                }));
+        }
+
+        return new ScoutingMarkInfo($"{Capital(cluster.Noun)} · {cluster.Place}", rows)
+        {
+            Hint = cluster.Thrown.Count > 0 ? "show where they were thrown from" : "",
+            Detail =
+            [
+                .. cluster.Thrown.Select(t => new ScoutingMapMark(t.Origin.X, t.Origin.Y, t.Origin.Z,
+                    ScoutingMarkShape.Link, ColorOf(t), Opacity: 0.75f) { To = cluster.Landing }),
+                .. cluster.Thrown.Select(t => new ScoutingMapMark(t.Origin.X, t.Origin.Y, t.Origin.Z,
+                    ScoutingMarkShape.Dot, ColorOf(t), 4.5f))
+            ]
+        };
+    }
+
+    private static string Capital(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
 
     private static ScoutingInspectorRow ClusterRow(ScoutingLayerContext context, UtilityCluster cluster, int of)
     {

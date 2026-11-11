@@ -55,6 +55,7 @@ public sealed class AgainstLayer : ScoutingLayerBase
                 ScoutedStrat strat = shown[i];
                 string letter = StratLayerKit.Letter(i);
                 string name = MinedStratBuilder.Name(strat.Pattern);
+                int trailAt = marks.Count;
                 marks.AddRange(StratLayerKit.Trail(context, strat, letter));
                 rows.Add(StratLayerKit.Row(context, strat, name, letter, ticks) with
                 {
@@ -62,6 +63,7 @@ public sealed class AgainstLayer : ScoutingLayerBase
                         ? $"{Plural(strat.Support, "round")}; opponent not identified"
                         : $"seen from {Plural(strat.Opponents, "opponent")}"
                 });
+                StratLayerKit.Pin(marks, trailAt, letter, name, [rows[^1]]);
             }
 
             ScoutedStrat best = shown[0];

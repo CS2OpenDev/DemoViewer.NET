@@ -161,16 +161,99 @@ public sealed class PlantsLayer() : ScoutingLayerBase("plants", "Plants", Scouti
     public static IReadOnlyList<ScoutingMapMark> Marks(PlantReading reading)
     {
         ArgumentNullException.ThrowIfNull(reading);
+        Dictionary<(string, int), PlantSpot> spotOf = [];
+        foreach (PlantSpot spot in reading.Spots)
+        {
+            foreach (TendencyRound round in spot.Bucket.Rounds)
+            {
+                spotOf.TryAdd((round.DemoPath, round.RoundNumber), spot);
+            }
+        }
+
+        PlantSpot? SpotOf(PlantSpotPoint p) =>
+            spotOf.TryGetValue((p.Round.DemoPath, p.Round.RoundNumber), out PlantSpot? s) ? s : null;
         List<ScoutingMapMark> marks =
         [
-            .. reading.Points.Select(p => p.Won
+            .. reading.Points.Select(p => (p.Won
                 ? new ScoutingMapMark(p.X, p.Y, p.Z, ScoutingMarkShape.Dot, ScoutingColor.T, WonSize, Opacity: 0.9f)
-                : new ScoutingMapMark(p.X, p.Y, p.Z, ScoutingMarkShape.Ring, ScoutingColor.T, LostSize))
+                : new ScoutingMapMark(p.X, p.Y, p.Z, ScoutingMarkShape.Ring, ScoutingColor.T, LostSize)) with
+            {
+                Info = PointInfo(p, SpotOf(p))
+            })
         ];
         marks.AddRange(reading.Spots.Where(s => s.HasCentre).Select(s =>
-            new ScoutingMapMark(s.X, s.Y, s.Z, ScoutingMarkShape.Badge, ScoutingColor.T, BadgeSize, s.Badge)));
+            new ScoutingMapMark(s.X, s.Y, s.Z, ScoutingMarkShape.Badge, ScoutingColor.T, BadgeSize, s.Badge)
+            {
+                Info = SpotInfo(s, [.. reading.Points.Where(p => ReferenceEquals(SpotOf(p), s))], reading.Planted.Count)
+            }));
         return marks;
     }
+
+    // One plant: the site and spot, the buy, whether the round was won, the plant to watch.
+    private static ScoutingMarkInfo PointInfo(PlantSpotPoint point, PlantSpot? spot)
+    {
+        List<ScoutingInspectorRow> rows =
+        [
+            new() { Label = "Spot", Value = spot?.Label ?? $"{point.Site} site", StarText = "plant spot" },
+            new() { Label = "Buy", Value = ScoutingReportLines.BuyLabelFor(point.Buy), StarText = "plant buy" },
+            new() { Label = "Round", Value = point.Won ? "won" : "lost", StarText = "plant round" },
+            new()
+            {
+                Label = "Watch the plant",
+                Value = $"round {point.Round.RoundNumber}",
+                StarText = "watch plant",
+                Rounds = [point.Round],
+                OpenTitle = $"plant {point.Site} · {spot?.Label ?? "spot"}",
+                Play = (point.Round.DemoPath, point.Round.FromTick)
+            }
+        ];
+        return new ScoutingMarkInfo($"Plant {point.Site} · round {point.Round.RoundNumber}", rows);
+    }
+
+    // A numbered plant spot: how often they plant there and how those rounds go; clicking rings each plant.
+    private static ScoutingMarkInfo SpotInfo(PlantSpot spot, List<PlantSpotPoint> points, int planted)
+    {
+        List<ScoutingInspectorRow> rows =
+        [
+            new()
+            {
+                Label = "Planted here",
+                Value = CountText(spot.Bucket.Count, planted),
+                StarText = $"plant {spot.Label}",
+                BarPercent = planted > 0 ? 100.0 * spot.Bucket.Count / planted : null,
+                Rounds = spot.Bucket.Rounds,
+                OpenTitle = $"plant {spot.Label}"
+            }
+        ];
+        if (points.Count > 0)
+        {
+            rows.Add(new ScoutingInspectorRow
+            {
+                Label = "Rounds won after planting here",
+                Value = CountText(points.Count(p => p.Won), points.Count),
+                StarText = $"plant {spot.Label} won"
+            });
+            rows.AddRange(points.GroupBy(p => p.Buy).OrderByDescending(g => g.Count()).Select(g =>
+                new ScoutingInspectorRow
+                {
+                    Label = Capital(ScoutingReportLines.BuyLabelFor(g.Key)),
+                    Value = Plural(g.Count(), "plant"),
+                    StarText = $"plant {spot.Label} {g.Key}"
+                }));
+        }
+
+        return new ScoutingMarkInfo($"Plant spot {spot.Badge} · {spot.Label}", rows)
+        {
+            Hint = points.Count > 0 ? $"ring its {Plural(points.Count, "plant")}" : "",
+            Detail =
+            [
+                .. points.Select(p => new ScoutingMapMark(p.X, p.Y, p.Z, ScoutingMarkShape.Ring, ScoutingColor.Neutral,
+                    LostSize + 3f))
+            ]
+        };
+    }
+
+    private static string Capital(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
 
     private static IReadOnlyList<ScoutingInspectorRow> SiteRows(ScoutingLayerContext context, PlantReading reading) =>
     [

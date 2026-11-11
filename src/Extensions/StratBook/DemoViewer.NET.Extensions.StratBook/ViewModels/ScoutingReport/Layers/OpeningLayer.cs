@@ -3,6 +3,7 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 
 #endregion
 
@@ -140,7 +141,10 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
             CountLabel = $"{rounds} rds",
             Marks =
             [
-                .. lostDuels.Where(d => d.Spot is not null).SelectMany(d => DeathMarks(d.Spot!))
+                .. lostDuels.Where(d => d.Spot is not null).SelectMany(d => DeathMarks(d.Spot!,
+                    EventInfo(context, "opening death", d.Player, d.Clip, d.Spot!, d.Traded, null,
+                        [.. lostDuels.Where(o => o.Player == d.Player && !ReferenceEquals(o, d)).Select(o => o.Spot)
+                            .OfType<OpeningSpot>()])))
             ],
             Reads = reads,
             Sections = [.. sections.Where(s => s.Rows.Count > 0)],
@@ -194,8 +198,14 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
             [
                 .. kills.Where(d => d.Spot is not null).Select(d =>
                     new ScoutingMapMark(d.Spot!.X, d.Spot.Y, d.Spot.Z, ScoutingMarkShape.Dot, ScoutingColor.Neutral,
-                        DotSize, Opacity: 0.95f)),
-                .. deaths.Where(d => d.Spot is not null).SelectMany(d => DeathMarks(d.Spot!))
+                        DotSize, Opacity: 0.95f)
+                    {
+                        Info = EventInfo(context, "opening kill", d.Player, d.Clip, d.Spot, d.Traded,
+                            d.RoundDecided ? d.RoundWon : null, OthersOf(block, d))
+                    }),
+                .. deaths.Where(d => d.Spot is not null).SelectMany(d => DeathMarks(d.Spot!,
+                    EventInfo(context, "opening death", d.Player, d.Clip, d.Spot!, d.Traded,
+                        d.RoundDecided ? d.RoundWon : null, OthersOf(block, d))))
             ],
             Reads = reads,
             Sections = [.. sections.Where(s => s.Rows.Count > 0)],
@@ -211,11 +221,62 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
     // A death: the ring, over a faint disc of the same colour. The ring alone is close to the grey of Nuke's
     // radar in lightness (contrast about 1.2); the disc's area carries it there, and the ring still reads as a ring
     // next to a kill's solid white dot.
-    private static IEnumerable<ScoutingMapMark> DeathMarks(OpeningSpot spot) =>
+    private static IEnumerable<ScoutingMapMark> DeathMarks(OpeningSpot spot, ScoutingMarkInfo? info = null) =>
     [
         new ScoutingMapMark(spot.X, spot.Y, spot.Z, ScoutingMarkShape.Dot, ScoutingColor.Bad, RingSize, Opacity: 0.3f),
         new ScoutingMapMark(spot.X, spot.Y, spot.Z, ScoutingMarkShape.Ring, ScoutingColor.Bad, RingSize, Opacity: 0.95f)
+        {
+            Info = info
+        }
     ];
+
+    // The same player's other opening duels on T, where they have a spot.
+    private static List<OpeningSpot> OthersOf(OpeningDuelBlock block, OpeningDuelRound duel) =>
+    [
+        .. block.Duels.Where(o => o.PlayerKey == duel.PlayerKey && !ReferenceEquals(o, duel)).Select(o => o.Spot)
+            .OfType<OpeningSpot>()
+    ];
+
+    // One opening kill or death: who, where, whether it was traded, how the round went, the round to watch;
+    // clicking rings the same player's other opening duels.
+    private static ScoutingMarkInfo EventInfo(ScoutingLayerContext context, string what, string player,
+        TendencyRound clip, OpeningSpot spot, bool traded, bool? roundWon, List<OpeningSpot> others)
+    {
+        List<ScoutingInspectorRow> rows =
+        [
+            new()
+            {
+                Label = "Where",
+                Value = spot.Place is { } p ? SetupsDerivation.PlaceLabel(p) : "unnamed spot",
+                StarText = $"{what} place",
+                Note = spot.Exact ? null : "approximate: the nearest sampled position"
+            },
+            new() { Label = "Traded", Value = traded ? "yes" : "no", StarText = $"{what} traded" }
+        ];
+        if (roundWon is { } won)
+        {
+            rows.Add(new ScoutingInspectorRow { Label = "Round", Value = won ? "won" : "lost", StarText = $"{what} round" });
+        }
+
+        rows.Add(new ScoutingInspectorRow
+        {
+            Label = "Watch the duel",
+            Value = $"round {clip.RoundNumber}",
+            StarText = "watch duel",
+            Rounds = [clip],
+            OpenTitle = $"{context.Prefix} · {player} {what}",
+            Play = (clip.DemoPath, clip.FromTick)
+        });
+        return new ScoutingMarkInfo($"{player} · {what} · round {clip.RoundNumber}", rows)
+        {
+            Hint = others.Count > 0 ? $"ring {player}'s other {Plural(others.Count, "opening duel")}" : "",
+            Detail =
+            [
+                .. others.Select(o => new ScoutingMapMark(o.X, o.Y, o.Z, ScoutingMarkShape.Ring, ScoutingColor.Neutral,
+                    RingSize + 3f))
+            ]
+        };
+    }
 
     // The duel lines both sides share; each one opens the rounds it counts.
     private static IReadOnlyList<ScoutingInspectorRow> DuelRows(ScoutingLayerContext context, OpeningDuelBlock block,
