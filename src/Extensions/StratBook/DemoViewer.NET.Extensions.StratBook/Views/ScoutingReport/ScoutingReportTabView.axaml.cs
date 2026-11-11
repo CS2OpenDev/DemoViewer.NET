@@ -29,6 +29,13 @@ public partial class ScoutingReportTabView : UserControl
     public ScoutingReportTabView() => InitializeComponent();
 
     // A rank box that loses focus commits what was typed, the same as Enter.
+    // The inspector is never taller than the stage beside it, so a long layer (setups and rotations) scrolls
+    // inside its panel instead of stretching the page. A floor keeps it usable while the stage is still drawing.
+    private const double InspectorMinHeight = 560;
+
+    private void OnStagePanelSizeChanged(object? sender, SizeChangedEventArgs e) =>
+        InspectorPanel.MaxHeight = Math.Max(InspectorMinHeight, e.NewSize.Height);
+
     private static void OnRankLostFocus(object? sender, RoutedEventArgs e)
     {
         if (sender is TextBox { DataContext: RankFieldViewModel rank })

@@ -716,7 +716,8 @@
             <!-- Work area: the map stage and the inspector. Tab walks the layer chips, the stage, the inspector and
                  then the strip under the map: each is its own tab group, ordered by its index. -->
             <Grid ColumnDefinitions="*,12,400" IsVisible="{Binding HasMaps}" KeyboardNavigation.TabNavigation="Local">
-                <Border Grid.Column="0" Classes="panel" Padding="12">
+                <Border Grid.Column="0" Name="StagePanel" Classes="panel" Padding="12" VerticalAlignment="Top"
+                        SizeChanged="OnStagePanelSizeChanged">
                     <StackPanel Spacing="10">
                         <Grid ColumnDefinitions="Auto,*" KeyboardNavigation.TabNavigation="Local"
                                    KeyboardNavigation.TabIndex="1">
@@ -911,12 +912,14 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Inspector: the focused layer's reads and rows, then the one-pager. -->
-                <Border Grid.Column="2" Classes="panel" Padding="14 12" VerticalAlignment="Top"
+                <!-- Inspector: the focused layer's reads and rows, then the one-pager. No taller than the stage
+                     beside it (the code-behind sets the cap): the title and scope stay put, the rest scrolls. -->
+                <Border Grid.Column="2" Name="InspectorPanel" Classes="panel" Padding="14 12 4 12" VerticalAlignment="Top"
                         KeyboardNavigation.TabNavigation="Local" KeyboardNavigation.TabIndex="3"
                         DataContext="{Binding Layers.Inspector}"
                         AutomationProperties.Name="Inspector">
-                    <StackPanel Spacing="4">
+                    <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0 0 10 0">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="15" FontWeight="Bold"
                                        Foreground="{DynamicResource TextBright}" TextWrapping="Wrap" />
@@ -945,6 +948,9 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </StackPanel>
+                    </StackPanel>
+                    <ScrollViewer Name="InspectorScroll" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="4" Margin="0 0 10 0">
                         <TextBlock Text="{Binding StatusMessage}" FontSize="12" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextBright}" IsVisible="{Binding HasStatusMessage}" />
                         <!-- Still building: a read and four rows of skeleton where the lines will land. -->
@@ -1023,6 +1029,8 @@
                             </StackPanel>
                         </Border>
                     </StackPanel>
+                    </ScrollViewer>
+                    </DockPanel>
                 </Border>
             </Grid>
 

@@ -88,7 +88,8 @@ public class ScoutingReportShellRenderTests
     [MethodDataSource(nameof(Cases))]
     public async Task TheShell_RendersARealisticTeam_InEachThemeAndWidth(string theme, int width)
     {
-        (double nukeStage, int nukeFloors, string inspector, bool mono, List<string> shown) = await OnUi(
+        (double nukeStage, int nukeFloors, string inspector, bool mono, List<string> shown, double inspectorHeight,
+            double stagePanelHeight, bool scrolls) = await OnUi(
             () => InTheme(theme, async () =>
             {
                 using SyntheticTeam team = await SyntheticTeam.Create();
@@ -106,6 +107,10 @@ public class ScoutingReportShellRenderTests
                 int floors = host.Map.Space?.Levels.Count ?? 0;
                 UxConsistencyRenderTests.Save(window, $"p4-scouting-ct-nuke-{theme}-{width}.png");
                 string title = vm.Layers.Inspector.Title;
+                ScoutingReportTabView view = (ScoutingReportTabView)window.Content!;
+                double inspectorHeight = view.FindControl<Border>("InspectorPanel")!.Bounds.Height;
+                double stagePanelHeight = view.FindControl<Border>("StagePanel")!.Bounds.Height;
+                bool scrolls = view.FindControl<ScrollViewer>("InspectorScroll") is { IsEffectivelyVisible: true };
                 Button export = window.GetVisualDescendants().OfType<Button>()
                     .First(b => b.Classes.Contains("primary"));
                 bool monospace = export.FontFamily.ToString().Contains("mono", StringComparison.OrdinalIgnoreCase)
@@ -134,13 +139,16 @@ public class ScoutingReportShellRenderTests
                 UxConsistencyRenderTests.Settle();
                 UxConsistencyRenderTests.Save(window, $"p4-scouting-t-nuke-{theme}-{width}.png");
                 window.Close();
-                return (stage, floors, title, monospace, text);
+                return (stage, floors, title, monospace, text, inspectorHeight, stagePanelHeight, scrolls);
             }));
 
         Console.WriteLine($"[p4-shell] {theme} {width}: stage {nukeStage:0} px for {nukeFloors} floors");
         using (Assert.Multiple())
         {
             await Assert.That(inspector).IsEqualTo("Setups and rotations");
+            await Assert.That(inspectorHeight).IsLessThanOrEqualTo(Math.Max(560, stagePanelHeight) + 1)
+                .Because("a long layer scrolls inside the inspector instead of stretching the page");
+            await Assert.That(scrolls).IsTrue();
             await Assert.That(nukeFloors).IsEqualTo(2);
             await Assert.That(nukeStage).IsGreaterThanOrEqualTo(nukeFloors * 400)
                 .Because("each floor of a stacked map gets a full band, not half of one map's height");
