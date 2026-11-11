@@ -678,6 +678,12 @@ public sealed class StratBookPack : IExtension
         services.AddSingleton(sp =>
             new ScoutingReportNotesStore(StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.ScoutingReportNotes)),
                 StoredFile.In(StoresOf(sp).OpenFile(StratBookStores.ScoutingReportNotesOldName))));
+        // The loads both Scouting Report tabs read: one per team, joined by the second tab on the same team and
+        // dropped when neither holds it. Each section is a queue item keyed by team, so two tabs on different
+        // teams never replace each other's, and two on the same team run it once.
+        services.AddSingleton(sp => new ScoutingReportLoads((team, section) => work => Job(sp,
+            "Scouting report: " + section, work,
+            new JobOptions(Key: $"section:scouting-report:{team:N}:{section}", Preemptible: true))));
         // The Scouting Report tab VM: a container singleton resolved lazily on first activation, over Team
         // Identity's own teams and the unified cache the Map Pool Record reads. The Setup Heatmaps read
         // the round index's positions files under the same fingerprint the Situations tab trusts, and
@@ -724,8 +730,8 @@ public sealed class StratBookPack : IExtension
     private static Func<Action, Task> StartupLoad(IServiceProvider sp, string title) =>
         load => Job(sp, title, load, new JobOptions(BuiltInJobKinds.Load, JobPriority.UserRequested));
 
-    // A Scouting Report over the container's services. Each tab builds its own, its loads keyed apart in the
-    // queue so one tab's never preempt the other's.
+    // A Scouting Report over the container's services. Each tab builds its own; the team loads come from the
+    // shared ScoutingReportLoads, and only the team-first request stays keyed per tab.
     private static ScoutingReportTabViewModel ScoutingReportFor(IServiceProvider sp, string jobKey)
     {
         RoundIndexPlaceSources sources = sp.GetRequiredService<RoundIndexPlaceSources>();
@@ -761,8 +767,7 @@ public sealed class StratBookPack : IExtension
                 RoundFactsOf(sp)),
             notes: sp.GetRequiredService<ScoutingReportNotesStore>(),
             grenades: sp.GetRequiredService<GrenadeIndex>(),
-            runSection: section => work => Job(sp, "Scouting report: " + section, work,
-                new JobOptions(Key: $"section:{jobKey}:{section}", Preemptible: true)),
+            loads: sp.GetRequiredService<ScoutingReportLoads>(),
             roundIndex: sp.GetRequiredService<RoundIndexStore>(),
             roundFacts: RoundFactsOf(sp),
             playback: sp.GetService<ISituationPlayback>,

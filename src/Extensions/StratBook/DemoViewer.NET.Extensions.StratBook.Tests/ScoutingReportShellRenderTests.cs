@@ -146,6 +146,8 @@ public class ScoutingReportShellRenderTests
                 .Because("each floor of a stacked map gets a full band, not half of one map's height");
             await Assert.That(mono).IsFalse().Because("the export label is a word, not code");
             await Assert.That(shown).Contains("Map pool");
+            await Assert.That(shown).Contains("Two layouts this release. Tell us which you prefer");
+            await Assert.That(shown).Contains("Give feedback");
             await Assert.That(shown.Any(t => t.StartsWith("Nuke · CT · all buys", StringComparison.Ordinal))).IsTrue();
         }
     }
@@ -363,7 +365,7 @@ public class ScoutingReportShellRenderTests
         /// <summary>The tab over the team, with every source a desktop host gives it but the grenade index.</summary>
         public ScoutingReportTabViewModel Tab(QueuedPost posted, Func<string, Func<Action, Task>>? runSection = null,
             ScoutingReportNotesStore? notes = null, Action<IReadOnlyList<string>>? requestDemos = null,
-            Func<DateTime>? now = null) =>
+            Func<DateTime>? now = null, ScoutingReportLoads? loads = null, Func<string, bool>? openUri = null) =>
             new(Teams, Cache.Library(), new VetoHistoryStore(null), isBrowser: false,
                 heatmaps: new SetupHeatmapService(Teams, Cache.Library(), Cache.RoundFacts(), Store, Sources.FingerprintFor),
                 post: posted.Post,
@@ -375,7 +377,9 @@ public class ScoutingReportShellRenderTests
                 roundFacts: new RoundFactsSource(Cache),
                 positionsFingerprint: Sources.FingerprintFor,
                 now: now ?? (() => new DateTime(2026, 3, 18)),
-                requestDemos: requestDemos);
+                requestDemos: requestDemos,
+                loads: loads,
+                openUri: openUri ?? (_ => true));
 
         // Every place of the map at its largest area: (name, x, y, z), on the map's own floors.
         private static List<(string Place, int X, int Y, int Z)> Places(string map)

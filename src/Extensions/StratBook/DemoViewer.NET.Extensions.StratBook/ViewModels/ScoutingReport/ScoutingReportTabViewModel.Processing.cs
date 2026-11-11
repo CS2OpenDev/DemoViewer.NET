@@ -16,10 +16,9 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 /// </summary>
 public sealed partial class ScoutingReportTabViewModel
 {
-    // Re-opening a team within this asks nothing again; the button always asks.
+    // Re-opening a team within this, in either report tab, asks nothing again; the button always asks.
     internal static readonly TimeSpan AutoRequestWindow = TimeSpan.FromMinutes(2);
 
-    private readonly Dictionary<Guid, DateTime> _requestedAt = [];
     private readonly Action<IReadOnlyList<string>>? _requestDemos;
     private string _processingNotice = "";
 
@@ -43,20 +42,11 @@ public sealed partial class ScoutingReportTabViewModel
             return;
         }
 
-        DateTime now = _now();
-        if (!force && _requestedAt.TryGetValue(teamId, out DateTime at) && now - at < AutoRequestWindow)
-        {
-            return;
-        }
-
         string[] paths = [.. _teams.DemosOf(teamId).Select(d => d.Path)];
-        if (paths.Length == 0)
+        if (paths.Length > 0 && _loads.ClaimRequest(teamId, _now(), AutoRequestWindow, force))
         {
-            return;
+            _requestDemos(paths);
         }
-
-        _requestedAt[teamId] = now;
-        _requestDemos(paths);
     }
 
     // "3 of 8 demos for this team still processing", or empty when every one is current. Only a host that

@@ -77,7 +77,8 @@ public sealed partial class ScoutingReportTabViewModel
         PlayersStatusLine = "";
     }
 
-    // Builds the roster's numbers on a worker, then re-projects the table on the UI thread.
+    // Builds the roster's numbers on a worker, then re-projects the table on the UI thread. Built once per load,
+    // roster and facts statuses, whichever report tab asks first.
     private Task StartPlayerStats(ScoutingReportData data)
     {
         ResetPlayerStats();
@@ -94,18 +95,20 @@ public sealed partial class ScoutingReportTabViewModel
             _factStatuses[demo.Path] = facts?.Status(demo.Path, PlayerStatsService.PlayerMatch) ?? FactStatus.Absent;
         }
 
-        PlayerStatsSet? built = null;
-        Task run = _runSection("players")(() =>
+        string key = string.Join(',', roster) + "|"
+                     + string.Join(',', _factStatuses.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase)
+                         .Select(p => $"{p.Key}={p.Value}"));
+        Task<PlayerStatsSet?> run = _loads.Share(data, "players", key, () => _loads.Run(data.TeamId, "players", () =>
         {
             try
             {
-                built = PlayerStatsService.Build(_library, facts, _sources.RoundFacts, data.Demos, roster);
+                return PlayerStatsService.Build(_library, facts, _sources.RoundFacts, data.Demos, roster);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
-                built = null;
+                return null;
             }
-        });
+        }));
 
         void Take()
         {
@@ -114,7 +117,7 @@ public sealed partial class ScoutingReportTabViewModel
                 return;
             }
 
-            _playerStats = built;
+            _playerStats = run.IsCompletedSuccessfully ? run.Result : null;
             ProjectPlayers();
         }
 

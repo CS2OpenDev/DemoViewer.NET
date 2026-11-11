@@ -121,6 +121,8 @@ public class ScoutingDashboardShellRenderTests
             await Assert.That(seen.text).Contains("Starting setups");
             await Assert.That(seen.text).Contains("CT side · Nuke");
             await Assert.That(seen.text).Contains("Head to head");
+            await Assert.That(seen.text).Contains("Two layouts this release. Tell us which you prefer");
+            await Assert.That(seen.text).Contains("· full long-form editing (rewrite, reset, dismiss) is in the Layers tab");
         }
     }
 }
