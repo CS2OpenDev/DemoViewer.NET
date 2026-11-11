@@ -14,8 +14,13 @@ public sealed record ShippedPack(string Id, Func<IExtension> Create, string Mani
 {
     /// <summary>
     ///     The shipped pack whose manifest the build copied beside the app
-    ///     (<c>&lt;AppContext.BaseDirectory&gt;/extension.json</c>).
+    ///     (<c>&lt;AppContext.BaseDirectory&gt;/&lt;id&gt;.extension.json</c>). Id-qualified because every
+    ///     shipped pack lands in the same directory; a staged folder keeps the bare name.
     /// </summary>
-    public static ShippedPack BesideApp(string id, Func<IExtension> create) =>
-        new(id, create, Path.Combine(AppContext.BaseDirectory, Manifest.ExtensionManifest.FileName));
+    public static ShippedPack BesideApp(string id, Func<IExtension> create)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        return new ShippedPack(id, create,
+            Path.Combine(AppContext.BaseDirectory, id + "." + Manifest.ExtensionManifest.FileName));
+    }
 }

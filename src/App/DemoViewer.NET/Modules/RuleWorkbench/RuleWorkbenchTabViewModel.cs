@@ -327,7 +327,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         List<RulesetDoc> docs = [];
         foreach ((string path, string text) in EnumerateSources())
         {
-            if (selected.Contains(path) && RulesetDocumentLoader.Load(text, path).Doc is { } doc)
+            if (selected.Contains(path) && LoadOrNull(text, path)?.Doc is { } doc)
             {
                 docs.Add(doc);
             }
@@ -554,7 +554,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         Dictionary<string, RulesetDoc> byId = new(StringComparer.Ordinal);
         foreach ((string path, string text) in EnumerateSources())
         {
-            if (RulesetDocumentLoader.Load(text, path).Doc is { } doc)
+            if (LoadOrNull(text, path)?.Doc is { } doc)
             {
                 byPath[path] = doc;
                 byId[doc.Id] = doc;
@@ -963,7 +963,17 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             foreach ((string path, string text) in EnumerateSources())
             {
                 fileCount++;
-                RulesetDocumentLoader.Outcome outcome = RulesetDocumentLoader.Load(text, path);
+                RulesetDocumentLoader.Outcome outcome;
+                try
+                {
+                    outcome = RulesetDocumentLoader.Load(text, path);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or YamlDotNet.Core.YamlException)
+                {
+                    all.Add(Unreadable(path, ex));
+                    continue;
+                }
+
                 all.AddRange(outcome.Diagnostics);
                 if (outcome.Doc is { } doc)
                 {
@@ -1167,6 +1177,31 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
             : $"catalog_version: {version}\n{text}";
     }
 
+    // YamlDotNet's scanner throws InvalidOperationException, not YamlException, on an unclosed flow
+    // sequence, and the engine at 0.14.1 lets it through; such text is treated as not loading.
+    // The scanner throws InvalidOperationException for an unclosed flow sequence (ruleset: [) where other
+    // YAML errors throw YamlException; either is an error on the file, so Check never reports it clean.
+    private static RulesetDiagnostic Unreadable(string path, Exception ex)
+    {
+        (int line, int column) = ex is YamlDotNet.Core.YamlException { Start: var start } && start.Line > 0
+            ? ((int)start.Line, (int)start.Column)
+            : (1, 1);
+        return new RulesetDiagnostic(Code: "yaml.unreadable", Message: $"the YAML could not be read ({ex.Message})",
+            Position: new SourcePosition(path, line, column));
+    }
+
+    private static RulesetDocumentLoader.Outcome? LoadOrNull(string text, string path)
+    {
+        try
+        {
+            return RulesetDocumentLoader.Load(text, path);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
     private static string StarterTemplate(string id) =>
         "# yaml-language-server: $schema=./cs2demokit-rules.schema.json\n"
         + "ruleset: " + id + "\n"
@@ -1206,7 +1241,7 @@ public sealed partial class RuleWorkbenchTabViewModel : ObservableObject, IWorks
         {
             if (dir is not null && Directory.Exists(dir))
             {
-                taken.UnionWith(YamlConfigLoader.TryLoadDirectory(dir).Rulesets.Select(r => r.Id));
+                taken.UnionWith(RuleLayers.TryLoadDirectory(dir).Rulesets.Select(r => r.Id));
             }
         }
 

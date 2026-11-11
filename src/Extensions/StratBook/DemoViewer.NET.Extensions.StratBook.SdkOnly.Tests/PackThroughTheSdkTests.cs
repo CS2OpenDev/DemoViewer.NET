@@ -53,7 +53,7 @@ public class PackThroughTheSdkTests
     [Test]
     public async Task Manifest_BesideThePack_NamesAnEntryTypeAHostCanConstruct()
     {
-        string manifestPath = Path.Combine(AppContext.BaseDirectory, "extension.json");
+        string manifestPath = Path.Combine(AppContext.BaseDirectory, PackId + ".extension.json");
         await Assert.That(File.Exists(manifestPath)).IsTrue()
             .Because("the SDK's targets copy the stamped manifest into every referencing project's output");
 
@@ -311,7 +311,7 @@ public class PackThroughTheSdkTests
     /// <summary>The ruleset names in the manifest beside the pack.</summary>
     private static async Task<string[]> ManifestRulesets()
     {
-        string path = Path.Combine(AppContext.BaseDirectory, "extension.json");
+        string path = Path.Combine(AppContext.BaseDirectory, PackId + ".extension.json");
         using JsonDocument manifest = JsonDocument.Parse(await File.ReadAllTextAsync(path));
         return
         [

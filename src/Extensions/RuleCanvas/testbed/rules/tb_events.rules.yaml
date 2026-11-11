@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../../../../../rules/cs2demokit-rules.schema.json
+#
+# Testbed: event nodes. rounds_closed counts the round_ended view, whose event node carries more than
+# one wire event as chips. rounds_started reads the raw round_start event, plants the bomb_planted view,
+# and damage_hits the damage_dealt view, which is player_hurt on the wire.
+ruleset: tb_events
+title: "TB Events"
+summary: Stats on round_start, round_ended, bomb_planted and player_hurt.
+for: each_player
+
+stats:
+  rounds_started:
+    count: raw.round_start
+    per: match
+
+  rounds_closed:
+    count: round_ended
+    per: match
+
+  plants:
+    count: bomb_planted
+    per: match
+
+  damage_hits:
+    count: damage_dealt
+    match: { enemy: true }
+    per: match

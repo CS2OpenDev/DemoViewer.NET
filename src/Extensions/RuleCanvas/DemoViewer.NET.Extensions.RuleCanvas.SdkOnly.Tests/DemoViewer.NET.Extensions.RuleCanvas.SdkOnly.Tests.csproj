@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The pack as a third party sees it: this project references the SDK, its UI kit and the pack, and
+      nothing else of the repo. No app, no internals grant. A test here that needs more access is the
+      finding, not a reason to widen the grants.
+    -->
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <RootNamespace>SdkOnlyHost</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="TUnit"/>
+        <!-- The SDK carries the DI abstractions only; a host needs the container itself. -->
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
+    </ItemGroup>
+
+    <!-- The recording host and the recording contribution sink, shared with the Strat Book's SDK-only
+         suite as source: one copy to move when the SDK grows a member. -->
+    <ItemGroup>
+        <Compile Include="..\..\StratBook\DemoViewer.NET.Extensions.StratBook.SdkOnly.Tests\SdkOnlyContext.cs" Link="SdkOnlyContext.cs"/>
+        <Compile Include="..\..\StratBook\DemoViewer.NET.Extensions.StratBook.SdkOnly.Tests\RecordedContributions.cs" Link="RecordedContributions.cs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk\DemoViewer.NET.Extensions.Sdk.csproj"/>
+        <ProjectReference Include="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk.Ui\DemoViewer.NET.Extensions.Sdk.Ui.csproj"/>
+        <ProjectReference Include="..\DemoViewer.NET.Extensions.RuleCanvas\DemoViewer.NET.Extensions.RuleCanvas.csproj"/>
+    </ItemGroup>
+
+</Project>

@@ -29,7 +29,8 @@ layer contract, floors, places and the world-to-screen transform, over SkiaSharp
 ```
 
 Put `extension.json` beside the csproj. The package's build targets stamp `{version}` with the project's
-package version, embed the result in the assembly and copy it beside the DLL:
+package version, embed the result in the assembly and copy it beside the DLL (set `ExtensionManifestOutputName`
+only when one output directory has to hold several extensions' copies; the default is `extension.json`):
 
 ```json
 {

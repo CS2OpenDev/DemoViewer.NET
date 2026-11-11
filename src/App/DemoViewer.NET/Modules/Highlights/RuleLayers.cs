@@ -35,6 +35,89 @@ public static class RuleLayers
 {
     private static readonly ConditionalWeakTable<RulesetDoc, string> _sources = new();
 
+    /// <summary>
+    ///     <see cref="YamlConfigLoader.LoadWithOverlay" /> that survives a user file YamlDotNet cannot scan. The
+    ///     scanner throws InvalidOperationException, not YamlException, on an unclosed flow sequence such as
+    ///     <c>ruleset: [</c>, and the engine catches only the latter. The loader reads a folder whole, so the user
+    ///     tier is set aside until the file is fixed, with an error naming it.
+    /// </summary>
+    /// <param name="shippedDir">The shipped rules folder.</param>
+    /// <param name="userDir">The user's rules folder, or null for none.</param>
+    public static RuleConfigLoadResult LoadWithOverlay(string shippedDir, string? userDir)
+    {
+        try
+        {
+            return YamlConfigLoader.LoadWithOverlay(shippedDir, userDir);
+        }
+        catch (InvalidOperationException ex) when (userDir is not null)
+        {
+            RuleConfigLoadResult shipped = YamlConfigLoader.LoadWithOverlay(shippedDir, null);
+            List<RuleConfigError> broken = UnscannableFiles(userDir, ex);
+            return shipped with
+            {
+                Errors = [.. shipped.Errors, .. broken],
+                FailedFiles = [.. shipped.FailedFiles, .. broken.Select(b => b.FilePath!)]
+            };
+        }
+    }
+
+    /// <summary><see cref="YamlConfigLoader.TryLoadDirectory" /> with the same guard as <see cref="LoadWithOverlay" />.</summary>
+    /// <param name="directory">The rules folder.</param>
+    public static RuleConfigLoadResult TryLoadDirectory(string directory)
+    {
+        try
+        {
+            return YamlConfigLoader.TryLoadDirectory(directory);
+        }
+        catch (InvalidOperationException ex)
+        {
+            List<RuleConfigError> broken = UnscannableFiles(directory, ex);
+            return new RuleConfigLoadResult(broken, [], [.. broken.Select(b => b.FilePath!)]);
+        }
+    }
+
+    // Finds the files the scanner cannot read; a YamlException is the engine's to report, so only the other
+    // failures count. Falls back to one error on the folder when no file reproduces the throw.
+    private static List<RuleConfigError> UnscannableFiles(string directory, Exception thrown)
+    {
+        List<RuleConfigError> errors = [];
+        IEnumerable<string> files;
+        try
+        {
+            files = Directory.GetFiles(directory, "*.yaml").Concat(Directory.GetFiles(directory, "*.yml")).Order(StringComparer.Ordinal);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            files = [];
+        }
+
+        foreach (string file in files)
+        {
+            try
+            {
+                using StreamReader reader = new(file);
+                new YamlDotNet.RepresentationModel.YamlStream().Load(reader);
+            }
+            catch (YamlDotNet.Core.YamlException)
+            {
+                // The engine reports these itself.
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                errors.Add(new RuleConfigError(file,
+                    $"the YAML could not be read ({ex.Message}); fix or remove this file, the user rules folder is skipped until then"));
+            }
+        }
+
+        if (errors.Count == 0)
+        {
+            errors.Add(new RuleConfigError(directory,
+                $"the user rules folder could not be read ({thrown.Message}); it is skipped until the files in it load"));
+        }
+
+        return errors;
+    }
+
     /// <summary>Reads the shipped folder with the user's overlay, and places the extension rulesets between them.</summary>
     /// <param name="shippedDir">The shipped rules folder.</param>
     /// <param name="userDir">The user's rules folder, or null for none.</param>
@@ -45,16 +128,16 @@ public static class RuleLayers
     {
         ArgumentNullException.ThrowIfNull(extensions);
         ArgumentNullException.ThrowIfNull(log);
-        RuleConfigLoadResult merged = YamlConfigLoader.LoadWithOverlay(shippedDir, userDir);
+        RuleConfigLoadResult merged = LoadWithOverlay(shippedDir, userDir);
         if (extensions.Count == 0)
         {
             return merged;
         }
 
-        HashSet<string> shippedIds = new(YamlConfigLoader.TryLoadDirectory(shippedDir).Rulesets.Select(r => r.Id),
+        HashSet<string> shippedIds = new(TryLoadDirectory(shippedDir).Rulesets.Select(r => r.Id),
             StringComparer.Ordinal);
         HashSet<string> userIds = userDir is not null && Directory.Exists(userDir)
-            ? new HashSet<string>(YamlConfigLoader.TryLoadDirectory(userDir).Rulesets.Select(r => r.Id),
+            ? new HashSet<string>(TryLoadDirectory(userDir).Rulesets.Select(r => r.Id),
                 StringComparer.Ordinal)
             : [];
         return WithExtensions(merged, shippedIds, userIds, extensions, log);

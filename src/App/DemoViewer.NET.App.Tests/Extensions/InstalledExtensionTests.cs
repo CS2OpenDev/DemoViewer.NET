@@ -480,11 +480,11 @@ public class InstalledExtensionTests
             (FakeFeedClient client, FakeFeeds.Entry entry) = Published(root, Built, key);
             IReadOnlyList<InstallableExtension> without = await new ExtensionUpdateService(root, [],
                     ExtensionHost.Current, TrustPolicy.Nothing, client, FeedUrl,
-                    installTrust: new SignedTrustPolicy([publicKey]), shippedIds: [])
+                    installTrust: new SignedTrustPolicy([publicKey]), catalogue: [Id], shippedIds: [])
                 .CheckCatalogueAsync();
             IReadOnlyList<InstallableExtension> with = await new ExtensionUpdateService(root,
                     [FeaturePacks.Statuses.Single(s => s.Pack.Id == Id)], ExtensionHost.Current, TrustPolicy.Nothing,
-                    client, FeedUrl)
+                    client, FeedUrl, catalogue: [Id])
                 .CheckCatalogueAsync();
 
             using (Assert.Multiple())
@@ -510,14 +510,21 @@ public class InstalledExtensionTests
 
     private static ExtensionManifest BuiltManifest()
     {
-        string shippedDll = typeof(StratBookPack).Assembly.Location;
-        string path = Path.Combine(Path.GetDirectoryName(shippedDll)!, ExtensionManifest.FileName);
+        string path = ShippedManifestPath(out string shippedDll);
         if (!File.Exists(path))
         {
-            throw new SkipTestException($"no {ExtensionManifest.FileName} beside {shippedDll}");
+            throw new SkipTestException($"no {Path.GetFileName(path)} beside {shippedDll}");
         }
 
         return ExtensionManifest.Parse(File.ReadAllText(path));
+    }
+
+    // The copy beside a shipped pack is id-qualified, since every shipped pack lands in one directory; the
+    // installed tree carries the bare name.
+    private static string ShippedManifestPath(out string shippedDll)
+    {
+        shippedDll = typeof(StratBookPack).Assembly.Location;
+        return Path.Combine(Path.GetDirectoryName(shippedDll)!, StratBookPack.PackId + "." + ExtensionManifest.FileName);
     }
 
     private static ECDsa NewKey(out string publicKeyBase64Spki)
@@ -531,8 +538,7 @@ public class InstalledExtensionTests
     // manifest beside it (with the version rewritten when asked), and the signature over both.
     private static string WriteTree(string directory, string version, ECDsa? key)
     {
-        string shippedDll = typeof(StratBookPack).Assembly.Location;
-        string json = File.ReadAllText(Path.Combine(Path.GetDirectoryName(shippedDll)!, ExtensionManifest.FileName));
+        string json = File.ReadAllText(ShippedManifestPath(out string shippedDll));
         ExtensionManifest built = ExtensionManifest.Parse(json);
         json = json.Replace($"\"{built.Version}\"", $"\"{version}\"", StringComparison.Ordinal);
         Directory.CreateDirectory(directory);

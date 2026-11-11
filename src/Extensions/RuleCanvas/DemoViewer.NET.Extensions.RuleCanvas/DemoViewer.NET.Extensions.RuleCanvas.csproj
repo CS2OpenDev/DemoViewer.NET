@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <!-- The assembly name is what the heads reference and the ViewLocator searches. -->
+        <RootNamespace>DemoViewer.NET.Extensions.RuleCanvas</RootNamespace>
+        <AssemblyName>DemoViewer.NET.Extensions.RuleCanvas</AssemblyName>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <!-- pack-extension.sh stages the packages the app does not ship (Nodify) from this output. -->
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    </PropertyGroup>
+
+    <!-- The manifest: ..\extension.json is a template whose version is stamped from ..\version.json at
+         build. The stamped copy is embedded and copied beside the DLL under the id-qualified name, since a
+         test project that references more than one extension gets them all in one output directory. -->
+    <PropertyGroup>
+        <ExtensionManifestTemplate>$(MSBuildProjectDirectory)/../extension.json</ExtensionManifestTemplate>
+        <ExtensionManifestOutputName>net.demoviewer.pack.rulecanvas.extension.json</ExtensionManifestOutputName>
+    </PropertyGroup>
+    <Import Project="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk\build\DemoViewer.NET.Extensions.Sdk.targets"/>
+
+    <ItemGroup>
+        <!-- Direct, not transitive: the Avalonia build tasks (XAML compilation) and the MVVM source generators
+             only run in a project that references the package itself. -->
+        <PackageReference Include="Avalonia"/>
+        <PackageReference Include="CommunityToolkit.Mvvm"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
+        <!-- The canvas and its first placement. Both carried by this extension alone; the app never
+             references Nodify, and reaches MSAGL only through its own Visualization project. -->
+        <PackageReference Include="Nodify.Avalonia"/>
+        <PackageReference Include="Msagl"/>
+        <!-- The source pane. The app ships this assembly and its theme, so at run time the extension shares
+             the app's copy; the pin is the app's pin. -->
+        <PackageReference Include="Avalonia.AvaloniaEdit"/>
+        <!-- The SDK carries CS2DemoKit.Parser and not Analysis, so the ruleset loader, composer and
+             catalog need this one named here, as the Strat Book names it. -->
+        <PackageReference Include="CS2DemoKit.Analysis"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="DemoViewer.NET.Extensions.Sdk"/>
+        <Using Include="DemoViewer.NET.Extensions.Sdk.Ui"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- The SDK and its UI kit are the packages a third party takes; the projects stand in for them.
+             Nothing of the app belongs here: neither the app nor a head references the extension. It is
+             installed from its feed. -->
+        <ProjectReference Include="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk\DemoViewer.NET.Extensions.Sdk.csproj"/>
+        <ProjectReference Include="..\..\..\Sdk\DemoViewer.NET.Extensions.Sdk.Ui\DemoViewer.NET.Extensions.Sdk.Ui.csproj"/>
+        <!-- The comment-preserving splice writer. A library of the repo that the app does not ship, so
+             pack-extension.sh stages it beside the extension, as it does Nodify. -->
+        <ProjectReference Include="..\..\..\RuleAuthoring\DemoViewer.NET.RuleAuthoring\DemoViewer.NET.RuleAuthoring.csproj"/>
+    </ItemGroup>
+
+    <!-- Same rule as the app csproj: the Avalonia XAML rewrite re-embeds the .pdb path after Roslyn, which
+         undoes ContinuousIntegrationBuild. No debug directory in Release leaves nothing to re-embed. -->
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <DebugType>none</DebugType>
+    </PropertyGroup>
+</Project>

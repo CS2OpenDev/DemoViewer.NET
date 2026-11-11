@@ -13,8 +13,9 @@
 
     <Import Project="..\..\Sdk\DemoViewer.NET.Extensions.Sdk\build\DemoViewer.NET.Extensions.Sdk.targets"/>
 
-    <!-- The stamped manifest stays beside this DLL only. Flowing it to a referencing project's output would
-         overwrite the Strat Book's extension.json there, whichever project copies last. -->
+    <!-- The stamped manifest stays beside this DLL only. The shipped packs copy theirs as <id>.extension.json,
+         so nothing collides any more, but a bare extension.json flowing into App.Tests' output would read as a
+         manifest of something the test host ships, which this fake is not. -->
     <Target Name="KeepManifestOutOfReferencingProjects" AfterTargets="StampExtensionManifest">
         <ItemGroup>
             <None Remove="$(StampedExtensionManifest)"/>

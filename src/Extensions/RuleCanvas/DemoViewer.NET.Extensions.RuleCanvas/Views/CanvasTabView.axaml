@@ -1,0 +1,1506 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="using:DemoViewer.NET.Extensions.RuleCanvas.Views"
+             xmlns:vm="using:DemoViewer.NET.Extensions.RuleCanvas.ViewModels"
+             xmlns:model="using:DemoViewer.NET.Extensions.RuleCanvas.Model"
+             xmlns:live="using:DemoViewer.NET.Extensions.RuleCanvas.Model.Live"
+             xmlns:nodify="clr-namespace:Nodify.Avalonia;assembly=Nodify.Avalonia"
+             xmlns:nodes="clr-namespace:Nodify.Avalonia.Nodes;assembly=Nodify.Avalonia"
+             xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia"
+             xmlns:ae="using:AvaloniaEdit"
+             x:Class="DemoViewer.NET.Extensions.RuleCanvas.Views.CanvasTabView"
+             x:DataType="vm:CanvasTabViewModel"
+             SizeChanged="OnViewSizeChanged">
+    <UserControl.Resources>
+        <!-- The ring sits at the row's start, inside the node's content padding, where the output ring and a
+             table's column rings sit too. Nodify clips the content presenter, so a ring hung out over the
+             border is cut away. -->
+        <!-- While a held item can land here, a halo in the port's own colour sits over the ring at its size,
+             so lighting a port never moves the row. -->
+        <DataTemplate x:Key="InlinePort" x:DataType="vm:CanvasConnectorViewModel">
+            <Panel Opacity="{Binding Opacity}" VerticalAlignment="Center">
+                <nodes:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="{Binding IsConnected}"
+                                 views:TokenBrush.BorderBrush="{Binding Token}" ToolTip.Tip="{Binding Title}"
+                                 Padding="0" MinHeight="0" Margin="0" VerticalAlignment="Center" />
+                <Border x:Name="PortHalo" BorderThickness="2" CornerRadius="999" IsHitTestVisible="False" Margin="0"
+                        views:TokenBrush.BorderBrush="{Binding LitToken}" IsVisible="{Binding IsLit}" />
+            </Panel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <!--
+      THE CANVAS SECTION: a strip over a Nodify editor. The strip picks the ruleset, reports what was
+      drawn and switches the node style; the editor draws the composed ruleset. A node is a header (kind pill, id, label) over chips
+      (trigger, gate, scope), the match facets as rows, and the expression; its ports are value references
+      only. Every colour is a token: the app's brushes on the node face, and the Nodify palette in
+      CanvasTheme.axaml mapped onto the same tokens so the editor's own chrome follows the theme.
+    -->
+
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Nodify.Avalonia/Themes/Controls.xaml" />
+        <StyleInclude Source="avares://DemoViewer.NET.Extensions.RuleCanvas/Views/CanvasTheme.axaml" />
+        <!-- A wire whose condition can be edited in place says so under the pointer; the hover halo is the
+             theme's. Here and not in the theme: a cursor needs the platform, which the theme's tests lack. -->
+        <Style Selector="connections|Connection.editable">
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <!-- The ruleset picker gives up width only once the strip is tight. -->
+        <Style Selector="ComboBox#RulesetPicker">
+            <Setter Property="MinWidth" Value="150" />
+        </Style>
+        <Style Selector="ComboBox#RulesetPicker.roomy">
+            <Setter Property="MinWidth" Value="210" />
+        </Style>
+    </UserControl.Styles>
+
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveSourceCommand}" />
+        <KeyBinding Gesture="Cmd+S" Command="{Binding SaveSourceCommand}" />
+    </UserControl.KeyBindings>
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- The strip, one row: what is open and its state on the left; history, adding, focus, the panel
+             toggles and the overflow on the right. Below it, folded by default, the diagnostics list. -->
+        <Border x:Name="Strip" Grid.Row="0" Background="{DynamicResource PanelHeaderBg}"
+                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="12 5">
+            <StackPanel Spacing="4">
+                <!-- The left group sits in the star column so the status trims instead of running under the buttons. -->
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel x:Name="StripRight" Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Button Classes="icon-btn" Content="&#x21B6;" FontSize="15" Padding="5 0" Command="{Binding UndoCommand}"
+                                ToolTip.Tip="Undo (Ctrl+Z)" />
+                        <Button Classes="icon-btn" Content="&#x21B7;" FontSize="15" Padding="5 0" Command="{Binding RedoCommand}"
+                                ToolTip.Tip="Redo (Ctrl+Shift+Z)" />
+                        <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
+
+
+                        <!-- The keyboard path into the gallery: the same searchable list, each item a button. -->
+                        <Button Classes="ghost" Content="+ Add" FontSize="12" Padding="8 3" IsEnabled="{Binding IsEditable}"
+                                ToolTip.Tip="Add a prefab, a highlight, a stat kind or a view under the authored nodes">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <DockPanel Width="300" MaxHeight="440">
+                                        <TextBox DockPanel.Dock="Top" Text="{Binding GallerySearch}" PlaceholderText="Search stats, views, gates…"
+                                                 FontSize="12" Margin="0 0 0 6" />
+                                        <ScrollViewer>
+                                            <ItemsControl ItemsSource="{Binding VisibleGallery}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="model:GalleryGroup">
+                                                        <StackPanel Margin="0 0 0 8">
+                                                            <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource TextMid}" Margin="4 0 0 2" />
+                                                            <ItemsControl ItemsSource="{Binding Items}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate x:DataType="model:GalleryItem">
+                                                                        <Button Classes="ghost" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                                                                Padding="6 3" Command="{Binding $parent[views:CanvasTabView].((vm:CanvasTabViewModel)DataContext).AddItemCommand}"
+                                                                                CommandParameter="{Binding}" IsEnabled="{Binding Kind, Converter={x:Static views:GalleryItemPlaceable.Instance}}">
+                                                                            <StackPanel>
+                                                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                                    <TextBlock Text="{Binding KindLabel}" FontSize="8" LetterSpacing="1" VerticalAlignment="Center"
+                                                                                               views:TokenBrush.Foreground="{Binding NodeKind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                                                                    <TextBlock Text="{Binding Title}" FontSize="12" FontFamily="monospace"
+                                                                                               Foreground="{DynamicResource TextValue}" />
+                                                                                </StackPanel>
+                                                                                <TextBlock Text="{Binding Hint}" FontSize="10" Foreground="{DynamicResource TextMid}"
+                                                                                           TextWrapping="Wrap" MaxWidth="270" />
+                                                                            </StackPanel>
+                                                                        </Button>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </DockPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+
+                        <Button Classes="ghost" Content="Focus" FontSize="12" Padding="8 3" IsVisible="{Binding IsStripRoomy}"
+                                Command="{Binding FocusSelectedCommand}"
+                                ToolTip.Tip="Draw only the selected node's slice of the chain: what feeds it and what it feeds" />
+                        <Border CornerRadius="3" Padding="6 1" VerticalAlignment="Center" IsVisible="{Binding HasFocus}"
+                                BorderThickness="1" BorderBrush="{DynamicResource RuleSelection}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{Binding FocusLabel}" FontSize="11" FontFamily="monospace"
+                                           Foreground="{DynamicResource RuleSelection}" VerticalAlignment="Center" />
+                                <Button Content="×" FontSize="11" Padding="2 0" MinHeight="0" Background="Transparent"
+                                        BorderThickness="0" Foreground="{DynamicResource RuleSelection}"
+                                        Command="{Binding ClearFocusCommand}" ToolTip.Tip="Show the whole chain again" />
+                            </StackPanel>
+                        </Border>
+                        <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" IsVisible="{Binding IsStripRoomy}" />
+
+                        <ToggleButton Classes="panel" Content="Gallery" IsChecked="{Binding ShowGallery}" IsVisible="{Binding IsStripRoomy}"
+                                      ToolTip.Tip="Show or hide the gallery of prefabs, highlights, stats, gates and views" />
+                        <ToggleButton Classes="panel" Content="Source" IsChecked="{Binding ShowSource}" IsVisible="{Binding IsStripRoomy}"
+                                      ToolTip.Tip="Show or hide the ruleset's YAML beside the canvas" />
+                        <ToggleButton Classes="panel" Content="Inspector" IsChecked="{Binding ShowInspector}" IsVisible="{Binding IsStripRoomy}"
+                                      ToolTip.Tip="Show or hide the Inspector, which edits every key of the selected node" />
+                        <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" IsVisible="{Binding IsStripRoomy}" />
+                        <Button Classes="ghost" Content="Open Authoring" FontSize="12" Padding="8 3" IsVisible="{Binding IsStripRoomy}"
+                                Command="{Binding OpenAuthoringCommand}" />
+                        <Button Classes="icon-btn" Content="&#x22EF;" FontSize="15" Padding="5 0" ToolTip.Tip="More">
+                            <Button.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                    <MenuItem Header="Focus on selection" Command="{Binding FocusSelectedCommand}" IsVisible="{Binding IsStripCompact}" />
+                                    <MenuItem Header="Gallery" ToggleType="CheckBox" IsChecked="{Binding ShowGallery, Mode=TwoWay}" IsVisible="{Binding IsStripCompact}" />
+                                    <MenuItem Header="Source" ToggleType="CheckBox" IsChecked="{Binding ShowSource, Mode=TwoWay}" IsVisible="{Binding IsStripCompact}" />
+                                    <MenuItem Header="Inspector" ToggleType="CheckBox" IsChecked="{Binding ShowInspector, Mode=TwoWay}" IsVisible="{Binding IsStripCompact}" />
+                                    <MenuItem Header="Open Authoring" Command="{Binding OpenAuthoringCommand}" IsVisible="{Binding IsStripCompact}" />
+                                    <Separator IsVisible="{Binding IsStripCompact}" />
+                                    <MenuItem Header="Compact faces" Command="{Binding SetStyleCommand}" CommandParameter="compact" />
+                                    <MenuItem Header="Detailed faces" Command="{Binding SetStyleCommand}" CommandParameter="detailed" />
+                                    <Separator />
+                                    <MenuItem Header="Minimap" Command="{Binding ToggleMinimapCommand}" />
+                                    <MenuItem Header="Legend" Command="{Binding ToggleLegendCommand}" />
+                                    <MenuItem Header="Diagnostics list" Command="{Binding ToggleDiagnosticsListCommand}" />
+                                    <Separator />
+                                    <MenuItem Header="Reset arrangement" Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding CanResetLayout}"
+                                              ToolTip.Tip="{Binding SidecarPath}" />
+                                    <MenuItem Header="Delete selected" Command="{Binding DeleteSelectedCommand}" />
+                                    <MenuItem Header="Group selection" InputGesture="{views:PrimaryGesture Ctrl+G}" Command="{Binding GroupSelectionCommand}" />
+                                    <MenuItem Header="Tidy selection" InputGesture="{views:PrimaryGesture Ctrl+Shift+T}" Command="{Binding TidySelectionCommand}" />
+                                    <MenuItem Header="Pin viewers on selection" Command="{Binding PinSelectedViewersCommand}" />
+                                    <MenuItem Header="Unpin viewers on selection" Command="{Binding UnpinSelectedViewersCommand}" />
+                                    <MenuItem Header="Edit a copy" Command="{Binding EditCopyCommand}" IsVisible="{Binding IsShippedRuleset}" />
+                                    <MenuItem Header="New ruleset with a starter stat" Command="{Binding NewRulesetCommand}" />
+                                    <MenuItem Header="Open rules folder" Command="{Binding OpenRulesFolderCommand}" />
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
+                    </StackPanel>
+
+                    <Grid Grid.Column="0" ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0 0 8 0" VerticalAlignment="Center" ClipToBounds="True">
+                        <StackPanel x:Name="StripLeft" Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <ComboBox x:Name="RulesetPicker" ItemsSource="{Binding Rulesets}" SelectedItem="{Binding SelectedRuleset}"
+                                      FontSize="12" Padding="8 3" ToolTip.Tip="The ruleset drawn"
+                                      Classes.roomy="{Binding IsStripLoose}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="model:RulesetCorpus+Entry">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Id}" FontFamily="monospace" />
+                                            <TextBlock Text="{Binding Source}" Foreground="{DynamicResource TextMid}" FontSize="11" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button x:Name="NewRulesetButton" Classes="ghost" Content="New" FontSize="12" Padding="8 3"
+                                IsEnabled="{Binding CanCreateRuleset}" ToolTip.Tip="Create a ruleset file in your rules folder and open it">
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <StackPanel Spacing="8" Width="300" Margin="4">
+                                        <TextBlock Text="NEW RULESET" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource RuleTextKey}" />
+                                        <TextBox Text="{Binding NewRulesetName}" PlaceholderText="ruleset id, e.g. my_rules" FontSize="12"
+                                                 FontFamily="monospace" Padding="6 3" MinHeight="0" KeyDown="OnNewRulesetKeyDown" />
+                                        <TextBlock FontSize="11" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
+                                                   Text="An empty file goes into your rules folder and opens here; fill it from the gallery. Letters, digits and underscores; the id is the file's name." />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button Classes="primary" Content="Create empty" FontSize="12" Padding="8 3" Tag="empty" Click="OnCreateRuleset" />
+                                            <Button Classes="ghost" Content="Start with a stat" FontSize="12" Padding="8 3" Tag="starter" Click="OnCreateRuleset"
+                                                    ToolTip.Tip="A fresh my_rules with one enemy-kills count, so something is drawn" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                            <!-- Live values: the open demo (a click goes to the Library), the instance the badges show,
+                                 the run's state in words, and a Re-run. -->
+                            <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
+                            <Button x:Name="DemoChip" Classes="ghost" Content="{Binding DemoChipText}" FontSize="11" FontFamily="monospace" Padding="6 2"
+                                    Command="{Binding OpenLibraryCommand}" ToolTip.Tip="{Binding DemoFileName, TargetNullValue='No demo is open; the Library opens one.'}" />
+                            <ComboBox ItemsSource="{Binding Instances}" SelectedItem="{Binding SelectedInstance}" IsVisible="{Binding HasLiveRun}"
+                                      MinWidth="96" FontSize="11" Padding="6 2" ToolTip.Tip="Whose values the badges show: the game, or one player">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="live:LiveInstance">
+                                        <TextBlock Text="{Binding Converter={x:Static views:LiveInstanceLabel.Instance}}" FontSize="11" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <!-- With no demo the chip already says so; the state and Re-run would only repeat it and crowd the strip. -->
+                            <TextBlock Text="{Binding LiveState}" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
+                                       MaxWidth="150" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LiveState}">
+                                <TextBlock.IsVisible>
+                                    <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                        <Binding Path="HasDemo" />
+                                        <Binding Path="IsStripLoose" />
+                                    </MultiBinding>
+                                </TextBlock.IsVisible>
+                            </TextBlock>
+                            <Button Classes="ghost" Content="Re-run" FontSize="11" Padding="6 2" Command="{Binding RunLiveCommand}"
+                                    IsVisible="{Binding HasDemo}" ToolTip.Tip="Evaluate the drawn ruleset over the open demo now" />
+                            <!-- Step mode: . and , move the playhead from fire to fire over the drawn nodes; off without a run. -->
+                            <ToggleButton Classes="panel" Content="Step" FontSize="11" Padding="6 2" IsChecked="{Binding IsStepMode}"
+                                          IsEnabled="{Binding CanStep}" IsVisible="{Binding HasDemo}"
+                                          ToolTip.Tip="{Binding StepTip}" ToolTip.ShowOnDisabled="True" />
+                            <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
+                        <!-- A shipped ruleset: the chip says it is read only, the button beside it makes a copy. -->
+                            <Border CornerRadius="3" Padding="6 1" VerticalAlignment="Center" BorderThickness="1"
+                                    BorderBrush="{DynamicResource AccentCaution}"
+                                    ToolTip.Tip="A shipped ruleset is read only here. Edit a copy puts one in your rules, which overrides it.">
+                                <Border.IsVisible>
+                                    <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                        <Binding Path="IsShippedRuleset" />
+                                        <Binding Path="IsStripLoose" />
+                                    </MultiBinding>
+                                </Border.IsVisible>
+                                <TextBlock Text="shipped, read only" FontSize="11" Foreground="{DynamicResource AccentCaution}" />
+                            </Border>
+                            <Button Classes="primary" Content="Edit a copy" FontSize="12" Padding="8 3"
+                                    Command="{Binding EditCopyCommand}" IsVisible="{Binding IsShippedRuleset}"
+                                    ToolTip.Tip="Copy this shipped ruleset into your rules and open the copy, which overrides it" />
+                            <TextBlock Text="&#x25CF;" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource AccentCaution}"
+                                       IsVisible="{Binding SourceDirty}"
+                                       ToolTip.Tip="The source pane holds unsaved text. Save or revert it to edit on the canvas." />
+                            <!-- The diagnostics count by weight ("2 errors, 1 warning"), red while any is an error, amber
+                                 otherwise; pressing it folds the list under the strip open. -->
+                            <Button Classes="ghost" Padding="6 1" MinHeight="0" VerticalAlignment="Center"
+                                    Command="{Binding ToggleDiagnosticsListCommand}" IsVisible="{Binding HasDiagnostics}"
+                                    ToolTip.Tip="{Binding Diagnostics}">
+                                <Border CornerRadius="8" Padding="7 0" views:TokenBrush.Background="{Binding DiagnosticsToken}">
+                                    <TextBlock Text="{Binding DiagnosticSummary}" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
+                                </Border>
+                            </Button>
+                        </StackPanel>
+                        <DockPanel x:Name="StripStatus" Grid.Column="1" VerticalAlignment="Center">
+                            <!-- The canvas search sits in the star column so it gives way before the buttons do: nodes the
+                                 text does not name dim; Enter frames the next match, Escape clears. -->
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8 0 0 0">
+                                <TextBox x:Name="SearchBox" Text="{Binding CanvasSearch}" PlaceholderText="Find node (Ctrl+F)" FontSize="12"
+                                         Padding="6 2" MinHeight="0" MinWidth="90" MaxWidth="170" VerticalAlignment="Center" KeyDown="OnSearchKeyDown"
+                                         ToolTip.Tip="Filter the canvas by id, label, event or define name; Enter frames each match in turn" />
+                                <TextBlock Text="{Binding SearchSummary}" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
+                                           IsVisible="{Binding IsSearching}" />
+                                <Button Classes="icon-btn" Content="×" Margin="0" IsVisible="{Binding IsSearching}"
+                                        Command="{Binding ClearSearchCommand}" ToolTip.Tip="Clear the search (Esc)" />
+                            </StackPanel>
+                            <TextBlock DockPanel.Dock="Left" FontSize="12" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
+                                       Text="{Binding Status}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Status}" Margin="0 0 8 0" />
+                            <TextBlock IsVisible="{Binding AuthoringUnavailable}" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentCaution}" TextTrimming="CharacterEllipsis"
+                                       Text="The Authoring tab is not available: switched off under Settings, Features, or this build has none."
+                                       ToolTip.Tip="The Authoring tab is not available: switched off under Settings, Features, or this build has none." />
+                        </DockPanel>
+                    </Grid>
+                </Grid>
+
+                <!-- The diagnostics, one line each; a line selects the node it is inside. -->
+                <ItemsControl ItemsSource="{Binding DiagnosticEntries}" IsVisible="{Binding ShowDiagnosticsList}" Margin="0 2 0 0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:CanvasDiagnostic">
+                            <Button Classes="ghost" HorizontalAlignment="Left" Padding="6 2" MinHeight="0"
+                                    Command="{Binding $parent[views:CanvasTabView].((vm:CanvasTabViewModel)DataContext).SelectDiagnosticCommand}"
+                                    CommandParameter="{Binding}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border Width="3" CornerRadius="1" views:TokenBrush.Background="{Binding Token}" />
+                                    <TextBlock Text="{Binding Where}" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" />
+                                    <TextBlock Text="{Binding Message}" FontSize="11" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap" MaxWidth="900" />
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto">
+
+            <!-- The gallery: a search over every group, then the groups as expanders in task order. Drag a
+                 prefab, a highlight, a stat or a view onto the canvas; a view or a gate onto a stat. -->
+            <Border Grid.Column="0" Width="240" IsVisible="{Binding ShowGallery}"
+                    BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 1 0"
+                    Background="{DynamicResource PanelBg}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{DynamicResource PanelHeaderBg}"
+                            BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="10 5">
+                        <TextBlock Text="GALLERY" FontSize="11" LetterSpacing="1" Foreground="{DynamicResource TextMid}" />
+                    </Border>
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="8 6 8 2">
+                        <TextBox Grid.Column="0" Text="{Binding GallerySearch}" PlaceholderText="Search stats, views, gates…"
+                                 FontSize="12" Padding="6 3" MinHeight="0" />
+                        <Button Grid.Column="1" Classes="icon-btn" Content="×" Margin="2 0 0 0" IsVisible="{Binding IsGallerySearching}"
+                                Command="{Binding ClearGallerySearchCommand}" ToolTip.Tip="Clear the search" />
+                    </Grid>
+                    <ScrollViewer>
+                        <ItemsControl ItemsSource="{Binding VisibleGallery}" Margin="8 4">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="model:GalleryGroup">
+                                    <StackPanel Margin="0 0 0 6">
+                                        <ToggleButton x:Name="GroupToggle" Classes="expander" IsChecked="{Binding IsExpanded, Mode=TwoWay}"
+                                                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextValue}" />
+                                                <TextBlock Text="{Binding Count}" FontSize="10" Foreground="{DynamicResource TextMid}"
+                                                           VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </ToggleButton>
+                                        <ItemsControl ItemsSource="{Binding Sections}" IsVisible="{Binding #GroupToggle.IsChecked}" Margin="0 2 0 0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="model:GallerySection">
+                                                    <StackPanel Spacing="2">
+                                                        <TextBlock Text="{Binding Title}" FontSize="10" LetterSpacing="1"
+                                                                   Foreground="{DynamicResource TextMid}" Margin="4 4 0 1"
+                                                                   IsVisible="{Binding Title, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                                        <ItemsControl ItemsSource="{Binding Items}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="model:GalleryItem">
+                                                                    <Border Classes="galleryItem" CornerRadius="4" Padding="7 4" Margin="0 1"
+                                                                            Background="{DynamicResource CardBg}"
+                                                                            BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                                                                            Cursor="Hand" ToolTip.Tip="{Binding Name}"
+                                                                            PointerPressed="OnGalleryItemPressed">
+                                                                        <StackPanel Spacing="1">
+                                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                                <Border CornerRadius="3" Padding="4 0" VerticalAlignment="Center" BorderThickness="1"
+                                                                                        views:TokenBrush.BorderBrush="{Binding NodeKind, Converter={x:Static views:RuleKindToken.Instance}}">
+                                                                                    <TextBlock Text="{Binding KindLabel}" FontSize="8" LetterSpacing="1"
+                                                                                               views:TokenBrush.Foreground="{Binding NodeKind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                                                                </Border>
+                                                                                <TextBlock Text="{Binding Title}" FontSize="12" FontFamily="monospace"
+                                                                                           Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                                                                            </StackPanel>
+                                                                            <TextBlock Text="{Binding Hint}" FontSize="10" Foreground="{DynamicResource TextMid}"
+                                                                                       TextWrapping="Wrap" />
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+        <!-- The right dock: the Inspector over the selection or the document, and the ruleset's YAML, which a
+             selected node scrolls to the line that declares it. Each tab can be switched off from the strip. -->
+        <Border Grid.Column="2" Width="440" IsVisible="{Binding ShowDock}"
+                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1 0 0 0"
+                Background="{DynamicResource PanelBg}">
+            <TabControl x:Name="Dock" SelectedIndex="{Binding DockTab, Mode=TwoWay}" Padding="0"
+                        SelectionChanged="OnDockTabChanged">
+                <TabControl.Styles>
+                    <Style Selector="TabItem">
+                        <Setter Property="FontSize" Value="11" />
+                        <Setter Property="MinHeight" Value="28" />
+                        <Setter Property="Padding" Value="12 4" />
+                    </Style>
+                </TabControl.Styles>
+                <TabItem Header="INSPECTOR" IsVisible="{Binding ShowInspector}">
+                    <views:InspectorView DataContext="{Binding Inspector}" />
+                </TabItem>
+                <TabItem Header="YAML" IsVisible="{Binding ShowSource}">
+            <DockPanel>
+                <Border DockPanel.Dock="Top" Background="{DynamicResource PanelHeaderBg}"
+                        BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1" Padding="10 5">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+                            <TextBlock FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center"
+                                       Text="read only" IsVisible="{Binding IsShippedRuleset}" />
+                            <TextBlock FontSize="11" Foreground="{DynamicResource AccentCaution}" VerticalAlignment="Center"
+                                       Text="unsaved" IsVisible="{Binding SourceDirty}" />
+                            <Button Classes="ghost" Content="Save" FontSize="11" Padding="6 1"
+                                    Command="{Binding SaveSourceCommand}" IsVisible="{Binding SourceDirty}" />
+                            <Button Classes="ghost" Content="Revert" FontSize="11" Padding="6 1"
+                                    Command="{Binding RevertSourceCommand}" IsVisible="{Binding SourceDirty}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding DocumentName}" FontSize="12" FontFamily="monospace"
+                                   Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                    </DockPanel>
+                </Border>
+                <ae:TextEditor x:Name="Source"
+                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                               FontSize="12"
+                               ShowLineNumbers="True"
+                               IsReadOnly="{Binding IsShippedRuleset}"
+                               WordWrap="False"
+                               Background="{DynamicResource PanelBg}"
+                               Foreground="{DynamicResource TextValue}" />
+            </DockPanel>
+                </TabItem>
+            </TabControl>
+        </Border>
+
+        <!-- The editor, with the zoom cluster and the minimap laid over its corners. Both forward the
+             wheel to the editor, so zooming never stops at an overlay. -->
+        <Grid Grid.Column="1">
+
+        <nodify:NodifyEditor x:Name="Editor" DragDrop.AllowDrop="True"
+                             ItemsSource="{Binding Items}"
+                             ViewportZoom="{Binding ViewportZoom, Mode=OneWayToSource}"
+                             Connections="{Binding Connections}"
+                             SelectedItems="{Binding SelectedNodes}"
+                             SelectedConnections="{Binding SelectedWires}"
+                             PendingConnection="{Binding Pending}"
+                             ItemsDragCompletedCommand="{Binding SaveLayoutCommand}"
+                             ConnectionCompletedCommand="{Binding ConnectCommand}"
+                             RemoveConnectionCommand="{Binding DisconnectCommand}"
+                             CuttingStartedCommand="{Binding CuttingStartedCommand}"
+                             CuttingCompletedCommand="{Binding CuttingCompletedCommand}">
+
+            <!-- The canvas menu: a right click that did not pan. The stat and highlight land where the
+                 click was; the view list under Add stat on is filled by the view from the catalog. -->
+            <nodify:NodifyEditor.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Name="AddStatMenu" Header="Add stat on" IsEnabled="{Binding IsEditable}" />
+                    <MenuItem Header="Add highlight" IsEnabled="{Binding IsEditable}" Click="OnAddHighlightAt" />
+                    <Separator />
+                    <MenuItem Header="Fit to screen" InputGesture="A" Click="OnFit" />
+                    <MenuItem Header="Select all" InputGesture="Ctrl+A" Command="{Binding SelectAllCommand}" />
+                    <MenuItem Header="Reset arrangement" Command="{Binding ResetLayoutCommand}" IsEnabled="{Binding CanResetLayout}" />
+                </ContextMenu>
+            </nodify:NodifyEditor.ContextMenu>
+
+            <!-- Graph position lives on the node view model; the container writes it back on drag. The
+                 node menu acts on the node under the pointer; a right click selects it first. -->
+            <nodify:NodifyEditor.ItemContainerTheme>
+                <ControlTheme TargetType="nodify:ItemContainer" BasedOn="{StaticResource {x:Type nodify:ItemContainer}}">
+                    <Setter Property="Location" Value="{ReflectionBinding Location, Mode=TwoWay}" />
+                    <!-- A node the search does not name dims to the port-dimming level; a frame never does. -->
+                    <Setter Property="Opacity" Value="{ReflectionBinding DimOpacity}" />
+                    <Setter Property="ContextMenu">
+                        <Template>
+                            <ContextMenu Opening="OnSeekMenuOpening">
+                                <MenuItem Header="Focus this slice" Click="OnNodeFocus" />
+                                <MenuItem Header="Jump to source" Click="OnNodeJump" />
+                                <!-- A folded dependency unfolds into its entries; a drawn entry folds its ruleset back; either
+                                     opens that ruleset in the picker. -->
+                                <MenuItem Header="{ReflectionBinding DependencyToggleText}" IsVisible="{ReflectionBinding CanToggleDependency}" Click="OnDependencyToggle" />
+                                <MenuItem Header="{ReflectionBinding OpenRulesetText}" IsVisible="{ReflectionBinding HasForeignRuleset}" Click="OnOpenRuleset" />
+                                <!-- Along the fires wires: a define to the stats on it, a stat to its define. -->
+                                <MenuItem Header="Show stats firing on this" IsVisible="{ReflectionBinding IsDefine}" Click="OnShowFiring" />
+                                <MenuItem Header="Go to define" IsVisible="{ReflectionBinding FiresOnDefine}" Click="OnGoToDefine" />
+                                <Separator />
+                                <!-- Seek the playhead to a fire of this node for the selected instance; an item that cannot
+                                     run says why in its header. -->
+                                <MenuItem Header="{ReflectionBinding SeekMenu.NextText}" IsEnabled="{ReflectionBinding SeekMenu.CanNext}" Click="OnNextFire" />
+                                <MenuItem Header="{ReflectionBinding SeekMenu.PreviousText}" IsEnabled="{ReflectionBinding SeekMenu.CanPrevious}" Click="OnPreviousFire" />
+                                <MenuItem Header="{ReflectionBinding SeekMenu.FirstText}" IsEnabled="{ReflectionBinding SeekMenu.CanFirst}" Click="OnFirstFire" />
+                                <!-- A viewer under the node from the last run, kept in the sidecar; a fixture comment above
+                                     the entry from the selected instance's track. -->
+                                <MenuItem Header="{ReflectionBinding ViewerMenuText}" Click="OnToggleViewer" />
+                                <MenuItem Header="Freeze value as fixture" Click="OnFreezeFixture"
+                                          ToolTip.Tip="Write the selected instance's final value and fire count as a comment above the entry" />
+                                <Separator />
+                                <MenuItem Header="Rename" IsEnabled="{ReflectionBinding CanRename}" Click="OnNodeRename" />
+                                <MenuItem Header="Duplicate" InputGesture="{views:PrimaryGesture Ctrl+D}" Click="OnNodeDuplicate" />
+                                <MenuItem Header="Delete" InputGesture="Delete" Click="OnNodeDelete" />
+                                <Separator />
+                                <MenuItem Header="Group selection" InputGesture="{views:PrimaryGesture Ctrl+G}" Click="OnGroupSelection" />
+                                <MenuItem Header="Tidy selection" InputGesture="{views:PrimaryGesture Ctrl+Shift+T}" Click="OnTidySelection" />
+                                <Separator />
+                                <MenuItem Header="Align">
+                                    <MenuItem Header="Top" Tag="Top" Click="OnAlign" />
+                                    <MenuItem Header="Left" Tag="Left" Click="OnAlign" />
+                                    <MenuItem Header="Bottom" Tag="Bottom" Click="OnAlign" />
+                                    <MenuItem Header="Right" Tag="Right" Click="OnAlign" />
+                                    <MenuItem Header="Middle" Tag="Middle" Click="OnAlign" />
+                                    <MenuItem Header="Center" Tag="Center" Click="OnAlign" />
+                                </MenuItem>
+                            </ContextMenu>
+                        </Template>
+                    </Setter>
+                </ControlTheme>
+            </nodify:NodifyEditor.ItemContainerTheme>
+
+            <!-- A wire: selectable, with its own menu. Hover and selection halos are in CanvasTheme.axaml. The
+                 label goes through WireLabelAtZoom so it hides under 0.7, where 10px would render under 7px.
+                 A double-click, or Edit condition, opens the condition editor over the label (the view places it). -->
+            <nodify:NodifyEditor.ConnectionTemplate>
+                <DataTemplate x:DataType="vm:CanvasConnectionViewModel">
+                    <views:LabelledConnection Source="{Binding Source.Anchor}"
+                                              Target="{Binding Target.Anchor}"
+                                              SourceOrientation="Horizontal"
+                                              TargetOrientation="Horizontal"
+                                              StrokeThickness="2"
+                                              ArrowEnds="End" ArrowSize="7,7"
+                                              FontSize="10" FontFamily="monospace"
+                                              Foreground="{DynamicResource TextMid}"
+                                              TextBackground="{DynamicResource PanelBg}"
+                                              TextPadding="5 1" TextCornerRadius="3"
+                                              Classes.read="{Binding IsRead}"
+                                              Classes.gate="{Binding IsGate}"
+                                              Classes.and="{Binding IsAnd}"
+                                              Classes.or="{Binding IsOr}"
+                                              Classes.editable="{Binding CanEditCondition}"
+                                              Classes.flash="{Binding IsFlashing}"
+                                              connections:BaseConnection.IsSelectable="True">
+                        <!-- Hover: what the label says (the authored operand or gate), the engine's lowering when it differs,
+                             the last run's fire line when there is one, then how to edit (or why not). -->
+                        <ToolTip.Tip>
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="{Binding Text}" FontSize="11" FontFamily="monospace" IsVisible="{Binding HasText}" />
+                                <TextBlock Text="{Binding EngineLine}" FontSize="11" FontFamily="monospace" IsVisible="{Binding HasEngineLine}" />
+                                <TextBlock Text="{Binding LiveTip}" FontSize="11" IsVisible="{Binding HasLiveTip}" />
+                                <TextBlock Text="{Binding ConditionEditTip}" FontSize="11" IsVisible="{Binding HasConditionEditTip}" />
+                            </StackPanel>
+                        </ToolTip.Tip>
+                        <views:LabelledConnection.Text>
+                            <MultiBinding Converter="{x:Static views:WireLabelAtZoom.Instance}">
+                                <Binding Path="Text" />
+                                <Binding Path="$parent[nodify:NodifyEditor].ViewportZoom" />
+                            </MultiBinding>
+                        </views:LabelledConnection.Text>
+                        <views:LabelledConnection.ContextMenu>
+                            <ContextMenu Opening="OnSeekMenuOpening">
+                                <MenuItem Header="Edit condition" Click="OnWireEdit" IsEnabled="{Binding CanEditCondition}"
+                                          ToolTip.Tip="{Binding ConditionEditTip}" ToolTip.ShowOnDisabled="True" />
+                                <MenuItem Header="Remove wire" Click="OnWireRemove" />
+                                <MenuItem Header="Jump to target's source" Click="OnWireJump" />
+                                <MenuItem Header="Go to definition" Click="OnWireGoToDefinition" IsVisible="{Binding CanGoToDefinition}"
+                                          ToolTip.Tip="Open the ruleset this read comes from and select the entry" />
+                                <Separator />
+                                <MenuItem Header="{Binding SeekMenu.NextText}" IsEnabled="{Binding SeekMenu.CanNext}" Click="OnNextFire" />
+                                <MenuItem Header="{Binding SeekMenu.PreviousText}" IsEnabled="{Binding SeekMenu.CanPrevious}" Click="OnPreviousFire" />
+                                <MenuItem Header="{Binding SeekMenu.FirstText}" IsEnabled="{Binding SeekMenu.CanFirst}" Click="OnFirstFire" />
+                            </ContextMenu>
+                        </views:LabelledConnection.ContextMenu>
+                    </views:LabelledConnection>
+                </DataTemplate>
+            </nodify:NodifyEditor.ConnectionTemplate>
+
+            <!-- The wire being dragged: drawn, snapped to the connector or node under it, and captioned
+                 with the sentence the drop would write, or the refusal, before anything is written. -->
+            <nodify:NodifyEditor.PendingConnectionTemplate>
+                <DataTemplate x:DataType="vm:CanvasPendingConnectionViewModel">
+                    <connections:PendingConnection Source="{Binding Source, Mode=OneWayToSource}"
+                                                   Target="{Binding Target, Mode=OneWayToSource}"
+                                                   PreviewTarget="{Binding PreviewTarget, Mode=OneWayToSource}"
+                                                   IsVisible="{Binding IsVisible, Mode=OneWayToSource}"
+                                                   EnablePreview="True" EnableSnapping="True" AllowOnlyConnectors="False"
+                                                   Stroke="{DynamicResource RuleSelection}" StrokeThickness="2"
+                                                   Background="{DynamicResource CardBg}"
+                                                   BorderBrush="{DynamicResource BorderAccent}"
+                                                   Foreground="{DynamicResource TextValue}" Padding="8 4">
+                        <TextBlock Text="{Binding PreviewText}" FontSize="11" FontFamily="monospace"
+                                   MaxWidth="320" TextWrapping="Wrap" IsVisible="{Binding HasPreviewText}" />
+                    </connections:PendingConnection>
+                </DataTemplate>
+            </nodify:NodifyEditor.PendingConnectionTemplate>
+
+            <nodify:NodifyEditor.ItemTemplate>
+                <views:CanvasNodeTemplateSelector>
+
+                <!-- An engine node (an event, an enrichment, a context flag) is one 30px row: the input dot, the
+                     kind pill, the name without its enrich. prefix, the output dot. Not the author's to edit. -->
+                <views:CanvasNodeTemplateSelector.Scaffold>
+                    <DataTemplate x:DataType="vm:CanvasNodeViewModel">
+                        <nodes:Node Input="{Binding Inputs}" Output="{Binding Outputs}" ContentPadding="0"
+                                    MinWidth="140" MaxWidth="260" ContentBrush="{DynamicResource RuleNodeBg}"
+                                    ToolTip.Tip="{Binding Id}">
+                            <nodes:Node.InputConnectorTemplate>
+                                <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
+                                    <nodes:NodeInput Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="{Binding IsConnected}"
+                                                     views:TokenBrush.BorderBrush="{Binding Token}" Opacity="{Binding Opacity}"
+                                                     ToolTip.Tip="{Binding Title}" Padding="4 0" MinHeight="0" VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </nodes:Node.InputConnectorTemplate>
+                            <nodes:Node.OutputConnectorTemplate>
+                                <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
+                                    <nodes:NodeOutput Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="{Binding IsConnected}"
+                                                      views:TokenBrush.BorderBrush="{Binding Token}" ToolTip.Tip="{Binding Title}"
+                                                      Padding="4 0" MinHeight="0" VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </nodes:Node.OutputConnectorTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="6" Height="30" Margin="2 0">
+                                <Border CornerRadius="3" Padding="4 0" VerticalAlignment="Center" BorderThickness="1"
+                                        views:TokenBrush.BorderBrush="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}">
+                                    <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
+                                               views:TokenBrush.Foreground="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                </Border>
+                                <TextBlock Text="{Binding Id, Converter={x:Static views:ScaffoldName.Instance}}" FontSize="12"
+                                           FontFamily="monospace" Foreground="{DynamicResource TextCardHeader}"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <ItemsControl ItemsSource="{Binding VisibleChipItems}" VerticalAlignment="Center">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="4" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CanvasChip">
+                                            <TextBlock Text="{Binding Text}" FontSize="9" Foreground="{DynamicResource RuleTextKey}"
+                                                       VerticalAlignment="Center" ToolTip.Tip="{Binding Tip}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </nodes:Node>
+                    </DataTemplate>
+                </views:CanvasNodeTemplateSelector.Scaffold>
+
+                <!-- A show node: a table or the scoreboard. The header names it, the chips say its grain, and
+                     each column is a row with its own read port, so a stat's wire lands on the column it is. -->
+                <views:CanvasNodeTemplateSelector.Show>
+                    <DataTemplate x:DataType="vm:CanvasNodeViewModel">
+                        <nodes:Node ContentPadding="10 6 10 8" ContentBrush="{DynamicResource RuleNodeBg}" HeaderBrush="{DynamicResource RuleNodeBg}">
+                            <nodes:Node.Header>
+                                <Grid ColumnDefinitions="3,*">
+                                    <Border Classes="kindTint" Grid.Column="0" Grid.ColumnSpan="2" CornerRadius="3 3 0 0" Margin="0 0 0 -1"
+                                            views:TokenBrush.Background="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                    <Border Grid.Column="0" CornerRadius="3 0 0 0" Margin="0 0 0 -1"
+                                            views:TokenBrush.Background="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="8 5 8 3" PointerPressed="OnFacePressed">
+                                        <Border CornerRadius="3" Padding="5 1" VerticalAlignment="Center" BorderThickness="1"
+                                                views:TokenBrush.BorderBrush="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}">
+                                            <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
+                                                       views:TokenBrush.Foreground="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
+                                                   Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
+                                        <Border CornerRadius="8" Padding="6 0" MinWidth="16" VerticalAlignment="Center"
+                                                IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}"
+                                                views:TokenBrush.Background="{Binding DiagnosticsToken}">
+                                            <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                            </nodes:Node.Header>
+                            <StackPanel Spacing="6" MinWidth="200" PointerPressed="OnFacePressed">
+                                <ItemsControl ItemsSource="{Binding VisibleChipItems}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CanvasChip">
+                                            <Border CornerRadius="9" Padding="7 1" Margin="0 0 4 2"
+                                                    Background="{DynamicResource RuleCanvasBg}"
+                                                    BorderBrush="{DynamicResource RuleNodeBorder}" BorderThickness="1"
+                                                    ToolTip.Tip="{Binding Tip}">
+                                                <TextBlock Text="{Binding Text}" FontSize="10" FontFamily="monospace"
+                                                           Foreground="{DynamicResource RuleTextKey}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="no columns yet; wire a stat in" FontSize="11" Foreground="{DynamicResource TextMid}"
+                                           IsVisible="{Binding !HasColumns}" />
+                                <ItemsControl ItemsSource="{Binding Columns}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CanvasColumnViewModel">
+                                            <StackPanel Orientation="Horizontal" Spacing="6" Height="22">
+                                                <ContentControl Content="{Binding Port}" ContentTemplate="{StaticResource InlinePort}" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Label}" FontSize="11" FontFamily="monospace"
+                                                           Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Stat}" FontSize="10" FontFamily="monospace"
+                                                           Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" IsVisible="{Binding ShowsStat}" />
+                                                <TextBlock Text="{Binding Group}" FontSize="9" Foreground="{DynamicResource RuleTextKey}"
+                                                           VerticalAlignment="Center" IsVisible="{Binding HasGroup}" ToolTip.Tip="The scoreboard group the column is clustered under" />
+                                                <!-- The surfaced stat's live value for the selected instance, so the table reads as a table. -->
+                                                <Border CornerRadius="3" Padding="5 0" VerticalAlignment="Center" Background="{DynamicResource RuleLiveBadgeBg}"
+                                                        IsVisible="{Binding HasLive}" ToolTip.Tip="{Binding LiveTip}">
+                                                    <TextBlock Classes="liveBadge" Classes.stale="{Binding IsLiveStale}" Text="{Binding LiveBadge}"
+                                                               FontSize="10" FontFamily="monospace" VerticalAlignment="Center" />
+                                                </Border>
+                                                <!-- as: and boards: as chips on the row, so a formatted or re-boarded column says so where it is. -->
+                                                <Border CornerRadius="9" Padding="5 0" VerticalAlignment="Center" IsVisible="{Binding HasAs}"
+                                                        Background="{DynamicResource RuleCanvasBg}" BorderBrush="{DynamicResource RuleNodeBorder}" BorderThickness="1"
+                                                        ToolTip.Tip="as: the display of a tick-valued column">
+                                                    <TextBlock Text="{Binding AsChip}" FontSize="9" FontFamily="monospace" Foreground="{DynamicResource RuleTextKey}" />
+                                                </Border>
+                                                <Border CornerRadius="9" Padding="5 0" VerticalAlignment="Center" IsVisible="{Binding HasBoards}"
+                                                        Background="{DynamicResource RuleCanvasBg}" BorderBrush="{DynamicResource RuleNodeBorder}" BorderThickness="1"
+                                                        ToolTip.Tip="boards: overrides the board the stat's per: would put the column on">
+                                                    <TextBlock Text="{Binding BoardsChip}" FontSize="9" FontFamily="monospace" Foreground="{DynamicResource RuleTextKey}" />
+                                                </Border>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </nodes:Node>
+                    </DataTemplate>
+                </views:CanvasNodeTemplateSelector.Show>
+
+                <!-- A use: dependency folded to one node: the header names the ruleset, the chips count its entries
+                     and say when the user's copy runs, and the right rail carries one output per entry the open
+                     document reads. Expand (the menu, or a double click on the header) draws the entries in its place. -->
+                <views:CanvasNodeTemplateSelector.Dependency>
+                    <DataTemplate x:DataType="vm:CanvasNodeViewModel">
+                        <nodes:Node Input="{Binding Inputs}" Output="{Binding Outputs}" ContentPadding="10 6 10 8"
+                                    ContentBrush="{DynamicResource RuleNodeBg}" HeaderBrush="{DynamicResource RuleNodeBg}">
+                            <nodes:Node.Header>
+                                <Grid ColumnDefinitions="3,*,Auto" DoubleTapped="OnDependencyDoubleTapped">
+                                    <Border Classes="kindTint" Grid.Column="0" Grid.ColumnSpan="3" CornerRadius="3 3 0 0" Margin="0 0 0 -1"
+                                            views:TokenBrush.Background="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                    <Border Grid.Column="0" CornerRadius="3 0 0 0" Margin="0 0 0 -1"
+                                            views:TokenBrush.Background="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="8 5 8 3" PointerPressed="OnFacePressed">
+                                        <Border CornerRadius="3" Padding="5 1" VerticalAlignment="Center" BorderThickness="1"
+                                                views:TokenBrush.BorderBrush="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}">
+                                            <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
+                                                       views:TokenBrush.Foreground="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
+                                                   Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource RuleTextKey}"
+                                                   VerticalAlignment="Center" IsVisible="{Binding ShowLabelText}" />
+                                        <Border CornerRadius="8" Padding="6 0" MinWidth="16" VerticalAlignment="Center"
+                                                IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}"
+                                                views:TokenBrush.Background="{Binding DiagnosticsToken}">
+                                            <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
+                                        </Border>
+                                    </StackPanel>
+                                    <Border Grid.Column="2" CornerRadius="3" Padding="6 1" Margin="0 5 8 3" VerticalAlignment="Center"
+                                            Background="{DynamicResource RuleLiveBadgeBg}" IsVisible="{Binding HasLive}"
+                                            ToolTip.Tip="{Binding LiveTip}">
+                                        <TextBlock Classes="liveBadge" Classes.stale="{Binding IsLiveStale}" Text="{Binding LiveBadge}"
+                                                   FontSize="11" FontFamily="monospace" VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </nodes:Node.Header>
+                            <!-- An output per entry read; its menu follows the read to where the entry is declared. -->
+                            <nodes:Node.OutputConnectorTemplate>
+                                <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
+                                    <nodes:NodeOutput Header="{Binding Title}" FontSize="10" FontFamily="monospace"
+                                                      Foreground="{DynamicResource RuleTextKey}"
+                                                      views:TokenBrush.BorderBrush="{Binding Token}"
+                                                      Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                                      IsConnected="{Binding IsConnected}">
+                                        <nodes:NodeOutput.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Go to definition" Click="OnOutputGoToDefinition" />
+                                            </ContextMenu>
+                                        </nodes:NodeOutput.ContextMenu>
+                                    </nodes:NodeOutput>
+                                </DataTemplate>
+                            </nodes:Node.OutputConnectorTemplate>
+                            <StackPanel Spacing="6" MinWidth="180" PointerPressed="OnFacePressed">
+                                <ItemsControl ItemsSource="{Binding VisibleChipItems}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CanvasChip">
+                                            <Border CornerRadius="9" Padding="7 1" Margin="0 0 4 2"
+                                                    Background="{DynamicResource RuleCanvasBg}"
+                                                    BorderBrush="{DynamicResource RuleNodeBorder}" BorderThickness="1"
+                                                    ToolTip.Tip="{Binding Tip}">
+                                                <TextBlock Text="{Binding Text}" FontSize="10" FontFamily="monospace"
+                                                           Foreground="{DynamicResource RuleTextKey}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="nothing here reads it" FontSize="11" Foreground="{DynamicResource TextMid}"
+                                           IsVisible="{Binding !Outputs.Count}" />
+                                <TextBlock Text="double-click to expand" FontSize="10" Foreground="{DynamicResource TextMid}" />
+                            </StackPanel>
+                        </nodes:Node>
+                    </DataTemplate>
+                </views:CanvasNodeTemplateSelector.Dependency>
+                <!-- A frame around nodes, drawn under them: the header drags its contents along, the content lets
+                     the pointer through to the nodes, the corner thumb resizes. The title is click-to-edit. -->
+                <views:CanvasNodeTemplateSelector.Group>
+                    <DataTemplate x:DataType="vm:CanvasGroupViewModel">
+                        <nodes:GroupingNode ActualSize="{Binding Size, Mode=TwoWay}" MovementMode="Group" CanResize="True"
+                                            IsContentHitTestVisible="False" MinWidth="120" MinHeight="60"
+                                            ResizeCompletedCommand="{Binding $parent[views:CanvasTabView].((vm:CanvasTabViewModel)DataContext).SaveLayoutCommand}">
+                            <nodes:GroupingNode.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="8 4" PointerPressed="OnFacePressed">
+                                    <TextBlock Text="{Binding HeaderText}" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center"
+                                               IsVisible="{Binding ShowTitleText}" />
+                                    <Button Classes="ghost" Content="✎" FontSize="10" Padding="3 0" MinHeight="0" VerticalAlignment="Center"
+                                            Command="{Binding BeginEditTitleCommand}" ToolTip.Tip="Rename the group"
+                                            IsVisible="{Binding ShowTitleText}" />
+                                    <TextBox Text="{Binding TitleText}" PlaceholderText="Group" FontSize="11" MinWidth="120" Padding="4 1" MinHeight="0"
+                                             IsVisible="{Binding IsEditingTitle}"
+                                             views:FaceBehaviors.FocusWhenShown="True"
+                                             views:FaceBehaviors.CommitOnLostFocus="{Binding CommitTitleCommand}">
+                                        <TextBox.KeyBindings>
+                                            <KeyBinding Gesture="Enter" Command="{Binding CommitTitleCommand}" />
+                                        </TextBox.KeyBindings>
+                                    </TextBox>
+                                </StackPanel>
+                            </nodes:GroupingNode.Header>
+                        </nodes:GroupingNode>
+                    </DataTemplate>
+                </views:CanvasNodeTemplateSelector.Group>
+
+                <views:CanvasNodeTemplateSelector.Authored>
+                <DataTemplate x:DataType="vm:CanvasNodeViewModel">
+                    <nodes:Node Input="{Binding RailInputs}" Output="{Binding Outputs}" ContentPadding="10 6 10 8"
+                                ContentBrush="{DynamicResource RuleNodeBg}" HeaderBrush="{DynamicResource RuleNodeBg}"
+                                Footer="{Binding VisibleViewer}" FooterBrush="{DynamicResource RuleNodeBg}">
+
+                        <!-- The pinned viewer, in the footer so it stays attached under a folded header: a stepped
+                             sparkline of the stored series in the kind's token with the playhead as a marker, the fires,
+                             the final value, (sampled) when the series was thinned, and a per-player bar list. The
+                             whole panel dims with the badges when the run is stale. Null footer, no panel. -->
+                        <nodes:Node.FooterTemplate>
+                            <DataTemplate x:DataType="vm:CanvasLiveViewerViewModel">
+                                <Border Classes="liveViewer" Classes.stale="{Binding IsStale}" Padding="10 6 10 8" BorderThickness="0 1 0 0"
+                                        BorderBrush="{DynamicResource RuleNodeBorder}" PointerPressed="OnFacePressed">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{Binding Message}" FontSize="11" Foreground="{DynamicResource TextMid}" IsVisible="{Binding HasMessage}" />
+                                        <Grid Width="160" Height="36" HorizontalAlignment="Left" IsVisible="{Binding HasSeries}"
+                                              Background="{DynamicResource RuleLiveBadgeBg}">
+                                            <Polyline Points="{Binding SparkPoints}" StrokeThickness="1.5" StrokeJoin="Round"
+                                                      views:TokenBrush.Stroke="{Binding $parent[nodes:Node].((vm:CanvasNodeViewModel)DataContext).Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                            <Border Width="1" HorizontalAlignment="Left" Margin="{Binding PlayheadMargin}" IsVisible="{Binding HasPlayhead}"
+                                                    Background="{DynamicResource RuleSelection}" ToolTip.Tip="The playhead" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding Fires}" FontSize="10" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap" MaxWidth="240"
+                                                   IsVisible="{Binding !HasMessage}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !HasMessage}">
+                                            <TextBlock Classes="liveBadge" Classes.stale="{Binding IsStale}" Text="{Binding FinalText}" FontSize="11" FontFamily="monospace" />
+                                            <TextBlock Text="{Binding SampledNote}" FontSize="10" Foreground="{DynamicResource AccentCaution}" IsVisible="{Binding IsSampled}"
+                                                       ToolTip.Tip="The run kept every k-th fire above the cap; the count stays exact" />
+                                        </StackPanel>
+                                        <ItemsControl ItemsSource="{Binding Breakdown}" IsVisible="{Binding HasBreakdown}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:CanvasViewerBar">
+                                                    <Grid ColumnDefinitions="72,90,Auto" ColumnSpacing="6" Height="14">
+                                                        <TextBlock Grid.Column="0" Classes="viewerName" Classes.selected="{Binding IsSelected}" Text="{Binding Name}"
+                                                                   FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding Name}" />
+                                                        <Border Grid.Column="1" Classes="viewerBar" Classes.selected="{Binding IsSelected}" Height="6" CornerRadius="2"
+                                                                Width="{Binding BarWidth}" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="2" Text="{Binding Value}" FontSize="10" FontFamily="monospace"
+                                                                   Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </nodes:Node.FooterTemplate>
+
+                        <!-- Header: a stripe and an outlined pill in the kind's token, the id, the label when there
+                             is one, and the diagnostics count as a badge whose tooltip carries the text. On an editable stat the label is click-to-edit. -->
+                        <nodes:Node.Header>
+                            <Grid ColumnDefinitions="3,*,Auto" DoubleTapped="OnHeaderDoubleTapped">
+                                <Border Classes="kindTint" Grid.Column="0" Grid.ColumnSpan="3" CornerRadius="3 3 0 0" Margin="0 0 0 -1"
+                                        views:TokenBrush.Background="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                <Border Grid.Column="0" CornerRadius="3 0 0 0" Margin="0 0 0 -1"
+                                        views:TokenBrush.Background="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="8 5 8 3" PointerPressed="OnFacePressed">
+                                    <!-- The fold: a chevron that keeps the header, the badge and the port rail and hides the rows. -->
+                                    <Button Classes="ghost" Content="{Binding CollapseGlyph}" FontSize="11" Padding="2 0" MinHeight="0" MinWidth="0"
+                                            VerticalAlignment="Center" Click="OnCollapseToggle" ToolTip.Tip="{Binding CollapseTip}" />
+                                    <Border CornerRadius="3" Padding="5 1" VerticalAlignment="Center" BorderThickness="1"
+                                            views:TokenBrush.BorderBrush="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}">
+                                        <TextBlock Text="{Binding KindLabel}" FontSize="9" FontWeight="SemiBold" LetterSpacing="1"
+                                                   views:TokenBrush.Foreground="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                                    </Border>
+                                    <TextBlock x:Name="NodeTitle" Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" FontFamily="monospace"
+                                               Foreground="{DynamicResource TextCardHeader}" VerticalAlignment="Center"
+                                               IsVisible="{Binding ShowTitleText}" />
+                                    <TextBox x:Name="NodeTitleEditor" Text="{Binding TitleText}" FontSize="12" FontFamily="monospace" MinWidth="120"
+                                             Padding="4 1" MinHeight="0" IsVisible="{Binding ShowTitleEditor}" VerticalAlignment="Center"
+                                             views:FaceBehaviors.FocusWhenShown="True"
+                                             views:FaceBehaviors.CommitOnLostFocus="{Binding CommitTitleCommand}">
+                                        <TextBox.KeyBindings>
+                                            <KeyBinding Gesture="Enter" Command="{Binding CommitTitleCommand}" />
+                                            <KeyBinding Gesture="Escape" Command="{Binding CancelTitleCommand}" />
+                                        </TextBox.KeyBindings>
+                                    </TextBox>
+                                    <TextBlock Text="{Binding TitleError}" FontSize="10" Foreground="{DynamicResource AccentCaution}" TextWrapping="Wrap"
+                                               MaxWidth="200" VerticalAlignment="Center" IsVisible="{Binding HasTitleError}" />
+                                    <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{DynamicResource RuleTextKey}"
+                                               VerticalAlignment="Center" IsVisible="{Binding ShowLabelText}" />
+                                    <Button Classes="ghost" Content="✎" FontSize="10" Padding="3 0" MinHeight="0" VerticalAlignment="Center"
+                                            Command="{Binding BeginEditLabelCommand}" ToolTip.Tip="Edit the label"
+                                            IsVisible="{Binding CanEditLabel}" />
+                                    <TextBox Text="{Binding LabelText}" PlaceholderText="label" FontSize="11" MinWidth="90" Padding="4 1" MinHeight="0"
+                                             IsVisible="{Binding ShowLabelEditor}"
+                                             views:FaceBehaviors.FocusWhenShown="True"
+                                             views:FaceBehaviors.CommitOnLostFocus="{Binding CommitLabelCommand}">
+                                        <TextBox.KeyBindings>
+                                            <KeyBinding Gesture="Enter" Command="{Binding CommitLabelCommand}" />
+                                        </TextBox.KeyBindings>
+                                    </TextBox>
+                                    <Border CornerRadius="8" Padding="6 0" MinWidth="16" VerticalAlignment="Center"
+                                            IsVisible="{Binding HasDiagnostics}" ToolTip.Tip="{Binding DiagnosticsText}"
+                                            views:TokenBrush.Background="{Binding DiagnosticsToken}">
+                                        <TextBlock Text="{Binding Diagnostics.Count}" FontSize="10" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource RuleDiagnosticBadgeText}" HorizontalAlignment="Center" />
+                                    </Border>
+                                    <Border CornerRadius="3" Padding="5 1" VerticalAlignment="Center" IsVisible="{Binding IsDraft}"
+                                            Background="{DynamicResource AccentError}">
+                                        <TextBlock Text="unfinished: pick a kind" FontSize="10" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource RuleDiagnosticBadgeText}" />
+                                    </Border>
+                                </StackPanel>
+                                <!-- The live value badge: the last run's final value for the selected instance, at the
+                                     right of the header; grey once the text was edited after the run. -->
+                                <Border Grid.Column="2" CornerRadius="3" Padding="6 1" Margin="0 5 8 3" VerticalAlignment="Center"
+                                        Background="{DynamicResource RuleLiveBadgeBg}" IsVisible="{Binding HasLive}"
+                                        ToolTip.Tip="{Binding LiveTip}">
+                                    <TextBlock Classes="liveBadge" Classes.stale="{Binding IsLiveStale}" Text="{Binding LiveBadge}"
+                                               FontSize="11" FontFamily="monospace" VerticalAlignment="Center" />
+                                </Border>
+                            </Grid>
+                        </nodes:Node.Header>
+
+                        <nodes:Node.InputConnectorTemplate>
+                            <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
+                                <nodes:NodeInput Header="{Binding Title}" FontSize="10" FontFamily="monospace"
+                                                 Foreground="{DynamicResource RuleTextKey}"
+                                                 views:TokenBrush.BorderBrush="{Binding Token}" Opacity="{Binding Opacity}"
+                                                 Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                                 IsConnected="{Binding IsConnected}" />
+                            </DataTemplate>
+                        </nodes:Node.InputConnectorTemplate>
+
+                        <nodes:Node.OutputConnectorTemplate>
+                            <DataTemplate x:DataType="vm:CanvasConnectorViewModel">
+                                <nodes:NodeOutput Header="{Binding Title}" FontSize="10" FontFamily="monospace"
+                                                  Foreground="{DynamicResource RuleTextKey}"
+                                                  views:TokenBrush.BorderBrush="{Binding Token}"
+                                                  Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                                  IsConnected="{Binding IsConnected}" />
+                            </DataTemplate>
+                        </nodes:Node.OutputConnectorTemplate>
+
+                        <!-- Face: chips, then the kind's own rows, the facet rows (detailed) or their count (compact),
+                             then the expression. Every row the engine adds on its own is drawn in TextMid, never
+                             hidden; TextDim is 1.81:1 on the face and carries no meaning anywhere on the canvas. -->
+                        <StackPanel Spacing="6" MinWidth="180" PointerPressed="OnFacePressed" IsVisible="{Binding ShowsFace}">
+                            <WrapPanel>
+                                <ItemsControl ItemsSource="{Binding VisibleChipItems}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CanvasChip">
+                                            <Border CornerRadius="9" Padding="7 1" Margin="0 0 4 2"
+                                                    Background="{DynamicResource RuleCanvasBg}"
+                                                    BorderBrush="{DynamicResource RuleNodeBorder}" BorderThickness="1"
+                                                    ToolTip.Tip="{Binding Tip}">
+                                                <TextBlock Text="{Binding Text}" FontSize="10" FontFamily="monospace"
+                                                           Foreground="{DynamicResource RuleTextKey}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <!-- The keys of the entry no row renders, counted; the click jumps to the entry in the YAML. -->
+                                <Button Classes="ghost" Padding="7 1" Margin="0 0 4 2" MinHeight="0" CornerRadius="9"
+                                        IsVisible="{Binding HasUnrendered}" ToolTip.Tip="{Binding UnrenderedTip}" Click="OnUnrenderedClick">
+                                    <TextBlock Text="{Binding UnrenderedChip}" FontSize="10" FontFamily="monospace"
+                                               Foreground="{DynamicResource AccentCaution}" />
+                                </Button>
+                                <!-- The engine's defaults the document leaves implicit, dimmed so they read as not written. -->
+                                <ItemsControl ItemsSource="{Binding Defaults}" IsVisible="{Binding HasDefaults}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Border CornerRadius="9" Padding="7 1" Margin="0 0 4 2"
+                                                    BorderBrush="{DynamicResource RuleNodeBorder}" BorderThickness="1"
+                                                    ToolTip.Tip="The engine's default; the document does not write this key">
+                                                <TextBlock Text="{Binding}" FontSize="10" FontFamily="monospace"
+                                                           Foreground="{DynamicResource TextMid}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </WrapPanel>
+
+                            <!-- The trigger as a picker while editable: the spelling the author wrote, over the catalog's
+                                 views by event, the raw events and the document's defines. -->
+                            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowTriggerPicker}">
+                                <ContentControl Content="{Binding TriggerPort}" ContentTemplate="{StaticResource InlinePort}" VerticalAlignment="Center" />
+                                <TextBlock Text="on" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
+                                <ComboBox ItemsSource="{Binding Trigger.Options}" SelectedItem="{Binding Trigger.Selected}"
+                                          PlaceholderText="pick a trigger…" FontSize="11" MinWidth="190" Padding="6 1" MinHeight="0"
+                                          ToolTip.Tip="{Binding Trigger.Tip}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="model:TriggerOption">
+                                            <TextBlock Text="{Binding Display}" FontSize="11" FontFamily="monospace" ToolTip.Tip="{Binding Tip}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- A flag's off: deactivator, with the same picker, writing off:. Bound through its own
+                                 view model so a face without one binds nothing. -->
+                            <ContentControl Content="{Binding OffTrigger}" IsVisible="{Binding ShowOffTriggerPicker}">
+                                <ContentControl.ContentTemplate>
+                                    <DataTemplate x:DataType="vm:CanvasTriggerViewModel">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="off" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
+                                            <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}"
+                                                      PlaceholderText="pick a deactivator…" FontSize="11" MinWidth="190" Padding="6 1" MinHeight="0"
+                                                      ToolTip.Tip="{Binding Tip}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="model:TriggerOption">
+                                                        <TextBlock Text="{Binding Display}" FontSize="11" FontFamily="monospace" ToolTip.Tip="{Binding Tip}" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ContentControl.ContentTemplate>
+                            </ContentControl>
+
+                            <!-- The view's per-player binding, switched off by match: { actor: any }. -->
+                            <CheckBox Classes="face" IsChecked="{Binding BindsActor}" IsThreeState="False" Content="bind to this player" FontSize="11"
+                                      MinHeight="0" Padding="4 0" IsVisible="{Binding ShowActorToggle}"
+                                      ToolTip.Tip="Off writes match: { actor: any }, so every player's event counts" />
+
+                            <!-- Rows the engine adds and the author cannot remove, stated so the face says what runs. -->
+                            <ItemsControl ItemsSource="{Binding FixedRowItems}" IsVisible="{Binding HasFixedRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CanvasChip">
+                                        <TextBlock Text="{Binding Text}" FontSize="11" FontFamily="monospace" Margin="0 1"
+                                                   Foreground="{DynamicResource RuleTextKey}"
+                                                   ToolTip.Tip="{Binding Tip}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <ItemsControl ItemsSource="{Binding Facets}" IsVisible="{Binding ShowFacets}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CanvasFacetViewModel">
+                                        <!-- A row: the name, then the editor the catalog type calls for. Read-only
+                                             nodes show the written value as text. -->
+                                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0 1" MinHeight="18">
+                                            <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11" FontFamily="monospace"
+                                                       Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="11" FontFamily="monospace"
+                                                       Foreground="{DynamicResource TextValue}" VerticalAlignment="Center"
+                                                       IsVisible="{Binding !IsEditable}" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" IsVisible="{Binding IsEditable}">
+                                                <CheckBox Classes="face" IsChecked="{Binding Toggle}" IsThreeState="False" IsVisible="{Binding IsBool}"
+                                                          MinHeight="0" Padding="0" Margin="0" />
+                                                <ComboBox ItemsSource="{x:Static vm:CanvasFacetViewModel.Comparators}"
+                                                          SelectedItem="{Binding Comparator}" IsVisible="{Binding IsNumber}"
+                                                          FontSize="11" MinWidth="52" Padding="4 1" />
+                                                <TextBox Text="{Binding Literal}" IsVisible="{Binding !IsBool}" FontSize="11"
+                                                         FontFamily="monospace" MinWidth="60" Padding="4 1" MinHeight="0"
+                                                         LostFocus="OnFacetEditorLostFocus">
+                                                    <TextBox.KeyBindings>
+                                                        <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
+                                                    </TextBox.KeyBindings>
+                                                </TextBox>
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Classes="ghost" Content="×" FontSize="11" Padding="4 0" MinHeight="0"
+                                                    Command="{Binding RemoveCommand}" IsVisible="{Binding IsEditable}"
+                                                    ToolTip.Tip="Remove this facet" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Adding a facet the view offers and the document does not bind yet, or one of the
+                                 event's own fields, which lands as a where row. -->
+                            <ComboBox ItemsSource="{Binding AvailableFacets}" SelectedItem="{Binding FacetToAdd}"
+                                      PlaceholderText="add facet or event field…" FontSize="11" Padding="6 1" MinHeight="0"
+                                      IsVisible="{Binding ShowFacetPicker}"
+                                      ToolTip.Tip="A facet the view offers becomes a match: entry; an event.* field becomes a where row you can then edit" />
+
+                            <!-- The kind's own free-text keys: a sum's value, a streak's window, a rate's buckets. The
+                                 editor is a combo over the suggestions that takes any text; a locked value is shown only. -->
+                            <ItemsControl ItemsSource="{Binding Fields}" IsVisible="{Binding HasFields}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CanvasFieldViewModel">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0 1" MinHeight="18">
+                                            <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="10" MinWidth="34"
+                                                       Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{Binding ReadText}" FontSize="11" FontFamily="monospace"
+                                                       TextWrapping="Wrap" MaxWidth="340" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextValue}" IsVisible="{Binding !CanEdit}"
+                                                       ToolTip.Tip="{Binding LockedReason}">
+                                                <TextBlock.Styles>
+                                                    <Style Selector="TextBlock.dim">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
+                                                    </Style>
+                                                </TextBlock.Styles>
+                                                <Classes.dim>
+                                                    <Binding Path="ShowsDefault" />
+                                                </Classes.dim>
+                                            </TextBlock>
+                                            <ComboBox Grid.Column="1" IsEditable="True" Text="{Binding Text}" ItemsSource="{Binding Suggestions}"
+                                                      SelectedItem="{Binding Picked}" PlaceholderText="{Binding Placeholder}"
+                                                      FontSize="11" FontFamily="monospace" MinWidth="200" MaxWidth="340" Padding="4 1" MinHeight="0"
+                                                      IsVisible="{Binding CanEdit}"
+                                                      views:FaceBehaviors.CommitOnLostFocus="{Binding CommitCommand}">
+                                                <ComboBox.KeyBindings>
+                                                    <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
+                                                </ComboBox.KeyBindings>
+                                            </ComboBox>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- The kind's closed-set keys: keep, format, reduce, a highlight's kind. The first entry is the default. -->
+                            <ItemsControl ItemsSource="{Binding Choices}" IsVisible="{Binding HasChoices}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CanvasChoiceViewModel">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0 1" MinHeight="18">
+                                            <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="10" MinWidth="34"
+                                                       Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{Binding ReadText}" FontSize="11" FontFamily="monospace"
+                                                       VerticalAlignment="Center" Foreground="{DynamicResource TextValue}"
+                                                       IsVisible="{Binding !IsEditable}">
+                                                <TextBlock.Styles>
+                                                    <Style Selector="TextBlock.dim">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
+                                                    </Style>
+                                                </TextBlock.Styles>
+                                                <Classes.dim>
+                                                    <Binding Path="IsDefault" />
+                                                </Classes.dim>
+                                            </TextBlock>
+                                            <ComboBox Grid.Column="1" ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}"
+                                                      FontSize="11" MinWidth="120" Padding="6 1" MinHeight="0" IsVisible="{Binding IsEditable}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:CanvasChoice">
+                                                        <TextBlock Text="{Binding Display}" FontSize="11" FontFamily="monospace" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- A tally's thresholds as a table: the minimum and the counter it increments, one row each. -->
+                            <StackPanel Spacing="2" IsVisible="{Binding HasThresholds}">
+                                <TextBlock Text="thresholds" FontSize="10" Foreground="{DynamicResource RuleTextKey}" />
+                                <ItemsControl ItemsSource="{Binding Thresholds.Rows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CanvasThresholdRowViewModel">
+                                            <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="6" Margin="0 1" MinHeight="18">
+                                                <TextBlock Grid.Column="0" Text="{Binding Min}" FontSize="11" FontFamily="monospace" MinWidth="30"
+                                                           Foreground="{DynamicResource TextValue}" VerticalAlignment="Center"
+                                                           IsVisible="{Binding !IsEditable}" />
+                                                <TextBox Grid.Column="0" Text="{Binding Min}" FontSize="11" FontFamily="monospace" MinWidth="48"
+                                                         Padding="4 1" MinHeight="0" IsVisible="{Binding IsEditable}"
+                                                         views:FaceBehaviors.CommitOnLostFocus="{Binding CommitCommand}">
+                                                    <TextBox.KeyBindings>
+                                                        <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
+                                                    </TextBox.KeyBindings>
+                                                </TextBox>
+                                                <TextBlock Grid.Column="1" Text="→" FontSize="11" Foreground="{DynamicResource TextMid}"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding Target}" FontSize="11" FontFamily="monospace"
+                                                           Foreground="{DynamicResource TextValue}" VerticalAlignment="Center"
+                                                           IsVisible="{Binding !IsEditable}" />
+                                                <TextBox Grid.Column="2" Text="{Binding Target}" FontSize="11" FontFamily="monospace" MinWidth="120"
+                                                         Padding="4 1" MinHeight="0" IsVisible="{Binding IsEditable}"
+                                                         views:FaceBehaviors.CommitOnLostFocus="{Binding CommitCommand}">
+                                                    <TextBox.KeyBindings>
+                                                        <KeyBinding Gesture="Enter" Command="{Binding CommitCommand}" />
+                                                    </TextBox.KeyBindings>
+                                                </TextBox>
+                                                <Button Grid.Column="3" Classes="ghost" Content="×" FontSize="11" Padding="4 0" MinHeight="0"
+                                                        Command="{Binding RemoveCommand}" IsVisible="{Binding IsEditable}"
+                                                        ToolTip.Tip="Remove this threshold" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Button Classes="ghost" Content="+ threshold" FontSize="10" Padding="4 0" MinHeight="0" HorizontalAlignment="Left"
+                                        Command="{Binding Thresholds.AddCommand}" IsVisible="{Binding Thresholds.IsEditable}" />
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding FacetSummary}" FontSize="11" Foreground="{DynamicResource RuleTextKey}"
+                                       IsVisible="{Binding ShowFacetSummary}" />
+
+                            <!-- The scope and the gate as pickers while editable; chips otherwise. The gate editor lists the
+                                 context paths and the ruleset's flags and takes any text the file could hold. A define
+                                 has no scope, so its row holds the gate alone. -->
+                            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowPerPicker}">
+                                <TextBlock Text="per" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center" />
+                                <ComboBox ItemsSource="{x:Static vm:CanvasNodeViewModel.PerOptions}" SelectedItem="{Binding Per}"
+                                          PlaceholderText="round (default)" PlaceholderForeground="{DynamicResource TextMid}"
+                                          FontSize="11" MinWidth="76" Padding="6 1" MinHeight="0" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding ShowFieldPickers}">
+                                <ContentControl Content="{Binding GatePort}" ContentTemplate="{StaticResource InlinePort}" VerticalAlignment="Center"
+                                                IsVisible="{Binding ShowGatePicker}" />
+                                <TextBlock Text="while" FontSize="10" Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Center"
+                                           IsVisible="{Binding ShowGatePicker}" />
+                                <ComboBox ItemsSource="{Binding GateChoices}" SelectedItem="{Binding GateChoice}" IsEditable="True"
+                                          Text="{Binding GateText}" PlaceholderText="none" FontSize="11" FontFamily="monospace"
+                                          MinWidth="150" Padding="6 1" MinHeight="0" IsVisible="{Binding ShowGatePicker}"
+                                          ToolTip.Tip="A context path, a sibling flag, or any gate expression the file can hold"
+                                          views:FaceBehaviors.CommitOnLostFocus="{Binding CommitGateCommand}">
+                                    <ComboBox.KeyBindings>
+                                        <KeyBinding Gesture="Enter" Command="{Binding CommitGateCommand}" />
+                                    </ComboBox.KeyBindings>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding Expression}" FontSize="11" FontFamily="monospace" MaxWidth="340"
+                                       TextWrapping="Wrap" Foreground="{DynamicResource TextValue}" IsVisible="{Binding ShowExpressionText}" />
+
+                            <!-- The where:, when: and compute: lines as editors while editable: a flat condition
+                                 as rows, anything else as text. ConditionRowsView holds the editors. -->
+                            <ItemsControl ItemsSource="{Binding Lines}" IsVisible="{Binding ShowLines}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CanvasExpressionViewModel">
+                                        <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="6" Margin="0 1">
+                                            <ContentControl Grid.Column="0" Content="{Binding Port}" ContentTemplate="{StaticResource InlinePort}"
+                                                            VerticalAlignment="Top" Margin="0 2 0 0" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Prefix}" FontSize="10" MinWidth="34"
+                                                       Foreground="{DynamicResource RuleTextKey}" VerticalAlignment="Top" Margin="0 3 0 0" />
+                                            <views:ConditionRowsView Grid.Column="2" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </nodes:Node>
+                </DataTemplate>
+                </views:CanvasNodeTemplateSelector.Authored>
+                </views:CanvasNodeTemplateSelector>
+            </nodify:NodifyEditor.ItemTemplate>
+        </nodify:NodifyEditor>
+
+        <!-- The zoom cluster, bottom-left. Every button goes through the editor's viewport API. -->
+        <Border x:Name="ZoomCluster" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="12" CornerRadius="4"
+                Padding="4 2" Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+                <Button Classes="ghost" Content="-" FontSize="12" Padding="8 1" MinHeight="0" Click="OnZoomOut"
+                        ToolTip.Tip="Zoom out (Ctrl+-)" />
+                <TextBlock Text="{Binding #Editor.ViewportZoom, StringFormat='{}{0:0%}'}" FontSize="11" MinWidth="40"
+                           TextAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextMid}" />
+                <Button Classes="ghost" Content="+" FontSize="12" Padding="8 1" MinHeight="0" Click="OnZoomIn"
+                        ToolTip.Tip="Zoom in (Ctrl++)" />
+                <Border Width="1" Background="{DynamicResource BorderSubtle}" Margin="4 2" />
+                <Button Classes="ghost" Content="Fit" FontSize="12" Padding="8 1" MinHeight="0" Click="OnFit"
+                        ToolTip.Tip="Fit the whole chain in view (A)" />
+                <Button Classes="ghost" Content="100%" FontSize="12" Padding="8 1" MinHeight="0" Click="OnZoomReset"
+                        ToolTip.Tip="Actual size" />
+            </StackPanel>
+        </Border>
+
+        <!-- The minimap, bottom-right: every node at its estimated size, the viewport as a frame to drag. -->
+        <nodify:Minimap x:Name="Minimap" Width="220" Height="150" Margin="12" IsVisible="{Binding ShowMinimap}"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                        ItemsSource="{Binding Nodes}"
+                        ViewportLocation="{Binding #Editor.ViewportLocation, Mode=TwoWay}"
+                        ViewportSize="{Binding #Editor.ViewportSize}"
+                        ItemsExtent="{Binding #Editor.ItemsExtent}"
+                        ResizeToViewport="True" Zoom="OnMinimapZoom"
+                        Background="{DynamicResource PanelBg}" Opacity="0.92"
+                        BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="4">
+            <nodify:Minimap.ItemTemplate>
+                <DataTemplate x:DataType="vm:CanvasNodeViewModel">
+                    <Border Width="{Binding EstimatedSize.Width}" Height="{Binding EstimatedSize.Height}" CornerRadius="3"
+                            views:TokenBrush.Background="{Binding Kind, Converter={x:Static views:RuleKindToken.Instance}}" />
+                </DataTemplate>
+            </nodify:Minimap.ItemTemplate>
+            <nodify:Minimap.Styles>
+                <Style Selector="nodify|MinimapItem">
+                    <Setter Property="Location" Value="{ReflectionBinding Location}" />
+                    <Setter Property="Background" Value="Transparent" />
+                </Style>
+            </nodify:Minimap.Styles>
+        </nodify:Minimap>
+
+        <!-- The legend, top-right, off by default: the node families and the wire kinds, in the same tokens
+             and dash styles the canvas draws with. A reading aid only; nothing on it is clickable. -->
+        <Border x:Name="Legend" IsVisible="{Binding ShowLegend}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12"
+                CornerRadius="4" Padding="10 8" Background="{DynamicResource PanelBg}" Opacity="0.95"
+                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" IsHitTestVisible="False">
+            <StackPanel Spacing="3">
+                <TextBlock Text="NODES" FontSize="10" LetterSpacing="1" Foreground="{DynamicResource TextMid}" />
+                <StackPanel x:Name="LegendNodes" Spacing="3">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindEvent}" />
+                        <TextBlock Text="event" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindEvent}" VerticalAlignment="Center" />
+                        <TextBlock Text="what fires" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindEnrich}" />
+                        <TextBlock Text="enrich" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindEnrich}" VerticalAlignment="Center" />
+                        <TextBlock Text="an engine enrichment" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindContext}" />
+                        <TextBlock Text="context" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindContext}" VerticalAlignment="Center" />
+                        <TextBlock Text="an engine flag" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindStat}" />
+                        <TextBlock Text="count, sum" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindStat}" VerticalAlignment="Center" />
+                        <TextBlock Text="accumulates" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindCapture}" />
+                        <TextBlock Text="capture" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindCapture}" VerticalAlignment="Center" />
+                        <TextBlock Text="keeps the last value" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindFlag}" />
+                        <TextBlock Text="flag" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindFlag}" VerticalAlignment="Center" />
+                        <TextBlock Text="true or false" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindDerived}" />
+                        <TextBlock Text="compute, rate" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindDerived}" VerticalAlignment="Center" />
+                        <TextBlock Text="derived from siblings" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindShaped}" />
+                        <TextBlock Text="tally, streak, bucket, burst" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindShaped}" VerticalAlignment="Center" />
+                        <TextBlock Text="shaped counts" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindHighlight}" />
+                        <TextBlock Text="highlight" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindHighlight}" VerticalAlignment="Center" />
+                        <TextBlock Text="a moment" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindDefine}" />
+                        <TextBlock Text="define" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindDefine}" VerticalAlignment="Center" />
+                        <TextBlock Text="a named trigger" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindSurface}" />
+                        <TextBlock Text="table, params" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindSurface}" VerticalAlignment="Center" />
+                        <TextBlock Text="surfaces" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="10" Height="10" CornerRadius="2" VerticalAlignment="Center" Background="{DynamicResource RuleKindDependency}" />
+                        <TextBlock Text="dependency" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleKindDependency}" VerticalAlignment="Center" />
+                        <TextBlock Text="another ruleset" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+                <TextBlock Text="WIRES" FontSize="10" LetterSpacing="1" Foreground="{DynamicResource TextMid}" Margin="0 6 0 0" />
+                <StackPanel x:Name="LegendWires" Spacing="3">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Line Classes="legendWrite" StartPoint="0,6" EndPoint="28,6" Width="28" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="write" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="an event fires a stat" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Line Classes="legendRead" StartPoint="0,6" EndPoint="28,6" Width="28" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="read" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="a sibling's value" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Line Classes="legendGate" StartPoint="0,6" EndPoint="28,6" Width="28" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="gate" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="while: holds it open" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Line Classes="legendAnd" StartPoint="0,6" EndPoint="28,6" Width="28" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="and" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="every input holds" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Line Classes="legendOr" StartPoint="0,6" EndPoint="28,6" Width="28" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="or" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="any input holds" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Line Classes="legendFlash" StartPoint="0,6" EndPoint="28,6" Width="28" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="flash" FontSize="11" FontFamily="monospace" Foreground="{DynamicResource TextValue}" VerticalAlignment="Center" />
+                        <TextBlock Text="fired at the stepped tick" FontSize="11" Foreground="{DynamicResource TextMid}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- The condition editor opened on a wire, placed by the view over the wire's label: one operand row
+             of the target's when:, the whole while: or when: as text, or the reason the wire has none. Enter
+             commits, Escape cancels, a press anywhere else on the canvas commits and goes no further. -->
+        <Canvas x:Name="WireEditorLayer" IsVisible="{Binding HasWireEditor}">
+            <ContentControl x:Name="WireEditorHost" Content="{Binding WireEditor}" Focusable="True"
+                            KeyDown="OnWireEditorKeyDown" LostFocus="OnWireEditorLostFocus">
+                <ContentControl.ContentTemplate>
+                    <DataTemplate x:DataType="vm:CanvasWireEditorViewModel">
+                        <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource BorderAccent}"
+                                BorderThickness="1" CornerRadius="4" Padding="8 6" MinWidth="220" MaxWidth="420">
+                            <views:WireEditorView />
+                        </Border>
+                    </DataTemplate>
+                </ContentControl.ContentTemplate>
+            </ContentControl>
+        </Canvas>
+
+        <!-- Over the editor, with no background of its own so the canvas still takes the pointer: the toast by
+             the strip's edge, the minimap in the corner, and the cards for a canvas with nothing to draw. -->
+            <views:TransientToast Toast="{Binding Toast}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12 8" />
+
+
+            <!-- No rulesets at all. -->
+            <Border Classes="emptyCard" IsVisible="{Binding IsNoRulesets}">
+                <StackPanel Spacing="10" MaxWidth="360">
+                    <TextBlock Text="No rulesets yet" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextCardHeader}" />
+                    <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
+                               Text="Nothing loads from the shipped rules or your own. A new ruleset starts with one stat you can edit here." />
+                    <TextBlock FontSize="11" FontFamily="monospace" Foreground="{DynamicResource RuleTextKey}" TextWrapping="Wrap"
+                               Text="{Binding RulesFolder}" IsVisible="{Binding RulesFolder, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Classes="primary" Content="New ruleset" Command="{Binding NewRulesetCommand}" IsEnabled="{Binding CanCreateRuleset}" />
+                        <Button Classes="ghost" Content="Open rules folder" Command="{Binding OpenRulesFolderCommand}" IsEnabled="{Binding CanCreateRuleset}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- A ruleset that declares nothing: a watermark with three quick starts. Only the buttons take the
+                 pointer: a Transparent brush would make the whole card the hit target, and the card is a sibling
+                 of the editor, so a drop or a right click there would reach nothing. -->
+            <Border Classes="emptyCard" IsVisible="{Binding IsEmptyRuleset}" Background="{x:Null}" BorderThickness="0">
+                <StackPanel Spacing="12" MaxWidth="420" HorizontalAlignment="Center">
+                    <TextBlock Text="Drag a prefab or a stat from the gallery, or press + Add" FontSize="14" IsHitTestVisible="False"
+                               Foreground="{DynamicResource TextMid}" TextWrapping="Wrap" TextAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" IsEnabled="{Binding IsEditable}">
+                        <Button Classes="ghost" Content="Enemy kills" Command="{Binding QuickStartCommand}" CommandParameter="prefab"
+                                ToolTip.Tip="A count of kills on enemies, per round" />
+                        <Button Classes="ghost" Content="Flag" Command="{Binding QuickStartCommand}" CommandParameter="flag"
+                                ToolTip.Tip="A stat that is true while its expression holds" />
+                        <Button Classes="ghost" Content="Highlight" Command="{Binding QuickStartCommand}" CommandParameter="highlight"
+                                ToolTip.Tip="A highlight with a when: to fill in" />
+                    </StackPanel>
+                    <TextBlock Text="A shipped ruleset is read only here; Edit a copy puts one in your rules." FontSize="11"
+                               Foreground="{DynamicResource TextMid}" TextAlignment="Center" IsVisible="{Binding IsShippedRuleset}"
+                               IsHitTestVisible="False" />
+                </StackPanel>
+            </Border>
+
+            <!-- A file that does not load. -->
+            <Border Classes="emptyCard" IsVisible="{Binding IsLoadFailed}">
+                <StackPanel Spacing="10" MaxWidth="420">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Width="3" CornerRadius="1" Background="{DynamicResource AccentError}" />
+                        <TextBlock Text="{Binding EmptyStateFile}" FontSize="14" FontWeight="SemiBold" FontFamily="monospace"
+                                   Foreground="{DynamicResource TextCardHeader}" />
+                        <TextBlock Text="did not load" FontSize="14" Foreground="{DynamicResource TextMid}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding EmptyStateReason}" FontSize="12" Foreground="{DynamicResource TextValue}" TextWrapping="Wrap" />
+                    <TextBlock FontSize="11" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
+                               Text="Fix the file in the source pane or the Authoring tab; undo is still available here." />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Classes="ghost" Content="Undo" Command="{Binding UndoCommand}" />
+                        <Button Classes="ghost" Content="Open rules folder" Command="{Binding OpenRulesFolderCommand}" IsEnabled="{Binding CanCreateRuleset}" />
+                        <Button Classes="ghost" Content="Open Authoring" Command="{Binding OpenAuthoringCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

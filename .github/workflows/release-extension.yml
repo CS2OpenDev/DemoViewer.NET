@@ -24,6 +24,7 @@ on:
         type: choice
         options:
           - net.demoviewer.pack.stratbook
+          - net.demoviewer.pack.rulecanvas
         default: net.demoviewer.pack.stratbook
       dry_run:
         description: 'Build, sign and zip only; do not create a release or touch the feed'

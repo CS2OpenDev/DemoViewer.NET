@@ -1,5 +1,6 @@
 #region
 
+using System.Reflection;
 using Avalonia.Input;
 using DemoViewer.NET.Extensions.Sdk;
 using DemoViewer.NET.Extensions.Sdk.Review;
@@ -21,7 +22,19 @@ internal sealed class SdkOnlyContext(string extensionId, string featureId) : IEx
 
     public string FeatureId { get; } = featureId;
 
-    public HostInfo Host { get; } = new(new Version(2, 0, 0), null, false);
+    // The contract version the SDK assembly carries, major.minor, which is what the packs' manifests require;
+    // the assembly version alone is major.0.0 and would describe a host every pack refuses.
+    public HostInfo Host { get; } = new(SdkContractVersion(), null, false);
+
+    private static Version SdkContractVersion()
+    {
+        Assembly sdk = typeof(IExtension).Assembly;
+        string? informational = sdk.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        string core = informational?.Split('+', '-')[0] ?? "";
+        return Version.TryParse(core, out Version? parsed)
+            ? new Version(parsed.Major, parsed.Minor, 0)
+            : sdk.GetName().Version ?? new Version(2, 0, 0);
+    }
 
     public IExtensionFeatures Features { get; } = new EverythingOff();
 

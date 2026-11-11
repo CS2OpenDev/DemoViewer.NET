@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=../../../../../rules/cs2demokit-rules.schema.json
+#
+# Testbed: show. The table tb_show_lines has four labelled columns at per: player_match, one shown
+# as: time; the scoreboard has three entries, one a compute with format: F2. Look at the Show nodes,
+# the labelled read wires into them and the column order on their faces.
+ruleset: tb_show
+title: "TB Show"
+summary: A table with several labelled columns and a scoreboard with a formatted compute.
+for: each_player
+
+stats:
+  show_kills:
+    count: kill
+    match: { enemy: true }
+    per: match
+
+  show_deaths:
+    count: death
+    per: match
+
+  show_first_kill:
+    capture: event.tick
+    on: kill
+    keep: first
+    per: match
+
+  show_kd:
+    compute: "show_kills / max(show_deaths, 1)"
+    format: F2
+    per: match
+
+show:
+  scoreboard:
+    - { stat: show_kills,  label: TB Kills,  group: game }
+    - { stat: show_deaths, label: TB Deaths, group: game }
+    - { stat: show_kd,     label: TB KD,     group: game }
+  tables:
+    tb_show_lines:
+      per: player_match
+      columns:
+        - { stat: show_kills,      label: kills }
+        - { stat: show_deaths,     label: deaths }
+        - { stat: show_kd,         label: kd }
+        - { stat: show_first_kill, label: first_kill, as: time }

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      The pack's own suite: the document-derived model over the shipped corpus in rules/, pure by
+      construction (composition plus a static projection, no demo, no layout), so it stays in every tier,
+      plus the few headless gesture cases over the canvas view that a binding or a predicate cannot stand
+      in for. Shell-level behaviour of the hub is in App.Tests, which has the shell.
+    -->
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <RootNamespace>DemoViewer.NET.Extensions.RuleCanvas.Tests</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="TUnit"/>
+        <!-- The headless session for the gesture cases: Skia so a connection's stroke hit-tests, the theme
+             so the face editors have templates, Inter so text measures. -->
+        <PackageReference Include="Avalonia"/>
+        <PackageReference Include="Avalonia.Headless"/>
+        <PackageReference Include="Avalonia.Skia"/>
+        <PackageReference Include="Avalonia.Themes.Fluent"/>
+        <PackageReference Include="Avalonia.Fonts.Inter"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DemoViewer.NET.Extensions.RuleCanvas\DemoViewer.NET.Extensions.RuleCanvas.csproj"/>
+        <ProjectReference Include="..\..\..\Testing\DemoViewer.NET.TestSupport\DemoViewer.NET.TestSupport.csproj"/>
+    </ItemGroup>
+
+    <!-- The headless session and the module-context fake, as source; the identity fake names the SDK's interface bare. -->
+    <ItemGroup>
+        <Using Include="DemoViewer.NET.Extensions.Sdk"/>
+    </ItemGroup>
+    <Import Project="..\..\..\Testing\DemoViewer.NET.Extensions.Testing\DemoViewer.NET.Extensions.Testing.props"/>
+
+</Project>

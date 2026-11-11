@@ -182,6 +182,26 @@ public class RuleWorkbenchModuleTests
     }
 
     [Test]
+    public async Task RuleWorkbench_UnscannableBuffer_IsAnErrorOnThisFile()
+    {
+        await WithTempRules(async (vm, _) =>
+        {
+            vm.NewFileCommand.Execute(null);
+
+            // An unclosed flow sequence: the YAML scanner throws InvalidOperationException, not YamlException.
+            vm.DocumentText = "ruleset: [\nfor: each_player\nstats: {}\n";
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vm.IsClean).IsFalse();
+                await Assert.That(vm.OpenFileDiagnostics.Count).IsGreaterThan(0)
+                    .Because("the file that does not load carries the error inline");
+                await Assert.That(vm.Summary).DoesNotContain("no problems");
+            }
+        });
+    }
+
+    [Test]
     public async Task RuleWorkbench_RequestJump_RaisesEventWithPosition()
     {
         await WithTempRules(async (vm, _) =>

@@ -93,6 +93,23 @@ jobs:
             echo "an app-provided assembly was staged into the HelloExtension zip"; ls "$OUT/stage"; exit 1
           fi
 
+      # The canvas ships two libraries the app does not (Nodify.Avalonia and the RuleAuthoring splice writer)
+      # and must stage nothing the app provides. InstalledRuleCanvasTests installs the same layout and draws it.
+      - name: Extension packaging dry run (Rule Canvas, with its dependencies)
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/rulecanvas-pack"
+          bash scripts/pack-extension.sh net.demoviewer.pack.rulecanvas --dry-run --key "$RUNNER_TEMP/ext.pem" --out "$OUT"
+          for dll in Nodify.Avalonia.dll DemoViewer.NET.RuleAuthoring.dll; do
+            test -f "$OUT/stage/$dll" || { echo "$dll was not staged"; ls "$OUT/stage"; exit 1; }
+          done
+          for pattern in 'Microsoft.Extensions.*.dll' 'Avalonia*.dll' 'CS2DemoKit.*.dll' \
+              'DemoViewer.NET.Extensions.Sdk*.dll' 'Microsoft.Msagl.dll'; do
+            if compgen -G "$OUT/stage/$pattern" >/dev/null; then
+              echo "an app-provided assembly ($pattern) was staged into the Rule Canvas zip"; ls "$OUT/stage"; exit 1
+            fi
+          done
+
       # The SDK packages: all pack, and each public API matches its PublicAPI files (the build fails
       # otherwise). The project list is scripts/sdk-packages.sh, shared with release-sdk.yml so the two
       # cannot pack different sets.

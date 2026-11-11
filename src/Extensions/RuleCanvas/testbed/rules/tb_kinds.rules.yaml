@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=../../../../../rules/cs2demokit-rules.schema.json
+#
+# Testbed: the stat kinds the other fixtures do not cover. kinds_ratio is a compute, kinds_tally a
+# tally with two targets, kinds_streak a streak, kinds_by_weapon and kinds_hs_by_weapon buckets on one
+# key, kinds_hs_rate a rate over them, kinds_burst a burst. Each should draw with no warning.
+ruleset: tb_kinds
+title: "TB Kinds"
+summary: One each of compute, tally, streak, bucket, rate and burst.
+for: each_player
+
+stats:
+  kinds_kills:
+    count: kill
+    match: { enemy: true }
+    per: round
+
+  kinds_ratio:
+    compute: "kinds_kills * 100"
+    format: F0
+    per: round
+
+  kinds_tally:
+    tally: kinds_kills
+    thresholds:
+      - { min: 3, target: kinds_rounds_3k }
+      - { min: 2, target: kinds_rounds_2k }
+    per: match
+
+  kinds_streak:
+    streak: kill
+    window: 640
+    min_streak: 2
+    per: match
+
+  kinds_by_weapon:
+    bucket: kill
+    match: { enemy: true }
+    key: event.Weapon
+    per: match
+
+  kinds_hs_by_weapon:
+    bucket: kill
+    match: { enemy: true, headshot: true }
+    key: event.Weapon
+    per: match
+
+  kinds_hs_rate:
+    rate: { of: kinds_hs_by_weapon, per: kinds_by_weapon }
+    per: match
+
+  kinds_burst:
+    burst: kill
+    match: { enemy: true }
+    window: "3s"
+    min_streak: 2

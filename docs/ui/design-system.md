@@ -357,6 +357,94 @@ resource; not done here.
 > `BorderSubtle`/`BorderStrong`). This is expected: the foundation de-duplicated existing looks rather than
 > inventing new ones. Adding a token remains the same process (right group + semantic name + role note).
 
+<a id="rule-canvas-tokens"></a>
+### Rule Canvas tokens (extension-owned: `src/Extensions/RuleCanvas/.../Views/CanvasTheme.axaml`)
+The Rule Canvas extension carries its own `Rule*` tokens in both theme dictionaries of its
+`CanvasTheme.axaml`, and every piece of Nodify chrome (editor background, node frame, ports, wires,
+selection rectangle, cutting line, keyboard focus ring, pending wire, minimap) is restyled there to read
+them, so nothing on the canvas falls back to Nodify's DodgerBlue and Orange. They are not in
+`DarkPalette.axaml` by decision: an optional extension's colours stay with the extension. A token that
+mirrors a host token carries the host's value for that theme and is marked so in the table; the extension
+keeps its own copy because a resource dictionary cannot alias one key to another across the host
+boundary, and the view files name the `Rule*` key, never the host key, so a later promotion into the host
+palette is a value move only. A test (`CanvasThemeTests.TheTheme_HoldsTheOnlyHex`) refuses a hex value or
+a Nodify default outside the theme file.
+
+Contrast is WCAG 2 relative luminance, measured where the token is used: a kind token on `RuleNodeBg`
+(text and the header stripe), a wire token on `RuleCanvasBg` (non-text, needs 3:1), text tokens on
+`RuleNodeBg`.
+
+| Token | Dark | Light | Role | Contrast dark / light |
+|---|---|---|---|---|
+| `RuleKindEvent` | `#E0C25C` | `#7A5C00` | Events, what fires: the header stripe and the outlined kind pill. | 10.14 / 6.10 |
+| `RuleKindEnrich` | `#91AFAA` | `#4E6B66` | Enrichment, entity and provider nodes. Muted: an engine scaffold. | 7.51 / 5.66 |
+| `RuleKindContext` | `#9BACB4` | `#566972` | Context flags (`RoundActive`, `Alive`, ...). Muted: an engine scaffold. | 7.54 / 5.60 |
+| `RuleKindStat` | `#1EC0D2` | `#00717D` | Accumulators: count and sum, and any kind not named here. | 8.03 / 5.60 |
+| `RuleKindCapture` | `#8ABF30` | `#487100` | Captures: the last value. | 8.07 / 5.63 |
+| `RuleKindFlag` | `#EC92CC` | `#B72785` | Flags: a bool. | 8.05 / 5.63 |
+| `RuleKindDerived` | `#E193E8` | `#A926B5` | Derived stats: compute and rate. | 8.04 / 5.64 |
+| `RuleKindShaped` | `#C69DF4` | `#8441D0` | Shaped stats: tally, streak, bucket, burst. | 8.03 / 5.62 |
+| `RuleKindHighlight` | `#F691A7` | `#C32245` | Highlights, the moments. | 8.03 / 5.64 |
+| `RuleKindDefine` | `#31C681` | `#00753F` | Defines, the named triggers. | 8.02 / 5.67 |
+| `RuleKindSurface` | `#B0A89F` | `#6F645A` | Show tables, the scoreboard and params. Muted. | 7.54 / 5.62 |
+| `RuleKindDependency` | `#B7A3B7` | `#775E77` | A folded `use:` dependency. Muted. | 7.53 / 5.61 |
+| `RuleKindTintOpacity` | `0.12` | `0.08` | A double: the family brush's opacity in the header band over `RuleNodeBg`. The pill text holds 4.5:1 on the band too (lowest 6.13 / 4.97). | |
+| `RuleWireWrite` | `#9090B0` | `#5A5E7C` | A write wire (an event firing a stat), solid; also the port rings. | 6.28 / 5.55 |
+| `RuleWireRead` | `#7878A8` | `#50507C` | A read wire (a sibling's value), dotted 1,2 (2px on 4px at the 2px stroke). | 4.66 / 6.65 |
+| `RuleWireGate` | `#569CD6` | `#1565C0` | A gate wire (a `while:` holding a stat open), dashed 8,4 (16px on 8px). | 6.58 / 5.06 |
+| `RuleWireAnd` | `#4CAF50` | `#2E7D32` | A conjunction input of a flag. Mirrors `StatPositive`. | 6.98 / 4.51 |
+| `RuleWireOr` | `#D98A3F` | `#B45309` | A disjunction input of a flag. Dark mirrors `StatNegativeSoft`. | 7.07 / 4.42 |
+| `RuleCanvasBg` | `#0C0C1A` | `#EFF0F7` | The editor background. Mirrors `PanelBg`. | |
+| `RuleNodeBg` | `#171726` | `#FCFCFE` | The node face and header. Mirrors `CardBg`. | 1.10 / 1.11 on the canvas, hence the border |
+| `RuleNodeBorder` | `#3A3A66` | `#A8AAC4` | The 1px node frame and the minimap edge; what separates a face from the canvas. | 1.83 / 2.01 on the canvas |
+| `RuleSelection` | `#8A8AE0` | `#4A4A9E` | The 2px selected ring, the hover ring under a pending wire, the keyboard focus ring, the selection rectangle's stroke, the pending wire, the minimap viewport. Light mirrors `AccentInteractive`. | 6.27 / 6.68 |
+| `RuleSelectionFill` | `#268A8AE0` | `#264A4A9E` | `RuleSelection` at 15% alpha: the selection rectangle's and the minimap viewport's fill. | |
+| `RuleCutLine` | `#E53935` | `#C62828` | The cutting line. Mirrors `AccentError`. | |
+| `RuleMinimapBg` | `#0E0E1E` | `#E9EAF3` | The minimap's surface. Mirrors `PanelHeaderBg`. | |
+| `RuleWireHalo` | `#99A0A0F0` | `#B34A4A9E` | The halo under a hovered wire (3px) and a selected one (5px). The alpha is in the token: 60% of a lifted `RuleSelection` in dark, 70% of `RuleSelection` in light, measured composited on `RuleCanvasBg`. | 3.58 / 3.41 |
+| `RuleCheckGlyph` | `#12121E` | `#FCFCFE` | The tick in a checked face checkbox (`CheckBox.face`), whose box is `RuleSelection`; the unchecked box's border is `RuleWireWrite`. Dark mirrors `TextOnAccent`, light mirrors `RuleNodeBg`, since `TextOnAccent` on `RuleSelection` is 2.44 in light. Measured on `RuleSelection`. | 6.01 / 7.41 |
+| `RuleDiagnosticBadgeText` | `#0C0C1A` | `#FCFCFE` | The 10px count on a diagnostics badge, in the strip and on a node header. Measured on `AccentError` / `AccentCaution`: 4.59 and 8.53 in dark, 5.49 and 4.61 in light. `TextOnAccent` was 4.39 / 3.30 on the error red. | 4.59 / 5.49 |
+| `RuleMinimapItemOpacity` | `1` | `0.55` | A double, not a brush: the opacity of a minimap item, whose fill is the node's kind token. The kind tokens are tuned for text on the face and shout on the light minimap at full strength. | |
+| `RuleTextKey` | `#A0A0D8` | `#3C3C70` | Key labels on a face: facet names, `on`, `per`, `while`, the expression prefixes, chip text. Mirrors `TextBright`. What the canvas dims but still means (an engine default chip, a default value, the condition echo under its rows, a note, the thresholds arrow, a read-only tag) is `TextMid` (4.26 / 7.37 on the face); `TextDim` is 1.81 on `CardBg` and carries no meaning on the canvas. | 7.17 / 9.89 |
+
+The eight saturated families sit at least 25 degrees of hue apart from each other and at least 12 from
+the gate, and, or, selection and cut-line hues; the four muted ones stay under a chroma ceiling and are
+read by their pill. `CanvasThemeTests` holds both rules and the 4.5:1 pill contrast in both themes.
+
+The kind pill is outlined (1px border and text in the kind token on `RuleNodeBg`), never a filled
+`AccentInteractive` pill with `TextOnAccent` (2.65 dark, 2.44 light). A diagnostics badge is `AccentError`
+(or `AccentCaution` for a text that calls itself a warning) with `RuleDiagnosticBadgeText`, and its text is
+the tooltip. A node's label beside its id is `RuleTextKey`, not `TextMid` (4.26 on `RuleNodeBg` in dark). The kind of a node reaches the brush through `TokenBrush` (`Views/TokenBrush.cs`): an attached
+property that binds a control's background, foreground, border or fill to a token named at run time,
+which a `DynamicResource` cannot do.
+
+The rest of the canvas surface, for the record:
+- **Scaffold nodes** (an event, an enrichment, a context flag: the engine's, not the author's) take a
+  separate template through `CanvasNodeTemplateSelector`: one 30px row of input dot, outlined kind pill,
+  name without its `enrich.` prefix, output dot; 140 to 260 wide, `NodeSizeEstimator` sized to match.
+- **Fit** is `ReadableFit`: the whole chain fitted with the zoom clamped to 0.6 to 1.0, and when it does
+  not fit at 0.6 the extent's width from its left-most column through the authored column is framed at a
+  zoom in that range, anchored at the extent's top-left, so the chain reads source to stat and the rest is
+  a pan down. When even that width is too wide for 0.6, the authored column is kept at the right edge and
+  the upstream remainder is a pan left: the stat is what the user edits. Wire labels hide under 0.55 zoom
+  (`WireLabelAtZoom`), under the fit's floor, so an opening view is always labelled.
+- **The strip** is one row: the ruleset picker with its source tag, a `shipped, read only` chip and a
+  primary `Edit a copy` beside it, an `AccentCaution` dot while the source pane is dirty, the diagnostics
+  count as an `AccentError` badge that folds the list open under the strip (each line selects its node),
+  the status in a star column (it trims with an ellipsis and carries itself as a tooltip, so it never runs
+  under the buttons); then undo and redo as icon buttons, `+ Add` with the searchable gallery in a flyout, Focus
+  and its chip, the Gallery, Source and Inspector toggles (`ToggleButton.panel`), Reset arrangement, Open
+  Authoring, and an overflow menu with the face style, the minimap, Delete selected, New ruleset and
+  Open rules folder. Refusals arrive on a `TransientToast` under the strip's left edge: `CardBg`, a 3px
+  `AccentCaution` stripe, `TextValue` 12px, five seconds or Escape.
+- **The gallery** has a search box over every group's titles, names and hints, then groups as expanders
+  in task order: Prefabs, Highlights, Stats (every kind the engine has), Gates with the open ruleset's
+  own flags under `Your flags`, and Views collapsed by default and folded by the event that fires them.
+  Every item shows its hint as a second line.
+- **Empty states** are cards centred over the editor: no rulesets (New ruleset writes a starter into the
+  user directory; Open rules folder); a ruleset with nothing declared (a watermark with Enemy kills, Flag
+  and Highlight quick starts); a file that stopped loading (the file name, the loader's reason, Undo).
+
 ---
 
 ## 2. Component contracts (shared controls)

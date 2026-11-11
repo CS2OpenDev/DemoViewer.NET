@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=../../../../../rules/cs2demokit-rules.schema.json
+#
+# Testbed: for_each. kills_{weapon} expands to kills_ak47 and kills_awp; each node carries the axis
+# chip, and the Inspector edits the value list.
+ruleset: tb_foreach
+title: "TB For Each"
+summary: One stat template expanded per weapon.
+for: each_player
+
+stats:
+  kills_{weapon}:
+    count: kill
+    match: { enemy: true }
+    where: event.Weapon == "{weapon}"
+    per: round
+    for_each: { weapon: [ ak47, awp ] }

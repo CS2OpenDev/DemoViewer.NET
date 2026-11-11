@@ -29,6 +29,7 @@ cd "$ROOT"
 # id|csproj directory (relative to repo root)|repo manifest path
 EXTENSIONS=(
     "net.demoviewer.pack.stratbook|src/Extensions/StratBook/DemoViewer.NET.Extensions.StratBook|src/Extensions/StratBook/extension.json"
+    "net.demoviewer.pack.rulecanvas|src/Extensions/RuleCanvas/DemoViewer.NET.Extensions.RuleCanvas|src/Extensions/RuleCanvas/extension.json"
 )
 
 ID=""
@@ -397,9 +398,14 @@ fi
 # The stamped copy beside the DLL is the manifest that ships. Three checks tie it to its sources: its
 # version is the one nbgv computed above, it equals the embedded copy byte for byte, and it equals the
 # repo template with the placeholder replaced (so a template edit without a rebuild is caught).
-BUILT_MANIFEST_PATH="${TARGET_DIR}extension.json"
+# A shipped pack's copy is id-qualified (ExtensionManifestOutputName); a project that sets no output name,
+# such as the sample, keeps the bare name. The staged copy below is always the bare name.
+BUILT_MANIFEST_PATH="${TARGET_DIR}${ID}.extension.json"
 if [ ! -f "$BUILT_MANIFEST_PATH" ]; then
-    echo "error: the build left no stamped extension.json beside $DLL_PATH." >&2
+    BUILT_MANIFEST_PATH="${TARGET_DIR}extension.json"
+fi
+if [ ! -f "$BUILT_MANIFEST_PATH" ]; then
+    echo "error: the build left no stamped ${ID}.extension.json or extension.json beside $DLL_PATH." >&2
     exit 2
 fi
 BUILT_VERSION="$(jq -r .version "$BUILT_MANIFEST_PATH")"

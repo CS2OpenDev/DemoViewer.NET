@@ -1,0 +1,123 @@
+#region
+
+using Avalonia;
+using DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
+
+#endregion
+
+namespace DemoViewer.NET.Extensions.RuleCanvas.Model;
+
+/// <summary>
+///     A hand model of the node template's size, from what the face shows, used for the first placement and
+///     for fitting the viewport before the containers are measured. Each constant names one row of the
+///     template; a template change that moves a row is a change here too.
+/// </summary>
+public static class NodeSizeEstimator
+{
+    private const double BaseWidth = 250;
+    private const double HeaderHeight = 40;
+    private const double ChipRowHeight = 24;
+    private const double FacetRowHeight = 16;
+    private const double ExpressionHeight = 20;
+    private const double ConnectorHeight = 22;
+    private const double DiagnosticHeight = 18;
+    private const double PickerRowHeight = 30;
+    private const double LineHeight = 26;
+    private const double FieldRowHeight = 26;
+    private const double ThresholdRowHeight = 26;
+    private const int LineWrapColumns = 44;
+    private const double EditableWidth = 360;
+
+    // The scaffold row: two 18px ports, a pill of the kind label, the name without its enrich. prefix, 30px tall.
+    private const double ScaffoldMinWidth = 140;
+    private const double ScaffoldMaxWidth = 260;
+    private const double ScaffoldHeight = 30;
+    private const double ScaffoldFixedWidth = 70;
+
+    public static Size Estimate(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        return new Size(WidthOf(node), HeightOf(node));
+    }
+
+    // The show template: a header, the chips, then one 22px row per column with its port, label and reference.
+    private const double ShowBaseWidth = 240;
+    private const double ColumnRowHeight = 22;
+
+    public static double WidthOf(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (node.IsShow)
+        {
+            int widest = Math.Max(node.Title.Length + 10, node.Columns.Max(c => (int?)(c.Label.Length + (c.ShowsStat ? c.Stat.Length + 3 : 0))) ?? 0);
+            return Math.Clamp(ShowBaseWidth + Math.Max(0, widest - 24) * 6.5, ShowBaseWidth, 420);
+        }
+
+        if (node.IsDependency)
+        {
+            int widest = Math.Max(node.Title.Length + (node.Label?.Length ?? 0) + 14, node.DependencyEntries.Max(e => (int?)e.Length) ?? 0);
+            return Math.Clamp(BaseWidth + Math.Max(0, widest - 24) * 6.5, BaseWidth, 420);
+        }
+
+        if (node.IsScaffold)
+        {
+            string name = node.Id.StartsWith("enrich.", StringComparison.Ordinal) ? node.Id["enrich.".Length..] : node.Id;
+            double chips = node.Chips.Sum(c => c.Length * 5.5 + 4);
+            return Math.Clamp(ScaffoldFixedWidth + node.KindLabel.Length * 7 + name.Length * 7.2 + chips, ScaffoldMinWidth, ScaffoldMaxWidth);
+        }
+
+        // The header shows the define's name, not its define. key; a define has no label.
+        int longest = Math.Max(node.Title.Length + (node.Label?.Length ?? 0) + 8,
+            node.Expression?.Split('\n').Max(l => l.Length) ?? 0);
+        longest = Math.Max(longest, Math.Min(LineWrapColumns, node.Lines.Max(l => (int?)l.Text.Length) ?? 0) + 8);
+        longest = Math.Max(longest, Math.Min(LineWrapColumns, node.Fields.Max(f => (int?)f.Original.Length) ?? 0) + 12);
+        longest = Math.Max(longest, (node.Inputs.Max(i => (int?)i.Title.Length) ?? 0) + 14);
+        double width = Math.Clamp(BaseWidth + Math.Max(0, longest - 30) * 6, BaseWidth, 520);
+        // The picker row and an expression editor are wider than any chip row.
+        return node.IsAuthorable && !node.IsScaffold ? Math.Max(width, EditableWidth) : width;
+    }
+
+    public static double HeightOf(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (node.IsScaffold)
+        {
+            return ScaffoldHeight;
+        }
+
+        if (node.IsShow)
+        {
+            return HeaderHeight + ChipRowHeight + Math.Max(1, node.Columns.Count) * ColumnRowHeight + 16;
+        }
+
+        // The dependency template: a header, the chips, then one connector row per entry read on the right rail.
+        if (node.IsDependency)
+        {
+            return HeaderHeight + ChipRowHeight + Math.Max(1, node.DependencyEntries.Count) * ConnectorHeight + 16;
+        }
+
+        int chipCount = node.Chips.Count + node.Defaults.Count + node.TextChips.Count + (node.HasUnrendered ? 1 : 0);
+        double chips = chipCount == 0 ? 0 : ChipRowHeight * Math.Ceiling(chipCount / 3.0);
+        double rows = Math.Max((node.Facets.Count + node.FixedRows.Count) * FacetRowHeight,
+            Math.Max(node.Inputs.Count, node.Outputs.Count) * ConnectorHeight);
+        double expression = node.Expression is null ? 0 : ExpressionHeight * node.Expression.Split('\n').Length;
+        double diagnostics = node.Diagnostics.Count * DiagnosticHeight;
+        // The kind's own rows show in both styles: a field or a choice per row, a threshold per row plus the add button.
+        double kind = (node.Fields.Count + node.Choices.Count) * FieldRowHeight
+                      + (node.Thresholds is null ? 0 : (node.Thresholds.Rows.Count + 1) * ThresholdRowHeight);
+        // The editors an authorable stat can show: the picker rows, the actor toggle, the add-facet picker, and
+        // one line per expression, each wrapping at the editor's width. Estimated whether or not the node is
+        // editable yet. A define takes the same rows less the actor toggle, which it never has, and its gate
+        // picker sits where a stat's scope and gate row does.
+        double editors = 0;
+        if (node.IsAuthorable && !node.IsScaffold)
+        {
+            editors = PickerRowHeight + (node.IsHighlight ? 0 : ConnectorHeight)
+                      + (node.Trigger is null ? 0 : PickerRowHeight)
+                      + (node.ViewActor is null ? 0 : ConnectorHeight)
+                      + node.Lines.Sum(l => LineHeight + Math.Max(0, (l.Text.Length - 1) / LineWrapColumns) * 16);
+        }
+
+        return HeaderHeight + chips + rows + expression + diagnostics + kind + editors + 16;
+    }
+}

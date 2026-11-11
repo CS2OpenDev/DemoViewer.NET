@@ -1,0 +1,824 @@
+#region
+
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using CS2DemoKit.Analysis.RulesetsV2.Model;
+using DemoViewer.NET.Extensions.RuleCanvas.Model;
+using DemoViewer.NET.RuleAuthoring;
+
+#endregion
+
+namespace DemoViewer.NET.Extensions.RuleCanvas.ViewModels;
+
+/// <summary>
+///     The edits: every gesture and face editor asks <see cref="CanvasEditSemantics" /> what to write and
+///     hands it to the session; the source pane's save, revert and edit-a-copy; undo and redo. Each command
+///     checks the one guard the semantics cannot know, whether this surface may write at all, and reports.
+/// </summary>
+public sealed partial class CanvasTabViewModel
+{
+    /// <summary>The text the source pane holds while dirty.</summary>
+    private string _pendingSourceText = "";
+
+    /// <summary>
+    ///     The text the source pane should show: the file's, or the unsaved text while the pane is dirty. A view
+    ///     built again over this view model starts from it, and the echo through <see cref="SourceEdited" />
+    ///     leaves the pane as dirty as it was.
+    /// </summary>
+    public string SourceText => SourceDirty ? _pendingSourceText : DocumentText;
+
+    /// <summary>The source pane reports its text on every change; a difference from the file makes it dirty.</summary>
+    public void SourceEdited(string text)
+    {
+        _pendingSourceText = text;
+        SourceDirty = text != DocumentText;
+    }
+
+    /// <summary>Writes the source pane's text to the file, as the Workbench's Save does.</summary>
+    [RelayCommand]
+    private void SaveSource()
+    {
+        if (SelectedRuleset is not { } selected || !IsUserRuleset || !SourceDirty)
+        {
+            return;
+        }
+
+        // Refused with the loader's reason when the text no longer loads as this ruleset; the pane stays dirty.
+        string text = _pendingSourceText;
+        if (Report(_session.Save(text), selected))
+        {
+            SourceDirty = false;
+            int warnings = RulesetCorpus.LoaderWarningCount(text, selected.Path);
+            if (warnings > 0)
+            {
+                Notify(SavedWithWarnings(warnings), null, "Show", () => ShowDiagnosticsList = true);
+            }
+        }
+    }
+
+    /// <summary>What the toast says after a save the loader kept with warnings: <c>saved, 2 warnings</c>.</summary>
+    public static string SavedWithWarnings(int count) =>
+        string.Create(System.Globalization.CultureInfo.InvariantCulture, $"saved, {count} warning{(count == 1 ? "" : "s")}");
+
+    /// <summary>Drops the source pane's unsaved text; the view puts the file's text back.</summary>
+    [RelayCommand]
+    private void RevertSource()
+    {
+        SourceDirty = false;
+        OnPropertyChanged(nameof(DocumentText));
+    }
+
+    // A layout change made since the last write is taken back first; then the writes, in the session's order.
+    [RelayCommand(CanExecute = nameof(CanUndo))]
+    private void Undo()
+    {
+        if (LayoutUndoIsNext)
+        {
+            UndoLayout();
+        }
+        else if (SelectedRuleset is { } selected)
+        {
+            _movingHistory = true;
+            try
+            {
+                Report(_session.Undo(), selected);
+            }
+            finally
+            {
+                _movingHistory = false;
+            }
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRedo))]
+    private void Redo()
+    {
+        if (LayoutRedoIsNext)
+        {
+            RedoLayout();
+        }
+        else if (SelectedRuleset is { } selected)
+        {
+            _movingHistory = true;
+            try
+            {
+                Report(_session.Redo(), selected);
+            }
+            finally
+            {
+                _movingHistory = false;
+            }
+        }
+    }
+
+    /// <summary>Copies the shipped ruleset into the user's rules and opens the copy, which overrides the shipped one by id.</summary>
+    [RelayCommand]
+    private void EditCopy()
+    {
+        if (SelectedRuleset is not { } selected || !IsShippedRuleset || _corpus is null)
+        {
+            EditStatus = "There is no user rules directory to copy into.";
+            return;
+        }
+
+        Report(_corpus.CopyToUser(selected), selected);
+    }
+
+    /// <summary>The action a refused Delete carries when the only dependants are show: entries, as the Inspector offers it.</summary>
+    public const string DeleteWithReferencesLabel = "Delete with references";
+
+    /// <summary>Removes the selected node's entry from the document.</summary>
+    [RelayCommand]
+    private void DeleteSelected()
+    {
+        List<CanvasNodeViewModel> floating = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n.IsFloating)];
+        if (IsEditable && floating.Count > 0)
+        {
+            RemoveScaffolds(floating);
+        }
+
+        List<CanvasNodeViewModel> events = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n is { Ruleset: "~event", IsFloating: false })];
+        if (IsEditable && events.Count > 0)
+        {
+            RefuseEventDelete(events);
+        }
+
+        List<CanvasNodeViewModel> nodes = [.. SelectedNodes.OfType<CanvasNodeViewModel>().Where(n => n.IsAuthorable)];
+        if (!IsEditable || nodes.Count == 0 || _composed is not { } composed)
+        {
+            return;
+        }
+
+        EditRequest request = CanvasEditSemantics.Delete(nodes, composed, _session.Text);
+        if (!Apply(request) && request.IsRefused && request.Refusal is { } refusal
+            && CanvasEditSemantics.DeleteWithReferences(nodes, composed, _session.Text) is { } cascade)
+        {
+            // The toast outlives a switch of ruleset; the cascade is only for the file it was refused on.
+            string? path = _session.Entry?.Path;
+            Notify(refusal, null, DeleteWithReferencesLabel, () =>
+            {
+                if (IsEditable && path is not null && string.Equals(_session.Entry?.Path, path, StringComparison.Ordinal))
+                {
+                    Apply(cascade);
+                }
+                else
+                {
+                    Notify("The ruleset changed since that delete was refused; select the entry and delete it again.");
+                }
+            });
+        }
+    }
+
+    /// <summary>Adds a count stat on <paramref name="view" /> with a fresh id, at the end of <c>stats:</c>.</summary>
+    [RelayCommand]
+    private void AddStat(string? view)
+    {
+        if (IsEditable && !string.IsNullOrWhiteSpace(view))
+        {
+            Apply(CanvasEditSemantics.AddStat(view, FreshId("new_" + view)));
+        }
+    }
+
+    /// <summary>
+    ///     A gallery item dropped on the canvas: a stat kind, a view or a prefab becomes a new entry placed at
+    ///     <paramref name="at" />. A gate has nothing to attach to on bare canvas and is refused with the reason.
+    /// </summary>
+    public void PlaceItem(GalleryItem item, Avalonia.Point at)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (!IsEditable || SelectedRuleset is not { } selected)
+        {
+            return;
+        }
+
+        if (item.Kind == GalleryItemKind.Event)
+        {
+            PlaceEvent(item, at);
+            return;
+        }
+
+        string id = FreshId(CanvasEditSemantics.PlacedIdFor(item));
+        EditRequest request = CanvasEditSemantics.PlaceItem(item, id);
+        if (request.IsRefused)
+        {
+            Apply(request);
+            return;
+        }
+
+        // A slice would hide the new entry and lose its drop position, so the whole chain comes back first.
+        if (HasFocus)
+        {
+            FocusKey = null;
+        }
+
+        // The placement outlives a refused write: the arranger spends it on the first draw that holds the key.
+        _arranger.PlaceNext(CanvasEditSemantics.PlacedKeyFor(item, selected.Id, id), at);
+        Apply(request);
+    }
+
+    /// <summary>
+    ///     A gallery item dropped on a stat: a view retargets the trigger (the kind's own argument for a count,
+    ///     <c>on:</c> for a stat whose argument is a value), a gate becomes its <c>while:</c>, and the define
+    ///     puts a fresh define in front of the stat.
+    /// </summary>
+    public void DropOnNode(GalleryItem item, CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(node);
+        if (!IsEditable)
+        {
+            EditStatus = $"{item.Name} can only be dropped on a define or a stat of your own ruleset.";
+            return;
+        }
+
+        string id = FreshId(CanvasEditSemantics.PlacedIdFor(item));
+        EditRequest request = CanvasEditSemantics.DropOnNode(item, node, id);
+        // A define put in front of a stat lands just left of it, where its fires wire runs.
+        if (item.Kind == GalleryItemKind.Define && !request.IsRefused && SelectedRuleset is { } selected)
+        {
+            _arranger.PlaceNext(RulesetDocumentNodeKey.Define(selected.Id, id),
+                new Avalonia.Point(node.Location.X - InterposedDefineOffset, node.Location.Y));
+        }
+
+        Apply(request);
+    }
+
+    /// <summary>How far left of its stat an interposed define lands: a face's width and a wire's run.</summary>
+    public const double InterposedDefineOffset = 340;
+
+    /// <summary>
+    ///     A wire drawn from one node to another, as the editor reports it: the two endpoints' view models, or
+    ///     a node when the wire was dropped on its container. What the wire stands for is written to the file,
+    ///     and the chain redraws from the file either way, so the wire shown is the wire run.
+    /// </summary>
+    [RelayCommand]
+    private void Connect(object? endpoints)
+    {
+        (object? from, object? to) = endpoints switch
+        {
+            Tuple<object, object> pair => (pair.Item1, pair.Item2),
+            ValueTuple<object, object> pair => (pair.Item1, pair.Item2),
+            _ => (null, null)
+        };
+        (CanvasNodeViewModel? source, CanvasNodeViewModel? target) = (from is null ? null : NodeOf(from), to is null ? null : NodeOf(to));
+        MarkCompatible(null);
+        // A plain click on a port comes back as a wire from the port to itself.
+        if (source is not null && target is not null && !ReferenceEquals(source, target))
+        {
+            if (IsEditable && Apply(CanvasEditSemantics.Connect(source, target, to is CanvasConnectorViewModel { IsInput: true } port ? port.Kind : null,
+                    from as CanvasConnectorViewModel)) && source.IsFloating)
+            {
+                // The chain draws the event now; the sidecar stops keeping it as a floating node.
+                SaveLayout();
+            }
+        }
+        else if (source is not null && target is null && IsEditable)
+        {
+            if (WireDropOptions(source).Count == 0)
+            {
+                Notify($"Nothing starts from {source.Id} here; drop the wire on a stat, a define or a highlight.");
+            }
+            else
+            {
+                WireDropped?.Invoke(source);
+            }
+        }
+    }
+
+    /// <summary>The nodes a wire from <paramref name="source" /> can start on empty canvas; empty when the ruleset is not the user's.</summary>
+    public IReadOnlyList<GalleryItem> WireDropOptions(CanvasNodeViewModel source) =>
+        IsEditable ? CanvasEditSemantics.WireDropOptions(source) : [];
+
+    /// <summary>Writes what a wire from <paramref name="source" /> to <paramref name="target" /> stands for.</summary>
+    public void Connect(CanvasNodeViewModel source, CanvasNodeViewModel target) => Connect(source, target, null);
+
+    /// <summary>Writes what a wire into <paramref name="port" /> of <paramref name="target" /> stands for; no port reads the source.</summary>
+    public void Connect(CanvasNodeViewModel source, CanvasNodeViewModel target, PortKind? port)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+        if (IsEditable)
+        {
+            Apply(CanvasEditSemantics.Connect(source, target, port));
+        }
+    }
+
+    /// <summary>
+    ///     A wire removed from the canvas: what it stood for is taken out of the file, or the removal is
+    ///     refused. While a cut is in progress the wires are held and taken out together when it ends.
+    /// </summary>
+    [RelayCommand]
+    private void Disconnect(object? wire)
+    {
+        if (wire is not CanvasConnectionViewModel connection || !IsEditable)
+        {
+            return;
+        }
+
+        if (_cutting is not null)
+        {
+            _cutting.Add(connection);
+            return;
+        }
+
+        Apply(CanvasEditSemantics.Disconnect(connection));
+    }
+
+    /// <summary>The wire being dragged, written by the editor; its preview text is the semantics' answer.</summary>
+    public CanvasPendingConnectionViewModel Pending => _pending ??= WatchPending(new CanvasPendingConnectionViewModel());
+
+    private CanvasPendingConnectionViewModel? _pending;
+
+    private CanvasPendingConnectionViewModel WatchPending(CanvasPendingConnectionViewModel pending)
+    {
+        pending.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(CanvasPendingConnectionViewModel.Source))
+            {
+                MarkCompatible(pending.SourceConnector);
+            }
+        };
+        return pending;
+    }
+
+    /// <summary>
+    ///     Dims every input a dragged gallery item cannot land on: a gate lands on while ports, a view or a
+    ///     define on the on port of a stat; anything else is placed on the canvas, so every port dims.
+    /// </summary>
+    public void MarkCompatibleFor(GalleryItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        PortKind? takes = item.Kind switch
+        {
+            GalleryItemKind.Gate => PortKind.Gate,
+            GalleryItemKind.View or GalleryItemKind.Define => PortKind.Trigger,
+            _ => null
+        };
+        foreach (CanvasConnectorViewModel input in Nodes.SelectMany(n => n.Inputs))
+        {
+            input.IsCompatible = takes is { } kind && input.Kind == kind && input.Owner is { IsAuthorable: true, IsScaffold: false } owner
+                                 && !(item.Kind == GalleryItemKind.Define && owner.IsDefine);
+            input.IsLit = input.IsCompatible;
+        }
+    }
+
+    /// <summary>Dims every input that cannot take a wire from <paramref name="source" />; null lights them all.</summary>
+    public void MarkCompatible(CanvasConnectorViewModel? source)
+    {
+        foreach (CanvasConnectorViewModel input in Nodes.SelectMany(n => n.Inputs))
+        {
+            input.IsCompatible = source is null || CanvasConnectorViewModel.Accepts(input.Kind, source);
+            input.IsLit = source is not null && input.IsCompatible;
+        }
+    }
+
+    /// <summary>The editor's wire selection, written by the editor. Delete removes them when no node is selected.</summary>
+    public ObservableCollection<object> SelectedWires { get; } = [];
+
+    /// <summary>The wires crossed by the cutting line so far, or null between cuts.</summary>
+    private List<CanvasConnectionViewModel>? _cutting;
+
+    /// <summary>The cutting line was started: wires it crosses are held until it ends.</summary>
+    [RelayCommand]
+    private void CuttingStarted() => _cutting = [];
+
+    /// <summary>The cutting line ended: every wire it crossed is taken out, refusals folded into one line.</summary>
+    [RelayCommand]
+    private void CuttingCompleted()
+    {
+        List<CanvasConnectionViewModel> cut = _cutting ?? [];
+        _cutting = null;
+        DisconnectWires(cut);
+    }
+
+    /// <summary>Removes the selected wires through <see cref="CanvasEditSemantics.Disconnect" />, refusals folded into one line.</summary>
+    [RelayCommand]
+    private void DeleteWires() => DisconnectWires([.. SelectedWires.OfType<CanvasConnectionViewModel>()]);
+
+    /// <summary>
+    ///     The Delete key: a selected frame is ungrouped and nothing else happens; else the selected nodes'
+    ///     entries when any is the author's or an event, else the selected wires. An event node goes from the
+    ///     sidecar when it floats, and offers to detach what fires on it otherwise; other engine nodes have
+    ///     nothing in the file to delete.
+    /// </summary>
+    [RelayCommand]
+    private void DeleteSelection()
+    {
+        if (SelectedNodes.OfType<CanvasGroupViewModel>().Any())
+        {
+            UngroupSelected();
+        }
+        else if (SelectedNodes.OfType<CanvasNodeViewModel>().Any(n => n.IsAuthorable || n.Ruleset == "~event"))
+        {
+            DeleteSelected();
+        }
+        else if (SelectedWires.Count > 0)
+        {
+            DeleteWires();
+        }
+    }
+
+    /// <summary>Copies the first selected entry under a fresh id, at the end of its section.</summary>
+    [RelayCommand]
+    private void Duplicate()
+    {
+        if (SelectedNodes.OfType<CanvasNodeViewModel>().FirstOrDefault(n => n.IsEntry) is { } node)
+        {
+            DuplicateNode(node);
+        }
+    }
+
+    /// <summary>Shows the YAML tab at <paramref name="node" />'s entry, which is what the unrendered-keys chip asks for.</summary>
+    public void JumpToYaml(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        ShowSource = true;
+        DockTab = 1;
+        if (!SelectedNodes.Contains(node))
+        {
+            SelectedNodes.Clear();
+            SelectedNodes.Add(node);
+        }
+        else
+        {
+            JumpToSelection();
+        }
+    }
+
+    /// <summary>Copies <paramref name="node" />'s entry under a fresh id, which the redraw then selects.</summary>
+    public void DuplicateNode(CanvasNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (!IsEditable)
+        {
+            return;
+        }
+
+        string id = FreshId(node.Title + "_copy");
+        RulesetDocumentNodeKey key = node.IsDefine ? RulesetDocumentNodeKey.Define(node.Ruleset, id) : new RulesetDocumentNodeKey(node.Ruleset, id);
+        if (Apply(CanvasEditSemantics.Duplicate(node, id)) && Nodes.FirstOrDefault(n => n.Key == key) is { } copy)
+        {
+            SelectedNodes.Clear();
+            SelectedNodes.Add(copy);
+        }
+    }
+
+    /// <summary>Selects every node drawn.</summary>
+    [RelayCommand]
+    private void SelectAll()
+    {
+        SelectedNodes.Clear();
+        foreach (CanvasNodeViewModel node in Nodes)
+        {
+            SelectedNodes.Add(node);
+        }
+    }
+
+    /// <summary>Escape: the whole chain comes back, nothing stays selected, and the toast goes.</summary>
+    [RelayCommand]
+    private void ClearFocusAndSelection()
+    {
+        SelectedNodes.Clear();
+        SelectedWires.Clear();
+        FocusKey = null;
+        Toast = null;
+    }
+
+    /// <summary>Adds a count stat on <paramref name="view" /> placed at <paramref name="at" />, as the canvas menu asks.</summary>
+    public void AddStatAt(string view, Avalonia.Point at)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        if (Gallery.SelectMany(g => g.Items).FirstOrDefault(i => i.Kind == GalleryItemKind.View && i.Name == view) is { } item)
+        {
+            PlaceItem(item, at);
+        }
+    }
+
+    /// <summary>Adds the gallery's blank highlight placed at <paramref name="at" />, as the canvas menu asks.</summary>
+    public void AddHighlightAt(Avalonia.Point at)
+    {
+        List<GalleryItem> highlights = [.. Gallery.SelectMany(g => g.Items).Where(i => i.Kind == GalleryItemKind.Highlight)];
+        GalleryItem? item = highlights.FirstOrDefault(i => i.Name == "highlight") ?? highlights.FirstOrDefault();
+        if (item is not null)
+        {
+            PlaceItem(item, at);
+        }
+    }
+
+    // Each wire is its own write but the show: columns, which go in one write since their indices are the
+    // drawn ones. The cut is one reload and one status line, so a refusal is said once, with the count that
+    // went, and only a wire whose removal changed the file counts as removed.
+    private void DisconnectWires(List<CanvasConnectionViewModel> wires)
+    {
+        if (!IsEditable || wires.Count == 0 || SelectedRuleset is not { } selected)
+        {
+            return;
+        }
+
+        List<string> refusals = [];
+        int removed = 0;
+        void Take(EditRequest request, int count)
+        {
+            EditOutcome outcome = _session.Apply(request);
+            if (outcome.IsWritten)
+            {
+                removed += count;
+            }
+            else if (outcome.IsRefused && outcome.Message is { } reason && !refusals.Contains(reason))
+            {
+                refusals.Add(reason);
+            }
+        }
+
+        List<CanvasConnectionViewModel> columns = [.. wires.Where(w => CanvasEditSemantics.ShowItemOf(w) is not null)];
+        if (columns.Count > 0)
+        {
+            Take(CanvasEditSemantics.DisconnectColumns(columns), columns.Count);
+        }
+
+        foreach (CanvasConnectionViewModel wire in wires.Except(columns))
+        {
+            Take(CanvasEditSemantics.Disconnect(wire), 1);
+        }
+
+        SelectedWires.Clear();
+        if (removed > 0)
+        {
+            EditStatus = "";
+            Reload(selected.Id, selected.Path);
+        }
+
+        NotifyHistory();
+        if (refusals.Count > 0)
+        {
+            string kept = wires.Count - removed == 1 ? "1 wire kept" : $"{wires.Count - removed} wires kept";
+            string went = removed == 0 ? "" : removed == 1 ? "1 wire removed; " : $"{removed} wires removed; ";
+            EditStatus = $"{went}{kept}: {string.Join(" ", refusals)}";
+        }
+    }
+
+    private static CanvasNodeViewModel? NodeOf(object endpoint) => endpoint switch
+    {
+        CanvasConnectorViewModel connector => connector.Owner,
+        CanvasNodeViewModel node => node,
+        _ => null
+    };
+
+    // A facet or field write from a node face: through the splice writer, then the document is re-read
+    // and redrawn with every node where it was and the same node selected.
+    private void WriteFacet(CanvasNodeViewModel node, string facet, string? value)
+    {
+        if (IsEditable)
+        {
+            Apply(CanvasEditSemantics.WriteFacet(node, facet, value));
+        }
+    }
+
+    private void WriteField(CanvasNodeViewModel node, string key, string? value)
+    {
+        if (IsEditable)
+        {
+            Apply(CanvasEditSemantics.WriteField(node, key, value));
+        }
+    }
+
+    /// <summary>
+    ///     Renames <paramref name="node" />'s entry to <paramref name="wanted" /> through the Inspector's id field,
+    ///     so references are rewritten and the arrangement follows. The refusal, or empty when written.
+    /// </summary>
+    public string RenameNode(CanvasNodeViewModel node, string wanted)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+        if (!IsEditable || !node.IsEntry)
+        {
+            return "Only an entry of your own ruleset can be renamed.";
+        }
+
+        if (SelectedNodes.Count != 1 || !ReferenceEquals(SelectedNodes[0], node))
+        {
+            SelectedNodes.Clear();
+            SelectedNodes.Add(node);
+        }
+
+        Inspector.Id.Text = wanted;
+        Inspector.Id.Commit();
+        return Inspector.Id.Error;
+    }
+
+    private bool Apply(EditRequest request) =>
+        SelectedRuleset is { } selected && Report(_session.Apply(request), selected);
+
+    // Defines share the stat id namespace, so a fresh id is free of both; the define prefix is the canvas's, not the file's.
+    // Drawn nodes are not enough: a slice hides most keys, the loader's dropped entries draw nothing, and only
+    // the loaded document holds the ids a for_each template expands to.
+    private string FreshId(string wanted)
+    {
+        List<string> taken = [.. Nodes.Select(n => n.Title)];
+        try
+        {
+            taken.AddRange(RulesetEdits.EntryIds(_session.Text));
+        }
+        catch (Exception ex) when (ex is YamlDotNet.Core.YamlException or InvalidOperationException)
+        {
+            // A text that does not parse refuses the write anyway.
+        }
+
+        if (SelectedRuleset is { } selected && _composed?.Documents.GetValueOrDefault(selected.Id) is { } doc)
+        {
+            taken.AddRange(doc.Stats.Select(s => s.Id));
+            taken.AddRange(doc.Highlights.Select(h => h.Id));
+            taken.AddRange(doc.Defines.Select(d => d.Name));
+        }
+
+        return CanvasEditSemantics.FreshId(wanted, taken);
+    }
+
+    // ---- the right dock: the Inspector and the YAML tab ----
+
+    private InspectorViewModel? _inspector;
+
+    /// <summary>The Inspector over the selected node, or over the document when nothing is selected.</summary>
+    public InspectorViewModel Inspector => _inspector ??= new InspectorViewModel(ApplyForInspector, CreateRuleset, SelectByKey, _arranger.CarryNext);
+
+    /// <summary>Whether the Inspector tab is offered in the right dock.</summary>
+    [ObservableProperty]
+    private bool _showInspector = true;
+
+    /// <summary>The dock's selected tab: 0 is the Inspector, 1 is the YAML.</summary>
+    [ObservableProperty]
+    private int _dockTab;
+
+    /// <summary>The right dock shows while either of its tabs is on.</summary>
+    public bool ShowDock => ShowSource || ShowInspector;
+
+    [RelayCommand]
+    private void ToggleInspector() => ShowInspector = !ShowInspector;
+
+    /// <summary>Writes a new ruleset under <paramref name="id" /> into the user's rules and opens it.</summary>
+    [RelayCommand]
+    private void NewRuleset(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            CreateStarterRuleset();
+        }
+        else
+        {
+            CreateRuleset(id);
+        }
+    }
+
+    // Turning a tab on brings it to the front; turning it off falls back to the other one.
+    partial void OnShowInspectorChanged(bool value)
+    {
+        if (value)
+        {
+            DockTab = 0;
+        }
+        else if (ShowSource)
+        {
+            DockTab = 1;
+        }
+
+        OnPropertyChanged(nameof(ShowDock));
+    }
+
+    partial void OnShowSourceChanged(bool value)
+    {
+        if (value)
+        {
+            DockTab = 1;
+        }
+        else if (ShowInspector)
+        {
+            DockTab = 0;
+        }
+
+        OnPropertyChanged(nameof(ShowDock));
+    }
+
+    /// <summary>Shows the Inspector the selection and the file as they now are. Called after every redraw and selection change.</summary>
+    private void RefreshInspector()
+    {
+        CanvasNodeViewModel? node = SelectedNodes.OfType<CanvasNodeViewModel>().FirstOrDefault();
+        RulesetDoc? doc = null;
+        if (SelectedRuleset is { } selected && _composed is { } composed)
+        {
+            composed.Documents.TryGetValue(selected.Id, out doc);
+        }
+
+        Inspector.Show(node, _session.Text, doc, SelectedRuleset, IsEditable, SourceDirty, _corpus?.UserDirectory is not null);
+        Inspector.ShowWire(node is null ? SelectedWires.OfType<CanvasConnectionViewModel>().FirstOrDefault(Connections.Contains) : null, BuildWireEditor);
+    }
+
+    // The surfacing badge on every node of the author's, from the loaded document's show: block.
+    private void ApplySurfacing(IEnumerable<CanvasNodeViewModel> nodes)
+    {
+        RulesetDoc? doc = null;
+        if (SelectedRuleset is { } selected && _composed is { } composed)
+        {
+            composed.Documents.TryGetValue(selected.Id, out doc);
+        }
+
+        ShowSurface surface = ShowSurface.Of(doc);
+        // Parsed once for every node: a node's readers would otherwise re-parse the whole document each.
+        YamlDocumentText? parsed = null;
+        if (_session.Text.Length > 0)
+        {
+            try
+            {
+                parsed = RulesetDocumentEditor.Open(_session.Text).Document;
+            }
+            catch (Exception ex) when (ex is YamlDotNet.Core.YamlException or InvalidOperationException)
+            {
+                // A text that does not parse has no coverage or fixture to show.
+            }
+        }
+
+        foreach (CanvasNodeViewModel node in nodes)
+        {
+            // A define is not a value show: can surface.
+            node.Surfacing = node.IsEntry && !node.IsDefine ? surface.BadgeFor(node.Id) : "";
+            // What the text holds that the face does not: the for_each axes and the keys no row renders.
+            EntryCoverage coverage = node.Face is { } face && parsed is not null ? EntryCoverage.Of(parsed, face) : EntryCoverage.None;
+            IReadOnlyList<string> fixture = parsed is null ? [] : CanvasEditSemantics.FixtureOf(node, parsed);
+            node.TextChips =
+            [
+                .. coverage.Chips.Select(c => new CanvasChip(c.Text, c.Tip)),
+                .. fixture.Count > 0 ? [new CanvasChip(FixtureChip, "fixture: " + string.Join("\n", fixture))] : Array.Empty<CanvasChip>()
+            ];
+            node.UnrenderedKeys = [.. coverage.Unrendered.Select(k => k.ToString())];
+        }
+    }
+
+    /// <summary>The chip a node with a frozen fixture comment carries; its tooltip holds the fixture's lines.</summary>
+    public const string FixtureChip = "fixture";
+
+    private EditOutcome ApplyForInspector(EditRequest request)
+    {
+        if (SelectedRuleset is not { } selected || !IsEditable)
+        {
+            return EditOutcome.Refused(null);
+        }
+
+        EditOutcome outcome = _session.Apply(request);
+        Report(outcome, selected);
+        return outcome;
+    }
+
+    private void SelectByKey(RulesetDocumentNodeKey key)
+    {
+        if (Nodes.FirstOrDefault(n => n.Key == key) is { } node)
+        {
+            SelectedNodes.Clear();
+            SelectedNodes.Add(node);
+        }
+    }
+
+    private bool CreateRuleset(string id)
+    {
+        id = id.Trim();
+        if (!RulesetEdits.IsValidId(id))
+        {
+            EditStatus = $"'{id}' is not a valid ruleset id: letters, digits and underscores, not starting with a digit.";
+            return false;
+        }
+
+        if (_corpus?.UserDirectory is not { } directory)
+        {
+            EditStatus = "There is no user rules directory to write into.";
+            return false;
+        }
+
+        string path = Path.Combine(directory, id + ".rules.yaml");
+        if (File.Exists(path) || Rulesets.Any(r => r.Id == id))
+        {
+            EditStatus = $"{id} already exists; open it from the picker.";
+            return false;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(path, RulesetEdits.NewRulesetText(id, id.Replace('_', ' ')));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            EditStatus = "The file could not be written: " + ex.Message;
+            return false;
+        }
+
+        EditStatus = "";
+        _corpus = _loadCorpus();
+        Refill();
+        if (Rulesets.FirstOrDefault(r => r.Id == id) is not { } created)
+        {
+            EditStatus = $"{id} was written but does not load: " + (_corpus.Failures.FirstOrDefault(f => f.Path == path).Reason ?? "unknown");
+            return false;
+        }
+
+        SelectedRuleset = created;
+        return true;
+    }
+}

@@ -491,10 +491,12 @@ public class ExtensionUpdateServiceTests
         try
         {
             string shippedDll = typeof(StratBookPack).Assembly.Location;
-            string shippedManifest = Path.Combine(Path.GetDirectoryName(shippedDll)!, ExtensionManifest.FileName);
+            // Id-qualified beside a shipped pack; the installed tree below carries the bare name.
+            string shippedManifest = Path.Combine(Path.GetDirectoryName(shippedDll)!,
+                StratBookPack.PackId + "." + ExtensionManifest.FileName);
             if (!File.Exists(shippedManifest))
             {
-                throw new SkipTestException($"no {ExtensionManifest.FileName} beside {shippedDll}");
+                throw new SkipTestException($"no {Path.GetFileName(shippedManifest)} beside {shippedDll}");
             }
 
             ExtensionManifest built = ExtensionManifest.Parse(await File.ReadAllTextAsync(shippedManifest));
