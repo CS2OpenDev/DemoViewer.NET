@@ -2,6 +2,7 @@
 
 using DemoViewer.NET.Extensions.Sdk.Ui;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
+using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 
 #endregion
@@ -63,4 +64,47 @@ public static class ScoutingPlayerColors
 
         return colors;
     }
+
+    /// <summary>
+    ///     The name the roster table shows for each of the team's players, by SteamID64: every roster's members,
+    ///     the newest roster's name winning. A player's in-game name changes between demos ("sandman" one week,
+    ///     "1Sandman" the next) and its case varies; the layers group by SteamID and print this name, so one player
+    ///     is one row under one name everywhere on the page. Empty for a team with no roster.
+    /// </summary>
+    /// <param name="teams">Team Identity.</param>
+    /// <param name="teamId">The team.</param>
+    public static IReadOnlyDictionary<string, string> Names(TeamIdentityService teams, Guid teamId)
+    {
+        ArgumentNullException.ThrowIfNull(teams);
+        Dictionary<string, string> names = new(StringComparer.Ordinal);
+        if (teams.AllTeams.FirstOrDefault(t => t.Id == teamId) is not { } team)
+        {
+            return names;
+        }
+
+        foreach (Roster roster in team.Rosters.OrderBy(r => r.Since))
+        {
+            foreach (KeyValuePair<string, TeamIndexMember> member in teams.MembersOf(teamId, roster.Id))
+            {
+                if (DisplayText.Sanitize(member.Value.LastName) is { Length: > 0 } name)
+                {
+                    names[member.Key] = name;
+                }
+            }
+        }
+
+        return names;
+    }
+
+    /// <summary>The key a layer groups a player on: the SteamID64 as text, or <c>name:</c> and the name without one.</summary>
+    /// <param name="steamId">The SteamID64, or 0.</param>
+    /// <param name="name">The name seen in the demo.</param>
+    public static string KeyOf(ulong steamId, string name) => SetupRoundCapture.KeyOf(steamId, name);
+
+    /// <summary>The name to print for a player key: the roster's, else the name the demo had.</summary>
+    /// <param name="names">From <see cref="Names" />.</param>
+    /// <param name="key">From <see cref="KeyOf" />.</param>
+    /// <param name="seen">The name the demo had.</param>
+    public static string NameOf(IReadOnlyDictionary<string, string> names, string key, string seen) =>
+        names.TryGetValue(key, out string? name) ? name : DisplayText.Sanitize(seen);
 }

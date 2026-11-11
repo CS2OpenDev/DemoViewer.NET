@@ -88,6 +88,7 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
 
         cancellationToken.ThrowIfCancellationRequested();
         IReadOnlyDictionary<string, ScoutingColor> colors = ColorsFor(context);
+        IReadOnlyDictionary<string, string> names = ScoutingPlayerColors.Names(context.Data.Sources.Teams, context.TeamId);
         SetupAreaClassifier areas = SetupAreaClassifier.Learn(onMap.SelectMany(h => h.Rounds),
             RegionsFor(context));
         List<SetupHeatmapRound> rounds = [.. heatmaps.SelectMany(h => h.Rounds)];
@@ -104,7 +105,7 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
             ScoutingBuy? buy = BuyOf(heatmap.Buy);
             string buyLabel = ScoutingReportLines.BuyLabelFor(heatmap.Buy);
             SetupHeatmap captured = heatmap;
-            (string text, bool any) = ReadFor(heatmap, buyLabel);
+            (string text, bool any) = ReadFor(heatmap, buyLabel, names);
             reads.Add(new ScoutingRead(text, Suggested: ReferenceEquals(heatmap, largest) && any, Buy: buy,
                 Image: () => Render(context.Data.Sources, captured)));
             samples.Add(new ScoutingInspectorRow
@@ -121,7 +122,7 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         List<ScoutingInspectorSection> sections = [new("", samples)];
         sections.Add(new ScoutingInspectorSection($"Places held in the setup window · {scopeBuy}",
             places.Count > 0
-                ? [.. places.Select(p => PlaceRow(context, p, colors))]
+                ? [.. places.Select(p => PlaceRow(context, p, colors, names))]
                 : [.. FixedPlaceRows(heatmaps)]));
 
         IReadOnlyList<SetupFormation> formations = SetupsDerivation.Formations(rounds, areas);
@@ -222,7 +223,8 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         ScoutingPlayerColors.Lookup(context.Data.Sources.Teams, context.TeamId);
 
     // "Full buy CT: Alice holds B site in 47 of 50 rounds; Bob holds Window in 41 of 50."
-    private static (string Text, bool Any) ReadFor(SetupHeatmap heatmap, string buyLabel)
+    private static (string Text, bool Any) ReadFor(SetupHeatmap heatmap, string buyLabel,
+        IReadOnlyDictionary<string, string> names)
     {
         string lead = $"{Capital(buyLabel)} CT";
         List<SetupPlayerPlace> top =
@@ -230,10 +232,10 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         if (top.Count > 0)
         {
             string first =
-                $"{DisplayText.Sanitize(top[0].Name)} holds {SetupsDerivation.PlaceLabel(top[0].Place)} in {top[0].Rounds.Count} of {Plural(top[0].Of, "round")}";
+                $"{ScoutingPlayerColors.NameOf(names, top[0].Key, top[0].Name)} holds {SetupsDerivation.PlaceLabel(top[0].Place)} in {top[0].Rounds.Count} of {Plural(top[0].Of, "round")}";
             return (top.Count == 1
                 ? $"{lead}: {first}."
-                : $"{lead}: {first}; {DisplayText.Sanitize(top[1].Name)} holds {SetupsDerivation.PlaceLabel(top[1].Place)} in {top[1].Rounds.Count} of {top[1].Of}.", true);
+                : $"{lead}: {first}; {ScoutingPlayerColors.NameOf(names, top[1].Key, top[1].Name)} holds {SetupsDerivation.PlaceLabel(top[1].Place)} in {top[1].Rounds.Count} of {top[1].Of}.", true);
         }
 
         string[] fixedPlaces = [.. heatmap.Positions.Where(p => p.IsFixed).Select(p => p.Place)];
@@ -243,9 +245,9 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
     }
 
     private static ScoutingInspectorRow PlaceRow(ScoutingLayerContext context, SetupPlayerPlace place,
-        IReadOnlyDictionary<string, ScoutingColor> colors)
+        IReadOnlyDictionary<string, ScoutingColor> colors, IReadOnlyDictionary<string, string> names)
     {
-        string name = DisplayText.Sanitize(place.Name);
+        string name = ScoutingPlayerColors.NameOf(names, place.Key, place.Name);
         string label = SetupsDerivation.PlaceLabel(place.Place);
         return new ScoutingInspectorRow
         {

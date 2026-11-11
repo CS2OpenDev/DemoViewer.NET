@@ -62,7 +62,19 @@ public sealed class LurksLayer() : ScoutingLayerBase("lurks", "Lurks", ScoutingL
         }
 
         IReadOnlyDictionary<string, ScoutingColor> colors = ScoutingPlayerColors.Lookup(context.Data.Sources.Teams, context.TeamId);
+        IReadOnlyDictionary<string, string> names = ScoutingPlayerColors.Names(context.Data.Sources.Teams, context.TeamId);
         List<LurkDetail> lurks = [.. rounds.Where(r => r.Lurk is not null).Select(r => r.Lurk!)];
+        // One lurker per player by SteamID, under the roster's name, most rounds first.
+        List<(string Key, string Name, List<LurkDetail> Rounds)> lurkers =
+        [
+            .. lurks.GroupBy(l => ScoutingPlayerColors.KeyOf(l.SteamId, l.Name), StringComparer.Ordinal)
+                .Select(g => (g.Key, Name: ScoutingPlayerColors.NameOf(names, g.Key, g.Last().Name), Rounds: g.ToList()))
+                .OrderByDescending(g => g.Rounds.Count).ThenBy(g => g.Name, StringComparer.Ordinal)
+        ];
+        ScoutingColor ColorOf(string key, string name) =>
+            colors.TryGetValue(key, out ScoutingColor byId) ? byId
+            : colors.TryGetValue(name, out ScoutingColor byName) ? byName
+            : ScoutingColor.Lurk;
         TendencyBucket all = new("rounds", [.. rounds.Select(r => r.Opening)]);
         TendencyBucket lurking = new("lurk rounds", [.. lurks.Select(l => l.Clip)]);
 
@@ -74,10 +86,8 @@ public sealed class LurksLayer() : ScoutingLayerBase("lurks", "Lurks", ScoutingL
                 .. lurks.Count > 0 ? [MedianRow(context, lurks)] : Array.Empty<ScoutingInspectorRow>()
             ]),
             new($"Who lurks · {Plural(rounds.Count, "round")} with positions", [
-                .. lurks.GroupBy(l => l.Name, StringComparer.Ordinal)
-                    .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal)
-                    .Select(g => Row(context, new TendencyBucket(g.Key, [.. g.Select(l => l.Clip)]), rounds.Count,
-                        "lurker", colors.TryGetValue(g.Key, out ScoutingColor c) ? c : ScoutingColor.Lurk))
+                .. lurkers.Select(g => Row(context, new TendencyBucket(g.Name, [.. g.Rounds.Select(l => l.Clip)]),
+                    rounds.Count, "lurker", ColorOf(g.Key, g.Name)))
             ]),
             new("Split-off, seconds after freeze end", Rows(context, ClockBuckets(rounds), rounds.Count, "lurk")),
             // The star keeps the place's own name ("via BombsiteA"); the row shows it as the setups do ("A site").
@@ -88,12 +98,11 @@ public sealed class LurksLayer() : ScoutingLayerBase("lurks", "Lurks", ScoutingL
         ];
 
         List<ScoutingRead> reads = [];
-        if (lurks.GroupBy(l => l.Name, StringComparer.Ordinal).OrderByDescending(g => g.Count())
-                .ThenBy(g => g.Key, StringComparer.Ordinal).FirstOrDefault() is { } top)
+        if (lurkers.Count > 0 && lurkers[0] is var top)
         {
             string via = ViaBuckets(lurks).FirstOrDefault() is { } v ? $", most often via {SetupsDerivation.PlaceLabel(v.Label)}" : "";
             reads.Add(new ScoutingRead(
-                $"{top.Key} lurks most: {CountText(top.Count(), rounds.Count)}; the lurk splits off at {Clock(Median(lurks.Select(l => l.SplitSeconds)))} (median){via}.",
+                $"{top.Name} lurks most: {CountText(top.Rounds.Count, rounds.Count)}; the lurk splits off at {Clock(Median(lurks.Select(l => l.SplitSeconds)))} (median){via}.",
                 Suggested: true));
         }
 
@@ -101,7 +110,7 @@ public sealed class LurksLayer() : ScoutingLayerBase("lurks", "Lurks", ScoutingL
         [
             .. lurks.Where(l => l.At30 is not null).Select(l => new ScoutingMapMark(l.At30!.Value.X, l.At30.Value.Y,
                 l.At30.Value.Z, ScoutingMarkShape.Dot,
-                colors.TryGetValue(l.Name, out ScoutingColor c) ? c : ScoutingColor.Lurk, 5f, Opacity: 0.85f))
+                ColorOf(ScoutingPlayerColors.KeyOf(l.SteamId, l.Name), l.Name), 5f, Opacity: 0.85f))
         ];
         return new ScoutingLayerResult
         {

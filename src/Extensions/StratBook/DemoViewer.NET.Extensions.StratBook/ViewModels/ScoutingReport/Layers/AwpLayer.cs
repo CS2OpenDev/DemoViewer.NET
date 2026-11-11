@@ -78,7 +78,8 @@ public sealed class AwpLayer() : ScoutingLayerBase("awp", "AWP routes", Scouting
             ScoutingPlayerColors.Lookup(context.Data.Sources.Teams, context.TeamId);
         string window = context.Window.Length > 0 ? context.Window : Window;
         return Compose(context.Prefix, context.Side, context.Buy, context.Map, rounds, WindowOf(window),
-            Windows.FirstOrDefault(w => w.Key == window)?.Label ?? "first contact", colors);
+            Windows.FirstOrDefault(w => w.Key == window)?.Label ?? "first contact", colors,
+            ScoutingPlayerColors.Names(context.Data.Sources.Teams, context.TeamId));
     }
 
     private static Task<IReadOnlyList<AwpRound>?> ReadAsync(ScoutingReportData data, string map) =>
@@ -122,10 +123,12 @@ public sealed class AwpLayer() : ScoutingLayerBase("awp", "AWP routes", Scouting
     /// <param name="window">How far the trails run.</param>
     /// <param name="windowLabel">"first contact", "0:15".</param>
     /// <param name="colors">The roster's colours by SteamID64 and by name.</param>
+    /// <param name="names">The roster's names by SteamID64 (<see cref="ScoutingPlayerColors.Names" />); none prints the demo's names.</param>
     public static ScoutingLayerResult Compose(string prefix, ScoutingSide side, ScoutingBuy buy, string map,
         IReadOnlyList<AwpRound> rounds, AwpWindow window, string windowLabel,
-        IReadOnlyDictionary<string, ScoutingColor> colors)
+        IReadOnlyDictionary<string, ScoutingColor> colors, IReadOnlyDictionary<string, string>? names = null)
     {
+        names ??= new Dictionary<string, string>(StringComparer.Ordinal);
         ArgumentNullException.ThrowIfNull(rounds);
         ArgumentNullException.ThrowIfNull(colors);
         string sideLabel = side.Label();
@@ -151,14 +154,14 @@ public sealed class AwpLayer() : ScoutingLayerBase("awp", "AWP routes", Scouting
         List<ScoutingInspectorSection> sections =
         [
             new($"Routes · trail to {windowLabel}", RouteRows(prefix, routes)),
-            new("Who holds it", HolderRows(prefix, awp, colors)),
+            new("Who holds it", HolderRows(prefix, awp, colors, names)),
             new("", StatRows(prefix, side, read, awp))
         ];
 
         return new ScoutingLayerResult
         {
             CountLabel = routes.Routes.Count == 1 ? "1 route" : $"{routes.Routes.Count} routes",
-            Reads = ReadOf(side, awp, routes, windowLabel) is { } sentence ? [sentence] : [],
+            Reads = ReadOf(side, awp, routes, windowLabel, names) is { } sentence ? [sentence] : [],
             Marks = Marks(routes),
             Legend = [new ScoutingLegendEntry(new ScoutingSwatch(ScoutingMarkShape.Ring, ScoutingColor.Neutral),
                 $"ring = AWP start · white trail · numbered = position at {windowLabel}")],
@@ -204,20 +207,27 @@ public sealed class AwpLayer() : ScoutingLayerBase("awp", "AWP routes", Scouting
     }
 
     private static List<ScoutingInspectorRow> HolderRows(string prefix, List<AwpRound> awp,
-        IReadOnlyDictionary<string, ScoutingColor> colors) =>
+        IReadOnlyDictionary<string, ScoutingColor> colors, IReadOnlyDictionary<string, string> names) =>
     [
-        .. awp.GroupBy(r => Who(r), StringComparer.Ordinal)
-            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal)
-            .Select(g => new ScoutingInspectorRow
-            {
-                Label = g.Key,
-                Value = CountText(g.Count(), awp.Count),
-                StarText = $"holder {g.Key}",
-                BarPercent = 100.0 * g.Count() / awp.Count,
-                Swatch = ColorOf(g.First(), colors),
-                Rounds = [.. g.Select(r => r.Round.Clip)],
-                OpenTitle = $"{prefix} · AWP held by {g.Key}"
-            })
+        .. ByHolder(awp, names).Select(g => new ScoutingInspectorRow
+        {
+            Label = g.Name,
+            Value = CountText(g.Rounds.Count, awp.Count),
+            StarText = $"holder {g.Name}",
+            BarPercent = 100.0 * g.Rounds.Count / awp.Count,
+            Swatch = ColorOf(g.Rounds[0], colors),
+            Rounds = [.. g.Rounds.Select(r => r.Round.Clip)],
+            OpenTitle = $"{prefix} · AWP held by {g.Name}"
+        })
+    ];
+
+    // The holders, most rounds first: one per player by SteamID, under the roster's name.
+    private static List<(string Name, List<AwpRound> Rounds)> ByHolder(List<AwpRound> awp,
+        IReadOnlyDictionary<string, string> names) =>
+    [
+        .. awp.GroupBy(r => ScoutingPlayerColors.KeyOf(r.HolderSteamId, Who(r)), StringComparer.Ordinal)
+            .Select(g => (Name: ScoutingPlayerColors.NameOf(names, g.Key, Who(g.Last())), Rounds: g.ToList()))
+            .OrderByDescending(g => g.Rounds.Count).ThenBy(g => g.Name, StringComparer.Ordinal)
     ];
 
     private static List<ScoutingInspectorRow> StatRows(string prefix, ScoutingSide side, List<AwpRound> read,
@@ -308,15 +318,15 @@ public sealed class AwpLayer() : ScoutingLayerBase("awp", "AWP routes", Scouting
 
     // "CT AWP: yuurih holds it in 84% of AWP rounds; most often CTSpawn → A site (52% to first contact); moves after
     // the first shot in 61%."
-    private static ScoutingRead? ReadOf(ScoutingSide side, List<AwpRound> awp, AwpRouteSet routes, string windowLabel)
+    private static ScoutingRead? ReadOf(ScoutingSide side, List<AwpRound> awp, AwpRouteSet routes, string windowLabel,
+        IReadOnlyDictionary<string, string> names)
     {
-        if (awp.GroupBy(r => Who(r), StringComparer.Ordinal).OrderByDescending(g => g.Count())
-                .ThenBy(g => g.Key, StringComparer.Ordinal).FirstOrDefault() is not { } top)
+        if (ByHolder(awp, names) is not [var top, ..])
         {
             return null;
         }
 
-        List<string> parts = [$"{top.Key} holds it in {Percent((double)top.Count() / awp.Count)} of AWP rounds"];
+        List<string> parts = [$"{top.Name} holds it in {Percent((double)top.Rounds.Count / awp.Count)} of AWP rounds"];
         if (routes.Routes.Count > 0 && routes.Routes[0] is { } route)
         {
             parts.Add($"most often {route.Name} ({Percent((double)route.Members.Count / routes.Clustered)} to {windowLabel})");

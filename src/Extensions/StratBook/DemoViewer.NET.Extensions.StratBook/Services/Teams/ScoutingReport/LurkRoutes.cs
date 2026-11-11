@@ -19,13 +19,15 @@ public readonly record struct LurkSpot(int X, int Y, int Z);
 /// <param name="SplitPlace">The lurker's place at the split, or null when unplaced.</param>
 /// <param name="Via">The distinct places the lurker passes from the split on, in order, split place first.</param>
 /// <param name="At30">The lurker's position at <see cref="LurkRoutes.SnapshotSeconds" />, null when dead or not sampled.</param>
+/// <param name="SteamId">The lurker's SteamID64, or 0 when the positions file has none (a bot).</param>
 public sealed record LurkDetail(
     string Name,
     double SplitSeconds,
     TendencyRound Clip,
     string? SplitPlace,
     IReadOnlyList<string> Via,
-    LurkSpot? At30);
+    LurkSpot? At30,
+    ulong SteamId = 0);
 
 /// <summary>One T round whose positions could be read: its buy, its opening clip and the lurk, null when nobody lurked.</summary>
 /// <param name="Opening">The round clipped from freeze end.</param>
@@ -99,6 +101,7 @@ public static class LurkRoutes
             }
         }
 
-        return new LurkDetail(name, (lurk.Tick - round.FreezeEndTick) / (double)tickRate, clip, splitPlace, via, at30);
+        return new LurkDetail(name, (lurk.Tick - round.FreezeEndTick) / (double)tickRate, clip, splitPlace, via, at30,
+            positions.PlayerOf(lurk.Slot)?.SteamId64 ?? 0);
     }
 }

@@ -266,13 +266,14 @@ public sealed class OpeningLayer() : ScoutingLayerBase("opening", "Opening duels
         int total = block.Duels.Count;
         IReadOnlyDictionary<string, ScoutingColor> colors =
             ScoutingPlayerColors.Lookup(context.Data.Sources.Teams, context.TeamId);
+        IReadOnlyDictionary<string, string> names = ScoutingPlayerColors.Names(context.Data.Sources.Teams, context.TeamId);
         return
         [
             .. block.Duels.GroupBy(d => d.PlayerKey, StringComparer.Ordinal)
                 .OrderByDescending(g => g.Count()).ThenBy(g => g.Last().Player, StringComparer.Ordinal)
                 .Select(g =>
                 {
-                    string name = g.Last().Player;
+                    string name = ScoutingPlayerColors.NameOf(names, g.Key, g.Last().Player);
                     int won = g.Count(d => d.Won);
                     return new ScoutingInspectorRow
                     {

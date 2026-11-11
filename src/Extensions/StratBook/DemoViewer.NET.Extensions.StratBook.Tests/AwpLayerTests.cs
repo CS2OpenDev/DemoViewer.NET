@@ -1,6 +1,7 @@
 #region
 
 using System.Globalization;
+using TUnit.Assertions.Enums;
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.StratBook.Modules.Situations;
 using DemoViewer.NET.Extensions.StratBook.Services.RoundIndex;
@@ -268,12 +269,12 @@ public class AwpLayerTests
     // ── Clustering ────────────────────────────────────────────────────────────────────────────────
 
     private static AwpRound Trail(int number, int dx, int dy, string place = "Jungle", int holder = 1,
-        int length = 15) => new()
+        int length = 15, string? name = null) => new()
     {
         Round = Team(Facts(number, 3)),
         PositionsRead = true,
         HolderSlot = holder,
-        HolderName = $"p{holder}",
+        HolderName = name ?? $"p{holder}",
         HolderSteamId = Steam(holder + 1),
         Holders = 1,
         Path = [.. Enumerable.Range(0, length + 1).Select(s => new AwpPoint(s, dx * s, dy * s, 0, s == 0 ? "CTSpawn" : place))]
@@ -448,6 +449,27 @@ public class AwpLayerTests
             await Assert.That(early.Marks.Single(m => m is { Shape: ScoutingMarkShape.Badge, Text: "1" }).X).IsEqualTo(1000f);
             await Assert.That(contact.Legend.Single().Text)
                 .IsEqualTo("ring = AWP start · white trail · numbered = position at first contact");
+        }
+    }
+
+    [Test]
+    public async Task OneHolder_UnderTwoInGameNames_IsOneRow_UnderTheRostersName()
+    {
+        // The same account as "SLIGHT" in two rounds and "slight" in a third; another player once.
+        AwpRound Named(int number, string name, int holder) => Trail(number, 100, 0, holder: holder, name: name);
+        AwpRound[] rounds = [Named(1, "SLIGHT", 1), Named(2, "SLIGHT", 1), Named(3, "slight", 1), Named(4, "morty", 2)];
+        Dictionary<string, string> names = new(StringComparer.Ordinal) { [Steam(2).ToString(CultureInfo.InvariantCulture)] = "SLIGHT" };
+
+        ScoutingLayerResult result = AwpLayer.Compose("de_mirage CT", ScoutingSide.Ct, ScoutingBuy.All, "de_mirage",
+            rounds, AwpWindow.Contact, "first contact", new Dictionary<string, ScoutingColor>(), names);
+        List<ScoutingInspectorRow> holders = [.. result.Sections.Single(s => s.Title == "Who holds it").Rows];
+
+        using (Assert.Multiple())
+        {
+            await Assert.That(holders.Select(h => h.Label)).IsEquivalentTo(["SLIGHT", "morty"], CollectionOrdering.Matching)
+                .Because("one player is one row, keyed by SteamID, under the roster's name");
+            await Assert.That(holders[0].Rounds.Count).IsEqualTo(3);
+            await Assert.That(result.Reads.Single().Text).StartsWith("CT AWP: SLIGHT holds it in 75% of AWP rounds");
         }
     }
 
