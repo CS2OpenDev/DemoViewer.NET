@@ -20,8 +20,8 @@ namespace DemoViewer.NET.AppTests;
 
 /// <summary>
 ///     The Scouting Report (Hybrid) tab: its persisted ids, and its layout over the shell tests' synthetic team in
-///     both themes: the roster and the map pool side by side above the map, and the map tabs, the side switch and
-///     the stage inside one panel. The PNGs land in <see cref="HeadlessSession.ArtifactDir" /> as
+///     both themes: the roster and the map pool (tabbed with the match history) side by side above the map, and the
+///     map tabs, the side switch with the layer chips beside it, and the stage inside one panel. The PNGs land in <see cref="HeadlessSession.ArtifactDir" /> as
 ///     <c>hybrid-*.png</c>.
 /// </summary>
 [NotInParallel]
@@ -95,7 +95,7 @@ public class ScoutingHybridTests
 
                 Rect BoundsOf(Control c) => new(c.TranslatePoint(default, window)!.Value, c.Bounds.Size);
                 TextBlock Heading(string text) => window.GetVisualDescendants().OfType<TextBlock>()
-                    .First(t => t.IsEffectivelyVisible && t.Text == text);
+                    .First(t => t.Text == text && (t.IsEffectivelyVisible || text == "W–L"));
                 Border PanelOf(Control c) => c.GetVisualAncestors().OfType<Border>().Last(b => b.Classes.Contains("panel"));
 
                 Rect roster = BoundsOf(PanelOf(Heading(vm.PlayersTitle)));
@@ -110,8 +110,22 @@ public class ScoutingHybridTests
                 bool above = Math.Max(roster.Bottom, pool.Bottom) <= BoundsOf(mapPanel).Y;
                 bool oneMapPanel = ReferenceEquals(PanelOf(ct), mapPanel)
                                    && stage.GetVisualAncestors().Contains(mapPanel);
+                bool layersOnFilterRow = Math.Abs(BoundsOf(Heading("Layers")).Y - BoundsOf(ct).Y) < 12;
+                bool noScopeLabel = window.GetVisualDescendants().OfType<TextBlock>()
+                    .All(t => !t.IsEffectivelyVisible || t.Text != vm.ScopeLine);
+                bool noTimeline = !window.GetVisualDescendants().OfType<ItemsControl>()
+                    .Any(i => ReferenceEquals(i.ItemsSource, vm.Timeline));
+
+                // Match history: its tab shows one row per demo, newest first; the pool table hides.
+                window.GetVisualDescendants().OfType<RadioButton>().Single(r => r.Name == "HistoryTab").IsChecked = true;
+                UxConsistencyRenderTests.Settle();
+                UxConsistencyRenderTests.Save(window, $"hybrid-history-{theme}-{Width}.png");
+                ItemsControl history = window.GetVisualDescendants().OfType<ItemsControl>()
+                    .Single(i => ReferenceEquals(i.ItemsSource, vm.MatchHistory));
+                int historyRows = history.IsEffectivelyVisible ? history.ItemCount : 0;
+                bool poolHidden = !Heading("W–L").IsEffectivelyVisible;
                 window.Close();
-                return new { sameRow, rosterLeft, halves, above, oneMapPanel };
+                return new { sameRow, rosterLeft, halves, above, oneMapPanel, layersOnFilterRow, noScopeLabel, noTimeline, historyRows, demos = vm.MatchHistory.Count, poolHidden };
             }
             finally
             {
@@ -130,6 +144,12 @@ public class ScoutingHybridTests
             await Assert.That(seen.above).IsTrue().Because("both sit above the map");
             await Assert.That(seen.oneMapPanel).IsTrue()
                 .Because("the map tabs, the side switch and the stage sit in one containing panel");
+            await Assert.That(seen.layersOnFilterRow).IsTrue().Because("the layer chips share the side and buy line");
+            await Assert.That(seen.noScopeLabel).IsTrue().Because("the map · side · buy · maps label is gone");
+            await Assert.That(seen.noTimeline).IsTrue().Because("the header's demo dots are gone");
+            await Assert.That(seen.demos).IsGreaterThan(0);
+            await Assert.That(seen.historyRows).IsEqualTo(seen.demos).Because("Match history lists every demo");
+            await Assert.That(seen.poolHidden).IsTrue().Because("one tab of the panel at a time");
         }
     }
 

@@ -282,6 +282,11 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     /// <summary>One dot per demo, by date.</summary>
     public ObservableCollection<TimelineDotViewModel> Timeline { get; } = [];
 
+    /// <summary>The team's demos, newest first, as the Hybrid tab's Match history lists them.</summary>
+    public ObservableCollection<MatchHistoryRowViewModel> MatchHistory { get; } = [];
+
+    public bool HasMatchHistory => MatchHistory.Count > 0;
+
     /// <summary>The thin-sample and partial-positions notices for the scope in view.</summary>
     public ObservableCollection<string> Notices { get; } = [];
 
@@ -695,6 +700,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
             Wins = Losses = 0;
             RecordLine = HeadToHeadLine = DemosLine = SampleSizeLine = DeciderLine = "";
             Timeline.Clear();
+            ProjectMatchHistory(null);
             OpponentMixLine = "";
             Players.Clear();
             ResetPlayerStats();
@@ -920,6 +926,7 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
     {
         Timeline.Clear();
         ProjectOpponentMix(_data);
+        ProjectMatchHistory(_data);
         if (_data is not { Demos.Count: > 0 } data)
         {
             return;
@@ -940,6 +947,34 @@ public sealed partial class ScoutingReportTabViewModel : ExtensionViewModel, IWo
                 $"{ScoutingNames.Map(demo.Map)} · {new DateTime(demo.Ticks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} · {result}{TierNote(tier)}",
                 tier == OpponentTier.Top30));
         }
+    }
+
+    private void ProjectMatchHistory(ScoutingReportData? data)
+    {
+        MatchHistory.Clear();
+        if (data is { Demos.Count: > 0 })
+        {
+            Dictionary<Guid, string> names = _teams.Teams.ToDictionary(t => t.Id, t => DisplayText.Sanitize(t.Name));
+            foreach (TeamDemoFacts demo in data.Demos.OrderByDescending(d => d.Ticks))
+            {
+                string opponent = demo.OpponentId is { } id && names.TryGetValue(id, out string? name) && name.Length > 0
+                    ? name
+                    : "unknown opponent";
+                string tier = TierOf(demo) switch
+                {
+                    OpponentTier.Top30 => "top 30",
+                    OpponentTier.Other => "below 30",
+                    _ => ""
+                };
+                MatchHistory.Add(new MatchHistoryRowViewModel(
+                    new DateTime(demo.Ticks).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    ScoutingNames.Map(demo.Map), opponent,
+                    demo.Won switch { true => "Won", false => "Lost", _ => "—" }, demo.Won,
+                    demo is { Score: { } us, OpponentScore: { } them } ? $"{us}–{them}" : "—", tier));
+            }
+        }
+
+        OnPropertyChanged(nameof(HasMatchHistory));
     }
 
     // The stage, the notices and the players for the map, side and buy in view.

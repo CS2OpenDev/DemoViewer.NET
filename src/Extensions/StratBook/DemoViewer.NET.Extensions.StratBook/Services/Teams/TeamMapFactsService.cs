@@ -12,7 +12,10 @@ namespace DemoViewer.NET.Extensions.StratBook.Services.Teams;
 /// <param name="Ticks">Its date: the file time, Team Identity's own stand-in for a match date.</param>
 /// <param name="Won">The team won it; null when the score did not resolve.</param>
 /// <param name="OpponentId">The team on the other side, when Team Identity named one.</param>
-public sealed record TeamDemoFacts(string Path, string Map, long Ticks, bool? Won, Guid? OpponentId);
+/// <param name="Score">The team's final score, when the library has one.</param>
+/// <param name="OpponentScore">The other side's final score, when the library has one.</param>
+public sealed record TeamDemoFacts(string Path, string Map, long Ticks, bool? Won, Guid? OpponentId,
+    int? Score = null, int? OpponentScore = null);
 
 /// <summary>
 ///     One map's round numbers for one team, counted on the side the team actually played each round
@@ -94,13 +97,18 @@ public static class TeamMapFactsService
             }
 
             bool? won = null;
-            if (entry is { CtScore: { } ct, TScore: { } t } && ct != t)
+            int? score = null, against = null;
+            if (entry is { CtScore: { } ct, TScore: { } t })
             {
-                won = side == 3 ? ct > t : t > ct;
+                (score, against) = side == 3 ? (ct, t) : (t, ct);
+                if (ct != t)
+                {
+                    won = side == 3 ? ct > t : t > ct;
+                }
             }
 
             demos.Add(new TeamDemoFacts(demo.Path, map, entry.Modified.Ticks, won,
-                assignment.Side(side == 2 ? 3 : 2).TeamId));
+                assignment.Side(side == 2 ? 3 : 2).TeamId, score, against));
         }
 
         return [.. demos.OrderByDescending(d => d.Ticks)];

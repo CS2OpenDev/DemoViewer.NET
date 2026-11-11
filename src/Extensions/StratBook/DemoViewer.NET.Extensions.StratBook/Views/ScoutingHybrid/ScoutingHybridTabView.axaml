@@ -100,18 +100,59 @@
             <Setter Property="TextDecorations" Value="Underline" />
         </Style>
         <!-- Map tabs: the selected one underlined in the accent. -->
+        <!-- Tabs (the map tabs and the pool panel's tabs): the selected one filled, underlined in the accent and
+             bold; the rest muted with a plain baseline, so which is open reads at a glance. -->
         <Style Selector="Button.maptab">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0 0 0 2" />
+            <Setter Property="BorderThickness" Value="0 0 0 3" />
             <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="Padding" Value="12 8" />
-            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
+            <Setter Property="CornerRadius" Value="6 6 0 0" />
+            <Setter Property="Padding" Value="14 8" />
+            <Setter Property="Margin" Value="0 0 2 0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.maptab.on">
+            <Setter Property="Background" Value="{DynamicResource FrameRowSelectedBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentInteractive}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.maptab.on /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource FrameRowSelectedBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentInteractive}" />
+        </Style>
+        <Style Selector="RadioButton.ptab">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="PART_Box" Background="{TemplateBinding Background}" Padding="14 8"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="0 0 0 3" CornerRadius="6 6 0 0">
+                        <ContentPresenter Content="{TemplateBinding Content}" FontSize="13"
+                                          FontWeight="{TemplateBinding FontWeight}"
+                                          Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMid}" />
+            <Setter Property="Margin" Value="0 0 2 0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="RadioButton.ptab:pointerover /template/ Border#PART_Box">
+            <Setter Property="Background" Value="{DynamicResource PanelHeaderHover}" />
+        </Style>
+        <Style Selector="RadioButton.ptab:checked">
+            <Setter Property="Background" Value="{DynamicResource FrameRowSelectedBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentInteractive}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBright}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="RadioButton.ptab:checked /template/ Border#PART_Box">
+            <Setter Property="Background" Value="{DynamicResource FrameRowSelectedBg}" />
+        </Style>
+        <Style Selector="RadioButton.ptab:focus-visible /template/ Border#PART_Box">
             <Setter Property="BorderBrush" Value="{DynamicResource BorderAccent}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextCardHeader}" />
         </Style>
         <Style Selector="Button.maptab:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource PanelHeaderHover}" />
@@ -488,6 +529,9 @@
                         </WrapPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top"
                                     IsVisible="{Binding HasSelection}">
+                            <Button FontSize="12" Padding="12 6" Content="Process this team first"
+                                    IsVisible="{Binding CanProcessTeamFirst}" Command="{Binding ProcessTeamFirstCommand}"
+                                    ToolTip.Tip="Queue every demo of this team ahead of the rest of the library" />
                             <CheckBox Content="Build status" FontSize="12" IsChecked="{Binding ShowBuildStatus}"
                                       ToolTip.Tip="Show each layer's data status (E exists, D derivable, R app work, K engine work)" />
                             <ComboBox FontSize="12" ItemsSource="{x:Static vm:ScoutingReportEditorViewModel.FormOptions}"
@@ -507,38 +551,9 @@
                         </StackPanel>
                     </Grid>
                     <WrapPanel Orientation="Horizontal" Margin="14 2 14 8" IsVisible="{Binding HasSelection}">
-                        <Border Width="{x:Static vm:TimelineDotViewModel.Width}" Height="24" Margin="0 0 14 0"
-                                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1"
-                                VerticalAlignment="Center"
-                                AutomationProperties.Name="The team's demos by date; filled is won, the map in view is bright">
-                            <ItemsControl ItemsSource="{Binding Timeline}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <Canvas />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.Styles>
-                                    <Style Selector="ContentPresenter" x:DataType="vm:TimelineDotViewModel">
-                                        <Setter Property="Canvas.Left" Value="{Binding X}" />
-                                        <Setter Property="Canvas.Top" Value="{Binding Y}" />
-                                    </Style>
-                                </ItemsControl.Styles>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:TimelineDotViewModel">
-                                        <Panel Width="{Binding Size}" Height="{Binding Size}" Opacity="{Binding Opacity}" ToolTip.Tip="{Binding ToolTip}">
-                                            <Ellipse Fill="{DynamicResource TextValue}" IsVisible="{Binding Won}" />
-                                            <Ellipse Stroke="{DynamicResource TextValue}" StrokeThickness="1.5"
-                                                     IsVisible="{Binding !Won}" />
-                                        </Panel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Border>
                         <TextBlock Classes="mid" Text="{Binding DemosLine}" VerticalAlignment="Center" Margin="0 0 14 0" />
                         <TextBlock Classes="mid" Text="{Binding OpponentMixLine}" VerticalAlignment="Center"
                                    Margin="0 0 14 0" Foreground="{DynamicResource TextBright}" />
-                        <TextBlock FontSize="11" Text="{Binding TimelineCaption}" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextBright}" />
                     </WrapPanel>
                     <StackPanel Margin="14 0 14 6" Spacing="2" IsVisible="{Binding HasSelection}">
                         <TextBlock Classes="mid" Text="{Binding Editor.ExportUnavailableNote}"
@@ -646,18 +661,17 @@
                 </Border>
                 <Border Grid.Column="2" Classes="panel" VerticalAlignment="Stretch">
                     <StackPanel Margin="8 6">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <Button Grid.Column="0" Classes="ghost" Padding="6 4" Command="{Binding TogglePoolCommand}"
-                                    AutomationProperties.Name="Map pool">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Path Classes="chevron" Classes.open="{Binding IsPoolOpen}" />
-                                    <TextBlock Classes="h" Text="Map pool" />
-                                </StackPanel>
-                            </Button>
-                            <TextBlock Grid.Column="2" FontSize="11" Foreground="{DynamicResource TextBright}"
-                                       Text="{Binding PoolCaption}" VerticalAlignment="Center" Margin="0 0 6 0" />
-                        </Grid>
-                        <StackPanel IsVisible="{Binding IsPoolOpen}" Margin="6 4 6 4">
+                        <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 0 0 1">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton Name="PoolTab" Classes="ptab" GroupName="hybrid-pool" Content="Map pool"
+                                             IsChecked="True" AutomationProperties.Name="Map pool" />
+                                <RadioButton Name="HistoryTab" Classes="ptab" GroupName="hybrid-pool" Content="Match history"
+                                             AutomationProperties.Name="Match history" />
+                            </StackPanel>
+                        </Border>
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextBright}" Margin="6 8 6 0"
+                                   Text="{Binding PoolCaption}" TextWrapping="Wrap" IsVisible="{Binding #PoolTab.IsChecked}" />
+                        <StackPanel IsVisible="{Binding #PoolTab.IsChecked}" Margin="6 4 6 4">
                             <Grid ColumnDefinitions="2*,*,1.4*,*,*,*,1.2*,1.2*,1.2*" Margin="0 0 0 4">
                                 <TextBlock Grid.Column="0" Classes="col-label" Text="Map" />
                                 <TextBlock Grid.Column="1" Classes="col-label" Text="Played" HorizontalAlignment="Right" />
@@ -714,6 +728,42 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </StackPanel>
+                        <!-- Match history: every demo of the team, newest first. -->
+                        <StackPanel IsVisible="{Binding #HistoryTab.IsChecked}" Margin="6 8 6 4">
+                            <TextBlock Classes="mid" Text="No demos for this team yet." IsVisible="{Binding !HasMatchHistory}" />
+                            <Grid ColumnDefinitions="1.1*,1*,2*,0.8*,0.8*,0.9*" Margin="0 0 10 4" IsVisible="{Binding HasMatchHistory}">
+                                <TextBlock Grid.Column="0" Classes="col-label" Text="Date" />
+                                <TextBlock Grid.Column="1" Classes="col-label" Text="Map" />
+                                <TextBlock Grid.Column="2" Classes="col-label" Text="Opponent" />
+                                <TextBlock Grid.Column="3" Classes="col-label" Text="Result" />
+                                <TextBlock Grid.Column="4" Classes="col-label" Text="Score" HorizontalAlignment="Right" />
+                                <TextBlock Grid.Column="5" Classes="col-label" Text="Opp. rank" HorizontalAlignment="Right" />
+                            </Grid>
+                            <ScrollViewer MaxHeight="300" HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl ItemsSource="{Binding MatchHistory}" Margin="0 0 10 0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:MatchHistoryRowViewModel">
+                                            <Border Padding="0 5" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0 1 0 0">
+                                                <Grid ColumnDefinitions="1.1*,1*,2*,0.8*,0.8*,0.9*">
+                                                    <TextBlock Grid.Column="0" Classes="mid" Text="{Binding DateLabel}" />
+                                                    <TextBlock Grid.Column="1" Classes="val" Text="{Binding MapLabel}" />
+                                                    <TextBlock Grid.Column="2" Classes="val" Text="{Binding Opponent}"
+                                                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Opponent}" />
+                                                    <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Text="{Binding ResultLabel}"
+                                                               Foreground="{DynamicResource StatPositive}" IsVisible="{Binding IsWin}" />
+                                                    <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Text="{Binding ResultLabel}"
+                                                               Foreground="{DynamicResource StatNegative}" IsVisible="{Binding IsLoss}" />
+                                                    <TextBlock Grid.Column="3" Classes="mid" Text="{Binding ResultLabel}"
+                                                               IsVisible="{Binding IsUnresolved}" />
+                                                    <TextBlock Grid.Column="4" Classes="val" Text="{Binding ScoreLabel}" HorizontalAlignment="Right" />
+                                                    <TextBlock Grid.Column="5" Classes="mid" Text="{Binding TierLabel}" HorizontalAlignment="Right" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
             </Grid>
@@ -745,25 +795,44 @@
                         </ItemsControl>
                     </Border>
 
-                    <!-- Side (one at a time), the buy filter, and the scope line. -->
-                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="14 10" IsVisible="{Binding HasMaps}">
+                    <!-- Side (one at a time), the buy filter, and the layers the stage draws, on one line. -->
+                    <Grid ColumnDefinitions="Auto,Auto,*" Margin="14 10 14 4" IsVisible="{Binding HasMaps}">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0 0 16 0"
-                                    KeyDown="OnSideKeyDown">
+                                    VerticalAlignment="Top" KeyDown="OnSideKeyDown">
                             <RadioButton Classes="seg ct" Content="CT" GroupName="scouting-side"
                                          IsChecked="{Binding IsCt}" IsTabStop="{Binding IsCt}" AutomationProperties.Name="CT side" />
                             <RadioButton Classes="seg t" Content="T" GroupName="scouting-side"
                                          IsChecked="{Binding IsT}" IsTabStop="{Binding IsT}" AutomationProperties.Name="T side" />
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top">
                             <TextBlock Classes="mid" Text="Buy" VerticalAlignment="Center" />
                             <ComboBox FontSize="12" ItemsSource="{x:Static vm:ScoutingReportTabViewModel.BuyOptions}"
                                       SelectedItem="{Binding Buy}" AutomationProperties.Name="Buy filter" />
                         </StackPanel>
-                        <TextBlock Grid.Column="3" Classes="mid" Text="{Binding ScopeLine}" VerticalAlignment="Center" />
-                        <Button Grid.Column="4" Classes="ghost" FontSize="11" Padding="8 3" Margin="12 0 0 0"
-                                VerticalAlignment="Center" Content="Process this team first"
-                                IsVisible="{Binding CanProcessTeamFirst}" Command="{Binding ProcessTeamFirstCommand}"
-                                ToolTip.Tip="Queue every demo of this team ahead of the rest of the library" />
+                        <Grid Grid.Column="2" ColumnDefinitions="Auto,*" Margin="8 0 0 0"
+                              KeyboardNavigation.TabNavigation="Local">
+                            <TextBlock Classes="mid" Text="Layers" VerticalAlignment="Top" Margin="0 8 10 0" />
+                            <ItemsControl Grid.Column="1" ItemsSource="{Binding Layers.MapChips}" ItemsPanel="{StaticResource WrapItems}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="layers:ScoutingLayerChipViewModel">
+                                        <Border Classes="chip" Classes.focus="{Binding IsFocused}" Margin="0 0 6 6">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <CheckBox IsChecked="{Binding IsOn}" MinWidth="0" Padding="0"
+                                                          AutomationProperties.Name="{Binding DrawLabel}"
+                                                          ToolTip.Tip="{Binding DrawLabel}" />
+                                                <ContentControl Content="{Binding Swatch}" ContentTemplate="{StaticResource Swatch}" />
+                                                <Button Classes="ghost chipname" Padding="4 3" Content="{Binding Name}" FontSize="12"
+                                                        Foreground="{DynamicResource TextValue}"
+                                                        Command="{Binding InspectCommand}"
+                                                        AutomationProperties.Name="{Binding InspectLabel}" />
+                                                <TextBlock Text="{Binding CountLabel}" FontSize="11" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextBright}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
                     </Grid>
 
                     <!-- Notices: a thin sample, demos without positions. -->
@@ -792,30 +861,6 @@
                         <Border Grid.Column="0" Name="StagePanel" Classes="panel" Padding="12" VerticalAlignment="Top"
                                 SizeChanged="OnStagePanelSizeChanged">
                             <StackPanel Spacing="10">
-                                <Grid ColumnDefinitions="Auto,*" KeyboardNavigation.TabNavigation="Local"
-                                           KeyboardNavigation.TabIndex="1">
-                                    <TextBlock Classes="mid" Text="Layers" VerticalAlignment="Top" Margin="0 6 10 0" />
-                                    <ItemsControl Grid.Column="1" ItemsSource="{Binding Layers.MapChips}" ItemsPanel="{StaticResource WrapItems}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="layers:ScoutingLayerChipViewModel">
-                                                <Border Classes="chip" Classes.focus="{Binding IsFocused}" Margin="0 0 6 6">
-                                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                                        <CheckBox IsChecked="{Binding IsOn}" MinWidth="0" Padding="0"
-                                                                  AutomationProperties.Name="{Binding DrawLabel}"
-                                                                  ToolTip.Tip="{Binding DrawLabel}" />
-                                                        <ContentControl Content="{Binding Swatch}" ContentTemplate="{StaticResource Swatch}" />
-                                                        <Button Classes="ghost chipname" Padding="4 3" Content="{Binding Name}" FontSize="12"
-                                                                Foreground="{DynamicResource TextValue}"
-                                                                Command="{Binding InspectCommand}"
-                                                                AutomationProperties.Name="{Binding InspectLabel}" />
-                                                        <TextBlock Text="{Binding CountLabel}" FontSize="11" VerticalAlignment="Center"
-                                                                   Foreground="{DynamicResource TextBright}" />
-                                                    </StackPanel>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </Grid>
                                 <!-- The stage sizes itself to the map: every floor of a multi-floor map gets a full band. -->
                                 <Border CornerRadius="6" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
                                         Background="{DynamicResource PanelBg}" ClipToBounds="True"
@@ -1003,7 +1048,6 @@
                                                    Foreground="{DynamicResource AccentCaution}" />
                                     </Border>
                                 </Grid>
-                                <TextBlock Classes="mid" Text="{Binding ScopeLine}" Margin="0 0 0 4" />
                                 <StackPanel Orientation="Horizontal" Spacing="6" Margin="0 0 0 4" IsVisible="{Binding HasWindows}">
                                     <TextBlock Classes="mid" Text="Trail to" VerticalAlignment="Center" />
                                     <ItemsControl ItemsSource="{Binding Windows}">

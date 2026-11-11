@@ -184,6 +184,30 @@ public sealed record TimelineDotViewModel(double X, double Y, bool Won, bool IsS
     public double Opacity => IsSelectedMap ? 1 : 0.3;
 }
 
+/// <summary>One demo of the team's match history, newest first: when, where, against whom, and how it ended.</summary>
+/// <param name="DateLabel">"2026-03-11".</param>
+/// <param name="MapLabel">"Nuke".</param>
+/// <param name="Opponent">The other team's name, or "unknown opponent".</param>
+/// <param name="ResultLabel">"Won", "Lost", or "—" when the score did not resolve.</param>
+/// <param name="Won">The team won; null when the score did not resolve.</param>
+/// <param name="ScoreLabel">"13–9" from the team's side, or "—".</param>
+/// <param name="TierLabel">"top 30", "below 30", or "" when the opponent's rank is unknown.</param>
+public sealed record MatchHistoryRowViewModel(
+    string DateLabel,
+    string MapLabel,
+    string Opponent,
+    string ResultLabel,
+    bool? Won,
+    string ScoreLabel,
+    string TierLabel)
+{
+    public bool IsWin => Won == true;
+
+    public bool IsLoss => Won == false;
+
+    public bool IsUnresolved => Won is null;
+}
+
 /// <summary>One player of the team's current roster, with the role the demos suggest and why, and the numbers.</summary>
 public sealed class PlayerRowViewModel
 {
