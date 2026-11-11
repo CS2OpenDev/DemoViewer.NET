@@ -221,7 +221,7 @@ public class SituationalBehaviourTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.Layers.StripMinis.Select(m => m.Id))
-                .IsEquivalentTo(["econ", "pace", "impact", "score"], CollectionOrdering.Matching);
+                .IsEquivalentTo(["econ", "pace", "impact", "score", "timeouts"], CollectionOrdering.Matching);
             await Assert.That(vm.Layers.Inspector.Title).IsEqualTo("Economy and pistols");
             await Assert.That(econ.CountLabel).IsEqualTo("1 pistol");
             await Assert.That(econ.MiniLines).IsNotEmpty();
@@ -253,7 +253,7 @@ public class SituationalBehaviourTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.Layers.StripMinis.Select(m => m.Id))
-                .IsEquivalentTo(["econ", "rotations", "impact", "score"], CollectionOrdering.Matching);
+                .IsEquivalentTo(["econ", "rotations", "impact", "score", "timeouts"], CollectionOrdering.Matching);
             await Assert.That(vm.Layers.Find("rotations")!.Status.State).IsEqualTo(ScoutingLayerState.Empty);
             await Assert.That(vm.Layers.Inspector.StatusMessage).Contains("in the desktop app");
         }

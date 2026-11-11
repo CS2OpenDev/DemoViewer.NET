@@ -3,6 +3,7 @@
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport;
 using DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
+using TUnit.Assertions.Enums;
 
 #endregion
 
@@ -86,7 +87,7 @@ public class EconomyTimeoutsLayerTests
         {
             await Assert.That(result.Status.State).IsEqualTo(ScoutingLayerState.Ready);
             await Assert.That(result.CountLabel).IsEqualTo("4 timeouts");
-            await Assert.That(result.Sections.Single().Title).IsEqualTo("Tactical timeouts");
+            await Assert.That(result.Sections.Select(s => s.Title)).IsEquivalentTo(["Tactical timeouts", "By side"], CollectionOrdering.Matching);
             await Assert.That(Row(result, "Taken").Value).IsEqualTo("4 timeouts");
         }
     }
