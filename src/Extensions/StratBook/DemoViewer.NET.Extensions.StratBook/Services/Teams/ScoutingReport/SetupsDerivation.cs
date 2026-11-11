@@ -257,13 +257,7 @@ public static class SetupsDerivation
                 }
 
                 at.Rounds.Add(round);
-                foreach (SetupSample s in player.Setup.Where(s => s.Place == place))
-                {
-                    at.X += s.X;
-                    at.Y += s.Y;
-                    at.Z += s.Z;
-                    at.N++;
-                }
+                at.Samples.AddRange(player.Setup.Where(s => s.Place == place));
             }
         }
 
@@ -283,8 +277,9 @@ public static class SetupsDerivation
                     break;
                 }
 
+                SetupSample spot = Medoid(at.Samples);
                 result.Add(new SetupPlayerPlace(key, tally.Name, place, at.Rounds, tally.Of, i == 0,
-                    (float)(at.X / at.N), (float)(at.Y / at.N), (float)(at.Z / at.N)));
+                    spot.X, spot.Y, spot.Z));
             }
         }
 
@@ -505,6 +500,59 @@ public static class SetupsDerivation
             .FirstOrDefault();
     }
 
+    /// <summary>
+    ///     Where a player held in one round's setup window: the sample in their most-held place that sits closest to
+    ///     the rest of it. A real position they stood at, never an average: the mean of a player who walked round a
+    ///     corner, or between floors, lands in a wall or the void.
+    /// </summary>
+    /// <param name="samples">The round's setup samples; at least one.</param>
+    public static SetupSample HeldSpot(IReadOnlyList<SetupSample> samples)
+    {
+        ArgumentNullException.ThrowIfNull(samples);
+        if (samples.Count == 0)
+        {
+            throw new ArgumentException("No samples to pick a spot from.", nameof(samples));
+        }
+
+        string? place = DominantPlace(samples);
+        List<SetupSample> held = place is null ? [.. samples] : [.. samples.Where(s => s.Place == place)];
+        return Medoid(held);
+    }
+
+    // The sample with the least summed distance to the others (in 3D, so a floor change counts). Large sets are
+    // strided so a long scope stays cheap; the answer is still one of the samples.
+    private static SetupSample Medoid(List<SetupSample> samples)
+    {
+        const int MaxCandidates = 256, MaxReference = 1024;
+        if (samples.Count <= 2)
+        {
+            return samples[0];
+        }
+
+        int candidateStride = Math.Max(1, samples.Count / MaxCandidates);
+        int referenceStride = Math.Max(1, samples.Count / MaxReference);
+        SetupSample best = samples[0];
+        double bestCost = double.MaxValue;
+        for (int i = 0; i < samples.Count; i += candidateStride)
+        {
+            SetupSample c = samples[i];
+            double cost = 0;
+            for (int j = 0; j < samples.Count && cost < bestCost; j += referenceStride)
+            {
+                double dx = c.X - samples[j].X, dy = c.Y - samples[j].Y, dz = c.Z - samples[j].Z;
+                cost += Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            }
+
+            if (cost < bestCost)
+            {
+                bestCost = cost;
+                best = c;
+            }
+        }
+
+        return best;
+    }
+
     /// <summary>"A site" and "B site" for the bombsites; any other place as the map names it.</summary>
     /// <param name="place">The place.</param>
     public static string PlaceLabel(string place) => place switch
@@ -527,12 +575,6 @@ public static class SetupsDerivation
     {
         public List<SetupHeatmapRound> Rounds { get; } = [];
 
-        public double X { get; set; }
-
-        public double Y { get; set; }
-
-        public double Z { get; set; }
-
-        public int N { get; set; }
+        public List<SetupSample> Samples { get; } = [];
     }
 }

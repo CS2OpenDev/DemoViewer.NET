@@ -157,7 +157,8 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
     }
 
     /// <summary>
-    ///     The marks: a dot per player per round at their mean setup position, then a ringed dot on each player's
+    ///     The marks: a dot per player per round where they held (see
+    ///     <see cref="SetupsDerivation.HeldSpot" />), then a ringed dot on each player's
     ///     main spot on top. With a player isolated (and in the rounds), everyone else fades to
     ///     <see cref="IsolatedFade" />.
     /// </summary>
@@ -184,8 +185,8 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         foreach (SetupRoundPlayer player in rounds.Select(r => r.Detail).OfType<SetupRoundDetail>()
                      .SelectMany(d => d.Players).Where(p => p.Setup.Count > 0))
         {
-            ScoutingMapMark dot = new((float)player.Setup.Average(s => s.X), (float)player.Setup.Average(s => s.Y),
-                (float)player.Setup.Average(s => s.Z), ScoutingMarkShape.Dot, ColorOf(player.Key), 4.5f,
+            SetupSample spot = SetupsDerivation.HeldSpot(player.Setup);
+            ScoutingMapMark dot = new(spot.X, spot.Y, spot.Z, ScoutingMarkShape.Dot, ColorOf(player.Key), 4.5f,
                 Opacity: 0.8f * Fade(player.Key));
             (player.Key == isolated ? front : marks).Add(dot);
         }

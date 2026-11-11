@@ -243,6 +243,38 @@ public class SetupsLayerTests
     }
 
     [Test]
+    public async Task TheDots_LandWhereThePlayerStood_NotTheMeanOfAWalkRoundACorner()
+    {
+        // An L: up the corridor (x = 0), then along the site (y = 1000). The mean, (300, 600), is inside the wall.
+        SetupSample[] walk =
+        [
+            new(0, 0, 0, "Hall"), new(0, 500, 0, "Hall"), new(0, 1000, 0, "BombsiteA"),
+            new(500, 1000, 0, "BombsiteA"), new(1000, 1000, 0, "BombsiteA"), new(1000, 1000, 0, "BombsiteA")
+        ];
+        // A player who drops a floor: most of the window upstairs, a moment below.
+        SetupSample[] floors =
+        [
+            new(4000, 0, 0, "Ramp"), new(4000, 20, 0, "Ramp"), new(4010, 10, 0, "Ramp"), new(4000, 0, -400, "Ramp")
+        ];
+        List<SetupHeatmapRound> rounds =
+            [Round(1, Detail(true, Player("alice", walk), Player("bob", floors)))];
+        IReadOnlyList<SetupPlayerPlace> places = SetupsDerivation.PlacesByPlayer(rounds);
+        IReadOnlyList<ScoutingMapMark> marks =
+            SetupsLayer.Marks(rounds, places, new Dictionary<string, ScoutingColor>(StringComparer.Ordinal), null);
+
+        HashSet<(float, float, float)> stood = [.. walk.Concat(floors).Select(s => ((float)s.X, (float)s.Y, (float)s.Z))];
+        using (Assert.Multiple())
+        {
+            await Assert.That(marks.All(m => stood.Contains((m.X, m.Y, m.Z)))).IsTrue()
+                .Because("every dot and main spot is a position a player was actually seen at");
+            await Assert.That(marks.Any(m => m.X == 300f && m.Y == 600f)).IsFalse();
+            await Assert.That(marks.Where(m => m.X >= 4000f).All(m => m.Z == 0f)).IsTrue()
+                .Because("the floor most of the window was spent on");
+            await Assert.That(SetupsDerivation.HeldSpot(walk).Place).IsEqualTo("BombsiteA");
+        }
+    }
+
+    [Test]
     public async Task Isolating_FadesEveryOtherPlayer_AndAKeyNotInTheScopeFadesNobody()
     {
         List<SetupHeatmapRound> rounds =
