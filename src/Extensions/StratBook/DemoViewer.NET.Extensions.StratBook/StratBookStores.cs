@@ -43,20 +43,66 @@ internal static class StratBookStores
     public static readonly StoreDescriptor[] All =
     [
         // ── Config root: user truth ─────────────────────────────────────────────
-        new(Strats, "Strats", StoreRoot.Config, ["strats"], IsUserWork: true),
-        new(Tags, "Tags", StoreRoot.Config, ["tags"], IsUserWork: true),
-        new(Palettes, "Tag palettes", StoreRoot.Config, ["palettes"], IsUserWork: true),
-        new(SuggestedTags, "Suggested Tags tuning", StoreRoot.Config, ["suggested-tags"], IsUserWork: true),
-        new(LineupClips, "Lineup clips", StoreRoot.Config, ["lineup-clips"], IsUserWork: true),
-        new(Teams, "Teams", StoreRoot.Config, [TeamIdentityService.TeamsFileName], IsUserWork: true),
+        // Library Transfer carries all of it. The extension merges an import itself wherever the files hold
+        // ids another store points at (teams, lineups, strats); palettes and the tuning have no such ids, so
+        // the host's file-level merge is enough. Indexes and trash are rebuilt or local, so they stay behind.
+        new(Strats, "Strats", StoreRoot.Config, ["strats"], IsUserWork: true)
+        {
+            Portability = StorePortability.LibraryWide, ExtensionMerges = true,
+            PortableExcludes = [StratStore.IndexFileName, StratStore.TrashFolderName]
+        },
+        new(Tags, "Tags", StoreRoot.Config, ["tags"], IsUserWork: true)
+        {
+            Portability = StorePortability.PerDemo, ExtensionMerges = true,
+            DemoKeyedPaths =
+            [
+                "tags/" + TagStore.DemosFolderName + "/{sha256}" + TagStore.SidecarExtension,
+                "tags/" + TagStore.VerdictsFolderName + "/{sha256}" + TagStore.VerdictsExtension
+            ],
+            PortableExcludes = [TagStore.IndexFileName]
+        },
+        new(Palettes, "Tag palettes", StoreRoot.Config, ["palettes"], IsUserWork: true)
+        {
+            Portability = StorePortability.LibraryWide
+        },
+        new(SuggestedTags, "Suggested Tags tuning", StoreRoot.Config, ["suggested-tags"], IsUserWork: true)
+        {
+            Portability = StorePortability.LibraryWide
+        },
+        // evicted.txt is this machine's clip cap, not the user's: carried over, it would stop the target
+        // rendering clips it has never had.
+        new(LineupClips, "Lineup clips", StoreRoot.Config, ["lineup-clips"], IsUserWork: true)
+        {
+            Portability = StorePortability.LibraryWide, ExtensionMerges = true,
+            PortableExcludes = [LineupClipService.EvictedFileName]
+        },
+        // Team overrides keyed by a demo's StableKey (a local path) stay behind: the extension's merge drops them.
+        new(Teams, "Teams", StoreRoot.Config, [TeamIdentityService.TeamsFileName], IsUserWork: true)
+        {
+            Portability = StorePortability.LibraryWide, ExtensionMerges = true
+        },
         new(WatchedSituations, "Watched Situations", StoreRoot.Config, [WatchedSituationsService.FileName],
-            IsUserWork: true),
-        new(VetoHistory, "Veto history", StoreRoot.Config, [VetoHistoryStore.FileName], IsUserWork: true),
+            IsUserWork: true)
+        {
+            Portability = StorePortability.LibraryWide, ExtensionMerges = true
+        },
+        new(VetoHistory, "Veto history", StoreRoot.Config, [VetoHistoryStore.FileName], IsUserWork: true)
+        {
+            Portability = StorePortability.LibraryWide, ExtensionMerges = true
+        },
         new(ScoutingReportNotes, "Scouting report notes", StoreRoot.Config, [ScoutingReportNotesStore.FileName],
-            IsUserWork: true),
-        new(TeamRanks, "Team ranks", StoreRoot.Config, [TeamRanksStore.FileName], IsUserWork: true),
+            IsUserWork: true)
+        {
+            Portability = StorePortability.LibraryWide, ExtensionMerges = true
+        },
+        new(TeamRanks, "Team ranks", StoreRoot.Config, [TeamRanksStore.FileName], IsUserWork: true)
+        {
+            Portability = StorePortability.LibraryWide, ExtensionMerges = true
+        },
 
         // ── Config root: the old layout, read once to copy into the extension's own folder ──
+        // Everything from here down keeps the default portability, None: read once, derived, or keyed by a
+        // local path, so a transfer leaves it behind.
         new(ScoutingReportNotesOldName, "Scouting report notes (old layout)", StoreRoot.Config,
             [ScoutingReportNotesStore.LegacyFileName], IsUserWork: true),
         new(StratMiningState, "Strat Mining dismissed and promoted (old layout)", StoreRoot.Config,
@@ -82,6 +128,17 @@ internal static class StratBookStores
             "demos/*.grenades.json.gz", "demos/*.grenades.paths.json.gz", "demos/*.grenades.log.gz",
             "demos/*.grenades.json", "demos/*.grenades.paths.json"
         ], IsUserWork: false)
+    ];
+
+    /// <summary>
+    ///     The files of the extension's own folders that Library Transfer carries: the lineups strats and clips
+    ///     point at, and Strat Mining's dismissed and promoted patterns. The rest of the own folders is derived and
+    ///     keyed by local paths (the team index, the mining detections and signatures), so the target rebuilds it.
+    /// </summary>
+    public static readonly PortableOwnPath[] PortableOwnPaths =
+    [
+        new(StoreRoot.Config, StratMiningFiles.StatePath),
+        new(StoreRoot.Cache, GrenadeLineupStore.FileName)
     ];
 
     /// <summary>

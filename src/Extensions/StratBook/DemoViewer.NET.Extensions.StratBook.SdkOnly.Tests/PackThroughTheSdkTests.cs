@@ -63,8 +63,8 @@ public class PackThroughTheSdkTests
         await Assert.That(root.GetProperty("id").GetString()).IsEqualTo(PackId);
         await Assert.That(root.GetProperty("assembly").GetString())
             .IsEqualTo("DemoViewer.NET.Extensions.StratBook.dll");
-        await Assert.That(root.GetProperty("requiresHost").GetString()).IsEqualTo("^2.2")
-            .Because("the pack calls FollowPlayer, the scoped OpenPlayerOverview and the game-wide collector reads, which 2.1 hosts lack");
+        await Assert.That(root.GetProperty("requiresHost").GetString()).IsEqualTo("^2.3")
+            .Because("the pack declares how Library Transfer carries its stores, which 2.2 hosts lack");
         // The template's literal placeholder: an unstamped manifest fails to parse host-side on purpose.
         await Assert.That(root.GetProperty("version").GetString()).IsNotEqualTo("{version}");
 
