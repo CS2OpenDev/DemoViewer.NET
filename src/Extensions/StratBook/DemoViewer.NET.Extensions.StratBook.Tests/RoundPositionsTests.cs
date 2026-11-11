@@ -218,6 +218,7 @@ public class RoundPositionsTests
             await Assert.That(positions).IsNotNull();
             await Assert.That(positions!.Fingerprint).IsEqualTo(index.Fingerprint);
             await Assert.That(positions.Demo.StableKey).IsEqualTo(index.Demo.StableKey);
+            await Assert.That(positions.Demo.StableKey).IsEqualTo("");
             await Assert.That(positions.Demo.Sha256).IsEqualTo("abc");
             await Assert.That(positions.Rounds.Single().At(1).Count).IsEqualTo(10);
             await Assert.That(cache.RoundIndexFingerprint(Demo)).IsEqualTo(positions.Fingerprint);

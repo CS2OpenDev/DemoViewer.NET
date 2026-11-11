@@ -28,7 +28,7 @@ public sealed class GrenadeDemoHeader
     /// <summary>Null until Content Identity has hashed the demo; a reader with a hash ignores a mismatching file.</summary>
     public string? Sha256 { get; init; }
 
-    /// <summary><c>DemoKeys.StableKey</c> of the path.</summary>
+    /// <summary><c>DemoKeys.StableKey</c> of the path while the demo has no hash, else empty.</summary>
     public string StableKey { get; init; } = "";
 
     public string FileName { get; set; } = "";
@@ -222,7 +222,8 @@ public static class GrenadeSidecar
     private static GrenadeDemoHeader DemoHeader(string path, LibraryDemo? record) => new()
     {
         Sha256 = record?.Sha256,
-        StableKey = DemoKeys.StableKey(path),
+        // Only while unhashed: the path key means nothing on the machine a transfer carries this to.
+        StableKey = string.IsNullOrEmpty(record?.Sha256) ? DemoKeys.StableKey(path) : "",
         FileName = Path.GetFileName(path),
         SizeBytes = record?.FileSizeBytes ?? 0
     };

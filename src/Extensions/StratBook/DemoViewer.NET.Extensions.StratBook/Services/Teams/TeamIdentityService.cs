@@ -1400,7 +1400,7 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
         TeamIndexFile index = clusterer.Finish(DateTime.UtcNow.Ticks, keep);
         _teams = teams;
         _index = index;
-        UpgradeOverrides();
+        _ = UpgradeOverrides();
         ResolveOurSides();
         ComputeSuggestions();
         SaveTeams();
@@ -1436,8 +1436,9 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
 
     // An override written before the demo was hashed moves onto the hash the moment it appears, so a
     // moved file keeps it. Both override lists, one rule.
-    private void UpgradeOverrides()
+    private bool UpgradeOverrides()
     {
+        bool upgraded = false;
         foreach (IDemoKeyedOverride o in
                  _teams.Overrides.Cast<IDemoKeyedOverride>().Concat(_teams.Provenance.Overrides))
         {
@@ -1447,8 +1448,11 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
             {
                 o.DemoSha256 = row.Sha256;
                 o.DemoStableKey = null;
+                upgraded = true;
             }
         }
+
+        return upgraded;
     }
 
     private void UpsertOverride(TeamIndexDemo row, int side, Guid? teamId)
@@ -1564,6 +1568,13 @@ public sealed class TeamIdentityService : IExtensionResident, IDisposable
                     foreach ((string key, TeamIndexDemo row) in index.Demos)
                     {
                         _inputs[key] = SideKeys.From(key, row);
+                    }
+
+                    // A demo hashed while this service was off left its overrides on the path key. Moving them
+                    // now keeps a path out of teams.json, which a transfer carries to another machine.
+                    if (UpgradeOverrides())
+                    {
+                        SaveTeams();
                     }
 
                     // The accounts may have changed in the host's Settings while this service was not looking.

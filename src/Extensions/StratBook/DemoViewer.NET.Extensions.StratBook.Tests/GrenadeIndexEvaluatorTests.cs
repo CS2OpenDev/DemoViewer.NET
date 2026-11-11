@@ -252,7 +252,7 @@ public class GrenadeIndexEvaluatorTests
             await Assert.That(evaluator.IsCurrent(MatchDemo)).IsTrue();
 
             await Assert.That(rows.Demo.Sha256).IsEqualTo("abc");
-            await Assert.That(rows.Demo.StableKey).IsEqualTo(DemoCacheStore.StableKey(MatchDemo));
+            await Assert.That(rows.Demo.StableKey).IsEqualTo("").Because("hashed: no path key in a file that travels");
             await Assert.That(rows.Walker.Version).IsEqualTo(GrenadeWalker.Version);
             await Assert.That(rows.Walker.Engine).StartsWith("CS2DemoKit.Parser ");
             await Assert.That(rows.Walker.InputDecoder).IsEqualTo(GrenadeWalker.InputDecoderName);
