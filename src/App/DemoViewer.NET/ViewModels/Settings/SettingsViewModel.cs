@@ -68,6 +68,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         ("Folders", "library folders scan demos dem watch add remove folder"),
         ("Processing", "background processing queue max demos concurrency parse ram"),
         ("Idle", "idle timeout auto close memory ram resume inactivity"),
+        ("DataTransfer", "data transfer export import backup portable laptop copy move usb drive bundle analysis"),
         ("Features", "features tabs toggles chrome overrides hidden reset gate sub-features"),
         ("LiveSync", "live sync cs2 csvg install path game window fullscreen width height mock "
             + "tick offset plugin session log verbosity grpc"),
@@ -378,6 +379,9 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private bool _showGroupLiveCs2 = true;
+
+    [ObservableProperty]
+    private bool _showSectionDataTransfer = true;
 
     [ObservableProperty]
     private bool _showSectionDiagnostics = true;
@@ -714,6 +718,31 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         _openThemeEditor = open;
         OnPropertyChanged(nameof(CanCustomizeThemes));
     }
+
+    private Action? _openExportWizard;
+    private Action? _openImportWizard;
+
+    /// <summary>Whether the Data transfer section is shown: desktop only, the browser has no files to carry.</summary>
+    public bool CanManageDataTransfer => !_isBrowser();
+
+    /// <summary>Whether the Export… and Import… buttons work: desktop, once the host has attached the wizards.</summary>
+    public bool CanOpenDataTransfer => CanManageDataTransfer && _openExportWizard is not null;
+
+    /// <summary>Wires the Data transfer buttons to the export and import wizards. Desktop only.</summary>
+    internal void AttachDataTransfer(Action openExport, Action openImport)
+    {
+        ArgumentNullException.ThrowIfNull(openExport);
+        ArgumentNullException.ThrowIfNull(openImport);
+        _openExportWizard = openExport;
+        _openImportWizard = openImport;
+        OnPropertyChanged(nameof(CanOpenDataTransfer));
+    }
+
+    [RelayCommand]
+    private void ExportData() => _openExportWizard?.Invoke();
+
+    [RelayCommand]
+    private void ImportData() => _openImportWizard?.Invoke();
 
     /// <summary>Opens Theme Customization on the selected theme (System opens on the variant it shows).</summary>
     [RelayCommand]
@@ -1067,6 +1096,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
         ShowSectionFolders = SectionMatches("Folders", filter);
         ShowSectionProcessing = CanManageProcessingQueue && SectionMatches("Processing", filter);
         ShowSectionIdle = CanManageIdle && SectionMatches("Idle", filter);
+        ShowSectionDataTransfer = CanManageDataTransfer && SectionMatches("DataTransfer", filter);
         ShowSectionFeatures = SectionMatches("Features", filter);
         ShowSectionLiveSync = CanManageLiveSync && SectionMatches("LiveSync", filter);
         ShowSectionHighlights = CanManageHighlights && SectionMatches("Highlights", filter);
@@ -1080,7 +1110,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IDisposable
 
         ShowGroupGeneral = ShowSectionUserCategory || ShowSectionTheme || ShowSectionIdentity || ShowSectionUpdates
             || ShowSectionPlayback2DKeys;
-        ShowGroupLibrary = ShowSectionFolders || ShowSectionProcessing || ShowSectionIdle;
+        ShowGroupLibrary = ShowSectionFolders || ShowSectionProcessing || ShowSectionIdle || ShowSectionDataTransfer;
         ShowGroupFeatures = ShowSectionFeatures;
         ShowGroupExtensions = ShowSectionExtensions || anyPageVisible;
         ShowGroupLiveCs2 = ShowSectionLiveSync || ShowSectionHighlights;

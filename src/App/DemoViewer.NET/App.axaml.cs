@@ -26,6 +26,7 @@ using DemoViewer.NET.Services;
 using DemoViewer.NET.Services.DemoCache;
 using DemoViewer.NET.Services.DemoProcessing;
 using DemoViewer.NET.Services.DemoProcessing.Collectors;
+using DemoViewer.NET.Services.Transfer;
 using DemoViewer.NET.Services.Dependencies;
 using DemoViewer.NET.Services.Diagnostics;
 using DemoViewer.NET.Services.Facts;
@@ -42,6 +43,7 @@ using DemoViewer.NET.ViewModels.Highlights;
 using DemoViewer.NET.ViewModels.Settings;
 using DemoViewer.NET.ViewModels.Setup;
 using DemoViewer.NET.ViewModels.Shell;
+using DemoViewer.NET.ViewModels.Transfer;
 using DemoViewer.NET.Views;
 using DemoViewer.NET.Views.RuleWorkbench;
 using Microsoft.Extensions.DependencyInjection;
@@ -929,6 +931,20 @@ public class App : Application
                     RestoreApp = () => ShowAppIn(registry.VariantFor(monitor.CurrentValue.Theme))
                 });
         });
+        // Library transfer: the Settings Export… and Import… wizards. The exporter and importer are looked up
+        // when a wizard opens, so the launcher composes whether or not they are registered.
+        services.AddSingleton(sp =>
+        {
+            IDemoProcessingQueue queue = sp.GetRequiredService<IDemoProcessingQueue>();
+            DemoLibraryService library = sp.GetRequiredService<DemoLibraryService>();
+            return new DataTransferLauncher(sp.GetRequiredService<IWindowService>(),
+                sp.GetService<ITransferExporter>,
+                sp.GetService<ITransferImporter>,
+                () => [.. library.Entries],
+                () => [.. library.Folders],
+                () => queue.QueuedCount + queue.RunningCount,
+                path => Services?.GetService<MainViewModel>()?.OpenOutputFolder(path));
+        });
 
         // The host window service instance (desktop real / browser no-op), resolved by MainViewModel.
         services.AddSingleton(windowService);
@@ -966,6 +982,12 @@ public class App : Application
             if (ThemeEditorLauncher.IsSupported)
             {
                 settingsVm.AttachThemeEditor(id => sp.GetRequiredService<ThemeEditorLauncher>().Open(id));
+            }
+
+            if (DataTransferLauncher.IsSupported)
+            {
+                settingsVm.AttachDataTransfer(() => sp.GetRequiredService<DataTransferLauncher>().OpenExport(),
+                    () => sp.GetRequiredService<DataTransferLauncher>().OpenImport());
             }
 
             // Says which extensions were switched off this session after errors.

@@ -249,7 +249,7 @@ public partial class DemoEntry : ObservableObject
         return s.Length == 0 ? map : char.ToUpperInvariant(s[0]) + s[1..];
     }
 
-    private static string FormatSize(long bytes)
+    internal static string FormatSize(long bytes)
     {
         string[] units = ["B", "KB", "MB", "GB", "TB"];
         double v = bytes;

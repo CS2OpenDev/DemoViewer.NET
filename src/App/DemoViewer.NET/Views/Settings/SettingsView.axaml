@@ -186,6 +186,9 @@
                     <Button Classes="chip" Content="Idle" Margin="0,2,6,2" FontSize="11" Padding="8,3"
                             Tag="SectionIdleMode" Click="OnJumpChipClick"
                             IsVisible="{Binding CanManageIdle}" />
+                    <Button Classes="chip" Content="Data transfer" Margin="0,2,6,2" FontSize="11" Padding="8,3"
+                            Tag="SectionDataTransfer" Click="OnJumpChipClick"
+                            IsVisible="{Binding CanManageDataTransfer}" />
                     <Button Classes="chip" Content="Diagnostics" Margin="0,2,6,2" FontSize="11" Padding="8,3"
                             Tag="SectionDiagnosticsLogging" Click="OnJumpChipClick"
                             IsVisible="{Binding CanManageDiagnosticsLogging}" />
@@ -759,6 +762,31 @@
                                                       OnContent="" OffContent=""
                                                       IsChecked="{Binding IdleKeepBackgroundProcessing, Mode=TwoWay}" />
                                     </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Data transfer: desktop only. Carries analysis to another machine through a folder
+                     (a USB drive, say) so it opens there without analysing again. Each button opens its
+                     own wizard window. -->
+                        <StackPanel Spacing="0" IsVisible="{Binding ShowSectionDataTransfer}">
+                            <Border Classes="sectionHeader" x:Name="SectionDataTransfer">
+                                <TextBlock Classes="sectionLabel" Text="DATA TRANSFER" />
+                            </Border>
+                            <Border Classes="card" Margin="12,10">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Foreground="{DynamicResource TextDim}" FontSize="11" TextWrapping="Wrap"
+                                               Text="Export demo analysis, annotations and optionally the .dem files to a folder, then import it on another machine so the demos open there without being analysed again." />
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button Content="Export…" Classes="ghost" Padding="10,4"
+                                                IsEnabled="{Binding CanOpenDataTransfer}"
+                                                Command="{Binding ExportDataCommand}"
+                                                ToolTip.Tip="Export library data to a folder." />
+                                        <Button Content="Import…" Classes="ghost" Padding="10,4"
+                                                IsEnabled="{Binding CanOpenDataTransfer}"
+                                                Command="{Binding ImportDataCommand}"
+                                                ToolTip.Tip="Import a folder another machine exported." />
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

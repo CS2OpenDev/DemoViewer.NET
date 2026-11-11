@@ -916,15 +916,7 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
     // changes (so toggling a chip doesn't churn the list). Unsubscribes old items to avoid handler leaks.
     private void RefreshMapFilters()
     {
-        List<(string Display, string MapKey)> groups =
-        [
-            .. _library.Entries
-                .Where(e => e.MapDisplay is { Length: > 0 } && e.MapDisplay != "Unknown")
-                .GroupBy(e => e.MapDisplay, StringComparer.OrdinalIgnoreCase)
-                .Select(g => (Display: g.Key,
-                    MapKey: g.Select(e => e.MapName).FirstOrDefault(m => m is { Length: > 0 }) ?? g.Key))
-                .OrderBy(x => x.Display, StringComparer.OrdinalIgnoreCase)
-        ];
+        List<(string Display, string MapKey)> groups = LibraryFilterPredicate.MapGroups(_library.Entries);
 
         // No change to the map set → keep the current chips (and their checked state) untouched.
         if (groups.Count == MapFilters.Count &&
@@ -1041,32 +1033,10 @@ public partial class LibraryTabViewModel : ObservableObject, IWorkspaceTabViewMo
             return;
         }
 
-        IEnumerable<DemoEntry> q = _library.Entries;
-
-        if (!string.IsNullOrWhiteSpace(SearchText))
-        {
-            string needle = SearchText.Trim();
-            q = q.Where(e =>
-                e.FileName.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
-                (e.MapName?.Contains(needle, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                e.Players.Any(p => p.Contains(needle, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        // Multi-select map filter: none checked = all maps; else keep only the checked maps (by display name).
-        HashSet<string> selectedMaps = MapFilters
-            .Where(m => m.IsSelected)
-            .Select(m => m.Display)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (selectedMaps.Count > 0)
-        {
-            q = q.Where(e => selectedMaps.Contains(e.MapDisplay));
-        }
-
-        // Player filter: keep only demos the chosen player appears in.
-        if (SelectedPlayer != AllPlayers)
-        {
-            q = q.Where(e => e.Players.Any(p => string.Equals(p, SelectedPlayer, StringComparison.OrdinalIgnoreCase)));
-        }
+        // Search, maps and player come from the shared predicate the transfer wizard's picker also uses.
+        LibraryFilterPredicate builtIn = LibraryFilterPredicate.From(SearchText, MapFilters,
+            SelectedPlayer == AllPlayers ? null : SelectedPlayer);
+        IEnumerable<DemoEntry> q = _library.Entries.Where(builtIn.Matches);
 
         // Every contributed filter, e.g. the Team filter: "" (All) applies no predicate.
         foreach (LibraryFilterViewModel filter in Filters)
