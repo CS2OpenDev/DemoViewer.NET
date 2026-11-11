@@ -143,21 +143,14 @@ public class StratBookPackTests
         "DemoViewer.NET.Extensions.PackSwitch",
         "DemoViewer.NET.Services.RecentFilesStore",
         "DemoViewer.NET.Modules.ModuleRegistry",
-        "DemoViewer.NET.ViewModels.Shell.MainViewModel",
-        // The Rule Canvas pack ships beside this one: its tab view model, and its context registered the
-        // same two ways this pack's is.
-        "DemoViewer.NET.Extensions.RuleCanvas.ViewModels.CanvasTabViewModel",
-        "DemoViewer.NET.Extensions.Sdk.IExtensionContext",
-        "DemoViewer.NET.Extensions.Sdk.IExtensionContext"
+        "DemoViewer.NET.ViewModels.Shell.MainViewModel"
     ];
 
-    // The module registry before the pack, in registration order, then the Rule Canvas pack's one module,
-    // which registers after this pack.
+    // The module registry before the pack, in registration order.
     private const string ModulesBeforeThePack =
         "net.demoviewer.playback2d, net.demoviewer.ruleworkbench, net.demoviewer.highlights, "
         + "net.demoviewer.situations, net.demoviewer.teams, net.demoviewer.review, net.demoviewer.suggested, "
-        + "net.demoviewer.roundtagger, net.demoviewer.stratbook, net.demoviewer.utilitybook, net.demoviewer.dossier, "
-        + "net.demoviewer.rulecanvas";
+        + "net.demoviewer.roundtagger, net.demoviewer.stratbook, net.demoviewer.utilitybook, net.demoviewer.dossier";
 
     // Every id the static catalog used to hold for the Strat Book, with the parent it has now.
     private static readonly (string Id, string Parent)[] _movedIds =
@@ -216,7 +209,7 @@ public class StratBookPackTests
     {
         await WithProvider(null, async provider =>
         {
-            PackContributions pack = provider.GetRequiredService<PackContributionSet>().Packs.Single(p => p.Pack.Id == StratBookPack.PackId);
+            PackContributions pack = provider.GetRequiredService<PackContributionSet>().Packs.Single();
 
             using (Assert.Multiple())
             {
@@ -265,7 +258,7 @@ public class StratBookPackTests
         string? settings = packOn ? null : """{ "Features": { "Overrides": { "pack.stratbook": false } } }""";
         await WithProvider(settings, async provider =>
         {
-            PackContributions pack = provider.GetRequiredService<PackContributionSet>().Packs.Single(p => p.Pack.Id == StratBookPack.PackId);
+            PackContributions pack = provider.GetRequiredService<PackContributionSet>().Packs.Single();
             Modules.Highlights.MergedRulesBuild build =
                 provider.GetRequiredService<Modules.Highlights.MergedRulesBuild>();
             string[] read = [.. build.ReadRules().Rulesets.Select(r => r.Id)];
@@ -358,7 +351,7 @@ public class StratBookPackTests
     {
         await WithProvider(null, async provider =>
         {
-            PackContributions pack = provider.GetRequiredService<PackContributionSet>().Packs.Single(p => p.Pack.Id == StratBookPack.PackId);
+            PackContributions pack = provider.GetRequiredService<PackContributionSet>().Packs.Single();
             FakeHost host = new();
             List<string> declaredIds = [];
 
@@ -558,7 +551,7 @@ public class StratBookPackTests
     {
         await WithProvider(null, async provider =>
         {
-            PackContributions pack = provider.GetRequiredService<PackContributionSet>().Packs.Single(p => p.Pack.Id == StratBookPack.PackId);
+            PackContributions pack = provider.GetRequiredService<PackContributionSet>().Packs.Single();
             MainViewModel vm = provider.GetRequiredService<MainViewModel>();
             ContributedHub host = pack.HubTabs.Single();
             IReadOnlyList<WorkspaceTabDescriptor> rail = vm.StratBookHub().Sections.Sections;
@@ -658,9 +651,8 @@ public class StratBookPackTests
     {
         await HeadlessSession.RunOnUi(async () =>
         {
-            // Two shipped packs: this one and the Rule Canvas.
             await Assert.That(FeatureCatalog.Build(FeaturePacks.Default).Count(d => d.Scope == FeatureScope.Pack))
-                .IsEqualTo(2);
+                .IsEqualTo(1);
             await Assert.That(FeatureCatalog.Build(FeaturePacks.Default).Where(d => d.OwnerPackId is not null)
                 .All(d => !d.Required)).IsTrue();
             await Assert.That(FeatureCatalog.GroupLeader(FeatureCatalog.GroupParserDeepDive)!.Id)

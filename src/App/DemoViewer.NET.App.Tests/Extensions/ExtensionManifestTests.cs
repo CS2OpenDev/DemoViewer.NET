@@ -162,7 +162,7 @@ public class ExtensionManifestTests
     public async Task TheShippedManifest_IsCopiedBesideTheExtensionAssembly()
     {
         // The csproj's None item flows through the project reference, so the test binary's directory holds
-        // the copy a loader would read before loading the assembly. Id-qualified: two shipped packs land here.
+        // the copy a loader would read before loading the assembly. Id-qualified: this project references both extensions.
         string path = Path.Combine(AppContext.BaseDirectory, StratBookPack.PackId + "." + ExtensionManifest.FileName);
         string canvas = Path.Combine(AppContext.BaseDirectory, "net.demoviewer.pack.rulecanvas." + ExtensionManifest.FileName);
         await Assert.That(File.Exists(path)).IsTrue().Because($"{path} should be copied on build");

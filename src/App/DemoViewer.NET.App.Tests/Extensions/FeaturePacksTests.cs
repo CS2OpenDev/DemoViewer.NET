@@ -3,7 +3,6 @@
 using DemoViewer.NET.Extensions;
 using DemoViewer.NET.Extensions.Loading;
 using DemoViewer.NET.Extensions.Manifest;
-using DemoViewer.NET.Extensions.RuleCanvas;
 using DemoViewer.NET.Extensions.StratBook;
 using DemoViewer.NET.Features;
 using Microsoft.Extensions.DependencyInjection;
@@ -103,29 +102,25 @@ public class FeaturePacksTests
         using (Assert.Multiple())
         {
             await Assert.That(FeaturePacks.Default.Select(p => p.FeatureId))
-                .IsEquivalentTo([StratBookPack.PackFeatureId, RuleCanvasPack.PackFeatureId], CollectionOrdering.Matching);
+                .IsEquivalentTo([StratBookPack.PackFeatureId], CollectionOrdering.Matching);
             Assert.Throws<InvalidOperationException>(() => FeaturePacks.Configure([]));
             await Assert.That(FeaturePacks.ConfigureIfUnset([])).IsFalse();
             await Assert.That(FeaturePacks.Default.Select(p => p.FeatureId))
-                .IsEquivalentTo([StratBookPack.PackFeatureId, RuleCanvasPack.PackFeatureId], CollectionOrdering.Matching);
+                .IsEquivalentTo([StratBookPack.PackFeatureId], CollectionOrdering.Matching);
         }
     }
 
     // ── The compatibility check runs at configuration ─────────────────────────────────────
 
     [Test]
-    public async Task TheShippedPacks_AreCompatibleWithThisBuild_SoCompatibleEqualsDefault()
+    public async Task TheShippedPack_IsCompatibleWithThisBuild_SoCompatibleEqualsDefault()
     {
         using (Assert.Multiple())
         {
-            await Assert.That(FeaturePacks.Statuses.Count).IsEqualTo(2);
-            foreach (PackStatus status in FeaturePacks.Statuses)
-            {
-                await Assert.That(status.IsCompatible).IsTrue().Because(status.Problem ?? "compatible");
-            }
-
-            await Assert.That(FeaturePacks.Statuses.Select(s => s.Manifest!.Id))
-                .IsEquivalentTo([StratBookPack.PackId, RuleCanvasPack.PackId], CollectionOrdering.Matching);
+            await Assert.That(FeaturePacks.Statuses.Count).IsEqualTo(1);
+            await Assert.That(FeaturePacks.Statuses[0].IsCompatible).IsTrue()
+                .Because(FeaturePacks.Statuses[0].Problem ?? "compatible");
+            await Assert.That(FeaturePacks.Statuses[0].Manifest!.Id).IsEqualTo(StratBookPack.PackId);
             await Assert.That(FeaturePacks.Compatible)
                 .IsEquivalentTo(FeaturePacks.Default, CollectionOrdering.Matching);
         }
@@ -229,8 +224,8 @@ public class FeaturePacksTests
             await Assert.That(staged.Source.Label).IsEqualTo("installed update");
             await Assert.That(staged.Rejected.Single().UserMessage).IsEqualTo("Update 1.1.0 was not loaded: unsigned");
             await Assert.That(staged.IsCompatible).IsTrue().Because("the source changes nothing about the verdict");
-            await Assert.That(FeaturePacks.Statuses.Select(s => s.Source)).All().Satisfy(src => src.IsEqualTo(PackSource.Bundled))
-                .Because("the test assembly compile-links both packs");
+            await Assert.That(FeaturePacks.Statuses.Single().Source).IsEqualTo(PackSource.Bundled)
+                .Because("the test assembly compile-links the pack");
         }
     }
 
