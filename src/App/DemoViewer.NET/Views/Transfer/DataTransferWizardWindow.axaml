@@ -1,0 +1,15 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:transfer="using:DemoViewer.NET.ViewModels.Transfer"
+        x:Class="DemoViewer.NET.Views.Transfer.DataTransferWizardWindow"
+        x:DataType="transfer:TransferWizardViewModel"
+        Title="{Binding Title}"
+        Width="720" Height="640"
+        MinWidth="560" MinHeight="500"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource ShellBg}">
+
+    <!-- ViewLocator resolves ExportWizardView or ImportWizardView from the view-model's type. -->
+    <ContentControl Content="{Binding}" />
+</Window>

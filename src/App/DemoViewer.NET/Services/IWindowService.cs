@@ -4,11 +4,13 @@ using Avalonia.Controls;
 using DemoViewer.NET.ViewModels.ErrorReport;
 using DemoViewer.NET.ViewModels.Settings;
 using DemoViewer.NET.ViewModels.Setup;
+using DemoViewer.NET.ViewModels.Transfer;
 using DemoViewer.NET.ViewModels.Update;
 using DemoViewer.NET.Views;
 using DemoViewer.NET.Views.ErrorReport;
 using DemoViewer.NET.Views.Settings;
 using DemoViewer.NET.Views.Setup;
+using DemoViewer.NET.Views.Transfer;
 using DemoViewer.NET.Views.Update;
 
 #endregion
@@ -72,6 +74,20 @@ public interface IWindowService
     void ShowThemeEditor(Func<string?, bool, ThemeEditorViewModel> create, string? themeId, bool missingOnly)
     {
     }
+
+    /// <summary>
+    ///     Shows the export wizard: a non-modal owned <see cref="DataTransferWizardWindow" /> on desktop, one at a
+    ///     time, so a second open brings the live one forward instead of starting a second export.
+    ///     <paramref name="create" /> runs only when none is open. No-op by default (WASM has no files).
+    /// </summary>
+    void ShowExportWizard(Func<ExportWizardViewModel> create)
+    {
+    }
+
+    /// <summary>Shows the import wizard; the same rules as <see cref="ShowExportWizard" />.</summary>
+    void ShowImportWizard(Func<ImportWizardViewModel> create)
+    {
+    }
 }
 
 /// <summary>
@@ -92,6 +108,8 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
     private UpdateNoticeWindow? _updateNoticeWindow;
     private WhatsNewWindow? _whatsNewWindow;
     private ThemeEditorWindow? _themeEditorWindow;
+    private DataTransferWizardWindow? _exportWizardWindow;
+    private DataTransferWizardWindow? _importWizardWindow;
 
     /// <summary>Open parse chain inspector.</summary>
     public void OpenParseChainInspector(object dataContext)
@@ -284,6 +302,50 @@ public sealed class DesktopWindowService(Func<Window?> ownerLookup) : IWindowSer
         };
 
         ShowOwned(window);
+    }
+
+    /// <summary>Shows the export wizard, single re-used window; see <see cref="IWindowService.ShowExportWizard" />.</summary>
+    public void ShowExportWizard(Func<ExportWizardViewModel> create)
+    {
+        ArgumentNullException.ThrowIfNull(create);
+        _exportWizardWindow = ShowTransferWizard(_exportWizardWindow, create, () => _exportWizardWindow = null);
+    }
+
+    /// <summary>Shows the import wizard, single re-used window; see <see cref="IWindowService.ShowImportWizard" />.</summary>
+    public void ShowImportWizard(Func<ImportWizardViewModel> create)
+    {
+        ArgumentNullException.ThrowIfNull(create);
+        _importWizardWindow = ShowTransferWizard(_importWizardWindow, create, () => _importWizardWindow = null);
+    }
+
+    // Export and import each get their own window, so one can be open beside the other; a second open of the
+    // same one brings it forward, since it may be mid-run.
+    private DataTransferWizardWindow ShowTransferWizard(DataTransferWizardWindow? live,
+        Func<TransferWizardViewModel> create, Action cleared)
+    {
+        if (live is not null)
+        {
+            live.Activate();
+            return live;
+        }
+
+        TransferWizardViewModel viewModel = create();
+        DataTransferWizardWindow window = new() { DataContext = viewModel };
+
+        void OnCloseRequested(object? sender, EventArgs e)
+        {
+            window.Close();
+        }
+
+        viewModel.CloseRequested += OnCloseRequested;
+        window.Closed += (_, _) =>
+        {
+            viewModel.CloseRequested -= OnCloseRequested;
+            cleared();
+        };
+
+        ShowOwned(window);
+        return window;
     }
 
     /// <summary>

@@ -1,0 +1,250 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="using:System"
+             xmlns:library="using:DemoViewer.NET.ViewModels.Library"
+             xmlns:transfer="using:DemoViewer.NET.ViewModels.Transfer"
+             xmlns:svc="using:DemoViewer.NET.Services.Transfer"
+             x:Class="DemoViewer.NET.Views.Transfer.ExportWizardView"
+             x:DataType="transfer:ExportWizardViewModel"
+             MinWidth="520">
+
+    <DockPanel LastChildFill="True" Background="{DynamicResource PanelBg}">
+
+        <!-- Header: step indicator + progress -->
+        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="24,20,24,10">
+            <TextBlock Classes="col-label" Text="{Binding StepIndicatorText}" />
+            <ProgressBar Minimum="0" Maximum="1" Value="{Binding StepProgress}"
+                         Height="4" Foreground="{DynamicResource AccentInteractive}" />
+        </StackPanel>
+
+        <!-- Footer: Close (ghost, left) · Back · Next / Export (primary) · Cancel during a run -->
+        <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*,Auto,Auto" Margin="24,12,24,20">
+            <Button Grid.Column="0" Classes="ghost" Padding="10,6" Content="Close"
+                    IsVisible="{Binding ShowClose}" Command="{Binding CloseCommand}" />
+            <Button Grid.Column="2" Classes="ghost" Padding="16,6" Content="Back" Margin="0,0,8,0"
+                    IsVisible="{Binding CanGoBack}" Command="{Binding BackCommand}" />
+            <Button Grid.Column="3" Classes="primary" Padding="22,6" Content="Next"
+                    IsVisible="{Binding ShowNext}" IsEnabled="{Binding CanGoNext}"
+                    Command="{Binding NextCommand}" />
+            <Button Grid.Column="3" Classes="primary" Padding="22,6" Content="Export"
+                    IsVisible="{Binding ShowStart}" IsEnabled="{Binding CanStart}"
+                    Command="{Binding StartCommand}" />
+            <Button Grid.Column="3" Classes="ghost" Padding="16,6" Content="Cancel"
+                    IsVisible="{Binding IsProgressStep}" IsEnabled="{Binding IsRunning}"
+                    Command="{Binding CancelRunCommand}"
+                    ToolTip.Tip="Stop the export. Files already copied stay in the folder; the next export into it skips them." />
+        </Grid>
+
+        <!-- Asked when the window is closed mid-run -->
+        <Border DockPanel.Dock="Bottom" Classes="card" Margin="24,0" Padding="12,10"
+                IsVisible="{Binding IsCancelPromptOpen}">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <TextBlock Grid.Column="0" TextWrapping="Wrap" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextValue}"
+                           Text="The export is still running. Cancel it and close?" />
+                <Button Grid.Column="1" Classes="ghost" Padding="12,5" Content="Keep going"
+                        Command="{Binding DismissCancelPromptCommand}" />
+                <Button Grid.Column="2" Classes="primary" Padding="12,5" Content="Cancel and close"
+                        Command="{Binding ConfirmCancelAndCloseCommand}" />
+            </Grid>
+        </Border>
+
+        <TextBlock DockPanel.Dock="Bottom" Margin="24,0" TextWrapping="Wrap" FontSize="12"
+                   Foreground="{DynamicResource AccentError}"
+                   IsVisible="{Binding HasError}" Text="{Binding ErrorText}" />
+
+        <Panel Margin="24,10">
+
+            <!-- Demos -->
+            <DockPanel IsVisible="{Binding IsDemosStep}" LastChildFill="True">
+                <StackPanel DockPanel.Dock="Top" Spacing="10">
+                    <TextBlock Text="Which demos?" FontSize="19" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextValue}" />
+                    <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextMid}"
+                               Text="The export carries each demo's analysis so another machine can open it without analysing it again." />
+                    <RadioButton GroupName="exportScope" Content="All library demos"
+                                 IsChecked="{Binding ExportAll, Mode=TwoWay}" />
+                    <RadioButton GroupName="exportScope" Content="Choose…"
+                                 IsChecked="{Binding ChooseDemos, Mode=TwoWay}" />
+                    <TextBlock FontSize="12" Foreground="{DynamicResource TextDim}"
+                               IsVisible="{Binding !HasLibraryDemos}"
+                               Text="The library has no demos yet." />
+                </StackPanel>
+
+                <DockPanel IsVisible="{Binding ChooseDemos}" LastChildFill="True" Margin="0,10,0,0">
+                    <StackPanel DockPanel.Dock="Top" Spacing="6">
+                        <TextBox Classes="field" PlaceholderText="Search file, map or player…"
+                                 Text="{Binding SearchText, Mode=TwoWay}" FontSize="12" />
+                        <ItemsControl ItemsSource="{Binding MapFilters}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="library:MapFilterItem">
+                                    <ToggleButton Classes="chip" Margin="0,2,6,2" FontSize="11" Padding="8,3"
+                                                  Content="{Binding Display}"
+                                                  IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                    <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,8,0,0">
+                        <TextBlock Grid.Column="0" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMid}" Text="{Binding SelectionSummary}" />
+                        <Button Grid.Column="1" Classes="ghost" Padding="10,4" Content="Select all filtered"
+                                Command="{Binding SelectAllFilteredCommand}" />
+                        <Button Grid.Column="2" Classes="ghost" Padding="10,4" Content="Clear"
+                                Command="{Binding ClearSelectionCommand}" />
+                    </Grid>
+                    <ListBox Classes="data-list" Margin="0,6,0,0" ItemsSource="{Binding FilteredRows}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="transfer:TransferDemoRowViewModel">
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                              AutomationProperties.Name="{Binding DisplayName}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource TextValue}" FontSize="12" />
+                                    <TextBlock Grid.Column="2" Text="{Binding MapDisplay}" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextMid}" FontSize="11" />
+                                    <TextBlock Grid.Column="3" Text="{Binding SizeText}" VerticalAlignment="Center"
+                                               Classes="mono" Foreground="{DynamicResource TextDim}" FontSize="11" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </DockPanel>
+
+            <!-- Options -->
+            <StackPanel IsVisible="{Binding IsOptionsStep}" Spacing="12">
+                <TextBlock Text="What to include" FontSize="19" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextValue}" />
+                <Border Classes="card" Padding="12,10">
+                    <StackPanel Spacing="4">
+                        <CheckBox Content="Include the .dem files" IsChecked="{Binding IncludeDemFiles, Mode=TwoWay}" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" TextWrapping="Wrap"
+                                   Text="{Binding DemFilesSizeText}" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" TextWrapping="Wrap"
+                                   Text="Leave this off when the other machine already has the demos; the data finds them by content." />
+                    </StackPanel>
+                </Border>
+                <Border Classes="card" Padding="12,10">
+                    <StackPanel Spacing="4">
+                        <CheckBox Content="Include annotations and other notes"
+                                  IsChecked="{Binding IncludeUserData, Mode=TwoWay}" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" TextWrapping="Wrap"
+                                   Text="Annotations, graph breakpoints and review-queue entries for the exported demos." />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- Destination -->
+            <StackPanel IsVisible="{Binding IsDestinationStep}" Spacing="12">
+                <TextBlock Text="Where to save it" FontSize="19" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextValue}" />
+                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextMid}"
+                           Text="Pick a folder, for example on a USB drive. The export goes into a new folder inside it. Use exFAT rather than FAT32 for demo files of 4 GB or more." />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <TextBox Grid.Column="0" Classes="field mono" FontSize="12"
+                             PlaceholderText="Folder path"
+                             Text="{Binding DestinationFolder, Mode=TwoWay}" />
+                    <Button Grid.Column="1" Classes="primary" Padding="14,5" Content="Choose folder…"
+                            IsEnabled="{Binding CanPickFolder}"
+                            Command="{Binding BrowseDestinationCommand}" />
+                </Grid>
+                <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" TextWrapping="Wrap"
+                           IsVisible="{Binding BundleFolderPreview, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           Text="{Binding BundleFolderPreview, StringFormat='Creates {0}'}" />
+                <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}"
+                           IsVisible="{Binding IsPlanning}" Text="Checking the folder and sizing the export…" />
+            </StackPanel>
+
+            <!-- Review -->
+            <ScrollViewer IsVisible="{Binding IsReviewStep}">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Review" FontSize="19" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextValue}" />
+                    <Border Classes="card" Padding="12,10">
+                        <StackPanel Spacing="4">
+                            <TextBlock FontSize="14" Foreground="{DynamicResource TextValue}"
+                                       Text="{Binding ReviewHeadline}" TextWrapping="Wrap" />
+                            <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}" TextWrapping="Wrap"
+                                       Text="{Binding ReviewBytesText}" />
+                            <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}"
+                                       IsVisible="{Binding HasMissing}"
+                                       Text="{Binding MissingCount, StringFormat='{}{0} demo files are missing and are left out.'}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card" Padding="12,10" IsVisible="{Binding ShowInFlightWarning}">
+                        <TextBlock FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource AccentCaution}"
+                                   Text="{x:Static transfer:TransferWizardViewModel.InFlightWarningText}" />
+                    </Border>
+
+                    <ItemsControl ItemsSource="{Binding PlanWarnings}" IsVisible="{Binding HasPlanWarnings}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="svc:TransferWarning">
+                                <TextBlock FontSize="12" TextWrapping="Wrap" Margin="0,2"
+                                           Foreground="{DynamicResource AccentCaution}" Text="{Binding Message}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <StackPanel Spacing="4" IsVisible="{Binding HasNotHashed}">
+                        <TextBlock Classes="col-label"
+                                   Text="{Binding NotHashedCount, StringFormat='NOT ANALYSED YET ({0}), NO DATA TO EXPORT'}" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" TextWrapping="Wrap"
+                                   Text="These are left out of the data. Let this machine finish analysing them first, or include the .dem files so the other machine analyses them." />
+                        <ItemsControl ItemsSource="{Binding NotHashedNames}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="sys:String">
+                                    <TextBlock Text="{Binding}" Classes="mono" FontSize="11"
+                                               Foreground="{DynamicResource TextMid}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Progress -->
+            <StackPanel IsVisible="{Binding IsProgressStep}" Spacing="12" VerticalAlignment="Center">
+                <TextBlock Text="Exporting…" FontSize="19" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextValue}" />
+                <ProgressBar Minimum="0" Maximum="1" Value="{Binding ProgressFraction}" Height="8"
+                             Foreground="{DynamicResource AccentInteractive}" />
+                <TextBlock FontSize="12" Foreground="{DynamicResource TextMid}" Text="{Binding ProgressText}" />
+                <TextBlock FontSize="11" Classes="mono" Foreground="{DynamicResource TextDim}"
+                           TextTrimming="CharacterEllipsis" Text="{Binding CurrentDemo}" />
+                <TextBlock FontSize="11" Foreground="{DynamicResource TextDim}" TextWrapping="Wrap"
+                           Text="The export also shows in the processing queue. You can keep using the app." />
+            </StackPanel>
+
+            <!-- Done -->
+            <DockPanel IsVisible="{Binding IsDoneStep}" LastChildFill="True">
+                <StackPanel DockPanel.Dock="Top" Spacing="10">
+                    <TextBlock Text="Done" FontSize="19" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextValue}" />
+                    <TextBlock FontSize="14" Foreground="{DynamicResource TextValue}" TextWrapping="Wrap"
+                               Text="{Binding SummaryHeadline}" />
+                    <Button Classes="primary" Padding="14,5" HorizontalAlignment="Left" Content="Open folder"
+                            IsVisible="{Binding CanOpenFolder}" Command="{Binding OpenFolderCommand}" />
+                </StackPanel>
+                <ScrollViewer Margin="0,10,0,0" IsVisible="{Binding HasSummaryLines}">
+                    <ItemsControl ItemsSource="{Binding SummaryLines}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sys:String">
+                                <TextBlock Text="{Binding}" FontSize="12" TextWrapping="Wrap" Margin="0,2"
+                                           Foreground="{DynamicResource TextMid}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+
+        </Panel>
+    </DockPanel>
+</UserControl>
