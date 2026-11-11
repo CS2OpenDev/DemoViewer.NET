@@ -480,11 +480,11 @@ public class InstalledExtensionTests
             (FakeFeedClient client, FakeFeeds.Entry entry) = Published(root, Built, key);
             IReadOnlyList<InstallableExtension> without = await new ExtensionUpdateService(root, [],
                     ExtensionHost.Current, TrustPolicy.Nothing, client, FeedUrl,
-                    installTrust: new SignedTrustPolicy([publicKey]), shippedIds: [])
+                    installTrust: new SignedTrustPolicy([publicKey]), catalogue: [Id], shippedIds: [])
                 .CheckCatalogueAsync();
             IReadOnlyList<InstallableExtension> with = await new ExtensionUpdateService(root,
                     [FeaturePacks.Statuses.Single(s => s.Pack.Id == Id)], ExtensionHost.Current, TrustPolicy.Nothing,
-                    client, FeedUrl)
+                    client, FeedUrl, catalogue: [Id])
                 .CheckCatalogueAsync();
 
             using (Assert.Multiple())

@@ -8,5 +8,5 @@ namespace DemoViewer.NET.Extensions.Updates;
 public static class FirstPartyCatalog
 {
     /// <summary>Every installable first-party id. A shipped id in this list is listed by nothing, safe mode included: its status row covers it.</summary>
-    public static IReadOnlyList<string> Ids { get; } = ["net.demoviewer.pack.stratbook"];
+    public static IReadOnlyList<string> Ids { get; } = ["net.demoviewer.pack.stratbook", "net.demoviewer.pack.rulecanvas"];
 }
