@@ -441,7 +441,7 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
                 .. s.Rows.Select(row => new ScoutingInspectorRowViewModel(host, row,
                     ScoutingReportStarKeys.Key(context.Scope(chip.Layer, row.Buy), row.KeyText),
                     Where(row.Buy, s.Title)))
-            ]))
+            ], s.Tab))
         ];
         return (reads, sections);
     }

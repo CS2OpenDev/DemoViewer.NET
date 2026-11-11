@@ -153,13 +153,32 @@ public sealed partial class ScoutingInspectorRowViewModel : ObservableObject
 /// <summary>A titled group of inspector rows.</summary>
 /// <param name="title">The heading, or empty.</param>
 /// <param name="rows">The rows.</param>
-public sealed class ScoutingInspectorSectionViewModel(string title, IReadOnlyList<ScoutingInspectorRowViewModel> rows)
+/// <param name="tab">The inspector tab it sits on; empty for every tab.</param>
+public sealed class ScoutingInspectorSectionViewModel(string title, IReadOnlyList<ScoutingInspectorRowViewModel> rows,
+    string tab = "")
 {
     public string Title { get; } = ScoutingNames.Humanise(title);
 
     public bool HasTitle => Title.Length > 0;
 
     public IReadOnlyList<ScoutingInspectorRowViewModel> Rows { get; } = rows;
+
+    /// <summary>The inspector tab it sits on; empty shows it on every tab.</summary>
+    public string Tab { get; } = tab;
+}
+
+/// <summary>One tab of the inspector's tab bar: a name, whether it is open, and the command that opens it.</summary>
+/// <param name="name">The tab's name.</param>
+/// <param name="select">Opens a tab by name.</param>
+public sealed partial class ScoutingInspectorTabViewModel(string name, Action<string> select) : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isSelected;
+
+    public string Name { get; } = name;
+
+    [RelayCommand]
+    private void Select() => select(Name);
 }
 
 /// <summary>
@@ -191,6 +210,19 @@ public sealed partial class ScoutingInspectorViewModel : ObservableObject
     public ObservableCollection<ScoutingInspectorRowViewModel> Reads { get; } = [];
 
     public ObservableCollection<ScoutingInspectorSectionViewModel> Sections { get; } = [];
+
+    /// <summary>
+    ///     The tabs the focused layer's sections name, in first-appearance order; empty when it names none (or one).
+    ///     The open tab is kept across rebuilds while the layer still has it.
+    /// </summary>
+    public ObservableCollection<ScoutingInspectorTabViewModel> Tabs { get; } = [];
+
+    /// <summary>The sections on the open tab, with the untabbed ones; every section when there are no tabs.</summary>
+    public ObservableCollection<ScoutingInspectorSectionViewModel> TabSections { get; } = [];
+
+    public bool HasTabs => Tabs.Count > 0;
+
+    private string _openTab = "";
 
     /// <summary>The focused layer's window pills (the AWP trail); empty for every other layer.</summary>
     public ObservableCollection<ScoutingWindowPillViewModel> Windows { get; } = [];
@@ -246,6 +278,37 @@ public sealed partial class ScoutingInspectorViewModel : ObservableObject
         foreach (ScoutingInspectorSectionViewModel section in sections)
         {
             Sections.Add(section);
+        }
+
+        List<string> names = [.. Sections.Select(s => s.Tab).Where(t => t.Length > 0).Distinct(StringComparer.Ordinal)];
+        Tabs.Clear();
+        if (names.Count > 1)
+        {
+            foreach (string name in names)
+            {
+                Tabs.Add(new ScoutingInspectorTabViewModel(name, OpenTab));
+            }
+        }
+
+        OnPropertyChanged(nameof(HasTabs));
+        OpenTab(names.Contains(_openTab, StringComparer.Ordinal) ? _openTab : names.FirstOrDefault() ?? "");
+    }
+
+    /// <summary>Opens a tab: its sections and the untabbed ones show.</summary>
+    /// <param name="name">The tab.</param>
+    public void OpenTab(string name)
+    {
+        _openTab = name;
+        foreach (ScoutingInspectorTabViewModel tab in Tabs)
+        {
+            tab.IsSelected = string.Equals(tab.Name, name, StringComparison.Ordinal);
+        }
+
+        TabSections.Clear();
+        foreach (ScoutingInspectorSectionViewModel section in Sections.Where(s =>
+                     Tabs.Count == 0 || s.Tab.Length == 0 || string.Equals(s.Tab, name, StringComparison.Ordinal)))
+        {
+            TabSections.Add(section);
         }
     }
 }
