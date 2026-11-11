@@ -253,7 +253,7 @@ public class SituationalBehaviourTests
         using (Assert.Multiple())
         {
             await Assert.That(vm.Layers.StripMinis.Select(m => m.Id))
-                .IsEquivalentTo(["econ", "rotations", "impact", "score", "timeouts"], CollectionOrdering.Matching);
+                .IsEquivalentTo(["econ", "impact", "score", "timeouts"], CollectionOrdering.Matching);
             await Assert.That(vm.Layers.Find("rotations")!.Status.State).IsEqualTo(ScoutingLayerState.Empty);
             await Assert.That(vm.Layers.Inspector.StatusMessage).Contains("in the desktop app");
         }

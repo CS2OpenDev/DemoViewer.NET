@@ -140,8 +140,11 @@ public sealed partial class ScoutingLayerRegistry : ObservableObject, IScoutingR
         }
 
         Replace(MapChips, offered.Where(c => c.IsMap));
-        Replace(StripMinis, ((string[])["econ", side == ScoutingSide.T ? "pace" : "rotations", "impact", "score", "timeouts"])
-            .Select(Find).OfType<ScoutingLayerChipViewModel>());
+        // Rotations is a map layer (its trails draw on the stage), so the CT strip has no fifth mini.
+        string[] strip = side == ScoutingSide.T
+            ? ["econ", "pace", "impact", "score", "timeouts"]
+            : ["econ", "impact", "score", "timeouts"];
+        Replace(StripMinis, strip.Select(Find).OfType<ScoutingLayerChipViewModel>());
         if (Focused is null || !Focused.Layer.AppliesTo(side) || (Focused.IsMap && !Focused.IsOn))
         {
             SetFocus(DefaultFocus());

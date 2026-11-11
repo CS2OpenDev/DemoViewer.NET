@@ -164,8 +164,18 @@ public class ScoutingHybridTests
                                      && overMap.Children.OfType<ScoutingMapHost>().Any()
                                      && !inspector.GetVisualDescendants().OfType<RadioButton>().Any(r => r.Classes.Contains("pill"));
                 UxConsistencyRenderTests.Save(window, $"hybrid-awp-controls-{theme}-{Width}.png");
+
+                // Rotations draw on the map: each real rotation as its own trail.
+                ScoutingLayerChipViewModel rotationsChip = vm.Layers.Find("rotations")!;
+                rotationsChip.IsOn = true;
+                vm.Layers.Focus(rotationsChip);
+                await ScoutingReportTestKit.Settle(vm, posted);
+                UxConsistencyRenderTests.Settle();
+                UxConsistencyRenderTests.Save(window, $"hybrid-rotations-{theme}-{Width}.png");
+                bool rotationsOnMap = rotationsChip.IsMap && vm.Layers.MapChips.Contains(rotationsChip)
+                                      && !vm.Layers.StripMinis.Contains(rotationsChip);
                 window.Close();
-                return new { sameRow, rosterLeft, halves, above, oneMapPanel, layersOnFilterRow, noScopeLabel, noTimeline, historyRows, demos = vm.MatchHistory.Count, poolHidden, onePagerOutOfInspector, onePagerOpens, onePagerCloses, controlsOnMap, tabNames, shapeOnly };
+                return new { sameRow, rosterLeft, halves, above, oneMapPanel, layersOnFilterRow, noScopeLabel, noTimeline, historyRows, demos = vm.MatchHistory.Count, poolHidden, onePagerOutOfInspector, onePagerOpens, onePagerCloses, controlsOnMap, tabNames, shapeOnly, rotationsOnMap };
             }
             finally
             {
@@ -197,6 +207,7 @@ public class ScoutingHybridTests
             await Assert.That(seen.tabNames).IsEquivalentTo(["Players", "Shape", "By buy"], CollectionOrdering.Matching)
                 .Because("the Setups inspector is split into tabs");
             await Assert.That(seen.shapeOnly).IsTrue().Because("a tab shows only its own sections");
+            await Assert.That(seen.rotationsOnMap).IsTrue().Because("rotations is a map layer, not a strip mini");
         }
     }
 

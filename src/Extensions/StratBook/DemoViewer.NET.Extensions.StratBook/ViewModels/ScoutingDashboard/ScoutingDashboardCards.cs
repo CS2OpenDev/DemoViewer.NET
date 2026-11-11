@@ -11,15 +11,11 @@ namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingDashboard;
 ///     over two cards (Economy into the pistol card and the economy card, Pace into round pace and time to contact,
 ///     Setups into the setups and the site distribution, Retakes into retake-vs-save and by site), the split is by
 ///     the layer's own section titles, so a card shows exactly the rows the Layers tab's inspector shows for them.
-///     Where two layers repeat a section (Setups and Rotations both list rotations, By score and Timeouts both list
-///     timeouts), the card that holds both keeps one.
 /// </summary>
 public static class ScoutingDashboardCards
 {
     private const string AreasSection = "CTs per area · A · mid · B";
-    private const string RotationsSection = "Rotations";
     private const string ContactSection = "Time to first contact, by buy";
-    private const string ScoreTimeoutsSection = "Timeouts by the score";
     private static readonly string[] _bySiteSections = ["By site", "Retake grouping"];
 
     private static bool IsPistol(string section) => section.StartsWith("Pistol", StringComparison.Ordinal);
@@ -39,7 +35,7 @@ public static class ScoutingDashboardCards
     public static IReadOnlyList<ScoutingDashboardCardViewModel> Ct() =>
     [
         new("ct.setups", (_, _) => "Starting setups",
-            [new ScoutingDashboardPart("setups", s => s is not (AreasSection or RotationsSection), r => r.StarText != "rotations")],
+            [new ScoutingDashboardPart("setups", s => s != AreasSection)],
             "setups"),
         new("ct.retakes", (_, _) => "Retake vs save",
             [new ScoutingDashboardPart("retakes", s => !_bySiteSections.Contains(s))], "retakes"),
@@ -49,9 +45,11 @@ public static class ScoutingDashboardCards
         Card("ct.sites", "Plant and retake by site",
             new ScoutingDashboardPart("retakes", _bySiteSections.Contains, ScoutingDashboardPart.NoReads)),
         Card("ct.against", "Strats run against them", new ScoutingDashboardPart("against")),
-        Card("ct.rotations", "Site distribution and rotations",
-            new ScoutingDashboardPart("setups", s => s == AreasSection, r => r.StarText == "rotations"),
-            new ScoutingDashboardPart("rotations")),
+        new("ct.rotations", (_, _) => "Site distribution and rotations",
+            [
+                new ScoutingDashboardPart("rotations"),
+                new ScoutingDashboardPart("setups", s => s == AreasSection, ScoutingDashboardPart.NoReads)
+            ], "rotations"),
         Card("ct.util", "CT utility", new ScoutingDashboardPart("util"))
     ];
 
@@ -82,7 +80,7 @@ public static class ScoutingDashboardCards
         new("econ", (_, map) => map.Length == 0 ? "Economy" : $"Economy · {map}",
             [new ScoutingDashboardPart("econ", s => !IsPistol(s), r => !IsPistolRead(r))], isWide: true),
         Card("impact", "Opening impact", new ScoutingDashboardPart("impact")),
-        Card("score", "By score · tactical timeouts",
-            new ScoutingDashboardPart("score", s => s != ScoreTimeoutsSection), new ScoutingDashboardPart("timeouts"))
+        Card("score", "By score", new ScoutingDashboardPart("score")),
+        Card("timeouts", "Tactical timeouts", new ScoutingDashboardPart("timeouts"))
     ];
 }
