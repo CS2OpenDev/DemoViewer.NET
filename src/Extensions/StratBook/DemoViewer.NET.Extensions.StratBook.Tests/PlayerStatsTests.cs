@@ -606,7 +606,13 @@ public class PlayerStatsRenderTests
                          .Where(t => t.IsEffectivelyVisible && t.TextWrapping == Avalonia.Media.TextWrapping.NoWrap
                                                             && !string.IsNullOrEmpty(t.Text)))
             {
-                TextBlock probe = new() { Text = text.Text, FontSize = text.FontSize, FontWeight = text.FontWeight };
+                // The probe measures in the text's own font: the platform default differs (wider on Linux).
+                TextBlock probe = new()
+                {
+                    Text = text.Text, FontFamily = text.FontFamily, FontSize = text.FontSize,
+                    FontWeight = text.FontWeight, FontStyle = text.FontStyle, FontStretch = text.FontStretch,
+                    LetterSpacing = text.LetterSpacing
+                };
                 probe.Measure(Size.Infinity);
                 if (probe.DesiredSize.Width > text.Bounds.Width + 1)
                 {
