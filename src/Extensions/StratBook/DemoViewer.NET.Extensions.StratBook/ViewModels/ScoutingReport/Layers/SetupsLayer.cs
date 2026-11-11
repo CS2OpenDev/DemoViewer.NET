@@ -1,6 +1,5 @@
 #region
 
-using System.Runtime.CompilerServices;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams;
 using DemoViewer.NET.Extensions.StratBook.Services.Teams.ScoutingReport;
 using DemoViewer.NET.Playback2D.Overlay;
@@ -10,23 +9,35 @@ using DemoViewer.NET.Playback2D.Overlay;
 namespace DemoViewer.NET.Extensions.StratBook.ViewModels.ScoutingReport.Layers;
 
 /// <summary>
-///     Setups (CT): where each player stands in the setup window, per buy, and how the team rotates.
+///     Setups (CT): where each player stands in the setup window and how the team spreads over the sites.
 ///     <list type="bullet">
-///         <item>The marks: one dot per player per round at their mean setup position, and a ringed dot on each
-///         player's most-held spot, in the player's colour from the players table (grey for anyone off the current
-///         roster). <see cref="Isolated" /> fades every other player.</item>
-///         <item>The inspector: one read per buy, the places each player held ("41 of 50"), the CTs per area
-///         (A · mid · B) with their win %, and the rotations: how soon the first CT from elsewhere reaches the
-///         site the bomb went down on after T contact, and how often before the plant. Every number opens its
-///         rounds.</item>
+///         <item>The marks: one dot per player per round at their held spot, and a ringed dot on each player's
+///         most-held spot, in the player's colour from the players table (grey for anyone off the current roster).
+///         <see cref="Isolated" /> fades every other player.</item>
+///         <item>The read: the buy in view's, or with every buy the most sampled buy's, saying so.</item>
+///         <item>The inspector, in three tabs. Players: the places each player held ("41 of 50"). Shape: the CTs per
+///         area (A · mid · B) with their win %. Both follow the buy filter. By buy: one row per buy with its rounds
+///         and its top two held places, whatever the filter. Every number opens its rounds.</item>
 ///     </list>
-///     The heatmap's picture is still what the export carries beside each buy's read.
+///     Rotations are the Rotations layer's. The heatmap's picture is what the export carries beside the read.
 /// </summary>
 public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", ScoutingLayerPlacement.Map,
     ScoutingSides.Ct, new ScoutingSwatch(ScoutingMarkShape.Dot, ScoutingColor.Player1), "E/D")
 {
     /// <summary>A faded player's dots keep this share of their opacity while another is isolated.</summary>
     public const float IsolatedFade = 0.1f;
+
+    /// <summary>The inspector tab with each player's places.</summary>
+    public const string PlayersTab = "Players";
+
+    /// <summary>The inspector tab with the CTs per area.</summary>
+    public const string ShapeTab = "Shape";
+
+    /// <summary>The inspector tab with one row per buy.</summary>
+    public const string ByBuyTab = "By buy";
+
+    /// <summary>The CTs per area section's title; the Dashboard's cards match on it.</summary>
+    public const string FormationsTitle = "CTs per area · A · mid · B";
 
     /// <summary>The buys the filter offers, in the fact vocabulary.</summary>
     private static readonly Dictionary<ScoutingBuy, BuyType> _buys = new()
@@ -53,7 +64,7 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
     public override bool UsesBuy => true;
 
     /// <inheritdoc />
-    public override string TitleFor(ScoutingSide side) => "Setups and rotations";
+    public override string TitleFor(ScoutingSide side) => "Setups";
 
     /// <inheritdoc />
     public override bool OnByDefault(ScoutingSide side) => side == ScoutingSide.Ct;
@@ -97,56 +108,30 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
             ? "all buys"
             : ScoutingReportLines.BuyLabelFor(_buys[context.Buy]);
 
-        List<ScoutingRead> reads = [];
-        List<ScoutingInspectorRow> samples = [];
-        SetupHeatmap largest = heatmaps.MaxBy(h => h.SampledRounds)!;
-        foreach (SetupHeatmap heatmap in heatmaps)
-        {
-            ScoutingBuy? buy = BuyOf(heatmap.Buy);
-            string buyLabel = ScoutingReportLines.BuyLabelFor(heatmap.Buy);
-            SetupHeatmap captured = heatmap;
-            (string text, bool any) = ReadFor(heatmap, buyLabel, names);
-            reads.Add(new ScoutingRead(text, Suggested: ReferenceEquals(heatmap, largest) && any, Buy: buy,
-                Image: () => Render(context.Data.Sources, captured)));
-            samples.Add(new ScoutingInspectorRow
-            {
-                Label = $"{buyLabel} rounds",
-                Value = $"{Plural(heatmap.Rounds.Count, "round")} · {heatmap.SampledRounds} sampled",
-                StarText = "rounds",
-                Buy = buy,
-                Rounds = Open(heatmap.Rounds),
-                OpenTitle = $"{heatmap.Map} · {buyLabel}"
-            });
-        }
-
-        List<ScoutingInspectorSection> sections = [new("", samples)];
-        sections.Add(new ScoutingInspectorSection($"Places held in the setup window · {scopeBuy}",
-            places.Count > 0
-                ? [.. places.Select(p => PlaceRow(context, p, colors, names))]
-                : [.. FixedPlaceRows(heatmaps)]));
+        List<ScoutingInspectorSection> sections =
+        [
+            new($"Places held in the setup window · {scopeBuy}",
+                places.Count > 0
+                    ? [.. places.Select(p => PlaceRow(context, p, colors, names))]
+                    : [.. FixedPlaceRows(heatmaps)], PlayersTab)
+        ];
 
         IReadOnlyList<SetupFormation> formations = SetupsDerivation.Formations(rounds, areas);
-        if (formations.Count > 0)
-        {
-            int of = formations.Sum(f => f.Rounds.Count);
-            sections.Add(new ScoutingInspectorSection("CTs per area · A · mid · B",
-                [.. formations.Take(6).Select(f => FormationRow(context, f, of, areas.HasSites || areas.HasRegions))]));
-        }
+        int of = formations.Sum(f => f.Rounds.Count);
+        sections.Add(new ScoutingInspectorSection(FormationsTitle, formations.Count > 0
+            ? [.. formations.Take(6).Select(f => FormationRow(context, f, of, areas.HasSites || areas.HasRegions))]
+            : [new ScoutingInspectorRow { Label = "No decided round with CT positions", Note = $"{scopeBuy} on {context.Map}" }],
+            ShapeTab));
 
-        IReadOnlyList<SetupRotation> rotations = SetupsDerivation.Rotations(rounds, areas);
-        (List<ScoutingInspectorRow> rotationRows, string? rotationRead) = RotationRows(context, rotations);
-        rotationRows.Add(await FakeRow(context, set, rounds, areas, cancellationToken).ConfigureAwait(false));
-        sections.Add(new ScoutingInspectorSection("Rotations", rotationRows));
-        if (rotationRead is not null)
-        {
-            reads.Add(new ScoutingRead(rotationRead, "rotations"));
-        }
+        sections.Add(new ScoutingInspectorSection("Rounds by buy",
+            [.. onMap.Select(h => BuyRow(h, names, context.Buy != ScoutingBuy.All && h.Buy == _buys[context.Buy]))],
+            ByBuyTab));
 
         return new ScoutingLayerResult
         {
             CountLabel = $"{rounds.Count} rds",
             Marks = Marks(rounds, places, colors, Isolated),
-            Reads = reads,
+            Reads = [ReadFor(context, heatmaps, names)],
             Sections = sections,
             Legend =
             [
@@ -222,26 +207,84 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
     private static IReadOnlyDictionary<string, ScoutingColor> ColorsFor(ScoutingLayerContext context) =>
         ScoutingPlayerColors.Lookup(context.Data.Sources.Teams, context.TeamId);
 
-    // "Full buy CT: Alice holds B site in 47 of 50 rounds; Bob holds Window in 41 of 50."
-    private static (string Text, bool Any) ReadFor(SetupHeatmap heatmap, string buyLabel,
+    // The read for the scope in view: one buy's, filed under that buy. With one buy filtered, that buy. With every
+    // buy, the buy with the most sampled rounds, its lead saying so when there is more than one buy: a setup is a
+    // per-buy habit, and a read over every buy at once mixes eco stacks into the full-buy shape.
+    private static ScoutingRead ReadFor(ScoutingLayerContext context, List<SetupHeatmap> heatmaps,
         IReadOnlyDictionary<string, string> names)
     {
-        string lead = $"{Capital(buyLabel)} CT";
-        List<SetupPlayerPlace> top =
-            [.. SetupsDerivation.PlacesByPlayer(heatmap.Rounds).Where(p => p.IsMain).OrderByDescending(p => p.Rounds.Count).Take(2)];
-        if (top.Count > 0)
+        ScoutingReportSources sources = context.Data.Sources;
+        SetupHeatmap heatmap = heatmaps.MaxBy(h => h.SampledRounds)!;
+        string lead = $"{Capital(ScoutingReportLines.BuyLabelFor(heatmap.Buy))} CT"
+                      + (context.Buy == ScoutingBuy.All && heatmaps.Count > 1 ? ", the most sampled buy" : "");
+        (string text, bool any) = ReadFor(heatmap, lead, names);
+        return new ScoutingRead(text, Suggested: any, Buy: BuyOf(heatmap.Buy),
+            Image: () => Render(sources, heatmap));
+    }
+
+    // "Full buy CT: Alice holds B site in 47 of 50 rounds; Bob holds Window in 41 of 50."
+    private static (string Text, bool Any) ReadFor(SetupHeatmap heatmap, string lead,
+        IReadOnlyDictionary<string, string> names)
+    {
+        if (TopText(SetupsDerivation.PlacesByPlayer(heatmap.Rounds), names) is { } top)
         {
-            string first =
-                $"{ScoutingPlayerColors.NameOf(names, top[0].Key, top[0].Name)} holds {SetupsDerivation.PlaceLabel(top[0].Place)} in {top[0].Rounds.Count} of {Plural(top[0].Of, "round")}";
-            return (top.Count == 1
-                ? $"{lead}: {first}."
-                : $"{lead}: {first}; {ScoutingPlayerColors.NameOf(names, top[1].Key, top[1].Name)} holds {SetupsDerivation.PlaceLabel(top[1].Place)} in {top[1].Rounds.Count} of {top[1].Of}.", true);
+            return ($"{lead}: {top}.", true);
         }
 
         string[] fixedPlaces = [.. heatmap.Positions.Where(p => p.IsFixed).Select(p => p.Place)];
         return fixedPlaces.Length == 0
             ? ($"{lead}: no place is held in most of {Plural(heatmap.SampledRounds, "sampled round")}.", false)
             : ($"{lead}: {string.Join(", ", fixedPlaces)} held in the setup window over {Plural(heatmap.SampledRounds, "sampled round")}.", true);
+    }
+
+    // "Alice holds B site in 47 of 50 rounds; Bob holds Window in 41 of 50": the two players who held their main
+    // place in the most rounds. Null when no player has a main place.
+    private static string? TopText(IReadOnlyList<SetupPlayerPlace> places, IReadOnlyDictionary<string, string> names)
+    {
+        List<SetupPlayerPlace> top = [.. TopPlaces(places)];
+        if (top.Count == 0)
+        {
+            return null;
+        }
+
+        string first =
+            $"{ScoutingPlayerColors.NameOf(names, top[0].Key, top[0].Name)} holds {SetupsDerivation.PlaceLabel(top[0].Place)} in {top[0].Rounds.Count} of {Plural(top[0].Of, "round")}";
+        return top.Count == 1
+            ? first
+            : $"{first}; {ScoutingPlayerColors.NameOf(names, top[1].Key, top[1].Name)} holds {SetupsDerivation.PlaceLabel(top[1].Place)} in {top[1].Rounds.Count} of {top[1].Of}";
+    }
+
+    private static IEnumerable<SetupPlayerPlace> TopPlaces(IReadOnlyList<SetupPlayerPlace> places) =>
+        places.Where(p => p.IsMain).OrderByDescending(p => p.Rounds.Count).Take(2);
+
+    // One buy's row on the By buy tab: its rounds, the sampled ones, and its top two held places. The buy in view
+    // carries a CT swatch and leads its note with "in view".
+    private static ScoutingInspectorRow BuyRow(SetupHeatmap heatmap, IReadOnlyDictionary<string, string> names,
+        bool inView)
+    {
+        string buyLabel = ScoutingReportLines.BuyLabelFor(heatmap.Buy);
+        List<string> top =
+        [
+            .. TopPlaces(SetupsDerivation.PlacesByPlayer(heatmap.Rounds)).Select(p =>
+                $"{ScoutingPlayerColors.NameOf(names, p.Key, p.Name)} {SetupsDerivation.PlaceLabel(p.Place)}")
+        ];
+        if (top.Count == 0)
+        {
+            top = [.. heatmap.Positions.Where(p => p.IsFixed).Take(2).Select(p => SetupsDerivation.PlaceLabel(p.Place))];
+        }
+
+        string setup = top.Count > 0 ? string.Join(" · ", top) : "no place held in most rounds";
+        return new ScoutingInspectorRow
+        {
+            Label = Capital(buyLabel),
+            Value = $"{Plural(heatmap.Rounds.Count, "round")} · {heatmap.SampledRounds} sampled",
+            StarText = "rounds",
+            Buy = BuyOf(heatmap.Buy),
+            Note = inView ? $"in view · {setup}" : setup,
+            Swatch = inView ? ScoutingColor.Ct : null,
+            Rounds = Open(heatmap.Rounds),
+            OpenTitle = $"{heatmap.Map} · {buyLabel}"
+        };
     }
 
     private static ScoutingInspectorRow PlaceRow(ScoutingLayerContext context, SetupPlayerPlace place,
@@ -288,165 +331,6 @@ public sealed class SetupsLayer() : ScoutingLayerBase("setups", "Setups", Scouti
         Rounds = Open(formation.Rounds),
         OpenTitle = $"{context.Prefix} · {formation.Label}"
     };
-
-    private static (List<ScoutingInspectorRow> Rows, string? Read) RotationRows(ScoutingLayerContext context,
-        IReadOnlyList<SetupRotation> rotations)
-    {
-        List<ScoutingInspectorRow> rows = [];
-        string? read = null;
-        List<SetupRotation> arrived = [.. rotations.Where(r => r.ArrivalSeconds is not null)];
-        if (rotations.Count == 0)
-        {
-            rows.Add(new ScoutingInspectorRow
-            {
-                Label = "First rotator reaches the hit site",
-                Note = "no planted round with T contact and a CT set up off the site"
-            });
-        }
-        else
-        {
-            double? median = SetupsDerivation.Median(arrived.Select(r => r.ArrivalSeconds!.Value));
-            rows.Add(new ScoutingInspectorRow
-            {
-                Label = "First rotator reaches the hit site",
-                Value = median is { } m ? $"median {Seconds(m)}" : "never reached",
-                StarText = "first rotator",
-                Note = $"after T contact · reached in {arrived.Count} of {Plural(rotations.Count, "planted round")}",
-                Rounds = Open(arrived.Select(r => r.Round)),
-                OpenTitle = $"{context.Prefix} · first rotator reaches the hit site"
-            });
-            foreach (BombSite site in (BombSite[])[BombSite.A, BombSite.B])
-            {
-                List<SetupRotation> here = [.. arrived.Where(r => r.Site == site)];
-                if (SetupsDerivation.Median(here.Select(r => r.ArrivalSeconds!.Value)) is { } siteMedian)
-                {
-                    rows.Add(new ScoutingInspectorRow
-                    {
-                        Label = $"{site} hits",
-                        Value = $"median {Seconds(siteMedian)}",
-                        StarText = $"first rotator {site}",
-                        Note = $"{Plural(here.Count, "round")}",
-                        Rounds = Open(here.Select(r => r.Round)),
-                        OpenTitle = $"{context.Prefix} · first rotator on {site}"
-                    });
-                }
-            }
-
-            List<SetupRotation> before = [.. rotations.Where(r => r.BeforePlant)];
-            rows.Add(new ScoutingInspectorRow
-            {
-                Label = "Rotated before the plant",
-                Value = CountText(before.Count, rotations.Count),
-                StarText = "rotated before the plant",
-                Note = Percent((double)before.Count / rotations.Count),
-                BarPercent = 100.0 * before.Count / rotations.Count,
-                Swatch = ScoutingColor.Ct,
-                Rounds = Open(before.Select(r => r.Round)),
-                OpenTitle = $"{context.Prefix} · rotated before the plant"
-            });
-            if (median is { } readMedian)
-            {
-                read =
-                    $"The first rotator reaches the hit site a median {Seconds(readMedian)} after T contact; on the site before the plant in {before.Count} of {Plural(rotations.Count, "planted round")}.";
-            }
-        }
-
-        return (rows, read);
-    }
-
-    private const string FakeLabel = "Rotated off a site on a fake";
-
-    // "Rotated off a site on a fake": the fake rounds Suggested Tags proposed, read once per team load off the UI
-    // thread, and how often a CT set up on the real site left it before the plant.
-    private static async Task<ScoutingInspectorRow> FakeRow(ScoutingLayerContext context, SetupHeatmapSet set,
-        IReadOnlyList<SetupHeatmapRound> rounds, SetupAreaClassifier areas, CancellationToken cancellationToken)
-    {
-        if (context.Data.Sources.Fakes is null)
-        {
-            return new ScoutingInspectorRow
-            {
-                Label = FakeLabel,
-                IsPlaceholder = true,
-                Note = "needs Suggested Tags' fake rounds, which this host does not build"
-            };
-        }
-
-        FakeIndex index = await _fakes.GetValue(context.Data, d => ScoutingLayerContext.Offload(() => FakeIndex.Load(d, set)))
-            .WaitAsync(cancellationToken).ConfigureAwait(false);
-        IReadOnlyList<FakeRotation> fakes = SetupsDerivation.FakeRotations(rounds, areas,
-            r => index.Rounds.GetValueOrDefault((r.DemoPath, r.RoundNumber)));
-        string coverage = $"fakes from Suggested Tags, current for {index.Read} of {Plural(index.Demos, "demo")}";
-        if (fakes.Count == 0)
-        {
-            return new ScoutingInspectorRow
-            {
-                Label = FakeLabel,
-                StarText = "rotated off a site on a fake",
-                Note = index.Read == 0
-                    ? "no current Suggested Tags suggestions for these demos; run Suggested Tags to find the fakes"
-                    : $"no fake round planted on the real site with a CT set up there · {coverage}"
-            };
-        }
-
-        List<FakeRotation> off = [.. fakes.Where(f => f.RotatedOff)];
-        return new ScoutingInspectorRow
-        {
-            Label = FakeLabel,
-            Value = CountText(off.Count, fakes.Count),
-            StarText = "rotated off a site on a fake",
-            Note = $"a CT set up on the real site left it before the plant · {coverage}",
-            BarPercent = 100.0 * off.Count / fakes.Count,
-            Swatch = ScoutingColor.Ct,
-            Rounds = Open(off.Select(f => f.Round)),
-            OpenTitle = $"{context.Prefix} · rotated off a site on a fake"
-        };
-    }
-
-    // One read of the team's fake rounds per load: every CT demo of the heatmaps, once.
-    private static readonly ConditionalWeakTable<ScoutingReportData, Task<FakeIndex>> _fakes = [];
-
-    private sealed record FakeIndex(IReadOnlyDictionary<(string Path, int Round), FakeRound> Rounds, int Read, int Demos)
-    {
-        public static FakeIndex Load(ScoutingReportData data, SetupHeatmapSet set)
-        {
-            Dictionary<(string, int), FakeRound> rounds = [];
-            int read = 0;
-            List<(string Path, string Map)> demos =
-            [
-                .. set.Heatmaps.SelectMany(h => h.Rounds.Select(r => (r.DemoPath, h.Map)))
-                    .Distinct()
-            ];
-            foreach ((string path, string map) in demos)
-            {
-                IReadOnlyList<FakeRound>? fakes;
-                try
-                {
-                    fakes = data.Sources.Fakes!(path, map);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
-                                               or InvalidOperationException)
-                {
-                    fakes = null;
-                }
-
-                if (fakes is null)
-                {
-                    continue;
-                }
-
-                read++;
-                foreach (FakeRound fake in fakes)
-                {
-                    rounds.TryAdd((path, fake.Round), fake);
-                }
-            }
-
-            return new FakeIndex(rounds, read, demos.Count);
-        }
-    }
-
-    private static string Seconds(double seconds) =>
-        $"{Math.Round(seconds, MidpointRounding.AwayFromZero).ToString(System.Globalization.CultureInfo.InvariantCulture)}s";
 
     private static IReadOnlyList<TendencyRound> Open(IEnumerable<SetupHeatmapRound> rounds) =>
     [
